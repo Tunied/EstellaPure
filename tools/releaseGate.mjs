@@ -297,11 +297,10 @@ export const CRITERIA = [
   },
   {
     id: 'site-shows-the-real-game',
-    says: 'the README and landing hero are frames of the game that ships, not a mock-up',
-    // A machine can compare two images; deciding that one of them is honest
-    // marketing is not a thing to compute. Whether the frame is sound is the
-    // flagship's parity run; whether it is the frame on the site is a person's.
-    manual: 'release captain, over the release-site-frame artifact and docs/landing: verify hero-provenance.json identifies this source commit and the frame matches the exported examples/celestial-heights game',
+    says: 'the README and landing showcase use real editor or game captures with accurate captions',
+    // Keep release acceptance captures separate from the curated site showcase.
+    // A historical editor preview must not be labelled as a current release capture.
+    manual: 'release captain: verify the landing showcase caption describes the displayed editor or game capture; separately verify hero-provenance.json in release-site-frame identifies this source commit and its frame matches the exported examples/celestial-heights game',
   },
   {
     id: 'diagnostics-from-a-release-build',
