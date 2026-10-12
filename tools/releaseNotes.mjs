@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(build): link context tests with WebGL 2 symbols':
+    { internal: 'The context regression harness pulls in the WebGL overload even with a mock backend; its normal and sanitizer links require the same WebGL 2 symbols as the engine. Shipping engine behavior is unchanged.' },
   'fix(animation): preserve elapsed phase and coalesce crossed events':
     { note: 'Sprite playback catches up without replaying a time backlog.' },
   'fix(animation): preserve listener snapshots and callback ownership':
