@@ -121,7 +121,8 @@ describe('finished-latch flag contract (system side)', () => {
             get: (_e: number, c: { _name: string }) => comps.get(c._name),
             tryGet: (_e: number, c: { _name: string }) => comps.get(c._name) ?? null,
             has: (_e: number, c: { _name: string }) => comps.has(c._name),
-            insert: (_e: number, c: { _name: string }, data: unknown) => void comps.set(c._name, data),
+            insert: (_e: number, c: { _name: string }, data: unknown) => { comps.set(c._name, data); return data; },
+            set: (_e: number, c: { _name: string }, data: unknown) => void comps.set(c._name, data),
         } as unknown as World;
     }
 

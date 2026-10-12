@@ -67,6 +67,12 @@ const jump = defineSystem([Query(Mut(SpriteAnimator)), Res(SpriteAnimation)], (q
 
 ### 帧事件
 
+一次更新跨过的事件按播放顺序触发，包括循环边界。较长的时间步会直接跳过完整循环，
+每个声明事件在一次更新中最多通知一次，避免积压的声音或攻击事件突然集中补发。
+时间没有推进时，不会重复触发初始帧事件。
+`gotoFrame(animator, index, false)` 和 `gotoLabel(animator, label, false)` 会在下一次动画更新时
+显示选中的帧，保持停止，不推进时间也不触发事件。
+
 片段携带**帧事件**(`SpriteAnimEvent`——`{ frame, name, data? }`),播放到某帧时触发:
 脚步声、攻击的命中帧、金币翻面的那一刻。在 Flipbook 编辑器的 **Events** 轨道上编辑它们——
 选中一帧,**添加事件**,起个名字;帧条会标出哪些帧带事件。然后订阅:

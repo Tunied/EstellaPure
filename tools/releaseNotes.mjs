@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(animation): preserve elapsed phase and coalesce crossed events':
+    { note: 'Sprite playback catches up without replaying a time backlog.' },
   'fix(animation): preserve listener snapshots and callback ownership':
     { note: 'Sprite animation events tolerate listener and entity changes.' },
   'fix(tilemap): scope paint strokes and respect layer locks':

@@ -69,6 +69,13 @@ const jump = defineSystem([Query(Mut(SpriteAnimator)), Res(SpriteAnimation)], (q
 
 ### Frame events
 
+Events crossed in one update run in playback order, including loop boundaries.
+A long update fast-forwards complete loops and coalesces each declared event to
+at most one notification per update, avoiding a burst of delayed sounds or hits.
+Updates with no elapsed time do not repeat the initial frame event.
+`gotoFrame(animator, index, false)` and `gotoLabel(animator, label, false)` pose
+the selected frame on the next animation update without advancing or firing events.
+
 Clips carry **frame events** (`SpriteAnimEvent` — `{ frame, name, data? }`) that
 fire when playback reaches a frame: a footstep sound, the hit frame of an attack,
 the moment a coin flips. Author them on the **Events** track of the Flipbook

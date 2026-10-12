@@ -82,6 +82,10 @@ export class SpriteAnimationAPI {
     private assetClips_: ((ref: string) => SpriteAnimClip | undefined) | null = null;
     private readonly entityListeners = new Map<Entity, SpriteAnimEventHandler[]>();
     private globalListeners: SpriteAnimEventHandler[] = [];
+    // Remember the applied source without retaining an unloaded clip's frames.
+    private readonly clipTokens = new WeakMap<SpriteAnimClip, object>();
+    private readonly appliedAnimators = new WeakMap<SpriteAnimatorData, object>();
+    private readonly pendingApplies = new WeakSet<SpriteAnimatorData>();
 
     // -- clip registry --------------------------------------------------------
 
@@ -150,28 +154,47 @@ export class SpriteAnimationAPI {
 
     private isCurrentAnimator(world: World, entity: Entity, animator: SpriteAnimatorData, clipName: string, clip: SpriteAnimClip): boolean {
         return world.tryGet(entity, SpriteAnimator) === animator
-            && animator.clip === clipName && this.getClip(clipName) === clip;
+            && animator.clip === clipName && this.getClip(clipName) === clip
+            && !this.pendingApplies.has(animator);
     }
 
-    private fireEvents(world: World, entity: Entity, animator: SpriteAnimatorData, clipName: string, clip: SpriteAnimClip, prevFrame: number, newFrame: number): boolean {
+    private fireEvents(world: World, entity: Entity, animator: SpriteAnimatorData, clipName: string, clip: SpriteAnimClip, prevFrame: number, advanced: number, initial: boolean, looping: boolean): boolean {
         if (!clip.events || clip.events.length === 0) return true;
-
+        if (!this.entityListeners.get(entity)?.length && !this.globalListeners.length) return true;
+        let first: SpriteAnimEvent | undefined;
+        let firstDistance = 0;
+        let ordered: { event: SpriteAnimEvent; distance: number }[] | undefined;
         for (const evt of clip.events) {
-            if (shouldFireEvent(evt.frame, prevFrame, newFrame, clip.frames.length, clip.loop)) {
-                const listeners = this.entityListeners.get(entity);
-                // Registration uses copy-on-write: these event snapshots stay
-                // stable without allocating listener arrays on every frame.
-                const globals = this.globalListeners;
-                if (listeners) {
-                    for (const handler of listeners) {
-                        handler(evt, entity);
-                        if (!this.isCurrentAnimator(world, entity, animator, clipName, clip)) return false;
-                    }
-                }
-                for (const handler of globals) {
+            if (!Number.isInteger(evt.frame) || evt.frame < 0 || evt.frame >= clip.frames.length) continue;
+            const offset = evt.frame - prevFrame;
+            const distance = initial && offset === 0 ? 0
+                : looping ? ((offset + clip.frames.length) % clip.frames.length || clip.frames.length) : offset;
+            if (!(distance === 0 && initial) && !(distance > 0 && distance <= advanced)) continue;
+            if (!first) { first = evt; firstDistance = distance; }
+            else {
+                ordered ??= [{ event: first, distance: firstDistance }];
+                ordered.push({ event: evt, distance });
+            }
+        }
+        // Most updates cross one event: avoid an allocation on that hot path.
+        // Long updates coalesce each declared event once, in playback order.
+        if (ordered) ordered.sort((a, b) => a.distance - b.distance);
+        const count = ordered?.length ?? (first ? 1 : 0);
+        for (let i = 0; i < count; i++) {
+            const evt = ordered ? ordered[i].event : first!;
+            const listeners = this.entityListeners.get(entity);
+            // Registration uses copy-on-write: these event snapshots stay
+            // stable without allocating listener arrays on every frame.
+            const globals = this.globalListeners;
+            if (listeners) {
+                for (const handler of listeners) {
                     handler(evt, entity);
                     if (!this.isCurrentAnimator(world, entity, animator, clipName, clip)) return false;
                 }
+            }
+            for (const handler of globals) {
+                handler(evt, entity);
+                if (!this.isCurrentAnimator(world, entity, animator, clipName, clip)) return false;
             }
         }
         return true;
@@ -187,7 +210,7 @@ export class SpriteAnimationAPI {
             // from the query snapshot we are currently walking.
             const animator = world.tryGet(entity, SpriteAnimator);
             if (!animator) continue;
-            if (!animator.enabled || !animator.playing || !animator.clip) continue;
+            if (!animator.enabled || (!animator.playing && !this.pendingApplies.has(animator)) || !animator.clip) continue;
 
             const clipName = animator.clip;
             const clip = this.getClip(clipName);
@@ -199,45 +222,62 @@ export class SpriteAnimationAPI {
                 animator.finished = false;
                 animator.currentFrame = 0;
                 animator.frameTimer = 0;
+                this.appliedAnimators.delete(animator);
             }
 
             // Speed scales EVERY frame's duration (not just the fps fallback), and
             // is guarded: 0/negative would otherwise freeze (Infinity) or run the
             // timer backward.
-            const speed = Math.max(animator.speed, 1e-4);
-            const durationOf = (i: number): number =>
-                (clip.frames[i]?.duration ?? 1.0 / clip.fps) / speed;
-
-            const needsInitialApply = animator.frameTimer === 0 && animator.currentFrame === 0;
+            const speed = Number.isFinite(animator.speed) ? Math.max(animator.speed, 1e-4) : 1;
+            const fallback = 1 / (Number.isFinite(clip.fps) && clip.fps > 0 ? clip.fps : 12);
+            const durationOf = (i: number): number => {
+                const duration = clip.frames[i]?.duration;
+                return Math.max(Number.MIN_VALUE, (duration !== undefined && Number.isFinite(duration) && duration > 0 ? duration : fallback) / speed);
+            };
+            let token = this.clipTokens.get(clip);
+            if (!token) { token = {}; this.clipTokens.set(clip, token); }
+            const needsInitialApply = this.appliedAnimators.get(animator) !== token;
+            animator.currentFrame = Number.isFinite(animator.currentFrame)
+                ? Math.max(0, Math.min(Math.floor(animator.currentFrame), clip.frames.length - 1)) : 0;
             const prevFrame = animator.currentFrame;
-
-            animator.frameTimer += deltaTime;
+            const wasPlaying = animator.playing;
+            const looping = animator.loop && clip.loop;
+            const elapsed = wasPlaying && Number.isFinite(deltaTime) ? Math.max(0, deltaTime) : 0;
+            animator.frameTimer = Math.min(Number.MAX_VALUE,
+                (Number.isFinite(animator.frameTimer) ? Math.max(0, animator.frameTimer) : 0) + elapsed);
 
             let frameChanged = needsInitialApply;
-            // Advance as MANY frames as elapsed — a fast clip (fps·speed > host fps)
-            // or a lag spike can cross several in one update; a single `if` would
-            // play in slow motion and let frameTimer grow unbounded. Capped at ~one
-            // full loop so a huge dt can't spin forever.
-            let guard = clip.frames.length + 1;
-            let frameDuration = durationOf(animator.currentFrame);
-            while (animator.playing && animator.frameTimer >= frameDuration && guard-- > 0) {
+            // Accumulate one cycle while walking it, then skip whole extra cycles
+            // in constant time. At most two cycles are inspected, with no backlog.
+            let steps = 0;
+            let advanced = 0;
+            let cycleDuration = 0;
+            while (animator.playing && steps < clip.frames.length * 2) {
+                if (looping && steps === clip.frames.length) animator.frameTimer %= cycleDuration;
+                const frameDuration = durationOf(animator.currentFrame);
+                if (animator.frameTimer < frameDuration) break;
                 animator.frameTimer -= frameDuration;
+                if (steps < clip.frames.length) cycleDuration += frameDuration;
+                steps++;
                 animator.currentFrame++;
                 if (animator.currentFrame >= clip.frames.length) {
-                    if (animator.loop && clip.loop) {
+                    if (looping) {
                         animator.currentFrame = 0;
+                        advanced++;
                     } else {
                         animator.currentFrame = clip.frames.length - 1;
                         animator.playing = false;
                         animator.finished = true;
+                        animator.frameTimer = 0;
                     }
-                }
+                } else advanced++;
                 frameChanged = true;
-                frameDuration = durationOf(animator.currentFrame);
             }
 
+            this.pendingApplies.delete(animator);
+            if (needsInitialApply) this.appliedAnimators.set(animator, token);
             if (frameChanged) {
-                if (!this.fireEvents(world, entity, animator, clipName, clip, prevFrame, animator.currentFrame)) continue;
+                if (!this.fireEvents(world, entity, animator, clipName, clip, prevFrame, advanced, needsInitialApply && wasPlaying, looping)) continue;
             }
 
             if (frameChanged && world.has(entity, Sprite)) {
@@ -263,11 +303,14 @@ export class SpriteAnimationAPI {
                 if (frame.pivot) {
                     sprite.pivot = { x: frame.pivot.x, y: frame.pivot.y };
                 }
-                world.insert(entity, Sprite, sprite);
+                world.set(entity, Sprite, sprite);
             }
 
             if (frameChanged) {
-                world.insert(entity, SpriteAnimator, animator);
+                // These are complete existing values: stamp their changes without
+                // rebuilding defaults or allocating a replacement component.
+                world.set(entity, SpriteAnimator, animator);
+                this.appliedAnimators.set(animator, token);
             }
         }
     }
@@ -282,6 +325,8 @@ export class SpriteAnimationAPI {
         animator.frameTimer = 0;
         animator.playing = andPlay;
         animator.finished = false;
+        this.appliedAnimators.delete(animator);
+        this.pendingApplies.add(animator);
     }
 
     gotoLabel(animator: SpriteAnimatorData, label: string, andPlay: boolean = true): void {
