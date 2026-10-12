@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Large UI subtrees keep their full traversal span.** Subtree lengths no longer wrap at 65536 nodes, preventing layout and visibility walks from freezing or skipping content at the 16-bit boundary.
+
 - **Static UI layout preserves composed world transforms.** Clean early and late layout passes keep the transform cache valid, and the SDK composes through the shared change-aware path. Moving a screen box, changing layout properties, tweening, and structural edits still invalidate the affected composition.
 
 - **Touch hit caches release ended pointer IDs.** Long-running touch sessions retain only the pointers present in the current input frame, including release-frame results needed by quick taps, instead of accumulating every historical finger ID.

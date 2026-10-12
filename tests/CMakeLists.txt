@@ -24,6 +24,16 @@ target_include_directories(test_transform_traversal PRIVATE
 )
 add_test(NAME test_transform_traversal COMMAND test_transform_traversal)
 
+add_executable(test_ui_tree
+    ecs/test_ui_tree.cpp
+    ${CMAKE_SOURCE_DIR}/src/esengine/core/Log.cpp
+)
+target_include_directories(test_ui_tree PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/third_party/glm
+)
+add_test(NAME test_ui_tree COMMAND test_ui_tree)
+
 add_executable(test_tween_activity
     ecs/test_tween_activity.cpp
     ${CMAKE_SOURCE_DIR}/src/esengine/animation/TweenSystem.cpp

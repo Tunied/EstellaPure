@@ -28,7 +28,7 @@ struct UITree {
         Entity entity;
         Entity parent;
         u16 depth;
-        u16 subtree_size;
+        u32 subtree_size;
     };
 
     std::vector<Node> nodes_;
@@ -76,7 +76,7 @@ private:
         }
 
         if (isLayoutNode && nodeIndex >= 0) {
-            nodes_[nodeIndex].subtree_size = static_cast<u16>(nodes_.size() - nodeIndex);
+            nodes_[nodeIndex].subtree_size = static_cast<u32>(nodes_.size() - nodeIndex);
         }
     }
 };
