@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(editor): preserve prefab painter order when saving scenes':
+    { note: 'Saving Prefab instances preserves authored draw order.' },
   'chore(release): verify installed editor upgrades before publishing':
     { internal: 'Release acceptance installs the previous and candidate packages on clean CI hosts and verifies saved project continuity before publication; editor and runtime behavior are unchanged.' },
   'fix(editor): keep camera preview refresh within its CPU budget':

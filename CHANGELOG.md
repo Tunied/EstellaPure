@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Saving Prefab instances preserves authored draw order.** Collapsed instances keep their root's position among ordinary entities instead of moving to the end of the scene. Unresolved instances also retain their original positions.
+
 - **Camera previews keep a conservative CPU budget.** A slow main-frame timing sample no longer increases the preview refresh rate. Preview scheduling retains the cheaper baseline for the current App and still restores the editor view after capture.
 
 - **The website preview comes from the exported game.** Release builds capture the Celestial Heights Web sample and publish its source commit and image checksum alongside the frame.
