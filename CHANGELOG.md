@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Slider visuals follow range and target edits.** Changing min/max or replacing a fill/handle updates the displayed fraction even when the value is unchanged, without emitting a spurious value-change event. Stable frames do not rewrite visuals, cached display state is reused during value changes, and change callbacks may remove later sliders safely.
+
 - **Object drags stop when their input or target becomes unavailable.** Editor-consumed releases, disabled or removed drag components, hidden targets and lost pointer projections clear capture before another position write. Drag callbacks may disable or remove their target safely, and an active gesture emits its end once without resuming later.
 
 - **Cancelled scroll gestures stop without flinging.** Editor-consumed pointer releases cancel capture even after UI pointer sampling consumes its marker. Inactive, noninteractive or hidden viewports stop dragging and coasting; hidden layout boxes no longer clamp the saved scroll position to zero; losing all pointer projections discards motion instead of resuming an old drag when the view returns.

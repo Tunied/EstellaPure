@@ -10,7 +10,6 @@ import {
     createDropdownSystem,
     UIEventQueue,
     UIEventType,
-    UIRect,
     UINode,
     UIVisual,
     DimensionUnit,
@@ -149,6 +148,46 @@ describe('createSlider', () => {
             insetLeft: { value: number; unit: number };
         };
         expect(node.insetLeft).toEqual({ value: 50, unit: DimensionUnit.Percent });
+    });
+
+    it('refreshes visuals when the range changes while value stays the same', () => {
+        const onChange = vi.fn(), slider = make({ value: .5, onChange });
+        tick();
+        const d = world.get(slider.entity, UISlider) as Record<string, unknown>;
+        world.insert(slider.entity, UISlider, { ...d, max: 2 });
+        tick();
+        expect((world.get(slider.fillEntity, UIVisual) as { fillAmount: number }).fillAmount).toBe(.25);
+        expect((world.get(slider.handleEntity, UINode) as { insetLeft: { value: number } }).insetLeft.value).toBe(25);
+        expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it('paints replacement fill and handle targets without changing the value', () => {
+        const onChange = vi.fn(), slider = make({ value: .5, onChange });
+        tick();
+        const fill = world.spawn(), handle = world.spawn();
+        world.insert(fill, UIVisual, { ...world.get(slider.fillEntity, UIVisual) as object, fillAmount: 0 });
+        world.insert(handle, UINode, { ...world.get(slider.handleEntity, UINode) as object, insetLeft: { unit: 0, value: 0 } });
+        world.insert(slider.entity, UISlider, { ...world.get(slider.entity, UISlider) as object, fill, handle });
+        tick();
+        expect((world.get(fill, UIVisual) as { fillAmount: number }).fillAmount).toBe(.5);
+        expect((world.get(handle, UINode) as { insetLeft: { value: number } }).insetLeft.value).toBe(50);
+        expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it('does not rewrite stable visuals on consecutive frames', () => {
+        make({ value: .5 }); tick();
+        const write = vi.spyOn(world, 'insert');
+        for (let i = 0; i < 100; i++) tick();
+        expect(write).not.toHaveBeenCalled();
+    });
+
+    it('a change callback may remove a later slider in the same update', () => {
+        let later: ReturnType<typeof createSlider>;
+        const first = make({ onChange: () => later.dispose() });
+        later = make(); tick();
+        first.setValue(.5);
+        expect(() => tick()).not.toThrow();
+        expect(world.valid(later.entity)).toBe(false);
     });
 
     it('arrow keys nudge the focused slider (1% of range when continuous)', () => {

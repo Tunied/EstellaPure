@@ -6,7 +6,7 @@
  *
  * The component IS the slider's state (min/max/step/value + its fill/handle
  * entity refs); the system is the single writer of the visuals, re-deriving
- * them whenever `value` differs from what's on screen. Any writer — pointer
+ * them whenever the value, range or visual targets change. Any writer — pointer
  * drag, keyboard, `handle.setValue`, a data binding, the editor inspector —
  * just writes `value`, and change events fire uniformly for all of them.
  */
@@ -75,12 +75,13 @@ function keyStep(d: UISliderData): number {
 export function createSliderSystem(world: World, events: UIEventQueue): SystemDef {
     // Press on a track captures the drag until release, even off-entity.
     let active: Entity | null = null;
-    const shown = new EntityStateMap<number>(); // last value whose visuals were applied
+    const shown = new EntityStateMap<Pick<UISliderData, 'value' | 'min' | 'max' | 'fill' | 'handle'>>();
 
     return defineSystem(
         [Res(Input), Res(UICameraInfo), Res(ScreenOverlay)],
         (input: InputState, camera: UICameraData, overlay: ScreenOverlayData) => {
             for (const e of world.getEntitiesWithComponents([UISlider])) {
+                if (!world.valid(e) || !world.has(e, UISlider)) continue;
                 const d = world.get(e, UISlider) as UISliderData;
                 let next = d.value;
 
@@ -130,9 +131,16 @@ export function createSliderSystem(world: World, events: UIEventQueue): SystemDe
                 }
 
                 // Value → visuals + change event, whoever wrote the value.
-                if (shown.get(e) !== d.value) {
-                    const emitChange = shown.has(e); // first sync is initial paint, not a change
-                    shown.set(e, d.value);
+                const previous = shown.get(e);
+                if (!previous || previous.value !== d.value || previous.min !== d.min
+                    || previous.max !== d.max || previous.fill !== d.fill || previous.handle !== d.handle) {
+                    const emitChange = previous !== undefined && previous.value !== d.value;
+                    if (previous) {
+                        previous.value = d.value; previous.min = d.min; previous.max = d.max;
+                        previous.fill = d.fill; previous.handle = d.handle;
+                    } else {
+                        shown.set(e, { value: d.value, min: d.min, max: d.max, fill: d.fill, handle: d.handle });
+                    }
                     const frac = sliderFraction(d);
                     if (world.valid(d.fill) && world.has(d.fill, UIVisual)) {
                         const vis = world.get(d.fill, UIVisual) as UIVisualData;
