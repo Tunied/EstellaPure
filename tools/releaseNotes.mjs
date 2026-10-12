@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(editor): resolve the installed macOS executable from its bundle metadata':
+    { note: 'The installed macOS MCP entry launches the bundled editor.' },
   'fix(editor): preserve prefab painter order when saving scenes':
     { note: 'Saving Prefab instances preserves authored draw order.' },
   'chore(release): verify installed editor upgrades before publishing':
