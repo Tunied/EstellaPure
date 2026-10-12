@@ -101,6 +101,19 @@ jobs:
           echo 'estellaengine.com' > docs/dist/CNAME
           touch docs/dist/.nojekyll
 
+      - name: Stage release metadata on the website origin
+        run: |
+          curl --fail --location --retry 3 https://dl.estella.games/latest.json --output docs/dist/latest.json
+          node --input-type=module <<'JS'
+          import {readFileSync} from 'node:fs';
+          const info=JSON.parse(readFileSync('docs/dist/latest.json','utf8'));
+          if(!/^\d+\.\d+\.\d+$/.test(info.version))throw Error('Invalid release version');
+          for(const platform of ['win','mac-arm64']){
+            const file=info.downloads?.[platform];
+            if(!file || new URL(file.url).origin!=='https://dl.estella.games' || !Number.isSafeInteger(file.size) || file.size<=0 || !file.name.includes(info.version))throw Error('Invalid release download: '+platform);
+          }
+          JS
+
       - name: Stage a verified frame of the shipped game
         env:
           GH_TOKEN: ${{ github.token }}

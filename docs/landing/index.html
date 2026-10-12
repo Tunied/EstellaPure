@@ -620,7 +620,7 @@
     // if the mirror can be asked. It cannot be, from a browser, until the bucket
     // states a CORS rule; the page is written to not care either way.
     (function () {
-      var MIRROR = 'https://dl.estella.games/latest.json';
+      var RELEASE_METADATA = '/latest.json';
 
       // Opened as a file rather than through the site build: show nothing rather
       // than the placeholder the build would have replaced.
@@ -662,9 +662,9 @@
           os === 'mac' ? 'Download for macOS' : 'Download for Windows';
       }
 
-      // Ask the mirror what the newest release is. A failure leaves the page as
-      // shipped — links still work, the chips just stay unlabelled.
-      fetch(MIRROR, { headers: { accept: 'application/json' } })
+      // Deployment snapshots the release metadata on this origin so labels do
+      // not depend on the mirror granting browser cross-origin access.
+      fetch(RELEASE_METADATA, { headers: { accept: 'application/json' } })
         .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
         .then(function (latest) {
           if (latest.version) {
