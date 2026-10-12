@@ -46,13 +46,24 @@ export function nextPowerOf2(n: number): number {
     return p;
 }
 
+// Bound shallow scans; use a set only after sixteen ancestors.
+const PARENT_CHAIN_SET_AT = 17;
+
 export function getEntityDepth(world: World, entity: Entity): number {
+    if (!world.valid(entity) || !world.has(entity, Parent)) return 0;
     let depth = 0;
     let current = entity;
-    while (world.has(current, Parent)) {
+    const visited = [entity];
+    let seen: Set<Entity> | undefined;
+    while (world.valid(current) && world.has(current, Parent)) {
         const parentData = world.get(current, Parent) as ParentData;
         const parentEntity = parentData.entity;
-        if (!world.valid(parentEntity)) break;
+        if (!world.valid(parentEntity) || (seen ? seen.has(parentEntity) : visited.includes(parentEntity))) break;
+        if (seen) seen.add(parentEntity);
+        else {
+            visited.push(parentEntity);
+            if (visited.length === PARENT_CHAIN_SET_AT) seen = new Set(visited);
+        }
         depth++;
         current = parentEntity;
     }
@@ -80,11 +91,19 @@ export function walkParentChain(
     world: Pick<World, 'has' | 'get' | 'valid'>, entity: Entity,
     callback: (ancestor: Entity) => boolean,
 ): void {
+    if (!world.valid(entity) || !world.has(entity, Parent)) return;
     let current = entity;
-    while (world.has(current, Parent)) {
+    const visited = [entity];
+    let seen: Set<Entity> | undefined;
+    while (world.valid(current) && world.has(current, Parent)) {
         const parentData = world.get(current, Parent) as ParentData;
         const parentEntity = parentData.entity;
-        if (!world.valid(parentEntity)) break;
+        if (!world.valid(parentEntity) || (seen ? seen.has(parentEntity) : visited.includes(parentEntity))) break;
+        if (seen) seen.add(parentEntity);
+        else {
+            visited.push(parentEntity);
+            if (visited.length === PARENT_CHAIN_SET_AT) seen = new Set(visited);
+        }
         if (callback(parentEntity)) return;
         current = parentEntity;
     }

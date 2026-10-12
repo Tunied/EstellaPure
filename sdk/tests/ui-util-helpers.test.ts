@@ -10,8 +10,53 @@ import {
   isWordChar,
   nextPowerOf2,
   EntityStateMap,
+  getEntityDepth,
+  walkParentChain,
 } from '../src/ui/util/helpers';
 import type { Entity } from '../src/types';
+import type { World } from '../src/ecs/world';
+import { Parent } from '../src/ecs/component';
+
+describe('ancestor walks', () => {
+  function graph(links: number[], limit = 100) {
+    let reads = 0;
+    const alive = new Set(links.map((_, i) => i));
+    const world = {
+      valid: (e: Entity) => alive.has(e),
+      has: (e: Entity, c: unknown) => c === Parent && links[e] >= 0,
+      get: (e: Entity) => {
+        if (++reads > limit) throw new Error('ancestor traversal did not terminate');
+        return { entity: links[e] as Entity };
+      },
+    };
+    return { world, alive };
+  }
+  it.each([[0], [1,0], [1,2,1]])('stops before revisiting a node in cyclic hierarchy %j', (...links) => {
+    const { world } = graph(links);
+    const visited: Entity[] = [];
+    walkParentChain(world as never, 0 as Entity, e => { visited.push(e); return false; });
+    expect(new Set(visited).size).toBe(visited.length);
+    expect(visited).not.toContain(0);
+    expect(getEntityDepth(world as unknown as World, 0 as Entity)).toBe(visited.length);
+  });
+  it('stops when a callback invalidates the current ancestor', () => {
+    const { world, alive } = graph([1,2,-1]); const visited: Entity[] = [];
+    walkParentChain(world as never, 0 as Entity, e => { visited.push(e); alive.delete(e); return false; });
+    expect(visited).toEqual([1]);
+  });
+  it('retains early callback termination', () => {
+    const { world } = graph([1,2,-1]); const visited: Entity[] = [];
+    walkParentChain(world as never, 0 as Entity, e => { visited.push(e); return true; });
+    expect(visited).toEqual([1]);
+  });
+  it('handles 10000 ancestors without recursion or repeated callbacks', () => {
+    const links = Array.from({ length: 10001 }, (_, i) => i === 10000 ? -1 : i + 1);
+    const { world } = graph(links, 20000); let count = 0;
+    walkParentChain(world as never, 0 as Entity, () => { count++; return false; });
+    expect(count).toBe(10000);
+    expect(getEntityDepth(world as unknown as World, 0 as Entity)).toBe(10000);
+  });
+});
 
 describe('isWordChar', () => {
   it('accepts letters, digits and underscore; rejects space and punctuation', () => {

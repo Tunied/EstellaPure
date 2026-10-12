@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **UI ancestor walks terminate on malformed hierarchy adapters.** Depth counting and parent callbacks stop before repeating an entity or following an ancestor invalidated by a callback. Shallow chains use bounded array scans, deeper chains switch to a set, and long valid chains remain iterative with early callback termination preserved.
+
 - **Unavailable dropdowns retire their open lists.** Disabling, hiding, deactivating or removing a dropdown closes its popup even when the owner drops out of component queries. Keyboard input and stale row clicks cannot change an unavailable control; availability is checked again after popup teardown callbacks.
 
 - **Dropdown labels and open rows follow live option edits.** Renames and label replacements repaint without a false selection event; changed option lists or row heights rebuild an open popup and keep the selection in range. Stale rows cannot choose a newly substituted option, popup teardown cannot resurrect a disposed owner, and change callbacks may remove later controls safely.
