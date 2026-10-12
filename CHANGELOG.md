@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Animation despawn subscriptions belong to their App.** Shared animation plugins withdraw the quitting App's listener while preserving other Apps' tween cancellation, sprite-event cleanup, and animator removal callbacks. Repeated preview shutdowns no longer leave stale subscriptions on older worlds.
+
 - **Sprite animation applies frames through direct component accessors.** Running animation resolves the sprite read/write path once per update, avoiding per-frame embind snapshots and full component marshalling for every animated entity. Component write journals still observe frame changes, while editor observers, speculative updates, and rebound worlds retain the full mutation path.
 
 - **Native audio completion subscriptions are independent.** Multiple backends sharing one host bridge receive their own voice-end notifications, and preview shutdowns withdraw only their subscription. Dispatch skips listeners withdrawn during the event, defers new listeners to the next event, and notifies remaining listeners before propagating the first callback error.

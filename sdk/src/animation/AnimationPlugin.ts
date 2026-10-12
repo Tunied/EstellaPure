@@ -26,9 +26,11 @@ import { SystemLabel } from '../ecs/systemLabels';
 
 export class AnimationPlugin implements Plugin {
     name = 'animation';
-    private offDespawn_: (() => void) | null = null;
+    private readonly despawnCleanups_ = new WeakMap<App, () => void>();
+    private latestDespawnCleanup_: (() => void) | null = null;
 
     build(app: App): void {
+        this.cleanup(app);
         // Whichever core is present (see ecs/engineApi.ts). Sprite animation and the
         // animator graph are pure TypeScript, but tweens live in the engine, so a core
         // that compiles no tween system gets the rest of the plugin and says so.
@@ -45,11 +47,13 @@ export class AnimationPlugin implements Plugin {
         app.insertResource(AnimatorController, animator);
         const world = app.world;
 
-        this.offDespawn_ = world.onDespawn((entity: Entity) => {
+        const offDespawn = world.onDespawn((entity: Entity) => {
             tween.cancelAll(entity);
             anim.removeEntityListeners(entity);
             animator.removeEntity(entity);
         });
+        this.despawnCleanups_.set(app, offDespawn);
+        this.latestDespawnCleanup_ = offDespawn;
 
         app.addSystemToSchedule(Schedule.Update, defineSystem(
             [Res(Time), Res(Tween)],
@@ -90,11 +94,12 @@ export class AnimationPlugin implements Plugin {
         ), { runAfter: [SystemLabel.Tween, SystemLabel.Animator], runIf: playModeOnly });
     }
 
-    cleanup(): void {
-        // Drop the despawn subscription so a warm re-Play with a reused world
-        // doesn't stack a second (stale) closure.
-        this.offDespawn_?.();
-        this.offDespawn_ = null;
+    cleanup(app?: App): void {
+        const release = app ? this.despawnCleanups_.get(app) : this.latestDespawnCleanup_;
+        if (!release) return;
+        if (app) this.despawnCleanups_.delete(app);
+        if (release === this.latestDespawnCleanup_) this.latestDespawnCleanup_ = null;
+        release();
     }
 }
 

@@ -415,7 +415,7 @@ type: "animFrames"
 ## AnimationPlugin — class @experimental
 ```
 build: (app: App) => void
-cleanup: () => void
+cleanup: (app?: App) => void
 name: string
 static new (): AnimationPlugin
 static prototype: AnimationPlugin

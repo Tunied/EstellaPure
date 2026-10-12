@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(animation): isolate despawn subscriptions by app':
+    { note: 'Animation despawn subscriptions belong to their App.' },
   'perf(animation): apply sprite frames through direct storage accessors':
     { note: 'Sprite animation applies frames through direct component accessors.' },
   'fix(audio): share native completion events across backend subscribers':
