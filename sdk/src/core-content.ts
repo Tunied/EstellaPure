@@ -44,6 +44,7 @@ export {
     Assets,
     AssetPlugin,
     assetPlugin,
+    resolveDocumentRef,
     AssetRefCounter,
     Catalog,
     atlasCatalogFields,

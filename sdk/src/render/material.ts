@@ -14,6 +14,8 @@ import { drawPreview, previewCore } from './assetPreview';
 import type { Vec2, Vec3, Vec4 } from '../types';
 import { BlendMode } from './blend';
 import { reflectEsshader } from './shaderReflect';
+import type { AssetLease } from '../asset/AssetLease';
+import { disposeAll } from '../util/disposeAll';
 
 export type { Vec2, Vec3, Vec4 } from '../types';
 
@@ -169,6 +171,21 @@ const bridge = new MaterialBridge();
 let module: MaterialCore | null = null;
 let nextMaterialId = 1;
 const materials = new Map<MaterialHandle, MaterialData>();
+type TextureLease = AssetLease<{ handle: number }>;
+const ownedTextures = new Map<MaterialHandle, Map<string, TextureLease>>();
+const releaseTextures = (leases: Iterable<TextureLease>): void => disposeAll([...new Set(leases)], lease => lease.release());
+function replaceTextureOwnership(handle: MaterialHandle, uniforms: ReadonlyMap<string, UniformValue>, incoming?: ReadonlyMap<string, TextureLease>): () => void {
+    const old = ownedTextures.get(handle) ?? new Map<string, TextureLease>();
+    const next = new Map(incoming ?? old);
+    for (const [name, lease] of next) {
+        const value = uniforms.get(name);
+        if (!value || !isTextureRef(value) || value.textureId !== lease.value.handle) next.delete(name);
+    }
+    if (next.size) ownedTextures.set(handle, next); else ownedTextures.delete(handle);
+    const keep = new Set(next.values());
+    const outgoing = [...old.values(), ...(incoming?.values() ?? [])].filter(lease => !keep.has(lease));
+    return () => releaseTextures(outgoing);
+}
 // Reverse index parent -> instances, so editing a base material re-flushes its instances.
 const childrenOf = new Map<MaterialHandle, Set<MaterialHandle>>();
 // What each compiled shader DECLARES, by handle. Recorded where the source enters the
@@ -197,13 +214,13 @@ export function initMaterialAPI(engine: NonNullable<EngineApi>): void {
 }
 
 export function shutdownMaterialAPI(): void {
-    materials.clear();
-    childrenOf.clear();
-    declaredParams.clear();
-    warnedParams.clear();
-    nextMaterialId = 1;
-    bridge.disconnect();
-    module = null;
+    const textures = [...ownedTextures.values()].flatMap(held => [...held.values()]);
+    ownedTextures.clear();
+    try { releaseTextures(textures); }
+    finally {
+        materials.clear(); childrenOf.clear(); declaredParams.clear(); warnedParams.clear();
+        nextMaterialId = 1; bridge.disconnect(); module = null;
+    }
 }
 
 /** The shader a material draws with — its own, or the one it inherits as an instance. */
@@ -453,10 +470,13 @@ export const Material = {
      * Missing fields restore base defaults or remove an instance override, so
      * future parent edits keep propagating. Shader and parent ownership stay with
      * the asset loader; this operation never re-acquires a different generation.
+     * When supplied, textureLeases transfers ownership of the complete edited
+     * texture set. Receipts remain held until replacement, Reset or material release.
      */
-    applyState(material: MaterialHandle, state: Omit<MaterialOptions, 'shader'>): void {
+    applyState(material: MaterialHandle, state: Omit<MaterialOptions, 'shader'>,
+               textureLeases?: ReadonlyMap<string, TextureLease>): void {
         const data = materials.get(material);
-        if (!data) return;
+        if (!data) { if (textureLeases) releaseTextures(textureLeases.values()); return; }
         const previous = new Map<MaterialHandle, ResolvedMaterial>();
         const collect = (handle: MaterialHandle): void => {
             if (previous.has(handle)) return;
@@ -469,6 +489,7 @@ export const Material = {
         for (const [name, value] of Object.entries(state.uniforms ?? {})) {
             warnUndeclared(shaderOf(material), name); data.uniforms.set(name, value);
         }
+        const releasePrevious = replaceTextureOwnership(material, data.uniforms, textureLeases);
         data.blendMode = state.blendMode ?? BlendMode.Normal;
         data.depthTest = state.depthTest ?? false;
         data.depthWrite = state.depthWrite ?? true;
@@ -480,7 +501,8 @@ export const Material = {
             for (const key of ['blendMode', 'depthTest', 'depthWrite', 'cull', 'depthBias'] as const)
                 if (state[key] !== undefined) data.overrides.add(key);
         }
-        flushMaterial(material, previous);
+        try { flushMaterial(material, previous); }
+        finally { releasePrevious(); }
     },
 
     /**
@@ -495,8 +517,10 @@ export const Material = {
             warnUndeclared(shaderOf(material), name);
             // On an instance, the local uniforms map *is* the override set (presence = override).
             data.uniforms.set(name, value);
+            const releasePrevious = replaceTextureOwnership(material, data.uniforms);
             data.dirty_ = true;  // immediate-mode mesh path re-encodes its uniform cache.
-            flushMaterial(material);  // batch path: re-flatten + push (+ propagate to instances).
+            try { flushMaterial(material); } // batch path: re-flatten + push (+ propagate to instances).
+            finally { releasePrevious(); }
         }
     },
 
@@ -599,7 +623,9 @@ export const Material = {
         if (data?.parent !== undefined) unregisterChild(data.parent, material);
         childrenOf.delete(material);  // orphaned instances fall back to their own values (resolve is defensive)
         materials.delete(material);
-        module?.material_undefine(material);
+        const textures = ownedTextures.get(material); ownedTextures.delete(material);
+        try { module?.material_undefine(material); }
+        finally { if (textures) releaseTextures(textures.values()); }
     },
 
     /**
@@ -621,15 +647,26 @@ export const Material = {
      */
     async renderPreview(material: MaterialHandle, w: number, h: number): Promise<ImageData | null> {
         const m = previewCore(module);
-        return m ? drawPreview(m, () => m.renderer_renderMaterialPreview(material, w, h)) : null;
+        if (!m) return null;
+        const held: TextureLease[] = [];
+        try {
+            return await drawPreview(m, () => {
+                const seen = new Set<number>(); let handle: number | undefined = material;
+                while (handle !== undefined && !seen.has(handle)) {
+                    seen.add(handle);
+                    for (const lease of ownedTextures.get(handle)?.values() ?? []) {
+                        const retained = lease.retain(); if (retained) held.push(retained);
+                    }
+                    handle = materials.get(handle)?.parent;
+                }
+                return m.renderer_renderMaterialPreview(material, w, h);
+            });
+        } finally { releaseTextures(held); }
     },
 
     releaseAll(): void {
-        if (module) {
-            for (const handle of materials.keys()) module.material_undefine(handle);
-        }
-        materials.clear();
-        childrenOf.clear();
+        try { disposeAll([...materials.keys()], handle => Material.release(handle)); }
+        finally { materials.clear(); childrenOf.clear(); }
     },
 
     /**
