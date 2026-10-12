@@ -389,14 +389,14 @@ export class App {
     }
 
     /**
-     * Register `system` onto `schedule`. Ordering given here is added to
-     * whatever the definition already declared, so a system can carry its own
-     * edges and still be constrained further at the registration site.
+     * Register `system` onto `schedule`, adding ordering to its declared edges.
+     * `profileDomain` attributes systems registered after an async plugin build
+     * returns; otherwise the current build context supplies it.
      */
     addSystemToSchedule(
         schedule: Schedule,
         system: SystemDef,
-        options?: { runBefore?: string[]; runAfter?: string[]; runIf?: RunCondition }
+        options?: { runBefore?: string[]; runAfter?: string[]; runIf?: RunCondition; profileDomain?: string }
     ): this {
         const name = system._name || `System_${++this.systemCounter_}`;
         const scoped = rescopeSystem(system, name);
@@ -407,7 +407,7 @@ export class App {
             runIf: options?.runIf,
             subsystem: this.buildingPlugin_ ?? undefined,
             fromBundle: this.addingBundleSystems_ || undefined,
-            domain: this.registeringDomain_(),
+            domain: options?.profileDomain ?? this.registeringDomain_(),
         });
         this.sortedSystemsCache_.delete(schedule);
         this.dependencyCache_.delete(schedule);

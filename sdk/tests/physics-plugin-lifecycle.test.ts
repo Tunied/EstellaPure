@@ -12,10 +12,21 @@ function module() {
         '_physics_capturePoses', '_physics_getInterpolatedCount', '_physics_getInterpolatedTransforms',
         '_physics_collectEvents', '_physics_getDynamicBodyCount', '_physics_getDynamicBodyTransforms',
         '_physics_setBodyTransform',
+        '_physics_getCollisionEnterCount', '_physics_getCollisionExitCount', '_physics_getHitEventCount',
+        '_physics_getSensorEnterCount', '_physics_getSensorExitCount',
     ].map(name => [name, vi.fn(() => 0)])) as unknown as PhysicsWasmModule;
 }
 function build(plugin: Physics2DPlugin) { const app = App.new(); apps.push(app); app.addPlugin(plugin); return app; }
 afterEach(() => { for (const app of apps.splice(0)) app.quit(); });
+it('attributes asynchronously installed physics systems to the physics cost domain', async () => {
+    const app = build(new Physics2DPlugin('', {}, async () => module())).enableStats();
+    await app.getResource(Physics2DRuntime).initPromise;
+    await app.stepFrames(2, 1 / 30);
+    const costs = app.getFrameCosts()!.systems;
+    for (const name of ['PhysicsStepSystem', 'PhysicsInterpolateSystem', 'PhysicsEventBridgeSystem', 'CharacterController2DSystem']) {
+        expect(costs.find(system => system.name === name)?.domain).toBe('physics');
+    }
+});
 it('quitting before the module arrives prevents late initialization and system installation', async () => {
     const loaded = module(); let resolve!: (m: PhysicsWasmModule) => void;
     const plugin = new Physics2DPlugin('', {}, () => new Promise(done => { resolve = done; }));

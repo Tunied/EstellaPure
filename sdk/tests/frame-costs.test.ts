@@ -42,6 +42,22 @@ describe('App.getFrameCosts', () => {
         expect(domainOf(app, 'RenderSystem')).toBe('render');
     });
 
+    it('attributes a deferred registration without changing subsequent registrations', async () => {
+        const app = App.new().enableStats();
+        let ready!: Promise<void>;
+        app.addPlugin({ name: 'physics', build() {
+            ready = Promise.resolve().then(() => {
+                app.addSystemToSchedule(Schedule.Update, defineSystem([], () => {}, { name: 'DeferredPhysics' }),
+                    { profileDomain: 'physics' });
+            });
+        } });
+        await ready;
+        app.addSystemToSchedule(Schedule.Update, defineSystem([], () => {}, { name: 'LooseAfterPhysics' }));
+        await app.tick(1 / 60);
+        expect(domainOf(app, 'DeferredPhysics')).toBe('physics');
+        expect(domainOf(app, 'LooseAfterPhysics')).toBe(DOMAIN_UNATTRIBUTED);
+    });
+
     it('files project systems under scripts', async () => {
         const app = App.new().enableStats();
         app.addBundleSystems([

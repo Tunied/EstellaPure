@@ -924,7 +924,7 @@ export function registerPhysics2DSystem(
             },
             { name: 'PhysicsStepSystem' }
         ),
-        { runIf: playModeOnly }
+        { runIf: playModeOnly, profileDomain: 'physics' }
     );
 
     // ── Interpolate + publish (render cadence) ──────────────────────────────
@@ -954,6 +954,6 @@ export function registerPhysics2DSystem(
             },
             { name: 'PhysicsInterpolateSystem' }
         ),
-        { runIf: playModeOnly }
+        { runIf: playModeOnly, profileDomain: 'physics' }
     );
 }

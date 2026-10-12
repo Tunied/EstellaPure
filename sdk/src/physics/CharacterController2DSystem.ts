@@ -176,6 +176,6 @@ export function registerCharacterController2DSystem(app: App): void {
                 },
             },
         ),
-        { runIf: playModeOnly },
+        { runIf: playModeOnly, profileDomain: 'physics' },
     );
 }

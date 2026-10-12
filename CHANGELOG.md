@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Async Box2D systems retain their physics performance category.** Physics stepping, interpolation, contact event delivery, and character controllers now appear under physics after module loading completes. Deferred system registration can explicitly provide its profiling domain without changing the classification of later registrations.
+
 - **Box2D initialization and shutdown belong to their App.** Stopping an App before its module finishes loading prevents late physics initialization and system installation. Shared plugin instances keep independent bridges and module ownership, so an older App cannot shut down or replace a newer App's physics world; cancelled load failures do not change the stopped App's subsystem status.
 
 - **Screen-excluded UI scissor regions no longer submit draws.** Root scissor masks intersect the current view's viewport before propagating to descendants. Empty regions skip UI visual collection and batch geometry/index/command allocation, including text submissions; stencil-only entries remain drawable. Moving a masked subtree back into view restores its draws on the next frame.

@@ -737,7 +737,7 @@ addStartupSystem: (system: SystemDef) => App
 addSystem: (system: SystemDef) => App
 addSystemSet: (set: SystemSet) => App
 addSystemSetToSchedule: (schedule: Schedule, set: SystemSet) => App
-addSystemToSchedule: (schedule: Schedule, system: SystemDef, options?: { runBefore?: string[]; runAfter?: string[]; runIf?: RunCondition; }) => App
+addSystemToSchedule: (schedule: Schedule, system: SystemDef, options?: { runBefore?: string[]; runAfter?: string[]; runIf?: RunCondition; profileDomain?: string; }) => App
 compiledSystemCount: number
 compiledSystems: { readonly installed: readonly string[]; readonly calls: number; }
 enableStats: () => App

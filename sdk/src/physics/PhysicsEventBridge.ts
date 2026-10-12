@@ -90,6 +90,6 @@ export function registerPhysics2DEventBridge(app: App): void {
                 }
             }
         }, { name: 'PhysicsEventBridgeSystem' }),
-        { runIf: playModeOnly },
+        { runIf: playModeOnly, profileDomain: 'physics' },
     );
 }
