@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Playing audio sources follow live parameter edits.** Volume, pitch and loop changes update the existing voice without restarting it. Switching spatial sound off restores base gain and centered pan; stable nonspatial sources do not resend unchanged parameters, and voice cleanup avoids copying its key list every frame.
+
 - **UI ancestor walks terminate on malformed hierarchy adapters.** Depth counting and parent callbacks stop before repeating an entity or following an ancestor invalidated by a callback. Shallow chains use bounded array scans, deeper chains switch to a set, and long valid chains remain iterative with early callback termination preserved.
 
 - **Unavailable dropdowns retire their open lists.** Disabling, hiding, deactivating or removing a dropdown closes its popup even when the owner drops out of component queries. Keyboard input and stale row clicks cannot change an unavailable control; availability is checked again after popup teardown callbacks.

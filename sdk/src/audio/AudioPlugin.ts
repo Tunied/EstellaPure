@@ -32,6 +32,10 @@ function worldPositionOf(t: WorldTransformData): Vec3 {
 interface ActiveVoice {
     handle: AudioHandle;
     clip: string;
+    volume: number;
+    pitch: number;
+    loop: boolean;
+    spatial: boolean;
 }
 
 export interface AudioPluginConfig {
@@ -192,6 +196,10 @@ export class AudioPlugin implements Plugin {
                                 // and a sound outside that door gets neither.
                                 activeSourceHandles.set(id, {
                                     clip: source.clip,
+                                    volume: source.volume,
+                                    pitch: source.pitch,
+                                    loop: source.loop,
+                                    spatial: source.spatial,
                                     handle: audioAPI.playBuffer(buffer, {
                                         bus: source.bus,
                                         volume: source.volume,
@@ -234,6 +242,18 @@ export class AudioPlugin implements Plugin {
                         }
 
                         const sounding = activeSourceHandles.get(id);
+                        if (sounding) {
+                            if (sounding.pitch !== source.pitch) sounding.handle.setPlaybackRate(source.pitch);
+                            if (sounding.loop !== source.loop) sounding.handle.setLoop(source.loop);
+                            if (!source.spatial) {
+                                if (sounding.volume !== source.volume || sounding.spatial) sounding.handle.setVolume(source.volume);
+                                if (sounding.spatial) sounding.handle.setPan(0);
+                            }
+                            sounding.volume = source.volume;
+                            sounding.pitch = source.pitch;
+                            sounding.loop = source.loop;
+                            sounding.spatial = source.spatial;
+                        }
                         if (source.spatial && sounding) {
                             if (!hasListener && !spatialListenerWarned) {
                                 log.warn('audio', 'spatial audio used but no AudioListener entity found');
@@ -262,7 +282,7 @@ export class AudioPlugin implements Plugin {
                     // Sources the pass above did not reach at all. Their voices are
                     // STOPPED, not just forgotten: a dropped handle is a sound
                     // nothing can reach any more.
-                    for (const entityId of [...activeSourceHandles.keys()]) {
+                    for (const entityId of activeSourceHandles.keys()) {
                         if (!liveEntities.has(entityId)) stopVoice(entityId);
                     }
                 },

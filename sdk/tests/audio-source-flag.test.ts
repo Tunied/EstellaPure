@@ -200,4 +200,35 @@ describe('the AudioSource playing flag', () => {
         expect(app.world.get(e, AudioSource).playing).toBe(false);
         expect(backend.play).toHaveBeenCalledTimes(1);
     });
+
+    it('applies volume, pitch and loop edits to the existing voice', async () => {
+        const app = await appWithClips(), e = app.world.spawn();
+        app.world.insert(e, AudioSource, { clip: 'boom.wav', playing: true }); await app.tick(1 / 60);
+        app.world.update(e, AudioSource, d => { d.volume = .25; d.pitch = 1.5; d.loop = true; });
+        await app.tick(1 / 60);
+        expect(voices[0]!.setVolume).toHaveBeenLastCalledWith(.25);
+        expect(voices[0]!.setPlaybackRate).toHaveBeenLastCalledWith(1.5);
+        expect(voices[0]!.setLoop).toHaveBeenLastCalledWith(true);
+        expect(backend.play).toHaveBeenCalledTimes(1);
+    });
+
+    it('restores ordinary gain and centered pan when spatial mode is switched off', async () => {
+        const app = await appWithClips(), e = app.world.spawn();
+        app.world.insert(e, AudioSource, { clip: 'boom.wav', playing: true, spatial: true, volume: .4 });
+        await app.tick(1 / 60);
+        vi.mocked(voices[0]!.setVolume).mockClear(); vi.mocked(voices[0]!.setPan).mockClear();
+        app.world.update(e, AudioSource, d => { d.spatial = false; }); await app.tick(1 / 60);
+        expect(voices[0]!.setVolume).toHaveBeenLastCalledWith(.4);
+        expect(voices[0]!.setPan).toHaveBeenLastCalledWith(0);
+    });
+
+    it('stable ordinary voices do not resend their parameters every frame', async () => {
+        const app = await appWithClips(), e = app.world.spawn();
+        app.world.insert(e, AudioSource, { clip: 'boom.wav', playing: true }); await app.tick(1 / 60);
+        const v = voices[0]!;
+        vi.mocked(v.setVolume).mockClear(); vi.mocked(v.setPlaybackRate).mockClear(); vi.mocked(v.setLoop).mockClear();
+        for (let i = 0; i < 100; i++) await app.tick(1 / 60);
+        expect(v.setVolume).not.toHaveBeenCalled(); expect(v.setPlaybackRate).not.toHaveBeenCalled();
+        expect(v.setLoop).not.toHaveBeenCalled();
+    });
 });
