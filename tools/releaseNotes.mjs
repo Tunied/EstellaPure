@@ -28,6 +28,10 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(tilemap): discard obsolete layer palette reads':
+    { note: 'Switching tilemap layers clears the previous palette before drawing.' },
+  'fix(editor): sync tilemap layer loading cancellation':
+    { note: 'Switching tilemap layers clears the previous palette before drawing.' },
   'fix(tilemap): keep palette selection and reuse loaded assets':
     { note: 'Tilemap palette refresh keeps the selected tileset.' },
   'fix(editor): sync tilemap palette refresh changes':

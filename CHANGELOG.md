@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Switching tilemap layers clears the previous palette before drawing.** Palette loads restart when the project changes even if entity IDs are reused. Superseded reads stop requesting subsequent tilesets or atlas dimensions after a layer switch or panel close.
+
 - **Tilemap palette refresh keeps the selected tileset.** Editing or reloading a tileset retains the active tab and brush. The painter reuses the loaded palette asset instead of reading it again, and switching atlases clears the old preview until matching image dimensions are ready.
 
 - **The website keeps its original editor showcase.** The landing page and README again use the curated editor screenshot with their original proportions and captions; release acceptance captures remain separate.
