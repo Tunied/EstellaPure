@@ -74,7 +74,7 @@ function clearSiblings(world: World, group: Entity, keep: Entity): void {
 
 /** Flips on click; syncs `isOn` → check visibility; emits `change`. */
 export function createToggleSystem(world: World, events: UIEventQueue): SystemDef {
-    const shown = new EntityStateMap<boolean>(); // last isOn whose visual was applied
+    const shown = new EntityStateMap<UIToggleData>();
 
     // The interaction layer defines what a click is (release over the pressed
     // entity); the toggle just listens.
@@ -96,10 +96,16 @@ export function createToggleSystem(world: World, events: UIEventQueue): SystemDe
 
     return defineSystem([], () => {
         for (const e of world.getEntitiesWithComponents([UIToggle])) {
+            if (!world.valid(e) || !world.has(e, UIToggle)) continue;
             const d = world.get(e, UIToggle) as UIToggleData;
-            if (shown.get(e) === d.isOn) continue;
-            const emitChange = shown.has(e); // first sync is initial paint
-            shown.set(e, d.isOn);
+            const previous = shown.get(e);
+            if (previous && previous.isOn === d.isOn && previous.check === d.check) continue;
+            const emitChange = previous !== undefined && previous.isOn !== d.isOn;
+            if (previous) {
+                previous.isOn = d.isOn; previous.check = d.check;
+            } else {
+                shown.set(e, { isOn: d.isOn, check: d.check });
+            }
             setUIVisible(world, d.check, d.isOn);
             if (emitChange) events.emit(e, UIEventType.Change, { isOn: d.isOn });
         }

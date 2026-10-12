@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ui): reconcile toggle indicator targets and callback removals':
+    { note: 'Toggle indicators follow target replacements safely.' },
   'fix(ui): cancel unavailable slider capture and use local track dimensions':
     { note: 'Slider capture expires with input and target availability.' },
   'fix(ui): reconcile slider visuals after range and target edits':

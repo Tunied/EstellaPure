@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Toggle indicators follow target replacements safely.** Replacing a check entity immediately applies the current on/off state without a false change event. Change callbacks may dispose later toggles in the same update, while stable frames avoid repeated visual writes and reuse cached state during transitions.
+
 - **Slider capture expires with input and target availability.** Disabled, inactive or hidden tracks and lost pointer projections cancel capture before a value update, so restoring the control cannot resume an old drag. A consumed release followed by another press cannot retain capture, and track width is read from the slider's own World instead of shared UI helper bindings.
 
 - **Slider visuals follow range and target edits.** Changing min/max or replacing a fill/handle updates the displayed fraction even when the value is unchanged, without emitting a spurious value-change event. Stable frames do not rewrite visuals, cached display state is reused during value changes, and change callbacks may remove later sliders safely.
