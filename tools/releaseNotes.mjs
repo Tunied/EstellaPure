@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ui): revalidate focus targets after synchronous callbacks':
+    { note: 'UI focus transitions recheck callback changes.' },
   'fix(animation): guard reentrant updates and frame-list changes':
     { note: 'Sprite callbacks cannot recursively advance the same animation update.' },
   'fix(build): link context tests with WebGL 2 symbols':

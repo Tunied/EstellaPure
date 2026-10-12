@@ -13,7 +13,7 @@ import { UIInteraction } from './interactable';
 import type { UIInteractionData } from './interactable';
 import { TextInput } from '../text/text-input';
 import { setKeyDefaultPolicy, tabWasShifted } from '../../input/keyDefaultPolicy';
-import { inspectFocusTraversal } from './focus-inspection';
+import { inspectFocusTraversal, isFocusEligible } from './focus-inspection';
 import { playModeOnly } from '../../ecs/env';
 import { UIEvents, UIEventQueue, UIEventType } from '../core/events';
 import { PluginName } from '../../ecs/systemLabels';
@@ -40,11 +40,10 @@ export class FocusPlugin implements Plugin {
         this.keyDefaults_.set(app, setKeyDefaultPolicy(app.getResource(Input), code => {
             if (!playModeOnly() || app.isPaused()) return false;
             if (code !== 'Tab' && code !== 'Enter' && code !== 'Space') return false;
-            const entries = inspectFocusTraversal(world).entries;
-            if (code === 'Tab') return entries.some(entry => entry.skipped === null);
+            if (code === 'Tab') return inspectFocusTraversal(world).entries.some(entry => entry.skipped === null);
             const focused = focusManager.focusedEntity;
             return focused !== null && world.valid(focused) && !world.has(focused, TextInput)
-                && entries.some(entry => entry.entity === focused && entry.skipped === null);
+                && isFocusEligible(world, focused);
         }));
 
         app.addSystemToSchedule(Schedule.Update, defineSystem(
@@ -86,7 +85,7 @@ export class FocusPlugin implements Plugin {
                 if (focused !== null && world.valid(focused) && !world.has(focused, TextInput)
                     && (input.isKeyPressed('Enter') || input.isKeyPressed('Space'))) {
                     // Focus/blur handlers can change dialog or enabled state synchronously.
-                    if (inspectFocusTraversal(world).entries.some(entry => entry.entity === focused && entry.skipped === null)) {
+                    if (isFocusEligible(world, focused)) {
                         events.emit(focused, UIEventType.Click);
                     } else {
                         clearFocus();
@@ -118,6 +117,7 @@ export class FocusPlugin implements Plugin {
                 }
 
                 function setFocus(entity: Entity, visible: boolean): void {
+                    if (!isFocusEligible(world, entity)) return;
                     const prev = focusManager.focusedEntity;
                     // Re-focusing what is already focused still updates HOW: tabbing
                     // to a control you had clicked must start drawing the highlight.
@@ -126,24 +126,27 @@ export class FocusPlugin implements Plugin {
                         return;
                     }
 
-                    blurEntity(prev);
+                    clearFocus();
+                    // A blur handler can remove the target, open a modal, or redirect focus.
+                    if (focusManager.focusedEntity !== null || !isFocusEligible(world, entity)) return;
                     focusManager.focus(entity, visible);
                     const f = world.get(entity, Focusable) as FocusableData;
                     f.isFocused = true;
-                    world.insert(entity, Focusable, f);
+                    world.set(entity, Focusable, f);
                     events.emit(entity, UIEventType.Focus);
+                    if (focusManager.focusedEntity === entity && !isFocusEligible(world, entity)) clearFocus();
                 }
 
                 function clearFocus(): void {
-                    blurEntity(focusManager.focusedEntity);
-                    focusManager.blur();
+                    const previous = focusManager.blur();
+                    blurEntity(previous);
                 }
 
                 function blurEntity(entity: Entity | null): void {
                     if (entity === null || !world.valid(entity) || !world.has(entity, Focusable)) return;
                     const f = world.get(entity, Focusable) as FocusableData;
                     f.isFocused = false;
-                    world.insert(entity, Focusable, f);
+                    world.set(entity, Focusable, f);
                     events.emit(entity, UIEventType.Blur);
                 }
             },

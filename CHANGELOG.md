@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **UI focus transitions recheck callback changes.** Removing or disabling a control and opening a modal during blur cannot focus a stale or excluded target. Focus callbacks that remove their control clear the manager in the same update. Blur handlers observe the cleared state, and single-target keyboard eligibility avoids sorting the entire Tab ring.
+
 - **Sprite callbacks cannot recursively advance the same animation update.** Nested updates are ignored and exceptions release the update guard. Clearing, replacing or shortening a clip's frame list inside a callback stops stale dispatch and reapplies a valid pose on a later update instead of reading a removed frame.
 
 - **Sprite playback catches up without replaying a time backlog.** Complete loop crossings deliver events in playback order, zero-time updates do not repeat the initial event, and single-frame completion does not fire it again. Long updates restore the correct phase while coalescing each declared event to one notification per update. Stopped frame/label seeks update the pose, and changed frames write existing component values without rebuilding defaults.

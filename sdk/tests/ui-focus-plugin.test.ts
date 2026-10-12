@@ -342,3 +342,38 @@ it('rechecks eligibility after a synchronous focus handler opens a dialog', asyn
   expect(focused()).toBe(null);
   expect(clicks).toBe(0);
 });
+
+it('does not focus a target deleted by the previous control blur callback', async () => {
+  const first = addFocusable(0), next = addFocusable(1);
+  await tab();
+  app.getResource(UIEvents).on(first, 'blur', () => app.world.despawn(next));
+  await tab();
+  expect(focused()).toBe(null);
+});
+
+it('rechecks modal eligibility after the previous control blur callback', async () => {
+  const first = addFocusable(0), next = addFocusable(1);
+  const dialog = app.world.spawn(); app.world.insert(dialog, UINode, {});
+  await tab();
+  app.getResource(UIEvents).on(first, 'blur', () => app.world.insert(dialog, UIDialog, {}));
+  await tab();
+  expect(focused()).toBe(null);
+  expect(isFocused(next)).toBe(false);
+});
+
+it('clears focus immediately when the focus callback destroys its control', async () => {
+  const entity = addFocusable(0);
+  app.getResource(UIEvents).on(entity, 'focus', () => app.world.despawn(entity));
+  await tab();
+  expect(focused()).toBe(null);
+});
+
+it('reports cleared manager state to blur callbacks before focusing the next control', async () => {
+  const first = addFocusable(0), next = addFocusable(1);
+  await tab();
+  const observed: (Entity | null)[] = [];
+  app.getResource(UIEvents).on(first, 'blur', () => observed.push(focused()));
+  await tab();
+  expect(observed).toEqual([null]);
+  expect(focused()).toBe(next);
+});
