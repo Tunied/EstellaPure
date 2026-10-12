@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { MiniGameAudioBackend } from '../src/audio/MiniGameAudioBackend';
+import { AudioAPI } from '../src/audio/Audio';
 
 function createMockInnerAudioContext() {
     const ctx = {
@@ -139,6 +140,56 @@ describe('MiniGameAudioBackend', () => {
     });
 
     describe('suspend/resume', () => {
+        it('keeps device-paused voices logically playing for source and budget tracking', async () => {
+            const audio = new AudioAPI(backend, null), buffer = await backend.loadBuffer('a.mp3');
+            audio.setMaxVoices(1);
+            const voice = audio.playBuffer(buffer, { priority: 9, volume: .8 });
+            const ctx = (globalThis as any).wx.createInnerAudioContext.mock.results[0].value;
+            audio.suspend();
+            expect(ctx.paused).toBe(true); expect(voice.isPlaying).toBe(true);
+            audio.setSFXVolume(.5);
+            expect(audio.playBuffer(buffer, { priority: 1 }).isPlaying).toBe(false);
+            audio.resume(); audio.setSFXVolume(.25);
+            expect(ctx.volume).toBeCloseTo(.2); expect(ctx.play).toHaveBeenCalledTimes(2);
+        });
+        it('defers a new voice until device resume', async () => {
+            const buffer = await backend.loadBuffer('a.mp3'); backend.suspend();
+            const voice = backend.play(buffer, {});
+            const ctx = (globalThis as any).wx.createInnerAudioContext.mock.results[0].value;
+            expect(ctx.play).not.toHaveBeenCalled(); expect(voice.isPlaying).toBe(true);
+            backend.resume(); expect(ctx.play).toHaveBeenCalledOnce();
+        });
+        it('a manual pause during device suspension withdraws automatic resume', async () => {
+            const buffer = await backend.loadBuffer('a.mp3'), voice = backend.play(buffer, {});
+            backend.suspend(); voice.pause(); backend.resume();
+            expect(voice.isPlaying).toBe(false);
+            const ctx = (globalThis as any).wx.createInnerAudioContext.mock.results[0].value;
+            expect(ctx.play).toHaveBeenCalledOnce();
+        });
+        it('a manual resume during device suspension queues playback', async () => {
+            const buffer = await backend.loadBuffer('a.mp3'), voice = backend.play(buffer, {});
+            voice.pause(); backend.suspend(); voice.resume();
+            const ctx = (globalThis as any).wx.createInnerAudioContext.mock.results[0].value;
+            expect(ctx.paused).toBe(true); expect(ctx.play).toHaveBeenCalledOnce();
+            backend.resume(); expect(voice.isPlaying).toBe(true); expect(ctx.play).toHaveBeenCalledTimes(2);
+        });
+        it('a host playback callback can withdraw another queued voice before it resumes', async () => {
+            const buffer = await backend.loadBuffer('a.mp3');
+            backend.play(buffer, {}); const second = backend.play(buffer, {}); backend.suspend();
+            const contexts = (globalThis as any).wx.createInnerAudioContext.mock.results;
+            contexts[0].value.play.mockImplementation(() => { contexts[0].value.paused = false; second.pause(); });
+            backend.resume();
+            expect(second.isPlaying).toBe(false); expect(contexts[1].value.play).toHaveBeenCalledOnce();
+        });
+        it('stopping a suspended managed voice frees its budget and prevents later playback', async () => {
+            const audio = new AudioAPI(backend, null), buffer = await backend.loadBuffer('a.mp3');
+            audio.setMaxVoices(1); const old = audio.playBuffer(buffer, { priority: 9 });
+            audio.suspend(); old.stop();
+            const next = audio.playBuffer(buffer, { priority: 1 });
+            audio.resume(); expect(old.isPlaying).toBe(false); expect(next.isPlaying).toBe(true);
+            const contexts = (globalThis as any).wx.createInnerAudioContext.mock.results;
+            expect(contexts[0].value.play).toHaveBeenCalledOnce(); expect(contexts[1].value.play).toHaveBeenCalledOnce();
+        });
         it('resumes device-paused voices while preserving a manually paused voice', async () => {
             const buffer = await backend.loadBuffer('a.mp3');
             const manual = backend.play(buffer, {}), active = backend.play(buffer, {});

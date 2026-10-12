@@ -17,6 +17,11 @@ import type { MiniGameGlobal, MiniGameInnerAudioContext } from '../platform/mini
 import { scalar } from '../math/scalar';
 import { log } from '../util/logger';
 
+interface MiniGameAudioDeviceState {
+    suspended: boolean;
+    pending: Map<number, MiniGameInnerAudioContext>;
+}
+
 class MiniGameAudioHandle implements AudioHandle {
     readonly id: number;
     onEnd?: () => void;
@@ -25,7 +30,8 @@ class MiniGameAudioHandle implements AudioHandle {
     private contexts_: Map<number, MiniGameInnerAudioContext>;
     private done_ = false;
 
-    constructor(id: number, ctx: MiniGameInnerAudioContext, contexts: Map<number, MiniGameInnerAudioContext>) {
+    constructor(id: number, ctx: MiniGameInnerAudioContext, contexts: Map<number, MiniGameInnerAudioContext>,
+        private readonly device_: MiniGameAudioDeviceState) {
         this.id = id;
         this.ctx_ = ctx;
         this.contexts_ = contexts;
@@ -41,6 +47,7 @@ class MiniGameAudioHandle implements AudioHandle {
         if (!this.isLive_()) return;
         this.done_ = true;
         this.contexts_.delete(this.id);
+        this.device_.pending.delete(this.id);
         try {
             if (alsoStop) this.ctx_.stop();
         } finally {
@@ -61,12 +68,14 @@ class MiniGameAudioHandle implements AudioHandle {
 
     pause(): void {
         if (!this.isLive_()) return;
+        this.device_.pending.delete(this.id);
         this.ctx_.pause();
     }
 
     resume(): void {
         if (!this.isLive_()) return;
-        this.ctx_.play();
+        if (this.device_.suspended) this.device_.pending.set(this.id, this.ctx_);
+        else this.ctx_.play();
     }
 
     setVolume(volume: number): void {
@@ -97,7 +106,8 @@ class MiniGameAudioHandle implements AudioHandle {
     }
 
     get isPlaying(): boolean {
-        return this.isLive_() && !this.ctx_.paused;
+        // Device suspension preserves playback intent, like a suspended WebAudio context.
+        return this.isLive_() && (!this.ctx_.paused || this.device_.pending.get(this.id) === this.ctx_);
     }
 
     get currentTime(): number {
@@ -116,7 +126,7 @@ export class MiniGameAudioBackend implements PlatformAudioBackend {
 
     private readonly g_: MiniGameGlobal;
     private contexts_ = new Map<number, MiniGameInnerAudioContext>();
-    private suspendedContexts_: Map<number, MiniGameInnerAudioContext> | null = null;
+    private readonly device_: MiniGameAudioDeviceState = { suspended: false, pending: new Map() };
     private urlCache_ = new Map<number, string>();
     private nextId_ = 0;
 
@@ -173,42 +183,43 @@ export class MiniGameAudioBackend implements PlatformAudioBackend {
         const handleId = ++this.nextId_;
         this.contexts_.set(handleId, ctx);
 
-        const handle = new MiniGameAudioHandle(handleId, ctx, this.contexts_);
+        const handle = new MiniGameAudioHandle(handleId, ctx, this.contexts_, this.device_);
         ctx.onEnded(() => handle.onNaturalEnd());
         ctx.onError((res) => {
             log.error('audio', `Playback error for "${url}"`, res.errMsg);
         });
 
         ctx.src = url;
-        ctx.play();
+        handle.resume();
 
         return handle;
     }
 
     suspend(): void {
-        if (this.suspendedContexts_) return;
-        const suspended = new Map<number, MiniGameInnerAudioContext>();
-        this.suspendedContexts_ = suspended;
+        if (this.device_.suspended) return;
+        this.device_.suspended = true;
         for (const [id, ctx] of this.contexts_) {
             if (ctx.paused) continue;
-            suspended.set(id, ctx);
+            this.device_.pending.set(id, ctx);
             ctx.pause();
         }
     }
 
     resume(): void {
-        const suspended = this.suspendedContexts_;
-        if (!suspended) return;
-        this.suspendedContexts_ = null;
-        for (const [id, ctx] of suspended) {
+        if (!this.device_.suspended) return;
+        this.device_.suspended = false;
+        for (const [id, ctx] of this.device_.pending) {
+            this.device_.pending.delete(id);
             if (this.contexts_.get(id) === ctx && ctx.paused) {
                 ctx.play();
             }
+            if (this.device_.suspended) break;
         }
     }
 
     dispose(): void {
-        this.suspendedContexts_ = null;
+        this.device_.suspended = false;
+        this.device_.pending.clear();
         for (const ctx of this.contexts_.values()) {
             ctx.destroy();
         }
