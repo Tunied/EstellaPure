@@ -7158,7 +7158,7 @@ avoidHostMenu: boolean
 ## SafeAreaPlugin — class @experimental
 ```
 build: (app: App) => void
-cleanup: () => void
+cleanup: (app?: App) => void
 dependencies: "uiLayout"[]
 name: "safeArea"
 static new (): SafeAreaPlugin

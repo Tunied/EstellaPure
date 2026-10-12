@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ui): scope safe-area resize subscriptions to their apps':
+    { note: 'Safe-area resize listeners belong to their App.' },
   'fix(camera): align canvas fitting with hierarchy and scene filters':
     { note: 'Camera fitting and editor previews use outer canvases consistently.' },
   'fix(editor): use outer canvases for previews and UI hosting':

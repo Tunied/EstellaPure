@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Safe-area resize listeners belong to their App.** Quitting an older App no longer removes a newer App's browser listener or leaves its own behind. Rebuilding replaces the same App's binding, cleanup uses the original host and WeChat callback identity, and older hosts without an unsubscribe API revoke the retained callback.
+
 - **Camera fitting and editor previews use outer canvases consistently.** A nested canvas appearing first no longer overrides the scene design resolution or becomes the default host for new UI. Scene-filtered camera collection uses a running scene's outer canvas, and preview selection queries Canvas components directly. The experimental `canvasRootEntities` helper shares root selection across runtime and editor workflows.
 
 - **Nested canvases keep their parent layout and authored draw order.** Only top-level eligible canvases start traversal, so a nested canvas is not laid out again against the full screen or assigned a second draw-order range. Descendants inherit the nearest canvas's sorting layer regardless of canvas creation order.

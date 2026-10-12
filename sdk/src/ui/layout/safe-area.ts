@@ -16,6 +16,7 @@ import { UINode } from '../core/ui-node';
 import type { UINodeData } from '../core/ui-node';
 import { px } from '../core/dimension';
 import { SystemLabel, PluginName } from '../../ecs/systemLabels';
+import { subscribeSafeAreaResize } from './safe-area-resize';
 
 export interface SafeAreaData {
     applyTop: boolean;
@@ -50,7 +51,6 @@ interface WxGlobal {
     wx?: {
         getSystemInfoSync?(): { safeArea: { top: number; bottom: number; left: number; right: number }; screenWidth: number; screenHeight: number } | undefined;
         getMenuButtonBoundingClientRect?(): { top: number; bottom: number; left: number; right: number } | undefined;
-        onWindowResize?(cb: () => void): void;
     };
 }
 
@@ -109,16 +109,19 @@ export class SafeAreaPlugin implements Plugin {
     name = PluginName.SafeArea;
     dependencies = [PluginName.UILayout];
 
-    private onResize_: (() => void) | null = null;
+    private readonly resizeCleanups_ = new WeakMap<App, () => void>();
+    private latestResizeCleanup_: (() => void) | null = null;
 
-    cleanup(): void {
-        if (this.onResize_ && typeof window !== 'undefined') {
-            window.removeEventListener('resize', this.onResize_);
-        }
-        this.onResize_ = null;
+    cleanup(app?: App): void {
+        const release = app ? this.resizeCleanups_.get(app) : this.latestResizeCleanup_;
+        if (!release) return;
+        if (app) this.resizeCleanups_.delete(app);
+        if (release === this.latestResizeCleanup_) this.latestResizeCleanup_ = null;
+        release();
     }
 
     build(app: App): void {
+        this.cleanup(app);
         registerComponent('SafeArea', SafeArea);
 
         const world = app.world;
@@ -131,13 +134,9 @@ export class SafeAreaPlugin implements Plugin {
         let prevScreenH = 0;
         let prevLayoutH = 0;
 
-        if (isWeChat()) {
-            const g = globalThis as unknown as WxGlobal;
-            g.wx?.onWindowResize?.(() => { stale = true; });
-        } else if (typeof window !== 'undefined') {
-            this.onResize_ = () => { stale = true; };
-            window.addEventListener('resize', this.onResize_);
-        }
+        const release = subscribeSafeAreaResize(() => { stale = true; });
+        this.resizeCleanups_.set(app, release);
+        this.latestResizeCleanup_ = release;
 
         app.addSystemToSchedule(Schedule.PreUpdate, defineSystem(
             [Res(ScreenLayout)],
