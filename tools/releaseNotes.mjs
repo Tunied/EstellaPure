@@ -28,6 +28,10 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(tilemap): scope paint strokes and respect layer locks':
+    { note: 'Tilemap edits respect layer locks and stroke ownership.' },
+  'fix(editor): sync tilemap stroke ownership checks':
+    { note: 'Tilemap edits respect layer locks and stroke ownership.' },
   'fix(engine): register tilemap data before renderer initialization':
     { note: 'Tilemap data is available before renderer initialization.' },
   'fix(tilemap): complete bounded fills and avoid repeated boundary reads':
