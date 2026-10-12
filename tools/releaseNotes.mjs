@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'test(ui): type the required layout measurement in the WASM regression':
+    { internal: 'The real-WASM viewport regression requires the measured-height export; its non-null type assertion matches the verified test precondition without changing runtime code.' },
   'fix(ui): synchronize virtualized lists with resolved viewport bounds':
     { note: 'Virtualized lists follow their resolved UI viewport.' },
   'fix(samples): keep virtualized UI inside device safe areas':

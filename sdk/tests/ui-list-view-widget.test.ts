@@ -159,7 +159,7 @@ describe.skipIf(!HAS_WASM)('createListView (WASM integration)', () => {
         });
         try {
             module.uiLayout_update(registry, 0, 0, 800, 600, true);
-            expect(module.getUINodeComputedHeight(registry, list.entity)).toBe(140);
+            expect(module.getUINodeComputedHeight!(registry, list.entity)).toBe(140);
             await app.tick(1 / 60);
             expect(list.scroll.getViewportSize()).toEqual({ x: 180, y: 140 });
             const node = app.world.get(parent, UINode) as UINodeData;
