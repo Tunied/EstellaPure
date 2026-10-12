@@ -29,7 +29,7 @@ void pushBatchCommandImpl(TransientBufferPool& pool, DrawList& drawList, const C
                           u32 vertexByteOffset, u32 vertexCount,
                           const IndexT* localIndices, u32 indexCount,
                           const BatchDrawKey& key) {
-    if (indexCount == 0) return;
+    if (indexCount == 0 || clips.isEmptyScissor(key.entity)) return;
 
     u32 baseVertex = vertexByteOffset / pool.vertexStride(key.layoutId);
     g_indexScratch.resize(indexCount);
@@ -46,7 +46,7 @@ void pushBatchCommandImpl(TransientBufferPool& pool, DrawList& drawList, const C
 void pushBatchDraw(DrawList& drawList, const ClipState& clips,
                    u32 vertexByteOffset, u32 vertexCount, u32 indexOffset, u32 indexCount,
                    const BatchDrawKey& key) {
-    if (indexCount == 0) return;
+    if (indexCount == 0 || clips.isEmptyScissor(key.entity)) return;
 
     // A group takes over its members' outward identity, so EVERY layer-derived decision
     // below asks the group's layer: the culling bit, the ordering rule, the key's top field.
@@ -184,7 +184,7 @@ void appendIndexedDraw(TransientBufferPool& pool, DrawList& drawList, const Clip
                        const void* verts, u32 vertexCount,
                        const u32* localIndices, u32 indexCount,
                        const BatchDrawKey& key) {
-    if (vertexCount == 0 || indexCount == 0) return;
+    if (vertexCount == 0 || indexCount == 0 || clips.isEmptyScissor(key.entity)) return;
     u32 vertexByteOffset = pool.appendVertices(
         key.layoutId, verts, vertexCount * pool.vertexStride(key.layoutId));
     pushBatchCommandImpl(pool, drawList, clips, vertexByteOffset, vertexCount, localIndices, indexCount, key);

@@ -101,6 +101,50 @@ TEST_CASE("appendQuad: Batch command with baseVertex-offset indices and one text
     CHECK(second.index_offset == 6);
 }
 
+TEST_CASE("empty scissor regions allocate no quad geometry or draw command") {
+    for (const auto size : {std::pair{0, 20}, std::pair{20, 0}, std::pair{-1, 20}}) {
+        Harness h;
+        BatchVertex quad[4] = {};
+        auto blocked = quadKey(42); blocked.entity = Entity(91);
+        h.clips.setScissor(91, 10, 20, size.first, size.second);
+        h.clips.setStencilTestOutside(91, 3);
+        appendQuad(h.pool, h.list, h.clips, quad, blocked);
+        auto visible = quadKey(42); visible.entity = Entity(92);
+        appendQuad(h.pool, h.list, h.clips, quad, visible);
+        REQUIRE(h.list.commandCount() == 1);
+        CHECK(h.list.command(0).entity == Entity(92));
+        CHECK(h.list.command(0).vertex_byte_offset == 0);
+        CHECK(h.list.command(0).index_offset == 0);
+    }
+}
+
+TEST_CASE("empty scissors suppress direct and prebuilt-vertex submissions") {
+    Harness h;
+    auto blocked = quadKey(42); blocked.entity = Entity(91);
+    h.clips.setScissor(91, 0, 0, 0, 0);
+    pushBatchDraw(h.list, h.clips, 0, 4, 0, 6, blocked);
+    const u32 indices[] = {0, 1, 2, 2, 3, 0};
+    pushBatchCommand(h.pool, h.list, h.clips, 0, 4, indices, 6, blocked);
+    CHECK(h.list.commandCount() == 0);
+    BatchVertex quad[4] = {};
+    auto visible = quadKey(42); visible.entity = Entity(92);
+    appendQuad(h.pool, h.list, h.clips, quad, visible);
+    REQUIRE(h.list.commandCount() == 1);
+    CHECK(h.list.command(0).index_offset == 0);
+}
+
+TEST_CASE("stencil-only entries and nonempty scissors still draw") {
+    Harness h;
+    BatchVertex quad[4] = {};
+    auto stencil = quadKey(42); stencil.entity = Entity(91);
+    h.clips.setStencilMask(91, 1);
+    appendQuad(h.pool, h.list, h.clips, quad, stencil);
+    auto clipped = quadKey(42); clipped.entity = Entity(92);
+    h.clips.setScissor(92, 10, 20, 1, 1);
+    appendQuad(h.pool, h.list, h.clips, quad, clipped);
+    CHECK(h.list.commandCount() == 2);
+}
+
 TEST_CASE("appendIndexedDraw: non-Batch stream uses its own stride for baseVertex") {
     Harness h;
     TestShapeVertex verts[4] = {};

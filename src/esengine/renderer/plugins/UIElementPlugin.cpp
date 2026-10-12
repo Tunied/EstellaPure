@@ -60,6 +60,7 @@ void UIElementPlugin::collect(RenderCollectContext& collect_ctx) {
         // Geometry from the UINode (CSS box) — always pivot-centered.
         const auto* node = registry.tryGet<ecs::UINode>(entity);
         if (!node || node->hidden_in_tree_) continue;
+        if (clips.isEmptyScissor(entity)) { ++collect_ctx.culled; continue; }
         f32 w = node->computed_size_.x, h = node->computed_size_.y;
         f32 pivotX = 0.5f, pivotY = 0.5f;
         if (w <= 0.0f && h <= 0.0f) continue;

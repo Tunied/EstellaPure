@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(render): skip geometry outside UI scissor viewports':
+    { note: 'Screen-excluded UI scissor regions no longer submit draws.' },
   'fix(animation): isolate despawn subscriptions by app':
     { note: 'Animation despawn subscriptions belong to their App.' },
   'perf(animation): apply sprite frames through direct storage accessors':

@@ -64,6 +64,13 @@ public:
         return it != entries_.end() ? &it->second : nullptr;
     }
 
+    bool isEmptyScissor(Entity entity) const {
+        if (entries_.empty()) return false;
+        const auto* entry = getEntry(entity.id());
+        return entry && (entry->flags & CMD_STATE_SCISSOR)
+            && (entry->scissor.w <= 0 || entry->scissor.h <= 0);
+    }
+
     void clear() { entries_.clear(); }
     bool empty() const { return entries_.empty(); }
 

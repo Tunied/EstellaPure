@@ -237,6 +237,7 @@ void RenderFrame::processMasks(ecs::Registry& registry, const glm::mat4& project
 
         for (auto entity : rootScissors) {
             ScreenRect rect = computeMaskScreenRect(registry, entity, projection, vpX, vpY, vpW, vpH);
+            rect = intersectRects(rect, {vpX, vpY, vpW, vpH});
             applyScissorToDescendants(registry, *this, entity, rect, maskSet, projection, vpX, vpY, vpW, vpH);
         }
     }
