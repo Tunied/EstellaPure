@@ -24,9 +24,9 @@
 Estella is a **2D/3D game engine** with a TypeScript SDK driven by a high-performance **C++** core — as WebAssembly on the web, and compiled ahead of time on native platforms. It outputs games that run in **web browsers**, on the **desktop**, in **WeChat MiniGames**, as single-file **playable ads**, and as native **Android / iOS** apps. A visual editor is available as a separate, free download.
 
 <div align="center">
-  <img src="https://estellaengine.com/celestial-heights-frame.png" alt="The Celestial Heights 2D sample running in a released Web build" width="900" />
+  <img src="docs/assets/editor-hero-c5bfd2f3.png" alt="An action-RPG scene open in the Estella editor" width="900" />
   <br/>
-  <sub><i>Celestial Heights — a 2D sample captured from the exported game. Release builds generate this frame and publish its provenance alongside it.</i></sub>
+  <sub><i>Celestial Heights — an action-RPG scene in the Estella editor, with the full scene graph in the outliner.</i></sub>
 </div>
 
 ## Why Estella?
