@@ -18,9 +18,11 @@ import { defineComponent } from '../../ecs/component';
 import { defineSystem, type SystemDef } from '../../ecs/system';
 import { Res } from '../../ecs/resource';
 import { Input, type InputState } from '../../input/input';
+import { worldEngineApi } from '../../ecs/bridge/engineApi';
 import type { World } from '../../ecs/world';
 import type { Entity } from '../../types';
 import { px, percent } from '../core/dimension';
+import { UINode } from '../core/ui-node';
 import { spawnUIEntity } from '../core/compose';
 import { Text, type TextData } from '../core/text';
 import { UIEventType, type UIEventQueue } from '../core/events';
@@ -64,6 +66,13 @@ function popupMatches(p: PopupState, d: UIDropdownData): boolean {
     return true;
 }
 
+function dropdownAvailable(world: World, e: Entity): boolean {
+    if (!world.isEntityActive(e) || world.isDestructionPending(e) || !world.has(e, UIDropdown)) return false;
+    if (world.has(e, Interactable) && !(world.get(e, Interactable) as InteractableData).enabled) return false;
+    return !world.has(e, UINode)
+        || !worldEngineApi(world)?.getUINodeHiddenInTree?.(world.getCppRegistry()!, e);
+}
+
 // Popup registries are runtime-only and per-world (unit tests run many worlds).
 const popupsByWorld = new WeakMap<World, Map<Entity, PopupState>>();
 
@@ -91,7 +100,7 @@ export function closeDropdown(world: World, e: Entity): void {
 
 export function openDropdown(world: World, events: UIEventQueue, e: Entity): void {
     const popups = popupsOf(world);
-    if (popups.has(e) || !world.valid(e) || !world.has(e, UIDropdown)) return;
+    if (popups.has(e) || !dropdownAvailable(world, e)) return;
     const d = world.get(e, UIDropdown) as UIDropdownData;
     const options = [...d.options], optionHeight = d.optionHeight;
 
@@ -160,8 +169,9 @@ export function openDropdown(world: World, events: UIEventQueue, e: Entity): voi
 
         const index = i;
         unsubs.push(events.on(row, UIEventType.Click, () => {
+            const available = dropdownAvailable(world, e);
             closeDropdown(world, e);
-            if (!world.valid(e) || !world.has(e, UIDropdown)) return;
+            if (!available || !dropdownAvailable(world, e)) return;
             const cur = world.get(e, UIDropdown) as UIDropdownData;
             if (cur.options[index] !== options[index]) return;
             if (cur.selectedIndex !== index) {
@@ -223,9 +233,10 @@ export function createDropdownSystem(world: World, events: UIEventQueue): System
     events.on(UIEventType.Click, (ev) => {
         const target = ev.target;
         if (world.valid(target) && world.has(target, UIDropdown)) {
-            const enabled = !world.has(target, Interactable)
-                || (world.get(target, Interactable) as InteractableData).enabled;
-            if (!enabled) return;
+            if (!dropdownAvailable(world, target)) {
+                closeDropdown(world, target);
+                return;
+            }
             if (isDropdownOpen(world, target)) closeDropdown(world, target);
             else openDropdown(world, events, target);
             return;
@@ -240,6 +251,13 @@ export function createDropdownSystem(world: World, events: UIEventQueue): System
     });
 
     return defineSystem([Res(Input)], (input: InputState) => {
+        const popups = popupsOf(world);
+        // Inactive owners disappear from component queries but still own popup entries.
+        if (popups.size > 0) {
+            for (const e of popups.keys()) {
+                if (!dropdownAvailable(world, e)) closeDropdown(world, e);
+            }
+        }
         for (const e of world.getEntitiesWithComponents([UIDropdown])) {
             if (!world.valid(e) || !world.has(e, UIDropdown)) continue;
             let d = world.get(e, UIDropdown) as UIDropdownData;
@@ -249,7 +267,7 @@ export function createDropdownSystem(world: World, events: UIEventQueue): System
                 d.selectedIndex = clamped;
                 world.insert(e, UIDropdown, d);
             }
-            const previousPopup = popupsOf(world).get(e);
+            const previousPopup = popups.get(e);
             if (previousPopup && !popupMatches(previousPopup, d)) {
                 closeDropdown(world, e);
                 if (!world.valid(e) || !world.has(e, UIDropdown)) continue;
@@ -262,10 +280,8 @@ export function createDropdownSystem(world: World, events: UIEventQueue): System
             // convention); Enter confirms and Escape dismisses an open popup.
             const focused = world.has(e, Focusable)
                 && (world.get(e, Focusable) as FocusableData).isFocused;
-            const enabled = !world.has(e, Interactable)
-                || (world.get(e, Interactable) as InteractableData).enabled;
             const open = isDropdownOpen(world, e);
-            if (focused && enabled && d.options.length > 0) {
+            if (focused && dropdownAvailable(world, e) && d.options.length > 0) {
                 let next = d.selectedIndex;
                 if (input.isKeyPressed('ArrowDown')) next = Math.min(next + 1, d.options.length - 1);
                 if (input.isKeyPressed('ArrowUp')) next = Math.max(next - 1, 0);
@@ -298,7 +314,7 @@ export function createDropdownSystem(world: World, events: UIEventQueue): System
                         world.insert(d.label, Text, txt);
                     }
                 }
-                const popup = popupsOf(world).get(e);
+                const popup = popups.get(e);
                 if (popup) highlightRow(world, popup.rows, d.selectedIndex);
                 if (emitChange) events.emit(e, UIEventType.Change, { index: d.selectedIndex });
             }

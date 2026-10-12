@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Unavailable dropdowns retire their open lists.** Disabling, hiding, deactivating or removing a dropdown closes its popup even when the owner drops out of component queries. Keyboard input and stale row clicks cannot change an unavailable control; availability is checked again after popup teardown callbacks.
+
 - **Dropdown labels and open rows follow live option edits.** Renames and label replacements repaint without a false selection event; changed option lists or row heights rebuild an open popup and keep the selection in range. Stale rows cannot choose a newly substituted option, popup teardown cannot resurrect a disposed owner, and change callbacks may remove later controls safely.
 
 - **Toggle indicators follow target replacements safely.** Replacing a check entity immediately applies the current on/off state without a false change event. Change callbacks may dispose later toggles in the same update, while stable frames avoid repeated visual writes and reuse cached state during transitions.

@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ui): retire unavailable dropdown popups before selection':
+    { note: 'Unavailable dropdowns retire their open lists.' },
   'fix(ui): reconcile dropdown options and guard popup teardown':
     { note: 'Dropdown labels and open rows follow live option edits.' },
   'fix(ui): reconcile toggle indicator targets and callback removals':
