@@ -174,4 +174,43 @@ describe.skipIf(!HAS_WASM)('UIScroll adoption', () => {
         await app.tick(1 / 60);
         expect(attached.has(viewport)).toBe(false);
     });
+
+    it('follows a new first child when the previous content is reparented alive', async () => {
+        const { app, world, viewport, content, attached, sizes } = setup();
+        await app.tick(1 / 60);
+        const old = attached.get(viewport)!;
+        const replacement = world.spawn(); world.insert(replacement, UINode, fullNode());
+        sizes.set(replacement, { w: 400, h: 800 });
+        world.removeParent(content); world.setParent(replacement, viewport);
+        await app.tick(1 / 60);
+        const current = attached.get(viewport)!;
+        expect(current).not.toBe(old);
+        current.scrollBy({ x: 0, y: 120 });
+        expect(world.get(replacement, UINode).insetTop.value).toBe(-120);
+        old.scrollBy({ x: 0, y: 120 });
+        expect(world.get(content, UINode).insetTop).toEqual(auto());
+    });
+
+    it('switches from an explicit reference back to the current first child', async () => {
+        const { app, world, viewport, content, attached, sizes } = setup();
+        const other = world.spawn(); world.insert(other, UINode, fullNode());
+        sizes.set(other, { w: 400, h: 800 }); world.setParent(other, viewport);
+        world.update(viewport, UIScroll, scroll => { scroll.content = other; });
+        await app.tick(1 / 60);
+        world.update(viewport, UIScroll, scroll => { scroll.content = 0; });
+        await app.tick(1 / 60);
+        attached.get(viewport)!.scrollBy({ x: 0, y: 120 });
+        expect(world.get(content, UINode).insetTop.value).toBe(-120);
+        expect(world.get(other, UINode).insetTop).toEqual(auto());
+    });
+
+    it('does not fetch native child vectors again while the hierarchy stays unchanged', async () => {
+        const { app, world } = setup();
+        await app.tick(1 / 60);
+        const read = vi.spyOn(world.getCppRegistry()!, 'getChildren');
+        try {
+            for (let i = 0; i < 100; i++) await app.tick(1 / 60);
+            expect(read).not.toHaveBeenCalled();
+        } finally { read.mockRestore(); }
+    });
 });

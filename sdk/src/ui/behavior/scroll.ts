@@ -31,6 +31,7 @@ export interface ScrollHost {
 interface Attached {
     container: ScrollContainer;
     content: Entity;
+    contentRef: number;
     unsubscribe: () => void;
 }
 
@@ -48,6 +49,7 @@ export function createScrollAdoptSystem(
     host: ScrollHost,
 ) {
     const attached = new Map<Entity, Attached>();
+    let lastWorldVersion = -1;
 
     /** The resolved box the layout pass produced, not the authored dimension. */
     const size = (entity: Entity): Vec2 => ({
@@ -81,8 +83,7 @@ export function createScrollAdoptSystem(
         attached.delete(entity);
     };
 
-    const attach = (entity: Entity, scroll: UIScrollData): void => {
-        const content = contentOf(entity, scroll);
+    const attach = (entity: Entity, scroll: UIScrollData, content = contentOf(entity, scroll)): void => {
         if (content == null || !world.valid(content) || !world.has(content, UINode)) return;
 
         const container = new ScrollContainer({
@@ -104,10 +105,13 @@ export function createScrollAdoptSystem(
             world.insert(content, UINode, node);
         });
         host.attachScrollContainer(entity, container);
-        attached.set(entity, { container, content, unsubscribe });
+        attached.set(entity, { container, content, contentRef: scroll.content, unsubscribe });
     };
 
     return defineSystem([Query(UIScroll)], (query) => {
+        const version = world.getWorldVersion();
+        const topologyChanged = version !== lastWorldVersion;
+        lastWorldVersion = version;
         const live = new Set<Entity>();
 
         for (const [entity, scroll] of query) {
@@ -120,16 +124,17 @@ export function createScrollAdoptSystem(
                 attach(entity, data);
                 continue;
             }
-            // A content swap is a different container, not a resize. Only an
-            // explicit ref is re-read each frame; the implicit "first child" is
-            // trusted while it lives, so the steady state costs no wasm calls.
-            const swapped = !world.valid(a.content) || !world.has(a.content, UINode)
-                || (data.content !== 0 && (data.content as Entity) !== a.content);
+            const usable = world.valid(a.content) && world.has(a.content, UINode);
+            // Re-read implicit children only after structural edits or reference changes.
+            const resolved = data.content !== 0 ? data.content as Entity
+                : (topologyChanged || a.contentRef !== 0 || !usable) ? contentOf(entity, data) : a.content;
+            const swapped = !usable || resolved !== a.content;
             if (swapped) {
                 detach(entity);
-                attach(entity, data);
+                attach(entity, data, resolved);
                 continue;
             }
+            a.contentRef = data.content;
             const content = a.content;
             // Clamp against one complete layout, never mixed old/new extents.
             a.container.setSizes(size(entity), size(content));

@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Scroll views follow content hierarchy edits.** Reparenting a live content node switches an implicit scroll view to its new first child, and clearing an explicit content reference restores first-child selection. Retired containers stop moving the previous content; unchanged hierarchies do not reread native child vectors every frame.
+
 - **Scroll views retain valid offsets across simultaneous resizes.** Viewport and content dimensions update together before clamping, avoiding position jumps and duplicate scroll notifications. Destroyed content references detach their containers instead of leaving stale scroll targets.
 
 - **Scene-authored scroll views receive hover and wheel input.** Hit testing no longer inserts hidden interaction components outside the SDK's component index. The interaction system owns creation and query invalidation, so wheel scrolling and per-frame hover/press state work for controls placed in the editor.
