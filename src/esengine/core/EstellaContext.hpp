@@ -73,7 +73,7 @@ public:
 private:
     void initSubsystems(Unique<GfxDevice> gfxDevice);
     /**
-     * Register the GPU-independent ECS logic systems (Transform/UI/Tween).
+     * Register the GPU-independent logic systems (Transform/UI/Tween/Tilemap).
      * Called from the constructor *and* initSubsystems so they exist even for
      * headless apps that never call init() — otherwise require<UISystem>() etc.
      * return a null reference (silent wasm address-0 corruption). Idempotent.

@@ -50,11 +50,6 @@
 
 namespace esengine {
 
-#ifdef ES_ENABLE_TILEMAP
-// Forward declaration — defined in TilemapBindings.cpp for web builds,
-// needs local instance for non-web. For now we create a fresh system.
-#endif
-
 EstellaContext::EstellaContext() {
     // Logic systems must exist even for headless apps that never call init()
     // (e.g. tooling / tests that drive UI layout without a GL context). Without
@@ -72,6 +67,11 @@ void EstellaContext::registerLogicSystems() {
     services_.registerOwned<ecs::TransformSystem>(makeUnique<ecs::TransformSystem>());
     services_.registerOwned<ecs::UISystem>(makeUnique<ecs::UISystem>());
     services_.registerOwned<animation::TweenSystem>(makeUnique<animation::TweenSystem>());
+#ifdef ES_ENABLE_TILEMAP
+    // Chunk data and tile queries do not need a renderer. Register here once so
+    // later renderer initialization also retains maps loaded by headless tooling.
+    services_.registerOwned<tilemap::TilemapSystem>(makeUnique<tilemap::TilemapSystem>());
+#endif
 }
 
 EstellaContext::~EstellaContext() {
@@ -151,7 +151,7 @@ void EstellaContext::initSubsystems(Unique<GfxDevice> gfxDevice) {
     // GPU state is owned by the device: pipelines (setPipeline) carry program/blend/depth/
     // stencil/cull, so there is no separate per-App state tracker to wire up here.
 
-    // GPU-independent logic systems (Transform/UI/Tween) are registered here too
+    // GPU-independent logic systems (Transform/UI/Tween/Tilemap) are registered here too
     // for the shutdown()+init() re-init path; the constructor already registered
     // them for the headless/first-use path. Idempotent, so this is a no-op when
     // they are already present.
@@ -177,10 +177,6 @@ void EstellaContext::initSubsystems(Unique<GfxDevice> gfxDevice) {
     services_.registerOwned<ImmediateDraw>(std::move(immediateDraw));
 
     services_.registerOwned<GeometryManager>(makeUnique<GeometryManager>());
-
-#ifdef ES_ENABLE_TILEMAP
-    services_.registerOwned<tilemap::TilemapSystem>(makeUnique<tilemap::TilemapSystem>());
-#endif
 
     auto renderFrame = makeUnique<RenderFrame>(*gfxDevicePtr, *rc, *rm);
     renderFrame->setPresentedOverlayDraw(immediateDrawPtr);

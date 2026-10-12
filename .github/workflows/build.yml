@@ -24,7 +24,7 @@ permissions:
 # but-never-run (the hand-kept lists had drifted).
 env:
   CPP_TESTS: >-
-    test_ecs test_events test_particle test_tilemap test_sparse_set
+    test_ecs test_events test_particle test_tilemap test_tilemap_context test_sparse_set
     test_resource_pool test_shader_variant test_log_format test_registry_safety
     test_registry_ondestroy test_view_api_matrix
     test_hierarchy_links test_entity_activity test_transform_traversal test_tween_activity

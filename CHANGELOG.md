@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Tilemap data is available before renderer initialization.** Headless tile reads, edits and chunk serialization use the context's own data service without requiring graphics setup. Initializing the renderer keeps any preloaded maps; shutdown and reinitialization create a fresh service.
+
 - **Tilemap bucket fills finish every discovered cell within the safety limit.** A 16,384-cell region fills completely without a false warning, while larger or infinite regions remain bounded. Traversal uses a FIFO cursor and reads each boundary cell once. Flip flags participate in the brush comparison, and unchanged cells are omitted from the paint transaction.
 
 - **Switching tilemap layers clears the previous palette before drawing.** Palette loads restart when the project changes even if entity IDs are reused. Superseded reads stop requesting subsequent tilesets or atlas dimensions after a layer switch or panel close.

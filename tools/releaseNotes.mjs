@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(engine): register tilemap data before renderer initialization':
+    { note: 'Tilemap data is available before renderer initialization.' },
   'fix(tilemap): complete bounded fills and avoid repeated boundary reads':
     { note: 'Tilemap bucket fills finish every discovered cell within the safety limit.' },
   'fix(editor): sync bounded tilemap fill corrections':
