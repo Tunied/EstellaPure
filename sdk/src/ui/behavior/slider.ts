@@ -14,6 +14,8 @@ import { defineComponent } from '../../ecs/component';
 import { defineSystem, type SystemDef } from '../../ecs/system';
 import { Res } from '../../ecs/resource';
 import { Input, type InputState } from '../../input/input';
+import { primaryPointerCancellationVersion } from '../../input/pointerCancellation';
+import { worldEngineApi } from '../../ecs/bridge/engineApi';
 import { Transform, type TransformData } from '../../ecs/component';
 import type { World } from '../../ecs/world';
 import type { Entity } from '../../types';
@@ -27,7 +29,7 @@ import { UIInteraction, type UIInteractionData } from '../input/interactable';
 import { Interactable, type InteractableData } from '../input/interactable';
 import { Focusable, type FocusableData } from '../input/focusable';
 import { UIEventType, type UIEventQueue } from '../core/events';
-import { EntityStateMap, getUINodeWidth } from '../util/helpers';
+import { EntityStateMap } from '../util/helpers';
 
 export interface UISliderData {
     min: number;
@@ -75,21 +77,34 @@ function keyStep(d: UISliderData): number {
 export function createSliderSystem(world: World, events: UIEventQueue): SystemDef {
     // Press on a track captures the drag until release, even off-entity.
     let active: Entity | null = null;
+    let lastCancellationVersion = 0;
+    const engine = worldEngineApi(world);
+    const registry = world.getCppRegistry();
+    const receivesInput = (e: Entity): boolean => world.isEntityActive(e)
+        && !world.isDestructionPending(e)
+        && (!world.has(e, Interactable) || (world.get(e, Interactable) as InteractableData).enabled)
+        && (!world.has(e, UINode) || !engine?.getUINodeHiddenInTree?.(registry!, e));
     const shown = new EntityStateMap<Pick<UISliderData, 'value' | 'min' | 'max' | 'fill' | 'handle'>>();
 
     return defineSystem(
         [Res(Input), Res(UICameraInfo), Res(ScreenOverlay)],
         (input: InputState, camera: UICameraData, overlay: ScreenOverlayData) => {
+            const version = primaryPointerCancellationVersion(input);
+            const cancelled = version !== lastCancellationVersion;
+            lastCancellationVersion = version;
+            const pointerAvailable = camera.valid || overlay.active;
+            if (active !== null && (cancelled || !pointerAvailable || !world.valid(active)
+                || !world.has(active, UISlider) || !receivesInput(active)
+                || !world.has(active, Transform) || !input.isMouseButtonDown(0))) active = null;
             for (const e of world.getEntitiesWithComponents([UISlider])) {
                 if (!world.valid(e) || !world.has(e, UISlider)) continue;
                 const d = world.get(e, UISlider) as UISliderData;
                 let next = d.value;
 
-                const enabled = !world.has(e, Interactable)
-                    || (world.get(e, Interactable) as InteractableData).enabled;
+                const enabled = receivesInput(e);
 
                 // Pointer: capture on press, track while held.
-                if (enabled && world.has(e, UIInteraction)
+                if (enabled && pointerAvailable && input.isMouseButtonDown(0) && world.has(e, UIInteraction)
                     && (world.get(e, UIInteraction) as UIInteractionData).justPressed) {
                     active = e;
                 }
@@ -98,7 +113,7 @@ export function createSliderSystem(world: World, events: UIEventQueue): SystemDe
                         active = null;
                     } else if ((camera.valid || overlay.active) && world.has(e, Transform)) {
                         const t = world.get(e, Transform) as TransformData;
-                        const w = getUINodeWidth(e) * t.worldScale.x;
+                        const w = (registry ? engine?.getUINodeComputedWidth?.(registry, e) ?? 0 : 0) * t.worldScale.x;
                         if (w > 0) {
                             // The pointer in the track's own domain: the fraction
                             // is a ratio of two positions, so both have to be in

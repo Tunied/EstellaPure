@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Slider capture expires with input and target availability.** Disabled, inactive or hidden tracks and lost pointer projections cancel capture before a value update, so restoring the control cannot resume an old drag. A consumed release followed by another press cannot retain capture, and track width is read from the slider's own World instead of shared UI helper bindings.
+
 - **Slider visuals follow range and target edits.** Changing min/max or replacing a fill/handle updates the displayed fraction even when the value is unchanged, without emitting a spurious value-change event. Stable frames do not rewrite visuals, cached display state is reused during value changes, and change callbacks may remove later sliders safely.
 
 - **Object drags stop when their input or target becomes unavailable.** Editor-consumed releases, disabled or removed drag components, hidden targets and lost pointer projections clear capture before another position write. Drag callbacks may disable or remove their target safely, and an active gesture emits its end once without resuming later.

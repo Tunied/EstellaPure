@@ -33,6 +33,10 @@ interface MockWorld {
     insert(e: Entity, c: object, data: unknown): void;
     getEntitiesWithComponents(cs: object[]): Entity[];
     onDespawn(cb: (e: Entity) => void): () => void;
+    getWasmModule(): null;
+    getCppRegistry(): null;
+    isEntityActive(e: Entity): boolean;
+    isDestructionPending(e: Entity): boolean;
 }
 
 function createMockWorld(): MockWorld {
@@ -53,6 +57,8 @@ function createMockWorld(): MockWorld {
             w._components.delete(e as number);
         },
         valid(e) { return w._entities.has(e as number); },
+        getWasmModule() { return null; }, getCppRegistry() { return null; },
+        isEntityActive(e) { return w.valid(e); }, isDestructionPending() { return false; },
         setParent() { /* not needed */ },
         has(e, c) { return w._components.get(e as number)?.has(c) ?? false; },
         get(e, c) { return w._components.get(e as number)?.get(c); },
@@ -87,7 +93,7 @@ describe('bindWidgetValue', () => {
     it('signal → UISlider.value → visuals; input change → signal (round trip settles)', () => {
         const sys = createSliderSystem(world as unknown as World, events);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const tick = () => (sys as any)._fn(idleInput, noCamera);
+        const tick = () => (sys as any)._fn(idleInput, noCamera, { active: false });
 
         const slider = createSlider({
             world: world as unknown as World, events,

@@ -32,6 +32,10 @@ interface MockWorld {
     insert(e: Entity, c: object, data: unknown): void;
     getEntitiesWithComponents(cs: object[]): Entity[];
     onDespawn(cb: (e: Entity) => void): () => void;
+    getWasmModule(): null;
+    getCppRegistry(): null;
+    isEntityActive(e: Entity): boolean;
+    isDestructionPending(e: Entity): boolean;
 }
 
 function createMockWorld(): MockWorld {
@@ -50,6 +54,8 @@ function createMockWorld(): MockWorld {
             w._components.delete(e as number);
         },
         valid(e) { return w._entities.has(e as number); },
+        getWasmModule() { return null; }, getCppRegistry() { return null; },
+        isEntityActive(e) { return w.valid(e); }, isDestructionPending() { return false; },
         setParent() { /* no-op for these tests */ },
         has(e, c) { return w._components.get(e as number)?.has(c) ?? false; },
         get(e, c) { return w._components.get(e as number)?.get(c); },
@@ -86,7 +92,7 @@ describe('createSlider', () => {
         };
         const camera = { valid: false };
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        tick = () => (sys as any)._fn(input, camera);
+        tick = () => (sys as any)._fn(input, camera, { active: false });
     });
 
     const make = (opts: Record<string, unknown> = {}) =>
