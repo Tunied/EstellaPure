@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Touch hit caches release ended pointer IDs.** Long-running touch sessions retain only the pointers present in the current input frame, including release-frame results needed by quick taps, instead of accumulating every historical finger ID.
+
 - **Pointer callbacks cancel invalid UI interactions immediately.** Disabling or deleting a control during hover, press or release stops later events from the same batch. Invalidated captures and interaction edges clear in the same frame, so re-enabling a button does not complete an old press.
 
 - **UI focus transitions recheck callback changes.** Removing or disabling a control and opening a modal during blur cannot focus a stale or excluded target. Focus callbacks that remove their control clear the manager in the same update. Blur handlers observe the cleared state, and single-target keyboard eligibility avoids sorting the entire Tab ring.

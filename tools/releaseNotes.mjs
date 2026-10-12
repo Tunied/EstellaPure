@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ui): bound hit caches to live pointer frames':
+    { note: 'Touch hit caches release ended pointer IDs.' },
   'fix(ui): cancel pointer events invalidated by callbacks':
     { note: 'Pointer callbacks cancel invalid UI interactions immediately.' },
   'fix(ui): revalidate focus targets after synchronous callbacks':

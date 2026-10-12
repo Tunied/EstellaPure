@@ -7,7 +7,7 @@
  *          two fingers hold stays pressed until the last one lifts.
  */
 import { describe, it, expect } from 'vitest';
-import { UiPointerBook, uiPointersOf, MOUSE_POINTER, type UiPointerSample } from '../src/ui/input/pointerBook';
+import { UiPointerBook, UiPointerHitCache, uiPointersOf, MOUSE_POINTER, type UiPointerSample } from '../src/ui/input/pointerBook';
 import { InputState } from '../src/input/input';
 import type { Entity } from '../src/types';
 
@@ -112,6 +112,30 @@ describe('a release inside the host event', () => {
 });
 
 describe('the pointer set a frame of input makes', () => {
+    it('keeps touch hit caching bounded over repeated gestures, including the release frame', () => {
+        const input = new InputState(), cache = new UiPointerHitCache();
+        for (let id = 0; id < 10000; id++) {
+            input.touches.set(id, { id, x: 10, y: 20 });
+            cache.retain(uiPointersOf(input));
+            cache.set(id, { x: 10, y: 20, entity: BUTTON_A });
+            expect(cache.size).toBe(1);
+            input.endTouch(id);
+            cache.retain(uiPointersOf(input));
+            expect(cache.get(id)?.entity).toBe(BUTTON_A);
+            input.clearFrameState();
+            cache.retain(uiPointersOf(input));
+            expect(cache.size).toBe(0);
+        }
+    });
+    it('expires ended touches while keeping another finger and the current mouse hit', () => {
+        const cache = new UiPointerHitCache();
+        for (const id of [1, 2, MOUSE_POINTER]) cache.set(id, { x: 0, y: 0, entity: BUTTON_A });
+        cache.retain([finger(2, 0)]);
+        expect([...cache.keys()]).toEqual([2]);
+        cache.set(MOUSE_POINTER, { x: 20, y: 0, entity: BUTTON_B });
+        cache.retain([finger(MOUSE_POINTER, 20)]);
+        expect([...cache.keys()]).toEqual([MOUSE_POINTER]);
+    });
     it('is the mouse when nothing is touching the glass', () => {
         const input = new InputState();
         input.mouseX = 42;

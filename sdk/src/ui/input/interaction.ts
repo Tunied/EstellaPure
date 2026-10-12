@@ -24,7 +24,7 @@ import { ensureComponent, walkParentChain } from '../util/helpers';
 import type { CppRegistry } from '../../wasm';
 import { engineApi } from '../../ecs/bridge/engineApi';
 import { UILayoutGeneration } from '../layout/ui-layout-generation';
-import { UiPointerBook, uiPointersOf, MOUSE_POINTER, type UiPointerSample } from './pointerBook';
+import { UiPointerBook, UiPointerHitCache, uiPointersOf, MOUSE_POINTER, type UiPointerSample } from './pointerBook';
 import { fireGestureClick } from './gestureClick';
 import { inputRouter } from '../../input/inputRouter';
 import { SystemLabel, PluginName } from '../../ecs/systemLabels';
@@ -70,7 +70,7 @@ export class UIInteractionPlugin implements Plugin {
         // imply. Gestures (drag, scroll, slider) stay on the primary pointer.
         const book = new UiPointerBook();
         /** Where each pointer last hit, so a settled pointer skips the raycast. */
-        const lastHit = new Map<number, { x: number; y: number; entity: Entity | null }>();
+        const lastHit = new UiPointerHitCache();
         let lastLayoutGen = -1;
         let lastWorldVersion = -1;
         let lastTick = -1;
@@ -113,6 +113,7 @@ export class UIInteractionPlugin implements Plugin {
                 const dpr = platformDevicePixelRatio();
                 const surfaceH = overlay.active ? overlay.surfaceH : camera.screenH;
                 const pointers = uiPointersOf(input);
+                lastHit.retain(pointers);
                 const layoutChanged = layoutGen.generation !== lastLayoutGen;
                 lastLayoutGen = layoutGen.generation;
                 const worldVersion = world.getWorldVersion();

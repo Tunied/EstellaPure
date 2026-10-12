@@ -10,6 +10,7 @@ import { ScreenOverlay } from '../src/ui/core/screen-overlay';
 import { UILayoutGeneration } from '../src/ui/layout/ui-layout-generation';
 import { Interactable, UIInteraction } from '../src/ui/input/interactable';
 import { uiInteractionPlugin } from '../src/ui/input/interaction';
+import { UiPointerHitCache, MOUSE_POINTER } from '../src/ui/input/pointerBook';
 import { UIEvents } from '../src/ui/core/events';
 import type { CppRegistry, ESEngineModule } from '../src/wasm';
 import { HAS_WASM, loadWasmModule } from './helpers/loadWasm';
@@ -35,8 +36,27 @@ describe.skipIf(!HAS_WASM)('pointer callback lifecycle on real WASM', () => {
         uiInteractionPlugin.build(app); flushPendingRegistrations(app);
     });
     afterEach(() => {
+        vi.restoreAllMocks();
         for (const entity of app.world.getAllEntities()) app.world.despawn(entity);
         app.world.disconnectCpp(); registry.delete();
+    });
+    it('does not retain past touch IDs across 1000 real interaction updates', async () => {
+        const entity = app.world.spawn(); hit.entity = entity;
+        app.world.insert(entity, Interactable, { enabled: true });
+        const input = app.getResource(Input);
+        const retain = vi.spyOn(UiPointerHitCache.prototype, 'retain');
+        for (let id = 0; id < 1000; id++) {
+            input.touches.set(id, { id, x: 10, y: 20 });
+            input.touchesStarted.set(id, { id, x: 10, y: 20 });
+            input.endTouch(id);
+            await app.tick(1 / 60);
+            const cache = retain.mock.contexts[0] as UiPointerHitCache;
+            expect([...cache.keys()]).toEqual([id]);
+            input.clearFrameState();
+        }
+        await app.tick(1 / 60);
+        const cache = retain.mock.contexts[0] as UiPointerHitCache;
+        expect([...cache.keys()]).toEqual([MOUSE_POINTER]);
     });
     for (const mutation of ['disable', 'despawn'] as const) {
         it.each(['hover_enter', 'press', 'release'])(`${mutation} during %s stops later events`, async phase => {
