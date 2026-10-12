@@ -190,6 +190,34 @@ describe('loadCompressedTexture', () => {
 });
 
 describe('mip levels', () => {
+    it('falls back for a 70px S3TC texture before registering an incomplete GPU image', async () => {
+        const gl = makeGl({ s3tc: true });
+        const transcoder = makeTranscoder({
+            transcode: vi.fn(() => ({ width: 70, height: 70, data: new Uint8Array(5184) })),
+            transcodeToRgba: vi.fn(() => ({ width: 70, height: 70, data: new Uint8Array(70 * 70 * 4) })),
+        });
+        const result = await loadCompressedTexture(gl as never, makeModule() as never, transcoder, KTX2_HEADER);
+        expect(gl.compressedTexImage2D).not.toHaveBeenCalled();
+        expect(gl.texImage2D).toHaveBeenCalledTimes(1);
+        expect(result.decision).toEqual({payload:'ktx2',target:CompressedTextureFormat.S3TC_DXT5,effective:'rgba8',reason:'not-block-aligned'});
+        expect(result.width).toBe(70);expect(result.height).toBe(70);
+    });
+    it('rejects an incompatible mip before allocating a GPU texture', () => {
+        const gl = makeGl({s3tc:true});
+        const t = {width:8,height:8,data:new Uint8Array(64),levels:[
+            {width:8,height:8,data:new Uint8Array(64)}, {width:3,height:4,data:new Uint8Array(16)}]};
+        expect(()=>uploadCompressedTexture(gl as never,makeModule() as never,detectCompressedTextureSupport(gl as never),CompressedTextureFormat.S3TC_DXT5,t)).toThrow(/block.aligned/i);
+        expect(gl.createTexture).not.toHaveBeenCalled();
+    });
+    it('allows small tail levels and ignores excluded incompatible mips', () => {
+        const gl = makeGl({s3tc:true}),module=makeModule(),support=detectCompressedTextureSupport(gl as never);
+        const levels=[4,2,1].map(width=>({width,height:width,data:new Uint8Array(16)}));
+        uploadCompressedTexture(gl as never,module as never,support,CompressedTextureFormat.S3TC_DXT5,{...levels[0],levels});
+        expect(gl.compressedTexImage2D).toHaveBeenCalledTimes(3);
+        uploadCompressedTexture(gl as never,module as never,support,CompressedTextureFormat.S3TC_DXT5,
+            {...levels[0],levels:[levels[0],{width:3,height:3,data:new Uint8Array(16)}]},{mipmaps:false});
+        expect(gl.compressedTexImage2D).toHaveBeenCalledTimes(4);
+    });
     const minFilter = (gl: ReturnType<typeof makeGl>) =>
         gl.texParameteri.mock.calls.find((c) => c[1] === gl.TEXTURE_MIN_FILTER)?.[2];
     const maxLevel = (gl: ReturnType<typeof makeGl>) =>

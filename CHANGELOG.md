@@ -31,6 +31,7 @@ published separately; it ships inside the editor.
 - **Imported material textures resolve correctly.** glTF material and texture import references stay consistent with the runtime asset loaders.
 - **Audio preview failures stay with their own clip.** A late failure cannot stop a replacement clip; synchronous playback failure clears preview state, and changing projects stops old browser previews.
 - **Waveforms preserve every audio channel.** Opposite-phase stereo and surround channels remain visible. Waveform fetches and scans are cancellable, decoding runs one file at a time without opening a live audio output device, and large scans yield background tasks so input can continue.
+- **Compressed sprites keep their authored dimensions on WebGL.** S3TC mip chains that violate WebGL block alignment decode to RGBA before upload instead of registering an incomplete texture. Odd-sized images such as 70×70 sprites remain visible; valid compressed chains and small tail mips still use compression.
 
 ## [0.77.0] - 2026-10-10
 

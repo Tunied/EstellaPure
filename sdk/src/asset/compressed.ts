@@ -248,6 +248,13 @@ function levelsOf(r: TranscodeResult | RgbaResult, opts?: CompressedUploadOption
     return r.levels && r.levels.length > 0 ? r.levels : [base];
 }
 
+/** S3TC requires each mip's dimensions, scaled to level zero, to align to
+ * four texels. Small tail levels remain valid at their original mip index. */
+function webglCompressedLevelsSupported(format: CompressedTextureFormat, levels: readonly TranscodedLevel[]): boolean {
+    return format !== CompressedTextureFormat.S3TC_DXT5 || levels.every((level, index) =>
+        (level.width * 2 ** index) % 4 === 0 && (level.height * 2 ** index) % 4 === 0);
+}
+
 /** Upload pre-transcoded compressed blocks via `gl.compressedTexImage2D`. */
 export function uploadCompressedTexture(
     gl: WebGL2RenderingContext, module: ESEngineModule,
@@ -260,6 +267,9 @@ export function uploadCompressedTexture(
     // format is 4–8× smaller than the pool's RGBA8 estimate, and billing it at
     // the estimate would squat on most of the budget.
     const levels = levelsOf(t, opts);
+    if (!webglCompressedLevelsSupported(fmt, levels)) {
+        throw new Error('S3TC texture mip dimensions are not block aligned for WebGL');
+    }
     const handle = handOverNewTexture(module, gl, (g) => {
         levels.forEach((l, i) => g.compressedTexImage2D(g.TEXTURE_2D, i, internalFormat, l.width, l.height, 0, l.data));
         applyParams(g, levels.length, false, opts);
@@ -386,8 +396,11 @@ export async function loadCompressedTexture(
     const support = detectCompressedTextureSupport(gl);
     const target = chooseTargetFormat(support, opts?.srgb ?? false);
     const t = target !== null ? await transcoder.transcode(bytes, target) : null;
-    const decision = compressedUploadDecision(target, t !== null);
-    if (target !== null && t) {
+    const aligned = target !== null && t !== null && webglCompressedLevelsSupported(target, levelsOf(t, opts));
+    const decision: TextureUploadDecision = target !== null && t && !aligned
+        ? { payload: 'ktx2', target, effective: 'rgba8', reason: 'not-block-aligned' }
+        : compressedUploadDecision(target, t !== null);
+    if (target !== null && t && aligned) {
         return { ...uploadCompressedTexture(gl, module, support, target, t, opts), decision };
     }
     const rgba = await transcoder.transcodeToRgba(bytes);

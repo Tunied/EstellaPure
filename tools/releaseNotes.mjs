@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(render): preserve sprites with incompatible WebGL S3TC dimensions':
+    { note: 'Compressed sprites keep their authored dimensions on WebGL.' },
   'fix(sdk): keep indexed access valid for strict consumers':
     { internal: 'Preserves supported pool and cleanup behavior while satisfying strict compiler consumer type checks.' },
   'fix(sdk): resolve spawned entities before tracking scene ownership':
