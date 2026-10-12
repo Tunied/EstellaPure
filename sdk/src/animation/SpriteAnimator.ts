@@ -7,6 +7,7 @@
 
 import { defineComponent, type ComponentDef } from '../ecs/component';
 import { defineResource } from '../ecs/resource';
+import { getDefaultContext } from '../ecs/context';
 import type { Entity, TextureHandle } from '../types';
 import type { World } from '../ecs/world';
 import { Sprite, type SpriteData } from '../ecs/component';
@@ -51,6 +52,11 @@ export interface SpriteAnimClip {
     loop: boolean;
     labels?: Record<string, number>;
     events?: SpriteAnimEvent[];
+}
+
+function frameDurationOf(clip: SpriteAnimClip, index: number, speed: number, fallback: number): number {
+    const duration = clip.frames[index]?.duration;
+    return Math.max(Number.MIN_VALUE, (duration !== undefined && Number.isFinite(duration) && duration > 0 ? duration : fallback) / speed);
 }
 
 export function shouldFireEvent(eventFrame: number, prevFrame: number, newFrame: number, totalFrames: number, loop: boolean): boolean {
@@ -222,6 +228,9 @@ export class SpriteAnimationAPI {
 
     private updateWorld(world: World, deltaTime: number): void {
         const entities = world.getEntitiesWithComponents([SpriteAnimator]);
+        if (entities.length === 0) return;
+        const registry = world.getCppRegistry(), module = world.getWasmModule();
+        const readSprite = world.resolveGetter(Sprite), writeSprite = world.resolveSetter(Sprite);
 
         for (const entity of entities) {
             // An earlier entity's event can remove a later entity/component
@@ -248,10 +257,6 @@ export class SpriteAnimationAPI {
             // timer backward.
             const speed = Number.isFinite(animator.speed) ? Math.max(animator.speed, 1e-4) : 1;
             const fallback = 1 / (Number.isFinite(clip.fps) && clip.fps > 0 ? clip.fps : 12);
-            const durationOf = (i: number): number => {
-                const duration = clip.frames[i]?.duration;
-                return Math.max(Number.MIN_VALUE, (duration !== undefined && Number.isFinite(duration) && duration > 0 ? duration : fallback) / speed);
-            };
             let token = this.clipTokens.get(clip);
             if (!token) { token = {}; this.clipTokens.set(clip, token); }
             const needsInitialApply = this.appliedAnimators.get(animator) !== token;
@@ -272,7 +277,7 @@ export class SpriteAnimationAPI {
             let cycleDuration = 0;
             while (animator.playing && steps < clip.frames.length * 2) {
                 if (looping && steps === clip.frames.length) animator.frameTimer %= cycleDuration;
-                const frameDuration = durationOf(animator.currentFrame);
+                const frameDuration = frameDurationOf(clip, animator.currentFrame, speed, fallback);
                 if (animator.frameTimer < frameDuration) break;
                 animator.frameTimer -= frameDuration;
                 if (steps < clip.frames.length) cycleDuration += frameDuration;
@@ -300,7 +305,12 @@ export class SpriteAnimationAPI {
 
             if (frameChanged && world.has(entity, Sprite)) {
                 const frame = clip.frames[animator.currentFrame];
-                const sprite = world.get(entity, Sprite) as SpriteData;
+                // Borrow only after event callbacks. Speculation and editor
+                // observers use the full mutation seam; a rebound world cannot
+                // use accessors resolved against its previous registry.
+                const direct = readSprite && writeSprite && !world.speculating && !getDefaultContext().editorBridge
+                    && registry === world.getCppRegistry() && module === world.getWasmModule();
+                const sprite = (direct ? readSprite(entity) : world.get(entity, Sprite)) as SpriteData;
                 sprite.texture = frame.texture;
                 // Copy (don't alias the clip's frame objects), and RESET to the full
                 // texture when a frame carries no sub-rect — else a plain frame after
@@ -321,7 +331,10 @@ export class SpriteAnimationAPI {
                 if (frame.pivot) {
                     sprite.pivot = { x: frame.pivot.x, y: frame.pivot.y };
                 }
-                world.set(entity, Sprite, sprite);
+                if (direct) {
+                    writeSprite(entity, sprite);
+                    world.markChanged(entity, Sprite);
+                } else world.set(entity, Sprite, sprite);
             }
 
             if (frameChanged) {

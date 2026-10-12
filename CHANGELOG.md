@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Sprite animation applies frames through direct component accessors.** Running animation resolves the sprite read/write path once per update, avoiding per-frame embind snapshots and full component marshalling for every animated entity. Component write journals still observe frame changes, while editor observers, speculative updates, and rebound worlds retain the full mutation path.
+
 - **Native audio completion subscriptions are independent.** Multiple backends sharing one host bridge receive their own voice-end notifications, and preview shutdowns withdraw only their subscription. Dispatch skips listeners withdrawn during the event, defers new listeners to the next event, and notifies remaining listeners before propagating the first callback error.
 
 - **Mini-game and native audio completion retires ownership before callbacks.** Natural completion releases the player or voice record before calling user code, so callback exceptions and repeated end notifications cannot retain resources or deliver completion twice. Stopped, ended, and backend-disposed mini-game handles ignore later playback and parameter operations; retired native handles also stop sending host operations.

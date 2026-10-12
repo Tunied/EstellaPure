@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(animation): apply sprite frames through direct storage accessors':
+    { note: 'Sprite animation applies frames through direct component accessors.' },
   'fix(audio): share native completion events across backend subscribers':
     { note: 'Native audio completion subscriptions are independent.' },
   'fix(audio): retire platform handles before completion callbacks':

@@ -117,6 +117,10 @@ describe('finished-latch flag contract (system side)', () => {
      *  accrual persists between ticks without an insert). */
     function makeWorld(comps: Map<string, unknown>): World {
         return {
+            getCppRegistry: () => null,
+            getWasmModule: () => null,
+            resolveGetter: () => null,
+            resolveSetter: () => null,
             getEntitiesWithComponents: () => [1],
             get: (_e: number, c: { _name: string }) => comps.get(c._name),
             tryGet: (_e: number, c: { _name: string }) => comps.get(c._name) ?? null,
