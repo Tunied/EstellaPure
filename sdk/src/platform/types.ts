@@ -59,6 +59,8 @@ export interface InputEventCallbacks {
     onTouchMove?(id: number, x: number, y: number): void;
     onTouchEnd?(id: number): void;
     onTouchCancel?(id: number): void;
+    /** Cancel held input and pending edges when the host loses focus or unbinds. */
+    onInputCancel?(): void;
 }
 
 /**

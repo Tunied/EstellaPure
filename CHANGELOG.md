@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Web focus loss cancels held pointer input and pending edges.** Blurring or hiding the game and replacing its input target releases host key, mouse, and touch tracking, clears stale render/fixed-step edges, and cancels UI presses without clicking them. The next touch can become the primary pointer, and late releases from the cancelled gesture are ignored.
+
 - **Mini-game audio keeps playback ownership through device suspension.** Device-paused voices remain live for AudioSource completion, bus gain updates, and priority budgets. New play requests and manual resumes wait for device recovery; manual pauses withdraw automatic recovery, while stopped or despawned voices never restart.
 
 - **Async Box2D systems retain their physics performance category.** Physics stepping, interpolation, contact event delivery, and character controllers now appear under physics after module loading completes. Deferred system registration can explicitly provide its profiling domain without changing the classification of later registrations.

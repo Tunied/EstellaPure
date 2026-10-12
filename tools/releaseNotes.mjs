@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(input): cancel held web input on focus loss':
+    { note: 'Web focus loss cancels held pointer input and pending edges.' },
   'fix(audio): retain mini-game playback intent during device suspension':
     { note: 'Mini-game audio keeps playback ownership through device suspension.' },
   'fix(profiling): attribute async Box2D systems to physics':

@@ -182,6 +182,8 @@ class WebPlatformAdapter implements PlatformAdapter {
         const el = (target as HTMLElement) ?? document.querySelector('canvas') ?? document.body;
 
         const heldKeys = new Set<string>();
+        const heldButtons = new Set<number>();
+        const heldTouches = new Set<number>();
         const onKeyDown = (e: Event) => {
             const key = e as KeyboardEvent;
             const target = key.target instanceof HTMLElement ? key.target : null;
@@ -200,17 +202,25 @@ class WebPlatformAdapter implements PlatformAdapter {
         const onBlur = () => {
             for (const code of heldKeys) callbacks.onKeyUp(code);
             heldKeys.clear();
+            for (const button of heldButtons) callbacks.onPointerUp(button);
+            heldButtons.clear();
+            for (const id of heldTouches) pointer.cancel(id);
+            heldTouches.clear();
+            callbacks.onInputCancel?.();
         };
+        const onVisibilityChange = () => { if (document.hidden) onBlur(); };
         const onMouseMove = (e: Event) => {
             const me = e as MouseEvent;
             callbacks.onPointerMove(me.offsetX, me.offsetY);
         };
         const onMouseDown = (e: Event) => {
             const me = e as MouseEvent;
+            heldButtons.add(me.button);
             callbacks.onPointerDown(me.button, me.offsetX, me.offsetY);
         };
         const onMouseUp = (e: Event) => {
-            callbacks.onPointerUp((e as MouseEvent).button);
+            const button = (e as MouseEvent).button;
+            if (heldButtons.delete(button)) callbacks.onPointerUp(button);
         };
         const pointer = createPrimaryPointer(callbacks);
 
@@ -220,6 +230,7 @@ class WebPlatformAdapter implements PlatformAdapter {
             const rect = (el as HTMLElement).getBoundingClientRect();
             for (let i = 0; i < te.changedTouches.length; i++) {
                 const touch = te.changedTouches[i];
+                heldTouches.add(touch.identifier);
                 pointer.start(touch.identifier, touch.clientX - rect.left, touch.clientY - rect.top);
             }
         };
@@ -236,13 +247,15 @@ class WebPlatformAdapter implements PlatformAdapter {
             e.preventDefault();
             const te = e as TouchEvent;
             for (let i = 0; i < te.changedTouches.length; i++) {
-                pointer.end(te.changedTouches[i].identifier);
+                const id = te.changedTouches[i].identifier;
+                if (heldTouches.delete(id)) pointer.end(id);
             }
         };
         const onTouchCancel = (e: Event) => {
             const te = e as TouchEvent;
             for (let i = 0; i < te.changedTouches.length; i++) {
-                pointer.cancel(te.changedTouches[i].identifier);
+                const id = te.changedTouches[i].identifier;
+                if (heldTouches.delete(id)) pointer.cancel(id);
             }
         };
         const onWheel = (e: Event) => {
@@ -260,6 +273,7 @@ class WebPlatformAdapter implements PlatformAdapter {
         };
 
         window.addEventListener('blur', onBlur);
+        document.addEventListener('visibilitychange', onVisibilityChange);
         document.addEventListener('keydown', onKeyDown);
         document.addEventListener('keyup', onKeyUp);
         el.addEventListener('mousemove', onMouseMove);
@@ -273,6 +287,7 @@ class WebPlatformAdapter implements PlatformAdapter {
 
         this.inputCleanup_ = () => {
             window.removeEventListener('blur', onBlur);
+            document.removeEventListener('visibilitychange', onVisibilityChange);
             onBlur();
             document.removeEventListener('keydown', onKeyDown);
             document.removeEventListener('keyup', onKeyUp);
