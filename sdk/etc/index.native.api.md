@@ -9469,6 +9469,7 @@ pressed: boolean
 ## UIInteractionPlugin — class @experimental
 ```
 build: (app: App) => void
+cleanup: (app?: App) => void
 dependencies: "uiLayout"[]
 name: "uiInteraction"
 static new (): UIInteractionPlugin

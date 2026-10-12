@@ -12,6 +12,8 @@ import { Interactable, UIInteraction } from '../src/ui/input/interactable';
 import { uiInteractionPlugin } from '../src/ui/input/interaction';
 import { UiPointerHitCache, MOUSE_POINTER } from '../src/ui/input/pointerBook';
 import { UIEvents } from '../src/ui/core/events';
+import { onGestureClick, fireGestureClick, takeGestureFired } from '../src/ui/input/gestureClick';
+import { inputRouter } from '../src/input/inputRouter';
 import type { CppRegistry, ESEngineModule } from '../src/wasm';
 import { HAS_WASM, loadWasmModule } from './helpers/loadWasm';
 const hit = vi.hoisted(() => ({ entity: null as number | null }));
@@ -36,9 +38,38 @@ describe.skipIf(!HAS_WASM)('pointer callback lifecycle on real WASM', () => {
         uiInteractionPlugin.build(app); flushPendingRegistrations(app);
     });
     afterEach(() => {
+        uiInteractionPlugin.cleanup(app);
         vi.restoreAllMocks();
         for (const entity of app.world.getAllEntities()) app.world.despawn(entity);
         app.world.disconnectCpp(); registry.delete();
+    });
+    it('expires a cancelled gesture marker before a later quick click on real WASM', async () => {
+        const entity = app.world.spawn(); hit.entity = entity; app.world.insert(entity, Interactable);
+        const input = app.getResource(Input), clicked = vi.fn();
+        onGestureClick(app.world, entity, () => {
+            clicked(); app.world.update(entity, Interactable, value => { value.enabled = false; });
+        });
+        app.getResource(UIEvents).on(entity, 'click', () => {
+            if (!takeGestureFired(app.world, entity)) clicked();
+        });
+        input.noteMouseDown(0); await app.tick(1 / 60); input.clearFrameState();
+        inputRouter.dispatchPointerUp(0); input.noteMouseUp(0); await app.tick(1 / 60); input.clearFrameState();
+        app.world.update(entity, Interactable, value => { value.enabled = true; });
+        input.noteMouseDown(0); input.noteMouseUp(0); await app.tick(1 / 60);
+        expect(clicked).toHaveBeenCalledTimes(2);
+    });
+    it('cleans gesture registrations and markers across real WASM target lifetimes', () => {
+        const before = app.world.getStorageSizes().despawnCallbacks;
+        for (let i = 0; i < 1000; i++) {
+            const entity = app.world.spawn(); const clicked = vi.fn();
+            onGestureClick(app.world, entity, clicked);
+            expect(fireGestureClick(app.world, entity)).toBe(true);
+            app.world.despawn(entity);
+            expect(fireGestureClick(app.world, entity)).toBe(false);
+            expect(takeGestureFired(app.world, entity)).toBe(false);
+            expect(clicked).toHaveBeenCalledOnce();
+        }
+        expect(app.world.getStorageSizes().despawnCallbacks).toBe(before + 1);
     });
     it('does not retain past touch IDs across 1000 real interaction updates', async () => {
         const entity = app.world.spawn(); hit.entity = entity;

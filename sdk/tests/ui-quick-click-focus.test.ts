@@ -10,11 +10,12 @@ import { UILayoutGeneration } from '../src/ui/layout/ui-layout-generation';
 import { UIInteraction, Interactable } from '../src/ui/input/interactable';
 import { Focusable, FocusManager } from '../src/ui/input/focusable';
 import { focusPlugin } from '../src/ui/input/focus';
-import { uiInteractionPlugin } from '../src/ui/input/interaction';
+import { UIInteractionPlugin, uiInteractionPlugin } from '../src/ui/input/interaction';
+import { uiLayoutPlugin } from '../src/ui/layout/layout';
 import { UIEvents } from '../src/ui/core/events';
 import { setEntityActive } from '../src/ecs/entityUtils';
 import { inputRouter } from '../src/input/inputRouter';
-import { onGestureClick } from '../src/ui/input/gestureClick';
+import { onGestureClick, takeGestureFired } from '../src/ui/input/gestureClick';
 import { getComponent } from '../src/ecs/component';
 import { inspectableTypes } from '../src/runtime/worldSnapshot';
 const hit = vi.hoisted(() => ({ entity: null as number | null }));
@@ -24,6 +25,56 @@ vi.mock('../src/ui/util/ui-pick', () => ({
 }));
 
 describe('quick pointer focus through real interaction projection', () => {
+  it('does not let a disabled gesture suppress a later quick tap after re-enabling', async () => {
+    const { app } = bootMockApp(); const input = new InputState();
+    app.insertResource(Input, input); app.insertResource(UICameraInfo, { valid: false } as any);
+    app.insertResource(ScreenOverlay, { active: true, surfaceH: 600 } as any);
+    app.addPlugin(uiLayoutPlugin); app.addPlugin(new UIInteractionPlugin()); flushPendingRegistrations(app);
+    const entity = app.world.spawn(); app.world.insert(entity, Interactable); hit.entity = entity;
+    const clicked = vi.fn();
+    onGestureClick(app.world, entity, () => {
+      clicked(); app.world.update(entity, Interactable, data => { data.enabled = false; });
+    });
+    app.getResource(UIEvents).on(entity, 'click', () => {
+      if (!takeGestureFired(app.world, entity)) clicked();
+    });
+    input.noteMouseDown(0); await app.tick(1 / 60); input.clearFrameState();
+    inputRouter.dispatchPointerUp(0); input.noteMouseUp(0); await app.tick(1 / 60);
+    expect(clicked).toHaveBeenCalledOnce(); input.clearFrameState();
+    app.world.update(entity, Interactable, data => { data.enabled = true; });
+    input.noteMouseDown(0); input.noteMouseUp(0); await app.tick(1 / 60);
+    expect(clicked).toHaveBeenCalledTimes(2); app.quit();
+  });
+  it('quitting an app unregisters its UI release handler', async () => {
+    const { app } = bootMockApp(); const input = new InputState();
+    app.insertResource(Input, input); app.insertResource(UICameraInfo, { valid: false } as any);
+    app.insertResource(ScreenOverlay, { active: true, surfaceH: 600 } as any);
+    app.addPlugin(uiLayoutPlugin); app.addPlugin(new UIInteractionPlugin());
+    flushPendingRegistrations(app);
+    const entity = app.world.spawn(); app.world.insert(entity, Interactable); hit.entity = entity;
+    input.noteMouseDown(0); await app.tick(1 / 60);
+    app.quit();
+    const read = vi.spyOn(app.world, 'isEntityActive');
+    inputRouter.dispatchPointerUp(0);
+    expect(read).not.toHaveBeenCalled(); read.mockRestore();
+  });
+  it('quitting an older app leaves the newer app gesture handler installed', async () => {
+    const plugin = new UIInteractionPlugin();
+    const capture = async () => {
+      const { app } = bootMockApp(); const input = new InputState();
+      app.insertResource(Input, input); app.insertResource(UICameraInfo, { valid: false } as any);
+      app.insertResource(ScreenOverlay, { active: true, surfaceH: 600 } as any);
+      app.addPlugin(uiLayoutPlugin); app.addPlugin(plugin); flushPendingRegistrations(app);
+      const entity = app.world.spawn(); app.world.insert(entity, Interactable); hit.entity = entity;
+      input.noteMouseDown(0); await app.tick(1 / 60);
+      return { app, entity };
+    };
+    const first = await capture(), second = await capture(), clicked = vi.fn();
+    onGestureClick(second.app.world, second.entity, clicked);
+    first.app.quit(); inputRouter.dispatchPointerUp(0);
+    expect(clicked).toHaveBeenCalledOnce();
+    second.app.quit();
+  });
   it.each(['hover_enter', 'press', 'release'])('stops a queued click when %s disables the control', async phase => {
     const { app } = bootMockApp(); const input = new InputState();
     app.insertResource(Input, input);

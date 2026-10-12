@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ui): release gesture bindings and expire cancelled click markers':
+    { note: 'UI gesture bindings expire with their targets and App.' },
   'fix(ui): scope safe-area resize subscriptions to their apps':
     { note: 'Safe-area resize listeners belong to their App.' },
   'fix(camera): align canvas fitting with hierarchy and scene filters':

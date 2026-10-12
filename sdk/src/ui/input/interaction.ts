@@ -25,7 +25,7 @@ import type { CppRegistry } from '../../wasm';
 import { engineApi } from '../../ecs/bridge/engineApi';
 import { UILayoutGeneration } from '../layout/ui-layout-generation';
 import { UiPointerBook, UiPointerHitCache, uiPointersOf, MOUSE_POINTER, type UiPointerSample } from './pointerBook';
-import { fireGestureClick } from './gestureClick';
+import { fireGestureClick, expireGestureFired } from './gestureClick';
 import { inputRouter } from '../../input/inputRouter';
 import { SystemLabel, PluginName } from '../../ecs/systemLabels';
 import type { UILayoutGenerationData } from '../layout/ui-layout-generation';
@@ -54,7 +54,17 @@ export class UIInteractionPlugin implements Plugin {
     name = PluginName.UIInteraction;
     dependencies = [PluginName.UILayout];
 
+    private readonly releases_ = new WeakMap<App, () => void>();
+
+    cleanup(app?: App): void {
+        if (!app) return;
+        const release = this.releases_.get(app);
+        this.releases_.delete(app);
+        release?.();
+    }
+
     build(app: App): void {
+        this.cleanup(app);
         registerComponent('Interactable', Interactable);
         registerComponent('UIInteraction', UIInteraction);
 
@@ -86,9 +96,15 @@ export class UIInteractionPlugin implements Plugin {
             if (world.has(held, Interactable) && !(world.get(held, Interactable) as InteractableData).enabled) return;
             fireGestureClick(world, held);
         };
-        inputRouter.setUIHandler({
+        const unregister = inputRouter.setUIHandler({
             onTouchEnd: (id) => { releaseInGesture(id); },
             onPointerUp: (button) => { if (button === 0) releaseInGesture(MOUSE_POINTER); },
+        });
+        this.releases_.set(app, () => {
+            unregister();
+            book.clear();
+            lastHit.clear();
+            expireGestureFired(world);
         });
 
         app.addSystemToSchedule(Schedule.PreUpdate, defineSystem(
@@ -229,6 +245,7 @@ export class UIInteractionPlugin implements Plugin {
                     const entity = lastHit.get(pointer.id)?.entity;
                     return entity != null && active(entity);
                 });
+                expireGestureFired(world);
             },
             { name: 'UIInteractionSystem' }
         ), { runAfter: [SystemLabel.UILayout], runIf: playModeOnly });

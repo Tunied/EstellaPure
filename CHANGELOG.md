@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **UI gesture bindings expire with their targets and App.** App cleanup unregisters only its own input handler and clears captures. Despawn removes gesture callbacks and pending markers through one shared World observer; a cancelled frame click no longer suppresses a later click after the control is re-enabled.
+
 - **Safe-area resize listeners belong to their App.** Quitting an older App no longer removes a newer App's browser listener or leaves its own behind. Rebuilding replaces the same App's binding, cleanup uses the original host and WeChat callback identity, and older hosts without an unsubscribe API revoke the retained callback.
 
 - **Camera fitting and editor previews use outer canvases consistently.** A nested canvas appearing first no longer overrides the scene design resolution or becomes the default host for new UI. Scene-filtered camera collection uses a running scene's outer canvas, and preview selection queries Canvas components directly. The experimental `canvasRootEntities` helper shares root selection across runtime and editor workflows.
