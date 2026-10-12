@@ -77,6 +77,34 @@ describe('hasAudioBindings', () => {
 });
 
 describe('createHostBridge — audio assembly', () => {
+    it('keeps independent subscriptions when the same callback is registered twice', () => {
+        const scope = audioScope(), audio = createHostBridge(scope).audio!, callback = vi.fn();
+        const first = audio.onEnded(callback), second = audio.onEnded(callback);
+        const push = scope.es_onNativeAudioEnded as (id: number) => void;
+        push(100); expect(callback).toHaveBeenCalledTimes(2);
+        first(); first(); callback.mockClear(); push(101); expect(callback).toHaveBeenCalledOnce();
+        second(); callback.mockClear(); push(102); expect(callback).not.toHaveBeenCalled();
+    });
+    it('continues notifying other subscribers when one callback throws', () => {
+        const scope = audioScope(), audio = createHostBridge(scope).audio!, second = vi.fn();
+        audio.onEnded(() => { throw Error('subscriber failed'); }); audio.onEnded(second);
+        expect(() => (scope.es_onNativeAudioEnded as (id: number) => void)(100)).toThrow('subscriber failed');
+        expect(second).toHaveBeenCalledWith(100);
+    });
+    it('a subscription withdrawn during dispatch cannot receive that event', () => {
+        const scope = audioScope(), audio = createHostBridge(scope).audio!, second = vi.fn();
+        let release = () => {};
+        audio.onEnded(() => release()); release = audio.onEnded(second);
+        (scope.es_onNativeAudioEnded as (id: number) => void)(100);
+        expect(second).not.toHaveBeenCalled();
+    });
+    it('subscriptions added during dispatch wait for the next completion', () => {
+        const scope = audioScope(), audio = createHostBridge(scope).audio!, added = vi.fn();
+        let installed = false;
+        audio.onEnded(() => { if (!installed) { installed = true; audio.onEnded(added); } });
+        const push = scope.es_onNativeAudioEnded as (id: number) => void;
+        push(100); expect(added).not.toHaveBeenCalled(); push(101); expect(added).toHaveBeenCalledWith(101);
+    });
     it('assembles bridge.audio when the host bound the engine', () => {
         expect(createHostBridge(audioScope()).audio).toBeDefined();
     });
@@ -92,6 +120,23 @@ describe('createHostBridge — audio assembly', () => {
 });
 
 describe('NativeAudioBackend', () => {
+    it('two backends sharing one native bridge receive their own voice completions', () => {
+        const scope = audioScope(), audio = createHostBridge(scope).audio!;
+        const first = new NativeAudioBackend(audio), second = new NativeAudioBackend(audio);
+        const a = first.play({ id: 1, duration: 1 }, {}), b = second.play({ id: 1, duration: 1 }, {});
+        a.onEnd = vi.fn(); b.onEnd = vi.fn();
+        const push = scope.es_onNativeAudioEnded as (id: number) => void;
+        push(a.id); expect(a.onEnd).toHaveBeenCalledOnce(); expect(b.onEnd).not.toHaveBeenCalled();
+        first.dispose(); push(b.id); expect(b.onEnd).toHaveBeenCalledOnce(); second.dispose();
+    });
+    it('repeated preview backend shutdowns preserve the main backend completion subscription', () => {
+        const scope = audioScope(), audio = createHostBridge(scope).audio!;
+        const main = new NativeAudioBackend(audio), handle = main.play({ id: 1, duration: 1 }, {});
+        handle.onEnd = vi.fn();
+        for (let i = 0; i < 100; i++) new NativeAudioBackend(audio).dispose();
+        (scope.es_onNativeAudioEnded as (id: number) => void)(handle.id);
+        expect(handle.onEnd).toHaveBeenCalledOnce(); main.dispose();
+    });
     it('loads, plays and reports state through the bridge', async () => {
         const scope = audioScope();
         const host = installAudioHost(scope);   // capture the same closure the bridge will use

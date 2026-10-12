@@ -349,14 +349,24 @@ function hostFetch(
  * Assemble the audio bridge from the host's es_audio* primitives, or undefined
  * when the host bound none (→ silent Null backend). Also installs
  * `es_onNativeAudioEnded`, the entry point the host calls when a voice ends on
- * its own, fanning out to the backend that subscribed.
+ * its own, fanning out to the subscribed backends.
  */
 function hostAudio(
     bindings: NativeHostBindings, scope: Record<string, unknown>,
 ): NativeAudioBridge | undefined {
     if (!hasAudioBindings(scope)) return undefined;
-    let ended: ((voiceId: number) => void) | null = null;
-    scope.es_onNativeAudioEnded = (voiceId: number): void => { ended?.(voiceId); };
+    let ended: Array<{ callback: (voiceId: number) => void; active: boolean }> = [];
+    scope.es_onNativeAudioEnded = (voiceId: number): void => {
+        let failed = false;
+        let failure: unknown;
+        for (const subscription of ended) {
+            if (!subscription.active) continue;
+            try { subscription.callback(voiceId); } catch (error) {
+                if (!failed) { failed = true; failure = error; }
+            }
+        }
+        if (failed) throw failure;
+    };
     return {
         load: (bytes) => bindings.es_audioLoad!(bytes),
         unload: (id) => bindings.es_audioUnload!(id),
@@ -371,7 +381,15 @@ function hostAudio(
         voiceState: (v) => bindings.es_audioVoiceState!(v),
         suspendAll: () => bindings.es_audioSuspendAll!(),
         resumeAll: () => bindings.es_audioResumeAll!(),
-        onEnded: (cb) => { ended = cb; return () => { if (ended === cb) ended = null; }; },
+        onEnded: (callback) => {
+            const subscription = { callback, active: true };
+            ended = [...ended, subscription];
+            return () => {
+                if (!subscription.active) return;
+                subscription.active = false;
+                ended = ended.filter(entry => entry !== subscription);
+            };
+        },
         // Optional: a host without the analyser tap simply has no spectrum, and
         // a visualizer falls back to flat bars (as it does on any backend
         // without analysis).

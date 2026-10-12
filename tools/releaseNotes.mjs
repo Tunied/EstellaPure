@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(audio): share native completion events across backend subscribers':
+    { note: 'Native audio completion subscriptions are independent.' },
   'fix(audio): retire platform handles before completion callbacks':
     { note: 'Mini-game and native audio completion retires ownership before callbacks.' },
   'fix(audio): freeze fade clocks during device suspension':
