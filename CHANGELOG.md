@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Dropdown labels and open rows follow live option edits.** Renames and label replacements repaint without a false selection event; changed option lists or row heights rebuild an open popup and keep the selection in range. Stale rows cannot choose a newly substituted option, popup teardown cannot resurrect a disposed owner, and change callbacks may remove later controls safely.
+
 - **Toggle indicators follow target replacements safely.** Replacing a check entity immediately applies the current on/off state without a false change event. Change callbacks may dispose later toggles in the same update, while stable frames avoid repeated visual writes and reuse cached state during transitions.
 
 - **Slider capture expires with input and target availability.** Disabled, inactive or hidden tracks and lost pointer projections cancel capture before a value update, so restoring the control cannot resume an old drag. A consumed release followed by another press cannot retain capture, and track width is read from the slider's own World instead of shared UI helper bindings.

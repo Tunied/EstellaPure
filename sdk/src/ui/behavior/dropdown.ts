@@ -54,6 +54,14 @@ interface PopupState {
     panel: Entity;
     rows: Entity[];
     unsubs: Array<() => void>;
+    options: string[];
+    optionHeight: number;
+}
+
+function popupMatches(p: PopupState, d: UIDropdownData): boolean {
+    if (p.optionHeight !== d.optionHeight || p.options.length !== d.options.length) return false;
+    for (let i = 0; i < p.options.length; i++) if (p.options[i] !== d.options[i]) return false;
+    return true;
 }
 
 // Popup registries are runtime-only and per-world (unit tests run many worlds).
@@ -83,8 +91,9 @@ export function closeDropdown(world: World, e: Entity): void {
 
 export function openDropdown(world: World, events: UIEventQueue, e: Entity): void {
     const popups = popupsOf(world);
-    if (popups.has(e) || !world.has(e, UIDropdown)) return;
+    if (popups.has(e) || !world.valid(e) || !world.has(e, UIDropdown)) return;
     const d = world.get(e, UIDropdown) as UIDropdownData;
+    const options = [...d.options], optionHeight = d.optionHeight;
 
     // Fresh theme resolution per open — the popup is transient, so a stale
     // capture would pin whatever theme was active earlier.
@@ -98,7 +107,7 @@ export function openDropdown(world: World, events: UIEventQueue, e: Entity): voi
             insetLeft: px(0),
             insetRight: px(0),
             insetTop: percent(100),
-            height: px(d.options.length * d.optionHeight),
+            height: px(options.length * optionHeight),
         },
         visual: { color: t.surfaceElevated },
     });
@@ -106,7 +115,7 @@ export function openDropdown(world: World, events: UIEventQueue, e: Entity): voi
 
     const unsubs: Array<() => void> = [];
     const rows: Entity[] = [];
-    for (let i = 0; i < d.options.length; i++) {
+    for (let i = 0; i < options.length; i++) {
         const row = spawnUIEntity({
             world,
             parent: panel,
@@ -114,8 +123,8 @@ export function openDropdown(world: World, events: UIEventQueue, e: Entity): voi
                 position: 1,
                 insetLeft: px(0),
                 insetRight: px(0),
-                insetTop: px(i * d.optionHeight),
-                height: px(d.optionHeight),
+                insetTop: px(i * optionHeight),
+                height: px(optionHeight),
             },
             visual: { color: t.control },
         });
@@ -145,14 +154,16 @@ export function openDropdown(world: World, events: UIEventQueue, e: Entity): voi
             world,
             parent: row,
             node: { fill: true },
-            text: { content: d.options[i]!, color: t.text },
+            text: { content: options[i]!, color: t.text },
         });
         markThemed(world, rowLabel, { text: 'text' });
 
         const index = i;
         unsubs.push(events.on(row, UIEventType.Click, () => {
-            const cur = world.get(e, UIDropdown) as UIDropdownData;
             closeDropdown(world, e);
+            if (!world.valid(e) || !world.has(e, UIDropdown)) return;
+            const cur = world.get(e, UIDropdown) as UIDropdownData;
+            if (cur.options[index] !== options[index]) return;
             if (cur.selectedIndex !== index) {
                 cur.selectedIndex = index;
                 world.insert(e, UIDropdown, cur);
@@ -160,7 +171,7 @@ export function openDropdown(world: World, events: UIEventQueue, e: Entity): voi
         }));
         rows.push(row);
     }
-    popups.set(e, { panel, rows, unsubs });
+    popups.set(e, { panel, rows, unsubs, options, optionHeight });
     highlightRow(world, rows, d.selectedIndex);
 }
 
@@ -204,7 +215,7 @@ function insideAnyPopup(world: World, entity: Entity): boolean {
  * Popup lifecycle + selection + keyboard + label sync for every UIDropdown.
  */
 export function createDropdownSystem(world: World, events: UIEventQueue): SystemDef {
-    const shown = new EntityStateMap<number>(); // last index whose label was applied
+    const shown = new EntityStateMap<{ index: number; label: Entity; content: string }>();
 
     // One global click handler arbitrates: the dropdown root toggles its own
     // popup; a click inside a popup is the row handler's business; any other
@@ -230,7 +241,21 @@ export function createDropdownSystem(world: World, events: UIEventQueue): System
 
     return defineSystem([Res(Input)], (input: InputState) => {
         for (const e of world.getEntitiesWithComponents([UIDropdown])) {
-            const d = world.get(e, UIDropdown) as UIDropdownData;
+            if (!world.valid(e) || !world.has(e, UIDropdown)) continue;
+            let d = world.get(e, UIDropdown) as UIDropdownData;
+            const index = Number.isFinite(d.selectedIndex) ? Math.trunc(d.selectedIndex) : 0;
+            const clamped = Math.max(0, Math.min(index, d.options.length - 1));
+            if (clamped !== d.selectedIndex) {
+                d.selectedIndex = clamped;
+                world.insert(e, UIDropdown, d);
+            }
+            const previousPopup = popupsOf(world).get(e);
+            if (previousPopup && !popupMatches(previousPopup, d)) {
+                closeDropdown(world, e);
+                if (!world.valid(e) || !world.has(e, UIDropdown)) continue;
+                openDropdown(world, events, e);
+                d = world.get(e, UIDropdown) as UIDropdownData;
+            }
 
             // Keyboard: arrows step the selection whether the popup is open
             // (moving the row highlight) or closed (the native <select>
@@ -253,14 +278,21 @@ export function createDropdownSystem(world: World, events: UIEventQueue): System
                 }
             }
 
+            if (!world.valid(e) || !world.has(e, UIDropdown)) continue;
+
             // Selection → label + row highlight + change event, whoever wrote
             // the index.
-            if (shown.get(e) !== d.selectedIndex) {
-                const emitChange = shown.has(e); // first sync is initial paint
-                shown.set(e, d.selectedIndex);
+            const content = d.options[d.selectedIndex] ?? '';
+            const previous = shown.get(e);
+            if (!previous || previous.index !== d.selectedIndex || previous.label !== d.label || previous.content !== content) {
+                const emitChange = previous !== undefined && previous.index !== d.selectedIndex;
+                if (previous) {
+                    previous.index = d.selectedIndex; previous.label = d.label; previous.content = content;
+                } else {
+                    shown.set(e, { index: d.selectedIndex, label: d.label, content });
+                }
                 if (world.valid(d.label) && world.has(d.label, Text)) {
                     const txt = world.get(d.label, Text) as TextData;
-                    const content = d.options[d.selectedIndex] ?? '';
                     if (txt.content !== content) {
                         txt.content = content;
                         world.insert(d.label, Text, txt);
