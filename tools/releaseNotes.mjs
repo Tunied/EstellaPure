@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ui): cancel pointer events invalidated by callbacks':
+    { note: 'Pointer callbacks cancel invalid UI interactions immediately.' },
   'fix(ui): revalidate focus targets after synchronous callbacks':
     { note: 'UI focus transitions recheck callback changes.' },
   'fix(animation): guard reentrant updates and frame-list changes':

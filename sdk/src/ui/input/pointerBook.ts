@@ -161,10 +161,15 @@ export class UiPointerBook {
         }
 
         // A control that died under a pointer stops being held, silently.
-        for (const [id, entity] of [...this.hoveredBy_]) if (!alive(entity)) this.hoveredBy_.delete(id);
-        for (const [id, entity] of [...this.pressedBy_]) if (!alive(entity)) this.pressedBy_.delete(id);
+        this.prune(alive);
 
         return out;
+    }
+
+    /** Drop captures invalidated by synchronous event callbacks, without new events. */
+    prune(alive: (entity: Entity) => boolean): void {
+        for (const [id, entity] of this.hoveredBy_) if (!alive(entity)) this.hoveredBy_.delete(id);
+        for (const [id, entity] of this.pressedBy_) if (!alive(entity)) this.pressedBy_.delete(id);
     }
 
     /** Forget every pointer — a realm tearing its UI down owes no events. */

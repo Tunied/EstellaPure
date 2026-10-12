@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Pointer callbacks cancel invalid UI interactions immediately.** Disabling or deleting a control during hover, press or release stops later events from the same batch. Invalidated captures and interaction edges clear in the same frame, so re-enabling a button does not complete an old press.
+
 - **UI focus transitions recheck callback changes.** Removing or disabling a control and opening a modal during blur cannot focus a stale or excluded target. Focus callbacks that remove their control clear the manager in the same update. Blur handlers observe the cleared state, and single-target keyboard eligibility avoids sorting the entire Tab ring.
 
 - **Sprite callbacks cannot recursively advance the same animation update.** Nested updates are ignored and exceptions release the update guard. Clearing, replacing or shortening a clip's frame list inside a callback stops stale dispatch and reapplies a valid pose on a later update instead of reading a removed frame.

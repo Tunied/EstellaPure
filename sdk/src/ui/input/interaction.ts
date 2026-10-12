@@ -37,6 +37,7 @@ function emitWithBubbling(
     type: string,
 ): void {
     const event = events.emit(entity, type);
+    if (!world.valid(entity)) return;
 
     walkParentChain(world, entity, (ancestor) => {
         if (event.propagationStopped) return true;
@@ -102,7 +103,7 @@ export class UIInteractionPlugin implements Plugin {
                     if (interaction.justPressed || interaction.justReleased) {
                         interaction.justPressed = false;
                         interaction.justReleased = false;
-                        world.insert(entity, UIInteraction, interaction);
+                        world.set(entity, UIInteraction, interaction);
                     }
                 }
 
@@ -167,8 +168,11 @@ export class UIInteractionPlugin implements Plugin {
 
                 const wasPressed = new Set(book.pressed);
                 const wasHovered = new Set(book.hovered);
-                for (const event of book.step(pointers, hit,
-                    e => eligible(e) && (camera.valid || overlay.active))) {
+                const active = (entity: Entity): boolean => eligible(entity) && (camera.valid || overlay.active);
+                const pointerEvents = book.step(pointers, hit, active);
+                for (const event of pointerEvents) {
+                    // Earlier events in this batch can disable or remove a later target.
+                    if (!active(event.entity)) continue;
                     switch (event.kind) {
                         case 'hoverEnter':
                             ensureComponent(world, event.entity, UIInteraction);
@@ -181,12 +185,12 @@ export class UIInteractionPlugin implements Plugin {
                             ensureComponent(world, event.entity, UIInteraction);
                             // A complete click may arrive between frames. Preserve its
                             // edge even when the final held-state is already false.
-                            world.insert(event.entity, UIInteraction, { ...world.get(event.entity, UIInteraction), justPressed: true });
+                            world.set(event.entity, UIInteraction, { ...world.get(event.entity, UIInteraction), justPressed: true });
                             emitWithBubbling(world, events, event.entity, UIEventType.Press);
                             break;
                         case 'release':
                             if (world.has(event.entity, UIInteraction))
-                                world.insert(event.entity, UIInteraction, { ...world.get(event.entity, UIInteraction), justReleased: true });
+                                world.set(event.entity, UIInteraction, { ...world.get(event.entity, UIInteraction), justReleased: true });
                             emitWithBubbling(world, events, event.entity, UIEventType.Release);
                             break;
                         case 'click':
@@ -194,31 +198,36 @@ export class UIInteractionPlugin implements Plugin {
                             break;
                     }
                 }
+                book.prune(active);
 
                 // `hovered` and `pressed` are facts about the ENTITY: true while
                 // any pointer is over or holding it, false once none is.
                 const hovered = book.hovered;
                 const pressed = book.pressed;
                 const touched = new Set<Entity>([...interactionEntities, ...hovered, ...pressed, ...wasPressed, ...wasHovered]);
+                for (const event of pointerEvents) touched.add(event.entity);
                 for (const entity of touched) {
                     if (!world.valid(entity) || !world.has(entity, UIInteraction)) continue;
                     const data = world.get(entity, UIInteraction) as UIInteractionData;
-                    const isHovered = hovered.has(entity);
-                    const isPressed = pressed.has(entity);
-                    const active = eligible(entity) && (camera.valid || overlay.active);
-                    const justPressed = active && (data.justPressed || (isPressed && !wasPressed.has(entity)));
-                    const justReleased = active && (data.justReleased || (!isPressed && wasPressed.has(entity)));
+                    const isActive = active(entity);
+                    const isHovered = isActive && hovered.has(entity);
+                    const isPressed = isActive && pressed.has(entity);
+                    const justPressed = isActive && (data.justPressed || (isPressed && !wasPressed.has(entity)));
+                    const justReleased = isActive && (data.justReleased || (!isPressed && wasPressed.has(entity)));
                     if (data.hovered === isHovered && data.pressed === isPressed
                         && data.justPressed === justPressed && data.justReleased === justReleased) continue;
                     data.hovered = isHovered;
                     data.pressed = isPressed;
                     data.justPressed = justPressed;
                     data.justReleased = justReleased;
-                    world.insert(entity, UIInteraction, data);
+                    world.set(entity, UIInteraction, data);
                 }
 
                 // Gameplay reads this (Update) to skip input the UI claimed.
-                input.pointerOverUI = overUI;
+                input.pointerOverUI = overUI && pointers.some(pointer => {
+                    const entity = lastHit.get(pointer.id)?.entity;
+                    return entity != null && active(entity);
+                });
             },
             { name: 'UIInteractionSystem' }
         ), { runAfter: [SystemLabel.UILayout], runIf: playModeOnly });

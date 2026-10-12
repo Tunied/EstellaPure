@@ -24,6 +24,47 @@ vi.mock('../src/ui/util/ui-pick', () => ({
 }));
 
 describe('quick pointer focus through real interaction projection', () => {
+  it.each(['hover_enter', 'press', 'release'])('stops a queued click when %s disables the control', async phase => {
+    const { app } = bootMockApp(); const input = new InputState();
+    app.insertResource(Input, input);
+    app.insertResource(UICameraInfo, { valid: false } as any);
+    app.insertResource(ScreenOverlay, { active: true, surfaceH: 600 } as any);
+    app.insertResource(UILayoutGeneration, { generation: 0 });
+    uiInteractionPlugin.build(app); flushPendingRegistrations(app);
+    const entity = app.world.spawn();
+    app.world.insert(entity, Interactable, { enabled: true }); hit.entity = entity;
+    const kinds: string[] = [];
+    for (const kind of ['hover_enter', 'press', 'release', 'click']) {
+      app.getResource(UIEvents).on(entity, kind, () => {
+        kinds.push(kind);
+        if (kind === phase) app.world.update(entity, Interactable, data => { data.enabled = false; });
+      });
+    }
+    input.noteMouseDown(0); input.noteMouseUp(0);
+    await app.tick(1 / 60);
+    const order = ['hover_enter', 'press', 'release'];
+    expect(kinds).toEqual(order.slice(0, order.indexOf(phase) + 1));
+    expect(app.world.get(entity, UIInteraction)).toMatchObject({ hovered: false, pressed: false, justPressed: false, justReleased: false });
+    expect(input.pointerOverUI).toBe(false);
+  });
+  it('cancels a held press disabled by its press handler without restoring capture', async () => {
+    const { app } = bootMockApp(); const input = new InputState();
+    app.insertResource(Input, input);
+    app.insertResource(UICameraInfo, { valid: false } as any);
+    app.insertResource(ScreenOverlay, { active: true, surfaceH: 600 } as any);
+    app.insertResource(UILayoutGeneration, { generation: 0 });
+    uiInteractionPlugin.build(app); flushPendingRegistrations(app);
+    const entity = app.world.spawn();
+    app.world.insert(entity, Interactable, { enabled: true }); hit.entity = entity;
+    app.getResource(UIEvents).on(entity, 'press', () => app.world.update(entity, Interactable, data => { data.enabled = false; }));
+    const click = vi.fn(); app.getResource(UIEvents).on(entity, 'click', click);
+    input.noteMouseDown(0); await app.tick(1 / 60);
+    expect(app.world.get(entity, UIInteraction).pressed).toBe(false);
+    input.clearFrameState();
+    app.world.update(entity, Interactable, data => { data.enabled = true; });
+    input.noteMouseUp(0); await app.tick(1 / 60);
+    expect(click).not.toHaveBeenCalled();
+  });
   it.each(['control', 'surface'])('clears capture when the %s is switched off', async (reason) => {
     const { app } = bootMockApp(); const input = new InputState();
     const overlay = { active: true, surfaceH: 600 } as any;
