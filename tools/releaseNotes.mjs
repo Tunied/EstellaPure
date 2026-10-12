@@ -28,6 +28,28 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'Fix engine activity, asset ownership and material rendering':
+    { note: 'Entity activity follows the hierarchy.' },
+  'Strengthen import and native release verification':
+    { note: 'Imported material textures resolve correctly.' },
+  'Own live material texture bindings and preserve asset identities':
+    { note: 'Material state can be applied as one complete snapshot.' },
+  'Skip stale queued material previews after disposal or reconnect':
+    { note: 'Asset previews release obsolete work.' },
+  'Fix editor document lifecycle and runtime integration':
+    { note: 'Scene assets have scoped ownership.' },
+  'Fix asset preview ownership and material editing':
+    { note: 'Asset previews release obsolete work.' },
+  'Apply material texture edits with scoped async ownership':
+    { note: 'Live material texture edits match saved Play.' },
+  'Cancel queued asset previews when the scene lifetime ends':
+    { note: 'Asset previews release obsolete work.' },
+  'Keep scene bindings coherent when resource cleanup fails':
+    { note: 'Asset previews release obsolete work.' },
+  'Isolate audio preview failures and stop previews on project replacement':
+    { note: 'Audio preview failures stay with their own clip.' },
+  'Make audio waveform previews cancellable and preserve every channel':
+    { note: 'Waveforms preserve every audio channel.' },
   'fix(audio): stop all tracked voices during device disposal':
     { note: 'Stopping editor Play stops game audio.' },
   'fix(editor): release game audio on warm Play stop':

@@ -14,9 +14,23 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+## [0.78.0] - 2026-10-12
+
+### Added
+
+- **Material state can be applied as one complete snapshot.** `Material.applyState` restores missing base defaults, removes instance overrides and accepts ownership of edited texture leases. `resolveDocumentRef` exposes the shared document-relative and UUID reference resolver.
+
 ### Fixed
 
 - **Stopping editor Play stops game audio.** Single-player Stop now releases the game App and its plugins while keeping the engine renderer warm for re-Play. BGM and scripted/source voices are stopped, pending audio loads cannot resume playback, and a Stop during startup cancels the realm. This applies to both the editor UI and MCP (`set_play: stopped`).
+
+- **Entity activity follows the hierarchy.** Rendering, skeletal animation, particles and UI honor inherited activity, and transform updates remain consistent for deep hierarchies.
+- **Scene assets have scoped ownership.** Scene changes, prefab preparation, hot loads and Undo release superseded acquisitions. Texture bindings use resource identities across GPU replacement, and native component access preserves nontrivial C++ fields.
+- **Live material texture edits match saved Play.** Relative paths and UUIDs resolve consistently. Reset removes overrides and preserves future inheritance; deselecting an unsaved material keeps its edited textures alive until replacement or disposal.
+- **Asset previews release obsolete work.** Mesh and material previews serialize shared readbacks, prioritize inspection and cancel queued requests on scene changes. Thumbnail caches are bounded; stale material records and reconnected cores are rejected before GPU submission. Scene binding state still updates when resource cleanup throws.
+- **Imported material textures resolve correctly.** glTF material and texture import references stay consistent with the runtime asset loaders.
+- **Audio preview failures stay with their own clip.** A late failure cannot stop a replacement clip; synchronous playback failure clears preview state, and changing projects stops old browser previews.
+- **Waveforms preserve every audio channel.** Opposite-phase stereo and surround channels remain visible. Waveform fetches and scans are cancellable, decoding runs one file at a time without opening a live audio output device, and large scans yield background tasks so input can continue.
 
 ## [0.77.0] - 2026-10-10
 
@@ -13854,7 +13868,8 @@ not kept before this file was introduced — see the Git history at
 `github.com/esengine/estella` for the full commit-level record since the first
 commit on 2026-01-25.
 
-[Unreleased]: https://github.com/esengine/estella/compare/v0.77.0...HEAD
+[Unreleased]: https://github.com/esengine/estella/compare/v0.78.0...HEAD
+[0.78.0]: https://github.com/esengine/estella/compare/v0.77.0...v0.78.0
 [0.77.0]: https://github.com/esengine/estella/compare/v0.76.0...v0.77.0
 [0.76.0]: https://github.com/esengine/estella/compare/v0.75.0...v0.76.0
 [0.75.0]: https://github.com/esengine/estella/compare/v0.74.0...v0.75.0

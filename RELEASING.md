@@ -2,7 +2,7 @@
 
 发布的是同一版本的引擎、SDK、编辑器和原生运行时模板。版本规则见
 [VERSIONING.md](VERSIONING.md)，验收项目以 [tools/releaseGate.mjs](tools/releaseGate.mjs)
-为准。本次候选的进度见 [v0.77.0 发布记录](docs/releases/0.77.0.md)。
+为准。最近一次正式发布记录见 [v0.77.0 发布记录](docs/releases/0.77.0.md)。
 
 ## 1. 冻结范围和准备提交
 
