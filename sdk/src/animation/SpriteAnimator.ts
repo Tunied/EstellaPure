@@ -86,6 +86,7 @@ export class SpriteAnimationAPI {
     private readonly clipTokens = new WeakMap<SpriteAnimClip, object>();
     private readonly appliedAnimators = new WeakMap<SpriteAnimatorData, object>();
     private readonly pendingApplies = new WeakSet<SpriteAnimatorData>();
+    private updating = false;
 
     // -- clip registry --------------------------------------------------------
 
@@ -152,15 +153,23 @@ export class SpriteAnimationAPI {
         this.entityListeners.delete(entity);
     }
 
-    private isCurrentAnimator(world: World, entity: Entity, animator: SpriteAnimatorData, clipName: string, clip: SpriteAnimClip): boolean {
-        return world.tryGet(entity, SpriteAnimator) === animator
-            && animator.clip === clipName && this.getClip(clipName) === clip
-            && !this.pendingApplies.has(animator);
+    private isCurrentAnimator(world: World, entity: Entity, animator: SpriteAnimatorData, clipName: string, clip: SpriteAnimClip, frames: SpriteAnimFrame[], frameCount: number): boolean {
+        if (world.tryGet(entity, SpriteAnimator) !== animator
+            || animator.clip !== clipName || this.getClip(clipName) !== clip
+            || this.pendingApplies.has(animator)) return false;
+        if (clip.frames !== frames || frames.length !== frameCount
+            || !Number.isInteger(animator.currentFrame) || animator.currentFrame < 0 || animator.currentFrame >= frameCount) {
+            this.appliedAnimators.delete(animator);
+            return false;
+        }
+        return true;
     }
 
     private fireEvents(world: World, entity: Entity, animator: SpriteAnimatorData, clipName: string, clip: SpriteAnimClip, prevFrame: number, advanced: number, initial: boolean, looping: boolean): boolean {
         if (!clip.events || clip.events.length === 0) return true;
         if (!this.entityListeners.get(entity)?.length && !this.globalListeners.length) return true;
+        const frames = clip.frames;
+        const frameCount = frames.length;
         let first: SpriteAnimEvent | undefined;
         let firstDistance = 0;
         let ordered: { event: SpriteAnimEvent; distance: number }[] | undefined;
@@ -189,12 +198,12 @@ export class SpriteAnimationAPI {
             if (listeners) {
                 for (const handler of listeners) {
                     handler(evt, entity);
-                    if (!this.isCurrentAnimator(world, entity, animator, clipName, clip)) return false;
+                    if (!this.isCurrentAnimator(world, entity, animator, clipName, clip, frames, frameCount)) return false;
                 }
             }
             for (const handler of globals) {
                 handler(evt, entity);
-                if (!this.isCurrentAnimator(world, entity, animator, clipName, clip)) return false;
+                if (!this.isCurrentAnimator(world, entity, animator, clipName, clip, frames, frameCount)) return false;
             }
         }
         return true;
@@ -203,6 +212,15 @@ export class SpriteAnimationAPI {
     // -- per-frame system -----------------------------------------------------
 
     update(world: World, deltaTime: number): void {
+        // A frame callback may control playback, but cannot recursively advance
+        // this API's current animation pass. Always release the guard on error.
+        if (this.updating) return;
+        this.updating = true;
+        try { this.updateWorld(world, deltaTime); }
+        finally { this.updating = false; }
+    }
+
+    private updateWorld(world: World, deltaTime: number): void {
         const entities = world.getEntitiesWithComponents([SpriteAnimator]);
 
         for (const entity of entities) {

@@ -72,6 +72,8 @@ const jump = defineSystem([Query(Mut(SpriteAnimator)), Res(SpriteAnimation)], (q
 时间没有推进时，不会重复触发初始帧事件。
 `gotoFrame(animator, index, false)` 和 `gotoLabel(animator, label, false)` 会在下一次动画更新时
 显示选中的帧，保持停止，不推进时间也不触发事件。
+在帧回调中通过 `gotoFrame` / `gotoLabel` 调整播放，不要再次调用 `update`：
+同一动画 API 正在更新时会忽略嵌套更新。
 
 片段携带**帧事件**(`SpriteAnimEvent`——`{ frame, name, data? }`),播放到某帧时触发:
 脚步声、攻击的命中帧、金币翻面的那一刻。在 Flipbook 编辑器的 **Events** 轨道上编辑它们——

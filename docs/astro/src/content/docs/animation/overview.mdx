@@ -75,6 +75,8 @@ at most one notification per update, avoiding a burst of delayed sounds or hits.
 Updates with no elapsed time do not repeat the initial frame event.
 `gotoFrame(animator, index, false)` and `gotoLabel(animator, label, false)` pose
 the selected frame on the next animation update without advancing or firing events.
+Inside a frame callback, change playback through `gotoFrame` / `gotoLabel` rather
+than calling `update` again: nested updates on the same animation API are ignored.
 
 Clips carry **frame events** (`SpriteAnimEvent` — `{ frame, name, data? }`) that
 fire when playback reaches a frame: a footstep sound, the hit frame of an attack,

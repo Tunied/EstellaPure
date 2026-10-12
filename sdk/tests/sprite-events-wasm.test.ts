@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { World } from '../src/ecs/world';
+import { Sprite } from '../src/ecs/component';
 import type { CppRegistry, ESEngineModule } from '../src/wasm';
 import { SpriteAnimator, SpriteAnimationAPI } from '../src/animation/SpriteAnimator';
 import { HAS_WASM, loadWasmModule } from './helpers/loadWasm';
@@ -73,5 +74,39 @@ describe.skipIf(!HAS_WASM)('sprite animation callback lifecycle on real WASM', (
         expect(() => animation.update(world, 0)).not.toThrow();
         expect(world.valid(later)).toBe(false);
         expect(world.getEntitiesWithComponents([SpriteAnimator])).toEqual([first]);
+    });
+
+    it('does not advance recursively when a listener calls update again', () => {
+        const entity = spawn(); let calls = 0;
+        animation.onEvent(entity, () => { if (++calls < 4) animation.update(world, .25); });
+        animation.update(world, 0);
+        expect(calls).toBe(1);
+        expect(world.get(entity, SpriteAnimator).currentFrame).toBe(0);
+        expect(world.get(entity, SpriteAnimator).frameTimer).toBe(0);
+    });
+
+    it('does not access a frame list cleared inside a callback', () => {
+        const entity = spawn(); world.insert(entity, Sprite, { texture: 9 });
+        animation.onEvent(entity, () => { animation.getClip('walk')!.frames = []; });
+        expect(() => animation.update(world, 0)).not.toThrow();
+        expect(world.get(entity, Sprite).texture).toBe(9);
+    });
+
+    it('reapplies a shortened clip on the next update without accessing the removed frame', () => {
+        const entity = spawn(); world.insert(entity, Sprite, { texture: 9 });
+        animation.onEvent(entity, () => { animation.getClip('walk')!.frames.splice(1); });
+        expect(() => animation.update(world, .1)).not.toThrow();
+        expect(world.get(entity, Sprite).texture).toBe(9);
+        animation.update(world, 0);
+        expect(world.get(entity, SpriteAnimator).currentFrame).toBe(0);
+        expect(world.get(entity, Sprite).texture).toBe(0);
+    });
+
+    it('allows later updates after a listener throws', () => {
+        const entity = spawn();
+        const off = animation.onEvent(entity, () => { throw new Error('listener failure'); });
+        expect(() => animation.update(world, 0)).toThrow('listener failure');
+        off(); animation.update(world, .1);
+        expect(world.get(entity, SpriteAnimator).currentFrame).toBe(1);
     });
 });

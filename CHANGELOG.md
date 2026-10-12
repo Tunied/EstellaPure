@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Sprite callbacks cannot recursively advance the same animation update.** Nested updates are ignored and exceptions release the update guard. Clearing, replacing or shortening a clip's frame list inside a callback stops stale dispatch and reapplies a valid pose on a later update instead of reading a removed frame.
+
 - **Sprite playback catches up without replaying a time backlog.** Complete loop crossings deliver events in playback order, zero-time updates do not repeat the initial event, and single-frame completion does not fire it again. Long updates restore the correct phase while coalescing each declared event to one notification per update. Stopped frame/label seeks update the pose, and changed frames write existing component values without rebuilding defaults.
 
 - **Sprite animation events tolerate listener and entity changes.** Self-unsubscription no longer skips the next listener, and listeners registered during dispatch start with a later event. Callbacks that remove, replace or despawn an animator cannot have their changes overwritten by the old update. Listener lists use copy-on-write at registration rather than copying on each animated frame.

@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(animation): guard reentrant updates and frame-list changes':
+    { note: 'Sprite callbacks cannot recursively advance the same animation update.' },
   'fix(build): link context tests with WebGL 2 symbols':
     { internal: 'The context regression harness pulls in the WebGL overload even with a mock backend; its normal and sanitizer links require the same WebGL 2 symbols as the engine. Shipping engine behavior is unchanged.' },
   'fix(animation): preserve elapsed phase and coalesce crossed events':
