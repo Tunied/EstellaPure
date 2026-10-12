@@ -241,9 +241,6 @@
   "tests/ui-slider-dropdown.test.ts": {
     "TS2724|'\"../src/ui\"' has no exported member named 'UIRect'. Did you mean 'Rect'?": 1
   },
-  "tests/ui-text-submit.test.ts": {
-    "TS2554|Expected 9-10 arguments, but got 8.": 1
-  },
   "tests/utf8.test.ts": {
     "TS2307|Cannot find module '../src/util/utf8?fallback' or its corresponding type declarations.": 1
   },

@@ -249,7 +249,11 @@ export function runCommand(command, args, options = {}) {
         const shell = process.platform === 'win32';
         const quoted = (s) => (shell && /\s/.test(s) && !/^".*"$/.test(s) ? `"${s}"` : s);
 
-        const proc = spawn(quoted(command), args.map(quoted), {
+        // Keep CMake's MSVC prefix probe and Ninja's /showIncludes parser on
+        // the same console encoding, including installations with only a
+        // localized compiler language pack. English VSLANG cannot fix those.
+        const executable = shell ? `chcp 65001>nul && ${quoted(command)}` : command;
+        const proc = spawn(executable, args.map(quoted), {
             cwd,
             env: { ...process.env, ...env },
             stdio: silent ? 'pipe' : 'inherit',

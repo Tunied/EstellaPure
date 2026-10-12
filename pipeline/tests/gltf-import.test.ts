@@ -359,6 +359,28 @@ describe('glTF material import', () => {
     expect(warnings.join('\n')).toContain('KHR_texture_transform not imported');
   });
 
+  it.each([{}, { texCoord: 0 }, { offset: [0, 0], scale: [1, 1], rotation: 0 }])
+    ('accepts an identity UV transform from a model exporter: %j', async transform => {
+      const doc = withInlineImage();
+      (doc.materials as { pbrMetallicRoughness: { baseColorTexture: Record<string, unknown> } }[])[0]!
+        .pbrMetallicRoughness.baseColorTexture.extensions = { KHR_texture_transform: transform };
+      const { meshes, warnings } = await importGltfMeshes(gltf(doc), 'model');
+      expect(warnings).toEqual([]);
+      expect(texCoords(meshes[0]!)).toEqual([0, 1, 1, 1, 0, 0]);
+    });
+
+  it.each([0, 1])('reports the effective UV set after an extension override to %s', async texCoord => {
+    const doc = withInlineImage();
+    const texture = (doc.materials as { pbrMetallicRoughness: { baseColorTexture: Record<string, unknown> } }[])[0]!
+      .pbrMetallicRoughness.baseColorTexture;
+    texture.texCoord = 1;
+    texture.extensions = { KHR_texture_transform: { texCoord } };
+    const { warnings } = await importGltfMeshes(gltf(doc), 'model');
+    expect(warnings).toEqual(texCoord === 0 ? [] : [
+      'material "Base": samples TEXCOORD_1; materials read the first set, so it will sample UV0',
+    ]);
+  });
+
   it("flips V, because glTF's uv origin is the image's top-left", async () => {
     const { meshes } = await importGltfMeshes(gltf(withInlineImage()), 'model');
     expect(texCoords(meshes[0]!)).toEqual([0, 1, 1, 1, 0, 0]);
@@ -416,6 +438,48 @@ describe('glTF material products', () => {
     const meshRenderer = prefab.entities[1]!.components[1]!.data;
     expect(meshRenderer.material).toBe('assets/models/model_m0.esmaterial');
     expect(meshRenderer.normalMap).toBeUndefined();
+  });
+
+  it('preserves HDR emission through imported material products', async () => {
+    const doc = shaded({
+      emissiveFactor: [1, 0.5, 0.125], emissiveTexture: { index: 0 },
+      extensions: { KHR_materials_emissive_strength: { emissiveStrength: 24 } },
+    });
+    const { meshes, warnings } = await importGltfMeshes(gltf(doc), 'model');
+    expect(warnings).toEqual([]);
+    expect(meshes[0]!.material?.emissive).toEqual([24, 12, 3]);
+    const products = materialProducts(meshes, 'model');
+    expect(products[0]!.data.properties.u_emissive).toEqual({ r: 24, g: 12, b: 3, a: 1 });
+    expect(products[0]!.data.properties.u_emissiveMap).toBe('model_0.png');
+  });
+
+  it.each([0, 0.5, 1])('preserves an emission multiplier of %s', async strength => {
+    const { products } = await productsOf(shaded({
+      emissiveFactor: [1, 0.5, 0], emissiveTexture: { index: 0 },
+      extensions: { KHR_materials_emissive_strength: { emissiveStrength: strength } },
+    }));
+    expect(products[0]!.data.properties.u_emissive).toEqual(strength === 0
+      ? undefined : { r: strength, g: strength * 0.5, b: 0, a: 1 });
+  });
+
+  it('defaults an omitted strength to one and still reports unsupported extensions', async () => {
+    const doc = shaded({
+      emissiveFactor: [1, 0.5, 0],
+      extensions: { KHR_materials_emissive_strength: {}, KHR_materials_clearcoat: {} },
+    });
+    const { meshes, warnings } = await importGltfMeshes(gltf(doc), 'model');
+    expect(meshes[0]!.material?.emissive).toEqual([1, 0.5, 0]);
+    expect(warnings).toEqual(['material "Shaded": KHR_materials_clearcoat not imported']);
+  });
+
+  it.each([-1, '24', null])('reports an invalid emission strength %s', async strength => {
+    const doc = shaded({
+      emissiveFactor: [1, 0.5, 0],
+      extensions: { KHR_materials_emissive_strength: { emissiveStrength: strength } },
+    });
+    const { meshes, warnings } = await importGltfMeshes(gltf(doc), 'model');
+    expect(meshes[0]!.material?.emissive).toEqual([1, 0.5, 0]);
+    expect(warnings).toContain('material "Shaded": invalid emissiveStrength; using 1');
   });
 
   it('says the render state the draw would otherwise have said itself', async () => {

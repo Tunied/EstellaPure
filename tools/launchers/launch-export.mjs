@@ -16,6 +16,8 @@
  *
  *   electron desktop/scripts/launch-export.mjs --dir <exportDir> [options]
  *     --out <file.png>   write the captured frame
+ *     --canvas-out <file.png> also read the game canvas at a frame boundary,
+ *                        to distinguish a renderer failure from compositor capture
  *     --w / --h          surface size (default 640x360)
  *     --settle <n>       frames to let run before capturing (default 30)
  *     --timeout <ms>     how long to wait for the first frame (default 30000)
@@ -96,6 +98,7 @@ const has = (name) => argv.includes(`--${name}`);
 
 const DIR = path.resolve(flag('dir', ''));
 const OUT = flag('out', '');
+const CANVAS_OUT = flag('canvas-out', '');
 const W = Number(flag('w', '640'));
 const H = Number(flag('h', '360'));
 const SETTLE = Number(flag('settle', '30'));
@@ -458,6 +461,24 @@ const SCENE = flag('scene', '');
     return (await still()) >= 0;
   })();
 
+  if (CANVAS_OUT) {
+    // Read inside rAF: a non-preserved WebGL drawing buffer may be discarded
+    // after presentation. A compositor screenshot alone cannot tell whether a
+    // partial copy was what the engine drew or what Chromium copied later.
+    const dataUrl = await win.webContents.executeJavaScript(`
+      new Promise((resolve, reject) => requestAnimationFrame(() => {
+        try {
+          const canvas = [...document.querySelectorAll('canvas')]
+            .sort((a, b) => b.width * b.height - a.width * a.height)[0];
+          if (!canvas || !canvas.width || !canvas.height) throw new Error('no game canvas');
+          resolve(canvas.toDataURL('image/png'));
+        } catch (e) { reject(e); }
+      }))
+    `);
+    const prefix = 'data:image/png;base64,';
+    if (!dataUrl.startsWith(prefix)) throw new Error('game canvas did not return a PNG');
+    await writeFile(CANVAS_OUT, Buffer.from(dataUrl.slice(prefix.length), 'base64'));
+  }
   const image = await captureFrame(win);
   if (OUT) await writeFile(OUT, image.toPNG());
   stop();

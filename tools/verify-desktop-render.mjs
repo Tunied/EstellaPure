@@ -28,6 +28,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installedTemplateDir } from '../build-tools/utils/nativeTemplate.js';
+import { requireNativeHostSuccess } from './lib/nativeHostResult.mjs';
 import { atTier, projectDir, GOLDEN, desktopPixels, desktopPixelsSkip } from './goldenProjects.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -110,6 +111,7 @@ function packageAndRun(project, templateDir, work) {
         timeout: 120_000,
     });
     const output = `${run.stdout ?? ''}${run.stderr ?? ''}`;
+    requireNativeHostSuccess(run, path.basename(project));
     return { verdict: verdictIn(output), status: run.status, output, raw: path.join(out, 'frame.raw') };
 }
 

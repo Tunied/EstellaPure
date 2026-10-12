@@ -200,7 +200,7 @@ different deltas, move different distances, and have no differential between the
 | `BENCH_ENTITIES` | 5000 | entities the startup system spawns |
 | `BENCH_FRAMES` | 300 | timed frames |
 | `BENCH_WARMUP` | 120 | untimed frames first — assets land, pools fill, and a lazily-bound compiled system gets bound before it is timed |
-| `BENCH_REPS` | 3 | processes per configuration; the fastest is kept |
+| `BENCH_REPS` | 3 | requested processes per configuration; pairs use at least 3, and the fastest is kept |
 | `BENCH_BODIES` | `thin` | any of `thin`, `thick`, `heavy`, `script` |
 | `BENCH_IDLE` | off | also run the scene with no body, so a system's own cost can be read off it |
 | `BENCH_SPRITES` | on | `0` drops the `Sprite`, which is most of the idle floor — needed to resolve a compiled system at all |
@@ -210,6 +210,7 @@ different deltas, move different distances, and have no differential between the
 | `BENCH_RENDER_ENTITIES` | 128000 | the pair's entity count |
 | `BENCH_MIN_BUSY` | 0.5 | the share of a frame's span that must be CPU for the span to be about the engine |
 | `BENCH_KEEP` | off | keep the exported apps for poking at |
+| `BENCH_TIMEOUT_MS` | 300000 | maximum time for each host process; a timeout or nonzero exit rejects its printed measurements |
 
 ## What drawing costs, in time
 

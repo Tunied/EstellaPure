@@ -42,6 +42,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installedTemplateDir } from '../../build-tools/utils/nativeTemplate.js';
 import { desktopExecutableIn } from '../../build-tools/utils/desktopApp.js';
+import { requireNativeHostSuccess } from '../../tools/lib/nativeHostResult.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 /** The one source both AOT benchmarks measure. */
@@ -282,6 +283,7 @@ function exportApp(project, out, compiled) {
 function run(exe, label) {
     const r = spawnSync(exe, [], {
         encoding: 'utf8', cwd: path.dirname(exe),
+        timeout: Number(process.env.BENCH_TIMEOUT_MS ?? 300_000),
         env: {
             ...process.env,
             ESTELLA_BENCH_FRAMES: String(FRAMES),
@@ -290,6 +292,7 @@ function run(exe, label) {
             ESTELLA_BENCH_DT: String(1 / 60),
         },
     });
+    requireNativeHostSuccess(r, label);
     const log = `${r.stdout ?? ''}${r.stderr ?? ''}`;
     const line = /bench: (\{.*\})/.exec(log);
     if (line === null) {
@@ -366,7 +369,7 @@ try {
 // --------------------------------------------------------------------- report
 
 console.log(`\nno-JIT frame — QuickJS-ng in the native host, ${ENTITIES} entities, `
-    + `${FRAMES} frames after ${WARMUP}, best of ${REPS}\n`);
+    + `${FRAMES} frames after ${WARMUP}, best of ${PAIR_REPS}\n`);
 // `tick` is the microtask drain, not the `update` call: that one only schedules an
 // async tick. `draws` is a column because a body can move the render's cost —
 // `heavy` writes `position.z`, which breaks sprite batching into one draw each.

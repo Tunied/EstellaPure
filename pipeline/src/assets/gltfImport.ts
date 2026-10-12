@@ -499,10 +499,22 @@ function readTexture(ctx: MaterialContext, cache: Map<number, ImportedImageRef |
                      ref: GltfTextureRef, label: string): ImportedImageRef | null {
     // The mesh carries a second set; a MATERIAL still samples the first, so a
     // texture asking for another one is the loss to report — not the UVs.
-    if (ref.texCoord) {
-        ctx.warnings.push(`${label}: samples TEXCOORD_${ref.texCoord}; materials read the first set, so it will sample UV0`);
+    const transform = ref.extensions?.KHR_texture_transform as {
+        offset?: number[]; scale?: number[]; rotation?: number; texCoord?: number;
+    } | undefined;
+    const texCoord = transform?.texCoord ?? ref.texCoord ?? 0;
+    if (texCoord) {
+        ctx.warnings.push(`${label}: samples TEXCOORD_${texCoord}; materials read the first set, so it will sample UV0`);
     }
     for (const name of Object.keys(ref.extensions ?? {})) {
+        // Exporters also emit this extension when it only selects UV0. Nothing
+        // is lost in that case; warn only when the source needs a UV rewrite.
+        if (name === 'KHR_texture_transform' && transform
+            && (transform.rotation ?? 0) === 0
+            && (transform.offset === undefined || (transform.offset.length === 2
+                && transform.offset[0] === 0 && transform.offset[1] === 0))
+            && (transform.scale === undefined || (transform.scale.length === 2
+                && transform.scale[0] === 1 && transform.scale[1] === 1))) continue;
         ctx.warnings.push(`${label}: ${name} not imported (uvs are used as authored)`);
     }
     const cached = cache.get(ref.index);
@@ -564,7 +576,9 @@ function readMaterial(ctx: MaterialContext, textureCache: Map<number, ImportedIm
     if (src.normalTexture?.scale !== undefined && src.normalTexture.scale !== 1) {
         unused.push(`normal-map scale ${src.normalTexture.scale}`);
     }
-    for (const name of Object.keys(src.extensions ?? {})) unused.push(name);
+    for (const name of Object.keys(src.extensions ?? {})) {
+        if (name !== 'KHR_materials_emissive_strength') unused.push(name);
+    }
     if (unused.length > 0) ctx.warnings.push(`${label}: ${unused.join(', ')} not imported`);
 
     const texture = pbr.baseColorTexture
@@ -577,7 +591,16 @@ function readMaterial(ctx: MaterialContext, textureCache: Map<number, ImportedIm
         ? readTexture(ctx, textureCache, src.occlusionTexture, label) : null;
     const metalRoughMap = pbr.metallicRoughnessTexture
         ? readTexture(ctx, textureCache, pbr.metallicRoughnessTexture, label) : null;
-    const emissive = src.emissiveFactor ?? (emissiveMap ? [1, 1, 1] : [0, 0, 0]);
+    const strengthExtension = src.extensions?.KHR_materials_emissive_strength as
+        { emissiveStrength?: unknown } | undefined;
+    const strengthValue = strengthExtension?.emissiveStrength === undefined
+        ? 1 : strengthExtension.emissiveStrength;
+    const validStrength = typeof strengthValue === 'number'
+        && Number.isFinite(strengthValue) && strengthValue >= 0;
+    if (!validStrength) ctx.warnings.push(`${label}: invalid emissiveStrength; using 1`);
+    const strength = validStrength ? strengthValue : 1;
+    const emissive = (src.emissiveFactor ?? (emissiveMap ? [1, 1, 1] : [0, 0, 0]))
+        .map(value => value * strength);
     // glTF defaults both factors to 1 — a material that says nothing is a fully
     // rough metal, and writing that out is what makes a product say so.
     const metallic = pbr.metallicFactor ?? 1;

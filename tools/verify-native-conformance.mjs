@@ -28,6 +28,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installedTemplateDir } from '../build-tools/utils/nativeTemplate.js';
 import { desktopExecutableIn } from '../build-tools/utils/desktopApp.js';
+import { requireNativeHostSuccess } from './lib/nativeHostResult.mjs';
 import { bytecodeMatchesBundle } from './lib/nativeBytecode.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -120,6 +121,7 @@ function play(compiled) {
 
     const run = spawnSync(exe, [], {
       encoding: 'utf8',
+      timeout: 120_000,
       cwd: path.dirname(exe),
       env: {
         ...process.env,
@@ -132,6 +134,7 @@ function play(compiled) {
         ESTELLA_BENCH_LABEL: compiled ? 'conformance-aot' : 'conformance-interpreted',
       },
     });
+    requireNativeHostSuccess(run, compiled ? 'compiled conformance' : 'interpreted conformance');
     return { log: `${run.stdout ?? ''}${run.stderr ?? ''}`, status: run.status };
   } finally {
     rmSync(out, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });

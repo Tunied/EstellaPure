@@ -199,15 +199,20 @@ function harnessBinary(target) {
 const built = [];
 const absent = [];
 for (const target of buildable) {
-    const run = spawnSync('cmake', ['--build', BUILD, '-j', '8', '--target', target], { encoding: 'utf8' });
+    const run = spawnSync('cmake', ['--build', BUILD, '--config', 'Release', '-j', '8', '--target', target], { encoding: 'utf8' });
     const out = `${run.stdout ?? ''}${run.stderr ?? ''}`;
     if (run.status === 0) {
+        // Release is explicit: multi-config generators otherwise build Debug.
         // Compiling is half the claim. A harness that builds and then fails its
         // assertions is a red CI job this gate would otherwise call green — which
         // is how two stale shader-variant assertions sat behind a broken build.
         const binary = harnessBinary(target);
-        const ran = binary ? spawnSync(binary, [], { encoding: 'utf8' }) : null;
-        if (ran && ran.status !== 0) {
+        if (!binary) {
+            console.error('check-cpp-tests: ' + target + ' built but its executable was not found; no assertions ran.');
+            process.exit(1);
+        }
+        const ran = spawnSync(binary, [], { encoding: 'utf8' });
+        if (ran.status !== 0) {
             console.error(`check-cpp-tests: ${target} builds but does not pass.\n`);
             console.error(`${ran.stdout ?? ''}${ran.stderr ?? ''}`.split('\n')
                 .filter((l) => /FAIL|error|assert/i.test(l)).slice(0, 12).join('\n'));

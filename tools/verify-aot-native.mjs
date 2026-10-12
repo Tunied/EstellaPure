@@ -24,6 +24,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installedTemplateDir } from '../build-tools/utils/nativeTemplate.js';
 import { desktopExecutableIn } from '../build-tools/utils/desktopApp.js';
+import { requireNativeHostSuccess } from './lib/nativeHostResult.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 /** The example whose system carries the marker. */
@@ -75,6 +76,7 @@ try {
 
   const run = spawnSync(exe, [], {
     encoding: 'utf8',
+    timeout: 120_000,
     cwd: path.dirname(exe),
     env: {
       ...process.env,
@@ -83,6 +85,7 @@ try {
       ESTELLA_SHOT_QUIT: '1',
     },
   });
+  requireNativeHostSuccess(run, 'aot native');
   const log = `${run.stdout ?? ''}${run.stderr ?? ''}`;
 
   const installed = /AOT: (\d+) compiled system\(s\) installed/.exec(log);
