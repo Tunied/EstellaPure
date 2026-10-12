@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(audio): preserve playback position across rate changes':
+    { note: 'WebAudio position stays continuous across playback-rate changes.' },
   'fix(audio): apply live source parameters without restarting voices':
     { note: 'Playing audio sources follow live parameter edits.' },
   'fix(ui): bound ancestor traversal across cyclic hierarchy adapters':

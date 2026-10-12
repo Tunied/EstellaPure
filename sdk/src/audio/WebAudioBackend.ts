@@ -110,10 +110,14 @@ class WebAudioHandle implements AudioHandle {
     }
 
     setPlaybackRate(rate: number): void {
-        this.playbackRate_ = rate;
         if (this.playing_) {
+            const now = this.context_.currentTime;
+            const position = this.startOffset_ + (now - this.startedAt_) * this.playbackRate_;
             this.source_.playbackRate.value = rate;
+            this.startOffset_ = position;
+            this.startedAt_ = now;
         }
+        this.playbackRate_ = rate;
     }
 
     get isPlaying(): boolean {

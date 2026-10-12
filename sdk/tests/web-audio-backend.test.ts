@@ -311,6 +311,59 @@ describe('WebAudioBackend', () => {
     });
 
     describe('pause/resume', () => {
+        it('rate changes keep the accumulated position continuous', async () => {
+            const { bufferHandle, mockCtx } = await initAndLoadBuffer(backend);
+            const handle = backend.play(bufferHandle, {});
+            mockCtx.currentTime = .25;
+            expect(handle.currentTime).toBeCloseTo(.25);
+            handle.setPlaybackRate(2);
+            expect(handle.currentTime).toBeCloseTo(.25);
+            mockCtx.currentTime = .5;
+            expect(handle.currentTime).toBeCloseTo(.75);
+            handle.setPlaybackRate(.5);
+            expect(handle.currentTime).toBeCloseTo(.75);
+            mockCtx.currentTime = .75;
+            expect(handle.currentTime).toBeCloseTo(.875);
+        });
+
+        it('pause and resume use the position accumulated across rate changes', async () => {
+            const { bufferHandle, mockCtx } = await initAndLoadBuffer(backend);
+            const handle = backend.play(bufferHandle, {});
+            mockCtx.currentTime = .25; handle.setPlaybackRate(2);
+            mockCtx.currentTime = .5; handle.pause();
+            expect(handle.currentTime).toBeCloseTo(.75);
+            handle.setPlaybackRate(.5);
+            mockCtx.currentTime = 10; handle.resume();
+            const source = mockCtx.createBufferSource.mock.results.at(-1).value;
+            expect(source.start).toHaveBeenCalledWith(0, expect.closeTo(.75, 5));
+            expect(source.playbackRate.value).toBe(.5);
+            mockCtx.currentTime = 10.25;
+            expect(handle.currentTime).toBeCloseTo(.875);
+        });
+
+        it('looping pause wraps the accumulated position after a rate change', async () => {
+            const { bufferHandle, mockCtx } = await initAndLoadBuffer(backend);
+            const handle = backend.play(bufferHandle, { loop: true });
+            mockCtx.currentTime = .25; handle.setPlaybackRate(2);
+            mockCtx.currentTime = 1.25; handle.pause();
+            expect(handle.currentTime).toBeCloseTo(.25);
+            handle.resume();
+            const source = mockCtx.createBufferSource.mock.results.at(-1).value;
+            expect(source.start).toHaveBeenCalledWith(0, expect.closeTo(.25, 5));
+        });
+
+        it('a rejected backend rate change leaves position tracking intact', async () => {
+            const { bufferHandle, mockCtx } = await initAndLoadBuffer(backend);
+            const handle = backend.play(bufferHandle, {});
+            const source = mockCtx.createBufferSource.mock.results.at(-1).value;
+            Object.defineProperty(source.playbackRate, 'value', { get: () => 1,
+                set: () => { throw new Error('rate rejected'); } });
+            mockCtx.currentTime = .25;
+            expect(() => handle.setPlaybackRate(2)).toThrow('rate rejected');
+            mockCtx.currentTime = .5;
+            expect(handle.currentTime).toBeCloseTo(.5);
+        });
+
         it('should pause by stopping source and track position', async () => {
             const { bufferHandle, mockCtx } = await initAndLoadBuffer(backend);
 
