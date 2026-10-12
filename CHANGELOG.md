@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Scroll views retain valid offsets across simultaneous resizes.** Viewport and content dimensions update together before clamping, avoiding position jumps and duplicate scroll notifications. Destroyed content references detach their containers instead of leaving stale scroll targets.
+
 - **Scene-authored scroll views receive hover and wheel input.** Hit testing no longer inserts hidden interaction components outside the SDK's component index. The interaction system owns creation and query invalidation, so wheel scrolling and per-frame hover/press state work for controls placed in the editor.
 
 - **Claimed input releases cannot leave gameplay controls held.** Keyboard, mouse and touch releases consumed by an editor or UI handler silently retire the previous held state without manufacturing gameplay release edges. UI capture receives primary-pointer cancellation instead of a click, even across frame-edge clearing; unowned touch moves and releases do not create ghost contacts.

@@ -17,7 +17,7 @@ import type { Entity } from '../../types';
 import type { World } from '../../ecs/world';
 import type { CppRegistry } from '../../wasm';
 import type { EngineApi } from '../../ecs/bridge/engineApi';
-import { UINode, UIPositionType, type UINodeData } from '../core/ui-node';
+import { UINode, UIPositionType } from '../core/ui-node';
 import { UIScroll, ScrollMovement, type UIScrollData } from '../core/ui-scroll';
 import { ScrollContainer } from '../collection/scroll-container';
 import type { Vec2 } from '../../types';
@@ -83,7 +83,7 @@ export function createScrollAdoptSystem(
 
     const attach = (entity: Entity, scroll: UIScrollData): void => {
         const content = contentOf(entity, scroll);
-        if (content == null) return; // nothing to move yet — try again next tick
+        if (content == null || !world.valid(content) || !world.has(content, UINode)) return;
 
         const container = new ScrollContainer({
             viewportSize: size(entity),
@@ -96,7 +96,7 @@ export function createScrollAdoptSystem(
         // The offset moves the content by its insets, exactly as the widget does,
         // so both paths leave the same thing in the scene.
         const unsubscribe = container.onScroll((offset) => {
-            const node = world.get(content, UINode) as UINodeData | undefined;
+            const node = world.tryGet(content, UINode);
             if (!node) return;
             node.position = UIPositionType.Absolute;
             node.insetLeft = px(-offset.x);
@@ -123,19 +123,16 @@ export function createScrollAdoptSystem(
             // A content swap is a different container, not a resize. Only an
             // explicit ref is re-read each frame; the implicit "first child" is
             // trusted while it lives, so the steady state costs no wasm calls.
-            const swapped = data.content
-                ? (data.content as Entity) !== a.content
-                : !world.valid(a.content);
+            const swapped = !world.valid(a.content) || !world.has(a.content, UINode)
+                || (data.content !== 0 && (data.content as Entity) !== a.content);
             if (swapped) {
                 detach(entity);
                 attach(entity, data);
                 continue;
             }
             const content = a.content;
-            // Layout is free to change under us (a window resize, a list that
-            // grew), and both setters early-out when nothing moved.
-            a.container.setViewportSize(size(entity));
-            a.container.setContentSize(size(content));
+            // Clamp against one complete layout, never mixed old/new extents.
+            a.container.setSizes(size(entity), size(content));
         }
 
         for (const entity of [...attached.keys()]) {

@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ui): resize scroll extents together and retire missing content':
+    { note: 'Scroll views retain valid offsets across simultaneous resizes.' },
   'fix(ui): keep hit testing from bypassing interaction membership':
     { note: 'Scene-authored scroll views receive hover and wheel input.' },
   'fix(input): retire held state when release events are consumed':

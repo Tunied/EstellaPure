@@ -14,7 +14,7 @@
  * the layout pass; here the two size queries are faked, so what is under test is
  * the adoption and not Yoga.
  */
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { App } from '../src/app/app';
 import { Schedule } from '../src/ecs/system';
 import { UINode, UIScroll, ScrollMovement, type UINodeData, type UIScrollData } from '../src/ui';
@@ -81,7 +81,7 @@ describe.skipIf(!HAS_WASM)('UIScroll adoption', () => {
                 detachScrollContainer: (e) => { attached.delete(e as number); },
             },
         ));
-        return { app, world, viewport, content, attached };
+        return { app, world, viewport, content, attached, sizes };
     }
 
     it('attaches a container sized from the resolved layout', async () => {
@@ -127,5 +127,51 @@ describe.skipIf(!HAS_WASM)('UIScroll adoption', () => {
         const { app, viewport, attached } = setup({ enabled: false });
         await app.tick(1 / 60);
         expect(attached.has(viewport as number)).toBe(false);
+    });
+
+    it('resizing both boxes preserves a still-valid scroll offset', async () => {
+        const { app, world, viewport, content, attached, sizes } = setup();
+        await app.tick(1 / 60);
+        const container = attached.get(viewport)!;
+        container.setOffset({ x: 0, y: 900 });
+        const changed = vi.fn(); container.onScroll(changed);
+        sizes.set(viewport, { w: 400, h: 600 });
+        sizes.set(content, { w: 400, h: 1500 });
+        await app.tick(1 / 60);
+        expect(container.getOffset().y).toBe(900);
+        expect(world.get(content, UINode).insetTop.value).toBe(-900);
+        expect(changed).not.toHaveBeenCalled();
+    });
+
+    it('shrinking both boxes emits only the final clamped offset', async () => {
+        const { app, viewport, content, attached, sizes } = setup();
+        await app.tick(1 / 60);
+        const container = attached.get(viewport)!;
+        container.setOffset({ x: 0, y: 900 });
+        const changed = vi.fn(); container.onScroll(changed);
+        sizes.set(viewport, { w: 400, h: 600 });
+        sizes.set(content, { w: 400, h: 800 });
+        await app.tick(1 / 60);
+        expect(changed.mock.calls).toEqual([[{ x: 0, y: 200 }]]);
+    });
+
+    it('retires an explicit content reference when its entity is destroyed', async () => {
+        const { app, world, viewport, content, attached } = setup();
+        world.update(viewport, UIScroll, scroll => { scroll.content = content; });
+        await app.tick(1 / 60);
+        world.despawn(content);
+        await app.tick(1 / 60);
+        expect(attached.has(viewport)).toBe(false);
+    });
+
+    it('does not recreate a removed content node through a retained container', async () => {
+        const { app, world, viewport, content, attached } = setup();
+        await app.tick(1 / 60);
+        const container = attached.get(viewport)!;
+        world.remove(content, UINode);
+        container.scrollBy({ x: 0, y: 120 });
+        expect(world.has(content, UINode)).toBe(false);
+        await app.tick(1 / 60);
+        expect(attached.has(viewport)).toBe(false);
     });
 });
