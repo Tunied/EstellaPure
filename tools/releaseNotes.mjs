@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(particles): refresh LUT heap views after allocation':
+    { note: 'Particle gradient uploads survive WASM memory growth.' },
   'fix(input): cancel held web input on focus loss':
     { note: 'Web focus loss cancels held pointer input and pending edges.' },
   'fix(audio): retain mini-game playback intent during device suspension':

@@ -83,12 +83,15 @@ export class ParticleAPI {
             fn(entity as number, 0, 0);
             return;
         }
-        const { _malloc: malloc, _free: free, HEAPF32: heap } = this.module_;
-        if (!malloc || !free || !heap) return;   // a core with no heap marshals nothing
-        const ptr = malloc(lut.length * 4);
+        const { _malloc: malloc, _free: free } = this.module_;
+        if (!malloc || !free || !this.module_.HEAPF32) return;   // a core with no heap marshals nothing
+        // A caller may borrow the same heap that allocation is about to detach.
+        const source = lut.buffer === this.module_.HEAPF32.buffer ? lut.slice() : lut;
+        const ptr = malloc(source.length * 4);
         try {
-            heap.set(lut, ptr / 4);
-            fn(entity as number, ptr, lut.length / stride);
+            // Allocation can grow WASM memory and detach the previous heap view.
+            this.module_.HEAPF32!.set(source, ptr / 4);
+            fn(entity as number, ptr, source.length / stride);
         } finally {
             free(ptr);
         }

@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Particle gradient uploads survive WASM memory growth.** Color, size, and speed LUT uploads read the current heap after allocating their staging memory, preventing detached-buffer errors when a large scene causes memory expansion. LUTs borrowed from the heap are preserved before allocation; independent arrays avoid this copy. Staging memory is still released if the native setter throws.
+
 - **Web focus loss cancels held pointer input and pending edges.** Blurring or hiding the game and replacing its input target releases host key, mouse, and touch tracking, clears stale render/fixed-step edges, and cancels UI presses without clicking them. The next touch can become the primary pointer, and late releases from the cancelled gesture are ignored.
 
 - **Mini-game audio keeps playback ownership through device suspension.** Device-paused voices remain live for AudioSource completion, bus gain updates, and priority budgets. New play requests and manual resumes wait for device recovery; manual pauses withdraw automatic recovery, while stopped or despawned voices never restart.
