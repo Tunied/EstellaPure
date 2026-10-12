@@ -28,6 +28,10 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(tilemap): complete bounded fills and avoid repeated boundary reads':
+    { note: 'Tilemap bucket fills finish every discovered cell within the safety limit.' },
+  'fix(editor): sync bounded tilemap fill corrections':
+    { note: 'Tilemap bucket fills finish every discovered cell within the safety limit.' },
   'fix(tilemap): discard obsolete layer palette reads':
     { note: 'Switching tilemap layers clears the previous palette before drawing.' },
   'fix(editor): sync tilemap layer loading cancellation':
