@@ -119,6 +119,7 @@ describe('finished-latch flag contract (system side)', () => {
         return {
             getEntitiesWithComponents: () => [1],
             get: (_e: number, c: { _name: string }) => comps.get(c._name),
+            tryGet: (_e: number, c: { _name: string }) => comps.get(c._name) ?? null,
             has: (_e: number, c: { _name: string }) => comps.has(c._name),
             insert: (_e: number, c: { _name: string }, data: unknown) => void comps.set(c._name, data),
         } as unknown as World;

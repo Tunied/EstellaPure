@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Sprite animation events tolerate listener and entity changes.** Self-unsubscription no longer skips the next listener, and listeners registered during dispatch start with a later event. Callbacks that remove, replace or despawn an animator cannot have their changes overwritten by the old update. Listener lists use copy-on-write at registration rather than copying on each animated frame.
+
 - **Tilemap edits respect layer locks and stroke ownership.** Locked layers reject paints and tileset changes before taking snapshots. Live strokes require their original scene, layer binding and edit world; stale completion or cancellation cannot affect reused handles. Locking a layer rolls back its unfinished stroke.
 
 - **Tilemap data is available before renderer initialization.** Headless tile reads, edits and chunk serialization use the context's own data service without requiring graphics setup. Initializing the renderer keeps any preloaded maps; shutdown and reinitialization create a fresh service.

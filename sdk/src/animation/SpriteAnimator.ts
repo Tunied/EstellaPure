@@ -81,7 +81,7 @@ export class SpriteAnimationAPI {
     private readonly clips = new Map<string, SpriteAnimClip>();
     private assetClips_: ((ref: string) => SpriteAnimClip | undefined) | null = null;
     private readonly entityListeners = new Map<Entity, SpriteAnimEventHandler[]>();
-    private readonly globalListeners: SpriteAnimEventHandler[] = [];
+    private globalListeners: SpriteAnimEventHandler[] = [];
 
     // -- clip registry --------------------------------------------------------
 
@@ -124,27 +124,23 @@ export class SpriteAnimationAPI {
     // -- frame-event listeners ------------------------------------------------
 
     onEvent(entity: Entity, handler: SpriteAnimEventHandler): () => void {
-        let list = this.entityListeners.get(entity);
-        if (!list) {
-            list = [];
-            this.entityListeners.set(entity, list);
-        }
-        list.push(handler);
+        this.entityListeners.set(entity, [...(this.entityListeners.get(entity) ?? []), handler]);
         return () => {
             const arr = this.entityListeners.get(entity);
             if (arr) {
                 const idx = arr.indexOf(handler);
-                if (idx >= 0) arr.splice(idx, 1);
-                if (arr.length === 0) this.entityListeners.delete(entity);
+                if (idx < 0) return;
+                if (arr.length === 1) this.entityListeners.delete(entity);
+                else this.entityListeners.set(entity, [...arr.slice(0, idx), ...arr.slice(idx + 1)]);
             }
         };
     }
 
     onEventGlobal(handler: SpriteAnimEventHandler): () => void {
-        this.globalListeners.push(handler);
+        this.globalListeners = [...this.globalListeners, handler];
         return () => {
             const idx = this.globalListeners.indexOf(handler);
-            if (idx >= 0) this.globalListeners.splice(idx, 1);
+            if (idx >= 0) this.globalListeners = [...this.globalListeners.slice(0, idx), ...this.globalListeners.slice(idx + 1)];
         };
     }
 
@@ -152,22 +148,33 @@ export class SpriteAnimationAPI {
         this.entityListeners.delete(entity);
     }
 
-    private fireEvents(entity: Entity, clip: SpriteAnimClip, prevFrame: number, newFrame: number): void {
-        if (!clip.events || clip.events.length === 0) return;
+    private isCurrentAnimator(world: World, entity: Entity, animator: SpriteAnimatorData, clipName: string, clip: SpriteAnimClip): boolean {
+        return world.tryGet(entity, SpriteAnimator) === animator
+            && animator.clip === clipName && this.getClip(clipName) === clip;
+    }
+
+    private fireEvents(world: World, entity: Entity, animator: SpriteAnimatorData, clipName: string, clip: SpriteAnimClip, prevFrame: number, newFrame: number): boolean {
+        if (!clip.events || clip.events.length === 0) return true;
 
         for (const evt of clip.events) {
             if (shouldFireEvent(evt.frame, prevFrame, newFrame, clip.frames.length, clip.loop)) {
                 const listeners = this.entityListeners.get(entity);
+                // Registration uses copy-on-write: these event snapshots stay
+                // stable without allocating listener arrays on every frame.
+                const globals = this.globalListeners;
                 if (listeners) {
                     for (const handler of listeners) {
                         handler(evt, entity);
+                        if (!this.isCurrentAnimator(world, entity, animator, clipName, clip)) return false;
                     }
                 }
-                for (const handler of this.globalListeners) {
+                for (const handler of globals) {
                     handler(evt, entity);
+                    if (!this.isCurrentAnimator(world, entity, animator, clipName, clip)) return false;
                 }
             }
         }
+        return true;
     }
 
     // -- per-frame system -----------------------------------------------------
@@ -176,10 +183,14 @@ export class SpriteAnimationAPI {
         const entities = world.getEntitiesWithComponents([SpriteAnimator]);
 
         for (const entity of entities) {
-            const animator = world.get(entity, SpriteAnimator) as SpriteAnimatorData;
+            // An earlier entity's event can remove a later entity/component
+            // from the query snapshot we are currently walking.
+            const animator = world.tryGet(entity, SpriteAnimator);
+            if (!animator) continue;
             if (!animator.enabled || !animator.playing || !animator.clip) continue;
 
-            const clip = this.getClip(animator.clip);
+            const clipName = animator.clip;
+            const clip = this.getClip(clipName);
             if (!clip || clip.frames.length === 0) continue;
 
             // playing raised on a finished one-shot = replay from the top
@@ -226,7 +237,7 @@ export class SpriteAnimationAPI {
             }
 
             if (frameChanged) {
-                this.fireEvents(entity, clip, prevFrame, animator.currentFrame);
+                if (!this.fireEvents(world, entity, animator, clipName, clip, prevFrame, animator.currentFrame)) continue;
             }
 
             if (frameChanged && world.has(entity, Sprite)) {
