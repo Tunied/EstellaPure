@@ -137,6 +137,17 @@ jobs:
       - name: Capture the shipped example for the website
         run: node tools/capture-release-frame.mjs out/release-site-frame
 
+      - name: Keep compositor and game-canvas capture diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-capture-diagnostics
+          path: |
+            out/release-site-frame/*.png
+            out/release-site-frame/capture.log
+          if-no-files-found: warn
+          retention-days: 3
+
       - name: Upload the real game frame and provenance
         uses: actions/upload-artifact@v7
         with:
