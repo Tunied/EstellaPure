@@ -6,7 +6,7 @@ import { Canvas, Camera, SceneOwner, Transform } from '../src/ecs/component';
 import { collectCameras } from '../src/camera/CameraPlugin';
 import { UINode, UIPositionType } from '../src/ui/core/ui-node';
 import { UIVisual } from '../src/ui/core/ui-visual';
-import { Interactable } from '../src/ui/input/interactable';
+import { Interactable, UIInteraction } from '../src/ui/input/interactable';
 import { px } from '../src/ui/core/dimension';
 import type { CppRegistry, ESEngineModule } from '../src/wasm';
 import { HAS_WASM, loadWasmModule } from './helpers/loadWasm';
@@ -59,8 +59,12 @@ describe.skipIf(!HAS_WASM)('nested canvas layout and ordering on real WASM', () 
         expect([root, container, sibling].map(entity => engine.ui_getCullBit!(registry, entity))).toEqual([2,2,2]);
         expect([nested, leaf].map(entity => engine.ui_getCullBit!(registry, entity))).toEqual([8,8]);
         const point = world.get(leaf, Transform).worldPosition;
+        expect(world.getEntitiesWithComponents([UIInteraction])).toEqual([]);
         engine.uiHitTest_updateDomains!(registry, point.x, point.y, 100, 0, 0, -1,
             point.x, point.y, 100, 0, 0, -1);
         expect(engine.uiHitTest_getHitEntity()).toBe(leaf);
+        expect([root, container, nested, leaf, sibling].some(entity => registry.hasUIInteraction(entity))).toBe(false);
+        world.insert(leaf, UIInteraction, { hovered: true });
+        expect(world.getEntitiesWithComponents([UIInteraction])).toEqual([leaf]);
     });
 });

@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Scene-authored scroll views receive hover and wheel input.** Hit testing no longer inserts hidden interaction components outside the SDK's component index. The interaction system owns creation and query invalidation, so wheel scrolling and per-frame hover/press state work for controls placed in the editor.
+
 - **Claimed input releases cannot leave gameplay controls held.** Keyboard, mouse and touch releases consumed by an editor or UI handler silently retire the previous held state without manufacturing gameplay release edges. UI capture receives primary-pointer cancellation instead of a click, even across frame-edge clearing; unowned touch moves and releases do not create ghost contacts.
 
 - **UI gesture bindings expire with their targets and App.** App cleanup unregisters only its own input handler and clears captures. Despawn removes gesture callbacks and pending markers through one shared World observer; a cancelled frame click no longer suppresses a later click after the control is re-enabled.

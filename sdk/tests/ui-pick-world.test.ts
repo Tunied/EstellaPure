@@ -9,8 +9,14 @@
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { World } from '../src/ecs/world';
+import { App, flushPendingRegistrations } from '../src/app/app';
+import { AppContext, setDefaultContext } from '../src/ecs/context';
+import { Input, InputState } from '../src/input/input';
+import { UICameraInfo } from '../src/ui/core/ui-camera-info';
+import { UILayoutGeneration } from '../src/ui/layout/ui-layout-generation';
+import { uiInteractionPlugin } from '../src/ui/input/interaction';
 import { Transform, Sprite, MeshRenderer } from '../src/ecs/component';
-import { Interactable } from '../src/ui/input/interactable';
+import { Interactable, UIInteraction } from '../src/ui/input/interactable';
 import type { Entity, Vec3 } from '../src/types';
 import type { ESEngineModule, CppRegistry } from '../src/wasm';
 import { loadWasmModule, HAS_WASM } from './helpers/loadWasm';
@@ -102,6 +108,18 @@ describe.skipIf(!HAS_WASM)('world-space picking (WASM integration)', () => {
         return module.uiHitTest_getHitEntity();
     }
 
+    it('picking leaves interaction ownership and cached membership to the SDK', () => {
+        const { world, registry } = createWorld();
+        const e = sprite(world, 0, 0);
+        expect(world.getEntitiesWithComponents([UIInteraction])).toEqual([]);
+        expect(pickAt(registry, 0, 0)).toBe(e);
+        expect(registry.hasUIInteraction(e)).toBe(false);
+        expect(world.getEntitiesWithComponents([UIInteraction])).toEqual([]);
+        world.insert(e, UIInteraction, { hovered: true });
+        expect(world.getEntitiesWithComponents([UIInteraction])).toEqual([e]);
+        disposeWorld(world, registry);
+    });
+
     it('hits a sprite that has no UINode', () => {
         const { world, registry } = createWorld();
         const e = sprite(world, 0, 0);
@@ -122,18 +140,30 @@ describe.skipIf(!HAS_WASM)('world-space picking (WASM integration)', () => {
         disposeWorld(world, registry);
     });
 
-    it('sets UIInteraction, which is what the drag system gates on', () => {
-        const { world, registry } = createWorld();
+    it('the interaction system publishes hover membership and clears it after moving away', async () => {
+        setDefaultContext(new AppContext());
+        const registry = new module.Registry();
+        const app = App.new(); app.connectCpp(registry, module);
+        const world = app.world;
         const e = sprite(world, 0, 0);
-
-        pickAt(registry, 0, 0);
-
-        // The engine writes it, so ask the engine: this is the component the drag
-        // system reads `hovered` from, and nothing else creates it here.
-        const reg = registry as unknown as { hasUIInteraction(e: number): boolean };
-        expect(reg.hasUIInteraction(e)).toBe(true);
-
-        disposeWorld(world, registry);
+        const input = new InputState(); input.mouseX = 50; input.mouseY = 50;
+        app.insertResource(Input, input);
+        const projection = new Float32Array([.02,0,0,0, 0,.02,0,0, 0,0,-.001,0, 0,0,0,1]);
+        app.insertResource(UICameraInfo, { ...UICameraInfo._default, viewProjection: projection,
+            vpW: 100, vpH: 100, screenW: 100, screenH: 100, valid: true });
+        app.insertResource(UILayoutGeneration, { generation: 0 });
+        uiInteractionPlugin.build(app); flushPendingRegistrations(app);
+        try {
+            expect(world.getEntitiesWithComponents([UIInteraction])).toEqual([]);
+            world.ensureTransformsComposed();
+            await app.tick(1 / 60);
+            expect(world.getEntitiesWithComponents([UIInteraction])).toEqual([e]);
+            expect(world.get(e, UIInteraction).hovered).toBe(true);
+            input.mouseX = 500; await app.tick(1 / 60);
+            expect(world.get(e, UIInteraction).hovered).toBe(false);
+        } finally {
+            uiInteractionPlugin.cleanup(app); disposeWorld(world, registry);
+        }
     });
 
     it('honours raycastTarget: false', () => {

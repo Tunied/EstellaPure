@@ -12,7 +12,6 @@
 
 #include "../ecs/components/Interactable.hpp"
 #include "../ecs/components/Transform.hpp"
-#include "../ecs/components/UIInteraction.hpp"
 #include "../ecs/components/UINode.hpp"
 #include "../ecs/components/UIVisual.hpp"
 #include "../ecs/components/Sprite.hpp"
@@ -48,8 +47,6 @@ void UISystem::hitTestUpdate(Registry& registry, const PickRay& worldRay, const 
         // it. Resolved from the same set the renderer partitions by, so what is
         // clickable and what is visible cannot come apart.
         const PickRay& ray = screen_domain_.count(entity.id()) != 0 ? screenRay : worldRay;
-
-        registry.getOrEmplace<UIInteraction>(entity);
 
         auto& t = registry.get<Transform>(entity);
         t.ensureDecomposed();
@@ -176,7 +173,6 @@ void UISystem::hitWorldContent(Registry& registry, const PickRay& ray,
         });
 
     if (!haveBest) return;
-    registry.getOrEmplace<UIInteraction>(best);
     hitResult.hit_entity = best;
 }
 
