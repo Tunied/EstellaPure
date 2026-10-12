@@ -15,11 +15,30 @@ function setup() {
                 setVolume: vi.fn(), setPan: vi.fn(), setLoop: vi.fn(), setPlaybackRate: vi.fn(),
                 get isPlaying() { return playing; }, currentTime: 0, duration: 1 };
             handles.push(h); return h;
-        }), unloadBuffer: vi.fn(), dispose: vi.fn() } as unknown as PlatformAudioBackend;
+        }), unloadBuffer: vi.fn(), dispose: vi.fn(), suspend: vi.fn(), resume: vi.fn() } as unknown as PlatformAudioBackend;
     return { audio: new AudioAPI(backend, null), backend, handles };
 }
 const buffer = { id: 1, duration: 1 };
 describe('paused voice ownership', () => {
+    it('device suspension freezes fade-in elapsed time until resume', async () => {
+        const { audio, backend, handles } = setup();
+        backend.loadBuffer = vi.fn().mockResolvedValue(buffer); await audio.preload('music.wav');
+        audio.playBGM('music.wav', { fadeIn: 1 }); audio.updateFades(.25);
+        audio.suspend(); audio.updateFades(10);
+        expect(handles[0]!.setVolume).toHaveBeenLastCalledWith(.25);
+        audio.resume(); audio.updateFades(.25);
+        expect(handles[0]!.setVolume).toHaveBeenLastCalledWith(.5);
+    });
+    it('device suspension does not finish or stop an in-flight fade-out', async () => {
+        const { audio, backend, handles } = setup();
+        backend.loadBuffer = vi.fn().mockResolvedValue(buffer); await audio.preload('music.wav');
+        audio.playBGM('music.wav'); audio.stopBGM(1); audio.updateFades(.25);
+        audio.suspend(); audio.updateFades(10);
+        expect(handles[0]!.stop).not.toHaveBeenCalled();
+        expect(handles[0]!.setVolume).toHaveBeenLastCalledWith(.75);
+        audio.resume(); audio.updateFades(.75);
+        expect(handles[0]!.stop).toHaveBeenCalledOnce();
+    });
     it('a paused voice remains inside its priority budget', () => {
         const { audio, backend } = setup(); audio.setMaxVoices(1);
         const h = audio.playBuffer(buffer, { priority: 9 }); h.pause();

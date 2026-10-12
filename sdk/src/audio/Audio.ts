@@ -124,6 +124,7 @@ export class AudioAPI {
     // {@link cancelFades_} stops these when it tears the animations down.
     private readonly fadingOut_ = new Set<AudioHandle>();
     private disposed_ = false;
+    private suspended_ = false;
     private assetResolver_: ((url: string) => ArrayBuffer | null) | null = null;
     private refResolver_: ((ref: string) => string) | null = null;
     baseUrl = '';
@@ -469,11 +470,13 @@ export class AudioAPI {
      */
     suspend(): void {
         this.backend_.suspend();
+        this.suspended_ = true;
     }
 
     /** Resume the audio device after {@link suspend}. */
     resume(): void {
         this.backend_.resume();
+        this.suspended_ = false;
     }
 
     setMasterVolume(volume: number): void {
@@ -770,7 +773,7 @@ export class AudioAPI {
      * browser's: it pauses when the game does, and it exists on a device.
      */
     updateFades(dt: number): void {
-        if (this.fades_.length === 0 || !(dt > 0)) return;
+        if (this.suspended_ || this.fades_.length === 0 || !(dt > 0)) return;
         for (let i = this.fades_.length - 1; i >= 0; i--) {
             const fade = this.fades_[i];
             if (fade.voice.paused) continue;

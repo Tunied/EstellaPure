@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(audio): freeze fade clocks during device suspension':
+    { note: 'Audio device suspension freezes volume fades.' },
   'fix(audio): preserve manual minigame pauses on device resume':
     { note: 'Mini-game device resume preserves manual audio pauses.' },
   'fix(audio): isolate plugin cleanup by app':
