@@ -153,14 +153,14 @@ export class UIBehaviorPlugin implements Plugin {
         );
         // Fling state per scroll entity, shared between the wheel and drag
         // systems so either input source interrupts a coast.
-        const dynamics = new Map<Entity, KineticScroll>();
+        const dynamics = new Map<Entity, { container: ScrollContainer; motion: KineticScroll }>();
         const dynamicsFor = (entity: Entity, container: ScrollContainer): KineticScroll => {
             let d = dynamics.get(entity);
-            if (!d) {
-                d = new KineticScroll({ decelerationRate: container.getDecelerationRate() });
+            if (!d || d.container !== container) {
+                d = { container, motion: new KineticScroll({ decelerationRate: container.getDecelerationRate() }) };
                 dynamics.set(entity, d);
             }
-            return d;
+            return d.motion;
         };
         app.world.onDespawn((entity) => dynamics.delete(entity));
 
@@ -209,7 +209,7 @@ export class UIBehaviorPlugin implements Plugin {
                 const best = hoveredScrollTarget(false);
                 if (best !== null) {
                     const container = scrollContainers.get(best)!;
-                    dynamics.get(best)?.stop(); // wheel takes over from a fling
+                    dynamics.get(best)?.motion.stop(); // wheel takes over from a fling
                     const speed = container.getWheelSpeed();
                     container.scrollBy({ x: dx * speed, y: dy * speed });
                 }
@@ -221,6 +221,7 @@ export class UIBehaviorPlugin implements Plugin {
         // capture shape as DragSystem.
         let pendingEntity: Entity | null = null;
         let activeEntity: Entity | null = null;
+        let capturedContainer: ScrollContainer | null = null;
         let grabStartWorld: Vec2 = { x: 0, y: 0 };
         let grabStartOffset: Vec2 = { x: 0, y: 0 };
         let lastOffset: Vec2 = { x: 0, y: 0 };
@@ -230,6 +231,12 @@ export class UIBehaviorPlugin implements Plugin {
             (input: InputState, camera: UICameraData, time: TimeData, layout: ScreenLayoutData,
              overlay: ScreenOverlayData) => {
                 if (!camera.valid && !overlay.active) return;
+                const captured = activeEntity ?? pendingEntity;
+                if (captured !== null && scrollContainers.get(captured) !== capturedContainer) {
+                    dynamics.get(captured)?.motion.stop();
+                    activeEntity = pendingEntity = null;
+                    capturedContainer = null;
+                }
                 // In the domain the grabbed container is laid out in — a scroll
                 // subtracts a pointer from a transform, like a drag does.
                 const pointerFor = (entity: Entity): { x: number; y: number } =>
@@ -242,6 +249,7 @@ export class UIBehaviorPlugin implements Plugin {
                     const best = hoveredScrollTarget(true);
                     if (best !== null) {
                         const container = scrollContainers.get(best)!;
+                        capturedContainer = container;
                         dynamicsFor(best, container).stop();
                         pendingEntity = best;
                         grabStartWorld = pointerFor(best);
@@ -309,13 +317,14 @@ export class UIBehaviorPlugin implements Plugin {
                 }
 
                 // Coast: tick flung containers; an axis the clamp stops is dead.
-                for (const [entity, dyn] of dynamics) {
-                    if (!dyn.isCoasting()) continue;
+                for (const [entity, state] of dynamics) {
                     const container = scrollContainers.get(entity);
-                    if (!container) {
+                    if (container !== state.container) {
                         dynamics.delete(entity);
                         continue;
                     }
+                    const dyn = state.motion;
+                    if (!dyn.isCoasting()) continue;
                     const delta = dyn.tick(time.delta);
                     const before = container.getOffset();
                     container.scrollBy(delta);

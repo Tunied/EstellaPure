@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Scene scroll settings update while the game is running.** Changes to axes, wheel speed, drag enablement and movement settings rebuild the adopted container while preserving legal offsets. Disabling both axes suspends scrolling, reactivation restores the content position, and replaced containers cannot inherit an old pointer drag or fling.
+
 - **Scroll views follow content hierarchy edits.** Reparenting a live content node switches an implicit scroll view to its new first child, and clearing an explicit content reference restores first-child selection. Retired containers stop moving the previous content; unchanged hierarchies do not reread native child vectors every frame.
 
 - **Scroll views retain valid offsets across simultaneous resizes.** Viewport and content dimensions update together before clamping, avoiding position jumps and duplicate scroll notifications. Destroyed content references detach their containers instead of leaving stale scroll targets.

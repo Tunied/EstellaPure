@@ -213,4 +213,50 @@ describe.skipIf(!HAS_WASM)('UIScroll adoption', () => {
             expect(read).not.toHaveBeenCalled();
         } finally { read.mockRestore(); }
     });
+
+    it('applies live wheel and drag settings without losing the scroll position', async () => {
+        const { app, world, viewport, content, attached } = setup();
+        await app.tick(1 / 60);
+        attached.get(viewport)!.setOffset({ x: 0, y: 120 });
+        world.update(viewport, UIScroll, s => { s.wheelSpeed = 3; s.dragScroll = false; });
+        await app.tick(1 / 60);
+        expect(attached.get(viewport)!.getWheelSpeed()).toBe(3);
+        expect(attached.get(viewport)!.getDragScroll()).toBe(false);
+        expect(attached.get(viewport)!.getOffset().y).toBe(120);
+        expect(world.get(content, UINode).insetTop.value).toBe(-120);
+    });
+
+    it('changes scroll axes and removes offsets on the locked axis', async () => {
+        const { app, world, viewport, content, attached } = setup({}, { w: 800, h: 1200 });
+        await app.tick(1 / 60);
+        attached.get(viewport)!.setOffset({ x: 0, y: 120 });
+        world.update(viewport, UIScroll, s => { s.horizontal = true; s.vertical = false; });
+        await app.tick(1 / 60);
+        attached.get(viewport)!.scrollBy({ x: 50, y: 50 });
+        expect(attached.get(viewport)!.getOffset()).toEqual({ x: 50, y: 0 });
+        expect(world.get(content, UINode).insetTop.value).toBeCloseTo(0);
+    });
+
+    it('disabling both axes suspends scrolling and reenabling preserves the position', async () => {
+        const { app, world, viewport, attached } = setup();
+        await app.tick(1 / 60);
+        attached.get(viewport)!.setOffset({ x: 0, y: 120 });
+        world.update(viewport, UIScroll, s => { s.vertical = false; });
+        await app.tick(1 / 60);
+        expect(attached.has(viewport)).toBe(false);
+        world.update(viewport, UIScroll, s => { s.vertical = true; });
+        await app.tick(1 / 60);
+        expect(attached.get(viewport)!.getOffset().y).toBe(120);
+    });
+
+    it('applies changed movement decay to the next drag model', async () => {
+        const { app, world, viewport, attached } = setup();
+        await app.tick(1 / 60);
+        world.update(viewport, UIScroll, s => { s.movement = ScrollMovement.Elastic; s.decelerationRate = .8; });
+        await app.tick(1 / 60);
+        expect(attached.get(viewport)!.getDecelerationRate()).toBeCloseTo(.8);
+        world.update(viewport, UIScroll, s => { s.movement = ScrollMovement.Clamped; });
+        await app.tick(1 / 60);
+        expect(attached.get(viewport)!.getDecelerationRate()).toBe(0);
+    });
 });

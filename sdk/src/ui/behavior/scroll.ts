@@ -32,6 +32,7 @@ interface Attached {
     container: ScrollContainer;
     content: Entity;
     contentRef: number;
+    settings: UIScrollData;
     unsubscribe: () => void;
 }
 
@@ -40,6 +41,12 @@ const px = (v: number) => ({ value: v, unit: 0 } as const);
 function directionOf(scroll: UIScrollData): 'both' | 'vertical' | 'horizontal' {
     if (scroll.horizontal && scroll.vertical) return 'both';
     return scroll.horizontal ? 'horizontal' : 'vertical';
+}
+
+function sameSettings(a: UIScrollData, b: UIScrollData): boolean {
+    return a.horizontal === b.horizontal && a.vertical === b.vertical
+        && a.wheelSpeed === b.wheelSpeed && a.dragScroll === b.dragScroll
+        && a.movement === b.movement && a.decelerationRate === b.decelerationRate;
 }
 
 export function createScrollAdoptSystem(
@@ -83,9 +90,13 @@ export function createScrollAdoptSystem(
         attached.delete(entity);
     };
 
-    const attach = (entity: Entity, scroll: UIScrollData, content = contentOf(entity, scroll)): void => {
+    const attach = (entity: Entity, scroll: UIScrollData, content = contentOf(entity, scroll), initialOffset?: Vec2): void => {
         if (content == null || !world.valid(content) || !world.has(content, UINode)) return;
-
+        const node = world.get(content, UINode);
+        const offset = initialOffset ?? {
+            x: node.insetLeft.unit === 0 ? Math.max(0, -node.insetLeft.value) : 0,
+            y: node.insetTop.unit === 0 ? Math.max(0, -node.insetTop.value) : 0,
+        };
         const container = new ScrollContainer({
             viewportSize: size(entity),
             contentSize: size(content),
@@ -93,19 +104,23 @@ export function createScrollAdoptSystem(
             wheelSpeed: scroll.wheelSpeed,
             dragScroll: scroll.dragScroll,
             decelerationRate: scroll.movement === ScrollMovement.Elastic ? scroll.decelerationRate : 0,
+            initialOffset: offset,
         });
         // The offset moves the content by its insets, exactly as the widget does,
         // so both paths leave the same thing in the scene.
-        const unsubscribe = container.onScroll((offset) => {
+        const applyOffset = (offset: Vec2): void => {
             const node = world.tryGet(content, UINode);
             if (!node) return;
             node.position = UIPositionType.Absolute;
             node.insetLeft = px(-offset.x);
             node.insetTop = px(-offset.y);
             world.insert(content, UINode, node);
-        });
+        };
+        const unsubscribe = container.onScroll(applyOffset);
+        const clamped = container.getOffset();
+        if (clamped.x !== offset.x || clamped.y !== offset.y) applyOffset(clamped);
         host.attachScrollContainer(entity, container);
-        attached.set(entity, { container, content, contentRef: scroll.content, unsubscribe });
+        attached.set(entity, { container, content, contentRef: scroll.content, settings: { ...scroll }, unsubscribe });
     };
 
     return defineSystem([Query(UIScroll)], (query) => {
@@ -116,7 +131,7 @@ export function createScrollAdoptSystem(
 
         for (const [entity, scroll] of query) {
             const data = scroll as UIScrollData;
-            if (!data.enabled) continue;
+            if (!data.enabled || (!data.horizontal && !data.vertical)) continue;
             live.add(entity);
 
             const a = attached.get(entity);
@@ -132,6 +147,12 @@ export function createScrollAdoptSystem(
             if (swapped) {
                 detach(entity);
                 attach(entity, data, resolved);
+                continue;
+            }
+            if (!sameSettings(a.settings, data)) {
+                const offset = a.container.getOffset();
+                detach(entity);
+                attach(entity, data, resolved, offset);
                 continue;
             }
             a.contentRef = data.content;
