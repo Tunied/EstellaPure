@@ -141,7 +141,7 @@
           "type": "UINode",
           "data": {
             "width": { "value": 340, "unit": 0 },
-            "height": { "value": 404, "unit": 0 }
+            "height": { "value": 100, "unit": 1 }
           }
         },
         {
@@ -208,7 +208,7 @@
           "type": "UINode",
           "data": {
             "width": { "value": 336, "unit": 0 },
-            "height": { "value": 404, "unit": 0 }
+            "height": { "value": 100, "unit": 1 }
           }
         },
         {

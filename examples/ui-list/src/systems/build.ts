@@ -6,7 +6,7 @@ import {
     createListView, createButton,
     ArrayDataSource,
     spawnUIEntity,
-    themeColors, px,
+    themeColors, px, percent,
     UIPositionType, TextVerticalAlign,
 } from 'esengine';
 import type {
@@ -81,6 +81,7 @@ export const buildSystem = defineSystem(
             host: uiPlugin,
             world, parent: listSlot,
             viewportSize: { x: LIST_W, y: LIST_H },
+            node: { width: percent(100), height: percent(100) },
             background: { color: { r: 0.11, g: 0.11, b: 0.13, a: 1 } },
             data: contacts,
             layout: { itemHeight: ROW_H, spacing: ROW_SPACING },
@@ -111,6 +112,7 @@ export const buildSystem = defineSystem(
             host: uiPlugin,
             world, parent: gridSlot,
             viewportSize: { x: GRID_W, y: GRID_H },
+            node: { width: percent(100), height: percent(100) },
             background: { color: { r: 0.11, g: 0.11, b: 0.13, a: 1 } },
             data: Array.from({ length: TILES }, (_, i) => i),
             layout: { columns: GRID_COLUMNS, itemSize: { x: TILE, y: TILE }, spacing: { x: TILE_SPACING, y: TILE_SPACING } },

@@ -4,6 +4,19 @@ import { describe, it, expect, vi } from 'vitest';
 import { ScrollContainer, ScrollContainerRegistry } from '../src/ui';
 
 describe('ScrollContainer', () => {
+    it('resizes both extents without an intermediate clamp losing the current row', () => {
+        const c = new ScrollContainer({ viewportSize: { x: 100, y: 100 },
+            contentSize: { x: 100, y: 1000 }, initialOffset: { x: 0, y: 850 } });
+        const changed = vi.fn();
+        c.onScroll(changed);
+        c.setSizes({ x: 100, y: 50 }, { x: 100, y: 900 });
+        expect(c.getOffset().y).toBe(850);
+        expect(changed).not.toHaveBeenCalled();
+        c.setSizes({ x: 100, y: 200 }, { x: 100, y: 950 });
+        expect(c.getOffset().y).toBe(750);
+        expect(changed).toHaveBeenCalledTimes(1);
+        expect(changed).toHaveBeenLastCalledWith({ x: 0, y: 750 });
+    });
     it('clamps initial offset to [0, max]', () => {
         const c = new ScrollContainer({
             viewportSize: { x: 200, y: 100 },

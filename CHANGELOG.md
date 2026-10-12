@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Virtualized lists follow their resolved UI viewport.** Layout constraints, window changes and safe areas update the visible range, linear row sizing and scroll limits together. Viewport and content changes clamp the offset once, preserving reachable final rows. The list sample fills its constrained panes so rows no longer overlap the footer.
+
 - **Native UI follows the device safe area.** iOS view insets and Android content bounds reach `SafeArea` in surface pixels, including delayed layouts and landscape side changes. The localization and virtualized-list samples place their text and controls inside authored safe-area containers so the iPhone cutout does not cover paragraphs or list rows.
 
 - **The installed macOS MCP entry launches the bundled editor.** It reads `CFBundleExecutable` from the app's Info.plist instead of assuming the product name matches the executable file.

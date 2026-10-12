@@ -49,7 +49,7 @@ satisfies it).
 |---|---|---|
 | `world` / `host` | — | The ECS world and the ticking plugin (`uiPlugin`). Required. |
 | `parent` | root | Parent entity for the viewport. |
-| `viewportSize` | — | Pixel size of the visible window. Required — the scroll math needs it up front. |
+| `viewportSize` | — | Initial UI layout size. Required; virtualization and scroll bounds follow the resolved viewport box. |
 | `node` | sized to `viewportSize` | Extra `UINode` props for the viewport box. |
 | `background` | transparent | Viewport visual. The default is an invisible **hit-target** — it must exist so the wheel and drag land on the list. |
 | `data` | — | A `DataSource<T>`, or a raw array (wrapped in an `ArrayDataSource` — the array is **copied**, so mutate the source afterwards, not your original array). |
@@ -71,6 +71,11 @@ satisfies it).
 | `{ columns, itemSize, spacing? }` | A grid (a *TileView*); `spacing` is a `Vec2` here. |
 
 ### The item template
+
+For a viewport that fills a constrained parent, set `node` dimensions with
+`percent(100)`. Window or safe-area changes then update the visible range and
+scroll limits together. Default linear layouts also fit the resolved cross axis;
+grids and custom providers retain their authored item sizing.
 
 An item template is a **create / bind** pair (`ListItemTemplate<T>`):
 
@@ -368,6 +373,10 @@ call it after the content grows or shrinks, it resizes the frame *and* the
 scroll range · `scroll` (the underlying `ScrollContainer`) · `dispose()`.
 
 ## The scrolling model
+
+Manual compositions can use `scroll.setSizes(viewportSize, contentSize)` to
+update both extents before clamping. This preserves a valid offset during resize
+and emits only the final changed offset.
 
 Both factories drive a **`ScrollContainer`** — a pure scroll-state model with
 no input or ECS knowledge. It clamps the offset to `[0, contentSize −

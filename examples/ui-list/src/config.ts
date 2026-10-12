@@ -1,7 +1,7 @@
 import type { Color } from 'esengine';
 
-// Viewport sizes must be known up front (createListView needs them for the
-// scroll math); the slot boxes in the scene use the same numbers.
+// Initial viewport hints match the authored slots. Layout constraints can shrink
+// those slots; the widget synchronizes its scroll and virtualized window afterward.
 export const LIST_W = 340;
 export const LIST_H = 378;
 export const GRID_W = 336;

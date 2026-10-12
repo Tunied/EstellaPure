@@ -113,14 +113,19 @@ export class ScrollContainer {
     }
 
     setViewportSize(size: Vec2): void {
-        if (size.x === this.viewportSize_.x && size.y === this.viewportSize_.y) return;
-        this.viewportSize_ = { x: size.x, y: size.y };
-        this.setOffset(this.offset_);   // re-clamp
+        this.setSizes(size, this.contentSize_);
     }
 
     setContentSize(size: Vec2): void {
-        if (size.x === this.contentSize_.x && size.y === this.contentSize_.y) return;
-        this.contentSize_ = { x: size.x, y: size.y };
+        this.setSizes(this.viewportSize_, size);
+    }
+
+    /** Update both extents before clamping, so resize emits only its final offset. */
+    setSizes(viewport: Vec2, content: Vec2): void {
+        if (viewport.x === this.viewportSize_.x && viewport.y === this.viewportSize_.y
+            && content.x === this.contentSize_.x && content.y === this.contentSize_.y) return;
+        this.viewportSize_ = { x: viewport.x, y: viewport.y };
+        this.contentSize_ = { x: content.x, y: content.y };
         this.setOffset(this.offset_);
     }
 

@@ -7544,6 +7544,7 @@ onScroll: (listener: ScrollListener) => () => void
 scrollBy: (delta: Vec2) => void
 setContentSize: (size: Vec2) => void
 setOffset: (offset: Vec2) => void
+setSizes: (viewport: Vec2, content: Vec2) => void
 setViewportSize: (size: Vec2) => void
 static new (opts: ScrollContainerOptions): ScrollContainer
 static prototype: ScrollContainer

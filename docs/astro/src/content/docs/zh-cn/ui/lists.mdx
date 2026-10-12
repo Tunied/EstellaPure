@@ -43,7 +43,7 @@ const list = createListView<Player>({
 |---|---|---|
 | `world` / `host` | — | ECS world 与负责 tick 的插件(`uiPlugin`)。必填。 |
 | `parent` | 根 | 视口的父实体。 |
-| `viewportSize` | — | 可见窗口的像素尺寸。必填——滚动数学需要预先知道。 |
+| `viewportSize` | — | 初始 UI 布局尺寸。必填；虚拟化与滚动边界跟随布局解算后的视口盒。 |
 | `node` | 尺寸取 `viewportSize` | 视口盒的额外 `UINode` 属性。 |
 | `background` | 透明 | 视口视觉。默认是不可见的**命中目标**——它必须存在,滚轮和拖拽才能落在列表上。 |
 | `data` | — | 一个 `DataSource<T>`,或裸数组(会被包成 `ArrayDataSource`——数组会被**拷贝**,之后请改数据源而不是你的原数组)。 |
@@ -65,6 +65,10 @@ const list = createListView<Player>({
 | `{ columns, itemSize, spacing? }` | 网格(*TileView*);此处 `spacing` 是 `Vec2`。 |
 
 ### 条目模板
+
+视口需要填满受约束的父容器时，可用 `percent(100)` 设置 `node` 尺寸。
+窗口或安全区变化后，可见条目范围与滚动边界一起更新。默认线性布局的交叉轴
+也跟随解算后的尺寸；网格和自定义布局保留所定义的条目大小。
 
 条目模板是一对 **create / bind**(`ListItemTemplate<T>`):
 
@@ -328,6 +332,9 @@ panel.scrollTo({ x: 0, y: 300 });
 滚动范围 · `scroll`(底层 `ScrollContainer`)· `dispose()`。
 
 ## 滚动模型
+
+手动组合可通过 `scroll.setSizes(viewportSize, contentSize)` 先同时更新两个范围，
+再约束偏移。这样调整尺寸时不会丢失仍然有效的位置，也只通知最终变化的偏移。
 
 两个工厂驱动的都是 **`ScrollContainer`**——不含输入与 ECS 知识的纯滚动状态模型。
 它把偏移按轴收敛到 `[0, contentSize − viewportSize]`(`'vertical'` 容器把 `x` 钉在 0,

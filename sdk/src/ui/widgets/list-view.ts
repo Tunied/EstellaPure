@@ -35,8 +35,87 @@ import {
     MeasuredLinearLayoutProvider,
     GridLayoutProvider,
 } from '../collection/layout-provider';
-import { ListView } from '../collection/list-view';
+import { ListView, type ListViewOptions } from '../collection/list-view';
 import { ScrollContainer } from '../collection/scroll-container';
+import { worldEngineApi, type EngineApi } from '../../ecs/bridge/engineApi';
+import { WasmBridge } from '../../wasm/WasmBridge';
+
+class ViewportBridge extends WasmBridge<NonNullable<EngineApi>> {
+    protected readonly label = 'listViewport';
+}
+
+/** Linear UI items fill the resolved cross axis; custom layouts keep their own sizes. */
+class CrossAxisLayout implements LayoutProvider {
+    constructor(private readonly base_: LayoutProvider, private readonly axis_: 'vertical' | 'horizontal',
+        private crossSize_: number) {}
+
+    resize(size: Vec2): void {
+        this.crossSize_ = this.axis_ === 'vertical' ? size.x : size.y;
+    }
+
+    getContentSize(count: number): Vec2 {
+        const size = this.base_.getContentSize(count);
+        if (count <= 0) return size;
+        return this.axis_ === 'vertical' ? { x: this.crossSize_, y: size.y } : { x: size.x, y: this.crossSize_ };
+    }
+
+    getItemRect(index: number): Rect {
+        const rect = this.base_.getItemRect(index);
+        return this.axis_ === 'vertical' ? { ...rect, width: this.crossSize_ } : { ...rect, height: this.crossSize_ };
+    }
+
+    getVisibleRange(viewport: Rect, count: number): [number, number] {
+        return this.base_.getVisibleRange(viewport, count);
+    }
+
+    invalidate(): void {
+        (this.base_ as LayoutProvider & { invalidate?: () => void }).invalidate?.();
+    }
+}
+
+/** The actual UI box owns the visible range and scroll bounds, in layout-local units. */
+class LayoutBoundListView<T> extends ListView<T> {
+    private uiDisposed_ = false;
+    private readonly viewportWorld_: World;
+    private readonly bounds_ = new ViewportBridge();
+    private boundsEngine_: EngineApi | null = null;
+
+    constructor(opts: ListViewOptions<T>, private readonly viewport_: Entity,
+        private readonly scroll_: ScrollContainer, private readonly crossLayout_: CrossAxisLayout | null) {
+        super(opts);
+        this.viewportWorld_ = opts.world;
+    }
+
+    override update(): void {
+        if (this.uiDisposed_ || !this.viewportWorld_.valid(this.viewport_)) return;
+        const engine = worldEngineApi(this.viewportWorld_);
+        const registry = this.viewportWorld_.getCppRegistry();
+        if (engine && registry && engine !== this.boundsEngine_) {
+            this.bounds_.connect(engine);
+            this.boundsEngine_ = engine;
+        }
+        const bounds = engine && registry ? this.bounds_.module : null;
+        const x = bounds?.getUINodeComputedWidth?.(registry!, this.viewport_) ?? 0;
+        const y = bounds?.getUINodeComputedHeight?.(registry!, this.viewport_) ?? 0;
+        const current = this.getViewport();
+        // Unresolved layout keeps the initial hint; only finite resolved boxes resize.
+        if (Number.isFinite(x) && Number.isFinite(y) && x > 0 && y > 0
+            && (x !== current.width || y !== current.height)) {
+            const size = { x, y };
+            this.crossLayout_?.resize(size);
+            this.setViewportSize(size);
+            this.scroll_.setSizes(size, this.getContentSize());
+        }
+        super.update();
+    }
+
+    override dispose(): void {
+        this.uiDisposed_ = true;
+        this.bounds_.disconnect();
+        this.boundsEngine_ = null;
+        super.dispose();
+    }
+}
 
 /**
  * The per-frame runtime a list view plugs into: the tick registry that drives
@@ -71,7 +150,7 @@ export interface CreateListViewOptions<T> {
     /** The plugin that ticks virtualization + routes scroll input (`uiPlugin`). */
     host: ListViewHost;
     parent?: Entity;
-    /** Pixel size of the visible window. Required — scroll math needs it up front. */
+    /** Initial UI layout size; virtualization and scroll bounds follow the resolved box. */
     viewportSize: Vec2;
     /** Extra viewport UINode props (its size defaults to `viewportSize`). */
     node?: UINodeInit;
@@ -203,9 +282,14 @@ export function createListView<T>(opts: CreateListViewOptions<T>): ListViewHandl
 
     // 3) Resolve data + layout.
     const data: DataSource<T> = isDataSource(opts.data) ? opts.data : new ArrayDataSource<T>(opts.data);
-    const { layout, axis } = isLayoutProvider(opts.layout)
+    const resolved = isLayoutProvider(opts.layout)
         ? { layout: opts.layout, axis: 'vertical' as const }
         : buildLayout(opts.layout, viewportSize);
+    const { axis } = resolved;
+    const crossLayout = !isLayoutProvider(opts.layout) && !('columns' in opts.layout)
+        ? new CrossAxisLayout(resolved.layout, axis, axis === 'vertical' ? viewportSize.x : viewportSize.y)
+        : null;
+    const layout = crossLayout ?? resolved.layout;
 
     // 4) Item templates → ViewPool template shape ({ factory, binder }).
     const single = 'create' in opts.item && 'bind' in opts.item;
@@ -215,8 +299,16 @@ export function createListView<T>(opts: CreateListViewOptions<T>): ListViewHandl
         templates[type] = { factory: tpl.create, binder: tpl.bind };
     }
 
-    // 5) The virtualization driver, parented to the content frame.
-    const view = new ListView<T>({
+    // The scroll model and virtualization driver share the resolved viewport.
+    const scroll = new ScrollContainer({
+        viewportSize,
+        contentSize: layout.getContentSize(data.getCount()),
+        direction: opts.direction ?? axis,
+        wheelSpeed: opts.wheelSpeed,
+        dragScroll: opts.dragScroll,
+        decelerationRate: opts.decelerationRate,
+    });
+    const view = new LayoutBoundListView<T>({
         world,
         parent: content,
         dataSource: data,
@@ -227,19 +319,10 @@ export function createListView<T>(opts: CreateListViewOptions<T>): ListViewHandl
         placeItem: (w, e, rect) => placeByInset(w, e, rect),
         setVisible: (w, e, v) => setUIVisible(w, e, v),
         onItemBound: opts.onItemBound,
-    });
+    }, viewport, scroll, crossLayout);
     host.registerListView(view as ListView<unknown>);
 
-    // 6) Scroll model: wheel- and drag-driven by the plugin; onScroll translates
-    //    the content frame and pushes the offset into the driver.
-    const scroll = new ScrollContainer({
-        viewportSize,
-        contentSize: layout.getContentSize(data.getCount()),
-        direction: opts.direction ?? axis,
-        wheelSpeed: opts.wheelSpeed,
-        dragScroll: opts.dragScroll,
-        decelerationRate: opts.decelerationRate,
-    });
+    // Scroll input translates the content and pushes the same offset into the driver.
     const offScroll = scroll.onScroll((offset) => {
         const n = world.get(content, UINode) as UINodeData;
         n.insetLeft = px(-offset.x);

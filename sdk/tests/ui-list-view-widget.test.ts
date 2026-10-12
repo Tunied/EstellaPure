@@ -11,10 +11,12 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { App } from '../src/app/app';
 import { UICameraInfo } from '../src/ui/core/ui-camera-info';
 import { uiPlugin } from '../src/ui/ui-plugin';
-import { createListView } from '../src/ui/widgets/list-view';
+import { createListView, type ListViewHandle } from '../src/ui/widgets/list-view';
 import { spawnUIEntity } from '../src/ui/core/compose';
 import { arrayDataSource } from '../src/ui/collection/data-source';
-import { px } from '../src/ui/core/dimension';
+import { px, percent } from '../src/ui/core/dimension';
+import { UINode, type UINodeData } from '../src/ui/core/ui-node';
+import { Canvas } from '../src/ecs/component';
 import type { ESEngineModule, CppRegistry } from '../src/wasm';
 import { loadWasmModule, HAS_WASM } from './helpers/loadWasm';
 
@@ -143,5 +145,98 @@ describe.skipIf(!HAS_WASM)('createListView (WASM integration)', () => {
 
         list.dispose();
         disposeApp(app, registry);
+    });
+
+    it('keeps a constrained viewport, scroll range and final row in agreement after resize', async () => {
+        const { app, registry } = createApp();
+        const parent = spawnUIEntity({ world: app.world, node: { width: px(180), height: px(140) } });
+        app.world.insert(parent, Canvas, {});
+        const list = createListView<number>({
+            host: uiPlugin, world: app.world, parent,
+            viewportSize: { x: 200, y: 200 },
+            node: { width: percent(100), height: percent(100) },
+            data: bigList(100), layout: { itemHeight: 40 }, item: numberRow,
+        });
+        try {
+            module.uiLayout_update(registry, 0, 0, 800, 600, true);
+            expect(module.getUINodeComputedHeight(registry, list.entity)).toBe(140);
+            await app.tick(1 / 60);
+            expect(list.scroll.getViewportSize()).toEqual({ x: 180, y: 140 });
+            const node = app.world.get(parent, UINode) as UINodeData;
+            node.width = px(160);
+            node.height = px(80);
+            app.world.insert(parent, UINode, node);
+            module.uiLayout_update(registry, 0, 0, 800, 600, true);
+            await app.tick(1 / 60);
+            expect(list.scroll.getViewportSize()).toEqual({ x: 160, y: 80 });
+            expect(list.view.getContentSize().x).toBe(160);
+            list.scrollToIndex(99);
+            await app.tick(1 / 60);
+            expect(list.scroll.getOffset().y).toBe(3920);
+            expect(list.view.getVisibleRange()).toEqual([98, 100]);
+            expect(list.mountedCount()).toBeLessThanOrEqual(6);
+            node.width = px(240);
+            node.height = px(240);
+            app.world.insert(parent, UINode, node);
+            module.uiLayout_update(registry, 0, 0, 800, 600, true);
+            await app.tick(1 / 60);
+            expect(list.scroll.getViewportSize()).toEqual({ x: 240, y: 240 });
+            expect(list.scroll.getOffset().y).toBe(3760);
+            expect(list.view.getViewport().y).toBe(3760);
+        } finally {
+            list.dispose();
+            disposeApp(app, registry);
+        }
+    });
+
+    it('reads viewport geometry from its own world after another app binds UI', () => {
+        const first = createApp();
+        const root = spawnUIEntity({ world: first.app.world, node: { width: px(180), height: px(140) } });
+        first.app.world.insert(root, Canvas, {});
+        const list = createListView<number>({ host: uiPlugin, world: first.app.world, parent: root,
+            viewportSize: { x: 200, y: 200 }, node: { width: percent(100), height: percent(100) },
+            data: bigList(100), layout: { itemHeight: 40 }, item: numberRow });
+        module.uiLayout_update(first.registry, 0, 0, 800, 600, true);
+        const second = createApp();
+        try {
+            list.view.update();
+            expect(list.scroll.getViewportSize()).toEqual({ x: 180, y: 140 });
+            expect(list.view.getViewport().width).toBe(180);
+        } finally {
+            list.dispose();
+            disposeApp(first.app, first.registry);
+            disposeApp(second.app, second.registry);
+        }
+    });
+
+    it('remeasures variable-height items at the new width before clamping the scroll extent', async () => {
+        const { app, registry } = createApp();
+        const parent = spawnUIEntity({ world: app.world, node: { width: px(180), height: px(140) } });
+        app.world.insert(parent, Canvas, {});
+        let list: ListViewHandle<number> | undefined;
+        list = createListView<number>({ host: uiPlugin, world: app.world, parent,
+            viewportSize: { x: 200, y: 200 }, node: { width: percent(100), height: percent(100) },
+            data: bigList(100), item: numberRow,
+            layout: { itemHeight: () => (list?.view.getViewport().width ?? 200) > 160 ? 40 : 80 } });
+        try {
+            module.uiLayout_update(registry, 0, 0, 800, 600, true);
+            await app.tick(1 / 60);
+            list.scroll.setOffset({ x: 0, y: 850 });
+            const node = app.world.get(parent, UINode) as UINodeData;
+            node.width = px(160);
+            node.height = px(80);
+            app.world.insert(parent, UINode, node);
+            module.uiLayout_update(registry, 0, 0, 800, 600, true);
+            await app.tick(1 / 60);
+            expect(list.scroll.getOffset().y).toBe(850);
+            expect(list.scroll.getContentSize()).toEqual({ x: 160, y: 8000 });
+            list.scrollToIndex(99);
+            await app.tick(1 / 60);
+            expect(list.scroll.getOffset().y).toBe(7920);
+            expect(list.view.getVisibleRange()).toEqual([99, 100]);
+        } finally {
+            list.dispose();
+            disposeApp(app, registry);
+        }
     });
 });

@@ -44,3 +44,7 @@ scene-plus-factories split as the `ui-controls` example.
 The panel sits under an absolute `SafeArea` content container. Device cutouts
 move the whole interactive list and its controls together; the panel keeps its
 authored margins inside that container.
+
+The panes and widget viewports fill their constrained parent heights. After
+layout, the widgets use their resolved sizes for virtualization and scrolling,
+so a home indicator or a smaller window cannot hide the last row behind the footer.

@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ui): synchronize virtualized lists with resolved viewport bounds':
+    { note: 'Virtualized lists follow their resolved UI viewport.' },
   'fix(samples): keep virtualized UI inside device safe areas':
     { note: 'Native UI follows the device safe area.' },
   'fix(verification): read renderer counters after a completed frame':
