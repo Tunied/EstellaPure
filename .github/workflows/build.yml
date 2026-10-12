@@ -280,6 +280,10 @@ jobs:
       with:
         ssh-key: ${{ secrets.EDITOR_SSH_KEY }}
 
+    # The Spine WASM tests load the pinned runtime repositories' sample data.
+    # Downloading engine binaries does not bring those source fixtures along.
+    - uses: ./.github/actions/engine-submodules
+
     - uses: ./.github/actions/setup
 
     - name: Download web wasm artifact
