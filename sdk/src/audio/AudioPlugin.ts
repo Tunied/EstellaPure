@@ -38,6 +38,15 @@ interface ActiveVoice {
     spatial: boolean;
 }
 
+interface AudioPluginState {
+    activeSourceHandles: Map<number, ActiveVoice>;
+    playedEntities: Set<number>;
+    audio: AudioAPI;
+    released: boolean;
+    offMemoryWarning: () => void;
+    offDespawn: () => void;
+}
+
 export interface AudioPluginConfig {
     initialPoolSize?: number;
     masterVolume?: number;
@@ -48,17 +57,15 @@ export interface AudioPluginConfig {
 export class AudioPlugin implements Plugin {
     name = 'audio';
     private config_: AudioPluginConfig;
-    private activeSourceHandles_: Map<number, ActiveVoice> | null = null;
-    private playedEntities_: Set<number> | null = null;
-    private audio_: AudioAPI | null = null;
-    private offMemoryWarning_: (() => void) | null = null;
-    private offDespawn_: (() => void) | null = null;
+    private readonly states_ = new WeakMap<App, AudioPluginState>();
+    private latestState_: AudioPluginState | null = null;
 
     constructor(config: AudioPluginConfig = {}) {
         this.config_ = config;
     }
 
     build(app: App): void {
+        this.cleanup(app);
         const backend = platformCreateAudioBackend();
         const config = this.config_;
 
@@ -68,12 +75,11 @@ export class AudioPlugin implements Plugin {
 
         const mixer = backend.mixer;
         const audio = new AudioAPI(backend, mixer);
-        this.audio_ = audio;
         app.insertResource(Audio, audio);
 
         // OS memory pressure → drop the decoded-buffer warm cache. Held
         // buffers keep playing; re-fetch cost returns only for evicted ones.
-        this.offMemoryWarning_ = platformOnMemoryWarning(() => {
+        const offMemoryWarning = platformOnMemoryWarning(() => {
             const freed = audio.trimBufferCache();
             if (freed > 0) log.info('audio', `memory warning: trimmed ${freed} cached buffer(s)`);
         });
@@ -85,11 +91,9 @@ export class AudioPlugin implements Plugin {
         }
 
         const activeSourceHandles = new Map<number, ActiveVoice>();
-        this.activeSourceHandles_ = activeSourceHandles;
         const playedEntities = new Set<number>();
-        this.playedEntities_ = playedEntities;
 
-        this.offDespawn_ = app.world.onDespawn((entity: Entity) => {
+        const offDespawn = app.world.onDespawn((entity: Entity) => {
             const voice = activeSourceHandles.get(entity);
             if (voice) {
                 voice.handle.stop();
@@ -97,6 +101,9 @@ export class AudioPlugin implements Plugin {
             }
             playedEntities.delete(entity);
         });
+        const state = { activeSourceHandles, playedEntities, audio, offMemoryWarning, offDespawn, released: false };
+        this.states_.set(app, state);
+        this.latestState_ = state;
         const stopVoice = (id: number): void => {
             const voice = activeSourceHandles.get(id);
             if (!voice) return;
@@ -115,6 +122,7 @@ export class AudioPlugin implements Plugin {
             defineSystem(
                 [Res(Time), Res(Audio)],
                 (time: TimeData, audioAPI: AudioAPI) => {
+                    if (state.released) return;
                     const playMode = !isEditor() || isPlayMode();
 
                     if (!playMode) {
@@ -291,24 +299,26 @@ export class AudioPlugin implements Plugin {
         );
     }
 
-    stopAllSources(): void {
-        if (this.activeSourceHandles_) {
-            for (const voice of this.activeSourceHandles_.values()) {
-                voice.handle.stop();
-            }
-            this.activeSourceHandles_.clear();
-        }
-        this.playedEntities_?.clear();
+    private stopSources_(state: AudioPluginState): void {
+        for (const voice of state.activeSourceHandles.values()) voice.handle.stop();
+        state.activeSourceHandles.clear();
+        state.playedEntities.clear();
     }
 
-    cleanup(): void {
-        this.offMemoryWarning_?.();
-        this.offMemoryWarning_ = null;
-        this.offDespawn_?.();
-        this.offDespawn_ = null;
-        this.stopAllSources();
-        this.audio_?.dispose();
-        this.audio_ = null;
+    stopAllSources(): void {
+        if (this.latestState_) this.stopSources_(this.latestState_);
+    }
+
+    cleanup(app?: App): void {
+        const state = app ? this.states_.get(app) : this.latestState_;
+        if (!state || state.released) return;
+        state.released = true;
+        if (app) this.states_.delete(app);
+        if (state === this.latestState_) this.latestState_ = null;
+        state.offMemoryWarning();
+        state.offDespawn();
+        this.stopSources_(state);
+        state.audio.dispose();
     }
 }
 

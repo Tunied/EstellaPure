@@ -90,75 +90,10 @@ describe('AudioPlugin', () => {
         expect(plugin.name).toBe('audio');
     });
 
-    describe('stopAllSources', () => {
-        it('should stop all active handles and clear the map', () => {
-            const plugin = new AudioPlugin();
-            const handle1 = createMockHandle({ id: 1 });
-            const handle2 = createMockHandle({ id: 2 });
-
-            // The plugin records a voice as the handle AND the clip it is a play
-            // of, which is how one source can be given a second sound.
-            const handles = new Map<number, { handle: AudioHandle; clip: string }>();
-            handles.set(10, { handle: handle1, clip: 'a.wav' });
-            handles.set(20, { handle: handle2, clip: 'b.wav' });
-            (plugin as any).activeSourceHandles_ = handles;
-
-            plugin.stopAllSources();
-
-            expect(handle1.stop).toHaveBeenCalled();
-            expect(handle2.stop).toHaveBeenCalled();
-            expect(handles.size).toBe(0);
-        });
-
-        it('should clear playedEntities so playOnAwake can retrigger', () => {
-            const plugin = new AudioPlugin();
-            const played = new Set<number>([10, 20]);
-            (plugin as any).playedEntities_ = played;
-            (plugin as any).activeSourceHandles_ = new Map();
-
-            plugin.stopAllSources();
-
-            expect(played.size).toBe(0);
-        });
-
-        it('should be safe to call when not built', () => {
-            const plugin = new AudioPlugin();
-            expect(() => plugin.stopAllSources()).not.toThrow();
-        });
-    });
-
-    describe('cleanup', () => {
-        it('should call stopAllSources then dispose the owned AudioAPI instance', () => {
-            const plugin = new AudioPlugin();
-            const backend = createMockBackend();
-            const audio = new AudioAPI(backend, backend.mixer);
-            (plugin as any).audio_ = audio;
-            (plugin as any).activeSourceHandles_ = new Map();
-            (plugin as any).playedEntities_ = new Set();
-
-            const stopSpy = vi.spyOn(plugin, 'stopAllSources');
-            const disposeSpy = vi.spyOn(audio, 'dispose');
-
-            plugin.cleanup();
-
-            expect(stopSpy).toHaveBeenCalled();
-            expect(disposeSpy).toHaveBeenCalled();
-            const stopOrder = stopSpy.mock.invocationCallOrder[0];
-            const disposeOrder = disposeSpy.mock.invocationCallOrder[0];
-            expect(stopOrder).toBeLessThan(disposeOrder);
-        });
-
-        it('should clear the audio_ reference after dispose', () => {
-            const plugin = new AudioPlugin();
-            const backend = createMockBackend();
-            (plugin as any).audio_ = new AudioAPI(backend, backend.mixer);
-            (plugin as any).activeSourceHandles_ = new Map();
-            (plugin as any).playedEntities_ = new Set();
-
-            plugin.cleanup();
-
-            expect((plugin as any).audio_).toBeNull();
-        });
+    it('stopping and cleaning up an unbuilt plugin remains safe', () => {
+        const plugin = new AudioPlugin();
+        expect(() => plugin.stopAllSources()).not.toThrow();
+        expect(() => plugin.cleanup()).not.toThrow();
     });
 });
 

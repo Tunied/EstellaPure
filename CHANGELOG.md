@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Audio plugin cleanup belongs to each App.** Shared plugin instances release the quitting App's voices, backend, and memory/despawn subscriptions without stopping another App. Released systems stay inactive, and repeated preview shutdowns release every backend once.
+
 - **Retired WebAudio handles cannot modify reused pool nodes.** Gain and pan writes from stopped or completed handles are ignored, preserving the next voice's mix. Completion callbacks are checked against the currently playing source, so an old source cannot release the pool slot of a resumed voice.
 
 - **Paused voices remain owned by the audio API.** Paused handles retain their voice-budget slot, bus volume and mute updates, and disposal cleanup; stolen paused voices cannot resume outside the budget. Handle volume edits update the tracked base gain, fades stay associated with managed handles, and ended ramps stop writing to released backend voices.

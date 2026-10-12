@@ -1257,7 +1257,7 @@ voiceVolume: number | undefined
 ## AudioPlugin — class @experimental
 ```
 build: (app: App) => void
-cleanup: () => void
+cleanup: (app?: App) => void
 name: string
 stopAllSources: () => void
 static new (config?: AudioPluginConfig): AudioPlugin
