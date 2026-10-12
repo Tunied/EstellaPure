@@ -5909,7 +5909,7 @@ sensorExits: SensorEvent[]
 ## Physics2DPlugin — class @experimental
 ```
 build: (app: App) => void
-cleanup: () => void
+cleanup: (app?: App) => void
 name: string
 static new (wasmUrl: string, config?: Physics2DPluginConfig, factory?: PhysicsModuleFactory): Physics2DPlugin
 static prototype: Physics2DPlugin

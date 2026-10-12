@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(physics): isolate async Box2D module ownership by app':
+    { note: 'Box2D initialization and shutdown belong to their App.' },
   'perf(render): skip geometry outside UI scissor viewports':
     { note: 'Screen-excluded UI scissor regions no longer submit draws.' },
   'fix(animation): isolate despawn subscriptions by app':

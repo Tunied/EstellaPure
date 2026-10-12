@@ -19,7 +19,7 @@ import {
 } from './PhysicsModuleLoader';
 import { setupPhysics2DDebugDraw } from './Physics2DDebugDraw';
 import { PhysicsBridge } from './PhysicsBridge';
-import { Physics2DRuntime } from './Physics2DRuntime';
+import { Physics2DRuntime, type Physics2DRuntimeData } from './Physics2DRuntime';
 import { Physics2DAPI, Physics2D } from './Physics2D';
 import { registerPhysics2DSystem } from './PhysicsSystem';
 import { registerCharacterController2DSystem } from './CharacterController2DSystem';
@@ -110,13 +110,19 @@ function assertModuleContract(module: PhysicsWasmModule): void {
     );
 }
 
+interface Physics2DInstance {
+    released: boolean;
+    module: PhysicsWasmModule | null;
+    runtime: Physics2DRuntimeData;
+}
+
 export class Physics2DPlugin implements Plugin {
     name = 'physics';
     private config_: ResolvedPhysics2DConfig;
     private wasmUrl_: string;
     private factory_?: PhysicsModuleFactory;
-    private bridge_ = new PhysicsBridge();
-    private module_: PhysicsWasmModule | null = null;
+    private readonly instances_ = new WeakMap<App, Physics2DInstance>();
+    private latestInstance_: Physics2DInstance | null = null;
 
     constructor(wasmUrl: string, config: Physics2DPluginConfig = {}, factory?: PhysicsModuleFactory) {
         this.wasmUrl_ = wasmUrl;
@@ -125,6 +131,12 @@ export class Physics2DPlugin implements Plugin {
     }
 
     build(app: App): void {
+        this.cleanup(app);
+        const runtime = { module: null as PhysicsWasmModule | null, initPromise: null as Promise<void> | null };
+        const instance = { released: false, module: null as PhysicsWasmModule | null, runtime };
+        this.instances_.set(app, instance);
+        this.latestInstance_ = instance;
+        const bridge = new PhysicsBridge();
         app.insertResource(Physics2DEvents, {
             collisionEnters: [],
             collisionExits: [],
@@ -132,12 +144,13 @@ export class Physics2DPlugin implements Plugin {
             sensorEnters: [],
             sensorExits: [],
         });
-        app.insertResource(Physics2DRuntime, { module: null, initPromise: null });
+        app.insertResource(Physics2DRuntime, runtime);
         // wasm loading → show "initializing", not a stuck "registered".
         app.subsystems.transition('physics', 'initializing');
 
         const initPromise = loadPhysicsModule(this.wasmUrl_, this.factory_).then(
             (loaded: PhysicsWasmModule) => {
+                if (instance.released) return;
                 // Push a terminal Box2D abort to the registry too (not just the
                 // bridge's call-time guard). Set before connect() so the bridge's
                 // abort guard preserves and chains this handler.
@@ -152,9 +165,9 @@ export class Physics2DPlugin implements Plugin {
                 // abort safety without changing a single call.
                 assertModuleContract(loaded);
 
-                this.bridge_.connect(loaded);
-                const module = this.bridge_.module;
-                this.module_ = module;
+                bridge.connect(loaded);
+                const module = bridge.module;
+                instance.module = module;
 
                 module._physics_init(
                     this.config_.gravity.x,
@@ -188,6 +201,7 @@ export class Physics2DPlugin implements Plugin {
         );
 
         initPromise.catch((e) => {
+            if (instance.released) return;
             app.subsystems.markError('physics', e instanceof Error ? e.message : String(e));
             handleWasmError(e, 'Physics2DPlugin.init');
         });
@@ -200,9 +214,16 @@ export class Physics2DPlugin implements Plugin {
      * joints, contact state) leaked across an engine re-init. The bridge-guarded
      * module makes the call abort-safe; null after so a double cleanup is a no-op.
      */
-    cleanup(): void {
-        this.module_?._physics_shutdown();
-        this.module_ = null;
+    cleanup(app?: App): void {
+        const instance = app ? this.instances_.get(app) : this.latestInstance_;
+        if (!instance || instance.released) return;
+        instance.released = true;
+        if (app) this.instances_.delete(app);
+        if (instance === this.latestInstance_) this.latestInstance_ = null;
+        const module = instance.module;
+        instance.module = null;
+        instance.runtime.module = null;
+        module?._physics_shutdown();
     }
 }
 
