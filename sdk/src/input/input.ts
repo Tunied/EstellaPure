@@ -7,6 +7,7 @@ import { claimsKeyDefault, recordTabModifiers, clearTabModifiers } from './keyDe
 import { getPlatform, platformUnbindInputEvents } from '../platform';
 import type { GamepadSnapshot, InputEventCallbacks } from '../platform/types';
 import { inputRouter } from './inputRouter';
+import { cancelPrimaryPointer, takePrimaryPointerCancellation } from './pointerCancellation';
 import type { Vec2 } from '../types';
 
 /**
@@ -161,6 +162,7 @@ export class InputState {
     }
 
     noteMouseDown(button: number): void {
+        if (button === 0) takePrimaryPointerCancellation(this);
         this.mouseButtons.add(button);
         this.mouseButtonsPressed.add(button);
         this.mouseButtonsPressedFixed.add(button);
@@ -398,6 +400,10 @@ export const Input = defineResource<InputState>(new InputState(), 'Input');
  * One implementation, so the injected event and the real one cannot diverge.
  */
 export function inputEventCallbacks(state: InputState): InputEventCallbacks {
+    const finishTouch = (id: number, consumed: boolean): void => {
+        if (consumed) state.touches.delete(id);
+        else if (state.touches.has(id)) state.endTouch(id);
+    };
     return {
         onKeyDown(code) {
             if (inputRouter.dispatchKeyDown(code)) return true;
@@ -405,8 +411,8 @@ export function inputEventCallbacks(state: InputState): InputEventCallbacks {
             return claimsKeyDefault(state, code);
         },
         onKeyUp(code) {
-            if (inputRouter.dispatchKeyUp(code)) return;
-            state.noteKeyUp(code);
+            if (inputRouter.dispatchKeyUp(code)) state.keysDown.delete(code);
+            else if (state.keysDown.has(code)) state.noteKeyUp(code);
         },
         onPointerMove(x, y) {
             // Pointer position tracks the cursor even when consumed so
@@ -424,8 +430,11 @@ export function inputEventCallbacks(state: InputState): InputEventCallbacks {
             state.noteMouseDown(button);
         },
         onPointerUp(button) {
-            if (inputRouter.dispatchPointerUp(button)) return;
-            state.noteMouseUp(button);
+            if (inputRouter.dispatchPointerUp(button)) {
+                state.mouseButtons.delete(button);
+                if (button === 0) cancelPrimaryPointer(state);
+            }
+            else if (state.mouseButtons.has(button)) state.noteMouseUp(button);
         },
         onWheel(deltaX, deltaY) {
             if (inputRouter.dispatchWheel(deltaX, deltaY)) return;
@@ -444,17 +453,13 @@ export function inputEventCallbacks(state: InputState): InputEventCallbacks {
             if (existing) {
                 existing.x = x;
                 existing.y = y;
-            } else {
-                state.touches.set(id, { id, x, y });
             }
         },
         onTouchEnd(id) {
-            if (inputRouter.dispatchTouchEnd(id)) return;
-            state.endTouch(id);
+            finishTouch(id, inputRouter.dispatchTouchEnd(id));
         },
         onTouchCancel(id) {
-            if (inputRouter.dispatchTouchCancel(id)) return;
-            state.endTouch(id);
+            finishTouch(id, inputRouter.dispatchTouchCancel(id));
         },
     };
 }

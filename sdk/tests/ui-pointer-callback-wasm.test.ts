@@ -4,7 +4,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { App, flushPendingRegistrations } from '../src/app/app';
 import { AppContext, setDefaultContext } from '../src/ecs/context';
 import { setEditorMode, setPlayMode } from '../src/ecs/env';
-import { Input, InputState } from '../src/input/input';
+import { Input, InputState, inputEventCallbacks } from '../src/input/input';
 import { UICameraInfo } from '../src/ui/core/ui-camera-info';
 import { ScreenOverlay } from '../src/ui/core/screen-overlay';
 import { UILayoutGeneration } from '../src/ui/layout/ui-layout-generation';
@@ -42,6 +42,17 @@ describe.skipIf(!HAS_WASM)('pointer callback lifecycle on real WASM', () => {
         vi.restoreAllMocks();
         for (const entity of app.world.getAllEntities()) app.world.despawn(entity);
         app.world.disconnectCpp(); registry.delete();
+    });
+    it('a consumed primary release cancels the actual WASM control instead of clicking it', async () => {
+        const entity = app.world.spawn(); hit.entity = entity; app.world.insert(entity, Interactable);
+        const input = app.getResource(Input), callbacks = inputEventCallbacks(input), clicked = vi.fn();
+        app.getResource(UIEvents).on(entity, 'click', clicked);
+        callbacks.onPointerDown(0, 0, 0); await app.tick(1 / 60); input.clearFrameState();
+        const off = inputRouter.setEditorHandler({ onPointerUp: () => true });
+        try { callbacks.onPointerUp(0); } finally { off(); }
+        input.clearFrameState(); await app.tick(1 / 60);
+        expect(clicked).not.toHaveBeenCalled();
+        expect(app.world.get(entity, UIInteraction)).toMatchObject({ pressed: false, justReleased: false });
     });
     it('expires a cancelled gesture marker before a later quick click on real WASM', async () => {
         const entity = app.world.spawn(); hit.entity = entity; app.world.insert(entity, Interactable);

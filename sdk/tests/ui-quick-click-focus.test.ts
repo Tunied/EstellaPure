@@ -3,7 +3,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { bootMockApp } from './helpers/mockApp';
 import { flushPendingRegistrations } from '../src/app/app';
-import { Input, InputState } from '../src/input/input';
+import { Input, InputState, inputEventCallbacks } from '../src/input/input';
 import { UICameraInfo } from '../src/ui/core/ui-camera-info';
 import { ScreenOverlay } from '../src/ui/core/screen-overlay';
 import { UILayoutGeneration } from '../src/ui/layout/ui-layout-generation';
@@ -25,6 +25,25 @@ vi.mock('../src/ui/util/ui-pick', () => ({
 }));
 
 describe('quick pointer focus through real interaction projection', () => {
+  it.each(['quick', 'held', 'cleared'])('a consumed release cancels UI capture without clicking through: %s', async phase => {
+    const { app } = bootMockApp(); const input = new InputState();
+    app.insertResource(Input, input); app.insertResource(UICameraInfo, { valid: false } as any);
+    app.insertResource(ScreenOverlay, { active: true, surfaceH: 600 } as any);
+    app.addPlugin(uiLayoutPlugin); app.addPlugin(new UIInteractionPlugin()); flushPendingRegistrations(app);
+    const entity = app.world.spawn(); app.world.insert(entity, Interactable); hit.entity = entity;
+    const clicked = vi.fn(); app.getResource(UIEvents).on(entity, 'click', clicked);
+    const callbacks = inputEventCallbacks(input);
+    callbacks.onPointerDown(0, 0, 0);
+    if (phase !== 'quick') { await app.tick(1 / 60); input.clearFrameState(); }
+    const off = inputRouter.setEditorHandler({ onPointerUp: () => true });
+    try { callbacks.onPointerUp(0); } finally { off(); }
+    if (phase === 'cleared') input.clearFrameState();
+    await app.tick(1 / 60);
+    expect(clicked).not.toHaveBeenCalled();
+    expect(app.world.get(entity, UIInteraction).pressed).toBe(false);
+    expect(app.world.get(entity, UIInteraction).justPressed).toBe(false);
+    app.quit();
+  });
   it('does not let a disabled gesture suppress a later quick tap after re-enabling', async () => {
     const { app } = bootMockApp(); const input = new InputState();
     app.insertResource(Input, input); app.insertResource(UICameraInfo, { valid: false } as any);

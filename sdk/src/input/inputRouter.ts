@@ -8,8 +8,8 @@
  * the SDK. Before those events land in the `InputState` that gameplay code
  * polls, they pass through the router's tier-1 (editor) and tier-2 (UI)
  * handlers. Either tier can return `true` from a callback to consume the
- * event; consumed events do not update InputState and do not propagate to
- * later tiers.
+ * event; consumed events do not propagate to later tiers. Consumed releases
+ * silently clear previously held gameplay state without adding release edges.
  *
  * Tier-3 (game) is implicit — it is the InputState resource itself. Code
  * that calls `state.isKeyDown(...)` / `state.isMouseButtonDown(...)` sees

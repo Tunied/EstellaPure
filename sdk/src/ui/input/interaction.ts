@@ -230,7 +230,8 @@ export class UIInteractionPlugin implements Plugin {
                     const isHovered = isActive && hovered.has(entity);
                     const isPressed = isActive && pressed.has(entity);
                     const justPressed = isActive && (data.justPressed || (isPressed && !wasPressed.has(entity)));
-                    const justReleased = isActive && (data.justReleased || (!isPressed && wasPressed.has(entity)));
+                    const justReleased = isActive && (data.justReleased
+                        || (!isPressed && wasPressed.has(entity) && !book.cancelled.has(entity)));
                     if (data.hovered === isHovered && data.pressed === isPressed
                         && data.justPressed === justPressed && data.justReleased === justReleased) continue;
                     data.hovered = isHovered;

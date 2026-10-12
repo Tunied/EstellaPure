@@ -16,6 +16,7 @@
  */
 import type { Entity } from '../../types';
 import type { InputState } from '../../input/input';
+import { takePrimaryPointerCancellation } from '../../input/pointerCancellation';
 
 /** One pointer this frame. `hovers` is false for a finger that is not down: a
  *  finger is over a control only while it touches the glass. */
@@ -27,6 +28,7 @@ export interface UiPointerSample {
     pressed: boolean;
     released: boolean;
     hovers: boolean;
+    cancelled?: boolean;
 }
 
 /** Per-pointer raycast results, retained only while the input frame carries the pointer. */
@@ -74,19 +76,24 @@ export function uiPointersOf(input: InputState): UiPointerSample[] {
         }
         return pointers;
     }
-    pointers.push({
+    const mouse: UiPointerSample = {
         id: MOUSE_POINTER, x: input.mouseX, y: input.mouseY,
         down: input.isMouseButtonDown(0),
         pressed: input.isMouseButtonPressed(0),
         released: input.isMouseButtonReleased(0),
         hovers: true,
-    });
+    };
+    if (takePrimaryPointerCancellation(input)) mouse.cancelled = true;
+    pointers.push(mouse);
     return pointers;
 }
 
 export class UiPointerBook {
     private hoveredBy_ = new Map<number, Entity>();
     private pressedBy_ = new Map<number, Entity>();
+    private cancelled_ = new Set<Entity>();
+
+    get cancelled(): ReadonlySet<Entity> { return this.cancelled_; }
 
     /** Entities at least one pointer is over. */
     get hovered(): ReadonlySet<Entity> {
@@ -122,10 +129,16 @@ export class UiPointerBook {
         alive: (entity: Entity) => boolean,
     ): UiPointerEvent[] {
         const out: UiPointerEvent[] = [];
+        this.cancelled_.clear();
         const live = new Set<number>();
 
         for (const p of pointers) {
             live.add(p.id);
+            if (p.cancelled) {
+                const held = this.pressedBy_.get(p.id);
+                if (held !== undefined) this.cancelled_.add(held);
+                this.pressedBy_.delete(p.id);
+            }
             const under = hit(p);
 
             const was = this.hoveredBy_.get(p.id) ?? null;
@@ -137,7 +150,7 @@ export class UiPointerBook {
                 else this.hoveredBy_.set(p.id, now);
             }
 
-            if (p.pressed && under !== null) {
+            if (p.pressed && !p.cancelled && under !== null) {
                 this.pressedBy_.set(p.id, under);
                 out.push({ kind: 'press', entity: under, pointer: p.id });
             }
@@ -183,6 +196,7 @@ export class UiPointerBook {
 
     /** Forget every pointer — a realm tearing its UI down owes no events. */
     clear(): void {
+        this.cancelled_.clear();
         this.hoveredBy_.clear();
         this.pressedBy_.clear();
     }

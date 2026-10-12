@@ -35,6 +35,48 @@ describe('inputEventCallbacks', () => {
         expect(state.isMouseButtonDown(0)).toBe(false);
         expect(state.isMouseButtonReleased(0)).toBe(true);
     });
+    it('a consumed key release clears held state without forwarding a release edge', () => {
+        const cb = inputEventCallbacks(state); cb.onKeyDown('ArrowRight');
+        const off = inputRouter.setEditorHandler({ onKeyUp: () => true });
+        try {
+            cb.onKeyUp('ArrowRight');
+            expect(state.isKeyDown('ArrowRight')).toBe(false);
+            expect(state.isKeyReleased('ArrowRight')).toBe(false);
+            state.beginFixedStep(); expect(state.isKeyReleased('ArrowRight')).toBe(false); state.endFixedStep();
+        } finally { off(); }
+    });
+    it('a consumed mouse release stops holding the button without a gameplay release edge', () => {
+        const cb = inputEventCallbacks(state); cb.onPointerDown(0, 1, 2);
+        const off = inputRouter.setUIHandler({ onPointerUp: () => true });
+        try {
+            cb.onPointerUp(0);
+            expect(state.isMouseButtonDown(0)).toBe(false);
+            expect(state.isMouseButtonReleased(0)).toBe(false);
+            state.beginFixedStep(); expect(state.isMouseButtonReleased(0)).toBe(false); state.endFixedStep();
+        } finally { off(); }
+    });
+    it.each(['onTouchEnd', 'onTouchCancel'] as const)('a consumed %s retires its live touch without an end edge', kind => {
+        const cb = inputEventCallbacks(state); cb.onTouchStart?.(1, 10, 20); cb.onTouchStart?.(2, 30, 40);
+        const off = inputRouter.setUIHandler({ [kind]: () => true });
+        try {
+            cb[kind]?.(1);
+            expect(state.isTouchActive(1)).toBe(false);
+            expect(state.isTouchActive(2)).toBe(true);
+            expect(state.touchesEnded.has(1)).toBe(false);
+        } finally { off(); }
+    });
+    it('does not manufacture release edges for presses owned by the editor', () => {
+        const cb = inputEventCallbacks(state);
+        const off = inputRouter.setEditorHandler({ onKeyDown: () => true, onPointerDown: () => true, onTouchStart: () => true });
+        try { cb.onKeyDown('Space'); cb.onPointerDown(0, 0, 0); cb.onTouchStart?.(3, 0, 0); }
+        finally { off(); }
+        cb.onTouchMove?.(3, 10, 20);
+        expect(state.isTouchActive(3)).toBe(false);
+        cb.onKeyUp('Space'); cb.onPointerUp(0); cb.onTouchEnd?.(3);
+        expect(state.isKeyReleased('Space')).toBe(false);
+        expect(state.isMouseButtonReleased(0)).toBe(false);
+        expect(state.touchesEnded.size).toBe(0);
+    });
 
     it('tracks the cursor on a move without pressing anything', () => {
         const cb = inputEventCallbacks(state);

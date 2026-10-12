@@ -3,6 +3,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { webAdapter } from '../src/platform/web';
 import { createWebTextEditor } from '../src/platform/webTextEditor';
+import { InputState, inputEventCallbacks } from '../src/input/input';
+import { inputRouter } from '../src/input/inputRouter';
 
 function bind() {
   const canvas = document.createElement('canvas');
@@ -25,6 +27,17 @@ afterEach(() => {
 });
 
 describe('Web keyboard handoff', () => {
+  it('blur clears a gameplay key even when the editor claims the release', () => {
+    const canvas = document.createElement('canvas'); document.body.appendChild(canvas);
+    const state = new InputState(); webAdapter.bindInputEvents(inputEventCallbacks(state), canvas);
+    key(document.body, 'ArrowRight'); expect(state.isKeyDown('ArrowRight')).toBe(true);
+    const off = inputRouter.setEditorHandler({ onKeyUp: () => true });
+    try {
+      window.dispatchEvent(new Event('blur'));
+      expect(state.isKeyDown('ArrowRight')).toBe(false);
+      expect(state.isKeyReleased('ArrowRight')).toBe(false);
+    } finally { off(); }
+  });
   it('cancels defaults only when the callback claims the key', () => {
     const callbacks = bind();
     expect(key(document.body, 'Tab').defaultPrevented).toBe(true);
