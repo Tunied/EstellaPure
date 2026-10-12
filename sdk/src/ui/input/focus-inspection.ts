@@ -9,8 +9,7 @@ import { UIDialog, isDialogOpen } from '../behavior/dialog';
 import { walkParentChain } from '../util/helpers';
 
 /** Read-only scene queries needed to inspect focus. @experimental */
-export type FocusInspectionWorld = Pick<World, 'getWasmModule' | 'getCppRegistry' | 'getEntitiesWithComponents' | 'valid' | 'has' | 'get'>
-    & Partial<Pick<World, 'isEntityActive'>>;
+export type FocusInspectionWorld = Pick<World, 'getWasmModule' | 'getCppRegistry' | 'getEntitiesWithComponents' | 'valid' | 'has' | 'get'>;
 
 /** Why a focusable is absent from the current Tab ring. @experimental */
 export type FocusSkipReason = 'disabled' | 'hidden' | 'outside-dialog';
@@ -64,7 +63,7 @@ function skipReason(world: FocusInspectionWorld, entity: Entity,
 }
 
 /** Check a single target without sorting the entire Tab ring. */
-export function isFocusEligible(world: FocusInspectionWorld, entity: Entity): boolean {
+export function isFocusEligible(world: FocusInspectionWorld & Partial<Pick<World, 'isEntityActive'>>, entity: Entity): boolean {
     if (!world.valid(entity) || !world.has(entity, Focusable)) return false;
     const active = world.isEntityActive
         ? world.isEntityActive(entity)
