@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Static UI layout preserves composed world transforms.** Clean early and late layout passes keep the transform cache valid, and the SDK composes through the shared change-aware path. Moving a screen box, changing layout properties, tweening, and structural edits still invalidate the affected composition.
+
 - **Touch hit caches release ended pointer IDs.** Long-running touch sessions retain only the pointers present in the current input frame, including release-frame results needed by quick taps, instead of accumulating every historical finger ID.
 
 - **Pointer callbacks cancel invalid UI interactions immediately.** Disabling or deleting a control during hover, press or release stops later events from the same batch. Invalidated captures and interaction edges clear in the same frame, so re-enabling a button does not complete an old press.

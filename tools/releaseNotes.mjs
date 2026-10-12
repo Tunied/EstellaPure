@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(ui): preserve transform composition across clean layout passes':
+    { note: 'Static UI layout preserves composed world transforms.' },
   'fix(ui): bound hit caches to live pointer frames':
     { note: 'Touch hit caches release ended pointer IDs.' },
   'fix(ui): cancel pointer events invalidated by callbacks':

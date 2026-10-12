@@ -537,10 +537,6 @@ void UISystem::layoutUpdate(
     // touched, which hid the aliasing by throwing the stale state away.
     if (layoutCache_ && lastRegistryId_ != registry.instanceId()) layoutCache_.reset();
     lastRegistryId_ = registry.instanceId();
-    // This pass writes Transform.position for every laid-out node, so the
-    // composition it feeds is stale afterwards. Once per pass, not per node:
-    // the epoch answers "is it stale", never "how many moved".
-    invalidateTransformComposition();
     if (!layoutCache_) {
         layoutCache_ = std::make_unique<LayoutCache>();
         layoutPrimed_ = false;  // a fresh cache has no hierarchy to reuse
@@ -582,9 +578,15 @@ void UISystem::layoutUpdate(
               || animNow || wasAnimActive;
     layoutPrimed_ = true;
     if (!dirty) {
-        if (centerChanged) placeScreenRoots(registry, tree, *layoutCache_, box);
+        if (centerChanged) {
+            invalidateTransformComposition();
+            placeScreenRoots(registry, tree, *layoutCache_, box);
+        }
         return;
     }
+
+    // Only a pass that may write local transforms invalidates their composition.
+    invalidateTransformComposition();
 
     // Two signals, because they answer different questions. The hierarchy has to
     // be rebuilt when the tree's SHAPE changed. Output has to be written for

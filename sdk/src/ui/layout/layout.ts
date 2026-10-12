@@ -78,7 +78,7 @@ export class UILayoutPlugin implements Plugin {
                 screen.right, screen.top,
                 propertyDirty(),
             );
-            engine?.transform_update?.(registry);
+            world.ensureTransformsComposed();
             layoutGen.generation++;
         };
 
