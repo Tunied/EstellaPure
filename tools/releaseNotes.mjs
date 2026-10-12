@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(sdk): resolve spawned entities before tracking scene ownership':
+    { note: 'Scene assets have scoped ownership.' },
   'Fix engine activity, asset ownership and material rendering':
     { note: 'Entity activity follows the hierarchy.' },
   'Strengthen import and native release verification':

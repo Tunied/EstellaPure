@@ -646,7 +646,8 @@ export const Material = {
      * readback fails.
      */
     async renderPreview(material: MaterialHandle, w: number, h: number): Promise<ImageData | null> {
-        const m = previewCore(module);
+        const connected = module;
+        const m = previewCore(connected);
         const data = materials.get(material);
         if (!m || !data) return null;
         const held: TextureLease[] = [];
@@ -654,7 +655,7 @@ export const Material = {
             return await drawPreview(m, () => {
                 // IDs can be reused after reconnect. Check both identities at
                 // submission time, once the shared readback queue reaches us.
-                if (module !== m || materials.get(material) !== data) return false;
+                if (module !== connected || materials.get(material) !== data) return false;
                 const seen = new Set<number>(); let handle: number | undefined = material;
                 while (handle !== undefined && !seen.has(handle)) {
                     seen.add(handle);

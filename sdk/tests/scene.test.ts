@@ -8,6 +8,7 @@ import { INVALID_ENTITY } from '../src/types';
 import {
     loadSceneData,
     loadSceneWithAssets,
+    loadOwnedSceneWithAssets,
     resetWorldTo,
     loadComponent,
     remapEntityFields,
@@ -59,6 +60,19 @@ describe('Scene', () => {
         world = new World();
         world.connectCpp(module.getRegistry(), module);
         initResourceManager(module.getResourceManager());
+    });
+
+    it.each([loadSceneWithAssets, loadOwnedSceneWithAssets])('registers resolved entity ownership through %s', async (load) => {
+        const track = vi.fn((_scene, entities: ReadonlyMap<number, Entity>) => {
+            expect(entities).toBeInstanceOf(Map);
+            expect(world.valid(entities.get(7)!)).toBe(true);
+        });
+        const assets = { preloadSceneAssets: vi.fn(async () => ({missing: [], textureHandles: new Map()})),
+            resolveSceneAssetPaths: vi.fn(), trackSceneAssetReferences: track };
+        const data = {version:4,name:'Tracked',entities:[{id:7,name:'Owner',parent:null,children:[],visible:true,components:[]}]};
+        const entities = await load(world, data as SceneData, {assets: assets as never});
+        expect(track).toHaveBeenCalledTimes(1);
+        expect(track.mock.calls[0][1]).toBe(entities);
     });
 
     describe('serialize detaches from live storage', () => {

@@ -659,7 +659,7 @@ async function loadSceneAssetsAndSpawn(
             }
         }
     }
-    const entities = timed('spawn', () => spawnAndLoadEntities(world, data, options?.externalEntities, options?.onPhase));
+    const entities = await timed('spawn', () => spawnAndLoadEntities(world, data, options?.externalEntities, options?.onPhase));
     options?.assets?.trackSceneAssetReferences(data, entities);
     return entities;
 }
