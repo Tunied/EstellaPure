@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(audio): guard reused pool nodes from retired handles':
+    { note: 'Retired WebAudio handles cannot modify reused pool nodes.' },
   'fix(audio): retain paused voice ownership and tracked base gains':
     { note: 'Paused voices remain owned by the audio API.' },
   'fix(audio): preserve playback position across rate changes':

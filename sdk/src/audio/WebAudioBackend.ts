@@ -47,7 +47,7 @@ class WebAudioHandle implements AudioHandle {
 
     private bindOnEnded_(source: AudioBufferSourceNode): void {
         source.onended = () => {
-            if (!this.stopped_ && !this.loop_) {
+            if (!this.stopped_ && this.playing_ && source === this.source_ && !this.loop_) {
                 this.playing_ = false;
                 this.stopped_ = true;
                 this.pool_.release(this.poolNode_);
@@ -97,10 +97,12 @@ class WebAudioHandle implements AudioHandle {
     }
 
     setVolume(volume: number): void {
+        if (this.stopped_) return;
         this.poolNode_.gain.gain.value = volume;
     }
 
     setPan(pan: number): void {
+        if (this.stopped_) return;
         this.poolNode_.panner.pan.value = pan;
     }
 

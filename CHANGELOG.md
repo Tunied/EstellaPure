@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Retired WebAudio handles cannot modify reused pool nodes.** Gain and pan writes from stopped or completed handles are ignored, preserving the next voice's mix. Completion callbacks are checked against the currently playing source, so an old source cannot release the pool slot of a resumed voice.
+
 - **Paused voices remain owned by the audio API.** Paused handles retain their voice-budget slot, bus volume and mute updates, and disposal cleanup; stolen paused voices cannot resume outside the budget. Handle volume edits update the tracked base gain, fades stay associated with managed handles, and ended ramps stop writing to released backend voices.
 
 - **WebAudio position stays continuous across playback-rate changes.** Rate edits anchor the accumulated position before applying the new rate, so pause/resume and loop offsets use the time actually played at each rate. A rate rejected by the backend leaves the existing clock intact; paused edits apply when playback resumes.

@@ -264,6 +264,19 @@ describe('WebAudioBackend', () => {
     });
 
     describe('play', () => {
+        it.each(['stopped', 'ended'])('a %s handle cannot change gain or pan of a reused pool node', async kind => {
+            const { bufferHandle, mockCtx } = await initAndLoadBuffer(backend);
+            const old = backend.play(bufferHandle, {});
+            const first = mockCtx.createBufferSource.mock.results.at(-1).value;
+            const gain = first.connect.mock.calls[0][0];
+            const panner = gain.connect.mock.calls[0][0];
+            if (kind === 'stopped') old.stop(); else first.onended();
+            backend.play(bufferHandle, { volume: .7, pan: .3 });
+            const next = mockCtx.createBufferSource.mock.results.at(-1).value;
+            expect(next.connect.mock.calls[0][0]).toBe(gain);
+            old.setVolume(.1); old.setPan(-.9);
+            expect(gain.gain.value).toBe(.7); expect(panner.pan.value).toBe(.3);
+        });
         it('should create source, connect to bus, and start', async () => {
             const { bufferHandle, mockCtx } = await initAndLoadBuffer(backend);
             const audioHandle = backend.play(bufferHandle, { volume: 0.8, bus: 'sfx' });
@@ -311,6 +324,14 @@ describe('WebAudioBackend', () => {
     });
 
     describe('pause/resume', () => {
+        it('a retired source completion cannot end a resumed voice', async () => {
+            const { bufferHandle, mockCtx } = await initAndLoadBuffer(backend);
+            const h = backend.play(bufferHandle, {});
+            const oldSource = mockCtx.createBufferSource.mock.results.at(-1).value;
+            const completed = oldSource.onended;
+            mockCtx.currentTime = .25; h.pause(); h.resume(); completed();
+            expect(h.isPlaying).toBe(true);
+        });
         it('rate changes keep the accumulated position continuous', async () => {
             const { bufferHandle, mockCtx } = await initAndLoadBuffer(backend);
             const handle = backend.play(bufferHandle, {});
