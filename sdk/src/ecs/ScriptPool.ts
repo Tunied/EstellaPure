@@ -436,8 +436,9 @@ export class ScriptPool {
 
     private writeValue_(slot: number, index: number, at: number, value: unknown): void {
         this.ensureCurrent_();
-        if (typeof value === 'string' && this.fields[index].kind === 'number'
-            && this.assetRefs_?.fields().some(f => f.field === this.fields[index].name)) {
+        const field = this.fields[index];
+        if (typeof value === 'string' && field?.kind === 'number'
+            && this.assetRefs_?.fields().some(f => f.field === field.name)) {
             this.refs_ ??= new Map();
             let refs = this.refs_.get(slot);
             if (!refs) {

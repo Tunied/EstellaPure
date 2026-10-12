@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(sdk): keep indexed access valid for strict consumers':
+    { internal: 'Preserves supported pool and cleanup behavior while satisfying strict compiler consumer type checks.' },
   'fix(sdk): resolve spawned entities before tracking scene ownership':
     { note: 'Scene assets have scoped ownership.' },
   'Fix engine activity, asset ownership and material rendering':
