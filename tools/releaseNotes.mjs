@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'chore(release): verify installed editor upgrades before publishing':
+    { internal: 'Release acceptance installs the previous and candidate packages on clean CI hosts and verifies saved project continuity before publication; editor and runtime behavior are unchanged.' },
   'fix(editor): keep camera preview refresh within its CPU budget':
     { note: 'Camera previews keep a conservative CPU budget.' },
   'fix(release): publish a verified frame of the exported sample':

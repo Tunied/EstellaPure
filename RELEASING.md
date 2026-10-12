@@ -95,6 +95,8 @@ gh run download $candidateRun --repo esengine/estella --pattern 'native-template
 每项写 PASS、FAIL 或 UNANSWERED，附证据和平台。缺设备或缺工具属于 UNANSWERED。
 关键功能失败须修复；纯测试环境问题只有在同一问题被另一种有效验证覆盖、并记录原因和结果后才能放行。
 
+候选打包的 Windows/macOS job 还会在干净主机上安装上一正式版本，保存并重新打开 2D 项目，再从候选 NSIS/DMG 升级同一安装位置。`installed-upgrade-*` 产物记录升级前后场景、启动日志和结果；检查保留实体顺序、Prefab 数据及 Play/Stop 后的保存内容，并在实际安装程序上运行编辑器端到端和 Web 导出。它不代替上面的 OS 焦点、输入与真机验收，也不证明自动更新通道的网络下载流程。
+
 ## 4. 推送标签并正式发布
 
 验收完成后，在同一冻结检出确认版本号、两仓库状态、远端 master 和 gitlink。
