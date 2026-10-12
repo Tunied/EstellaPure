@@ -54,8 +54,10 @@ describe('component asset validation reads current metadata',()=>{
         const view=w.get(entity,comp),address=w.addressResolver(comp),epoch=w.scriptLayoutEpoch();
         expect(view.texture).toBe('@uuid:first');expect(address(entity)).toBeUndefined();
         (view as unknown as {texture:unknown}).texture=11;
+        w.set(entity,comp,view);
         expect(address(entity)).toBeDefined();expect(w.scriptLayoutEpoch()).toBeGreaterThan(epoch);
         (view as unknown as {texture:unknown}).texture='@uuid:second';
+        w.set(entity,comp,view);
         expect(address(entity)).toBeUndefined();
         for(let i=0;i<70;i++)w.insert(w.spawn(),comp,{texture:i,count:i});
         expect(view.texture).toBe('@uuid:second');expect(view.count).toBe(7);
@@ -73,7 +75,7 @@ describe('component asset validation reads current metadata',()=>{
         const comp=defineComponent('PooledMultipleAssetReferences',{first:0,second:0},{assetFields:[{field:'first',type:'texture'},{field:'second',type:'texture'}]}),w=new World(),entity=w.spawn();
         w.insert(entity,comp,{first:'@uuid:first',second:'@uuid:second'} as never);
         const data=w.get(entity,comp) as unknown as {first:unknown;second:unknown},address=w.addressResolver(comp);
-        data.first=5;expect(address(entity)).toBeUndefined();expect(data.second).toBe('@uuid:second');
-        data.second=7;expect(address(entity)).toBeDefined();
+        data.first=5;w.set(entity,comp,data as never);expect(address(entity)).toBeUndefined();expect(data.second).toBe('@uuid:second');
+        data.second=7;w.set(entity,comp,data as never);expect(address(entity)).toBeDefined();
     });
 });

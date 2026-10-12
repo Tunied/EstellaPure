@@ -90,6 +90,8 @@ export const CENSUS_FLOOR = '0.60.0';
  * that does not exist, and release notes are a different act. Theirs is ungated.
  */
 export const SHIPPED = {
+  'Material state can be applied as one complete snapshot':
+    { notCertifiable: 'an SDK mutation and ownership contract; sdk/tests/material.test.ts, material-texture-leases.test.ts and the material-live-textures editor check hold snapshots, lifetime and saved Play parity' },
   // — 0.77.0 —
   "Text input hints can follow the game's language":
     { notCertifiable: 'no golden project authors a localized placeholder yet; sdk/tests/ui-text-input-view.test.ts holds placeholder localization and invalidation' },

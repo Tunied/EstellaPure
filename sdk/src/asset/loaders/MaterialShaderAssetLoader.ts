@@ -21,7 +21,7 @@ export class MaterialShaderSource {
         return handle;
     }
 
-    release(): void {
+    dispose(): void {
         const handles = [...this.programs_.values()];
         this.programs_.clear();
         disposeAll(handles, handle => Material.releaseShader(handle));
@@ -44,5 +44,5 @@ export class MaterialShaderAssetLoader implements AssetLoader<MaterialShaderSour
         return new MaterialShaderSource(path, source);
     }
 
-    unload(source: MaterialShaderSource): void { source.release(); }
+    unload(source: MaterialShaderSource): void { source.dispose(); }
 }

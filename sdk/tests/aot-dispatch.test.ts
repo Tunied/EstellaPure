@@ -134,7 +134,7 @@ describe('the scheduler and its compiled twin', () => {
         b.world.set(second,b.Decay,{remaining:1,rate:0.1});b.runner.run(system);
         expect(systems.calls).toBe(1);expect((b.world.get(first,b.Decay) as {remaining:number}).remaining).toBeCloseTo(0.9);
         // A cached row table must become invalid when a live view gains a ref.
-        (b.world.get(first,b.Decay) as {remaining:unknown}).remaining='@uuid:later';b.runner.run(system);
+        b.world.update(first,b.Decay,data=>{(data as unknown as {remaining:unknown}).remaining='@uuid:later';});b.runner.run(system);
         expect(systems.calls).toBe(1);expect(seen.slice(2)).toEqual(['@uuid:later',0.9]);
         expect(heap.staticsIntact()).toBe(true);
     });

@@ -47,10 +47,13 @@ export const DUTIES = [
         // memory so this side writes the table, and a loading host packs its own
         // and is told where the script pools are.
         web: ['runtime.addresses.componentNamed', 'runtime.ctx.build'],
-        native: ['world.scriptSpanOf', 'bindings.scriptRows'],
+        native: ['world.scriptSpanOf', 'bindings.scriptRows', 'world.addressResolver', 'world.hasPortableScriptAssetRefs'],
         differential: {
             web: [{ path: 'sdk/tests/aot-conformance.test.ts', probe: /twins\.trace\[f\]/ }],
-            native: [{ path: 'tools/verify-native-conformance.mjs', probe: /disagrees at frame/ }],
+            native: [
+                { path: 'tools/verify-native-conformance.mjs', probe: /disagrees at frame/ },
+                { path: 'sdk/tests/aot-native-install.test.ts', probe: /interprets every matching row with a portable asset ref/ },
+            ],
         },
     },
     {
@@ -204,6 +207,8 @@ export const DUTIES = [
  * excuse is.
  */
 export const BOOKKEEPING = {
+    'assetQueries_.get': 'per-twin query declaration cache; no entity rows or resource receipts are held',
+    'assetQueries_.set': 'refreshing query address resolvers when script layout metadata changes',
     'plans.get': 'the per-system plan cache, which only this road has',
     'plans.set': 'the per-system plan cache, which only this road has',
     'plans.clear': 'dropping the plans on reset',

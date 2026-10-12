@@ -54,7 +54,7 @@ describe.skipIf(!HAS_WASM)('owned prefab records retain scene-loader behavior', 
             expect(world.get(first.root, Payload).target).toBe(first.entities.get(1));
             expect(world.get(second.root, Payload).target).toBe(second.entities.get(1));
             expect(world.get(first.root, Transform).position.x).toBe(7);
-            world.get(first.root, Payload).payload.values.push(12);
+            world.update(first.root, Payload, data => { data.payload.values.push(12); });
             expect(world.get(second.root, Payload).payload.values).toEqual([3, 4]);
             expect(JSON.stringify({ prefab, overrides })).toBe(original);
         } finally { for (const e of world.getAllEntities()) if (world.valid(e)) world.despawn(e); }

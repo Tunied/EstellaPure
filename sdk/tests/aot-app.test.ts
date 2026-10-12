@@ -74,7 +74,8 @@ describe('an App told to run its compiled twins', () => {
         try {
             await app.tick(1/60);expect(held.alpha).toBeCloseTo(0.09);expect(app.compiledSystems.calls).toBe(1);
             host.grow();expect(address(entities[0]!)).toBe(before);
-            held.alpha=0.5;await app.tick(1/60);expect(held.alpha).toBeCloseTo(0.49);
+            held.alpha=0.5;app.world.set(entities[0]!,Fade,held as never);
+            await app.tick(1/60);expect(held.alpha).toBeCloseTo(0.49);
             expect(app.compiledSystems.calls).toBe(2);expect(host.staticsIntact()).toBe(true);
         }finally{app.quit({keepRenderer:true});}
     });
