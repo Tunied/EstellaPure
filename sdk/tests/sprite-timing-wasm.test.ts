@@ -65,7 +65,8 @@ describe.skipIf(!HAS_WASM)('sprite timing on real WASM', () => {
         const value = clip(false); value.frames = [{ texture: 1 }]; value.events = [{ frame: 0, name: 'zero' }];
         const entity = spawn(value), events: string[] = []; api.onEvent(entity, event => events.push(event.name));
         api.update(world, 0); api.update(world, .125);
-        world.get(entity, SpriteAnimator).playing = true; api.update(world, 0); api.update(world, 0);
+        world.update(entity, SpriteAnimator, animator => { animator.playing = true; });
+        api.update(world, 0); api.update(world, 0);
         expect(events).toEqual(['zero', 'zero']);
     });
 
