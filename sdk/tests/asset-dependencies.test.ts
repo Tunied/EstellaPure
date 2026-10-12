@@ -22,7 +22,7 @@ import '../src/logic';
 import { World } from '../src/ecs/world';
 import { Sprite } from '../src/ecs/component';
 import { spawnPrepared, preparePrefab } from '../src/prefab/preparedPrefab';
-import { loadWasmModule } from './helpers/loadWasm';
+import { HAS_WASM, loadWasmModule } from './helpers/loadWasm';
 import type { ESEngineModule, CppRegistry } from '../src/wasm';
 
 // The tilemap loaders come with the subsystem now, not with the asset
@@ -142,7 +142,7 @@ function realm(docs: Record<string, string>): Assets {
     return assets;
 }
 
-describe('spawned prefab entities own their resource generations', () => {
+describe.skipIf(!HAS_WASM)('spawned prefab entities own their resource generations', () => {
     let core: ESEngineModule;
     beforeAll(async () => { core = await loadWasmModule(); });
     beforeEach(() => { pool = createPoolFake(); materialFake.reset(); seedEngineComponents(); });
