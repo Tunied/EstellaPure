@@ -231,15 +231,9 @@
   "tests/ui-anchor-preset.test.ts": {
     "TS2322|Type '{ position: number; display?: number | undefined; opacity?: number | undefined; pointerEvents?: number | undefined; width: Dimension; height: Dimension; ... 15 more ...; insetBottom: Dimension; }' is not assignable to type 'UINodeData'.": 1
   },
-  "tests/ui-drag-plugin.test.ts": {
-    "TS2322|Type 'null' is not assignable to type 'Vec2 | undefined'.": 2
-  },
   "tests/ui-layout-incremental.test.ts": {
     "TS2322|Type '{ position: number; display?: number | undefined; opacity?: number | undefined; pointerEvents?: number | undefined; width: Dimension; height: Dimension; ... 15 more ...; insetBottom: Dimension; }' is not assignable to type 'UINodeData'.": 1,
     "TS2352|Conversion of type 'FlexContainerData' to type 'Record<string, unknown>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.": 1
-  },
-  "tests/ui-slider-dropdown.test.ts": {
-    "TS2724|'\"../src/ui\"' has no exported member named 'UIRect'. Did you mean 'Rect'?": 1
   },
   "tests/utf8.test.ts": {
     "TS2307|Cannot find module '../src/util/utf8?fallback' or its corresponding type declarations.": 1
