@@ -3,6 +3,12 @@
 # doctest header-only framework
 include_directories(${CMAKE_SOURCE_DIR}/third_party/doctest)
 
+# Match the shipped WASM heap policy for every standalone harness. Deep
+# hierarchy stress needs more than Emscripten's fixed default heap.
+if(EMSCRIPTEN)
+    add_link_options(-sALLOW_MEMORY_GROWTH=1)
+endif()
+
 # ECS tests
 add_executable(test_skeletal_batch_color renderer/test_skeletal_batch_color.cpp)
 target_include_directories(test_skeletal_batch_color PRIVATE ${CMAKE_SOURCE_DIR}/src)
