@@ -435,11 +435,19 @@ const SCENE = flag('scene', '');
   }
 
   if (RENDER) {
-    // Engaging the counters takes a frame to fill them, so ask twice and keep
-    // the second: the first reading is of the frame that turned them on.
+    // A software-rendered frame can take longer than a timer. Wait for two
+    // animation callbacks so the engine completes a frame after profiling starts.
     await win.webContents.executeJavaScript('window.__estellaCooked?.render() ?? null')
       .catch(() => null);
-    await new Promise((r) => setTimeout(r, 250));
+    await win.webContents.executeJavaScript(`
+      new Promise((resolve, reject) => {
+        const deadline = setTimeout(() => reject(new Error('renderer counters: no completed frame')), ${TIMEOUT});
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          clearTimeout(deadline);
+          resolve();
+        }));
+      })
+    `).catch((e) => errors.push(String(e)));
     const seen = await win.webContents.executeJavaScript(
       'window.__estellaCooked?.render() ?? null',
     ).catch((e) => ({ error: String(e) }));

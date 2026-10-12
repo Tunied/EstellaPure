@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(verification): read renderer counters after a completed frame':
+    { internal: 'Packaged-game acceptance waits for actual render frames before reading counters and separates Windows Electron app arguments; shipping engine and editor behavior are unchanged.' },
   'fix(native): keep authored UI inside live device safe areas':
     { note: 'Native UI follows the device safe area.' },
   'chore(release): isolate compositor capture and preserve GPU diagnostics':

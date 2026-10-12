@@ -79,7 +79,11 @@ function electronCommand(args, { via, env, ...options }) {
   const [cmd, ...rest] = NEEDS_XVFB
     ? ['xvfb-run', '-a', '--server-args', SCREEN, ...electron]
     : electron;
-  return [cmd, [...rest, ...args], {
+  // Windows Electron treats colon-bearing app arguments as protocol launches
+  // unless its own argument parser stops at an explicit separator.
+  const appArgs = process.platform === 'win32' && args[0] && !args[0].startsWith('-')
+    ? [args[0], '--', ...args.slice(1)] : args;
+  return [cmd, [...rest, ...appArgs], {
     ...options,
     env: { ...process.env, ELECTRON_DISABLE_SANDBOX: '1', ...env },
   }];
