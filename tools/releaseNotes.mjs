@@ -28,6 +28,10 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(tilemap): keep palette selection and reuse loaded assets':
+    { note: 'Tilemap palette refresh keeps the selected tileset.' },
+  'fix(editor): sync tilemap palette refresh changes':
+    { note: 'Tilemap palette refresh keeps the selected tileset.' },
   'fix(docs): restore the original README showcase':
     { note: 'The website keeps its original editor showcase.' },
   'fix(site): restore the original editor showcase':
