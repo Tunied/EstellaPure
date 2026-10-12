@@ -140,6 +140,10 @@ export class NativePlatformAdapter implements PlatformAdapter {
         return this.bridge_.devicePixelRatio();
     }
 
+    safeAreaInsets(): { top: number; bottom: number; left: number; right: number } {
+        return this.bridge_.safeAreaInsets?.() ?? { top: 0, bottom: 0, left: 0, right: 0 };
+    }
+
     language(): string {
         // platformLanguage() normalizes underscores ('zh_CN' → 'zh-CN').
         return this.bridge_.language?.() ?? 'en';

@@ -34,18 +34,7 @@
       "name": "Canvas",
       "parent": null,
       "children": [
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12,
-        13
+        14
       ],
       "visible": true,
       "components": [
@@ -72,7 +61,7 @@
     {
       "id": 2,
       "name": "Title",
-      "parent": 1,
+      "parent": 14,
       "children": [],
       "visible": true,
       "components": [
@@ -122,7 +111,7 @@
     {
       "id": 3,
       "name": "English",
-      "parent": 1,
+      "parent": 14,
       "children": [],
       "visible": true,
       "components": [
@@ -174,7 +163,7 @@
     {
       "id": 4,
       "name": "Chinese",
-      "parent": 1,
+      "parent": 14,
       "children": [],
       "visible": true,
       "components": [
@@ -224,7 +213,7 @@
     {
       "id": 5,
       "name": "Japanese",
-      "parent": 1,
+      "parent": 14,
       "children": [],
       "visible": true,
       "components": [
@@ -274,7 +263,7 @@
     {
       "id": 6,
       "name": "Korean",
-      "parent": 1,
+      "parent": 14,
       "children": [],
       "visible": true,
       "components": [
@@ -324,7 +313,7 @@
     {
       "id": 7,
       "name": "Arabic — shaping unverified",
-      "parent": 1,
+      "parent": 14,
       "children": [],
       "visible": true,
       "components": [
@@ -374,7 +363,7 @@
     {
       "id": 8,
       "name": "Thai — shaping unverified",
-      "parent": 1,
+      "parent": 14,
       "children": [],
       "visible": true,
       "components": [
@@ -424,7 +413,7 @@
     {
       "id": 9,
       "name": "Wrapped paragraph",
-      "parent": 1,
+      "parent": 14,
       "children": [],
       "visible": true,
       "components": [
@@ -475,7 +464,7 @@
     {
       "id": 10,
       "name": "Preview status",
-      "parent": 1,
+      "parent": 14,
       "children": [],
       "visible": true,
       "components": [
@@ -525,7 +514,7 @@
     {
       "id": 11,
       "name": "LocaleButton",
-      "parent": 1,
+      "parent": 14,
       "children": [],
       "visible": true,
       "components": [
@@ -600,7 +589,7 @@
     {
       "id": 12,
       "name": "PseudoButton",
-      "parent": 1,
+      "parent": 14,
       "children": [],
       "visible": true,
       "components": [
@@ -675,7 +664,7 @@
     {
       "id": 13,
       "name": "WidthButton",
-      "parent": 1,
+      "parent": 14,
       "children": [],
       "visible": true,
       "components": [
@@ -744,6 +733,42 @@
             "tabIndex": 0
           },
           "type": "Focusable"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "name": "Safe Content",
+      "parent": 1,
+      "children": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "UINode",
+          "data": {
+            "position": 1
+          }
+        },
+        {
+          "type": "SafeArea",
+          "data": {}
         }
       ]
     }

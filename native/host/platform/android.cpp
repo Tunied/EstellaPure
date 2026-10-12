@@ -167,6 +167,15 @@ void performHttp(JNIEnv* env, const eshost::FetchRequest& req, eshost::FetchResu
 struct AndroidPlatform final : eshost::Platform {
     AAssetManager* assets = nullptr;        // APK assets/ — the game + its content
     ANativeWindow* window = nullptr;
+    ARect contentRect{};
+
+    SafeInsets safeAreaInsets() const override {
+        if (!window || contentRect.right <= contentRect.left || contentRect.bottom <= contentRect.top) return {};
+        const int width = ANativeWindow_getWidth(window), height = ANativeWindow_getHeight(window);
+        const auto clamp = [](int value, int limit) { return (float)(value < 0 ? 0 : value > limit ? limit : value); };
+        return { clamp(contentRect.top, height), clamp(height - contentRect.bottom, height),
+                 clamp(contentRect.left, width), clamp(width - contentRect.right, width) };
+    }
     JavaVM* vm = nullptr;                    // for JNI HttpURLConnection off-thread
     std::string cache;                      // getCacheDir() — the system may reclaim it
     std::string data;                       // internalDataPath — files/, survives
@@ -493,6 +502,9 @@ void framesSurface(bool has);
 void framesResumed(bool is);
 
 void onAppCmd(android_app* app, int32_t cmd) {
+    // NativeActivity supplies a content rectangle in window pixels; the glue
+    // updates it before delivering CONTENT_RECT_CHANGED, including rotation.
+    g_platform.contentRect = app->contentRect;
     switch (cmd) {
         case APP_CMD_INIT_WINDOW:
             // First time: boot the engine. Afterwards (screen-on): just rebind the

@@ -654,6 +654,10 @@ export interface PlatformAdapter {
 
     devicePixelRatio(): number;
 
+    /** Live native content insets in framebuffer pixels, independent of DPR.
+     *  Absent on hosts without a safe-area source. */
+    safeAreaInsets?(): { top: number; bottom: number; left: number; right: number };
+
     getStorageItem(key: string): string | null;
     setStorageItem(key: string, value: string): void;
     removeStorageItem(key: string): void;

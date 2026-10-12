@@ -139,6 +139,18 @@ JSValue js_renderer_surfaceSize(JSContext* ctx, JSValueConst, int, JSValueConst*
     return o;
 }
 
+// OS content insets in the same pixel domain as the rendered surface.
+JSValue js_safeAreaInsets(JSContext* ctx, JSValueConst, int, JSValueConst*) {
+    const auto insets = hostAlive() && host().platform
+        ? host().platform->safeAreaInsets() : Platform::SafeInsets{};
+    JSValue o = JS_NewObject(ctx);
+    JS_SetPropertyStr(ctx, o, "top", JS_NewFloat64(ctx, insets.top));
+    JS_SetPropertyStr(ctx, o, "bottom", JS_NewFloat64(ctx, insets.bottom));
+    JS_SetPropertyStr(ctx, o, "left", JS_NewFloat64(ctx, insets.left));
+    JS_SetPropertyStr(ctx, o, "right", JS_NewFloat64(ctx, insets.right));
+    return o;
+}
+
 // es_setWindowSize(w, h): the project's design resolution, which only the SDK can
 // read (the window exists before any JS, and the host parses no JSON). A platform
 // that is GIVEN its screen ignores it.
@@ -173,6 +185,7 @@ void registerRenderBindings(HostState& h, JSValue global) {
     bindGlobal(h, global, "es_getTextureDimensions", js_getTextureDimensions, 1);
     bindGlobal(h, global, "es_rasterizeGlyph", js_rasterizeGlyph, 1);
     bindGlobal(h, global, "es_renderer_surfaceSize", js_renderer_surfaceSize, 0);
+    bindGlobal(h, global, "es_safeAreaInsets", js_safeAreaInsets, 0);
     bindGlobal(h, global, "es_setWindowSize", js_setWindowSize, 2);
     bindGlobal(h, global, "es_registry_getCameraEntities", js_registry_getCameraEntities, 0);
 }

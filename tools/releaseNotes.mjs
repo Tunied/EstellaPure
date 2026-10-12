@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(native): keep authored UI inside live device safe areas':
+    { note: 'Native UI follows the device safe area.' },
   'chore(release): isolate compositor capture and preserve GPU diagnostics':
     { internal: 'Release-only capture separates the virtual-display compositor from software WebGL, retains game-canvas/window images and logs, and continues to fail on any game error; runtime behavior is unchanged.' },
   'fix(editor): resolve the installed macOS executable from its bundle metadata':

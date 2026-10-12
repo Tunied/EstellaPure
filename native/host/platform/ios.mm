@@ -47,6 +47,8 @@ using esengine::WebGPUDevice;
 namespace {
 
 struct IOSPlatform final : eshost::Platform {
+    SafeInsets contentInsets;
+    SafeInsets safeAreaInsets() const override { return contentInsets; }
     CAMetalLayer* layer = nil;
     // Whoever owns the responder the keyboard talks to (the view controller); set
     // once it has loaded, which is also what makes hasTextEditor() true.
@@ -226,6 +228,9 @@ IOSPlatform g_platform;
     const BOOL resized = !CGSizeEqualToSize(layer.drawableSize, size);
     layer.drawableSize = size;
     g_platform.layer = layer;
+    const UIEdgeInsets insets = self.view.safeAreaInsets;
+    g_platform.contentInsets = { (float)(insets.top * scale), (float)(insets.bottom * scale),
+                                (float)(insets.left * scale), (float)(insets.right * scale) };
 
     // Boot on the first laid-out frame: Dawn needs a layer with a real size to
     // configure a surface against. Later layouts (rotation) just rebind.
@@ -237,6 +242,14 @@ IOSPlatform g_platform;
 }
 
 - (void)step:(CADisplayLink*)link { eshost::frame(); }
+
+- (void)viewSafeAreaInsetsDidChange {
+    [super viewSafeAreaInsetsDidChange];
+    const CGFloat scale = (self.view.window.screen ?: UIScreen.mainScreen).scale;
+    const UIEdgeInsets insets = self.view.safeAreaInsets;
+    g_platform.contentInsets = { (float)(insets.top * scale), (float)(insets.bottom * scale),
+                                (float)(insets.left * scale), (float)(insets.right * scale) };
+}
 
 - (void)appBackgrounded {
     _displayLink.paused = YES;

@@ -63,6 +63,8 @@ export interface NativeHostBindings {
     es_storageKeys?(): string[];
     /** Screen scale (1 when the host reports surface pixels directly). */
     es_devicePixelRatio?(): number;
+    /** OS content insets, already converted to the rendered surface pixel domain. */
+    es_safeAreaInsets?(): { top: number; bottom: number; left: number; right: number };
 
     /** The gamepads this frame, in the W3C standard layout. Absent on a host with
      *  no pads to report — a phone, where the SDK sees the same empty list a
@@ -242,6 +244,7 @@ export function createHostBridge(
             return () => { listener = null; };
         },
         devicePixelRatio: () => bindings.es_devicePixelRatio?.() ?? 1,
+        safeAreaInsets: () => bindings.es_safeAreaInsets?.() ?? { top: 0, bottom: 0, left: 0, right: 0 },
         // All-or-nothing: the host binds the whole surface or none of it, so one
         // probe decides rather than nine optional calls at every site.
         ...(bindings.es_steam_init

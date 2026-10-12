@@ -217,6 +217,8 @@ export interface NativeBridge {
     steam?: NativeSteamBridge;
 
     devicePixelRatio(): number;
+    /** Live content insets in surface pixels. Optional for older native hosts. */
+    safeAreaInsets?(): { top: number; bottom: number; left: number; right: number };
     /** High-resolution clock. Optional — falls back to the host's `performance.now()`,
      *  then `Date.now()`, whose whole milliseconds read sub-millisecond spans as 0. */
     now?(): number;

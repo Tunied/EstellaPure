@@ -423,6 +423,11 @@ Add `SafeArea` to a full-screen, absolutely-positioned `UINode` container and it
 insets track the platform safe area — notches, rounded corners, the WeChat capsule —
 with per-edge opt-outs. See **[Screen & Resolution](/docs/core-concepts/screen/)**.
 
+Native iOS and Android hosts supply live content insets in surface pixels,
+including landscape rotation and layout changes. Put the content container under
+the Canvas; the world and backgrounds can still fill the whole screen. The
+`ui-localization-debug` example authors this container around its text and controls.
+
 ## Theming
 
 Widget colors come from a shared token set with roles like `surface`, `control`,

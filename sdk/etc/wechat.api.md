@@ -5887,6 +5887,7 @@ readTextFile: (path: string) => Promise<string>
 registerFont: ((family: string, bytes: ArrayBuffer) => Promise<void>) | undefined
 removeStorageItem: (key: string) => void
 requestPayment: ((request: PlatformPaymentRequest) => Promise<void>) | undefined
+safeAreaInsets: (() => { top: number; bottom: number; left: number; right: number; }) | undefined
 screenRecorder: (() => PlatformScreenRecorder | null) | undefined
 setCloudKeyValues: ((entries: Readonly<Record<string, string>>) => boolean) | undefined
 setStorageItem: (key: string, value: string) => void

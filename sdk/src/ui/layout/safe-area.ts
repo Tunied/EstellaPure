@@ -6,7 +6,7 @@
  *          platform safe-area insets into UINode insets, co-located.
  */
 import type { App, Plugin } from '../../app/app';
-import { isWeChat, platformDevicePixelRatio } from '../../platform';
+import { getPlatform, isNative, isWeChat, platformDevicePixelRatio } from '../../platform';
 import { defineComponent, registerComponent } from '../../ecs/component';
 import { Res } from '../../ecs/resource';
 import { defineSystem, Schedule } from '../../ecs/system';
@@ -99,10 +99,9 @@ function getSafeAreaInsets(): SafeAreaInsets {
     if (isWeChat()) {
         return getWeChatSafeAreaInsets();
     }
-    // Native (no DOM) falls through to getWebSafeAreaInsets, which returns zero
-    // insets when `document` is absent — harmless. When the native shell exposes
-    // notch insets (a bridge.safeAreaInsets() seam), gate `isWeChat() || isNative()`
-    // here and read them the wechat way (non-DPR-scaled).
+    if (isNative()) {
+        return getPlatform().safeAreaInsets?.() ?? { top: 0, bottom: 0, left: 0, right: 0 };
+    }
     return getWebSafeAreaInsets();
 }
 
@@ -144,6 +143,8 @@ export class SafeAreaPlugin implements Plugin {
             [Res(ScreenLayout)],
             (layout: ScreenLayoutData) => {
                 if (!layout.valid || layout.viewportH === 0) return;
+                const safeNodes = world.getEntitiesWithComponents([SafeArea, UINode]);
+                if (safeNodes.length === 0) return;
 
                 const layoutH = layout.top - layout.bottom;
                 if (layout.viewportH !== prevScreenH || layoutH !== prevLayoutH) {
@@ -152,21 +153,21 @@ export class SafeAreaPlugin implements Plugin {
                     stale = true;
                 }
 
-                // Only the READ is throttled; the nodes are visited every frame.
-                // A scene loaded later brings its own, and deciding once on
-                // frame one never looks at them.
-                if (stale) {
+                // Read native cached OS insets each frame: delayed layout and
+                // landscape side changes need not resize the framebuffer.
+                // Visit nodes each tick so later scenes acquire their margins.
+                if (stale || isNative()) {
                     stale = false;
                     cachedInsets = getSafeAreaInsets();
                     cachedMenuBottom = hostMenuBottom();
                 }
 
                 const dpr = platformDevicePixelRatio();
-                const insetScale = isWeChat() ? (1 / layout.scale) : (dpr / layout.scale);
+                const insetScale = isWeChat() || isNative() ? (1 / layout.scale) : (dpr / layout.scale);
 
                 // UINode targets (CSS box): safe-area insets map to the node's
                 // absolute insets. The node is expected to be position:Absolute.
-                for (const entity of world.getEntitiesWithComponents([SafeArea, UINode])) {
+                for (const entity of safeNodes) {
                     const sa = world.get(entity, SafeArea) as SafeAreaData;
                     const node = world.get(entity, UINode) as UINodeData;
 

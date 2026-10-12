@@ -185,6 +185,10 @@ struct Platform {
     virtual esengine::WebGPUDevice::NativeSurface surface() = 0;
     virtual void surfaceSize(esengine::u32& width, esengine::u32& height) = 0;
 
+    /** Content must stay inside these live margins, in surface pixels. */
+    struct SafeInsets { float top = 0; float bottom = 0; float left = 0; float right = 0; };
+    virtual SafeInsets safeAreaInsets() const { return {}; }
+
     virtual void log(bool error, const char* message) = 0;
 
     /** A font for @p family that covers @p codepoint, with @p style's bold/italic

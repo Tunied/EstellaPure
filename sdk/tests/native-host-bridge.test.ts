@@ -7,7 +7,7 @@
  *        what is missing, not fail later somewhere unrelated.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { createHostBridge, assertHostEnvironment, assertNativeHost } from '../src/platform/native';
+import { createHostBridge, assertHostEnvironment, assertNativeHost, NativePlatformAdapter } from '../src/platform/native';
 import { cacheEntryName } from '../src/platform/cacheEntryName';
 import { REGISTRY_BINDINGS, RESOURCE_BINDINGS, PLATFORM_BINDINGS } from '../src/ecs/bridge/nativeBindings';
 
@@ -323,6 +323,23 @@ describe('a CDN image on a native build', () => {
         const bridge = createHostBridge(hostScope({ es_loadImagePixels: load }));
         await bridge.loadImagePixels('assets/hero.png');
         expect(load).toHaveBeenCalledWith('assets/hero.png');
+    });
+});
+
+describe('native content insets reach the platform adapter', () => {
+    it('preserves surface-pixel units and reads changing OS layout values', () => {
+        let insets = { top: 0, bottom: 60, left: 192, right: 72 };
+        const adapter = new NativePlatformAdapter(createHostBridge(hostScope({
+            es_devicePixelRatio: () => 3, es_safeAreaInsets: () => insets,
+        }) as never));
+        expect(adapter.safeAreaInsets()).toEqual(insets);
+        insets = { top: 0, bottom: 60, left: 72, right: 192 };
+        expect(adapter.safeAreaInsets()).toEqual(insets);
+    });
+
+    it('supports an older host with no inset binding', () => {
+        const adapter = new NativePlatformAdapter(createHostBridge(hostScope() as never));
+        expect(adapter.safeAreaInsets()).toEqual({ top: 0, bottom: 0, left: 0, right: 0 });
     });
 });
 
