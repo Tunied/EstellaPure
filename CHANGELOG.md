@@ -14,6 +14,11 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The website keeps its original editor showcase.** The landing page again uses the curated editor screenshot with its original proportions and caption; release acceptance captures remain separate.
+- **Website download details load from the same origin.** Deployment copies the mirror's release metadata onto the website, so package names and sizes display without depending on the mirror's bucket CORS permissions.
+
 ## [0.78.0] - 2026-10-12
 
 ### Added

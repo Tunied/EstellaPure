@@ -28,6 +28,10 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(site): restore the original editor showcase':
+    { note: 'The website keeps its original editor showcase.' },
+  'fix(site): serve download metadata from the website origin':
+    { note: 'Website download details load from the same origin.' },
   'test(ui): type the required layout measurement in the WASM regression':
     { internal: 'The real-WASM viewport regression requires the measured-height export; its non-null type assertion matches the verified test precondition without changing runtime code.' },
   'fix(ui): synchronize virtualized lists with resolved viewport bounds':
