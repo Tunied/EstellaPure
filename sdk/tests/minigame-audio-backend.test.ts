@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { MiniGameAudioBackend } from '../src/audio/MiniGameAudioBackend';
 
 function createMockInnerAudioContext() {
-    return {
+    const ctx = {
         src: '',
         startTime: 0,
         autoplay: false,
@@ -14,7 +14,7 @@ function createMockInnerAudioContext() {
         playbackRate: 1.0,
         duration: 0,
         currentTime: 0,
-        paused: false,
+        paused: true,
         play: vi.fn(),
         pause: vi.fn(),
         stop: vi.fn(),
@@ -24,6 +24,11 @@ function createMockInnerAudioContext() {
         offEnded: vi.fn(),
         onError: vi.fn(),
     };
+    ctx.play.mockImplementation(() => { ctx.paused = false; });
+    ctx.pause.mockImplementation(() => { ctx.paused = true; });
+    ctx.stop.mockImplementation(() => { ctx.paused = true; });
+    ctx.destroy.mockImplementation(() => { ctx.paused = true; });
+    return ctx;
 }
 
 describe('MiniGameAudioBackend', () => {
@@ -96,6 +101,48 @@ describe('MiniGameAudioBackend', () => {
     });
 
     describe('suspend/resume', () => {
+        it('resumes device-paused voices while preserving a manually paused voice', async () => {
+            const buffer = await backend.loadBuffer('a.mp3');
+            const manual = backend.play(buffer, {}), active = backend.play(buffer, {});
+            manual.pause(); backend.suspend(); backend.resume();
+            expect(manual.isPlaying).toBe(false); expect(active.isPlaying).toBe(true);
+        });
+        it('resume without a device suspension does not restart manually paused voices', async () => {
+            const buffer = await backend.loadBuffer('a.mp3');
+            const handle = backend.play(buffer, {}); handle.pause(); backend.resume();
+            expect(handle.isPlaying).toBe(false);
+        });
+        it('repeated device suspension retains the original set of playing voices', async () => {
+            const buffer = await backend.loadBuffer('a.mp3');
+            const handle = backend.play(buffer, {});
+            backend.suspend(); backend.suspend(); backend.resume();
+            expect(handle.isPlaying).toBe(true);
+            const ctx = (globalThis as any).wx.createInnerAudioContext.mock.results.at(-1).value;
+            expect(ctx.pause).toHaveBeenCalledOnce(); expect(ctx.play).toHaveBeenCalledTimes(2);
+        });
+        it.each(['stop', 'end'])('a context retired by %s during suspension is never resumed', async kind => {
+            const buffer = await backend.loadBuffer('a.mp3'), handle = backend.play(buffer, {});
+            const ctx = (globalThis as any).wx.createInnerAudioContext.mock.results.at(-1).value;
+            backend.suspend();
+            if (kind === 'stop') handle.stop(); else ctx.onEnded.mock.calls[0][0]();
+            backend.resume(); expect(ctx.play).toHaveBeenCalledOnce(); expect(ctx.destroy).toHaveBeenCalledOnce();
+        });
+        it('disposal discards the device resume set', async () => {
+            const buffer = await backend.loadBuffer('a.mp3');
+            backend.play(buffer, {}); backend.suspend(); backend.dispose(); backend.resume();
+            const ctx = (globalThis as any).wx.createInnerAudioContext.mock.results.at(-1).value;
+            expect(ctx.play).toHaveBeenCalledOnce(); expect(ctx.destroy).toHaveBeenCalledOnce();
+        });
+        it('repeated takeovers reuse live contexts and keep manual pauses intact', async () => {
+            const buffer = await backend.loadBuffer('a.mp3');
+            const manual = backend.play(buffer, {}), active = backend.play(buffer, {}); manual.pause();
+            for (let i = 0; i < 100; i++) { backend.suspend(); backend.resume(); }
+            expect(manual.isPlaying).toBe(false); expect(active.isPlaying).toBe(true);
+            const host = (globalThis as any).wx;
+            expect(host.createInnerAudioContext).toHaveBeenCalledTimes(2);
+            expect(host.createInnerAudioContext.mock.results[0].value.play).toHaveBeenCalledOnce();
+            expect(host.createInnerAudioContext.mock.results[1].value.play).toHaveBeenCalledTimes(101);
+        });
         it('should pause all active contexts on suspend', async () => {
             const h1 = await backend.loadBuffer('a.mp3');
             const h2 = await backend.loadBuffer('b.mp3');

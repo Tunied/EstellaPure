@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Mini-game device resume preserves manual audio pauses.** The backend resumes only live contexts that were playing when device suspension began. Repeated suspension retains the original resume set, and stopped, ended, or disposed contexts are never restarted.
+
 - **Audio plugin cleanup belongs to each App.** Shared plugin instances release the quitting App's voices, backend, and memory/despawn subscriptions without stopping another App. Released systems stay inactive, and repeated preview shutdowns release every backend once.
 
 - **Retired WebAudio handles cannot modify reused pool nodes.** Gain and pan writes from stopped or completed handles are ignored, preserving the next voice's mix. Completion callbacks are checked against the currently playing source, so an old source cannot release the pool slot of a resumed voice.

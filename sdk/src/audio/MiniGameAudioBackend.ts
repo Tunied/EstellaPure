@@ -101,6 +101,7 @@ export class MiniGameAudioBackend implements PlatformAudioBackend {
 
     private readonly g_: MiniGameGlobal;
     private contexts_ = new Map<number, MiniGameInnerAudioContext>();
+    private suspendedContexts_: Map<number, MiniGameInnerAudioContext> | null = null;
     private urlCache_ = new Map<number, string>();
     private nextId_ = 0;
 
@@ -173,20 +174,29 @@ export class MiniGameAudioBackend implements PlatformAudioBackend {
     }
 
     suspend(): void {
-        for (const ctx of this.contexts_.values()) {
+        if (this.suspendedContexts_) return;
+        const suspended = new Map<number, MiniGameInnerAudioContext>();
+        this.suspendedContexts_ = suspended;
+        for (const [id, ctx] of this.contexts_) {
+            if (ctx.paused) continue;
+            suspended.set(id, ctx);
             ctx.pause();
         }
     }
 
     resume(): void {
-        for (const ctx of this.contexts_.values()) {
-            if (ctx.paused) {
+        const suspended = this.suspendedContexts_;
+        if (!suspended) return;
+        this.suspendedContexts_ = null;
+        for (const [id, ctx] of suspended) {
+            if (this.contexts_.get(id) === ctx && ctx.paused) {
                 ctx.play();
             }
         }
     }
 
     dispose(): void {
+        this.suspendedContexts_ = null;
         for (const ctx of this.contexts_.values()) {
             ctx.destroy();
         }
