@@ -43,7 +43,10 @@ export function drawPreview(m: PreviewCore, draw: () => void): Promise<ImageData
 }
 
 async function readPreview(m: PreviewCore, draw: () => void): Promise<ImageData | null> {
-    draw();
+    // An owner can disappear while waiting for another preview's readback.
+    // Skip both draw and poll, rather than return the previous task's pixels.
+    const submitted: unknown = draw();
+    if (submitted === false) return null;
     if (await awaitReadback(() => m.renderer_pollPreviewReadback()) !== READBACK_READY) return null;
     const size = m.renderer_getPreviewSize();
     const w = m.renderer_getPreviewWidth();

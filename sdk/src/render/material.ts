@@ -647,10 +647,14 @@ export const Material = {
      */
     async renderPreview(material: MaterialHandle, w: number, h: number): Promise<ImageData | null> {
         const m = previewCore(module);
-        if (!m) return null;
+        const data = materials.get(material);
+        if (!m || !data) return null;
         const held: TextureLease[] = [];
         try {
             return await drawPreview(m, () => {
+                // IDs can be reused after reconnect. Check both identities at
+                // submission time, once the shared readback queue reaches us.
+                if (module !== m || materials.get(material) !== data) return false;
                 const seen = new Set<number>(); let handle: number | undefined = material;
                 while (handle !== undefined && !seen.has(handle)) {
                     seen.add(handle);

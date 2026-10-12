@@ -6,6 +6,24 @@ import type{AssetLease}from'../src/asset/AssetLease';
 const lease=(handle:number):AssetLease<{handle:number}>=>({key:'texture:'+handle,generation:handle,value:{handle},release:vi.fn(),retain:()=>null});
 afterEach(()=>{shutdownMaterialAPI();vi.unstubAllGlobals();});
 describe('material-owned edited textures',()=>{
+  it.each([false,true])('skips queued previews after their material is disposed (core replaced: %s)',async(reconnect)=>{
+    let ready=false;
+    const core={HEAPU8:new Uint8Array(4),material_define:vi.fn(),material_setUniform:vi.fn(),material_setTexture:vi.fn(),material_undefine:vi.fn(),
+      renderer_renderMaterialPreview:vi.fn(),renderer_pollPreviewReadback:()=>ready?1:0,renderer_getPreviewSize:()=>4,renderer_getPreviewWidth:()=>1,renderer_getPreviewHeight:()=>1,renderer_getPreviewPtr:()=>0};
+    vi.stubGlobal('ImageData',class{constructor(public data:Uint8ClampedArray,public width:number,public height:number){}});
+    initMaterialAPI(core as never);
+    const first=Material.create({shader:1}),second=Material.create({shader:1});
+    const pending=Material.renderPreview(first,1,1),queued=Material.renderPreview(second,1,1);
+    try{
+      await vi.waitFor(()=>expect(core.renderer_renderMaterialPreview).toHaveBeenCalledTimes(1));
+      if(reconnect){
+        shutdownMaterialAPI();initMaterialAPI({...core,renderer_renderMaterialPreview:vi.fn()}as never);
+        Material.create({shader:1});expect(Material.create({shader:1})).toBe(second);
+      }else Material.release(second);
+    }finally{ready=true;await pending;}
+    expect(await queued).toBeNull();
+    expect(core.renderer_renderMaterialPreview).toHaveBeenCalledTimes(1);
+  });
   it('keeps the submitted texture generation alive through pending preview readback',async()=>{
     let ready=false;
     const core={HEAPU8:new Uint8Array(4),material_define:vi.fn(),material_setUniform:vi.fn(),material_setTexture:vi.fn(),material_undefine:vi.fn(),
