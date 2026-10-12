@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **The website preview comes from the exported game.** Release builds capture the Celestial Heights Web sample and publish its source commit and image checksum alongside the frame.
+
 - **Stopping editor Play stops game audio.** Single-player Stop now releases the game App and its plugins while keeping the engine renderer warm for re-Play. BGM and scripted/source voices are stopped, pending audio loads cannot resume playback, and a Stop during startup cancels the realm. This applies to both the editor UI and MCP (`set_play: stopped`).
 
 - **Entity activity follows the hierarchy.** Rendering, skeletal animation, particles and UI honor inherited activity, and transform updates remain consistent for deep hierarchies.

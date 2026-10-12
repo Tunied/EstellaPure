@@ -12,10 +12,22 @@ on:
     tags:
       - 'docs-v*'
   workflow_call:
+    inputs:
+      engine-artifact-run:
+        type: string
+        required: false
+        default: ''
   workflow_dispatch:
+    inputs:
+      engine-artifact-run:
+        description: 'Candidate release run containing release-site-frame; blank retains the published game frame.'
+        type: string
+        required: false
+        default: ''
 
 permissions:
   contents: read
+  actions: read
   pages: write
   id-token: write
 
@@ -85,9 +97,30 @@ jobs:
           # section is labelled with no JavaScript and no cross-origin request.
           # The links themselves are the mirror's stable `latest/` names, which
           # stay correct for releases published after this deploy.
-          sed -i "s/__ESTELLA_VERSION__/$(node -p "require('./desktop/package.json').version")/g" docs/dist/index.html
+          sed -i "s/__ESTELLA_VERSION__/$(node -p "require('./package.json').version")/g" docs/dist/index.html
           echo 'estellaengine.com' > docs/dist/CNAME
           touch docs/dist/.nojekyll
+
+      - name: Stage a verified frame of the shipped game
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FRAME_RUN: ${{ inputs.engine-artifact-run }}
+          FRAME_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "$FRAME_RUN" ]; then
+            gh run download "$FRAME_RUN" --repo "$GITHUB_REPOSITORY" --name release-site-frame --dir docs/dist
+          else
+            curl --fail --location https://estellaengine.com/celestial-heights-frame.png --output docs/dist/celestial-heights-frame.png
+            curl --fail --location https://estellaengine.com/hero-provenance.json --output docs/dist/hero-provenance.json
+          fi
+          node --input-type=module <<'JS'
+          import {readFileSync} from 'node:fs';
+          import {createHash} from 'node:crypto';
+          const info=JSON.parse(readFileSync('docs/dist/hero-provenance.json','utf8'));
+          const image=readFileSync('docs/dist/celestial-heights-frame.png');
+          if(info.project!=='examples/celestial-heights'||!info.gitSha||createHash('sha256').update(image).digest('hex')!==info.sha256)throw Error('Game frame provenance mismatch');
+          if(process.env.FRAME_RUN && info.gitSha!==process.env.FRAME_SHA)throw Error('Game frame was captured from another commit');
+          JS
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5

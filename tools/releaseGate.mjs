@@ -301,7 +301,7 @@ export const CRITERIA = [
     // A machine can compare two images; deciding that one of them is honest
     // marketing is not a thing to compute. Whether the frame is sound is the
     // flagship's parity run; whether it is the frame on the site is a person's.
-    manual: 'release captain, over docs/assets + docs/landing: the hero comes from a build of examples/celestial-heights',
+    manual: 'release captain, over the release-site-frame artifact and docs/landing: verify hero-provenance.json identifies this source commit and the frame matches the exported examples/celestial-heights game',
   },
   {
     id: 'diagnostics-from-a-release-build',
