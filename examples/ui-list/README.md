@@ -40,3 +40,7 @@ source holds.
 The scene authors the static frame (panel, headers, empty slots); the startup
 system finds the named slots and instantiates the widgets — the same
 scene-plus-factories split as the `ui-controls` example.
+
+The panel sits under an absolute `SafeArea` content container. Device cutouts
+move the whole interactive list and its controls together; the panel keeps its
+authored margins inside that container.

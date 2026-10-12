@@ -30,7 +30,7 @@
       "id": 1,
       "name": "Canvas",
       "parent": null,
-      "children": [2],
+      "children": [13],
       "components": [
         { "type": "Transform", "data": {} },
         {
@@ -47,7 +47,7 @@
     {
       "id": 2,
       "name": "Panel",
-      "parent": 1,
+      "parent": 13,
       "children": [3, 4, 11, 12],
       "components": [
         { "type": "Transform", "data": {} },
@@ -308,6 +308,18 @@
             "gap": { "x": 10, "y": 0 }
           }
         }
+      ],
+      "visible": true
+    },
+    {
+      "id": 13,
+      "name": "Safe Content",
+      "parent": 1,
+      "children": [2],
+      "components": [
+        { "type": "Transform", "data": {} },
+        { "type": "UINode", "data": { "position": 1 } },
+        { "type": "SafeArea", "data": {} }
       ],
       "visible": true
     }
