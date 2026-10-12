@@ -5,6 +5,10 @@
  * @brief   Component data validation utilities
  */
 
+import { hasOwn } from './ownProperties';
+
+type AssetFields = ReadonlySet<string> | readonly { readonly field: string }[];
+
 export type ValidationError = {
     field: string;
     expected: string;
@@ -16,7 +20,7 @@ export function validateComponentData(
     componentName: string,
     defaults: Record<string, unknown>,
     data: Record<string, unknown>,
-    assetFields?: ReadonlySet<string>
+    assetFields?: AssetFields
 ): ValidationError[] {
     const errors: ValidationError[] = [];
     validateInto(errors, defaults, data, assetFields, '');
@@ -27,13 +31,16 @@ function validateInto(
     errors: ValidationError[],
     defaults: Record<string, unknown>,
     data: Record<string, unknown>,
-    assetFields: ReadonlySet<string> | undefined,
+    assetFields: AssetFields | undefined,
     prefix: string
 ): void {
-    for (const [field, value] of Object.entries(data)) {
-        if (field.startsWith('_')) continue;
+    // Validation walks nested records on both scene load and component writes.
+    // Keys avoid allocating a [key, value] tuple for every field at every depth.
+    for (const field of Object.keys(data)) {
+        const value = data[field];
+        if (field.startsWith('_') && field !== '__proto__') continue;
         const path = prefix ? `${prefix}.${field}` : field;
-        if (!(field in defaults)) {
+        if (!hasOwn(defaults, field)) {
             // Unknown members are an error only at the TOP level (a stray key names
             // a field that will silently never apply). Nested objects legally carry
             // extra keys — e.g. colors read back from wasm keep ghost x/y/z/w
@@ -64,7 +71,7 @@ function validateInto(
             // are top-level fields; the rule never applies at depth.)
             if (
                 !prefix &&
-                assetFields?.has(field) &&
+                isAssetField(assetFields, field) &&
                 ((expectedType === 'string' && actualType === 'number') ||
                     (expectedType === 'number' && actualType === 'string'))
             ) {
@@ -92,6 +99,15 @@ function validateInto(
             );
         }
     }
+}
+
+function isAssetField(fields: AssetFields | undefined, name: string): boolean {
+    if (!fields) return false;
+    if ('has' in fields) return fields.has(name);
+    // Component metadata is already a small list. Read it only on a type
+    // mismatch, without allocating a Set per write or caching mutable metadata.
+    for (const entry of fields) if (entry.field === name) return true;
+    return false;
 }
 
 /** A component's asset-ref field names — pass to {@link validateComponentData} so

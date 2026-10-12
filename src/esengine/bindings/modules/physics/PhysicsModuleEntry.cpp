@@ -172,6 +172,7 @@ void physics_destroyBody(uint32_t entityId) {
         b2DestroyBody(it->second);
     }
     g_ctx.entityToBody.erase(it);
+    g_ctx.pausedMotion.erase(entityId);
     g_ctx.entityToShapes.erase(entityId);
     auto dit = std::find(g_ctx.dynamicBodyEntities.begin(), g_ctx.dynamicBodyEntities.end(), entityId);
     if (dit != g_ctx.dynamicBodyEntities.end()) {
@@ -193,8 +194,19 @@ void physics_setBodyEnabled(uint32_t entityId, int enabled) {
     b2BodyId body = findValidBody(entityId);
     if (!b2Body_IsValid(body)) return;
     if (enabled) {
+        if (b2Body_IsEnabled(body)) return;
         b2Body_Enable(body);
+        auto it = g_ctx.pausedMotion.find(entityId);
+        if (it != g_ctx.pausedMotion.end()) {
+            b2Body_SetLinearVelocity(body, it->second.linearVelocity);
+            b2Body_SetAngularVelocity(body, it->second.angularVelocity);
+            g_ctx.pausedMotion.erase(it);
+        }
     } else {
+        if (!b2Body_IsEnabled(body)) return;
+        g_ctx.pausedMotion[entityId] = {
+            b2Body_GetLinearVelocity(body), b2Body_GetAngularVelocity(body)
+        };
         b2Body_Disable(body);
     }
 }
@@ -280,7 +292,8 @@ int physics_getJointCount() {
 EMSCRIPTEN_KEEPALIVE
 int physics_getTrackingRows() {
     return static_cast<int>(g_ctx.entityToShapes.size() + g_ctx.oneWayNormals.size()
-                            + g_ctx.posePrevIndex.size() + g_ctx.dynamicBodyEntities.size());
+                            + g_ctx.posePrevIndex.size() + g_ctx.dynamicBodyEntities.size()
+                            + g_ctx.pausedMotion.size());
 }
 
 EMSCRIPTEN_KEEPALIVE
@@ -575,6 +588,11 @@ void physics_applyImpulse(uint32_t entityId, float impulseX, float impulseY) {
 
 EMSCRIPTEN_KEEPALIVE
 void physics_setLinearVelocity(uint32_t entityId, float vx, float vy) {
+    auto paused = g_ctx.pausedMotion.find(entityId);
+    if (paused != g_ctx.pausedMotion.end()) {
+        paused->second.linearVelocity = {vx, vy};
+        return;
+    }
     auto it = g_ctx.entityToBody.find(entityId);
     if (it == g_ctx.entityToBody.end()) return;
     if (!b2Body_IsValid(it->second)) return;
@@ -596,7 +614,9 @@ uintptr_t physics_getLinearVelocity(uint32_t entityId) {
         return reinterpret_cast<uintptr_t>(g_ctx.velocityBuffer);
     }
 
-    b2Vec2 v = b2Body_GetLinearVelocity(it->second);
+    auto paused = g_ctx.pausedMotion.find(entityId);
+    b2Vec2 v = paused != g_ctx.pausedMotion.end()
+        ? paused->second.linearVelocity : b2Body_GetLinearVelocity(it->second);
     g_ctx.velocityBuffer[0] = v.x;
     g_ctx.velocityBuffer[1] = v.y;
     return reinterpret_cast<uintptr_t>(g_ctx.velocityBuffer);
@@ -627,6 +647,11 @@ uintptr_t physics_getGravity() {
 
 EMSCRIPTEN_KEEPALIVE
 void physics_setAngularVelocity(uint32_t entityId, float omega) {
+    auto paused = g_ctx.pausedMotion.find(entityId);
+    if (paused != g_ctx.pausedMotion.end()) {
+        paused->second.angularVelocity = omega;
+        return;
+    }
     auto it = g_ctx.entityToBody.find(entityId);
     if (it == g_ctx.entityToBody.end()) return;
     if (!b2Body_IsValid(it->second)) return;
@@ -635,6 +660,8 @@ void physics_setAngularVelocity(uint32_t entityId, float omega) {
 
 EMSCRIPTEN_KEEPALIVE
 float physics_getAngularVelocity(uint32_t entityId) {
+    auto paused = g_ctx.pausedMotion.find(entityId);
+    if (paused != g_ctx.pausedMotion.end()) return paused->second.angularVelocity;
     auto it = g_ctx.entityToBody.find(entityId);
     if (it == g_ctx.entityToBody.end()) return 0;
     if (!b2Body_IsValid(it->second)) return 0;

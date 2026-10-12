@@ -49,6 +49,7 @@ int spine_getBonePosition(int instanceId, const char* bone, uintptr_t outXPtr, u
 float spine_getBoneRotation(int instanceId, const char* bone);
 void spine_getBounds(int instanceId, uintptr_t outXPtr, uintptr_t outYPtr, uintptr_t outWPtr, uintptr_t outHPtr);
 int spine_getMeshBatchCount(int instanceId);
+int spine_getMeshBatchColorPremultiplied(int instanceId, int batchIndex);
 int spine_getMeshBatchVertexCount(int instanceId, int batchIndex);
 int spine_getMeshBatchIndexCount(int instanceId, int batchIndex);
 void spine_getMeshBatchData(int instanceId, int batchIndex, uintptr_t outVerticesPtr, uintptr_t outIndicesPtr, uintptr_t outTextureIdPtr, uintptr_t outBlendModePtr);
@@ -57,6 +58,7 @@ void spine_setDefaultMix(int skeletonHandle, float duration);
 void spine_setMixDuration(int skeletonHandle, const char* fromAnim, const char* toAnim, float duration);
 void spine_setTrackAlpha(int instanceId, int track, float alpha);
 void spine_enableEvents(int instanceId);
+// Selects this instance for the buffer, string getters, and clear call below.
 int spine_getEventCount(int instanceId);
 // @heapreturn spine_eventBufferBytes()
 uintptr_t spine_getEventBuffer();

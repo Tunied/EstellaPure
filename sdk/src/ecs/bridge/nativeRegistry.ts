@@ -6,10 +6,10 @@
 // consumes (add<Name> / get<Name> / has<Name> / remove<Name> per component), so
 // the real SDK component API runs on the native core unchanged.
 //
-// It is composed, not a second marshaller: field IO reuses the generated
-// ptrAccessors (the one marshalling path, proven on device) over the host's
-// zero-copy es_<Component>_buffer binding; lifecycle reuses the generated
-// es_<Component>_has / _remove bindings. The only shape bridge is color naming —
+// The host exposes a zero-copy buffer only for trivially copyable components
+// whose actual compiler offsets match the generated wasm32 accessors. Other
+// components cross through generated C++ member getters/setters, preserving
+// native string/vector ownership and layout. The color shape bridge remains —
 // embind marshals colors as {x,y,z,w}, ptrAccessors as {r,g,b,a} — handled by the
 // same convertForWasm/convertFromWasm the web methods path uses, keyed off
 // COMPONENT_META.colorFields.
@@ -17,7 +17,7 @@
 import type { CppRegistry } from '../../wasm';
 import type { Entity } from '../../types';
 import { PTR_ACCESSORS } from './ptrAccessors.generated';
-import { REGISTRY_BINDINGS, SCENE_QUERY_BINDINGS } from './nativeBindings';
+import { REGISTRY_BINDINGS, SCENE_QUERY_BINDINGS, ACTIVITY_BINDINGS, DESTRUCTION_BINDINGS } from './nativeBindings';
 import { COMPONENT_META } from '../component.generated';
 import { convertForWasm, convertFromWasm } from './BuiltinBridge';
 
@@ -88,6 +88,14 @@ export function createNativeRegistry(
     scope: Record<string, unknown> = globalThis as unknown as Record<string, unknown>,
 ): CppRegistry {
     const reg: Record<string, unknown> = {};
+    for (const [method, binding] of Object.entries(ACTIVITY_BINDINGS)) {
+        if (typeof scope[binding] === 'function') reg[method] = (...args: unknown[]) => hostCall(scope, binding, args);
+    }
+    if (Object.values(DESTRUCTION_BINDINGS).every(binding => typeof scope[binding] === 'function')) {
+        for (const [method, binding] of Object.entries(DESTRUCTION_BINDINGS)) {
+            reg[method] = (entity: Entity) => hostCall(scope, binding, [entity]);
+        }
+    }
 
     // Entity lifecycle + hierarchy — the base Registry surface World drives (spawn,
     // despawn, parent/child). These are not per-component; the host binds them by
@@ -99,8 +107,8 @@ export function createNativeRegistry(
     // re-resolve it every frame, silently.
     reg.layoutEpoch = (): number => hostCall(scope, REGISTRY_BINDINGS.layoutEpoch, []) as number;
     reg.hasParent = (e: Entity): boolean => !!hostCall(scope, REGISTRY_BINDINGS.hasParent, [e]);
-    reg.setParent = (child: Entity, parent: Entity): void => {
-        hostCall(scope, REGISTRY_BINDINGS.setParent, [child, parent]);
+    reg.setParent = (child: Entity, parent: Entity): boolean | void => {
+        return hostCall(scope, REGISTRY_BINDINGS.setParent, [child, parent]) as boolean | void;
     };
     reg.removeParent = (e: Entity): void => { hostCall(scope, REGISTRY_BINDINGS.removeParent, [e]); };
     reg.hasChildren = (e: Entity): boolean => !!hostCall(scope, REGISTRY_BINDINGS.hasChildren, [e]);
@@ -171,6 +179,35 @@ export function createNativeRegistry(
     }
 
     reg.delete = (): void => {};
+
+    // A native std::string/std::vector (and even POD with different alignment)
+    // cannot be addressed with wasm32 offsets. The host deliberately withholds
+    // its buffer; use actual C++ members instead. Lists retain their own bindings.
+    for (const [cppName, meta] of Object.entries(COMPONENT_META)) {
+        if (cppName === 'Parent' || cppName === 'Children' || cppName === 'MeshSkin') continue;
+        if (typeof scope[`es_${cppName}_buffer`] === 'function') continue;
+        const get = scope[`es_get_${cppName}`] as ((e: Entity) => Record<string, unknown>) | undefined;
+        const set = scope[`es_set_${cppName}`] as ((e: Entity, data: unknown) => void) | undefined;
+        const has = scope[`es_${cppName}_has`] as HasFn | undefined;
+        const remove = scope[`es_${cppName}_remove`] as RemoveFn | undefined;
+        if (typeof get !== 'function' || typeof set !== 'function'
+            || typeof has !== 'function' || typeof remove !== 'function') continue;
+        const fields = [...new Set([...(meta.listFields ?? []), ...(meta.numberListFields ?? [])])];
+        reg[`add${cppName}`] = (e: Entity, data: Record<string, unknown>): void => {
+            set(e, data);
+            for (const field of fields) {
+                if (field in data) hostCall(scope, `es_${cppName}_${field}_set`, [e, data[field]]);
+            }
+        };
+        reg[`get${cppName}`] = (e: Entity): Record<string, unknown> => {
+            const out = has(e) ? get(e) : {};
+            for (const field of fields) out[field] = has(e)
+                ? hostCall(scope, `es_${cppName}_${field}_get`, [e]) : [];
+            return out;
+        };
+        reg[`has${cppName}`] = has;
+        reg[`remove${cppName}`] = remove;
+    }
 
     // The scene queries the wasm module answers as module-level functions. There is
     // no module here, so the registry answers them — the camera plugin asks the

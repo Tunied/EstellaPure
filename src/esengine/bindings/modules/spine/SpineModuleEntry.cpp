@@ -54,6 +54,7 @@ using es::spine::TransformMix;
 struct LiveInstance {
     InstancePtr instance;
     int skeletonHandle = -1;
+    es::skeletal::EventBuffer events;
 };
 
 struct Context {
@@ -62,7 +63,22 @@ struct Context {
 
     es::skeletal::BatchList batches;
     es::skeletal::StringBuffer strings;
-    es::skeletal::EventBuffer events;
+    std::unordered_map<const void*, int> eventOwners;
+    int selectedEventInstance = -1;
+
+    es::skeletal::EventBuffer* selectedEvents() {
+        auto* live = instances.find(selectedEventInstance);
+        return live ? &live->events : nullptr;
+    }
+
+    void forgetEvents(const LiveInstance& live) {
+        const auto source = es::spine::eventSource(live.instance.get());
+        auto owner = eventOwners.find(source);
+        if (owner != eventOwners.end()) {
+            if (selectedEventInstance == owner->second) selectedEventInstance = -1;
+            eventOwners.erase(owner);
+        }
+    }
 
     /// Clip-region processing, on by default: a debug and perf knob, so a scene
     /// with no clip regions can skip the machinery and a clipped one can be
@@ -70,6 +86,13 @@ struct Context {
     bool clippingEnabled = true;
 
     std::string lastError;
+
+    ~Context() {
+        // Instance destruction can emit events; stop routing before releasing it.
+        eventOwners.clear();
+        instances.clear();
+        skeletons.clear();
+    }
 
     es::spine::Instance* instanceOf(int id) {
         auto* live = instances.find(id);
@@ -86,7 +109,11 @@ Context g_ctx;
 
 /// Queues one event for the SDK to drain after the update that produced it.
 void collectEvent(const Event& event) {
-    g_ctx.events.push(static_cast<int>(event.kind), event.track, event.floatValue, event.intValue,
+    auto owner = g_ctx.eventOwners.find(event.source);
+    if (owner == g_ctx.eventOwners.end()) return;
+    auto* live = g_ctx.instances.find(owner->second);
+    if (!live) return;
+    live->events.push(static_cast<int>(event.kind), event.track, event.floatValue, event.intValue,
                       es::skeletal::EventStrings{event.animation, event.name, event.stringValue});
 }
 
@@ -147,7 +174,11 @@ void spine_unloadSkeleton(int handle) {
     if (!g_ctx.skeletons.find(handle)) return;
 
     // Instances hold the skeleton's data; they go first.
-    g_ctx.instances.eraseIf([handle](const LiveInstance& live) { return live.skeletonHandle == handle; });
+    g_ctx.instances.eraseIf([handle](const LiveInstance& live) {
+        if (live.skeletonHandle != handle) return false;
+        g_ctx.forgetEvents(live);
+        return true;
+    });
     g_ctx.skeletons.erase(handle);
 }
 
@@ -179,12 +210,14 @@ int spine_createInstance(int skeletonHandle) {
     es::spine::Instance* created = es::spine::createInstance(skeleton);
     if (!created) return -1;
 
-    const int id = g_ctx.instances.add(LiveInstance{InstancePtr(created), skeletonHandle});
+    const int id = g_ctx.instances.add(LiveInstance{InstancePtr(created), skeletonHandle, {}});
+    g_ctx.eventOwners.emplace(es::spine::eventSource(created), id);
     return id;
 }
 
 EMSCRIPTEN_KEEPALIVE
 void spine_destroyInstance(int instanceId) {
+    if (auto* live = g_ctx.instances.find(instanceId)) g_ctx.forgetEvents(*live);
     g_ctx.instances.erase(instanceId);
 }
 
@@ -220,7 +253,6 @@ void spine_update(int instanceId, float dt) {
     if (!instance) return;
     // The composition lives in the runtime beside the two halves, so there is
     // one definition of what a whole frame is rather than one here as well.
-    g_ctx.events.clear();
     es::spine::update(instance, dt);
 }
 
@@ -234,7 +266,6 @@ EMSCRIPTEN_KEEPALIVE
 void spine_advanceAndApply(int instanceId, float dt) {
     auto* instance = g_ctx.instanceOf(instanceId);
     if (!instance) return;
-    g_ctx.events.clear();
     es::spine::advanceAndApply(instance, dt);
 }
 
@@ -502,6 +533,13 @@ void spine_probe_storage(std::uint32_t* out) {
 }
 
 EMSCRIPTEN_KEEPALIVE
+int spine_getMeshBatchColorPremultiplied(int instanceId, int batchIndex) {
+    (void)instanceId;
+    if (batchIndex < 0 || static_cast<std::size_t>(batchIndex) >= g_ctx.batches.size()) return 0;
+    return g_ctx.batches[batchIndex].premultipliedColor ? 1 : 0;
+}
+
+EMSCRIPTEN_KEEPALIVE
 int spine_getMeshBatchCount(int instanceId) {
     extractBatches(instanceId);
     return static_cast<int>(g_ctx.batches.size());
@@ -576,23 +614,26 @@ void spine_enableEvents(int instanceId) {
 
 EMSCRIPTEN_KEEPALIVE
 int spine_getEventCount(int instanceId) {
-    (void)instanceId;
-    return g_ctx.events.count();
+    g_ctx.selectedEventInstance = instanceId;
+    auto* events = g_ctx.selectedEvents();
+    return events ? events->count() : 0;
 }
 
 EMSCRIPTEN_KEEPALIVE
 uintptr_t spine_getEventBuffer() {
-    return reinterpret_cast<uintptr_t>(g_ctx.events.values());
+    auto* events = g_ctx.selectedEvents();
+    return events ? reinterpret_cast<uintptr_t>(events->values()) : 0;
 }
 
 EMSCRIPTEN_KEEPALIVE
 void spine_clearEvents() {
-    g_ctx.events.clear();
+    if (auto* events = g_ctx.selectedEvents()) events->clear();
 }
 
 EMSCRIPTEN_KEEPALIVE
 const char* spine_getEventAnimationName(int index) {
-    const auto* record = g_ctx.events.strings(index);
+    auto* events = g_ctx.selectedEvents();
+    const auto* record = events ? events->strings(index) : nullptr;
     if (!record) return "";
     const char* name = record->animationName;
     return name ? name : "";
@@ -600,7 +641,8 @@ const char* spine_getEventAnimationName(int index) {
 
 EMSCRIPTEN_KEEPALIVE
 const char* spine_getEventName(int index) {
-    const auto* record = g_ctx.events.strings(index);
+    auto* events = g_ctx.selectedEvents();
+    const auto* record = events ? events->strings(index) : nullptr;
     if (!record) return "";
     const char* name = record->eventName;
     return name ? name : "";
@@ -608,7 +650,8 @@ const char* spine_getEventName(int index) {
 
 EMSCRIPTEN_KEEPALIVE
 const char* spine_getEventStringValue(int index) {
-    const auto* record = g_ctx.events.strings(index);
+    auto* events = g_ctx.selectedEvents();
+    const auto* record = events ? events->strings(index) : nullptr;
     if (!record) return "";
     const char* value = record->stringValue;
     return value ? value : "";
@@ -733,7 +776,8 @@ int spine_runtimeVersion() {
 // assuming the stride — see `@heapreturn` in SpineBindings.hpp.
 EMSCRIPTEN_KEEPALIVE
 size_t spine_eventBufferBytes() {
-    return g_ctx.events.byteLength();
+    auto* events = g_ctx.selectedEvents();
+    return events ? events->byteLength() : 0;
 }
 
 }  // extern "C"

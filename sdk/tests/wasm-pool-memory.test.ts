@@ -63,6 +63,43 @@ class FakeModule implements WasmHeap {
 }
 
 describe('rows on the engine heap', () => {
+    it('held numeric and boolean fields remain live after foreign heap growth without refresh', () => {
+        const mod = new FakeModule(), pool = new ScriptPool(poolShape(DEFAULTS)!, 4, new WasmPoolMemory(mod));
+        const held = pool.put(e(1), DEFAULTS, {speed: 7, enabled: false}).view;
+        mod.grow();
+        expect(held['speed']).toBe(7);expect(held['enabled']).toBe(false);
+        mod.grow();held['speed'] = 42;held['enabled'] = true;
+        const heap = new Float64Array(mod.memory.buffer), address = pool.address(e(1))!;
+        expect(heap[address / 8]).toBe(42);expect(heap[address / 8 + 3]).toBe(1);
+        pool.dispose();
+    });
+
+    it('compiled addresses and sparse spans survive foreign growth before any component read', () => {
+        const mod = new FakeModule(), pool = new ScriptPool(poolShape(DEFAULTS)!, 4, new WasmPoolMemory(mod));
+        pool.put(e(1), DEFAULTS, {speed: 7});const address = pool.address(e(1)), span = pool.span();
+        mod.grow();
+        expect(pool.address(e(1))).toBe(address);expect(pool.span()).toEqual(span);
+        expect(pool.sparseTable[entityIndex(e(1))]).toBe(1);expect(pool.buffer[0]).toBe(7);
+        pool.dispose();
+    });
+
+    it('existing writes and new rows work after foreign growth without needing pool expansion', () => {
+        const mod = new FakeModule(), pool = new ScriptPool(poolShape(DEFAULTS)!, 4, new WasmPoolMemory(mod));
+        pool.put(e(1), DEFAULTS, {speed: 7});mod.grow();
+        pool.put(e(1), DEFAULTS, {speed: 42});pool.put(e(2), DEFAULTS, {speed: 9});
+        expect(pool.get(e(1))!['speed']).toBe(42);expect(pool.get(e(2))!['speed']).toBe(9);
+        expect(pool.sparseTable[entityIndex(e(2))]).toBe(2);pool.dispose();
+    });
+
+    it('one pool allocating on the same heap cannot detach another pool view', () => {
+        const mod = new FakeModule(1, true), memory = new WasmPoolMemory(mod);
+        const first = new ScriptPool(poolShape(DEFAULTS)!, 4, memory), held = first.put(e(1), DEFAULTS, {speed: 7}).view;
+        const second = new ScriptPool(poolShape(DEFAULTS)!, 4, memory);
+        expect(held['speed']).toBe(7);held['speed'] = 42;
+        expect(new Float64Array(mod.memory.buffer)[first.address(e(1))! / 8]).toBe(42);
+        first.dispose();second.dispose();
+    });
+
     it('allocates at a wasm address, and an address is that address', () => {
         const mod = new FakeModule();
         const pool = new ScriptPool(poolShape(DEFAULTS)!, 4, new WasmPoolMemory(mod));

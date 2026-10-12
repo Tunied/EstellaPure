@@ -123,7 +123,10 @@ export class AotDispatch {
 
     run(twin: AotTwin): boolean {
         const plan = this.planFor_(twin);
-        this.packRows_(plan, this.world.layoutEpoch());
+        if (!this.packRows_(plan, this.world.layoutEpoch())) {
+            if (plan.reads) this.runtime.addresses.releasePayloads();
+            return false;
+        }
 
         const resources = plan.resources.map((r) => this.runtime.addresses.resourceAt(r.name) ?? 0);
         const writers = twin.decl.writers ?? [];
@@ -167,10 +170,10 @@ export class AotDispatch {
     /**
      * Every row of every query, written into one block.
      *
-     * A row whose components cannot all answer is not written: an address of zero
-     * is a real address, and the compiled code would read somebody else's bytes.
+     * Every matching row must be addressable. If one is not, the interpreter
+     * runs the whole system; skipping it would silently lose authored work.
      */
-    private packRows_(plan: Plan, epoch: number | null): void {
+    private packRows_(plan: Plan, epoch: number | null): boolean {
         // The whole table or none of it: one query's rows moving says nothing
         // about another's, but a repack is a walk of both and this way there is
         // one condition to reason about rather than one per query.
@@ -187,7 +190,8 @@ export class AotDispatch {
             lists.push(entities);
             if (entities !== plan.packedFrom[k]) reuse = false;
         }
-        if (reuse) return;
+        if (reuse) return true;
+        plan.packedAt = null;
 
         let at = 0;
         for (let k = 0; k < plan.queries.length; k++) {
@@ -225,7 +229,7 @@ export class AotDispatch {
                     if (address === undefined) { whole = false; break; }
                     rows[write + 1 + c] = address;
                 }
-                if (!whole) continue;
+                if (!whole) return false;
                 rows[write] = entity as unknown as number;
                 n++;
             }
@@ -234,6 +238,7 @@ export class AotDispatch {
         }
         plan.rowWords = at;
         plan.packedAt = epoch;
+        return true;
     }
 
     /**

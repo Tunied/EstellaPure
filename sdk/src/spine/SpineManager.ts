@@ -48,6 +48,7 @@ export class SpineManager {
      *  runtime can only see its own entities, so one handed an entity another is
      *  posing cannot retire the binding it replaces. */
     private bindings_: Map<Entity, SpineRuntime> = new Map();
+    private readonly disabledEntities_ = new Set<Entity>();
     /** So a runtime loaded after `observe(true)` reports too. */
     private observing_ = false;
 
@@ -107,18 +108,21 @@ export class SpineManager {
         // submitted every frame and no despawn ever reaches it.
         if (previous && previous !== runtime) previous.removeEntity(entity);
         this.bindings_.set(entity, runtime);
+        runtime.setEnabled(entity, !this.disabledEntities_.has(entity));
         return version;
     }
 
-    updateAnimations(dt: number): void {
+    /** Freeze inactive entities without changing their manual enable state. */
+    updateAnimations(dt: number, isActive?: (entity: Entity) => boolean): void {
         for (const runtime of this.runtimes_.values()) {
-            runtime.updateAll(dt);
+            runtime.updateAll(dt, isActive);
         }
     }
 
-    submitMeshes(registry: CppRegistry, materialOf?: SkeletalMaterialOf): void {
+    /** Skip extraction for entities the activity predicate excludes. */
+    submitMeshes(registry: CppRegistry, materialOf?: SkeletalMaterialOf, isActive?: (entity: Entity) => boolean): void {
         for (const runtime of this.runtimes_.values()) {
-            runtime.extractAndSubmitMeshes(this.coreModule_, registry, materialOf);
+            runtime.extractAndSubmitMeshes(this.coreModule_, registry, materialOf, isActive);
         }
     }
 
@@ -131,6 +135,7 @@ export class SpineManager {
     removeEntity(entity: Entity): void {
         this.bindings_.get(entity)?.removeEntity(entity);
         this.bindings_.delete(entity);
+        this.disabledEntities_.delete(entity);
     }
 
     /**
@@ -145,6 +150,7 @@ export class SpineManager {
         this.runtimes_.clear();
         this.loadingRuntimes_.clear();
         this.bindings_.clear();
+        this.disabledEntities_.clear();
     }
 
     getEntityVersion(entity: Entity): SpineVersion | undefined {
@@ -306,7 +312,10 @@ export class SpineManager {
      */
     setEnabled(entity: Entity, enabled: boolean): void {
         const backend = this.runtimeOf_(entity);
-        if (backend) backend.setEnabled(entity, enabled);
+        if (!backend) return;
+        if (enabled) this.disabledEntities_.delete(entity);
+        else this.disabledEntities_.add(entity);
+        backend.setEnabled(entity, enabled);
     }
 
     enableEvents(entity: Entity): void {
@@ -314,10 +323,10 @@ export class SpineManager {
         if (backend) backend.enableEvents(entity);
     }
 
-    collectAllEvents(): { entity: Entity; raw: RawSpineEvent }[] {
+    collectAllEvents(isActive?: (entity: Entity) => boolean): { entity: Entity; raw: RawSpineEvent }[] {
         const result: { entity: Entity; raw: RawSpineEvent }[] = [];
         for (const backend of this.runtimes_.values()) {
-            const events = backend.collectAllEvents();
+            const events = backend.collectAllEvents(isActive);
             for (const evt of events) {
                 result.push(evt);
             }

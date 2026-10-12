@@ -35,6 +35,13 @@ struct PhysicsContext {
     std::unordered_map<uint32_t, b2JointId> entityToJoint;
     std::vector<uint32_t> dynamicBodyEntities;
 
+    // Box2D discards solver velocity when a body moves to the disabled set.
+    struct PausedMotion {
+        b2Vec2 linearVelocity;
+        float angularVelocity;
+    };
+    std::unordered_map<uint32_t, PausedMotion> pausedMotion;
+
     // One-way (one-sided) platforms: entity -> solid-side normal in physics space
     // (normalized). Read by the pre-solve callback to cancel contacts that approach
     // from the pass-through side. Empty map = zero pre-solve overhead.
@@ -72,6 +79,7 @@ struct PhysicsContext {
         entityToBody.clear();
         entityToShapes.clear();
         entityToJoint.clear();
+        pausedMotion.clear();
         oneWayNormals.clear();
         mouseBodyId = b2_nullBodyId;
         mouseJointId = b2_nullJointId;

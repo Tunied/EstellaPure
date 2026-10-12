@@ -115,6 +115,29 @@ function snapshot(world: World, Decay: AnyComponentDef, entities: readonly Entit
 }
 
 describe('the scheduler and its compiled twin', () => {
+    it.skipIf(!EMCC)('portable asset refs run through the interpreter until every row is addressable',async()=>{
+        const b=makeWorld(),heap=new FakeEngine(),memory=new WasmPoolMemory(heap);
+        b.world.useScriptPoolMemory(memory);
+        Object.defineProperty(b.Decay,'assetFields',{value:[{field:'remaining',type:'texture'}]});
+        const first=b.world.spawn(),second=b.world.spawn();
+        b.world.insert(first,b.Decay,{remaining:1,rate:0.1});
+        b.world.insert(second,b.Decay,{remaining:'@uuid:pending',rate:0.1} as never);
+        const instance=await WebAssembly.instantiate(new WebAssembly.Module(buildModule() as unknown as BufferSource),{env:{memory:heap.memory}});
+        const exports=instance.exports as unknown as Record<string,unknown>;
+        (exports['_initialize'] as (()=>void)|undefined)?.();
+        const systems=new AotSystems();systems.install({engineAbi:ENGINE,projectShapes:SHAPES,systems:[{name:'Decay',symbol:'es_sys_Decay',queries:[[{comp:'Decay',mut:true}]],resources:[]}]},exports,name=>name==='Decay'?b.Decay:undefined);
+        const runtime:AotRuntime={systems,addresses:{componentNamed:name=>name==='Decay'?b.Decay:undefined,resourceAt:()=>undefined,resourceWriteBack:()=>{},payloadRows:()=>[],sendEvent:()=>{},releasePayloads:()=>{}},ctx:new AotContext(memory),dispatcherFor:w=>new AotDispatch(w,runtime)};
+        b.runner.useAot(runtime);
+        const seen:unknown[]=[];
+        const system=defineSystem([Query(Mut(b.Decay))],query=>{for(const [,data] of query as Iterable<[Entity,{remaining:unknown}]>)seen.push(data.remaining);},{name:'Decay'});
+        b.runner.run(system);expect(seen).toEqual([1,'@uuid:pending']);expect(systems.calls).toBe(0);
+        b.world.set(second,b.Decay,{remaining:1,rate:0.1});b.runner.run(system);
+        expect(systems.calls).toBe(1);expect((b.world.get(first,b.Decay) as {remaining:number}).remaining).toBeCloseTo(0.9);
+        // A cached row table must become invalid when a live view gains a ref.
+        (b.world.get(first,b.Decay) as {remaining:unknown}).remaining='@uuid:later';b.runner.run(system);
+        expect(systems.calls).toBe(1);expect(seen.slice(2)).toEqual(['@uuid:later',0.9]);
+        expect(heap.staticsIntact()).toBe(true);
+    });
     it('reports whether this gate could run at all', () => {
         if (EMCC) console.log('[aot-dispatch] the twin ran under the real runner');
         else console.warn('[aot-dispatch] NO EMSDK — the dispatch did NOT run (pnpm emsdk:setup).');

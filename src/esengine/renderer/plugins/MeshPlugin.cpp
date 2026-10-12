@@ -470,7 +470,7 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
     auto& buffers = collect_ctx.buffer_pool;
     auto& draw_list = collect_ctx.draw_list;
     auto& ctx = collect_ctx.frame_context;
-    auto meshView = registry.view<ecs::Transform, ecs::MeshRenderer>();
+    auto meshView = registry.activeView<ecs::Transform, ecs::MeshRenderer>();
     // Read once: the phase is the same for every mesh this collect walks.
     const bool shadowDepth = ctx.purpose == RenderPurpose::ShadowDepth;
 

@@ -22,6 +22,7 @@ import { Camera, Transform, ProjectionType } from '../src/ecs/component';
 import { Query, Mut } from '../src/ecs/query';
 import type { Entity } from '../src/types';
 import type { CppRegistry } from '../src/wasm';
+import { ScreenScaling } from '../src/camera/ScreenScaling';
 
 /** Where a world point lands in clip space under a view-projection. */
 const ndcX = (vp: Float32Array, x: number, y: number): number =>
@@ -101,6 +102,26 @@ describe('render order: transforms resolve before cameras are read', () => {
         expect(calls.at(-1)).toBe('endFrame');
         expect(renderCameraFrame(app, 320, 180, 9999)).toBe(false);
         expect(calls.at(-1)).toBe('endFrame');
+    });
+
+    it('a selected camera preview uses the project fit just as a game frame does', async () => {
+        const { app, module } = bootMockApp();
+        const registry = module.getRegistry() as unknown as Record<string, unknown> & CppRegistry;
+        const cam = app.world.spawn('camera') as Entity;
+        app.world.insert(cam, Transform, {});
+        app.world.insert(cam, Camera, { isActive: true, projectionType: ProjectionType.Orthographic, orthoSize: 180 });
+        registry.getCameraEntities = () => [cam];
+        registry.getCanvasEntities = () => [];
+        app.setPipeline(new RenderPipeline());
+        setRendererBackend(fakeBackend(registry, [cam]));
+        app.addPlugin(cameraPlugin(() => ({ width: 800, height: 600 })));
+        app.insertResource(ScreenScaling, { designWidth: 800, designHeight: 600, scaleMode: 1, matchWidthOrHeight: 0.5 });
+        await app.tick(1 / 60);
+        const gameProjection = Array.from(lastViewProjection!);
+        expect(ndcX(lastViewProjection!, 400, 0)).toBeCloseTo(1);
+        app.world.update(cam, Camera, data => { data.isActive = false; });
+        expect(renderCameraFrame(app, 800, 600, cam)).toBe(true);
+        expect(Array.from(lastViewProjection!)).toEqual(gameProjection);
     });
 
     it('keeps updates alive without drawing a covered surface and resumes rendering', async () => {

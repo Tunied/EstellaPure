@@ -69,6 +69,9 @@ export interface Preparation {
     readonly dependencies: AssetScope;
     /** Every edge it produced, owned and source alike. */
     readonly edges: readonly DependencyReceipt[];
+    /** An optional dependency was unavailable; initial degraded loads may run,
+     * but a refresh must not replace a working era with one missing it. */
+    readonly failedDependencies?: readonly string[];
 }
 
 /**
@@ -142,6 +145,20 @@ export function rebuildPlan(
  */
 export type PreparedLoad<T> = Preparation & { readonly value: T };
 
+/** Internal rejection transport. Its sources belong to this preparation, not
+ * to an Error object that several concurrent loaders may reuse. Public doors
+ * rethrow the original reason, including primitive rejection values. */
+export class PreparationFailure extends Error {
+    constructor(readonly reason: unknown, readonly sources: readonly string[]) {
+        super(reason instanceof Error ? reason.message : String(reason));
+    }
+    override toString(): string { return String(this.reason); }
+}
+
+export function preparationFailureReason(error: unknown): unknown {
+    return error instanceof PreparationFailure ? error.reason : error;
+}
+
 /**
  * The recorder behind one preparation: everything it acquires lands here, so
  * neither the era's ownership nor the graph's edges depend on a loader
@@ -155,6 +172,7 @@ export type PreparedLoad<T> = Preparation & { readonly value: T };
 export class DependencyRecorder {
     private readonly edges_: DependencyReceipt[] = [];
     private readonly acquired_ = new AssetScope();
+    private readonly failed_ = new Set<string>();
     private state_: 'open' | 'committed' | 'rolled-back' = 'open';
 
     /** A runtime resource this preparation now holds. */
@@ -162,6 +180,9 @@ export class DependencyRecorder {
         if (this.state_ !== 'open') return this.late_(lease);
         this.acquired_.add(lease);
         this.edges_.push(type === undefined ? { kind: 'owned', path } : { kind: 'owned', type, path });
+        // The acquisition succeeded, but may hold a degraded preparation. Its
+        // owned edge carries causality; its readiness must reach this owner too.
+        for (const path of lease.failedDependencies ?? []) this.failed_.add(path);
         return lease;
     }
 
@@ -169,6 +190,15 @@ export class DependencyRecorder {
     read(path: string): void {
         if (this.state_ !== 'open') return;
         this.edges_.push({ kind: 'source', path });
+    }
+
+    failed(path: string, error?: unknown): void {
+        if (this.state_ !== 'open') return;
+        this.read(path);
+        this.failed_.add(path);
+        if (error instanceof PreparationFailure) {
+            for (const source of error.sources) this.read(source);
+        }
     }
 
     /**
@@ -180,14 +210,25 @@ export class DependencyRecorder {
      */
     commit<T extends object>(value: T): T & Preparation {
         this.state_ = 'committed';
-        return { ...value, dependencies: this.acquired_, edges: this.edges_ };
+        return { ...value, dependencies: this.acquired_, edges: this.edges_, failedDependencies: [...this.failed_] };
     }
 
     /** The preparation produced nothing, so it may keep nothing. */
     rollback(): void {
         this.state_ = 'rolled-back';
-        this.acquired_.releaseAll();
-        this.edges_.length = 0;
+        try { this.acquired_.releaseAll(); } finally { this.edges_.length = 0; }
+    }
+
+    /** Roll back ownership while transporting the reads that caused failure. */
+    abort(error: unknown): PreparationFailure {
+        const sources = new Set(this.edges_.filter(isInvalidatable).map(edge => edge.path));
+        const reason = preparationFailureReason(error);
+        if (error instanceof PreparationFailure) for (const source of error.sources) {
+            sources.add(source);
+        }
+        try { this.rollback(); }
+        catch (cleanupError) { log.warn('asset', 'Preparation rollback cleanup failed', cleanupError); }
+        return new PreparationFailure(reason, [...sources]);
     }
 
     /**

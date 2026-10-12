@@ -85,12 +85,14 @@ EstellaContext::~EstellaContext() {
 // backend. A native build has no WebGL — it enters through init(Unique<GfxDevice>)
 // with an injected WebGPUDevice instead, so this overload compiles out entirely.
 bool EstellaContext::init(int webglContextHandle) {
+    return init(webglContextHandle, false);
+}
+
+bool EstellaContext::init(int webglContextHandle, bool ownsContext) {
     if (state_.initialized) {
         ES_LOG_WARN("EstellaContext already initialized");
         return true;
     }
-
-    state_.webgl_context = webglContextHandle;
 
     EMSCRIPTEN_RESULT result = emscripten_webgl_make_context_current(
         static_cast<EMSCRIPTEN_WEBGL_CONTEXT_HANDLE>(webglContextHandle));
@@ -98,6 +100,9 @@ bool EstellaContext::init(int webglContextHandle) {
         ES_LOG_ERROR("Failed to make WebGL context current: {}", result);
         return false;
     }
+
+    state_.webgl_context = webglContextHandle;
+    state_.owns_webgl_context = ownsContext;
 
     initSubsystems(makeUnique<GLDevice>());
     return true;
@@ -243,20 +248,31 @@ void EstellaContext::initSubsystems(Unique<GfxDevice> gfxDevice) {
 void EstellaContext::shutdown() {
     if (!state_.initialized) return;
 
+#ifdef ES_PLATFORM_WEB
+    const auto webglCtx = static_cast<EMSCRIPTEN_WEBGL_CONTEXT_HANDLE>(state_.webgl_context);
+    const bool ownsWebglContext = state_.owns_webgl_context;
+    const auto previousContext = emscripten_webgl_get_current_context();
+    // GL object deletion uses the current context, including subsystem destructors.
+    // Another engine instance may have made its own context current since our init.
+    if (webglCtx > 0 && previousContext != webglCtx) {
+        emscripten_webgl_make_context_current(webglCtx);
+    }
+#endif
+
     if (auto* rf = tryGet<RenderFrame>()) rf->shutdown();
     if (auto* id = tryGet<ImmediateDraw>()) id->shutdown();
     if (auto* rc = tryGet<RenderContext>()) rc->shutdown();
     if (auto* rm = tryGet<resource::ResourceManager>()) rm->shutdown();
 
-    int webglCtx = state_.webgl_context;
-
     services_.clear();
     state_ = EngineState{};
 
 #ifdef ES_PLATFORM_WEB
-    if (webglCtx > 0) {
-        emscripten_webgl_destroy_context(
-            static_cast<EMSCRIPTEN_WEBGL_CONTEXT_HANDLE>(webglCtx));
+    if (webglCtx > 0 && ownsWebglContext) {
+        emscripten_webgl_destroy_context(webglCtx);
+    }
+    if (webglCtx > 0 && previousContext != webglCtx) {
+        emscripten_webgl_make_context_current(previousContext);
     }
 #endif
 

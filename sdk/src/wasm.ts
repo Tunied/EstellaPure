@@ -35,6 +35,10 @@ export interface CppRegistry extends GeneratedRegistry {
      *  registry itself. The web module answers the same question as a free
      *  function; absent on a core built before either existed. */
     layoutEpoch?(): number;
+    /** Shared subtree teardown ownership; optional for older hosts. */
+    reserveDestruction?(entity: Entity): boolean;
+    releaseDestruction?(entity: Entity): void;
+    destructionPending?(entity: Entity): boolean;
 
     [key: string]: Function | undefined;
 }
@@ -221,7 +225,7 @@ export interface ESEngineModule {
 
     FS: EmscriptenFS;
 
-    initRenderer(): void;
+    initRenderer(): boolean;
     initRendererWithContext(contextHandle: number): boolean;
     /**
      * Boot on the WebGPU backend. The host must acquire a GPUDevice and pass it
@@ -407,6 +411,14 @@ export interface ESEngineModule {
         textureId: number, blendMode: number,
         entity: number, skelScale: number, flipX: boolean, flipY: boolean,
         layer: number, depth: number, materialId: number
+    ): void;
+    renderer_submitSkeletalBatchByEntityEx?(
+        registry: CppRegistry,
+        verticesPtr: number, vertexCount: number,
+        indicesPtr: number, indexCount: number,
+        textureId: number, blendMode: number,
+        entity: number, skelScale: number, flipX: boolean, flipY: boolean,
+        layer: number, depth: number, materialId: number, premultipliedColor: boolean
     ): void;
     /**
      * Submit pre-laid-out glyph quads. Vertex format x,y,u,v,r,g,b,a; `sdf` (1/0)
@@ -706,6 +718,10 @@ export interface ESEngineModule {
         preview: number, verticesPtr: number, vertexCount: number,
         indicesPtr: number, indexCount: number, textureId: number, blendMode: number,
         transformPtr: number, layer: number, depth: number, materialId: number): number;
+    renderer_submitSkeletalPreviewBatchEx(
+        preview: number, verticesPtr: number, vertexCount: number,
+        indicesPtr: number, indexCount: number, textureId: number, blendMode: number,
+        transformPtr: number, layer: number, depth: number, materialId: number, premultipliedColor: boolean): number;
     renderer_renderSkeletalPreview(preview: number, viewProjectionPtr: number): number;
     renderer_pollSkeletalPreview(preview: number): number;
     renderer_getSkeletalPreviewPtr(preview: number): number;

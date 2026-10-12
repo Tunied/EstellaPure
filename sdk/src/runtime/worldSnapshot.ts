@@ -48,13 +48,13 @@ export interface WorldSnapshotOptions {
     assetPath?: (path: string) => string | null;
 }
 
-/** The component types an inspector shows for @p entity: not the tree's own
- *  structure, and never per-frame transient state. */
-export function inspectableTypes(world: World, entity: number): string[] {
+/** Authoring inspection omits transient state; runtime diagnostics may request
+ * it explicitly. The tree's own structural fields remain separate. */
+export function inspectableTypes(world: World, entity: number, includeTransient = false): string[] {
     return world.getComponentTypes(entity as never).filter((t) => {
         if (STRUCTURAL.has(t)) return false;
         const def = getComponent(t);
-        return !!def && !def.transient;
+        return !!def && (includeTransient || !def.transient);
     });
 }
 

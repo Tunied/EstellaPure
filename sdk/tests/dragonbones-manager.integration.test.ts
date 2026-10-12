@@ -104,8 +104,10 @@ describe.skipIf(!HAS_ASSETS)('DragonBonesManager', () => {
         manager = fresh();
         const handle = load(manager, 'dragonboy');
         manager.setAtlasTexture(handle, 3);
-        manager.addEntity(e(1), handle, { armature: 'Dragon', assetKey: 'dragonboy' });
-        manager.addEntity(e(1), handle, { armature: 'Dragon', assetKey: 'dragonboy' });
+        expect(manager.addEntity(e(1), handle, { armature: 'Dragon', assetKey: 'dragonboy' })).toBe(true);
+        expect(manager.addEntity(e(1), handle, { armature: 'Dragon', assetKey: 'dragonboy' })).toBe(true);
+        expect(manager.hasInstance(e(1))).toBe(true);
+        expect(manager.play(e(1), 'walk')).toBe(true);
 
         // One entity, one instance — and the shared skeleton survives, which it
         // would not if the replace released a reference it never took.
@@ -125,5 +127,85 @@ describe.skipIf(!HAS_ASSETS)('DragonBonesManager', () => {
         // Idempotent: teardown runs from app shutdown and from an engine re-init,
         // and the second must not free a handle the first already did.
         expect(() => manager.dispose()).not.toThrow();
+    });
+
+    it('keeps the previous instance and its enable state when a replacement fails', () => {
+        manager = fresh();
+        const handle = load(manager, 'dragonboy');
+        manager.setAtlasTexture(handle, 3);
+        expect(manager.addEntity(e(1), handle, { armature: 'Dragon', assetKey: 'dragonboy', animation: 'walk' })).toBe(true);
+        manager.updateAnimations(1 / 60);
+        manager.setEnabled(e(1), false);
+        const bounds = manager.getBounds(e(1));
+        expect(manager.addEntity(e(1), handle, { armature: 'Nope', assetKey: 'dragonboy' })).toBe(false);
+        expect(manager.hasInstance(e(1))).toBe(true);
+        expect(manager.getArmatures(handle)).toEqual(['Dragon']);
+        for (let i = 0; i < 20; i++) manager.updateAnimations(1 / 60);
+        expect(manager.getBounds(e(1))).toEqual(bounds);
+        manager.setEnabled(e(1), true); manager.updateAnimations(1 / 60);
+        expect(manager.getBounds(e(1))).not.toEqual(bounds);
+        manager.dispose();
+    });
+
+    it('transfers an unkeyed skeleton to the replacement before releasing the last owner', () => {
+        manager = fresh();
+        const handle = load(manager);
+        expect(manager.addEntity(e(1), handle, { armature: 'Dragon' })).toBe(true);
+        expect(manager.addEntity(e(1), handle, { armature: 'Dragon' })).toBe(true);
+        expect(manager.play(e(1), 'walk')).toBe(true);
+        manager.removeEntity(e(1));
+        expect(manager.getArmatures(handle)).toEqual([]);
+        manager.dispose();
+    });
+
+    it('rejects inconsistent keyed ownership before replacing an instance', () => {
+        manager = fresh();
+        const handle = load(manager, 'dragonboy');
+        const other = load(manager, 'other');
+        expect(manager.addEntity(e(1), handle, { armature: 'Dragon', assetKey: 'dragonboy' })).toBe(true);
+        expect(manager.addEntity(e(1), other, { armature: 'Dragon', assetKey: 'dragonboy' })).toBe(false);
+        expect(manager.addEntity(e(1), handle, { armature: 'Dragon', assetKey: 'missing' })).toBe(false);
+        expect(manager.addEntity(e(1), handle, { armature: 'Dragon' })).toBe(false);
+        expect(manager.hasInstance(e(1))).toBe(true);
+        expect(manager.play(e(1), 'walk')).toBe(true);
+        manager.dispose();
+    });
+
+    it('keeps manual disable when a replacement succeeds', () => {
+        manager = fresh();
+        const handle = load(manager, 'dragonboy'); manager.setAtlasTexture(handle, 3);
+        try {
+            expect(manager.addEntity(e(1), handle, { armature: 'Dragon', assetKey: 'dragonboy', animation: 'walk' })).toBe(true);
+            manager.setEnabled(e(1), false);
+            expect(manager.addEntity(e(1), handle, { armature: 'Dragon', assetKey: 'dragonboy', animation: 'walk' })).toBe(true);
+            const frozen = manager.getBounds(e(1));
+            for (let i = 0; i < 20; i++) manager.updateAnimations(1 / 60);
+            expect(manager.getBounds(e(1))).toEqual(frozen);
+            manager.setEnabled(e(1), true); manager.updateAnimations(1 / 60);
+            expect(manager.getBounds(e(1))).not.toEqual(frozen);
+        } finally { manager.dispose(); }
+    });
+
+    it('releases unkeyed skeletons on dispose, including one never attached', () => {
+        manager = fresh();
+        const attached = load(manager);
+        const unused = load(manager);
+        expect(manager.addEntity(e(1), attached, { armature: 'Dragon' })).toBe(true);
+        manager.dispose();
+        expect(manager.getArmatures(attached)).toEqual([]);
+        expect(manager.getArmatures(unused)).toEqual([]);
+    });
+
+    it('keeps an unkeyed handle alive while another attached entity holds it', () => {
+        manager = fresh();
+        const handle = load(manager);
+        expect(manager.addEntity(e(1), handle, { armature: 'Dragon' })).toBe(true);
+        expect(manager.addEntity(e(2), handle, { armature: 'Dragon' })).toBe(true);
+        manager.removeEntity(e(1));
+        expect(manager.getArmatures(handle)).toEqual(['Dragon']);
+        expect(manager.play(e(2), 'walk')).toBe(true);
+        manager.removeEntity(e(2));
+        expect(manager.getArmatures(handle)).toEqual([]);
+        manager.dispose();
     });
 });

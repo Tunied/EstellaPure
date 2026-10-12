@@ -55,6 +55,7 @@ export class UIInteractionPlugin implements Plugin {
 
     build(app: App): void {
         registerComponent('Interactable', Interactable);
+        registerComponent('UIInteraction', UIInteraction);
 
         const world = app.world;
         const engine = engineApi(app);
@@ -70,12 +71,17 @@ export class UIInteractionPlugin implements Plugin {
         /** Where each pointer last hit, so a settled pointer skips the raycast. */
         const lastHit = new Map<number, { x: number; y: number; entity: Entity | null }>();
         let lastLayoutGen = -1;
+        let lastWorldVersion = -1;
+        let lastTick = -1;
+        world.enableChangeTracking(Interactable);
+        const eligible = (entity: Entity): boolean => world.isEntityActive(entity)
+            && (!world.has(entity, Interactable) || world.get(entity, Interactable).enabled);
 
         // During the host's release event, from what the last frame saw: the
         // control this pointer pressed, if it is still the one under it.
         const releaseInGesture = (pointer: number): void => {
             const held = book.releasing(pointer, lastHit.get(pointer)?.entity ?? null);
-            if (held === null || !world.valid(held)) return;
+            if (held === null || !eligible(held)) return;
             if (world.has(held, Interactable) && !(world.get(held, Interactable) as InteractableData).enabled) return;
             fireGestureClick(world, held);
         };
@@ -103,13 +109,18 @@ export class UIInteractionPlugin implements Plugin {
                 // Either domain is enough to be pointing AT something: a scene
                 // with no camera still has a screen, and a HUD on it is still
                 // clickable.
-                if (!camera.valid && !overlay.active) { input.pointerOverUI = false; return; }
-
                 const dpr = platformDevicePixelRatio();
                 const surfaceH = overlay.active ? overlay.surfaceH : camera.screenH;
                 const pointers = uiPointersOf(input);
                 const layoutChanged = layoutGen.generation !== lastLayoutGen;
                 lastLayoutGen = layoutGen.generation;
+                const worldVersion = world.getWorldVersion();
+                // A write between frames may carry the previous frame's tick;
+                // overlap one tick so stationary pointers see enable/disable.
+                const worldChanged = worldVersion !== lastWorldVersion
+                    || world.anyChangedSince(Interactable, lastTick - 1);
+                lastWorldVersion = worldVersion;
+                lastTick = world.getWorldTick();
 
                 // The single-pointer resources every other consumer reads are the
                 // PRIMARY pointer's: the mouse, or the oldest finger on the glass.
@@ -117,6 +128,7 @@ export class UIInteractionPlugin implements Plugin {
                 let overUI = false;
 
                 const hit = (pointer: UiPointerSample): Entity | null => {
+                    if (!camera.valid && !overlay.active) return null;
                     const glX = pointer.x * dpr;
                     const glY = surfaceH - pointer.y * dpr;
                     // The pointer, once per domain. Neither is derived from the
@@ -136,8 +148,9 @@ export class UIInteractionPlugin implements Plugin {
                     const settled = cached !== undefined
                         && cached.x === layoutPointer.x && cached.y === layoutPointer.y;
                     let entity: Entity | null;
-                    if (settled && !layoutChanged && !edge) {
-                        entity = cached.entity !== null && world.valid(cached.entity) ? cached.entity : null;
+                    if (settled && !layoutChanged && !worldChanged && !edge
+                        && (cached.entity === null || eligible(cached.entity))) {
+                        entity = cached.entity;
                     } else {
                         // With no camera there is no world ray: inverting a projection
                         // never written yields NaN, which answers "no" by accident.
@@ -145,6 +158,7 @@ export class UIInteractionPlugin implements Plugin {
                         const screenRay = overlay.active ? uiLayoutRay(overlay, glX, glY) : undefined;
                         const worldRay = camera.valid ? uiPointerRay(camera, glX, glY) : screenRay!;
                         entity = uiHitTestWorld(world, worldRay, screenRay);
+                        if (entity !== null && !eligible(entity)) entity = null;
                         lastHit.set(pointer.id, { x: layoutPointer.x, y: layoutPointer.y, entity });
                     }
                     if (entity !== null) overUI = true;
@@ -152,7 +166,9 @@ export class UIInteractionPlugin implements Plugin {
                 };
 
                 const wasPressed = new Set(book.pressed);
-                for (const event of book.step(pointers, hit, (e) => world.valid(e))) {
+                const wasHovered = new Set(book.hovered);
+                for (const event of book.step(pointers, hit,
+                    e => eligible(e) && (camera.valid || overlay.active))) {
                     switch (event.kind) {
                         case 'hoverEnter':
                             ensureComponent(world, event.entity, UIInteraction);
@@ -183,14 +199,15 @@ export class UIInteractionPlugin implements Plugin {
                 // any pointer is over or holding it, false once none is.
                 const hovered = book.hovered;
                 const pressed = book.pressed;
-                const touched = new Set<Entity>([...interactionEntities, ...hovered, ...pressed, ...wasPressed]);
+                const touched = new Set<Entity>([...interactionEntities, ...hovered, ...pressed, ...wasPressed, ...wasHovered]);
                 for (const entity of touched) {
                     if (!world.valid(entity) || !world.has(entity, UIInteraction)) continue;
                     const data = world.get(entity, UIInteraction) as UIInteractionData;
                     const isHovered = hovered.has(entity);
                     const isPressed = pressed.has(entity);
-                    const justPressed = data.justPressed || (isPressed && !wasPressed.has(entity));
-                    const justReleased = data.justReleased || (!isPressed && wasPressed.has(entity));
+                    const active = eligible(entity) && (camera.valid || overlay.active);
+                    const justPressed = active && (data.justPressed || (isPressed && !wasPressed.has(entity)));
+                    const justReleased = active && (data.justReleased || (!isPressed && wasPressed.has(entity)));
                     if (data.hovered === isHovered && data.pressed === isPressed
                         && data.justPressed === justPressed && data.justReleased === justReleased) continue;
                     data.hovered = isHovered;

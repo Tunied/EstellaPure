@@ -18,6 +18,7 @@
 #include "../renderer/frame/RenderStage.hpp"
 #include "../renderer/draw/ImmediateDraw.hpp"
 #include "../renderer/draw/CustomGeometry.hpp"
+#include "../renderer/draw/TextVertexFormat.hpp"
 #include "../resource/ResourceManager.hpp"
 #include "../ecs/Registry.hpp"
 #include "../ecs/TransformSystem.hpp"
@@ -96,9 +97,20 @@ void renderer_submitSkeletalBatchByEntity(
     u32 entity, f32 skelScale, bool flipX, bool flipY,
     i32 layer, f32 depth, u32 materialId
 ) {
+    renderer_submitSkeletalBatchByEntityEx(registry, verticesPtr, vertexCount, indicesPtr, indexCount, textureId, blendMode, entity, skelScale, flipX, flipY, layer, depth, materialId, blendMode == 4 || blendMode == 5);
+}
+
+void renderer_submitSkeletalBatchByEntityEx(
+    ecs::Registry& registry,
+    uintptr_t verticesPtr, i32 vertexCount,
+    uintptr_t indicesPtr, i32 indexCount,
+    u32 textureId, i32 blendMode,
+    u32 entity, f32 skelScale, bool flipX, bool flipY,
+    i32 layer, f32 depth, u32 materialId, bool premultipliedColor
+) {
     if (!g_initialized || !g_renderFrame) return;
     const Entity ent = Entity::fromRaw(entity);
-    if (!registry.has<ecs::Transform>(ent)) return;
+    if (!registry.isEntityActive(ent) || !registry.has<ecs::Transform>(ent)) return;
 
     auto& t = registry.get<ecs::Transform>(ent);
     t.ensureDecomposed();
@@ -120,7 +132,7 @@ void renderer_submitSkeletalBatchByEntity(
     if (!vertices || !indices) return;
     g_renderFrame->submitSkeletalBatch(
         vertices, vertexCount, indices, indexCount,
-        textureId, blendMode, &model[0][0], ent, layer, depth, materialId);
+        textureId, blendMode, &model[0][0], ent, layer, depth, materialId, premultipliedColor);
 }
 
 /**
@@ -169,8 +181,7 @@ void renderer_submitTextBatch(
 ) {
     if (!g_initialized || !g_renderFrame) return;
     if (vertexCount < 0 || indexCount < 0) return;
-    // Text vertex format is x,y,u,v,r,g,b,a (8 floats per vertex).
-    auto* vertices = boundarySpan<f32>(verticesPtr, static_cast<u64>(vertexCount) * 8, "renderer_submitTextBatch.vertices");
+    auto* vertices = boundarySpan<f32>(verticesPtr, static_cast<u64>(vertexCount) * TEXT_VERTEX_FLOATS, "renderer_submitTextBatch.vertices");
     auto* indices = boundarySpan<u16>(indicesPtr, static_cast<u64>(indexCount), "renderer_submitTextBatch.indices");
     auto* transform = boundarySpan<f32>(transformPtr, 16, "renderer_submitTextBatch.transform");
     if (!vertices || !indices || !transform) return;
@@ -1145,7 +1156,7 @@ u32 gl_checkErrors(const std::string& context) {
 }
 
 i32 registry_getCanvasEntity(ecs::Registry& registry) {
-    auto view = registry.view<ecs::Canvas>();
+    auto view = registry.activeView<ecs::Canvas>();
     for (auto entity : view) {
         return static_cast<i32>(entity.id());
     }
@@ -1157,7 +1168,7 @@ i32 registry_getCanvasEntity(ecs::Registry& registry) {
 // membership (SceneOwner) is an SDK component the engine cannot see, which is why
 // this reports rather than decides — the camera query has the same shape.
 emscripten::val registry_getCanvasEntities(ecs::Registry& registry) {
-    auto view = registry.view<ecs::Canvas>();
+    auto view = registry.activeView<ecs::Canvas>();
     auto result = emscripten::val::array();
     u32 idx = 0;
     for (auto entity : view) {
@@ -1169,7 +1180,7 @@ emscripten::val registry_getCanvasEntities(ecs::Registry& registry) {
 
 #ifdef __EMSCRIPTEN__
 emscripten::val registry_getCameraEntities(ecs::Registry& registry) {
-    auto cameraView = registry.view<ecs::Camera, ecs::Transform>();
+    auto cameraView = registry.activeView<ecs::Camera, ecs::Transform>();
     auto result = emscripten::val::array();
     u32 idx = 0;
     for (auto entity : cameraView) {
@@ -1399,6 +1410,16 @@ i32 renderer_submitSkeletalPreviewBatch(
     u32 textureId, i32 blendMode, uintptr_t transformPtr,
     i32 layer, f32 depth, u32 materialId
 ) {
+    return renderer_submitSkeletalPreviewBatchEx(preview, verticesPtr, vertexCount, indicesPtr, indexCount, textureId, blendMode, transformPtr, layer, depth, materialId, blendMode == 4 || blendMode == 5);
+}
+
+i32 renderer_submitSkeletalPreviewBatchEx(
+    u32 preview,
+    uintptr_t verticesPtr, i32 vertexCount,
+    uintptr_t indicesPtr, i32 indexCount,
+    u32 textureId, i32 blendMode, uintptr_t transformPtr,
+    i32 layer, f32 depth, u32 materialId, bool premultipliedColor
+) {
     if (!g_renderFrame || vertexCount < 0 || indexCount < 0) return 0;
     // Skeletal vertex format is x,y,u,v,r,g,b,a (8 floats per vertex).
     auto* vertices = boundarySpan<f32>(verticesPtr, static_cast<u64>(vertexCount) * 8,
@@ -1410,7 +1431,7 @@ i32 renderer_submitSkeletalPreviewBatch(
     if (!vertices || !indices || !transform) return 0;
     return g_renderFrame->submitSkeletalPreviewBatch(
         preview, vertices, vertexCount, indices, indexCount,
-        textureId, blendMode, transform, layer, depth, materialId) ? 1 : 0;
+        textureId, blendMode, transform, layer, depth, materialId, premultipliedColor) ? 1 : 0;
 }
 
 i32 renderer_renderSkeletalPreview(u32 preview, uintptr_t viewProjectionPtr) {

@@ -36,6 +36,19 @@ const oneBatch = (cb: (v: Uint8Array, i: Uint8Array, vc: number, ic: number, tex
 };
 
 describe('handing a posed skeleton to the engine', () => {
+    it.each([2, 3])('carries PMA color independently of blend mode %s', blend => {
+        const { core } = mockCore();
+        const submit = vi.fn();
+        core.renderer_submitSkeletalBatchByEntityEx = submit;
+        submitEntityMeshes(core, {}, 5 as Entity, PROPS, cb => {
+            cb(new Uint8Array(64), new Uint8Array(6), 2, 3, 7, blend, true);
+        });
+        expect(submit).toHaveBeenCalledOnce();
+        expect(submit.mock.calls[0].at(-1)).toBe(true);
+        expect(submit.mock.calls[0][6]).toBe(blend);
+        expect(core.renderer_submitSkeletalBatchByEntity).not.toHaveBeenCalled();
+    });
+
     it('submits no material when the caller names none', () => {
         const { core, submits } = mockCore();
         expect(submitEntityMeshes(core, {}, 5 as Entity, PROPS, oneBatch)).toBe(true);

@@ -21,6 +21,9 @@ inline constexpr const char* BATCH = R"esshader(#pragma shader "Batch"
 
 #pragma feature ALPHA_CLIP
 
+
+#pragma feature PREMULTIPLIED_COLOR
+
 #pragma vertex
 layout(location = 0) in vec3 a_position;
 layout(location = 1) in vec4 a_color;
@@ -92,6 +95,9 @@ void main() {
     vec4 tint = vec4(srgbToLinear(v_color.rgb), v_color.a);
 #else
     vec4 tint = v_color;
+#endif
+#ifdef PREMULTIPLIED_COLOR
+    tint.rgb *= tint.a;
 #endif
 #ifdef SDF
 
@@ -204,9 +210,12 @@ struct VSOut {
     else if (idx == 6) { texColor = textureSampleLevel(t6, s6, v.v_texCoord, 0.0); }
     else { texColor = textureSampleLevel(t7, s7, v.v_texCoord, 0.0); }
 #ifdef ES_LINEAR
-    let tint = vec4f(srgbToLinear(v.v_color.rgb), v.v_color.a);
+    var tint = vec4f(srgbToLinear(v.v_color.rgb), v.v_color.a);
 #else
-    let tint = v.v_color;
+    var tint = v.v_color;
+#endif
+#ifdef PREMULTIPLIED_COLOR
+    tint = vec4f(tint.rgb * tint.a, tint.a);
 #endif
 #ifdef SDF
 

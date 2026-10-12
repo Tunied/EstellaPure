@@ -44,6 +44,23 @@ async function bind(
 }
 
 describe('one entity is posed by at most one runtime', () => {
+    it.each(['4.1', '4.2'])('keeps manual disable when rebinding to %s', async (version) => {
+        const { manager } = managerWithVersions();
+        const entity = 7 as Entity;
+        try {
+            manager.observe(true);
+            await bind(manager, entity, '4.1', 'hero#1');
+            manager.updateAnimations(1 / 60);
+            expect(manager.diagnostics().pose.logicalUpdates).toBe(1);
+            manager.setEnabled(entity, false);
+            await bind(manager, entity, version, 'hero#2');
+            manager.updateAnimations(1 / 60);
+            expect(manager.diagnostics().pose.logicalUpdates).toBe(0);
+            manager.setEnabled(entity, true);
+            manager.updateAnimations(1 / 60);
+            expect(manager.diagnostics().pose.logicalUpdates).toBe(1);
+        } finally { manager.dispose(); }
+    });
     it('moving to another spine version leaves nothing behind in the old one', async () => {
         // The runtime it moves TO can only remove its own entities, and the one
         // it came from is never told: what stays there is posed and submitted

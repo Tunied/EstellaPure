@@ -53,7 +53,7 @@ void RenderFrame::collectShadow2D(ecs::Registry& registry) {
     shadow_2d_texture_id_ = 0;
     context_.lights().setMask2DRect(glm::vec4(0.0f));
 
-    auto casters = registry.view<ecs::Transform, ecs::ShadowCaster2D>();
+    auto casters = registry.activeView<ecs::Transform, ecs::ShadowCaster2D>();
     for (auto entity : casters) {
         const auto& caster = casters.get<ecs::ShadowCaster2D>(entity);
         if (!caster.enabled) continue;
@@ -375,7 +375,7 @@ void RenderFrame::collectShape2D(ecs::Registry& registry) {
     shape_2d_texture_id_ = 0;
 
     const LightConstants& lights = context_.lights().data();
-    auto view = registry.view<ecs::Transform, ecs::Light>();
+    auto view = registry.activeView<ecs::Transform, ecs::Light>();
     for (auto entity : view) {
         if (shape_2d_lights_.size() >= MAX_SHAPE_2D_LIGHTS) break;
         const auto& light = view.get<ecs::Light>(entity);

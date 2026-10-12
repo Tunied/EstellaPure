@@ -201,7 +201,7 @@ export function spineSceneDiagnostics(
     const geometry = { meshBatches: 0, vertices: 0, indices: 0 };
     const abi: SpineAbiCounts = {
         pose: 0, world: 0, batchCount: 0, vertexCount: 0, indexCount: 0,
-        batchData: 0, malloc: 0, free: 0, submit: 0,
+        batchData: 0, batchColor: 0, malloc: 0, free: 0, submit: 0,
     };
     const bytes: SpineByteCounts = { wasmRead: 0, coreWrite: 0, scratchAllocated: 0 };
     const time = { pose: 0, readback: 0, total: 0 };

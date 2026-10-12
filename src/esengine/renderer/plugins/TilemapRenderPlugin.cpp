@@ -160,6 +160,7 @@ void TilemapRenderPlugin::collect(RenderCollectContext& collect_ctx) {
     const CameraView& cam = collect_ctx.camera;
 
     for (const auto& [entity, layer] : layers) {
+        if (registry.valid(entity) && !registry.isEntityActive(entity)) continue;
         // The TilemapLayer component is the single source of a layer's visual
         // metadata — the renderer reads it live each frame (so animated
         // tint/opacity need no sync). Every scene-driven layer has one (Tiled

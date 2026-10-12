@@ -186,7 +186,12 @@ bool initRendererInternal(const char* canvasSelector) {
     ES_LOG_INFO("Estella runtime provenance {}", kEstellaBuildProvenance);
 
     g_activeContext = &legacyCtx().context();
-    return g_activeContext->init(static_cast<int>(webglCtx));
+    if (!g_activeContext->init(static_cast<int>(webglCtx), true)) {
+        // This path creates the context; an externally supplied handle is borrowed.
+        emscripten_webgl_destroy_context(webglCtx);
+        return false;
+    }
+    return true;
 }
 
 // The WebGPU mirror of initRendererInternal — the same platform boundary,
@@ -231,8 +236,8 @@ bool initRendererWebGPU(const std::string& canvasSelector, u32 width, u32 height
 #endif
 }
 
-void initRenderer() {
-    initRendererInternal("#canvas");
+bool initRenderer() {
+    return initRendererInternal("#canvas");
 }
 
 bool initRendererWithContext(int contextHandle) {
@@ -519,6 +524,7 @@ EMSCRIPTEN_BINDINGS(esengine_renderer) {
     // Every skeletal runtime is a side module; this is the one door their posed
     // geometry comes through, so it belongs to neither of their build flags.
     emscripten::function("renderer_submitSkeletalBatchByEntity", &esengine::renderer_submitSkeletalBatchByEntity);
+    emscripten::function("renderer_submitSkeletalBatchByEntityEx", &esengine::renderer_submitSkeletalBatchByEntityEx);
     emscripten::function("renderer_entityVisibleToCamera", &esengine::renderer_entityVisibleToCamera);
     emscripten::function("renderer_submitTextBatch", &esengine::renderer_submitTextBatch);
     emscripten::function("meshRenderer_setGeometry", &esengine::meshRenderer_setGeometry);
@@ -789,6 +795,7 @@ EMSCRIPTEN_BINDINGS(esengine_renderer) {
     // and no begin/end pair, so two of them cannot reach each other.
     emscripten::function("renderer_createSkeletalPreview", &esengine::renderer_createSkeletalPreview);
     emscripten::function("renderer_submitSkeletalPreviewBatch", &esengine::renderer_submitSkeletalPreviewBatch);
+    emscripten::function("renderer_submitSkeletalPreviewBatchEx", &esengine::renderer_submitSkeletalPreviewBatchEx);
     emscripten::function("renderer_renderSkeletalPreview", &esengine::renderer_renderSkeletalPreview);
     emscripten::function("renderer_pollSkeletalPreview", &esengine::renderer_pollSkeletalPreview);
     emscripten::function("renderer_getSkeletalPreviewPtr", &esengine::renderer_getSkeletalPreviewPtr);

@@ -338,7 +338,7 @@ describe('what a frame moved, not only what it decided', () => {
         expect(d.bytes).toEqual({ wasmRead: 3000, coreWrite: 6000, scratchAllocated: 9000 });
         expect(d.abi).toEqual({
             pose: 6, world: 9, batchCount: 18, vertexCount: 21, indexCount: 24,
-            batchData: 12, malloc: 27, free: 33, submit: 15,
+            batchData: 12, batchColor: 0, malloc: 27, free: 33, submit: 15,
         });
         expect(d.frame, 'the newest frame any runtime reached').toBe(2);
         expect(d.runtimes.map(t => t.total.last)).toEqual([1, 2]);

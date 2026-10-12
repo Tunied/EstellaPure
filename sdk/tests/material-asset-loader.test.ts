@@ -8,16 +8,27 @@ vi.mock('../src/render/material', () => ({
         setUniform: vi.fn(),
         tex: vi.fn((handle: number) => ({ kind: 'tex', handle })),
         compileShader: vi.fn().mockReturnValue(7),
+        releaseShader: vi.fn(),
         release: vi.fn(),
     },
 }));
 
 import { MaterialAssetLoader } from '../src/asset/loaders/MaterialAssetLoader';
+import { MaterialShaderAssetLoader } from '../src/asset/loaders/MaterialShaderAssetLoader';
 import { Material } from '../src/render/material';
 import type { LoadContext } from '../src/asset/AssetLoader';
 
 const MAT_PATH = 'assets/materials/foo.esmaterial';
 const TEX_REF = 'missing.png';
+
+function withShaderSource(ctx: LoadContext): LoadContext {
+    const loader = new MaterialShaderAssetLoader();
+    ctx.acquireAsset = vi.fn(async (_type: string, path: string) => {
+        const value = await loader.load(path, ctx);
+        return { key: path, generation: 1, value, release: () => loader.unload(value), retain: () => null };
+    }) as LoadContext['acquireAsset'];
+    return ctx;
+}
 
 function makeCtx(): LoadContext {
     const materialJson = JSON.stringify({
@@ -25,11 +36,11 @@ function makeCtx(): LoadContext {
         shader: 'fx.esshader',
         properties: { mainTex: TEX_REF },
     });
-    return {
+    return withShaderSource({
         catalog: { getBuildPath: (p: string) => p },
         loadText: vi.fn(async (p: string) => (p.endsWith('.esmaterial') ? materialJson : '// shader src')),
         acquireTexture: vi.fn().mockRejectedValue(new Error('404 not found')),
-    } as unknown as LoadContext;
+    } as unknown as LoadContext);
 }
 
 describe('MaterialAssetLoader texture failure', () => {
@@ -87,7 +98,7 @@ describe('MaterialAssetLoader ownership on unload', () => {
                 return lease;
             }),
         } as unknown as LoadContext;
-        return { ctx, released };
+        return { ctx: withShaderSource(ctx), released };
     }
 
     it('destroys what it made and gives back nothing it acquired', async () => {
@@ -114,12 +125,12 @@ describe('MaterialAssetLoader built-in shader ref', () => {
 
     function ctxFor(shader: string): LoadContext {
         const materialJson = JSON.stringify({ type: 'material', shader, properties: {} });
-        return {
+        return withShaderSource({
             catalog: { getBuildPath: (p: string) => p },
             // Only the material is ever read — a built-in shader has no file.
             loadText: vi.fn(async () => materialJson),
             loadTexture: vi.fn(),
-        } as unknown as LoadContext;
+        } as unknown as LoadContext);
     }
 
     it('compiles a `builtin:<id>` shader from its in-code template, reading no shader file', async () => {

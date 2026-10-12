@@ -21,6 +21,8 @@
  *          is decided once, here.
  */
 import { requireResourceManager } from '../wasm/resourceManager';
+import { spinePairKey } from '../asset/spinePairKey';
+export { spinePairKey } from '../asset/spinePairKey';
 import type { AssetLease } from '../asset/AssetLease';
 import { parseSpineAtlasPages } from './atlasPages';
 import { log } from '../util/logger';
@@ -118,11 +120,6 @@ export function spineEraOf(
         retain: () => lease.retain(),
         culling,
     };
-}
-
-/** The identity of a spine asset in one realm: the pair, in one string. */
-export function spinePairKey(skeleton: string, atlas: string): string {
-    return `${skeleton}:${atlas}`;
 }
 
 /**

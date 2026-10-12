@@ -8,7 +8,8 @@
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { World } from '../src/ecs/world';
-import { Transform, Sprite, Parent, Children } from '../src/ecs/component';
+import { Transform, Sprite, Parent, Children, Disabled, Canvas, Camera } from '../src/ecs/component';
+import { setEntityActive, isEntityActive } from '../src/ecs/entityUtils';
 import { CommandsInstance } from '../src/ecs/commands';
 import { ResourceStorage } from '../src/ecs/resource';
 import type { Entity } from '../src/types';
@@ -36,6 +37,116 @@ describe.skipIf(!HAS_WASM)('Entity Hierarchy (WASM integration)', () => {
         world.disconnectCpp();
         (registry as any).delete();
     }
+
+    it('shares effective activity between WASM, SDK queries and reparenting', () => {
+        const { world, registry } = createWorld();
+        try {
+            const parent = world.spawn(), child = world.spawn(), other = world.spawn();
+            world.insert(child, Sprite, {});
+            world.setParent(child, parent);
+            expect(world.queryEntities([Sprite])).toEqual([child]);
+            setEntityActive(world, parent, false);
+            expect(registry.isEntityActive!(child)).toBe(false);
+            expect(isEntityActive(world, child)).toBe(true);
+            expect(world.queryEntities([Sprite])).toEqual([]);
+            world.setParent(child, other);
+            expect(world.queryEntities([Sprite])).toEqual([child]);
+            registry.setEntityEnabled!(other, false);
+            expect(world.queryEntities([Sprite])).toEqual([]);
+            registry.setEntityEnabled!(other, true);
+            expect(world.queryEntities([Sprite])).toEqual([child]);
+            world.insert(child, Disabled, {});
+            setEntityActive(world, parent, true);
+            expect(registry.isEntityActive!(child)).toBe(false);
+            world.remove(child, Disabled);
+            expect(registry.isEntityActive!(child)).toBe(true);
+        } finally { disposeWorld(world, registry); }
+    });
+
+    it('enumerates only active cameras and Canvases in the core selectors', () => {
+        const { world, registry } = createWorld();
+        try {
+            const root = world.spawn(), child = world.spawn();
+            world.insert(child, Transform, {});
+            world.insert(child, Camera, { isActive: true });
+            world.insert(child, Canvas, {});
+            world.setParent(child, root);
+            expect(module.registry_getCanvasEntity(registry)).toBe(child);
+            expect(module.registry_getCameraEntities(registry)).toEqual([child]);
+            setEntityActive(world, root, false);
+            expect(module.registry_getCanvasEntity(registry)).toBe(-1);
+            expect(module.registry_getCanvasEntities!(registry)).toEqual([]);
+            expect(module.registry_getCameraEntities(registry)).toEqual([]);
+            setEntityActive(world, root, true);
+            expect(module.registry_getCanvasEntities!(registry)).toEqual([child]);
+            expect(module.registry_getCameraEntities(registry)).toEqual([child]);
+        } finally { disposeWorld(world, registry); }
+    });
+
+    describe('rejected parenting is atomic', () => {
+        it('insert(Parent) returns the retained relationship after rejection', () => {
+            const { world, registry } = createWorld();
+            const parent = world.spawn();
+            const child = world.spawn();
+            world.setParent(child, parent);
+            expect(world.insert(child, Parent, { entity: child }).entity).toBe(parent);
+            expect(module.getChildEntities(registry, parent)).toEqual([child]);
+            disposeWorld(world, registry);
+        });
+
+        it.each(['self', 'descendant', 'destroyed target'] as const)('%s preserves both sides and SDK caches', (reason) => {
+            const { world, registry } = createWorld();
+            const parent = world.spawn();
+            const child = world.spawn();
+            const descendant = world.spawn();
+            const stale = world.spawn();
+            world.setParent(child, parent);
+            world.setParent(descendant, child);
+            world.despawn(stale);
+            const target = reason === 'self' ? child : reason === 'descendant' ? descendant : stale;
+            const before = module.getChildEntities(registry, parent);
+            const version = world.getWorldVersion();
+            expect(world.trySetParent(child, target)).toBe(false);
+            expect(registry.getParent(child).entity).toBe(parent);
+            expect(module.getChildEntities(registry, parent)).toEqual(before);
+            expect(world.get(child, Parent).entity).toBe(parent);
+            expect(world.getWorldVersion()).toBe(version);
+            disposeWorld(world, registry);
+        });
+
+        it('rejects a stale child without adding it to a live parent', () => {
+            const { world, registry } = createWorld();
+            const parent = world.spawn();
+            const stale = world.spawn();
+            world.despawn(stale);
+            registry.setParent(stale, parent);
+            expect(module.getChildEntities(registry, parent)).toEqual([]);
+            disposeWorld(world, registry);
+        });
+
+        it('repeating the same parent preserves sibling order', () => {
+            const { world, registry } = createWorld();
+            const parent = world.spawn();
+            const a = world.spawn();
+            const b = world.spawn();
+            world.setParent(a, parent);
+            world.setParent(b, parent);
+            registry.setParent(a, parent);
+            expect(module.getChildEntities(registry, parent)).toEqual([a, b]);
+            disposeWorld(world, registry);
+        });
+
+        it.each([0, 0xFFFFFFFF])('detaches with null sentinel %s', (sentinel) => {
+            const { world, registry } = createWorld();
+            const parent = world.spawn();
+            const child = world.spawn();
+            world.setParent(child, parent);
+            expect(registry.setParent(child, sentinel as Entity)).toBe(true);
+            expect(registry.hasParent(child)).toBe(false);
+            expect(module.getChildEntities(registry, parent)).toEqual([]);
+            disposeWorld(world, registry);
+        });
+    });
 
     // Parent and Children are two halves of one link. Every way of writing it has
     // to leave both halves — and their JS mirrors, which has()/queries read —

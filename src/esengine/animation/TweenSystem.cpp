@@ -31,6 +31,8 @@ void TweenSystem::update(ecs::Registry& registry, f32 deltaTime) {
             }
             continue;
         }
+        if (!registry.isEntityActive(entity) || !registry.isEntityActive(tween.target_entity)) continue;
+        f32 tweenDelta = deltaTime;
 
         if (tween.delay > 0.0f) {
             tween.delay -= deltaTime;
@@ -44,11 +46,11 @@ void TweenSystem::update(ecs::Registry& registry, f32 deltaTime) {
                 applyValue(registry, tween, tween.from_value);
                 continue;
             }
-            deltaTime = -tween.delay;
+            tweenDelta = -tween.delay;
             tween.delay = 0.0f;
         }
 
-        tween.elapsed += deltaTime;
+        tween.elapsed += tweenDelta;
         f32 rawT = (tween.duration > 0.0f)
             ? glm::clamp(tween.elapsed / tween.duration, 0.0f, 1.0f)
             : 1.0f;

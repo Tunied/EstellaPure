@@ -7,6 +7,7 @@
 
 import { Entity, Vec2, Vec3, Color, Quat } from '../types';
 import { deepClone } from '../util/deepClone';
+import { hasOwn, setOwn } from '../util/ownProperties';
 import { COMPONENT_META, type AssetFieldMeta, type SkeletalFieldMeta } from './component.generated';
 export type { AssetFieldMeta, SkeletalFieldMeta };
 // C++-backed component data shapes, generated from the ES_COMPONENT structs (single
@@ -259,11 +260,18 @@ export function mergeIntoDefaults<T extends object>(defaults: T, data?: Partial<
     if (!data) return out as T;
     for (const [k, v] of Object.entries(data as Record<string, unknown>)) {
         if (v === undefined) continue;
-        const base = out[k];
+        const base = hasOwn(out, k) ? out[k] : undefined;
         const nest = base !== null && typeof base === 'object' && !Array.isArray(base)
             && v !== null && typeof v === 'object' && !Array.isArray(v);
-        if (nest) Object.assign(base as object, v);
-        else out[k] = v;
+        // The default's nested record was already copied above. Reuse that
+        // instance on ordinary patches; __proto__ needs spread's own-data write
+        // so it cannot invoke the inherited prototype setter.
+        const merged = nest
+            ? hasOwn(v as object, '__proto__')
+                ? { ...(base as object), ...(v as object) }
+                : Object.assign(base as object, v)
+            : v;
+        setOwn(out, k, merged);
     }
     return out as T;
 }
@@ -273,7 +281,7 @@ function classifyKeys(obj: object): { flatKeys: string[]; objectKeys: string[]; 
     const objectKeys: string[] = [];
     const arrayKeys: string[] = [];
     let hasNested = false;
-    for (const key in obj) {
+    for (const key of Object.keys(obj)) {
         const val = (obj as Record<string, unknown>)[key];
         if (val !== null && typeof val === 'object') {
             hasNested = true;
@@ -343,14 +351,14 @@ function createComponentDef<T extends object>(
     // drift class this metadata exists to kill, so it fails loud (same spirit as
     // EHT rejecting a malformed known annotation).
     for (const f of metadata?.replicatedFields ?? []) {
-        if (!(f in defaultsRec)) {
+        if (!hasOwn(defaultsRec, f)) {
             throw new Error(`Component "${name}": replicatedFields names unknown field "${f}"`);
         }
     }
     // Same reason, and the same check EHT makes for a builtin: a renderableField
     // that names nothing would read as "draws nothing" and quietly stay visible.
     const renderableField = metadata?.renderableField;
-    if (renderableField !== undefined && typeof defaultsRec[renderableField] !== 'boolean') {
+    if (renderableField !== undefined && (!hasOwn(defaultsRec, renderableField) || typeof defaultsRec[renderableField] !== 'boolean')) {
         throw new Error(
             `Component "${name}": renderableField "${renderableField}" is not a boolean field of its defaults`,
         );

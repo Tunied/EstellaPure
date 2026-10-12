@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import { App, createWebApp as _createWebApp, type Plugin, type WebAppOptions } from '../app/app';
 import type { CppRegistry, ESEngineModule } from '../wasm';
+import { log } from '../util/logger';
 import { assetPlugin } from '../asset';
 import { prefabsPlugin } from '../prefab/prefabServer';
 import { sceneManagerPlugin } from '../scene/scenePlugin';
@@ -71,18 +72,24 @@ export function createHeadlessApp(module: ESEngineModule, options?: HeadlessAppO
     const app = App.new();
     if (options?.sideModules) app.setSideModules(options.sideModules);
     const cppRegistry = new module.Registry() as unknown as CppRegistry;
-    app.connectCpp(cppRegistry, module, { strict: true });
+    try {
+        app.connectCpp(cppRegistry, module, { strict: true, ownedRegistry: true });
 
-    // No corePlugin: it wires the render facades (ResourceManager, draw,
-    // material, post-process) that only exist after initRenderer().
-    app.addPlugin(assetPlugin);
-    app.addPlugin(prefabsPlugin);
-    app.addPlugin(sceneManagerPlugin);
-    // A server steps what the client steps: the optional subsystems an entry
-    // installed run here too.
-    app.addPlugins(inBuildOrder([...headlessBasePlugins(), ...entryPlugins()]));
-    if (options?.plugins) app.addPlugins(options.plugins);
-    return app;
+        // No corePlugin: it wires the render facades (ResourceManager, draw,
+        // material, post-process) that only exist after initRenderer().
+        app.addPlugin(assetPlugin);
+        app.addPlugin(prefabsPlugin);
+        app.addPlugin(sceneManagerPlugin);
+        // A server steps what the client steps: the optional subsystems an entry
+        // installed run here too.
+        app.addPlugins(inBuildOrder([...headlessBasePlugins(), ...entryPlugins()]));
+        if (options?.plugins) app.addPlugins(options.plugins);
+        return app;
+    } catch (error) {
+        try { app.quit({ keepRenderer: true }); }
+        catch (releaseError) { log.warn('app', 'Failed headless App construction cleanup error', releaseError); }
+        throw error;
+    }
 }
 
 /**

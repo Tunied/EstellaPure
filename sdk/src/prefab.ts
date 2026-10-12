@@ -3,7 +3,7 @@
 import type { World } from './ecs/world';
 import type { Entity } from './types';
 import type { Assets } from './asset/Assets';
-import { loadSceneWithAssets, SCENE_FORMAT_VERSION, type SceneData } from './scene/scene';
+import { loadOwnedSceneWithAssets, SCENE_FORMAT_VERSION, type SceneData } from './scene/scene';
 import {
     flattenPrefab,
     preloadNestedPrefabs,
@@ -108,7 +108,7 @@ export async function instantiatePrefab(
         })),
     };
 
-    const entityMap = await loadSceneWithAssets(world, sceneData, {
+    const entityMap = await loadOwnedSceneWithAssets(world, sceneData, {
         assets: options?.assets,
         assetBaseUrl: options?.assetBaseUrl,
     });

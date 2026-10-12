@@ -461,16 +461,13 @@ export const Draw: DrawAPI = {
             // False means the shader has no #pragma-param layout — legacy stream below.
             if (m.draw_meshWithMaterial(geometry, material)) return;
 
-            Draw.setBlendMode(matData.blendMode);
-            Draw.setDepthTest(matData.depthTest);
+            const state = Material.getRenderState(material);
+            if (!state) return;
+            Draw.setBlendMode(state.blendMode);
+            Draw.setDepthTest(state.depthTest);
 
             if (transform) m.HEAPF32.set(transform, transformPtr / 4);
             else m.HEAPF32.set(IDENTITY_TRANSFORM, transformPtr / 4);
-
-            if (matData.uniforms.size === 0) {
-                m.draw_mesh(geometry, matData.shader, transformPtr);
-                return;
-            }
 
             let idx: number;
             if (!matData.dirty_ && matData.cachedBuffer_) {
@@ -478,7 +475,7 @@ export const Draw: DrawAPI = {
             } else {
                 idx = 0;
                 let autoTextureSlot = 0;
-                for (const [name, value] of matData.uniforms) {
+                for (const [name, value] of Material.getUniforms(material)) {
                     if (idx > UNIFORMS_BUFFER_SIZE - 6) {
                         log.warn('draw', 'Uniform buffer overflow, some uniforms will be ignored');
                         break;
@@ -518,12 +515,12 @@ export const Draw: DrawAPI = {
             }
 
             if (idx === 0) {
-                m.draw_mesh(geometry, matData.shader, transformPtr);
+                m.draw_mesh(geometry, state.shader, transformPtr);
                 return;
             }
 
             m.HEAPF32.set(matData.cachedBuffer_!.subarray(0, idx), uniformsPtr / 4);
-            m.draw_meshWithUniforms(geometry, matData.shader, transformPtr, uniformsPtr, idx);
+            m.draw_meshWithUniforms(geometry, state.shader, transformPtr, uniformsPtr, idx);
         } catch (e) {
             handleWasmError(e, `Draw.drawMeshWithMaterial(geometry=${geometry}, material=${material})`);
         }

@@ -7,7 +7,7 @@ import { DeviceStatus, getDeviceStatus } from '../render/renderer';
 import { Assets as AssetsClass } from './Assets';
 import { HttpBackend } from './Backend';
 import { basisTranscoderFor } from './basisWorkers';
-import { AssetRefCounter } from './AssetRefCounter';
+import { bindAssetReferenceTracking } from './assetReferenceTracking';
 import { Audio, type AudioAPI } from '../audio/Audio';
 import { SpriteAnimation, type SpriteAnimationAPI } from '../animation/SpriteAnimator';
 import { Localization, type LocalizationAPI } from '../i18n/Localization';
@@ -64,16 +64,15 @@ export class AssetPlugin implements Plugin {
         // which the realm sets before any asset load.
         assets.getTextureLoader().setTranscoderProvider(() => basisTranscoderFor(app.sideModules));
 
-        // Install the ref counter so resolveSceneAssetPaths records who
-        // uses what, and wire it to world despawns so entries don't
+        // Install the ref counter so scene spawning records live World IDs,
+        // and wire it to world despawns so entries don't
         // outlive their entities. Tools / debug UI read it via
         // `assets.getRefCounter()`.
-        const counter = new AssetRefCounter();
-        assets.setRefCounter(counter);
-        app.world.onDespawn((entity) => counter.removeAllRefsForEntity(entity));
+        bindAssetReferenceTracking(app.world, assets,
+            () => app.hasResource(Assets) ? app.getResource(Assets) : null);
 
         app.insertResource(Assets, assets);
-        this.driveDeviceRecovery_(app, assets);
+        this.driveDeviceRecovery_(app);
     }
 
     /**
@@ -82,7 +81,7 @@ export class AssetPlugin implements Plugin {
      * lost its GPU stayed lost. Timed off UNSCALED delta — a paused game still
      * has to come back — and backed off, since each attempt re-fetches content.
      */
-    private driveDeviceRecovery_(app: App, assets: AssetsClass): void {
+    private driveDeviceRecovery_(app: App): void {
         let inFlight = false;
         let waited = 0;
         let backoff = 0;
@@ -105,7 +104,19 @@ export class AssetPlugin implements Plugin {
             waited = 0;
             inFlight = true;
             const lostFor = downtime;
-            void assets.recoverFromDeviceLoss()
+            // A runtime replaces the default HTTP-backed resource with its own
+            // decoder. Never recover the instance captured during plugin build.
+            const recoverCurrent = async (): Promise<boolean> => {
+                let assets = app.hasResource(Assets) ? app.getResource(Assets) : null;
+                while (assets) {
+                    const whole = await assets.recoverFromDeviceLoss();
+                    const current = app.hasResource(Assets) ? app.getResource(Assets) : null;
+                    if (current === assets) return whole;
+                    assets = current;
+                }
+                return false;
+            };
+            void recoverCurrent()
                 .then((whole) => {
                     if (whole) {
                         log.info('asset', `Device recovered after ${lostFor.toFixed(1)}s`);

@@ -7,10 +7,11 @@
 
 import { Entity } from '../types';
 import { ComponentDef } from './component';
-import { validateComponentData, formatValidationErrors, assetFieldNames } from '../util/validation';
+import { validateComponentData, formatValidationErrors } from '../util/validation';
 import { log } from '../util/logger';
 import { reorderMapByRank, type RankOf } from './entityOrder';
 import { ScriptPool, poolShape, HEAP_MEMORY, type PoolMemory } from './ScriptPool';
+import { disposeAll } from '../util/disposeAll';
 
 export interface InsertResult<T> {
     value: T;
@@ -28,6 +29,17 @@ export class ScriptStorage {
      */
     private pools_ = new Map<symbol, ScriptPool>();
     private poolMemory_: PoolMemory = HEAP_MEMORY;
+    private releasingPools_ = false;
+
+    releasePools(): void {
+        if (this.releasingPools_) return;
+        this.releasingPools_ = true;
+        const pools = [...this.pools_.values()];
+        this.pools_.clear();this.notPooled_.clear();this.poolMemory_ = HEAP_MEMORY;
+        this.layoutEpoch_++;
+        try { disposeAll(pools, pool => pool.dispose()); }
+        finally { this.releasingPools_ = false; }
+    }
 
     /**
      * @internal Where pools allocate from. A wasm runtime installs one backed by
@@ -46,16 +58,22 @@ export class ScriptStorage {
 
     private layoutEpoch_ = 0;
 
-    usePoolMemory(memory: PoolMemory): void {
+    usePoolMemory(memory: PoolMemory, validateOnly = false): void {
         if (this.pools_.size > 0) {
+            if (memory === this.poolMemory_ || (memory.allocatorIdentity !== undefined
+                && memory.allocatorIdentity === this.poolMemory_.allocatorIdentity)) return;
             throw new Error('ScriptPool memory must be chosen before the first pooled component');
         }
-        this.poolMemory_ = memory;
+        if (!validateOnly) this.poolMemory_ = memory;
     }
 
     /** @internal The rows behind `component`, or undefined if it has none. */
     poolFor(id: symbol): ScriptPool | undefined {
         return this.pools_.get(id);
+    }
+
+    hasPortableAssetRefs(id: symbol): boolean {
+        return this.pools_.get(id)?.hasPortableAssetRefs ?? false;
     }
 
     /**
@@ -73,12 +91,16 @@ export class ScriptStorage {
      * repeated per insert.
      */
     private pool_(component: ComponentDef<any>): ScriptPool | null {
+        if (this.releasingPools_) throw new Error('Script pools are being released');
         const held = this.pools_.get(component._id);
         if (held) return held;
         if (this.notPooled_.has(component._id)) return null;
         const fields = poolShape(component._default);
         if (!fields) { this.notPooled_.add(component._id); return null; }
-        const pool = new ScriptPool(fields, 64, this.poolMemory_);
+        const pool = new ScriptPool(fields, 64, this.poolMemory_, {
+            fields: () => component.assetFields,
+            addressChanged: () => { this.layoutEpoch_++; },
+        });
         this.pools_.set(component._id, pool);
         // Creating one may have grown the heap every OTHER pool also lives in.
         this.refreshPools();
@@ -90,7 +112,7 @@ export class ScriptStorage {
     insert<T>(entity: Entity, component: ComponentDef<T>, data?: unknown): InsertResult<T> {
         let filtered: Partial<T> | undefined;
         if (data !== null && data !== undefined && typeof data === 'object') {
-            const clean: Record<string, unknown> = {};
+            const clean: Record<string, unknown> = Object.create(null);
             for (const [k, v] of Object.entries(data as Record<string, unknown>)) {
                 if (v !== undefined) {
                     clean[k] = v;
@@ -100,7 +122,7 @@ export class ScriptStorage {
                 component._name,
                 component._default as Record<string, unknown>,
                 clean,
-                assetFieldNames(component)
+                component.assetFields
             );
             if (errors.length > 0) {
                 throw new Error(formatValidationErrors(component._name, errors));
@@ -180,7 +202,7 @@ export class ScriptStorage {
                 component._name,
                 component._default as Record<string, unknown>,
                 data as Record<string, unknown>,
-                assetFieldNames(component)
+                component.assetFields
             );
             if (errors.length > 0) {
                 log.warn('ecs', formatValidationErrors(component._name, errors));

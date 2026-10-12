@@ -251,8 +251,8 @@ export function validatePrefab(
     if (byId.has(prefab.rootEntityId)) {
         const reachable = new Set<PrefabEntityId>();
         const queue: PrefabEntityId[] = [prefab.rootEntityId];
-        while (queue.length > 0) {
-            const cur = queue.shift()!;
+        for (let head = 0; head < queue.length; head++) {
+            const cur = queue[head];
             if (reachable.has(cur)) continue;
             reachable.add(cur);
             for (const c of byId.get(cur)?.children ?? []) if (byId.has(c)) queue.push(c);

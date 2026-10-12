@@ -38,6 +38,7 @@ void UISystem::hitTestUpdate(Registry& registry, const PickRay& worldRay, const 
 
     for (i32 i = static_cast<i32>(nodes.size()) - 1; i >= 0; i--) {
         Entity entity = nodes[i].entity;
+        if (!registry.isEntityActive(entity)) continue;
 
         auto* interactable = registry.tryGet<Interactable>(entity);
         if (!interactable || !interactable->enabled || !interactable->raycastTarget) continue;
@@ -122,6 +123,7 @@ void UISystem::hitWorldContent(Registry& registry, const PickRay& ray,
 
     registry.eachLive<Sprite, Interactable>(
         [&](Entity entity, Sprite& sprite, Interactable& interactable) {
+            if (!registry.isEntityActive(entity)) return;
             if (!interactable.enabled || !interactable.raycastTarget) return;
             // The layout tree owns anything with a UINode; this pass is for the rest.
             if (registry.has<UINode>(entity)) return;
@@ -146,6 +148,7 @@ void UISystem::hitWorldContent(Registry& registry, const PickRay& ray,
 
     registry.eachLive<MeshRenderer, Interactable>(
         [&](Entity entity, MeshRenderer& mesh, Interactable& interactable) {
+            if (!registry.isEntityActive(entity)) return;
             if (!interactable.enabled || !interactable.raycastTarget) return;
             if (!mesh.enabled) return;
             if (registry.has<UINode>(entity)) return;
@@ -191,6 +194,7 @@ u32 UISystem::pickAll(Registry& registry, f32 worldX, f32 worldY) {
 
     for (i32 i = static_cast<i32>(nodes.size()) - 1; i >= 0; i--) {
         Entity entity = nodes[i].entity;
+        if (!registry.isEntityActive(entity)) continue;
         if (!registry.has<Transform>(entity)) continue;
 
         auto* node = registry.tryGet<UINode>(entity);

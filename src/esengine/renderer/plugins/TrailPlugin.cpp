@@ -27,7 +27,7 @@ void TrailPlugin::collect(RenderCollectContext& collect_ctx) {
 
     const f32 now = trail_system_->now();
 
-    auto view = registry.view<ecs::Transform, ecs::TrailRenderer>();
+    auto view = registry.activeView<ecs::Transform, ecs::TrailRenderer>();
     for (auto entity : view) {
         const auto& trail = view.get<ecs::TrailRenderer>(entity);
         if (!trail.enabled) continue;

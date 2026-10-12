@@ -36,6 +36,97 @@ function mockNativeScope(byteSize = 256): Record<string, unknown> {
 }
 
 describe('createNativeRegistry', () => {
+    it('resolves a three-byte native component without constructing misaligned word views', () => {
+        const buffer = new ArrayBuffer(3);
+        const resolve = new NativeMemoryProvider({ es_Interactable_buffer: () => buffer })
+            .resolveComponentHeap('Interactable')!;
+        const heap = {} as Parameters<typeof resolve>[1];
+        expect(resolve(1 as never, heap)).toBe(true);
+        expect(heap.f32.length).toBe(0);
+        expect(heap.u32.length).toBe(0);
+        expect(heap.u8.length).toBe(3);
+    });
+    it('round-trips native owned strings and scalars without wasm-offset access', () => {
+        const components = new Map<number, Record<string, unknown>>();
+        const scope = {
+            es_set_SpineAnimation: (e: number, data: Record<string, unknown>) => {
+                components.set(e, { ...components.get(e), ...structuredClone(data) });
+            },
+            es_get_SpineAnimation: (e: number) => structuredClone(components.get(e)!),
+            es_SpineAnimation_has: (e: number) => components.has(e),
+            es_SpineAnimation_remove: (e: number) => components.delete(e),
+        };
+        const reg = createNativeRegistry(scope) as unknown as Record<string, Function>;
+        expect(new NativeMemoryProvider(scope).resolveComponentHeap('SpineAnimation')).toBeNull();
+        expect(reg.getSpineAnimation(1)).toEqual({});
+        expect(components.size).toBe(0);
+        const data = { skeletonPath: 'assets/骨骼.json', atlasPath: 'long/path/'.repeat(8),
+            skin: 'default', animation: 'walk', timeScale: 0.5, enabled: true,
+            color: { x: 0.25, y: 0.5, z: 0.75, w: 1 } };
+        reg.addSpineAnimation(1, data);
+        reg.addSpineAnimation(1, { timeScale: 2, animation: 'run' });
+        const got = reg.getSpineAnimation(1);
+        expect(got).toEqual({ ...data, timeScale: 2, animation: 'run' });
+        got.skeletonPath = 'changed';
+        expect(reg.getSpineAnimation(1).skeletonPath).toBe(data.skeletonPath);
+        reg.removeSpineAnimation(1);
+        expect(reg.hasSpineAnimation(1)).toBe(false);
+    });
+
+    it('keeps fields following a native vector and preserves lists on scalar updates', () => {
+        let component: Record<string, unknown> | undefined;
+        let path: unknown[] = [];
+        const reg = createNativeRegistry({
+            es_set_ShadowCaster2D: (_e: number, data: Record<string, unknown>) => {
+                component = { ...component, ...data };
+            },
+            es_get_ShadowCaster2D: () => ({ size: component?.size, enabled: component?.enabled }),
+            es_ShadowCaster2D_has: () => !!component,
+            es_ShadowCaster2D_remove: () => { component = undefined; },
+            es_ShadowCaster2D_path_set: (_e: number, value: unknown[]) => { path = structuredClone(value); },
+            es_ShadowCaster2D_path_get: () => structuredClone(path),
+        }) as unknown as Record<string, Function>;
+        reg.addShadowCaster2D(1, { size: { x: 32, y: 48 }, enabled: true,
+            path: [{ x: 1, y: 2 }, { x: 3, y: 4 }] });
+        reg.addShadowCaster2D(1, { enabled: false });
+        expect(reg.getShadowCaster2D(1)).toEqual({ size: { x: 32, y: 48 }, enabled: false,
+            path: [{ x: 1, y: 2 }, { x: 3, y: 4 }] });
+    });
+    it('forwards shared destruction ownership only when the complete host contract exists', () => {
+        const pending = new Set<number>();
+        const reg = createNativeRegistry({
+            es_reserveDestruction: (e: number) => { if (pending.has(e)) return false; pending.add(e); return true; },
+            es_releaseDestruction: (e: number) => { pending.delete(e); },
+            es_destructionPending: (e: number) => pending.has(e),
+        });
+        expect(reg.reserveDestruction!(1 as never)).toBe(true);
+        expect(reg.reserveDestruction!(1 as never)).toBe(false);
+        expect(reg.destructionPending!(1 as never)).toBe(true);
+        reg.releaseDestruction!(1 as never);
+        expect(reg.destructionPending!(1 as never)).toBe(false);
+        expect(createNativeRegistry({}).reserveDestruction).toBeUndefined();
+        expect(createNativeRegistry({ es_reserveDestruction: () => true }).reserveDestruction).toBeUndefined();
+    });
+    it('forwards the optional shared activity contract and preserves legacy hosts', () => {
+        let enabled = true;
+        const reg = createNativeRegistry({
+            es_setEntityEnabled: (_e: number, value: boolean) => { enabled = value; return true; },
+            es_isEntityEnabled: () => enabled,
+            es_isEntityActive: () => enabled,
+            es_hasInactiveEntities: () => !enabled,
+            es_activityEpoch: () => 7,
+        });
+        expect(reg.setEntityEnabled!(1 as never, false)).toBe(true);
+        expect(reg.isEntityEnabled!(1 as never)).toBe(false);
+        expect(reg.isEntityActive!(1 as never)).toBe(false);
+        expect(reg.hasInactiveEntities!()).toBe(true);
+        expect(reg.activityEpoch!()).toBe(7);
+        expect(createNativeRegistry({}).isEntityActive).toBeUndefined();
+    });
+    it.each([true, false])('forwards native hierarchy acceptance %s', (accepted) => {
+        const reg = createNativeRegistry({ es_setParent: () => accepted });
+        expect(reg.setParent(1 as never, 2 as never)).toBe(accepted);
+    });
     it('round-trips a component through add / has / get / remove (embind shape)', () => {
         const reg = createNativeRegistry(mockNativeScope()) as unknown as Record<string, Function>;
 

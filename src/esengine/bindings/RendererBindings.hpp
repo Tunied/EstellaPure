@@ -60,6 +60,14 @@ void renderer_submitSkeletalBatchByEntity(
     u32 entity, f32 skelScale, bool flipX, bool flipY,
     i32 layer, f32 depth, u32 materialId
 );
+void renderer_submitSkeletalBatchByEntityEx(
+    ecs::Registry& registry,
+    uintptr_t verticesPtr, i32 vertexCount,
+    uintptr_t indicesPtr, i32 indexCount,
+    u32 textureId, i32 blendMode,
+    u32 entity, f32 skelScale, bool flipX, bool flipY,
+    i32 layer, f32 depth, u32 materialId, bool premultipliedColor
+);
 void renderer_submitTextBatch(
     uintptr_t verticesPtr, i32 vertexCount,
     uintptr_t indicesPtr, i32 indexCount,
@@ -279,6 +287,12 @@ i32 renderer_submitSkeletalPreviewBatch(
     uintptr_t indicesPtr, i32 indexCount,
     u32 textureId, i32 blendMode, uintptr_t transformPtr,
     i32 layer, f32 depth, u32 materialId);
+i32 renderer_submitSkeletalPreviewBatchEx(
+    u32 preview,
+    uintptr_t verticesPtr, i32 vertexCount,
+    uintptr_t indicesPtr, i32 indexCount,
+    u32 textureId, i32 blendMode, uintptr_t transformPtr,
+    i32 layer, f32 depth, u32 materialId, bool premultipliedColor);
 i32 renderer_renderSkeletalPreview(u32 preview, uintptr_t viewProjectionPtr);
 i32 renderer_pollSkeletalPreview(u32 preview);
 uintptr_t renderer_getSkeletalPreviewPtr(u32 preview);

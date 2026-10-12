@@ -90,6 +90,7 @@ enum class EventKind {
 };
 
 struct Event {
+    const void* source = nullptr;
     EventKind kind = EventKind::Event;
     int track = 0;
     float floatValue = 0.0f;
@@ -102,6 +103,8 @@ struct Event {
 
 /// The module is a singleton, so its collector is process-wide rather than per instance.
 using EventSink = void (*)(const Event&);
+
+const void* eventSource(Instance* instance);
 
 /**
  * Where a backend pours the triangles it posed. The sink batches: it decides when

@@ -27,10 +27,36 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
+#include <new>
 #include <cstring>
 #include <span>
+#include <stdexcept>
 #include <string>
 #include <vector>
+
+namespace allocation_probe {
+thread_local std::size_t* current = nullptr;
+struct Scope {
+    std::size_t count = 0;
+    std::size_t* previous = current;
+    Scope() { current = &count; }
+    ~Scope() { current = previous; }
+};
+}
+
+// Count actual ordinary C++ allocations only inside measured call scopes.
+// Doctest assertions and fixture construction stay outside those scopes.
+void* operator new(std::size_t bytes) {
+    if (allocation_probe::current) ++*allocation_probe::current;
+    if (void* p = std::malloc(bytes == 0 ? 1 : bytes)) return p;
+    throw std::bad_alloc();
+}
+void* operator new[](std::size_t bytes) { return ::operator new(bytes); }
+void operator delete(void* p) noexcept { std::free(p); }
+void operator delete[](void* p) noexcept { std::free(p); }
+void operator delete(void* p, std::size_t) noexcept { std::free(p); }
+void operator delete[](void* p, std::size_t) noexcept { std::free(p); }
 
 #include "esengine/aot/AotHost.hpp"
 #include "esengine/aot/AotComponents.generated.hpp"
@@ -491,6 +517,135 @@ TEST_CASE("the dispatcher binds once and runs by index") {
     }
 }
 
+TEST_CASE("a module owner retains its declarations after a refused replacement") {
+    World w = makeWorld();
+    World expected = makeWorld();
+    aot::Module module;
+    std::string why;
+    const auto abi = aot::abiHash(ES_EXPECTED_CONTRACT_HASH);
+    REQUIRE(module.open(ES_AOT_MODULE_PATH, abi, &why));
+    const auto* held = module.find("MoveSystem");
+    const auto contract = module.contract();
+    SUBCASE("missing library") {
+        CHECK_FALSE(module.open("estella-aot-missing-replacement.dll", abi, &why));
+    }
+    SUBCASE("wrong ABI") {
+        CHECK_FALSE(module.open(ES_AOT_MODULE_PATH, abi ^ 1u, &why));
+    }
+    REQUIRE(module.isOpen());
+    REQUIRE(module.find("MoveSystem") == held);
+    CHECK(module.contract() == contract);
+    aot::CallArena arena;
+    aot::runBound(aot::bind(*held, componentsOf(w), resourcesOf(w)), w.entities, resourcesOf(w), arena);
+    moveByHand(expected);
+    for (std::size_t i = 0; i < w.entities.size(); ++i) {
+        const auto* got = w.registry.tryGet<ecs::Transform>(Entity::fromRaw(w.entities[i]));
+        const auto* want = expected.registry.tryGet<ecs::Transform>(Entity::fromRaw(expected.entities[i]));
+        CHECK(got->position.x == want->position.x);
+        CHECK(got->position.y == want->position.y);
+    }
+}
+
+TEST_CASE("failed module replacement preserves the running dispatcher") {
+    World w = makeWorld();
+    World expected = makeWorld();
+    aot::Dispatcher dispatcher;
+    std::string why;
+    const auto abi = aot::abiHash(ES_EXPECTED_CONTRACT_HASH);
+    REQUIRE(dispatcher.install(ES_AOT_MODULE_PATH, abi, componentsOf(w), resourcesOf(w), &why));
+    const auto index = dispatcher.indexOf("MoveSystem");
+    const auto contract = dispatcher.contract();
+    dispatcher.run(index, w.entities, resourcesOf(w));
+    moveByHand(expected);
+    SUBCASE("missing replacement library") {
+        CHECK_FALSE(dispatcher.install("estella-aot-missing-replacement.dll", abi,
+                                      componentsOf(w), resourcesOf(w), &why));
+        CHECK_FALSE(why.empty());
+    }
+    SUBCASE("replacement with the wrong ABI") {
+        CHECK_FALSE(dispatcher.install(ES_AOT_MODULE_PATH, abi ^ 1u,
+                                      componentsOf(w), resourcesOf(w), &why));
+        CHECK_FALSE(why.empty());
+    }
+    SUBCASE("replacement binding throws") {
+        const aot::ComponentLookup throws = [](const char*) -> aot::ComponentAt {
+            throw std::runtime_error("binding failed");
+        };
+        CHECK_THROWS_AS(dispatcher.install(ES_AOT_MODULE_PATH, abi, throws, resourcesOf(w), &why), std::runtime_error);
+    }
+    REQUIRE(dispatcher.count() == 1u);
+    CHECK(dispatcher.contract() == contract);
+    REQUIRE(dispatcher.boundAt(index));
+    CHECK(std::strcmp(dispatcher.nameAt(index), "MoveSystem") == 0);
+    dispatcher.run(index, w.entities, resourcesOf(w));
+    moveByHand(expected);
+    for (std::size_t i = 0; i < w.entities.size(); ++i) {
+        const auto* got = w.registry.tryGet<ecs::Transform>(Entity::fromRaw(w.entities[i]));
+        const auto* want = expected.registry.tryGet<ecs::Transform>(Entity::fromRaw(expected.entities[i]));
+        CHECK(got->position.x == want->position.x);
+        CHECK(got->position.y == want->position.y);
+    }
+}
+
+TEST_CASE("successful replacement commits new bindings after a refused module") {
+    World old = makeWorld();
+    World next = makeWorld();
+    World expected = makeWorld();
+    aot::Dispatcher dispatcher;
+    std::string why;
+    const auto abi = aot::abiHash(ES_EXPECTED_CONTRACT_HASH);
+    REQUIRE(dispatcher.install(ES_AOT_MODULE_PATH, abi, componentsOf(old), resourcesOf(old), &why));
+    dispatcher.run(dispatcher.indexOf("MoveSystem"), old.entities, resourcesOf(old));
+    const auto oldX = old.registry.tryGet<ecs::Transform>(Entity::fromRaw(old.entities[0]))->position.x;
+    CHECK_FALSE(dispatcher.install(ES_AOT_MODULE_PATH, abi ^ 1u, componentsOf(next), resourcesOf(next), &why));
+    REQUIRE(dispatcher.install(ES_AOT_MODULE_PATH, abi, componentsOf(next), resourcesOf(next), &why));
+    dispatcher.run(dispatcher.indexOf("MoveSystem"), next.entities, resourcesOf(next));
+    moveByHand(expected);
+    for (std::size_t i = 0; i < next.entities.size(); ++i) {
+        const auto* got = next.registry.tryGet<ecs::Transform>(Entity::fromRaw(next.entities[i]));
+        const auto* want = expected.registry.tryGet<ecs::Transform>(Entity::fromRaw(expected.entities[i]));
+        CHECK(got->position.x == want->position.x);
+        CHECK(got->position.y == want->position.y);
+    }
+    CHECK(old.registry.tryGet<ecs::Transform>(Entity::fromRaw(old.entities[0]))->position.x == oldX);
+}
+
+TEST_CASE("rejected replacements release their library references") {
+#ifdef _WIN32
+    REQUIRE(::GetModuleHandleA(ES_AOT_MODULE_PATH) == nullptr);
+#endif
+    World w = makeWorld();
+    World expected = makeWorld();
+    {
+        aot::Dispatcher dispatcher;
+        std::string why;
+        const auto abi = aot::abiHash(ES_EXPECTED_CONTRACT_HASH);
+        REQUIRE(dispatcher.install(ES_AOT_MODULE_PATH, abi, componentsOf(w), resourcesOf(w), &why));
+        const aot::ComponentLookup throws = [](const char*) -> aot::ComponentAt {
+            throw std::runtime_error("binding failed");
+        };
+        for (int attempt = 0; attempt < 256; ++attempt) {
+            CHECK_FALSE(dispatcher.install(ES_AOT_MODULE_PATH, abi ^ 1u,
+                                          componentsOf(w), resourcesOf(w), &why));
+            CHECK_THROWS_AS(dispatcher.install(ES_AOT_MODULE_PATH, abi, throws,
+                                               resourcesOf(w), &why), std::runtime_error);
+        }
+        REQUIRE(dispatcher.count() == 1u);
+        dispatcher.run(dispatcher.indexOf("MoveSystem"), w.entities, resourcesOf(w));
+        moveByHand(expected);
+        for (std::size_t i = 0; i < w.entities.size(); ++i) {
+            const auto* got = w.registry.tryGet<ecs::Transform>(Entity::fromRaw(w.entities[i]));
+            const auto* want = expected.registry.tryGet<ecs::Transform>(Entity::fromRaw(expected.entities[i]));
+            CHECK(got->position.x == want->position.x);
+            CHECK(got->position.y == want->position.y);
+        }
+    }
+#ifdef _WIN32
+    // No loader reference from any rejected candidate may outlive the owner.
+    CHECK(::GetModuleHandleA(ES_AOT_MODULE_PATH) == nullptr);
+#endif
+}
+
 TEST_CASE("a system this host cannot name is left unbound, not refused") {
     World w = makeWorld();
     aot::Dispatcher dispatcher;
@@ -835,6 +990,151 @@ TEST_CASE("a table packed against a standing world is not packed again") {
     CHECK(arena.candidatesWalked() == w.entities.size());
     CHECK(xf(w, w.entities[1])->position.x != afterFirst);
 }
+
+#ifdef ES_AOT_MODULE_PATH
+TEST_CASE("a warmed dispatcher refuses a resource that disappeared and recovers when reported") {
+    World w = makeWorld();
+    aot::Dispatcher dispatcher;
+    std::string why;
+    REQUIRE(dispatcher.install(ES_AOT_MODULE_PATH, aot::abiHash(ES_EXPECTED_CONTRACT_HASH), componentsOf(w), resourcesOf(w), &why, candidatesOf(w)));
+    const auto index = dispatcher.indexOf("MoveSystem");
+    const aot::WorldStamp stamp{w.registry.layoutEpoch(), true};
+    dispatcher.run(index, w.everyEntity(), resourcesOf(w), stamp);
+    const float held = xf(w, w.entities[1])->position.x;
+    const aot::ResourceLookup absent = [](const char*) -> void* { return nullptr; };
+    CHECK(dispatcher.run(index, w.everyEntity(), absent, stamp).empty());
+    CHECK_FALSE(dispatcher.boundAt(index));
+    CHECK(xf(w, w.entities[1])->position.x == held);
+    CHECK(dispatcher.run(index, w.everyEntity(), absent, stamp).empty());
+    CHECK_FALSE(dispatcher.boundAt(index));
+    dispatcher.run(index, w.everyEntity(), resourcesOf(w), stamp);
+    CHECK(dispatcher.boundAt(index));
+    CHECK(xf(w, w.entities[1])->position.x != held);
+}
+
+TEST_CASE("candidate sidecar pairing is refused before replacing a warm dispatcher") {
+    World old = makeWorld(), next = makeWorld();
+    aot::Dispatcher dispatcher;
+    std::string why;
+    const auto abi = aot::abiHash(ES_EXPECTED_CONTRACT_HASH);
+    REQUIRE(dispatcher.install(ES_AOT_MODULE_PATH, abi, componentsOf(old), resourcesOf(old), &why, candidatesOf(old)));
+    const auto contract = dispatcher.contract();
+    REQUIRE(contract != 0);
+    const auto index = dispatcher.indexOf("MoveSystem");
+    const aot::WorldStamp stamp{old.registry.layoutEpoch(), true};
+    dispatcher.run(index, old.everyEntity(), resourcesOf(old), stamp);
+    const float before = xf(old, old.entities[1])->position.x;
+    const float nextBefore = xf(next, next.entities[1])->position.x;
+    int binds = 0;
+    const aot::ComponentLookup lookup = [&](const char* name) { ++binds; return componentsOf(next)(name); };
+    for (const auto wrong : {std::uint64_t{0}, contract ^ std::uint64_t{1}}) {
+        CHECK_FALSE(dispatcher.install(ES_AOT_MODULE_PATH, abi, lookup, resourcesOf(next), &why, candidatesOf(next), wrong));
+        CHECK(why.find("different builds") != std::string::npos);
+        CHECK(dispatcher.contract() == contract);
+        CHECK(binds == 0);
+        dispatcher.run(index, old.everyEntity(), resourcesOf(old), stamp);
+        CHECK(dispatcher.rowsPacked(index) == 0u);
+    }
+    CHECK(xf(old, old.entities[1])->position.x != before);
+    const float held = xf(old, old.entities[1])->position.x;
+    REQUIRE(dispatcher.install(ES_AOT_MODULE_PATH, abi, componentsOf(next), resourcesOf(next), &why, candidatesOf(next), contract));
+    dispatcher.run(dispatcher.indexOf("MoveSystem"), next.everyEntity(), resourcesOf(next), {next.registry.layoutEpoch(), true});
+    CHECK(xf(old, old.entities[1])->position.x == held);
+    CHECK(xf(next, next.entities[1])->position.x != nextBefore);
+}
+#endif
+
+TEST_CASE("warmed compiled calls allocate no scratch even when rows must repack") {
+    World w = makeWorld();
+    const auto bound = aot::bind(*declOf("MoveSystem"), componentsOf(w), resourcesOf(w), candidatesOf(w));
+    const auto resources = resourcesOf(w);
+    aot::CallArena arena;
+    aot::WorldStamp stamp{w.registry.layoutEpoch(), true};
+    SUBCASE("known stable world") {}
+    SUBCASE("unknown world stamp") { stamp = {}; }
+    for (int i = 0; i < 8; ++i) aot::runBound(bound, {}, resources, arena, stamp);
+    std::size_t allocations = 0;
+    const float before = xf(w, w.entities[1])->position.x;
+    {
+        allocation_probe::Scope measured;
+        for (int i = 0; i < 256; ++i) aot::runBound(bound, {}, resources, arena, stamp);
+        allocations = measured.count;
+    }
+    CHECK(allocations == 0u);
+    CHECK(xf(w, w.entities[1])->position.x != before);
+    CHECK(arena.rowsPacked() == (stamp.known ? 0u : w.entities.size()));
+}
+
+TEST_CASE("scratch reuse supports changing query counts and fresh resource addresses") {
+    World w = makeWorld(), expected = makeWorld();
+    const auto single = aot::bind(*declOf("MoveSystem"), componentsOf(w), resourcesOf(w), candidatesOf(w));
+    auto multiple = single;
+    multiple.queries.push_back(single.queries[0]);
+    multiple.resourceNames.push_back("Time");
+    TimeRow alternate{1.0 / 120.0};
+    bool alternateNow = false;
+    std::size_t lookups = 0;
+    const aot::ResourceLookup resources = [&](const char*) -> void* { ++lookups; return alternateNow ? &alternate : &w.time; };
+    aot::CallArena arena;
+    // Warm both shapes without changing the scene used by the oracle.
+    const double delta = w.time.delta;
+    w.time.delta = 0;
+    aot::runBound(multiple, {}, resources, arena);
+    aot::runBound(single, {}, resources, arena);
+    w.time.delta = delta;
+    lookups = 0;
+    std::size_t allocations = 0;
+    {
+        allocation_probe::Scope measured;
+        for (int i = 0; i < 256; ++i) {
+            alternateNow = (i % 2) == 0;
+            aot::runBound(alternateNow ? multiple : single, {}, resources, arena);
+        }
+        allocations = measured.count;
+    }
+    CHECK(allocations == 0u);
+    CHECK(lookups == 384u);
+    CHECK(arena.rowsPacked() == w.entities.size());
+    for (int i = 0; i < 256; ++i) {
+        expected.time.delta = (i % 2) == 0 ? alternate.delta : delta;
+        moveByHand(expected);
+    }
+    for (std::size_t i = 0; i < w.entities.size(); ++i) {
+        CHECK(xf(w, w.entities[i])->position.x == xf(expected, expected.entities[i])->position.x);
+        CHECK(xf(w, w.entities[i])->position.y == xf(expected, expected.entities[i])->position.y);
+    }
+}
+
+#ifdef ES_AOT_MODULE_PATH
+TEST_CASE("a warmed actual DLL dispatcher allocates no frame scratch") {
+    World w = makeWorld(), expected = makeWorld();
+    aot::Dispatcher dispatcher;
+    std::string why;
+    const auto resources = resourcesOf(w);
+    REQUIRE(dispatcher.install(ES_AOT_MODULE_PATH, aot::abiHash(ES_EXPECTED_CONTRACT_HASH), componentsOf(w), resources, &why, candidatesOf(w)));
+    const auto index = dispatcher.indexOf("MoveSystem");
+    aot::WorldStamp stamp{w.registry.layoutEpoch(), true};
+    SUBCASE("cached rows") {}
+    SUBCASE("repacked rows") { stamp = {}; }
+    const double delta = w.time.delta;
+    w.time.delta = 0;
+    for (int i = 0; i < 8; ++i) dispatcher.run(index, {}, resources, stamp);
+    w.time.delta = delta;
+    std::size_t allocations = 0;
+    {
+        allocation_probe::Scope measured;
+        for (int i = 0; i < 256; ++i) dispatcher.run(index, {}, resources, stamp);
+        allocations = measured.count;
+    }
+    CHECK(allocations == 0u);
+    CHECK(dispatcher.rowsPacked(index) == (stamp.known ? 0u : w.entities.size()));
+    for (int i = 0; i < 256; ++i) moveByHand(expected);
+    for (std::size_t i = 0; i < w.entities.size(); ++i) {
+        CHECK(xf(w, w.entities[i])->position.x == xf(expected, expected.entities[i])->position.x);
+        CHECK(xf(w, w.entities[i])->position.y == xf(expected, expected.entities[i])->position.y);
+    }
+}
+#endif
 
 TEST_CASE("an unknown stamp is never the same world twice") {
     World w = makeWorld();

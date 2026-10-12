@@ -34,8 +34,12 @@ public:
      * @return True on success
      * @details Convenience for the GL backend: makes the context current and
      *          delegates to init(UniquePtr<GfxDevice>) with a GLDevice.
+     *          Borrows the handle; its owner must keep it registered until shutdown.
      */
     bool init(int webglContextHandle);
+
+    /** Adopt a WebGL handle only when its creator explicitly transfers ownership. */
+    bool init(int webglContextHandle, bool ownsContext);
 
     /**
      * @brief Initialize with an injected render backend.

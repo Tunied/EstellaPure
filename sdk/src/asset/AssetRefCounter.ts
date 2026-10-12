@@ -13,6 +13,8 @@ export interface AssetRefInfo {
 
 class RefMap {
     private refs_ = new Map<string, Set<number>>();
+    private pathsByEntity_ = new Map<number, Set<string>>();
+    private rows_ = 0;
 
     add(path: string, entity: number): void {
         let refs = this.refs_.get(path);
@@ -20,14 +22,22 @@ class RefMap {
             refs = new Set();
             this.refs_.set(path, refs);
         }
+        if (refs.has(entity)) return;
         refs.add(entity);
+        let paths = this.pathsByEntity_.get(entity);
+        if (!paths) this.pathsByEntity_.set(entity, paths = new Set());
+        paths.add(path);
+        this.rows_++;
     }
 
     remove(path: string, entity: number): void {
         const refs = this.refs_.get(path);
-        if (refs) {
-            refs.delete(entity);
+        if (refs?.delete(entity)) {
+            this.rows_--;
             if (refs.size === 0) this.refs_.delete(path);
+            const paths = this.pathsByEntity_.get(entity);
+            paths?.delete(path);
+            if (paths?.size === 0) this.pathsByEntity_.delete(entity);
         }
     }
 
@@ -48,8 +58,12 @@ class RefMap {
     }
 
     removeEntity(entity: number): void {
-        for (const [path, refs] of this.refs_) {
-            refs.delete(entity);
+        const paths = this.pathsByEntity_.get(entity);
+        if (!paths) return;
+        this.pathsByEntity_.delete(entity);
+        for (const path of paths) {
+            const refs = this.refs_.get(path)!;
+            if (refs.delete(entity)) this.rows_--;
             if (refs.size === 0) this.refs_.delete(path);
         }
     }
@@ -57,12 +71,10 @@ class RefMap {
     get size(): number { return this.refs_.size; }
 
     get rows(): number {
-        let n = 0;
-        for (const refs of this.refs_.values()) n += refs.size;
-        return n;
+        return this.rows_;
     }
 
-    clear(): void { this.refs_.clear(); }
+    clear(): void { this.refs_.clear(); this.pathsByEntity_.clear(); this.rows_ = 0; }
 }
 
 export class AssetRefCounter {

@@ -29,6 +29,24 @@ function mockHost(bytes = 1024): Record<string, unknown> {
 }
 
 describe('createNativeHeap', () => {
+    it('keeps allocator ownership across fresh wrappers of one host', () => {
+        const host = mockHost();
+        expect(createNativeHeap(host)!.allocatorIdentity).toBe(createNativeHeap(host)!.allocatorIdentity);
+    });
+
+    it('changes allocator ownership when allocation callbacks change over the same buffer', () => {
+        const host = mockHost(), before = createNativeHeap(host)!;
+        host[HEAP_BINDINGS.free] = () => {};
+        const after = createNativeHeap(host)!;
+        expect(after.HEAPU8.buffer).toBe(before.HEAPU8.buffer);
+        expect(after.allocatorIdentity).not.toBe(before.allocatorIdentity);
+    });
+
+    it('changes ownership when the host arena changes', () => {
+        const host = mockHost(), before = createNativeHeap(host)!;
+        host[HEAP_BINDINGS.heap] = () => new ArrayBuffer(1024);
+        expect(createNativeHeap(host)!.allocatorIdentity).not.toBe(before.allocatorIdentity);
+    });
     it('is absent until the host binds all three globals', () => {
         expect(hasHeapBindings({})).toBe(false);
         expect(createNativeHeap({})).toBeNull();

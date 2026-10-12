@@ -74,8 +74,17 @@ void RenderContext::shutdown() {
         device_.deleteBuffer(timeUbo_);
         timeUbo_ = BufferHandle::Invalid;
     }
+    if (drawParamsFallback_ != BufferHandle::Invalid) {
+        device_.deleteBuffer(drawParamsFallback_);
+        drawParamsFallback_ = BufferHandle::Invalid;
+    }
+    skinBlocks_.shutdown();
+    morphBlocks_.shutdown();
+    probeBlocks_.shutdown();
+    instanceBlocks_.shutdown();
 
     materials_.clear();  // free per-material UBOs while the device is still valid
+    materials_.setResourceManager(nullptr);
     lights_.free();      // free the lighting UBO while the device is still valid
 
     device_.shutdown();

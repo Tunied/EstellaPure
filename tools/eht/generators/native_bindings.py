@@ -1,7 +1,7 @@
 """Native (QuickJS) binding generator — the native sibling of the embind generator.
 
-Emits, per ES_COMPONENT, a QuickJS-callable ``es_set_<Component>(entityId, obj)``
-that writes the reflected scalar / vec / bool / enum fields, plus an
+Emits, per ES_COMPONENT, QuickJS-callable member getters/setters for reflected
+strings, scalars, vectors and enums, plus compiler-validated zero-copy buffers and an
 ``esn_register()`` that installs them as script globals. It consumes the SAME
 parsed reflection (data.Component) as EmbindGenerator, so the web (embind) and
 native (QuickJS) binding surfaces are generated from one source and cannot drift.
@@ -13,16 +13,16 @@ for the ``esn_*`` readers, the entity lookup, and the component includes.
 """
 
 from typing import List
-from ..data import Component, Enum, READ_HOOKS
+from ..data import Component, Enum, READ_HOOKS, WRITE_HOOKS
 from ..type_system import TypeSystem
+from .ptr_layout import PtrLayoutGenerator
 
 # Numeric primitives written straight through (via a double), by cleaned type.
 _FLOAT = {'f32', 'f64', 'float', 'double'}
 _INT = {'i8', 'i16', 'i32', 'i64', 'u8', 'u16', 'u32', 'u64',
         'int', 'int8_t', 'int16_t', 'int32_t', 'int64_t',
         'uint8_t', 'uint16_t', 'uint32_t', 'uint64_t', 'size_t', 'char'}
-# glm vector arities the reader marshals (float lanes). quat/uvec2 skipped:
-# quaternion storage order is fragile to hand-write, uvec2 is unsigned.
+# Float vector arities used by list element bindings.
 _GLM_ARITY = {'glm::vec2': 2, 'glm::vec3': 3, 'glm::vec4': 4}
 
 
@@ -35,16 +35,58 @@ class NativeBindingsGenerator:
         self.enums = enums
         self.types = TypeSystem(enums)
         self.shim_header = shim_header
+        self.layouts = {l['name']: l for l in PtrLayoutGenerator(self.components, enums).layouts}
+
+    def _members(self, ct):
+        if ct in self.types.CUSTOM_STRUCTS:
+            return [m for m, _ in self.types.CUSTOM_STRUCTS[ct]]
+        if ct in self.types.GLM_TYPES:
+            return ['x', 'y', 'z', 'w'][:{'glm::vec2': 2, 'glm::uvec2': 2,
+                                       'glm::vec3': 3}.get(ct, 4)]
+        return []
+
+    def _read_field(self, prop):
+        ct = self.types.clean_type(prop.cpp_type)
+        n = prop.name
+        members = self._members(ct)
+        if members:
+            lines = ['    { JSValue v = JS_NewObject(ctx);']
+            lines += [f'      JS_SetPropertyStr(ctx, v, "{m}", JS_NewFloat64(ctx, c->{n}.{m}));'
+                      for m in members]
+            return lines + [f'      JS_SetPropertyStr(ctx, o, "{n}", v); }}']
+        if ct == 'std::string':
+            value = f'JS_NewStringLen(ctx, c->{n}.data(), c->{n}.size())'
+        elif ct == 'bool':
+            value = f'JS_NewBool(ctx, c->{n})'
+        elif self.types.is_handle(ct):
+            value = f'JS_NewFloat64(ctx, c->{n}.id())'
+        elif ct == 'Entity':
+            value = f'JS_NewFloat64(ctx, static_cast<esengine::u32>(c->{n}))'
+        elif ct in _FLOAT | _INT or self.types.is_enum(ct):
+            value = f'JS_NewFloat64(ctx, static_cast<double>(c->{n}))'
+        else:
+            return []
+        return [f'    JS_SetPropertyStr(ctx, o, "{n}", {value});']
 
     def _field(self, prop) -> str:
         t = prop.cpp_type
         n = prop.name
         ct = self.types.clean_type(t)
-        if ct in _GLM_ARITY:
-            return f'    esn_getvec(ctx, o, "{n}", &c.{n}.x, {_GLM_ARITY[ct]});'
+        if ct == 'std::string':
+            return (f'    {{ JSValue v = JS_GetPropertyStr(ctx, o, "{n}"); '
+                    'if (!JS_IsUndefined(v)) { size_t len; const char* s = JS_ToCStringLen(ctx, &len, v); '
+                    f'if (s) {{ c.{n}.assign(s, len); JS_FreeCString(ctx, s); }} }} '
+                    'JS_FreeValue(ctx, v); }')
+        if self._members(ct):
+            lines = [f'    {{ JSValue v = JS_GetPropertyStr(ctx, o, "{n}");']
+            lines.append('      if (JS_IsObject(v)) {')
+            for i, m in enumerate(self._members(ct)):
+                lines.append(f'      {{ double x; if (esn_getnum(ctx, v, JS_IsArray(v) ? "{i}" : "{m}", &x)) '
+                             f'c.{n}.{m} = static_cast<decltype(c.{n}.{m})>(x); }}')
+            return '\n'.join(lines + ['      } JS_FreeValue(ctx, v); }'])
         if ct == 'bool':
             return f'    {{ int _b; if (esn_getbool(ctx, o, "{n}", &_b)) c.{n} = _b != 0; }}'
-        if self.types.is_enum(t) or ct in _INT:
+        if self.types.is_enum(t) or ct in _INT or ct == 'Entity':
             return (f'    {{ double _v; if (esn_getnum(ctx, o, "{n}", &_v)) '
                     f'c.{n} = static_cast<decltype(c.{n})>(static_cast<long long>(_v)); }}')
         if ct in _FLOAT:
@@ -142,12 +184,25 @@ class NativeBindingsGenerator:
                '    JSValueConst o = argv[1];',
                '    (void)c; (void)o;']
         for prop in comp.properties:
-            out.append(self._field(prop))
+            if 'readonly' not in prop.annotations:
+                out.append(self._field(prop))
+        if comp.name in WRITE_HOOKS:
+            out.append(f'    {WRITE_HOOKS[comp.name]}')
         out.append('    return JS_UNDEFINED;')
         out.append('}')
-        # Fast path: es_<Component>_buffer(entityId) -> a zero-copy ArrayBuffer over
-        # the native component, which the shared generated ptrAccessors write. Same
-        # POD layout as wasm32, so ptrAccessors.generated.ts works unchanged.
+        out += [f'static JSValue es_get_{comp.name}(JSContext* ctx, JSValueConst, int argc, JSValueConst* argv) {{',
+                '    JSValue o = JS_NewObject(ctx);',
+                '    if (argc < 1) return o;',
+                f'    auto* c = esn_reg().tryGet<{full}>(esn_entity(ctx, argv[0]));',
+                '    if (!c) return o;']
+        read_hook = READ_HOOKS.get(comp.name)
+        if read_hook:
+            out.append(f'    c->{read_hook}();')
+        for prop in comp.properties:
+            out.extend(self._read_field(prop))
+        out += ['    return o;', '}']
+        # The buffer implementation is registered below only if the native
+        # compiler proves trivial ownership and the actual wasm accessor offsets.
         # getOrEmplace so a first write (component add) also creates the component.
         out.append(f'static JSValue es_{comp.name}_buffer(JSContext* ctx, JSValueConst, int argc, JSValueConst* argv) {{')
         out.append('    if (argc < 1) return JS_UNDEFINED;')
@@ -182,9 +237,13 @@ class NativeBindingsGenerator:
             '// Auto-generated by EHT (native_bindings) — DO NOT EDIT.',
             '// Native QuickJS sibling of WebBindings.generated.cpp — one reflection source.',
             f'#include "{self.shim_header}"',
+            '#include <type_traits>',
+            '#include <cstddef>',
             '',
         ]
         components = sorted(self.components, key=lambda c: c.name)
+        if any(c.name in WRITE_HOOKS for c in components):
+            lines.append('#include "esengine/ecs/TransformSystem.hpp"')
         # Self-include each bound component's header (relative to src/), so the TU
         # needs only the shim for the esn_* plumbing — deduped (some components
         # share a header, e.g. the collider family).
@@ -208,8 +267,25 @@ class NativeBindingsGenerator:
             remove = f'es_{comp.name}_remove'
             lines.append(f'    JS_SetPropertyStr(ctx, global, "{setter}", '
                          f'JS_NewCFunction(ctx, {setter}, "{setter}", 2));')
-            lines.append(f'    JS_SetPropertyStr(ctx, global, "{buffer}", '
-                         f'JS_NewCFunction(ctx, {buffer}, "{buffer}", 1));')
+            getter = f'es_get_{comp.name}'
+            lines.append(f'    JS_SetPropertyStr(ctx, global, "{getter}", '
+                         f'JS_NewCFunction(ctx, {getter}, "{getter}", 1));')
+            # Expose the raw buffer ONLY when this compiler proves every accessed
+            # offset matches wasm32 and no owned string/vector can be overwritten.
+            full = f'{comp.namespace}::{comp.name}' if comp.namespace else comp.name
+            layout = self.layouts.get(comp.name)
+            if layout:
+                checks = [f'std::is_standard_layout_v<{full}>',
+                          f'std::is_trivially_copyable_v<{full}>']
+                checks += [f'offsetof({full}, {f["name"]}) == {f["offset"]}'
+                           for f in layout['fields']]
+                for f in layout['fields']:
+                    checks += [f'offsetof(decltype({full}::{f["name"]}), {m["name"]}) == {m["offset"]}'
+                               for m in f.get('members', [])]
+                lines.append(f'    if constexpr ({" && ".join(checks)}) {{')
+                lines.append(f'        JS_SetPropertyStr(ctx, global, "{buffer}", '
+                             f'JS_NewCFunction(ctx, {buffer}, "{buffer}", 1));')
+                lines.append('    }')
             lines.append(f'    JS_SetPropertyStr(ctx, global, "{has}", '
                          f'JS_NewCFunction(ctx, {has}, "{has}", 1));')
             lines.append(f'    JS_SetPropertyStr(ctx, global, "{remove}", '

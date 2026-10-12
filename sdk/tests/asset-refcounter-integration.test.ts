@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 /**
- * Verifies that Assets.resolveSceneAssetPaths populates an attached
- * AssetRefCounter so tools can answer "which entities hold this asset?".
+ * Resolution prepares handles; tracking after spawning records runtime IDs so
+ * tools can answer "which live entities hold this asset?" and despawn cleans up.
  *
  * We only exercise the bookkeeping path — no WASM, no real loader.
  * resolveSceneAssetPaths takes a SceneAssetResult whose handle maps we
@@ -17,6 +17,8 @@ import type { Backend } from '../src/asset/Backend';
 import type { SceneData } from '../src/scene/scene';
 import type { SceneAssetResult } from '../src/asset/Assets';
 import { AssetScope } from '../src/asset/AssetLease';
+import { World } from '../src/ecs/world';
+import { loadSceneData } from '../src/scene/scene';
 
 vi.mock('../src/wasm/resourceManager', () => ({
     requireResourceManager: () => ({ releaseTexture: vi.fn() }),
@@ -85,6 +87,23 @@ beforeEach(() => {
 });
 
 describe('Assets.resolveSceneAssetPaths → AssetRefCounter', () => {
+    it('records runtime IDs after spawning and removes the rows when those entities despawn', () => {
+        const assets = makeAssets(), counter = new AssetRefCounter(), world = new World();
+        assets.setRefCounter(counter);
+        world.spawn(); world.spawn();
+        world.onDespawn(entity => counter.removeAllRefsForEntity(entity));
+        const scene = sceneWith(7, { texture: 'assets/player.png' }), result = emptyResult();
+        result.textureHandles.set('assets/player.png', 42);
+        assets.resolveSceneAssetPaths(scene, result);
+        expect(counter.getTotalRefRows()).toBe(0);
+        const entities = loadSceneData(world, scene);
+        const entity = entities.get(7)!;
+        expect(entity).not.toBe(7);
+        assets.trackSceneAssetReferences(scene, entities);
+        expect(counter.getTextureRefs('assets/player.png')).toEqual([entity]);
+        world.despawn(entity);
+        expect(counter.getTotalRefRows()).toBe(0);
+    });
     it('records texture refs against the entity id when a handle resolves', () => {
         const assets = makeAssets();
         const counter = new AssetRefCounter();
@@ -95,6 +114,7 @@ describe('Assets.resolveSceneAssetPaths → AssetRefCounter', () => {
         result.textureHandles.set('assets/player.png', 42);
 
         assets.resolveSceneAssetPaths(scene, result);
+        assets.trackSceneAssetReferences(scene, new Map(scene.entities.map(e => [e.id, e.id])));
 
         expect(counter.getTextureRefCount('assets/player.png')).toBe(1);
         expect(counter.getTextureRefs('assets/player.png')).toEqual([7]);
@@ -111,6 +131,7 @@ describe('Assets.resolveSceneAssetPaths → AssetRefCounter', () => {
         result.textureHandles.set('assets/missing.png', 0);
 
         assets.resolveSceneAssetPaths(scene, result);
+        assets.trackSceneAssetReferences(scene, new Map(scene.entities.map(e => [e.id, e.id])));
 
         expect(counter.getTextureRefCount('assets/missing.png')).toBe(0);
     });
@@ -142,6 +163,7 @@ describe('Assets.resolveSceneAssetPaths → AssetRefCounter', () => {
         result.fontHandles.set('font.fnt', 30);
 
         assets.resolveSceneAssetPaths(scene, result);
+        assets.trackSceneAssetReferences(scene, new Map(scene.entities.map(e => [e.id, e.id])));
 
         expect(counter.getTextureRefCount('a.png')).toBe(1);
         expect(counter.getMaterialRefCount('a.mat')).toBe(1);

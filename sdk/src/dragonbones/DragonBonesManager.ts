@@ -57,6 +57,7 @@ export class DragonBonesManager {
     private readonly entities_ = new Map<Entity, EntityInfo>();
     private readonly disabled_ = new Set<Entity>();
     private readonly skeletons_ = new Map<string, { handle: number; refcount: number }>();
+    private readonly unkeyedSkeletons_ = new Map<number, number>();
 
     constructor(controller: DragonBonesModuleController) {
         this.controller_ = controller;
@@ -83,6 +84,7 @@ export class DragonBonesManager {
             return -1;
         }
         if (assetKey !== undefined) this.skeletons_.set(assetKey, { handle, refcount: 0 });
+        else this.unkeyedSkeletons_.set(handle, 0);
         return handle;
     }
 
@@ -97,18 +99,21 @@ export class DragonBonesManager {
 
     // — Entities —————————————————————————————————————————————————————————————
 
-    /** Attach an armature to `entity`. Replaces whatever it had. */
+    /** Replace an armature only after its new instance and ownership are valid. */
     addEntity(entity: Entity, skeletonHandle: number, options: DragonBonesEntityOptions): boolean {
-        this.removeEntity(entity);
-
+        const previous = this.entities_.get(entity);
+        const shared = options.assetKey === undefined ? undefined : this.skeletons_.get(options.assetKey);
+        if (options.assetKey !== undefined && (!shared || shared.handle !== skeletonHandle)) return false;
+        if (options.assetKey === undefined && [...this.skeletons_.values()].some(s => s.handle === skeletonHandle)) return false;
+        if (previous?.skeletonHandle === skeletonHandle && previous.assetKey !== options.assetKey) return false;
         const instanceId = this.controller_.createInstance(skeletonHandle, options.armature);
         if (instanceId < 0) return false;
-
-        if (options.assetKey !== undefined) {
-            const shared = this.skeletons_.get(options.assetKey);
-            if (shared) shared.refcount++;
+        if (shared) shared.refcount++;
+        else this.unkeyedSkeletons_.set(skeletonHandle, (this.unkeyedSkeletons_.get(skeletonHandle) ?? 0) + 1);
+        if (previous) {
+            this.controller_.destroyInstance(previous.instanceId);
+            this.releaseSkeleton_(previous);
         }
-
         const info: EntityInfo = {
             skeletonHandle,
             instanceId,
@@ -220,9 +225,10 @@ export class DragonBonesManager {
 
     // — Frame ————————————————————————————————————————————————————————————————
 
-    updateAnimations(dt: number): void {
+    /** Freeze inactive entities without changing their manual enable state. */
+    updateAnimations(dt: number, isActive?: (entity: Entity) => boolean): void {
         for (const [entity, info] of this.entities_) {
-            if (this.disabled_.has(entity)) continue;
+            if (this.disabled_.has(entity) || (isActive && !isActive(entity))) continue;
             // Paused armatures fall through to submitMeshes, which still draws the
             // pose they are holding.
             if (!info.playing) continue;
@@ -230,9 +236,10 @@ export class DragonBonesManager {
         }
     }
 
-    submitMeshes(core: SkeletalSubmitCore, registry: unknown, materialOf?: SkeletalMaterialOf): void {
+    /** Skip extraction for entities the activity predicate excludes. */
+    submitMeshes(core: SkeletalSubmitCore, registry: unknown, materialOf?: SkeletalMaterialOf, isActive?: (entity: Entity) => boolean): void {
         for (const [entity, info] of this.entities_) {
-            if (this.disabled_.has(entity)) continue;
+            if (this.disabled_.has(entity) || (isActive && !isActive(entity))) continue;
             // False means the core cannot take geometry at all, so asking again for
             // the next entity would only repeat the same check.
             const accepted = submitEntityMeshes(core, registry, entity, info, cb =>
@@ -251,15 +258,22 @@ export class DragonBonesManager {
         for (const shared of this.skeletons_.values()) {
             this.controller_.unloadSkeleton(shared.handle);
         }
+        for (const handle of this.unkeyedSkeletons_.keys()) this.controller_.unloadSkeleton(handle);
         this.entities_.clear();
         this.disabled_.clear();
         this.skeletons_.clear();
+        this.unkeyedSkeletons_.clear();
     }
 
     /** One reference gone; a shared skeleton unloads when the last one does. */
     private releaseSkeleton_(info: EntityInfo): void {
         if (info.assetKey === undefined) {
-            this.controller_.unloadSkeleton(info.skeletonHandle);
+            const refs = (this.unkeyedSkeletons_.get(info.skeletonHandle) ?? 1) - 1;
+            if (refs > 0) this.unkeyedSkeletons_.set(info.skeletonHandle, refs);
+            else {
+                this.controller_.unloadSkeleton(info.skeletonHandle);
+                this.unkeyedSkeletons_.delete(info.skeletonHandle);
+            }
             return;
         }
         const shared = this.skeletons_.get(info.assetKey);

@@ -43,7 +43,7 @@ void ShapePlugin::collect(RenderCollectContext& collect_ctx) {
     auto& buffers = collect_ctx.buffer_pool;
     auto& draw_list = collect_ctx.draw_list;
     auto& ctx = collect_ctx.frame_context;
-    auto shapeView = registry.view<ecs::Transform, ecs::ShapeRenderer>();
+    auto shapeView = registry.activeView<ecs::Transform, ecs::ShapeRenderer>();
 
     for (auto entity : shapeView) {
         const auto& shape = shapeView.get<ecs::ShapeRenderer>(entity);

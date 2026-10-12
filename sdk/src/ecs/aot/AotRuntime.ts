@@ -65,6 +65,8 @@ export interface AotDispatcher {
  * the editor and dev builds need no flag and take no branch worth measuring.
  */
 export interface AotRuntime {
+    /** Retire dispatch and release its owned arenas/mirrors. Idempotent. */
+    dispose?(): void;
     readonly systems: AotSystems;
     readonly addresses: AotAddresses;
     readonly ctx: AotContext;

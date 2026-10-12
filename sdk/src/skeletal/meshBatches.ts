@@ -29,6 +29,7 @@ export interface SkeletalHeap {
 /** The four readback entry points, however a module spells them. */
 export interface MeshBatchSource {
     getMeshBatchCount(instanceId: number): number;
+    getMeshBatchColorPremultiplied?(instanceId: number, batchIndex: number): number;
     getMeshBatchVertexCount(instanceId: number, batchIndex: number): number;
     getMeshBatchIndexCount(instanceId: number, batchIndex: number): number;
     getMeshBatchData(
@@ -40,7 +41,7 @@ export interface MeshBatchSource {
 export type MeshBatchVisitor = (
     vertBytes: Uint8Array, indexBytes: Uint8Array,
     vertexCount: number, indexCount: number,
-    textureId: number, blendMode: number,
+    textureId: number, blendMode: number, premultipliedColor?: boolean,
 ) => void;
 
 /** Interleaved x,y,u,v,r,g,b,a — the layout every skeletal module writes. */
@@ -90,12 +91,17 @@ export function forEachMeshBatch(
                     probe.bytes.scratchAllocated += vertByteLen + idxByteLen;
                     probe.bytes.wasmRead += vertByteLen + idxByteLen;
                 }
+                const blendMode = heap.HEAPU32[blendPtr >> 2];
+                const premultipliedColor = api.getMeshBatchColorPremultiplied
+                    ? api.getMeshBatchColorPremultiplied(instanceId, i) !== 0
+                    : blendMode === 4 || blendMode === 5;
+                if (probe && api.getMeshBatchColorPremultiplied) probe.abi.batchColor++;
                 cb(
                     new Uint8Array(heap.HEAPU8.buffer, vertPtr, vertByteLen),
                     new Uint8Array(heap.HEAPU8.buffer, idxPtr, idxByteLen),
                     vertexCount, indexCount,
                     heap.HEAPU32[texIdPtr >> 2],
-                    heap.HEAPU32[blendPtr >> 2],
+                    blendMode, premultipliedColor,
                 );
             });
         }

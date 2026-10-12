@@ -26,6 +26,8 @@
 #include "Entity.hpp"
 #include "SparseSet.hpp"
 #include "View.hpp"
+#include "ActiveView.hpp"
+#include "components/Hierarchy.hpp"
 #include "../events/Sink.hpp"
 
 // Standard library
@@ -89,6 +91,36 @@ public:
      */
     u64 instanceId() const { return instance_id_; }
 
+    // Local authoring state is distinct from effective activity. Disabling a
+    // parent never overwrites a child's own switch. All engine consumers share
+    // this derived answer, including JS queries through the registry binding.
+    bool setEntityEnabled(Entity e, bool enabled) {
+        if (!valid(e)) return false;
+        const u8 off = enabled ? 0 : 1;
+        if (disabled_[e.index()] == off) return true;
+        disabled_[e.index()] = off;
+        if (off) ++disabled_count_; else --disabled_count_;
+        ++activity_epoch_;
+        return true;
+    }
+    bool isEntityEnabled(Entity e) const {
+        return valid(e) && disabled_[e.index()] == 0;
+    }
+
+    bool isEntityActive(Entity e) const {
+        if (!valid(e)) return false;
+        if (disabled_count_ == 0) return true;
+        ensureActivity();
+        return inactive_[e.index()] == 0;
+    }
+    bool hasInactiveEntities() const { return disabled_count_ != 0; }
+    u32 activityEpoch() const { return activity_epoch_; }
+    void invalidateActivityHierarchy() { if (disabled_count_) ++activity_epoch_; }
+
+    template<class... C> auto activeView() {
+        return ActiveView<View<C...>, Registry>(view<C...>(), *this);
+    }
+
     // =========================================================================
     // Entity Management
     // =========================================================================
@@ -151,6 +183,27 @@ public:
         return activateIndex(index);
     }
 
+    /** Internal subtree ownership. Components remain readable for callbacks,
+     * but a pending entity cannot receive links or be reserved a second time. */
+    bool reserveDestruction(Entity entity) {
+        if (!valid(entity) || destruction_pending_[entity.index()]) return false;
+        destruction_pending_[entity.index()] = 1;
+        return true;
+    }
+    void releaseDestruction(Entity entity) {
+        const u32 index = entity.index();
+        // An old owner's finalizer can run after this slot was recycled and
+        // reserved by a new owner. Only its original generation may clear it.
+        if (index < destruction_pending_.size() && generations_[index] == entity.generation()) {
+            destruction_pending_[index] = 0;
+        }
+    }
+    bool destructionPending(Entity entity) const {
+        const u32 index = entity.index();
+        return index < destruction_pending_.size() && destruction_pending_[index]
+            && generations_[index] == entity.generation();
+    }
+
     /**
      * @brief Destroys an entity and removes all its components
      * @param entity The entity to destroy
@@ -168,6 +221,9 @@ public:
         // runs twice: entity_count_ underflows and idx is pushed onto recycled_
         // twice, later aliasing two distinct entities to the same index.
         entityValid_[idx] = false;
+        const bool hadDisabled = disabled_count_ != 0;
+        if (disabled_[idx]) { disabled_[idx] = 0; --disabled_count_; }
+        if (hadDisabled) ++activity_epoch_;
 
         // Signal handles re-entrant connect/disconnect during publish; its RAII
         // Connection (via Sink::connect) keeps subscriber lifetimes safe in both
@@ -271,6 +327,7 @@ public:
         auto& pool = assurePool<T>();
         auto& result = pool.emplace(entity, std::forward<Args>(args)...);
         component_masks_[entity.index()].set(componentTypeId<T>());
+        if constexpr (std::is_same_v<T, Parent> || std::is_same_v<T, Children>) invalidateActivityHierarchy();
         return result;
     }
 
@@ -292,10 +349,12 @@ public:
         if (pool.contains(entity)) {
             auto& comp = pool.get(entity);
             comp = T(std::forward<Args>(args)...);
+            if constexpr (std::is_same_v<T, Parent> || std::is_same_v<T, Children>) invalidateActivityHierarchy();
             return comp;
         }
         auto& result = pool.emplace(entity, std::forward<Args>(args)...);
         component_masks_[entity.index()].set(componentTypeId<T>());
+        if constexpr (std::is_same_v<T, Parent> || std::is_same_v<T, Children>) invalidateActivityHierarchy();
         return result;
     }
 
@@ -311,6 +370,7 @@ public:
         auto* pool = getPool<T>();
         if (pool) {
             pool->remove(entity);
+            if constexpr (std::is_same_v<T, Parent> || std::is_same_v<T, Children>) invalidateActivityHierarchy();
             const u32 idx = entity.index();
             if (idx < component_masks_.size()) {
                 component_masks_[idx].clear(componentTypeId<T>());
@@ -463,6 +523,11 @@ public:
             }
         }
         entityValid_.clear();
+        disabled_.clear();
+        inactive_.clear();
+        activity_state_.clear();
+        disabled_count_ = 0;
+        ++activity_epoch_;
         generations_.clear();
         component_masks_.clear();
         while (!recycled_.empty()) recycled_.pop();
@@ -703,10 +768,15 @@ private:
         }
         if (index >= entityValid_.size()) {
             entityValid_.resize(index + 1, false);
+            disabled_.resize(index + 1, 0);
+            destruction_pending_.resize(index + 1, 0);
             generations_.resize(index + 1, 0);
             component_masks_.resize(index + 1);
         }
         entityValid_[index] = true;
+        disabled_[index] = 0;
+        destruction_pending_[index] = 0;
+        invalidateActivityHierarchy();
         generations_[index] = (generations_[index] + 1) & Entity::GEN_MASK;
         if (generations_[index] == 0) generations_[index] = 1;
         component_masks_[index].reset();
@@ -719,6 +789,42 @@ private:
     // =========================================================================
 
     std::vector<u8> entityValid_;
+    std::vector<u8> disabled_;
+    usize disabled_count_ = 0;
+    u32 activity_epoch_ = 1;
+    mutable u32 resolved_activity_epoch_ = 0;
+    mutable std::vector<u8> inactive_, activity_state_;
+    mutable std::vector<u32> activity_path_;
+
+    void ensureActivity() const {
+        if (resolved_activity_epoch_ == activity_epoch_) return;
+        inactive_.assign(entityValid_.size(), 0);
+        activity_state_.assign(entityValid_.size(), 0);
+        const auto* parents = getPool<Parent>();
+        // Each entity is resolved once, iteratively: deep chains do not recurse
+        // or repeatedly walk their ancestors. O(entities + parent links).
+        for (usize start = 0; start < entityValid_.size(); ++start) {
+            if (!entityValid_[start] || activity_state_[start] == 2) continue;
+            activity_path_.clear();
+            u32 at = static_cast<u32>(start);
+            bool off = false;
+            for (;;) {
+                if (activity_state_[at] == 2) { off = inactive_[at] != 0; break; }
+                if (activity_state_[at] == 1) { off = true; break; }
+                activity_state_[at] = 1;
+                activity_path_.push_back(at);
+                if (disabled_[at]) { off = true; break; }
+                const auto* parent = parents ? parents->tryGet(Entity::make(at, generations_[at])) : nullptr;
+                if (!parent || !valid(parent->entity)) break;
+                at = parent->entity.index();
+            }
+            for (u32 index : activity_path_) {
+                inactive_[index] = off ? 1 : 0;
+                activity_state_[index] = 2;
+            }
+        }
+        resolved_activity_epoch_ = activity_epoch_;
+    }
     std::vector<u32> generations_;
     std::vector<ComponentMask> component_masks_;
     std::queue<u32> recycled_;      ///< Recycled entity indices
@@ -733,6 +839,10 @@ private:
     std::vector<Unique<SparseSetBase>> pools_;
 
     Signal<void(Entity)> on_destroy_signal_;
+    // Indexed by the canonical entity slot/generation. Grow during activation,
+    // never allocate one hash node per teardown or a whole-world array on the
+    // first deletion. Recycled slots start unreserved.
+    std::vector<u8> destruction_pending_;
 };
 
 }  // namespace esengine::ecs

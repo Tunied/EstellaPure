@@ -30,6 +30,39 @@ function worldWith(n: number): { world: World; entities: Entity[] } {
 }
 
 describe('a disabled entity', () => {
+    it('filters component-free queries while retaining raw management access', () => {
+        const { world, entities } = worldWith(2);
+        setEntityActive(world, entities[0]!, false);
+        expect(world.queryEntities([])).toEqual([entities[1]]);
+        expect(world.getAllEntities()).toEqual(entities);
+        setEntityActive(world, entities[0]!, true);
+        expect(world.queryEntities([])).toEqual(entities);
+    });
+
+    it('observes core activity changes after a query cache hit', () => {
+        const { world, entities } = worldWith(2);
+        const disabled = new Set<Entity>();
+        let epoch = 0;
+        const core = {
+            setEntityEnabled: (e: Entity, enabled: boolean) => {
+                if (enabled) disabled.delete(e); else disabled.add(e);
+                ++epoch; return true;
+            },
+            isEntityActive: (e: Entity) => !disabled.has(e),
+            isEntityEnabled: (e: Entity) => !disabled.has(e),
+            hasInactiveEntities: () => disabled.size > 0,
+            activityEpoch: () => epoch,
+        };
+        world.connectCpp(core as never);
+        expect(world.queryEntities([Health])).toEqual(entities);
+        core.setEntityEnabled(entities[0]!, false);
+        expect(world.queryEntities([Health])).toEqual([entities[1]]);
+        expect(isEntityActive(world, entities[0]!)).toBe(false);
+        setEntityActive(world, entities[0]!, true);
+        expect(world.queryEntities([Health])).toEqual(entities);
+        setEntityActive(world, entities[1]!, false);
+        expect(core.isEntityActive(entities[1]!)).toBe(false);
+    });
     it('is not answered by a query', () => {
         const { world, entities } = worldWith(3);
         expect(world.getEntitiesWithComponents([Health])).toHaveLength(3);

@@ -1,18 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import type { AssetLoader, LoadContext, MaterialResult } from '../AssetLoader';
-import { BUILTIN_REF_PREFIX, isBuiltinAssetRef, resolveDocumentRef } from '../documentRef';
-import type { MaterialAssetData, ShaderHandle } from '../../render/material';
+import { isBuiltinAssetRef, resolveDocumentRef } from '../documentRef';
+import type { MaterialAssetData } from '../../render/material';
 import { Material } from '../../render/material';
-import { builtinShaderTemplate } from '../../render/builtinShaders';
-import { AsyncCache } from '../AsyncCache';
+import type { MaterialShaderSource } from './MaterialShaderAssetLoader';
 import { log } from '../../util/logger';
 
 export class MaterialAssetLoader implements AssetLoader<MaterialResult> {
     readonly type = 'material';
     readonly extensions = ['.esmaterial'];
-
-    private shaderCache_ = new AsyncCache<ShaderHandle>();
 
     async load(path: string, ctx: LoadContext): Promise<MaterialResult> {
         const buildPath = ctx.catalog.getBuildPath(path);
@@ -36,7 +33,9 @@ export class MaterialAssetLoader implements AssetLoader<MaterialResult> {
 
         // Enabled static switches select the shader permutation (compiled once per switch-set).
         const features = enabledSwitches(data.switches);
-        const shaderHandle = await this.loadShader(path, data.shader, features, ctx);
+        const shaderPath = isBuiltinAssetRef(data.shader) ? data.shader : resolveDocumentRef(path, data.shader);
+        const source = await ctx.acquireAsset<MaterialShaderSource>('material-shader', shaderPath);
+        const shaderHandle = source.value.compile(features);
         const handle = Material.createFromAsset(data, shaderHandle);
         await this.applyTextureProps(handle, data, path, ctx);
 
@@ -70,42 +69,6 @@ export class MaterialAssetLoader implements AssetLoader<MaterialResult> {
         Material.release(asset.handle);
     }
 
-    releaseAll(): void {
-        this.shaderCache_.clearAll();
-    }
-
-    // Compile a material's shader ref — either a `builtin:<id>` stock template (from its in-code
-    // source, no file) or a path to a project `.esshader` resolved relative to the material. One
-    // compiled program per (resolved key, enabled-switch set) — distinct switch sets are distinct
-    // permutations, so the cache key folds the sorted features in.
-    private async loadShader(matPath: string, ref: string, features: string[], ctx: LoadContext): Promise<ShaderHandle> {
-        const isBuiltin = isBuiltinAssetRef(ref);
-        const key = isBuiltin ? ref : resolveDocumentRef(matPath, ref);
-        const cacheKey = features.length ? `${key}#${features.join('|')}` : key;
-        const cached = this.shaderCache_.get(cacheKey);
-        if (cached !== undefined) return cached;
-
-        return this.shaderCache_.getOrLoad(cacheKey, async () => {
-            let content: string;
-            if (isBuiltin) {
-                const template = builtinShaderTemplate(ref.slice(BUILTIN_REF_PREFIX.length));
-                if (!template) {
-                    throw new Error(`Unknown built-in shader: ${ref}`);
-                }
-                content = template.source;
-            } else {
-                content = await ctx.loadText(ctx.catalog.getBuildPath(key));
-            }
-            // Compile through ShaderParser (engine-side): assembles the stages + the enabled
-            // switch permutation, generates the std140 MaterialConstants block from #pragma param,
-            // and registers the layout so the material's parameters reach the GPU.
-            const handle = Material.compileShader(content, features);
-            if (!handle) {
-                throw new Error(`Failed to compile material shader: ${key}`);
-            }
-            return handle;
-        });
-    }
 }
 
 // The enabled static switches, sorted for a stable permutation cache key.

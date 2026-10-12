@@ -73,9 +73,11 @@ describe('per-App runtime Assets persistence', () => {
         await loadScene(app, makeScene('a'));
         const first = app.getResource(AssetsResource);
         expect(first).not.toBe(pluginAssets);
+        expect(first.getRefCounter()).not.toBeNull();
 
         await loadScene(app, makeScene('b'));
         expect(app.getResource(AssetsResource)).toBe(first);
+        expect(app.world.getStorageSizes().despawnCallbacks).toBe(1);
     });
 
     it('keeps the addressable manifest across scene loads (loadGroup stays armed)', async () => {

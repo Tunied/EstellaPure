@@ -20,6 +20,7 @@ describe('Entity visibility helpers', () => {
             // One entity, no tree: switching off walks the subtree, and an
             // entity with no Children is where that walk stops.
             valid: () => true,
+            getCppRegistry: () => null,
             has: (_e: number, comp: any) => components.has(key(comp)),
             get: (_e: number, comp: any) => components.get(key(comp)),
             set: (_e: number, comp: any, data: any) => {

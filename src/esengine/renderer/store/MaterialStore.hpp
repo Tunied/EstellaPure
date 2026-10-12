@@ -141,11 +141,16 @@ struct MaterialRecord {
  */
 class MaterialStore {
 public:
+    MaterialStore() = default;
+    ~MaterialStore();
+    MaterialStore(const MaterialStore&) = delete;
+    MaterialStore& operator=(const MaterialStore&) = delete;
     /// The render path uses this device to create/upload/delete per-material UBOs.
     void setDevice(GfxDevice* device) { device_ = device; }
 
     /// Resolves texture handles at bind time; without one, texture params bind nothing.
-    void setResourceManager(resource::ResourceManager* resources) { resources_ = resources; }
+    void setResourceManager(resource::ResourceManager* resources);
+    void forgetShader(resource::ShaderHandle shader);
 
     /// The context's built-in fallbacks.
     void setBuiltinDefaults(TextureHandle white, TextureHandle black, TextureHandle flatNormal) {
@@ -315,12 +320,18 @@ private:
     /// (Handle, vertex source) → the program compiled for it (0 = tried and
     /// failed). Mutable because compiling it is memoization: the collect path
     /// asks a read-only store, and the answer is the same every time.
-    mutable std::unordered_map<u64, u32> mesh_programs_;
+    // Indexed first by source shader: retirement touches only its own variants.
+    // Handles resolve to the current device program, including after recovery.
+    mutable std::unordered_map<u32, std::unordered_map<u64, resource::ShaderHandle>> mesh_programs_;
 
 public:
     /** @brief How many material program variants have been built. A prewarm counts
      *         what it caused by the difference, rather than by asking again. */
-    u32 builtVariantCount() const { return static_cast<u32>(mesh_programs_.size()); }
+    u32 builtVariantCount() const {
+        u32 count = 0;
+        for (const auto& [shader, variants] : mesh_programs_) count += static_cast<u32>(variants.size());
+        return count;
+    }
 
 private:
 

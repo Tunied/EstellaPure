@@ -218,6 +218,15 @@ public:
      */
     void releaseShader(ShaderHandle handle);
 
+    /// One renderer owns shader-derived metadata. Notify after final pool retirement.
+    using ShaderRetiredCallback = void (*)(void*, ShaderHandle);
+    void setShaderRetiredCallback(void* owner, ShaderRetiredCallback callback) {
+        shaderRetiredOwner_ = owner; shaderRetiredCallback_ = callback;
+    }
+    void clearShaderRetiredCallback(void* owner) {
+        if (shaderRetiredOwner_ == owner) { shaderRetiredOwner_ = nullptr; shaderRetiredCallback_ = nullptr; }
+    }
+
     /**
      * @brief Gets the current reference count for a shader
      * @param handle The shader handle
@@ -695,6 +704,8 @@ public:
     LoaderRegistry& getLoaderRegistry() { return loaderRegistry_; }
 
 private:
+    void* shaderRetiredOwner_ = nullptr;
+    ShaderRetiredCallback shaderRetiredCallback_ = nullptr;
     ResourcePool<Shader> shaders_;
     ResourcePool<Texture> textures_;
     ResourcePool<VertexBuffer> vertexBuffers_;

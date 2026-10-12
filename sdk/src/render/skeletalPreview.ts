@@ -23,7 +23,8 @@ export type SkeletalPreviewCore = Pick<ESEngineModule,
     | 'renderer_renderSkeletalPreview' | 'renderer_pollSkeletalPreview'
     | 'renderer_getSkeletalPreviewPtr' | 'renderer_getSkeletalPreviewSize'
     | 'renderer_getSkeletalPreviewWidth' | 'renderer_getSkeletalPreviewHeight'
-    | 'renderer_destroySkeletalPreview' | '_malloc' | '_free' | 'HEAPU8'>;
+    | 'renderer_destroySkeletalPreview' | '_malloc' | '_free' | 'HEAPU8'>
+    & Partial<Pick<ESEngineModule, 'renderer_submitSkeletalPreviewBatchEx'>>;
 
 /** The connected core, when it answers the skeletal-preview surface. */
 export function skeletalPreviewCore(m: unknown): SkeletalPreviewCore | null {
@@ -40,6 +41,7 @@ export interface SkeletalPreviewBatch {
     indexCount: number;
     textureId: number;
     blendMode: number;
+    premultipliedColor?: boolean;
     /** Column-major 4×4, as the renderer takes a model matrix. */
     transform: Float32Array;
     materialId?: number;
@@ -86,10 +88,14 @@ export class SkeletalPreview {
             core.HEAPU8.set(batch.vertices, vp);
             core.HEAPU8.set(batch.indices, ip);
             core.HEAPU8.set(new Uint8Array(batch.transform.buffer, batch.transform.byteOffset, 16 * 4), tp);
-            return core.renderer_submitSkeletalPreviewBatch(
-                this.id, vp, batch.vertexCount, ip, batch.indexCount,
-                batch.textureId, batch.blendMode, tp,
-                batch.layer ?? 0, batch.depth ?? 0, batch.materialId ?? 0) !== 0;
+            return (core.renderer_submitSkeletalPreviewBatchEx
+                ? core.renderer_submitSkeletalPreviewBatchEx(this.id,
+                    vp, batch.vertexCount, ip, batch.indexCount, batch.textureId, batch.blendMode, tp,
+                    batch.layer ?? 0, batch.depth ?? 0, batch.materialId ?? 0,
+                    batch.premultipliedColor ?? (batch.blendMode === 4 || batch.blendMode === 5))
+                : core.renderer_submitSkeletalPreviewBatch(this.id,
+                    vp, batch.vertexCount, ip, batch.indexCount, batch.textureId, batch.blendMode, tp,
+                    batch.layer ?? 0, batch.depth ?? 0, batch.materialId ?? 0)) !== 0;
         });
     }
 

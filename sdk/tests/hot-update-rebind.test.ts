@@ -89,6 +89,7 @@ const materialFake = vi.hoisted(() => {
             setUniform: vi.fn(),
             tex: vi.fn((handle: number) => ({ kind: 'tex', handle })),
             compileShader: vi.fn(() => 7),
+            releaseShader: vi.fn(),
             release: vi.fn(),
         },
     };

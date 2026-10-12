@@ -327,6 +327,7 @@ void eventListener(sp::AnimationState* state, sp::EventType type,
     if (!g_eventSink) return;
 
     Event out;
+    out.source = state;
     out.kind = kindOf(type);
     out.track = entry ? static_cast<int>(entry->getTrackIndex()) : 0;
     if (entry) out.animation = cstr(entry->getAnimation().getName());
@@ -340,6 +341,10 @@ void eventListener(sp::AnimationState* state, sp::EventType type,
 }
 
 }  // namespace
+
+const void* eventSource(Instance* instance) {
+    return instance ? instance->state : nullptr;
+}
 
 void enableEvents(Instance* instance) {
     if (instance) instance->state->setListener(eventListener);
@@ -552,6 +557,7 @@ void render(Instance* instance, TriangleSink& sink, bool clipping) {
         // backend also reads (SpineRuntime.hpp): the blend code gains a twin for
         // two of the four modes, and the tint carries its alpha for ALL of them.
         const bool pma = instance->owner->isPremultiplied(command->texture);
+        sink.setPremultipliedColor(pma);
         premultiplyTint(rgba, pma);
 
         sink.emit(command->positions, command->uvs, command->numVertices,

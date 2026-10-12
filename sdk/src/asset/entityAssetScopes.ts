@@ -18,9 +18,7 @@ import type { World } from '../ecs/world';
 import { AssetScope } from './AssetLease';
 
 export class EntityAssetScopes {
-    private scopes_ = new Map<Entity, AssetScope>();
-    private world_: World | null = null;
-    private unbind_: (() => void) | null = null;
+    private worlds_ = new Map<World, { scopes: Map<Entity, AssetScope>; unbind: () => void }>();
 
     /**
      * The scope this entity owns, created on first use.
@@ -30,34 +28,55 @@ export class EntityAssetScopes {
      * here — before any scope exists there is nothing that could be missed.
      */
     ensure(world: World, entity: Entity): AssetScope {
-        this.bind_(world);
-        let scope = this.scopes_.get(entity);
+        if (!world.valid(entity) || world.isDestructionPending(entity)) {
+            throw new Error(`Cannot own resources for entity ${entity}: destroyed or pending destruction`);
+        }
+        const scopes = this.bind_(world);
+        let scope = scopes.get(entity);
         if (!scope) {
             scope = new AssetScope();
-            this.scopes_.set(entity, scope);
+            scopes.set(entity, scope);
         }
         return scope;
     }
 
     /** What this entity owns, or null when it owns nothing of its own. */
-    scopeFor(entity: Entity): AssetScope | null {
-        return this.scopes_.get(entity) ?? null;
+    scopeFor(entity: Entity, world?: World): AssetScope | null {
+        if (world) return this.worlds_.get(world)?.scopes.get(entity) ?? null;
+        let found: AssetScope | null = null;
+        for (const { scopes } of this.worlds_.values()) {
+            const scope = scopes.get(entity);
+            if (!scope) continue;
+            // An id alone cannot distinguish entities in different worlds.
+            if (found) return null;
+            found = scope;
+        }
+        return found;
     }
 
     /** Live per-entity scopes. Diagnostics and the resource census. */
     get size(): number {
-        return this.scopes_.size;
+        let total = 0;
+        for (const { scopes } of this.worlds_.values()) total += scopes.size;
+        return total;
     }
 
-    private bind_(world: World): void {
-        if (this.world_ === world) return;
-        this.unbind_?.();
-        this.world_ = world;
-        this.unbind_ = world.onDespawn((entity) => {
-            const scope = this.scopes_.get(entity);
+    private bind_(world: World): Map<Entity, AssetScope> {
+        const existing = this.worlds_.get(world);
+        if (existing) return existing.scopes;
+        const entry = { scopes: new Map<Entity, AssetScope>(), unbind: () => {} };
+        this.worlds_.set(world, entry);
+        entry.unbind = world.onDespawn((entity) => {
+            const scope = entry.scopes.get(entity);
             if (!scope) return;
-            this.scopes_.delete(entity);
-            scope.releaseAll();
+            entry.scopes.delete(entity);
+            try { scope.releaseAll(); } finally {
+                if (!entry.scopes.size && this.worlds_.get(world) === entry) {
+                    this.worlds_.delete(world);
+                    entry.unbind();
+                }
+            }
         });
+        return entry.scopes;
     }
 }

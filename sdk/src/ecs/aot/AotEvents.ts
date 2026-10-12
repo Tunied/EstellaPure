@@ -13,6 +13,8 @@
  *          the object is rebuilt from that field list before it goes on the bus.
  */
 import { POOL_SLOT_BYTES, type PoolBlock, type PoolMemory } from '../ScriptPool';
+import { disposeAll } from '../../util/disposeAll';
+import { hasOwn, setOwn } from '../../util/ownProperties';
 
 /** What the runtime knows about an event by NAME; a manifest carries names. */
 export interface EventBusAccess {
@@ -24,6 +26,12 @@ export interface EventBusAccess {
 
 export class AotEvents {
     private readonly blocks: PoolBlock[] = [];
+    private disposed = false;
+
+    dispose(): void {
+        this.disposed = true;
+        this.release();
+    }
 
     constructor(private readonly memory: PoolMemory, private readonly bus: EventBusAccess) {}
 
@@ -33,6 +41,7 @@ export class AotEvents {
      * end of the call — the same lifetime the row array has.
      */
     rowsFor(event: string, fields: readonly string[]): (readonly number[])[] {
+        if (this.disposed) throw new Error('AotEvents is disposed');
         const payloads = this.bus(event)?.read() ?? [];
         const rows: number[][] = [];
         for (const payload of payloads) {
@@ -48,6 +57,7 @@ export class AotEvents {
 
     /** Rebuild one payload from the fields the code wrote, and put it on the bus. */
     send(event: string, fields: readonly string[], values: readonly number[]): void {
+        if (this.disposed) throw new Error('AotEvents is disposed');
         const target = this.bus(event);
         if (!target) return;
         const payload: Record<string, unknown> = {};
@@ -57,8 +67,8 @@ export class AotEvents {
 
     /** Give the per-call blocks back; they are only valid inside one call. */
     release(): void {
-        for (const block of this.blocks) this.memory.release(block);
-        this.blocks.length = 0;
+        const blocks = this.blocks.splice(0);
+        disposeAll(blocks, block => this.memory.release(block));
     }
 }
 
@@ -66,7 +76,7 @@ export class AotEvents {
 function numberAt(payload: unknown, path: string): number {
     let at: unknown = payload;
     for (const part of path.split('.')) {
-        if (at === null || typeof at !== 'object') return 0;
+        if (at === null || typeof at !== 'object' || !hasOwn(at, part)) return 0;
         at = (at as Record<string, unknown>)[part];
     }
     return typeof at === 'boolean' ? (at ? 1 : 0) : (typeof at === 'number' ? at : 0);
@@ -77,8 +87,8 @@ function assignAt(payload: Record<string, unknown>, path: string, value: number)
     const parts = path.split('.');
     let at = payload;
     for (const part of parts.slice(0, -1)) {
-        if (typeof at[part] !== 'object' || at[part] === null) at[part] = {};
+        if (!hasOwn(at, part) || typeof at[part] !== 'object' || at[part] === null) setOwn(at, part, {});
         at = at[part] as Record<string, unknown>;
     }
-    at[parts[parts.length - 1]!] = value;
+    setOwn(at, parts[parts.length - 1]!, value);
 }

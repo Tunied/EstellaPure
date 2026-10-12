@@ -23,6 +23,7 @@ import { applyAudioProjectConfig, type AudioProjectConfig } from '../audio/Audio
 import type { App } from '../app/app';
 import { Assets as AssetsClass } from '../asset/Assets';
 import { Assets as AssetsResource } from '../asset/AssetPlugin';
+import { bindAssetReferenceTracking } from '../asset/assetReferenceTracking';
 import { basisTranscoderFor } from '../asset/basisWorkers';
 import type { BasisTranscoder } from '../asset/compressed';
 import type { TextureImportSettings } from '../asset/loaders/TextureLoader';
@@ -92,9 +93,8 @@ const runtimeImportSettings = new WeakMap<AssetsClass, Record<string, TextureImp
  * the addressable manifest survive scene switches — `Assets.loadGroup` keeps
  * working after the first scene, and re-entering a scene revives resident
  * textures instead of re-decoding. The first scene load's `source` wins; one
- * App is expected to keep one asset source for its lifetime. No ref counter /
- * catalog is attached (parity with the old runtime loader, which tracked
- * neither and applied no atlas-frame indirection).
+ * App is expected to keep one asset source for its lifetime. Reference tracking
+ * shares the same World observer as AssetPlugin, including native runtimes.
  */
 function ensureRuntimeAssets(
     app: App, module: ESEngineModule | null, source: RuntimeAssetSource, catalog?: Catalog,
@@ -133,6 +133,9 @@ function ensureRuntimeAssets(
         (ref) => source.textureImportSettings?.(ref) ?? settings[ref],
     );
     runtimeImportSettings.set(assets, settings);
+
+    bindAssetReferenceTracking(app.world, assets,
+        () => app.hasResource(AssetsResource) ? app.getResource(AssetsResource) : null);
 
     app.insertResource(AssetsResource, assets);
     return assets;
@@ -605,6 +608,7 @@ export async function publishRuntimeScene(
 
     const entityMap = await timed('spawn',
         () => loadSceneData(app.world, sceneData, options.externalEntities, onPhase));
+    app.getResource(AssetsResource).trackSceneAssetReferences(sceneData, entityMap);
     // Which document row each entity came from, when someone is keeping track
     // (an editor inspecting its own running game). No-op otherwise.
     mark('origins', () => recordSceneOrigins(app, entityMap));

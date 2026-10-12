@@ -17,6 +17,31 @@
 
 namespace esengine {
 
+MaterialStore::~MaterialStore() {
+    clear();
+    if (resources_) resources_->clearShaderRetiredCallback(this);
+}
+
+void MaterialStore::setResourceManager(resource::ResourceManager* resources) {
+    if (resources_ == resources) return;
+    if (resources_) { clear(); resources_->clearShaderRetiredCallback(this); }
+    resources_ = resources;
+    if (resources_) resources_->setShaderRetiredCallback(this, [](void* owner, resource::ShaderHandle shader) {
+        static_cast<MaterialStore*>(owner)->forgetShader(shader);
+    });
+}
+
+void MaterialStore::forgetShader(resource::ShaderHandle shader) {
+    layouts_.erase(shader.id());
+    sources_.erase(shader.id());
+    auto found = mesh_programs_.find(shader.id());
+    if (found == mesh_programs_.end()) return;
+    auto variants = std::move(found->second);
+    mesh_programs_.erase(found);
+    // Detach before returning handles: their retirement can notify this store again.
+    if (resources_) for (const auto& [shape, handle] : variants) resources_->releaseShader(handle);
+}
+
 void MaterialStore::undefine(u32 materialId) {
     auto it = materials_.find(materialId);
     if (it == materials_.end()) return;
@@ -32,6 +57,11 @@ void MaterialStore::clear() {
     }
     materials_.clear();
     layouts_.clear();
+    sources_.clear();
+    auto variants = std::move(mesh_programs_);
+    mesh_programs_.clear();
+    if (resources_) for (const auto& [source, programs] : variants)
+        for (const auto& [shape, handle] : programs) resources_->releaseShader(handle);
 }
 
 u32 MaterialStore::meshProgram(u32 materialId, resource::ResourceManager& resources,
@@ -67,14 +97,16 @@ u32 MaterialStore::variantProgram(u32 materialId, resource::ResourceManager& res
                                   const char* what) const {
     const MaterialRecord* rec = find(materialId);
     if (!rec || !rec->shaderRef.isValid()) return 0;
-    const u64 key = static_cast<u64>(rec->shaderRef.id()) | shape;
-
-    auto cached = mesh_programs_.find(key);
-    if (cached != mesh_programs_.end()) return cached->second;
+    auto& variants = mesh_programs_[rec->shaderRef.id()];
+    auto cached = variants.find(shape);
+    if (cached != variants.end()) {
+        const Shader* shader = resources.getShader(cached->second);
+        return shader ? shader->getProgramId() : 0;
+    }
 
     auto src = sources_.find(rec->shaderRef.id());
     if (src == sources_.end()) {
-        mesh_programs_[key] = 0;
+        variants[shape] = {};
         return 0;
     }
 
@@ -95,7 +127,7 @@ u32 MaterialStore::variantProgram(u32 materialId, resource::ResourceManager& res
     if (!parsed.vertexIsCanonical) {
         ES_LOG_WARN("MaterialStore: material {} writes its own vertex stage, so it cannot draw "
                     "{} (only a shader on the engine's vertex stage can)", materialId, what);
-        mesh_programs_[key] = 0;
+        variants[shape] = {};
         return 0;
     }
     // A full WGSL vertex twin is a translation of the BATCH vertex stage, frozen
@@ -106,13 +138,13 @@ u32 MaterialStore::variantProgram(u32 materialId, resource::ResourceManager& res
         && fullVertex != parsed.wgslStageFull.end() && fullVertex->second) {
         ES_LOG_WARN("MaterialStore: material {} carries a generated WGSL vertex stage, so it "
                     "cannot draw {} — regenerate its twin", materialId, what);
-        mesh_programs_[key] = 0;
+        variants[shape] = {};
         return 0;
     }
     if (!parsed.valid || vert.empty() || frag.empty()) {
         ES_LOG_WARN("MaterialStore: no {} variant for material {} ({})",
                     what, materialId, parsed.valid ? "stage assembly failed" : parsed.errorMessage);
-        mesh_programs_[key] = 0;
+        variants[shape] = {};
         return 0;
     }
 
@@ -120,14 +152,15 @@ u32 MaterialStore::variantProgram(u32 materialId, resource::ResourceManager& res
                                                            resources.preferredShaderLanguage());
     Shader* shader = resources.getShader(handle);
     if (!shader || !shader->isValid()) {
-        mesh_programs_[key] = 0;
+        resources.releaseShader(handle);
+        variants[shape] = {};
         return 0;
     }
     seedSamplers(*shader, parsed);
     // No layout of its own: uniforms pack through the material's shaderRef, and
     // this variant declares the same params, so its handle is never looked up.
     const u32 program = shader->getProgramId();
-    mesh_programs_[key] = program;
+    variants[shape] = handle;
     return program;
 }
 

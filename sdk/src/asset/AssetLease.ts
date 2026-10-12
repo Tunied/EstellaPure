@@ -10,12 +10,18 @@
  *          same path live at the same time.
  */
 
+import { disposeAll } from '../util/disposeAll';
+
+const releaseLease = (lease: AssetLease): void => lease.release();
+
 /** One acquisition, and the right to end it. */
 export interface AssetLease<T = unknown> {
     readonly key: string;
     /** Ledger-minted, so two eras never merge even if their values compare equal. */
     readonly generation: number;
     readonly value: T;
+    /** @internal Unavailable dependencies of the preparation held by this receipt. */
+    readonly failedDependencies?: readonly string[];
     /** Give this one acquisition back. Calling twice is a no-op, not a double free. */
     release(): void;
     /**
@@ -44,11 +50,14 @@ export class AssetScope {
         return lease;
     }
 
-    /** Hand back everything, in reverse acquisition order. */
+    /** Hand back the current batch in reverse order, attempting all releases.
+     * A failure is reported after cleanup; acquisitions made by cleanup belong
+     * to the next batch. */
     releaseAll(): void {
-        // Reverse: a dependent acquired after what it depends on goes first.
-        for (let i = this.leases_.length - 1; i >= 0; i--) this.leases_[i].release();
+        const leases = this.leases_;
         this.leases_ = [];
+        // Detach before callbacks: a reentrant release cannot spend this batch.
+        disposeAll(leases, releaseLease, true);
     }
 
     /**

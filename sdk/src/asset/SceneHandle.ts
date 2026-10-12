@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import type { Entity } from '../types';
+import { disposeAll } from '../util/disposeAll';
+
+const releaseCallback = (callback: ReleaseCallback): void => callback();
 
 export type ReleaseCallback = () => void;
 
@@ -21,9 +24,8 @@ export class SceneHandle {
     release(): void {
         if (this.released_) return;
         this.released_ = true;
-        for (const cb of this.releaseCallbacks_) {
-            cb();
-        }
+        const callbacks = this.releaseCallbacks_;
         this.releaseCallbacks_ = [];
+        disposeAll(callbacks, releaseCallback);
     }
 }

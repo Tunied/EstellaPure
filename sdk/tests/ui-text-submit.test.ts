@@ -24,10 +24,10 @@ describe.skipIf(!HAS_WASM)('REARCH_GUI P1.3a: text batch submit binding', () => 
 
     it('the TS wrapper no-ops safely without a render frame (guards, no throw)', async () => {
         const { submitTextBatch } = await import('../src/ui/text/submit');
-        const verts = new Float32Array(4 * 8);   // one quad
+        const verts = new Float32Array(4 * 9);   // one quad, including SDF bias
         const idx = new Uint16Array([0, 1, 2, 0, 2, 3]);
         const xform = new Float32Array(16); xform[0] = xform[5] = xform[10] = xform[15] = 1;
         // No active render frame headless → binding guards (g_renderFrame null) → no draw, no throw.
-        expect(() => submitTextBatch(module, verts, idx, 1, xform, 0, 0, 0)).not.toThrow();
+        expect(() => submitTextBatch(module, verts, idx, 1, xform, 0, 0, 0, false)).not.toThrow();
     });
 });

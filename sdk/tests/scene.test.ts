@@ -686,6 +686,7 @@ describe('Scene', () => {
             return {
                 preloadSceneAssets,
                 resolveSceneAssetPaths,
+                trackSceneAssetReferences: vi.fn(),
             } as any;
         }
 

@@ -18,7 +18,7 @@
  *          handshake is checked here too, at the width a loading host runs at.
  */
 
-import { getComponent, type AnyComponentDef } from '../component';
+import { getComponent, isBuiltinComponent, type AnyComponentDef } from '../component';
 import { log } from '../../util/logger';
 import type { World } from '../world';
 import type { SystemRunner } from '../system';
@@ -28,13 +28,18 @@ import { AotSystems, type AotManifest, type AotSystemDecl, type AotTwin } from '
 import { AotResources, type ResourceReader } from './AotResources';
 import type { AotDispatcher, AotRuntime } from './AotRuntime';
 import { missingCapabilities, whyInterpreted, NATIVE_AOT } from './executorCapabilities';
+import { disposeAll } from '../../util/disposeAll';
 
 /** `sizeof(es_addr_t)` where a loaded library runs. */
 const NATIVE_ADDRESS_BYTES = 8;
 
 /** The `es_aot_*` surface, as one object so a test can stand in for the host. */
 export interface NativeAotBindings {
+    /** Shared native dispatcher ownership across freshly created wrappers. */
+    readonly runtimeIdentity?: object;
     install(path: string): number;
+    /** Candidate contract validation before the live module is replaced. */
+    installChecked?(path: string, expectedContract: string): number;
     index(name: string): number;
     bound(index: number): boolean;
     scriptRows(name: string, sparseOffset: number, sparseCount: number,
@@ -47,6 +52,8 @@ export interface NativeAotBindings {
      *  runtime template, which is unpaired and not paired. */
     contract?(): string;
 }
+
+const nativeOwners = new WeakMap<object, { retire(): void }>();
 
 export interface InstallNativeAotOptions {
     readonly world: World;
@@ -89,6 +96,7 @@ export function nativeAotBindings(
     const fn = (name: string): ((...args: never[]) => unknown) | null =>
         (typeof scope[name] === 'function' ? scope[name] as (...args: never[]) => unknown : null);
     const install = fn('es_aot_install');
+    const checked = fn('es_aot_install_checked');
     const run = fn('es_aot_run');
     if (install === null || run === null) return null;
     const call = <T>(name: string, fallback: T) => (...args: unknown[]): T => {
@@ -96,7 +104,10 @@ export function nativeAotBindings(
         return f === null ? fallback : (f as (...a: unknown[]) => T)(...args);
     };
     return {
+        runtimeIdentity: install,
         install: (path) => (install as (p: string) => number)(path),
+        ...(checked === null ? {} : { installChecked: (path: string, expected: string) =>
+            (checked as (p: string, e: string) => number)(path, expected) }),
         index: call<number>('es_aot_index', -1),
         bound: call<boolean>('es_aot_bound', false),
         scriptRows: call<boolean>('es_aot_script_rows', false),
@@ -116,31 +127,6 @@ export function installNativeAot(opts: InstallNativeAotOptions): AotRuntime | nu
     const bindings = opts.bindings ?? nativeAotBindings();
     if (bindings === null) return null;
 
-    // Before the first pooled component exists: a pool cannot move to other
-    // memory once it has rows, and the host addresses only this heap.
-    const memory = new WasmPoolMemory(opts.heap);
-    opts.world.useScriptPoolMemory(memory);
-
-    const count = bindings.install(opts.modulePath);
-    if (count < 0) return null;
-
-    // The index the scheduler keeps. Whether the host can BIND one is settled at
-    // the first run instead: a script pool does not exist until an entity has
-    // that component, and until then the interpreter keeps the system.
-    const byName = new Map<string, number>();
-    for (const decl of opts.manifest.systems) {
-        const missing = missingCapabilities(decl, NATIVE_AOT);
-        if (missing.length > 0) {
-            log.info('runtime', whyInterpreted(decl.name, missing));
-            continue;
-        }
-        const at = bindings.index(decl.name);
-        if (at >= 0) byName.set(decl.name, at);
-    }
-
-    // The handshake at the loading width, over the WHOLE manifest — that is
-    // what the module is. The exports throw because the host holds the function
-    // pointers here, so a twin's `call` reaching one is a bug, loudly.
     const systems = new AotSystems();
     const exports: Record<string, unknown> = {};
     for (const decl of opts.manifest.systems) {
@@ -148,48 +134,116 @@ export function installNativeAot(opts: InstallNativeAotOptions): AotRuntime | nu
             throw new Error(`AOT: ${decl.name} is the host's to call, not this runtime's`);
         };
     }
-    // The artifact is the host's to read here, so the pairing comes back from
-    // it rather than off an export this side can reach.
-    const paired = bindings.contract?.() ?? '';
-    systems.install(opts.manifest, exports, (name) => getComponent(name), {
-        addressBytes: NATIVE_ADDRESS_BYTES,
-        runs: (name) => byName.has(name),
-        moduleContract: paired === '' ? null : paired,
-        // From the RUNTIME's own copy. The default answers "no fields" for every
-        // resource, so this road's handshake could not see a project resource at
-        // all and the mirror was laid out from the manifest alone.
-        resourceFields: (name) => {
-            const value = opts.resources?.(name);
-            return value === undefined ? undefined : Object.keys(value);
-        },
+    const resourceFields = (name: string) => {
+        const value = opts.resources?.(name);
+        return value === undefined ? undefined : Object.keys(value);
+    };
+    // Reject runtime shape/ABI mismatches before the host changes its module.
+    systems.install(opts.manifest, exports, getComponent, {
+        addressBytes: NATIVE_ADDRESS_BYTES, runs: () => false, resourceFields,
     });
 
-    // Every script component any twin names, so one epoch change re-reports all
-    // of them rather than whichever twin happened to run first.
-    const pooled = new Set<string>();
-    for (const decl of opts.manifest.systems) {
-        for (const query of decl.queries) for (const arg of query) pooled.add(arg.comp);
-    }
-    // The resources, mirrored into the same heap the pools use. A resource has no
-    // address of its own until something writes one down, and doing that per call
-    // is what the contract promises — the address is good for one call.
-    const resources = new AotResources(memory, opts.resources ?? (() => undefined),
-        declaredResourceLayouts(opts.manifest));
+    // Before the first pooled component exists: a pool cannot move to other
+    // memory once it has rows, and the host addresses only this heap.
+    const memory = new WasmPoolMemory(opts.heap);
+    opts.world.useScriptPoolMemory(memory, true);
 
-    const runtime: AotRuntime = {
-        systems,
-        // Absent on this road: nothing here resolves an address, because nothing
-        // here can hold one. Present in the type so the wasm road cannot omit it.
-        addresses: {
-            componentNamed: (name: string) => getComponent(name),
-            resourceAt: () => undefined,
-        } as unknown as AotRuntime['addresses'],
-        ctx: null as unknown as AotRuntime['ctx'],
-        dispatcherFor: (world) =>
-            new NativeAotDispatch(world, bindings, byName, pooled, resources, systems),
-    };
-    opts.runner.useAot(runtime);
-    return runtime;
+    const count = bindings.installChecked
+        ? bindings.installChecked(opts.modulePath, opts.manifest.moduleContract ?? '')
+        : bindings.install(opts.modulePath);
+    if (count < 0) return null;
+
+    const identity = bindings.runtimeIdentity ?? bindings;
+    const previous = nativeOwners.get(identity);
+    const lease = { retire: () => {} };
+    nativeOwners.set(identity, lease);
+    const ownsHost = () => nativeOwners.get(identity) === lease;
+    try { previous?.retire(); }
+    catch (error) { log.warn('runtime', 'Native compiled runtime retirement error', error); }
+
+    try {
+        opts.world.useScriptPoolMemory(memory);
+
+        // The index the scheduler keeps. Whether the host can BIND one is settled at
+        // the first run instead: a script pool does not exist until an entity has
+        // that component, and until then the interpreter keeps the system.
+        const byName = new Map<string, number>();
+        for (const decl of opts.manifest.systems) {
+            const missing = missingCapabilities(decl, NATIVE_AOT);
+            if (missing.length > 0) {
+                log.info('runtime', whyInterpreted(decl.name, missing));
+                continue;
+            }
+            const at = bindings.index(decl.name);
+            if (at >= 0) byName.set(decl.name, at);
+        }
+
+        // The handshake at the loading width, over the WHOLE manifest — that is
+        // what the module is. The exports throw because the host holds the function
+        // pointers here, so a twin's `call` reaching one is a bug, loudly.
+        // The artifact is the host's to read here, so the pairing comes back from
+        // it rather than off an export this side can reach.
+        const paired = bindings.contract?.() ?? '';
+        systems.install(opts.manifest, exports, (name) => getComponent(name), {
+            addressBytes: NATIVE_ADDRESS_BYTES,
+            runs: (name) => byName.has(name),
+            moduleContract: paired === '' ? null : paired,
+            // From the RUNTIME's own copy. The default answers "no fields" for every
+            // resource, so this road's handshake could not see a project resource at
+            // all and the mirror was laid out from the manifest alone.
+            resourceFields,
+        });
+
+        // Every script component any twin names, so one epoch change re-reports all
+        // of them rather than whichever twin happened to run first.
+        const pooled = new Set<string>();
+        for (const decl of opts.manifest.systems) {
+            for (const query of decl.queries) for (const arg of query) pooled.add(arg.comp);
+        }
+        // The resources, mirrored into the same heap the pools use. A resource has no
+        // address of its own until something writes one down, and doing that per call
+        // is what the contract promises — the address is good for one call.
+        const resources = new AotResources(memory, opts.resources ?? (() => undefined),
+            declaredResourceLayouts(opts.manifest));
+
+        let disposed = false;
+        const runtime: AotRuntime = {
+            dispose() {
+                if (disposed) return;
+                disposed = true;
+                systems.clear();
+                const current = ownsHost();
+                if (current) nativeOwners.delete(identity);
+                disposeAll([() => { if (current) bindings.reset(); }, () => resources.dispose()], action => action());
+            },
+            systems,
+            // Absent on this road: nothing here resolves an address, because nothing
+            // here can hold one. Present in the type so the wasm road cannot omit it.
+            addresses: {
+                componentNamed: (name: string) => getComponent(name),
+                resourceAt: () => undefined,
+            } as unknown as AotRuntime['addresses'],
+            ctx: null as unknown as AotRuntime['ctx'],
+            dispatcherFor: (world) => {
+                const dispatch = new NativeAotDispatch(world, bindings, byName, pooled, resources, systems);
+                return { run: twin => !disposed && dispatch.run(twin) };
+            },
+        };
+        lease.retire = () => runtime.dispose?.();
+        if (!ownsHost()) {
+            runtime.dispose?.();
+            throw new Error('Native compiled installation was superseded during preparation');
+        }
+        opts.runner.useAot(runtime);
+        return runtime;
+    } catch (error) {
+        try { lease.retire(); } catch (releaseError) { log.warn('runtime', 'Native compiled cleanup error', releaseError); }
+        if (ownsHost()) {
+            nativeOwners.delete(identity);
+            try { bindings.reset(); } catch (resetError) { log.warn('runtime', 'Native compiled reset error', resetError); }
+        }
+        throw error;
+    }
 }
 
 /**
@@ -207,6 +261,11 @@ class NativeAotDispatch implements AotDispatcher {
     private reportedAt_: number | null | undefined = undefined;
     /** Systems the host has taken at least once, so it is said once. */
     private readonly running_ = new Set<string>();
+    private readonly assetQueries_ = new Map<AotTwin, {
+        comps: AnyComponentDef[];
+        scripts: AnyComponentDef[];
+        addresses: ((entity: Entity) => number | undefined)[];
+    }[]>();
 
     constructor(
         private readonly world: World,
@@ -220,6 +279,27 @@ class NativeAotDispatch implements AotDispatcher {
     run(twin: AotTwin): boolean {
         const at = this.indexByName.get(twin.decl.name);
         if (at === undefined) return false;
+        // A portable reference lives beside its numeric pool until resolved.
+        // The host only sees numeric memory, so never let it run a partial
+        // query while the interpreter can still see the authored string.
+        let queries = this.assetQueries_.get(twin);
+        if (!queries) {
+            queries = twin.decl.queries.map(query => {
+                const comps = query.map(arg => getComponent(arg.comp))
+                    .filter((def): def is AnyComponentDef => def !== undefined);
+                const scripts = comps.filter(def => !isBuiltinComponent(def));
+                return { comps, scripts, addresses: scripts.map(def => this.world.addressResolver(def)) };
+            });
+            this.assetQueries_.set(twin, queries);
+        }
+        for (const query of queries) {
+            if (!query.scripts.some(def => this.world.hasPortableScriptAssetRefs(def))) continue;
+            for (const entity of this.world.queryEntities(query.comps)) {
+                for (let i = 0; i < query.scripts.length; i++) {
+                    if (query.addresses[i](entity) === undefined) return false;
+                }
+            }
+        }
         this.reportPools_();
         this.reportResources_(twin);
         // The epoch goes with the call: the host keeps last frame's row table
@@ -275,8 +355,12 @@ class NativeAotDispatch implements AotDispatcher {
         this.reportedAt_ = epoch;
         for (const name of this.pooled) {
             const def = getComponent(name);
-            const span = def === undefined ? undefined : this.world.scriptSpanOf(def);
-            if (span === undefined) continue;
+            if (def === undefined || isBuiltinComponent(def)) continue;
+            const span = this.world.scriptSpanOf(def);
+            if (span === undefined) {
+                this.bindings.scriptRows(name, 0, 0, 0, 0, SPARSE_INDEX_MASK, 0, 0);
+                continue;
+            }
             this.bindings.scriptRows(name, span.sparse, span.sparseCount,
                 span.rows, span.stride, SPARSE_INDEX_MASK, span.owners, span.ownerCount);
         }

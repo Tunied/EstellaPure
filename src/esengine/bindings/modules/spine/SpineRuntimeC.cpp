@@ -160,6 +160,7 @@ void eventListener(spAnimationState* state, spEventType type, spTrackEntry* entr
     if (!g_eventSink) return;
 
     Event out;
+    out.source = state;
     out.kind = static_cast<EventKind>(static_cast<int>(type));
     out.track = entry ? entry->trackIndex : 0;
     out.animation = (entry && entry->animation) ? entry->animation->name : nullptr;
@@ -422,6 +423,10 @@ void setTrackAlpha(Instance* instance, int track, float alpha) {
 
 void setEventSink(EventSink sink) {
     g_eventSink = sink;
+}
+
+const void* eventSource(Instance* instance) {
+    return instance ? instance->state : nullptr;
 }
 
 void enableEvents(Instance* instance) {
@@ -1055,6 +1060,7 @@ void renderImpl(Instance* instance, TriangleSink& sink, bool clipping, ProbeCoun
                         skeletonColor.b * slotColor.b * attachmentColor.b,
                         skeletonColor.a * slotColor.a * attachmentColor.a,
                     };
+                    sink.setPremultipliedColor(pma);
                     premultiplyTint(rgba, pma);
 
                     if constexpr (COUNT) counts->verticesGenerated += 4;
@@ -1088,6 +1094,7 @@ void renderImpl(Instance* instance, TriangleSink& sink, bool clipping, ProbeCoun
                         skeletonColor.b * slotColor.b * attachmentColor.b,
                         skeletonColor.a * slotColor.a * attachmentColor.a,
                     };
+                    sink.setPremultipliedColor(pma);
                     premultiplyTint(rgba, pma);
 
                     if constexpr (COUNT) counts->verticesGenerated += length / 2;

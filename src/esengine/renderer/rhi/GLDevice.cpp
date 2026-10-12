@@ -389,6 +389,13 @@ void GLDevice::resetStateCache() {
 }
 
 void GLDevice::shutdown() {
+    // Timer queries belong to the device; the frame timer only keeps their ids.
+    for (u32& query : query_names_) {
+        if (query) glDeleteQueries(1, &query);
+        query = 0;
+    }
+    query_names_.clear();
+    readbacks_.clear();
     ES_LOG_INFO("GLDevice shutdown");
 }
 

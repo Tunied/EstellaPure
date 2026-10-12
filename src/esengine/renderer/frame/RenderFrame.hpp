@@ -235,6 +235,7 @@ public:
         std::vector<u16> indices;
         u32 textureId = 0;
         i32 blendMode = 0;
+        bool premultipliedColor = false;
         glm::mat4 transform{1.0f};
         Entity entity{};
         i32 layer = 0;
@@ -253,7 +254,7 @@ public:
         const u16* indices, i32 indexCount,
         u32 textureId, i32 blendMode,
         const f32* transform16,
-        Entity entity, i32 layer, f32 depth, u32 materialId = 0
+        Entity entity, i32 layer, f32 depth, u32 materialId = 0, bool premultipliedColor = false
     );
 
     void setStage(RenderStage stage) { current_stage_ = stage; }
@@ -401,7 +402,7 @@ public:
         const f32* vertices, i32 vertexCount,
         const u16* indices, i32 indexCount,
         u32 textureId, i32 blendMode, const f32* transform16,
-        i32 layer, f32 depth, u32 materialId);
+        i32 layer, f32 depth, u32 materialId, bool premultipliedColor = false);
 
     /**
      * Draw everything handed to @p id, and start its readback. CONSUMES the
@@ -460,6 +461,7 @@ public:
      * as the default, so quads of any variant share the batch vertex format.
      */
     u32 batchProgram(const std::vector<std::string>& features);
+    u32 premultipliedBatchProgram();
 
     static constexpr u32 STAGE_COUNT = 4;
 
@@ -569,6 +571,7 @@ private:
     /// Variant key -> the shader HANDLE. Not the program id: rebuilding the
     /// device changes every id, and the handle is what stays true across it.
     std::unordered_map<std::string, resource::ShaderHandle> batch_variants_;
+    const resource::ShaderHandle* premultiplied_batch_handle_ = nullptr;
     TransientBufferPool pool_;
     DrawList draw_list_;
     bool linear_color_ = false;

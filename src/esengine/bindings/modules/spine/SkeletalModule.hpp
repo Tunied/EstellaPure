@@ -80,11 +80,13 @@ struct MeshBatch {
     Buffer<std::uint16_t> indices;
     std::uint32_t texture = 0;
     int blendMode = 0;
+    bool premultipliedColor = false;
 };
 
 /// Where a runtime pours the triangles it posed.
 struct TriangleSink {
     virtual ~TriangleSink() = default;
+    virtual void setPremultipliedColor(bool) {}
     virtual void emit(const float* positions, const float* uvs, int vertexCount,
                       const std::uint16_t* indices, int indexCount,
                       std::uint32_t texture, int blendMode, const float rgba[4]) = 0;
@@ -112,13 +114,14 @@ public:
 
     /// Starts a batch in this state, in the next slot's storage. The reference
     /// is good until the next `open`, which may move every slot.
-    MeshBatch& open(std::uint32_t texture, int blendMode) {
+    MeshBatch& open(std::uint32_t texture, int blendMode, bool premultipliedColor = false) {
         if (active_ == slots_.size()) slots_.emplace_back();
         MeshBatch& fresh = slots_[active_++];
         fresh.vertices.clear();
         fresh.indices.clear();
         fresh.texture = texture;
         fresh.blendMode = blendMode;
+        fresh.premultipliedColor = premultipliedColor;
         return fresh;
     }
 
@@ -160,6 +163,7 @@ private:
 class BatchCollector final : public TriangleSink {
 public:
     explicit BatchCollector(BatchList& into) : batches_(into) {}
+    void setPremultipliedColor(bool value) override { premultipliedColor_ = value; }
 
     void emit(const float* positions, const float* uvs, int vertexCount,
               const std::uint16_t* indices, int indexCount,
@@ -192,16 +196,18 @@ private:
     MeshBatch& batchFor(std::uint32_t texture, int blendMode, int incomingVertices) {
         if (batches_.size() > 0) {
             MeshBatch& open = batches_.back();
-            const bool sameState = texture == open.texture && blendMode == open.blendMode;
+            const bool sameState = texture == open.texture && blendMode == open.blendMode
+                && premultipliedColor_ == open.premultipliedColor;
             const bool fits =
                 open.vertices.size() / VERTEX_FLOATS + static_cast<std::size_t>(incomingVertices)
                 <= MAX_BATCH_VERTICES;
             if (sameState && fits) return open;
         }
-        return batches_.open(texture, blendMode);
+        return batches_.open(texture, blendMode, premultipliedColor_);
     }
 
     BatchList& batches_;
+    bool premultipliedColor_ = false;
 };
 
 /**

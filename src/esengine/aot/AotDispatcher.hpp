@@ -27,8 +27,10 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "esengine/aot/AotHost.hpp"
@@ -47,17 +49,32 @@ public:
      */
     bool install(const char* path, std::uint64_t expected,
                  const ComponentLookup& components, const ResourceLookup& resources,
-                 std::string* why = nullptr, const CandidateLookup& candidates = {}) {
-        reset();
-        if (!module_.open(path, expected, why)) return false;
-        components_ = components;
-        resources_ = resources;
-        candidates_ = candidates;
-        for (const EsSystemDecl& decl : module_.systems()) {
-            names_.push_back(decl.name != nullptr ? decl.name : "");
-            bound_.push_back(::esengine::aot::bind(decl, components, resources, candidates));
+                 std::string* why = nullptr, const CandidateLookup& candidates = {},
+                 std::optional<std::uint64_t> expectedContract = std::nullopt) {
+        // Prepare a complete replacement before touching the live module. The
+        // staged owner closes its library on refusal or a lookup/allocation throw.
+        Dispatcher next;
+        if (!next.module_.open(path, expected, why)) return false;
+        if (expectedContract && next.module_.contract() != 0 && next.module_.contract() != *expectedContract) {
+            if (why) *why = "module and manifest are from different builds";
+            return false;
         }
-        arenas_ = std::vector<CallArena>(bound_.size());
+        next.components_ = components;
+        next.resources_ = resources;
+        next.candidates_ = candidates;
+        for (const EsSystemDecl& decl : next.module_.systems()) {
+            next.names_.push_back(decl.name != nullptr ? decl.name : "");
+            next.bound_.push_back(::esengine::aot::bind(decl, next.components_, next.resources_, next.candidates_));
+        }
+        next.arenas_ = std::vector<CallArena>(next.bound_.size());
+        // These swaps cannot throw; next now owns and retires the old runtime.
+        std::swap(module_, next.module_);
+        names_.swap(next.names_);
+        bound_.swap(next.bound_);
+        arenas_.swap(next.arenas_);
+        components_.swap(next.components_);
+        resources_.swap(next.resources_);
+        candidates_.swap(next.candidates_);
         return true;
     }
 
@@ -113,7 +130,10 @@ public:
             bound_[i] = ::esengine::aot::bind(module_.systems()[i], components_, resources_, candidates_);
         }
         if (bound_[i].fn == nullptr) return {};
-        return runBound(bound_[i], candidates, resources, arenas_[i], world);
+        bool runnable = false;
+        const auto commands = runBound(bound_[i], candidates, resources, arenas_[i], world, &runnable);
+        if (!runnable) bound_[i].fn = nullptr;
+        return commands;
     }
 
     /** Entities that system's last {@link run} covered. See CallArena. */

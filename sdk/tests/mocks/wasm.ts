@@ -138,7 +138,15 @@ export function createMockModule(): MockModule {
                 const name = prop.slice(3);
                 return (entity: Entity) => {
                     const data = components.get(entity)?.get(name);
-                    return data ? JSON.parse(JSON.stringify(data)) : undefined;
+                    if (!data) return undefined;
+                    const copy = JSON.parse(JSON.stringify(data));
+                    if (name === 'Children') {
+                        const children = copy.entities as Entity[];
+                        // Match the owning vector returned by the actual core.
+                        // This mock stores JS arrays, so deletion has no heap work.
+                        copy.entities = { size: () => children.length, get: (i: number) => children[i], delete: () => {} };
+                    }
+                    return copy;
                 };
             }
             if (prop.startsWith('has') && prop !== 'hasComponent') {

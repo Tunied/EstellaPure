@@ -3,6 +3,7 @@
 #include "./RenderFrame.hpp"
 #include "../draw/BatchBuilder.hpp"
 #include "../draw/BatchVertex.hpp"
+#include "../draw/TextVertexFormat.hpp"
 #include "./RenderContext.hpp"
 
 #include <glm/gtc/type_ptr.hpp>
@@ -48,7 +49,6 @@ void RenderFrame::submitTextBatch(
 ) {
     if (vertexCount <= 0 || indexCount <= 0) return;
 
-    constexpr i32 FLOATS_PER_VERTEX = 9;  // x, y, u, v, r, g, b, a, sdfBias
     glm::mat4 model = glm::make_mat4(transform16);
 
     u32 vBytes = static_cast<u32>(vertexCount) * sizeof(BatchVertex);
@@ -56,7 +56,7 @@ void RenderFrame::submitTextBatch(
     auto* dst = reinterpret_cast<BatchVertex*>(pool_.vertexData(LayoutId::Batch) + vOff);
 
     for (i32 i = 0; i < vertexCount; ++i) {
-        const f32* v = vertices + i * FLOATS_PER_VERTEX;
+        const f32* v = vertices + i * TEXT_VERTEX_FLOATS;
         glm::vec4 worldPos = model * glm::vec4(v[0], v[1], 0.0f, 1.0f);
         u32 pc = packColor(glm::vec4(v[4], v[5], v[6], v[7]));
         // texIndex is assigned at merge time; sdfBias rides in from the layout,
@@ -85,13 +85,16 @@ void RenderFrame::submitSkeletalBatch(
     const u16* indices, i32 indexCount,
     u32 textureId, i32 blendMode,
     const f32* transform16,
-    Entity entity, i32 layer, f32 depth, u32 materialId
+    Entity entity, i32 layer, f32 depth, u32 materialId, bool premultipliedColor
 ) {
     if (vertexCount <= 0 || indexCount <= 0) return;
 
     constexpr i32 FLOATS_PER_VERTEX = 8;
     glm::mat4 model = glm::make_mat4(transform16);
     BlendMode blend = static_cast<BlendMode>(std::clamp(blendMode, 0, 5));
+
+    const MaterialRecord* material = materialId != 0 ? context_.materials().find(materialId) : nullptr;
+    const bool builtinColor = !material || material->shader == 0;
 
     // Format the transformed vertices in place — a complex skeleton can carry many
     // vertices, so we avoid staging them into a temporary before the pool copy.
@@ -102,14 +105,22 @@ void RenderFrame::submitSkeletalBatch(
     for (i32 i = 0; i < vertexCount; ++i) {
         const f32* v = vertices + i * FLOATS_PER_VERTEX;
         glm::vec4 worldPos = model * glm::vec4(v[0], v[1], 0.0f, 1.0f);
-        u32 pc = packColor(glm::vec4(v[4], v[5], v[6], v[7]));
+        glm::vec4 color(v[4], v[5], v[6], v[7]);
+        if (premultipliedColor && builtinColor) {
+            // Recover straight color before 8-bit packing and the shader EOTF.
+            color = color.a > 0.0f ? glm::vec4(glm::vec3(color) / color.a, color.a)
+                                   : glm::vec4(0.0f);
+        }
+        u32 pc = packColor(color);
         dst[i] = { {worldPos.x, worldPos.y, worldPos.z}, pc, {v[2], v[3]} };
     }
 
+    const u32 defaultShader = !builtinColor ? material->shader
+        : premultipliedColor ? premultipliedBatchProgram() : batch_shader_id_;
     BatchDrawKey key{
         .stage = current_stage_,
         .layer = layer,
-        .shaderId = batch_shader_id_,
+        .shaderId = defaultShader,
         .blend = blend,
         .textureId = textureId,
         .depth = depth,
@@ -120,8 +131,8 @@ void RenderFrame::submitSkeletalBatch(
     // handle nothing registered falls back to the batch shader rather than
     // binding a program that was never built.
     if (materialId != 0) {
-        if (const MaterialRecord* m = context_.materials().find(materialId)) {
-            key.shaderId = (m->shader != 0) ? m->shader : batch_shader_id_;
+        if (const MaterialRecord* m = material) {
+            key.shaderId = (m->shader != 0) ? m->shader : defaultShader;
             key.blend = m->blend;
             key.materialId = materialId;
             key.depthTest = m->depthTest;

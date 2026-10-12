@@ -97,6 +97,7 @@ function mockAssets(prefabs: Record<string, PrefabData | null>) {
             releaseCallbacks: [],
         }),
         resolveSceneAssetPaths: vi.fn(),
+        trackSceneAssetReferences: vi.fn(),
         loadPrefab: vi.fn(async (ref: string) => ({ data: prefabs[ref] ?? null })),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;

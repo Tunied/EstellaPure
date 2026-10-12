@@ -24,6 +24,9 @@
  */
 import type { AssetLease } from './AssetLease';
 import type { DependencyReceipt, Preparation } from './dependencies';
+import { disposeAll } from '../util/disposeAll';
+
+const releaseEra = (era: Preparation | null): void => era?.dependencies.releaseAll();
 
 /** What one preparation PRODUCED. What it took is recorded for it — see
  *  dependencies.ts — so an era cannot describe a dependency it does not have. */
@@ -136,6 +139,10 @@ export class RegistryAssetSlots {
         if (!slot?.era) return false;
         const ticket = ++slot.refresh;
         const era = await kind.prepare(slot.key);
+        if (era.failedDependencies?.length) {
+            era.dependencies.releaseAll();
+            throw new Error(`Cannot refresh "${name}": dependencies did not load: ${era.failedDependencies.join(', ')}`);
+        }
         // Two things can have happened while this prepared: a newer refresh
         // started, or the last holder let go. Publishing either way puts an era
         // where nothing will ever release it.
@@ -197,12 +204,14 @@ export class RegistryAssetSlots {
 
     /** Give up every slot. For a wholesale teardown. */
     releaseAll(): void {
+        const eras: Array<Preparation | null> = [];
         for (const slot of new Set(this.byName_.values())) {
-            slot.era?.dependencies.releaseAll();
+            eras.push(slot.era);
             slot.era = null;
             slot.refs = 0;
         }
         this.byName_.clear();
+        disposeAll(eras, releaseEra);
     }
 
     /** Drop one claim on the slot `name` resolves to, without its receipt. The
@@ -221,6 +230,7 @@ export class RegistryAssetSlots {
             key: slot.key,
             generation: slot.id,
             value: slot.era!.value,
+            get failedDependencies() { return slot.era?.failedDependencies; },
             names: slot.names,
             release: () => {
                 if (spent) return;
@@ -235,10 +245,12 @@ export class RegistryAssetSlots {
     }
 
     private drop_(slot: Slot<unknown>): void {
+        if (slot.refs === 0) return; // A wholesale release already retired it.
         if (--slot.refs > 0) return;
-        slot.era?.dependencies.releaseAll();
+        const era = slot.era;
         slot.era = null;
         this.forget_(slot);
+        releaseEra(era);
     }
 
     private slotFor_(type: string, key: string): Slot<unknown> {

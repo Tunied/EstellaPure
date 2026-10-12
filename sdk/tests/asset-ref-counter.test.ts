@@ -4,6 +4,25 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { AssetRefCounter } from '../src/asset/AssetRefCounter';
 
 describe('AssetRefCounter', () => {
+    it('keeps bidirectional usage consistent through duplicate, partial and entity-wide removal', () => {
+        const counter = new AssetRefCounter();
+        counter.addTextureRef('shared', 1); counter.addTextureRef('shared', 2);
+        counter.addTextureRef('own', 1); counter.addTextureRef('own', 1);
+        counter.addFontRef('font', 1); counter.addMaterialRef('material', 2);
+        expect(counter.getTotalRefRows()).toBe(5);
+        counter.removeTextureRef('own', 1);
+        counter.removeTextureRef('own', 1);
+        expect(counter.getTotalRefRows()).toBe(4);
+        counter.removeAllRefsForEntity(1);
+        expect(counter.getTextureRefs('shared')).toEqual([2]);
+        expect(counter.getFontRefs('font')).toEqual([]);
+        expect(counter.getTotalRefRows()).toBe(2);
+        counter.clear(); counter.removeAllRefsForEntity(2);
+        counter.addTextureRef('fresh', 2);
+        expect(counter.getTotalRefRows()).toBe(1);
+        counter.removeAllRefsForEntity(2);
+        expect(counter.getTotalRefRows()).toBe(0);
+    });
     let counter: AssetRefCounter;
 
     beforeEach(() => {

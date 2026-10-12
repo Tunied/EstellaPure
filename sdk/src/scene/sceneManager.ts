@@ -960,7 +960,7 @@ export const SceneManager = defineResource<SceneManagerState>(
  * working the rule out for itself hands its replacement to the app instead.
  */
 export function assetScopeForEntity(app: App, assets: AssetsData, entity: Entity): AssetScope {
-    const own = assets.entityScopes.scopeFor(entity);
+    const own = assets.entityScopes.scopeFor(entity, app.world);
     if (own) return own;
     const owner = app.world.tryGet(entity, SceneOwner);
     const scene = owner?.scene && app.hasResource(SceneManager)

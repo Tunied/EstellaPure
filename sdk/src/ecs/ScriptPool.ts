@@ -22,6 +22,7 @@
  */
 
 import { entityIndex, type Entity } from '../types';
+import { disposeAll } from '../util/disposeAll';
 
 /** What a pooled field holds. Booleans are 0/1 in the slot, `true`/`false` out. */
 export type PoolKind = 'number' | 'boolean';
@@ -48,6 +49,9 @@ export interface PoolBlock {
  * and unreachable is what rows exist to stop being.
  */
 export interface PoolMemory {
+    /** Stable allocator ownership, not merely a buffer. Compatible wrappers may
+     * reuse existing rows without moving them to a different allocation domain. */
+    readonly allocatorIdentity?: object;
     alloc(bytes: number): PoolBlock;
     release(block: PoolBlock): void;
     /**
@@ -56,6 +60,16 @@ export interface PoolMemory {
      * that held the old object would read undefined and never say why.
      */
     current?(block: PoolBlock): ArrayBufferLike;
+}
+
+interface PoolAssetRefs {
+    fields(): readonly { readonly field: string }[];
+    addressChanged(): void;
+}
+
+interface PoolView {
+    readonly value: Record<string, unknown>;
+    detach(): void;
 }
 
 /** Storage on the JS heap: right for native, useless to a wasm module. */
@@ -116,14 +130,44 @@ export class ScriptPool {
     private owners_: Uint32Array;
     private capacity_: number;
     private readonly slotOf_ = new Map<Entity, number>();
-    private readonly views_ = new Map<Entity, Record<string, unknown>>();
+    private readonly views_ = new Map<Entity, PoolView>();
     private readonly free_: number[] = [];
     private next_ = 0;
+    // Portable asset references have no numeric ABI representation yet. Keep
+    // them beside the row until resolved, without giving compiled code an
+    // address that would silently reinterpret a string as zero.
+    private refs_: Map<number, Map<number, string>> | undefined;
+    private disposed_ = false;
+
+    get disposed(): boolean { return this.disposed_; }
+
+    dispose(): void {
+        if (this.disposed_) return;
+        this.disposed_ = true;
+        const views = [...this.views_.values()];
+        const blocks = [this.rows_, this.sparseBlock_, this.ownersBlock_];
+        disposeAll([
+            () => this.rebuild_(),
+            () => disposeAll(views, view => view.detach()),
+            () => {
+                this.slotOf_.clear();this.views_.clear();this.refs_?.clear();
+                this.free_.length = 0;this.next_ = 0;
+                this.slots_ = EMPTY_F64;this.sparse_ = EMPTY_U32;this.owners_ = EMPTY_U32;
+                this.rows_ = this.sparseBlock_ = this.ownersBlock_ = EMPTY_BLOCK;
+            },
+            () => disposeAll(blocks, block => this.memory_.release(block)),
+        ], action => action());
+    }
+
+    private assertOpen_(): void {
+        if (this.disposed_) throw new Error('ScriptPool is disposed');
+    }
 
     constructor(
         fields: readonly PoolField[],
         capacity = 64,
         private readonly memory_: PoolMemory = HEAP_MEMORY,
+        private readonly assetRefs_?: PoolAssetRefs,
     ) {
         this.fields = fields;
         this.stride = fields.length * POOL_SLOT_BYTES;
@@ -131,15 +175,22 @@ export class ScriptPool {
         // BOTH allocations before EITHER view. The second can grow the heap, and
         // a grown heap detaches a view built after the first — which is a bug
         // this constructor had, and the reason every view is built in one place.
-        this.rows_ = memory_.alloc(this.capacity_ * this.stride);
-        this.sparseBlock_ = memory_.alloc(this.capacity_ * 4);
-        this.sparseLen_ = this.capacity_;
-        this.ownersBlock_ = memory_.alloc(this.capacity_ * 4);
-        this.slots_ = EMPTY_F64;
-        this.sparse_ = EMPTY_U32;
-        this.owners_ = EMPTY_U32;
-        this.rebuild_();
-        this.owners_.fill(POOL_NO_OWNER);
+        const allocated: PoolBlock[] = [];
+        try {
+            this.rows_ = memory_.alloc(this.capacity_ * this.stride);allocated.push(this.rows_);
+            this.sparseBlock_ = memory_.alloc(this.capacity_ * 4);allocated.push(this.sparseBlock_);
+            this.sparseLen_ = this.capacity_;
+            this.ownersBlock_ = memory_.alloc(this.capacity_ * 4);allocated.push(this.ownersBlock_);
+            this.slots_ = EMPTY_F64;
+            this.sparse_ = EMPTY_U32;
+            this.owners_ = EMPTY_U32;
+            this.rebuild_();
+            this.owners_.fill(POOL_NO_OWNER);
+        } catch (error) {
+            // Preserve the allocation/view failure even if cleanup also fails.
+            try { disposeAll(allocated, block => memory_.release(block)); } catch {}
+            throw error;
+        }
     }
 
     /**
@@ -153,11 +204,12 @@ export class ScriptPool {
         rows: number; stride: number; sparse: number; sparseCount: number;
         owners: number; ownerCount: number;
     } {
+        this.assertOpen_();
         return {
             rows: this.rows_.byteOffset,
             stride: this.stride,
             sparse: this.sparseBlock_.byteOffset,
-            sparseCount: this.sparse_.length,
+            sparseCount: this.sparseLen_,
             owners: this.ownersBlock_.byteOffset,
             // The high-water mark, not the size: slots are reused rather than
             // compacted, so the used prefix has holes and stopping at `size`
@@ -166,8 +218,10 @@ export class ScriptPool {
         };
     }
 
-    /** The sparse table itself, for a host that reads it in this address space. */
+    /** The current sparse view. Retrieve it again after pool or heap growth;
+     *  a held typed array cannot follow replacement or detached memory. */
     get sparseTable(): Uint32Array {
+        this.ensureCurrent_();
         return this.sparse_;
     }
 
@@ -178,6 +232,7 @@ export class ScriptPool {
      * per-entity views read `slots_` on access and need no rebuild.
      */
     refresh(): void {
+        this.assertOpen_();
         this.rebuild_();
     }
 
@@ -197,14 +252,27 @@ export class ScriptPool {
         return this.memory_.current?.(block) ?? block.buffer;
     }
 
-    /** The rows themselves. Its byteOffset moves when the pool grows, so an
-     *  address taken from `address` is valid only until the next `put`. */
+    private ensureCurrent_(): void {
+        // Foreign allocations (resources, compiled scratch, engine assets) can
+        // grow the shared WASM heap without passing through ScriptStorage.
+        // Live row allocations are never empty; zero means their view detached.
+        if (this.slots_.length === 0 && !this.disposed_) this.rebuild_();
+    }
+
+    /** The current row view. Retrieve it again after pool or heap growth.
+     *  Pool growth moves row addresses; foreign heap growth detaches views
+     *  while allocation addresses stay unchanged. */
     get buffer(): Float64Array {
+        this.ensureCurrent_();
         return this.slots_;
     }
 
     get size(): number {
         return this.slotOf_.size;
+    }
+
+    get hasPortableAssetRefs(): boolean {
+        return (this.refs_?.size ?? 0) > 0;
     }
 
     /** Byte offset of `entity`'s row inside `buffer`. */
@@ -220,8 +288,10 @@ export class ScriptPool {
      * the next growth, which a one-call lifetime requires anyway.
      */
     address(entity: Entity): number | undefined {
-        const base = this.baseOf(entity);
-        return base === undefined ? undefined : this.slots_.byteOffset + base;
+        const slot = this.slotOf_.get(entity);
+        if (slot === undefined || this.refs_?.has(slot)) return undefined;
+        // Addresses belong to allocations, not detachable typed-array views.
+        return this.rows_.byteOffset + slot * this.stride;
     }
 
     has(entity: Entity): boolean {
@@ -230,7 +300,7 @@ export class ScriptPool {
 
     /** The live view, or undefined when the entity does not carry this. */
     get(entity: Entity): Record<string, unknown> | undefined {
-        return this.views_.get(entity);
+        return this.views_.get(entity)?.value;
     }
 
     /**
@@ -240,6 +310,8 @@ export class ScriptPool {
      */
     put(entity: Entity, defaults: Record<string, unknown>, data?: Record<string, unknown>):
     { view: Record<string, unknown>; isNew: boolean } {
+        this.assertOpen_();
+        this.ensureCurrent_();
         let slot = this.slotOf_.get(entity);
         const isNew = slot === undefined;
         if (slot === undefined) {
@@ -254,14 +326,20 @@ export class ScriptPool {
             this.writeAll_(slot, defaults);
         }
         if (data) this.writeSome_(slot, data);
-        return { view: this.views_.get(entity)!, isNew };
+        return { view: this.views_.get(entity)!.value, isNew };
     }
 
     delete(entity: Entity): boolean {
         const slot = this.slotOf_.get(entity);
         if (slot === undefined) return false;
+        // A retained component becomes an ordinary detached value, matching
+        // object storage. It must never alias the next owner of this slot.
+        const buffer = this.memory_.current?.(this.rows_) ?? this.rows_.buffer;
+        if (this.slots_.buffer !== buffer) this.rebuild_();
+        this.views_.get(entity)!.detach();
         this.slotOf_.delete(entity);
         this.views_.delete(entity);
+        this.refs_?.delete(slot);
         this.mark_(entity, POOL_ABSENT);
         this.owners_[slot] = POOL_NO_OWNER;
         this.free_.push(slot);
@@ -294,7 +372,14 @@ export class ScriptPool {
         // The owner table is indexed by SLOT, so it grows with the rows and on
         // the same schedule — allocated here so one growth is one pair of
         // allocations, and the views below are built once over both.
-        const ownerBlock = this.memory_.alloc(want * 4);
+        let ownerBlock: PoolBlock;
+        try { ownerBlock = this.memory_.alloc(want * 4); }
+        catch (error) {
+            try { this.memory_.release(block); } catch {}
+            // The successful allocation may have detached every old heap view.
+            try { this.rebuild_(); } catch {}
+            throw error;
+        }
         // Before reading the old rows, not after: allocating may have grown the
         // heap, and a grown heap detaches the view this is about to copy FROM.
         this.rebuild_();
@@ -311,14 +396,10 @@ export class ScriptPool {
         this.slots_ = wider;
         this.ownersBlock_ = ownerBlock;
         this.owners_ = widerOwners;
-        this.memory_.release(old);
-        this.memory_.release(oldOwners);
+        disposeAll([old, oldOwners], block => this.memory_.release(block));
         // Views hold a slot index, not a reference into the old array, so they
         // survive this. An ADDRESS taken before it does not, which is why
         // `address` says so.
-        for (const [entity, slot] of this.slotOf_) {
-            this.views_.set(entity, this.makeView_(slot));
-        }
     }
 
     /** The sparse table is indexed by ENTITY INDEX, which the world hands out
@@ -341,7 +422,7 @@ export class ScriptPool {
     private writeAll_(slot: number, from: Record<string, unknown>): void {
         const base = slot * this.fields.length;
         this.fields.forEach((f, i) => {
-            this.slots_[base + i] = toSlot(from[f.name]);
+            this.writeValue_(slot, i, base + i, from[f.name]);
         });
     }
 
@@ -349,32 +430,80 @@ export class ScriptPool {
         const base = slot * this.fields.length;
         this.fields.forEach((f, i) => {
             const v = from[f.name];
-            if (v !== undefined) this.slots_[base + i] = toSlot(v);
+            if (v !== undefined) this.writeValue_(slot, i, base + i, v);
         });
     }
 
+    private writeValue_(slot: number, index: number, at: number, value: unknown): void {
+        this.ensureCurrent_();
+        if (typeof value === 'string' && this.fields[index].kind === 'number'
+            && this.assetRefs_?.fields().some(f => f.field === this.fields[index].name)) {
+            this.refs_ ??= new Map();
+            let refs = this.refs_.get(slot);
+            if (!refs) {
+                this.refs_.set(slot, refs = new Map());
+                this.assetRefs_.addressChanged();
+            }
+            refs.set(index, value);
+            this.slots_[at] = 0;
+            return;
+        }
+        const refs = this.refs_?.get(slot);
+        if (refs?.delete(index) && refs.size === 0) {
+            this.refs_!.delete(slot);
+            this.assetRefs_?.addressChanged();
+        }
+        this.slots_[at] = toSlot(value);
+    }
+
     /** One object per entity, with an accessor per field onto its row. */
-    private makeView_(slot: number): Record<string, unknown> {
+    private makeView_(slot: number): PoolView {
         const base = slot * this.fields.length;
         const view: Record<string, unknown> = {};
+        let owner: ScriptPool | undefined = this;
+        let detached: unknown[] | undefined;
         this.fields.forEach((f, i) => {
             const at = base + i;
             Object.defineProperty(view, f.name, {
                 enumerable: true,
                 configurable: true,
                 get: f.kind === 'boolean'
-                    ? (): boolean => this.slots_[at] !== 0
-                    : (): number => this.slots_[at]!,
-                set: (v: unknown): void => { this.slots_[at] = toSlot(v); },
+                    ? (): unknown => {
+                        if (!owner) return detached![i];
+                        if (owner.slots_.length === 0) owner.rebuild_();
+                        return owner.slots_[at] !== 0;
+                    }
+                    : (): unknown => {
+                        if (!owner) return detached![i];
+                        if (owner.slots_.length === 0) owner.rebuild_();
+                        return owner.refs_?.get(slot)?.get(i) ?? owner.slots_[at]!;
+                    },
+                set: (v: unknown): void => {
+                    if (owner) owner.writeValue_(slot, i, at, v);
+                    else detached![i] = v;
+                },
             });
         });
-        return view;
+        return {
+            value: view,
+            detach() {
+                const pool = owner;
+                if (!pool) return;
+                // Snapshot canonical columns, without invoking authored getters
+                // or redefining properties on sealed/frozen component objects.
+                detached = pool.fields.map((f, i) => f.kind === 'boolean'
+                    ? pool.slots_[base + i] !== 0
+                    : pool.refs_?.get(slot)?.get(i) ?? pool.slots_[base + i]!);
+                owner = undefined;
+            },
+        };
     }
 }
 
 /** Placeholders, so the constructor can allocate before it views. */
 const EMPTY_F64 = new Float64Array(0);
 const EMPTY_U32 = new Uint32Array(0);
+const EMPTY_BLOCK: PoolBlock = { buffer: new ArrayBuffer(0), byteOffset: 0, byteLength: 0 };
 
 /** A slot holds a number; a boolean is the 0/1 the ABI stores it as. */
 function toSlot(v: unknown): number {

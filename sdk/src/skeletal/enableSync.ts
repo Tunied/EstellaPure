@@ -57,10 +57,12 @@ export class SkeletalEnableMirror {
 
     constructor(private readonly component_: AnyComponentDef) {}
 
-    sync(world: SkeletalEnableWorld, target: SkeletalEnableTarget): void {
+    sync(world: SkeletalEnableWorld, target: SkeletalEnableTarget, isActive?: (entity: Entity) => boolean): void {
         let bound = 0;
         for (const entity of target.boundEntities()) {
             bound++;
+            // Read new bindings once; inactive ones catch up before they resume.
+            if (this.mirrored_.has(entity) && isActive && !isActive(entity)) continue;
             const data = world.tryGet(entity, this.component_) as { enabled?: boolean } | null;
             // No component (an entity bound by something other than a scene —
             // a test, a tool) has no flag to obey, so it is left alone.

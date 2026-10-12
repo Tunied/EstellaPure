@@ -47,6 +47,22 @@ export const REGISTRY_BINDINGS = {
     ensureComposed: 'es_transformEnsureComposed',
 } as const;
 
+/** Optional shared destruction ownership for current native hosts. */
+export const DESTRUCTION_BINDINGS = {
+    reserveDestruction: 'es_reserveDestruction',
+    releaseDestruction: 'es_releaseDestruction',
+    destructionPending: 'es_destructionPending',
+} as const;
+
+/** Effective entity activity, available on hosts implementing the shared core. */
+export const ACTIVITY_BINDINGS = {
+    setEntityEnabled: 'es_setEntityEnabled',
+    isEntityActive: 'es_isEntityActive',
+    isEntityEnabled: 'es_isEntityEnabled',
+    hasInactiveEntities: 'es_hasInactiveEntities',
+    activityEpoch: 'es_activityEpoch',
+} as const;
+
 /**
  * The composition's change REPORT, which not every host has to answer: a core
  * that does not leaves consumers rebuilding rather than updating, so these are

@@ -10,6 +10,8 @@
  *          install is split, and this is the gate on the halves meeting.
  */
 import { describe, it, expect } from 'vitest';
+import { setPlatform } from '../src/platform/base';
+import type { PlatformAdapter } from '../src/platform/types';
 import { bootMockApp } from './helpers/mockApp';
 import {
     buildAotModule, buildFadeModule, eventManifest, fadeManifest, fadeTaggedManifest,
@@ -27,6 +29,7 @@ import { defineSystem, Schedule } from '../src/ecs/system';
 import { Query, Mut } from '../src/ecs/query';
 import type { AnyComponentDef } from '../src/ecs/component';
 import type { Entity } from '../src/types';
+import { projectShapeDigest } from '../src/ecs/aot/abiDigest';
 
 const EMCC = emccPath();
 const N = 8;
@@ -59,6 +62,46 @@ const alphas = (app: ReturnType<typeof bootMockApp>['app'], Fade: AnyComponentDe
     es.map((e) => (app.world.get(e, Fade) as { alpha: number }).alpha);
 
 describe('an App told to run its compiled twins', () => {
+    it.skipIf(!EMCC)('compiled scratch and foreign heap growth preserve held script views and cached query rows',async()=>{
+        class GrowingEngine extends FakeEngine {
+            grow():void {this.memory.grow(1);this.HEAPU8=new Uint8Array(this.memory.buffer);}
+            override _malloc(size:number):number {this.grow();return super._malloc(size);}
+        }
+        const {app,Fade}=fadeApp(),host=new GrowingEngine();
+        await app.useCompiledSystems({host,manifest:fadeManifest(),wasm:new Uint8Array(buildFadeModule(EMCC!)).buffer});
+        const entities=seed(app,Fade),held=app.world.get(entities[0]!,Fade) as {alpha:number;step:number};
+        const address=app.world.addressResolver(Fade),before=address(entities[0]!);
+        try {
+            await app.tick(1/60);expect(held.alpha).toBeCloseTo(0.09);expect(app.compiledSystems.calls).toBe(1);
+            host.grow();expect(address(entities[0]!)).toBe(before);
+            held.alpha=0.5;await app.tick(1/60);expect(held.alpha).toBeCloseTo(0.49);
+            expect(app.compiledSystems.calls).toBe(2);expect(host.staticsIntact()).toBe(true);
+        }finally{app.quit({keepRenderer:true});}
+    });
+
+    it.skipIf(!EMCC)('quit frees both script rows and the real compiled call arena',async()=>{
+        const live=new Set<number>();
+        class TrackedEngine extends FakeEngine {
+            override _malloc(size:number):number {const at=super._malloc(size);live.add(at);return at;}
+            override _free(at?:number):void {expect(live.delete(at!)).toBe(true);}
+        }
+        const {app,Fade}=fadeApp(),host=new TrackedEngine();
+        await app.useCompiledSystems({host,manifest:fadeManifest(),wasm:new Uint8Array(buildFadeModule(EMCC!)).buffer});
+        seed(app,Fade);await app.tick(1/60);expect(live.size).toBeGreaterThan(3);
+        app.quit({keepRenderer:true});expect(live.size).toBe(0);app.quit({keepRenderer:true});expect(live.size).toBe(0);
+        expect(host.staticsIntact()).toBe(true);
+    });
+    it.skipIf(!EMCC)('a module finishing after quit cannot resurrect compiled dispatch',async()=>{
+        const {app}=fadeApp();let begin!:()=>void,resume!:()=>void;
+        const started=new Promise<void>(resolve=>{begin=resolve;}),gate=new Promise<void>(resolve=>{resume=resolve;});
+        setPlatform({instantiateWasm:async(source:ArrayBuffer,imports:WebAssembly.Imports)=>{begin();await gate;return WebAssembly.instantiate(source,imports);}} as unknown as PlatformAdapter);
+        try{
+            const pending=app.useCompiledSystems({host:new FakeEngine(),manifest:fadeManifest(),wasm:new Uint8Array(buildFadeModule(EMCC!)).buffer}).catch(error=>error);
+            await started;app.quit({keepRenderer:true});resume();
+            const failure=await pending;expect(failure).toBeInstanceOf(Error);expect(failure.message).toMatch(/cancelled by App.quit/);expect(app.compiledSystemCount).toBe(0);
+            expect(app.compiledSystems.calls).toBe(0);
+        }finally{resume();useBytesPlatform();}
+    });
     it('reports whether this gate could run at all', () => {
         if (!EMCC) console.warn('[aot-app] NO EMSDK — the App-level install did NOT run.');
     });
@@ -244,6 +287,23 @@ describe('an App told to run its compiled twins', () => {
         // Sent in the first frame and read in the second, on the same bus an
         // interpreted reader walks — the only way they could arrive.
         expect(seen).toEqual(entities.map((_, i) => (i + 1) * 0.1));
+    });
+
+    it.skipIf(!EMCC)('compiled event delivery preserves nested prototype-named payload fields',async()=>{
+        const wasm=buildAotModule(EMCC!,EVENT_C,'es_sys_Emit'),{app}=bootMockApp();
+        const Fade=defineComponent('Fade',{alpha:1,step:0.1}) as AnyComponentDef;
+        const name='OwnAotPayload',fields=['__proto__.amount'],event=defineEvent(name,JSON.parse('{"__proto__":{"amount":0}}'));
+        const base=eventManifest('Emit'),manifest={...base,projectShapes:projectShapeDigest([{name:'Fade',fields:['alpha','step']},{name,fields}]),systems:[{...base.systems[0]!,writers:[{slot:0,event:name,fields}]}]};
+        const seen:unknown[]=[],original=Object.getOwnPropertyDescriptor(Object.prototype,'amount');
+        app.addSystemToSchedule(Schedule.Update,defineSystem([Query(Fade),EventWriter(event)],()=>{throw Error('compiled twin was not used');},{name:'Emit'}));
+        app.addSystemToSchedule(Schedule.Update,defineSystem([EventReader(event)],hits=>{for(const hit of hits)seen.push(hit);},{name:'WatchOwnPayload'}));
+        try {
+            await app.useCompiledSystems({host:new FakeEngine(),manifest,wasm:new Uint8Array(wasm).buffer});seed(app,Fade);
+            await app.tick(1/60);await app.tick(1/60);
+            expect(seen).toHaveLength(N);expect(app.compiledSystems.calls).toBe(2);
+            expect(JSON.stringify(seen[0])).toBe('{"__proto__":{"amount":0.1}}');
+            expect(Object.getOwnPropertyDescriptor(Object.prototype,'amount')).toEqual(original);
+        }finally{app.quit({keepRenderer:true});if(original)Object.defineProperty(Object.prototype,'amount',original);else delete (Object.prototype as Record<string,unknown>).amount;}
     });
 
     it.skipIf(!EMCC)("reads a resource the PROJECT declared, at the layout the build derived", async () => {

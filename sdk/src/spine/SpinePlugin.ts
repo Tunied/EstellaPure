@@ -95,14 +95,16 @@ export class SpinePlugin implements Plugin {
     private wireSubmit_(app: App): void {
         if (this.submitWired_) return;
         this.submitWired_ = true;
+        const isActive = (e: Entity) => app.world.isEntityActive(e);
         app.pipeline?.addPreFlushCallback((registry) => {
             this.spineManager_?.submitMeshes(registry._cpp, (e: Entity) =>
-                (app.world.tryGet(e, SpineAnimation)?.material as number | undefined) ?? 0);
+                (app.world.tryGet(e, SpineAnimation)?.material as number | undefined) ?? 0, isActive);
         });
     }
 
     build(app: App): void {
         this.app_ = app;
+        const isActive = (e: Entity) => app.world.isEntityActive(e);
         // The core the mesh batches are submitted through: the wasm module on the
         // web, the native host's bindings on a device.
         const coreModule = engineApi(app);
@@ -142,10 +144,10 @@ export class SpinePlugin implements Plugin {
                 const time = app.getResource(Time);
                 const manager = this.spineManager_;
                 if (manager) {
-                    this.enableMirror_.sync(app.world, manager);
-                    manager.updateAnimations(time.delta);
+                    this.enableMirror_.sync(app.world, manager, isActive);
+                    manager.updateAnimations(time.delta, isActive);
                 }
-                this.collectAndPublishEvents_(app);
+                this.collectAndPublishEvents_(app, isActive);
             },
         };
 
@@ -185,11 +187,11 @@ export class SpinePlugin implements Plugin {
         this.submitWired_ = false; // a fresh build (new pipeline) re-registers the submit
     }
 
-    private collectAndPublishEvents_(app: App): void {
+    private collectAndPublishEvents_(app: App, isActive: (entity: Entity) => boolean): void {
         const events: SpineEvent[] = [];
 
         if (this.spineManager_) {
-            for (const { entity, raw } of this.spineManager_.collectAllEvents()) {
+            for (const { entity, raw } of this.spineManager_.collectAllEvents(isActive)) {
                 const type = SPINE_TYPE_MAP[raw.type];
                 if (type === null || type === undefined) continue;
                 const evt: SpineEvent = {

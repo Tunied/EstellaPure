@@ -198,7 +198,9 @@ export interface NativeEngineApi {
     renderer_submitAll?(registry: unknown, vpX: number, vpY: number, vpW: number, vpH: number): void;
     renderer_submitScreenOverlay?(registry: unknown): void;
     renderer_submitSkeletalBatchByEntity?(registry: unknown, verticesPtr: number, vertexCount: number, indicesPtr: number, indexCount: number, textureId: number, blendMode: number, entity: number, skelScale: number, flipX: boolean, flipY: boolean, layer: number, depth: number, materialId: number): void;
+    renderer_submitSkeletalBatchByEntityEx?(registry: unknown, verticesPtr: number, vertexCount: number, indicesPtr: number, indexCount: number, textureId: number, blendMode: number, entity: number, skelScale: number, flipX: boolean, flipY: boolean, layer: number, depth: number, materialId: number, premultipliedColor: boolean): void;
     renderer_submitSkeletalPreviewBatch?(preview: number, verticesPtr: number, vertexCount: number, indicesPtr: number, indexCount: number, textureId: number, blendMode: number, transformPtr: number, layer: number, depth: number, materialId: number): number;
+    renderer_submitSkeletalPreviewBatchEx?(preview: number, verticesPtr: number, vertexCount: number, indicesPtr: number, indexCount: number, textureId: number, blendMode: number, transformPtr: number, layer: number, depth: number, materialId: number, premultipliedColor: boolean): number;
     renderer_submitTextBatch?(verticesPtr: number, vertexCount: number, indicesPtr: number, indexCount: number, textureId: number, transformPtr: number, entity: number, layer: number, depth: number, sdf: number, cullBit: number): void;
     renderer_takeFrameCapture?(handle: number, dest: number, destSize: number): boolean;
     renderer_updateTransforms?(registry: unknown): void;
@@ -478,7 +480,9 @@ export function createNativeEngineApi(
     bind('renderer_submitAll', 'es_renderer_submitAll', true);
     bind('renderer_submitScreenOverlay', 'es_renderer_submitScreenOverlay', true);
     bind('renderer_submitSkeletalBatchByEntity', 'es_renderer_submitSkeletalBatchByEntity', true);
+    bind('renderer_submitSkeletalBatchByEntityEx', 'es_renderer_submitSkeletalBatchByEntityEx', true);
     bind('renderer_submitSkeletalPreviewBatch', 'es_renderer_submitSkeletalPreviewBatch', false);
+    bind('renderer_submitSkeletalPreviewBatchEx', 'es_renderer_submitSkeletalPreviewBatchEx', false);
     bind('renderer_submitTextBatch', 'es_renderer_submitTextBatch', false);
     bind('renderer_takeFrameCapture', 'es_renderer_takeFrameCapture', false);
     bind('renderer_updateTransforms', 'es_renderer_updateTransforms', true);

@@ -32,7 +32,7 @@ void ParticleSystem::update(ecs::Registry& registry, f32 dt) {
     // Flatten the active force fields once so the per-particle loop touches no
     // components. Fields are world objects, applied to world-space particles.
     force_fields_.clear();
-    auto ffView = registry.view<ecs::Transform, ecs::ParticleForceField>();
+    auto ffView = registry.activeView<ecs::Transform, ecs::ParticleForceField>();
     for (auto ffEntity : ffView) {
         const auto& ff = ffView.get<ecs::ParticleForceField>(ffEntity);
         if (!ff.enabled || ff.strength == 0.0f) continue;
@@ -51,7 +51,7 @@ void ParticleSystem::update(ecs::Registry& registry, f32 dt) {
         force_fields_.push_back(inst);
     }
 
-    auto view = registry.view<ecs::Transform, ecs::ParticleEmitter>();
+    auto view = registry.activeView<ecs::Transform, ecs::ParticleEmitter>();
     for (auto entity : view) {
         const auto& emitter = view.get<ecs::ParticleEmitter>(entity);
         const auto& transform = view.get<ecs::Transform>(entity);

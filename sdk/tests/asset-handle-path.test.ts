@@ -53,6 +53,18 @@ function createAssets(): Assets {
 }
 
 describe('Assets.pathForHandle', () => {
+  it('forgets a handle only after its final receipt is released', async () => {
+    const assets = createAssets();
+    assets.register({ type: 'material', extensions: ['.esmaterial'],
+      load: async () => ({ handle: 42, shaderHandle: 7 }), unload: () => {} } as never);
+    const first = await assets.acquireTyped('material', 'assets/shared.esmaterial');
+    const second = await assets.acquireTyped('material', 'assets/shared.esmaterial');
+    first.release();
+    expect(assets.pathForHandle('material', 42)).toBe('assets/shared.esmaterial');
+    second.release();
+    expect(assets.pathForHandle('material', 42)).toBeNull();
+    expect(assets.sizes().handlePaths).toBe(0);
+  });
   it('records handle→path on a typed load and resolves it back', async () => {
     const assets = createAssets();
     assets.register({

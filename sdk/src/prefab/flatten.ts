@@ -13,6 +13,7 @@ import { PREFAB_ADDRESS_SEP } from './types';
 import { cloneComponents, cloneMetadata } from './clone';
 import { remapComponentEntityRefs } from './entityRef';
 import { applyOverrides, bucketOverridesByEntity } from './override';
+import { createChildLookup, checkParentCycle } from '../document/diagnostics';
 
 const MAX_PREFAB_NESTING_DEPTH = 10;
 
@@ -135,9 +136,8 @@ export function flattenPrefab(
             parent: isRoot
                 ? null
                 : (pe.parent !== null ? idMapping.get(pe.parent) ?? null : null),
-            children: pe.children
-                .map(c => idMapping.get(c))
-                .filter((c): c is number => c !== undefined),
+            // Filled after every nested slot has an allocated runtime id.
+            children: [],
             components: cloneComponents(pe.components),
             visible: pe.visible,
             ...(pe.metadata ? { metadata: cloneMetadata(pe.metadata) } : {}),
@@ -165,29 +165,25 @@ export function flattenPrefab(
         );
     }
 
-    // Second pass: heal top-level parent/child links now that idMapping is
-    // complete. A nested SLOT's runtime id is only known after its own flatten, so
-    // an entity parented to a slot that appears LATER in a non-tree-ordered
-    // `entities` array resolved to null (and dropped from the slot's children) in
-    // the loop above. Re-resolve every top-level link so flatten is order-independent;
-    // for a tree-ordered file every link already matches and this is a no-op.
+    // Resolve authored links only after nested slots have ids. Preserve the
+    // children order the author serialized, including slots that were flattened
+    // later; entity-array order is not sibling order.
     const byRuntimeId = new Map(result.map((e) => [e.id, e]));
     for (const pe of prefab.entities) {
-        if (pe.prefabEntityId === prefab.rootEntityId) continue;
         const childId = idMapping.get(pe.prefabEntityId);
         if (childId === undefined) continue;
         const entity = byRuntimeId.get(childId);
         if (!entity) continue;
-        const wantParent = pe.parent !== null ? (idMapping.get(pe.parent) ?? null) : null;
-        if (entity.parent === wantParent) continue;
-        if (entity.parent != null) {
-            const old = byRuntimeId.get(entity.parent);
-            if (old) old.children = old.children.filter((c) => c !== childId);
-        }
-        entity.parent = wantParent;
-        if (wantParent != null) {
-            const np = byRuntimeId.get(wantParent);
-            if (np && !np.children.includes(childId)) np.children.push(childId);
+        entity.parent = pe.prefabEntityId === prefab.rootEntityId ? null
+            : (pe.parent !== null ? idMapping.get(pe.parent) ?? null : null);
+        const authored = pe.children.map(c => idMapping.get(c)).filter((c): c is number => c !== undefined);
+        if (!pe.nestedPrefab) {
+            entity.children = authored;
+        } else if (authored.length) {
+            // A mounted root keeps its own subtree, then children authored on
+            // the mounting slot. They share the same final parent.
+            const present = new Set(entity.children);
+            for (const id of authored) if (!present.has(id)) { present.add(id); entity.children.push(id); }
         }
     }
 
@@ -288,13 +284,11 @@ function mergeVariantEntities(base: PrefabData, variant: PrefabData): PrefabData
         );
     }
 
-    const baseById = new Map<PrefabEntityId, PrefabEntityData>();
-    for (const e of base.entities) baseById.set(e.prefabEntityId, e);
-
     const merged: PrefabEntityData[] = base.entities.map(e => ({ ...e }));
     const mergedById = new Map<PrefabEntityId, PrefabEntityData>();
     for (const e of merged) mergedById.set(e.prefabEntityId, e);
 
+    const mergedIndex = new Map(merged.map((e, i) => [e.prefabEntityId, i]));
     const variantEntities = variant.entities ?? [];
     for (const ve of variantEntities) {
         const existing = mergedById.get(ve.prefabEntityId);
@@ -311,7 +305,7 @@ function mergeVariantEntities(base: PrefabData, variant: PrefabData): PrefabData
                 })),
                 ...(ve.metadata ? { metadata: { ...ve.metadata } } : {}),
             };
-            const idx = merged.indexOf(existing);
+            const idx = mergedIndex.get(ve.prefabEntityId)!;
             merged[idx] = replaced;
             mergedById.set(ve.prefabEntityId, replaced);
             continue;
@@ -334,6 +328,7 @@ function mergeVariantEntities(base: PrefabData, variant: PrefabData): PrefabData
             })),
             ...(ve.metadata ? { metadata: { ...ve.metadata } } : {}),
         };
+        mergedIndex.set(ve.prefabEntityId, merged.length);
         merged.push(added);
         mergedById.set(ve.prefabEntityId, added);
     }
@@ -341,6 +336,7 @@ function mergeVariantEntities(base: PrefabData, variant: PrefabData): PrefabData
     // Pass 2: link added entities into their parents' children lists,
     // and validate referential integrity.
     const baseIds = new Set(base.entities.map(e => e.prefabEntityId));
+    const extendedChildren = new Map<PrefabEntityId, Set<PrefabEntityId>>();
     for (const ve of variantEntities) {
         const isNew = !baseIds.has(ve.prefabEntityId);
         if (!isNew) continue;
@@ -351,8 +347,15 @@ function mergeVariantEntities(base: PrefabData, variant: PrefabData): PrefabData
                 `"${ve.parent!}" not found in base or other variant additions.`,
             );
         }
-        if (!parent.children.includes(ve.prefabEntityId)) {
-            parent.children = [...parent.children, ve.prefabEntityId];
+        let children = extendedChildren.get(parent.prefabEntityId);
+        if (!children) {
+            children = new Set(parent.children);
+            parent.children = [...parent.children]; // one owned copy, never mutate the base
+            extendedChildren.set(parent.prefabEntityId, children);
+        }
+        if (!children.has(ve.prefabEntityId)) {
+            children.add(ve.prefabEntityId);
+            parent.children.push(ve.prefabEntityId);
         }
     }
 
@@ -372,6 +375,7 @@ function mergeVariantEntities(base: PrefabData, variant: PrefabData): PrefabData
 function validateParentChildConsistency(prefab: PrefabData): void {
     const byId = new Map<PrefabEntityId, PrefabEntityData>();
     for (const e of prefab.entities) byId.set(e.prefabEntityId, e);
+    const hasChild = createChildLookup<PrefabEntityId>();
 
     for (const e of prefab.entities) {
         // The address separator is reserved so flatten can compose `slot/localId`
@@ -391,7 +395,7 @@ function validateParentChildConsistency(prefab: PrefabData): void {
                     `"${e.parent}" does not exist.`,
                 );
             }
-            if (!parent.children.includes(e.prefabEntityId)) {
+            if (!hasChild(parent.children, e.prefabEntityId)) {
                 throw new Error(
                     `Prefab "${prefab.name}" inconsistent topology: entity ` +
                     `"${e.prefabEntityId}" claims parent "${e.parent}" but the ` +
@@ -420,29 +424,9 @@ function validateParentChildConsistency(prefab: PrefabData): void {
 }
 
 function detectCycle(entities: PrefabEntityData[], prefabName: string): void {
-    const byId = new Map<PrefabEntityId, PrefabEntityData>();
-    for (const e of entities) byId.set(e.prefabEntityId, e);
-    const WHITE = 0, GRAY = 1, BLACK = 2;
-    const color = new Map<PrefabEntityId, number>();
-    for (const e of entities) color.set(e.prefabEntityId, WHITE);
-
-    const visit = (id: PrefabEntityId, path: PrefabEntityId[]): void => {
-        const c = color.get(id);
-        if (c === BLACK) return;
-        if (c === GRAY) {
-            const cycleStart = path.indexOf(id);
-            const cycle = path.slice(cycleStart).concat(id);
-            throw new Error(
-                `Prefab "${prefabName}" parent cycle detected: ${cycle.join(' → ')}`,
-            );
-        }
-        color.set(id, GRAY);
-        const entity = byId.get(id);
-        if (entity?.parent !== null && entity?.parent !== undefined) {
-            visit(entity.parent, [...path, id]);
-        }
-        color.set(id, BLACK);
-    };
-
-    for (const e of entities) visit(e.prefabEntityId, []);
+    const nodes = entities.map(e => ({ id: e.prefabEntityId, parent: e.parent,
+        children: e.children, components: e.components }));
+    checkParentCycle(nodes, new Map(nodes.map(e => [e.id, e])), (_code, _severity, message) => {
+        throw new Error(`Prefab "${prefabName}" ${message}`);
+    });
 }

@@ -73,7 +73,7 @@ void ParticlePlugin::collect(RenderCollectContext& collect_ctx) {
     auto& ctx = collect_ctx.frame_context;
     if (!particle_system_ || particle_shader_id_ == 0) return;
 
-    auto emitterView = registry.view<ecs::Transform, ecs::ParticleEmitter>();
+    auto emitterView = registry.activeView<ecs::Transform, ecs::ParticleEmitter>();
 
     for (auto entity : emitterView) {
         if (!collect_ctx.accepts(entity)) continue;

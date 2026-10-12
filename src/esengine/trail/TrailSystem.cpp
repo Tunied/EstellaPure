@@ -13,7 +13,7 @@ void TrailSystem::update(ecs::Registry& registry, f32 dt) {
 
     time_ += dt;
 
-    auto view = registry.view<ecs::Transform, ecs::TrailRenderer>();
+    auto view = registry.activeView<ecs::Transform, ecs::TrailRenderer>();
     for (auto entity : view) {
         const auto& trail = view.get<ecs::TrailRenderer>(entity);
         // Frozen (disabled) trails keep their history so re-enabling resumes the

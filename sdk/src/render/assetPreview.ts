@@ -30,7 +30,19 @@ export function previewCore(m: unknown): PreviewCore | null {
  * readback rides the engine's async seam: immediate on GL, resolved when the
  * staging-buffer map lands on WebGPU — one awaited call either way.
  */
-export async function drawPreview(m: PreviewCore, draw: () => void): Promise<ImageData | null> {
+const previewTails = new WeakMap<PreviewCore, Promise<void>>();
+
+export function drawPreview(m: PreviewCore, draw: () => void): Promise<ImageData | null> {
+    // Draw, poll and copy own one shared buffer as a single operation. Even a
+    // ready GL readback yields at await, so a second draw must wait for the copy.
+    const result = (previewTails.get(m) ?? Promise.resolve()).then(() => readPreview(m, draw));
+    const tail = result.then(() => {}, () => {});
+    previewTails.set(m, tail);
+    void tail.then(() => { if (previewTails.get(m) === tail) previewTails.delete(m); });
+    return result;
+}
+
+async function readPreview(m: PreviewCore, draw: () => void): Promise<ImageData | null> {
     draw();
     if (await awaitReadback(() => m.renderer_pollPreviewReadback()) !== READBACK_READY) return null;
     const size = m.renderer_getPreviewSize();

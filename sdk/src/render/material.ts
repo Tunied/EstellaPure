@@ -26,6 +26,7 @@ export type MaterialHandle = number;
 
 export interface TextureRef {
     __textureRef: true;
+    /** ResourceManager texture handle, resolved to a device texture at draw time. */
     textureId: number;
     slot?: number;
 }
@@ -271,23 +272,24 @@ interface ResolvedMaterial {
     depthBias: number;
     uniforms: Map<string, UniformValue>;
 }
+const NO_UNIFORMS = new Map<string, UniformValue>();
 
 // Flatten an instance chain to its effective material: the parent's values with this
 // material's overrides applied (uniforms by key, render state by `overrides`). Defensive
 // against a missing parent (e.g. a released base) — falls back to the material's own values.
-function resolveMaterial(handle: MaterialHandle): ResolvedMaterial | null {
+function resolveMaterial(handle: MaterialHandle, includeUniforms = true): ResolvedMaterial | null {
     const data = materials.get(handle);
     if (!data) return null;
-    const parent = data.parent !== undefined ? resolveMaterial(data.parent) : null;
+    const parent = data.parent !== undefined ? resolveMaterial(data.parent, includeUniforms) : null;
     if (!parent) {
         return {
             shader: data.shader, blendMode: data.blendMode, depthTest: data.depthTest,
             depthWrite: data.depthWrite, cull: data.cull, depthBias: data.depthBias,
-            uniforms: new Map(data.uniforms),
+            uniforms: includeUniforms ? new Map(data.uniforms) : NO_UNIFORMS,
         };
     }
     const uniforms = parent.uniforms;  // fresh map from the recursive call
-    for (const [k, v] of data.uniforms) uniforms.set(k, v);  // instance overrides win
+    if (includeUniforms) for (const [k, v] of data.uniforms) uniforms.set(k, v);  // instance overrides win
     return {
         shader: parent.shader,  // instances inherit the shader
         blendMode: data.overrides.has('blendMode') ? data.blendMode : parent.blendMode,
@@ -301,16 +303,23 @@ function resolveMaterial(handle: MaterialHandle): ResolvedMaterial | null {
 
 // Push a material's flattened state to the engine, then re-flush every instance of it — so a
 // base edit propagates to non-overriding children. The single push point for create + edits.
-function flushMaterial(handle: MaterialHandle): void {
+function flushMaterial(handle: MaterialHandle, previous?: ReadonlyMap<MaterialHandle, ResolvedMaterial>): void {
     const resolved = resolveMaterial(handle);
     if (resolved && module) {
+        // define preserves existing constants and texture bindings. A deleted value
+        // must return to the shader default, including in inheriting descendants.
+        const old = previous?.get(handle);
+        if (old && [...old.uniforms.keys()].some(name => !resolved.uniforms.has(name)))
+            module.material_undefine(handle);
         module.material_define(handle, resolved.shader, resolved.blendMode,
             materialFlags(resolved.depthTest, resolved.depthWrite, resolved.cull),
             resolved.depthBias);
         for (const [name, value] of resolved.uniforms) pushUniform(handle, name, value);
     }
+    const data = materials.get(handle);
+    if (data) data.dirty_ = true;
     const kids = childrenOf.get(handle);
-    if (kids) for (const child of kids) flushMaterial(child);
+    if (kids) for (const child of kids) flushMaterial(child, previous);
 }
 
 // Convert a .esmaterial `properties` map (JSON numbers / colors / vectors) into typed
@@ -431,6 +440,49 @@ export const Material = {
         return materials.get(material);
     },
 
+    /** Effective shader/render state without allocating or cloning uniform maps. */
+    getRenderState(material: MaterialHandle): Omit<ResolvedMaterial, 'uniforms'> | null {
+        const resolved = resolveMaterial(material, false);
+        if (!resolved) return null;
+        const { uniforms: _, ...state } = resolved;
+        return state;
+    },
+
+    /**
+     * Replace the complete local parameter/render-state snapshot and flush once.
+     * Missing fields restore base defaults or remove an instance override, so
+     * future parent edits keep propagating. Shader and parent ownership stay with
+     * the asset loader; this operation never re-acquires a different generation.
+     */
+    applyState(material: MaterialHandle, state: Omit<MaterialOptions, 'shader'>): void {
+        const data = materials.get(material);
+        if (!data) return;
+        const previous = new Map<MaterialHandle, ResolvedMaterial>();
+        const collect = (handle: MaterialHandle): void => {
+            if (previous.has(handle)) return;
+            const resolved = resolveMaterial(handle);
+            if (resolved) previous.set(handle, resolved);
+            for (const child of childrenOf.get(handle) ?? []) collect(child);
+        };
+        collect(material);
+        data.uniforms.clear();
+        for (const [name, value] of Object.entries(state.uniforms ?? {})) {
+            warnUndeclared(shaderOf(material), name); data.uniforms.set(name, value);
+        }
+        data.blendMode = state.blendMode ?? BlendMode.Normal;
+        data.depthTest = state.depthTest ?? false;
+        data.depthWrite = state.depthWrite ?? true;
+        data.cull = state.cull ?? CullMode.None;
+        data.depthBias = Math.round(state.depthBias ?? 0);
+        data.switches = { ...state.switches };
+        data.overrides.clear();
+        if (data.parent !== undefined) {
+            for (const key of ['blendMode', 'depthTest', 'depthWrite', 'cull', 'depthBias'] as const)
+                if (state[key] !== undefined) data.overrides.add(key);
+        }
+        flushMaterial(material, previous);
+    },
+
     /**
      * Sets a uniform value on a material.
      * @param material Material handle
@@ -478,7 +530,7 @@ export const Material = {
      * @returns Blend mode
      */
     getBlendMode(material: MaterialHandle): BlendMode {
-        return resolveMaterial(material)?.blendMode ?? BlendMode.Normal;
+        return resolveMaterial(material, false)?.blendMode ?? BlendMode.Normal;
     },
 
     /**
@@ -535,7 +587,7 @@ export const Material = {
      * @returns Shader handle
      */
     getShader(material: MaterialHandle): ShaderHandle {
-        return resolveMaterial(material)?.shader ?? 0;
+        return resolveMaterial(material, false)?.shader ?? 0;
     },
 
     /**

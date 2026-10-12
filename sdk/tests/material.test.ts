@@ -69,6 +69,39 @@ describe('Material API', () => {
         shutdownResourceManager();
     });
 
+    describe('complete material state projection', () => {
+        it('removes local overrides and keeps inheriting subsequent parent changes', () => {
+            const parent = Material.create({shader:1,uniforms:{u_value:3},blendMode:BlendMode.Additive});
+            const child = Material.createInstance(parent);
+            Material.applyState(child,{uniforms:{u_value:9},blendMode:BlendMode.Multiply});
+            Material.applyState(child,{});
+            expect(Material.getUniform(child,'u_value')).toBe(3);
+            expect(Material.getBlendMode(child)).toBe(BlendMode.Additive);
+            expect(Material.get(child)!.uniforms.size).toBe(0);
+            expect(Material.get(child)!.overrides.size).toBe(0);
+            Material.setUniform(parent,'u_value',7);
+            expect(Material.getUniform(child,'u_value')).toBe(7);
+        });
+        it('clears removed GPU values only where no inherited override replaces them', () => {
+            const parent = Material.create({shader:1,uniforms:{u_value:3}});
+            const inheriting = Material.createInstance(parent), overriding = Material.createInstance(parent);
+            Material.setUniform(overriding,'u_value',9);mock.material_undefine.mockClear();
+            Material.applyState(parent,{});
+            expect(mock.material_undefine.mock.calls.map(call=>call[0])).toEqual([parent,inheriting]);
+            expect(Material.getUniform(overriding,'u_value')).toBe(9);
+            expect(Material.getUniform(inheriting,'u_value')).toBeUndefined();
+        });
+        it('flushes one complete snapshot per affected material instead of once per field', () => {
+            const parent=Material.create({shader:1}),child=Material.createInstance(parent);
+            mock.material_define.mockClear();mock.material_setUniform.mockClear();
+            const uniforms=Object.fromEntries(Array.from({length:8},(_,i)=>[`p${i}`,i]));
+            Material.applyState(parent,{uniforms,blendMode:BlendMode.Additive,depthTest:true,depthWrite:false,cull:CullMode.Back,depthBias:2});
+            expect(mock.material_define).toHaveBeenCalledTimes(2);
+            expect(mock.material_setUniform).toHaveBeenCalledTimes(16);
+            expect(mock.material_define).toHaveBeenCalledWith(child,1,BlendMode.Additive,flags(true,false,CullMode.Back),2);
+        });
+    });
+
     // =========================================================================
     // shutdownMaterialAPI
     // =========================================================================

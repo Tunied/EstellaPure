@@ -21,7 +21,7 @@ void SpritePlugin::collect(RenderCollectContext& collect_ctx) {
     auto& buffers = collect_ctx.buffer_pool;
     auto& draw_list = collect_ctx.draw_list;
     auto& ctx = collect_ctx.frame_context;
-    auto spriteView = registry.view<ecs::Transform, ecs::Sprite>();
+    auto spriteView = registry.activeView<ecs::Transform, ecs::Sprite>();
 
     u32 litProgram = 0;
 

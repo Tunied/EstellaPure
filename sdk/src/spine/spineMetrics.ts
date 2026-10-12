@@ -63,6 +63,7 @@ export interface SpineAbiCounts {
     vertexCount: number;
     indexCount: number;
     batchData: number;
+    batchColor: number;
     malloc: number;
     free: number;
     submit: number;
@@ -115,7 +116,7 @@ export interface SpineFrameMetrics {
 export function newSpineFrameMetrics(): SpineFrameMetrics {
     return {
         frame: 0, entities: 0, residencies: 0, meshBatches: 0, vertices: 0, indices: 0,
-        abi: { pose: 0, world: 0, batchCount: 0, vertexCount: 0, indexCount: 0, batchData: 0, malloc: 0, free: 0, submit: 0 },
+        abi: { pose: 0, world: 0, batchCount: 0, vertexCount: 0, indexCount: 0, batchData: 0, batchColor: 0, malloc: 0, free: 0, submit: 0 },
         pose: { logicalUpdates: 0, worldMaterializations: 0, worldAlreadyCurrent: 0, meshExtractions: 0, renderCulled: 0 },
         bytes: { wasmRead: 0, coreWrite: 0, scratchAllocated: 0 },
         time: { pose: 0, readback: 0, total: 0 },
@@ -127,7 +128,7 @@ export function beginSpineFrame(m: SpineFrameMetrics): void {
     m.frame++;
     m.entities = 0; m.residencies = 0; m.meshBatches = 0; m.vertices = 0; m.indices = 0;
     m.abi.pose = 0; m.abi.world = 0; m.abi.batchCount = 0; m.abi.vertexCount = 0; m.abi.indexCount = 0;
-    m.abi.batchData = 0; m.abi.malloc = 0; m.abi.free = 0; m.abi.submit = 0;
+    m.abi.batchData = 0; m.abi.batchColor = 0; m.abi.malloc = 0; m.abi.free = 0; m.abi.submit = 0;
     m.bytes.wasmRead = 0; m.bytes.coreWrite = 0; m.bytes.scratchAllocated = 0;
     m.pose.logicalUpdates = 0; m.pose.worldMaterializations = 0;
     m.pose.worldAlreadyCurrent = 0; m.pose.meshExtractions = 0; m.pose.renderCulled = 0;

@@ -1128,7 +1128,12 @@ export interface Registry {
     removeVelocity(entity: Entity): void;
 
     // Hierarchy Utilities
-    setParent(child: Entity, parent: Entity): void;
+    setEntityEnabled?(entity: Entity, enabled: boolean): boolean;
+    isEntityActive?(entity: Entity): boolean;
+    isEntityEnabled?(entity: Entity): boolean;
+    hasInactiveEntities?(): boolean;
+    activityEpoch?(): number;
+    setParent(child: Entity, parent: Entity): boolean | void;
 }
 
 // Module

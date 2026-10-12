@@ -9,6 +9,7 @@ namespace esengine {
 
 struct EngineState {
     int webgl_context = 0;
+    bool owns_webgl_context = false;
     bool initialized = false;
     bool immediate_draw_active = false;
     // Off by default: glGetError is a SYNCHRONOUS round-trip to the GPU process,

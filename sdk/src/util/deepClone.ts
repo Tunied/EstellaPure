@@ -5,6 +5,8 @@
  * @brief   Structural deep clone for plain data (objects, arrays, primitives)
  */
 
+import { setOwn } from './ownProperties';
+
 /**
  * Recursively clone plain objects and arrays; primitives AND class instances
  * (Map, Date, a custom class with methods, …) pass through by reference.
@@ -30,8 +32,8 @@ export function deepClone<T>(value: T): T {
         return value;
     }
     const result: Record<string, unknown> = {};
-    for (const key in value) {
-        result[key] = deepClone((value as Record<string, unknown>)[key]);
+    for (const key of Object.keys(value)) {
+        setOwn(result, key, deepClone((value as Record<string, unknown>)[key]));
     }
     return result as T;
 }

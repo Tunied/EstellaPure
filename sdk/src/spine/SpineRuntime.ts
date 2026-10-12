@@ -132,7 +132,9 @@ export class SpineRuntime {
         // Only now: the old instance and its claim on the era it was posing.
         // Re-binding to the SAME era claimed it again above, so the skeleton is
         // never unloaded and re-parsed underneath an entity that stays on it.
+        const disabled = this.disabledEntities_.has(entity);
         this.removeEntity(entity);
+        if (disabled) this.disabledEntities_.add(entity);
         this.entities_.set(entity, {
             skelHandle: claimed, instanceId, era: era.id,
             skeletonScale: 1, flipX: false, flipY: false, layer: 0, timeScale: 1, playing: true,
@@ -324,9 +326,10 @@ export class SpineRuntime {
         if (info) this.controller_.enableEvents(info.instanceId);
     }
 
-    collectAllEvents(): { entity: Entity; raw: RawSpineEvent }[] {
+    collectAllEvents(isActive?: (entity: Entity) => boolean): { entity: Entity; raw: RawSpineEvent }[] {
         const result: { entity: Entity; raw: RawSpineEvent }[] = [];
         for (const [entity, info] of this.entities_) {
+            if (this.disabledEntities_.has(entity) || (isActive && !isActive(entity))) continue;
             const events = this.controller_.collectEvents(info.instanceId);
             for (const raw of events) {
                 result.push({ entity, raw });
@@ -529,7 +532,7 @@ export class SpineRuntime {
         info.logicalRevision++;
     }
 
-    updateAll(dt: number): void {
+    updateAll(dt: number, isActive?: (entity: Entity) => boolean): void {
         const m = this.metrics_;
         if (m) {
             // The frame that ends HERE is the only place its readback is whole:
@@ -546,7 +549,7 @@ export class SpineRuntime {
         for (const [entity, info] of this.entities_) {
             // Disabled means out of the frame entirely, so it costs no posing
             // either — the same meaning the DragonBones manager gives it.
-            if (this.disabledEntities_.has(entity)) continue;
+            if (this.disabledEntities_.has(entity) || (isActive && !isActive(entity))) continue;
             // playing=false freezes the pose (skip advance, still submitted);
             // timeScale scales the advance (update() takes an arbitrary dt).
             if (info.playing) {
@@ -572,11 +575,11 @@ export class SpineRuntime {
      *  batches cross through its heap, which is wasm linear memory on the web and the
      *  host arena on a device. */
     extractAndSubmitMeshes(core: NonNullable<EngineApi>, registry: CppRegistry,
-                           materialOf?: SkeletalMaterialOf): void {
+                           materialOf?: SkeletalMaterialOf, isActive?: (entity: Entity) => boolean): void {
         const m = this.metrics_;
         const started = m ? performance.now() : 0;
         for (const [entity, info] of this.entities_) {
-            if (this.disabledEntities_.has(entity)) continue;
+            if (this.disabledEntities_.has(entity) || (isActive && !isActive(entity))) continue;
             // Only a NO from the renderer, about an extent somebody certified,
             // removes work. Unknown is not a no: an entity whose extent nobody
             // promised has unknown visibility and is drawn.

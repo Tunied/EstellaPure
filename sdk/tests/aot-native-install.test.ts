@@ -161,6 +161,32 @@ function eventFixture() {
 }
 
 describe('installing compiled systems on a host that loads a library', () => {
+    it('a retired runtime refuses saved and runner-owned native dispatchers',()=>{
+        const f=fixture(['DriftSystem']),entity=f.world.spawn();f.world.insert(entity,f.Drift,{x:7});
+        let interpreted=0;const system=defineSystem([Query(Mut(f.Drift))],()=>{interpreted++;},{name:'DriftSystem'});
+        const dispatcher=f.runtime!.dispatcherFor(f.world),twin=f.runtime!.systems.get('DriftSystem');
+        f.runner.run(system);expect(f.calls).toEqual([0]);f.runtime!.dispose?.();f.runtime!.dispose?.();
+        f.runner.run(system);expect(interpreted).toBe(1);expect(f.calls).toEqual([0]);
+        if(twin)expect(dispatcher.run(twin)).toBe(false);
+    });
+    it('interprets every matching row with a portable asset ref, then resumes compiled',()=>{
+        const f=fixture(['DriftSystem']);
+        const fields=[{field:'x',type:'texture'}];
+        Object.defineProperty(f.Drift,'assetFields',{value:fields});
+        const first=f.world.spawn(),second=f.world.spawn();
+        f.world.insert(first,f.Drift,{x:7});f.world.insert(second,f.Drift,{x:'@uuid:unresolved'} as never);
+        const seen:unknown[]=[];
+        const system=defineSystem([Query(Mut(f.Drift))],query=>{
+            for(const [,data] of query)seen.push(data.x);
+        },{name:'DriftSystem'});
+        f.runner.run(system);expect(seen).toEqual([7,'@uuid:unresolved']);expect(f.calls).toEqual([]);
+        f.world.set(second,f.Drift,{x:9});f.runner.run(system);
+        expect(f.calls).toEqual([0]);expect(seen).toEqual([7,'@uuid:unresolved']);
+        f.world.set(first,f.Drift,{x:'@uuid:later'} as never);f.runner.run(system);
+        expect(f.calls).toEqual([0]);expect(seen.slice(2)).toEqual(['@uuid:later',9]);
+        fields.length=0;f.runner.run(system);
+        expect(f.calls).toEqual([0]);expect(seen.slice(4)).toEqual(['@uuid:later',9]);
+    });
     it('a system the host cannot run is interpreted that frame, not skipped', () => {
         const f = fixture(['DriftSystem']);
         const Drift = f.Drift;

@@ -22,6 +22,7 @@ import type { PoolBlock, PoolMemory } from './ScriptPool';
 
 /** What this needs of the engine module: an allocator and its heap. */
 export interface WasmHeap {
+    readonly allocatorIdentity?: object;
     _malloc(size: number): number;
     _free(ptr: number): void;
     /** The live view. Emscripten replaces this object when the heap grows. */
@@ -33,7 +34,10 @@ export interface WasmHeap {
  * a pool's `span()` directly usable by compiled code.
  */
 export class WasmPoolMemory implements PoolMemory {
-    constructor(private readonly heap: WasmHeap) {}
+    readonly allocatorIdentity: object;
+    constructor(private readonly heap: WasmHeap) {
+        this.allocatorIdentity = heap.allocatorIdentity ?? heap;
+    }
 
     alloc(bytes: number): PoolBlock {
         // Eight-aligned because a row's fields are f64 and an unaligned typed

@@ -50,7 +50,7 @@ void UIElementPlugin::collect(RenderCollectContext& collect_ctx) {
     auto& buffers = collect_ctx.buffer_pool;
     auto& draw_list = collect_ctx.draw_list;
     auto& ctx = collect_ctx.frame_context;
-    auto uiView = registry.view<ecs::Transform, ecs::UIVisual>();
+    auto uiView = registry.activeView<ecs::Transform, ecs::UIVisual>();
 
     for (auto entity : uiView) {
         if (!collect_ctx.accepts(entity)) continue;

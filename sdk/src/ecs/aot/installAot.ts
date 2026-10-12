@@ -34,6 +34,7 @@ import type { AotAddresses, AotRuntime } from './AotRuntime';
 import { AotDispatch } from './AotDispatch';
 import { missingCapabilities, whyInterpreted, WEB_AOT } from './executorCapabilities';
 import { log } from '../../util/logger';
+import { disposeAll } from '../../util/disposeAll';
 
 /**
  * The engine module a compiled system shares memory with. The Memory OBJECT,
@@ -68,9 +69,9 @@ export interface InstallAotOptions {
 
 /**
  * Install the twins. Throws if the module disagrees with this engine or this
- * project, and the message says which. Call it BEFORE the world has any pooled
- * component: the rows must be in the memory the module reads, and moving them
- * afterwards would leave half of them behind — so it refuses instead.
+ * project, and the message says which. Select the allocation domain before the
+ * world's first pooled component. Replacement may reuse that allocator; moving
+ * existing rows to another domain would leave addresses behind, so it refuses.
  */
 export async function installAot(opts: InstallAotOptions): Promise<AotRuntime> {
     const runtime = await prepareAot(opts);
@@ -96,9 +97,11 @@ function moduleContractOf(exports: Readonly<Record<string, unknown>>): string | 
     return half((hi as () => number)()) + half((lo as () => number)());
 }
 
-export async function prepareAot(opts: Omit<InstallAotOptions, 'runner'>): Promise<AotRuntime> {
+export async function prepareAot(opts: Omit<InstallAotOptions, 'runner'> & {
+    /** Owner cancellation gate before selecting the world's allocation domain. */
+    readonly beforeCommit?: () => void;
+}): Promise<AotRuntime> {
     const memory = new WasmPoolMemory(opts.host);
-    opts.world.useScriptPoolMemory(memory);
 
     const { instance } = await platformInstantiateWasm(
         wasmSource(opts.wasm), { env: { memory: opts.host.memory } });
@@ -125,15 +128,27 @@ export async function prepareAot(opts: Omit<InstallAotOptions, 'runner'>): Promi
         moduleContract: moduleContractOf(exports),
     });
 
+    opts.beforeCommit?.();
+    opts.world.useScriptPoolMemory(memory);
+    const resources = new AotResources(memory, opts.resources, declaredLayouts(opts.manifest));
+    const events = new AotEvents(memory, opts.events ?? (() => undefined));
+    const ctx = new AotContext(memory);
+    let disposed = false;
     const runtime: AotRuntime = {
+        dispose() {
+            if (disposed) return;
+            disposed = true;
+            disposeAll([() => events.dispose(), () => resources.dispose(), () => ctx.dispose()], action => action());
+        },
         systems,
-        addresses: worldAddresses(
-            new AotResources(memory, opts.resources, declaredLayouts(opts.manifest)),
-            new AotEvents(memory, opts.events ?? (() => undefined))),
-        ctx: new AotContext(memory),
+        addresses: worldAddresses(resources, events),
+        ctx,
         // This module shares the engine's memory, so the rows go there and the
         // call takes their address.
-        dispatcherFor: (world) => new AotDispatch(world, runtime),
+        dispatcherFor: (world) => {
+            const dispatch = new AotDispatch(world, runtime);
+            return { run: twin => !disposed && dispatch.run(twin) };
+        },
     };
     return runtime;
 }

@@ -39,6 +39,7 @@
 #include "esengine/aot/EngineDigest.generated.h"
 
 #include <cstdio>
+#include <charconv>
 #include <deque>
 #include <string>
 #include <unordered_map>
@@ -63,7 +64,6 @@ struct AotState {
     /** The fallback list, rebuilt per run for a system that cannot narrow.
      *  Kept so a frame that needs it allocates none. */
     std::vector<std::uint32_t> candidates;
-    bool installed = false;
 };
 
 AotState& state() {
@@ -117,7 +117,8 @@ void* resourceAt(const char* name) {
 // — the calls —
 
 /** es_aot_install(path) -> system count, or -1 with the reason logged. */
-JSValue js_install(JSContext* ctx, JSValueConst, int argc, JSValueConst* argv) {
+JSValue installModule(JSContext* ctx, int argc, JSValueConst* argv,
+                      std::optional<std::uint64_t> expectedContract = std::nullopt) {
     if (argc < 1) return JS_NewInt32(ctx, -1);
     const char* path = JS_ToCString(ctx, argv[0]);
     if (path == nullptr) return JS_NewInt32(ctx, -1);
@@ -131,11 +132,38 @@ JSValue js_install(JSContext* ctx, JSValueConst, int argc, JSValueConst* argv) {
     AotState& s = state();
     std::string why;
     const bool ok = s.dispatcher.install(open, aot::abiHash(ES_ENGINE_ABI_DIGEST),
-                                         componentAt, resourceAt, &why, candidatesFor);
+                                         componentAt, resourceAt, &why, candidatesFor, expectedContract);
+    if (ok) {
+        // Bound resolvers hold slot addresses: invalidate their contents without
+        // freeing slots. The new SDK owner reports only its own rows/resources.
+        for (auto& span : s.scriptSpans) span = {};
+        s.resources.clear();
+        s.candidates.clear();
+    }
     if (!ok) ESHOST_LOGE("[aot] %s: %s", path, why.c_str());
     JS_FreeCString(ctx, path);
-    s.installed = ok;
     return JS_NewInt32(ctx, ok ? static_cast<int>(s.dispatcher.count()) : -1);
+}
+
+JSValue js_install(JSContext* ctx, JSValueConst, int argc, JSValueConst* argv) {
+    return installModule(ctx, argc, argv);
+}
+
+/** Validate the sidecar against the candidate before replacing the live module. */
+JSValue js_installChecked(JSContext* ctx, JSValueConst, int argc, JSValueConst* argv) {
+    if (argc < 2) return JS_ThrowTypeError(ctx, "es_aot_install_checked requires a module and contract");
+    const char* text = JS_ToCString(ctx, argv[1]);
+    if (!text) return JS_EXCEPTION;
+    std::uint64_t expected = 0;
+    const std::size_t length = std::strlen(text);
+    bool valid = length == 0;
+    if (length == 16) {
+        const auto parsed = std::from_chars(text, text + length, expected, 16);
+        valid = parsed.ec == std::errc{} && parsed.ptr == text + length;
+    }
+    JS_FreeCString(ctx, text);
+    if (!valid) return JS_ThrowTypeError(ctx, "module contract must be empty or 16 hex digits");
+    return installModule(ctx, argc, argv, expected);
 }
 
 /** es_aot_index(name) -> the index the scheduler keeps, or -1. */
@@ -247,7 +275,9 @@ JSValue js_run(JSContext* ctx, JSValueConst, int argc, JSValueConst* argv) {
     std::uint32_t i = 0;
     JS_ToUint32(ctx, &i, argv[0]);
     AotState& s = state();
-    if (!s.installed) return JS_NewInt32(ctx, -1);
+    // The dispatcher owns installed state. A failed replacement retains its
+    // old systems; an independent flag would disable that preserved module.
+    if (i >= s.dispatcher.count()) return JS_NewInt32(ctx, -1);
 
     aot::WorldStamp world;
     double scriptEpoch = 0.0;
@@ -278,7 +308,6 @@ JSValue js_reset(JSContext* ctx, JSValueConst, int, JSValueConst*) {
     s.scriptByName.clear();
     s.scriptSpans.clear();
     s.resources.clear();
-    s.installed = false;
     return JS_UNDEFINED;
 }
 
@@ -289,6 +318,7 @@ void registerAotBindings(HostState& h, JSValue global) {
         JS_SetPropertyStr(h.js, global, name, JS_NewCFunction(h.js, impl, name, arity));
     };
     fn("es_aot_install", js_install, 1);
+    fn("es_aot_install_checked", js_installChecked, 2);
     fn("es_aot_index", js_index, 1);
     fn("es_aot_bound", js_bound, 1);
     fn("es_aot_contract", js_contract, 0);

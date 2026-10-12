@@ -116,6 +116,9 @@ inline bool narrows(std::span<const QuerySpec> queries) {
     return true;
 }
 
+struct BoundSystem;
+using ResourceLookup = std::function<void*(const char*)>;
+
 /**
  * The scratch a call needs. Held by the caller so the vectors keep their
  * capacity between frames; every `run` overwrites it and nothing survives.
@@ -144,9 +147,14 @@ private:
     friend std::span<const EsCmd> run(SystemFn, std::span<const std::uint32_t>,
                                       std::span<const QuerySpec>, std::span<void* const>,
                                       CallArena&, WorldStamp);
+    friend std::span<const EsCmd> runBound(const BoundSystem&, std::span<const std::uint32_t>,
+                                         const ResourceLookup&, CallArena&, WorldStamp, bool*);
     std::vector<es_addr_t> rows_;
     std::vector<EsQueryRows> queries_;
     std::vector<es_addr_t> resources_;
+    std::vector<void*> resourcePointers_;
+    std::vector<std::size_t> starts_;
+    std::vector<std::uint32_t> counts_;
     std::vector<EsCmd> cmds_;
     std::uint32_t count_ = 0;
     std::uint32_t walked_ = 0;
@@ -215,8 +223,10 @@ inline std::span<const EsCmd> run(SystemFn fn,
         // Offsets first, addresses after: one vector holding every query's rows
         // moves under the first query's pointer as the second grows, and the ctx
         // has to point at something that will still be there during the call.
-        std::vector<std::size_t> starts(queries.size());
-        std::vector<std::uint32_t> counts(queries.size(), 0);
+        auto& starts = arena.starts_;
+        auto& counts = arena.counts_;
+        starts.resize(queries.size());
+        counts.assign(queries.size(), 0);
         for (std::size_t q = 0; q < queries.size(); ++q) {
             starts[q] = arena.rows_.size();
             const auto& comps = queries[q].comps;
@@ -338,7 +348,6 @@ inline CandidatesOf fromMovingOwners(const RowSpan* slot) {
  * what the artifact carries — it cannot know this host's type ids.
  */
 using ComponentLookup = std::function<ComponentAt(const char*)>;
-using ResourceLookup = std::function<void*(const char*)>;
 
 /**
  * The third question, and the only optional one: who holds that component.
@@ -396,11 +405,18 @@ inline std::span<const EsCmd> runBound(const BoundSystem& bound,
                                        std::span<const std::uint32_t> fallback,
                                        const ResourceLookup& resources,
                                        CallArena& arena,
-                                       WorldStamp world = {}) {
+                                       WorldStamp world = {}, bool* runnable = nullptr) {
+    if (runnable) *runnable = false;
     if (bound.fn == nullptr) return {};
-    std::vector<void*> addresses;
+    auto& addresses = arena.resourcePointers_;
+    addresses.clear();
     addresses.reserve(bound.resourceNames.size());
-    for (const char* name : bound.resourceNames) addresses.push_back(resources(name));
+    for (const char* name : bound.resourceNames) {
+        void* address = resources(name);
+        if (address == nullptr) return {};
+        addresses.push_back(address);
+    }
+    if (runnable) *runnable = true;
     return run(bound.fn, fallback, bound.queries, addresses, arena, world);
 }
 

@@ -728,7 +728,7 @@ writers: readonly { slot: number; event: string; fields: readonly string[]; }[] 
 ## App — class @experimental
 ```
 @internal addBundleSystems: (entries: ReadonlyArray<{ schedule: number; system: SystemDef | SystemSet; }>) => App
-@internal connectCpp: (cppRegistry: CppRegistry, module?: ESEngineModule, options?: BridgeConnectOptions) => App
+@internal connectCpp: (cppRegistry: CppRegistry, module?: ESEngineModule, options?: BridgeConnectOptions & { ownedRegistry?: boolean; }) => App
 @internal wasmModule: ESEngineModule | null
 addEvent: <T>(event: EventDef<T>) => App
 addPlugin: (plugin: Plugin) => App
@@ -877,6 +877,7 @@ version: string
 
 ## AssetLease — interface @experimental
 ```
+@internal failedDependencies: readonly string[] | undefined
 generation: number
 key: string
 release: () => void
@@ -967,6 +968,7 @@ ResourceDef<AssetsClass>
 @internal dependentsOfSource: (ref: string) => AssetIdentity[]
 @internal entityScopes: EntityAssetScopes
 @internal handleBoundTypes: () => string[]
+@internal preparePrefab: (ref: string, overrides?: readonly PrefabOverride[]) => Promise<PreparedPrefab>
 @internal publishedRegistryAssets: <T>(type: string) => T[]
 @internal releaseTextureLease: (lease: AssetRefLease<number>) => void
 @internal releaseTyped: (type: string, ref: string) => void
@@ -1045,6 +1047,7 @@ setRemoteRoot: (url: string | undefined) => void
 setTextureImportSettingsResolver: (resolver: TextureImportSettingsResolver | null) => void
 textureFormatReport: () => TextureFormatReport
 texturesAwaitingReupload: () => { handle: number; content: TextureContent; path: string; }[]
+trackSceneAssetReferences: (scene: SceneData, entities: ReadonlyMap<number, number>) => void
 updateStatus: () => UpdateStatus
 static create: (options: AssetsOptions) => AssetsClass
 static new (options: AssetsOptions): AssetsClass
@@ -1053,6 +1056,7 @@ static prototype: AssetsClass
 
 ## AsyncCache — class @experimental
 ```
+@internal failures: () => Generator<[string, Error]>
 @internal sizes: () => { cached: number; pending: number; failed: number; }
 clear: () => void
 clearAll: () => void
@@ -4961,7 +4965,7 @@ static prototype: MaskReach
 
 ## Material — const @experimental
 ```
-{ createShader(vertexSrc: string, fragmentSrc: string): ShaderHandle; releaseShader(shader: ShaderHandle): void; create(options: MaterialOptions): MaterialHandle; compileShader(esshaderSource: string, features?: string[]): ShaderHandle; getSwitch(material: MaterialHandle, name: string): boolean; setSwitch(material: MaterialHandle, name: string, on: boolean): void; get(material: MaterialHandle): MaterialData | undefined; setUniform(material: MaterialHandle, name: string, value: UniformValue): void; getUniform(material: MaterialHandle, name: string): UniformValue | undefined; setBlendMode(material: MaterialHandle, mode: BlendMode): void; getBlendMode(material: MaterialHandle): BlendMode; setDepthTest(material: MaterialHandle, enabled: boolean): void; setDepthWrite(material: MaterialHandle, enabled: boolean): void; setDepthBias(material: MaterialHandle, units: number): void; setCull(material: MaterialHandle, cull: CullMode): void; getShader(material: MaterialHandle): ShaderHandle; release(material: MaterialHandle): void; isValid(material: MaterialHandle): boolean; renderPreview(material: MaterialHandle, w: number, h: number): Promise<ImageData | null>; releaseAll(): void; createFromAsset(data: MaterialAssetData, shaderHandle: ShaderHandle, parentHandle?: MaterialHandle): MaterialHandle; createInstance(source: MaterialHandle): MaterialHandle; toAssetData(material: MaterialHandle, shaderPath: string, parentPath?: string): MaterialAssetData | null; getUniforms(material: MaterialHandle): Map<string, UniformValue>; tex(textureId: number, slot?: number): TextureRef; }
+{ createShader(vertexSrc: string, fragmentSrc: string): ShaderHandle; releaseShader(shader: ShaderHandle): void; create(options: MaterialOptions): MaterialHandle; compileShader(esshaderSource: string, features?: string[]): ShaderHandle; getSwitch(material: MaterialHandle, name: string): boolean; setSwitch(material: MaterialHandle, name: string, on: boolean): void; get(material: MaterialHandle): MaterialData | undefined; getRenderState(material: MaterialHandle): Omit<ResolvedMaterial, "uniforms"> | null; applyState(material: MaterialHandle, state: Omit<MaterialOptions, "shader">): void; setUniform(material: MaterialHandle, name: string, value: UniformValue): void; getUniform(material: MaterialHandle, name: string): UniformValue | undefined; setBlendMode(material: MaterialHandle, mode: BlendMode): void; getBlendMode(material: MaterialHandle): BlendMode; setDepthTest(material: MaterialHandle, enabled: boolean): void; setDepthWrite(material: MaterialHandle, enabled: boolean): void; setDepthBias(material: MaterialHandle, units: number): void; setCull(material: MaterialHandle, cull: CullMode): void; getShader(material: MaterialHandle): ShaderHandle; release(material: MaterialHandle): void; isValid(material: MaterialHandle): boolean; renderPreview(material: MaterialHandle, w: number, h: number): Promise<ImageData | null>; releaseAll(): void; createFromAsset(data: MaterialAssetData, shaderHandle: ShaderHandle, parentHandle?: MaterialHandle): MaterialHandle; createInstance(source: MaterialHandle): MaterialHandle; toAssetData(material: MaterialHandle, shaderPath: string, parentPath?: string): MaterialAssetData | null; getUniforms(material: MaterialHandle): Map<string, UniformValue>; tex(textureId: number, slot?: number): TextureRef; }
 ```
 
 ## MaterialAssetData — interface @experimental
@@ -8009,6 +8013,7 @@ indexCount: number
 indices: Uint8Array<ArrayBufferLike>
 layer: number | undefined
 materialId: number | undefined
+premultipliedColor: boolean | undefined
 textureId: number
 transform: Float32Array<ArrayBufferLike>
 vertexCount: number
@@ -10068,10 +10073,12 @@ tabIndex: number | undefined
 @internal getWorldVersion: () => number
 @internal getWrittenEntitiesSince: (component: AnyComponentDef, sinceTick: number) => Entity[]
 @internal hasCpp: boolean
+@internal hasPortableScriptAssetRefs: (component: AnyComponentDef) => boolean
 @internal invalidateTransformComposition: () => void
 @internal isAddedSince: (entity: Entity, component: AnyComponentDef, sinceTick: number) => boolean
 @internal isChangeTracked: (component: AnyComponentDef) => boolean
 @internal isChangedSince: (entity: Entity, component: AnyComponentDef, sinceTick: number) => boolean
+@internal isDestructionPending: (entity: Entity) => boolean
 @internal isIterating: () => boolean
 @internal layoutEpoch: () => number | null
 @internal markChanged: (entity: Entity, component: AnyComponentDef) => void
@@ -10083,6 +10090,7 @@ tabIndex: number | undefined
 @internal registerRemovedReaderFrom: (component: AnyComponentDef, retainFromTick: number) => number
 @internal registerTopologyReaderFrom: (component: AnyComponentDef, retainFromTick: number) => number
 @internal registerWriteReaderFrom: (component: AnyComponentDef, retainFromTick: number) => number
+@internal releaseScriptPools: () => void
 @internal removedReaderCount: (component: AnyComponentDef) => number
 @internal resetIterationDepth: () => void
 @internal resetQueryCacheStats: () => void
@@ -10100,7 +10108,7 @@ tabIndex: number | undefined
 @internal takeCompositionChanges: () => void
 @internal topologyReaderCount: (component: AnyComponentDef) => number
 @internal transformEpoch: () => number
-@internal useScriptPoolMemory: (memory: PoolMemory) => void
+@internal useScriptPoolMemory: (memory: PoolMemory, validateOnly?: boolean) => void
 @internal writeReaderCount: (component: AnyComponentDef) => number
 despawn: (entity: Entity) => void
 entityCount: () => number
@@ -10111,6 +10119,7 @@ getComponentTypes: (entity: Entity) => string[]
 getEntitiesWithComponents: (components: AnyComponentDef[], withFilters?: AnyComponentDef[], withoutFilters?: AnyComponentDef[]) => readonly Entity[]
 has: (entity: Entity, component: AnyComponentDef) => boolean
 insert: <C extends AnyComponentDef>(entity: Entity, component: C, data?: Partial<ComponentData<C>>) => ComponentData<C>
+isEntityActive: (entity: Entity) => boolean
 isStale: (entity: Entity) => boolean
 onDespawn: (callback: (entity: Entity) => void) => () => void
 onSpawn: (callback: (entity: Entity) => void) => () => void
@@ -10120,6 +10129,7 @@ set: <C extends AnyComponentDef>(entity: Entity, component: C, data: ComponentDa
 setParent: (child: Entity, parent: Entity) => void
 spawn: (name?: string) => Entity
 tryGet: <C extends AnyComponentDef>(entity: Entity, component: C) => ComponentData<C> | null
+trySetParent: (child: Entity, parent: Entity) => boolean
 update: <C extends AnyComponentDef>(entity: Entity, component: C, edit: (draft: ComponentData<C>) => void) => void
 valid: (entity: Entity) => boolean
 static new (): World
@@ -11732,7 +11742,7 @@ InputRouter
 
 ## inspectableTypes — function @experimental
 ```
-(world: World, entity: number): string[]
+(world: World, entity: number, includeTransient?: boolean): string[]
 ```
 
 ## installEditorGrid — function @experimental

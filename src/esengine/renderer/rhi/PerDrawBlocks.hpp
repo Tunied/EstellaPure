@@ -36,6 +36,7 @@ public:
 
     /** @brief Claims the pool for blocks of @p blockSize bytes, plus the zero one. */
     void init(GfxDevice& device, u32 blockSize) {
+        shutdown();
         device_ = &device;
         blockSize_ = blockSize;
         pageBytes_ = std::max(PAGE_BYTES, alignUp(blockSize));
@@ -46,6 +47,20 @@ public:
         const std::vector<u8> zeros(blockSize, 0);
         zero_ = device.createBuffer({GfxBufferUsage::Uniform, blockSize, /*dynamic=*/false},
                                     GfxContent::retained(), zeros.data());
+    }
+
+    /** @brief Releases every page and the zero block while the device is alive. */
+    void shutdown() {
+        if (!device_) return;
+        for (const Page& page : pages_) {
+            if (page.buffer != BufferHandle::Invalid) device_->deleteBuffer(page.buffer);
+        }
+        if (zero_ != BufferHandle::Invalid) device_->deleteBuffer(zero_);
+        pages_.clear();
+        zero_ = BufferHandle::Invalid;
+        device_ = nullptr;
+        blockSize_ = pageBytes_ = cursor_ = used_ = 0;
+        page_ = 0;
     }
 
     /** @brief Hands every range back. Called once per FRAME — see the file note. */

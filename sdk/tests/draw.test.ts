@@ -5,6 +5,8 @@ vi.mock('../src/render/material', () => {
     return {
         Material: {
             get: vi.fn((id: number) => materials.get(id)),
+            getRenderState: vi.fn((id: number) => materials.get(id)),
+            getUniforms: vi.fn((id: number) => materials.get(id)?.uniforms ?? new Map()),
             _materials: materials,
         },
         isTextureRef: vi.fn(

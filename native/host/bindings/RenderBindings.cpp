@@ -158,7 +158,7 @@ JSValue js_registry_getCameraEntities(JSContext* ctx, JSValueConst, int, JSValue
     if (!hostAlive() || !host().registry) return arr;
     auto& registry = *host().registry;
     uint32_t n = 0;
-    for (auto entity : registry.view<ecs::Camera, ecs::Transform>()) {
+    for (auto entity : registry.activeView<ecs::Camera, ecs::Transform>()) {
         if (registry.get<ecs::Camera>(entity).isActive) {
             JS_SetPropertyUint32(ctx, arr, n++, JS_NewInt32(ctx, (int32_t)entity.id()));
         }

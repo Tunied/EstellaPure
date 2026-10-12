@@ -10,11 +10,20 @@
  *          difference is the whole point — `owned` is a runtime resource the era
  *          holds, `source` is content that decided what the era became.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import { Assets } from '../src/asset/Assets';
 import { Catalog } from '../src/asset/Catalog';
 import type { Backend } from '../src/asset/Backend';
 import type { LoadContext } from '../src/asset/AssetLoader';
+import { seedEngineComponents } from '../src/ecs/component';
+import { ScriptGraphAssetLoader } from '../src/asset/loaders/ScriptGraphAssetLoader';
+import type { CompiledScriptGraph } from '../src/logic/ScriptGraphRunner';
+import '../src/logic';
+import { World } from '../src/ecs/world';
+import { Sprite } from '../src/ecs/component';
+import { spawnPrepared, preparePrefab } from '../src/prefab/preparedPrefab';
+import { loadWasmModule } from './helpers/loadWasm';
+import type { ESEngineModule, CppRegistry } from '../src/wasm';
 
 // The tilemap loaders come with the subsystem now, not with the asset
 // registry: a package without tilemaps does not carry a tilemap parser.
@@ -79,6 +88,7 @@ const materialFake = vi.hoisted(() => {
             setUniform: vi.fn(),
             tex: vi.fn((handle: number) => ({ kind: 'tex', handle })),
             compileShader: vi.fn(() => 7),
+            releaseShader: vi.fn(),
             release: vi.fn((h: number) => { live.delete(h); }),
         },
     };
@@ -131,6 +141,205 @@ function realm(docs: Record<string, string>): Assets {
     }));
     return assets;
 }
+
+describe('spawned prefab entities own their resource generations', () => {
+    let core: ESEngineModule;
+    beforeAll(async () => { core = await loadWasmModule(); });
+    beforeEach(() => { pool = createPoolFake(); materialFake.reset(); seedEngineComponents(); });
+    function spawnedRealm(children = false) {
+        const registry = new core.Registry(), world = new World(); world.connectCpp(registry as unknown as CppRegistry, core);
+        const sprite = (id: string, parent: string | null) => ({ prefabEntityId: id, name: id, parent,
+            children: id === 'root' && children ? ['child'] : [], visible: true,
+            components: [{ type: 'Transform', data: {} }, { type: 'Sprite', data: { texture: id + '.png' } }] });
+        const assets = realm({ 'root.esprefab': JSON.stringify({ version: '2', name: 'Owned sprites', rootEntityId: 'root',
+            entities: [sprite('root', null), ...(children ? [sprite('child', 'root')] : [])] }),
+            'a.esgraph': JSON.stringify({ version: '1.0', name: 'Owner graph', nodes: [
+                { id: 'spawn', kind: 'entity.spawn', literals: { prefab: 'root.esprefab' } },
+            ], edges: [] }) }); assets.register(new ScriptGraphAssetLoader());
+        const recipe = () => assets.resolveRegistryAsset<CompiledScriptGraph>('scriptgraph', 'a.esgraph')!.prefabs.get('root.esprefab')!;
+        const dispose = () => { for (const e of world.getAllEntities()) if (world.valid(e)) world.despawn(e);
+            assets.releaseAll(); world.disconnectCpp(); registry.delete(); };
+        return { assets, world, recipe, dispose };
+    }
+    it('holds a sprite texture after its graph retires and releases it on despawn', async () => {
+        const { assets, world, recipe, dispose } = spawnedRealm();
+        try { const owner = await assets.acquireTyped('scriptgraph', 'a.esgraph');
+            const { root } = spawnPrepared(world, recipe()); owner.release();
+            expect(world.valid(root)).toBe(true); expect(world.get(root, Sprite).texture).toBeGreaterThan(0);
+            expect(pool.liveTextures()).toBe(1); expect(assets.entityScopes.size).toBe(1);
+            world.despawn(root); expect(pool.liveTextures()).toBe(0); expect(assets.entityScopes.size).toBe(0);
+            expect(assets.sizes()).toMatchObject({ refRows: 0, registrySlots: 0, genericCached: 0 });
+        } finally { dispose(); }
+    });
+    it.each([false, true])('standalone preparation releases raw sources and preserves its spawned resource (overrides: %s)', async (override) => {
+        const { assets, world, dispose } = spawnedRealm();
+        try { const prepared = await preparePrefab(assets, 'root.esprefab', override ? [{ prefabEntityId: 'root', type: 'property',
+                componentType: 'Transform', propertyName: 'position', value: { x: 19, y: 0, z: 0 } }] : []);
+            const { root } = spawnPrepared(world, prepared); prepared.release();
+            expect(pool.liveTextures()).toBe(1); expect(assets.sizes()).toMatchObject({ refRows: 1, genericCached: 0 });
+            world.despawn(root); expect(pool.liveTextures()).toBe(0);
+            expect(assets.sizes()).toMatchObject({ refRows: 0, registrySlots: 0, genericCached: 0 });
+        } finally { dispose(); }
+    });
+    it('a detached child owns only its texture after the parent and graph retire', async () => {
+        const { assets, world, recipe, dispose } = spawnedRealm(true);
+        try { const owner = await assets.acquireTyped('scriptgraph', 'a.esgraph'); const instance = spawnPrepared(world, recipe());
+            const child = [...instance.entities.values()].find(e => e !== instance.root)!;
+            world.removeParent(child); owner.release(); world.despawn(instance.root);
+            expect(world.valid(child)).toBe(true); expect(pool.liveTextures()).toBe(1);
+            expect(assets.entityScopes.size).toBe(1);
+            world.despawn(child); expect(pool.liveTextures()).toBe(0); expect(assets.entityScopes.size).toBe(0);
+        } finally { dispose(); }
+    });
+    it('keeps old and new texture generations independently through graph refresh', async () => {
+        const { assets, world, recipe, dispose } = spawnedRealm();
+        try { const owner = await assets.acquireTyped('scriptgraph', 'a.esgraph'); const old = spawnPrepared(world, recipe()).root;
+            assets.invalidate('root.png'); await assets.assetGraphSettled(); const fresh = spawnPrepared(world, recipe()).root;
+            expect(world.get(old, Sprite).texture).not.toBe(world.get(fresh, Sprite).texture);
+            owner.release(); expect(pool.liveTextures()).toBe(2);
+            world.despawn(old); expect(pool.liveTextures()).toBe(1);
+            world.despawn(fresh); expect(pool.liveTextures()).toBe(0); expect(assets.entityScopes.size).toBe(0);
+        } finally { dispose(); }
+    });
+    it('refuses a retired recipe before creating entities when its resource generation is gone', async () => {
+        const { assets, world, recipe, dispose } = spawnedRealm();
+        try { const owner = await assets.acquireTyped('scriptgraph', 'a.esgraph'); const stale = recipe(); owner.release();
+            expect(() => spawnPrepared(world, stale)).toThrow(/retired|released/i);
+            expect(world.entityCount()).toBe(0); expect(assets.entityScopes.size).toBe(0); expect(pool.liveTextures()).toBe(0);
+        } finally { dispose(); }
+    });
+    it('a thousand copies share one texture while every copy has an independent lifetime', async () => {
+        const { assets, world, recipe, dispose } = spawnedRealm();
+        try { const owner = await assets.acquireTyped('scriptgraph', 'a.esgraph'), prepared = recipe();
+            const roots = Array.from({ length: 1000 }, () => spawnPrepared(world, prepared).root); owner.release();
+            expect(pool.createTexture.mock.calls.length + pool.createTextureFromBytes.mock.calls.length).toBe(1);
+            expect(pool.liveTextures()).toBe(1);
+            expect(assets.entityScopes.size).toBe(1000);
+            for (const root of roots.slice(0, -1)) world.despawn(root);
+            expect(pool.liveTextures()).toBe(1); expect(assets.entityScopes.size).toBe(1);
+            world.despawn(roots.at(-1)!); expect(pool.liveTextures()).toBe(0); expect(assets.entityScopes.size).toBe(0);
+            expect(assets.sizes()).toMatchObject({ refRows: 0, registrySlots: 0, genericCached: 0 });
+        } finally { dispose(); }
+    });
+    it('the same recipe can give equal entity ids in two worlds independent scopes', async () => {
+        const { assets, world, recipe, dispose } = spawnedRealm();
+        const secondRegistry = new core.Registry(), second = new World(); second.connectCpp(secondRegistry as unknown as CppRegistry, core);
+        try { const owner = await assets.acquireTyped('scriptgraph', 'a.esgraph'), prepared = recipe();
+            const a = spawnPrepared(world, prepared).root, b = spawnPrepared(second, prepared).root;
+            expect(a).toBe(b); owner.release(); expect(assets.entityScopes.size).toBe(2);
+            world.despawn(a); expect(pool.liveTextures()).toBe(1); expect(assets.entityScopes.size).toBe(1);
+            second.despawn(b); expect(pool.liveTextures()).toBe(0); expect(assets.entityScopes.size).toBe(0);
+        } finally { for (const e of second.getAllEntities()) if (second.valid(e)) second.despawn(e);
+            second.disconnectCpp(); secondRegistry.delete(); dispose(); }
+    });
+    it('rolls back earlier retains before spawning when a later resource generation is gone', async () => {
+        const { assets, world, recipe, dispose } = spawnedRealm(true);
+        try { const owner = await assets.acquireTyped('scriptgraph', 'a.esgraph'), prepared = recipe();
+            const keepOne = await assets.acquireTexture('root.png'); owner.release();
+            expect(pool.liveTextures()).toBe(1);
+            expect(() => spawnPrepared(world, prepared)).toThrow(/retired|released/i);
+            expect(world.entityCount()).toBe(0); expect(assets.entityScopes.size).toBe(0);
+            keepOne.release(); expect(pool.liveTextures()).toBe(0); expect(assets.sizes().refRows).toBe(0);
+        } finally { dispose(); }
+    });
+    it('rolls back entities and retained assets when the initial Name write fails', async () => {
+        const { assets, world, recipe, dispose } = spawnedRealm();
+        try { const owner = await assets.acquireTyped('scriptgraph', 'a.esgraph'), prepared = recipe();
+            const fault = vi.spyOn(world, 'insert').mockImplementationOnce(() => { throw new Error('Name write failed'); });
+            expect(() => spawnPrepared(world, prepared)).toThrow('Name write failed'); fault.mockRestore();
+            expect(world.entityCount()).toBe(0); expect(assets.entityScopes.size).toBe(0);
+            owner.release(); expect(pool.liveTextures()).toBe(0); expect(assets.sizes().refRows).toBe(0);
+        } finally { dispose(); }
+    });
+    it('does not confuse material and texture resources with the same numeric handle', async () => {
+        const { assets, world, recipe, dispose } = spawnedRealm(true);
+        const fetchText = assets.backend.fetchText;
+        assets.backend.fetchText = async url => {
+            if (!url.endsWith('root.esprefab')) return fetchText.call(assets.backend, url);
+            return JSON.stringify({ version: '2', name: 'Handle collision', rootEntityId: 'root', entities: [
+                { prefabEntityId: 'root', name: 'Material', parent: null, children: ['child'], visible: true,
+                    components: [{ type: 'Transform', data: {} }, { type: 'Sprite', data: { material: 'skin.esmaterial' } }] },
+                { prefabEntityId: 'child', name: 'Texture', parent: 'root', children: [], visible: true,
+                    components: [{ type: 'Transform', data: {} }, { type: 'Sprite', data: { texture: 'child.png' } }] },
+            ] });
+        };
+        const unload = vi.fn(); assets.register({ type: 'material', extensions: ['.esmaterial'],
+            load: async () => ({ handle: 1, shaderHandle: 0 }), unload });
+        try { const owner = await assets.acquireTyped('scriptgraph', 'a.esgraph'), instance = spawnPrepared(world, recipe());
+            const child = [...instance.entities.values()].find(e => e !== instance.root)!;
+            expect(world.get(instance.root, Sprite).material).toBe(world.get(child, Sprite).texture);
+            world.removeParent(child); owner.release(); world.despawn(instance.root);
+            expect(unload).toHaveBeenCalledTimes(1); expect(pool.liveTextures()).toBe(1);
+            world.despawn(child); expect(pool.liveTextures()).toBe(0); expect(assets.entityScopes.size).toBe(0);
+        } finally { dispose(); }
+    });
+});
+
+describe('partial resource preparation through prefab graphs', () => {
+    beforeEach(() => { pool = createPoolFake(); materialFake.reset(); seedEngineComponents(); });
+    function prefabGraph(data: Record<string, unknown>, type = 'Sprite') {
+        const docs = { 'root.esprefab': JSON.stringify({ version: '2', name: 'Resources', rootEntityId: 'root', entities: [
+            { prefabEntityId: 'root', name: 'Resources', parent: null, children: [], visible: true,
+                components: [{ type: 'Transform', data: {} }, { type, data }] },
+        ] }), 'a.esgraph': JSON.stringify({ version: '1.0', name: 'Resource graph', nodes: [
+            { id: 'spawn', kind: 'entity.spawn', literals: { prefab: 'root.esprefab' } },
+        ], edges: [] }), 'skin.esmaterial': MATERIAL };
+        const assets = realm(docs); assets.register(new ScriptGraphAssetLoader());
+        const graph = () => assets.resolveRegistryAsset<CompiledScriptGraph>('scriptgraph', 'a.esgraph')!;
+        return { assets, graph };
+    }
+
+    it.each(['texture', 'material'] as const)('keeps the usable graph and its resource generation when a %s refresh partially fails', async (kind) => {
+        const { assets, graph } = prefabGraph(kind === 'texture' ? { texture: 'wall.png' } : { material: 'skin.esmaterial' });
+        let missing = false;
+        assets.getTextureLoader().setPixelDecoder(async () => {
+            if (missing) throw new Error('wall image missing');
+            return { width: 4, height: 4, pixels: new Uint8Array(64) };
+        });
+        try {
+            const lease = await assets.acquireTyped('scriptgraph', 'a.esgraph');
+            const before = graph(), recipe = before.prefabs.get('root.esprefab')!;
+            expect(pool.liveTextures()).toBe(1);
+            missing = true; assets.invalidate('wall.png'); await assets.assetGraphSettled();
+            expect(graph()).toBe(before);
+            expect(graph().prefabs.get('root.esprefab')).toBe(recipe);
+            expect(pool.liveTextures()).toBe(1);
+            if (kind === 'material') expect(materialFake.live.size).toBe(1);
+            missing = false; assets.invalidate('wall.png'); await assets.assetGraphSettled();
+            expect(graph()).not.toBe(before);
+            expect(graph().prefabs.get('root.esprefab')).not.toBe(recipe);
+            expect(pool.liveTextures()).toBe(1);
+            lease.release();
+            expect(pool.liveTextures()).toBe(0); expect(materialFake.live.size).toBe(0);
+            expect(assets.sizes()).toMatchObject({ refRows: 0, registrySlots: 0, genericCached: 0 });
+        } finally { assets.releaseAll(); }
+    });
+
+    it('recovers an initially degraded prefab when the indirect source of a failed font appears', async () => {
+        const { assets, graph } = prefabGraph({ font: 'face.font' }, 'BitmapText');
+        const reason = new Error('font metrics missing'); let missing = true;
+        const fetchText = assets.backend.fetchText;
+        assets.backend.fetchText = async url => {
+            if (url.endsWith('metrics.json') && missing) throw reason;
+            return fetchText.call(assets.backend, url);
+        };
+        assets.register({ type: 'font', extensions: ['.font'], load: async (_path, ctx) => {
+            await ctx.readSource!('metrics.json'); return { handle: 17 };
+        }, unload: vi.fn() });
+        try {
+            const lease = await assets.acquireTyped('scriptgraph', 'a.esgraph');
+            const recipe = graph().prefabs.get('root.esprefab')!;
+            expect(recipe.missing).toContain('face.font');
+            expect(assets.dependentsOfSource('metrics.json').length).toBeGreaterThan(0);
+            missing = false; assets.invalidate('metrics.json'); await assets.assetGraphSettled();
+            const after = graph().prefabs.get('root.esprefab')!;
+            expect(after).not.toBe(recipe); expect(after.missing).toEqual([]);
+            expect(after.scene.entities[0].components.find(c => c.type === 'BitmapText')!.data.font).toBe(17);
+            lease.release();
+            expect(assets.sizes()).toMatchObject({ refRows: 0, registrySlots: 0, genericCached: 0 });
+        } finally { assets.releaseAll(); }
+    });
+});
 
 describe('an edge comes from the acquisition that made it', () => {
     beforeEach(() => { pool = createPoolFake(); });

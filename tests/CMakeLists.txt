@@ -4,6 +4,51 @@
 include_directories(${CMAKE_SOURCE_DIR}/third_party/doctest)
 
 # ECS tests
+add_executable(test_skeletal_batch_color renderer/test_skeletal_batch_color.cpp)
+target_include_directories(test_skeletal_batch_color PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_test(NAME test_skeletal_batch_color COMMAND test_skeletal_batch_color)
+
+add_executable(test_transform_traversal
+    ecs/test_transform_traversal.cpp
+    ${CMAKE_SOURCE_DIR}/src/esengine/core/Log.cpp
+)
+target_include_directories(test_transform_traversal PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/third_party/glm
+)
+add_test(NAME test_transform_traversal COMMAND test_transform_traversal)
+
+add_executable(test_tween_activity
+    ecs/test_tween_activity.cpp
+    ${CMAKE_SOURCE_DIR}/src/esengine/animation/TweenSystem.cpp
+    ${CMAKE_SOURCE_DIR}/src/esengine/core/Log.cpp
+)
+target_include_directories(test_tween_activity PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/third_party/glm
+)
+add_test(NAME test_tween_activity COMMAND test_tween_activity)
+
+add_executable(test_entity_activity
+    ecs/test_entity_activity.cpp
+    ${CMAKE_SOURCE_DIR}/src/esengine/core/Log.cpp
+)
+target_include_directories(test_entity_activity PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/third_party/glm
+)
+add_test(NAME test_entity_activity COMMAND test_entity_activity)
+
+add_executable(test_hierarchy_links
+    ecs/test_hierarchy_links.cpp
+    ${CMAKE_SOURCE_DIR}/src/esengine/core/Log.cpp
+)
+target_include_directories(test_hierarchy_links PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/third_party/glm
+)
+add_test(NAME test_hierarchy_links COMMAND test_hierarchy_links)
+
 add_executable(test_ecs
     ecs/test_registry.cpp
 )
@@ -322,6 +367,20 @@ target_include_directories(test_texture_cache PRIVATE
     ${CMAKE_SOURCE_DIR}/third_party/stb
 )
 add_test(NAME test_texture_cache COMMAND test_texture_cache)
+
+# The real resource pool and material store against the same device boundary.
+get_target_property(ES_TEXTURE_CACHE_SOURCES test_texture_cache SOURCES)
+list(REMOVE_ITEM ES_TEXTURE_CACHE_SOURCES resource/test_texture_cache.cpp)
+add_executable(test_material_shader_lifetime
+    resource/test_material_shader_lifetime.cpp
+    ${ES_TEXTURE_CACHE_SOURCES}
+    ${CMAKE_SOURCE_DIR}/src/esengine/renderer/store/MaterialStore.cpp
+)
+target_include_directories(test_material_shader_lifetime PRIVATE
+    ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/tests
+    ${CMAKE_SOURCE_DIR}/third_party/glm ${CMAKE_SOURCE_DIR}/third_party/stb
+)
+add_test(NAME test_material_shader_lifetime COMMAND test_material_shader_lifetime)
 
 # Persistent mesh identity across a device generation. Same shape as the texture
 # cache harness: the REAL ResourceManager.cpp against MockGfxDevice, so what it

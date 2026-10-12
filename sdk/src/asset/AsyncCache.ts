@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import { RuntimeConfig } from '../defaults';
 import { log } from '../util/logger';
+import { preparationFailureReason } from './dependencies';
 
 interface PendingEntry<T> {
     promise: Promise<T>;
@@ -26,6 +27,16 @@ export class AsyncCache<T> {
      *   invalidate()/clearAll(), whose in-flight results still reach the caller.
      */
     constructor(private dispose_?: (value: T) => void) {}
+
+    /** Current cooldown rejections; expired records retain no failure metadata. */
+    /** @internal Failed preparation provenance for source invalidation. */
+    *failures(): Generator<[string, Error]> {
+        const now = Date.now();
+        for (const [key, failure] of this.failed_) {
+            if (failure.expiry <= now) { this.failed_.delete(key); continue; }
+            yield [key, failure.error];
+        }
+    }
 
     async getOrLoad(key: string, loader: () => Promise<T>, timeout = RuntimeConfig.assetLoadTimeout): Promise<T> {
         const cached = this.cache_.get(key);
@@ -66,20 +77,24 @@ export class AsyncCache<T> {
                 () => { /* loader rejected — nothing to release */ },
             );
 
-            const result = await Promise.race([
-                loaderPromise,
-                new Promise<never>((_, reject) => {
-                    timer = setTimeout(() => {
-                        timedOut = true;
-                        entry.aborted = true;
-                        reject(new Error(`AsyncCache timeout: ${key} (${timeout}ms)`));
-                    }, timeout);
-                }),
-            ]);
+            let result: T;
+            try {
+                result = await Promise.race([
+                    loaderPromise,
+                    new Promise<never>((_, reject) => {
+                        timer = setTimeout(() => {
+                            timedOut = true;
+                            entry.aborted = true;
+                            reject(new Error(`AsyncCache timeout: ${key} (${timeout}ms)`));
+                        }, timeout);
+                    }),
+                ]);
+            } finally {
+                // Rejection also settles the race and no longer needs a deadline.
+                clearTimeout(timer);
+            }
 
-            // Loader won the race: cancel the deadline so it can't abort after
-            // the fact, then cache (unless invalidate() aborted it in-flight).
-            clearTimeout(timer);
+            // Cache unless invalidate() aborted this request in-flight.
             if (!entry.aborted) this.cache_.set(key, result);
             this.clearPendingIfCurrent_(key, entry);
             return result;
@@ -96,7 +111,7 @@ export class AsyncCache<T> {
             const current = this.pending_.get(key) === entry;
             if (current) {
                 this.pending_.delete(key);
-                if (err instanceof Error) {
+                if (err instanceof Error && preparationFailureReason(err) instanceof Error) {
                     this.failed_.set(key, { error: err, expiry: Date.now() + RuntimeConfig.assetFailureCooldown });
                 }
             }

@@ -45,6 +45,14 @@ export interface SkeletalSubmitCore {
         entity: number, skeletonScale: number, flipX: boolean, flipY: boolean,
         layer: number, depth: number, materialId: number,
     ): void;
+    renderer_submitSkeletalBatchByEntityEx?(
+        registry: unknown,
+        verticesPtr: number, vertexCount: number,
+        indicesPtr: number, indexCount: number,
+        textureId: number, blendMode: number,
+        entity: number, skeletonScale: number, flipX: boolean, flipY: boolean,
+        layer: number, depth: number, materialId: number, premultipliedColor: boolean,
+    ): void;
     _malloc?(size: number): number;
     _free?(ptr: number): void;
     HEAPU8?: Uint8Array;
@@ -68,14 +76,15 @@ export function submitEntityMeshes(
     materialOf?: SkeletalMaterialOf,
     probe?: SkeletalProbe,
 ): boolean {
-    const submit = core.renderer_submitSkeletalBatchByEntity;
+    const submitEx = core.renderer_submitSkeletalBatchByEntityEx;
+    const submit = submitEx ?? core.renderer_submitSkeletalBatchByEntity;
     const heap = core.HEAPU8;
     if (!submit || !heap || !core._malloc || !core._free) return false;
 
     const allocator = { _malloc: core._malloc, _free: core._free };
     const materialId = materialOf?.(entity) ?? 0;
     withScratch(allocator, alloc => {
-        walk((vertBytes, idxBytes, vertexCount, indexCount, textureId, blendMode) => {
+        walk((vertBytes, idxBytes, vertexCount, indexCount, textureId, blendMode, premultipliedColor) => {
             const dstVert = alloc(vertBytes.byteLength);
             const dstIdx = alloc(idxBytes.byteLength);
             heap.set(vertBytes, dstVert);
@@ -84,9 +93,12 @@ export function submitEntityMeshes(
                 probe.abi.submit++;
                 probe.bytes.coreWrite += vertBytes.byteLength + idxBytes.byteLength;
             }
-            submit.call(core, registry,
-                dstVert, vertexCount, dstIdx, indexCount,
-                textureId, blendMode, entity as number,
+            if (submitEx) submitEx.call(core, registry,
+                dstVert, vertexCount, dstIdx, indexCount, textureId, blendMode, entity as number,
+                props.skeletonScale, props.flipX, props.flipY, props.layer, 0, materialId,
+                premultipliedColor ?? (blendMode === 4 || blendMode === 5));
+            else core.renderer_submitSkeletalBatchByEntity!.call(core, registry,
+                dstVert, vertexCount, dstIdx, indexCount, textureId, blendMode, entity as number,
                 props.skeletonScale, props.flipX, props.flipY, props.layer, 0, materialId);
         });
     });

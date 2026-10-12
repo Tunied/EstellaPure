@@ -14,9 +14,9 @@
 //     component (the host's generated `es_<Component>_buffer(entity)` binding),
 //     viewed as F32/U32/U8, with offset 0.
 //
-// Same generated accessors, same POD layout (wasm32/arm64 layout-identical, per
-// the EHT ABI hash), two memory backends — this is the seam that lets the real
-// SDK component API run unchanged on both.
+// The native host exposes a buffer only when its compiler proves all accessed
+// offsets agree with wasm32 and the component is trivially copyable. Otherwise
+// resolution returns null and BuiltinBridge uses generated member bindings.
 
 import type { Entity } from '../../types';
 import type { CppRegistry, ESEngineModule } from '../../wasm';
@@ -126,8 +126,9 @@ export class NativeMemoryProvider implements MemoryProvider {
         return (entity: Entity, out: ComponentHeap): boolean => {
             const buf = bufFn(entity);
             if (!buf) return false;
-            out.f32 = new Float32Array(buf);
-            out.u32 = new Uint32Array(buf);
+            const words = Math.floor(buf.byteLength / 4);
+            out.f32 = new Float32Array(buf, 0, words);
+            out.u32 = new Uint32Array(buf, 0, words);
             out.u8 = new Uint8Array(buf);
             out.ptr = 0;
             return true;

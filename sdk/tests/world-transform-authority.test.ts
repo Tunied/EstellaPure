@@ -17,6 +17,22 @@ describe.skipIf(!HAS_WASM)('world transform authority', () => {
     let module: ESEngineModule;
     beforeAll(async () => { module = await loadWasmModule(); });
 
+    it('composes a legal hierarchy beyond the former 256-level cutoff', () => {
+        const registry = new module.Registry() as unknown as CppRegistry;
+        const app = App.new(); app.connectCpp(registry, module);
+        const world = app.world;
+        let parent: ReturnType<typeof world.spawn> | undefined;
+        for (let i = 0; i < 600; ++i) {
+            const child = world.spawn();
+            world.insert(child, Transform, { position: { x: 1, y: 0, z: 0 } });
+            if (parent !== undefined) world.setParent(child, parent);
+            parent = child;
+        }
+        world.ensureTransformsComposed();
+        expect(world.get(parent!, Transform).worldPosition.x).toBe(600);
+        world.disconnectCpp(); (registry as any).delete();
+    });
+
     /** A parent at 100 and a child 5 to its right, on a server with no renderer. */
     function parented() {
         const app = App.new();

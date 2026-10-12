@@ -17,6 +17,7 @@ import type { PlatformAdapter } from '../src/platform/types';
 import { cameraPlugin } from '../src/camera/CameraPlugin';
 import { CameraCommit, onCameraCommitChanged } from '../src/camera/CameraCommit';
 import { UICameraInfo } from '../src/ui/core/ui-camera-info';
+import { ScreenOverlay, defaultScreenOverlay } from '../src/ui/core/screen-overlay';
 import { RenderPipeline } from '../src/render/renderPipeline';
 import { setRendererBackend, type RendererBackend } from '../src/render/renderer';
 import { defineSystem, Schedule } from '../src/ecs/system';
@@ -83,6 +84,31 @@ describe('the camera a frame was drawn with', () => {
         // would send every overlay somewhere the frame never drew.
         expect(drawnWith).not.toBeNull();
         expect(Array.from(commit.viewProjection)).toEqual(Array.from(drawnWith!));
+    });
+
+    it('an offscreen camera cannot take over screen picking, commits or HUD layers', async () => {
+        const { app, cam } = bootWithCamera();
+        const registry = app.world.getCppRegistry() as unknown as Record<string, unknown> & CppRegistry;
+        app.insertResource(ScreenOverlay, defaultScreenOverlay());
+        app.world.update(cam, Camera, data => { data.cullingMask = 1; });
+        const offscreen = app.world.spawn('texture camera');
+        app.world.insert(offscreen, Transform, {
+            position: { x: 1000, y: 0, z: 0 }, worldPosition: { x: 1000, y: 0, z: 0 },
+        });
+        app.world.insert(offscreen, Camera, { isActive: true, renderTarget: 7, cullingMask: 2, orthoSize: 50 });
+        registry.getCameraEntities = () => [cam, offscreen];
+        expect(registry.getCamera(cam).cullingMask).toBe(1);
+        expect(registry.getCamera(offscreen).renderTarget).toBe(7);
+        await app.tick(1 / 60);
+        const ui = app.getResource(UICameraInfo);
+        expect(ui.viewProjection[12]).toBeCloseTo(0);
+        expect(app.getResource(CameraCommit).viewProjection[12]).toBeCloseTo(0);
+        expect(app.getResource(ScreenOverlay).layerMask).toBe(1);
+        registry.getCameraEntities = () => [offscreen];
+        await app.tick(1 / 60);
+        expect(app.getResource(UICameraInfo).valid).toBe(false);
+        expect(app.getResource(CameraCommit).valid).toBe(false);
+        expect(app.getResource(ScreenOverlay).layerMask).toBe(0xFFFFFFFF);
     });
 
     it('is a copy, so a later write cannot move it under a reader', async () => {

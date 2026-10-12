@@ -58,6 +58,37 @@ bool rematerialize(resource::ResourceManager& rm, resource::MeshHandle h, f32 ex
 }  // namespace
 
 int main() {
+    // Layout ownership follows the mesh through replacement, failure and shutdown.
+    {
+        MockGfxDevice d;
+        resource::ResourceManager rm;
+        rm.init(d);
+        const auto first = makeMesh(rm, MeshRecovery::SourceReplayable);
+        const auto second = makeMesh(rm, MeshRecovery::HostOnly);
+        const auto oldLayout = rm.getMesh(first)->layout;
+        const auto secondLayout = rm.getMesh(second)->layout;
+        CHECK(oldLayout != secondLayout, "identical mesh descriptions own distinct layouts");
+        CHECK(rematerialize(rm, first, 2.0f), "a mesh can replace its realization");
+        CHECK(d.vertexLayoutDesc(oldLayout) == nullptr,
+              "replacement releases the previous vertex layout");
+        const auto liveLayout = rm.getMesh(first)->layout;
+        const int deletedBeforeFailure = d.deleteVertexLayoutCalls;
+        d.createBufferSucceeds = false;
+        CHECK(!rematerialize(rm, first, 3.0f), "allocation failure refuses a replacement");
+        CHECK(d.deleteVertexLayoutCalls == deletedBeforeFailure + 1 &&
+                  d.vertexLayoutDesc(liveLayout) != nullptr,
+              "failed allocation releases its new layout and preserves the live one");
+        d.createBufferSucceeds = true;
+        rm.releaseMesh(first);
+        CHECK(d.vertexLayoutDesc(liveLayout) == nullptr && d.vertexLayoutDesc(secondLayout) != nullptr,
+              "releasing one mesh releases only its layout");
+        rm.shutdown();
+        CHECK(d.vertexLayoutDesc(secondLayout) == nullptr && rm.getMesh(second) == nullptr,
+              "shutdown releases remaining meshes and their layouts");
+        const int deleted = d.deleteVertexLayoutCalls;
+        rm.shutdown();
+        CHECK(d.deleteVertexLayoutCalls == deleted, "resource shutdown is idempotent");
+    }
     // --- The identity and its buffers survive; replayable geometry is owed ---
     {
         MockGfxDevice d;

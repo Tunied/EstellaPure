@@ -5,11 +5,13 @@
  *        (buildCameraInfo), including the newly-honored camera rotation. The POV
  *        is the decoupling point a camera director will blend over (Phase C).
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   buildCameraInfo, cameraFrustumCorners, snapToPixelGrid, type CameraPOV,
 } from '../src/camera/CameraPlugin';
 import { ProjectionType, ClearFlags } from '../src/ecs/component';
+import { RenderTexture } from '../src/render/renderTexture';
+import { Renderer } from '../src/render/renderer';
 
 function ndc(vp: Float32Array, x: number, y: number) {
   return { x: vp[0] * x + vp[4] * y + vp[12], y: vp[1] * x + vp[5] * y + vp[13] };
@@ -35,6 +37,41 @@ const pov = (over: Partial<CameraPOV>): CameraPOV => ({
 });
 
 describe('camera POV → view-projection', () => {
+  it('uses the target aspect and pixel grid for a portrait texture on a landscape screen', () => {
+    const create = vi.spyOn(Renderer, 'createRenderTarget').mockReturnValue(7);
+    const texture = vi.spyOn(Renderer, 'getTargetTexture').mockReturnValue(0);
+    const release = vi.spyOn(Renderer, 'releaseRenderTarget').mockImplementation(() => {});
+    const rt = RenderTexture.create({ width: 200, height: 400 });
+    let released = false;
+    try {
+      const cam = buildCameraInfo(pov({ renderTarget: rt._handle, orthoSize: 100, x: 0.3, pixelPerfect: true }), 800, 600, null, [], 0);
+      expect(cam.halfW).toBe(50);
+      expect(cam.cameraX).toBe(0.5); // 200 world units / 400 target pixels
+      const corner = ndc(cam.viewProjection, 50.5, 100);
+      expect(corner.x).toBeCloseTo(1);
+      expect(corner.y).toBeCloseTo(1);
+      RenderTexture.release(rt);
+      released = true;
+      const fallback = buildCameraInfo(pov({ renderTarget: rt._handle, orthoSize: 100 }), 800, 600, null, [], 0);
+      expect(fallback.halfW).toBeCloseTo(100 * 800 / 600);
+    } finally {
+      if (!released) RenderTexture.release(rt);
+      create.mockRestore(); texture.mockRestore(); release.mockRestore();
+    }
+  });
+
+  it.each([
+    { viewport: { x: 0.75, y: 0.75, z: 0.25, w: 0.25 } },
+    { renderTarget: 7 },
+  ])('keeps independent camera zoom under a screen fit (%j)', (over) => {
+    const fit = { designResolution: { x: 1920, y: 1080 }, scaleMode: 1, matchWidthOrHeight: 0.5 };
+    const cam = buildCameraInfo(pov({ orthoSize: 100, ...over }), 800, 600, fit, [], 0);
+    expect(cam.halfH).toBe(100);
+    expect(ndc(cam.viewProjection, 0, 100).y).toBeCloseTo(1);
+    const main = buildCameraInfo(pov({ orthoSize: 100 }), 800, 600, fit, [], 0);
+    expect(main.halfH).toBe(540);
+  });
+
   it('rotation 0 keeps the old translation-only view (center → clip origin)', () => {
     const cam = buildCameraInfo(pov({ x: 100, y: 50 }), 800, 600, null, [], 0);
     const c = ndc(cam.viewProjection, 100, 50);

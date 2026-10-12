@@ -7,6 +7,7 @@ import type {
     PrefabOverride,
 } from './types';
 import { cloneComponentData } from './clone';
+import { setOwn } from '../util/ownProperties';
 
 /**
  * The fields {@link applyOverrides} reads/writes. Both `ProcessedEntity` (a
@@ -53,7 +54,7 @@ export function applyOverrides(
                 if (override.componentType && override.propertyName !== undefined) {
                     const comp = entity.components.find(c => c.type === override.componentType);
                     if (comp) {
-                        comp.data[override.propertyName] = override.value;
+                        setOwn(comp.data, override.propertyName, cloneComponentData({ value: override.value }).value);
                     }
                 }
                 break;
@@ -104,7 +105,7 @@ export function applyOverrides(
             case 'metadata_set':
                 if (typeof override.metadataKey === 'string') {
                     if (!entity.metadata) entity.metadata = {};
-                    entity.metadata[override.metadataKey] = override.value;
+                    setOwn(entity.metadata, override.metadataKey, cloneComponentData({ value: override.value }).value);
                 }
                 break;
             case 'metadata_removed':

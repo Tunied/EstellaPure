@@ -85,6 +85,7 @@ export class DragonBonesPlugin implements Plugin {
 
     build(app: App): void {
         this.app_ = app;
+        const isActive = (e: Entity) => app.world.isEntityActive(e);
         app.insertResource(DragonBones, this.manager_);
 
         this.despawnUnsub_ = app.world.onDespawn((entity: Entity) => {
@@ -99,7 +100,7 @@ export class DragonBonesPlugin implements Plugin {
             const core = engineApi(app);
             app.pipeline?.addPreFlushCallback(registry => {
                 if (core) this.manager_?.submitMeshes(core, registry._cpp, (e) =>
-                    (app.world.tryGet(e, DragonBonesAnimation)?.material as number | undefined) ?? 0);
+                    (app.world.tryGet(e, DragonBonesAnimation)?.material as number | undefined) ?? 0, isActive);
             });
         }
 
@@ -114,8 +115,8 @@ export class DragonBonesPlugin implements Plugin {
                 const time = app.getResource(Time);
                 const manager = this.manager_;
                 if (!manager) return;
-                this.enableMirror_.sync(app.world, manager);
-                manager.updateAnimations(time?.delta ?? 0);
+                this.enableMirror_.sync(app.world, manager, isActive);
+                manager.updateAnimations(time?.delta ?? 0, isActive);
             },
         };
         // PreUpdate, like Spine: poses have to be current before anything that

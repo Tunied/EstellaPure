@@ -35,4 +35,12 @@ describe('SceneHandle', () => {
         const handle = new SceneHandle([1], []);
         expect(handle.isReleased).toBe(false);
     });
+
+    it('attempts every callback after one throws, and never retries a released scene', () => {
+        const error = new Error('scene cleanup failed'), other = vi.fn();
+        const handle = new SceneHandle([], [() => { throw error; }, other]);
+        expect(() => handle.release()).toThrow(error);
+        expect(other).toHaveBeenCalledOnce(); expect(handle.isReleased).toBe(true);
+        expect(() => handle.release()).not.toThrow(); expect(other).toHaveBeenCalledOnce();
+    });
 });

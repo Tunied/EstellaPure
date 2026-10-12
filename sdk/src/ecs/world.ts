@@ -20,6 +20,7 @@ import { rankByOrder, reorderMapByRank } from './entityOrder';
 import { worldEngineApi } from './bridge/engineApi';
 import { withScratch } from '../wasm/wasmScratch';
 import { log } from '../util/logger';
+import { hasOwn } from '../util/ownProperties';
 import { getDefaultContext, type EditorBridge } from './context';
 
 /** The slice of a core {@link World.applyEntityOrder} needs: the entry point plus
@@ -160,6 +161,7 @@ export class World {
     /** @see inactiveEntities_ */
     private inactive_: { set: Set<Entity> } | null = null;
     private inactiveVersion_ = -1;
+    private coreActivityEpoch_ = -1;
     private entities_ = new Map<Entity, number>();
     private indexGeneration_ = new Map<number, number>();  // index -> current generation (for isStale detection)
     private iterationDepth_ = 0;
@@ -168,6 +170,7 @@ export class World {
     private nextGeneration_ = 0;
     private spawnCallbacks_: Array<(entity: Entity) => void> = [];
     private despawnCallbacks_: Array<(entity: Entity) => void> = [];
+    private despawning_: Set<Entity> | null = null;
 
     /** @internal */
     get builtin(): BuiltinBridge {
@@ -188,12 +191,17 @@ export class World {
     ): void {
         this.addressOf_.clear();
         this.builtin_.connect(cppRegistry, module, options);
+        for (const e of this.scripts_.getStorageById(Disabled._id)?.keys() ?? []) cppRegistry.setEntityEnabled?.(e, false);
+        this.coreActivityEpoch_ = cppRegistry.activityEpoch?.() ?? -1;
+        this.queries_.markComponentDirty(Disabled._id);
     }
 
     /** @internal */
     disconnectCpp(): void {
         this.addressOf_.clear();
         this.builtin_.disconnect();
+        this.coreActivityEpoch_ = -1;
+        this.queries_.markComponentDirty(Disabled._id);
     }
 
     /** @internal Whether an engine core is bound — false in a pure-JS world. */
@@ -296,24 +304,58 @@ export class World {
                 'Use Commands to defer entity destruction until after iteration completes.'
             );
         }
-        if (!this.valid(entity)) return; // already gone (e.g. despawned as part of a subtree)
-
-        // Unlink from the parent (setParent-to-INVALID clears both sides), then
-        // tear down the whole subtree so no children are left orphaned + rendering.
+        if (!this.valid(entity) || this.despawning_?.has(entity)) return;
         const cppRegistry = this.builtin_.getCppRegistry();
-        if (cppRegistry && cppRegistry.hasParent(entity)) {
-            try { cppRegistry.setParent(entity, INVALID_ENTITY); }
-            catch (e) { handleWasmError(e, `despawn(detach ${entity})`); }
-        }
+        if (cppRegistry?.destructionPending?.(entity)) return;
         this.despawnSubtree_(entity, cppRegistry);
     }
 
     /** Depth-first teardown of `entity` and its descendants (children before parent). */
     private despawnSubtree_(entity: Entity, cppRegistry: CppRegistry | null): void {
-        for (const child of this.childEntitiesOf_(entity)) {
-            if (this.valid(child)) this.despawnSubtree_(child, cppRegistry);
+        const reserved = this.despawning_ ??= new Set<Entity>();
+        const owned: Entity[] = [], nativeOwned: Entity[] = [], postorder: Entity[] = [];
+        const stack: Array<{ entity: Entity; children: Entity[] | null; next: number }> = [
+            { entity, children: null, next: 0 },
+        ];
+        try {
+            // Reserve the whole subtree before callbacks run. It cannot escape
+            // through reparenting, receive new children, or be torn down twice
+            // by a re-entrant callback. Snapshot each child list just once.
+            while (stack.length) {
+                const frame = stack[stack.length - 1];
+                if (frame.children === null) {
+                    if (!this.valid(frame.entity) || reserved.has(frame.entity)
+                        || cppRegistry?.destructionPending?.(frame.entity)) { stack.pop(); continue; }
+                    reserved.add(frame.entity); owned.push(frame.entity);
+                    frame.children = this.childEntitiesOf_(frame.entity, true);
+                }
+                if (frame.next < frame.children.length) {
+                    stack.push({ entity: frame.children[frame.next++], children: null, next: 0 });
+                } else {
+                    postorder.push(frame.entity); stack.pop();
+                }
+            }
+            if (cppRegistry && cppRegistry.hasParent(entity)) {
+                try { cppRegistry.setParent(entity, INVALID_ENTITY); }
+                catch (e) { handleWasmError(e, `despawn(detach ${entity})`); }
+            }
+            // Detach before taking native ownership: setParent also rejects
+            // reserved entities. The same core guard then protects raw registry
+            // calls and native teardown invoked from an SDK callback.
+            if (cppRegistry?.reserveDestruction && cppRegistry.releaseDestruction) {
+                for (const current of owned) {
+                    if (cppRegistry.reserveDestruction(current)) nativeOwned.push(current);
+                }
+            }
+            for (const current of postorder) if (this.valid(current)) this.despawnOne_(current, cppRegistry);
+        } finally {
+            for (const current of nativeOwned) cppRegistry!.releaseDestruction!(current);
+            for (const current of owned) reserved.delete(current);
+            if (reserved.size === 0) this.despawning_ = null;
         }
+    }
 
+    private despawnOne_(entity: Entity, cppRegistry: CppRegistry | null): void {
         notifyBridge('onEntityDespawned', entity);
 
         for (const cb of this.despawnCallbacks_) {
@@ -374,10 +416,12 @@ export class World {
      * per-entity side table is cleaned up from.
      */
     onDespawn(callback: (entity: Entity) => void): () => void {
-        this.despawnCallbacks_.push(callback);
+        // Copy on subscription changes, so self-unsubscription during a
+        // notification cannot skip the next observer. Dispatch allocates nothing.
+        this.despawnCallbacks_ = [...this.despawnCallbacks_, callback];
         return () => {
             const idx = this.despawnCallbacks_.indexOf(callback);
-            if (idx !== -1) this.despawnCallbacks_.splice(idx, 1);
+            if (idx !== -1) this.despawnCallbacks_ = this.despawnCallbacks_.filter((_, i) => i !== idx);
         };
     }
 
@@ -385,6 +429,18 @@ export class World {
      *  despawned one alike — {@link isStale} tells the two apart. */
     valid(entity: Entity): boolean {
         return this.entities_.has(entity);
+    }
+
+    /** @internal True throughout subtree teardown, including queued ancestors. */
+    isDestructionPending(entity: Entity): boolean {
+        return !!this.despawning_?.has(entity)
+            || !!this.builtin_.getCppRegistry()?.destructionPending?.(entity);
+    }
+
+    /** Effective activity, including ancestors; unlike valid(), an inactive
+     * entity remains available for inspection, cleanup and serialization. */
+    isEntityActive(entity: Entity): boolean {
+        return this.valid(entity) && !this.inactiveEntities_()?.has(entity);
     }
 
     /**
@@ -436,6 +492,7 @@ export class World {
 
     /** @internal Structural version the query cache invalidates against. */
     getWorldVersion(): number {
+        this.syncActivityEpoch_();
         return this.queries_.structuralVersion;
     }
 
@@ -570,27 +627,43 @@ export class World {
         }
     }
 
-    /**
-     * Make `child` a child of `parent`. This is the side to write — the engine
-     * keeps {@link Parent} and {@link Children} in step from here, and a transform
-     * composes against whatever this names.
-     */
+    /** Keep {@link Parent} and {@link Children} consistent when reparenting. */
     setParent(child: Entity, parent: Entity): void {
+        this.trySetParent(child, parent);
+    }
+
+    /** Reject invalid relationships without changing hierarchy or notifications. */
+    trySetParent(child: Entity, parent: Entity): boolean {
+        if (parent === (0xFFFFFFFF as Entity)) parent = INVALID_ENTITY;
+        if (this.despawning_?.has(child) || this.despawning_?.has(parent)) return false;
+        if (!this.valid(child) || (parent !== INVALID_ENTITY && !this.valid(parent))) return false;
         const cppRegistry = this.builtin_.getCppRegistry();
         if (cppRegistry) {
             try {
-                cppRegistry.setParent(child, parent);
+                const previous = cppRegistry.hasParent(child) ? cppRegistry.getParent(child).entity : INVALID_ENTITY;
+                if (previous === parent) {
+                    return !cppRegistry.destructionPending?.(child) && !cppRegistry.destructionPending?.(parent);
+                }
+                // New cores return acceptance. A legacy void host remains
+                // compatible; only an explicit rejection prevents bookkeeping.
+                if (cppRegistry.setParent(child, parent) === false) return false;
             } catch (e) {
                 handleWasmError(e, `setParent(child=${child}, parent=${parent})`);
+                return false;
             }
         }
-        this.trackHierarchyWrite_(child, parent);
-        notifyBridge('onParentChanged', child, parent);
+        const linkedParent = parent === INVALID_ENTITY ? null : parent;
+        this.trackHierarchyWrite_(child, linkedParent);
+        notifyBridge('onParentChanged', child, linkedParent);
+        return true;
     }
 
     /** Detach `entity` from its parent, leaving its own children attached to it. */
     removeParent(entity: Entity): void {
+        if (this.despawning_?.has(entity)) return;
+        if (!this.valid(entity)) return;
         const cppRegistry = this.builtin_.getCppRegistry();
+        if (cppRegistry?.destructionPending?.(entity)) return;
         if (cppRegistry) {
             try {
                 cppRegistry.removeParent(entity);
@@ -603,16 +676,23 @@ export class World {
     }
 
     /** `entity`'s children, snapshotted out of the wasm vector that holds them. */
-    private childEntitiesOf_(entity: Entity): Entity[] {
+    private childEntitiesOf_(entity: Entity, strict = false): Entity[] {
         const cppRegistry = this.builtin_.getCppRegistry();
         if (!cppRegistry || !cppRegistry.hasChildren(entity)) return [];
         const children: Entity[] = [];
         try {
             // Snapshot then free the wasm VectorEntity (it leaks if left alive).
             const vec = cppRegistry.getChildren(entity).entities;
-            for (let i = 0; i < vec.size(); i++) children.push(vec.get(i) as Entity);
-            vec.delete();
-        } catch (e) { handleWasmError(e, `getChildren(entity=${entity})`); }
+            try {
+                const count = vec.size();
+                for (let i = 0; i < count; i++) children.push(vec.get(i) as Entity);
+            } finally { vec.delete(); }
+        } catch (e) {
+            handleWasmError(e, `getChildren(entity=${entity})`);
+            // A partial snapshot is unsafe for deletion: it would remove the
+            // parent while leaving unread children alive with dangling links.
+            if (strict) throw e;
+        }
         return children;
     }
 
@@ -626,11 +706,11 @@ export class World {
                 return { entity: INVALID_ENTITY };
             }
             this.setParent(entity, parent);
-            return { entity: parent };
+            return this.has(entity, Parent) ? this.get(entity, Parent) : { entity: INVALID_ENTITY };
         }
         const listed = (data as Partial<ChildrenData> | undefined)?.entities ?? [];
         for (const child of listed) this.setParent(child as Entity, entity);
-        return { entities: [...listed] };
+        return { entities: this.builtin_.hasCpp ? this.childEntitiesOf_(entity) : [...listed] };
     }
 
     private isHierarchyComponent_(component: AnyComponentDef): boolean {
@@ -715,7 +795,7 @@ export class World {
                     const raw = data as Record<string, unknown>;
                     let wasmData = raw;
                     for (const k of Object.keys(raw)) {
-                        if (!(k in defaults)) {
+                        if (!hasOwn(defaults, k)) {
                             if (wasmData === raw) wasmData = { ...raw };
                             delete wasmData[k];
                         }
@@ -918,6 +998,7 @@ export class World {
             this.names_.remove(entity);
         }
         this.scripts_.remove(entity, component);
+        if (component._id === Disabled._id) this.builtin_.getCppRegistry()?.setEntityEnabled?.(entity, true);
         this.changes_.recordRemoved(component, entity);
         this.queries_.markComponentDirty(component._id);
         this.queries_.markStructuralChange();
@@ -1043,6 +1124,10 @@ export class World {
      * when the tag or the hierarchy moves; free when nothing is switched off.
      */
     private inactiveEntities_(): { has(entity: Entity): boolean } | null {
+        const core = this.builtin_.getCppRegistry();
+        if (core?.isEntityActive && core.hasInactiveEntities) {
+            return core.hasInactiveEntities() ? { has: e => !core.isEntityActive!(e) } : null;
+        }
         const storage = this.scripts_.getStorageById(Disabled._id);
         if (!storage || storage.size === 0) return null;
         // One version covers both halves: a re-parent in a world that has anything
@@ -1121,13 +1206,7 @@ export class World {
         filter?: QueryFilter,
         precomputedDepIds?: symbol[],
     ): readonly Entity[] {
-        if (
-            components.length === 0 && withFilters.length === 0 &&
-            withoutFilters.length === 0 && !filter
-        ) {
-            return this.getAllEntities();
-        }
-
+        this.syncActivityEpoch_();
         const cacheKey = precomputedKey ?? computeQueryCacheKey(components, withFilters, withoutFilters);
         // The dep-id set is static per query; QueryInstance precomputes it (incl.
         // filter deps) so cache-hit iteration allocates nothing here.
@@ -1373,10 +1452,20 @@ export class World {
      * here whether or not the fast pointer setter moved the bytes.
      */
     private recordComponentWrite_(entity: Entity, component: AnyComponentDef): void {
+        if (component._id === Disabled._id) this.builtin_.getCppRegistry()?.setEntityEnabled?.(entity, false);
         if (COMPOSITION_INPUTS.has(component._name)) {
             this.builtin_.invalidateTransformComposition();
         }
         this.changes_.recordChanged(component, entity);
+    }
+
+    private syncActivityEpoch_(): void {
+        const epoch = this.builtin_.getCppRegistry()?.activityEpoch?.();
+        if (epoch === undefined || epoch === this.coreActivityEpoch_) return;
+        if (this.coreActivityEpoch_ === -1) { this.coreActivityEpoch_ = epoch; return; }
+        this.coreActivityEpoch_ = epoch;
+        this.queries_.markComponentDirty(Disabled._id);
+        this.queries_.markStructuralChange();
     }
 
     /** @internal Say composed world transforms are stale, for a producer that
@@ -1454,8 +1543,8 @@ export class World {
      * installs linear memory here BEFORE any component is added, because
      * compiled code cannot reach a JS-heap array.
      */
-    useScriptPoolMemory(memory: PoolMemory): void {
-        this.scripts_.usePoolMemory(memory);
+    useScriptPoolMemory(memory: PoolMemory, validateOnly = false): void {
+        this.scripts_.usePoolMemory(memory, validateOnly);
     }
 
     /**
@@ -1506,6 +1595,17 @@ export class World {
         return this.scripts_.poolFor(component._id as symbol)?.span();
     }
 
+    /** @internal Whether script rows still carry a portable asset reference. */
+    hasPortableScriptAssetRefs(component: AnyComponentDef): boolean {
+        return this.scripts_.hasPortableAssetRefs(component._id as symbol);
+    }
+
+    /** @internal Release script memory after its application stops using it. */
+    releaseScriptPools(): void {
+        this.addressOf_.clear();
+        this.scripts_.releasePools();
+    }
+
     /**
      * @internal The same answer as a function, for a caller with a whole column
      * to walk: the lookup above is per entity, and a loop that pays it per row is
@@ -1538,6 +1638,7 @@ const NO_ADDRESS = (): undefined => undefined;
 function scriptAddress(scripts: ScriptStorage, id: symbol): (entity: Entity) => number | undefined {
     let pool: ScriptPool | undefined;
     return (entity: Entity) => {
+        if (pool?.disposed) pool = undefined;
         pool ??= scripts.poolFor(id);
         return pool?.address(entity);
     };

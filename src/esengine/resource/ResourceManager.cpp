@@ -67,8 +67,14 @@ void ResourceManager::shutdown() {
     guidToTexture_.clear();
     textureMetadata_.clear();
     fonts_.clear();
+    std::vector<ShaderHandle> retiredShaders;
+    shaders_.forEachAlive([&](ShaderHandle handle, const Shader&) { retiredShaders.push_back(handle); });
     shaders_.clear();
+    if (shaderRetiredCallback_) for (ShaderHandle handle : retiredShaders) shaderRetiredCallback_(shaderRetiredOwner_, handle);
     textures_.clear();
+    std::vector<MeshHandle> retiredMeshes;
+    meshes_.forEachAlive([&](MeshHandle handle, const Mesh&) { retiredMeshes.push_back(handle); });
+    for (MeshHandle handle : retiredMeshes) releaseMesh(handle);
     vertexBuffers_.clear();
     indexBuffers_.clear();
 
@@ -181,7 +187,9 @@ const Shader* ResourceManager::getShader(ShaderHandle handle) const {
 
 void ResourceManager::releaseShader(ShaderHandle handle) {
     if (handle.isValid()) {
+        const bool final = shaders_.getRefCount(handle) == 1;
         shaders_.release(handle.id());
+        if (final && shaderRetiredCallback_) shaderRetiredCallback_(shaderRetiredOwner_, handle);
     }
 }
 
@@ -599,11 +607,13 @@ bool ResourceManager::realizeMesh(Mesh& mesh, ConstSpan<u8> vertexBytes, ConstSp
         || ib->handle() == BufferHandle::Invalid || layoutHandle == VertexLayoutHandle::Invalid) {
         releaseVertexBuffer(vertices);
         releaseIndexBuffer(indices_handle);
+        device_->deleteVertexLayout(layoutHandle);
         return false;
     }
 
     releaseVertexBuffer(previousVertices);
     releaseIndexBuffer(previousIndices);
+    device_->deleteVertexLayout(mesh.layout);
 
     mesh.vertices = vertices;
     mesh.indices = indices_handle;
@@ -765,8 +775,8 @@ std::vector<MeshHandle> ResourceManager::meshesAwaitingRematerialization() const
 void ResourceManager::releaseMesh(MeshHandle handle) {
     Mesh* mesh = meshes_.get(handle);
     if (!mesh) return;
-    // The buffers are the mesh's own, so they go with it; the layout is not, since
-    // createVertexLayout caches by description and other meshes share the result.
+    // The RHI creates a distinct layout for each realization, owned by this mesh.
+    if (device_) device_->deleteVertexLayout(mesh->layout);
     releaseVertexBuffer(mesh->vertices);
     releaseIndexBuffer(mesh->indices);
     // The delta texture IS the mesh's own — nothing shares it, unlike the layout.

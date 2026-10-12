@@ -78,12 +78,13 @@ export function setEntityActive(world: World, entity: Entity, active: boolean): 
     } else if (!world.has(entity, Disabled)) {
         world.insert(entity, Disabled, {});
     }
+    world.getCppRegistry()?.setEntityEnabled?.(entity, active);
 }
 
 /** Whether this entity ITSELF is switched on. An ancestor's switch takes it out
  *  of every query without changing this — see {@link setEntityActive}. */
 export function isEntityActive(world: World, entity: Entity): boolean {
-    return !world.has(entity, Disabled);
+    return world.valid(entity) && (world.getCppRegistry()?.isEntityEnabled?.(entity) ?? !world.has(entity, Disabled));
 }
 
 /**

@@ -14,7 +14,7 @@ import { getComponent, Name, Camera, RuntimeOnly } from '../ecs/component';
 import { deepClone } from '../util/deepClone';
 import { discoverSceneAssets } from '../asset/discoverAssets';
 import { requireResourceManager } from '../wasm/resourceManager';
-import { validateComponentData, formatValidationErrors, assetFieldNames } from '../util/validation';
+import { validateComponentData, formatValidationErrors } from '../util/validation';
 import { log } from '../util/logger';
 import { ESTELLA_SCENE_GENERATOR } from '../util/provenance';
 import {
@@ -413,6 +413,13 @@ export { RENAMED_COMPONENT_TYPES } from './legacyComponents';
  * loading never mutates the caller's object (snapshots can be reloaded).
  */
 export function migrateSceneData(raw: SceneData): SceneMigrationResult {
+    const fromVersion = checkSceneFormat(raw);
+    // Public inputs remain caller-owned. Internal builders can hand over their
+    // fresh private records to the same normalization without copying them twice.
+    return migrateOwnedSceneData(JSON.parse(JSON.stringify(raw)) as SceneData, fromVersion);
+}
+
+function checkSceneFormat(raw: SceneData): number {
     if (!raw || typeof raw !== 'object' || !Array.isArray(raw.entities)) {
         throw new Error('Scene data must have an "entities" array');
     }
@@ -424,10 +431,10 @@ export function migrateSceneData(raw: SceneData): SceneMigrationResult {
         );
     }
 
-    // Scene data is plain JSON — JSON clone is safe on every platform and frees
-    // the migrations/loader below to mutate without touching the caller's input.
-    const data: SceneData = JSON.parse(JSON.stringify(raw)) as SceneData;
+    return fromVersion;
+}
 
+function migrateOwnedSceneData(data: SceneData, fromVersion = checkSceneFormat(data)): SceneMigrationResult {
     let migrated = false;
     const retired = new Set<string>();
     for (const entity of data.entities) {
@@ -486,23 +493,22 @@ function spawnAndLoadEntities(
     checkLoadable(sceneData);
     if (onPhase) onPhase('spawn.validate', since());
     const entityMap = new Map<number, Entity>();
-
-    for (const entityData of sceneData.entities) {
-        if (entityData.visible === false) continue;
-        // A prefab-instance entry reaching here means the synchronous path was
-        // used on an unexpanded prefab scene — it has no spawnable components.
-        // Skip it (loadSceneWithAssets is the supported prefab-scene path).
-        if (isPrefabEntry(entityData)) {
-            log.warn('scene', 'Prefab-instance entry skipped in synchronous load; use loadSceneWithAssets to load prefab scenes');
-            continue;
-        }
-        const entity = world.spawn();
-        entityMap.set(entityData.id, entity);
-        world.insert(entity, Name, { value: entityData.name });
-    }
-    if (onPhase) onPhase('spawn.entities', since());
-
     try {
+        for (const entityData of sceneData.entities) {
+            if (entityData.visible === false) continue;
+            // A prefab-instance entry reaching here means the synchronous path was
+            // used on an unexpanded prefab scene — it has no spawnable components.
+            // Skip it (loadSceneWithAssets is the supported prefab-scene path).
+            if (isPrefabEntry(entityData)) {
+                log.warn('scene', 'Prefab-instance entry skipped in synchronous load; use loadSceneWithAssets to load prefab scenes');
+                continue;
+            }
+            const entity = world.spawn();
+            entityMap.set(entityData.id, entity);
+            world.insert(entity, Name, { value: entityData.name });
+        }
+        if (onPhase) onPhase('spawn.entities', since());
+
         // By component TYPE, because "component writes" is a rename of the total
         // and not an answer: which writes reach a subsystem, and which are field
         // validation, is the difference between a mechanism and a number.
@@ -581,12 +587,7 @@ export async function loadSceneWithAssets(
     sceneData: SceneData,
     options?: SceneLoadOptions
 ): Promise<Map<number, Entity>> {
-    const onPhase = options?.onPhase;
-    const timed = async <T>(phase: string, run: () => Promise<T> | T): Promise<T> => {
-        if (!onPhase) return run();
-        const began = performance.now();
-        try { return await run(); } finally { onPhase(phase, performance.now() - began); }
-    };
+    const timed = scenePhaseRunner(options?.onPhase);
     // Expand prefab-instance entries first (via the same flattenPrefab core the
     // editor uses) so migration + asset resolution + spawn all operate on plain
     // entities — this is how a saved prefab scene achieves play == ship. The
@@ -607,6 +608,36 @@ export async function loadSceneWithAssets(
     // Migrate up-front to a private copy; asset resolution + spawn all operate
     // on it, so the caller's SceneData is never mutated.
     const { data } = migrateSceneData(scene);
+    return loadSceneAssetsAndSpawn(world, data, options, timed);
+}
+
+/**
+ * Consume fresh private scene records from an internal builder. The builder must
+ * have copied every mutable component and override value before handing them
+ * over. Validation, migrations, asset resolution and spawning are shared with
+ * the public scene loader; only its caller-protection copy is already paid.
+ * @internal
+ */
+export async function loadOwnedSceneWithAssets(
+    world: World, scene: SceneData, options?: SceneLoadOptions,
+): Promise<Map<number, Entity>> {
+    const timed = scenePhaseRunner(options?.onPhase);
+    const { data } = migrateOwnedSceneData(scene);
+    return loadSceneAssetsAndSpawn(world, data, options, timed);
+}
+
+function scenePhaseRunner(onPhase?: ScenePhaseSink) {
+    return async <T>(phase: string, run: () => Promise<T> | T): Promise<T> => {
+        if (!onPhase) return run();
+        const began = performance.now();
+        try { return await run(); } finally { onPhase(phase, performance.now() - began); }
+    };
+}
+
+async function loadSceneAssetsAndSpawn(
+    world: World, data: SceneData, options: SceneLoadOptions | undefined,
+    timed: <T>(phase: string, run: () => Promise<T> | T) => Promise<T>,
+): Promise<Map<number, Entity>> {
     if (options?.assets) {
         const assets = options.assets;
         const result = await timed('assets', () => assets.preloadSceneAssets(data, options.onProgress));
@@ -628,7 +659,9 @@ export async function loadSceneWithAssets(
             }
         }
     }
-    return timed('spawn', () => spawnAndLoadEntities(world, data, options?.externalEntities, onPhase));
+    const entities = timed('spawn', () => spawnAndLoadEntities(world, data, options?.externalEntities, options?.onPhase));
+    options?.assets?.trackSceneAssetReferences(data, entities);
+    return entities;
 }
 
 function applyTextureMetadata(sceneData: SceneData, textureHandles: Map<string, number>): void {
@@ -670,7 +703,7 @@ export function loadComponent(world: World, entity: Entity, compData: SceneCompo
     // Asset-ref fields validate leniently: their serialized string ref and runtime
     // numeric handle are both legal (a Tiled-imported Tilemap's `source: 0` == "none").
     const context = entityName ? ` (entity "${entityName}")` : '';
-    const errors = validateComponentData(compData.type, comp._default as Record<string, unknown>, compData.data, assetFieldNames(comp));
+    const errors = validateComponentData(compData.type, comp._default as Record<string, unknown>, compData.data, comp.assetFields);
     if (errors.length > 0) {
         // Salvage, not sacrifice: deserialized data is the one input the strict
         // storage validators must not veto wholesale — drop the invalid fields so

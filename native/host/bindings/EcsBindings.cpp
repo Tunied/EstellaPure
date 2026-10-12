@@ -48,8 +48,32 @@ JSValue js_destroyEntity(JSContext* ctx, JSValueConst, int, JSValueConst* argv) 
     return JS_UNDEFINED;
 }
 JSValue js_setParent(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
-    ecs::setParent(*host().registry, esn_entity(ctx, argv[0]), esn_entity(ctx, argv[1]));
+    return JS_NewBool(ctx, ecs::setParent(*host().registry, esn_entity(ctx, argv[0]), esn_entity(ctx, argv[1])));
+}
+JSValue js_reserveDestruction(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
+    return JS_NewBool(ctx, host().registry->reserveDestruction(esn_entity(ctx, argv[0])));
+}
+JSValue js_releaseDestruction(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
+    host().registry->releaseDestruction(esn_entity(ctx, argv[0]));
     return JS_UNDEFINED;
+}
+JSValue js_destructionPending(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
+    return JS_NewBool(ctx, host().registry->destructionPending(esn_entity(ctx, argv[0])));
+}
+JSValue js_setEntityEnabled(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
+    return JS_NewBool(ctx, host().registry->setEntityEnabled(esn_entity(ctx, argv[0]), JS_ToBool(ctx, argv[1]) != 0));
+}
+JSValue js_isEntityActive(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
+    return JS_NewBool(ctx, host().registry->isEntityActive(esn_entity(ctx, argv[0])));
+}
+JSValue js_isEntityEnabled(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
+    return JS_NewBool(ctx, host().registry->isEntityEnabled(esn_entity(ctx, argv[0])));
+}
+JSValue js_hasInactiveEntities(JSContext* ctx, JSValueConst, int, JSValueConst*) {
+    return JS_NewBool(ctx, host().registry->hasInactiveEntities());
+}
+JSValue js_activityEpoch(JSContext* ctx, JSValueConst, int, JSValueConst*) {
+    return JS_NewUint32(ctx, host().registry->activityEpoch());
 }
 JSValue js_hasParent(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
     return JS_NewBool(ctx, host().registry->has<ecs::Parent>(esn_entity(ctx, argv[0])));
@@ -168,6 +192,14 @@ void registerEcsBindings(HostState& h, JSValue global) {
     bindGlobal(h, global, "es_createEntity", js_createEntity, 0);
     bindGlobal(h, global, "es_destroyEntity", js_destroyEntity, 1);
     bindGlobal(h, global, "es_setParent", js_setParent, 2);
+    bindGlobal(h, global, "es_reserveDestruction", js_reserveDestruction, 1);
+    bindGlobal(h, global, "es_releaseDestruction", js_releaseDestruction, 1);
+    bindGlobal(h, global, "es_destructionPending", js_destructionPending, 1);
+    bindGlobal(h, global, "es_setEntityEnabled", js_setEntityEnabled, 2);
+    bindGlobal(h, global, "es_isEntityActive", js_isEntityActive, 1);
+    bindGlobal(h, global, "es_isEntityEnabled", js_isEntityEnabled, 1);
+    bindGlobal(h, global, "es_hasInactiveEntities", js_hasInactiveEntities, 0);
+    bindGlobal(h, global, "es_activityEpoch", js_activityEpoch, 0);
     bindGlobal(h, global, "es_hasParent", js_hasParent, 1);
     bindGlobal(h, global, "es_getParent", js_getParent, 1);
     bindGlobal(h, global, "es_removeParent", js_removeParent, 1);

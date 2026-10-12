@@ -20,6 +20,7 @@
  */
 
 import { POOL_SLOT_BYTES, type PoolBlock, type PoolMemory } from '../ScriptPool';
+import { disposeAll } from '../../util/disposeAll';
 import {
     resourceBitSource, resourceBlockBytes, resourceLayout, type ResourceMember,
 } from '../resourceShapes';
@@ -35,6 +36,7 @@ export type ResourceReader = (name: string) => Readonly<Record<string, unknown>>
 export class AotResources {
     private readonly blocks = new Map<string, PoolBlock>();
     private readonly views = new Map<string, Uint8Array>();
+    private disposed = false;
 
     constructor(
         private readonly memory: PoolMemory,
@@ -69,6 +71,7 @@ export class AotResources {
      * undefined when the resource has no layout or the world has no value.
      */
     addressOf(name: string): number | undefined {
+        if (this.disposed) throw new Error('AotResources is disposed');
         const layout = this.layoutOf(name);
         if (!layout) return undefined;
         const value = this.read(name);
@@ -146,8 +149,10 @@ export class AotResources {
     }
 
     dispose(): void {
-        for (const block of this.blocks.values()) this.memory.release(block);
+        this.disposed = true;
+        const blocks = [...this.blocks.values()];
         this.blocks.clear();
         this.views.clear();
+        disposeAll(blocks, block => this.memory.release(block));
     }
 }

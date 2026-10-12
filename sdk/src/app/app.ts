@@ -11,7 +11,7 @@ import type { QualityConfig } from '../render/quality';
 import { Schedule, SystemDef, SystemRunner, SystemSet, mergeOrderingEdges, rescopeSystem, type RunCondition } from '../ecs/system';
 import { builtinResource, declaredResource, ResourceStorage, Time, TimeData, type ResourceDef } from '../ecs/resource';
 import { Speculation, SpeculationInstance } from '../ecs/speculation';
-import { installAot, prepareAot, type AotHost } from '../ecs/aot/installAot';
+import { prepareAot, type AotHost } from '../ecs/aot/installAot';
 import { installNativeAot, nativeAotBindings } from '../ecs/aot/installNativeAot';
 import { createNativeHeap } from '../ecs/bridge/nativeHeap';
 import type { AotManifest } from '../ecs/aot/AotSystems';
@@ -71,6 +71,8 @@ export interface Plugin {
     profileDomain?: string;
     build(app: App): void;
     finish?(app: App): void;
+    /** Releases acquired resources on quit or a failed build; must tolerate a
+     * partially completed build. */
     cleanup?(app?: App): void;
 }
 
@@ -169,8 +171,10 @@ export class App {
     private nextCapFrameAt_ = 0;
 
     private module_: ESEngineModule | null = null;
+    private ownedCppRegistry_: CppRegistry | null = null;
     private pipeline_: RenderPipeline | null = null;
     private spineInitPromise_?: Promise<unknown>;
+    private compiledInstallTail_: Promise<void> = Promise.resolve();
     private readonly installed_plugins_: Plugin[] = [];
     private readonly installedPluginSet_ = new Set<Plugin>();
     private readonly installedPluginNames_ = new Set<string>();
@@ -181,6 +185,8 @@ export class App {
     private buildingPlugin_: string | null = null;
     /** The cost domain of that plugin, which is its name unless it declared one. */
     private buildingDomain_: string | null = null;
+    /** Registration undo actions for the current build; nested builds own theirs. */
+    private buildRollback_: Array<() => void> | null = null;
     private addingBundleSystems_ = false;
     // The realm's acquirer for optional native modules (physics, spine). Set once
     // at app creation; physics/spine self-gate off it. Null in headless/test apps.
@@ -257,6 +263,7 @@ export class App {
     }
 
     addPlugin(plugin: Plugin): this {
+        if (this.quitting_) throw new Error('Cannot install plugins while App.quit is running');
         if (this.installedPluginSet_.has(plugin)) return this;
         if (plugin.dependencies) {
             for (const dep of plugin.dependencies) {
@@ -288,6 +295,10 @@ export class App {
         }
         const prevBuilding = this.buildingPlugin_;
         const prevDomain = this.buildingDomain_;
+        const prevRollback = this.buildRollback_;
+        const rollback: Array<() => void> = [];
+        const buildEpoch = this.quitEpoch_;
+        this.buildRollback_ = rollback;
         this.buildingPlugin_ = plugin.name ?? null;
         this.buildingDomain_ = plugin.profileDomain ?? plugin.name ?? null;
         try {
@@ -297,20 +308,41 @@ export class App {
             if (plugin.name && this.subsystems_.phaseOf(plugin.name) === 'registered') {
                 this.subsystems_.transition(plugin.name, 'ready');
             }
+            // A child installed inside this build remains provisional until the
+            // enclosing build commits. Pre-existing plugins never reach here.
+            prevRollback?.push(() => this.rollbackPluginBuild_(plugin, rollback, buildEpoch,
+                'Enclosing plugin build failed'));
         } catch (e) {
-            this.installedPluginSet_.delete(plugin);
-            this.installed_plugins_.pop();
-            if (plugin.name) {
-                this.installedPluginNames_.delete(plugin.name);
-                // Keep the errored (now-uninstalled) entry so the failure stays visible.
-                this.subsystems_.markError(plugin.name, e instanceof Error ? e.message : String(e));
-            }
+            this.buildRollback_ = null;
+            this.rollbackPluginBuild_(plugin, rollback, buildEpoch, e instanceof Error ? e.message : String(e));
             throw e;
         } finally {
             this.buildingPlugin_ = prevBuilding;
             this.buildingDomain_ = prevDomain;
+            this.buildRollback_ = prevRollback;
         }
         return this;
+    }
+
+    private rollbackPluginBuild_(plugin: Plugin, rollback: Array<() => void>, epoch: number, reason: string): void {
+        this.installedPluginSet_.delete(plugin);
+        const index = this.installed_plugins_.indexOf(plugin);
+        if (index >= 0) this.installed_plugins_.splice(index, 1);
+        if (plugin.name) {
+            if (!this.installed_plugins_.some(p => p.name === plugin.name)) this.installedPluginNames_.delete(plugin.name);
+            this.subsystems_.markError(plugin.name, reason);
+        }
+        // Child resources are released before their parent's, matching quit.
+        // Withdraw systems even if resource cleanup throws.
+        for (let i = rollback.length - 1; i >= 0 && this.quitEpoch_ === epoch; i--) {
+            try { rollback[i](); } catch (rollbackError) {
+                log.error('app', 'Failed plugin registration rollback error', rollbackError);
+            }
+        }
+        // Already removed above: a cleanup that quits cannot clean this twice.
+        try { if (index >= 0) plugin.cleanup?.(this); } catch (cleanupError) {
+            log.error('app', 'Failed plugin build cleanup error', cleanupError);
+        }
     }
 
     addEvent<T>(event: EventDef<T>): this {
@@ -368,9 +400,7 @@ export class App {
     ): this {
         const name = system._name || `System_${++this.systemCounter_}`;
         const scoped = rescopeSystem(system, name);
-        this.templateToRuntime_.set(system._id, scoped._id);
-
-        this.scheduleBucket_(schedule, name).push({
+        this.registerSystemEntry_(schedule, system._id, {
             system: scoped,
             runBefore: mergeOrderingEdges(system._runBefore, options?.runBefore),
             runAfter: mergeOrderingEdges(system._runAfter, options?.runAfter),
@@ -382,6 +412,26 @@ export class App {
         this.sortedSystemsCache_.delete(schedule);
         this.dependencyCache_.delete(schedule);
         return this;
+    }
+
+    private registerSystemEntry_(schedule: Schedule, templateId: symbol, entry: SystemEntry): void {
+        const bucket = this.scheduleBucket_(schedule, entry.system._name);
+        const previous = this.templateToRuntime_.get(templateId);
+        this.templateToRuntime_.set(templateId, entry.system._id);
+        bucket.push(entry);
+        this.buildRollback_?.push(() => {
+            const live = this.systems_.get(schedule);
+            const index = live?.indexOf(entry) ?? -1;
+            if (index >= 0) live!.splice(index, 1);
+            this.sortedSystemsCache_.delete(schedule);
+            this.dependencyCache_.delete(schedule);
+            this.runner_?.evict(entry.system._id);
+            // A successful nested plugin may have registered the same template.
+            if (this.templateToRuntime_.get(templateId) === entry.system._id) {
+                if (previous === undefined) this.templateToRuntime_.delete(templateId);
+                else this.templateToRuntime_.set(templateId, previous);
+            }
+        });
     }
 
     addSystem(system: SystemDef): this {
@@ -514,9 +564,7 @@ export class App {
             // Use the scoped system name the App would generate so ordering
             // lookups match. Mirrors addSystemToSchedule's naming path.
             const scoped = rescopeSystem(sys, name);
-            this.templateToRuntime_.set(sys._id, scoped._id);
-
-            this.scheduleBucket_(schedule, name).push({
+            this.registerSystemEntry_(schedule, sys._id, {
                 system: scoped,
                 runBefore: mergedRunBefore,
                 runAfter: mergedRunAfter,
@@ -529,7 +577,13 @@ export class App {
         this.dependencyCache_.delete(schedule);
 
         const existing = this.setMembership_.get(set._name);
-        this.setMembership_.set(set._name, existing ? [...existing, ...members] : members);
+        const membership = existing ? [...existing, ...members] : members;
+        this.setMembership_.set(set._name, membership);
+        this.buildRollback_?.push(() => {
+            if (this.setMembership_.get(set._name) !== membership) return;
+            if (existing) this.setMembership_.set(set._name, existing);
+            else this.setMembership_.delete(set._name);
+        });
         return this;
     }
 
@@ -565,15 +619,34 @@ export class App {
      * Bind the app to an engine core. Part of the embedding contract, which is
      * `esengine/wasm` — a host builds the module and calls this; a game is
      * handed an App that is already connected.
+     * `ownedRegistry` transfers a newly constructed instance to this App after
+     * the connection guards pass; failed verification releases it too. Omit
+     * it for a registry whose lifetime belongs to the embedding host.
      *
      * @internal
      */
     connectCpp(
         cppRegistry: CppRegistry,
         module?: ESEngineModule,
-        options?: BridgeConnectOptions,
+        options?: BridgeConnectOptions & { ownedRegistry?: boolean },
     ): this {
-        this.world_.connectCpp(cppRegistry, module, options);
+        if (this.quitting_) throw new Error('Cannot connect a registry while App.quit is releasing it');
+        if (this.ownedCppRegistry_ && this.ownedCppRegistry_ !== cppRegistry) {
+            throw new Error('Quit the App before replacing its owned registry');
+        }
+        // Factories transfer their newly constructed embind instance here.
+        // External connections borrow by default. A failed connection must
+        // release the transferred instance, preserving the original diagnostic.
+        try { this.world_.connectCpp(cppRegistry, module, options); }
+        catch (error) {
+            if (options?.ownedRegistry && this.ownedCppRegistry_ !== cppRegistry) {
+                this.world_.disconnectCpp();
+                try { cppRegistry.delete(); }
+                catch (releaseError) { log.warn('app', 'Failed registry connection release error', releaseError); }
+            }
+            throw error;
+        }
+        if (options?.ownedRegistry) this.ownedCppRegistry_ = cppRegistry;
 
         if (module) {
             this.module_ = module;
@@ -638,42 +711,81 @@ export class App {
         readonly manifest: AotManifest;
         readonly wasm: BufferSource;
     }): Promise<void> {
-        this.ensureTime_();
-        this.aot_ = await prepareAot({
-            world: this.world_,
-            host: opts.host,
-            manifest: opts.manifest,
-            wasm: opts.wasm,
-            resourceFields: (name) => {
-                const def = builtinResource(name) ?? this.resources_.getByName(name) ?? declaredResource(name);
-                if (def === undefined) return undefined;
-                const value = this.resources_.get(def);
-                return typeof value === 'object' && value !== null ? Object.keys(value) : [];
-            },
-            // A manifest carries event NAMES; the registry answers for the ones
-            // some system has asked for a reader or a writer of.
-            events: (name) => {
-                // Through the DEFINITION, so the bus exists whether or not an
-                // interpreted system has asked for one yet: a twin sending into
-                // a bus nobody had made would drop its payloads and say nothing.
-                const def = eventNamed(name);
-                if (def === undefined) return undefined;
-                const bus = this.eventRegistry_.getBus(def);
-                return { read: () => bus.getReadBuffer(), send: (payload) => bus.send(payload) };
-            },
-            resources: (name) => {
-                // The engine's own by name, and the PROJECT's through the
-                // storage's own name registry — a compiled system reads either.
-                const def = builtinResource(name) ?? this.resources_.getByName(name) ?? declaredResource(name);
-                // `get`, not `has` then `get`: a slot holding a materialised
-                // default is what an INTERPRETED system reads, and a twin has to
-                // see the same world or the two stop being the same program.
-                return def === undefined
-                    ? undefined
-                    : this.resources_.get(def) as Readonly<Record<string, unknown>>;
-            },
-        });
-        this.runner_?.useAot(this.aot_);
+        const installation = this.reserveCompiledInstall_();
+        await installation.ready;
+        try {
+            const epoch = installation.epoch;
+            this.checkCompiledInstallEpoch_(epoch);
+            this.ensureTime_();
+            const runtime = await prepareAot({
+                world: this.world_,
+                host: opts.host,
+                manifest: opts.manifest,
+                wasm: opts.wasm,
+                beforeCommit: () => this.checkCompiledInstallEpoch_(epoch),
+                resourceFields: (name) => {
+                    const def = builtinResource(name) ?? this.resources_.getByName(name) ?? declaredResource(name);
+                    if (def === undefined) return undefined;
+                    const value = this.resources_.get(def);
+                    return typeof value === 'object' && value !== null ? Object.keys(value) : [];
+                },
+                // A manifest carries event NAMES; the registry answers for the ones
+                // some system has asked for a reader or a writer of.
+                events: (name) => {
+                    // Through the DEFINITION, so the bus exists whether or not an
+                    // interpreted system has asked for one yet: a twin sending into
+                    // a bus nobody had made would drop its payloads and say nothing.
+                    const def = eventNamed(name);
+                    if (def === undefined) return undefined;
+                    const bus = this.eventRegistry_.getBus(def);
+                    return { read: () => bus.getReadBuffer(), send: (payload) => bus.send(payload) };
+                },
+                resources: (name) => {
+                    // The engine's own by name, and the PROJECT's through the
+                    // storage's own name registry — a compiled system reads either.
+                    const def = builtinResource(name) ?? this.resources_.getByName(name) ?? declaredResource(name);
+                    // `get`, not `has` then `get`: a slot holding a materialised
+                    // default is what an INTERPRETED system reads, and a twin has to
+                    // see the same world or the two stop being the same program.
+                    return def === undefined
+                        ? undefined
+                        : this.resources_.get(def) as Readonly<Record<string, unknown>>;
+                },
+            });
+            if (epoch !== this.quitEpoch_) {
+                runtime.dispose?.();
+                throw new Error('Compiled systems installation was cancelled by App.quit');
+            }
+            this.commitCompiledRuntime_(runtime, epoch);
+        } finally {
+            installation.done();
+        }
+    }
+
+    private reserveCompiledInstall_(): { ready: Promise<void>; done(): void; epoch: number } {
+        const ready = this.compiledInstallTail_;
+        let done!: () => void;
+        this.compiledInstallTail_ = new Promise<void>(resolve => { done = resolve; });
+        return { ready, done, epoch: this.quitEpoch_ };
+    }
+
+    private checkCompiledInstallEpoch_(epoch: number): void {
+        if (this.quitting_ || epoch !== this.quitEpoch_) {
+            throw new Error('Compiled systems installation was cancelled by App.quit');
+        }
+    }
+
+    private commitCompiledRuntime_(runtime: AotRuntime, epoch: number): void {
+        const previous = this.aot_;
+        try { this.runner_?.useAot(runtime); }
+        catch (error) {
+            try { this.runner_?.useAot(previous); } catch (restoreError) { log.warn('app', 'Compiled dispatch restore error', restoreError); }
+            try { runtime.dispose?.(); } catch (releaseError) { log.warn('app', 'Compiled installation cleanup error', releaseError); }
+            throw error;
+        }
+        this.aot_ = runtime;
+        try { previous?.dispose?.(); } catch (releaseError) { log.warn('app', 'Compiled runtime replacement cleanup error', releaseError); }
+        this.checkCompiledInstallEpoch_(epoch);
     }
 
     /**
@@ -949,42 +1061,57 @@ export class App {
     async installCompiledSystems(
         source: string | BufferSource, manifest: AotManifest,
     ): Promise<number> {
-        // Which road is a fact about the HOST, not about the caller: a host
-        // that loads a library packs the rows itself, and an address there is a
-        // pointer nothing here can hold.
-        const native = this.installNative_(source, manifest);
-        if (native !== null) return native;
-        const wasm = source;
-        const module = this.module_;
-        if (!module) {
-            throw new Error('installCompiledSystems: this App has no engine module, and a compiled '
-                + 'system reads the memory of one');
+        const installation = this.reserveCompiledInstall_();
+        await installation.ready;
+        try {
+            const epoch = installation.epoch;
+            this.checkCompiledInstallEpoch_(epoch);
+            // Which road is a fact about the HOST, not about the caller: a host
+            // that loads a library packs the rows itself, and an address there is a
+            // pointer nothing here can hold.
+            const native = this.installNative_(source, manifest);
+            if (native !== null) return native;
+            const wasm = source;
+            const module = this.module_;
+            if (!module) {
+                throw new Error('installCompiledSystems: this App has no engine module, and a compiled '
+                    + 'system reads the memory of one');
+            }
+            const memory = module.wasmMemory;
+            if (!memory) {
+                throw new Error('installCompiledSystems: this engine artifact does not export '
+                    + "'wasmMemory', so there is no memory for the module to import — rebuild the engine");
+            }
+            // Read through to the module rather than captured: emscripten REPLACES
+            // the heap view when the heap grows, and a snapshot taken here would be
+            // detached by the first allocation that grows it.
+            const host: AotHost = {
+                allocatorIdentity: module,
+                memory,
+                _malloc: (size: number) => module._malloc(size),
+                _free: (ptr: number) => module._free(ptr),
+                get HEAPU8(): Uint8Array { return module.HEAPU8; },
+            };
+            this.ensureTime_();
+            const runtime = await prepareAot({
+                world: this.world_,
+                host,
+                manifest,
+                wasm,
+                beforeCommit: () => this.checkCompiledInstallEpoch_(epoch),
+                resources: (name: string) => this.getResourceByName(name) as
+                    Readonly<Record<string, unknown>> | undefined,
+            });
+            if (epoch !== this.quitEpoch_) {
+                runtime.dispose?.();
+                throw new Error('Compiled systems installation was cancelled by App.quit');
+            }
+            this.ensureRunner_();
+            this.commitCompiledRuntime_(runtime, epoch);
+            return runtime.systems.size;
+        } finally {
+            installation.done();
         }
-        const memory = module.wasmMemory;
-        if (!memory) {
-            throw new Error('installCompiledSystems: this engine artifact does not export '
-                + "'wasmMemory', so there is no memory for the module to import — rebuild the engine");
-        }
-        // Read through to the module rather than captured: emscripten REPLACES
-        // the heap view when the heap grows, and a snapshot taken here would be
-        // detached by the first allocation that grows it.
-        const host: AotHost = {
-            memory,
-            _malloc: (size: number) => module._malloc(size),
-            _free: (ptr: number) => module._free(ptr),
-            get HEAPU8(): Uint8Array { return module.HEAPU8; },
-        };
-        this.ensureTime_();
-        this.aot_ = await installAot({
-            world: this.world_,
-            runner: this.ensureRunner_(),
-            host,
-            manifest,
-            wasm,
-            resources: (name: string) => this.getResourceByName(name) as
-                Readonly<Record<string, unknown>> | undefined,
-        });
-        return this.aot_.systems.size;
     }
 
     /**
@@ -998,7 +1125,8 @@ export class App {
         const heap = createNativeHeap();
         if (bindings === null || heap === null) return null;
         this.ensureTime_();
-        this.aot_ = installNativeAot({
+        const epoch = this.quitEpoch_;
+        const runtime = installNativeAot({
             world: this.world_,
             runner: this.ensureRunner_(),
             modulePath: module,
@@ -1008,7 +1136,14 @@ export class App {
             resources: (name: string) => this.getResourceByName(name) as
                 Readonly<Record<string, unknown>> | undefined,
         });
-        return this.aot_?.systems.size ?? 0;
+        if (runtime === null) return 0;
+        if (epoch !== this.quitEpoch_) {
+            runtime.dispose?.();
+            this.runner_?.useAot(this.aot_);
+            throw new Error('Compiled systems installation was cancelled by App.quit');
+        }
+        this.commitCompiledRuntime_(runtime, epoch);
+        return runtime.systems.size;
     }
 
     // =========================================================================
@@ -1135,7 +1270,18 @@ export class App {
         if (this.running_ && version === this.loopVersion_) this.queueLoopFrame_();
     };
 
+    private quitting_ = false;
+    private quitEpoch_ = 0;
+
     quit(options?: { keepRenderer?: boolean }): void {
+        if (this.quitting_) return;
+        this.quitting_ = true;
+        this.quitEpoch_++;
+        try { this.quit_(options); }
+        finally { this.quitting_ = false; }
+    }
+
+    private quit_(options?: { keepRenderer?: boolean }): void {
         this.invalidateLoop_();
         this.running_ = false;
 
@@ -1151,7 +1297,18 @@ export class App {
         for (const entity of this.world_.getAllEntities()) {
             try { this.world_.despawn(entity); } catch (e) { log.warn('app', 'Shutdown despawn error', e); }
         }
+        const aot = this.aot_;
+        this.aot_ = null;
+        this.runner_?.useAot(null);
+        try { aot?.dispose?.(); }
+        catch (e) { log.warn('app', 'Shutdown compiled-runtime release error', e); }
+        try { this.world_.releaseScriptPools(); }
+        catch (e) { log.warn('app', 'Shutdown script-pool release error', e); }
         this.world_.disconnectCpp();
+        const ownedRegistry = this.ownedCppRegistry_;
+        this.ownedCppRegistry_ = null;
+        try { ownedRegistry?.delete(); }
+        catch (e) { log.warn('app', 'Shutdown registry release error', e); }
 
         for (const [, entries] of this.systems_) {
             entries.length = 0;
@@ -1756,79 +1913,89 @@ export function createWebApp(module: ESEngineModule, options?: WebAppOptions): A
     if (options?.sideModules) app.setSideModules(options.sideModules);
     const cppRegistry = new module.Registry() as unknown as CppRegistry;
 
-    app.connectCpp(cppRegistry, module, { strict: true });
+    try {
+        app.connectCpp(cppRegistry, module, { strict: true, ownedRegistry: true });
 
-    // BEFORE renderer init: shader compilation reads the color-space global.
-    // Always applied (realm reloads must reset a prior session's mode too).
-    setLinearColorSpace(options?.colorSpace === 'linear');
-    module.renderer_setColorSpace?.(options?.colorSpace === 'linear' ? 1 : 0);
-    if (options?.randomSeed !== undefined) module.engine_setRandomSeed?.(options.randomSeed >>> 0);
+        // BEFORE renderer init: shader compilation reads the color-space global.
+        // Always applied (realm reloads must reset a prior session's mode too).
+        setLinearColorSpace(options?.colorSpace === 'linear');
+        module.renderer_setColorSpace?.(options?.colorSpace === 'linear' ? 1 : 0);
+        if (options?.randomSeed !== undefined) module.engine_setRandomSeed?.(options.randomSeed >>> 0);
 
-    const surface: RenderSurfaceSource = options?.renderSurface ?? { kind: 'default' };
-    switch (surface.kind) {
-        case 'webgpu': {
-            const size = options?.getViewportSize?.() ?? { width: 800, height: 600 };
-            // The canvas' own preference: configuring anything else makes the
-            // browser copy the whole frame on every present.
-            const preferBGRA = (navigator as unknown as {
-                gpu?: { getPreferredCanvasFormat?(): string };
-            }).gpu?.getPreferredCanvasFormat?.() === 'bgra8unorm';
-            if (!module.initRendererWebGPU(
-                surface.canvasSelector ?? '#canvas', size.width, size.height,
-                surface.readback === true, preferBGRA)) {
-                throw new Error(
-                    'WebGPU renderer initialization failed — the module needs a ' +
-                    'preinitializedWebGPUDevice and a WebGPU-enabled engine build.');
+        const surface: RenderSurfaceSource = options?.renderSurface ?? { kind: 'default' };
+        switch (surface.kind) {
+            case 'webgpu': {
+                const size = options?.getViewportSize?.() ?? { width: 800, height: 600 };
+                // The canvas' own preference: configuring anything else makes the
+                // browser copy the whole frame on every present.
+                const preferBGRA = (navigator as unknown as {
+                    gpu?: { getPreferredCanvasFormat?(): string };
+                }).gpu?.getPreferredCanvasFormat?.() === 'bgra8unorm';
+                if (!module.initRendererWebGPU(
+                    surface.canvasSelector ?? '#canvas', size.width, size.height,
+                    surface.readback === true, preferBGRA)) {
+                    throw new Error(
+                        'WebGPU renderer initialization failed — the module needs a ' +
+                        'preinitializedWebGPUDevice and a WebGPU-enabled engine build.');
+                }
+                watchWebGPUDeviceLoss(module);
+                break;
             }
-            watchWebGPUDeviceLoss(module);
-            break;
+            case 'gl-context':
+                if (!module.initRendererWithContext(surface.handle)) {
+                    throw new Error(`WebGL2 renderer initialization failed for context ${surface.handle}.`);
+                }
+                break;
+            case 'default':
+                if (!module.initRenderer()) {
+                    throw new Error('WebGL2 renderer initialization failed for the default canvas.');
+                }
+                break;
         }
-        case 'gl-context':
-            module.initRendererWithContext(surface.handle);
-            break;
-        case 'default':
-            module.initRenderer();
-            break;
-    }
-    surfaces.set(app, { graphics: graphicsPathFor(surface), size: options?.getViewportSize ?? null });
-    // Always applied (not only when set): the renderer outlives the App on realm
-    // reloads, so a fresh App must reset a prior session's y-sort state too.
-    module.renderer_setYSortLayers?.((options?.ySortLayers ?? 0) >>> 0);
-    module.renderer_setDepthLayers?.((options?.depthLayers ?? 0) >>> 0);
-    // After the renderer, not with the colour space above it: the post-process
-    // pipeline is created by the renderer, and a curve declared before it exists
-    // reaches nothing.
-    module.postprocess_setOutputTransform?.(outputTransformCode(options?.outputTransform));
-    module.postprocess_setMsaaSamples?.((options?.msaaSamples ?? 4) >>> 0);
+        surfaces.set(app, { graphics: graphicsPathFor(surface), size: options?.getViewportSize ?? null });
+        // Always applied (not only when set): the renderer outlives the App on realm
+        // reloads, so a fresh App must reset a prior session's y-sort state too.
+        module.renderer_setYSortLayers?.((options?.ySortLayers ?? 0) >>> 0);
+        module.renderer_setDepthLayers?.((options?.depthLayers ?? 0) >>> 0);
+        // After the renderer, not with the colour space above it: the post-process
+        // pipeline is created by the renderer, and a curve declared before it exists
+        // reaches nothing.
+        module.postprocess_setOutputTransform?.(outputTransformCode(options?.outputTransform));
+        module.postprocess_setMsaaSamples?.((options?.msaaSamples ?? 4) >>> 0);
 
-    app.addPlugin(corePlugin);
-    app.setPipeline(new RenderPipeline());
-    app.insertResource(UICameraInfo, { ...DEFAULT_UI_CAMERA_INFO });
-    app.insertResource(ScreenLayout, { ...ScreenLayout._default });
-    app.insertResource(ScreenOverlay, defaultScreenOverlay());
-    app.addPlugin(cameraPlugin(options?.getViewportSize));
-    app.addPlugin(assetPlugin);
-    app.addPlugin(prefabsPlugin);
-    app.addPlugin(inputPlugin);
-    app.addPlugin(sceneManagerPlugin);
-    if (options?.plugins) {
-        app.addPlugins(options.plugins);
-    }
+        app.addPlugin(corePlugin);
+        app.setPipeline(new RenderPipeline());
+        app.insertResource(UICameraInfo, { ...DEFAULT_UI_CAMERA_INFO });
+        app.insertResource(ScreenLayout, { ...ScreenLayout._default });
+        app.insertResource(ScreenOverlay, defaultScreenOverlay());
+        app.addPlugin(cameraPlugin(options?.getViewportSize));
+        app.addPlugin(assetPlugin);
+        app.addPlugin(prefabsPlugin);
+        app.addPlugin(inputPlugin);
+        app.addPlugin(sceneManagerPlugin);
+        if (options?.plugins) {
+            app.addPlugins(options.plugins);
+        }
 
-    // Project camera fit: only install the resource when the project opts in (a real
-    // scaleMode). Absent ⇒ CameraPlugin.resolveFitSource sees no resource and keeps
-    // the legacy Canvas-or-raw fit, so an unconfigured game is byte-for-byte unchanged.
-    // Either opt-in installs it. The render policy does not need a camera fit —
-    // it takes the camera's world height whatever produced it — and gating one on
-    // the other made a project that wanted only the policy get neither.
-    if (options?.screenFit
-        && (options.screenFit.scaleMode > SCREEN_FIT_OFF
-            || (options.screenFit.renderPolicy ?? RenderResolution.Surface) !== RenderResolution.Surface)) {
-        app.insertResource(ScreenScaling, { ...options.screenFit });
-    }
+        // Project camera fit: only install the resource when the project opts in (a real
+        // scaleMode). Absent ⇒ CameraPlugin.resolveFitSource sees no resource and keeps
+        // the legacy Canvas-or-raw fit, so an unconfigured game is byte-for-byte unchanged.
+        // Either opt-in installs it. The render policy does not need a camera fit —
+        // it takes the camera's world height whatever produced it — and gating one on
+        // the other made a project that wanted only the policy get neither.
+        if (options?.screenFit
+            && (options.screenFit.scaleMode > SCREEN_FIT_OFF
+                || (options.screenFit.renderPolicy ?? RenderResolution.Surface) !== RenderResolution.Surface)) {
+            app.insertResource(ScreenScaling, { ...options.screenFit });
+        }
 
-    if (options?.quality) installQuality(app, options.quality, options.msaaSamples ?? 4);
-    return app;
+        if (options?.quality) installQuality(app, options.quality, options.msaaSamples ?? 4);
+        return app;
+    } catch (error) {
+        try { app.quit({ keepRenderer: true }); }
+        catch (releaseError) { log.warn('app', 'Failed web App construction cleanup error', releaseError); }
+        throw error;
+    }
 }
 
 /**

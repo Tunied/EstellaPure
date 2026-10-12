@@ -758,7 +758,7 @@ void RenderFrame::renderSurface(ecs::Registry& registry, const glm::mat4& viewPr
         submitSkeletalBatch(batch.vertices.data(), static_cast<i32>(batch.vertices.size() / 8),
                             batch.indices.data(), static_cast<i32>(batch.indices.size()),
                             batch.textureId, batch.blendMode, &batch.transform[0][0],
-                            batch.entity, batch.layer, batch.depth, batch.materialId);
+                            batch.entity, batch.layer, batch.depth, batch.materialId, batch.premultipliedColor);
     }
 
     draw_list_.finalize(pool_);
@@ -814,7 +814,7 @@ bool RenderFrame::submitSkeletalPreviewBatch(
     const f32* vertices, i32 vertexCount,
     const u16* indices, i32 indexCount,
     u32 textureId, i32 blendMode, const f32* transform16,
-    i32 layer, f32 depth, u32 materialId
+    i32 layer, f32 depth, u32 materialId, bool premultipliedColor
 ) {
     auto* preview = skeletalPreview(id);
     if (!preview || !vertices || !indices || vertexCount < 0 || indexCount < 0) return false;
@@ -825,6 +825,7 @@ bool RenderFrame::submitSkeletalPreviewBatch(
     batch.indices.assign(indices, indices + static_cast<usize>(indexCount));
     batch.textureId = textureId;
     batch.blendMode = blendMode;
+    batch.premultipliedColor = premultipliedColor;
     if (transform16) std::memcpy(&batch.transform[0][0], transform16, sizeof(f32) * 16);
     batch.entity = preview->entity;
     batch.layer = layer;
@@ -1013,7 +1014,7 @@ bool hasEnclosingGroup(ecs::Registry& registry, Entity entity) {
 void RenderFrame::buildSortingGroups(ecs::Registry& registry) {
     draw_list_.clearSortingGroups();
 
-    auto groups = registry.view<ecs::SortingGroup>();
+    auto groups = registry.activeView<ecs::SortingGroup>();
     for (auto entity : groups) {
         const auto& group = groups.get(entity);
         if (!group.enabled) continue;
@@ -1034,7 +1035,7 @@ void RenderFrame::buildSpriteMasks(ecs::Registry& registry) {
     std::vector<ResolvedMask>& masks = sprite_mask_scratch_;
     masks.clear();
 
-    auto maskView = registry.view<ecs::SpriteMask>();
+    auto maskView = registry.activeView<ecs::SpriteMask>();
     for (auto entity : maskView) {
         const auto& mask = maskView.get(entity);
         if (!mask.enabled) continue;
@@ -1072,7 +1073,7 @@ void RenderFrame::buildSpriteMasks(ecs::Registry& registry) {
         clip_state_.setStencilMask(mask_entities_scratch_[slot].id(), masks[slot].ref);
     }
 
-    auto spriteView = registry.view<ecs::Sprite>();
+    auto spriteView = registry.activeView<ecs::Sprite>();
     for (auto entity : spriteView) {
         const auto& sprite = spriteView.get(entity);
         if (sprite.maskInteraction == 0 || !sprite.enabled) continue;
@@ -1128,7 +1129,7 @@ void RenderFrame::collectProbes(ecs::Registry& registry) {
     ProbeStore& probes = context_.probes();
     probes.clear();
 
-    auto view = registry.view<ecs::LightProbeVolume>();
+    auto view = registry.activeView<ecs::LightProbeVolume>();
     for (auto entity : view) {
         const auto& volume = view.get(entity);
         if (!volume.enabled) continue;
@@ -1154,7 +1155,7 @@ void RenderFrame::collectProbes(ecs::Registry& registry) {
  */
 void RenderFrame::collectOccluders(ecs::Registry& registry) {
     occlusion_.begin(view_projection_);
-    auto view = registry.view<ecs::Occluder>();
+    auto view = registry.activeView<ecs::Occluder>();
     for (auto entity : view) {
         const auto& occluder = view.get(entity);
         if (!occluder.enabled) continue;
@@ -1182,7 +1183,7 @@ void RenderFrame::collectReflections(ecs::Registry& registry) {
     ReflectionStore& store = context_.reflections();
     store.clear();
 
-    auto view = registry.view<ecs::ReflectionProbe>();
+    auto view = registry.activeView<ecs::ReflectionProbe>();
     for (auto entity : view) {
         const auto& probe = view.get(entity);
         if (!probe.enabled || !probe.reflection.isValid()) continue;
@@ -1238,7 +1239,7 @@ void RenderFrame::collectLights(ecs::Registry& registry) {
     // The frame's environment is decided before any light is: a directional light
     // following its sun needs it, and whether one does decides which irradiance
     // the environment lights with — so the answer cannot depend on registry order.
-    auto view = registry.view<ecs::Light>();
+    auto view = registry.activeView<ecs::Light>();
     Entity skyLight{};
     const Environment* sky = nullptr;
     glm::vec3 skyScale(0.0f);
@@ -1450,7 +1451,7 @@ bool RenderFrame::collectEnvironment(const ecs::Light& light, const glm::vec3& s
 /// shadow map covers, and what a face is tested against before it gathers. Each mesh
 /// contributes the box MeshPlugin culls it by, so a frustum missing this misses all.
 bool RenderFrame::meshWorldBounds(ecs::Registry& registry, glm::vec3& outMin, glm::vec3& outMax) {
-    auto meshes = registry.view<ecs::Transform, ecs::MeshRenderer>();
+    auto meshes = registry.activeView<ecs::Transform, ecs::MeshRenderer>();
     bool any = false;
     for (auto entity : meshes) {
         const auto& mesh = meshes.get<ecs::MeshRenderer>(entity);
@@ -2092,6 +2093,17 @@ void RenderFrame::setColorSpace(bool linear) {
 u32 RenderFrame::initBatchShader() {
     // The default (featureless) batch program; seeds the variant cache.
     return batchProgram({});
+}
+
+u32 RenderFrame::premultipliedBatchProgram() {
+    if (!premultiplied_batch_handle_) {
+        const std::vector<std::string> features{"PREMULTIPLIED_COLOR"};
+        batchProgram(features);
+        premultiplied_batch_handle_ = &batch_variants_.at(resource::ShaderParser::variantKey(features));
+    }
+    // Map values survive rehash; the device may replace the program behind them.
+    Shader* shader = resource_manager_.getShader(*premultiplied_batch_handle_);
+    return shader ? shader->getProgramId() : 0;
 }
 
 u32 RenderFrame::batchProgram(const std::vector<std::string>& features) {

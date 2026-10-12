@@ -39,6 +39,7 @@ export interface AotCommand {
  */
 export class AotContext {
     private block: PoolBlock | null = null;
+    private disposed = false;
     private words: Uint32Array = EMPTY;
     private cmdCap: number;
     /** f64 slots a call may append across every writer it declared. */
@@ -51,9 +52,11 @@ export class AotContext {
 
     /** Hand the block back; the arena is dead after this. */
     dispose(): void {
-        if (this.block) this.memory.release(this.block);
+        this.disposed = true;
+        const block = this.block;
         this.block = null;
         this.words = EMPTY;
+        if (block) this.memory.release(block);
     }
 
     /**
@@ -71,6 +74,7 @@ export class AotContext {
         counts: Uint32Array,
         resources: readonly number[],
     ): number {
+        if (this.disposed) throw new Error('AotContext is disposed');
         const queryCount = counts.length;
         const need = SYSCTX_WORDS
             + queryCount * QUERYROWS_WORDS

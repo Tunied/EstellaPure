@@ -109,7 +109,12 @@ class TypeScriptGenerator:
         lines.extend([
             '',
             '    // Hierarchy Utilities',
-            '    setParent(child: Entity, parent: Entity): void;',
+            '    setEntityEnabled?(entity: Entity, enabled: boolean): boolean;',
+            '    isEntityActive?(entity: Entity): boolean;',
+            '    isEntityEnabled?(entity: Entity): boolean;',
+            '    hasInactiveEntities?(): boolean;',
+            '    activityEpoch?(): number;',
+            '    setParent(child: Entity, parent: Entity): boolean | void;',
         ])
         lines.append('}')
         lines.append('')

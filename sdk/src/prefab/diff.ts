@@ -9,6 +9,7 @@ import type {
 } from './types';
 import { getComponent } from '../ecs/component';
 import { mapEntityRefField } from './entityRef';
+import { hasOwn } from '../util/ownProperties';
 
 /**
  * An entity-typed field on an instance holds a numeric runtime id; the source
@@ -214,8 +215,8 @@ function diffMetadata(
     const keys = new Set<string>([...Object.keys(src), ...Object.keys(inst)]);
     for (const key of keys) {
         if (ignored.has(key)) continue;
-        const inSrc = key in src;
-        const inInst = key in inst;
+        const inSrc = hasOwn(src, key);
+        const inInst = hasOwn(inst, key);
         if (inInst && !inSrc) {
             out.push({ prefabEntityId: entityId, type: 'metadata_set', metadataKey: key, value: inst[key] });
         } else if (!inInst && inSrc) {
@@ -311,7 +312,7 @@ function deepEqual(a: unknown, b: unknown, eps = 0): boolean {
     const ak = Object.keys(ao);
     const bk = Object.keys(bo);
     if (ak.length !== bk.length) return false;
-    for (const k of ak) if (!deepEqual(ao[k], bo[k], eps)) return false;
+    for (const k of ak) if (!hasOwn(bo, k) || !deepEqual(ao[k], bo[k], eps)) return false;
     return true;
 }
 

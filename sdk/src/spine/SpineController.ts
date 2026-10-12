@@ -366,17 +366,18 @@ export class SpineModuleController {
         const EVENT_STRIDE = 4;
         const bufferPtr = this.api_.getEventBuffer();
         const f32 = this.raw_.HEAPF32;
+        const i32 = this.raw_.HEAPU32;
         const base = bufferPtr >> 2;
 
         const events: RawSpineEvent[] = [];
         for (let i = 0; i < count; i++) {
             const offset = base + i * EVENT_STRIDE;
-            const typeNum = f32[offset];
+            const typeNum = i32[offset] | 0;
             events.push({
                 type: typeNum,
-                track: f32[offset + 1],
+                track: i32[offset + 1] | 0,
                 floatValue: f32[offset + 2],
-                intValue: f32[offset + 3],
+                intValue: i32[offset + 3] | 0,
                 animationName: this.api_.getEventAnimationName(i),
                 eventName: typeNum === 5 ? this.api_.getEventName(i) : '',
                 stringValue: typeNum === 5 ? this.api_.getEventStringValue(i) : '',

@@ -265,10 +265,9 @@ function readCameraPOV(
 }
 
 /**
- * Build the renderer-facing CameraInfo from a POV. `canvas` (when given) applies
- * the design-resolution ortho scaling for scene cameras; pass null to use the raw
- * orthoSize (the editor view does this, for predictable zoom). Rotation is applied
- * here via invertViewZ.
+ * Apply design-resolution ortho scaling only to full-screen scene cameras.
+ * Sub-viewport and texture cameras keep their authored zoom; null `canvas`
+ * preserves raw orthoSize for editor views. Rotation uses invertViewZ.
  */
 export function buildCameraInfo(
     pov: CameraPOV,
@@ -278,6 +277,11 @@ export function buildCameraInfo(
     pool: CameraInfo[],
     index: number,
 ): CameraInfo {
+    // Projection and pixel snapping must use the same surface the render pass
+    // uses; a portrait target on a landscape window otherwise stretches the view.
+    const target = pov.renderTarget ? renderTargetSize(pov.renderTarget) : null;
+    width = target?.width ?? width;
+    height = target?.height ?? height;
     const aspect = (pov.viewport.z * width) / (pov.viewport.w * height);
     let projection: Float32Array;
     let halfW = 0;
@@ -285,7 +289,7 @@ export function buildCameraInfo(
 
     if (pov.projection === ProjectionType.Orthographic) {
         halfH = pov.orthoSize;
-        if (canvas) {
+        if (canvas && (pov.renderTarget ?? 0) === 0 && isFullFrame(pov.viewport)) {
             const baseOrthoSize = canvas.designResolution.y / 2;
             const designAspect = canvas.designResolution.x / canvas.designResolution.y;
             halfH = computeEffectiveOrthoSize(
@@ -624,6 +628,12 @@ function sameMatrix(a: Float32Array, b: Float32Array): boolean {
     return true;
 }
 
+// Texture passes run first, but only a screen camera can describe where a
+// pointer lands or what the composited screen was drawn through.
+function primaryScreenCamera(cameras: CameraInfo[]): CameraInfo | null {
+    return cameras.find(cam => cam.renderTarget === 0) ?? null;
+}
+
 function syncUICameraInfo(
     app: App,
     module: ESEngineModule | null,
@@ -638,8 +648,8 @@ function syncUICameraInfo(
     }
     publishScreenLayout(app, module, cppRegistry, width, height);
     const uiCam = app.getResource(UICameraInfo);
-    if (cameras.length > 0) {
-        const cam = cameras[0];
+    const cam = primaryScreenCamera(cameras);
+    if (cam) {
         uiCam.viewProjection.set(cam.viewProjection);
         // In the same statement group as the write it names: a revision published
         // apart from the matrix is a reader's chance to see one without the other.
@@ -704,9 +714,14 @@ function publishScreenOverlay(
     // statement about layers rather than about geometry, so it survives the
     // screen leaving the cameras' passes.
     let mask = 0;
-    for (const cam of cameras) mask |= cam.cullingMask ?? 0xFFFFFFFF;
-    overlay.layerMask = (cameras.length > 0 ? mask : 0xFFFFFFFF) >>> 0;
-    const primary = cameras[0];
+    let hasScreenCamera = false;
+    for (const cam of cameras) {
+        if (cam.renderTarget !== 0) continue;
+        hasScreenCamera = true;
+        mask |= cam.cullingMask ?? 0xFFFFFFFF;
+    }
+    overlay.layerMask = (hasScreenCamera ? mask : 0xFFFFFFFF) >>> 0;
+    const primary = primaryScreenCamera(cameras);
 
     if (uiCam.valid && primary?.entity === EDITOR_VIEW_ENTITY) {
         overlay.projection.set(uiCam.viewProjection);
@@ -904,7 +919,7 @@ export function cameraPlugin(
                     // The frame is drawn; say which camera drew it. After the
                     // submit, so nothing can publish a commit for a picture that
                     // then failed to render.
-                    commitCamera(app, cameras.length > 0 ? cameras[0] : null, app.getResource(UICameraInfo));
+                    commitCamera(app, primaryScreenCamera(cameras), app.getResource(UICameraInfo));
                 },
             };
 
@@ -943,9 +958,14 @@ export function renderCameraFrame(app: App, width: number, height: number, entit
     pipeline.beginFrame(elapsed);
     try {
         Renderer.updateTransforms({ _cpp: registry });
+        // An authored-camera preview ignores director selection (so an inactive
+        // camera can be inspected), but uses the same project fit as gameplay.
         const cameras = entity === undefined
             ? resolveCameras(app, module, registry, width, height, app.world, undefined, [], elapsed, false)
-            : collectCameras(module, registry, width, height, app.world).filter(c => c.entity === entity);
+            : collectCameraPOVs(module, registry, width, height, app.world)
+                .filter(pov => pov.entity === entity)
+                .map((pov, i) => buildCameraInfo(pov, width, height,
+                    resolveFitSource(app, findCanvasData(module, registry, app.world)), [], i));
         if (!cameras.length) return false;
         const canvasEntity = canvasEntityOf(module, registry);
         const clearColor = canvasEntity >= 0 ? registry.getCanvas(canvasEntity).backgroundColor : undefined;

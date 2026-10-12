@@ -57,26 +57,27 @@ public:
      * another engine.
      */
     bool open(const char* path, std::uint64_t expected, std::string* why = nullptr) {
-        close();
         const auto fail = [why](const char* msg) { if (why != nullptr) *why = msg; return false; };
-        handle_ = core::openLibrary(path);
-        if (handle_ == nullptr) return fail("the platform could not load it");
+        Module next;
+        next.handle_ = core::openLibrary(path);
+        if (next.handle_ == nullptr) return fail("the platform could not load it");
 
-        const auto* hash = static_cast<const std::uint64_t*>(core::librarySymbol(handle_, "es_abi_hash"));
-        const auto* count = static_cast<const std::uint32_t*>(core::librarySymbol(handle_, "es_system_count"));
-        const auto* decls = static_cast<const EsSystemDecl*>(core::librarySymbol(handle_, "es_systems"));
+        const auto* hash = static_cast<const std::uint64_t*>(core::librarySymbol(next.handle_, "es_abi_hash"));
+        const auto* count = static_cast<const std::uint32_t*>(core::librarySymbol(next.handle_, "es_system_count"));
+        const auto* decls = static_cast<const EsSystemDecl*>(core::librarySymbol(next.handle_, "es_systems"));
         if (hash == nullptr || count == nullptr || decls == nullptr) {
-            close();
             // A wasm module is built WITHOUT the declaration table on purpose;
             // handing one to a linking host lands exactly here.
             return fail("it carries no declaration table — built for a host that shares memory?");
         }
         if (*hash != expected) {
-            close();
             return fail("it was built against a different engine or address width");
         }
-        systems_ = std::span<const EsSystemDecl>(decls, *count);
-        contract_ = readContract_();
+        next.systems_ = std::span<const EsSystemDecl>(decls, *count);
+        next.contract_ = next.readContract_();
+        // The candidate owns its handle until every check passed. Failed loads
+        // leave this owner's declarations and their library alive.
+        *this = std::move(next);
         return true;
     }
 

@@ -226,6 +226,7 @@ void eventListener(spAnimationState* state, int trackIndex, spEventType type,
     if (!g_eventSink) return;
 
     Event out;
+    out.source = state;
     out.kind = kindOf(type);
     out.track = trackIndex;
 
@@ -402,6 +403,10 @@ void setTrackAlpha(Instance* instance, int track, float alpha) {
 
 void setEventSink(EventSink sink) {
     g_eventSink = sink;
+}
+
+const void* eventSource(Instance* instance) {
+    return instance ? instance->state : nullptr;
 }
 
 void enableEvents(Instance* instance) {

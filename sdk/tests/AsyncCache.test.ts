@@ -10,6 +10,15 @@ describe('AsyncCache', () => {
         cache = new AsyncCache<string>();
     });
 
+    it('clears its deadline when a loader rejects before timeout', async () => {
+        vi.useFakeTimers();
+        try {
+            const error = new Error('load failed');
+            await expect(cache.getOrLoad('deadline', async () => { throw error; }, 10000)).rejects.toBe(error);
+            expect(vi.getTimerCount()).toBe(0);
+        } finally { vi.useRealTimers(); }
+    });
+
     describe('basic caching', () => {
         it('should cache successful results', async () => {
             const loader = vi.fn().mockResolvedValue('value');

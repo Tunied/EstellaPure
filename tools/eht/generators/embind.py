@@ -368,6 +368,15 @@ class EmbindGenerator:
             '        .function("valid", optional_override([](Registry& r, u32 e) {',
             '            return r.valid(static_cast<Entity>(e));',
             '        }))',
+            '        .function("reserveDestruction", optional_override([](Registry& r, u32 e) {',
+            '            return r.reserveDestruction(static_cast<Entity>(e));',
+            '        }))',
+            '        .function("releaseDestruction", optional_override([](Registry& r, u32 e) {',
+            '            r.releaseDestruction(static_cast<Entity>(e));',
+            '        }))',
+            '        .function("destructionPending", optional_override([](Registry& r, u32 e) {',
+            '            return r.destructionPending(static_cast<Entity>(e));',
+            '        }))',
             '        .function("entityCount", &Registry::entityCount)',
             '',
         ]
@@ -444,8 +453,13 @@ class EmbindGenerator:
 
         lines.extend([
             '        // Hierarchy Utilities',
+            '        .function("setEntityEnabled", optional_override([](Registry& r, u32 e, bool enabled) { return r.setEntityEnabled(static_cast<Entity>(e), enabled); }))',
+            '        .function("isEntityActive", optional_override([](Registry& r, u32 e) { return r.isEntityActive(static_cast<Entity>(e)); }))',
+            '        .function("isEntityEnabled", optional_override([](Registry& r, u32 e) { return r.isEntityEnabled(static_cast<Entity>(e)); }))',
+            '        .function("hasInactiveEntities", &Registry::hasInactiveEntities)',
+            '        .function("activityEpoch", &Registry::activityEpoch)',
             '        .function("setParent", optional_override([](Registry& r, u32 child, u32 parent) {',
-            '            esengine::ecs::setParent(r, static_cast<Entity>(child), static_cast<Entity>(parent));',
+            '            return esengine::ecs::setParent(r, static_cast<Entity>(child), static_cast<Entity>(parent));',
             '        }))',
             '',
         ])

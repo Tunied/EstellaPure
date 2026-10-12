@@ -287,7 +287,11 @@ void draw_meshWithUniforms(u32 geometryHandle, u32 shaderHandle, uintptr_t trans
             case 10: {
                 i32 slot = static_cast<i32>(uniforms[idx++]);
                 u32 textureId = static_cast<u32>(uniforms[idx++]);
-                g_device->bindTexture(static_cast<u32>(slot), TextureHandle{textureId});
+                // Material.tex carries a resource identity, just like the reflected
+                // material store. Resolve at draw time so device re-uploads behind
+                // the same resource handle do not leave cached streams stale.
+                const Texture* texture = g_resourceManager->getTexture(resource::TextureHandle{textureId});
+                g_device->bindTexture(static_cast<u32>(slot), texture ? texture->handle() : TextureHandle::Invalid);
                 shader->setUniform(name, slot);
                 break;
             }

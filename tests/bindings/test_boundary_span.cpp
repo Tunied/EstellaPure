@@ -9,11 +9,32 @@
 #include <doctest.h>
 
 #include "esengine/bindings/BoundarySpan.hpp"
+#include "esengine/renderer/draw/TextVertexFormat.hpp"
 
 #include <cstdint>
 #include <vector>
 
 using namespace esengine;
+
+TEST_CASE("text vertex boundary includes the SDF bias of the final vertex") {
+    constexpr u64 count = 4;
+#ifdef __EMSCRIPTEN__
+    const auto end = static_cast<uintptr_t>(emscripten_get_heap_size());
+    const auto ptr = end - count * TEXT_VERTEX_FLOATS * sizeof(f32);
+    CHECK(boundarySpan<f32>(ptr, count * TEXT_VERTEX_FLOATS, "text.complete") != nullptr);
+    // Leave room for the old eight-float format, but not the actual nine-float one.
+    const auto truncated = end - count * 8 * sizeof(f32);
+    CHECK(boundarySpan<f32>(truncated, count * TEXT_VERTEX_FLOATS, "text.truncated") == nullptr);
+#else
+    std::vector<f32> buffer(count * TEXT_VERTEX_FLOATS);
+    const auto ptr = reinterpret_cast<uintptr_t>(buffer.data());
+    setBoundaryRegion(ptr, buffer.size() * sizeof(f32));
+    CHECK(boundarySpan<f32>(ptr, count * TEXT_VERTEX_FLOATS, "text.complete") != nullptr);
+    setBoundaryRegion(ptr, count * 8 * sizeof(f32));
+    CHECK(boundarySpan<f32>(ptr, count * TEXT_VERTEX_FLOATS, "text.truncated") == nullptr);
+    setBoundaryRegion(0, 0);
+#endif
+}
 
 TEST_CASE("valid span inside the heap passes through typed") {
     std::vector<f32> buf(64, 1.5f);

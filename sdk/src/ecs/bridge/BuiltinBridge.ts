@@ -9,11 +9,12 @@ import { Entity } from '../../types';
 import { mergeIntoDefaults } from '../component';
 import type { BuiltinComponentDef } from '../component';
 import type { CppRegistry, ESEngineModule } from '../../wasm';
-import { validateComponentData, formatValidationErrors, assetFieldNames } from '../../util/validation';
+import { validateComponentData, formatValidationErrors } from '../../util/validation';
 import { handleWasmError } from '../../wasm/wasmError';
 import { installAbortGuard, throwIfModuleAborted, isModuleAborted, WasmModuleAborted } from '../../wasm/moduleHealth';
 import { COMPONENT_META, ABI_LAYOUT_HASH } from '../component.generated';
 import { PTR_ACCESSORS } from './ptrAccessors.generated';
+import { hasOwn } from '../../util/ownProperties';
 import { reorderSetByRank, type RankOf } from '../entityOrder';
 import {
     type MemoryProvider, type ComponentHeap,
@@ -812,7 +813,7 @@ export class BuiltinBridge {
         if (data !== null && data !== undefined && typeof data === 'object') {
             for (const [k, v] of Object.entries(data as Record<string, unknown>)) {
                 if (v === undefined) continue;
-                if (!(k in defaults)) continue;
+                if (!hasOwn(defaults, k)) continue;
                 filtered[k] = v;
             }
 
@@ -820,7 +821,7 @@ export class BuiltinBridge {
                 component._name,
                 defaults,
                 filtered,
-                assetFieldNames(component)
+                component.assetFields
             );
             if (errors.length > 0) {
                 throw new Error(formatValidationErrors(component._name, errors));

@@ -25,11 +25,13 @@ import { optionalAssetLoaders } from './optionalLoaders';
 import { AssetScope, type AssetLease } from './AssetLease';
 import { EntityAssetScopes } from './entityAssetScopes';
 import { RegistryAssetSlots, type RegistryAssetKind } from './registryAssets';
-import { DependencyRecorder, isInvalidatable, rebuildPlan, type AssetIdentity,
+import { DependencyRecorder, PreparationFailure, preparationFailureReason, isInvalidatable, rebuildPlan, type AssetIdentity,
          type DependencyReceipt, type Preparation, type PreparedLoad } from './dependencies';
 import { SpineAssetLoader } from './loaders/SpineAssetLoader';
-import { spinePairKey } from '../spine/prepareSpine';
+import { spinePairKey } from './spinePairKey';
 import { MaterialAssetLoader } from './loaders/MaterialAssetLoader';
+import { MaterialShaderAssetLoader } from './loaders/MaterialShaderAssetLoader';
+import { isBuiltinAssetRef } from './documentRef';
 import { MeshAssetLoader, type MeshResult } from './loaders/MeshAssetLoader';
 import { nativeEngineApi, type EngineApi } from '../ecs/bridge/engineApi';
 import { isBuiltinMeshRef } from './builtinMeshes';
@@ -42,7 +44,8 @@ import { TimelineAssetLoader } from './loaders/TimelineAssetLoader';
 import { PrefabAssetLoader } from './loaders/PrefabAssetLoader';
 import { AnimatorControllerAssetLoader } from './loaders/AnimatorControllerAssetLoader';
 import { AvatarAssetLoader } from './loaders/AvatarAssetLoader';
-import { preparePrefab, type PreparedPrefab } from '../prefab/preparedPrefab';
+import { preparePrefabFromSource, type PreparedPrefab } from '../prefab/preparedPrefab';
+import type { PrefabOverride } from '../prefab';
 import { LocaleAssetLoader } from './loaders/LocaleAssetLoader';
 import { JsonAssetLoader } from './loaders/JsonAssetLoader';
 import { getComponentDefaults } from '../ecs/component';
@@ -54,6 +57,7 @@ import { SceneHandle, type ReleaseCallback } from './SceneHandle';
 import { UUID_REF_PREFIX } from './AssetRegistry';
 import type { AssetRefCounter } from './AssetRefCounter';
 import { log } from '../util/logger';
+import { disposeAll } from '../util/disposeAll';
 import { recoverDevice, getDeviceStatus, DeviceStatus } from '../render/renderer';
 
 /**
@@ -336,6 +340,8 @@ export interface SceneAssetResult {
      * and an invalidate mid-load left the receipt of the era we really got.
      */
     scope: AssetScope;
+    /** @internal Projection of successful acquisitions; their scope/era remains the owner. */
+    acquisitions?: readonly { readonly type: string; readonly path: string; readonly lease: AssetLease }[];
     missing: MissingAsset[];
     /** Per asset type: how many loaded, the sum of their load times and the
      *  slowest one, in ms. Loads overlap, so the sums exceed the wall time. */
@@ -413,9 +419,6 @@ export class Assets {
     private textureImportResolver_: TextureImportSettingsResolver | null = null;
     private spineLoader_: SpineAssetLoader;
 
-    /** Prefabs flattened and resolved for one-frame spawning, by resolved path. */
-    private preparedPrefabs_ = new Map<string, { holders: number; prepared: PreparedPrefab }>();
-
     private textureCache_ = new AsyncCache<TextureResult>((result) => {
         // A texture whose load finished after its getOrLoad timed out has no
         // owner; release its GL handle so it doesn't leak VRAM.
@@ -431,6 +434,14 @@ export class Assets {
      * resumes. Delivering that handle is a use-after-free; the load fails instead.
      */
     private resetEpoch_ = 0;
+    private releasing_ = false;
+    private preparations_ = new Set<DependencyRecorder>();
+
+    private assertLoading_(epoch = this.resetEpoch_): void {
+        if (this.releasing_ || epoch !== this.resetEpoch_) {
+            throw new Error('Assets were released while loading; this request has no owner. Load it again.');
+        }
+    }
     /** Handles already disowned in this epoch, so N callers sharing one load
      *  drop its single C++ reference once between them, not N times. */
     private abandoned_ = new Set<number>();
@@ -638,6 +649,7 @@ export class Assets {
     private async acquireTextureVariant_(
         ref: string, flip: boolean,
     ): Promise<{ result: TextureResult; lease: AssetRefLease<number> }> {
+        this.assertLoading_();
         const path = this.resolveLoadPath_(ref);
         const cacheKey = this.textureCacheKey_(path, flip);
         const settings = this.textureImportResolver_?.(ref);
@@ -742,7 +754,7 @@ export class Assets {
         return null;
     }
 
-    /** Record a handle→path pair for {@link pathForHandle} (dropped on invalidate/releaseAll). */
+    /** Record a handle→path pair, dropped on invalidation or final release. */
     private recordHandlePath_(kind: string, handle: number, path: string): void {
         if (handle !== 0) this.handleToPath_.set(`${kind}:${handle}`, path);
     }
@@ -759,6 +771,11 @@ export class Assets {
      * names the pair and not the skeleton's path.
      */
     async acquireSpine(skeletonRef: string, atlasRef?: string): Promise<AssetLease<SpineResult>> {
+        try { return await this.acquireSpineLease_(skeletonRef, atlasRef); }
+        catch (error) { throw preparationFailureReason(error); }
+    }
+
+    private async acquireSpineLease_(skeletonRef: string, atlasRef?: string): Promise<AssetLease<SpineResult>> {
         const skeleton = this.resolveLoadPath_(skeletonRef);
         const atlas = this.spineAtlasOf_(skeleton, atlasRef);
         const key = spinePairKey(skeleton, atlas);
@@ -1418,6 +1435,15 @@ export class Assets {
         onProgress?: (loaded: number, total: number) => void,
         options?: { readonly maxConcurrent?: number; readonly skipSpine?: boolean },
     ): Promise<SceneAssetResult> {
+        return this.preloadSceneAssets_(sceneData, onProgress, options);
+    }
+
+    private async preloadSceneAssets_(
+        sceneData: SceneData,
+        onProgress?: (loaded: number, total: number) => void,
+        options?: { readonly maxConcurrent?: number; readonly skipSpine?: boolean },
+        recorder?: DependencyRecorder,
+    ): Promise<SceneAssetResult> {
         const missing: MissingAsset[] = [];
         const discovered = discoverSceneAssets(sceneData, (ref) => this.resolveRef(ref));
         for (const ref of discovered.unresolved) {
@@ -1460,10 +1486,12 @@ export class Assets {
         const probeVolumeHandles = new Map<string, number>();
         const releaseCallbacks: ReleaseCallback[] = [];
         const scope = new AssetScope();
+        const acquisitions: { type: string; path: string; lease: AssetLease }[] = [];
 
         let loadedCount = 0;
 
         const recordFailure = (path: string, label: string, err: unknown): void => {
+            recorder?.failed(path, err);
             missing.push({
                 ref: path,
                 type: label,
@@ -1502,7 +1530,11 @@ export class Assets {
             for (const path of paths) {
                 tasks.push(() =>
                     timedLoad(label, () => acquire(path)).then(lease => {
-                        scope.add(lease);
+                        // A baked asset's era owns these acquisitions. An ordinary
+                        // scene owns them through the returned scope instead.
+                        if (recorder) recorder.own(path, lease, label);
+                        else scope.add(lease);
+                        acquisitions.push({ type: label, path, lease });
                         releaseCallbacks.push(() => lease.release());
                         if (handles) {
                             handles.set(path, (lease.value as { handle?: number } | null)?.handle ?? 0);
@@ -1528,14 +1560,14 @@ export class Assets {
             'texture',
             textureHandles,
         );
-        pushAcquire(materialPaths, p => this.acquireTyped<MaterialResult>('material', p),
+        pushAcquire(materialPaths, p => this.acquireTypedLease_<MaterialResult>('material', p),
                     'material', materialHandles);
-        pushAcquire(fontPaths, p => this.acquireTyped<FontResult>('font', p), 'font', fontHandles);
-        pushAcquire(meshPaths, p => this.acquireTyped<{ handle: number }>('mesh', p),
+        pushAcquire(fontPaths, p => this.acquireTypedLease_<FontResult>('font', p), 'font', fontHandles);
+        pushAcquire(meshPaths, p => this.acquireTypedLease_<{ handle: number }>('mesh', p),
                     'mesh', meshHandles);
-        pushAcquire(environmentPaths, p => this.acquireTyped<{ handle: number }>('environment', p),
+        pushAcquire(environmentPaths, p => this.acquireTypedLease_<{ handle: number }>('environment', p),
                     'environment', environmentHandles);
-        pushAcquire(probeVolumePaths, p => this.acquireTyped<{ handle: number }>('probeVolume', p),
+        pushAcquire(probeVolumePaths, p => this.acquireTypedLease_<{ handle: number }>('probeVolume', p),
                     'probeVolume', probeVolumeHandles);
         // A pair, so not `pushAcquire` (which keys by one path); the receipt is
         // the scene's exactly as every other one is. The runtime scene loader
@@ -1543,8 +1575,10 @@ export class Assets {
         if (!options?.skipSpine) {
             for (const pair of spinePairs) {
                 tasks.push(() =>
-                    this.acquireSpine(pair.skeleton, pair.atlas).then((lease) => {
-                        scope.add(lease);
+                    this.acquireSpineLease_(pair.skeleton, pair.atlas).then((lease) => {
+                        if (recorder) recorder.own(spinePairKey(pair.skeleton, pair.atlas), lease, 'spine');
+                        else scope.add(lease);
+                        acquisitions.push({ type: 'spine', path: spinePairKey(pair.skeleton, pair.atlas), lease });
                         releaseCallbacks.push(() => lease.release());
                     }).catch(e => {
                         log.warn('asset', `Failed to load spine: ${pair.skeleton}`, e);
@@ -1553,19 +1587,19 @@ export class Assets {
                 );
             }
         }
-        pushAcquire(animClipPaths, p => this.acquireAnimClip_(p), 'anim-clip');
-        pushAcquire(tilemapPaths, p => this.acquireTyped('tilemap', p), 'tilemap');
-        pushAcquire(tilesetPaths, p => this.acquireTyped('tileset', p), 'tileset');
-        pushAcquire(timelinePaths, p => this.acquireTyped('timeline', p), 'timeline');
-        pushAcquire(audioPaths, p => this.acquireTyped('audio', p), 'audio');
+        pushAcquire(animClipPaths, p => this.acquireTypedLease_('anim-clip', p), 'anim-clip');
+        pushAcquire(tilemapPaths, p => this.acquireTypedLease_('tilemap', p), 'tilemap');
+        pushAcquire(tilesetPaths, p => this.acquireTypedLease_('tileset', p), 'tileset');
+        pushAcquire(timelinePaths, p => this.acquireTypedLease_('timeline', p), 'timeline');
+        pushAcquire(audioPaths, p => this.acquireTypedLease_('audio', p), 'audio');
         // FSM/BT loaders register the parsed definition into the shared AI store
         // under the asset path, so a StateMachineAgent/BehaviorTreeAgent whose
         // fsm/bt is that path resolves once the scene finishes preloading.
-        pushAcquire(fsmPaths, p => this.acquireTyped('statemachine', p), 'statemachine');
-        pushAcquire(btPaths, p => this.acquireTyped('behaviortree', p), 'behaviortree');
-        pushAcquire(graphPaths, p => this.acquireTyped('scriptgraph', p), 'scriptgraph');
-        pushAcquire(animatorPaths, p => this.acquireTyped('animatorcontroller', p), 'animatorcontroller');
-        pushAcquire(avatarPaths, p => this.acquireTyped('avatar', p), 'avatar');
+        pushAcquire(fsmPaths, p => this.acquireTypedLease_('statemachine', p), 'statemachine');
+        pushAcquire(btPaths, p => this.acquireTypedLease_('behaviortree', p), 'behaviortree');
+        pushAcquire(graphPaths, p => this.acquireTypedLease_('scriptgraph', p), 'scriptgraph');
+        pushAcquire(animatorPaths, p => this.acquireTypedLease_('animatorcontroller', p), 'animatorcontroller');
+        pushAcquire(avatarPaths, p => this.acquireTypedLease_('avatar', p), 'avatar');
 
         const totalCount = tasks.length;
         onProgress?.(0, totalCount);
@@ -1588,13 +1622,12 @@ export class Assets {
         warnFailedLoads(missing.filter((m) => m.reason === 'load-failed'));
 
         return { textureHandles, materialHandles, fontHandles, meshHandles, environmentHandles,
-                 probeVolumeHandles, releaseCallbacks, scope, missing, timings, wallMs };
+                 probeVolumeHandles, releaseCallbacks, scope, acquisitions, missing, timings, wallMs };
     }
 
     resolveSceneAssetPaths(sceneData: SceneData, result: SceneAssetResult): void {
         const { textureHandles, materialHandles, fontHandles, meshHandles,
                 environmentHandles, probeVolumeHandles } = result;
-        const counter = this.refCounter_;
 
         for (const entity of sceneData.entities) {
             // Prefab-instance entries carry no inline components (a prefab ref +
@@ -1623,7 +1656,7 @@ export class Assets {
                         case 'texture': {
                             const handle = textureHandles.get(path) ?? 0;
                             comp.data[field] = handle;
-                            if (counter && handle) counter.addTextureRef(path, entity.id);
+                            this.recordHandlePath_('texture', handle, path);
                             // Ref spelling first (per-frame keys); the resolved
                             // path for packed frames is the shared page.
                             const atlasInfo = this.catalog.getAtlasFrame(ref) ?? this.catalog.getAtlasFrame(path);
@@ -1654,13 +1687,13 @@ export class Assets {
                         case 'material': {
                             const handle = materialHandles.get(path) ?? 0;
                             comp.data[field] = handle;
-                            if (counter && handle) counter.addMaterialRef(path, entity.id);
+                            this.recordHandlePath_('material', handle, path);
                             break;
                         }
                         case 'font': {
                             const handle = fontHandles.get(path) ?? 0;
                             comp.data[field] = handle;
-                            if (counter && handle) counter.addFontRef(path, entity.id);
+                            this.recordHandlePath_('font', handle, path);
                             break;
                         }
                         case 'mesh': {
@@ -1676,6 +1709,28 @@ export class Assets {
                             break;
                         }
                     }
+                }
+            }
+        }
+    }
+
+    /** Record scene users only after source IDs have been mapped to live World entities.
+     * Resolution is preparation; source IDs cannot be removed by World.onDespawn. */
+    trackSceneAssetReferences(scene: SceneData, entities: ReadonlyMap<number, number>): void {
+        const counter = this.refCounter_;
+        if (!counter) return;
+        for (const source of scene.entities) {
+            const entity = entities.get(source.id);
+            if (entity === undefined || !Array.isArray(source.components)) continue;
+            for (const comp of source.components) {
+                for (const { field, type } of getComponentAssetFieldDescriptors(comp.type)) {
+                    const handle = comp.data[field];
+                    if (typeof handle !== 'number' || !handle) continue;
+                    const path = this.pathForHandle(type, handle);
+                    if (path === null) continue;
+                    if (type === 'texture') counter.addTextureRef(path, entity);
+                    else if (type === 'material') counter.addMaterialRef(path, entity);
+                    else if (type === 'font') counter.addFontRef(path, entity);
                 }
             }
         }
@@ -1699,7 +1754,16 @@ export class Assets {
 
     /** {@link acquireTexture} for everything that goes through a typed loader. */
     async acquireTyped<T>(type: string, ref: string): Promise<AssetLease<T>> {
+        try { return await this.acquireTypedLease_<T>(type, ref); }
+        catch (error) { throw preparationFailureReason(error); }
+    }
+
+    private async acquireTypedLease_<T>(type: string, ref: string): Promise<AssetLease<T>> {
+        const epoch = this.resetEpoch_;
+        this.assertLoading_(epoch);
         const slot = await this.acquireSlot_<T>(type, ref);
+        try { this.assertLoading_(epoch); }
+        catch (error) { slot?.release(); throw error; }
         if (slot) return slot;
         const { value, lease } = await this.acquireTyped_<T>(type, ref);
         return this.typedLease_(type, lease, value);
@@ -1775,6 +1839,7 @@ export class Assets {
     ): AssetLease<T> {
         return {
             key: lease.key, generation: lease.generation, value,
+            failedDependencies: lease.value.failedDependencies,
             release: () => this.releaseTypedLease(type, lease),
             retain: () => {
                 const child = this.genericRefs_.retain(lease);
@@ -1812,12 +1877,13 @@ export class Assets {
     private disposeTexture_(key: string, handle: number): void {
         // The pool decides what that means — free immediately (no budget), or
         // retain as an evictable cache entry that the next load revives by key.
-        requireResourceManager().releaseTexture(handle);
         evictTextureDimensions(handle);
+        this.handleToPath_.delete(`texture:${handle}`);
         // Only when it is still the cached value: a superseded handle left the
         // cache when its generation ended, and the entry there now belongs to a
         // generation with holders of its own.
         if (this.textureCache_.get(key)?.handle === handle) this.textureCache_.delete(key);
+        requireResourceManager().releaseTexture(handle);
     }
 
     releaseFont(ref: string): void {
@@ -1910,9 +1976,9 @@ export class Assets {
 
     /** The last reference to a typed asset is gone: hand it to its loader. */
     private disposeGeneric_(type: string, path: string, era: PreparedLoad<unknown>): void {
-        this.retire_(type, era);
         const cache = this.genericCache_.get(type);
         if (cache && cache.get(path) === era) cache.delete(path);
+        this.retire_(type, era);
     }
 
     /** End one handle-bound era: its loader destroys what it made, then what its
@@ -1921,11 +1987,12 @@ export class Assets {
     private retire_(type: string, era: PreparedLoad<unknown>): void {
         if (this.retired_.has(era)) return;
         this.retired_.add(era);
-        try {
-            this.loaders_.get(type)?.unload?.(era.value);
-        } finally {
-            era.dependencies.releaseAll();
-        }
+        const handle = (era.value as { handle?: unknown } | null)?.handle;
+        if (typeof handle === 'number') this.handleToPath_.delete(`${type}:${handle}`);
+        disposeAll([
+            () => this.loaders_.get(type)?.unload?.(era.value),
+            () => era.dependencies.releaseAll(),
+        ], dispose => dispose());
     }
 
     /**
@@ -1952,6 +2019,16 @@ export class Assets {
      */
     invalidate(ref: string): boolean {
         const plan = this.rebuildPlan_(ref);
+        // A failed preparation has no live era, but its canonical cooldown
+        // rejection still records why it failed. Clear it before rebuilding
+        // holders reached by the restored source, rather than reusing failure.
+        const source = this.assetIdentity_(ref);
+        for (const cache of this.genericCache_.values()) {
+            for (const [key, error] of cache.failures()) {
+                if (error instanceof PreparationFailure
+                    && error.sources.some(path => this.assetIdentity_(path) === source)) cache.invalidate(key);
+            }
+        }
         const { hit, rebuilt } = this.invalidateSource_(ref);
         if (plan.length > 0) this.track_(rebuilt.then(() => this.rebuildAssetGraph_(plan)));
         return hit;
@@ -2211,40 +2288,58 @@ export class Assets {
         return this.entityScopes_;
     }
 
+    /** @internal A standalone bake uses the same acquisition transaction as a graph recipe. */
+    async preparePrefab(ref: string, overrides: readonly PrefabOverride[] = []): Promise<PreparedPrefab> {
+        const epoch = this.resetEpoch_;
+        try {
+            const era = await this.prepared_(ctx => this.bakePrefab_(this.resolveLoadPath_(ref),
+                ctx as LoadContext & { recorder: DependencyRecorder }, overrides));
+            if (epoch !== this.resetEpoch_) {
+                era.dependencies.releaseAll();
+                throw new Error(`Assets were released while "${ref}" was preparing; it has no owner. Load it again.`);
+            }
+            return { ...era, ref, release: () => era.dependencies.releaseAll() };
+        } catch (error) { throw preparationFailureReason(error); }
+    }
+
     releaseAll(): void {
-        // Through the normal door first, so what the app owned is disposed the
-        // way any other owner's is rather than by the wholesale drain below.
-        this.appScope_.releaseAll();
-        this.registrySlots_.releaseAll();
-        const rm = requireResourceManager();
+        if (this.releasing_) return;
+        this.releasing_ = true;
+        // Pending loads lose ownership even if a user-provided unload throws.
         this.resetEpoch_++;
         this.abandoned_.clear();
-        const seen = new Set<number>();
-        for (const info of this.textureCache_.values()) {
-            seen.add(info.handle);
-            rm.releaseTexture(info.handle);
-            evictTextureDimensions(info.handle);
+        try {
+            disposeAll([
+                () => {
+                    const pending = [...this.preparations_];
+                    this.preparations_.clear();
+                    disposeAll(pending, recorder => recorder.rollback());
+                },
+                // Normal receipts first, then every remaining generation.
+                () => this.appScope_.releaseAll(),
+                () => this.registrySlots_.releaseAll(),
+                () => {
+                    const handles = new Set<number>();
+                    for (const info of this.textureCache_.values()) handles.add(info.handle);
+                    this.textureCache_.clearAll();
+                    for (const { value } of this.textureRefs_.drain()) handles.add(value);
+                    const rm = requireResourceManager();
+                    disposeAll([...handles], handle => {
+                        evictTextureDimensions(handle);
+                        rm.releaseTexture(handle);
+                    });
+                },
+                () => {
+                    for (const cache of this.genericCache_.values()) cache.clearAll();
+                    this.genericCache_.clear();
+                    const generations = this.genericRefs_.drain();
+                    disposeAll(generations, ({ key, value }) => this.retire_(key.slice(0, key.indexOf(':')), value));
+                },
+            ], dispose => dispose());
+        } finally {
+            this.handleToPath_.clear();
+            this.releasing_ = false;
         }
-        this.textureCache_.clearAll();
-        // Superseded generations are not in the cache and would otherwise
-        // survive a releaseAll that claims to have let go of everything.
-        for (const { value } of this.textureRefs_.drain()) {
-            if (seen.has(value)) continue;
-            seen.add(value);
-            rm.releaseTexture(value);
-            evictTextureDimensions(value);
-        }
-
-        this.materialLoader_?.releaseAll();
-
-        for (const cache of this.genericCache_.values()) {
-            cache.clearAll();
-        }
-        this.genericCache_.clear();
-        for (const { key, value } of this.genericRefs_.drain()) {
-            this.retire_(key.slice(0, key.indexOf(':')), value);
-        }
-        this.handleToPath_.clear();
     }
 
     // =========================================================================
@@ -2276,13 +2371,11 @@ export class Assets {
     }
 
     /**
-     * Attach an AssetRefCounter. When set, resolveSceneAssetPaths records
-     * which entity references which texture/material/font path as it
-     * hands out handles. Paired with `world.onDespawn(e =>
-     * counter.removeAllRefsForEntity(e))` — which AssetPlugin installs
-     * — this gives editor tools visibility into "who's holding X" and
-     * "does anything still need this asset?". Optional; null means no
-     * tracking (default, zero overhead).
+     * Attach optional usage monitoring. Scene publication records runtime
+     * entity IDs through trackSceneAssetReferences; the shared World binding
+     * removes them on despawn and follows the active asset resource. Plugin
+     * and runtime factories install it; manually created Assets default to
+     * no tracking until a counter is attached.
      */
     setRefCounter(counter: AssetRefCounter): void {
         this.refCounter_ = counter;
@@ -2299,7 +2392,7 @@ export class Assets {
      * unchanged — legacy path-only scenes keep working.
      */
     resolveRef(ref: string): string | null {
-        if (isBuiltinMeshRef(ref)) return ref;
+        if (isBuiltinAssetRef(ref)) return ref;
         if (this.assetRefResolver_) return this.assetRefResolver_(ref);
         return ref;
     }
@@ -2332,7 +2425,7 @@ export class Assets {
         // Built-in geometry names code, not a file. Every realm's resolver turns a
         // non-URL ref into one (the play realm prefixes an origin), so a ref that
         // has nothing to resolve has to say so before resolution, not after.
-        if (isBuiltinMeshRef(ref)) return ref;
+        if (isBuiltinAssetRef(ref)) return ref;
         // A `remote`-group asset (per the active addressable manifest) resolves to
         // its CDN url — so a scene @uuid ref to a remote asset loads from, and
         // hot-updates with, the CDN, not just loadGroup'd DLC assets. Gated on a
@@ -2384,13 +2477,11 @@ export class Assets {
     // Private
     // =========================================================================
 
-    private materialLoader_: MaterialAssetLoader | null = null;
-
     private registerBuiltinLoaders(): void {
         this.register(this.textureLoader_);
         this.register(this.spineLoader_);
-        this.materialLoader_ = new MaterialAssetLoader();
-        this.register(this.materialLoader_);
+        this.register(new MaterialShaderAssetLoader());
+        this.register(new MaterialAssetLoader());
         this.register(new FontAssetLoader());
         // The engine core however it is embedded: the module on the web, the host's
         // bindings on a device. Taking only the module made these two web-only by
@@ -2405,6 +2496,13 @@ export class Assets {
         this.register(new AnimClipAssetLoader());
         this.register(new TimelineAssetLoader());
         this.register(new PrefabAssetLoader());
+        // A recipe is bound to an exact era, just like a resolved material.
+        // Use the same pending cache, generation ledger and dependency graph.
+        this.register<PreparedPrefab>({
+            type: 'prepared-prefab', extensions: [],
+            load: (path, context) => this.bakePrefab_(path, context as LoadContext & { recorder: DependencyRecorder }),
+            unload: (prepared) => prepared.release(),
+        });
         this.register(new AnimatorControllerAssetLoader());
         this.register(new AvatarAssetLoader());
         this.register(new LocaleAssetLoader());
@@ -2420,7 +2518,8 @@ export class Assets {
     }
 
     private async loadTyped<T>(type: string, ref: string): Promise<T> {
-        return (await this.acquireTyped_<T>(type, ref)).value;
+        try { return (await this.acquireTyped_<T>(type, ref)).value; }
+        catch (error) { throw preparationFailureReason(error); }
     }
 
     private async acquireTyped_<T>(
@@ -2447,6 +2546,7 @@ export class Assets {
     private async acquirePrepared_<T>(
         type: string, key: string, ref: string, prepare: (ctx: LoadContext) => Promise<T>,
     ): Promise<{ value: T; lease: AssetRefLease<PreparedLoad<unknown>> }> {
+        this.assertLoading_();
         const epoch = this.resetEpoch_;
         const era = await this.genericCacheFor_(type).getOrLoad(key, () =>
             this.prepared_(async (ctx) => ({ value: await prepare(ctx) as unknown })),
@@ -2574,8 +2674,24 @@ export class Assets {
         for (const era of this.registrySlots_.eras()) {
             yield { type: era.type, path: era.key, edges: era.edges };
         }
+        const seen = new Set<PreparedLoad<unknown>>();
         for (const [type, cache] of this.genericCache_) {
-            for (const [path, era] of cache.entries()) yield { type, path, edges: era.edges };
+            for (const [path, era] of cache.entries()) {
+                seen.add(era);
+                yield { type, path, edges: era.edges };
+            }
+        }
+        // Invalidating removes residency, not ownership. A failed refresh can
+        // keep an outgoing recipe in a graph; its nested dependencies must still
+        // lead back to that graph when their sources recover.
+        for (const [key, generations] of this.genericRefs_.entries()) {
+            const split = key.indexOf(':');
+            const type = key.slice(0, split), path = key.slice(split + 1);
+            for (const { value: era } of generations) {
+                if (seen.has(era)) continue;
+                seen.add(era);
+                yield { type, path, edges: era.edges };
+            }
         }
     }
 
@@ -2608,40 +2724,21 @@ export class Assets {
         };
     }
 
-    /**
-     * A prepared prefab as a lease: one preparation per ref per realm, released
-     * when the last holder lets go. Shared, because two graphs spawning the same
-     * prefab want the same flattened copy — preparing it twice would load its
-     * textures twice and leave two scopes to release.
-     */
-    private async preparePrefabLease_(ref: string): Promise<AssetLease<PreparedPrefab>> {
-        const key = `prepared-prefab:${this.resolveLoadPath_(ref)}`;
-        let entry = this.preparedPrefabs_.get(key);
-        if (!entry) {
-            entry = { holders: 0, prepared: await preparePrefab(this, ref) };
-            this.preparedPrefabs_.set(key, entry);
-        }
-        const held = entry;
-        const receipt = (): AssetLease<PreparedPrefab> => {
-            held.holders++;
-            let released = false;
-            return {
-                key,
-                generation: 0,
-                value: held.prepared,
-                release: () => {
-                    if (released) return;
-                    released = true;
-                    if (--held.holders > 0) return;
-                    this.preparedPrefabs_.delete(key);
-                    held.prepared.release();
-                },
-                // A second receipt for the same preparation — the splitting owner
-                // stays bound to this one, which is the point of splitting.
-                retain: () => receipt(),
-            };
-        };
-        return receipt();
+    /** A generation-bound recipe through the ordinary typed-asset door. */
+    private preparePrefabLease_(ref: string): Promise<AssetLease<PreparedPrefab>> {
+        return this.acquireTypedLease_<PreparedPrefab>('prepared-prefab', ref);
+    }
+
+    private bakePrefab_(path: string, ctx: LoadContext & { recorder: DependencyRecorder },
+                        overrides: readonly PrefabOverride[] = []): Promise<PreparedPrefab> {
+        return preparePrefabFromSource({
+            loadPrefab: async (ref) => (await ctx.acquireAsset<PrefabResult>('prefab', ref)).value,
+            preloadSceneAssets: scene => this.preloadSceneAssets_(scene, undefined, undefined, ctx.recorder),
+            resolveSceneAssetPaths: (scene, result) => this.resolveSceneAssetPaths(scene, result),
+            trackSceneAssetReferences: (scene, entities) => this.trackSceneAssetReferences(scene, entities),
+            resolveRef: ref => this.resolveRef(ref),
+            entityScopes: this.entityScopes,
+        }, path, overrides);
     }
 
     /**
@@ -2653,35 +2750,61 @@ export class Assets {
     private async prepared_<T extends object>(
         work: (ctx: LoadContext) => Promise<T>,
     ): Promise<T & Preparation> {
+        this.assertLoading_();
         const recorder = new DependencyRecorder();
+        this.preparations_.add(recorder);
         try {
             return recorder.commit(await work(this.recordingContext_(recorder)));
         } catch (e) {
-            recorder.rollback();
-            throw e;
-        }
+            throw recorder.abort(e);
+        } finally { this.preparations_.delete(recorder); }
     }
 
     /** The load context one preparation sees: every door that takes something
      *  reports it, and the plain readers stay plain. */
-    private recordingContext_(recorder: DependencyRecorder): LoadContext {
+    private recordingContext_(recorder: DependencyRecorder): LoadContext & { recorder: DependencyRecorder } {
         const base = this.getLoadContext_();
+        const epoch = this.resetEpoch_;
+        const attempt = async <T>(ref: string, work: () => Promise<T>): Promise<T> => {
+            try { this.assertLoading_(epoch); return await work(); }
+            catch (error) { recorder.failed(ref, error); throw preparationFailureReason(error); }
+        };
+        const read = async <T>(ref: string, work: () => Promise<T>): Promise<T> => {
+            const result = await attempt(ref, work);
+            this.assertLoading_(epoch);
+            return result;
+        };
+        const take = async <T>(ref: string, work: () => Promise<AssetLease<T>>, type?: string): Promise<AssetLease<T>> => {
+            // Own first: if teardown crossed this await, rollback must still
+            // return the receipt before the obsolete loader sees its value.
+            const lease = recorder.own(ref, await attempt(ref, work), type);
+            this.assertLoading_(epoch);
+            return lease;
+        };
         return {
             ...base,
+            recorder,
+            loadText: path => read(path, () => base.loadText(path)),
+            loadBinary: path => read(path, () => base.loadBinary(path)),
+            loadTexture: (path, flipY) => read(path, () => base.loadTexture(path, flipY)),
+            decodePixels: path => read(path, () => base.decodePixels!(path)),
             acquireTexture: async (path, flipY) =>
-                recorder.own(path, await base.acquireTexture(path, flipY), 'texture'),
-            acquireAsset: async (type, ref) => recorder.own(ref, await base.acquireAsset(type, ref), type),
-            preparePrefab: async (ref) => recorder.own(ref, await this.preparePrefabLease_(ref), 'prefab'),
+                take(path, () => base.acquireTexture(path, flipY), 'texture'),
+            acquireAsset: async (type, ref) => take(ref, () => this.acquireTypedLease_(type, ref), type),
+            preparePrefab: async (ref) => take(ref, () => this.preparePrefabLease_(ref), 'prepared-prefab'),
             createOwnedTexture: async (width, height, pixels, flipY) => {
+                this.assertLoading_(epoch);
                 const lease = await base.createOwnedTexture!(width, height, pixels, flipY);
-                return recorder.own(`composed:${lease.value.handle}`, lease);
+                recorder.own(`composed:${lease.value.handle}`, lease);
+                this.assertLoading_(epoch);
+                return lease;
             },
             readSource: async (ref) => {
                 // The edge records what was ASKED for; where the build put
                 // those bytes is this door's business, as it is for a texture.
                 // A loader resolving first records an identity nothing names.
                 recorder.read(ref);
-                return base.loadText(this.catalog.getBuildPath(ref));
+                return read(ref, () => base.loadText(this.catalog.getBuildPath(ref)));
             },
         };
     }

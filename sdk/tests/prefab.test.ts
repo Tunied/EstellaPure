@@ -10,15 +10,15 @@ vi.mock('../src/scene/scene', async (importOriginal) => {
     const actual = await importOriginal<typeof import('../src/scene/scene')>();
     return {
         ...actual,
-        loadSceneWithAssets: vi.fn(),
+        loadOwnedSceneWithAssets: vi.fn(),
     };
 });
 
 import { instantiatePrefab } from '../src/prefab';
-import { loadSceneWithAssets } from '../src/scene/scene';
+import { loadOwnedSceneWithAssets } from '../src/scene/scene';
 import { defineComponent } from '../src/ecs/component';
 
-const mockLoadScene = vi.mocked(loadSceneWithAssets);
+const mockLoadScene = vi.mocked(loadOwnedSceneWithAssets);
 
 function createMockWorld(): World {
     const parentMap = new Map<Entity, Entity>();

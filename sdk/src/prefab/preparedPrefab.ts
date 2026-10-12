@@ -26,7 +26,8 @@ import type { Entity } from '../types';
 import type { Assets } from '../asset/Assets';
 import { loadSceneData, SCENE_FORMAT_VERSION, type SceneData } from '../scene/scene';
 import { Transform } from '../ecs/component';
-import { flattenPrefab, migratePrefabData, type FlattenContext, type PrefabData, type PrefabOverride } from './index';
+import { prepareSpawnOwnership, type PreparedSpawnOwnership } from './preparedAssetOwnership';
+import { flattenPrefab, migratePrefabData, preloadNestedPrefabs, type FlattenContext, type PrefabData, type PrefabOverride } from './index';
 
 /**
  * A prefab with its loading done: the flattened entities, their asset handles
@@ -43,6 +44,10 @@ export interface PreparedPrefab {
     readonly missing: readonly string[];
     /** Give back everything the preparation took. */
     release(): void;
+    /** @internal Retain exact resource generations before creating a spawned copy. */
+    retainSpawnAssets?(): PreparedSpawnOwnership;
+    /** @internal Record references against this copy's runtime IDs after spawning. */
+    trackSpawnReferences?(entities: ReadonlyMap<number, number>): void;
 }
 
 /**
@@ -56,13 +61,25 @@ export async function preparePrefab(
     ref: string,
     overrides: readonly PrefabOverride[] = [],
 ): Promise<PreparedPrefab> {
+    if (typeof assets.preparePrefab === 'function') return assets.preparePrefab(ref, overrides);
+    return preparePrefabFromSource(assets, ref, overrides);
+}
+
+/** @internal The shared bake, with acquisition supplied by its owning era. */
+export async function preparePrefabFromSource(
+    assets: Pick<Assets, 'loadPrefab' | 'preloadSceneAssets' | 'resolveSceneAssetPaths'>
+        & Partial<Pick<Assets, 'entityScopes' | 'resolveRef' | 'trackSceneAssetReferences'>>,
+    ref: string,
+    overrides: readonly PrefabOverride[] = [],
+): Promise<PreparedPrefab> {
     const loaded = await assets.loadPrefab(ref);
     const normalized = migratePrefabData(loaded.data as PrefabData).data;
 
     // Nested prefabs first: flattening reads them synchronously, so they have to
     // be in the cache before it runs.
     const cache = new Map<string, PrefabData>();
-    await collectNested(assets, normalized, cache);
+    await preloadNestedPrefabs(normalized, async (path) =>
+        migratePrefabData((await assets.loadPrefab(path)).data as PrefabData).data, cache);
 
     let nextId = 0;
     const ctx: FlattenContext = {
@@ -84,6 +101,7 @@ export async function preparePrefab(
     // The same preload the scene runs, on the same shape — so a prefab spawned
     // from here and one placed in a scene get the same handles for the same refs.
     const result = await assets.preloadSceneAssets(scene);
+    const retainSpawnAssets = prepareSpawnOwnership(scene, result, assets.entityScopes, assets.resolveRef?.bind(assets));
     assets.resolveSceneAssetPaths(scene, result);
 
     return {
@@ -92,32 +110,9 @@ export async function preparePrefab(
         rootId,
         missing: result.missing.map((m) => m.ref),
         release: () => result.scope.releaseAll(),
+        retainSpawnAssets,
+        trackSpawnReferences: entities => assets.trackSceneAssetReferences?.(scene, entities),
     };
-}
-
-/** Load every prefab nested inside `prefab`, into `cache`, depth first. */
-async function collectNested(
-    assets: Assets, prefab: PrefabData, cache: Map<string, PrefabData>,
-): Promise<void> {
-    for (const path of nestedRefs(prefab)) {
-        if (cache.has(path)) continue;
-        // Reserve before awaiting: a prefab that nests itself would otherwise
-        // recurse until the stack gave out.
-        cache.set(path, { entities: [], root: '' } as unknown as PrefabData);
-        const nested = migratePrefabData((await assets.loadPrefab(path)).data as PrefabData).data;
-        cache.set(path, nested);
-        await collectNested(assets, nested, cache);
-    }
-}
-
-/** The prefab paths one prefab's entities nest, in document order. */
-function nestedRefs(prefab: PrefabData): string[] {
-    const out: string[] = [];
-    for (const entity of prefab.entities ?? []) {
-        const ref = (entity as { prefab?: { path?: string } }).prefab?.path;
-        if (typeof ref === 'string' && ref) out.push(ref);
-    }
-    return out;
 }
 
 export interface SpawnPreparedOptions {
@@ -137,14 +132,23 @@ export function spawnPrepared(
 ): { root: Entity; entities: Map<number, Entity> } {
     // `loadSceneData` migrates, and migration deep-clones — so the prepared
     // scene is never mutated and one preparation spawns any number of copies.
-    const entities = loadSceneData(world, prepared.scene);
-    const root = entities.get(prepared.rootId)!;
-    if (options?.parent !== undefined) world.setParent(root, options.parent);
-    if (options?.position) {
-        // Transform is C++-backed, so the read is a copy: change it and hand it back.
-        const transform = world.get(root, Transform);
-        transform.position = { ...transform.position, ...options.position };
-        world.set(root, Transform, transform);
-    }
-    return { root, entities };
+    const ownership = prepared.retainSpawnAssets?.();
+    let entities: Map<number, Entity> | undefined;
+    try {
+        entities = loadSceneData(world, prepared.scene);
+        ownership?.attach(world, entities);
+        prepared.trackSpawnReferences?.(entities);
+        const root = entities.get(prepared.rootId)!;
+        if (options?.parent !== undefined) world.setParent(root, options.parent);
+        if (options?.position) {
+            // Transform is C++-backed, so the read is a copy: change it and hand it back.
+            const transform = world.get(root, Transform);
+            transform.position = { ...transform.position, ...options.position };
+            world.set(root, Transform, transform);
+        }
+        return { root, entities };
+    } catch (error) {
+        if (entities) for (const entity of entities.values()) if (world.valid(entity)) world.despawn(entity);
+        throw error;
+    } finally { ownership?.release(); }
 }

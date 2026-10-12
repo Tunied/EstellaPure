@@ -123,7 +123,7 @@ void TextPlugin::collect(RenderCollectContext& collect_ctx) {
     auto& buffers = collect_ctx.buffer_pool;
     auto& draw_list = collect_ctx.draw_list;
     auto& ctx = collect_ctx.frame_context;
-    auto textView = registry.view<ecs::Transform, ecs::BitmapText>();
+    auto textView = registry.activeView<ecs::Transform, ecs::BitmapText>();
 
     for (auto entity : textView) {
         const auto& bt = textView.get<ecs::BitmapText>(entity);

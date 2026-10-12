@@ -23,6 +23,7 @@
 
 /** The heap members a subsystem module interface asks for. */
 export interface NativeHeap {
+    readonly allocatorIdentity: object;
     HEAPU8: Uint8Array;
     HEAPU16: Uint16Array;
     HEAPU32: Uint32Array;
@@ -39,6 +40,10 @@ export const HEAP_BINDINGS = {
     malloc: 'es_malloc',
     free: 'es_free',
 } as const;
+
+const allocationDomains = new WeakMap<object, {
+    buffer: ArrayBuffer; malloc: unknown; free: unknown; identity: object;
+}>();
 
 /** Whether this host bound the heap at all. A core that marshals nothing may not. */
 export function hasHeapBindings(scope: Record<string, unknown>): boolean {
@@ -60,7 +65,13 @@ export function createNativeHeap(
     if (!buffer) return null;
     const malloc = scope[HEAP_BINDINGS.malloc] as (bytes: number) => number;
     const free = scope[HEAP_BINDINGS.free] as (offset: number) => void;
+    let domain = allocationDomains.get(scope);
+    if (!domain || domain.buffer !== buffer || domain.malloc !== malloc || domain.free !== free) {
+        domain = { buffer, malloc, free, identity: {} };
+        allocationDomains.set(scope, domain);
+    }
     return {
+        allocatorIdentity: domain.identity,
         HEAPU8: new Uint8Array(buffer),
         HEAPU16: new Uint16Array(buffer),
         HEAPU32: new Uint32Array(buffer),

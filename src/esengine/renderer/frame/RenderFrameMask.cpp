@@ -202,7 +202,7 @@ void RenderFrame::processMasks(ecs::Registry& registry, const glm::mat4& project
     clearAllClipRects();
     clearAllStencilMasks();
 
-    auto maskView = registry.view<ecs::UIMask>();
+    auto maskView = registry.activeView<ecs::UIMask>();
     std::vector<Entity>& scissorMasks = mask_scissor_scratch_;
     std::vector<Entity>& stencilMasks = mask_stencil_scratch_;
     std::unordered_set<u32>& maskSet = mask_set_scratch_;

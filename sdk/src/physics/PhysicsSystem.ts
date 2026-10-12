@@ -847,9 +847,19 @@ export function registerPhysics2DSystem(
                     else kinematicEntities.delete(entity);
                 }
 
-                // Bodies whose entity left the query without firing onDespawn.
+                // Activity filtering removes descendants from the query too.
+                // Freeze those bodies in place so reactivation keeps velocity,
+                // shapes and joints; only component removal destroys the body.
                 for (const entity of trackedEntities) {
                     if (!currentEntities.has(entity)) {
+                        if (world.has(entity, RigidBody2D) && world.has(entity, Transform)) {
+                            const cached = cachedProps.get(entity)!;
+                            if (cached.enabled) {
+                                module._physics_setBodyEnabled(entity, 0);
+                                cached.enabled = false;
+                            }
+                            continue;
+                        }
                         module._physics_destroyBody(entity);
                         trackedEntities.delete(entity);
                         cachedProps.delete(entity);
@@ -882,6 +892,7 @@ export function registerPhysics2DSystem(
                 // velocity is what carries/pushes resting dynamic bodies (a plain
                 // teleport reports zero velocity, so platforms wouldn't move riders).
                 for (const entity of kinematicEntities) {
+                    if (!cachedProps.get(entity)?.enabled) continue;
                     const wt = world.get(entity, Transform) as TransformData;
                     module._physics_setBodyTargetTransform(
                         entity,

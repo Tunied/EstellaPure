@@ -54,6 +54,18 @@ export interface DocumentNode {
 /** Whether a document names its entities by string or by number, for messages. */
 const quote = (id: DocumentEntityId): string => (typeof id === 'string' ? `"${id}"` : String(id));
 
+/** @internal Index wide immutable link lists once; tiny lists need no index. */
+export function createChildLookup<Id extends DocumentEntityId>(): (children: readonly Id[], id: Id) => boolean {
+    let indexes: Map<readonly Id[], ReadonlySet<Id>> | undefined;
+    return (children, id) => {
+        if (children.length <= 8) return children.includes(id);
+        indexes ??= new Map();
+        let index = indexes.get(children);
+        if (!index) { index = new Set(children); indexes.set(children, index); }
+        return index.has(id);
+    };
+}
+
 /**
  * Ids are unique, and no entity carries the same component twice. A repeated id
  * is the finding nothing downstream can work around: a loader keying by id keeps
@@ -96,13 +108,14 @@ export function checkDocumentTopology(
     byId: ReadonlyMap<DocumentEntityId, DocumentNode>,
     push: DiagnosticSink,
 ): void {
+    const hasChild = createChildLookup<DocumentEntityId>();
     for (const node of nodes) {
         if (node.parent !== null) {
             const parent = byId.get(node.parent);
             if (!parent) {
                 push('missing-parent', 'error',
                     `entity ${quote(node.id)} parent ${quote(node.parent)} does not exist`, node.id);
-            } else if (!parent.children.includes(node.id)) {
+            } else if (!hasChild(parent.children, node.id)) {
                 push('inconsistent-topology', 'error',
                     `entity ${quote(node.id)} claims parent ${quote(node.parent)} but that parent's children omit it`, node.id);
             }
@@ -132,24 +145,25 @@ export function checkParentCycle(
     const WHITE = 0, GRAY = 1, BLACK = 2;
     const color = new Map<DocumentEntityId, number>();
     for (const node of nodes) color.set(node.id, WHITE);
-    let reported = false;
-
-    const visit = (id: DocumentEntityId, path: DocumentEntityId[]): void => {
-        if (reported) return;
-        const c = color.get(id);
-        if (c === BLACK) return;
-        if (c === GRAY) {
-            const cycle = path.slice(path.indexOf(id)).concat(id).map(String).join(' → ');
-            push('parent-cycle', 'error', `parent cycle detected: ${cycle}`, id);
-            reported = true;
-            return;
+    // A document has at most one parent per node. Walk each unvisited chain
+    // iteratively: no call-stack ceiling and no copying the ancestor path at
+    // every depth. Each link is examined once, regardless of serialized order.
+    for (const node of nodes) {
+        if (color.get(node.id) === BLACK) continue;
+        const path: DocumentEntityId[] = [];
+        let id: DocumentEntityId | null = node.id;
+        while (id !== null && byId.has(id) && color.get(id) !== BLACK) {
+            if (color.get(id) === GRAY) {
+                const cycle = path.slice(path.indexOf(id)).concat(id).map(String).join(' → ');
+                push('parent-cycle', 'error', `parent cycle detected: ${cycle}`, id);
+                return;
+            }
+            color.set(id, GRAY);
+            path.push(id);
+            id = byId.get(id)!.parent;
         }
-        color.set(id, GRAY);
-        const node = byId.get(id);
-        if (node && node.parent !== null && byId.has(node.parent)) visit(node.parent, [...path, id]);
-        color.set(id, BLACK);
-    };
-    for (const node of nodes) visit(node.id, []);
+        for (const visited of path) color.set(visited, BLACK);
+    }
 }
 
 /**

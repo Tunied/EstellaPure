@@ -35,6 +35,22 @@ function fakeManager(entities: number[]) {
 }
 
 describe('SkeletalEnableMirror', () => {
+    it('reads new inactive bindings once and catches up before resuming', () => {
+        const mirror = new SkeletalEnableMirror(SpineAnimation);
+        const manager = fakeManager([1]);
+        let enabled = false;
+        let reads = 0;
+        const world = { tryGet: () => { reads++; return { enabled } as never; } };
+        mirror.sync(world, manager, () => false);
+        expect(manager.pushed).toEqual([[1, false]]);
+        enabled = true;
+        mirror.sync(world, manager, () => false);
+        expect(reads).toBe(1);
+        mirror.sync(world, manager, () => true);
+        expect(reads).toBe(2);
+        expect(manager.pushed).toEqual([[1, false], [1, true]]);
+    });
+
     it('pushes the field on the first sync an entity appears in', () => {
         const m = new SkeletalEnableMirror(SpineAnimation);
         const mgr = fakeManager([1, 2]);

@@ -71,6 +71,23 @@ int main() {
               device.lastUniformBuffer != second.back().buffer,
           "a write the block cannot hold binds the zero block");
 
+    blocks.shutdown();
+    CHECK(device.deleteBufferCalls == device.createBufferCalls,
+          "shutdown releases all populated pages and the zero block");
+    const int deleted = device.deleteBufferCalls;
+    blocks.shutdown();
+    CHECK(device.deleteBufferCalls == deleted, "shutdown is idempotent");
+    CHECK(blocks.stage(bytes.data(), WRITTEN).page == PerDrawBlocks::Range{}.page,
+          "a stopped pool cannot stage a draw");
+    blocks.init(device, BLOCK);
+    blocks.stage(bytes.data(), WRITTEN);
+    blocks.init(device, BLOCK);
+    CHECK(device.createBufferCalls - device.deleteBufferCalls == 1,
+          "reinitialization releases the previous pages and zero block");
+    blocks.shutdown();
+    CHECK(device.deleteBufferCalls == device.createBufferCalls,
+          "a reinitialized pool returns to zero live buffers");
+
     if (g_failures) std::printf("%d failure(s)\n", g_failures);
     return g_failures ? 1 : 0;
 }
