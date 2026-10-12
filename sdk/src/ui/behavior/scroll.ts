@@ -133,6 +133,8 @@ export function createScrollAdoptSystem(
             const data = scroll as UIScrollData;
             if (!data.enabled || (!data.horizontal && !data.vertical)) continue;
             live.add(entity);
+            // Hidden layout boxes collapse to zero; they are not a content resize.
+            if (engine?.getUINodeHiddenInTree?.(registry, entity)) continue;
 
             const a = attached.get(entity);
             if (!a) {

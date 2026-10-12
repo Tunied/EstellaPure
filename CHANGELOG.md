@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Cancelled scroll gestures stop without flinging.** Editor-consumed pointer releases cancel capture even after UI pointer sampling consumes its marker. Inactive, noninteractive or hidden viewports stop dragging and coasting; hidden layout boxes no longer clamp the saved scroll position to zero; losing all pointer projections discards motion instead of resuming an old drag when the view returns.
+
 - **Scene scroll settings update while the game is running.** Changes to axes, wheel speed, drag enablement and movement settings rebuild the adopted container while preserving legal offsets. Disabling both axes suspends scrolling, reactivation restores the content position, and replaced containers cannot inherit an old pointer drag or fling.
 
 - **Scroll views follow content hierarchy edits.** Reparenting a live content node switches an implicit scroll view to its new first child, and clearing an explicit content reference restores first-child selection. Retired containers stop moving the previous content; unchanged hierarchies do not reread native child vectors every frame.

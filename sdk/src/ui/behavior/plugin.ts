@@ -4,6 +4,7 @@ import type { App, Plugin } from '../../app/app';
 import { Res, Time, type TimeData } from '../../ecs/resource';
 import { defineSystem, Schedule } from '../../ecs/system';
 import { Input, type InputState } from '../../input/input';
+import { primaryPointerCancellationVersion } from '../../input/pointerCancellation';
 import { Transform, type TransformData } from '../../ecs/component';
 import { playModeOnly } from '../../ecs/env';
 import type { Entity, Vec2 } from '../../types';
@@ -20,7 +21,8 @@ import { createScrollAdoptSystem } from './scroll';
 import { engineApi } from '../../ecs/bridge/engineApi';
 import type { CppRegistry } from '../../wasm';
 import { KineticScroll } from '../collection/kinetic-scroll';
-import { UIInteraction, type UIInteractionData } from '../input/interactable';
+import { Interactable, UIInteraction, type UIInteractionData } from '../input/interactable';
+import { UINode } from '../core/ui-node';
 import { getEntityDepth, walkParentChain } from '../util/helpers';
 import { UIDialog, createDialogSystem } from './dialog';
 import { UISlider, createSliderSystem } from './slider';
@@ -102,6 +104,12 @@ export class UIBehaviorPlugin implements Plugin {
         app.world.onDespawn((entity) => scrollContainers.detach(entity));
 
         const world = app.world;
+        const engine = engineApi(app);
+        const registry = world.getCppRegistry() as CppRegistry;
+        const scrollAvailable = (entity: Entity): boolean => world.isEntityActive(entity)
+            && !world.isDestructionPending(entity)
+            && (!world.has(entity, Interactable) || world.get(entity, Interactable).enabled)
+            && (!world.has(entity, UINode) || !engine?.getUINodeHiddenInTree?.(registry, entity));
 
         registerComponent('UIDialog', UIDialog);
         app.addSystemToSchedule(
@@ -186,7 +194,7 @@ export class UIBehaviorPlugin implements Plugin {
             if (hovered === null) return null;
             const eligible = (e: Entity): boolean => {
                 const c = scrollContainers.get(e);
-                return !!c && (!dragOnly || c.getDragScroll());
+                return !!c && scrollAvailable(e) && (!dragOnly || c.getDragScroll());
             };
             if (eligible(hovered)) return hovered;
             let found: Entity | null = null;
@@ -222,6 +230,7 @@ export class UIBehaviorPlugin implements Plugin {
         let pendingEntity: Entity | null = null;
         let activeEntity: Entity | null = null;
         let capturedContainer: ScrollContainer | null = null;
+        let lastCancellationVersion = primaryPointerCancellationVersion(app.getResource(Input));
         let grabStartWorld: Vec2 = { x: 0, y: 0 };
         let grabStartOffset: Vec2 = { x: 0, y: 0 };
         let lastOffset: Vec2 = { x: 0, y: 0 };
@@ -230,9 +239,18 @@ export class UIBehaviorPlugin implements Plugin {
             [Res(Input), Res(UICameraInfo), Res(Time), Res(ScreenLayout), Res(ScreenOverlay)],
             (input: InputState, camera: UICameraData, time: TimeData, layout: ScreenLayoutData,
              overlay: ScreenOverlayData) => {
-                if (!camera.valid && !overlay.active) return;
+                const cancellationVersion = primaryPointerCancellationVersion(input);
+                const cancelled = cancellationVersion !== lastCancellationVersion;
+                lastCancellationVersion = cancellationVersion;
+                if (!camera.valid && !overlay.active) {
+                    activeEntity = pendingEntity = null;
+                    capturedContainer = null;
+                    dynamics.clear();
+                    return;
+                }
                 const captured = activeEntity ?? pendingEntity;
-                if (captured !== null && scrollContainers.get(captured) !== capturedContainer) {
+                if (captured !== null && (cancelled || !scrollAvailable(captured)
+                    || scrollContainers.get(captured) !== capturedContainer)) {
                     dynamics.get(captured)?.motion.stop();
                     activeEntity = pendingEntity = null;
                     capturedContainer = null;
@@ -245,7 +263,7 @@ export class UIBehaviorPlugin implements Plugin {
                 // Press over a hovered container (or an interactive child of one)
                 // arms the drag; the nearest container wins so a nested list
                 // scrolls itself, not its ancestor.
-                if (input.isMouseButtonPressed(0)) {
+                if (input.isMouseButtonPressed(0) && input.isMouseButtonDown(0)) {
                     const best = hoveredScrollTarget(true);
                     if (best !== null) {
                         const container = scrollContainers.get(best)!;
@@ -319,7 +337,7 @@ export class UIBehaviorPlugin implements Plugin {
                 // Coast: tick flung containers; an axis the clamp stops is dead.
                 for (const [entity, state] of dynamics) {
                     const container = scrollContainers.get(entity);
-                    if (container !== state.container) {
+                    if (container !== state.container || !scrollAvailable(entity)) {
                         dynamics.delete(entity);
                         continue;
                     }

@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ui): cancel scroll capture and motion when input ownership changes':
+    { note: 'Cancelled scroll gestures stop without flinging.' },
   'fix(ui): apply live scroll settings and isolate replaced motion':
     { note: 'Scene scroll settings update while the game is running.' },
   'fix(ui): follow scroll content hierarchy and reference changes':

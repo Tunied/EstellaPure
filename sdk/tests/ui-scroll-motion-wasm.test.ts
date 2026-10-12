@@ -3,10 +3,14 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { App, flushPendingRegistrations } from '../src/app/app';
 import { AppContext, setDefaultContext } from '../src/ecs/context';
-import { Input, InputState } from '../src/input/input';
+import { Input, InputState, inputEventCallbacks } from '../src/input/input';
+import { inputRouter } from '../src/input/inputRouter';
+import { takePrimaryPointerCancellation } from '../src/input/pointerCancellation';
+import { Canvas, Disabled, Transform } from '../src/ecs/component';
+import { UINode } from '../src/ui/core/ui-node';
 import { UICameraInfo } from '../src/ui/core/ui-camera-info';
 import { UIEvents, UIEventQueue } from '../src/ui/core/events';
-import { UIInteraction } from '../src/ui/input/interactable';
+import { Interactable, UIInteraction } from '../src/ui/input/interactable';
 import { UIBehaviorPlugin } from '../src/ui/behavior/plugin';
 import { ScrollContainer } from '../src/ui/collection/scroll-container';
 import type { CppRegistry, ESEngineModule } from '../src/wasm';
@@ -52,5 +56,43 @@ describe.skipIf(!HAS_WASM)('scroll motion ownership on real WASM', () => {
         const next = container(); plugin.attachScrollContainer(entity, next);
         for (let i = 0; i < 10; i++) await step(100);
         expect(next.getOffset().y).toBe(0);
+    });
+    it('an editor-owned release cancels the drag without starting a fling', async () => {
+        const scroll = container(); plugin.attachScrollContainer(entity, scroll); await drag();
+        const off = inputRouter.setEditorHandler({ onPointerUp: () => true });
+        try { inputEventCallbacks(input).onPointerUp(0); } finally { off(); }
+        takePrimaryPointerCancellation(input);
+        for (let i = 0; i < 10; i++) await step(100);
+        expect(scroll.getOffset().y).toBe(80);
+    });
+    it.each(['inactive', 'noninteractive'])('a %s captured viewport stops moving', async kind => {
+        const scroll = container(); plugin.attachScrollContainer(entity, scroll); await drag();
+        if (kind === 'inactive') app.world.insert(entity, Disabled);
+        else app.world.insert(entity, Interactable, { enabled: false });
+        await step(120);
+        expect(scroll.getOffset().y).toBe(80);
+    });
+    it('losing all pointer projections cancels capture before the view returns', async () => {
+        const scroll = container(); plugin.attachScrollContainer(entity, scroll); await drag();
+        app.getResource(UICameraInfo).valid = false; await step(120);
+        app.getResource(UICameraInfo).valid = true; await step(140);
+        expect(scroll.getOffset().y).toBe(80);
+    });
+    it('a hidden viewport stops its captured drag after layout resolves visibility', async () => {
+        const scroll = container(); plugin.attachScrollContainer(entity, scroll); await drag();
+        app.world.insert(entity, Canvas); app.world.insert(entity, Transform);
+        app.world.insert(entity, UINode, { display: 1 });
+        engine.uiLayout_update(registry, -50, -50, 50, 50, true);
+        expect(engine.getUINodeHiddenInTree!(registry, entity)).toBe(true);
+        await step(120);
+        expect(scroll.getOffset().y).toBe(80);
+    });
+    it('disabling a viewport stops an already released fling', async () => {
+        const scroll = container(); plugin.attachScrollContainer(entity, scroll); await drag();
+        input.noteMouseUp(0); await step(100);
+        const before = scroll.getOffset().y;
+        app.world.insert(entity, Disabled);
+        for (let i = 0; i < 10; i++) await step(100);
+        expect(scroll.getOffset().y).toBe(before);
     });
 });

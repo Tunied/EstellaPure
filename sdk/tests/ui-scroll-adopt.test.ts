@@ -68,12 +68,14 @@ describe.skipIf(!HAS_WASM)('UIScroll adoption', () => {
             [content as number, contentSize],
         ]);
         const attached = new Map<number, ScrollContainer>();
+        const hidden = new Set<number>();
 
         app.addSystemToSchedule(Schedule.Update, createScrollAdoptSystem(
             world,
             {
                 uiNode_computedWidth: (_r: unknown, e: number) => sizes.get(e)?.w ?? 0,
                 uiNode_computedHeight: (_r: unknown, e: number) => sizes.get(e)?.h ?? 0,
+                getUINodeHiddenInTree: (_r: unknown, e: number) => hidden.has(e),
             } as never,
             registry,
             {
@@ -81,7 +83,7 @@ describe.skipIf(!HAS_WASM)('UIScroll adoption', () => {
                 detachScrollContainer: (e) => { attached.delete(e as number); },
             },
         ));
-        return { app, world, viewport, content, attached, sizes };
+        return { app, world, viewport, content, attached, sizes, hidden };
     }
 
     it('attaches a container sized from the resolved layout', async () => {
@@ -258,5 +260,18 @@ describe.skipIf(!HAS_WASM)('UIScroll adoption', () => {
         world.update(viewport, UIScroll, s => { s.movement = ScrollMovement.Clamped; });
         await app.tick(1 / 60);
         expect(attached.get(viewport)!.getDecelerationRate()).toBe(0);
+    });
+
+    it('preserves scroll position while hidden layout boxes collapse to zero', async () => {
+        const { app, viewport, content, attached, sizes, hidden } = setup();
+        await app.tick(1 / 60);
+        const scroll = attached.get(viewport)!; scroll.setOffset({ x: 0, y: 120 });
+        hidden.add(viewport); sizes.set(viewport, { w: 0, h: 0 }); sizes.set(content, { w: 0, h: 0 });
+        await app.tick(1 / 60);
+        expect(scroll.getOffset().y).toBe(120);
+        hidden.delete(viewport); sizes.set(viewport, { w: 400, h: 300 }); sizes.set(content, { w: 400, h: 1200 });
+        await app.tick(1 / 60);
+        expect(attached.get(viewport)).toBe(scroll);
+        expect(scroll.getOffset().y).toBe(120);
     });
 });
