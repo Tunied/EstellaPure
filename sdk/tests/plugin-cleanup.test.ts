@@ -13,6 +13,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { SpineManager } from '../src/spine/SpineManager';
 import { SpinePlugin } from '../src/spine/SpinePlugin';
 import { Physics2DPlugin } from '../src/physics/Physics2DPlugin';
+import { App } from '../src/app/app';
+import { Physics2DRuntime } from '../src/physics/Physics2DRuntime';
+import type { PhysicsWasmModule } from '../src/physics/PhysicsModuleLoader';
 
 describe('SpineManager.dispose', () => {
     it('shuts down every backend and clears all state, idempotently', () => {
@@ -66,20 +69,26 @@ describe('SpinePlugin.cleanup', () => {
 });
 
 describe('Physics2DPlugin.cleanup', () => {
-    it('shuts down the native physics world and nulls the module', () => {
-        const plugin = new Physics2DPlugin('fake://physics.wasm');
+    it('shuts down the native physics world and nulls the module', async () => {
         const shutdown = vi.fn();
-        const p = plugin as any;
-        p.module_ = { _physics_shutdown: shutdown };
-
-        plugin.cleanup();
-
-        expect(shutdown).toHaveBeenCalledTimes(1);
-        expect(p.module_).toBeNull();
-
-        // A second cleanup (module already released) must be a no-op.
-        plugin.cleanup();
-        expect(shutdown).toHaveBeenCalledTimes(1);
+        const module = Object.fromEntries([
+            '_physics_init', '_physics_setWorldConfig', '_physics_step', '_physics_capturePoses',
+            '_physics_getInterpolatedCount', '_physics_getInterpolatedTransforms', '_physics_collectEvents',
+            '_physics_getDynamicBodyCount', '_physics_getDynamicBodyTransforms', '_physics_setBodyTransform',
+        ].map(name => [name, vi.fn(() => 0)])) as unknown as PhysicsWasmModule;
+        module._physics_shutdown = shutdown;
+        const plugin = new Physics2DPlugin('', {}, async () => module);
+        const app = App.new().addPlugin(plugin);
+        const runtime = app.getResource(Physics2DRuntime);
+        try {
+            await runtime.initPromise;
+            expect(runtime.module).not.toBeNull();
+            app.quit();
+            expect(shutdown).toHaveBeenCalledTimes(1);
+            expect(runtime.module).toBeNull();
+            plugin.cleanup();
+            expect(shutdown).toHaveBeenCalledTimes(1);
+        } finally { app.quit(); }
     });
 
     it('is safe to call before the async module load completed', () => {
