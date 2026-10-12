@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Camera fitting and editor previews use outer canvases consistently.** A nested canvas appearing first no longer overrides the scene design resolution or becomes the default host for new UI. Scene-filtered camera collection uses a running scene's outer canvas, and preview selection queries Canvas components directly. The experimental `canvasRootEntities` helper shares root selection across runtime and editor workflows.
+
 - **Nested canvases keep their parent layout and authored draw order.** Only top-level eligible canvases start traversal, so a nested canvas is not laid out again against the full screen or assigned a second draw-order range. Descendants inherit the nearest canvas's sorting layer regardless of canvas creation order.
 
 - **UI hierarchy walks tolerate deep scene groups and broken child links.** Tree construction, screen-domain collection and draw-order assignment use iterative traversal. Repeated or cyclic child links stop revisiting entities while preserving the authored sibling order and nearest UI parent.

@@ -20,6 +20,7 @@ import { CameraCommit, cameraCommitChanged } from './CameraCommit';
 import { ScreenLayout, screenLayoutRect, screenProjection } from '../ui/core/screen-layout';
 import { ScreenOverlay } from '../ui/core/screen-overlay';
 import { ProjectionType, SceneOwner, ClearFlags } from '../ecs/component';
+import { canvasRootEntities } from '../ui/core/canvas-roots';
 import { uiLayoutRect, computeEffectiveOrthoSize, EDITOR_VIEW_ENTITY, type CanvasScale } from './uiLayoutRect';
 import { EditorView, DEFAULT_EDITOR_VIEW, editorViewStandoff, editorViewClipFar, editorViewClipNear, type EditorViewData } from './EditorView';
 import { ScreenScaling, DEFAULT_SCREEN_SCALING, SCREEN_FIT_OFF } from './ScreenScaling';
@@ -107,13 +108,18 @@ function canvasEntityOf(
         ? reg.getCanvasEntities.call(registry)
         : module?.registry_getCanvasEntities?.(registry);
     if (all && all.length > 0) {
+        const roots = canvasRootEntities(all, entity => {
+            if (!registry.hasParent(entity)) return null;
+            const parent = registry.getParent(entity).entity;
+            return registry.valid(parent) ? parent : null;
+        });
         if (world && activeScenes) {
-            for (const e of all) {
+            for (const e of roots) {
                 const owner = world.tryGet(e as Entity, SceneOwner);
                 if (!owner || owner.scene === '' || activeScenes.has(owner.scene)) return e;
             }
         }
-        return all[0];
+        return roots[0] ?? -1;
     }
     // A core built before the enumeration answers only the single-Canvas question.
     const own = reg.getCanvasEntity;
@@ -408,7 +414,7 @@ export function collectCameras(
 ): CameraInfo[] {
     const povs = collectCameraPOVs(module, registry, width, height, world, activeScenes);
     if (povs.length === 0) return [];
-    const canvas = findCanvasData(module, registry);
+    const canvas = findCanvasData(module, registry, world, activeScenes);
     const cameras = povs.map((pov, i) => buildCameraInfo(pov, width, height, canvas, pool, i));
     cameras.sort((a, b) => a.priority - b.priority);
     return cameras;

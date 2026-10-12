@@ -2,7 +2,8 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { World } from '../src/ecs/world';
-import { Canvas, Transform } from '../src/ecs/component';
+import { Canvas, Camera, SceneOwner, Transform } from '../src/ecs/component';
+import { collectCameras } from '../src/camera/CameraPlugin';
 import { UINode, UIPositionType } from '../src/ui/core/ui-node';
 import { UIVisual } from '../src/ui/core/ui-visual';
 import { Interactable } from '../src/ui/input/interactable';
@@ -19,6 +20,23 @@ describe.skipIf(!HAS_WASM)('nested canvas layout and ordering on real WASM', () 
     afterEach(() => {
         for (const entity of world.getAllEntities()) if (world.valid(entity)) world.despawn(entity);
         world.disconnectCpp(); registry.delete();
+    });
+    it('fits cameras to the outer canvas when the nested canvas was enumerated first', () => {
+        const child = world.spawn(), root = world.spawn(), camera = world.spawn();
+        world.insert(child, Canvas, { designResolution: { x: 160, y: 120 } });
+        world.insert(root, Canvas, { designResolution: { x: 800, y: 600 } });
+        world.setParent(child, root);
+        world.insert(camera, Transform); world.insert(camera, Camera, { isActive: true });
+        expect(collectCameras(engine, registry, 800, 600, world)[0].halfH).toBe(300);
+    });
+    it('uses the running scene canvas for scene-filtered camera collection', () => {
+        const paused = world.spawn(), running = world.spawn(), camera = world.spawn();
+        world.insert(paused, Canvas, { designResolution: { x: 160, y: 120 } });
+        world.insert(paused, SceneOwner, { scene: 'paused' });
+        world.insert(running, Canvas, { designResolution: { x: 800, y: 600 } });
+        world.insert(running, SceneOwner, { scene: 'running' });
+        world.insert(camera, Transform); world.insert(camera, Camera, { isActive: true });
+        expect(collectCameras(engine, registry, 800, 600, world, new Set(['running']))[0].halfH).toBe(300);
     });
     it.each([false, true])('lays out nested canvases once, even when the child was created first: %s', childFirst => {
         const child = childFirst ? world.spawn() : null;

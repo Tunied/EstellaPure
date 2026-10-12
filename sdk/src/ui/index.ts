@@ -522,3 +522,4 @@ export { sdfFromAlpha } from './text/sdf';
 export { submitTextBatch, TEXT_VERTEX_FLOATS } from './text/submit';
 
 export { ScreenOverlay, type ScreenOverlayData } from './core/screen-overlay';
+export { canvasRootEntities } from './core/canvas-roots';

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
+export { canvasRootEntities } from './ui/core/canvas-roots';
 /**
  * @file    core-ui.ts
  * @brief   The stable UI surface promoted into the top-level `esengine`
