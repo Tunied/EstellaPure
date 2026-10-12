@@ -6,6 +6,46 @@
 using namespace esengine;
 using namespace esengine::ecs;
 
+TEST_CASE("nested canvas roots respect hierarchy instead of component insertion order") {
+    for (bool nestedFirst : {false, true}) {
+        Registry registry;
+        auto root = registry.create(), group = registry.create(), nested = registry.create(), leaf = registry.create();
+        if (nestedFirst) registry.emplace<Canvas>(nested).layer = 3;
+        registry.emplace<Canvas>(root).layer = 1;
+        if (!nestedFirst) registry.emplace<Canvas>(nested).layer = 3;
+        for (Entity entity : {root, nested, leaf}) {
+            registry.emplace<UINode>(entity); registry.emplace<Transform>(entity); registry.emplace<UIVisual>(entity);
+        }
+        registry.emplace<Children>(root).entities = {group};
+        registry.emplace<Parent>(group).entity = root;
+        registry.emplace<Children>(group).entities = {nested};
+        registry.emplace<Parent>(nested).entity = group;
+        registry.emplace<Children>(nested).entities = {leaf};
+        registry.emplace<Parent>(leaf).entity = nested;
+        UITree tree; tree.rebuild(registry);
+        REQUIRE(tree.nodes_.size() == 3);
+        CHECK(tree.nodes_[0].entity == root);
+        CHECK(tree.nodes_[1].parent == root);
+        CHECK(tree.nodes_[0].subtree_size == 3);
+        uiRenderOrderUpdate(registry);
+        CHECK(registry.get<UIVisual>(root).uiOrder == 0);
+        CHECK(registry.get<UIVisual>(nested).uiOrder == 1);
+        CHECK(registry.get<UIVisual>(leaf).uiOrder == 2);
+        CHECK(registry.get<UIVisual>(leaf).uiCullBit == 8);
+        registry.remove<Canvas>(root);
+        tree.rebuild(registry);
+        REQUIRE(tree.nodes_.size() == 2);
+        CHECK(tree.nodes_[0].entity == nested);
+        registry.emplace<Canvas>(root);
+        tree.rebuild(registry);
+        CHECK(tree.nodes_.size() == 3);
+        registry.remove<UINode>(root);
+        tree.rebuild(registry);
+        REQUIRE(tree.nodes_.size() == 2);
+        CHECK(tree.nodes_[0].entity == nested);
+    }
+}
+
 TEST_CASE("deep scene groups keep UI traversal and draw order intact") {
     Registry registry;
     auto root = registry.create();

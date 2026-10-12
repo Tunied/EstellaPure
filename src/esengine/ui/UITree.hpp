@@ -7,6 +7,7 @@
 #include "../ecs/components/UINode.hpp"
 #include "../ecs/components/Canvas.hpp"
 #include "../ecs/components/Transform.hpp"
+#include "CanvasRoots.hpp"
 
 #include <vector>
 #include <algorithm>
@@ -41,10 +42,9 @@ struct UITree {
 
     void rebuild(Registry& reg) {
         nodes_.clear();
-        reg.each<Canvas>([&](Entity entity, Canvas&) {
-            if (!reg.has<UINode>(entity) || !reg.has<Transform>(entity)) return;
+        for (Entity entity : canvasRoots(reg, true)) {
             buildDFS(reg, entity, INVALID_ENTITY, 0);
-        });
+        }
 
         u64 h = 1469598103934665603ULL;  // FNV-1a offset basis
         for (const auto& n : nodes_) {

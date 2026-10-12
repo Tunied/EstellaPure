@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ui): traverse nested canvases once and inherit their layers':
+    { note: 'Nested canvases keep their parent layout and authored draw order.' },
   'fix(ui): bound hierarchy walks and preserve sibling order':
     { note: 'UI hierarchy walks tolerate deep scene groups and broken child links.' },
   'fix(ui): preserve traversal spans for large subtrees':
