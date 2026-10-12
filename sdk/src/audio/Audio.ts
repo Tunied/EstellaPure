@@ -61,6 +61,8 @@ function silentHandle(): AudioHandle {
 
 interface SoftVoice {
     handle: AudioHandle;
+    publicHandle?: AudioHandle;
+    paused: boolean;
     bus: string;
     base: number;
     fade: number;
@@ -563,7 +565,7 @@ export class AudioAPI {
 
     /** Re-apply after a bus (or master) changed, and forget voices that ended. */
     private applyBus_(busName: string): void {
-        this.softVoices_ = this.softVoices_.filter((v) => v.handle.isPlaying || this.fadeOf_(v) !== null);
+        this.softVoices_ = this.softVoices_.filter((v) => v.paused || v.handle.isPlaying || this.fadeOf_(v) !== null);
         for (const voice of this.softVoices_) {
             if (busName === 'master' || voice.bus === busName) this.applyVoice_(voice);
         }
@@ -599,8 +601,37 @@ export class AudioAPI {
         const priority = config.priority ?? 0;
         if (!this.makeRoomForVoice_(priority)) return silentHandle();
         const handle = this.backend_.play(buffer, { ...config, volume: base * this.softGain_(bus) });
-        this.softVoices_.push({ handle, bus, base, fade: 1, priority, seq: this.voiceSeq_++ });
-        return handle;
+        const voice: SoftVoice = { handle, bus, base, fade: 1, paused: false, priority, seq: this.voiceSeq_++ };
+        const api = this;
+        const managed: AudioHandle = {
+            get id() { return handle.id; },
+            stop() { voice.paused = false; handle.stop(); },
+            pause() {
+                if (!handle.isPlaying) return;
+                handle.pause();
+                voice.paused = !handle.isPlaying;
+            },
+            resume() {
+                if (!voice.paused || api.disposed_ || !api.softVoices_.includes(voice)) return;
+                handle.resume();
+                if (handle.isPlaying) voice.paused = false;
+            },
+            setVolume(volume) {
+                voice.base = volume;
+                if (!api.disposed_ && (voice.paused || handle.isPlaying)) api.applyVoice_(voice);
+            },
+            setPan(pan) { if (!api.disposed_ && (voice.paused || handle.isPlaying)) handle.setPan(pan); },
+            setLoop(loop) { handle.setLoop(loop); },
+            setPlaybackRate(rate) { handle.setPlaybackRate(rate); },
+            get isPlaying() { return handle.isPlaying; },
+            get currentTime() { return handle.currentTime; },
+            get duration() { return handle.duration; },
+            get onEnd() { return handle.onEnd; },
+            set onEnd(callback) { handle.onEnd = callback; },
+        };
+        voice.publicHandle = managed;
+        this.softVoices_.push(voice);
+        return managed;
     }
 
     /**
@@ -611,7 +642,7 @@ export class AudioAPI {
      */
     private makeRoomForVoice_(priority: number): boolean {
         this.softVoices_ = this.softVoices_.filter(
-            (v) => v.handle.isPlaying || this.fadeOf_(v) !== null,
+            (v) => v.paused || v.handle.isPlaying || this.fadeOf_(v) !== null,
         );
         if (this.maxVoices_ <= 0 || this.softVoices_.length < this.maxVoices_) return true;
 
@@ -623,6 +654,7 @@ export class AudioAPI {
             }
         }
         if (!weakest || weakest.priority > priority) return false;
+        weakest.paused = false;
         weakest.handle.stop();
         this.softVoices_ = this.softVoices_.filter((v) => v !== weakest);
         return true;
@@ -741,15 +773,21 @@ export class AudioAPI {
         if (this.fades_.length === 0 || !(dt > 0)) return;
         for (let i = this.fades_.length - 1; i >= 0; i--) {
             const fade = this.fades_[i];
+            if (fade.voice.paused) continue;
+            if (!fade.voice.handle.isPlaying) {
+                this.fadingOut_.delete(fade.voice.publicHandle ?? fade.voice.handle);
+                this.fades_.splice(i, 1);
+                continue;
+            }
             fade.elapsed += dt;
             const t = fade.duration > 0 ? Math.min(fade.elapsed / fade.duration, 1) : 1;
             fade.voice.fade = fade.from + (fade.to - fade.from) * t;
             this.applyVoice_(fade.voice);
             // A track that ended (or was stopped) mid-ramp takes its fade with it.
-            if (t >= 1 || !fade.voice.handle.isPlaying) {
+            if (t >= 1) {
                 if (fade.stopAtEnd) {
                     fade.voice.handle.stop();
-                    this.fadingOut_.delete(fade.voice.handle);
+                    this.fadingOut_.delete(fade.voice.publicHandle ?? fade.voice.handle);
                 }
                 this.fades_.splice(i, 1);
             }
@@ -767,9 +805,9 @@ export class AudioAPI {
     /** The tracked voice for a handle, registering one if it came from outside
      *  the play path (a deferred handle resolved later). */
     private voiceOf_(handle: AudioHandle, base: number, bus: string): SoftVoice {
-        const found = this.softVoices_.find((v) => v.handle === handle);
+        const found = this.softVoices_.find((v) => v.handle === handle || v.publicHandle === handle);
         if (found) return found;
-        const voice: SoftVoice = { handle, bus, base, fade: 1, priority: 0, seq: this.voiceSeq_++ };
+        const voice: SoftVoice = { handle, bus, base, fade: 1, paused: false, priority: 0, seq: this.voiceSeq_++ };
         this.softVoices_.push(voice);
         return voice;
     }

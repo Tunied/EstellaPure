@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Paused voices remain owned by the audio API.** Paused handles retain their voice-budget slot, bus volume and mute updates, and disposal cleanup; stolen paused voices cannot resume outside the budget. Handle volume edits update the tracked base gain, fades stay associated with managed handles, and ended ramps stop writing to released backend voices.
+
 - **WebAudio position stays continuous across playback-rate changes.** Rate edits anchor the accumulated position before applying the new rate, so pause/resume and loop offsets use the time actually played at each rate. A rate rejected by the backend leaves the existing clock intact; paused edits apply when playback resumes.
 
 - **Playing audio sources follow live parameter edits.** Volume, pitch and loop changes update the existing voice without restarting it. Switching spatial sound off restores base gain and centered pan; stable nonspatial sources do not resend unchanged parameters, and voice cleanup avoids copying its key list every frame.

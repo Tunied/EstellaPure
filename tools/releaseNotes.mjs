@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(audio): retain paused voice ownership and tracked base gains':
+    { note: 'Paused voices remain owned by the audio API.' },
   'fix(audio): preserve playback position across rate changes':
     { note: 'WebAudio position stays continuous across playback-rate changes.' },
   'fix(audio): apply live source parameters without restarting voices':
