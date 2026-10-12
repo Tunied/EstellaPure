@@ -34,8 +34,7 @@ class NativeAudioHandle implements AudioHandle {
     stop(): void {
         if (this.done_) return;
         this.done_ = true;
-        this.audio_.stop(this.id);
-        this.onDispose_();
+        try { this.audio_.stop(this.id); } finally { this.onDispose_(); }
     }
 
     /** @internal The host reported this voice ended on its own (pushed through
@@ -43,19 +42,19 @@ class NativeAudioHandle implements AudioHandle {
     handleEnded_(): void {
         if (this.done_) return;
         this.done_ = true;
-        this.onEnd?.();
         this.onDispose_();
+        this.onEnd?.();
     }
 
-    pause(): void { this.audio_.pause(this.id); }
-    resume(): void { this.audio_.resume(this.id); }
-    setVolume(volume: number): void { this.audio_.setVolume(this.id, volume); }
-    setPan(pan: number): void { this.audio_.setPan(this.id, scalar.clamp(pan, -1, 1)); }
-    setLoop(loop: boolean): void { this.audio_.setLoop(this.id, loop); }
-    setPlaybackRate(rate: number): void { this.audio_.setRate(this.id, rate); }
+    pause(): void { if (!this.done_) this.audio_.pause(this.id); }
+    resume(): void { if (!this.done_) this.audio_.resume(this.id); }
+    setVolume(volume: number): void { if (!this.done_) this.audio_.setVolume(this.id, volume); }
+    setPan(pan: number): void { if (!this.done_) this.audio_.setPan(this.id, scalar.clamp(pan, -1, 1)); }
+    setLoop(loop: boolean): void { if (!this.done_) this.audio_.setLoop(this.id, loop); }
+    setPlaybackRate(rate: number): void { if (!this.done_) this.audio_.setRate(this.id, rate); }
 
-    get isPlaying(): boolean { return this.audio_.voiceState(this.id)?.playing ?? false; }
-    get currentTime(): number { return this.audio_.voiceState(this.id)?.currentTime ?? 0; }
+    get isPlaying(): boolean { return !this.done_ && (this.audio_.voiceState(this.id)?.playing ?? false); }
+    get currentTime(): number { return this.done_ ? 0 : this.audio_.voiceState(this.id)?.currentTime ?? 0; }
     get duration(): number { return this.duration_; }
 }
 

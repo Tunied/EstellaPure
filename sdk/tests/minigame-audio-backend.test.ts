@@ -70,6 +70,44 @@ describe('MiniGameAudioBackend', () => {
     });
 
     describe('stop', () => {
+        it.each(['stop', 'end', 'dispose'])('a handle retired by %s ignores writes and reports no playback', async kind => {
+            const buffer = await backend.loadBuffer('a.mp3'), handle = backend.play(buffer, {});
+            const ctx = (globalThis as any).wx.createInnerAudioContext.mock.results.at(-1).value;
+            if (kind === 'stop') handle.stop();
+            else if (kind === 'end') ctx.onEnded.mock.calls[0][0]();
+            else backend.dispose();
+            ctx.paused = false; ctx.currentTime = 7;
+            const volume = ctx.volume, loop = ctx.loop, rate = ctx.playbackRate;
+            ctx.play.mockClear(); ctx.pause.mockClear();
+            handle.pause(); handle.resume(); handle.setVolume(.2); handle.setLoop(true); handle.setPlaybackRate(2); handle.stop();
+            expect(ctx.play).not.toHaveBeenCalled(); expect(ctx.pause).not.toHaveBeenCalled();
+            expect([ctx.volume, ctx.loop, ctx.playbackRate]).toEqual([volume, loop, rate]);
+            expect(handle.isPlaying).toBe(false); expect(handle.currentTime).toBe(0);
+            expect(ctx.destroy).toHaveBeenCalledOnce();
+        });
+        it('natural completion is terminal before callbacks run and is delivered only once', async () => {
+            const buffer = await backend.loadBuffer('a.mp3'), handle = backend.play(buffer, {});
+            const ctx = (globalThis as any).wx.createInnerAudioContext.mock.results.at(-1).value;
+            handle.onEnd = vi.fn(() => { expect(handle.isPlaying).toBe(false); expect(ctx.destroy).toHaveBeenCalledOnce(); });
+            const ended = ctx.onEnded.mock.calls[0][0]; ended(); ended();
+            expect(handle.onEnd).toHaveBeenCalledOnce(); expect(ctx.destroy).toHaveBeenCalledOnce();
+        });
+        it('a throwing completion callback cannot leave a live context behind', async () => {
+            const buffer = await backend.loadBuffer('a.mp3'), handle = backend.play(buffer, {});
+            const ctx = (globalThis as any).wx.createInnerAudioContext.mock.results.at(-1).value;
+            handle.onEnd = () => { throw Error('callback failed'); };
+            const ended = ctx.onEnded.mock.calls[0][0];
+            expect(() => ended()).toThrow('callback failed');
+            expect(ctx.destroy).toHaveBeenCalledOnce(); expect(handle.isPlaying).toBe(false);
+            expect(() => ended()).not.toThrow(); backend.dispose(); expect(ctx.destroy).toHaveBeenCalledOnce();
+        });
+        it('a loop notification does not retire a playing looping context', async () => {
+            const buffer = await backend.loadBuffer('a.mp3'), handle = backend.play(buffer, { loop: true });
+            const ctx = (globalThis as any).wx.createInnerAudioContext.mock.results.at(-1).value;
+            handle.onEnd = vi.fn(); ctx.onEnded.mock.calls[0][0]();
+            expect(handle.isPlaying).toBe(true); expect(handle.onEnd).not.toHaveBeenCalled();
+            expect(ctx.destroy).not.toHaveBeenCalled(); handle.stop(); expect(ctx.destroy).toHaveBeenCalledOnce();
+        });
         it('is idempotent — never destroys the InnerAudioContext twice', async () => {
             const handle = await backend.loadBuffer('audio/sfx.mp3');
             const audioHandle = backend.play(handle, {});

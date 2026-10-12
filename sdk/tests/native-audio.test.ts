@@ -130,6 +130,28 @@ describe('NativeAudioBackend', () => {
         expect(host.calls.stop.length).toBe(stopsBefore);
     });
 
+    it('retires native ownership before invoking a throwing completion callback', () => {
+        const scope = audioScope(), bridge = createHostBridge(scope);
+        const backend = new NativeAudioBackend(bridge.audio!);
+        const handle = backend.play({ id: 1, duration: 1 }, {});
+        const owned = (backend as unknown as { voices_: Map<number, unknown> }).voices_;
+        handle.onEnd = () => { throw Error('callback failed'); };
+        expect(() => (scope.es_onNativeAudioEnded as (v: number) => void)(handle.id)).toThrow('callback failed');
+        expect(owned.size).toBe(0); expect(handle.isPlaying).toBe(false);
+    });
+
+    it.each(['stop', 'end'])('a native handle retired by %s ignores later parameter writes', kind => {
+        const scope = audioScope(), bridge = createHostBridge(scope), audio = bridge.audio!;
+        const writes = ['pause', 'resume', 'setVolume', 'setPan', 'setLoop', 'setRate'] as const;
+        const spies = writes.map(name => vi.spyOn(audio, name));
+        const backend = new NativeAudioBackend(audio), handle = backend.play({ id: 1, duration: 1 }, {});
+        if (kind === 'stop') handle.stop();
+        else (scope.es_onNativeAudioEnded as (v: number) => void)(handle.id);
+        handle.pause(); handle.resume(); handle.setVolume(.2); handle.setPan(.5); handle.setLoop(true); handle.setPlaybackRate(2);
+        for (const spy of spies) expect(spy).not.toHaveBeenCalled();
+        expect(handle.isPlaying).toBe(false); expect(handle.currentTime).toBe(0);
+    });
+
     it('stop() tears the voice down through the bridge', () => {
         const scope = audioScope();
         const host = installAudioHost(scope);

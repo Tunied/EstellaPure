@@ -31,14 +31,21 @@ class MiniGameAudioHandle implements AudioHandle {
         this.contexts_ = contexts;
     }
 
+    private isLive_(): boolean {
+        return !this.done_ && this.contexts_.get(this.id) === this.ctx_;
+    }
+
     // Guarded so stop() after a natural end (or a double stop()) can't destroy the
     // audio context twice — the second destroy() throws on-device.
     private dispose_(alsoStop: boolean): void {
-        if (this.done_) return;
+        if (!this.isLive_()) return;
         this.done_ = true;
-        if (alsoStop) this.ctx_.stop();
-        this.ctx_.destroy();
         this.contexts_.delete(this.id);
+        try {
+            if (alsoStop) this.ctx_.stop();
+        } finally {
+            this.ctx_.destroy();
+        }
     }
 
     stop(): void {
@@ -47,18 +54,23 @@ class MiniGameAudioHandle implements AudioHandle {
 
     /** @internal The context ended on its own — dispose without a redundant stop(). */
     onNaturalEnd(): void {
+        if (!this.isLive_() || this.ctx_.loop) return;
         this.dispose_(false);
+        this.onEnd?.();
     }
 
     pause(): void {
+        if (!this.isLive_()) return;
         this.ctx_.pause();
     }
 
     resume(): void {
+        if (!this.isLive_()) return;
         this.ctx_.play();
     }
 
     setVolume(volume: number): void {
+        if (!this.isLive_()) return;
         // The host's volume is only valid in [0,1] — out-of-range writes are
         // rejected on-device rather than clamped.
         this.ctx_.volume = scalar.clamp01(volume);
@@ -67,6 +79,7 @@ class MiniGameAudioHandle implements AudioHandle {
     private panWarned_ = false;
 
     setPan(_pan: number): void {
+        if (!this.isLive_()) return;
         if (!this.panWarned_) {
             log.warn('audio', 'mini-game audio contexts do not support stereo panning');
             this.panWarned_ = true;
@@ -74,19 +87,21 @@ class MiniGameAudioHandle implements AudioHandle {
     }
 
     setLoop(loop: boolean): void {
+        if (!this.isLive_()) return;
         this.ctx_.loop = loop;
     }
 
     setPlaybackRate(rate: number): void {
+        if (!this.isLive_()) return;
         this.ctx_.playbackRate = rate;
     }
 
     get isPlaying(): boolean {
-        return !this.ctx_.paused;
+        return this.isLive_() && !this.ctx_.paused;
     }
 
     get currentTime(): number {
-        return this.ctx_.currentTime;
+        return this.isLive_() ? this.ctx_.currentTime : 0;
     }
 
     get duration(): number {
@@ -159,10 +174,7 @@ export class MiniGameAudioBackend implements PlatformAudioBackend {
         this.contexts_.set(handleId, ctx);
 
         const handle = new MiniGameAudioHandle(handleId, ctx, this.contexts_);
-        ctx.onEnded(() => {
-            handle.onEnd?.();
-            if (!ctx.loop) handle.onNaturalEnd(); // guarded dispose (a later stop() is a no-op)
-        });
+        ctx.onEnded(() => handle.onNaturalEnd());
         ctx.onError((res) => {
             log.error('audio', `Playback error for "${url}"`, res.errMsg);
         });

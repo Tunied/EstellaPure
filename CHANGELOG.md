@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Mini-game and native audio completion retires ownership before callbacks.** Natural completion releases the player or voice record before calling user code, so callback exceptions and repeated end notifications cannot retain resources or deliver completion twice. Stopped, ended, and backend-disposed mini-game handles ignore later playback and parameter operations; retired native handles also stop sending host operations.
+
 - **Audio device suspension freezes volume fades.** Fade elapsed time stays at its current position while the device is suspended, preventing covered or interrupted playback from completing a fade-out before resume. Existing per-voice pause handling remains effective after the device resumes.
 
 - **Mini-game device resume preserves manual audio pauses.** The backend resumes only live contexts that were playing when device suspension began. Repeated suspension retains the original resume set, and stopped, ended, or disposed contexts are never restarted.
