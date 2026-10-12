@@ -9,6 +9,7 @@
 #include "../ecs/components/Transform.hpp"
 
 #include <vector>
+#include <algorithm>
 
 namespace esengine::ecs {
 
@@ -27,7 +28,7 @@ struct UITree {
     struct Node {
         Entity entity;
         Entity parent;
-        u16 depth;
+        u32 depth;
         u32 subtree_size;
     };
 
@@ -54,29 +55,50 @@ struct UITree {
     }
 
 private:
-    void buildDFS(Registry& reg, Entity entity, Entity layoutParent, u16 depth) {
-        // A layout node is any UINode (the single CSS-box layout model).
-        bool isLayoutNode = reg.has<UINode>(entity);
-        i32 nodeIndex = -1;
+    struct Frame {
+        Entity entity;
+        Entity layoutParent;
+        u32 depth;
+        i32 nodeIndex;
+        usize nextChild;
+    };
+    std::vector<Frame> pending_;
+    std::vector<u32> visit_stamps_;
+    u32 visit_stamp_{0};
 
-        if (isLayoutNode) {
-            nodeIndex = static_cast<i32>(nodes_.size());
-            nodes_.push_back({entity, layoutParent, depth, 1});
-            layoutParent = entity;
-            depth++;
+    void buildDFS(Registry& reg, Entity entity, Entity layoutParent, u32 depth) {
+        if (++visit_stamp_ == 0) {
+            std::fill(visit_stamps_.begin(), visit_stamps_.end(), 0);
+            ++visit_stamp_;
         }
-
-        auto* children = reg.tryGet<Children>(entity);
-        if (children) {
-            for (Entity child : children->entities) {
-                if (reg.valid(child)) {
-                    buildDFS(reg, child, layoutParent, depth);
-                }
+        pending_.clear();
+        const auto enter = [&](Entity current, Entity parent, u32 currentDepth) {
+            const auto index = current.index();
+            if (index >= visit_stamps_.size()) visit_stamps_.resize(index + 1, 0);
+            if (visit_stamps_[index] == visit_stamp_) return;
+            visit_stamps_[index] = visit_stamp_;
+            i32 nodeIndex = -1;
+            if (reg.has<UINode>(current)) {
+                nodeIndex = static_cast<i32>(nodes_.size());
+                nodes_.push_back({current, parent, currentDepth, 1});
+                parent = current;
+                ++currentDepth;
             }
-        }
-
-        if (isLayoutNode && nodeIndex >= 0) {
-            nodes_[nodeIndex].subtree_size = static_cast<u32>(nodes_.size() - nodeIndex);
+            pending_.push_back({current, parent, currentDepth, nodeIndex, 0});
+        };
+        enter(entity, layoutParent, depth);
+        while (!pending_.empty()) {
+            auto& frame = pending_.back();
+            auto* children = reg.tryGet<Children>(frame.entity);
+            if (children && frame.nextChild < children->entities.size()) {
+                Entity child = children->entities[frame.nextChild++];
+                if (reg.valid(child)) enter(child, frame.layoutParent, frame.depth);
+                continue;
+            }
+            if (frame.nodeIndex >= 0) {
+                nodes_[frame.nodeIndex].subtree_size = static_cast<u32>(nodes_.size() - frame.nodeIndex);
+            }
+            pending_.pop_back();
         }
     }
 };

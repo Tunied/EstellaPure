@@ -10,40 +10,45 @@
 #include "../ecs/components/Canvas.hpp"
 #include "../ecs/components/ParticleEmitter.hpp"
 
+#include <vector>
+
 namespace esengine::ecs {
 
 inline i32 assignRenderOrder(Registry& registry, Entity entity, i32 counter, u32 cullBit) {
-    if (registry.has<UINode>(entity)) {
-        auto* uiVisual = registry.tryGet<UIVisual>(entity);
-        if (uiVisual) {
-            uiVisual->uiOrder = counter;
-            uiVisual->uiCullBit = cullBit;
-            counter++;
-        } else if (registry.has<Sprite>(entity)) {
-            auto& sprite = registry.get<Sprite>(entity);
-            if (sprite.layer != counter) {
-                sprite.layer = counter;
+    std::vector<Entity> pending{entity};
+    std::vector<u8> visited;
+    while (!pending.empty()) {
+        entity = pending.back();
+        pending.pop_back();
+        if (!registry.valid(entity)) continue;
+        const auto index = entity.index();
+        if (index >= visited.size()) visited.resize(index + 1, 0);
+        if (visited[index]) continue;
+        visited[index] = 1;
+        if (registry.has<UINode>(entity)) {
+            auto* uiVisual = registry.tryGet<UIVisual>(entity);
+            if (uiVisual) {
+                uiVisual->uiOrder = counter;
+                uiVisual->uiCullBit = cullBit;
+                counter++;
+            } else if (registry.has<Sprite>(entity)) {
+                auto& sprite = registry.get<Sprite>(entity);
+                if (sprite.layer != counter) {
+                    sprite.layer = counter;
+                }
+                counter++;
+            } else if (auto* emitter = registry.tryGet<ParticleEmitter>(entity)) {
+                // UI emitters inherit tree order so their particles interleave with controls.
+                if (emitter->layer != counter) {
+                    emitter->layer = counter;
+                }
+                counter++;
             }
-            counter++;
-        } else if (auto* emitter = registry.tryGet<ParticleEmitter>(entity)) {
-            // An emitter in the UI tree draws where the tree says it does, like the
-            // Sprite above: without this it keeps its authored layer and a UI effect
-            // lands under (or over) the whole panel instead of between two of its
-            // elements — the reason Unity needs a UIParticle extension at all.
-            if (emitter->layer != counter) {
-                emitter->layer = counter;
-            }
-            counter++;
         }
-    }
-
-    auto* children = registry.tryGet<Children>(entity);
-    if (!children) return counter;
-
-    for (Entity child : children->entities) {
-        if (registry.valid(child)) {
-            counter = assignRenderOrder(registry, child, counter, cullBit);
-        }
+        auto* children = registry.tryGet<Children>(entity);
+        if (!children) continue;
+        for (auto child = children->entities.rbegin(); child != children->entities.rend(); ++child)
+            pending.push_back(*child);
     }
     return counter;
 }

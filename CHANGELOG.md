@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **UI hierarchy walks tolerate deep scene groups and broken child links.** Tree construction, screen-domain collection and draw-order assignment use iterative traversal. Repeated or cyclic child links stop revisiting entities while preserving the authored sibling order and nearest UI parent.
+
 - **Large UI subtrees keep their full traversal span.** Subtree lengths no longer wrap at 65536 nodes, preventing layout and visibility walks from freezing or skipping content at the 16-bit boundary.
 
 - **Static UI layout preserves composed world transforms.** Clean early and late layout passes keep the transform cache valid, and the SDK composes through the shared change-aware path. Moving a screen box, changing layout properties, tweening, and structural edits still invalidate the affected composition.

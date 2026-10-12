@@ -406,7 +406,7 @@ void propagateInheritedUIState(Registry& registry, UITree& tree) {
     inherited_block_stack_.assign(nodes.size() + 1, static_cast<u8>(0));
 
     for (usize i = 0; i < nodes.size(); ++i) {
-        const u16 depth = nodes[i].depth;
+        const u32 depth = nodes[i].depth;
         const f32 parentAlpha = depth == 0 ? 1.0f : inherited_alpha_stack_[depth - 1];
         const bool parentBlocked = depth == 0 ? false : inherited_block_stack_[depth - 1] != 0;
 
@@ -475,11 +475,14 @@ void placeScreenRoots(Registry& registry, UITree& tree, LayoutCache& cache,
 
 /** @brief Adds @p entity and its whole Transform subtree to @p out. */
 void addSubtree(Registry& registry, Entity entity, std::unordered_set<u32>& out) {
-    out.insert(entity.id());
-    auto* children = registry.tryGet<Children>(entity);
-    if (!children) return;
-    for (Entity child : children->entities) {
-        if (registry.valid(child)) addSubtree(registry, child, out);
+    std::vector<Entity> pending{entity};
+    while (!pending.empty()) {
+        const Entity current = pending.back();
+        pending.pop_back();
+        if (!registry.valid(current) || !out.insert(current.id()).second) continue;
+        auto* children = registry.tryGet<Children>(current);
+        if (!children) continue;
+        for (Entity child : children->entities) pending.push_back(child);
     }
 }
 
