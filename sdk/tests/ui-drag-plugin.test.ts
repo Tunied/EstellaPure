@@ -9,17 +9,19 @@
  *        observable state (DragState.isDragging, Transform.position) rather than
  *        the emitted events.
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { flushPendingRegistrations } from '../src/app/app';
 import type { App } from '../src/app/app';
-import { Transform } from '../src/ecs/component';
-import { Input, InputState } from '../src/input/input';
+import { Disabled, Transform } from '../src/ecs/component';
+import { Input, InputState, inputEventCallbacks } from '../src/input/input';
+import { inputRouter } from '../src/input/inputRouter';
+import { takePrimaryPointerCancellation } from '../src/input/pointerCancellation';
 import { UIEvents, UIEventQueue } from '../src/ui/core/events';
 import { UICameraInfo } from '../src/ui/core/ui-camera-info';
 import type { UICameraData } from '../src/ui/core/ui-camera-info';
 import { Draggable, DragState } from '../src/ui/input/draggable';
 import type { DragStateData } from '../src/ui/input/draggable';
-import { UIInteraction } from '../src/ui/input/interactable';
+import { Interactable, UIInteraction } from '../src/ui/input/interactable';
 import { dragPlugin } from '../src/ui/input/drag';
 import { bootMockApp } from './helpers/mockApp';
 import type { Entity } from '../src/types';
@@ -48,8 +50,6 @@ function draggable(opts: Partial<{ enabled: boolean; dragThreshold: number; lock
     dragThreshold: opts.dragThreshold ?? 5,
     lockX: opts.lockX ?? false,
     lockY: opts.lockY ?? false,
-    constraintMin: null,
-    constraintMax: null,
   });
   // hovered is set by hand here, which makes every test below about the drag
   // LOGIC and none of them about whether such an entity can be hovered at all.
@@ -146,5 +146,52 @@ describe('DragPlugin hit-test gating', () => {
     await hold(20, 0);
     expect(app.world.has(e, DragState)).toBe(false);
     expect(posX(e)).toBe(0);
+  });
+});
+
+describe('DragPlugin cancellation', () => {
+  it('an editor-consumed release stops without applying another pointer movement', async () => {
+    const e = draggable(); await press(); await hold(20, 0);
+    const off = inputRouter.setEditorHandler({ onPointerUp: () => true });
+    try { inputEventCallbacks(input()).onPointerUp(0); } finally { off(); }
+    takePrimaryPointerCancellation(input());
+    cam().worldMouseX = 100; await step();
+    expect(posX(e)).toBeCloseTo(20);
+    expect(dragOf(e).isDragging).toBe(false);
+  });
+  it.each(['inactive', 'draggable-disabled', 'noninteractive', 'removed'])('%s cancels an active drag', async kind => {
+    const e = draggable(); await press(); await hold(20, 0);
+    if (kind === 'inactive') app.world.insert(e, Disabled);
+    if (kind === 'draggable-disabled') app.world.update(e, Draggable, d => { d.enabled = false; });
+    if (kind === 'noninteractive') app.world.insert(e, Interactable, { enabled: false });
+    if (kind === 'removed') app.world.remove(e, Draggable);
+    await hold(100, 0);
+    expect(posX(e)).toBeCloseTo(20);
+    expect(dragOf(e).isDragging).toBe(false);
+  });
+  it('losing the pointer projection cannot resume an old drag', async () => {
+    const e = draggable(); await press(); await hold(20, 0);
+    cam().valid = false; await hold(40, 0);
+    cam().valid = true; await hold(100, 0);
+    expect(posX(e)).toBeCloseTo(20);
+    expect(dragOf(e).isDragging).toBe(false);
+  });
+  it('a drag_start callback can disable the target before its first movement', async () => {
+    const e = draggable(), events = app.getResource(UIEvents), ended = vi.fn();
+    events.on(e, 'drag_start', () => app.world.update(e, Draggable, d => { d.enabled = false; }));
+    events.on(e, 'drag_end', ended);
+    await press(); await hold(20, 0); await hold(100, 0);
+    expect(posX(e)).toBe(0);
+    expect(dragOf(e).isDragging).toBe(false);
+    expect(ended).toHaveBeenCalledTimes(1);
+  });
+  it('a drag_move callback can remove Draggable without another movement or duplicate end', async () => {
+    const e = draggable(), events = app.getResource(UIEvents), ended = vi.fn();
+    events.on(e, 'drag_move', () => app.world.remove(e, Draggable));
+    events.on(e, 'drag_end', ended);
+    await press(); await hold(20, 0); await release(100, 0);
+    expect(posX(e)).toBeCloseTo(20);
+    expect(dragOf(e).isDragging).toBe(false);
+    expect(ended).toHaveBeenCalledTimes(1);
   });
 });

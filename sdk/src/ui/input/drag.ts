@@ -9,12 +9,14 @@ import { px } from '../core/dimension';
 import { defineSystem, Schedule } from '../../ecs/system';
 import { Res } from '../../ecs/resource';
 import { Input } from '../../input/input';
+import { primaryPointerCancellationVersion } from '../../input/pointerCancellation';
+import { engineApi } from '../../ecs/bridge/engineApi';
 import type { InputState } from '../../input/input';
 import type { Entity } from '../../types';
 import type { World } from '../../ecs/world';
 import { Draggable, DragState } from './draggable';
 import type { DraggableData, DragStateData } from './draggable';
-import { UIInteraction } from './interactable';
+import { Interactable, UIInteraction } from './interactable';
 import type { UIInteractionData } from './interactable';
 import { UIEvents, UIEventQueue } from '../core/events';
 import { UICameraInfo } from '../core/ui-camera-info';
@@ -88,16 +90,42 @@ export class DragPlugin implements Plugin {
 
         const world = app.world;
         const events = app.getResource(UIEvents) as UIEventQueue;
+        const engine = engineApi(app);
+        const registry = world.getCppRegistry();
+        const eligible = (entity: Entity): boolean => world.isEntityActive(entity)
+            && !world.isDestructionPending(entity)
+            && world.has(entity, Draggable) && world.get(entity, Draggable).enabled
+            && world.has(entity, Transform)
+            && (!world.has(entity, Interactable) || world.get(entity, Interactable).enabled)
+            && (!world.has(entity, UINode) || !engine?.getUINodeHiddenInTree?.(registry!, entity));
 
         let pendingEntity: Entity | null = null;
         let pendingStartWorld = { x: 0, y: 0 };
         let activeEntity: Entity | null = null;
+        let lastCancellationVersion = primaryPointerCancellationVersion(app.getResource(Input));
+        const stopCapture = (): void => {
+            const entity = activeEntity ?? pendingEntity;
+            const started = activeEntity !== null;
+            activeEntity = pendingEntity = null;
+            if (entity === null || !world.valid(entity) || world.isDestructionPending(entity)) return;
+            if (world.has(entity, DragState)) {
+                world.update(entity, DragState, d => { d.isDragging = false; });
+            }
+            if (started) events.emit(entity, 'drag_end');
+        };
 
         app.addSystemToSchedule(Schedule.PreUpdate, defineSystem(
             [Res(Input), Res(UICameraInfo), Res(ScreenLayout), Res(ScreenOverlay)],
             (input: InputState, camera: UICameraData, layout: ScreenLayoutData,
              overlay: ScreenOverlayData) => {
-                if (!camera.valid && !overlay.active) return;
+                const cancellationVersion = primaryPointerCancellationVersion(input);
+                const cancelled = cancellationVersion !== lastCancellationVersion;
+                lastCancellationVersion = cancellationVersion;
+                if (!camera.valid && !overlay.active) { stopCapture(); return; }
+                const captured = activeEntity ?? pendingEntity;
+                if (captured !== null && (cancelled || !eligible(captured)
+                    || !world.has(captured, DragState)
+                    || (!input.isMouseButtonDown(0) && !input.isMouseButtonReleased(0)))) stopCapture();
 
                 // Per ENTITY, not once per frame: a drag subtracts a pointer from
                 // a transform, and the two share coordinates only if the pointer
@@ -105,15 +133,14 @@ export class DragPlugin implements Plugin {
                 const pointerFor = (entity: Entity): { x: number; y: number } =>
                     uiPointerFor(world, entity, camera, overlay);
 
-                if (input.isMouseButtonPressed(0)) {
+                if (input.isMouseButtonPressed(0) && input.isMouseButtonDown(0)) {
                     const draggableEntities = world.getEntitiesWithComponents([Draggable, UIInteraction]);
                     let bestEntity: Entity | null = null;
                     let bestLayer = -Infinity;
                     let bestDepth = -1;
 
                     for (const entity of draggableEntities) {
-                        const draggable = world.get(entity, Draggable) as DraggableData;
-                        if (!draggable.enabled) continue;
+                        if (!eligible(entity)) continue;
                         const interaction = world.get(entity, UIInteraction) as UIInteractionData;
                         if (interaction.hovered) {
                             let layer = 0;
@@ -178,8 +205,8 @@ export class DragPlugin implements Plugin {
                 }
 
                 if (activeEntity !== null) {
-                    if (!world.valid(activeEntity) || !world.has(activeEntity, DragState)) {
-                        activeEntity = null;
+                    if (!eligible(activeEntity) || !world.has(activeEntity, DragState)) {
+                        stopCapture();
                         return;
                     }
 
@@ -234,10 +261,13 @@ export class DragPlugin implements Plugin {
 
                     events.emit(activeEntity, 'drag_move');
 
+                    if (!eligible(activeEntity) || !world.has(activeEntity, DragState)) {
+                        stopCapture();
+                        return;
+                    }
+
                     if (input.isMouseButtonReleased(0)) {
-                        world.update(activeEntity, DragState, (d) => { d.isDragging = false; });
-                        events.emit(activeEntity, 'drag_end');
-                        activeEntity = null;
+                        stopCapture();
                     }
                 }
             },

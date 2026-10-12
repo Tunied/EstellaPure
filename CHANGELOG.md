@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Object drags stop when their input or target becomes unavailable.** Editor-consumed releases, disabled or removed drag components, hidden targets and lost pointer projections clear capture before another position write. Drag callbacks may disable or remove their target safely, and an active gesture emits its end once without resuming later.
+
 - **Cancelled scroll gestures stop without flinging.** Editor-consumed pointer releases cancel capture even after UI pointer sampling consumes its marker. Inactive, noninteractive or hidden viewports stop dragging and coasting; hidden layout boxes no longer clamp the saved scroll position to zero; losing all pointer projections discards motion instead of resuming an old drag when the view returns.
 
 - **Scene scroll settings update while the game is running.** Changes to axes, wheel speed, drag enablement and movement settings rebuild the adopted container while preserving legal offsets. Disabling both axes suspends scrolling, reactivation restores the content position, and replaced containers cannot inherit an old pointer drag or fling.
