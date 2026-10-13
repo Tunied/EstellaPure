@@ -25,6 +25,23 @@ function makeManager(cppState: () => number = () => TweenState.Running) {
 }
 
 describe('ValueTweenManager progression', () => {
+  it.each([0, -1])('completes an immediate tween of duration %j without emitting NaN', duration => {
+    const m = makeManager(), seen = vi.fn();
+    const id = m.create(10, 30, duration, seen);
+    m.update(0);
+    expect(seen.mock.calls).toEqual([[30]]);
+    expect(m.getState(id)).toBe(TweenState.Completed);
+  });
+
+  it('honors the delay before applying an immediate tween', () => {
+    const m = makeManager(), seen = vi.fn();
+    const id = m.create(10, 30, 0, seen, { delay: .5 });
+    m.update(.25);
+    expect(seen).not.toHaveBeenCalled();
+    m.update(.25);
+    expect(seen.mock.calls).toEqual([[30]]);
+    expect(m.getState(id)).toBe(TweenState.Completed);
+  });
   it('does not recursively step the native engine through TweenAPI.update', () => {
     const nativeStep = vi.fn();
     const api = new TweenAPI({ anim_updateTweens: nativeStep } as unknown as AnimCore, {} as CppRegistry);

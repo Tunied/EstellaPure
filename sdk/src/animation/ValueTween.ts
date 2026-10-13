@@ -128,7 +128,7 @@ export class ValueTweenManager {
             }
 
             entry.elapsed += step;
-            const t = Math.min(entry.elapsed / entry.duration, 1);
+            const t = entry.duration > 0 ? Math.min(entry.elapsed / entry.duration, 1) : 1;
             const easedT = applyEasing(entry.easing, t, entry.bezierPoints ?? undefined);
             entry.callback(entry.from + (entry.to - entry.from) * easedT);
             if (entry.state !== TweenState.Running) continue;

@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(animation): complete immediate value tweens safely':
+    { note: 'Immediate value tweens produce their endpoint.' },
   'fix(animation): preserve value tween callback control':
     { note: 'Value tween callbacks preserve playback control.' },
   'fix(animation): honor activity changes during frame callbacks':

@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Immediate value tweens produce their endpoint.** Non-positive durations complete at the next eligible update, matching native tweens instead of emitting NaN or retaining a negative-duration tween forever. Delays and callback playback controls continue to apply.
+
 - **Value tween callbacks preserve playback control.** Callback-created tweens start on the next update, recursive updates cannot advance the same pass twice, and callback cancellation or pause is not overwritten by completion or sequence handoff. Existing sequence members still resume in the same frame, without allocating a snapshot of the tween map.
 
 - **Animation callbacks respect entity activity immediately.** Disabling an animator, entity or ancestor during a frame event stops remaining callbacks and sprite writes; later entries disabled by an earlier callback keep their playback position. Re-enabling applies deferred geometry without replaying handled events or restarting a completed one-shot.
