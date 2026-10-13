@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ui): bind text input events to the active session':
+    { note: 'Text input events stay with the active editing session.' },
   'perf(ui): measure text caret prefixes in one pass':
     { note: 'Text caret picking measures long strings once.' },
   'fix(ui): reject input on disabled text fields':

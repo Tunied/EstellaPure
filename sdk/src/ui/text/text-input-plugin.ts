@@ -104,6 +104,7 @@ export class TextInputPlugin implements Plugin {
         };
 
         let composing = false;
+        let editingEntity: Entity | null = null;
         let cursorVisible = true;
         let cursorTimer = 0;
         let lastTime = 0;
@@ -117,8 +118,13 @@ export class TextInputPlugin implements Plugin {
             return entity;
         }
 
+        function getEditingTextInput(): Entity | null {
+            return editingEntity !== null && getFocusedTextInput() === editingEntity ? editingEntity : null;
+        }
+
         const unsubscribe = editor.subscribe((event) => {
-            const focused = getFocusedTextInput();
+            const focused = getEditingTextInput();
+            if (focused === null) return;
             switch (event.kind) {
                 case 'change':
                     if (!composing && focused !== null) syncFromEditor();
@@ -141,6 +147,8 @@ export class TextInputPlugin implements Plugin {
                     if (focused !== null) blurCurrent();
                     break;
                 case 'blur':
+                    editingEntity = null;
+                    composing = false;
                     if (focused !== null) {
                         world.update(focused, TextInput, (ti) => { ti.focused = false; });
                         (app.getResource(FocusManager) as FocusManagerState).blur();
@@ -158,6 +166,7 @@ export class TextInputPlugin implements Plugin {
         });
 
         this.cleanupListeners_.set(app, () => {
+            editingEntity = null;
             unsubscribe();
             editor.dispose();
             for (const ch of childrenOf.values()) {
@@ -169,7 +178,7 @@ export class TextInputPlugin implements Plugin {
         });
 
         function syncFromEditor(): void {
-            const focused = getFocusedTextInput();
+            const focused = getEditingTextInput();
             if (focused === null) return;
             const ti = world.get(focused, TextInput) as TextInputData;
             if (ti.readOnly) return;
@@ -252,6 +261,8 @@ export class TextInputPlugin implements Plugin {
             const ti = world.get(entity, TextInput) as TextInputData;
             if (ti.readOnly) return;
 
+            composing = false;
+            editingEntity = entity;
             world.update(entity, TextInput, (d) => { d.focused = true; });
 
             editor!.focus(
@@ -268,6 +279,8 @@ export class TextInputPlugin implements Plugin {
             }
             const fm = app.getResource(FocusManager) as FocusManagerState;
             fm.blur();
+            editingEntity = null;
+            composing = false;
             editor!.blur();
         }
 
@@ -339,6 +352,8 @@ export class TextInputPlugin implements Plugin {
                         if (world.valid(prevFocusedTextInput) && world.has(prevFocusedTextInput, TextInput)) {
                             world.update(prevFocusedTextInput, TextInput, (ti) => { ti.focused = false; });
                         }
+                        editingEntity = null;
+                        composing = false;
                         editor.blur();
                     }
 

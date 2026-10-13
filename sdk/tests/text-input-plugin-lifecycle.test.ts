@@ -48,11 +48,12 @@ afterEach(() => {
     surfaces.length = 0;
 });
 
-it('quitting an older app releases only its text surface and preserves newer input', () => {
+it('quitting an older app releases only its text surface and preserves newer input', async () => {
     const plugin = new TextInputPlugin(), first = build(plugin), second = build(plugin);
     const field = second.world.spawn();
     second.world.insert(field, TextInput, { value: '' });
     second.getResource(FocusManager).focus(field);
+    await second.tick(1 / 60);
     first.quit();
     expect(surfaces[0].dispose).toHaveBeenCalledOnce();
     expect(surfaces[0].listeners.size).toBe(0);

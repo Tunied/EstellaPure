@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Text input events stay with the active editing session.** Switching fields no longer lets the previous surface's blur clear the new focus or its queued input overwrite the next value. Web and native editors reset interrupted composition state when focus restarts, so normal typing resumes without requiring a composition-end event.
+
 - **Text caret picking measures long strings once.** Pointer placement in single-line, multiline and password fields accumulates glyph advances in linear time instead of repeatedly measuring every prefix. UTF-16 caret boundaries, glyph scaling, missing glyphs and masked password widths retain their existing positions.
 
 - **Disabled text fields reject queued input.** Text input checks effective entity activity and interaction state before accepting editor events, including disabled ancestors, and releases the editing surface on the next update.

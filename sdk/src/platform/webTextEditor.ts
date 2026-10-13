@@ -84,7 +84,10 @@ export function createWebTextEditor(): PlatformTextEditor | null {
         // field mirrors its selection each frame. This only reports the motion.
         emit({ kind: 'change' });
     };
-    const onBlur = (): void => emit({ kind: 'blur' });
+    const onBlur = (): void => {
+        composing = false;
+        emit({ kind: 'blur' });
+    };
 
     textarea.addEventListener('input', onInput);
     textarea.addEventListener('compositionstart', onCompositionStart);
@@ -102,6 +105,7 @@ export function createWebTextEditor(): PlatformTextEditor | null {
 
     return {
         focus(state: TextEditorState, options: TextEditorOptions): void {
+            composing = false;
             multiline = options.multiline;
             // No limit is the ABSENCE of the attribute — assigning a negative
             // maxLength is an IndexSizeError, not "unlimited".

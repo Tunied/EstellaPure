@@ -57,6 +57,7 @@ export function createNativeTextEditor(bridge: NativeTextEditorBridge): Platform
 
     return {
         focus(next: TextEditorState, options: TextEditorOptions): void {
+            composingNow = false;
             state = { ...next };
             focused = true;
             bridge.focus(next.value, next.selectionStart, next.selectionEnd,
@@ -65,6 +66,7 @@ export function createNativeTextEditor(bridge: NativeTextEditorBridge): Platform
         blur(): void {
             if (!focused) return;
             focused = false;
+            composingNow = false;
             bridge.blur();
         },
         read(): TextEditorState {
