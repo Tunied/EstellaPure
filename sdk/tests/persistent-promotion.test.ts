@@ -100,6 +100,31 @@ async function settle(app: App, frames = 4): Promise<void> {
 describe('a persistent entity owns what it carries out of the scene', () => {
     beforeEach(() => { pool = createPoolFake(); });
 
+    it('a scene transfer retains its bound texture until the destination unloads', async () => {
+        const { app, assets, manager } = harness();
+        const base = assets.sizes().refRows;
+        let entity = 0 as Entity;
+        manager.register({ name: 'source', setup: async ctx => {
+            const scope = new AssetScope(), lease = await assets.acquireTexture('transfer.png');
+            scope.add(lease); ctx.trackAssetScope(scope);
+            entity = ctx.spawn(); app.world.insert(entity, Sprite, { texture: lease.value.handle });
+        } });
+        manager.register({ name: 'target' });
+        const source = await manager.load('source'), target = await manager.load('target');
+        const handle = app.world.get(entity, Sprite).texture;
+        target.adopt(entity);
+        expect(source.entities.has(entity)).toBe(false);
+        for (let i = 0; i < 20; i++) { source.adopt(entity); target.adopt(entity); }
+        expect(assets.sizes().refRows).toBe(base + 2);
+        await manager.unload('source');
+        expect(app.world.valid(entity)).toBe(true);
+        expect(app.world.get(entity, Sprite).texture).toBe(handle);
+        expect(assets.sizes().refRows).toBe(base + 1);
+        await manager.unload('target');
+        expect(app.world.valid(entity)).toBe(false);
+        expect(assets.sizes().refRows).toBe(base);
+    });
+
     it('two survivors of one scene receipt each end up owing a release', async () => {
         // The scene acquired the texture ONCE for everything in it, so handing
         // that receipt to the first survivor leaves the second holding an asset

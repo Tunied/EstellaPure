@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Scene adoption transfers existing entity ownership.** Adopting an entity into another scene removes its outgoing scene records, retains its bound asset generation, and restores any outgoing sleep state before applying the destination's state. An outgoing parent is detached while preserving world placement. Unloading the source no longer destroys the adopted entity; the destination's final unload still releases it normally, and repeated adoption preserves the saved awake state.
+
 - **Scenes forget runtime entities when the World destroys them.** Scene ownership collections and saved render state now retire an entity on despawn, including runtime prefab copies destroyed through Commands or World. Repeated bullet spawning no longer accumulates dead scene entries for later unloads. Scene reset and plugin cleanup detach the observer, and subsequent loads restore tracking with one observer per manager.
 
 - **Old audio asset leases do not release replacement clips.** Each loaded audio result releases the buffer generation and audio device it actually retained. Releasing an outgoing scene's asset after a clip update no longer unpins or evicts the current clip under the same path, including when the warm-cache budget is zero. Final release still retires the current buffer normally.

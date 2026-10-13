@@ -86,7 +86,7 @@ export interface SceneContext {
     readonly name: string;
     readonly entities: ReadonlySet<Entity>;
     spawn(): Entity;
-    /** Track an externally-spawned entity as scene-owned (despawned on unload). */
+    /** Track an entity as scene-owned, transferring it from its previous scene. */
     adopt(entity: Entity): void;
     /**
      * Track assets a loader acquired for this scene, so unload gives them back.
@@ -165,10 +165,12 @@ class SceneInstance {
 class SceneContextImpl implements SceneContext {
     private readonly instance_: SceneInstance;
     private readonly app_: App;
+    private readonly adopt_: (entity: Entity) => void;
 
-    constructor(instance: SceneInstance, app: App) {
+    constructor(instance: SceneInstance, app: App, adopt: (entity: Entity) => void) {
         this.instance_ = instance;
         this.app_ = app;
+        this.adopt_ = adopt;
     }
 
     get name(): string {
@@ -186,11 +188,7 @@ class SceneContextImpl implements SceneContext {
     }
 
     adopt(entity: Entity): void {
-        this.instance_.entities.add(entity);
-        this.app_.world.insert(entity, SceneOwner, {
-            scene: this.instance_.config.name,
-            persistent: false,
-        });
+        this.adopt_(entity);
     }
 
     trackAssetScope(scope: AssetScope): void {
@@ -494,7 +492,7 @@ export class SceneManagerState {
         this.trackEntityDestruction_();
         this.scenes_.set(name, instance);
 
-        const ctx = new SceneContextImpl(instance, this.app_);
+        const ctx = new SceneContextImpl(instance, this.app_, entity => this.adoptInto_(instance, entity));
         this.contexts_.set(name, ctx);
 
         const loadPromise = (async (): Promise<SceneContext> => {
@@ -655,9 +653,34 @@ export class SceneManagerState {
         if (sources.size === 0) return;
         const scope = assets.entityScopes.ensure(this.app_.world, entity);
         for (const source of sources) {
+            if (scope.leases().some(held => held.key === source.key && held.generation === source.generation)) continue;
             const retained = source.retain();
             if (retained) scope.add(retained);
         }
+    }
+
+    private adoptInto_(target: SceneInstance, entity: Entity): void {
+        const world = this.app_.world;
+        if (!world.valid(entity)) throw new Error('Cannot adopt a destroyed entity');
+        const alreadyOwned = target.entities.has(entity);
+        for (const previous of this.scenes_.values()) {
+            if (previous === target || !previous.entities.has(entity)) continue;
+            this.promoteAssetOwnership_(previous, entity);
+            const parent = world.tryGet(entity, Parent)?.entity as Entity | undefined;
+            if (parent !== undefined && previous.entities.has(parent)) detachPreservingWorldTransform(world, entity);
+            if (previous.status === 'sleeping') this.restoreSleepState_(previous, entity);
+            const stack = previous.postProcessBindings.get(entity);
+            if (stack) {
+                previous.postProcessBindings.delete(entity);
+                target.postProcessBindings.set(entity, stack);
+                stack.setAllPassesEnabled(target.status !== 'sleeping' && target.status !== 'paused');
+            }
+            previous.entities.delete(entity);
+            previous.savedEnabled.delete(entity);
+        }
+        target.entities.add(entity);
+        world.insert(entity, SceneOwner, { scene: target.config.name, persistent: false });
+        if (!alreadyOwned && target.status === 'sleeping') this.sleepEntity_(target, entity, renderableComponents());
     }
 
     /**
@@ -839,28 +862,30 @@ export class SceneManagerState {
         this.setPostProcessPassesEnabled(instance, false);
         instance.savedEnabled.clear();
 
-        const world = this.app_.world;
         // Hoisted: the same registry answer for every entity in the scene.
         const renderables = renderableComponents();
         for (const entity of instance.entities) {
-            if (!world.valid(entity)) continue;
-            world.insert(entity, Disabled, {});
-            const entitySaved = new Map<RenderableComponentDef, boolean>();
-            for (const comp of renderables) {
-                if (world.has(entity, comp)) {
-                    const data = world.get(entity, comp) as Record<string, unknown>;
-                    const wasEnabled = data[comp.renderableField] !== false;
-                    entitySaved.set(comp, wasEnabled);
-                    if (wasEnabled) {
-                        data[comp.renderableField] = false;
-                        world.set(entity, comp, data as never);
-                    }
+            this.sleepEntity_(instance, entity, renderables);
+        }
+    }
+
+    private sleepEntity_(instance: SceneInstance, entity: Entity, renderables: ReturnType<typeof renderableComponents>): void {
+        const world = this.app_.world;
+        if (!world.valid(entity)) return;
+        world.insert(entity, Disabled, {});
+        const entitySaved = new Map<RenderableComponentDef, boolean>();
+        for (const comp of renderables) {
+            if (world.has(entity, comp)) {
+                const data = world.get(entity, comp) as Record<string, unknown>;
+                const wasEnabled = data[comp.renderableField] !== false;
+                entitySaved.set(comp, wasEnabled);
+                if (wasEnabled) {
+                    data[comp.renderableField] = false;
+                    world.set(entity, comp, data as never);
                 }
             }
-            if (entitySaved.size > 0) {
-                instance.savedEnabled.set(entity, entitySaved);
-            }
         }
+        if (entitySaved.size > 0) instance.savedEnabled.set(entity, entitySaved);
     }
 
     wake(name: string): void {

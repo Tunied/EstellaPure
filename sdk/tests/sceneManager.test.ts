@@ -169,6 +169,27 @@ describe('SceneManager', () => {
         }
     });
 
+    it.each([[false, false], [true, false], [false, true], [true, true]])(
+        'transfers ownership and render state, source asleep=%j target asleep=%j', async (sourceAsleep, targetAsleep) => {
+            manager.register({ name: 'source' }); manager.register({ name: 'target' });
+            const source = await manager.load('source'), entity = source.spawn();
+            app.world.insert(entity, Sprite as any, { enabled: true });
+            const target = await manager.load('target');
+            if (sourceAsleep) manager.sleep('source');
+            if (targetAsleep) manager.sleep('target');
+            target.adopt(entity);
+            target.adopt(entity);
+            expect(source.entities.has(entity)).toBe(false);
+            expect(target.entities.has(entity)).toBe(true);
+            expect(app.world.get(entity, Sprite as any).enabled).toBe(!targetAsleep);
+            await manager.unload('source');
+            expect(app.world.valid(entity)).toBe(true);
+            if (targetAsleep) manager.wake('target');
+            expect(app.world.get(entity, Sprite as any).enabled).toBe(true);
+            await manager.unload('target');
+            expect(app.world.valid(entity)).toBe(false);
+        });
+
     // =========================================================================
     // Registration & initial scene
     // =========================================================================

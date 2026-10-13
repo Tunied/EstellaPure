@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(scene): transfer ownership when adopting live entities':
+    { note: 'Scene adoption transfers existing entity ownership.' },
   'fix(scene): retire ownership records on world despawn':
     { note: 'Scenes forget runtime entities when the World destroys them.' },
   'fix(audio): bind asset releases to retained buffer generations':
