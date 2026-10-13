@@ -30,6 +30,8 @@ export const NOTES_FLOOR = 'v0.65.0';
 export const NOTED = {
   'fix(examples): restore audio preferences across game restarts':
     { note: 'Audio preferences survive game restart.' },
+  'fix(test): await atomic scale-report persistence':
+    { internal: 'Scale measurements await their ordered report writes; budgets and measured operations are unchanged.' },
   'feat(cache): protect offline versions during budget cleanup':
     { note: 'Disk cache budgets preserve offline content versions.' },
   'feat(profiler): manage connected-device disk caches':
