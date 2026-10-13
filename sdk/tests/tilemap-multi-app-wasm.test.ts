@@ -92,6 +92,28 @@ describe.skipIf(!HAS_WASM)('tilemap runtimes in independent apps', () => {
         assets.releaseAll();
     });
 
+    it('refreshes collision after a tileset replacement without reassigning its refs', async () => {
+        registerTilemapSupport();
+        const { app, entity, runtime, tiles } = await scene(mainCore, 1);
+        let document = JSON.stringify({ version: '1', texture: '', tileWidth: 16, tileHeight: 16,
+            columns: 1, tileCount: 1, tiles: { '1': { collision: { type: 'box' } } } });
+        const assets = Assets.create({ backend: { fetchText: async () => document,
+            resolveUrl: (path: string) => path } as unknown as Backend, module: mainCore });
+        app.insertResource(AssetsResource, assets);
+        const held = await assets.acquireTyped('tileset', 'hot.estileset');
+        runtime.setLayerTilesets(entity, ['hot.estileset']); await app.tick(1 / 60);
+        expect(isTileSolid(entity, 0, 0)).toBe(true);
+        const setTilesets = vi.spyOn(tiles, 'setTilesets');
+        document = JSON.stringify({ version: '1', texture: '', tileWidth: 16, tileHeight: 16,
+            columns: 2, tileCount: 1, tiles: {} });
+        assets.invalidate('hot.estileset'); await new Promise(r => setTimeout(r, 0)); await app.tick(1 / 60);
+        expect(isTileSolid(entity, 0, 0)).toBe(false);
+        expect(setTilesets).toHaveBeenCalledOnce();
+        for (let i = 0; i < 20; i++) await app.tick(1 / 60);
+        expect(setTilesets).toHaveBeenCalledOnce();
+        app.world.despawn(entity); await app.tick(1 / 60); held.release(); assets.releaseAll();
+    });
+
     it('quitting the older app leaves the newer map and runtime alive', async () => {
         const main = await scene(mainCore, 1), preview = await scene(previewCore, 2);
         expect(main.entity).toBe(preview.entity);

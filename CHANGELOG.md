@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Running tilemaps follow published tileset updates.** Tileset publication versions invalidate each app's cached render table, animations and collision model after a successful replacement, without requiring a reference edit or scene reload. Failed replacements keep the working version; unchanged frames read only a version counter and avoid rebuilding the table or resolving resource paths again.
+
 - **Lazy tilemaps acquire and release tileset slots correctly.** Runtime-only tileset references use owned slot acquisitions rather than the retired generic loader interface. Failed loads retry after the asset cooldown, shared references deduplicate requests, and removing the last layer or resetting the runtime releases both completed and late acquisitions.
 
 - **Fractional tile cell edits refresh the drawn and hit grids.** Tilemap layers compare width and height independently rather than combining them into a numeric cache key. Valid fractional dimensions no longer alias another size and leave stale geometry or coordinate conversion; unchanged frames still avoid native layer reinitialization.

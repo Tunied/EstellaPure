@@ -976,6 +976,7 @@ ResourceDef<AssetsClass>
 @internal handleBoundTypes: () => string[]
 @internal preparePrefab: (ref: string, overrides?: readonly PrefabOverride[]) => Promise<PreparedPrefab>
 @internal publishedRegistryAssets: <T>(type: string) => T[]
+@internal registryAssetVersion: (type: string) => number
 @internal releaseTextureLease: (lease: AssetRefLease<number>) => void
 @internal releaseTyped: (type: string, ref: string) => void
 @internal releaseTypedLease: (type: string, lease: AssetRefLease<PreparedLoad<unknown>>) => void

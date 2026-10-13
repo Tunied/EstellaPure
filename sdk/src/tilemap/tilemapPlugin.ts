@@ -19,7 +19,7 @@ import {
     spawnObjectRegion, isCollisionObjectGroup, decodeTiledGid, tiledLayerComponent,
 } from './tiledLoader';
 import { decodeTilemapChunks } from './chunkCodec';
-import { Assets } from '../asset/AssetPlugin';
+import { Assets, type AssetsData } from '../asset/AssetPlugin';
 import { resolveAssetKey } from '../asset/resolveAssetKey';
 import { LazyTilesetLoads } from './lazyTilesetLoads';
 import { Time } from '../ecs/resource';
@@ -124,6 +124,8 @@ export class TilemapRuntime {
         const liveResolved = this.liveResolved_;
         const lazyTilesetLoads = this.lazyTilesetLoads_;
         let tilesetRefsChanged = true;
+        let observedAssets: AssetsData | null | undefined;
+        let tilesetVersion = -1;
 
         // The single writer of a layer's `.estileset` ref list: point the render table
         // at `refs` and mark it for re-resolve next sync. Shared by the scene codec
@@ -225,6 +227,12 @@ export class TilemapRuntime {
                 // next Play regenerates from the current tiles.
                 const playMode = playModeOnly();
                 const assets = app.getResource(Assets);
+                const version = assets?.registryAssetVersion?.('tileset') ?? 0;
+                if (assets !== observedAssets || version !== tilesetVersion) {
+                    liveResolved.clear();
+                    observedAssets = assets;
+                    tilesetVersion = version;
+                }
                 // Physics half-extents are metres; tile sizes are pixels. Divide by the
                 // scene's pixelsPerUnit (Canvas, default 100) when spawning tile colliders.
                 let pixelsPerUnit = 100;

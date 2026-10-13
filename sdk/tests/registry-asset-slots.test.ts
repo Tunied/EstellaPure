@@ -37,6 +37,34 @@ function fakeLease(key: string, released: string[]): AssetLease {
     return lease;
 }
 
+describe('publication versions', () => {
+    it('changes only for published replacements and withdrawals of its own type', async () => {
+        const slots = new RegistryAssetSlots(), { kind } = fixture();
+        expect(slots.version('tileset')).toBe(0);
+        const first = await slots.acquire(kind, 'tileset', 'atlas', ['atlas']);
+        const second = await slots.acquire(kind, 'tileset', 'atlas', ['atlas']);
+        expect(slots.version('tileset')).toBe(1);
+        expect(slots.version('tilemap')).toBe(0);
+        first.release(); expect(slots.version('tileset')).toBe(1);
+        await slots.republish(kind, 'tileset', 'atlas');
+        expect(slots.version('tileset')).toBe(2);
+        second.release(); expect(slots.version('tileset')).toBe(3);
+        const third = await slots.acquire(kind, 'tileset', 'atlas', ['atlas']);
+        expect(slots.version('tileset')).toBe(4);
+        slots.releaseAll(); expect(slots.version('tileset')).toBe(5);
+        third.release(); expect(slots.version('tileset')).toBe(5);
+    });
+
+    it('does not change when a replacement fails', async () => {
+        const slots = new RegistryAssetSlots(), { kind } = fixture();
+        const held = await slots.acquire(kind, 'tileset', 'atlas', ['atlas']);
+        const failed = { prepare: async () => { throw Error('missing'); } };
+        await expect(slots.republish(failed, 'tileset', 'atlas')).rejects.toThrow('missing');
+        expect(slots.version('tileset')).toBe(1);
+        held.release();
+    });
+});
+
 /** The same, with every preparation held open until the test lets it finish. */
 function gated() {
     const released: string[] = [];

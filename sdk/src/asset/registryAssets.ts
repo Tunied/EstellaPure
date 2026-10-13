@@ -84,6 +84,14 @@ export class RegistryAssetSlots {
     /** By (type, name) — see the note on lookup identity above. */
     private byName_ = new Map<string, Slot<unknown>>();
     private nextId_ = 1;
+    private versions_ = new Map<string, number>();
+
+    /** Publication counter; failed preparations and additional holders do not change it. */
+    version(type: string): number { return this.versions_.get(type) ?? 0; }
+
+    private changed_(type: string): void {
+        this.versions_.set(type, this.version(type) + 1);
+    }
 
     /**
      * A claim on the slot `key` identifies, publishing its first era if there is
@@ -119,6 +127,7 @@ export class RegistryAssetSlots {
             // it is a cache hit, and publishing twice would retire what is live.
             if (!slot.era) {
                 slot.era = era;
+                this.changed_(type);
             } else if (era !== slot.era) {
                 era.dependencies.releaseAll();
             }
@@ -152,6 +161,7 @@ export class RegistryAssetSlots {
         }
         const previous = slot.era;
         slot.era = era;
+        this.changed_(type);
         // Its dependencies only: what the name resolves to is the slot's, and
         // the era above already holds it.
         previous.dependencies.releaseAll();
@@ -207,6 +217,7 @@ export class RegistryAssetSlots {
         const eras: Array<Preparation | null> = [];
         for (const slot of new Set(this.byName_.values())) {
             eras.push(slot.era);
+            if (slot.era) this.changed_(slot.type);
             slot.era = null;
             slot.refs = 0;
         }
@@ -249,6 +260,7 @@ export class RegistryAssetSlots {
         if (--slot.refs > 0) return;
         const era = slot.era;
         slot.era = null;
+        if (era) this.changed_(slot.type);
         this.forget_(slot);
         releaseEra(era);
     }

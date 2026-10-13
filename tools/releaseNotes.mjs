@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(tilemap): refresh layers after tileset publication changes':
+    { note: 'Running tilemaps follow published tileset updates.' },
   'fix(tilemap): own lazy tileset loads and retry failures':
     { note: 'Lazy tilemaps acquire and release tileset slots correctly.' },
   'fix(tilemap): compare cell dimensions independently':

@@ -2692,6 +2692,11 @@ export class Assets {
             ?? this.registrySlots_.published(type, this.assetIdentity_(ref))) as T | undefined;
     }
 
+    /** @internal Changes when a registry type publishes, replaces or withdraws an era. */
+    registryAssetVersion(type: string): number {
+        return this.registrySlots_.version(type);
+    }
+
     /**
      * What the current era of a ref-bound asset took — the dependency graph as a
      * PROJECTION of acquisitions, never a table anyone maintains.
