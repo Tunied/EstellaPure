@@ -70,3 +70,30 @@ it('accepts normal input after an interrupted composition loses and regains focu
     textarea.dispatchEvent(new Event('input'));
     expect(app.world.get(first, TextInput).value).toBe('resumed');
 });
+
+it('preserves focus assigned by a submit callback', async () => {
+    const { app, first, second, textarea } = build();
+    const fm = app.getResource(FocusManager);
+    fm.focus(first);
+    await app.tick(1 / 60);
+    app.getResource(UIEvents).on(first, 'submit', () => fm.focus(second));
+    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', cancelable: true }));
+    expect(fm.focusedEntity).toBe(second);
+    await app.tick(1 / 60);
+    textarea.value = 'submitted next';
+    textarea.dispatchEvent(new Event('input'));
+    expect(app.world.get(second, TextInput).value).toBe('submitted next');
+});
+
+it('releases focus after submission when the callback leaves the session unchanged', async () => {
+    const { app, first, textarea } = build();
+    const fm = app.getResource(FocusManager), onSubmit = vi.fn();
+    fm.focus(first);
+    await app.tick(1 / 60);
+    app.getResource(UIEvents).on(first, 'submit', onSubmit);
+    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', cancelable: true }));
+    expect(onSubmit).toHaveBeenCalledOnce();
+    expect(fm.focusedEntity).toBe(null);
+    expect(app.world.get(first, TextInput).focused).toBe(false);
+    expect(document.activeElement).not.toBe(textarea);
+});

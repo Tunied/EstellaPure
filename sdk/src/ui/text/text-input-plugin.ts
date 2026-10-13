@@ -140,7 +140,7 @@ export class TextInputPlugin implements Plugin {
                 case 'submit':
                     if (focused !== null) {
                         (app.getResource(UIEvents) as UIEventQueue).emit(focused, 'submit');
-                        blurCurrent();
+                        if (getEditingTextInput() === focused) blurCurrent();
                     }
                     break;
                 case 'cancel':

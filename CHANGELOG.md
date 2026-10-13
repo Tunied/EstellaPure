@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Text submission preserves callback-selected focus.** A submit handler can focus the next field without the previous field's default blur clearing it. Submission still closes the editing session when the handler leaves focus unchanged.
+
 - **Text input events stay with the active editing session.** Switching fields no longer lets the previous surface's blur clear the new focus or its queued input overwrite the next value. Web and native editors reset interrupted composition state when focus restarts, so normal typing resumes without requiring a composition-end event.
 
 - **Text caret picking measures long strings once.** Pointer placement in single-line, multiline and password fields accumulates glyph advances in linear time instead of repeatedly measuring every prefix. UTF-16 caret boundaries, glyph scaling, missing glyphs and masked password widths retain their existing positions.
