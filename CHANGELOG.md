@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Unchanged tile writes preserve chunk caches.** Repainting a tile with its existing value no longer advances the chunk revision or forces geometry rebuilding. Erasing untouched empty space does not allocate empty chunks, including negative coordinates in infinite maps.
+
 - **Audio sources distinguish interrupted voices from completed clips.** A refused or preempted voice lowers `playing` without setting the natural-completion latch. Only a backend end signal for a non-looping source marks it `finished`; existing backend completion callbacks remain attached and replays clear the latch.
 
 - **Camera preview scheduling follows its current CPU budget.** A preview waiting on an old slow interval now rechecks the live budget, so cheaper recurring captures resume without waiting for the stale deadline. A slower budget also defers the next capture instead of overspending, and unmounting cancels refreshes.

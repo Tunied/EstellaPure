@@ -13,6 +13,28 @@ using namespace esengine::tilemap;
 
 static Entity E(u32 idx) { return Entity::make(idx, 1); }
 
+TEST_CASE("tilemap_unchanged_writes_preserve_sparse_storage_and_revision") {
+    TilemapSystem sys;
+    sys.initInfiniteLayer(E(0), 16.0f, 16.0f);
+    sys.fillRect(E(0), -64, -64, 128, 128, EMPTY_TILE);
+    const auto* layer = sys.getLayerData(E(0));
+    CHECK(layer->chunks.empty());
+    CHECK(layer->edit_revision == 0);
+
+    sys.setTile(E(0), -1, -1, 42);
+    const auto revision = layer->edit_revision;
+    for (int i = 0; i < 1000; ++i) sys.setTile(E(0), -1, -1, 42);
+    CHECK(layer->edit_revision == revision);
+    CHECK(layer->chunks.size() == 1);
+    CHECK(sys.getTile(E(0), -1, -1) == 42);
+
+    sys.setTile(E(0), -1, -1, EMPTY_TILE);
+    CHECK(layer->edit_revision == revision + 1);
+    CHECK(sys.getTile(E(0), -1, -1) == EMPTY_TILE);
+    sys.setTile(E(0), -1, -1, EMPTY_TILE);
+    CHECK(layer->edit_revision == revision + 1);
+}
+
 TEST_CASE("tilemap_init_layer") {
     TilemapSystem sys;
 

@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(tilemap): skip unchanged tile writes and empty chunk allocation':
+    { note: 'Unchanged tile writes preserve chunk caches.' },
   'fix(audio): distinguish source completion from interrupted voices':
     { note: 'Audio sources distinguish interrupted voices from completed clips.' },
   'fix(editor): refresh camera previews against the live CPU budget':

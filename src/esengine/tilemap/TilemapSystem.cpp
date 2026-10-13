@@ -57,10 +57,17 @@ inline u16 readTile(const TilemapSystem::LayerData& layer, i32 x, i32 y) {
 
 inline void writeTile(TilemapSystem::LayerData& layer, i32 x, i32 y, u16 value) {
     const i32 cx = chunkOf(x), cy = chunkOf(y);
-    ChunkData& chunk = layer.chunks[{cx, cy}];
     const i32 lx = x - cx * static_cast<i32>(CHUNK_SIZE);
     const i32 ly = y - cy * static_cast<i32>(CHUNK_SIZE);
-    chunk.tiles[static_cast<usize>(ly) * CHUNK_SIZE + static_cast<usize>(lx)] = value;
+    const usize index = static_cast<usize>(ly) * CHUNK_SIZE + static_cast<usize>(lx);
+    auto it = layer.chunks.find({cx, cy});
+    if (it == layer.chunks.end()) {
+        if (value == EMPTY_TILE) return;
+        it = layer.chunks.try_emplace(ChunkCoord{cx, cy}).first;
+    }
+    ChunkData& chunk = it->second;
+    if (chunk.tiles[index] == value) return;
+    chunk.tiles[index] = value;
     chunk.revision = ++layer.edit_revision;
 }
 
