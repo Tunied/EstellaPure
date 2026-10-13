@@ -1,9 +1,12 @@
 # v0.78.0 card review and cache-budget verification — 2026-10-13
 
-The verified branch is based on engine `4e32ff5cc4ab06b33267a2333293ed69b19c83bc`
-and editor `ba95cde5127b5a6c8c24f2860f365397b20a0071`. Draft reviews are
+The current combined branch includes engine `8f1641e9e` and both v0.78.0 card
+implementations. Cache draft reviews are
 [engine #95](https://github.com/esengine/estella/pull/95) and
 [editor #20](https://github.com/esengine/estella-editor/pull/20).
+The subsequent incremental-baking drafts, [engine #96](https://github.com/esengine/estella/pull/96)
+and [editor #21](https://github.com/esengine/estella-editor/pull/21), are stacked
+on those cache branches so both workflows remain in the combined tree.
 The initial review used engine `acdc5ded8cc939d81cbb2128d12e93609c0b3da1`
 and editor `53e998badfa4dfce0d377c0c29b6107502bb893d`, before the rebase below.
 [v0.78.0](https://github.com/esengine/estella/releases/tag/v0.78.0) was published
@@ -197,3 +200,24 @@ not inferred from local passes. A final fetch brought in two mainline commits fo
 golden output paths and authored audio playback; the branch rebased cleanly onto
 `4e32ff5cc`. Those commits change example/test/changelog files, with no C++ or SDK
 runtime change. The existing compiled runtime artifacts still match their source.
+
+## Real process-interruption acceptance
+
+`node tools/cache-budget-demo.mjs` now launches two real update processes for v4.
+The production adapter is paused after temporary bytes have been written but
+before resource rename (8 B) and before durable active-manifest rename (399 B).
+Each child is actually terminated with `SIGKILL`; this is a deterministic
+pre-commit checkpoint, not an exception pretending the process disappeared.
+
+After both interruptions the HTTP server is closed, network access is rejected,
+and another process restores v3 current and v2 rollback, eight correct bytes
+each. Missing protected resources = 0. Cleanup releases eight bytes of the
+uncommitted complete v4 resource and keeps the eight-byte interrupted resource
+temporary protected. The final 24 B cannot meet a 16 B resource budget because
+the unknown temporary remains protected; the report does not claim success.
+The durable host-store temporary is outside the resource-cache accounting.
+
+The same demonstration now runs in golden CI shard 3. Local output is
+`output/cache-crash.log` in the combined worktree. This strengthens crash/restart
+evidence for the Node filesystem contract; physical WeChat acceptance remains
+pending and is not substituted by this run.

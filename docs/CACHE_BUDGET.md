@@ -72,9 +72,13 @@ node tools/cache-budget-demo.mjs
 ```
 
 It serves three eight-byte resource versions over a local HTTP server, applies
-two updates, removes the oldest version, closes the server and starts a new
-process with network access rejected. The new process must read both current and
-rollback bytes. Node's default key/value storage is session-local, so the fixture
+two updates and removes the oldest version. Two additional update processes are
+terminated at resource-rename and manifest-rename checkpoints after real temporary
+bytes reach disk. The server then closes and a new process starts with network
+access rejected. It must read both current and rollback bytes, reclaim the complete
+uncommitted version, and preserve the interrupted resource temporary. The checkpoints
+pause the production adapter at pre-commit boundaries; termination is a real
+`SIGKILL`, not a simulated exception. Node's default key/value storage is session-local, so the fixture
 explicitly supplies a durable host store for the active manifest. Mini-game and
 native hosts already supply their own persistent key/value storage.
 

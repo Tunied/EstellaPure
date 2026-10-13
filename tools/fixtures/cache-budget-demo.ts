@@ -4,10 +4,13 @@ import { createServer } from 'node:http';
 import { mkdirSync, readFileSync, writeFileSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { fork } from 'node:child_process';
+import { createRequire, syncBuiltinESMExports } from 'node:module';
 import { Assets } from '../../sdk/src/asset/Assets';
 import { HttpBackend } from '../../sdk/src/asset/Backend';
 import { contentHashHex } from '../../sdk/src/asset/contentHash';
 import { nodeAdapter } from '../../sdk/src/platform/node';
+import { cacheEntryName } from '../../sdk/src/platform/cacheEntryName';
 import { setPlatform, platformWriteCacheFile } from '../../sdk/src/platform/base';
 import type { AddressableManifest } from '../../sdk/src/asset/AddressableManifest';
 
@@ -44,8 +47,77 @@ async function offline(scratch: string, root: string) {
     const current = new Uint8Array(await backend.fetchBinary(assetUrl(root, 3)));
     const rollback = new Uint8Array(await backend.fetchBinary(assetUrl(root, 2)));
     if (a.updateStatus().revision !== 'v3' || current.some(b => b !== 3) || rollback.some(b => b !== 2)) throw Error('offline verification failed');
+    const report = await a.diskCacheReport();
+    const cleanup = await a.cleanDiskCache(16, true);
+    if (report.versions.some(v => v.reason && v.missing) || cleanup.releaseBytes !== 8
+        || cleanup.report.entries.filter(e => e.name.endsWith('.tmp')).length !== 1
+        || cleanup.report.entries.some(e => e.name.endsWith('.tmp') && !e.protection.includes('unindexed'))) {
+        throw Error('crash recovery did not preserve protected versions and the interrupted temporary');
+    }
     return { revision: a.updateStatus().revision, currentBytes: current.byteLength,
-        rollbackBytes: rollback.byteLength, networkAllowed: false, freshProcess: true };
+        rollbackBytes: rollback.byteLength, networkAllowed: false, freshProcess: true,
+        protectedMissing: 0, releasedUncommittedBytes: cleanup.releaseBytes,
+        interruptedTemporaryProtected: true, remainingBytes: cleanup.remainingBytes };
+}
+
+type CrashPhase = 'resource-rename' | 'manifest-rename';
+
+async function interrupted(scratch: string, root: string, phase: CrashPhase) {
+    host(scratch, false);
+    const require = createRequire(import.meta.url);
+    const fs = require('node:fs') as typeof import('node:fs');
+    const asyncFs = require('node:fs/promises') as typeof import('node:fs/promises');
+    if (phase === 'resource-rename') {
+        const rename = asyncFs.rename;
+        asyncFs.rename = async (from, to) => {
+            if (String(to) === join(scratch, 'cache', cacheEntryName(assetUrl(root, 4)))) {
+                process.send!({ phase, temporaryBytes: readFileSync(from).byteLength });
+                await new Promise(() => {});
+            }
+            await rename(from, to);
+        };
+    } else {
+        const rename = fs.renameSync;
+        fs.renameSync = (from, to) => {
+            if (String(to) === join(scratch, 'state', 'active.json')) {
+                process.send!({ phase, temporaryBytes: readFileSync(from).byteLength });
+                Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0);
+            }
+            rename(from, to);
+        };
+    }
+    // Hold the production adapter at the pre-commit boundary after real bytes
+    // reached disk; the parent then terminates this process, not a mocked write.
+    syncBuiltinESMExports();
+    const a = assets(root);
+    await a.checkForUpdate({ manifestUrl: `${root}/manifest.json` });
+    await a.applyUpdate();
+    throw Error('the update committed before the crash checkpoint');
+}
+
+function crash(scratch: string, bundle: string, root: string, phase: CrashPhase): Promise<object> {
+    return new Promise((resolve, reject) => {
+        const child = fork(bundle, ['--crash', scratch, root, phase],
+            { silent: true, windowsHide: true, execArgv: [] });
+        let marker: { phase: CrashPhase; temporaryBytes: number } | null = null;
+        let failure = '', stderr = '';
+        child.stderr!.on('data', bytes => { stderr = (stderr + String(bytes)).slice(-2000); });
+        const timeout = setTimeout(() => {
+            failure = 'the crash checkpoint was not reached'; child.kill('SIGKILL');
+        }, 10_000);
+        child.once('error', error => { clearTimeout(timeout); reject(error); });
+        child.on('message', message => {
+            const point = message as typeof marker;
+            if (point?.phase === phase && point.temporaryBytes > 0) {
+                marker = point; child.kill('SIGKILL');
+            }
+        });
+        child.once('exit', (code, signal) => {
+            clearTimeout(timeout);
+            if (failure || !marker || code === 0) reject(Error(`${failure || 'unexpected child exit'}: ${stderr}`));
+            else resolve({ ...marker, exitCode: code, signal, terminated: true });
+        });
+    });
 }
 
 export async function run(scratch: string, bundle: string) {
@@ -69,11 +141,17 @@ export async function run(scratch: string, bundle: string) {
         const before = await a.diskCacheReport();
         const preview = await a.cleanDiskCache(16);
         const cleaned = await a.cleanDiskCache(16, true);
+        revision = 4;
+        const crashes = [];
+        for (const phase of ['resource-rename', 'manifest-rename'] as const)
+            crashes.push(await crash(scratch, bundle, root, phase));
         await new Promise<void>(resolve => server.close(() => resolve()));
         const restarted = JSON.parse(execFileSync(process.execPath, [bundle, '--offline', scratch, root], { encoding: 'utf8' }));
         return { stages, before: { bytes: before.usedBytes, protected: before.protectedBytes, reclaimable: before.reclaimableBytes },
             preview: { files: preview.candidates.length, releaseBytes: preview.releaseBytes },
-            cleanup: { releaseBytes: cleaned.releaseBytes, remaining: cleaned.remainingBytes, budgetMet: cleaned.budgetMet }, offline: restarted };
+            cleanup: { releaseBytes: cleaned.releaseBytes, remaining: cleaned.remainingBytes, budgetMet: cleaned.budgetMet },
+            crashes, offline: restarted };
     } finally { if (server.listening) server.close(); }
 }
 if (process.argv[2] === '--offline') console.log(JSON.stringify(await offline(process.argv[3], process.argv[4])));
+if (process.argv[2] === '--crash') await interrupted(process.argv[3], process.argv[4], process.argv[5] as CrashPhase);
