@@ -10,3 +10,9 @@
   roadmap completion. A merged PR alone does not prove device acceptance.
 - Do not add generated-by attribution or assistant co-author trailers to
   commits, pull requests, roadmap updates, or other deliverables.
+
+# Delivery workflow
+
+- After completing appropriate verification, commit and push changes directly to
+  the main branch (currently master). Do not create pull requests unless the user
+  explicitly requests one.
