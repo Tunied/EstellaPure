@@ -1,9 +1,12 @@
 # v0.78.0 card review and cache-budget verification — 2026-10-13
 
-The verified branch is based on engine `4e32ff5cc4ab06b33267a2333293ed69b19c83bc`
-and editor `ba95cde5127b5a6c8c24f2860f365397b20a0071`. Draft reviews are
+The current combined branch includes engine `8f1641e9e` and both v0.78.0 card
+implementations. Cache draft reviews are
 [engine #95](https://github.com/esengine/estella/pull/95) and
 [editor #20](https://github.com/esengine/estella-editor/pull/20).
+The subsequent incremental-baking drafts, [engine #96](https://github.com/esengine/estella/pull/96)
+and [editor #21](https://github.com/esengine/estella-editor/pull/21), are stacked
+on those cache branches so both workflows remain in the combined tree.
 The initial review used engine `acdc5ded8cc939d81cbb2128d12e93609c0b3da1`
 and editor `53e998badfa4dfce0d377c0c29b6107502bb893d`, before the rebase below.
 [v0.78.0](https://github.com/esengine/estella/releases/tag/v0.78.0) was published
@@ -15,8 +18,8 @@ candidate version contains two unfinished cards:
 
 | Card | Board status | Decision |
 |---|---|---|
-| RM-025 — disk cache budget / offline versions | Todo, P0 | Implement the shared runtime and editor workflow; this benefits 2D Web/mini-game delivery. |
-| RM-136 — GPU baking / adaptive sampling | Todo, P2 | Defer specialized 3D work according to the repository's 2D production priority. |
+| RM-025 — disk cache budget / offline versions | In Progress, P0 | Runtime/editor workflow implemented; physical acceptance remains pending. |
+| RM-136 — GPU baking / adaptive sampling | In Progress, P2 | Implemented the allowed incremental route after the 2D workflow; see the linked baking review. |
 
 RM-025's earlier static description is outdated: mini-game byte caches and native
 URL-to-safe-name mapping already exist. Cache names use XXH64, not SHA256. The
@@ -26,7 +29,8 @@ specified physical-device evidence; their status was not inferred from releases.
 
 The changes are pushed for draft review and unmerged. The initial review found
 no matching cache-budget PR; the two drafts above were subsequently created.
-No board completion or device acceptance is claimed and no remote card was changed.
+Both remote cards now contain implementation/verification evidence and are
+In Progress. No board completion or physical-device acceptance is claimed.
 
 ## Implemented
 
@@ -197,3 +201,31 @@ not inferred from local passes. A final fetch brought in two mainline commits fo
 golden output paths and authored audio playback; the branch rebased cleanly onto
 `4e32ff5cc`. Those commits change example/test/changelog files, with no C++ or SDK
 runtime change. The existing compiled runtime artifacts still match their source.
+
+## Real process-interruption acceptance
+
+`node tools/cache-budget-demo.mjs` now launches two real update processes for v4.
+The production adapter is paused after temporary bytes have been written but
+before resource rename (8 B) and before durable active-manifest rename (399 B).
+Each child is actually terminated with `SIGKILL`; this is a deterministic
+pre-commit checkpoint, not an exception pretending the process disappeared.
+
+After both interruptions the HTTP server is closed, network access is rejected,
+and another process restores v3 current and v2 rollback, eight correct bytes
+each. Missing protected resources = 0. Cleanup releases eight bytes of the
+uncommitted complete v4 resource and keeps the eight-byte interrupted resource
+temporary protected. The final 24 B cannot meet a 16 B resource budget because
+the unknown temporary remains protected; the report does not claim success.
+The durable host-store temporary is outside the resource-cache accounting.
+
+The same demonstration now runs in golden CI shard 3. Local output is
+`output/cache-crash.log` in the combined worktree. This strengthens crash/restart
+evidence for the Node filesystem contract; physical WeChat acceptance remains
+pending and is not substituted by this run.
+
+The cache branch's complete Build run
+[38390256156](https://github.com/esengine/estella/actions/runs/38390256156)
+passed all 17 jobs on `dc3677b68`, including scale budgets after the report-write
+fix. Editor #20 and #21 checks passed at their recorded heads. The newer combined
+branch's crash demonstration runs locally and is being checked in CI; those
+pending checks are not claimed to have passed.

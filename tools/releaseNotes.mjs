@@ -40,6 +40,12 @@ export const NOTED = {
     { note: 'Release optimization commits valid WASM artifacts atomically.' },
   'fix(ci): keep cache verifier comments within source gates':
     { internal: 'Verification fixture comments and generated-output exclusion do not change a shipped game or editor.' },
+  'perf(editor): reuse lightmap workers for relighting':
+    { note: 'Lightmap bounces reuse exact gather visibility.' },
+  'fix(lightmap): align CLI poses with runtime precision':
+    { note: "Command-line baking uses the editor's transform precision." },
+  'perf(lightmap): reuse exact gather visibility across bounces':
+    { note: 'Lightmap bounces reuse exact gather visibility.' },
   'test(audio): certify authored source playback after packaging':
     { note: 'Authored sound is verified in a packaged game.' },
   'fix(test): resolve golden output paths before spawning tools':

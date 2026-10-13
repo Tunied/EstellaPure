@@ -16,6 +16,7 @@
 #include <atomic>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <thread>
 #include <vector>
 
@@ -54,6 +55,25 @@ struct Scene {
 };
 
 Scene g_scene;
+
+// Visibility depends on geometry and the fixed sample sequence, not on the
+// light field a later bounce reads. Keep exact hit references, never radiance.
+struct GatherHit { int texel; int surface; }; // -1 sky, -2 unlit/back face
+GatherHit* g_gatherHits = nullptr;
+size_t g_gatherCount = 0;
+uint32_t g_cacheBudget = 384u * 1024u * 1024u;
+int g_cacheSamples = 0, g_cacheAtlasSize = 0;
+const float* g_cachePosition = nullptr;
+const float* g_cacheNormal = nullptr;
+uint64_t g_gatherResolved = 0;
+
+void clearGatherCache() {
+    std::free(g_gatherHits);
+    g_gatherHits = nullptr; g_gatherCount = 0;
+    g_cacheSamples = 0;
+    g_cacheAtlasSize = 0;
+    g_cachePosition = g_cacheNormal = nullptr;
+}
 
 struct Hit {
     double t = 0, u = 0, v = 0;
@@ -382,11 +402,16 @@ void parallelFor(int count, int threads, int minChunk, F body) {
 
 extern "C" {
 
+void lm_cache_budget(uint32_t bytes) { clearGatherCache(); g_cacheBudget = bytes; }
+double lm_cache_bytes() { return static_cast<double>(g_gatherCount * sizeof(GatherHit)); }
+double lm_gather_resolved() { return static_cast<double>(g_gatherResolved); }
+
 /** Adopts the triangle arrays (the caller keeps them alive) and builds the tree. */
 void lm_scene(const float* pos, int triCount, const float* triUV, const int* triSurface,
               const float* patch, const float* albedo, const float* triNormal,
               const uint8_t* twoSided, const float* coverage, int surfaceCount, double backReach) {
     Scene& s = g_scene;
+    clearGatherCache();
     s.pos = pos; s.triCount = triCount; s.triUV = triUV; s.triSurface = triSurface;
     s.patch = patch; s.albedo = albedo; s.triNormal = triNormal; s.twoSided = twoSided;
     s.coverage = coverage; s.backReach = backReach;
@@ -466,6 +491,23 @@ void lm_direct(const float* position, const float* normal, int count,
 void lm_gather(const float* position, const float* normal, int count,
                const float* atlas, int atlasSize, int samples, const double* sky, float* out, int threads) {
     const Scene& s = g_scene;
+    const uint64_t rays = static_cast<uint64_t>(count) * static_cast<uint64_t>(samples);
+    bool fits = rays <= g_cacheBudget / sizeof(GatherHit);
+    const bool reuse = fits && g_gatherHits && g_gatherCount == rays && g_cacheSamples == samples
+        && g_cacheAtlasSize == atlasSize && g_cachePosition == position && g_cacheNormal == normal;
+    if (!reuse) {
+        clearGatherCache();
+        if (fits) {
+            g_gatherHits = static_cast<GatherHit*>(std::malloc(static_cast<size_t>(rays) * sizeof(GatherHit)));
+            fits = g_gatherHits != nullptr;
+            if (fits) {
+                g_gatherCount = static_cast<size_t>(rays);
+                g_cacheSamples = samples; g_cacheAtlasSize = atlasSize;
+                g_cachePosition = position; g_cacheNormal = normal;
+            }
+        }
+        g_gatherResolved += rays;
+    }
     Sky skyOf;
     skyOf.kind = static_cast<int>(sky[0]);
     for (int k = 0; k < 3; ++k) { skyOf.rgb[k] = sky[1 + k]; skyOf.tint[k] = sky[5 + k]; }
@@ -484,18 +526,28 @@ void lm_gather(const float* position, const float* normal, int count,
             const double dx = basis[0] * a + basis[3] * c + nx * d;
             const double dy = basis[1] * a + basis[4] * c + ny * d;
             const double dz = basis[2] * a + basis[5] * c + nz * d;
-            const uint32_t seed = static_cast<uint32_t>(i) * static_cast<uint32_t>(samples) + static_cast<uint32_t>(k);
-            const int tri = firstHit(s, px + nx * kShadowEpsilon, py + ny * kShadowEpsilon, pz + nz * kShadowEpsilon,
-                                     dx, dy, dz, 1e7, kShadowEpsilon, seed, s.backReach, hit);
-            if (tri < 0) {
+            const size_t ray = static_cast<size_t>(i) * samples + k;
+            GatherHit ref;
+            if (reuse) ref = g_gatherHits[ray];
+            else {
+                const uint32_t seed = static_cast<uint32_t>(i) * static_cast<uint32_t>(samples) + static_cast<uint32_t>(k);
+                const int tri = firstHit(s, px + nx * kShadowEpsilon, py + ny * kShadowEpsilon, pz + nz * kShadowEpsilon,
+                                         dx, dy, dz, 1e7, kShadowEpsilon, seed, s.backReach, hit);
+                ref = { tri < 0 ? -1 : -2, 0 };
+                if (tri >= 0 && facesRay(s, tri, dx, dy, dz)) {
+                    const int texel = texelOf(s, tri, hit.u, hit.v, atlasSize);
+                    if (texel >= 0) ref = { texel, s.triSurface[tri] };
+                }
+                if (fits) g_gatherHits[ray] = ref;
+            }
+            if (ref.texel == -1) {
                 skyOf.at(dx, dy, dz, seen);
                 r += seen[0]; g += seen[1]; b += seen[2];
                 continue;
             }
-            if (!facesRay(s, tri, dx, dy, dz)) continue;
-            const int texel = texelOf(s, tri, hit.u, hit.v, atlasSize);
-            if (texel < 0) continue;
-            const float* alb = s.albedo + static_cast<size_t>(s.triSurface[tri]) * 3;
+            if (ref.texel < 0) continue;
+            const int texel = ref.texel;
+            const float* alb = s.albedo + static_cast<size_t>(ref.surface) * 3;
             r += static_cast<double>(atlas[static_cast<size_t>(texel) * 3]) * alb[0];
             g += static_cast<double>(atlas[static_cast<size_t>(texel) * 3 + 1]) * alb[1];
             b += static_cast<double>(atlas[static_cast<size_t>(texel) * 3 + 2]) * alb[2];

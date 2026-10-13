@@ -798,6 +798,10 @@ jobs:
       if: ${{ !cancelled() && matrix.shard == 3 }}
       run: pnpm run verify:cache-budget
 
+    - name: Check interrupted cache and manifest commits survive a new process
+      if: ${{ !cancelled() && matrix.shard == 3 }}
+      run: node tools/cache-budget-demo.mjs
+
     - name: Keep cache cleanup and offline restart evidence
       if: ${{ !cancelled() && matrix.shard == 3 }}
       uses: actions/upload-artifact@v7

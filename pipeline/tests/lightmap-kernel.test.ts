@@ -17,6 +17,7 @@ import { PNG } from 'pngjs';
 import { BakeKernelExecutor } from '../src/assets/lightmapKernel';
 import { encodeRgbaPng } from '../src/assets/png';
 import { decodeRgbaPng } from '../src/assets/tilesetExtrude';
+import { loadBakeKernel } from '../../build-tools/lightmap/kernel.mjs';
 
 let dir = '';
 let kernel: BakeKernelExecutor;
@@ -106,6 +107,57 @@ function worstTexel(pngA: Uint8Array, pngB: Uint8Array): { worst: number; differ
 }
 
 describe('the C++ bake kernel', () => {
+    it('reuses exact visibility across bounces and relighting without changing solved bytes', async () => {
+        const raw = await loadBakeKernel();
+        try {
+            raw.setCacheBudget(0);
+            const original = await bakeSceneLightmapParallel(scene(true), kernel);
+            raw.setCacheBudget(384 * 1024 * 1024);
+            const before = raw.cacheStats().resolvedRays;
+            const cached = await bakeSceneLightmapParallel(scene(true), kernel);
+            expect(cached.atlasBytes).toEqual(original.atlasBytes);
+            expect(raw.cacheStats().resolvedRays - before).toBe(cached.lumels * 32);
+            expect(raw.cacheStats().bytes).toBe(cached.lumels * 32 * 8);
+
+            const changed = scene(true);
+            changed.lights = changed.lights.map(l => ({ ...l, intensity: l.intensity * 0.4,
+                color: [0.2, 0.9, 0.5] }));
+            changed.environment!.rotation = 120;
+            const resolved = raw.cacheStats().resolvedRays;
+            const relit = await bakeSceneLightmapParallel(changed, kernel);
+            expect(raw.cacheStats().resolvedRays).toBe(resolved);
+            expect(relit.atlasBytes).not.toEqual(original.atlasBytes);
+            raw.setCacheBudget(0);
+            const reference = await bakeSceneLightmapParallel(changed, kernel);
+            expect(relit.atlasBytes).toEqual(reference.atlasBytes);
+            expect(relit.probes).toEqual(reference.probes);
+        } finally { raw.setCacheBudget(384 * 1024 * 1024); }
+    });
+
+    it('invalidates changed geometry/sample sequences and falls back within a memory budget', async () => {
+        const raw = await loadBakeKernel();
+        try {
+            raw.setCacheBudget(384 * 1024 * 1024);
+            await bakeSceneLightmapParallel(scene(false), kernel);
+            const changed = scene(false);
+            changed.surfaces[2].transform = [...IDENTITY];
+            changed.surfaces[2].transform[12] = 0.3;
+            const before = raw.cacheStats().resolvedRays;
+            const moved = await bakeSceneLightmapParallel(changed, kernel);
+            expect(raw.cacheStats().resolvedRays - before).toBe(moved.lumels * 32);
+            const resampled = raw.cacheStats().resolvedRays;
+            changed.options!.samples = 16;
+            const cached = await bakeSceneLightmapParallel(changed, kernel);
+            expect(raw.cacheStats().resolvedRays - resampled).toBe(cached.lumels * 16);
+            raw.setCacheBudget(1);
+            const bounded = raw.cacheStats().resolvedRays;
+            const uncached = await bakeSceneLightmapParallel(changed, kernel);
+            expect(raw.cacheStats().bytes).toBe(0);
+            expect(raw.cacheStats().resolvedRays - bounded).toBe(cached.lumels * 16 * 2);
+            expect(uncached.atlasBytes).toEqual(cached.atlasBytes);
+        } finally { raw.setCacheBudget(384 * 1024 * 1024); }
+    });
+
     it('averages a texture as the TypeScript does, bit for bit', async () => {
         const w = 37, h = 23;
         const rgba = new Uint8Array(w * h * 4);

@@ -24,6 +24,10 @@ published separately; it ships inside the editor.
 
 - **Release optimization commits valid WASM artifacts atomically.** A failed post-link optimizer now fails the build and preserves the original artifact. Cache scans can repair exact manifest references in a surviving legacy cache, and hosts without usable storage report unsupported cache writes.
 
+- **Lightmap bounces reuse exact gather visibility.** Later bounces and consecutive editor bakes reuse geometry hits while reading the new light field. A bounded cache falls back to tracing when it does not fit, and changed geometry or sample settings discard old references. The editor retires its worker after two idle minutes. On the same Bistro scene and machine, relighting fell from 28–29 seconds to 5.24 seconds with identical atlas bytes.
+
+- **Command-line baking uses the editor's transform precision.** Document transforms cross the same float32 boundary as the live world before their bake pose is composed, keeping decimal-scale fingerprints consistent between the two authoring paths. The physics-3d baked corpus is refreshed for those runtime poses.
+
 - **Authored sound is verified in a packaged game.** Audio-demo's existing spatial source starts through its authored Playing flag. A separate launch unlocks browser audio away from every sound control and reads all spectrum bars, proving output from the scene source while preserving the Beat toggle's independent API and fade demonstration. The golden registry requires this measured run before certifying authored sound.
 
 - **Package verification resolves output folders consistently.** Relative work and screenshot paths are resolved before child tools launch, so the editor and package runners write into the same requested folder instead of resolving paths against their own working directories.

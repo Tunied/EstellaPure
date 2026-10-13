@@ -6,6 +6,8 @@
  *        pass over every lumel on the kernel's own threads.
  */
 
+import { Buffer } from 'node:buffer';
+
 let modulePromise = null;
 
 export function loadBakeKernel() {
@@ -39,15 +41,43 @@ class BakeKernel {
   }
 
   release() {
+    this.m._lm_cache_budget(this.cacheBudget ?? 384 * 1024 * 1024);
     for (const at of this.held) this.m._free(at);
     this.held = [];
     this.lumels = null;
+    this.inputs = null;
+  }
+
+  setCacheBudget(bytes) {
+    if (!Number.isSafeInteger(bytes) || bytes < 0 || bytes > 0xffffffff) throw Error('invalid bake cache budget');
+    this.cacheBudget = bytes;
+    this.m._lm_cache_budget(bytes);
+  }
+
+  cacheStats() {
+    return { bytes: this.m._lm_cache_bytes(), resolvedRays: this.m._lm_gather_resolved() };
   }
 
   /** Replaces the scene: triangles, their lookup, and the lumels every pass solves. */
   scene(s) {
+    const names = ['positions', 'triUV', 'triSurface', 'patch', 'albedo', 'triNormal',
+      'twoSided', 'coverage', 'lumelPosition', 'lumelNormal'];
+    // Compare with the uploaded snapshot, so even mutation of the caller's
+    // arrays invalidates visibility. Colour/intensity edits do not change s.
+    if (this.inputs && this.triCount === s.triCount && this.backReach === s.backReach
+      && this.lumels.count === s.lumelCount && names.every(name => {
+        const held = this.inputs[name], a = s[name];
+        return held.length === a.byteLength && Buffer.from(this.heap(), held.at, held.length)
+          .equals(Buffer.from(a.buffer, a.byteOffset, a.byteLength));
+      })) return;
     this.release();
-    const hold = (a) => { const at = this.put(a); this.held.push(at); return at; };
+    this.inputs = {};
+    this.triCount = s.triCount; this.backReach = s.backReach;
+    const hold = (a) => {
+      const at = this.put(a); this.held.push(at);
+      for (const name of names) if (s[name] === a) this.inputs[name] = { at, length: a.byteLength };
+      return at;
+    };
     const pos = hold(s.positions), uv = hold(s.triUV), surf = hold(s.triSurface);
     const patch = hold(s.patch), albedo = hold(s.albedo), normal = hold(s.triNormal);
     const twoSided = hold(s.twoSided), coverage = hold(s.coverage);

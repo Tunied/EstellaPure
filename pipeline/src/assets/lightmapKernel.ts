@@ -59,6 +59,7 @@ export class BakeKernelExecutor implements BakeExecutor {
     }
 
     get threads(): number { return this.kernel.threads; }
+    get cacheStats(): { bytes: number; resolvedRays: number } { return this.kernel.cacheStats(); }
 
     async run({ scene, job }: BakeStep): Promise<void> {
         if (scene !== this.scene) {

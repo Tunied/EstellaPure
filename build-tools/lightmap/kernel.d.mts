@@ -8,6 +8,9 @@ export interface KernelScene {
 export interface BakeKernel {
   /** Threads a pass runs on; any count gives the same answer. */
   threads: number;
+  /** Upper bound for exact gather visibility; zero disables it. */
+  setCacheBudget(bytes: number): void;
+  cacheStats(): { bytes: number; resolvedRays: number };
   scene(s: KernelScene): void;
   direct(lights: Float64Array, lightCount: number, out: F32): void;
   gather(atlas: F32, atlasSize: number, samples: number, sky: Float64Array, out: F32): void;
