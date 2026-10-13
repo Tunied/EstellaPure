@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Repeated exports remove obsolete cooked assets and packs.** Web and mini-game exports compare the previous and current asset manifests, deleting old texture hashes, removed assets, and packs no longer referenced by the build. Shared current packs, project sources, and unlisted output files are preserved.
+
 - **Repeated Web exports drop obsolete runtime files.** Rebuilding into the same output replaces the shipped SDK and WASM trees, removing modules the project no longer needs and old SDK chunks. Turning off source maps removes maps from the previous build. Output-root configuration files are preserved, and a runtime output overlapping its input is rejected before removing that tree.
 
 - **Editor export results report failed builds accurately.** The automation export door returns `exported: false` when the exporter fails, retaining errors such as missing optional runtime modules instead of marking a partial package as successfully exported. Preflight refusals remain distinguishable from attempted builds.

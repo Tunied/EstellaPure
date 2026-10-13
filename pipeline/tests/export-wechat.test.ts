@@ -64,6 +64,27 @@ beforeAll(() => {
 afterAll(() => rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 }));
 
 describe('exportGame (wechat)', () => {
+  it('removes the old texture file when re-exporting changed art', async () => {
+    const dir = path.join(root, 'dist-wechat-recook');
+    const source = path.join(root, 'assets/hero.png');
+    const original = readFileSync(source);
+    const run = () => exportGame({ root, entryScene: 'scenes/main.esscene',
+      hostsDir: 'unused-for-wechat', packagesDir: OFFICIAL_PACKAGES,
+      sdkDistDir: path.join(root, '_sdk'), wasmDir: path.join(root, '_wxwasm'), outDir: dir, platform: 'wechat' });
+    try {
+      expect((await run()).ok).toBe(true);
+      const old = JSON.parse(readFileSync(path.join(dir, 'asset-manifest.json'), 'utf8')).groups.main.assets[TEX].path as string;
+      writeFileSync(path.join(dir, 'project.private.config.json'), 'KEEP');
+      writeFileSync(source, 'CHANGEDPNGDATA');
+      expect((await run()).ok).toBe(true);
+      const current = JSON.parse(readFileSync(path.join(dir, 'asset-manifest.json'), 'utf8')).groups.main.assets[TEX].path as string;
+      expect(current).not.toBe(old);
+      expect(existsSync(path.join(dir, old))).toBe(false);
+      expect(existsSync(path.join(dir, current))).toBe(true);
+      expect(readFileSync(path.join(dir, 'project.private.config.json'), 'utf8')).toBe('KEEP');
+    } finally { writeFileSync(source, original); }
+  }, 60_000);
+
   it('assembles a MiniGame matching the initWeChatRuntime contract', async () => {
     const res = await exportGame({
       root,

@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(export): prune obsolete cooked assets and packs':
+    { note: 'Repeated exports remove obsolete cooked assets and packs.' },
   'fix(export): remove obsolete web runtime files on rebuild':
     { note: 'Repeated Web exports drop obsolete runtime files.' },
   'fix(editor): report failed exports accurately':

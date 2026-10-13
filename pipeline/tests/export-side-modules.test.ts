@@ -5,7 +5,7 @@
  *        ask for, and no others. A dropped module is a 404 at boot.
  */
 import { describe, it, expect } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -53,10 +53,12 @@ const run = (
   f: Fixture,
   runtime?: Parameters<typeof exportGame>[0]['runtime'],
   features?: Parameters<typeof exportGame>[0]['features'],
+  packAssets?: boolean,
 ) => exportGame({
   root: f.root, entryScene: 'scenes/main.esscene', hostsDir: HOSTS, packagesDir: OFFICIAL_PACKAGES,
   sdkDistDir: path.join(f.root, '_sdk'), wasmDir: path.join(f.root, '_wasm'),
   outDir: f.out, ...(runtime ? { runtime } : {}), ...(features ? { features } : {}),
+  ...(packAssets === undefined ? {} : { packAssets }),
 });
 
 /** The module artifact base names the package actually carries. */
@@ -68,6 +70,56 @@ const entities = (...components: Array<{ type: string; data?: unknown }>) =>
   [{ id: 0, components }];
 
 describe('web package side modules', () => {
+  it('removes old texture hashes after editing and unreferencing a sprite texture', async () => {
+    const tex = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+    const f = setup({ version: '1.0', name: 'Main', entities: entities({ type: 'Sprite', data: { texture: `@uuid:${tex}` } }) }, (root) => {
+      mkdirSync(path.join(root, 'assets'));
+      writeFileSync(path.join(root, 'assets/hero.png'), 'PNGDATA');
+      writeFileSync(path.join(root, 'assets/hero.png.meta'), meta(tex, 'texture'));
+    });
+    const texturePath = () => JSON.parse(readFileSync(path.join(f.out, 'asset-manifest.json'), 'utf8')).groups.main.assets[tex].path as string;
+    try {
+      expect((await run(f)).ok).toBe(true);
+      const first = texturePath();
+      writeFileSync(path.join(f.out, 'host-config.json'), 'KEEP');
+      writeFileSync(path.join(f.out, 'assets/custom.txt'), 'KEEP');
+      writeFileSync(path.join(f.root, 'assets/hero.png'), 'CHANGEDPNGDATA');
+      expect((await run(f)).ok).toBe(true);
+      const second = texturePath();
+      expect(second).not.toBe(first);
+      expect(existsSync(path.join(f.out, first))).toBe(false);
+      expect(existsSync(path.join(f.out, second))).toBe(true);
+      writeFileSync(path.join(f.root, 'scenes/main.esscene'), JSON.stringify({ version: '1.0', entities: [] }));
+      expect((await run(f)).ok).toBe(true);
+      expect(existsSync(path.join(f.out, second))).toBe(false);
+      expect(existsSync(path.join(f.out, 'assets/custom.txt'))).toBe(true);
+      expect(existsSync(path.join(f.out, 'host-config.json'))).toBe(true);
+      expect(readFileSync(path.join(f.root, 'assets/hero.png'), 'utf8')).toBe('CHANGEDPNGDATA');
+    } finally { rmSync(f.root, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 }); }
+  }, 60_000);
+
+  it('removes an old pack when exporting its materials as separate files', async () => {
+    const a = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', b = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+    const f = setup({ version: '1.0', entities: [{ id: 0, components: [{ type: 'Sprite', data: { material: `@uuid:${a}` } }] },
+      { id: 1, components: [{ type: 'Sprite', data: { material: `@uuid:${b}` } }] }] }, (root) => {
+      mkdirSync(path.join(root, 'assets'));
+      for (const [name, uuid, value] of [['a', a, 1], ['b', b, 2]]) {
+        writeFileSync(path.join(root, `assets/${name}.esmaterial`), JSON.stringify({ shader: 'builtin:sprite', properties: { value } }));
+        writeFileSync(path.join(root, `assets/${name}.esmaterial.meta`), meta(uuid as string, 'material'));
+      }
+    });
+    try {
+      expect((await run(f)).ok).toBe(true);
+      const old = JSON.parse(readFileSync(path.join(f.out, 'asset-manifest.json'), 'utf8')).groups.main.assets[a].pack.file as string;
+      expect(existsSync(path.join(f.out, old))).toBe(true);
+      expect((await run(f, undefined, undefined, false)).ok).toBe(true);
+      expect(existsSync(path.join(f.out, old))).toBe(false);
+      const current = JSON.parse(readFileSync(path.join(f.out, 'asset-manifest.json'), 'utf8')).groups.main.assets[a];
+      expect(current.pack).toBeUndefined();
+      expect(existsSync(path.join(f.out, current.path))).toBe(true);
+    } finally { rmSync(f.root, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 }); }
+  }, 60_000);
+
   it('drops a removed solver and preserves output-root files on re-export', async () => {
     const f = setup({ version: '1.0', name: 'Main', entities: entities({ type: 'RigidBody2D', data: {} }) });
     try {

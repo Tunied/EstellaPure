@@ -50,6 +50,7 @@ import { esengineAlias } from '../bundle/esengineResolve';
 import { officialPackagesPlugin } from '../bundle/officialPackages';
 import { explainBundleErrors, type BundleMessage } from '../bundle/bundleDiagnostics';
 import { scanSideModuleIds, sideModuleFiles, textureDecoderBytes } from '../bundle/sideModuleScan';
+import { exportedAssetFiles, pruneExportedAssets } from './assetCleanup';
 import { OPEN_DATA_DIR, isEsModule } from './miniGameExportProfile';
 import type { RpkSigningKey } from './rpk';
 import { loadProjectModules, sideModuleDeclarations, stageProjectModules } from './projectModules';
@@ -360,6 +361,7 @@ export async function exportMiniGame(profile: MiniGameExportProfile, opts: {
   }
 
   await mkdir(absOut, { recursive: true });
+  const previousAssets = await exportedAssetFiles(absOut);
 
   // Every switchable scene ships; the exporter's caller (exportGame) discovers
   // them from the project's scenes dir. Absent (tests / direct calls): entry only.
@@ -450,6 +452,7 @@ export async function exportMiniGame(profile: MiniGameExportProfile, opts: {
   progress({ phase: 'Building manifest' });
   try {
     await writeFile(path.join(absOut, 'asset-manifest.json'), await buildAddressableManifest(absOut));
+    if (cook.failed.length === 0) await pruneExportedAssets(absOut, opts.root, previousAssets);
     await rm(path.join(absOut, 'assets.manifest.json'), { force: true });
   } catch (err) {
     errors.push(`manifest: ${err instanceof Error ? err.message : String(err)}`);

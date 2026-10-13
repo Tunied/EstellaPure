@@ -31,6 +31,7 @@ import { cookAssets, type CookManifest, type Inclusion } from '../assets/cookAss
 import { cookWorlds, streamedScenes } from '../world/cookWorld';
 import { buildAddressableManifest } from '../assets/addressableManifest';
 import { packAssets } from '../assets/assetPacks';
+import { exportedAssetFiles, pruneExportedAssets } from './assetCleanup';
 import type { DebugChannelConfig, PackagedGameConfig } from 'esengine';
 import { packagedDebugChannel } from './debugChannel';
 import { packagedHotUpdate } from './hotUpdateConfig';
@@ -896,6 +897,7 @@ async function produceExport(opts: ExportGameOptions): Promise<ExportGameResult>
   /** Desktop, Steam channel: the per-build checklist written beside the scripts. */
   let steamChecklist: string | undefined;
   await mkdir(payloadDir, { recursive: true });
+  const previousAssets = await exportedAssetFiles(payloadDir);
   // One answer for the whole package: the bundles esbuild writes here and the
   // SDK tree copied in beside them.
   const sourceMaps = opts.sourcemap ?? false;
@@ -972,6 +974,7 @@ async function produceExport(opts: ExportGameOptions): Promise<ExportGameResult>
     }
   }
   await writeFile(path.join(payloadDir, 'asset-manifest.json'), await buildAddressableManifest(payloadDir));
+  if (cook.failed.length === 0) await pruneExportedAssets(payloadDir, opts.root, previousAssets);
   // A scene that declared itself streamed is cut here, once its assets are staged
   // and its references are in the form the runtime resolves. The entry scene it
   // leaves behind is the PERSISTENT world; the places arrive by residency.
