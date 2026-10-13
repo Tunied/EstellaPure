@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(input): preserve gestures when touch IDs are reused':
+    { note: 'Reused touch IDs preserve both gestures.' },
   'fix(input): cancel touch state when mini-games hide':
     { note: 'Cancelled touch input no longer becomes a click.' },
   'fix(storage): preserve empty mini-game values':

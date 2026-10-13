@@ -143,6 +143,7 @@ export class UIInteractionPlugin implements Plugin {
                 // The single-pointer resources every other consumer reads are the
                 // PRIMARY pointer's: the mouse, or the oldest finger on the glass.
                 let primaryWritten = false;
+                const hasHeldPointer = pointers.some(pointer => pointer.down);
                 let overUI = false;
 
                 const hit = (pointer: UiPointerSample): Entity | null => {
@@ -154,7 +155,7 @@ export class UIInteractionPlugin implements Plugin {
                     // drawn with, which is what keeps a click where the pixel is.
                     const worldPointer = camera.valid ? screenToUiWorld(camera, glX, glY) : { x: 0, y: 0 };
                     const layoutPointer = overlay.active ? screenToUiLayout(overlay, glX, glY) : worldPointer;
-                    if (!primaryWritten) {
+                    if (!primaryWritten && (pointer.down || !hasHeldPointer)) {
                         primaryWritten = true;
                         camera.worldMouseX = worldPointer.x;
                         camera.worldMouseY = worldPointer.y;

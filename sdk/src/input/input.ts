@@ -8,6 +8,7 @@ import { getPlatform, platformUnbindInputEvents } from '../platform';
 import type { GamepadSnapshot, InputEventCallbacks } from '../platform/types';
 import { inputRouter } from './inputRouter';
 import { cancelPrimaryPointer, takePrimaryPointerCancellation } from './pointerCancellation';
+import { recordTouchEnd } from './touchEdges';
 import type { Vec2 } from '../types';
 
 /**
@@ -204,12 +205,12 @@ export class InputState {
         return [...this.touchesEnded.values()];
     }
 
-    /** Retire a live touch, keeping where it was — the write door `onTouchEnd`
-     *  and `onTouchCancel` share, so the two cannot record an end differently. */
+    /** Retire a touch after a normal release, retaining its position and press edge. */
     endTouch(id: number): void {
-        const point = this.touches.get(id);
+        const point = this.touches.get(id) ?? { id, x: 0, y: 0 };
+        recordTouchEnd(point, this.touchesStarted.has(id));
         this.touches.delete(id);
-        this.touchesEnded.set(id, point ?? { id, x: 0, y: 0 });
+        this.touchesEnded.set(id, point);
     }
 
     // — Virtual (an on-screen control, or anything else that decides to be input) —

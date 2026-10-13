@@ -19,7 +19,8 @@ import { HAS_WASM, loadWasmModule } from './helpers/loadWasm';
 const hit = vi.hoisted(() => ({ entity: null as number | null }));
 // Deterministic picking isolates event dispatch over the actual WASM Registry.
 vi.mock('../src/ui/util/ui-pick', () => ({
-    screenToUiWorld: () => ({ x: 0, y: 0 }), screenToUiLayout: () => ({ x: 0, y: 0 }),
+    screenToUiWorld: (_camera: unknown, x: number, y: number) => ({ x, y }),
+    screenToUiLayout: (_overlay: unknown, x: number, y: number) => ({ x, y }),
     uiPointerRay: () => ({}), uiLayoutRay: () => ({}), uiHitTestWorld: () => hit.entity,
 }));
 
@@ -42,6 +43,20 @@ describe.skipIf(!HAS_WASM)('pointer callback lifecycle on real WASM', () => {
         vi.restoreAllMocks();
         for (const entity of app.world.getAllEntities()) app.world.despawn(entity);
         app.world.disconnectCpp(); registry.delete();
+    });
+    it('keeps the replacement touch held and projects its current position', async () => {
+        const entity = app.world.spawn(); hit.entity = entity; app.world.insert(entity, Interactable);
+        const input = app.getResource(Input), callbacks = inputEventCallbacks(input);
+        callbacks.onTouchStart!(3, 10, 0); await app.tick(1 / 60); input.clearFrameState();
+        callbacks.onTouchEnd!(3); callbacks.onTouchStart!(3, 150, 0);
+        const clicks = vi.fn(); app.getResource(UIEvents).on(entity, 'click', clicks);
+        await app.tick(1 / 60);
+        expect(clicks).toHaveBeenCalledOnce();
+        expect(app.world.get(entity, UIInteraction).pressed).toBe(true);
+        expect(app.getResource(ScreenOverlay).pointerX).toBe(150);
+        input.clearFrameState(); callbacks.onTouchEnd!(3); await app.tick(1 / 60);
+        expect(clicks).toHaveBeenCalledTimes(2);
+        expect(app.world.get(entity, UIInteraction).pressed).toBe(false);
     });
     it('a consumed primary release cancels the actual WASM control instead of clicking it', async () => {
         const entity = app.world.spawn(); hit.entity = entity; app.world.insert(entity, Interactable);

@@ -8,7 +8,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { UiPointerBook, UiPointerHitCache, uiPointersOf, MOUSE_POINTER, type UiPointerSample } from '../src/ui/input/pointerBook';
-import { InputState } from '../src/input/input';
+import { InputState, inputEventCallbacks } from '../src/input/input';
 import type { Entity } from '../src/types';
 
 const BUTTON_A = 1 as Entity;
@@ -175,5 +175,26 @@ describe('the pointer set a frame of input makes', () => {
         input.endTouch(0);
         const events = new UiPointerBook().step(uiPointersOf(input), screen, () => true);
         expect(kinds(events, BUTTON_A)).toEqual(['press', 'release', 'click']);
+    });
+    it('releases the previous use of a touch id before capturing its replacement', () => {
+        const input = new InputState(), callbacks = inputEventCallbacks(input), book = new UiPointerBook();
+        callbacks.onTouchStart!(3, 10, 0);
+        book.step(uiPointersOf(input), screen, () => true); input.clearFrameState();
+        callbacks.onTouchEnd!(3); callbacks.onTouchStart!(3, 150, 0);
+        const events = book.step(uiPointersOf(input), screen, () => true);
+        expect(kinds(events, BUTTON_A)).toContain('click');
+        expect(kinds(events, BUTTON_B)).toEqual(['hoverEnter', 'press']);
+        expect(book.pressedByPointer(3)).toBe(BUTTON_B);
+        input.clearFrameState(); callbacks.onTouchEnd!(3);
+        expect(kinds(book.step(uiPointersOf(input), screen, () => true), BUTTON_B)).toContain('click');
+    });
+    it('preserves a quick tap when its id is reused by a held finger in the same frame', () => {
+        const input = new InputState(), callbacks = inputEventCallbacks(input), book = new UiPointerBook();
+        callbacks.onTouchStart!(3, 10, 0); callbacks.onTouchEnd!(3);
+        callbacks.onTouchStart!(3, 150, 0);
+        const events = book.step(uiPointersOf(input), screen, () => true);
+        expect(kinds(events, BUTTON_A)).toEqual(['press', 'release', 'click']);
+        expect(kinds(events, BUTTON_B)).toEqual(['hoverEnter', 'press']);
+        expect(book.pressedByPointer(3)).toBe(BUTTON_B);
     });
 });

@@ -17,6 +17,7 @@
 import type { Entity } from '../../types';
 import type { InputState } from '../../input/input';
 import { takePrimaryPointerCancellation } from '../../input/pointerCancellation';
+import { touchEndPressed } from '../../input/touchEdges';
 
 /** One pointer this frame. `hovers` is false for a finger that is not down: a
  *  finger is over a control only while it touches the glass. */
@@ -62,17 +63,24 @@ export const MOUSE_POINTER = -1;
 export function uiPointersOf(input: InputState): UiPointerSample[] {
     const pointers: UiPointerSample[] = [];
     if (input.touches.size > 0 || input.touchesEnded.size > 0) {
+        const pushEnded = (t: { id: number; x: number; y: number }): void => {
+            pointers.push({
+                id: t.id, x: t.x, y: t.y, down: false,
+                pressed: touchEndPressed(t, input.touchesStarted.has(t.id)), released: true, hovers: false,
+            });
+        };
         for (const t of input.touches.values()) {
+            // A recycled id still owes the previous gesture its release before
+            // this gesture captures a control.
+            const ended = input.touchesEnded.get(t.id);
+            if (ended) pushEnded(ended);
             pointers.push({
                 id: t.id, x: t.x, y: t.y, down: true,
                 pressed: input.touchesStarted.has(t.id), released: false, hovers: true,
             });
         }
         for (const t of input.touchesEnded.values()) {
-            pointers.push({
-                id: t.id, x: t.x, y: t.y, down: false,
-                pressed: input.touchesStarted.has(t.id), released: true, hovers: false,
-            });
+            if (!input.touches.has(t.id)) pushEnded(t);
         }
         return pointers;
     }
