@@ -45,6 +45,15 @@ describe.skipIf(!HAS_WASM)('drag cancellation on real WASM', () => {
         try { inputEventCallbacks(input).onPointerUp(0); } finally { off(); }
         takePrimaryPointerCancellation(input); await step(100); stopped();
     });
+    it('a new press before sampling cancellation starts a fresh drag', async () => {
+        await drag();
+        inputEventCallbacks(input).onInputCancel!();
+        input.noteMouseDown(0); await step(100); await step(120);
+        expect(app.world.get(entity, DragState).isDragging).toBe(true);
+        expect(app.world.get(entity, Transform).position.x).toBeCloseTo(40);
+        input.noteMouseUp(0); await step(120);
+        expect(app.world.get(entity, DragState).isDragging).toBe(false);
+    });
     it.each(['inactive', 'disabled'])('%s targets cannot keep dragging', async kind => {
         await drag();
         if (kind === 'inactive') app.world.insert(entity, Disabled);

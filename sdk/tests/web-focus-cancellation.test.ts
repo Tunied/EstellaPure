@@ -36,6 +36,35 @@ it('blur cancels a held mouse without a UI click or stale fixed-step edges', () 
     document.dispatchEvent(new MouseEvent('mouseup', { button: 0 }));
     expect(input.isMouseButtonReleased(0)).toBe(false);
 });
+it('a new mouse press before the next frame replaces the cancelled capture', () => {
+    const { canvas, input } = bind(), book = new UiPointerBook();
+    const first = 1 as Entity, next = 2 as Entity;
+    canvas.dispatchEvent(new MouseEvent('mousedown', { button: 0 }));
+    book.step(uiPointersOf(input), () => first, () => true);
+    expect(book.pressedByPointer(-1)).toBe(first);
+    window.dispatchEvent(new Event('blur'));
+    canvas.dispatchEvent(new MouseEvent('mousedown', { button: 0 }));
+    const events = book.step(uiPointersOf(input), () => next, () => true);
+    expect(events.some(e => e.kind === 'click')).toBe(false);
+    expect(book.pressedByPointer(-1)).toBe(next);
+    input.clearFrameState();
+    document.dispatchEvent(new MouseEvent('mouseup', { button: 0 }));
+    expect(book.step(uiPointersOf(input), () => next, () => true)
+        .filter(e => e.kind === 'click').map(e => e.entity)).toEqual([next]);
+});
+it('sampling a replacement touch does not leave cancellation for a later mouse press', () => {
+    const { canvas, input } = bind(), book = new UiPointerBook(), entity = 1 as Entity;
+    touch(canvas, 'touchstart', [1]);
+    window.dispatchEvent(new Event('blur'));
+    touch(canvas, 'touchstart', [2]);
+    book.step(uiPointersOf(input), () => entity, () => true);
+    input.clearFrameState(); touch(canvas, 'touchend', [2]);
+    book.step(uiPointersOf(input), () => entity, () => true);
+    input.clearFrameState();
+    canvas.dispatchEvent(new MouseEvent('mousedown', { button: 0 }));
+    book.step(uiPointersOf(input), () => entity, () => true);
+    expect(book.pressedByPointer(-1)).toBe(entity);
+});
 it('blur cancels every touch and allows the next finger to become primary', () => {
     const { canvas, input } = bind(), book = new UiPointerBook();
     touch(canvas, 'touchstart', [1, 2]); book.step(uiPointersOf(input), () => 1 as Entity, () => true);

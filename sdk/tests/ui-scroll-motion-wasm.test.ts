@@ -65,6 +65,15 @@ describe.skipIf(!HAS_WASM)('scroll motion ownership on real WASM', () => {
         for (let i = 0; i < 10; i++) await step(100);
         expect(scroll.getOffset().y).toBe(80);
     });
+    it('a new press before sampling cancellation grabs from the retained offset', async () => {
+        const scroll = container(); plugin.attachScrollContainer(entity, scroll); await drag();
+        inputEventCallbacks(input).onInputCancel!();
+        input.noteMouseDown(0); await step(200); await step(240);
+        expect(scroll.getOffset().y).toBe(120);
+        inputEventCallbacks(input).onInputCancel!();
+        for (let i = 0; i < 10; i++) await step(300);
+        expect(scroll.getOffset().y).toBe(120);
+    });
     it.each(['inactive', 'noninteractive'])('a %s captured viewport stops moving', async kind => {
         const scroll = container(); plugin.attachScrollContainer(entity, scroll); await drag();
         if (kind === 'inactive') app.world.insert(entity, Disabled);
