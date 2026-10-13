@@ -7,20 +7,20 @@
  *
  *          node tools/lightmap-wasm/build.mjs
  */
-import { execFileSync } from 'node:child_process';
 import { statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ensureEmscriptenEnv } from '../../build-tools/utils/emscripten.js';
+import { ensureEmscriptenEnv, runCommand } from '../../build-tools/utils/emscripten.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const OUT = path.join(ROOT, 'build-tools', 'lightmap', 'lightmap-kernel.mjs');
 
 await ensureEmscriptenEnv();
 
-const EXPORTS = ['_lm_scene', '_lm_direct', '_lm_gather', '_lm_texture_stats', '_malloc', '_free'];
+const EXPORTS = ['_lm_scene', '_lm_direct', '_lm_gather', '_lm_texture_stats',
+  '_lm_cache_budget', '_lm_cache_bytes', '_lm_gather_resolved', '_malloc', '_free'];
 
-execFileSync('em++', [
+await runCommand('em++', [
   path.join(ROOT, 'tools', 'lightmap-wasm', 'kernel.cpp'),
   '-I', path.join(ROOT, 'third_party', 'stb'),
   '-O3', '-std=c++17', '-msimd128', '-pthread',
@@ -33,7 +33,7 @@ execFileSync('em++', [
   `-sEXPORTED_FUNCTIONS=${EXPORTS.join(',')}`,
   '-sEXPORTED_RUNTIME_METHODS=wasmMemory',
   '-o', OUT,
-], { stdio: 'inherit', shell: process.platform === 'win32' });
+]);
 
 const wasm = OUT.replace(/\.mjs$/, '.wasm');
 console.log(`OK -> ${OUT} (${(statSync(wasm).size / 1024).toFixed(0)} KB wasm)`);
