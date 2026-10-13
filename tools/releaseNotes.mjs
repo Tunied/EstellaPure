@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(animation): hand off completed native tween loops':
+    { note: 'Finite native tween loops hand off their sequences.' },
   'fix(animation): preserve looping tween phase across long frames':
     { note: 'Looping tweens preserve long-frame remainder.' },
   'fix(animation): complete immediate value tweens safely':

@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Finite native tween loops hand off their sequences.** Restart and ping-pong loops now resume a paused successor when their finite count completes, just like non-looping tweens. Completion leaves cancelled successors cancelled instead of reviving them and writing their target for another frame.
+
 - **Looping tweens preserve long-frame remainder.** JS value tweens and native property tweens skip completed cycles arithmetically, retain the current phase and ping-pong direction, and complete finite counts at their final endpoint. Exact cycle boundaries keep their endpoint behavior; delay remainder is preserved and very large frame sums are bounded instead of overflowing elapsed time.
 
 - **Immediate value tweens produce their endpoint.** Non-positive durations complete at the next eligible update, matching native tweens instead of emitting NaN or retaining a negative-duration tween forever. Delays and callback playback controls continue to apply.

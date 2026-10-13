@@ -84,11 +84,6 @@ void TweenSystem::update(ecs::Registry& registry, f32 deltaTime) {
         if (rawT >= 1.0f) {
             if (tween.loop_mode == LoopMode::None) {
                 tween.state = TweenState::Completed;
-                if (tween.sequence_next != INVALID_ENTITY) {
-                    if (auto* next = registry.tryGet<TweenData>(tween.sequence_next)) {
-                        next->state = TweenState::Running;
-                    }
-                }
                 pending_remove_.push_back(entity);
             } else if (tween.loop_mode == LoopMode::Restart) {
                 tween.elapsed = 0.0f;
@@ -109,6 +104,12 @@ void TweenSystem::update(ecs::Registry& registry, f32 deltaTime) {
                         pending_remove_.push_back(entity);
                     }
                 }
+            }
+        }
+        if (tween.state == TweenState::Completed && tween.sequence_next != INVALID_ENTITY) {
+            if (auto* next = registry.tryGet<TweenData>(tween.sequence_next);
+                next && next->state == TweenState::Paused) {
+                next->state = TweenState::Running;
             }
         }
     }

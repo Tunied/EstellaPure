@@ -8,6 +8,34 @@ using namespace esengine;
 using namespace esengine::ecs;
 using namespace esengine::animation;
 
+TEST_CASE("finite looping tween completion resumes its successor") {
+    for (auto mode : {LoopMode::None, LoopMode::Restart, LoopMode::PingPong}) {
+        Registry r; TweenSystem s;
+        auto a = r.create(), b = r.create(); r.emplace<Transform>(a); r.emplace<Transform>(b);
+        auto first = s.createTween(r, a, TweenTarget::PositionX, 0, 10, 1);
+        auto next = s.createTween(r, b, TweenTarget::PositionX, 0, 20, 10);
+        auto& data = r.get<TweenData>(first); data.loop_mode = mode; data.loops_remaining = 2; data.sequence_next = next;
+        r.get<TweenData>(next).state = TweenState::Paused;
+        s.update(r, 2.25f);
+        CHECK_FALSE(r.valid(first));
+        CHECK(r.get<TweenData>(next).state == TweenState::Running);
+        s.update(r, .25f);
+        CHECK(r.get<Transform>(b).position.x > 0);
+    }
+}
+
+TEST_CASE("tween completion does not revive a cancelled successor") {
+    Registry r; TweenSystem s;
+    auto a = r.create(), b = r.create(); r.emplace<Transform>(a); r.emplace<Transform>(b);
+    auto first = s.createTween(r, a, TweenTarget::PositionX, 0, 10, 1);
+    auto next = s.createTween(r, b, TweenTarget::PositionX, 0, 20, 10);
+    r.get<TweenData>(first).sequence_next = next;
+    r.get<TweenData>(next).state = TweenState::Cancelled;
+    s.update(r, 1);
+    CHECK_FALSE(r.valid(next));
+    CHECK(r.get<Transform>(b).position.x == 0);
+}
+
 TEST_CASE("looping tweens retain long frame phase") {
     for (auto mode : {LoopMode::Restart, LoopMode::PingPong}) {
         Registry r; TweenSystem s;

@@ -14,6 +14,28 @@ describe.skipIf(!HAS_WASM)('loop phase on real WASM', () => {
     beforeEach(() => { registry = new engine.Registry(); world = new World(); world.connectCpp(registry, engine); });
     afterEach(() => { for (const e of world.getAllEntities()) world.despawn(e); world.disconnectCpp(); registry.delete(); });
 
+    it.each([LoopMode.None, LoopMode.Restart, LoopMode.PingPong])('resumes native successors after completion: %j', loop => {
+        const api = new TweenAPI(engine, registry), a = world.spawn(), b = world.spawn();
+        world.insert(a, Transform); world.insert(b, Transform);
+        const first = api.to(a, TweenTarget.PositionX, 0, 10, 1, { loop, loopCount: 2 });
+        const next = api.to(b, TweenTarget.PositionX, 0, 20, 10);
+        first.then(next);
+        api.update(2.25);
+        expect(next.state).toBe(TweenState.Running);
+        api.update(.25);
+        expect(world.get(b, Transform).position.x).toBeGreaterThan(0);
+    });
+
+    it('does not revive a native successor cancelled after linking', () => {
+        const api = new TweenAPI(engine, registry), a = world.spawn(), b = world.spawn();
+        world.insert(a, Transform); world.insert(b, Transform);
+        const first = api.to(a, TweenTarget.PositionX, 0, 10, 1);
+        const next = api.to(b, TweenTarget.PositionX, 0, 20, 10);
+        first.then(next); next.cancel();
+        api.update(1);
+        expect(world.get(b, Transform).position.x).toBe(0);
+    });
+
     it.each([LoopMode.Restart, LoopMode.PingPong])('matches JS and native loop phase across time steps and counts: %j', loop => {
         for (const loopCount of [0, 1, 2, 3, 4]) {
             for (const elapsed of [0, .25, 1, 1.25, 2, 2.25, 3, 3.25, 10.25, 1000000.25]) {
