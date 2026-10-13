@@ -60,7 +60,6 @@ const OWED = {
         'SpawnOverride is named by no SDK test',
         'PrefabServer is called by no golden project',
     ],
-    assets: ['AssetsData is named by no SDK test'],
     camera: ['CameraData is named by no SDK test'],
 };
 

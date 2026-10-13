@@ -11,6 +11,15 @@ import { TilemapPlugin, TilemapRuntimeState } from '../src/tilemap/tilemapPlugin
 import { TilemapAPI, Tilemaps } from '../src/tilemap/tilemapAPI';
 import { isTileSolid } from '../src/tilemap/tileQuery';
 import { serializeEntityComponents } from '../src/scene/scene';
+import { Assets as AssetsResource } from '../src/asset/AssetPlugin';
+import { Assets } from '../src/asset/Assets';
+import { registerTilemapSupport } from '../src/tilemap/tilemapSupport';
+import type { Backend } from '../src/asset/Backend';
+
+vi.mock('../src/wasm/resourceManager', () => ({
+    requireResourceManager: () => ({ releaseTexture: vi.fn(), invalidateTexturePath: () => false }),
+    getResourceManager: () => null, evictTextureDimensions: vi.fn(),
+}));
 
 let mainCore: ESEngineModule, previewCore: ESEngineModule;
 const apps: App[] = [];
@@ -53,6 +62,34 @@ describe.skipIf(!HAS_WASM)('tilemap runtimes in independent apps', () => {
         expect(rebuilt).not.toEqual(before);
         expect(edited).toEqual(rebuilt);
         expect(tiles.getTile(entity, 0, 0)).toBe(1);
+    });
+
+    it.each(['loaded', 'pending'])('retires a lazy tileset slot when its last layer leaves (%s)', async mode => {
+        registerTilemapSupport();
+        const { app, entity, runtime } = await scene(mainCore, 1);
+        let resolve!: (document: string) => void;
+        const fetchText = vi.fn(() => new Promise<string>(r => { resolve = r; }));
+        const assets = Assets.create({ backend: { fetchText, resolveUrl: (path: string) => path } as unknown as Backend,
+            module: mainCore });
+        app.insertResource(AssetsResource, assets);
+        const ref = 'lazy.estileset';
+        runtime.setLayerTilesets(entity, [ref]);
+        await app.tick(1 / 60);
+        await new Promise(r => setTimeout(r, 0));
+        expect(fetchText).toHaveBeenCalledOnce();
+        const document = JSON.stringify({ version: '1', texture: '', tileWidth: 16, tileHeight: 16,
+            columns: 1, tileCount: 1, tiles: {} });
+        if (mode === 'loaded') {
+            resolve(document); await new Promise(r => setTimeout(r, 0)); await app.tick(1 / 60);
+            expect(assets.resolveRegistryAsset('tileset', ref)).toBeDefined();
+            const resolvePath = vi.spyOn(assets, 'resolveLoadPath');
+            for (let i = 0; i < 20; i++) await app.tick(1 / 60);
+            expect(resolvePath).not.toHaveBeenCalled();
+        }
+        app.world.despawn(entity); await app.tick(1 / 60);
+        if (mode === 'pending') { resolve(document); await new Promise(r => setTimeout(r, 0)); }
+        expect(assets.resolveRegistryAsset('tileset', ref)).toBeUndefined();
+        assets.releaseAll();
     });
 
     it('quitting the older app leaves the newer map and runtime alive', async () => {

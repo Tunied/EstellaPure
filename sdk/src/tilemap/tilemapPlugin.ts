@@ -21,6 +21,7 @@ import {
 import { decodeTilemapChunks } from './chunkCodec';
 import { Assets } from '../asset/AssetPlugin';
 import { resolveAssetKey } from '../asset/resolveAssetKey';
+import { LazyTilesetLoads } from './lazyTilesetLoads';
 import { Time } from '../ecs/resource';
 import { playModeOnly } from '../ecs/env';
 import { log } from '../util/logger';
@@ -88,8 +89,7 @@ export class TilemapRuntime {
     private tilesetRefs_ = new Map<number, string[]>();
     /** Entities whose `.estileset` has been resolved+applied (so we do it once per load). */
     private liveResolved_ = new Set<number>();
-    /** Resolved `.estileset` paths a load has already been kicked off for (de-dupes the lazy load). */
-    private requestedTilesetLoads_ = new Set<string>();
+    private lazyTilesetLoads_ = new LazyTilesetLoads();
     /** Tiled DERIVED child layer → its collision query table (see tileQuery). */
     private derivedQueryTables_ = new Map<number, LayerCollisionTable>();
     /** Painted-layer query-table cache, invalidated by source-map identity. */
@@ -122,13 +122,15 @@ export class TilemapRuntime {
         const nativeTileShapes = this.nativeTileShapes_;
         const tilesetRefs = this.tilesetRefs_;
         const liveResolved = this.liveResolved_;
-        const requestedTilesetLoads = this.requestedTilesetLoads_;
+        const lazyTilesetLoads = this.lazyTilesetLoads_;
+        let tilesetRefsChanged = true;
 
         // The single writer of a layer's `.estileset` ref list: point the render table
         // at `refs` and mark it for re-resolve next sync. Shared by the scene codec
         // (full load) AND the editor's live push (TilemapLiveSync) so both routes carry
         // the SAME meaning — no second source of truth for what tilesets a layer uses.
         const applyTilesetRefs = (entity: number, refs: readonly string[]): void => {
+            tilesetRefsChanged = true;
             const clean = refs.filter((r): r is string => typeof r === 'string' && r !== '');
             if (clean.length > 0) tilesetRefs.set(entity, clean.slice());
             else {
@@ -253,6 +255,7 @@ export class TilemapRuntime {
                         nativeCollisionIds.delete(entity);
                         nativeTileShapes.delete(entity);
                         tilesetRefs.delete(entity);
+                        tilesetRefsChanged = true;
                         liveResolved.delete(entity);
                         // Without these, a destroyed animated layer stays in the
                         // per-frame tick set (advanceAnimations on a dead layer,
@@ -265,6 +268,15 @@ export class TilemapRuntime {
                             collisionEntities.delete(entity);
                         }
                     }
+                }
+
+                if (lazyTilesetLoads.size > 0 && tilesetRefsChanged) {
+                    const active = new Set<string>();
+                    for (const entity of layerEntities) {
+                        for (const ref of tilesetRefs.get(entity) ?? []) active.add(resolveAssetKey(assets, ref));
+                    }
+                    lazyTilesetLoads.prune(active);
+                    tilesetRefsChanged = false;
                 }
 
                 for (const entity of layerEntities) {
@@ -352,13 +364,8 @@ export class TilemapRuntime {
                             const r = resolvedTileset(assets, ref);
                             if (r) {
                                 resolvedList.push(r);
-                            } else if (assets && !requestedTilesetLoads.has(key)) {
-                                // Out-of-band ref (invisible to scene asset discovery) — kick
-                                // the load; once it lands we resolve live next frame.
-                                requestedTilesetLoads.add(key);
-                                assets.load('tileset', ref).catch((e) => {
-                                    log.warn('tilemap', `failed to load tileset asset '${ref}'`, e);
-                                });
+                            } else if (assets) {
+                                lazyTilesetLoads.request(assets, ref, key);
                             }
                         }
                         if (resolvedList.length === refs.length) {
@@ -788,7 +795,7 @@ export class TilemapRuntime {
         this.nativeTileShapes_.clear();
         this.tilesetRefs_.clear();
         this.liveResolved_.clear();
-        this.requestedTilesetLoads_.clear();
+        this.lazyTilesetLoads_.reset();
         this.derivedQueryTables_.clear();
         this.queryTableCache_.clear();
     }

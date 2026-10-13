@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(tilemap): own lazy tileset loads and retry failures':
+    { note: 'Lazy tilemaps acquire and release tileset slots correctly.' },
   'fix(tilemap): compare cell dimensions independently':
     { note: 'Fractional tile cell edits refresh the drawn and hit grids.' },
   'fix(scene): reject mutations from unloaded contexts':

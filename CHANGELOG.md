@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Lazy tilemaps acquire and release tileset slots correctly.** Runtime-only tileset references use owned slot acquisitions rather than the retired generic loader interface. Failed loads retry after the asset cooldown, shared references deduplicate requests, and removing the last layer or resetting the runtime releases both completed and late acquisitions.
+
 - **Fractional tile cell edits refresh the drawn and hit grids.** Tilemap layers compare width and height independently rather than combining them into a numeric cache key. Valid fractional dimensions no longer alias another size and leave stale geometry or coordinate conversion; unchanged frames still avoid native layer reinitialization.
 
 - **Unloaded scene contexts reject late mutations.** A context belongs to one scene instance: after unload, reload or reset, it cannot spawn or adopt entities, destroy another scene's objects, change persistence, or register callbacks and post-processing bindings. A late asset scope is released before cancellation is reported, so asynchronous setup cannot strand its acquisitions.
