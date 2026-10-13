@@ -49,6 +49,9 @@ export const sceneStreamingSystem = defineSystem(
 export const sceneManagerPlugin: Plugin = {
     name: 'sceneManager',
     profileDomain: 'scene',
+    cleanup(app: App): void {
+        if (app.hasResource(SceneManager)) app.getResource(SceneManager).reset();
+    },
     build(app: App): void {
         ensureSceneAiRegistrations();
         const state = new SceneManagerState(app);

@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Scenes forget runtime entities when the World destroys them.** Scene ownership collections and saved render state now retire an entity on despawn, including runtime prefab copies destroyed through Commands or World. Repeated bullet spawning no longer accumulates dead scene entries for later unloads. Scene reset and plugin cleanup detach the observer, and subsequent loads restore tracking with one observer per manager.
+
 - **Old audio asset leases do not release replacement clips.** Each loaded audio result releases the buffer generation and audio device it actually retained. Releasing an outgoing scene's asset after a clip update no longer unpins or evicts the current clip under the same path, including when the warm-cache budget is zero. Final release still retires the current buffer normally.
 
 - **Audio source updates retire pending decodes.** Invalidating a clip starts a new load instead of joining its outdated request. Late results release their buffers without overwriting current audio or deleting the newer request's deduplication record. Web Audio also tracks source revisions across file reads and decode completion so old requests cannot restore stale URL-cache entries.

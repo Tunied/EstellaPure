@@ -85,6 +85,7 @@ import { Material } from '../src/render/material';
 
 function createMockApp() {
     const entities = new Map<number, Map<symbol, any>>();
+    const despawnListeners = new Set<(entity: number) => void>();
     let nextEntity = 1;
     const resources = new Map<any, any>();
     // PostProcess is now a per-App resource; register the mock so sceneManager's
@@ -97,7 +98,14 @@ function createMockApp() {
             entities.set(e, new Map());
             return e;
         }),
-        despawn: vi.fn((e: number) => entities.delete(e)),
+        despawn: vi.fn((e: number) => {
+            for (const listener of [...despawnListeners]) listener(e);
+            return entities.delete(e);
+        }),
+        onDespawn: vi.fn((listener: (entity: number) => void) => {
+            despawnListeners.add(listener);
+            return () => { despawnListeners.delete(listener); };
+        }),
         valid: vi.fn((e: number) => entities.has(e)),
         has: vi.fn((e: number, comp: symbol) => entities.get(e)?.has(comp) ?? false),
         get: vi.fn((e: number, comp: symbol) => entities.get(e)?.get(comp)),
@@ -122,6 +130,7 @@ function createMockApp() {
         addSystemToSchedule: vi.fn(),
         _entities: entities,
         _resources: resources,
+        _despawnListeners: despawnListeners,
     };
 }
 
@@ -141,6 +150,23 @@ describe('SceneManager', () => {
         vi.clearAllMocks();
         app = createMockApp();
         manager = new SceneManagerState(app as any);
+    });
+
+    it('forgets entities destroyed through the World and reattaches tracking after reset', async () => {
+        for (let round = 0; round < 2; round++) {
+            manager.register({ name: 'tracked' });
+            const context = await manager.load('tracked');
+            for (let i = 0; i < 100; i++) {
+                const entity = context.spawn();
+                context.adopt(entity);
+                app.world.despawn(entity);
+                expect(context.entities.size).toBe(0);
+            }
+            expect(app._despawnListeners.size).toBe(1);
+            await manager.unload('tracked');
+            manager.reset();
+            expect(app._despawnListeners.size).toBe(0);
+        }
     });
 
     // =========================================================================

@@ -278,9 +278,20 @@ export class SceneManagerState {
     private readonly transitionController_ = new SceneTransitionController();
     private switching_ = false;
     private loadPromises_ = new Map<string, Promise<SceneContext>>();
+    private stopEntityTracking_: (() => void) | null = null;
 
     constructor(app: App) {
         this.app_ = app;
+    }
+
+    private trackEntityDestruction_(): void {
+        if (this.stopEntityTracking_) return;
+        this.stopEntityTracking_ = this.app_.world.onDespawn?.(entity => {
+            for (const instance of this.scenes_.values()) {
+                instance.entities.delete(entity);
+                instance.savedEnabled.delete(entity);
+            }
+        }) ?? null;
     }
 
     /**
@@ -291,6 +302,8 @@ export class SceneManagerState {
      * keeps its receipts and systems. No caller in this repo says if that is right.
      */
     reset(): void {
+        this.stopEntityTracking_?.();
+        this.stopEntityTracking_ = null;
         for (const instance of this.scenes_.values()) {
             for (const id of instance.drawCallbacks.keys()) {
                 unregisterDrawCallback(id);
@@ -478,6 +491,7 @@ export class SceneManagerState {
         }
 
         const instance = new SceneInstance(config);
+        this.trackEntityDestruction_();
         this.scenes_.set(name, instance);
 
         const ctx = new SceneContextImpl(instance, this.app_);
