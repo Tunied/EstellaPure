@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **DragonBones atlas textures follow skeleton ownership.** Scene loading reuses a resident atlas page and transfers its reference to the skeleton that uses it. The last armature removal and manager disposal release the page; rejected armatures release otherwise unbound skeletons and uploads. Repeated editor scene switching no longer adds a new atlas texture on every load, while paused poses and device recovery continue drawing correctly.
+
 - **Late scene-load errors roll back the new entities.** A failing final spawn-phase observer or asset-reference publication step now despawns the entities created by that load and releases their owned resources before returning the original error. Existing unrelated entities remain intact and a later load can retry normally.
 
 - **Prepared prefab spawns reject failed parent attachments.** The synchronous spawn path rolls back its new hierarchy and entity-owned resources when its parent no longer accepts the root, matching asynchronous instantiation. Preparation resources remain available for later valid spawns, and live parents, position overrides and explicit unparented copies remain supported.

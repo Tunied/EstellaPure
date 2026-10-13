@@ -20,6 +20,7 @@ import { submitEntityMeshes, type SkeletalMaterialOf, type SkeletalSubmitCore } 
 import type { SkeletalBounds } from '../skeletal/types';
 import { DragonBonesModuleController } from './DragonBonesController';
 import { log } from '../util/logger';
+import { releaseAtlasOwner, releaseAllAtlasOwners } from './atlasOwnership';
 
 /** How one entity's armature is posed and drawn. */
 interface EntityInfo {
@@ -95,6 +96,15 @@ export class DragonBonesManager {
 
     getArmatures(skeletonHandle: number): string[] {
         return this.controller_.getArmatures(skeletonHandle);
+    }
+
+    /** @internal Retire a scene load that produced no armature instances. */
+    discardUnboundSkeleton(assetKey: string): void {
+        const shared = this.skeletons_.get(assetKey);
+        if (!shared || shared.refcount !== 0) return;
+        this.controller_.unloadSkeleton(shared.handle);
+        this.skeletons_.delete(assetKey);
+        releaseAtlasOwner(this, shared.handle);
     }
 
     // — Entities —————————————————————————————————————————————————————————————
@@ -259,6 +269,7 @@ export class DragonBonesManager {
             this.controller_.unloadSkeleton(shared.handle);
         }
         for (const handle of this.unkeyedSkeletons_.keys()) this.controller_.unloadSkeleton(handle);
+        releaseAllAtlasOwners(this);
         this.entities_.clear();
         this.disabled_.clear();
         this.skeletons_.clear();
@@ -272,6 +283,7 @@ export class DragonBonesManager {
             if (refs > 0) this.unkeyedSkeletons_.set(info.skeletonHandle, refs);
             else {
                 this.controller_.unloadSkeleton(info.skeletonHandle);
+                releaseAtlasOwner(this, info.skeletonHandle);
                 this.unkeyedSkeletons_.delete(info.skeletonHandle);
             }
             return;
@@ -280,6 +292,7 @@ export class DragonBonesManager {
         if (!shared) return;
         if (--shared.refcount <= 0) {
             this.controller_.unloadSkeleton(shared.handle);
+            releaseAtlasOwner(this, shared.handle);
             this.skeletons_.delete(info.assetKey);
         }
     }

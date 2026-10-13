@@ -6,7 +6,7 @@
 // stops doing — and every one of those fails quietly: a leak shows up as memory,
 // a double free as a crash three frames later, a missed disable as a thing that
 // keeps animating. So they are asserted, not eyeballed.
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { WASM_DIR, hasSideModule } from './helpers/loadWasm';
@@ -14,6 +14,7 @@ import { DragonBonesManager } from '../src/dragonbones/DragonBonesManager';
 import { DragonBonesModuleController } from '../src/dragonbones/DragonBonesController';
 import { wrapDragonBonesModule, type DragonBonesWasmModule } from '../src/dragonbones/DragonBonesModuleLoader';
 import type { Entity } from '../src/types';
+import { ownAtlas, bindAtlasOwner } from '../src/dragonbones/atlasOwnership';
 
 const DB_JS = resolve(WASM_DIR, 'dragonbones.js');
 const DB_WASM = resolve(WASM_DIR, 'dragonbones.wasm');
@@ -39,6 +40,31 @@ describe.skipIf(!HAS_ASSETS)('DragonBonesManager', () => {
 
     const load = (m: DragonBonesManager, key?: string): number =>
         m.loadSkeleton(new Uint8Array(readFileSync(SKE)), readFileSync(TEX, 'utf8'), key);
+
+    it('releases a shared atlas only after its last instance is removed', () => {
+        const m = fresh(), handle = load(m, 'shared-atlas'), info = {}, release = vi.fn();
+        ownAtlas(info, release); bindAtlasOwner(info, m, handle);
+        expect(m.addEntity(e(101), handle, { armature: 'Dragon', assetKey: 'shared-atlas' })).toBe(true);
+        expect(m.addEntity(e(102), handle, { armature: 'Dragon', assetKey: 'shared-atlas' })).toBe(true);
+        m.removeEntity(e(101)); expect(release).not.toHaveBeenCalled();
+        m.removeEntity(e(102)); expect(release).toHaveBeenCalledOnce();
+        m.dispose(); expect(release).toHaveBeenCalledOnce();
+    });
+    it('replacement releases the old atlas and disposal releases the current one once', () => {
+        const m = fresh(), handle = load(m, 'replace-atlas'), old = vi.fn(), next = vi.fn();
+        const first = {}, second = {};
+        ownAtlas(first, old); bindAtlasOwner(first, m, handle);
+        ownAtlas(second, next); bindAtlasOwner(second, m, handle);
+        expect(old).toHaveBeenCalledOnce(); expect(next).not.toHaveBeenCalled();
+        m.dispose(); m.dispose(); expect(next).toHaveBeenCalledOnce();
+    });
+    it('a refused armature releases its otherwise unbound skeleton and atlas', () => {
+        const m = fresh(), handle = load(m, 'refused'), info = {}, release = vi.fn();
+        ownAtlas(info, release); bindAtlasOwner(info, m, handle);
+        expect(m.addEntity(e(103), handle, { armature: 'missing', assetKey: 'refused' })).toBe(false);
+        m.discardUnboundSkeleton('refused'); expect(release).toHaveBeenCalledOnce();
+        m.dispose(); expect(release).toHaveBeenCalledOnce();
+    });
 
     it('parses a keyed file once, however many entities want it', () => {
         manager = fresh();

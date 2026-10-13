@@ -31,6 +31,7 @@ import { log } from '../util/logger';
 import { createAtlasPageTexture, type RuntimeAssetSource } from '../runtime/runtimeAssets';
 import type { BasisTranscoder } from '../asset/compressed';
 import type { DragonBonesManager } from './DragonBonesManager';
+import { ownAtlas, bindAtlasOwner, releaseUnusedAtlases } from './atlasOwnership';
 
 /** Lazily yields the realm's Basis transcoder, or null where a cook cannot have
  *  produced a compressed page (editor, uncooked dev). Same seam as Spine's. */
@@ -113,12 +114,14 @@ export async function loadDragonBonesAssets(
                     ? new Uint8Array(await source.backend.fetchBinary(skelPath))
                     : await source.backend.fetchText(skelPath);
 
-            assetInfo.set(cacheKey, {
+            const page = await uploadAtlasImage_(module, source, pair.atlas, atlasJson, resolveRef, transcoderProvider);
+            const info = {
                 skeletonData,
                 atlasJson,
-                textureId: await uploadAtlasImage_(
-                    module, source, pair.atlas, atlasJson, resolveRef, transcoderProvider),
-            });
+                textureId: page.textureId,
+            };
+            if (page.release) ownAtlas(info, page.release);
+            assetInfo.set(cacheKey, info);
         } catch (err) {
             log.warn('runtime',
                 `Failed to load DragonBones asset: skeleton=${pair.skeleton} atlas=${pair.atlas}`, err);
@@ -127,7 +130,7 @@ export async function loadDragonBonesAssets(
     return assetInfo;
 }
 
-/** Decode and upload the one page a `_tex.json` names; -1 if there is none to load. */
+/** Acquire the page a `_tex.json` names; its release follows the skeleton's lifetime. */
 async function uploadAtlasImage_(
     module: ESEngineModule | null,
     source: RuntimeAssetSource,
@@ -135,11 +138,11 @@ async function uploadAtlasImage_(
     atlasJson: string,
     resolveRef: (ref: string) => string,
     transcoderProvider?: TranscoderProvider,
-): Promise<number> {
+): Promise<{ textureId: number; release?: () => void }> {
     const imageName = atlasImageName(atlasJson);
     if (!imageName) {
         log.warn('runtime', `DragonBones atlas names no image: ${atlasRef}`);
-        return -1;
+        return { textureId: -1 };
     }
 
     // The image is named relative to where the atlas was AUTHORED, not to where a
@@ -151,6 +154,9 @@ async function uploadAtlasImage_(
     const imagePath = slash >= 0 ? `${atlasLogical.substring(0, slash)}/${imageName}` : imageName;
 
     try {
+        const rm = requireResourceManager();
+        const existing = typeof rm.acquireTextureByPath === 'function' ? rm.acquireTextureByPath(imagePath) : 0;
+        if (existing) return { textureId: rm.getTextureGLId(existing), release: () => rm.releaseTexture(existing) };
         const staged = resolveRef(imagePath);
         const page = await createAtlasPageTexture(
             staged,
@@ -158,12 +164,11 @@ async function uploadAtlasImage_(
             (p) => source.decodePixels(p, false),
             transcoderProvider, module,
         );
-        const rm = requireResourceManager();
         rm.registerTextureWithPath(page.handle, imagePath);
-        return rm.getTextureGLId(page.handle);
+        return { textureId: rm.getTextureGLId(page.handle), release: () => rm.releaseTexture(page.handle) };
     } catch (err) {
         log.warn('runtime', `Failed to load DragonBones atlas image: ${imagePath}`, err);
-        return -1;
+        return { textureId: -1 };
     }
 }
 
@@ -180,67 +185,71 @@ export function applyDragonBonesEntities(opts: {
 }): void {
     const { manager, sceneData, entityMap, assetInfo } = opts;
     if (assetInfo.size === 0) return;
+    const touched = new Set<string>();
+    try {
+        for (const sceneEntity of sceneData.entities) {
+            // Prefab instances carry no inline components; the loader expands them
+            // before this runs.
+            if (!Array.isArray(sceneEntity.components)) continue;
 
-    for (const sceneEntity of sceneData.entities) {
-        // Prefab instances carry no inline components; the loader expands them
-        // before this runs.
-        if (!Array.isArray(sceneEntity.components)) continue;
+            for (const comp of sceneEntity.components) {
+                const desc = getComponentSkeletalFieldDescriptor(comp.type);
+                if (!desc || desc.runtime !== 'dragonbones' || !comp.data) continue;
 
-        for (const comp of sceneEntity.components) {
-            const desc = getComponentSkeletalFieldDescriptor(comp.type);
-            if (!desc || desc.runtime !== 'dragonbones' || !comp.data) continue;
+                const data = comp.data as Record<string, unknown>;
+                const skeletonRef = data[desc.skeletonField];
+                const atlasRef = data[desc.atlasField];
+                if (typeof skeletonRef !== 'string' || typeof atlasRef !== 'string') continue;
+                if (!skeletonRef || !atlasRef) continue;
 
-            const data = comp.data as Record<string, unknown>;
-            const skeletonRef = data[desc.skeletonField];
-            const atlasRef = data[desc.atlasField];
-            if (typeof skeletonRef !== 'string' || typeof atlasRef !== 'string') continue;
-            if (!skeletonRef || !atlasRef) continue;
+                const assetKey = `${skeletonRef}:${atlasRef}`;
+                const info = assetInfo.get(assetKey);
+                if (!info) continue;
 
-            const assetKey = `${skeletonRef}:${atlasRef}`;
-            const info = assetInfo.get(assetKey);
-            if (!info) continue;
+                const entity = entityMap.get(sceneEntity.id);
+                if (entity === undefined) continue;
 
-            const entity = entityMap.get(sceneEntity.id);
-            if (entity === undefined) continue;
+                const handle = manager.loadSkeleton(info.skeletonData, info.atlasJson, assetKey);
+                if (handle < 0) continue;
+                touched.add(assetKey);
+                if (info.textureId >= 0) manager.setAtlasTexture(handle, info.textureId);
+                bindAtlasOwner(info, manager, handle);
 
-            const handle = manager.loadSkeleton(info.skeletonData, info.atlasJson, assetKey);
-            if (handle < 0) continue;
-            if (info.textureId >= 0) manager.setAtlasTexture(handle, info.textureId);
+                // An unspecified armature selects the file's first armature.
+                const named = typeof data.armature === 'string' ? data.armature : '';
+                const armature = named || manager.getArmatures(handle)[0];
+                if (!armature) {
+                    log.warn('runtime', `DragonBones file holds no armature: ${skeletonRef}`);
+                    continue;
+                }
 
-            // No armature named means the first one the file holds: a file usually
-            // ships one, and refusing to draw because a field is blank would make
-            // the common case need a value the user cannot guess without opening
-            // the file.
-            const named = typeof data.armature === 'string' ? data.armature : '';
-            const armature = named || manager.getArmatures(handle)[0];
-            if (!armature) {
-                log.warn('runtime', `DragonBones file holds no armature: ${skeletonRef}`);
-                continue;
-            }
+                const props = dragonBonesEntityProps(data);
+                const added = manager.addEntity(entity, handle, {
+                    armature,
+                    assetKey,
+                    skeletonScale: props.skeletonScale,
+                    flipX: props.flipX,
+                    flipY: props.flipY,
+                    layer: props.layer,
+                });
+                if (!added) continue;
 
-            const props = dragonBonesEntityProps(data);
-            const added = manager.addEntity(entity, handle, {
-                armature,
-                assetKey,
-                skeletonScale: props.skeletonScale,
-                flipX: props.flipX,
-                flipY: props.flipY,
-                layer: props.layer,
-            });
-            if (!added) continue;
+                manager.setEntityProps(entity, props);
 
-            manager.setEntityProps(entity, props);
-
-            const animation = typeof data.animation === 'string' ? data.animation : '';
-            if (animation) {
-                const fade = typeof data.fadeInTime === 'number' ? data.fadeInTime : 0;
-                const loop = data.loop !== false;
-                // fadeInTime is what this component has instead of Spine's mix
-                // table, so an authored fade belongs to the FIRST play too.
-                if (fade > 0) manager.fadeIn(entity, animation, fade, loop);
-                else manager.play(entity, animation, loop);
+                const animation = typeof data.animation === 'string' ? data.animation : '';
+                if (animation) {
+                    const fade = typeof data.fadeInTime === 'number' ? data.fadeInTime : 0;
+                    const loop = data.loop !== false;
+                    // fadeInTime is what this component has instead of Spine's mix
+                    // table, so an authored fade belongs to the FIRST play too.
+                    if (fade > 0) manager.fadeIn(entity, animation, fade, loop);
+                    else manager.play(entity, animation, loop);
+                }
             }
         }
+    } finally {
+        for (const key of touched) manager.discardUnboundSkeleton(key);
+        releaseUnusedAtlases(assetInfo.values());
     }
 }
 

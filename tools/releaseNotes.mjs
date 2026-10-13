@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(dragonbones): release atlas pages with their skeleton owners':
+    { note: 'DragonBones atlas textures follow skeleton ownership.' },
   'fix(scene): roll back entities after publication failures':
     { note: 'Late scene-load errors roll back the new entities.' },
   'fix(prefab): roll back prepared spawns on parent rejection':
