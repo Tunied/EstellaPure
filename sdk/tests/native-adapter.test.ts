@@ -16,6 +16,7 @@ import {
 } from '../src/platform/native';
 import { getPlatformType, isNative, platformLanguage } from '../src/platform';
 import type { InputEventCallbacks } from '../src/platform/types';
+import { InputState, inputEventCallbacks } from '../src/input/input';
 
 function makeBridge() {
     const store = new Map<string, string>();
@@ -163,6 +164,33 @@ describe('NativePlatformAdapter (mock bridge)', () => {
 
         adapter.unbindInputEvents();
         expect(env.listeners.length).toBe(0);
+    });
+    it('hiding the native host cancels input and resets the primary finger', () => {
+        let hide = () => {};
+        const offHide = vi.fn();
+        env.bridge.onHide = callback => { hide = callback; return offHide; };
+        const input = new InputState(); adapter.bindInputEvents(inputEventCallbacks(input));
+        const sink = env.listeners[0];
+        sink.onKeyDown('KeyA'); sink.onPointerDown(2, 0, 0); sink.onTouchStart(1, 10, 20);
+        hide();
+        expect(input.keysDown.size).toBe(0); expect(input.touches.size).toBe(0);
+        expect(input.mouseButtons.size).toBe(0);
+        input.beginFixedStep(); expect(input.isMouseButtonPressed(0)).toBe(false); input.endFixedStep();
+        sink.onTouchStart(2, 30, 40); sink.onTouchEnd(1);
+        expect(input.isMouseButtonDown(0)).toBe(true);
+        expect(input.getMousePosition()).toEqual({ x: 30, y: 40 });
+        adapter.unbindInputEvents();
+        expect(input.touches.size).toBe(0); expect(input.mouseButtons.size).toBe(0);
+        expect(offHide).toHaveBeenCalledOnce();
+    });
+    it('rebinding native input clears the previous input state', () => {
+        const first = new InputState(); adapter.bindInputEvents(inputEventCallbacks(first));
+        env.listeners[0].onKeyDown('KeyA'); env.listeners[0].onTouchStart(1, 10, 20);
+        const next = new InputState(); adapter.bindInputEvents(inputEventCallbacks(next));
+        expect(first.keysDown.size).toBe(0); expect(first.touches.size).toBe(0);
+        expect(first.isMouseButtonDown(0)).toBe(false);
+        env.listeners[0].onTouchStart(2, 30, 40);
+        expect(next.isMouseButtonDown(0)).toBe(true); adapter.unbindInputEvents();
     });
 
     it('fails loud on the offscreen DOM surfaces (native uses loadImagePixels)', () => {

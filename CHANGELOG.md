@@ -20,6 +20,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Native input resets when the host hides.** The native adapter cancels held touches, mouse buttons, keys and frame edges on hide or input teardown, resets the primary finger, removes its hide subscription and ignores late releases from the previous gesture.
+
 - **Reused touch IDs preserve both gestures.** When a host reuses a touch ID between frames, UI releases the old gesture before capturing the new one, retains quick-tap clicks and projects the held finger's current position for dragging and scrolling.
 
 - **Cancelled touch input no longer becomes a click.** Shared touch forwarding distinguishes primary cancellation from normal release, clears cancelled touch and fixed-step edges, and preserves other fingers. Mini-game hide and input teardown cancel held gestures and keys, reset the primary finger, and unregister the hide callback so resumed input starts cleanly.

@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(input): reset native input when the host hides':
+    { note: 'Native input resets when the host hides.' },
   'fix(input): preserve gestures when touch IDs are reused':
     { note: 'Reused touch IDs preserve both gestures.' },
   'fix(input): cancel touch state when mini-games hide':
