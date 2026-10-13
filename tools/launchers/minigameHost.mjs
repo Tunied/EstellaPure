@@ -65,6 +65,27 @@ export function miniGameKeyboardBridge(target) {
   return api;
 }
 
+/** Forward page visibility with the same callback identity as vendor lifecycle hooks. */
+export function miniGameVisibilityBridge(target) {
+  const api = {};
+  for (const phase of ['Show', 'Hide']) {
+    const listeners = new Map();
+    api['on' + phase] = callback => {
+      if (listeners.has(callback)) return;
+      const listener = () => { if (target.hidden === (phase === 'Hide')) callback(); };
+      listeners.set(callback, listener);
+      target.addEventListener('visibilitychange', listener);
+    };
+    api['off' + phase] = callback => {
+      const listener = listeners.get(callback);
+      if (!listener) return;
+      target.removeEventListener('visibilitychange', listener);
+      listeners.delete(callback);
+    };
+  }
+  return api;
+}
+
 /**
  * The page source; `BASE` is substituted with the served root.
  *
@@ -89,6 +110,7 @@ export const HOST_PAGE = (entry, failSubpackage = null) => `<!doctype html>
   document.body.appendChild(screenCanvas);
   const touchBridge = (${miniGameTouchBridge.toString()})(screenCanvas);
   const keyboardBridge = (${miniGameKeyboardBridge.toString()})(window);
+  const visibilityBridge = (${miniGameVisibilityBridge.toString()})(document);
   let screenTaken = false;
   const makeCanvas = () => {
     if (!screenTaken) { screenTaken = true; return screenCanvas; }
@@ -185,10 +207,10 @@ export const HOST_PAGE = (entry, failSubpackage = null) => `<!doctype html>
     },
     ...touchBridge,
     ...keyboardBridge,
+    ...visibilityBridge,
     onMemoryWarning: noop, offMemoryWarning: noop,
     onError: noop, offError: noop,
     onUnhandledRejection: noop, offUnhandledRejection: noop,
-    onShow: noop, onHide: noop, offShow: noop, offHide: noop,
     onWindowResize: noop, offWindowResize: noop,
     loadSubpackage: (o) => {
       if (o && o.name === ${JSON.stringify(failSubpackage)}) {

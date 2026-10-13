@@ -41,7 +41,7 @@ export function createPrimaryPointer(callbacks: InputEventCallbacks): PrimaryPoi
             }
         },
         cancel(id) {
-            callbacks.onTouchCancel?.(id);
+            callbacks.onTouchCancel?.(id, id === primary);
             if (id === primary) {
                 primary = null;
                 callbacks.onPointerUp(0);

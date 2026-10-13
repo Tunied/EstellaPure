@@ -512,8 +512,14 @@ export class MiniGamePlatformAdapter implements PlatformAdapter {
 
         const g = this.g_;
 
-        const onKeyDown = (res: { code: string }) => callbacks.onKeyDown(res.code);
-        const onKeyUp = (res: { code: string }) => callbacks.onKeyUp(res.code);
+        const heldKeys = new Set<string>();
+        const onKeyDown = (res: { code: string }) => {
+            heldKeys.add(res.code);
+            callbacks.onKeyDown(res.code);
+        };
+        const onKeyUp = (res: { code: string }) => {
+            if (heldKeys.delete(res.code)) callbacks.onKeyUp(res.code);
+        };
 
         const hasKeyboard = typeof g.onKeyDown === 'function';
         if (hasKeyboard) {
@@ -522,28 +528,42 @@ export class MiniGamePlatformAdapter implements PlatformAdapter {
         }
 
         const pointer = createPrimaryPointer(callbacks);
+        const heldTouches = new Set<number>();
+        const cancelInput = () => {
+            for (const code of heldKeys) callbacks.onKeyUp(code);
+            heldKeys.clear();
+            for (const id of heldTouches) pointer.cancel(id);
+            heldTouches.clear();
+            callbacks.onInputCancel?.();
+        };
         // A pointer is read in logical pixels and scaled by pixelRatio to reach the
         // canvas; a host that reports touches in physical pixels would land every
         // tap pixelRatio times too far out, past the edge of the screen.
         const toLogical = this.profile_.windowInPhysicalPixels ? 1 / this.devicePixelRatio() : 1;
 
         const onTouchStart = (res: MiniGameTouchEvent) => {
-            for (const touch of res.changedTouches) pointer.start(touch.identifier, touch.clientX * toLogical, touch.clientY * toLogical);
+            for (const touch of res.changedTouches) {
+                heldTouches.add(touch.identifier);
+                pointer.start(touch.identifier, touch.clientX * toLogical, touch.clientY * toLogical);
+            }
         };
         const onTouchMove = (res: MiniGameTouchEvent) => {
-            for (const touch of res.changedTouches) pointer.move(touch.identifier, touch.clientX * toLogical, touch.clientY * toLogical);
+            for (const touch of res.changedTouches) {
+                if (heldTouches.has(touch.identifier)) pointer.move(touch.identifier, touch.clientX * toLogical, touch.clientY * toLogical);
+            }
         };
         const onTouchEnd = (res: MiniGameTouchEvent) => {
-            for (const touch of res.changedTouches) pointer.end(touch.identifier);
+            for (const touch of res.changedTouches) if (heldTouches.delete(touch.identifier)) pointer.end(touch.identifier);
         };
         const onTouchCancel = (res: MiniGameTouchEvent) => {
-            for (const touch of res.changedTouches) pointer.cancel(touch.identifier);
+            for (const touch of res.changedTouches) if (heldTouches.delete(touch.identifier)) pointer.cancel(touch.identifier);
         };
 
         g.onTouchStart(onTouchStart);
         g.onTouchMove(onTouchMove);
         g.onTouchEnd(onTouchEnd);
         g.onTouchCancel?.(onTouchCancel);
+        g.onHide?.(cancelInput);
 
         this.inputCleanup_ = () => {
             if (hasKeyboard) {
@@ -554,6 +574,8 @@ export class MiniGamePlatformAdapter implements PlatformAdapter {
             g.offTouchMove(onTouchMove);
             g.offTouchEnd(onTouchEnd);
             g.offTouchCancel?.(onTouchCancel);
+            g.offHide?.(cancelInput);
+            cancelInput();
         };
     }
 

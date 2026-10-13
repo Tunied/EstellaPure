@@ -20,6 +20,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Cancelled touch input no longer becomes a click.** Shared touch forwarding distinguishes primary cancellation from normal release, clears cancelled touch and fixed-step edges, and preserves other fingers. Mini-game hide and input teardown cancel held gestures and keys, reset the primary finger, and unregister the hide callback so resumed input starts cleanly.
+
 - **Mini-game storage preserves empty strings.** The adapter distinguishes an explicitly stored empty string from an absent key through the host's key list, matching Web storage and preserving empty text preferences across adapter restarts. Non-empty reads keep their direct path; unavailable host storage remains a safe absent result.
 
 - **Audio preferences survive game restart.** Audio-demo saves and restores master, music and SFX volumes through engine storage, validates saved values, and restores the displayed percentages and actual bus gains at startup. Golden verification uses independent browser processes with a stable origin and isolated profile, cycles master volume to mute and verifies that both the label and silent output survive restart.

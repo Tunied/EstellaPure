@@ -458,8 +458,19 @@ export function inputEventCallbacks(state: InputState): InputEventCallbacks {
         onTouchEnd(id) {
             finishTouch(id, inputRouter.dispatchTouchEnd(id));
         },
-        onTouchCancel(id) {
-            finishTouch(id, inputRouter.dispatchTouchCancel(id));
+        onTouchCancel(id, primary) {
+            inputRouter.dispatchTouchCancel(id);
+            state.touches.delete(id);
+            state.touchesStarted.delete(id);
+            state.touchesEnded.delete(id);
+            if (primary === true || (primary === undefined && state.touches.size === 0)) {
+                state.mouseButtons.delete(0);
+                state.mouseButtonsPressed.delete(0);
+                state.mouseButtonsReleased.delete(0);
+                state.mouseButtonsPressedFixed.delete(0);
+                state.mouseButtonsReleasedFixed.delete(0);
+                cancelPrimaryPointer(state);
+            }
         },
         onInputCancel() {
             state.keysDown.clear();

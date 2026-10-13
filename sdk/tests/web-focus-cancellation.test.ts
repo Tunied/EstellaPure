@@ -17,6 +17,13 @@ function touch(canvas: HTMLCanvasElement, type: string, ids: number[]) {
     Object.defineProperty(event, 'changedTouches', { value: ids.map(identifier => ({ identifier, clientX: 5, clientY: 5 })) });
     canvas.dispatchEvent(event);
 }
+it('a cancelled quick touch does not create a click through the mouse fallback', () => {
+    const { canvas, input } = bind(), book = new UiPointerBook();
+    touch(canvas, 'touchstart', [1]); touch(canvas, 'touchcancel', [1]);
+    expect(book.step(uiPointersOf(input), () => 1 as Entity, () => true).some(e => e.kind === 'click')).toBe(false);
+    expect(input.touchesEnded.size).toBe(0);
+    input.beginFixedStep(); expect(input.isMouseButtonPressed(0)).toBe(false); input.endFixedStep();
+});
 it('blur cancels a held mouse without a UI click or stale fixed-step edges', () => {
     const { canvas, input } = bind(), book = new UiPointerBook(), entity = 1 as Entity;
     canvas.dispatchEvent(new MouseEvent('mousedown', { button: 0 }));

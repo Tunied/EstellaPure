@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(input): cancel touch state when mini-games hide':
+    { note: 'Cancelled touch input no longer becomes a click.' },
   'fix(storage): preserve empty mini-game values':
     { note: 'Mini-game storage preserves empty strings.' },
   'fix(examples): restore audio preferences across game restarts':
