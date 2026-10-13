@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Late skeletal loads release obsolete viewport bindings.** A skeleton fetch that finishes after scene replacement, entity deletion or skeletal component removal now drops its late instances before the next queued load. Surviving entities keep their bindings, and a replaced scene no longer receives the old load's panel refresh.
+
 - **Open skeletal scenes refresh after source edits.** The editor tracks the skeleton, atlas and page paths resolved by its shared loaders. Changes to those inputs rebind the affected skeletal runtime in the current viewport; unrelated image edits do no skeletal work, and queued refreshes from a replaced scene are discarded.
 
 - **Skeletal atlas edits invalidate resident textures.** Image changes also sever the bare-path residency used by skeletal atlas pages. Reopening a DragonBones scene loads the updated image instead of reviving stale pixels, while existing holders retain their texture until released.
