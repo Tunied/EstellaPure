@@ -15,8 +15,10 @@ const leaf = (name: string): PrefabData => ({ version: '2', name, rootEntityId: 
 ] });
 function assetsFor(prefabs: Record<string, PrefabData>) {
     const release = vi.fn();
+    const loadPrefab = vi.fn(async (ref: string) => ({ data: prefabs[ref] }));
     const assets = {
-        loadPrefab: vi.fn(async (ref: string) => ({ data: prefabs[ref] })),
+        loadPrefab,
+        acquireTyped: async (_type: string, ref: string) => ({ value: await loadPrefab(ref), release: vi.fn() }),
         preloadSceneAssets: vi.fn(async () => ({ missing: [], scope: { releaseAll: release } })),
         resolveSceneAssetPaths: vi.fn(),
         trackSceneAssetReferences: vi.fn(),

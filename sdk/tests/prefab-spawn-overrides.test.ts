@@ -13,6 +13,7 @@ import { describe, it, expect, vi } from 'vitest';
 import type { PrefabData } from '../src/prefab';
 
 const instantiateSpy = vi.fn(async () => ({ root: 1 as never, entities: new Map() }));
+const releaseSpy = vi.fn();
 vi.mock('../src/prefab', async (importOriginal) => ({
     ...(await importOriginal<typeof import('../src/prefab')>()),
     instantiatePrefab: (...args: unknown[]) => instantiateSpy(...(args as [])),
@@ -39,7 +40,8 @@ const positionAt = (x: number, prefabEntityId?: string) => ({
 });
 
 function server(): InstanceType<typeof PrefabServer> {
-    const assets = { loadPrefab: async () => ({ data: PREFAB }) };
+    releaseSpy.mockClear();
+    const assets = { acquireTyped: async () => ({ value: { data: PREFAB }, release: releaseSpy }) };
     return new PrefabServer({} as never, () => assets as never);
 }
 
@@ -53,12 +55,14 @@ describe('PrefabServer.instantiate overrides', () => {
         instantiateSpy.mockClear();
         await server().instantiate('assets/prefabs/Bullet.esprefab', { overrides: [positionAt(7)] });
         expect(overridesPassed()).toEqual([{ ...positionAt(7), prefabEntityId: 'aaaa-bbbb' }]);
+        expect(releaseSpy).toHaveBeenCalledOnce();
     });
 
     it('passes an id the prefab has through untouched', async () => {
         instantiateSpy.mockClear();
         await server().instantiate('assets/prefabs/Bullet.esprefab', { overrides: [positionAt(7, 'cccc-dddd')] });
         expect(overridesPassed()).toEqual([positionAt(7, 'cccc-dddd')]);
+        expect(releaseSpy).toHaveBeenCalledOnce();
     });
 
     it('refuses an id nobody answers to, naming the root and the alternatives', async () => {
@@ -67,5 +71,6 @@ describe('PrefabServer.instantiate overrides', () => {
             .rejects.toThrow(/no entity "0"/);
         await expect(server().instantiate('assets/prefabs/Bullet.esprefab', { overrides: [positionAt(7, '0')] }))
             .rejects.toThrow(/aaaa-bbbb/);
+        expect(releaseSpy).toHaveBeenCalledOnce();
     });
 });

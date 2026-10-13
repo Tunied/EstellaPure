@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(asset): transfer standalone spawn resources to entity owners':
+    { note: 'Standalone scene and prefab spawns release their resources.' },
   'fix(prefab): roll back spawns when parent attachment fails':
     { note: 'Prefab spawns roll back when their parent disappears.' },
   'fix(scene): reject transitions when completion callbacks fail':

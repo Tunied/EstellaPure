@@ -71,10 +71,10 @@ export async function instantiatePrefab(
         await preloadNestedPrefabs(
             normalized,
             async (path) => {
-                const result = await assets.loadPrefab(path);
-                // Safety net: asset loader already migrates, but if a caller
-                // side-loaded a PrefabData manually, re-migration is idempotent.
-                return migratePrefabData(result.data as PrefabData).data;
+                const lease = await assets.acquireTyped<{ data: PrefabData }>('prefab', path);
+                try {
+                    return migratePrefabData(lease.value.data).data;
+                } finally { lease.release(); }
             },
             prefabCache,
         );

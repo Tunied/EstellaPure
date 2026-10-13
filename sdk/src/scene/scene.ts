@@ -16,6 +16,7 @@ import { discoverSceneAssets } from '../asset/discoverAssets';
 import { requireResourceManager } from '../wasm/resourceManager';
 import { validateComponentData, formatValidationErrors } from '../util/validation';
 import { log } from '../util/logger';
+import { prepareSpawnOwnership, type PreparedSpawnOwnership } from '../prefab/preparedAssetOwnership';
 import { ESTELLA_SCENE_GENERATOR } from '../util/provenance';
 import {
     expandEntry,
@@ -654,30 +655,42 @@ async function loadSceneAssetsAndSpawn(
     world: World, data: SceneData, options: SceneLoadOptions | undefined,
     timed: <T>(phase: string, run: () => Promise<T> | T) => Promise<T>,
 ): Promise<Map<number, Entity>> {
-    if (options?.assets) {
-        const assets = options.assets;
-        const result = await timed('assets', () => assets.preloadSceneAssets(data, options.onProgress));
-        if (options.onMissingAssets) {
-            options.onMissingAssets(result.missing);
-        }
-        if (options.abortOnMissingAssets && result.missing.length > 0) {
-            throw new MissingAssetsError(result.missing);
-        }
-        assets.resolveSceneAssetPaths(data, result);
-        applyTextureMetadata(data, result.textureHandles);
-        if (options.collectAssets) {
-            // The receipts MOVE to the owner (absorb, not add): two scopes each
-            // holding every receipt leaves "which one releases it" unanswered.
-            // Materials keep their handle set too, but the RELEASE rides the scope.
-            options.collectAssets.scope?.absorb(result.scope);
-            for (const handle of result.materialHandles.values()) {
-                if (handle) options.collectAssets.materialHandles.add(handle);
+    let ownership: PreparedSpawnOwnership | undefined;
+    let releasePreload: (() => void) | undefined;
+    try {
+        if (options?.assets) {
+            const assets = options.assets;
+            const result = await timed('assets', () => assets.preloadSceneAssets(data, options.onProgress));
+            if (!options.collectAssets && assets.entityScopes) {
+                releasePreload = () => result.scope.releaseAll();
+                ownership = prepareSpawnOwnership(data, result, assets.entityScopes, assets.resolveRef.bind(assets))?.();
+            }
+            if (options.onMissingAssets) {
+                options.onMissingAssets(result.missing);
+            }
+            if (options.abortOnMissingAssets && result.missing.length > 0) {
+                throw new MissingAssetsError(result.missing);
+            }
+            assets.resolveSceneAssetPaths(data, result);
+            applyTextureMetadata(data, result.textureHandles);
+            if (options.collectAssets) {
+                // The receipts MOVE to the owner (absorb, not add): two scopes each
+                // holding every receipt leaves "which one releases it" unanswered.
+                // Materials keep their handle set too, but the RELEASE rides the scope.
+                options.collectAssets.scope?.absorb(result.scope);
+                for (const handle of result.materialHandles.values()) {
+                    if (handle) options.collectAssets.materialHandles.add(handle);
+                }
             }
         }
+        const entities = await timed('spawn', () => spawnAndLoadEntities(world, data, options?.externalEntities, options?.onPhase));
+        ownership?.attach(world, entities);
+        options?.assets?.trackSceneAssetReferences(data, entities);
+        return entities;
+    } finally {
+        ownership?.release();
+        releasePreload?.();
     }
-    const entities = await timed('spawn', () => spawnAndLoadEntities(world, data, options?.externalEntities, options?.onPhase));
-    options?.assets?.trackSceneAssetReferences(data, entities);
-    return entities;
 }
 
 function applyTextureMetadata(sceneData: SceneData, textureHandles: Map<string, number>): void {

@@ -24,6 +24,31 @@ vi.mock('../src/wasm/resourceManager', () => ({
 }));
 
 describe('a scene owns the receipts its preload produced', () => {
+    it('standalone spawns release acquisitions when their entities are destroyed', async () => {
+        const unloaded: number[] = [];
+        let next = 0;
+        const assets = Assets.create({ backend: {
+            fetchBinary: async () => new ArrayBuffer(8), fetchText: async () => '{}',
+            resolveUrl: (path: string) => `http://test/${path}`,
+        } as Backend, module: { _malloc: () => 0, _free: () => {}, HEAPU8: new Uint8Array(16) } as never });
+        assets.register<{ handle: number }>({ type: 'mesh',
+            load: async () => ({ handle: ++next }),
+            unload: (value: { handle: number }) => { unloaded.push(value.handle); },
+        } as never);
+        const world = new World();
+        const scene = { version: '1.0', name: 'owned', entities: [{ id: 1, name: 'mesh', parent: null,
+            children: [], components: [{ type: 'MeshRenderer', data: { mesh: 'mesh.esmesh' } }],
+        }] } as SceneData;
+        try {
+            for (let i = 0; i < 20; i++) {
+                const entities = await loadSceneWithAssets(world, scene, { assets });
+                expect(assets.sizes().refRows).toBe(1);
+                for (const entity of entities.values()) world.despawn(entity);
+                expect(assets.sizes()).toMatchObject({ refRows: 0, genericCached: 0, trackedRefRows: 0 });
+            }
+            expect(unloaded).toHaveLength(20);
+        } finally { assets.releaseAll(); }
+    });
     it('carries them to collectAssets, and they release the real asset', async () => {
         const unloaded: string[] = [];
         let n = 0;

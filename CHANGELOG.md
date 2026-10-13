@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Standalone scene and prefab spawns release their resources.** Loads without a scene collector transfer acquired resources to the entities that reference them, then release the preload receipts. Destroying or rolling back a spawned hierarchy retires those acquisitions. Prefab document reads also use scoped receipts, including nested sources, so repeated spawns no longer accumulate unowned references.
+
 - **Prefab spawns roll back when their parent disappears.** Runtime instantiation checks that its requested parent accepts the root after asynchronous loading. A rejected attachment despawns the newly created hierarchy and rejects the spawn instead of leaving an unparented instance behind; live parents and the explicit no-parent sentinel remain supported.
 
 - **Scene completion errors settle the transition promise.** A throwing fade-completion callback rejects the caller's promise with its original error after clearing the old overlay, so callers can recover and later scene switches remain available. A callback that starts another fade keeps that new transition intact.

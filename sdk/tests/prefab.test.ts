@@ -20,6 +20,13 @@ import { defineComponent } from '../src/ecs/component';
 
 const mockLoadScene = vi.mocked(loadOwnedSceneWithAssets);
 
+function withAssetLeases<T extends { loadPrefab: (path: string) => Promise<{ data: PrefabData }> }>(assets: T): T {
+    Object.assign(assets, { acquireTyped: async (_type: string, path: string) => ({
+        value: await assets.loadPrefab(path), release: vi.fn(),
+    }) });
+    return assets;
+}
+
 function createMockWorld(): World {
     const parentMap = new Map<Entity, Entity>();
     const setParent = vi.fn((child: Entity, parent: Entity) => {
@@ -154,14 +161,14 @@ describe('Prefab', () => {
             const prefab = simplePrefab();
             const mockAssets = { loadPrefab: vi.fn() } as any;
             await instantiatePrefab(world, prefab, {
-                assets: mockAssets,
+                assets: withAssetLeases(mockAssets),
                 assetBaseUrl: '/assets',
             });
 
             expect(mockLoadScene).toHaveBeenCalledWith(
                 world,
                 expect.any(Object),
-                { assets: mockAssets, assetBaseUrl: '/assets' },
+                { assets: withAssetLeases(mockAssets), assetBaseUrl: '/assets' },
             );
         });
     });
@@ -744,7 +751,7 @@ describe('Prefab', () => {
                 loadPrefab: vi.fn().mockResolvedValue({ data: childPrefab }),
             } as any;
 
-            await instantiatePrefab(world, parentPrefab, { assets: mockAssetServer });
+            await instantiatePrefab(world, parentPrefab, { assets: withAssetLeases(mockAssetServer) });
 
             expect(capturedSceneData!.entities).toHaveLength(2);
             const names = capturedSceneData!.entities.map(e => e.name);
@@ -809,7 +816,7 @@ describe('Prefab', () => {
                 loadPrefab: vi.fn().mockResolvedValue({ data: childPrefab }),
             } as any;
 
-            await instantiatePrefab(world, parentPrefab, { assets: mockAssetServer });
+            await instantiatePrefab(world, parentPrefab, { assets: withAssetLeases(mockAssetServer) });
 
             const ids = capturedSceneData!.entities.map(e => e.id);
             const uniqueIds = new Set(ids);
@@ -863,7 +870,7 @@ describe('Prefab', () => {
                 loadPrefab: vi.fn().mockResolvedValue({ data: childPrefab }),
             } as any;
 
-            await instantiatePrefab(world, parentPrefab, { assets: mockAssetServer });
+            await instantiatePrefab(world, parentPrefab, { assets: withAssetLeases(mockAssetServer) });
 
             const parentRoot = capturedSceneData!.entities.find(e => e.name === 'ParentRoot')!;
             const nestedRoot = capturedSceneData!.entities.find(e => e.name === 'NestedRoot')!;
@@ -923,7 +930,7 @@ describe('Prefab', () => {
                 loadPrefab: vi.fn().mockResolvedValue({ data: childPrefab }),
             } as any;
 
-            await instantiatePrefab(world, parentPrefab, { assets: mockAssetServer });
+            await instantiatePrefab(world, parentPrefab, { assets: withAssetLeases(mockAssetServer) });
 
             const nestedRoot = capturedSceneData!.entities.find(e => e.name === 'NestedRoot')!;
             const sprite = nestedRoot.components.find(c => c.type === 'Sprite')!;
@@ -964,7 +971,7 @@ describe('Prefab', () => {
             } as any;
 
             await expect(
-                instantiatePrefab(world, selfRefPrefab, { assets: mockAssetServer }),
+                instantiatePrefab(world, selfRefPrefab, { assets: withAssetLeases(mockAssetServer) }),
             ).rejects.toThrow('Circular reference detected');
         });
 
@@ -1015,7 +1022,7 @@ describe('Prefab', () => {
             } as any;
 
             await expect(
-                instantiatePrefab(world, deepPrefab, { assets: mockAssetServer }),
+                instantiatePrefab(world, deepPrefab, { assets: withAssetLeases(mockAssetServer) }),
             ).rejects.toThrow('nesting depth exceeded');
         });
 
@@ -1124,7 +1131,7 @@ describe('Prefab', () => {
                 loadPrefab: vi.fn().mockResolvedValue({ data: childPrefab }),
             } as any;
 
-            await instantiatePrefab(world, parentPrefab, { assets: mockAssetServer });
+            await instantiatePrefab(world, parentPrefab, { assets: withAssetLeases(mockAssetServer) });
 
             const nestedRoot = capturedSceneData!.entities.find(e => e.name === 'NestedRoot')!;
             expect(nestedRoot.parent).toBeNull();
@@ -1258,7 +1265,7 @@ describe('Prefab', () => {
                 loadPrefab: vi.fn().mockResolvedValue({ data: basePrefab }),
             } as any;
 
-            await instantiatePrefab(world, variant, { assets: mockAssetServer });
+            await instantiatePrefab(world, variant, { assets: withAssetLeases(mockAssetServer) });
 
             expect(capturedSceneData!.entities).toHaveLength(1);
             const root = capturedSceneData!.entities[0];
@@ -1316,7 +1323,7 @@ describe('Prefab', () => {
             ];
 
             await instantiatePrefab(world, variant, {
-                assets: mockAssetServer,
+                assets: withAssetLeases(mockAssetServer),
                 overrides: instanceOverrides,
             });
 
@@ -1340,7 +1347,7 @@ describe('Prefab', () => {
             } as any;
 
             await expect(
-                instantiatePrefab(world, variant, { assets: mockAssetServer }),
+                instantiatePrefab(world, variant, { assets: withAssetLeases(mockAssetServer) }),
             ).rejects.toThrow('Circular variant reference');
         });
 
@@ -1380,7 +1387,7 @@ describe('Prefab', () => {
                 loadPrefab: vi.fn().mockResolvedValue({ data: basePrefab }),
             } as any;
 
-            await instantiatePrefab(world, variant, { assets: mockAssetServer });
+            await instantiatePrefab(world, variant, { assets: withAssetLeases(mockAssetServer) });
 
             const root = capturedSceneData!.entities[0];
             expect(root.name).toBe('RenamedInVariant');

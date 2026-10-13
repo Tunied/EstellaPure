@@ -43,7 +43,7 @@ function scenes(active: string | null): { manager: unknown; adopted: Entity[] } 
 
 const spawn = async (active: string | null, opts?: { scene?: boolean }): Promise<Entity[]> => {
     const { manager, adopted } = scenes(active);
-    const assets = { loadPrefab: async () => ({ data: PREFAB }) };
+    const assets = { acquireTyped: async () => ({ value: { data: PREFAB }, release: () => {} }) };
     const server = new PrefabServer({} as never, () => assets as never, () => manager as never);
     await server.instantiate('assets/prefabs/Wisp.esprefab', opts);
     return adopted;

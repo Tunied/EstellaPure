@@ -62,16 +62,18 @@ export class PrefabServer {
         scene?: boolean;
     }): Promise<InstantiatePrefabResult> {
         const assets = this.getAssets_();
-        const prefabResult = await assets.loadPrefab(pathOrAddress);
-        const prefab = prefabResult.data as PrefabData;
-        const result = await instantiatePrefab(this.world_, prefab, {
-            assets,
-            assetBaseUrl: options?.baseUrl,
-            parent: options?.parent,
-            overrides: resolveSpawnOverrides(prefab, pathOrAddress, options?.overrides),
-        });
-        if (options?.scene !== false) this.adoptIntoActiveScene_(result);
-        return result;
+        const lease = await assets.acquireTyped<{ data: PrefabData }>('prefab', pathOrAddress);
+        try {
+            const prefab = lease.value.data;
+            const result = await instantiatePrefab(this.world_, prefab, {
+                assets,
+                assetBaseUrl: options?.baseUrl,
+                parent: options?.parent,
+                overrides: resolveSpawnOverrides(prefab, pathOrAddress, options?.overrides),
+            });
+            if (options?.scene !== false) this.adoptIntoActiveScene_(result);
+            return result;
+        } finally { lease.release(); }
     }
 
     /**
