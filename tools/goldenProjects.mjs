@@ -898,10 +898,11 @@ export const GOLDEN = [
   {
     id: 'ui-controls',
     certifies: ['ui-layout', 'text', 'ui-widgets'],
-    targets: ['web', 'desktop'],
+    targets: ['web', 'wechat', 'desktop'],
     tier: 'pr',
     // Opens the modal — a whole-panel change, so the response is unmistakable.
-    interact: { pointer: { x: 0.625, y: 0.675 }, frames: 40 },
+    interact: { pointer: { x: 0.67, y: 0.585 }, frames: 40 },
+    interactByTarget: { wechat: { touches: [{ from: 4, to: 8, x: 0.67, y: 0.585 }], frames: 40 } },
   },
   {
     id: 'tilemap-demo',
@@ -1161,15 +1162,16 @@ export function subpackageFor(g) {
   return g.subpackage ?? null;
 }
 
-export function interactFor(g) {
-  if (g.interactGap || !g.interact) return null;
+export function interactFor(g, target) {
+  const gesture = g.interactByTarget?.[target] ?? g.interact;
+  if (g.interactGap || !gesture) return null;
   return {
-    keys: g.interact.keys ?? [],
-    pointer: g.interact.pointer ?? null,
-    touches: g.interact.touches ?? null,
-    pad: g.interact.pad ?? null,
-    frames: g.interact.frames ?? 40,
-    responds: g.interact.responds ?? DEFAULT_RESPONDS,
+    keys: gesture.keys ?? [],
+    pointer: gesture.pointer ?? null,
+    touches: gesture.touches ?? null,
+    pad: gesture.pad ?? null,
+    frames: gesture.frames ?? 40,
+    responds: gesture.responds ?? DEFAULT_RESPONDS,
   };
 }
 

@@ -18,6 +18,31 @@
  * fails when the contract grows a member the shim has not got.
  */
 
+/** Forward real canvas touch events through the vendor callback contract. */
+export function miniGameTouchBridge(canvas) {
+  const api = {};
+  const list = touches => Array.from(touches ?? [], touch => ({
+    identifier: touch.identifier, clientX: touch.clientX, clientY: touch.clientY,
+  }));
+  for (const phase of ['Start', 'Move', 'End', 'Cancel']) {
+    const kind = 'touch' + phase.toLowerCase();
+    const listeners = new Map();
+    api['onTouch' + phase] = callback => {
+      if (listeners.has(callback)) return;
+      const listener = event => callback({ touches: list(event.touches), changedTouches: list(event.changedTouches) });
+      listeners.set(callback, listener);
+      canvas.addEventListener(kind, listener, { passive: false });
+    };
+    api['offTouch' + phase] = callback => {
+      const listener = listeners.get(callback);
+      if (!listener) return;
+      canvas.removeEventListener(kind, listener);
+      listeners.delete(callback);
+    };
+  }
+  return api;
+}
+
 /**
  * The page source; `BASE` is substituted with the served root.
  *
@@ -40,6 +65,7 @@ export const HOST_PAGE = (entry, failSubpackage = null) => `<!doctype html>
   screenCanvas.width = window.innerWidth;
   screenCanvas.height = window.innerHeight;
   document.body.appendChild(screenCanvas);
+  const touchBridge = (${miniGameTouchBridge.toString()})(screenCanvas);
   let screenTaken = false;
   const makeCanvas = () => {
     if (!screenTaken) { screenTaken = true; return screenCanvas; }
@@ -134,9 +160,7 @@ export const HOST_PAGE = (entry, failSubpackage = null) => `<!doctype html>
         offOpen: noop, offClose: noop, offError: noop, offMessage: noop,
       };
     },
-    onTouchStart: noop, onTouchMove: noop, onTouchEnd: noop,
-    offTouchStart: noop, offTouchMove: noop, offTouchEnd: noop,
-    onTouchCancel: noop, offTouchCancel: noop,
+    ...touchBridge,
     // Keyboard: forwarded from the real DOM so a driven run can reach the game.
     onKeyDown: (cb) => window.addEventListener('keydown', (e) => cb({ code: e.code, key: e.key })),
     onKeyUp: (cb) => window.addEventListener('keyup', (e) => cb({ code: e.code, key: e.key })),

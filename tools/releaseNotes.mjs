@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(test): forward mini-game touch gestures in package verification':
+    { note: 'Mini-game verification forwards touch gestures.' },
   'fix(ui): integrate inertial scroll distance across frame rates':
     { note: 'Inertial scrolling travels consistently across frame rates.' },
   'fix(video): synchronize the decoded endpoint before playback ends':

@@ -565,7 +565,7 @@ for (const { id, target } of pairs) {
   // Does the package answer a keyboard? An A/B against the undriven capture, not
   // a before/after: a game animates on its own, so only "it differs BECAUSE of
   // the key" is a claim. The worst-cell reducer is what sees a sprite move.
-  const input = interactFor(golden);
+  const input = interactFor(golden, target);
   if (!input) {
     results.push({ id, target, stage: 'parity', ok: true });
     console.log(`✓ ${id} ${target} — parity ${distance.toFixed(4)}`
