@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Text input surfaces stay with their own apps.** Closing an older app or a preview removes its own text-editor listeners and surface, preserving typing in other running apps. Repeated cleanup releases each surface once.
+
 - **Tilemap atlas and grid edits refresh cached meshes.** Changing columns, texture dimensions, atlas borders or grid layout updates UVs and geometry without repainting tile data. Cached meshes now compare their resolved layout inputs, while unchanged inputs retain their geometry; editor pixel checks compare live edits with a fresh repaint.
 
 - **Static siblings reuse their parent transform snapshot.** Unchanged static bodies sharing a parent avoid repeated child-world-pose reads while dynamic bodies keep composition active. Parent movement and direct child edits still update their poses in place, and cached parent snapshots are removed when no static body references them.

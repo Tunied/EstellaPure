@@ -8779,7 +8779,7 @@ world: World
 ## TextInputPlugin — class @experimental
 ```
 build: (app: App) => void
-cleanup: () => void
+cleanup: (app?: App) => void
 dependencies: "focus"[]
 name: "textInput"
 static new (): TextInputPlugin

@@ -48,16 +48,22 @@ export class TextInputPlugin implements Plugin {
     name = PluginName.TextInput;
     dependencies = [PluginName.Focus];
 
-    private cleanupListeners_: (() => void) | null = null;
+    private cleanupListeners_ = new Map<App, () => void>();
 
-    cleanup(): void {
-        if (this.cleanupListeners_) {
-            this.cleanupListeners_();
-            this.cleanupListeners_ = null;
+    cleanup(app?: App): void {
+        if (app) {
+            const cleanup = this.cleanupListeners_.get(app);
+            this.cleanupListeners_.delete(app);
+            cleanup?.();
+        } else {
+            const cleanups = [...this.cleanupListeners_.values()];
+            this.cleanupListeners_.clear();
+            for (const cleanup of cleanups) cleanup();
         }
     }
 
     build(app: App): void {
+        this.cleanup(app);
         registerComponent('TextInput', TextInput);
 
         if (!playModeOnly()) return;
@@ -150,7 +156,7 @@ export class TextInputPlugin implements Plugin {
             }
         });
 
-        this.cleanupListeners_ = () => {
+        this.cleanupListeners_.set(app, () => {
             unsubscribe();
             editor.dispose();
             for (const ch of childrenOf.values()) {
@@ -159,7 +165,7 @@ export class TextInputPlugin implements Plugin {
                 if (world.valid(ch.caret)) world.despawn(ch.caret);
             }
             childrenOf.clear();
-        };
+        });
 
         function syncFromEditor(): void {
             const focused = getFocusedTextInput();
