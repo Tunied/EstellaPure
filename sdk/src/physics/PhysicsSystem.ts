@@ -699,9 +699,14 @@ export function registerPhysics2DSystem(
     const physicsComponents = [RigidBody2D, ...COLLIDER_TYPES, ...JOINT_TYPES, OneWayPlatform2D];
     for (const c of physicsComponents) app.world.enableChangeTracking(c);
     const kinematicEntities = new Set<Entity>();
+    const staticPoses = new Map<Entity, { x: number; y: number; angle: number; parented: boolean }>();
+    let lastStaticEpoch = -1;
+    let lastStaticTick = -1;
+    let lastStaticPpu = -1;
     let lastStructuralVersion = -1;
 
     const world = app.world;
+    world.enableChangeTracking(Transform);
 
     world.onDespawn((entity: Entity) => {
         if (trackedJoints.has(entity)) {
@@ -718,6 +723,7 @@ export function registerPhysics2DSystem(
             cachedProps.delete(entity);
             parentedBodies.delete(entity);
             kinematicEntities.delete(entity);
+            staticPoses.delete(entity);
             // The module's pose snapshots need no cleanup: destroying the body drops
             // it from the dynamic set the next capture rebuilds from, and the lerp is
             // driven by the current snapshot, so a stale `prev` entry is never read.
@@ -758,6 +764,7 @@ export function registerPhysics2DSystem(
                     }
                 }
                 if (needReconcile) {
+                world.ensureTransformsComposed();
                 const entities = world.getEntitiesWithComponents([RigidBody2D, Transform]);
                 const currentEntities = new Set<Entity>();
 
@@ -786,7 +793,7 @@ export function registerPhysics2DSystem(
                         );
                         addShapeForEntity(world, module, entity, config.collisionLayerMasks);
                         trackedEntities.add(entity);
-                        if (hasParent) parentedBodies.add(entity);
+                        if (hasParent && rb.bodyType !== BodyType.Static) parentedBodies.add(entity);
                         cachedProps.set(entity, {
                             bodyType: rb.bodyType,
                             gravityScale: rb.gravityScale,
@@ -798,6 +805,10 @@ export function registerPhysics2DSystem(
                             colliderSig: colliderSignature(world, entity),
                         });
                         if (rb.bodyType === BodyType.Kinematic) kinematicEntities.add(entity);
+                        if (rb.bodyType === BodyType.Static) {
+                            staticPoses.set(entity, { x: posX * invPpu, y: posY * invPpu,
+                                angle: quatToAngleZ(rot), parented: hasParent });
+                        }
                         continue;
                     }
 
@@ -845,6 +856,13 @@ export function registerPhysics2DSystem(
                     //    skipped frames.
                     if (cached.bodyType === BodyType.Kinematic) kinematicEntities.add(entity);
                     else kinematicEntities.delete(entity);
+                    if (cached.bodyType === BodyType.Static) {
+                        const parented = world.has(entity, Parent);
+                        const pose = staticPoses.get(entity);
+                        if (pose) pose.parented = parented;
+                        else staticPoses.set(entity, { x: NaN, y: NaN, angle: NaN, parented });
+                        parentedBodies.delete(entity);
+                    } else staticPoses.delete(entity);
                 }
 
                 // Activity filtering removes descendants from the query too.
@@ -865,6 +883,7 @@ export function registerPhysics2DSystem(
                         cachedProps.delete(entity);
                         parentedBodies.delete(entity);
                         kinematicEntities.delete(entity);
+                        staticPoses.delete(entity);
                     }
                 }
 
@@ -884,6 +903,31 @@ export function registerPhysics2DSystem(
                 lastEntitySyncTick = world.getWorldTick();
                 lastStructuralVersion = structuralVersion;
                 } // end if (needReconcile)
+
+                const staticEpoch = world.transformEpoch();
+                if (staticPoses.size > 0 && (needReconcile || staticEpoch < 0
+                    || staticEpoch !== lastStaticEpoch || ppu !== lastStaticPpu)) {
+                    world.ensureTransformsComposed();
+                    for (const [entity, pose] of staticPoses) {
+                        if (!cachedProps.get(entity)?.enabled) continue;
+                        const hasParent = pose.parented;
+                        if (!hasParent && !needReconcile && ppu === lastStaticPpu
+                            && !world.isChangedSince(entity, Transform, lastStaticTick)) continue;
+                        if (!world.isEntityActive(entity)) continue;
+                        const tf = world.get(entity, Transform) as TransformData;
+                        const position = hasParent ? tf.worldPosition : tf.position;
+                        const rotation = hasParent ? tf.worldRotation : tf.rotation;
+                        const x = position.x * invPpu, y = position.y * invPpu;
+                        const angle = quatToAngleZ(rotation);
+                        if (pose.x !== x || pose.y !== y || pose.angle !== angle) {
+                            module._physics_setBodyTransform(entity, x, y, angle);
+                            pose.x = x; pose.y = y; pose.angle = angle;
+                        }
+                    }
+                }
+                lastStaticEpoch = world.transformEpoch();
+                lastStaticTick = world.getWorldTick() - 1;
+                lastStaticPpu = ppu;
 
                 // Kinematic bodies are driven by their Transform (changed via gameplay,
                 // not tracked as a physics edit) — push every step, even when the
@@ -917,7 +961,9 @@ export function registerPhysics2DSystem(
                 // every body every step.
                 if (needReconcile) {
                     for (const entity of trackedEntities) {
-                        if (world.has(entity, Parent)) parentedBodies.add(entity);
+                        if (cachedProps.get(entity)?.bodyType !== BodyType.Static && world.has(entity, Parent)) {
+                            parentedBodies.add(entity);
+                        }
                         else parentedBodies.delete(entity);
                     }
                 }

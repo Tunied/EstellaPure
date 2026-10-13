@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Static 2D bodies follow authored transforms and parent movement.** Box2D updates changed static poses in place, preserving bodies and shapes without repeating writes for unchanged poses. Initial body creation composes the hierarchy first, and parented static bodies no longer force dynamic-body writeback out of its batch path.
+
 - **Recreated tilemap layers discard old geometry and collision.** A layer generation distinguishes replacement from ordinary edits, even when the same entity and edit count are reused. Reinitializing or immediately recreating a layer releases its old chunk meshes and rebuilds collision from the replacement; unchanged layers retain their caches.
 
 - **Tilemap runtimes and saved chunks stay with their own worlds.** Closing a preview or an older App no longer destroys another core's same-numbered layers or disables its collision updates. Scene codecs serialize each world's own tiles; closing the current runtime restores the previous live tooling interface and collision lookup, and releases the retired codec.

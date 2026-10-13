@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(physics): synchronize static body transforms in place':
+    { note: 'Static 2D bodies follow authored transforms and parent movement.' },
   'fix(tilemap): invalidate caches when a layer is recreated':
     { note: 'Recreated tilemap layers discard old geometry and collision.' },
   'fix(tilemap): isolate runtime tools and scene codecs per world':
