@@ -148,6 +148,17 @@ describe('disk cache budget and offline versions', () => {
         expect(await c.read(urls[0])).toEqual(bytes());
     });
 
+    it('repairs a legacy resource from manifest references so retiring its version can reclaim it', async () => {
+        const c = await cache();
+        await nodeAdapter.writeCacheFile(urls[0], bytes()); // Pre-index build.
+        await c.protect('game', [{ revision: 'v1', reason: 'current', keys: [urls[0]] }]);
+        expect((await c.report()).entries[0].protection).toContain('unindexed');
+        const repaired = await c.report(true);
+        expect(repaired.entries[0]).toMatchObject({ key: urls[0], hash: expect.any(String), protection: ['game:current'] });
+        await c.protect('game', [{ revision: 'v2', reason: 'current', keys: [urls[1]] }]);
+        expect((await c.cleanup(0, true)).releaseBytes).toBe(8);
+    });
+
     it('distinguishes unsupported management from an empty cache', async () => {
         const noStorage = new ContentCache({} as PlatformAdapter);
         expect(await noStorage.report()).toMatchObject({ capability: 'unavailable', usedBytes: null });

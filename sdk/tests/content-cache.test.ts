@@ -149,6 +149,12 @@ describe('node adapter disk cache (real filesystem)', () => {
 });
 
 describe('cache wrappers degrade on a platform with no cache (web)', () => {
+    it('does not claim storage when an adapter method exists but the host has no cache bindings', async () => {
+        const write = vi.fn(async () => {});
+        setPlatform(mockPlatform({ writeCacheFile: write, hasCacheStorage: () => false }));
+        expect(await platformWriteCacheFile('k', new ArrayBuffer(2))).toBe('unsupported');
+        expect(write).not.toHaveBeenCalled();
+    });
     it('read returns null and write says unsupported when the adapter omits the methods', async () => {
         setPlatform(mockPlatform({})); // no readCacheFile / writeCacheFile
         expect(await platformReadCacheFile('k')).toBeNull();

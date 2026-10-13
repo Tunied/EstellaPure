@@ -58,9 +58,9 @@ describe('a mini-game content cache', () => {
         expect(await platformWriteCacheFile(URL, new ArrayBuffer(4))).toBe('failed');
     });
 
-    it('reports a host with no user data directory as failed, not stored', async () => {
+    it('reports a host with no user data directory as unsupported, not stored', async () => {
         host();
-        expect(await platformWriteCacheFile(URL, new ArrayBuffer(4))).toBe('failed');
+        expect(await platformWriteCacheFile(URL, new ArrayBuffer(4))).toBe('unsupported');
         expect(await platformReadCacheFile(URL)).toBeNull();
     });
 

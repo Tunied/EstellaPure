@@ -221,7 +221,7 @@ export async function platformReadCacheFile(key: string): Promise<ArrayBuffer | 
 export async function platformWriteCacheFile(key: string, bytes: ArrayBuffer): Promise<'stored' | 'failed' | 'unsupported'> {
     if (!isPlatformInitialized()) return 'unsupported';
     const p = getPlatform();
-    if (!p.writeCacheFile) return 'unsupported';
+    if (!p.writeCacheFile || p.hasCacheStorage?.() === false) return 'unsupported';
     try {
         await contentCacheFor(p).write(key, bytes);
         return 'stored';

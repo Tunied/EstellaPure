@@ -139,3 +139,47 @@ shared-owner case; the final rerun is recorded with the PR validation.
 
 `adb devices -l` returned no attached devices. Physical-device acceptance remains
 an explicit gap; neither rendered simulation nor an eventual merged PR closes it.
+
+## Final branch validation and draft review
+
+The work was rebased onto engine `19f7ec25279717b874afcae87d2c5e047b458f7b`
+and editor `ba95cde5127b5a6c8c24f2860f365397b20a0071` after fetching another
+12 engine commits and one editor commit. Editor draft review is
+[#20](https://github.com/esengine/estella-editor/pull/20); it is not merged.
+
+Both current runtime targets were rebuilt with Emscripten 5.0.7, unchanged release
+optimization flags, `BINARYEN_CORES=1`, `EMCC_DEBUG=1` (intermediate-file diagnostics)
+and independent `EMCC_TEMP_DIR` directories. Earlier normal-link optimization
+assertions also occurred on 5.0.7; upgrading alone is not claimed to fix them.
+Standalone replay with the same optimizer flags succeeded. The final post-link
+optimization is now mandatory, uses a separate temporary output, validates it and
+commits it atomically instead of warning and copying an unoptimized/partial file.
+Build fingerprints include this transaction and the optimization level.
+
+The transactional optimizer has three passing regression cases: a crash after
+writing output preserves the original, successful-but-invalid output is rejected,
+and valid output commits without using the input file as the output destination.
+Final Web and WeChat build logs are local in `output/cache-budget/build-web-latest.log`
+and `build-wechat-latest.log`, with no skipped post-link optimization.
+
+The final targeted SDK run passed **168 tests across 14 files**. Editor interaction
+tests passed **3/3**, and optimizer tests passed **3/3**. The Web export/renderer
+verification passed again against the rebased current runtime. Optional side
+modules remain outside this targeted run; no full-engine suite pass is claimed.
+
+Rescan now recovers a referenced legacy resource's URL/hash from its manifest
+identity while retaining saves, orphan files and interrupted temporaries. A
+regression proves that a repaired legacy version can later be reclaimed. Cache
+writes also return unsupported when a host has adapter methods but no usable
+cache storage, preventing a false stored/cached result.
+
+The rendered verifier owns an isolated Electron user-data directory and exports
+packages in an asynchronous child, keeping Electron's service startup responsive.
+Profile isolation alone still failed with `ERR_FAILED (-2)`; the following run
+with asynchronous export passed. The synchronous export was a possible source of
+startup starvation, not a proven Electron root cause. Failed runs remain in
+`minigame-final.log` and `minigame-recheck.log`; the successful current run is in
+`minigame-async.log` and `output/cache-budget/render/verification.json`.
+It rendered green/red/blue, released 209 B while preserving 418 B of current and
+rollback resources, kept pixels identical, and restarted offline without a CDN
+request. This is contract-host evidence, not physical-device acceptance.

@@ -156,13 +156,30 @@ export class ContentCache {
         });
     }
 
-    private async scan_(): Promise<void> {
+    private async scan_(repair = false): Promise<void> {
         const index = await this.load_();
         const files = await this.platform_.listCacheFiles!();
         const known = new Map(index.entries.map(e => [e.name, e]));
         index.entries = files.filter(f => f.name !== INDEX_NAME).map(f => ({ ...known.get(f.name), ...f,
             lastAccess: Math.max(known.get(f.name)?.lastAccess ?? 0, f.lastAccess) }));
         this.indexBytes_ = files.find(f => f.name === INDEX_NAME)?.size ?? 0;
+        if (repair) {
+            // A surviving manifest gives an old file a resource identity even
+            // when its index was lost. Infer only exact URL-name matches; saves,
+            // orphan files and interrupted temporaries remain unindexed/pinned.
+            const referenced = new Map<string, string>();
+            for (const versions of Object.values(index.owners)) for (const version of versions)
+                for (const key of version.keys) referenced.set(cacheEntryName(key), key);
+            for (const entry of index.entries) {
+                const key = referenced.get(entry.name);
+                if (entry.key || !key) continue;
+                const bytes = await this.platform_.readCacheFile!(key).catch(() => null);
+                if (!bytes) continue;
+                entry.key = key;
+                entry.hash = contentHashHex(new Uint8Array(bytes));
+                entry.size = bytes.byteLength;
+            }
+        }
     }
 
     /** Explicit retention lives under its own owner, so advancing the automatic
@@ -228,7 +245,7 @@ export class ContentCache {
     async report(rescan = false): Promise<ContentCacheReport> {
         if (this.capability() !== 'managed') return this.report_();
         return this.run_(async () => {
-            await this.scan_();
+            await this.scan_(rescan);
             if (rescan) await this.save_();
             return this.report_();
         });

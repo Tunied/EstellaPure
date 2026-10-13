@@ -5,9 +5,11 @@
 import { app, BrowserWindow } from 'electron';
 import http from 'node:http';
 import { mkdir, readFile, writeFile, readdir, stat, rename, unlink } from 'node:fs/promises';
+import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
-import { execFileSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { randomUUID, createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { HOST_PAGE } from './minigameHost.mjs';
@@ -17,6 +19,11 @@ import { onRendererConsole } from '../lib/rendererConsole.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const OUT = path.join(ROOT, 'output/cache-budget/render');
 const STORE = path.join(OUT, `cache-${randomUUID()}`);
+// Other headless verifiers use Electron too. Sharing its default user-data
+// profile can race their network-service shutdown; this run owns its profile.
+const PROFILE = path.join(OUT, `profile-${randomUUID()}`);
+mkdirSync(PROFILE, { recursive: true });
+app.setPath('userData', PROFILE);
 const { WebSocketServer } = createRequire(path.join(ROOT, 'sdk/package.json'))('ws');
 app.commandLine.appendSwitch('enable-unsafe-swiftshader');
 app.commandLine.appendSwitch('disable-gpu-sandbox');
@@ -65,8 +72,12 @@ app.whenReady().then(async () => {
         await mkdir(STORE, { recursive: true });
         channel = await createDebugChannelServer({ WebSocketServer, host: '127.0.0.1' });
         // Generate actual game packages using the current SDK and compiled wasm.
-        execFileSync('node', [path.join(ROOT, 'tools/cache-budget-render-fixture.mjs'), OUT, channel.urlFor('127.0.0.1')],
-            { cwd: ROOT, stdio: 'inherit', windowsHide: true });
+        // Exporting can take seconds; keep Electron's main loop answering the
+        // network/GPU service startup while the child builds these packages.
+        const fixture = await promisify(execFile)('node', [path.join(ROOT, 'tools/cache-budget-render-fixture.mjs'), OUT, channel.urlFor('127.0.0.1')],
+            { cwd: ROOT, windowsHide: true, maxBuffer: 8 * 1024 * 1024 });
+        process.stdout.write(fixture.stdout);
+        process.stderr.write(fixture.stderr);
         const cached = file => {
             const name = String(file ?? '').replace(/^\/__cache\//, '');
             if (!/^[A-Za-z0-9_.-]+$/.test(name) || name === '.' || name === '..') throw Error('invalid cache file');
