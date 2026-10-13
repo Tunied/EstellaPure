@@ -112,7 +112,8 @@ export class TextInputPlugin implements Plugin {
             const fm = app.getResource(FocusManager) as FocusManagerState | null;
             if (!fm || fm.focusedEntity === null) return null;
             const entity = fm.focusedEntity;
-            if (!world.valid(entity) || !world.has(entity, TextInput)) return null;
+            if (!world.isEntityActive(entity) || !world.has(entity, TextInput)) return null;
+            if (world.has(entity, Interactable) && !world.get(entity, Interactable).enabled) return null;
             return entity;
         }
 

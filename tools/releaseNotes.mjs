@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ui): reject input on disabled text fields':
+    { note: 'Disabled text fields reject queued input.' },
   'fix(ui): blur removed text input surfaces':
     { note: 'Removed text fields release OS input focus.' },
   'fix(ui): isolate text input cleanup per app':

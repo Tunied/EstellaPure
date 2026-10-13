@@ -31,6 +31,8 @@ const { TextInputPlugin } = await import('../src/ui/text/text-input-plugin');
 const { FocusManager, FocusManagerState } = await import('../src/ui/input/focusable');
 const { UIEvents, UIEventQueue } = await import('../src/ui/core/events');
 const { TextInput } = await import('../src/ui/text/text-input');
+const { Disabled } = await import('../src/ecs/component');
+const { Interactable } = await import('../src/ui/input/interactable');
 const apps: ReturnType<typeof App.new>[] = [];
 function build(plugin: InstanceType<typeof TextInputPlugin>) {
     const app = bootMockApp().app;
@@ -118,4 +120,24 @@ it.each(['despawn', 'remove'] as const)('blurs the OS surface when the focused f
     expect(surfaces[0].focus).toHaveBeenCalledTimes(2);
     for (const listener of surfaces[0].listeners) listener({ kind: 'change' });
     expect(app.world.get(next, TextInput).value).toBe('typed');
+});
+
+it.each(['entity', 'ancestor', 'interaction'] as const)('rejects queued input after disabling %s', async disabled => {
+    const app = build(new TextInputPlugin());
+    const field = app.world.spawn();
+    app.world.insert(field, TextInput, { value: 'original' });
+    app.getResource(FocusManager).focus(field);
+    await app.tick(1 / 60);
+    if (disabled === 'interaction') app.world.insert(field, Interactable, { enabled: false });
+    else if (disabled === 'entity') app.world.insert(field, Disabled);
+    else {
+        const parent = app.world.spawn();
+        app.world.setParent(field, parent);
+        app.world.insert(parent, Disabled);
+    }
+    for (const listener of surfaces[0].listeners) listener({ kind: 'change' });
+    expect(app.world.get(field, TextInput).value).toBe('original');
+    await app.tick(1 / 60);
+    expect(surfaces[0].blur).toHaveBeenCalledOnce();
+    expect(app.world.get(field, TextInput).focused).toBe(false);
 });
