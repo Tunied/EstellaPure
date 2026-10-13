@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Static siblings reuse their parent transform snapshot.** Unchanged static bodies sharing a parent avoid repeated child-world-pose reads while dynamic bodies keep composition active. Parent movement and direct child edits still update their poses in place, and cached parent snapshots are removed when no static body references them.
+
 - **Transformless hierarchy groups preserve child world poses.** A grouping entity without its own Transform no longer stops composition of its descendants. Root groups start from identity, intermediate groups carry the ancestor matrix through, and dirty propagation and traversal guards continue through those nodes.
 
 - **Tilemap activity preserves painted data and owns generated collision.** Disabling a layer or its ancestor retains its chunks and derived layers. Runtime colliders inherit the map's movement and activity, remain outside saved scenes, and resume with their existing identities; inactive tile animations stop advancing.

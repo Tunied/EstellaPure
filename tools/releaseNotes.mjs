@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(physics): reuse static parent transform snapshots':
+    { note: 'Static siblings reuse their parent transform snapshot.' },
   'fix(ecs): compose transforms through transformless groups':
     { note: 'Transformless hierarchy groups preserve child world poses.' },
   'fix(tilemap): preserve inactive layers and own runtime colliders':

@@ -43,6 +43,10 @@ describe.skipIf(!HAS_WASM || !hasSideModule('physics'))('static Box2D transform 
         await app.stepFrames(20, 1 / 30);
         expect(move).not.toHaveBeenCalled();
         expect(module._physics_hasBody(body)).toBe(1);
+        world.update(body, Transform, value => { value.position.x += 20; });
+        await app.stepFrames(2, 1 / 30);
+        expect(hit().point.x).toBeCloseTo(before + 50, 3);
+        expect(move.mock.calls).toHaveLength(1);
     });
     it('keeps batched dynamic writeback when static bodies have parents', async () => {
         const app = App.new(); apps.push(app);
@@ -61,5 +65,48 @@ describe.skipIf(!HAS_WASM || !hasSideModule('physics'))('static Box2D transform 
         const batch = vi.spyOn(engine, 'registry_batchSyncPhysicsTransforms');
         await app.stepFrames(2, 1 / 30);
         expect(batch).toHaveBeenCalled();
+    });
+    it('skips unchanged child pose reads while a dynamic body keeps composition active', async () => {
+        const app = App.new(); apps.push(app);
+        app.connectCpp(new engine.Registry(), engine, { ownedRegistry: true });
+        const module = await loadSideModule<PhysicsWasmModule>('physics');
+        app.addPlugin(new Physics2DPlugin('', { gravity: { x: 0, y: 0 } }, async () => module));
+        await app.getResource(Physics2DRuntime).initPromise;
+        const world = app.world, parent = world.spawn(), bodies = new Set<number>();
+        world.insert(parent, Transform);
+        for (let i = 0; i < 10; i++) {
+            const body = world.spawn(); bodies.add(body);
+            world.insert(body, Transform, { position: { x: i * 30, y: 0, z: 0 } });
+            world.insert(body, RigidBody2D, { bodyType: BodyType.Static });
+            world.insert(body, BoxCollider2D, {}); world.setParent(body, parent);
+        }
+        const dynamic = world.spawn();
+        world.insert(dynamic, Transform, { position: { x: 1000, y: 1000, z: 0 } });
+        world.insert(dynamic, RigidBody2D, { bodyType: BodyType.Dynamic });
+        world.insert(dynamic, BoxCollider2D, {});
+        await app.stepFrames(3, 1 / 30);
+        module._physics_setLinearVelocity(dynamic, 1, 0);
+        const get = vi.spyOn(world, 'get');
+        await app.stepFrames(20, 1 / 30);
+        expect(get.mock.calls.filter(([entity, component]) => component === Transform && bodies.has(entity)))
+            .toHaveLength(0);
+    });
+    it('keeps moving static children when their grouping parent has no Transform', async () => {
+        const app = App.new(); apps.push(app);
+        app.connectCpp(new engine.Registry(), engine, { ownedRegistry: true });
+        const module = await loadSideModule<PhysicsWasmModule>('physics');
+        app.addPlugin(new Physics2DPlugin('', { gravity: { x: 0, y: 0 } }, async () => module));
+        await app.getResource(Physics2DRuntime).initPromise;
+        const parent = app.world.spawn(), body = app.world.spawn();
+        app.world.insert(body, Transform, { position: { x: 5, y: 0, z: 0 } });
+        app.world.insert(body, RigidBody2D, { bodyType: BodyType.Static });
+        app.world.insert(body, BoxCollider2D, { halfExtents: { x: .1, y: .1 } });
+        app.world.setParent(body, parent);
+        await app.stepFrames(3, 1 / 30);
+        app.world.update(body, Transform, value => { value.position.x += 30; });
+        await app.stepFrames(2, 1 / 30);
+        const hit = app.getResource(Physics2D).raycast({ x: -50, y: 0 }, { x: 1, y: 0 }, 200)
+            .find(value => value.entity === body);
+        expect(hit?.point.x).toBeCloseTo(25, 3);
     });
 });

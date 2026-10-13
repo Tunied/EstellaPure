@@ -699,7 +699,9 @@ export function registerPhysics2DSystem(
     const physicsComponents = [RigidBody2D, ...COLLIDER_TYPES, ...JOINT_TYPES, OneWayPlatform2D];
     for (const c of physicsComponents) app.world.enableChangeTracking(c);
     const kinematicEntities = new Set<Entity>();
-    const staticPoses = new Map<Entity, { x: number; y: number; angle: number; parented: boolean }>();
+    const staticPoses = new Map<Entity, { x: number; y: number; angle: number; parent: Entity | null }>();
+    const staticParentPoses = new Map<Entity, { values: number[]; checked: number; changed: boolean }>();
+    let staticSyncSequence = 0;
     let lastStaticEpoch = -1;
     let lastStaticTick = -1;
     let lastStaticPpu = -1;
@@ -807,7 +809,7 @@ export function registerPhysics2DSystem(
                         if (rb.bodyType === BodyType.Kinematic) kinematicEntities.add(entity);
                         if (rb.bodyType === BodyType.Static) {
                             staticPoses.set(entity, { x: posX * invPpu, y: posY * invPpu,
-                                angle: quatToAngleZ(rot), parented: hasParent });
+                                angle: quatToAngleZ(rot), parent: hasParent ? world.get(entity, Parent).entity : null });
                         }
                         continue;
                     }
@@ -857,10 +859,10 @@ export function registerPhysics2DSystem(
                     if (cached.bodyType === BodyType.Kinematic) kinematicEntities.add(entity);
                     else kinematicEntities.delete(entity);
                     if (cached.bodyType === BodyType.Static) {
-                        const parented = world.has(entity, Parent);
+                        const parent = world.has(entity, Parent) ? world.get(entity, Parent).entity : null;
                         const pose = staticPoses.get(entity);
-                        if (pose) pose.parented = parented;
-                        else staticPoses.set(entity, { x: NaN, y: NaN, angle: NaN, parented });
+                        if (pose) pose.parent = parent;
+                        else staticPoses.set(entity, { x: NaN, y: NaN, angle: NaN, parent });
                         parentedBodies.delete(entity);
                     } else staticPoses.delete(entity);
                 }
@@ -902,17 +904,48 @@ export function registerPhysics2DSystem(
 
                 lastEntitySyncTick = world.getWorldTick();
                 lastStructuralVersion = structuralVersion;
+                const staticParents = new Set<Entity>();
+                for (const pose of staticPoses.values()) if (pose.parent !== null) staticParents.add(pose.parent);
+                for (const parent of staticParentPoses.keys()) {
+                    if (!staticParents.has(parent)) staticParentPoses.delete(parent);
+                }
                 } // end if (needReconcile)
 
                 const staticEpoch = world.transformEpoch();
                 if (staticPoses.size > 0 && (needReconcile || staticEpoch < 0
                     || staticEpoch !== lastStaticEpoch || ppu !== lastStaticPpu)) {
                     world.ensureTransformsComposed();
+                    const sequence = ++staticSyncSequence;
                     for (const [entity, pose] of staticPoses) {
                         if (!cachedProps.get(entity)?.enabled) continue;
-                        const hasParent = pose.parented;
-                        if (!hasParent && !needReconcile && ppu === lastStaticPpu
-                            && !world.isChangedSince(entity, Transform, lastStaticTick)) continue;
+                        const hasParent = pose.parent !== null;
+                        if (!needReconcile && ppu === lastStaticPpu
+                            && !world.isChangedSince(entity, Transform, lastStaticTick)) {
+                            if (pose.parent === null) continue;
+                            let parentPose = staticParentPoses.get(pose.parent);
+                            if (parentPose?.checked !== sequence) {
+                                if (!world.has(pose.parent, Transform)) {
+                                    if (parentPose) {
+                                        parentPose.checked = sequence; parentPose.changed = true;
+                                    } else {
+                                        parentPose = { values: [], checked: sequence, changed: true };
+                                        staticParentPoses.set(pose.parent, parentPose);
+                                    }
+                                } else {
+                                    const tf = world.get(pose.parent, Transform) as TransformData;
+                                    const p = tf.worldPosition, r = tf.worldRotation, s = tf.worldScale;
+                                    const values = [p.x, p.y, p.z, r.x, r.y, r.z, r.w, s.x, s.y, s.z];
+                                    const changed = !parentPose || values.some((value, index) => value !== parentPose!.values[index]);
+                                    if (parentPose) {
+                                        parentPose.values = values; parentPose.checked = sequence; parentPose.changed = changed;
+                                    } else {
+                                        parentPose = { values, checked: sequence, changed };
+                                        staticParentPoses.set(pose.parent, parentPose);
+                                    }
+                                }
+                            }
+                            if (!parentPose.changed) continue;
+                        }
                         if (!world.isEntityActive(entity)) continue;
                         const tf = world.get(entity, Transform) as TransformData;
                         const position = hasParent ? tf.worldPosition : tf.position;
