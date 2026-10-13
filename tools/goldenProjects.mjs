@@ -700,10 +700,6 @@ export const KNOWN_GAPS = {
   // Present in the engine and shown by non-golden samples, but never carried
   // through the chain by a project the release argues from.
   settings: 'Celestial Heights persists language, effects and key bindings and reads them back at boot; volume waits on the game having sound',
-  // hot-update-demo ships one now, so the package SHAPE is a real project's.
-  // What no automated run reaches is the vendor mounting it: only a mini-game
-  // host implements the download, and none of the tiers builds for one.
-  'authored-sound': 'AudioSource.playing is what a graph, a behaviour or a wire raises, and audio-demo still starts its loop from code through Res(Audio) — no golden project sounds a clip from authored data yet; audio-source-flag.test.ts holds the contract',
 };
 
 /**
@@ -1059,7 +1055,7 @@ export const GOLDEN = [
   },
   {
     id: 'audio-demo',
-    certifies: ['audio'],
+    certifies: ['audio', 'authored-sound'],
     targets: ['web', 'desktop'],
     tier: 'release',
     interactGap: 'a pad plays a sound and draws nothing of its own — the audio block below is the run that reads the result',
@@ -1067,6 +1063,7 @@ export const GOLDEN = [
     // way. Click for a SUSTAINED source (a one-shot ends before the capture), then
     // read the bar the visualizer writes from an analyser bin.
     audio: { toggle: { x: 0.5, y: 0.41 }, bar: 'Bar0', floor: 6, frames: 60 },
+    authoredAudio: { unlock: { x: 0.02, y: 0.02 }, bars: Array.from({ length: 16 }, (_, i) => `Bar${i}`), floor: 6, frames: 60 },
   },
 ];
 
@@ -1108,7 +1105,7 @@ export function atTier(tier) {
  */
 export function sharesOf(projects, n, owned) {
   const weight = (g) => g.targets.filter((t) => owned.has(t)).length
-    * (1 + [interactFor(g), audioFor(g), safeAreaFor(g), atlasFor(g)].filter(Boolean).length + (suspendFor(g) ? 3 : 0));
+    * (1 + [interactFor(g), audioFor(g), g.authoredAudio, safeAreaFor(g), atlasFor(g)].filter(Boolean).length + (suspendFor(g) ? 3 : 0));
   const bins = Array.from({ length: n }, () => ({ projects: [], load: 0 }));
   for (const g of [...projects].sort((a, b) => weight(b) - weight(a))) {
     const bin = bins.reduce((least, b) => (b.load < least.load ? b : least));

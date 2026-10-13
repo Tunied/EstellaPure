@@ -339,7 +339,7 @@
       "components": [
         { "type": "Transform", "data": { "position": { "x": 0, "y": -160, "z": 0 } } },
         { "type": "ShapeRenderer", "data": { "size": { "x": 40, "y": 40 }, "color": { "r": 0.36, "g": 0.86, "b": 0.78, "a": 1 } } },
-        { "type": "AudioSource", "data": { "clip": "@uuid:b7c1d2e3-4f5a-4b6c-8d7e-9f0a1b2c3d4e", "bus": "sfx", "volume": 0.7, "loop": true, "playOnAwake": true, "spatial": true, "minDistance": 90, "maxDistance": 700 } },
+        { "type": "AudioSource", "data": { "clip": "@uuid:b7c1d2e3-4f5a-4b6c-8d7e-9f0a1b2c3d4e", "bus": "sfx", "volume": 0.7, "loop": true, "playing": true, "playOnAwake": false, "spatial": true, "minDistance": 90, "maxDistance": 700 } },
         { "type": "Orbiting", "data": { "radius": 320, "speed": 0.6 } }
       ]
     }

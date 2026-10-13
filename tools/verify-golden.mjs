@@ -423,6 +423,32 @@ for (const { id, target } of pairs) {
   // that starts the sound redraws itself either way. So drive the toggle and read
   // the height the game wrote from an analyser bin — silence leaves it on its floor.
   const audio = audioFor(golden);
+  const authoredAudio = golden.authoredAudio;
+  if (authoredAudio && target === 'web') {
+    // This gesture only unlocks browser audio. It avoids every pad and the
+    // music toggle, so only the scene's authored source can drive the spectrum.
+    const probed = launchPackage(id, target, [
+      '--dir', out,
+      ...(timeoutMs ? ['--timeout', String(timeoutMs)] : []),
+      '--input', JSON.stringify({ pointer: authoredAudio.unlock, frames: authoredAudio.frames ?? 60 }),
+      '--probe', authoredAudio.bars.join(','),
+    ]);
+    const found = /probe: (\{.*\})/.exec(probed.stdout || '');
+    let heights = [];
+    try {
+      const at = found ? JSON.parse(found[1]).at : null;
+      heights = authoredAudio.bars.map(name => at?.[name]?.h);
+    } catch { heights = []; }
+    const complete = heights.length === authoredAudio.bars.length && heights.length > 0
+      && heights.every(height => typeof height === 'number' && Number.isFinite(height));
+    const peak = complete ? Math.max(...heights) : null;
+    const ok = probed.status === 0 && peak !== null && peak > authoredAudio.floor;
+    results.push({ id, target, stage: 'authored-audio', ok,
+      why: ok ? '' : probed.status !== 0 ? `authored audio probe exited with ${probed.status ?? 'no status'}`
+        : peak === null ? 'authored source spectrum bars were not readable'
+        : `authored source spectrum stayed at ${peak} (floor ${authoredAudio.floor})` });
+    console.log(`${ok ? '✓' : '✗'} ${id} ${target} — authored audio: peak ${peak ?? 'unreadable'} (silent floor ${authoredAudio.floor})`);
+  }
   if (audio && target === 'web') {
     const probed = launchPackage(id, target, [
       '--dir', out,

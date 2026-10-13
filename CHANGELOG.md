@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Authored sound is verified in a packaged game.** Audio-demo's existing spatial source starts through its authored Playing flag. A separate launch unlocks browser audio away from every sound control and reads all spectrum bars, proving output from the scene source while preserving the Beat toggle's independent API and fade demonstration. The golden registry requires this measured run before certifying authored sound.
+
 - **Package verification resolves output folders consistently.** Relative work and screenshot paths are resolved before child tools launch, so the editor and package runners write into the same requested folder instead of resolving paths against their own working directories.
 
 - **Finite native tween loops hand off their sequences.** Restart and ping-pong loops now resume a paused successor when their finite count completes, just like non-looping tweens. Completion leaves cancelled successors cancelled instead of reviving them and writing their target for another frame.
