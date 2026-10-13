@@ -674,6 +674,41 @@ void WebGPUDevice::setScissor(i32 x, i32 y, i32 w, i32 h) {
 // Buffers
 // =============================================================================
 
+u64 WebGPUDevice::estimatedGpuBytes() const {
+    if (!device_ || !isDeviceUsable()) return 0;
+    u64 bytes = 0;
+    const auto bufferBytes = [](WGPUBuffer buffer) -> u64 { return buffer ? wgpuBufferGetSize(buffer) : 0; };
+    for (const auto& [id, buffer] : buffers_) bytes += bufferBytes(buffer.buffer);
+    bytes += bufferBytes(dummy_ubo_.buffer) + bufferBytes(clear_color_buffer_) + bufferBytes(timestamp_resolve_);
+    for (const auto& slot : gpu_time_ring_) bytes += bufferBytes(slot.buf);
+    for (const auto& [id, readback] : readbacks_) bytes += bufferBytes(readback.buffer);
+    const auto textureBytes = [](WGPUTexture texture) -> u64 {
+        if (!texture) return 0;
+        u32 width = wgpuTextureGetWidth(texture), height = wgpuTextureGetHeight(texture);
+        const auto format = wgpuTextureGetFormat(texture);
+        const u32 pixelBytes = format == WGPUTextureFormat_RGBA32Float ? 16 : format == WGPUTextureFormat_RGBA16Float ? 8 : 4;
+        GfxBlockInfo block{1, 1, pixelBytes};
+        for (const auto compressed : {GfxCompressedFormat::ETC2_RGB8, GfxCompressedFormat::ETC2_RGBA8,
+             GfxCompressedFormat::ASTC_4x4, GfxCompressedFormat::ASTC_8x8, GfxCompressedFormat::S3TC_DXT1,
+             GfxCompressedFormat::S3TC_DXT5, GfxCompressedFormat::ETC2_RGBA8_SRGB,
+             GfxCompressedFormat::ASTC_4x4_SRGB, GfxCompressedFormat::S3TC_DXT5_SRGB}) {
+            if (format == toWGPUCompressedFormat(compressed)) { block = gfxCompressedBlockInfo(compressed); break; }
+        }
+        u64 size = 0;
+        for (u32 level = 0; level < wgpuTextureGetMipLevelCount(texture); ++level) {
+            size += ((static_cast<u64>(width) + block.blockWidth - 1) / block.blockWidth)
+                * ((static_cast<u64>(height) + block.blockHeight - 1) / block.blockHeight) * block.bytesPerBlock
+                * wgpuTextureGetSampleCount(texture);
+            width = std::max(1u, width / 2); height = std::max(1u, height / 2);
+        }
+        return size * wgpuTextureGetDepthOrArrayLayers(texture);
+    };
+    for (const auto& [id, texture] : textures_) bytes += textureBytes(texture.texture);
+    bytes += textureBytes(dummy_texture_.texture) + textureBytes(dummy_depth_texture_.texture);
+    bytes += textureBytes(surface_depth_texture_) + textureBytes(surface_msaa_texture_);
+    return bytes;
+}
+
 WGPUBuffer WebGPUDevice::makeBuffer(GfxBufferUsage usage, u32 size, const void* data) {
     if (!device_) {
         ES_LOG_ERROR("WebGPUDevice: no device to create a buffer on");

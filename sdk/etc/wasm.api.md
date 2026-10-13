@@ -427,6 +427,7 @@ renderer_getCapturedTextureCount: () => number
 renderer_getCapturedTextures: () => number
 renderer_getCulled: () => number
 renderer_getDrawCalls: () => number
+renderer_getEstimatedGpuBytes: (() => number) | undefined
 renderer_getGpuTimeMs: (() => number) | undefined
 renderer_getLiveObjects: (() => GfxLiveObjects | null) | undefined
 renderer_getMeshes: () => number

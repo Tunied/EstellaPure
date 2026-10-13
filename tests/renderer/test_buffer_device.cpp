@@ -91,6 +91,44 @@ int main() {
         CHECK(d.setVertexBufferCalls == 0, "bind on an empty-layout geometry is a no-op");
     }
 
+    // Storage follows allocations, not uploads or framebuffer references.
+    {
+        MockGfxDevice d;
+        const auto buffer = d.createBuffer({GfxBufferUsage::Vertex, 32, true}, GfxContent::transient(), nullptr);
+        TextureDesc image; image.width = 8; image.height = 4; image.mipmaps = true;
+        const auto texture = d.createTexture(image, GfxContent::transient(), nullptr);
+        CHECK(d.estimatedGpuBytes() == 32 + 172, "estimate includes buffer capacity and the whole mip chain");
+        d.resizeBuffer(buffer, 128, nullptr);
+        CHECK(d.estimatedGpuBytes() == 128 + 172, "buffer growth updates its allocated storage");
+        TextureDesc target; target.width = 16; target.height = 8; target.samples = 4;
+        const auto color = d.createTexture(target, GfxContent::transient(), nullptr);
+        target.format = GfxPixelFormat::Depth24Stencil8;
+        const auto depth = d.createTexture(target, GfxContent::transient(), nullptr);
+        FramebufferDesc fb; fb.color0 = color; fb.depthStencil = depth;
+        const auto first = d.createFramebuffer(fb), second = d.createFramebuffer(fb);
+        CHECK(d.estimatedGpuBytes() == 128 + 172 + 4096, "shared MSAA/depth attachments count once");
+        d.deleteFramebuffer(first); d.deleteFramebuffer(second);
+        CHECK(d.estimatedGpuBytes() == 128 + 172 + 4096, "dropping framebuffer references keeps attachment storage");
+        d.deleteTexture(color); d.deleteTexture(depth); d.deleteTexture(texture); d.deleteBuffer(buffer);
+        CHECK(d.estimatedGpuBytes() == 0, "destroyed allocations leave no estimated bytes");
+        TextureDesc compressed; compressed.width = 10; compressed.height = 9;
+        const auto packed = d.createCompressedTexture(compressed, GfxContent::transient(),
+            GfxCompressedFormat::S3TC_DXT1, nullptr, 0, 3);
+        CHECK(d.estimatedGpuBytes() == 72 + 16 + 8, "compressed edge blocks and supplied mip levels use block storage");
+        d.deleteTexture(packed);
+        d.createBufferSucceeds = false;
+        d.createBuffer({GfxBufferUsage::Vertex, 4096, false}, GfxContent::transient(), nullptr);
+        CHECK(d.estimatedGpuBytes() == 0, "failed allocations do not inflate memory");
+        d.createBufferSucceeds = true;
+        const std::vector<u8> retainedBytes(256, 7);
+        const auto retained = d.createBuffer({GfxBufferUsage::Uniform, 256, false}, GfxContent::retained(), retainedBytes.data());
+        d.notifyDeviceLost(GfxDeviceLostReason::ContextLost, "test");
+        CHECK(d.estimatedGpuBytes() == 0, "a lost device has no live GPU storage");
+        CHECK(d.recoverDevice(), "device recovery succeeds");
+        CHECK(d.estimatedGpuBytes() == 256, "recovery restores storage without counting CPU retention twice");
+        d.deleteBuffer(retained);
+    }
+
     if (g_failures == 0) {
         std::printf("\nALL BUFFER/GEOMETRY TESTS PASSED\n");
         return 0;

@@ -996,6 +996,10 @@ f64 renderer_getTextureBytes() {
     return 0.0;
 }
 
+f64 renderer_getEstimatedGpuBytes() {
+    return g_device ? static_cast<f64>(g_device->estimatedGpuBytes()) : 0.0;
+}
+
 // f64 rather than u32: the epoch is a counter nothing resets, and a session that
 // outlives 4 billion invalidations should not wrap into a stamp that matches.
 f64 renderer_programEpoch() {

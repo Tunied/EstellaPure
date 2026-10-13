@@ -791,6 +791,35 @@ u32 GfxDevice::createTimerQuery() {
     return id;
 }
 
+u64 GfxDevice::estimatedGpuBytes() const {
+    if (!isDeviceUsable()) return 0;
+    u64 bytes = 0;
+    for (const auto& [id, buffer] : registry_.buffers.all()) {
+        if (buffer.realized) bytes += buffer.desc.size;
+    }
+    // Framebuffers reference these textures; counting attachments again doubles them.
+    for (const auto& [id, texture] : registry_.textures.all()) {
+        if (!texture.realized) continue;
+        u32 width = texture.desc.width, height = texture.desc.height;
+        if (!width || !height) continue;
+        const auto block = gfxCompressedBlockInfo(texture.compressedFormat);
+        const u32 levels = texture.compressed ? texture.mipLevels
+            : texture.desc.mipmaps && texture.desc.samples <= 1 && !isDepthFormat(texture.desc.format) ? 32 : 1;
+        for (u32 level = 0; level < levels; ++level) {
+            if (texture.compressed) {
+                bytes += ((static_cast<u64>(width) + block.blockWidth - 1) / block.blockWidth)
+                    * ((static_cast<u64>(height) + block.blockHeight - 1) / block.blockHeight) * block.bytesPerBlock;
+            } else {
+                bytes += static_cast<u64>(width) * height * gfxBytesPerPixel(texture.desc.format)
+                    * std::max(1u, texture.desc.samples);
+            }
+            if (width == 1 && height == 1) break;
+            width = std::max(1u, width / 2); height = std::max(1u, height / 2);
+        }
+    }
+    return bytes;
+}
+
 GfxLiveObjects GfxDevice::liveObjects() const {
     return GfxLiveObjects{
         registry_.buffers.size(),

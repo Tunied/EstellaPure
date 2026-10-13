@@ -22,6 +22,7 @@ function nativeEngine() {
         renderer_getSprites: () => 7,
         renderer_getGpuTimeMs: () => 1.5,
         renderer_getTextureBytes: () => 4096,
+        renderer_getEstimatedGpuBytes: () => 12288,
         engine_getCpuScopes: () => JSON.stringify({ 'render.submit': 0.8 }),
         engine_getCounters: () => JSON.stringify({ batches: 3 }),
         engine_getGpuScopes: () => JSON.stringify({ main: 1.2 }),
@@ -46,7 +47,7 @@ describe('frame stats on a device with no wasm module', () => {
         const report = frameStatsReport(App.new());
 
         expect(report).toMatchObject({
-            drawCalls: 10, triangles: 36, sprites: 7, gpuMs: 1.5, vramBytes: 4096,
+            drawCalls: 10, triangles: 36, sprites: 7, gpuMs: 1.5, vramBytes: 12288,
             cppScopes: { 'render.submit': 0.8 },
             cppCounters: { batches: 3 },
             gpuScopes: { main: 1.2 },
@@ -68,7 +69,7 @@ describe('frame stats on a device with no wasm module', () => {
         expect(engine.engine_setCpuProfiling.mock.calls).toEqual([[true], [false]]);
         const frame = rec.take().frames[0];
         expect(frame.gpuMs).toBe(1.5);
-        expect(frame.memory?.vramBytes).toBe(4096);
+        expect(frame.memory?.vramBytes).toBe(12288);
         expect(frame.counters).toEqual({ batches: 3 });
     });
 });

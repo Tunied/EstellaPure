@@ -139,7 +139,7 @@ export class ProfileRecorder {
             memory: {
                 wasmBytes: this.app_.wasmModule?.HEAPU8?.byteLength ?? 0,
                 jsHeapBytes: jsHeapBytes(),
-                vramBytes: m?.renderer_getTextureBytes?.() ?? 0,
+                vramBytes: m?.renderer_getEstimatedGpuBytes?.() ?? 0,
             },
         };
         this.frames_.push(frame);

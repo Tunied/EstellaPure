@@ -28,6 +28,10 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(profiler): label live gpu storage estimates':
+    { note: 'GPU memory estimates include buffers and render targets.' },
+  'fix(profiler): account for live gpu resource storage':
+    { note: 'GPU memory estimates include buffers and render targets.' },
   'fix(profiler): capture every frame from the play realm':
     { note: 'Play-mode performance captures include every recorded frame.' },
   'fix(physics): retain edits made to inactive 2d bodies':

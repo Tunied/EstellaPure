@@ -177,6 +177,7 @@ std::string engine_getCpuScopes();
 std::string engine_getCounters();
 std::string engine_getGpuScopes();
 f64 renderer_getTextureBytes();
+f64 renderer_getEstimatedGpuBytes();
 
 /** @brief The renderer's current program-readiness epoch. A readiness record
  *         stamped with an older one names programs that may be gone. */

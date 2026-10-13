@@ -43,6 +43,7 @@ namespace esengine {
 
 class WebGPUDevice final : public GfxDevice {
 public:
+    u64 estimatedGpuBytes() const override;
     /** @brief Depth-stencil attachment shape of a pass — one WGPURenderPipeline
      *         per shape, since WebGPU validates a pipeline's depthStencil state
      *         against the pass it draws into (GL has no such coupling). */

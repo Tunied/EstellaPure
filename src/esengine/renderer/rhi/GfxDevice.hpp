@@ -723,6 +723,10 @@ public:
     /** @brief GPU objects alive right now (see {@link GfxLiveObjects}), read off the registry. */
     GfxLiveObjects liveObjects() const;
 
+    /** Estimated live buffer/texture storage, including target attachments.
+     * Excludes driver overhead, shader binaries and host-owned swapchain images. */
+    virtual u64 estimatedGpuBytes() const;
+
     /**
      * @brief The backend's own name for the object behind `texture`, or 0.
      * @details For a host that writes the contents itself — a JS video frame or

@@ -147,6 +147,7 @@ export interface NativeEngineApi {
     renderer_getCapturedTextureCount?(): number;
     renderer_getCulled?(): number;
     renderer_getDrawCalls?(): number;
+    renderer_getEstimatedGpuBytes?(): number;
     renderer_getGpuTimeMs?(): number;
     renderer_getMeshes?(): number;
     renderer_getPreviewHeight?(): number;
@@ -431,6 +432,7 @@ export function createNativeEngineApi(
     bind('renderer_getCapturedTextureCount', 'es_renderer_getCapturedTextureCount', false);
     bind('renderer_getCulled', 'es_renderer_getCulled', false);
     bind('renderer_getDrawCalls', 'es_renderer_getDrawCalls', false);
+    bind('renderer_getEstimatedGpuBytes', 'es_renderer_getEstimatedGpuBytes', false);
     bind('renderer_getGpuTimeMs', 'es_renderer_getGpuTimeMs', false);
     bind('renderer_getMeshes', 'es_renderer_getMeshes', false);
     bind('renderer_getPreviewHeight', 'es_renderer_getPreviewHeight', false);

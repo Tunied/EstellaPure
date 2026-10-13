@@ -50,7 +50,7 @@ export function frameStatsReport(app: App): FrameStatsReport {
         cppCounters: jsonMap(m?.engine_getCounters?.()),
         gpuScopes: jsonMap(m?.engine_getGpuScopes?.()),
         wasmBytes: app.wasmModule?.HEAPU8?.byteLength ?? 0,
-        vramBytes: m?.renderer_getTextureBytes?.() ?? 0,
+        vramBytes: m?.renderer_getEstimatedGpuBytes?.() ?? 0,
         quality: app.hasResource(Quality) ? app.getResource(Quality)?.report() : undefined,
     };
 }

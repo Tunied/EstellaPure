@@ -651,6 +651,8 @@ export interface ESEngineModule {
     engine_getGpuScopes?(): string;
     /** Resident texture VRAM (RGBA8 estimate, bytes) for the profiler's memory pillar. */
     renderer_getTextureBytes?(): number;
+    /** Nominal live GPU buffer/texture storage, including target attachments; excludes driver overhead. */
+    renderer_getEstimatedGpuBytes?(): number;
     renderer_setClearColor(r: number, g: number, b: number, a: number): void;
     renderer_setViewport(x: number, y: number, w: number, h: number): void;
     /** Bitmask of layers 0..31 that y-sort within the layer (top-down occlusion). */
