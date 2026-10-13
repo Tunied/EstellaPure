@@ -15,5 +15,5 @@ try {
     const demo = await import(pathToFileURL(bundle).href);
     console.log(JSON.stringify(await demo.run(scratch, bundle), null, 2));
 } finally {
-    await rm(scratch, { recursive: true, force: true });
+    await rm(scratch, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
 }

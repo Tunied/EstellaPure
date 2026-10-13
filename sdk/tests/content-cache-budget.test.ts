@@ -14,7 +14,7 @@ const bytes = (n = 8) => new Uint8Array(n).fill(42).buffer;
 let dir: string | null = null;
 const oldDir = process.env.ESENGINE_CACHE_DIR;
 afterEach(async () => {
-    if (dir) await rm(dir, { recursive: true, force: true });
+    if (dir) await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     dir = null;
     if (oldDir === undefined) delete process.env.ESENGINE_CACHE_DIR;
     else process.env.ESENGINE_CACHE_DIR = oldDir;

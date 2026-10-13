@@ -14,4 +14,4 @@ try {
         outfile: bundle, bundle: true, format: 'esm', platform: 'node' });
     const { run } = await import(pathToFileURL(bundle).href);
     console.log(JSON.stringify(await run(), null, 2));
-} finally { await rm(scratch, { recursive: true, force: true }); }
+} finally { await rm(scratch, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 }); }

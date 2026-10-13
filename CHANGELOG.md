@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 - **Audio preferences survive game restart.** Audio-demo saves and restores master, music and SFX volumes through engine storage, validates saved values, and restores the displayed percentages and actual bus gains at startup. Golden verification uses independent browser processes with a stable origin and isolated profile, cycles master volume to mute and verifies that both the label and silent output survive restart.
 
+- **Release optimization commits valid WASM artifacts atomically.** A failed post-link optimizer now fails the build and preserves the original artifact. Cache scans can repair exact manifest references in a surviving legacy cache, and hosts without usable storage report unsupported cache writes.
+
 - **Authored sound is verified in a packaged game.** Audio-demo's existing spatial source starts through its authored Playing flag. A separate launch unlocks browser audio away from every sound control and reads all spectrum bars, proving output from the scene source while preserving the Beat toggle's independent API and fade demonstration. The golden registry requires this measured run before certifying authored sound.
 
 - **Package verification resolves output folders consistently.** Relative work and screenshot paths are resolved before child tools launch, so the editor and package runners write into the same requested folder instead of resolving paths against their own working directories.

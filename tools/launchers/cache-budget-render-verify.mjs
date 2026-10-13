@@ -26,6 +26,7 @@ app.setPath('userData', PROFILE);
 const { WebSocketServer } = createRequire(path.join(ROOT, 'sdk/package.json'))('ws');
 app.commandLine.appendSwitch('enable-unsafe-swiftshader');
 app.commandLine.appendSwitch('disable-gpu-sandbox');
+if (process.platform === 'linux') app.commandLine.appendSwitch('in-process-gpu');
 app.commandLine.appendSwitch('force-device-scale-factor', '1');
 app.commandLine.appendSwitch('force-color-profile', 'srgb');
 // The restart deliberately closes the sole window before opening its successor.
