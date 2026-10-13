@@ -127,7 +127,28 @@ export class ValueTweenManager {
                 entry.delay = 0;
             }
 
-            entry.elapsed += step;
+            entry.elapsed = Math.min(Number.MAX_VALUE, entry.elapsed + step);
+            if (entry.loop !== LoopMode.None && entry.duration > 0 && entry.elapsed > entry.duration) {
+                const remainder = entry.elapsed % entry.duration;
+                let skipped = Math.floor(entry.elapsed / entry.duration) - (remainder === 0 ? 1 : 0);
+                let reverse = (entry.elapsed % (entry.duration * 2) >= entry.duration) !== (remainder === 0);
+                const finite = entry.loopCount !== 0;
+                if (finite && skipped >= Math.max(1, entry.loopsRemaining)) {
+                    skipped = Math.max(0, entry.loopsRemaining - 1);
+                    reverse = skipped % 2 !== 0;
+                    entry.elapsed = entry.duration;
+                } else {
+                    // Exact boundaries still deliver the endpoint of the cycle
+                    // that just ended, rather than the next cycle's start.
+                    entry.elapsed = remainder === 0 ? entry.duration : remainder;
+                }
+                if (finite) entry.loopsRemaining -= skipped;
+                if (entry.loop === LoopMode.PingPong && reverse) {
+                    const from = entry.from;
+                    entry.from = entry.to;
+                    entry.to = from;
+                }
+            }
             const t = entry.duration > 0 ? Math.min(entry.elapsed / entry.duration, 1) : 1;
             const easedT = applyEasing(entry.easing, t, entry.bezierPoints ?? undefined);
             entry.callback(entry.from + (entry.to - entry.from) * easedT);

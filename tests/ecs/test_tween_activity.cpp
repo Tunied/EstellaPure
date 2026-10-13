@@ -2,10 +2,62 @@
 #include <doctest.h>
 #include "esengine/animation/TweenSystem.hpp"
 #include "esengine/ecs/components/Transform.hpp"
+#include <limits>
 
 using namespace esengine;
 using namespace esengine::ecs;
 using namespace esengine::animation;
+
+TEST_CASE("looping tweens retain long frame phase") {
+    for (auto mode : {LoopMode::Restart, LoopMode::PingPong}) {
+        Registry r; TweenSystem s;
+        auto target = r.create(); r.emplace<Transform>(target);
+        auto tween = s.createTween(r, target, TweenTarget::PositionX, 0, 10, 1);
+        r.get<TweenData>(tween).loop_mode = mode;
+        s.update(r, 1.25f);
+        CHECK(r.get<Transform>(target).position.x == doctest::Approx(mode == LoopMode::Restart ? 2.5 : 7.5));
+        CHECK(r.get<TweenData>(tween).elapsed == doctest::Approx(.25));
+        s.update(r, .75f);
+        CHECK(r.get<Transform>(target).position.x == doctest::Approx(mode == LoopMode::Restart ? 10 : 0));
+    }
+}
+
+TEST_CASE("finite loops complete in a long frame at their final endpoint") {
+    for (auto mode : {LoopMode::Restart, LoopMode::PingPong}) {
+        Registry r; TweenSystem s;
+        auto target = r.create(); r.emplace<Transform>(target);
+        auto tween = s.createTween(r, target, TweenTarget::PositionX, 0, 10, 1);
+        auto& data = r.get<TweenData>(tween); data.loop_mode = mode; data.loops_remaining = 2;
+        s.update(r, 10.25f);
+        CHECK_FALSE(r.valid(tween));
+        CHECK(r.get<Transform>(target).position.x == doctest::Approx(mode == LoopMode::Restart ? 10 : 0));
+    }
+}
+
+TEST_CASE("looping delay remainder and large time steps stay bounded") {
+    Registry r; TweenSystem s;
+    auto target = r.create(); r.emplace<Transform>(target);
+    auto tween = s.createTween(r, target, TweenTarget::PositionX, 0, 10, 1);
+    auto& data = r.get<TweenData>(tween); data.loop_mode = LoopMode::PingPong; data.delay = .5f;
+    s.update(r, 1.75f);
+    CHECK(r.get<Transform>(target).position.x == doctest::Approx(7.5));
+    s.update(r, 1000000.0f);
+    CHECK(r.get<Transform>(target).position.x == doctest::Approx(7.5));
+    CHECK(r.get<TweenData>(tween).elapsed == doctest::Approx(.25));
+}
+
+TEST_CASE("loop elapsed overflow stays finite") {
+    Registry r; TweenSystem s;
+    auto target = r.create(); r.emplace<Transform>(target);
+    const auto duration = std::numeric_limits<f32>::max();
+    auto tween = s.createTween(r, target, TweenTarget::PositionX, 0, 10, duration);
+    r.get<TweenData>(tween).loop_mode = LoopMode::Restart;
+    s.update(r, duration / 2);
+    CHECK(r.get<Transform>(target).position.x == doctest::Approx(5));
+    s.update(r, duration);
+    CHECK(r.get<Transform>(target).position.x == doctest::Approx(10));
+    CHECK(r.get<TweenData>(tween).elapsed == 0);
+}
 
 TEST_CASE("delay remainder belongs to its own tween") {
     Registry r; TweenSystem s;

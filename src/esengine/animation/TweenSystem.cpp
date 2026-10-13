@@ -11,6 +11,7 @@
 #include <glm/glm.hpp>
 #include <cmath>
 #include <algorithm>
+#include <limits>
 
 namespace esengine::animation {
 
@@ -50,7 +51,28 @@ void TweenSystem::update(ecs::Registry& registry, f32 deltaTime) {
             tween.delay = 0.0f;
         }
 
-        tween.elapsed += tweenDelta;
+        tween.elapsed = static_cast<f32>(std::min(
+            static_cast<double>(tween.elapsed) + tweenDelta,
+            static_cast<double>(std::numeric_limits<f32>::max())));
+        if (tween.loop_mode != LoopMode::None && tween.duration > 0.0f && tween.elapsed > tween.duration) {
+            const double elapsed = tween.elapsed;
+            const double duration = tween.duration;
+            const double remainder = std::fmod(elapsed, duration);
+            double skipped = std::floor(elapsed / duration) - (remainder == 0.0 ? 1.0 : 0.0);
+            bool reverse = (std::fmod(elapsed, duration * 2.0) >= duration) != (remainder == 0.0);
+            if (tween.loops_remaining > 0 && skipped >= tween.loops_remaining) {
+                skipped = tween.loops_remaining - 1;
+                reverse = static_cast<i32>(skipped) % 2 != 0;
+                tween.elapsed = tween.duration;
+            } else {
+                // Keep exact boundaries at the endpoint of the preceding cycle.
+                tween.elapsed = static_cast<f32>(remainder == 0.0 ? duration : remainder);
+            }
+            if (tween.loops_remaining > 0) tween.loops_remaining -= static_cast<i32>(skipped);
+            if (tween.loop_mode == LoopMode::PingPong && reverse) {
+                std::swap(tween.from_value, tween.to_value);
+            }
+        }
         f32 rawT = (tween.duration > 0.0f)
             ? glm::clamp(tween.elapsed / tween.duration, 0.0f, 1.0f)
             : 1.0f;

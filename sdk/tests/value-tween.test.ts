@@ -182,6 +182,38 @@ describe('ValueTweenManager state transitions', () => {
 });
 
 describe('ValueTweenManager looping', () => {
+  it('keeps loop phase finite when elapsed addition would overflow', () => {
+    const m = makeManager(), seen = vi.fn();
+    m.create(0, 10, Number.MAX_VALUE, seen, { loop: LoopMode.Restart });
+    m.update(Number.MAX_VALUE / 2);
+    m.update(Number.MAX_VALUE);
+    expect(seen.mock.calls).toEqual([[5], [10]]);
+  });
+  it.each([LoopMode.Restart, LoopMode.PingPong])('retains long-frame phase for loop mode %j', loop => {
+    const run = (steps: number[]) => {
+      const m = makeManager(); let value = -1;
+      m.create(0, 10, 1, v => { value = v; }, { loop });
+      for (const dt of steps) m.update(dt);
+      return value;
+    };
+    expect(run([1.25])).toBeCloseTo(run([.25, .25, .25, .25, .25]));
+    expect(run([1000000.25])).toBeCloseTo(2.5);
+  });
+
+  it.each([LoopMode.Restart, LoopMode.PingPong])('completes all finite cycles in one long update, mode %j', loop => {
+    const m = makeManager(), seen = vi.fn();
+    const id = m.create(0, 10, 1, seen, { loop, loopCount: 2 });
+    m.update(10.25);
+    expect(seen.mock.calls).toEqual([[loop === LoopMode.Restart ? 10 : 0]]);
+    expect(m.getState(id)).toBe(TweenState.Completed);
+  });
+
+  it('carries delay remainder into a looping tween', () => {
+    const m = makeManager(), seen = vi.fn();
+    m.create(0, 10, 1, seen, { delay: .5, loop: LoopMode.PingPong });
+    m.update(1.75);
+    expect(seen.mock.calls).toEqual([[7.5]]);
+  });
   it('Restart replays loopCount times then completes', () => {
     const m = makeManager();
     const seen: number[] = [];
