@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Video plugin cleanup releases only the selected App.** Shared plugin instances retain separate video backends and stream maps for each App, so closing a preview cannot stop another App's video or leave its own backend behind. Cleanup detaches the world subscription and disables its old update system. Stopping component streams also retires them from the video service instead of pumping stopped handles.
+
 - **Video components switch streams when their source changes.** Changing a live component's source releases its previous stream and opens the new source. Unchanged sources keep their stream across frames; clearing the source or removing the entity still releases the current stream.
 
 - **WASM video exports fail when required transcoding fails.** An unavailable or failed video converter no longer stages an original MP4 that the target's WASM decoder cannot play. The cook reports the failed asset, and mini-game exports propagate asset cooking failures as build errors instead of reporting a usable package.

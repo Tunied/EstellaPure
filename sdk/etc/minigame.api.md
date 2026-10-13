@@ -9916,7 +9916,7 @@ ResourceDef<VideoAPI>
 ## VideoPlugin — class @experimental
 ```
 build: (app: App) => void
-cleanup: () => void
+cleanup: (app?: App) => void
 name: string
 stopAll: () => void
 static new (): VideoPlugin

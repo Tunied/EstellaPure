@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(video): isolate plugin cleanup and stream ownership per app':
+    { note: 'Video plugin cleanup releases only the selected App.' },
   'fix(video): replace live streams when component sources change':
     { note: 'Video components switch streams when their source changes.' },
   'fix(export): reject failed video transcoding for wasm targets':

@@ -59,12 +59,20 @@ function driveRenderable(world: World, entity: Entity, handle: VideoStreamHandle
     return false;
 }
 
+interface VideoPluginState {
+    video: VideoAPI;
+    handles: Map<number, VideoStreamHandle>;
+    offDespawn: () => void;
+    released: boolean;
+}
+
 export class VideoPlugin implements Plugin {
     name = 'video';
-    private video_: VideoAPI | null = null;
-    private handles_: Map<number, VideoStreamHandle> | null = null;
+    private readonly states_ = new WeakMap<App, VideoPluginState>();
+    private latestState_: VideoPluginState | null = null;
 
     build(app: App): void {
+        this.cleanup(app);
         // createVideoBackend is optional; fall back to the silent Null backend.
         // The context's getters are lazy so the wasm backend resolves the
         // side-module host / audio service per stream (they may attach to the
@@ -76,16 +84,14 @@ export class VideoPlugin implements Plugin {
             },
         }) ?? new NullVideoBackend();
         const video = new VideoAPI(backend);
-        this.video_ = video;
         app.insertResource(VideoPlayer, video);
 
         const handles = new Map<number, VideoStreamHandle>();
         const sources = new WeakMap<VideoStreamHandle, string>();
-        this.handles_ = handles;
         const warnedNoSprite = new Set<number>();
         const live = new Set<number>();
 
-        app.world.onDespawn((entity: Entity) => {
+        const offDespawn = app.world.onDespawn((entity: Entity) => {
             const handle = handles.get(entity as number);
             if (handle) {
                 video.stop(handle);
@@ -93,13 +99,16 @@ export class VideoPlugin implements Plugin {
             }
             warnedNoSprite.delete(entity as number);
         });
+        const state: VideoPluginState = { video, handles, offDespawn, released: false };
+        this.states_.set(app, state);
+        this.latestState_ = state;
 
         app.addSystemToSchedule(
             Schedule.Update,
             defineSystem(
                 [Res(Time), Res(VideoPlayer)],
                 (_time: TimeData, videoAPI: VideoAPI) => {
-                    if (isEditor() && !isPlayMode()) return;
+                    if (state.released || (isEditor() && !isPlayMode())) return;
                     const world = app.world;
                     // Null on a native core: the frame upload goes through the
                     // ResourceManager's byte path instead of a wasm heap.
@@ -158,16 +167,21 @@ export class VideoPlugin implements Plugin {
     }
 
     stopAll(): void {
-        if (this.handles_) {
-            for (const handle of this.handles_.values()) handle.stop();
-            this.handles_.clear();
-        }
+        const state = this.latestState_;
+        if (!state || state.released) return;
+        for (const handle of state.handles.values()) state.video.stop(handle);
+        state.handles.clear();
     }
 
-    cleanup(): void {
-        this.stopAll();
-        this.video_?.dispose();
-        this.video_ = null;
+    cleanup(app?: App): void {
+        const state = app ? this.states_.get(app) : this.latestState_;
+        if (!state || state.released) return;
+        state.released = true;
+        if (app) this.states_.delete(app);
+        if (state === this.latestState_) this.latestState_ = null;
+        state.offDespawn();
+        state.handles.clear();
+        state.video.dispose();
     }
 }
 
