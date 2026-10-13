@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(animation): honor activity changes during frame callbacks':
+    { note: 'Animation callbacks respect entity activity immediately.' },
   'fix(ui): preserve focus selected by text submit handlers':
     { note: 'Text submission preserves callback-selected focus.' },
   'fix(ui): bind text input events to the active session':

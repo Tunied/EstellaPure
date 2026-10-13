@@ -160,6 +160,10 @@ export class SpriteAnimationAPI {
     }
 
     private isCurrentAnimator(world: World, entity: Entity, animator: SpriteAnimatorData, clipName: string, clip: SpriteAnimClip, frames: SpriteAnimFrame[], frameCount: number): boolean {
+        if (!world.isEntityActive(entity) || !animator.enabled) {
+            this.pendingApplies.add(animator);
+            return false;
+        }
         if (world.tryGet(entity, SpriteAnimator) !== animator
             || animator.clip !== clipName || this.getClip(clipName) !== clip
             || this.pendingApplies.has(animator)) return false;
@@ -235,6 +239,7 @@ export class SpriteAnimationAPI {
         for (const entity of entities) {
             // An earlier entity's event can remove a later entity/component
             // from the query snapshot we are currently walking.
+            if (!world.isEntityActive(entity)) continue;
             const animator = world.tryGet(entity, SpriteAnimator);
             if (!animator) continue;
             if (!animator.enabled || (!animator.playing && !this.pendingApplies.has(animator)) || !animator.clip) continue;
@@ -245,7 +250,7 @@ export class SpriteAnimationAPI {
 
             // playing raised on a finished one-shot = replay from the top
             // (TimelinePlayer's flag contract).
-            if (animator.finished) {
+            if (animator.finished && animator.playing) {
                 animator.finished = false;
                 animator.currentFrame = 0;
                 animator.frameTimer = 0;
@@ -269,7 +274,7 @@ export class SpriteAnimationAPI {
             animator.frameTimer = Math.min(Number.MAX_VALUE,
                 (Number.isFinite(animator.frameTimer) ? Math.max(0, animator.frameTimer) : 0) + elapsed);
 
-            let frameChanged = needsInitialApply;
+            let frameChanged = needsInitialApply || this.pendingApplies.has(animator);
             // Accumulate one cycle while walking it, then skip whole extra cycles
             // in constant time. At most two cycles are inspected, with no backlog.
             let steps = 0;

@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Animation callbacks respect entity activity immediately.** Disabling an animator, entity or ancestor during a frame event stops remaining callbacks and sprite writes; later entries disabled by an earlier callback keep their playback position. Re-enabling applies deferred geometry without replaying handled events or restarting a completed one-shot.
+
 - **Text submission preserves callback-selected focus.** A submit handler can focus the next field without the previous field's default blur clearing it. Submission still closes the editing session when the handler leaves focus unchanged.
 
 - **Text input events stay with the active editing session.** Switching fields no longer lets the previous surface's blur clear the new focus or its queued input overwrite the next value. Web and native editors reset interrupted composition state when focus restarts, so normal typing resumes without requiring a composition-end event.

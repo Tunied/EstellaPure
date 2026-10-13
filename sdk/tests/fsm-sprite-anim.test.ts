@@ -122,6 +122,7 @@ describe('finished-latch flag contract (system side)', () => {
             resolveGetter: () => null,
             resolveSetter: () => null,
             getEntitiesWithComponents: () => [1],
+            isEntityActive: () => true,
             get: (_e: number, c: { _name: string }) => comps.get(c._name),
             tryGet: (_e: number, c: { _name: string }) => comps.get(c._name) ?? null,
             has: (_e: number, c: { _name: string }) => comps.has(c._name),
