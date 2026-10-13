@@ -28,6 +28,38 @@ vi.mock('../src/render/draw', () => ({
 import { SceneTransitionController } from '../src/scene/SceneTransitionController';
 
 describe('SceneTransitionController', () => {
+    it('rejects a completion callback failure and permits the next transition', async () => {
+        const ctrl = new SceneTransitionController();
+        const error = new Error('completion failed');
+        const options = { duration: 1, color: { r: 0, g: 0, b: 0, a: 1 } };
+        const pending = ctrl.start({ ...options, onComplete: () => { throw error; } }, async () => {});
+        const rejected = expect(pending).rejects.toBe(error);
+        ctrl.update(.6); await Promise.resolve(); ctrl.update(0);
+        expect(() => ctrl.update(.6)).not.toThrow();
+        await rejected;
+        expect(ctrl.isTransitioning()).toBe(false);
+        const next = ctrl.start(options, async () => {});
+        ctrl.update(.6); await Promise.resolve(); ctrl.update(0); ctrl.update(.6);
+        await next;
+        expect(ctrl.isTransitioning()).toBe(false);
+    });
+    it('a failing callback does not tear down the transition it just started', async () => {
+        const ctrl = new SceneTransitionController();
+        const error = new Error('completion failed');
+        const options = { duration: 1, color: { r: 0, g: 0, b: 0, a: 1 } };
+        let next!: Promise<void>;
+        const pending = ctrl.start({ ...options, onComplete: () => {
+            next = ctrl.start(options, async () => {});
+            throw error;
+        } }, async () => {});
+        const rejected = expect(pending).rejects.toBe(error);
+        ctrl.update(.6); await Promise.resolve(); ctrl.update(0); ctrl.update(.6);
+        await rejected;
+        expect(ctrl.isTransitioning()).toBe(true);
+        ctrl.update(.6); await Promise.resolve(); ctrl.update(0); ctrl.update(.6);
+        await next;
+        expect(ctrl.isTransitioning()).toBe(false);
+    });
     it('resolves after fade-out → loading → fade-in on a successful swap', async () => {
         drawCalls.register.mockClear();
         drawCalls.unregister.mockClear();

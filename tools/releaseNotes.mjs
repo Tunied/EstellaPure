@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(scene): reject transitions when completion callbacks fail':
+    { note: 'Scene completion errors settle the transition promise.' },
   'feat(examples): demonstrate independent sprite playback controls':
     { note: 'Sprite playback can be tried independently of its state machine.' },
   'fix(ui): stop released scroll flings on input cancellation':

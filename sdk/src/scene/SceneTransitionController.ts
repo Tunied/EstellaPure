@@ -63,7 +63,7 @@ export class SceneTransitionController {
     /**
      * Begin a fade transition. The returned promise resolves after fade-in
      * completes following a successful `performSwap`, or rejects with
-     * `performSwap`'s error. The controller drives the visual overlay via
+     * a swap or lifecycle callback error. The controller drives the visual overlay via
      * `Draw.rect` on every frame until the state machine clears itself.
      */
     start(options: FadeTransitionOptions, performSwap: () => Promise<void>): Promise<void> {
@@ -129,10 +129,14 @@ export class SceneTransitionController {
 
         // Phase 3: fade-in done → resolve caller's promise.
         if (this.state_.phase === 'fade-in' && this.state_.elapsed >= halfDuration) {
-            const { resolve, onComplete } = this.state_;
+            const { resolve, reject, onComplete } = this.state_;
             this.teardown_();
-            onComplete?.();
-            resolve();
+            try {
+                onComplete?.();
+                resolve();
+            } catch (error) {
+                reject(error);
+            }
         }
     }
 
