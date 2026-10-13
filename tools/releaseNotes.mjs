@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(video): replace live streams when component sources change':
+    { note: 'Video components switch streams when their source changes.' },
   'fix(export): reject failed video transcoding for wasm targets':
     { note: 'WASM video exports fail when required transcoding fails.' },
   'fix(export): prune obsolete cooked assets and packs':

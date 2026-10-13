@@ -80,6 +80,7 @@ export class VideoPlugin implements Plugin {
         app.insertResource(VideoPlayer, video);
 
         const handles = new Map<number, VideoStreamHandle>();
+        const sources = new WeakMap<VideoStreamHandle, string>();
         this.handles_ = handles;
         const warnedNoSprite = new Set<number>();
         const live = new Set<number>();
@@ -113,14 +114,18 @@ export class VideoPlugin implements Plugin {
                         if (!v.enabled || !v.source) continue;
                         const id = entity as number;
                         live.add(id);
-                        if (!handles.has(id)) {
-                            handles.set(id, videoAPI.play(v.source, {
+                        const previous = handles.get(id);
+                        if (!previous || sources.get(previous) !== v.source) {
+                            if (previous) videoAPI.stop(previous);
+                            const handle = videoAPI.play(v.source, {
                                 autoplay: v.autoplay,
                                 loop: v.loop,
                                 muted: v.muted,
                                 volume: v.volume,
                                 playbackRate: v.playbackRate,
-                            }));
+                            });
+                            handles.set(id, handle);
+                            sources.set(handle, v.source);
                         }
                     }
 

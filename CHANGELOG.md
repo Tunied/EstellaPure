@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Video components switch streams when their source changes.** Changing a live component's source releases its previous stream and opens the new source. Unchanged sources keep their stream across frames; clearing the source or removing the entity still releases the current stream.
+
 - **WASM video exports fail when required transcoding fails.** An unavailable or failed video converter no longer stages an original MP4 that the target's WASM decoder cannot play. The cook reports the failed asset, and mini-game exports propagate asset cooking failures as build errors instead of reporting a usable package.
 
 - **Repeated exports remove obsolete cooked assets and packs.** Web and mini-game exports compare the previous and current asset manifests, deleting old texture hashes, removed assets, and packs no longer referenced by the build. Shared current packs, project sources, and unlisted output files are preserved.
