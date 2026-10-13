@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Editor export results report failed builds accurately.** The automation export door returns `exported: false` when the exporter fails, retaining errors such as missing optional runtime modules instead of marking a partial package as successfully exported. Preflight refusals remain distinguishable from attempted builds.
+
 - **Asset loaders release their App's resources on shutdown.** Asset plugin cleanup releases the default loader and any runtime replacement, clearing reference bookkeeping and making held textures evictable before the renderer is reused. Shared plugin instances clean up only the selected App; stopped device recovery cannot continue through a later loader. Unused loaders can release safely before a native resource manager exists.
 
 - **Particle gradient uploads survive WASM memory growth.** Color, size, and speed LUT uploads read the current heap after allocating their staging memory, preventing detached-buffer errors when a large scene causes memory expansion. LUTs borrowed from the heap are preserved before allocation; independent arrays avoid this copy. Staging memory is still released if the native setter throws.
