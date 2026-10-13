@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Value tween callbacks preserve playback control.** Callback-created tweens start on the next update, recursive updates cannot advance the same pass twice, and callback cancellation or pause is not overwritten by completion or sequence handoff. Existing sequence members still resume in the same frame, without allocating a snapshot of the tween map.
+
 - **Animation callbacks respect entity activity immediately.** Disabling an animator, entity or ancestor during a frame event stops remaining callbacks and sprite writes; later entries disabled by an earlier callback keep their playback position. Re-enabling applies deferred geometry without replaying handled events or restarting a completed one-shot.
 
 - **Text submission preserves callback-selected focus.** A submit handler can focus the next field without the previous field's default blur clearing it. Submission still closes the editing session when the handler leaves focus unchanged.

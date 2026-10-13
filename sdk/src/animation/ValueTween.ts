@@ -44,6 +44,7 @@ interface ValueTweenEntry {
 export class ValueTweenManager {
     private entries_ = new Map<number, ValueTweenEntry>();
     private nextId_ = 1;
+    private updating_ = false;
     private cppSequences_ = new Map<number, number>();
     private readonly module_: AnimCore;
     private readonly registry_: CppRegistry;
@@ -82,6 +83,14 @@ export class ValueTweenManager {
     }
 
     update(dt: number): void {
+        if (this.updating_) return;
+        this.updating_ = true;
+        try { this.updateEntries_(dt); }
+        finally { this.updating_ = false; }
+    }
+
+    private updateEntries_(dt: number): void {
+        const lastId = this.nextId_ - 1;
         for (const [cppEntity, jsTweenId] of this.cppSequences_) {
             const cppState = this.module_.anim_getTweenState?.(
                 this.registry_, cppEntity as Entity,
@@ -103,6 +112,9 @@ export class ValueTweenManager {
         }
 
         for (const entry of this.entries_.values()) {
+            // The live Map can grow inside a callback. Newly created entries
+            // start next frame; existing chained entries still resume this frame.
+            if (entry.id > lastId) break;
             if (entry.state !== TweenState.Running) continue;
 
             // Per-entry step, NOT the shared `dt` — writing `dt` here would advance
@@ -119,6 +131,7 @@ export class ValueTweenManager {
             const t = Math.min(entry.elapsed / entry.duration, 1);
             const easedT = applyEasing(entry.easing, t, entry.bezierPoints ?? undefined);
             entry.callback(entry.from + (entry.to - entry.from) * easedT);
+            if (entry.state !== TweenState.Running) continue;
 
             if (t >= 1) {
                 if (entry.loop !== LoopMode.None) {

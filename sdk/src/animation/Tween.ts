@@ -127,6 +127,7 @@ export class TweenAPI {
     private readonly registry_: CppRegistry;
     private readonly valueManager_: ValueTweenManager;
     private readonly compositionManager_: TweenCompositionManager;
+    private updating_ = false;
 
     constructor(module: AnimCore, registry: CppRegistry) {
         this.module_ = module;
@@ -177,9 +178,13 @@ export class TweenAPI {
     }
 
     update(deltaTime: number): void {
-        this.module_.anim_updateTweens?.(this.registry_, deltaTime);
-        this.valueManager_.update(deltaTime);
-        this.compositionManager_.update();
+        if (this.updating_) return;
+        this.updating_ = true;
+        try {
+            this.module_.anim_updateTweens?.(this.registry_, deltaTime);
+            this.valueManager_.update(deltaTime);
+            this.compositionManager_.update();
+        } finally { this.updating_ = false; }
     }
 
     // ---- Composition builders -------------------------------------------------

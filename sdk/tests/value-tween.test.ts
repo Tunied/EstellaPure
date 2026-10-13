@@ -14,6 +14,7 @@ import { TweenGroup } from '../src/animation/TweenGroup';
 import { TweenState, LoopMode } from '../src/animation/TweenTypes';
 import type { CppRegistry } from '../src/wasm';
 import type { AnimCore } from '../src/animation/Tween';
+import { TweenAPI } from '../src/animation/Tween';
 
 // The manager only ever calls module.anim_getTweenState (for C++ sequences);
 // everything else is pure JS. A closure-controlled stub covers that one seam.
@@ -24,6 +25,64 @@ function makeManager(cppState: () => number = () => TweenState.Running) {
 }
 
 describe('ValueTweenManager progression', () => {
+  it('does not recursively step the native engine through TweenAPI.update', () => {
+    const nativeStep = vi.fn();
+    const api = new TweenAPI({ anim_updateTweens: nativeStep } as unknown as AnimCore, {} as CppRegistry);
+    let nested = false;
+    api.value(0, 1, 1, () => {
+      if (!nested) { nested = true; api.update(.25); }
+    });
+    api.update(.25);
+    expect(nativeStep).toHaveBeenCalledOnce();
+  });
+  it('defers tweens created by a callback until the next update', () => {
+    const m = makeManager(), child = vi.fn();
+    let created = false;
+    m.create(0, 1, 1, () => {
+      if (!created) { created = true; m.create(0, 1, 1, child); }
+    });
+    m.update(.5);
+    expect(child).not.toHaveBeenCalled();
+    m.update(.25);
+    expect(child).toHaveBeenCalledWith(.25);
+  });
+
+  it('does not recursively advance playback from an update callback', () => {
+    const m = makeManager();
+    let nested = false;
+    const values: number[] = [];
+    m.create(0, 1, 1, value => {
+      values.push(value);
+      if (!nested) { nested = true; m.update(.25); }
+    });
+    m.update(.25);
+    expect(values).toEqual([.25]);
+  });
+
+  it.each(['cancel', 'pause'] as const)('preserves callback %s at completion and leaves the sequence paused', action => {
+    const m = makeManager(), next = vi.fn();
+    const id = m.create(0, 1, 1, () => m[action](id));
+    const child = m.create(0, 1, 1, next);
+    m.setSequenceNext(id, child);
+    m.update(1);
+    expect(m.getState(id)).toBe(action === 'cancel' ? TweenState.Cancelled : TweenState.Paused);
+    expect(m.getState(child)).toBe(TweenState.Paused);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('releases the update guard when a callback throws', () => {
+    const m = makeManager();
+    let fail = true;
+    const values: number[] = [];
+    m.create(0, 1, 1, value => {
+      if (fail) { fail = false; throw new Error('callback failed'); }
+      values.push(value);
+    });
+    expect(() => m.update(.25)).toThrow('callback failed');
+    m.update(.25);
+    expect(values).toEqual([.5]);
+  });
+
   it('drives the callback with the linearly-eased value', () => {
     const m = makeManager();
     const seen: number[] = [];
