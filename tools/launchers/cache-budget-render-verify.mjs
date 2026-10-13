@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
-// An exported mini-game, on a contract host with real persistent resource files.
-// This verifies the engine/export/editor channel; it is not physical WeChat.
+// Exported mini-game/cache/editor verification on a contract host, not physical WeChat.
 import { app, BrowserWindow } from 'electron';
 import http from 'node:http';
 import { mkdir, readFile, writeFile, readdir, stat, rename, unlink } from 'node:fs/promises';
