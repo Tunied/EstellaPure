@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(test): resolve golden output paths before spawning tools':
+    { note: 'Package verification resolves output folders consistently.' },
   'fix(animation): hand off completed native tween loops':
     { note: 'Finite native tween loops hand off their sequences.' },
   'fix(animation): preserve looping tween phase across long frames':

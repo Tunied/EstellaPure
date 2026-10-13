@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Package verification resolves output folders consistently.** Relative work and screenshot paths are resolved before child tools launch, so the editor and package runners write into the same requested folder instead of resolving paths against their own working directories.
+
 - **Finite native tween loops hand off their sequences.** Restart and ping-pong loops now resume a paused successor when their finite count completes, just like non-looping tweens. Completion leaves cancelled successors cancelled instead of reviving them and writing their target for another frame.
 
 - **Looping tweens preserve long-frame remainder.** JS value tweens and native property tweens skip completed cycles arithmetically, retain the current phase and ping-pong direction, and complete finite counts at their final endpoint. Exact cycle boundaries keep their endpoint behavior; delay remainder is preserved and very large frame sums are bounded instead of overflowing elapsed time.

@@ -39,8 +39,9 @@ const flag = (n, d) => {
 
 const TIER = flag('tier', 'pr');
 const ONLY = flag('only', '');
-const SHOTS = flag('shots', '');
-const WORK = flag('work', path.join(ROOT, '.golden'));
+const shotsArg = flag('shots', '');
+const SHOTS = shotsArg ? path.resolve(shotsArg) : '';
+const WORK = path.resolve(flag('work', path.join(ROOT, '.golden')));
 const NO_PARITY = argv.includes('--no-parity');
 /** Targets this runner owns; the rest belong to the native/desktop verifiers.
  *  A mini-game needs its vendor's globals, so it goes through its own launcher. */
