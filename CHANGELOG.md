@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Skeletal atlas edits invalidate resident textures.** Image changes also sever the bare-path residency used by skeletal atlas pages. Reopening a DragonBones scene loads the updated image instead of reviving stale pixels, while existing holders retain their texture until released.
+
 - **DragonBones atlas textures follow skeleton ownership.** Scene loading reuses a resident atlas page and transfers its reference to the skeleton that uses it. The last armature removal and manager disposal release the page; rejected armatures release otherwise unbound skeletons and uploads. Repeated editor scene switching no longer adds a new atlas texture on every load, while paused poses and device recovery continue drawing correctly.
 
 - **Late scene-load errors roll back the new entities.** A failing final spawn-phase observer or asset-reference publication step now despawns the entities created by that load and releases their owned resources before returning the original error. Existing unrelated entities remain intact and a later load can retry normally.

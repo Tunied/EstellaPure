@@ -218,6 +218,30 @@ describe('texture residency (Assets ↔ pool contract)', () => {
         expect(pool.registerTextureWithPath).toHaveBeenCalledWith(raw.handle, 'tex/a.png:n');
     });
 
+    it('invalidates a released skeletal atlas page outside the SDK texture cache', () => {
+        const assets = buildAssets();
+        const atlas = pool.createTexture();
+        pool.registerTextureWithPath(atlas, 'tex/atlas.png');
+        pool.releaseTexture(atlas);
+
+        expect(assets.invalidate('tex/atlas.png')).toBe(true);
+        expect(pool.isResident(atlas)).toBe(false);
+        expect(pool.acquireTextureByPath('tex/atlas.png')).toBe(0);
+        expect(assets.invalidate('tex/atlas.png')).toBe(false);
+    });
+
+    it('keeps held atlas pages alive while severing their stale residency identity', () => {
+        const assets = buildAssets();
+        const atlas = pool.createTexture();
+        pool.registerTextureWithPath(atlas, 'tex/atlas.png');
+
+        expect(assets.invalidate('tex/atlas.png')).toBe(true);
+        expect(pool.entryOf(atlas)).toMatchObject({ refCount: 1, path: null });
+        expect(pool.acquireTextureByPath('tex/atlas.png')).toBe(0);
+        pool.releaseTexture(atlas);
+        expect(pool.isResident(atlas)).toBe(false);
+    });
+
     it('with the budget off, release frees outright and the next load re-decodes', async () => {
         pool.budget = 0;
         const assets = buildAssets();

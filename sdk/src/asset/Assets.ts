@@ -2222,6 +2222,11 @@ export class Assets {
                     dropped = true;
                 }
             }
+            // Skeletal atlas pages register the image path without a flip suffix.
+            // End their residency too, even when no SDK texture cache holds them.
+            if (typeof rm?.invalidateTexturePath === 'function' && rm.invalidateTexturePath(path)) {
+                dropped = true;
+            }
         } else {
             const cache = this.genericCache_.get(type);
             if (cache) {

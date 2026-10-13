@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(asset): invalidate resident skeletal atlas images':
+    { note: 'Skeletal atlas edits invalidate resident textures.' },
   'fix(dragonbones): release atlas pages with their skeleton owners':
     { note: 'DragonBones atlas textures follow skeleton ownership.' },
   'fix(scene): roll back entities after publication failures':
