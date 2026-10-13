@@ -242,7 +242,9 @@ export class SpriteAnimationAPI {
             if (!world.isEntityActive(entity)) continue;
             const animator = world.tryGet(entity, SpriteAnimator);
             if (!animator) continue;
-            if (!animator.enabled || (!animator.playing && !this.pendingApplies.has(animator)) || !animator.clip) continue;
+            if (!animator.enabled || !animator.clip) continue;
+            const applied = this.appliedAnimators.get(animator);
+            if (!animator.playing && !this.pendingApplies.has(animator) && !applied) continue;
 
             const clipName = animator.clip;
             const clip = this.getClip(clipName);
@@ -257,14 +259,15 @@ export class SpriteAnimationAPI {
                 this.appliedAnimators.delete(animator);
             }
 
+            let token = this.clipTokens.get(clip);
+            if (!token) { token = {}; this.clipTokens.set(clip, token); }
+            const needsInitialApply = this.appliedAnimators.get(animator) !== token;
+            if (!animator.playing && !this.pendingApplies.has(animator) && !needsInitialApply) continue;
             // Speed scales EVERY frame's duration (not just the fps fallback), and
             // is guarded: 0/negative would otherwise freeze (Infinity) or run the
             // timer backward.
             const speed = Number.isFinite(animator.speed) ? Math.max(animator.speed, 1e-4) : 1;
             const fallback = 1 / (Number.isFinite(clip.fps) && clip.fps > 0 ? clip.fps : 12);
-            let token = this.clipTokens.get(clip);
-            if (!token) { token = {}; this.clipTokens.set(clip, token); }
-            const needsInitialApply = this.appliedAnimators.get(animator) !== token;
             animator.currentFrame = Number.isFinite(animator.currentFrame)
                 ? Math.max(0, Math.min(Math.floor(animator.currentFrame), clip.frames.length - 1)) : 0;
             const prevFrame = animator.currentFrame;

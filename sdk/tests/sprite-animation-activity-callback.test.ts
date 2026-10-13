@@ -21,6 +21,28 @@ function setup() {
     return { app, world, animation, spawn };
 }
 
+it('refreshes a replaced clip while paused without advancing its frame or firing events', () => {
+    const { app, world, animation, spawn } = setup(), entity = spawn();
+    animation.update(world, 0.15);
+    world.update(entity, SpriteAnimator, data => { data.playing = false; });
+    const frame = world.get(entity, SpriteAnimator).currentFrame;
+    const timer = world.get(entity, SpriteAnimator).frameTimer;
+    const event = vi.fn(); animation.onEvent(entity, event);
+    const clip = animation.getClip('walk')!;
+    animation.registerClip({ ...clip, frames: [{ texture: 111 }, { texture: 222 }, { texture: 333 }] });
+    animation.update(world, 1);
+    expect(world.get(entity, Sprite).texture).toBe(222);
+    expect(world.get(entity, SpriteAnimator).currentFrame).toBe(frame);
+    expect(world.get(entity, SpriteAnimator).frameTimer).toBe(timer);
+    expect(world.get(entity, SpriteAnimator).playing).toBe(false);
+    expect(event).not.toHaveBeenCalled();
+    const writes = vi.spyOn(world, 'set');
+    for (let i = 0; i < 100; i++) animation.update(world, 1);
+    expect(writes).not.toHaveBeenCalled();
+    writes.mockRestore();
+    app.quit();
+});
+
 it.each(['self', 'ancestor', 'component'] as const)('stops event dispatch and sprite writes when a callback disables %s', target => {
     const { app, world, animation, spawn } = setup(), entity = spawn();
     const parent = world.spawn();

@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(animation): refresh replaced clips on paused sprites':
+    { note: 'Paused sprites refresh replaced animation clips.' },
   'fix(ui): bound scrollbar geometry for empty viewports':
     { note: 'Empty and collapsed scroll views keep finite scrollbar geometry.' },
   'perf(ui): avoid geometry writes for idle scrollbar thumbs':
