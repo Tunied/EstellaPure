@@ -82,6 +82,12 @@ describe.skipIf(!HAS_VIDEODEC)('videodec side module (pl_mpeg)', () => {
             } finally { mod._free(rgba); }
             expect(mod._es_video_seek(h, 0)).toBe(1);
             expect(mod._es_video_time(h)).toBe(0);
+            expect(mod._es_video_seek(h, 0.5)).toBe(1);
+            mod._es_video_advance(h, 999);
+            expect(mod._es_video_has_ended(h)).toBe(1);
+            expect(mod._es_video_time(h)).toBeCloseTo(mod._es_video_duration(h));
+            expect(mod._es_video_seek(h, 0)).toBe(1);
+            expect(mod._es_video_has_ended(h)).toBe(0);
             expect(mod._es_video_seek(h, 999)).toBe(1);
             expect(mod._es_video_time(h)).toBeLessThan(mod._es_video_duration(h));
             mod._es_video_set_loop(h, 1);
@@ -131,6 +137,11 @@ describe.skipIf(!HAS_VIDEODEC)('videodec side module (pl_mpeg)', () => {
         const h = openFixture();
         mod._es_video_advance(h, 5.0);
         expect(mod._es_video_has_ended(h)).toBe(1);
+        expect(mod._es_video_duration(h)).toBeCloseTo(3);
+        expect(mod._es_video_time(h)).toBeCloseTo(3);
+        expect(mod._es_video_seek(h, 0)).toBe(1);
+        expect(mod._es_video_has_ended(h)).toBe(0);
+        expect(mod._es_video_time(h)).toBe(0);
         mod._es_video_close(h);
 
         const h2 = openFixture();

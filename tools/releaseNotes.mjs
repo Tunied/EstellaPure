@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(video): synchronize the decoded endpoint before playback ends':
+    { note: 'WASM video progress reaches the decoded endpoint.' },
   'fix(video): support duration and seeking for single-timestamp streams':
     { note: 'Single-timestamp MPEG videos report duration and support seeking.' },
   'fix(video): synchronize live component playback settings':

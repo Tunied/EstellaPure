@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **WASM video progress reaches the decoded endpoint.** Playback ending after a seek or a large update no longer leaves the clock at its previous position. The decoder derives the final duration from the last frame, and the SDK refreshes it before notifying end-of-playback listeners. Looping and seeking back to the beginning retain their normal clocks.
+
 - **Single-timestamp MPEG videos report duration and support seeking.** Videos whose frames fit in one PES packet no longer report a zero duration or seek only to the first frame. The decoder counts picture headers without decoding frames at startup and uses frame-based seeking when packet timestamps cannot describe the timeline. Timestamp-based seeking remains in use for other streams.
 
 - **Video component playback settings update live streams.** Changing volume, mute, loop, or playback rate updates the current stream without reopening the decoder. Unchanged settings avoid repeated backend calls across frames; source changes still create a stream with the current settings.

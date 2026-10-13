@@ -310,6 +310,8 @@ class WasmVideoStreamHandle implements VideoStreamHandle {
             if (!this.loop_ && video._es_video_has_ended(this.decoder_)) {
                 this.ended_ = true;
                 this.playing_ = false;
+                const duration = video._es_video_duration(this.decoder_);
+                if (duration > 0) this.duration_ = duration;
                 this.stopAudio_();
                 this.onEnded?.();
             }

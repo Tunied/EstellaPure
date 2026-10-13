@@ -141,7 +141,8 @@ double es_video_framerate(int handle) {
 /** Playhead in seconds (wraps on loop). */
 double es_video_time(int handle) {
     Instance* inst = get(handle);
-    return inst ? plm_get_time(inst->plm) : 0.0;
+    if (!inst) return 0.0;
+    return plm_has_ended(inst->plm) ? inst->duration : plm_get_time(inst->plm);
 }
 
 /** With looping on, the stream rewinds seamlessly and never reports ended. */
@@ -164,6 +165,9 @@ int es_video_advance(int handle, double dt) {
     Instance* inst = get(handle);
     if (!inst) return 0;
     plm_decode(inst->plm, dt);
+    if (plm_has_ended(inst->plm) && inst->frame) {
+        inst->duration = inst->frame->time + 1.0 / plm_get_framerate(inst->plm);
+    }
     return inst->newFrame ? 1 : 0;
 }
 

@@ -185,6 +185,20 @@ describe('WasmVideoBackend', () => {
         handle.stop();
     });
 
+    it('refreshes a packet-estimated duration before notifying that playback ended', async () => {
+        const { mod, raw, state } = mockVideoModule();
+        const handle = new WasmVideoBackend({ sideModules: () => hostFor(mod) }).createStream('clip.esv', { loop: false });
+        await flush();
+        expect(handle.duration).toBe(2.5);
+        raw._es_video_duration.mockReturnValue(3);
+        state.time = 3; state.ended = 1;
+        const ended = vi.fn(() => { expect(handle.duration).toBe(3); expect(handle.currentTime).toBe(3); });
+        handle.onEnded = ended;
+        handle.pump(engineModule);
+        expect(ended).toHaveBeenCalledOnce();
+        handle.stop();
+    });
+
     it('wires loop and playback rate into the decoder', async () => {
         const { mod, raw, state } = mockVideoModule();
         const backend = new WasmVideoBackend({ sideModules: () => hostFor(mod) });
