@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Fractional tile cell edits refresh the drawn and hit grids.** Tilemap layers compare width and height independently rather than combining them into a numeric cache key. Valid fractional dimensions no longer alias another size and leave stale geometry or coordinate conversion; unchanged frames still avoid native layer reinitialization.
+
 - **Unloaded scene contexts reject late mutations.** A context belongs to one scene instance: after unload, reload or reset, it cannot spawn or adopt entities, destroy another scene's objects, change persistence, or register callbacks and post-processing bindings. A late asset scope is released before cancellation is reported, so asynchronous setup cannot strand its acquisitions.
 
 - **Scene adoption transfers existing entity ownership.** Adopting an entity into another scene removes its outgoing scene records, retains its bound asset generation, and restores any outgoing sleep state before applying the destination's state. An outgoing parent is detached while preserving world placement. Unloading the source no longer destroys the adopted entity; the destination's final unload still releases it normally, and repeated adoption preserves the saved awake state.

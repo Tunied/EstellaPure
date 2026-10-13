@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { HAS_WASM, WASM_DIR, WASM_FILE, loadWasmModule } from './helpers/loadWasm';
 import type { ESEngineModule } from '../src/wasm';
 import { App } from '../src/app/app';
@@ -38,6 +38,23 @@ describe.skipIf(!HAS_WASM)('tilemap runtimes in independent apps', () => {
         await app.tick(1 / 60);
         return { app, entity, tiles, runtime };
     }
+    it('applies fractional cell dimensions without a combined-key collision', async () => {
+        const { app, entity, tiles } = await scene(mainCore, 1);
+        const before = tiles.tileToWorld(entity, 1, 1, 0, 0);
+        const reinitialize = vi.spyOn(tiles, 'initInfiniteLayer');
+        app.world.update(entity, TilemapLayer, value => { value.cellSize = { x: 16 + 8 / 65536, y: 8 }; });
+        await app.tick(1 / 60);
+        expect(reinitialize).toHaveBeenCalledTimes(1);
+        for (let i = 0; i < 20; i++) await app.tick(1 / 60);
+        expect(reinitialize).toHaveBeenCalledTimes(1);
+        const edited = tiles.tileToWorld(entity, 1, 1, 0, 0);
+        tiles.initInfiniteLayer(entity, 16 + 8 / 65536, 8);
+        const rebuilt = tiles.tileToWorld(entity, 1, 1, 0, 0);
+        expect(rebuilt).not.toEqual(before);
+        expect(edited).toEqual(rebuilt);
+        expect(tiles.getTile(entity, 0, 0)).toBe(1);
+    });
+
     it('quitting the older app leaves the newer map and runtime alive', async () => {
         const main = await scene(mainCore, 1), preview = await scene(previewCore, 2);
         expect(main.entity).toBe(preview.entity);

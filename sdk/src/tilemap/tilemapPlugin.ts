@@ -59,11 +59,8 @@ export class TilemapRuntime {
     private collisionInputs_ = new Map<number, CollisionInputs>();
     private applyTilesetRefs_: ((entity: number, refs: readonly string[]) => void) | null = null;
     private initializedLayers_ = new Set<number>();
-    /** TilemapLayer entity → the tile size last pushed to its C++ layer (`w*K+h`).
-     *  The renderer + worldToTile read the C++ `tile_width`; the component `cellSize`
-     *  is the authority, so an edit must re-push — otherwise the paint grid (cellSize)
-     *  and the drawn/hit grid (stale tile_width) diverge and tiles land off-cursor. */
-    private appliedCellSize_ = new Map<number, number>();
+    /** Last applied dimensions, compared separately so fractional sizes cannot alias. */
+    private appliedCellSize_ = new Map<number, { x: number; y: number }>();
     /** TilemapLayer entity → the grid params last pushed (orientation|side|axis|index).
      *  Grid type + stagger/hex params live in the C++ LayerData; the component is the
      *  authority, so an orientation edit (or a cellSize re-init, which resets LayerData)
@@ -294,7 +291,8 @@ export class TilemapRuntime {
                     // init; initInfiniteLayer is idempotent (keeps chunks), so re-push
                     // whenever the applied size drifts. Stale dims misplace every tile
                     // relative to the paint grid (renderer + worldToTile read tile_width).
-                    const csKey = layerData.cellSize.x * 65536 + layerData.cellSize.y;
+                    const cellSize = layerData.cellSize;
+                    const appliedSize = appliedCellSize.get(entity);
                     let reinit = false;
                     if (!initializedLayers.has(entity)) {
                         TilemapAPI.initInfiniteLayer(
@@ -302,13 +300,13 @@ export class TilemapRuntime {
                         );
                         TilemapAPI.setOriginEntity(entity, entity);
                         initializedLayers.add(entity);
-                        appliedCellSize.set(entity, csKey);
+                        appliedCellSize.set(entity, { x: cellSize.x, y: cellSize.y });
                         reinit = true;
-                    } else if (appliedCellSize.get(entity) !== csKey) {
+                    } else if (appliedSize?.x !== cellSize.x || appliedSize.y !== cellSize.y) {
                         TilemapAPI.initInfiniteLayer(
                             entity, layerData.cellSize.x, layerData.cellSize.y,
                         );
-                        appliedCellSize.set(entity, csKey);
+                        appliedCellSize.set(entity, { x: cellSize.x, y: cellSize.y });
                         reinit = true;
                     }
 

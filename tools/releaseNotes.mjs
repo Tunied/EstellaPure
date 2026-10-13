@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(tilemap): compare cell dimensions independently':
+    { note: 'Fractional tile cell edits refresh the drawn and hit grids.' },
   'fix(scene): reject mutations from unloaded contexts':
     { note: 'Unloaded scene contexts reject late mutations.' },
   'fix(scene): transfer ownership when adopting live entities':
