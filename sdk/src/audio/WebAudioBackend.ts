@@ -153,6 +153,7 @@ export class WebAudioBackend implements PlatformAudioBackend {
     private buffers_ = new Map<number, AudioBuffer>();
     private urlToId_ = new Map<string, number>();
     private loadingUrls_ = new Map<string, Promise<AudioBufferHandle>>();
+    private sourceRevisions_ = new Map<string, number>();
     private nextBufferId_ = 0;
     private nextHandleId_ = 0;
     private resumeHandler_: (() => void) | null = null;
@@ -213,22 +214,26 @@ export class WebAudioBackend implements PlatformAudioBackend {
         const inFlight = this.loadingUrls_.get(url);
         if (inFlight) return inFlight;
 
-        const promise = this.doLoadBuffer_(url);
+        const promise = this.doLoadBuffer_(url, this.sourceRevisions_.get(url) ?? 0);
         this.loadingUrls_.set(url, promise);
         try {
             return await promise;
         } finally {
-            this.loadingUrls_.delete(url);
+            if (this.loadingUrls_.get(url) === promise) this.loadingUrls_.delete(url);
         }
     }
 
     async loadBufferFromData(url: string, data: ArrayBuffer): Promise<AudioBufferHandle> {
+        return this.decodeBuffer_(url, data, this.sourceRevisions_.get(url) ?? 0);
+    }
+
+    private async decodeBuffer_(url: string, data: ArrayBuffer, revision: number): Promise<AudioBufferHandle> {
         if (!this.context_) {
             throw new Error('AudioContext not initialized');
         }
 
         const existingId = this.urlToId_.get(url);
-        if (existingId !== undefined && this.buffers_.has(existingId)) {
+        if (revision === (this.sourceRevisions_.get(url) ?? 0) && existingId !== undefined && this.buffers_.has(existingId)) {
             const buf = this.buffers_.get(existingId)!;
             return { id: existingId, duration: buf.duration, bytes: decodedBytes(buf) };
         }
@@ -242,14 +247,20 @@ export class WebAudioBackend implements PlatformAudioBackend {
 
         const id = ++this.nextBufferId_;
         this.buffers_.set(id, audioBuffer);
-        this.urlToId_.set(url, id);
+        if (revision === (this.sourceRevisions_.get(url) ?? 0)) this.urlToId_.set(url, id);
 
         return { id, duration: audioBuffer.duration, bytes: decodedBytes(audioBuffer) };
     }
 
-    private async doLoadBuffer_(url: string): Promise<AudioBufferHandle> {
+    private async doLoadBuffer_(url: string, revision: number): Promise<AudioBufferHandle> {
         const arrayBuffer = await getPlatform().readFile(url);
-        return this.loadBufferFromData(url, arrayBuffer);
+        return this.decodeBuffer_(url, arrayBuffer, revision);
+    }
+
+    invalidateSource(url: string): void {
+        this.sourceRevisions_.set(url, (this.sourceRevisions_.get(url) ?? 0) + 1);
+        this.loadingUrls_.delete(url);
+        this.urlToId_.delete(url);
     }
 
     unloadBuffer(handle: AudioBufferHandle): void {

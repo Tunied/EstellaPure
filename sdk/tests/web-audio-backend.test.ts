@@ -209,6 +209,37 @@ describe('WebAudioBackend', () => {
     });
 
     describe('loadBuffer', () => {
+        it.each(['old-first', 'new-first'] as const)('keeps the current URL load when an invalidated read finishes %s', async order => {
+            await backend.initialize();
+            const ctx = (globalThis as any).__mockAudioContext;
+            const platform = (globalThis as any).__mockPlatform;
+            const finish: Array<(data: ArrayBuffer) => void> = [];
+            platform.readFile.mockImplementation(() => new Promise<ArrayBuffer>(resolve => finish.push(resolve)));
+            ctx.decodeAudioData.mockImplementation(async (data: ArrayBuffer) => ({
+                duration: data.byteLength / 8, length: data.byteLength, numberOfChannels: 1,
+            }));
+            const old = backend.loadBuffer('edited.wav');
+            backend.invalidateSource('edited.wav');
+            const current = backend.loadBuffer('edited.wav');
+            expect(platform.readFile).toHaveBeenCalledTimes(2);
+            let stale, fresh;
+            if (order === 'old-first') {
+                finish[0](new ArrayBuffer(8)); stale = await old;
+                const joined = backend.loadBuffer('edited.wav');
+                expect(platform.readFile).toHaveBeenCalledTimes(2);
+                finish[1](new ArrayBuffer(16)); fresh = await current;
+                expect((await joined).id).toBe(fresh.id);
+            } else {
+                finish[1](new ArrayBuffer(16)); fresh = await current;
+                finish[0](new ArrayBuffer(8)); stale = await old;
+            }
+            expect(stale.duration).toBe(1);
+            expect(fresh.duration).toBe(2);
+            backend.unloadBuffer(stale);
+            expect((await backend.loadBuffer('edited.wav')).id).toBe(fresh.id);
+            expect(platform.readFile).toHaveBeenCalledTimes(2);
+        });
+
         it('should load via platform readFile and decode audio data', async () => {
             await backend.initialize();
             const mockCtx = (globalThis as any).__mockAudioContext;

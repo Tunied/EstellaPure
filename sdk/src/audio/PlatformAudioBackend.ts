@@ -66,6 +66,8 @@ export interface PlatformAudioBackend {
     /** @param src as {@link loadBuffer}; `bytes` backends use `data` and ignore it. */
     loadBufferFromData(src: string, data: ArrayBuffer): Promise<AudioBufferHandle>;
     unloadBuffer(handle: AudioBufferHandle): void;
+    /** Forget source-address reuse after an authored clip changes. */
+    invalidateSource?(src: string): void;
     play(buffer: AudioBufferHandle, config: PlayConfig): AudioHandle;
     suspend(): void;
     resume(): void;

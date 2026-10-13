@@ -191,16 +191,14 @@ export class AudioAPI {
         }
     }
 
-    /**
-     * Drop a buffer whose source bytes changed (hot reload) so no future play
-     * or load serves stale audio. Safe while sounds are playing — live
-     * sources keep their own reference to the decoded data; only the cache
-     * entry goes, and the next play/load re-fetches fresh bytes. Returns
-     * true if the url was cached.
-     */
+    /** End cached and pending loads for changed source bytes. Playing sources
+     *  keep their decoded data; later loads fetch fresh. Returns whether a load ended. */
     invalidateBuffer(url: string): boolean {
+        const pending = this.loadingBuffers_.delete(url);
         const entry = this.bufferCache_.get(url);
-        if (!entry) return false;
+        if (!pending && !entry) return false;
+        this.backend_.invalidateSource?.(this.resolveUrl_(url));
+        if (!entry) return pending;
         this.freeBuffer_(url, entry);
         return true;
     }
@@ -308,9 +306,10 @@ export class AudioAPI {
         // both decode and orphan one AudioBuffer.
         const inFlight = this.loadingBuffers_.get(url);
         if (inFlight) return inFlight;
-        const promise = (async () => {
+        let promise!: Promise<void>;
+        promise = (async () => {
             const buffer = await load();
-            if (this.disposed_) {
+            if (this.disposed_ || this.loadingBuffers_.get(url) !== promise) {
                 this.backend_.unloadBuffer(buffer);
                 return;
             }
@@ -320,7 +319,7 @@ export class AudioAPI {
         try {
             await promise;
         } finally {
-            this.loadingBuffers_.delete(url);
+            if (this.loadingBuffers_.get(url) === promise) this.loadingBuffers_.delete(url);
         }
     }
 

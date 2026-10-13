@@ -113,6 +113,38 @@ describe('AudioAPI', () => {
             expect(backend.loadBufferFromData).not.toHaveBeenCalled();
         });
 
+        it('does no backend invalidation work for a source the API never held', () => {
+            backend.invalidateSource = vi.fn();
+            expect(audio.invalidateBuffer('unused.png')).toBe(false);
+            expect(backend.invalidateSource).not.toHaveBeenCalled();
+        });
+
+        it.each(['old-first', 'new-first'] as const)('does not publish invalidated decodes when completion order is %s', async order => {
+            const finish: Array<(buffer: AudioBufferHandle) => void> = [];
+            const load = vi.fn(() => new Promise<AudioBufferHandle>(resolve => finish.push(resolve)));
+            backend.loadBufferFromData = load;
+            const old = audio.preloadFromData('edited.wav', new ArrayBuffer(8));
+            expect(audio.invalidateBuffer('edited.wav')).toBe(true);
+            const current = audio.preloadFromData('edited.wav', new ArrayBuffer(8));
+            expect(load).toHaveBeenCalledTimes(2);
+            const oldBuffer = { id: 9, duration: 1, bytes: 1024 };
+            const newBuffer = { id: 10, duration: 2, bytes: 2048 };
+            if (order === 'old-first') {
+                finish[0](oldBuffer); await old;
+                expect(audio.getBufferHandle('edited.wav')).toBeUndefined();
+                const joined = audio.preloadFromData('edited.wav', new ArrayBuffer(8));
+                expect(load).toHaveBeenCalledTimes(2);
+                finish[1](newBuffer); await Promise.all([current, joined]);
+            } else {
+                finish[1](newBuffer); await current;
+                finish[0](oldBuffer); await old;
+            }
+            expect(audio.getBufferHandle('edited.wav')).toBe(newBuffer);
+            expect(audio.getBufferStats()).toMatchObject({ bufferCount: 1, bufferBytes: 2048 });
+            expect(backend.unloadBuffer).toHaveBeenCalledTimes(1);
+            expect(backend.unloadBuffer).toHaveBeenCalledWith(oldBuffer);
+        });
+
         it('should load buffer via backend', async () => {
             await audio.preload('sfx.mp3');
             expect(backend.loadBuffer).toHaveBeenCalledWith('sfx.mp3');

@@ -6237,6 +6237,7 @@ dispose: () => void
 ensureResumed: () => Promise<void>
 getFrequencyData: ((out: Uint8Array) => boolean) | undefined
 initialize: (options?: AudioBackendInitOptions) => Promise<void>
+invalidateSource: ((src: string) => void) | undefined
 isReady: boolean
 loadBuffer: (src: string) => Promise<AudioBufferHandle>
 loadBufferFromData: (src: string, data: ArrayBuffer) => Promise<AudioBufferHandle>

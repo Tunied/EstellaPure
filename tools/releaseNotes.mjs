@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(audio): retire pending loads when clip sources change':
+    { note: 'Audio source updates retire pending decodes.' },
   'fix(audio): release decodes that finish after disposal':
     { note: 'Late audio decodes do not repopulate closed devices.' },
   'fix(editor): preserve skeletal dependencies across failed reloads':

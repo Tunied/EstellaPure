@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Audio source updates retire pending decodes.** Invalidating a clip starts a new load instead of joining its outdated request. Late results release their buffers without overwriting current audio or deleting the newer request's deduplication record. Web Audio also tracks source revisions across file reads and decode completion so old requests cannot restore stale URL-cache entries.
+
 - **Late audio decodes do not repopulate closed devices.** Audio preloads that finish after disposal release their decoded buffers instead of restoring cache entries. Concurrent callers still share one decode and one release, and new preloads on a closed API perform no backend work. Editor Stop now leaves the buffer count and resident bytes at zero even when a decode completes afterwards.
 
 - **Missing skeletal sources keep their recovery paths.** A failed viewport reload retains the last resolved skeleton, atlas and page dependencies so restoring an entire removed source directory triggers a fresh binding. Restored armatures draw their new image, and the viewport no longer remains on stale bindings that distort unrelated text.
