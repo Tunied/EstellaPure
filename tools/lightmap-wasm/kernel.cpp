@@ -16,6 +16,7 @@
 #include <atomic>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <thread>
 #include <vector>
 
@@ -58,7 +59,8 @@ Scene g_scene;
 // Visibility depends on geometry and the fixed sample sequence, not on the
 // light field a later bounce reads. Keep exact hit references, never radiance.
 struct GatherHit { int texel; int surface; }; // -1 sky, -2 unlit/back face
-std::vector<GatherHit> g_gatherHits;
+GatherHit* g_gatherHits = nullptr;
+size_t g_gatherCount = 0;
 uint32_t g_cacheBudget = 384u * 1024u * 1024u;
 int g_cacheSamples = 0, g_cacheAtlasSize = 0;
 const float* g_cachePosition = nullptr;
@@ -66,7 +68,8 @@ const float* g_cacheNormal = nullptr;
 uint64_t g_gatherResolved = 0;
 
 void clearGatherCache() {
-    std::vector<GatherHit>().swap(g_gatherHits);
+    std::free(g_gatherHits);
+    g_gatherHits = nullptr; g_gatherCount = 0;
     g_cacheSamples = 0;
     g_cacheAtlasSize = 0;
     g_cachePosition = g_cacheNormal = nullptr;
@@ -400,7 +403,7 @@ void parallelFor(int count, int threads, int minChunk, F body) {
 extern "C" {
 
 void lm_cache_budget(uint32_t bytes) { clearGatherCache(); g_cacheBudget = bytes; }
-double lm_cache_bytes() { return static_cast<double>(g_gatherHits.size() * sizeof(GatherHit)); }
+double lm_cache_bytes() { return static_cast<double>(g_gatherCount * sizeof(GatherHit)); }
 double lm_gather_resolved() { return static_cast<double>(g_gatherResolved); }
 
 /** Adopts the triangle arrays (the caller keeps them alive) and builds the tree. */
@@ -489,15 +492,19 @@ void lm_gather(const float* position, const float* normal, int count,
                const float* atlas, int atlasSize, int samples, const double* sky, float* out, int threads) {
     const Scene& s = g_scene;
     const uint64_t rays = static_cast<uint64_t>(count) * static_cast<uint64_t>(samples);
-    const bool fits = rays <= g_cacheBudget / sizeof(GatherHit);
-    const bool reuse = fits && g_gatherHits.size() == rays && g_cacheSamples == samples
+    bool fits = rays <= g_cacheBudget / sizeof(GatherHit);
+    const bool reuse = fits && g_gatherHits && g_gatherCount == rays && g_cacheSamples == samples
         && g_cacheAtlasSize == atlasSize && g_cachePosition == position && g_cacheNormal == normal;
     if (!reuse) {
         clearGatherCache();
         if (fits) {
-            g_gatherHits.resize(static_cast<size_t>(rays));
-            g_cacheSamples = samples; g_cacheAtlasSize = atlasSize;
-            g_cachePosition = position; g_cacheNormal = normal;
+            g_gatherHits = static_cast<GatherHit*>(std::malloc(static_cast<size_t>(rays) * sizeof(GatherHit)));
+            fits = g_gatherHits != nullptr;
+            if (fits) {
+                g_gatherCount = static_cast<size_t>(rays);
+                g_cacheSamples = samples; g_cacheAtlasSize = atlasSize;
+                g_cachePosition = position; g_cacheNormal = normal;
+            }
         }
         g_gatherResolved += rays;
     }

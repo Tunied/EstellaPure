@@ -175,14 +175,17 @@ function bakeAssetIndex(root) {
   return index;
 }
 const bakeVec = (v, fallback) => ({ ...fallback, ...(v ?? {}) });
+// Match the Transform component's float32 fields before composing a world pose.
+const bakeWorldVec = (v, fallback) => Object.fromEntries(
+  Object.entries(bakeVec(v, fallback)).map(([key, value]) => [key, Math.fround(value)]));
 
 /** Column-major 4x4 from a document's Transform, through the SDK's own compose.
  *  Flat scenes only — see bakeScene. */
 function bakeTransformOf(baker, entity) {
   const tf = bakeComponent(entity, 'Transform')?.data ?? {};
-  return baker.composeTRS(bakeVec(tf.position, BAKE_ZERO),
-                          bakeVec(tf.rotation, BAKE_IDENTITY_Q),
-                          bakeVec(tf.scale, BAKE_ONE));
+  return baker.composeTRS(bakeWorldVec(tf.position, BAKE_ZERO),
+                          bakeWorldVec(tf.rotation, BAKE_IDENTITY_Q),
+                          bakeWorldVec(tf.scale, BAKE_ONE));
 }
 
 /**
@@ -270,7 +273,7 @@ async function bakeScene(baker, meta, sceneFile, check) {
     const light = bakeComponent(entity, 'Light');
     const volume = bakeComponent(entity, 'LightProbeVolume');
     if (volume && volume.data?.enabled !== false) {
-      const p = bakeVec(tf.position, BAKE_ZERO);
+      const p = bakeWorldVec(tf.position, BAKE_ZERO);
       const h = bakeVec(volume.data?.halfExtents, { x: 100, y: 100, z: 100 });
       volumes.push({
         entity: entity.id, label: entity.name ?? String(entity.id),
@@ -314,7 +317,7 @@ async function bakeScene(baker, meta, sceneFile, check) {
     }
     const reflection = bakeComponent(entity, 'ReflectionProbe');
     if (reflection && reflection.data?.enabled !== false) {
-      const p = bakeVec(tf.position, BAKE_ZERO);
+      const p = bakeWorldVec(tf.position, BAKE_ZERO);
       reflectionProbes.push({ entity: entity.id, label: entity.name ?? String(entity.id),
                               center: [p.x, p.y, p.z] });
     }
@@ -324,9 +327,9 @@ async function bakeScene(baker, meta, sceneFile, check) {
         environment = readEnvironment(light.data.environment);
         if (environment) environment.rotation = light.data.environmentRotation ?? 0;
       }
-      const p = bakeVec(tf.position, BAKE_ZERO);
+      const p = bakeWorldVec(tf.position, BAKE_ZERO);
       const made = baker.bakeLightOf(light.data, [p.x, p.y, p.z],
-                                     bakeVec(tf.rotation, BAKE_IDENTITY_Q), linearColor);
+                                     bakeWorldVec(tf.rotation, BAKE_IDENTITY_Q), linearColor);
       if (made?.lamp) lights.push(made.lamp);
       else if (made?.ambient) {
         ambient[0] += made.ambient[0];

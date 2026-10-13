@@ -22,15 +22,17 @@ order and arithmetic remain unchanged. Byte comparisons against the uploaded
 geometry snapshot invalidate reuse even if a caller mutates its input arrays.
 
 The default visibility budget is 384 MiB. `setCacheBudget(bytes)` changes it;
-zero disables caching. A gather exceeding the budget follows the original trace
+zero disables caching. A gather exceeding the budget, or unable to allocate its
+reference storage, follows the original trace
 path. `cacheStats()` reports retained reference bytes and the cumulative number
 of gather rays resolved, so a cached pass can be distinguished from a trace.
 These bytes exclude the scene/BVH and output arrays. Release frees the cache.
 
 The pipeline regression compares cached and uncached output byte for byte across
 relighting, changed geometry/sample counts, cutouts, back faces and SH/flat skies.
-Large-scene timings and reuse across separate editor bake requests remain to be
-verified; no GPU acceleration or Bistro speedup is claimed by these tests.
+The editor keeps one serialized worker for consecutive bakes and retires it after
+two idle minutes. Bistro relighting and the real editor's bake command are recorded
+in [the verification record](../../docs/LIGHTMAP_ITERATION_REVIEW_2026-10-13.md).
 
 ## Rebuild
 
