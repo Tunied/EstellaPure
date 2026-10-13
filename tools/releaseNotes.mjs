@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(assets): release app-owned loaders during plugin cleanup':
+    { note: "Asset loaders release their App's resources on shutdown." },
   'fix(particles): refresh LUT heap views after allocation':
     { note: 'Particle gradient uploads survive WASM memory growth.' },
   'fix(input): cancel held web input on focus loss':

@@ -12,6 +12,13 @@ import { Audio, type AudioAPI } from '../audio/Audio';
 import { SpriteAnimation, type SpriteAnimationAPI } from '../animation/SpriteAnimator';
 import { Localization, type LocalizationAPI } from '../i18n/Localization';
 import { log } from '../util/logger';
+import { disposeAll } from '../util/disposeAll';
+
+interface AssetPluginState {
+    created: AssetsClass;
+    current: () => AssetsClass | null;
+    released: boolean;
+}
 
 /**
  * The asset loader a system receives from `Res(Assets)`.
@@ -39,8 +46,11 @@ export const Assets = defineResource<AssetsData>(
 
 export class AssetPlugin implements Plugin {
     name = 'asset';
+    private readonly states_ = new WeakMap<App, AssetPluginState>();
+    private latestState_: AssetPluginState | null = null;
 
     build(app: App): void {
+        this.cleanup(app);
         const module = app.wasmModule;
         if (!module) {
             log.warn('asset', 'AssetPlugin: No WASM module available');
@@ -72,7 +82,24 @@ export class AssetPlugin implements Plugin {
             () => app.hasResource(Assets) ? app.getResource(Assets) : null);
 
         app.insertResource(Assets, assets);
-        this.driveDeviceRecovery_(app);
+        const state: AssetPluginState = { created: assets,
+            current: () => app.hasResource(Assets) ? app.getResource(Assets) : null, released: false };
+        this.states_.set(app, state);
+        this.latestState_ = state;
+        this.driveDeviceRecovery_(app, state);
+    }
+
+    /** Release both the default loader and any runtime replacement owned by this App. */
+    cleanup(app?: App): void {
+        const state = app ? this.states_.get(app) : this.latestState_;
+        if (!state || state.released) return;
+        state.released = true;
+        if (app) this.states_.delete(app);
+        if (state === this.latestState_) this.latestState_ = null;
+        const current = state.current();
+        disposeAll(current && current !== state.created ? [state.created, current] : [state.created], assets => {
+            try { assets.releaseAll(); } finally { assets.getRefCounter()?.clear(); }
+        });
     }
 
     /**
@@ -81,13 +108,14 @@ export class AssetPlugin implements Plugin {
      * lost its GPU stayed lost. Timed off UNSCALED delta — a paused game still
      * has to come back — and backed off, since each attempt re-fetches content.
      */
-    private driveDeviceRecovery_(app: App): void {
+    private driveDeviceRecovery_(app: App, state: AssetPluginState): void {
         let inFlight = false;
         let waited = 0;
         let backoff = 0;
         let downtime = 0;
 
         app.addSystemToSchedule(Schedule.First, defineSystem([], () => {
+            if (state.released) return;
             const status = getDeviceStatus();
             if (status === DeviceStatus.Live || status === DeviceStatus.Dead) {
                 backoff = 0;
@@ -108,8 +136,9 @@ export class AssetPlugin implements Plugin {
             // decoder. Never recover the instance captured during plugin build.
             const recoverCurrent = async (): Promise<boolean> => {
                 let assets = app.hasResource(Assets) ? app.getResource(Assets) : null;
-                while (assets) {
+                while (assets && !state.released) {
                     const whole = await assets.recoverFromDeviceLoss();
+                    if (state.released) return false;
                     const current = app.hasResource(Assets) ? app.getResource(Assets) : null;
                     if (current === assets) return whole;
                     assets = current;
@@ -118,6 +147,7 @@ export class AssetPlugin implements Plugin {
             };
             void recoverCurrent()
                 .then((whole) => {
+                    if (state.released) return;
                     if (whole) {
                         log.info('asset', `Device recovered after ${lostFor.toFixed(1)}s`);
                         backoff = 0;
@@ -126,6 +156,7 @@ export class AssetPlugin implements Plugin {
                     backoff = Math.min(backoff ? backoff * 2 : RECOVERY_RETRY_S, RECOVERY_RETRY_MAX_S);
                 })
                 .catch((e) => {
+                    if (state.released) return;
                     log.warn('asset', 'Device recovery threw; will retry', e);
                     backoff = Math.min(backoff ? backoff * 2 : RECOVERY_RETRY_S, RECOVERY_RETRY_MAX_S);
                 })

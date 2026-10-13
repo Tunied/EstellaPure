@@ -893,6 +893,7 @@ value: T
 ## AssetPlugin — class @experimental
 ```
 build: (app: App) => void
+cleanup: (app?: App) => void
 name: string
 static new (): AssetPlugin
 static prototype: AssetPlugin

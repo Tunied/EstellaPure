@@ -2323,6 +2323,7 @@ export class Assets {
                     for (const info of this.textureCache_.values()) handles.add(info.handle);
                     this.textureCache_.clearAll();
                     for (const { value } of this.textureRefs_.drain()) handles.add(value);
+                    if (handles.size === 0) return;
                     const rm = requireResourceManager();
                     disposeAll([...handles], handle => {
                         evictTextureDimensions(handle);
