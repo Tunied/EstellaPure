@@ -52,8 +52,10 @@ be reconciled on the next scan.
 
 Application save names are excluded from enumeration. Legacy files without an
 index identity, corrupt-index survivors and interrupted temporary files remain
-protected instead of guessing their ownership. A rescan reconciles sizes and
-missing files; it does not prove a version can boot. The version's `missing`
+protected instead of guessing their ownership. A rescan can recover the exact
+URL identity of legacy files referenced by surviving manifests; unrelated files
+and temporary writes stay protected. It also reconciles sizes and missing files,
+but does not prove a version can boot. The version's `missing`
 count exposes incomplete offline resources. This coordinator assumes one runtime
 owns the cache directory; it does not provide an interprocess filesystem lock.
 

@@ -1,6 +1,6 @@
 # v0.78.0 card review and cache-budget verification — 2026-10-13
 
-The verified branch is based on engine `19f7ec25279717b874afcae87d2c5e047b458f7b`
+The verified branch is based on engine `4e32ff5cc4ab06b33267a2333293ed69b19c83bc`
 and editor `ba95cde5127b5a6c8c24f2860f365397b20a0071`. Draft reviews are
 [engine #95](https://github.com/esengine/estella/pull/95) and
 [editor #20](https://github.com/esengine/estella-editor/pull/20).
@@ -192,4 +192,8 @@ The verifier is now a named release criterion and runs in the third golden CI
 shard, which retains its JSON and screenshots. Engine Build was dispatched on
 the implementation branch; the first editor CI ran before its companion engine
 branch existed and failed to resolve the new SDK types. It was rerun after that
-branch was pushed. Remote results are pending, not inferred from local passes.
+branch was pushed. The editor rerun passed in 4m18s. Engine results remain pending,
+not inferred from local passes. A final fetch brought in two mainline commits for
+golden output paths and authored audio playback; the branch rebased cleanly onto
+`4e32ff5cc`. Those commits change example/test/changelog files, with no C++ or SDK
+runtime change. The existing compiled runtime artifacts still match their source.
