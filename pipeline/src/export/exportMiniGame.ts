@@ -378,6 +378,7 @@ export async function exportMiniGame(profile: MiniGameExportProfile, opts: {
   // Settings under this key, so a vendor must cook against ITS OWN overrides.
   const cook = await cookAssets(opts.root, { entryScenes: scenes.map((s) => s.path), outDir: absOut, contentAddressed: opts.contentAddressed ?? true, compressTextures: opts.compressTextures, compressAudio: opts.compressAudio, atlasTextures: opts.atlasTextures, transcodeVideo: true, platform: profile.id, textureDecoderBytes: textureDecoderBytes(opts.wasmDir) });
   warnings.push(...cook.warnings);
+  for (const file of cook.failed) errors.push(`asset not packaged — ${file}`);
 
   // 1a. Anything the packer will not upload ships as `<name>.<ext>.bin`. Scenes
   //     have their own transform below (`<x>.esscene` → `scenes/<name>.json`).

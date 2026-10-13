@@ -64,6 +64,31 @@ beforeAll(() => {
 afterAll(() => rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 }));
 
 describe('exportGame (wechat)', () => {
+  it('fails instead of shipping a video the WASM decoder cannot play', async () => {
+    const video = '99999999-9999-4999-8999-999999999999';
+    writeFileSync(path.join(root, 'assets/broken.mp4'), 'NOT A VIDEO');
+    writeFileSync(path.join(root, 'assets/broken.mp4.meta'), meta(video, 'video'));
+    const entry = 'scenes/broken-video.esscene';
+    writeFileSync(path.join(root, entry), JSON.stringify({ version: '1.0', entities: [
+      { id: 0, components: [{ type: 'Video', data: { source: `@uuid:${video}` } }] },
+    ] }));
+    writeFileSync(path.join(root, `${entry}.meta`), meta('88888888-8888-4888-8888-888888888888', 'scene'));
+    const dir = path.join(root, 'dist-wechat-broken-video');
+    try {
+      const result = await exportGame({ root, entryScene: entry,
+        hostsDir: 'unused-for-wechat', packagesDir: OFFICIAL_PACKAGES,
+        sdkDistDir: path.join(root, '_sdk'), wasmDir: path.join(root, '_wxwasm'), outDir: dir, platform: 'wechat' });
+      expect(result.ok).toBe(false);
+      expect(result.errors.join('\n')).toMatch(/asset not packaged.*broken\.mp4/);
+      const manifest = JSON.parse(readFileSync(path.join(dir, 'asset-manifest.json'), 'utf8'));
+      expect(manifest.groups.main.assets[video]).toBeUndefined();
+    } finally {
+      for (const file of ['assets/broken.mp4', 'assets/broken.mp4.meta', entry, `${entry}.meta`]) {
+        rmSync(path.join(root, file), { force: true });
+      }
+    }
+  }, 60_000);
+
   it('removes the old texture file when re-exporting changed art', async () => {
     const dir = path.join(root, 'dist-wechat-recook');
     const source = path.join(root, 'assets/hero.png');

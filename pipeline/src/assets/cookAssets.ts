@@ -798,8 +798,7 @@ export async function cookAssets(
           ext = '.esv';
           videoAudio = res.audio;
         } else {
-          data = await readFile(path.join(root, entry.path));
-          warnings.push(`${entry.path}: shipped untranscoded — this video will NOT play on the wasm decode path (WeChat)`);
+          throw new Error('video transcode failed — the original video cannot play on this target\'s WASM decoder');
         }
       }
       // Materials: relative refs → logical project paths (see rewriteMaterialRefs).

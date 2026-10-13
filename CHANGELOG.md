@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **WASM video exports fail when required transcoding fails.** An unavailable or failed video converter no longer stages an original MP4 that the target's WASM decoder cannot play. The cook reports the failed asset, and mini-game exports propagate asset cooking failures as build errors instead of reporting a usable package.
+
 - **Repeated exports remove obsolete cooked assets and packs.** Web and mini-game exports compare the previous and current asset manifests, deleting old texture hashes, removed assets, and packs no longer referenced by the build. Shared current packs, project sources, and unlisted output files are preserved.
 
 - **Repeated Web exports drop obsolete runtime files.** Rebuilding into the same output replaces the shipped SDK and WASM trees, removing modules the project no longer needs and old SDK chunks. Turning off source maps removes maps from the previous build. Output-root configuration files are preserved, and a runtime output overlapping its input is rejected before removing that tree.

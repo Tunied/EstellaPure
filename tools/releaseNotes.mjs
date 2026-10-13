@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(export): reject failed video transcoding for wasm targets':
+    { note: 'WASM video exports fail when required transcoding fails.' },
   'fix(export): prune obsolete cooked assets and packs':
     { note: 'Repeated exports remove obsolete cooked assets and packs.' },
   'fix(export): remove obsolete web runtime files on rebuild':
