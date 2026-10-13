@@ -18,14 +18,14 @@ export interface KineticScrollOptions {
 }
 
 export class KineticScroll {
-    private readonly decelerationRate_: number;
+    private readonly decayLog_: number;
     private readonly restVelocity_: number;
     private readonly sampleRate_: number;
     private velocity_: Vec2 = { x: 0, y: 0 };
     private dragging_ = false;
 
     constructor(opts: KineticScrollOptions = {}) {
-        this.decelerationRate_ = opts.decelerationRate ?? 0.135;
+        this.decayLog_ = Math.log(opts.decelerationRate ?? 0.135);
         this.restVelocity_ = opts.restVelocity ?? 4;
         this.sampleRate_ = opts.sampleRate ?? 12;
     }
@@ -81,12 +81,20 @@ export class KineticScroll {
      * the velocity. Zero vector when not coasting.
      */
     tick(dt: number): Vec2 {
-        if (!this.isCoasting() || dt <= 0) return { x: 0, y: 0 };
-        const delta = { x: this.velocity_.x * dt, y: this.velocity_.y * dt };
-        const decay = Math.pow(this.decelerationRate_, dt);
+        if (this.dragging_ || dt <= 0) return { x: 0, y: 0 };
+        const speed = Math.hypot(this.velocity_.x, this.velocity_.y);
+        if (!(speed > this.restVelocity_)) return { x: 0, y: 0 };
+        const exponent = this.decayLog_ * dt;
+        const decay = Math.exp(exponent);
+        const atRest = speed * decay <= this.restVelocity_;
+        const movingTime = atRest && this.restVelocity_ > 0 && this.decayLog_ < 0
+            ? Math.min(dt, Math.log(this.restVelocity_ / speed) / this.decayLog_) : dt;
+        const integratedTime = this.decayLog_ === -Infinity ? 0
+            : this.decayLog_ === 0 ? movingTime : Math.expm1(this.decayLog_ * movingTime) / this.decayLog_;
+        const delta = { x: this.velocity_.x * integratedTime, y: this.velocity_.y * integratedTime };
         this.velocity_.x *= decay;
         this.velocity_.y *= decay;
-        if (!this.isCoasting()) this.velocity_ = { x: 0, y: 0 };
+        if (atRest) this.velocity_ = { x: 0, y: 0 };
         return delta;
     }
 }

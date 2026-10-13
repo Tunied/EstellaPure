@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Inertial scrolling travels consistently across frame rates.** Coast displacement integrates the exponentially decaying velocity instead of using its initial value for the whole frame. Frames that cross the stopping threshold integrate only the remaining motion, so a slow frame no longer extends a fling. Constant-speed and immediate-stop settings remain finite.
+
 - **WASM video progress reaches the decoded endpoint.** Playback ending after a seek or a large update no longer leaves the clock at its previous position. The decoder derives the final duration from the last frame, and the SDK refreshes it before notifying end-of-playback listeners. Looping and seeking back to the beginning retain their normal clocks.
 
 - **Single-timestamp MPEG videos report duration and support seeking.** Videos whose frames fit in one PES packet no longer report a zero duration or seek only to the first frame. The decoder counts picture headers without decoding frames at startup and uses frame-based seeking when packet timestamps cannot describe the timeline. Timestamp-based seeking remains in use for other streams.

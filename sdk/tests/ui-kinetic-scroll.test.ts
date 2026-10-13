@@ -28,6 +28,37 @@ describe('ScrollContainer drag options', () => {
 describe('KineticScroll', () => {
     const dt = 1 / 60;
 
+    it('travels the same distance over one second at different frame rates', () => {
+        const distances = [15, 30, 60, 120].map(fps => {
+            const k = new KineticScroll({ restVelocity: 0 }); k.beginDrag();
+            for (let i = 0; i < 60; i++) k.sample({ x: 0, y: 10 }, dt);
+            k.endDrag();
+            let distance = 0;
+            for (let i = 0; i < fps; i++) distance += k.tick(1 / fps).y;
+            return distance;
+        });
+        for (const distance of distances) expect(distance).toBeCloseTo(distances[0], 8);
+    });
+
+    it('stops at the same position even when a long frame crosses the rest threshold', () => {
+        const distances = [1, 15, 30, 60, 120].map(fps => {
+            const k = new KineticScroll(); k.beginDrag();
+            for (let i = 0; i < 60; i++) k.sample({ x: 0, y: 10 }, dt);
+            k.endDrag(); let distance = 0;
+            for (let n = 0; n < fps * 10 && k.isCoasting(); n++) distance += k.tick(1 / fps).y;
+            expect(k.isCoasting()).toBe(false); return distance;
+        });
+        for (const distance of distances) expect(distance).toBeCloseTo(distances[0], 8);
+    });
+
+    it('handles constant speed and immediate deceleration without nonfinite offsets', () => {
+        for (const rate of [0, 1]) {
+            const k = new KineticScroll({ decelerationRate: rate }); k.beginDrag();
+            k.sample({ x: 0, y: 10 }, dt); k.endDrag(); const speed = k.getVelocity().y;
+            expect(k.tick(1).y).toBeCloseTo(rate === 0 ? 0 : speed);
+        }
+    });
+
     it('starts at rest: no drag, no coast, zero velocity', () => {
         const k = new KineticScroll();
         expect(k.isDragging()).toBe(false);
@@ -72,7 +103,7 @@ describe('KineticScroll', () => {
         expect(k.tick(dt)).toEqual({ x: 0, y: 0 }); // held drag never coasts
     });
 
-    it('release coasts: tick returns v·dt and decays to rest', () => {
+    it('release coasts: tick integrates the decaying velocity to rest', () => {
         const k = new KineticScroll();
         k.beginDrag();
         for (let i = 0; i < 30; i++) k.sample({ x: 0, y: 10 }, dt);
