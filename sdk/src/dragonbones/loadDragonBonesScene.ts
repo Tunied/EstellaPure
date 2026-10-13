@@ -154,10 +154,10 @@ async function uploadAtlasImage_(
     const imagePath = slash >= 0 ? `${atlasLogical.substring(0, slash)}/${imageName}` : imageName;
 
     try {
+        const staged = resolveRef(imagePath);
         const rm = requireResourceManager();
         const existing = typeof rm.acquireTextureByPath === 'function' ? rm.acquireTextureByPath(imagePath) : 0;
         if (existing) return { textureId: rm.getTextureGLId(existing), release: () => rm.releaseTexture(existing) };
-        const staged = resolveRef(imagePath);
         const page = await createAtlasPageTexture(
             staged,
             (p) => source.backend.fetchBinary(p),

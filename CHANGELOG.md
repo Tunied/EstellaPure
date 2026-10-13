@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Open skeletal scenes refresh after source edits.** The editor tracks the skeleton, atlas and page paths resolved by its shared loaders. Changes to those inputs rebind the affected skeletal runtime in the current viewport; unrelated image edits do no skeletal work, and queued refreshes from a replaced scene are discarded.
+
 - **Skeletal atlas edits invalidate resident textures.** Image changes also sever the bare-path residency used by skeletal atlas pages. Reopening a DragonBones scene loads the updated image instead of reviving stale pixels, while existing holders retain their texture until released.
 
 - **DragonBones atlas textures follow skeleton ownership.** Scene loading reuses a resident atlas page and transfers its reference to the skeleton that uses it. The last armature removal and manager disposal release the page; rejected armatures release otherwise unbound skeletons and uploads. Repeated editor scene switching no longer adds a new atlas texture on every load, while paused poses and device recovery continue drawing correctly.
