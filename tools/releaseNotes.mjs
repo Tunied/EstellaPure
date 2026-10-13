@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(asset): refresh deleted and restored sprite images':
+    { note: 'Deleted sprite images clear and restored images reload.' },
   'fix(editor): release obsolete bindings after skeletal loads':
     { note: 'Late skeletal loads release obsolete viewport bindings.' },
   'fix(editor): refresh open skeletal scenes after source edits':

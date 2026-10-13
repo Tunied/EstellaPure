@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Deleted sprite images clear and restored images reload.** The editor invalidates removed paths and reprojects missing or newly restored references, including directory-only watcher notifications. Browser texture loads use a new image-cache address after invalidation so restored pixels and dimensions replace the old image; ordinary loads and native image paths keep their existing addresses.
+
 - **Late skeletal loads release obsolete viewport bindings.** A skeleton fetch that finishes after scene replacement, entity deletion or skeletal component removal now drops its late instances before the next queued load. Surviving entities keep their bindings, and a replaced scene no longer receives the old load's panel refresh.
 
 - **Open skeletal scenes refresh after source edits.** The editor tracks the skeleton, atlas and page paths resolved by its shared loaders. Changes to those inputs rebind the affected skeletal runtime in the current viewport; unrelated image edits do no skeletal work, and queued refreshes from a replaced scene are discarded.

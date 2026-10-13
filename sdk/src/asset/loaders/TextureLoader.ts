@@ -44,6 +44,7 @@ export type TextureCompressedSource = (path: string) => Promise<Uint8Array | 'pe
 
 /** The longest edge a texture waiting for its compressed form is drawn at. */
 export const TEXTURE_PREVIEW_EDGE = 1024;
+let nextImageRevision = Date.now();
 
 /**
  * Texture import-time settings. Applied when the GL texture is first uploaded,
@@ -88,6 +89,13 @@ export function textureResidencyKey(path: string, flip: boolean): string {
 }
 
 export class TextureLoader implements AssetLoader<TextureResult> {
+    private readonly imageRevisions_ = new Map<string, number>();
+
+    /** End the browser image-cache identity when an asset's bytes change. */
+    invalidate(path: string): boolean {
+        this.imageRevisions_.set(path, ++nextImageRevision);
+        return false;
+    }
     readonly type = 'texture';
     readonly extensions = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.ktx2'];
 
@@ -248,7 +256,7 @@ export class TextureLoader implements AssetLoader<TextureResult> {
             return { handle, width: result.width, height: result.height };
         }
         const url = ctx.backend.resolveUrl(ctx.catalog.getBuildPath(path));
-        const img = await this.loadImage(url, flip, preview ? TEXTURE_PREVIEW_EDGE : 0);
+        const img = await this.loadImage(url, flip, preview ? TEXTURE_PREVIEW_EDGE : 0, this.imageRevisions_.get(path));
         return this.createTextureFromImage(img, flip, settings);
     }
 
@@ -345,7 +353,7 @@ export class TextureLoader implements AssetLoader<TextureResult> {
      * on it uploads every texture upside-down. The raw `<img>` fallback keeps the
      * flag (it works for element/pixel sources) — see {@link createTextureFromImage}.
      */
-    private loadImage(src: string, flip: boolean, maxEdge = 0): Promise<PlatformImage | ImageBitmap> {
+    private loadImage(src: string, flip: boolean, maxEdge = 0, revision?: number): Promise<PlatformImage | ImageBitmap> {
         return new Promise((resolve, reject) => {
             const img = platformCreateImage();
             img.crossOrigin = 'anonymous';
@@ -374,7 +382,14 @@ export class TextureLoader implements AssetLoader<TextureResult> {
                 resolve(img);
             };
             img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
-            img.src = src;
+            if (revision && typeof HTMLImageElement !== 'undefined' && img instanceof HTMLImageElement
+                && !src.startsWith('data:') && !src.startsWith('blob:')) {
+                const url = new URL(src, document.baseURI);
+                url.searchParams.set('_esTextureRevision', String(revision));
+                img.src = url.href;
+            } else {
+                img.src = src;
+            }
         });
     }
 
