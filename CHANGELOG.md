@@ -20,6 +20,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Input cancellation stops released scroll flings.** UI scrolling discards existing coast state when the host cancels input, so a list already gliding after release remains at its current offset when the app resumes. A new press can still start a fresh drag in the same frame.
+
 - **Native input resets when the host hides.** The native adapter cancels held touches, mouse buttons, keys and frame edges on hide or input teardown, resets the primary finger, removes its hide subscription and ignores late releases from the previous gesture.
 
 - **Reused touch IDs preserve both gestures.** When a host reuses a touch ID between frames, UI releases the old gesture before capturing the new one, retains quick-tap clicks and projects the held finger's current position for dragging and scrolling.

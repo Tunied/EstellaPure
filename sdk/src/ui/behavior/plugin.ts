@@ -242,6 +242,7 @@ export class UIBehaviorPlugin implements Plugin {
                 const cancellationVersion = primaryPointerCancellationVersion(input);
                 const cancelled = cancellationVersion !== lastCancellationVersion;
                 lastCancellationVersion = cancellationVersion;
+                if (cancelled) dynamics.clear();
                 if (!camera.valid && !overlay.active) {
                     activeEntity = pendingEntity = null;
                     capturedContainer = null;

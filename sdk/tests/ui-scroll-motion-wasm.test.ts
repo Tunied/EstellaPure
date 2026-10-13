@@ -32,6 +32,8 @@ describe.skipIf(!HAS_WASM)('scroll motion ownership on real WASM', () => {
             vpW: 100, vpH: 100, screenW: 100, screenH: 100 });
         plugin = new UIBehaviorPlugin(); plugin.build(app); flushPendingRegistrations(app);
         entity = app.world.spawn(); app.world.insert(entity, UIInteraction, { hovered: true });
+        // Refresh the shared WASM layout cache for this registry before pointer projection.
+        engine.uiLayout_update(registry, -50, -50, 50, 50, true);
     });
     afterEach(() => { app.quit({ keepRenderer: true }); registry.delete(); });
     async function step(y: number) {
@@ -101,6 +103,16 @@ describe.skipIf(!HAS_WASM)('scroll motion ownership on real WASM', () => {
         input.noteMouseUp(0); await step(100);
         const before = scroll.getOffset().y;
         app.world.insert(entity, Disabled);
+        for (let i = 0; i < 10; i++) await step(100);
+        expect(scroll.getOffset().y).toBe(before);
+    });
+    it('host input cancellation stops a released fling before the next frame', async () => {
+        const scroll = container(); plugin.attachScrollContainer(entity, scroll); await drag();
+        input.noteMouseUp(0); await step(100); await step(100);
+        const before = scroll.getOffset().y;
+        expect(before).toBeGreaterThan(100);
+        inputEventCallbacks(input).onInputCancel!();
+        takePrimaryPointerCancellation(input);
         for (let i = 0; i < 10; i++) await step(100);
         expect(scroll.getOffset().y).toBe(before);
     });
