@@ -610,6 +610,8 @@ interface CachedBodyProps {
     enabled: boolean;
     /** Bitmask of present collider components — drives shape rebuild on change. */
     colliderSig: number;
+    /** Last sync of this body; inactive entities retain edits until reactivation. */
+    syncedTick: number;
 }
 
 // The collider component types, in shape-add order. Their index is a stable bit
@@ -805,6 +807,7 @@ export function registerPhysics2DSystem(
                             bullet: rb.bullet,
                             enabled: true,
                             colliderSig: colliderSignature(world, entity),
+                            syncedTick: world.getWorldTick(),
                         });
                         if (rb.bodyType === BodyType.Kinematic) kinematicEntities.add(entity);
                         if (rb.bodyType === BodyType.Static) {
@@ -823,7 +826,7 @@ export function registerPhysics2DSystem(
                     }
 
                     // 2. body properties.
-                    if (world.isChangedSince(entity, RigidBody2D, lastEntitySyncTick) &&
+                    if (world.isChangedSince(entity, RigidBody2D, cached.syncedTick) &&
                         (cached.bodyType !== rb.bodyType ||
                          cached.gravityScale !== rb.gravityScale ||
                          cached.linearDamping !== rb.linearDamping ||
@@ -847,7 +850,7 @@ export function registerPhysics2DSystem(
                     //    or any collider's fields change (body + velocity preserved).
                     const sig = colliderSignature(world, entity);
                     if (sig !== cached.colliderSig ||
-                        collidersChangedSince(world, entity, lastEntitySyncTick)) {
+                        collidersChangedSince(world, entity, cached.syncedTick)) {
                         module._physics_clearShapes(entity);
                         addShapeForEntity(world, module, entity, config.collisionLayerMasks);
                         cached.colliderSig = sig;
@@ -865,6 +868,7 @@ export function registerPhysics2DSystem(
                         else staticPoses.set(entity, { x: NaN, y: NaN, angle: NaN, parent });
                         parentedBodies.delete(entity);
                     } else staticPoses.delete(entity);
+                    cached.syncedTick = world.getWorldTick();
                 }
 
                 // Activity filtering removes descendants from the query too.

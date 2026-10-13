@@ -15,6 +15,39 @@ describe.skipIf(!HAS_WASM || !hasSideModule('physics'))('real Box2D hierarchy ac
     let engine: ESEngineModule;
     beforeAll(async () => { engine = await loadWasmModule(); });
 
+    it('applies collider and body edits made while an ancestor is inactive', async () => {
+        setDefaultContext(new AppContext());
+        const registry = new engine.Registry() as unknown as CppRegistry;
+        const app = App.new(); app.connectCpp(registry, engine);
+        const physics = await loadSideModule<PhysicsWasmModule>('physics');
+        const plugin = new Physics2DPlugin('', { gravity: { x: 0, y: -10 } }, async () => physics);
+        plugin.build(app);
+        try {
+            await app.getResource(Physics2DRuntime).initPromise;
+            const world = app.world, parent = world.spawn(), child = world.spawn();
+            world.insert(parent, Transform);
+            world.insert(child, Transform, { position: { x: 0, y: 100, z: 0 } });
+            world.insert(child, RigidBody2D, { bodyType: 2, gravityScale: 0 });
+            world.insert(child, BoxCollider2D); world.setParent(child, parent);
+            await app.stepFrames(1, 1 / 30);
+            expect(physics._physics_getShapeCount()).toBe(1);
+            world.insert(parent, Disabled);
+            await app.stepFrames(1, 1 / 30);
+            world.update(child, BoxCollider2D, value => { value.enabled = false; });
+            world.update(child, RigidBody2D, value => { value.gravityScale = 1; });
+            await app.stepFrames(5, 1 / 30);
+            const before = world.get(child, Transform).position.y;
+            world.remove(parent, Disabled);
+            await app.stepFrames(5, 1 / 30);
+            expect(physics._physics_getShapeCount()).toBe(0);
+            expect(world.get(child, Transform).position.y).toBeLessThan(before);
+            expect(physics._physics_hasBody(child)).toBe(1);
+            world.update(child, BoxCollider2D, value => { value.enabled = true; });
+            await app.stepFrames(1, 1 / 30);
+            expect(physics._physics_getShapeCount()).toBe(1);
+        } finally { plugin.cleanup(); app.world.disconnectCpp(); registry.delete(); }
+    });
+
     it.each(['authored', 'native', 'body'] as const)('freezes and resumes a child without losing velocity (%s)', async (path) => {
         setDefaultContext(new AppContext());
         const registry = new engine.Registry() as unknown as CppRegistry;

@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(physics): retain edits made to inactive 2d bodies':
+    { note: 'Inactive 2D bodies retain pending collider and body edits.' },
   'fix(animation): refresh replaced clips on paused sprites':
     { note: 'Paused sprites refresh replaced animation clips.' },
   'fix(ui): bound scrollbar geometry for empty viewports':

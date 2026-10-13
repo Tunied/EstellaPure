@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Inactive 2D bodies retain pending collider and body edits.** Physics reconciliation tracks the last synchronization of each body, so changes made while a parent or entity is inactive are applied on reactivation instead of being skipped by another body's newer global synchronization. Collider enable flags and rigid-body properties update in place, preserving the body and its existing simulation state.
+
 - **Paused sprites refresh replaced animation clips.** A sprite that has already applied a clip follows a newly published clip while paused, updating its displayed frame without advancing the frame index or timer or firing playback events. Unchanged paused frames avoid component writes, and an initially paused animator still leaves the authored sprite untouched until playback or an explicit frame selection.
 
 - **Empty and collapsed scroll views keep finite scrollbar geometry.** Thumb sizing handles zero content without dividing by zero and clamps the minimum thumb length to the available track. Clearing a list or collapsing its viewport no longer writes Infinity or NaN into native UI nodes, and tiny viewports keep their thumbs inside the track before normal sizing resumes on restore.
