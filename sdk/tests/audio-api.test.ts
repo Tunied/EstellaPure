@@ -85,6 +85,34 @@ describe('AudioAPI', () => {
     });
 
     describe('preload', () => {
+        it.each(['url', 'bytes'] as const)('releases a late %s decode instead of repopulating a disposed cache', async delivery => {
+            let finish!: (buffer: AudioBufferHandle) => void;
+            const load = vi.fn(() => new Promise<AudioBufferHandle>(resolve => { finish = resolve; }));
+            if (delivery === 'url') backend.loadBuffer = load;
+            else backend.loadBufferFromData = load;
+            const pending = delivery === 'url' ? audio.preload('late.wav')
+                : audio.preloadFromData('late.wav', new ArrayBuffer(8));
+            const joined = delivery === 'url' ? audio.preload('late.wav')
+                : audio.preloadFromData('late.wav', new ArrayBuffer(8));
+            audio.dispose();
+            const buffer = { id: 9, duration: 2, bytes: 1024 };
+            finish(buffer);
+            await Promise.all([pending, joined]);
+            expect(load).toHaveBeenCalledTimes(1);
+            expect(audio.getBufferHandle('late.wav')).toBeUndefined();
+            expect(audio.getBufferStats()).toMatchObject({ bufferCount: 0, bufferBytes: 0 });
+            expect(backend.unloadBuffer).toHaveBeenCalledTimes(1);
+            expect(backend.unloadBuffer).toHaveBeenCalledWith(buffer);
+        });
+
+        it('does not ask a closed backend to decode new preloads', async () => {
+            audio.dispose();
+            await audio.preload('after.wav');
+            await audio.preloadFromData('after.wav', new ArrayBuffer(8));
+            expect(backend.loadBuffer).not.toHaveBeenCalled();
+            expect(backend.loadBufferFromData).not.toHaveBeenCalled();
+        });
+
         it('should load buffer via backend', async () => {
             await audio.preload('sfx.mp3');
             expect(backend.loadBuffer).toHaveBeenCalledWith('sfx.mp3');

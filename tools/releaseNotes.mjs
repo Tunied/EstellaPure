@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(audio): release decodes that finish after disposal':
+    { note: 'Late audio decodes do not repopulate closed devices.' },
   'fix(editor): preserve skeletal dependencies across failed reloads':
     { note: 'Missing skeletal sources keep their recovery paths.' },
   'fix(editor): refresh skeletal previews after directory changes':

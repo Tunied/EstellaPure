@@ -301,6 +301,7 @@ export class AudioAPI {
     /** Load `url`'s buffer into the residency cache unless already there. The
      *  double `has()` check absorbs a concurrent load racing to insert first. */
     private async ensureBuffer_(url: string, load: () => Promise<AudioBufferHandle>): Promise<void> {
+        if (this.disposed_) return;
         if (this.bufferCache_.has(url)) return;
         // De-dupe concurrent loads of the same url — without this, two preloads
         // (esp. the loadBufferFromData path, which has no backend-side dedup)
@@ -309,6 +310,10 @@ export class AudioAPI {
         if (inFlight) return inFlight;
         const promise = (async () => {
             const buffer = await load();
+            if (this.disposed_) {
+                this.backend_.unloadBuffer(buffer);
+                return;
+            }
             if (!this.bufferCache_.has(url)) this.insertEntry_(url, buffer);
         })();
         this.loadingBuffers_.set(url, promise);
