@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Late scene-load errors roll back the new entities.** A failing final spawn-phase observer or asset-reference publication step now despawns the entities created by that load and releases their owned resources before returning the original error. Existing unrelated entities remain intact and a later load can retry normally.
+
 - **Prepared prefab spawns reject failed parent attachments.** The synchronous spawn path rolls back its new hierarchy and entity-owned resources when its parent no longer accepts the root, matching asynchronous instantiation. Preparation resources remain available for later valid spawns, and live parents, position overrides and explicit unparented copies remain supported.
 
 - **Standalone scene and prefab spawns release their resources.** Loads without a scene collector transfer acquired resources to the entities that reference them, then release the preload receipts. Destroying or rolling back a spawned hierarchy retires those acquisitions. Prefab document reads also use scoped receipts, including nested sources, so repeated spawns no longer accumulate unowned references.

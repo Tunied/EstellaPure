@@ -657,6 +657,7 @@ async function loadSceneAssetsAndSpawn(
 ): Promise<Map<number, Entity>> {
     let ownership: PreparedSpawnOwnership | undefined;
     let releasePreload: (() => void) | undefined;
+    let spawned: Map<number, Entity> | undefined;
     try {
         if (options?.assets) {
             const assets = options.assets;
@@ -683,10 +684,19 @@ async function loadSceneAssetsAndSpawn(
                 }
             }
         }
-        const entities = await timed('spawn', () => spawnAndLoadEntities(world, data, options?.externalEntities, options?.onPhase));
+        const entities = await timed('spawn', () => {
+            spawned = spawnAndLoadEntities(world, data, options?.externalEntities, options?.onPhase);
+            return spawned;
+        });
         ownership?.attach(world, entities);
         options?.assets?.trackSceneAssetReferences(data, entities);
         return entities;
+    } catch (error) {
+        if (spawned) for (const entity of spawned.values()) {
+            try { if (world.valid(entity)) world.despawn(entity); }
+            catch { /* A cleanup callback must not hide the original load failure. */ }
+        }
+        throw error;
     } finally {
         ownership?.release();
         releasePreload?.();
