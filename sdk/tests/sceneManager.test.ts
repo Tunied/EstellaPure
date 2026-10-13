@@ -190,6 +190,37 @@ describe('SceneManager', () => {
             expect(app.world.valid(entity)).toBe(false);
         });
 
+    it.each(['unload', 'reload', 'reset'])(
+        'rejects mutations from a stale context after %s', async mode => {
+            manager.register({ name: 'source' }); manager.register({ name: 'target' });
+            const stale = await manager.load('source'), target = await manager.load('target');
+            const entity = target.spawn();
+            if (mode === 'reset') manager.reset();
+            else {
+                await manager.unload('source');
+                if (mode === 'reload') await manager.load('source');
+            }
+            const spawnCalls = app.world.spawn.mock.calls.length;
+            expect(() => stale.adopt(entity)).toThrow(SceneLoadCancelled);
+            expect(() => stale.spawn()).toThrow(SceneLoadCancelled);
+            expect(app.world.spawn.mock.calls.length).toBe(spawnCalls);
+            expect(() => stale.despawn(entity)).toThrow(SceneLoadCancelled);
+            expect(() => stale.setPersistent(entity, true)).toThrow(SceneLoadCancelled);
+            expect(() => stale.registerDrawCallback('late', () => {})).toThrow(SceneLoadCancelled);
+            expect(() => stale.bindPostProcess(entity, {} as any)).toThrow(SceneLoadCancelled);
+            expect(() => stale.unbindPostProcess(entity)).toThrow(SceneLoadCancelled);
+            expect(() => stale.trackAssets(new Map())).toThrow(SceneLoadCancelled);
+            const scope = { releaseAll: vi.fn() };
+            expect(() => stale.trackAssetScope(scope as any)).toThrow(SceneLoadCancelled);
+            expect(scope.releaseAll).toHaveBeenCalledTimes(1);
+            if (mode !== 'reset') {
+                expect(target.entities.has(entity)).toBe(true);
+                expect(app.world.valid(entity)).toBe(true);
+                await manager.unload('target');
+                expect(app.world.valid(entity)).toBe(false);
+            }
+        });
+
     // =========================================================================
     // Registration & initial scene
     // =========================================================================

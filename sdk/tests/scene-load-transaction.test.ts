@@ -168,9 +168,7 @@ describe('a scene load that fails leaves nothing of itself behind', () => {
     });
 
     it('an unload during the load, then the load\'s own rollback, frees each thing once', async () => {
-        // The teardown runs twice over one instance — and the second time it has
-        // to cope with what the first one could not have seen: the in-flight
-        // setup went on acquiring after the unload had already let go.
+        // The cancelled setup returns a new acquisition after the first teardown.
         const { app, assets, manager, pp, unloaded } = harness();
         const base = assets.sizes().refRows;
         let release = (): void => {};
@@ -182,10 +180,10 @@ describe('a scene load that fails leaves nothing of itself behind', () => {
             setup: async (ctx) => {
                 await gate;
                 // Everything here lands AFTER the unload has torn the instance down.
-                spawned = ctx.spawn();
                 const scope = new AssetScope();
                 scope.add(await assets.acquireTyped('font', 'hero.ttf'));
                 ctx.trackAssetScope(scope);
+                spawned = ctx.spawn();
                 ctx.registerDrawCallback('ghost', () => {});
                 ctx.bindPostProcess(CAMERA, { setAllPassesEnabled: vi.fn() } as never);
             },
@@ -198,7 +196,8 @@ describe('a scene load that fails leaves nothing of itself behind', () => {
         release();
         await rejected;                          // the load resumes, is cancelled, rolls back
 
-        expect(app.world.valid(spawned), 'the entity the cancelled load spawned').toBe(false);
+        expect(spawned, 'the cancelled context never spawned an entity').toBe(0);
+        expect(app.world.valid(spawned)).toBe(false);
         expect(assets.sizes().refRows, 'what it acquired after the unload').toBe(base);
         expect(unloaded, 'freed once, not twice').toEqual(['gen1']);
         expect(getDrawCallbacks().has('ghost')).toBe(false);

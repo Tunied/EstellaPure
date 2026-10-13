@@ -163,8 +163,9 @@ describe('a load unloaded mid-setup commits nothing', () => {
         expect(manager.getActive()).toBeNull();
     });
 
-    it('loadAdditive: entities setup spawned after the teardown are not left behind', async () => {
+    it('loadAdditive: setup cannot spawn after the teardown', async () => {
         let spawned: number | null = null;
+        const alive = new Set(app._alive);
         const { gate, reached } = registerBlockingScene('ui', (ctx) => { spawned = ctx.spawn(); });
 
         const loading = manager.loadAdditive('ui');
@@ -175,9 +176,8 @@ describe('a load unloaded mid-setup commits nothing', () => {
         gate.resolve();
         await rejected;
 
-        expect(spawned).not.toBeNull();
-        // unload() had already run: nothing else will ever come back for this one.
-        expect(app._alive.has(spawned!)).toBe(false);
+        expect(spawned).toBeNull();
+        expect(app._alive).toEqual(alive);
     });
 
     it('a load nobody interrupted still commits', async () => {

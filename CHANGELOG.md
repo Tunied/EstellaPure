@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Unloaded scene contexts reject late mutations.** A context belongs to one scene instance: after unload, reload or reset, it cannot spawn or adopt entities, destroy another scene's objects, change persistence, or register callbacks and post-processing bindings. A late asset scope is released before cancellation is reported, so asynchronous setup cannot strand its acquisitions.
+
 - **Scene adoption transfers existing entity ownership.** Adopting an entity into another scene removes its outgoing scene records, retains its bound asset generation, and restores any outgoing sleep state before applying the destination's state. An outgoing parent is detached while preserving world placement. Unloading the source no longer destroys the adopted entity; the destination's final unload still releases it normally, and repeated adoption preserves the saved awake state.
 
 - **Scenes forget runtime entities when the World destroys them.** Scene ownership collections and saved render state now retire an entity on despawn, including runtime prefab copies destroyed through Commands or World. Repeated bullet spawning no longer accumulates dead scene entries for later unloads. Scene reset and plugin cleanup detach the observer, and subsequent loads restore tracking with one observer per manager.

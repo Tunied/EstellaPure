@@ -13,7 +13,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { App } from '../src/app/app';
-import { SceneManager, SceneManagerState } from '../src/scene/sceneManager';
+import { SceneManager, SceneManagerState, SceneLoadCancelled } from '../src/scene/sceneManager';
 import { Assets as AssetsResource } from '../src/asset/AssetPlugin';
 import { Assets } from '../src/asset/Assets';
 import { AssetScope } from '../src/asset/AssetLease';
@@ -99,6 +99,31 @@ async function settle(app: App, frames = 4): Promise<void> {
 
 describe('a persistent entity owns what it carries out of the scene', () => {
     beforeEach(() => { pool = createPoolFake(); });
+
+    it('releases a scope returned to a setup after its scene was unloaded', async () => {
+        const { app, assets, manager } = harness();
+        const base = assets.sizes().refRows;
+        let resume!: () => void, entered!: () => void;
+        const ready = new Promise<void>(resolve => { entered = resolve; });
+        const waiting = new Promise<void>(resolve => { resume = resolve; });
+        manager.register({ name: 'late', setup: async ctx => {
+            const scope = new AssetScope();
+            scope.add(await assets.acquireTexture('late.png'));
+            entered();
+            await waiting;
+            ctx.trackAssetScope(scope);
+            ctx.spawn();
+        } });
+        const load = manager.load('late');
+        const rejection = expect(load).rejects.toThrow(SceneLoadCancelled);
+        await ready;
+        expect(assets.sizes().refRows).toBe(base + 1);
+        await manager.unload('late');
+        resume();
+        await rejection;
+        expect(assets.sizes().refRows).toBe(base);
+        expect(app.world.getStorageSizes().entities).toBe(0);
+    });
 
     it('a scene transfer retains its bound texture until the destination unloads', async () => {
         const { app, assets, manager } = harness();

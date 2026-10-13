@@ -166,11 +166,17 @@ class SceneContextImpl implements SceneContext {
     private readonly instance_: SceneInstance;
     private readonly app_: App;
     private readonly adopt_: (entity: Entity) => void;
+    private readonly isCurrent_: () => boolean;
 
-    constructor(instance: SceneInstance, app: App, adopt: (entity: Entity) => void) {
+    constructor(instance: SceneInstance, app: App, adopt: (entity: Entity) => void, isCurrent: () => boolean) {
         this.instance_ = instance;
         this.app_ = app;
         this.adopt_ = adopt;
+        this.isCurrent_ = isCurrent;
+    }
+
+    private assertCurrent_(): void {
+        if (!this.isCurrent_()) throw new SceneLoadCancelled(this.name);
     }
 
     get name(): string {
@@ -182,20 +188,27 @@ class SceneContextImpl implements SceneContext {
     }
 
     spawn(): Entity {
+        this.assertCurrent_();
         const entity = this.app_.world.spawn();
         this.adopt(entity);
         return entity;
     }
 
     adopt(entity: Entity): void {
+        this.assertCurrent_();
         this.adopt_(entity);
     }
 
     trackAssetScope(scope: AssetScope): void {
+        if (!this.isCurrent_()) {
+            scope.releaseAll();
+            throw new SceneLoadCancelled(this.name);
+        }
         this.instance_.assetScope.absorb(scope);
     }
 
     trackAssets(byType: ReadonlyMap<string, ReadonlySet<string>>): void {
+        this.assertCurrent_();
         for (const [type, paths] of byType) {
             // Materials are handle-keyed and skeletons belong to the
             // SpineManager; both are released through their own doors.
@@ -207,26 +220,31 @@ class SceneContextImpl implements SceneContext {
     }
 
     despawn(entity: Entity): void {
+        this.assertCurrent_();
         this.instance_.entities.delete(entity);
         this.app_.world.despawn(entity);
     }
 
     registerDrawCallback(id: string, fn: DrawCallback): void {
+        this.assertCurrent_();
         this.instance_.drawCallbacks.set(id, fn);
         registerDrawCallback(id, fn, this.instance_.config.name);
     }
 
     bindPostProcess(camera: Entity, stack: PostProcessStack): void {
+        this.assertCurrent_();
         if (this.app_.hasResource(PostProcess)) this.app_.getResource(PostProcess).bind(camera, stack);
         this.instance_.postProcessBindings.set(camera, stack);
     }
 
     unbindPostProcess(camera: Entity): void {
+        this.assertCurrent_();
         if (this.app_.hasResource(PostProcess)) this.app_.getResource(PostProcess).unbind(camera);
         this.instance_.postProcessBindings.delete(camera);
     }
 
     setPersistent(entity: Entity, persistent: boolean): void {
+        this.assertCurrent_();
         if (this.app_.world.has(entity, SceneOwner)) {
             const data = this.app_.world.get(entity, SceneOwner);
             data.persistent = persistent;
@@ -492,7 +510,8 @@ export class SceneManagerState {
         this.trackEntityDestruction_();
         this.scenes_.set(name, instance);
 
-        const ctx = new SceneContextImpl(instance, this.app_, entity => this.adoptInto_(instance, entity));
+        const ctx = new SceneContextImpl(instance, this.app_,
+            entity => this.adoptInto_(instance, entity), () => this.scenes_.get(name) === instance);
         this.contexts_.set(name, ctx);
 
         const loadPromise = (async (): Promise<SceneContext> => {
