@@ -89,6 +89,7 @@ describe('the AudioSource playing flag', () => {
         await app.tick(1 / 60);
 
         voices[0]!.isPlaying = false;
+        voices[0]!.onEnd?.();
         await app.tick(1 / 60);
 
         const source = app.world.get(e, AudioSource);
@@ -105,6 +106,7 @@ describe('the AudioSource playing flag', () => {
         app.world.insert(e, AudioSource, { clip: 'boom.wav', playing: true });
         await app.tick(1 / 60);
         voices[0]!.isPlaying = false;
+        voices[0]!.onEnd?.();
 
         for (let i = 0; i < 5; i++) await app.tick(1 / 60);
 
@@ -117,6 +119,7 @@ describe('the AudioSource playing flag', () => {
         app.world.insert(e, AudioSource, { clip: 'boom.wav', playing: true });
         await app.tick(1 / 60);
         voices[0]!.isPlaying = false;
+        voices[0]!.onEnd?.();
         await app.tick(1 / 60);
 
         app.world.update(e, AudioSource, d => { d.playing = true; });

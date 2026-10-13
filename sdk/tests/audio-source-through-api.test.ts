@@ -134,5 +134,34 @@ describe('an AudioSource in the scene', () => {
         // The second one is worth less than the voice already sounding, so it is
         // refused rather than silencing it.
         expect(backend.play).toHaveBeenCalledTimes(1);
+        await app.tick(1 / 60);
+        expect(app.world.get(quiet, AudioSource).playing).toBe(false);
+        expect(app.world.get(quiet, AudioSource).finished).toBe(false);
+    });
+
+    it.each([false, true])('does not report natural completion when an interrupted source loses its voice (loop=%s)', async loop => {
+        const { app } = await appWithClip();
+        const entity = app.world.spawn();
+        app.world.insert(entity, AudioSource, { clip: 'boom.wav', playing: true, loop });
+        await app.tick(1 / 60);
+        const handle = vi.mocked(backend.play).mock.results[0].value as AudioHandle & { isPlaying: boolean };
+        handle.isPlaying = false;
+        await app.tick(1 / 60);
+        expect(app.world.get(entity, AudioSource).playing).toBe(false);
+        expect(app.world.get(entity, AudioSource).finished).toBe(false);
+    });
+
+    it('preserves a backend completion callback while latching natural source completion', async () => {
+        const { app } = await appWithClip();
+        const handle = playingHandle() as AudioHandle & { isPlaying: boolean };
+        const previousEnd = vi.fn(); handle.onEnd = previousEnd;
+        vi.mocked(backend.play).mockReturnValueOnce(handle);
+        const entity = app.world.spawn();
+        app.world.insert(entity, AudioSource, { clip: 'boom.wav', playing: true });
+        await app.tick(1 / 60);
+        handle.isPlaying = false; handle.onEnd?.();
+        await app.tick(1 / 60);
+        expect(previousEnd).toHaveBeenCalledOnce();
+        expect(app.world.get(entity, AudioSource).finished).toBe(true);
     });
 });

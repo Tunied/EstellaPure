@@ -31,6 +31,7 @@ function worldPositionOf(t: WorldTransformData): Vec3 {
  */
 interface ActiveVoice {
     handle: AudioHandle;
+    completedNaturally: boolean;
     clip: string;
     volume: number;
     pitch: number;
@@ -202,12 +203,13 @@ export class AudioPlugin implements Plugin {
                                 // Through the API, not straight at the backend: the
                                 // voice cap and the soft bus gain are decided there,
                                 // and a sound outside that door gets neither.
-                                activeSourceHandles.set(id, {
+                                const voice: ActiveVoice = {
                                     clip: source.clip,
                                     volume: source.volume,
                                     pitch: source.pitch,
                                     loop: source.loop,
                                     spatial: source.spatial,
+                                    completedNaturally: false,
                                     handle: audioAPI.playBuffer(buffer, {
                                         bus: source.bus,
                                         volume: source.volume,
@@ -215,7 +217,13 @@ export class AudioPlugin implements Plugin {
                                         playbackRate: source.pitch,
                                         priority: source.priority,
                                     }),
-                                });
+                                };
+                                const previousEnd = voice.handle.onEnd;
+                                voice.handle.onEnd = () => {
+                                    voice.completedNaturally = !voice.loop;
+                                    previousEnd?.call(voice.handle);
+                                };
+                                activeSourceHandles.set(id, voice);
                                 // Whoever raised the flag is asking for this clip
                                 // from the top, so the latch from the last one goes.
                                 if (source.finished) {
@@ -239,13 +247,13 @@ export class AudioPlugin implements Plugin {
                         } else if (!playing && voice) {
                             stopVoice(id);
                         } else if (playing && voice && !voice.handle.isPlaying) {
-                            // The voice ended by itself. Lowering the flag here is
+                            // The voice is no longer active. Lowering the flag here is
                             // what makes it readable as "is this sounding" rather
                             // than "was it ever asked to sound".
                             activeSourceHandles.delete(id);
                             world.update(entity, AudioSource, draft => {
                                 draft.playing = false;
-                                draft.finished = true;
+                                draft.finished = voice.completedNaturally;
                             });
                         }
 
