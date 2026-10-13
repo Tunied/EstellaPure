@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(examples): demonstrate independent sprite playback controls':
+    { note: 'Sprite playback can be tried independently of its state machine.' },
   'fix(ui): stop released scroll flings on input cancellation':
     { note: 'Input cancellation stops released scroll flings.' },
   'fix(input): reset native input when the host hides':

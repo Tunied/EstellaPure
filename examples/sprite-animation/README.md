@@ -12,6 +12,7 @@ Animator model: parameters, triggers, 1D blend, exit time) on top of it, and
 | ←/→ or A/D       | Walk (the sprite flips with direction)    |
 | hold Shift       | Run — the Move blend crosses its threshold and re-selects the walk clip at 1.9× |
 | Space            | Hop — a trigger fires a non-looping clip; its exit time returns to Idle |
+| P                | Pause/resume the two bystanders' plain clips; the player keeps its state machine |
 
 ## How it works
 
@@ -35,7 +36,8 @@ Animator model: parameters, triggers, 1D blend, exit time) on top of it, and
   and `puffSystem` spawns a fading dust puff at the feet through `Commands`.
 - The two **bystander aliens** run plain `SpriteAnimator` clips at their own
   speeds — the playback channel needs no state machine when a loop is all you
-  want.
+  want. `playbackSystem` toggles their `playing` state with P and excludes the
+  player's `Animator`, so both playback paths can be tried independently.
 
 Play the scene in the editor and select the Player while it runs: the Details
 panel shows `Animator.currentState` flipping between `Idle`, `Move`, and `Hop`

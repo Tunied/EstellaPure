@@ -1040,7 +1040,8 @@ export const GOLDEN = [
     tier: 'release',
     // The player's clip switches Idle→Move on the same key that moves it, so a
     // driven frame differs because the animation changed as much as the position.
-    interact: { keys: ['ArrowRight'], frames: 40 },
+    // P separately pauses plain-clip bystanders while the player's FSM keeps running.
+    interact: { keys: ['ArrowRight', 'KeyP'], frames: 40 },
   },
   {
     id: 'effects-gallery',

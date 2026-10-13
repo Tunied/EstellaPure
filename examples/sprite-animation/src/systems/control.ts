@@ -1,6 +1,6 @@
 import {
     defineSystem, Query, Mut, Res, Time, Input,
-    Transform, Sprite, Animator,
+    Transform, Sprite, Animator, SpriteAnimator,
     AnimatorController, AnimatorControllerAPI,
 } from 'esengine';
 import { Player } from '../components';
@@ -48,4 +48,14 @@ export const controlSystem = defineSystem(
         }
     },
     { name: 'ControlSystem' },
+);
+
+// Plain clip playback can be controlled independently of the player's state machine.
+export const playbackSystem = defineSystem(
+    [Query(Mut(SpriteAnimator)).without(Animator), Res(Input)],
+    (bystanders, input) => {
+        if (!input.isKeyPressed('KeyP')) return;
+        for (const [, animator] of bystanders) animator.playing = !animator.playing;
+    },
+    { name: 'PlaybackSystem' },
 );

@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Added
 
+- **Sprite playback can be tried independently of its state machine.** The sprite-animation example uses P to pause and resume the two plain-clip bystanders while the player's Animator continues running. Its packaged interaction exercises both controls, and editor verification checks that paused frame indices and timers remain unchanged before resuming.
+
 - **Disk cache budgets preserve offline content versions.** Node and capable mini-game hosts report resource usage, hashes, version ownership and protected bytes. Cleanup previews and applies LRU eviction while keeping current, pending, rollback and explicitly retained versions, coordinating with downloads and reporting actual released bytes. The editor's connected-device Profiler provides scans, budget previews, cleanup and version retention. Hosts without management report unavailable usage; saves and unknown files remain protected.
 
 ### Fixed

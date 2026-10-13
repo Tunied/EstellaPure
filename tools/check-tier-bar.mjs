@@ -62,7 +62,6 @@ const OWED = {
     ],
     assets: ['AssetsData is named by no SDK test'],
     camera: ['CameraData is named by no SDK test'],
-    animation: ['SpriteAnimator is called by no golden project'],
 };
 
 const REPORT = process.argv.includes('--report');
