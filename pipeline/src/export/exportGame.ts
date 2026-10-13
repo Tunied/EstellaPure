@@ -25,7 +25,7 @@ import { runtimeHostEntry } from '../bundle/runtimeHosts';
 import { writeFile, readFile, mkdir, cp, readdir, rm } from 'node:fs/promises';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { isInsideRoot } from '../fs/pathSandbox';
+import { containsPath, isInsideRoot, realPathOf } from '../fs/pathSandbox';
 import path from 'node:path';
 import { cookAssets, type CookManifest, type Inclusion } from '../assets/cookAssets';
 import { cookWorlds, streamedScenes } from '../world/cookWorld';
@@ -233,6 +233,17 @@ async function dropSourceMapRefs(dir: string): Promise<void> {
     const stripped = text.replace(/\r?\n?[ \t]*\/\/# sourceMappingURL=.*/g, '');
     if (stripped !== text) await writeFile(full, stripped);
   }
+}
+
+/** Replace an exporter-owned runtime tree without removing its input files. */
+async function resetRuntimeTree(output: string, name: 'sdk' | 'wasm', sources: readonly string[]): Promise<string> {
+  const target = path.resolve(output, name);
+  if (!isInsideRoot(output, target)
+    || sources.some((source) => containsPath(realPathOf(target), realPathOf(source)))) {
+    throw new Error(`runtime output ${target} overlaps an input or escapes the build output`);
+  }
+  await rm(target, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+  return target;
 }
 
 /**
@@ -888,6 +899,11 @@ async function produceExport(opts: ExportGameOptions): Promise<ExportGameResult>
   // One answer for the whole package: the bundles esbuild writes here and the
   // SDK tree copied in beside them.
   const sourceMaps = opts.sourcemap ?? false;
+  if (!sourceMaps) {
+    for (const name of ['game.js.map', 'scripts.js.map', 'scripts.mjs.map']) {
+      await rm(path.join(payloadDir, name), { force: true });
+    }
+  }
   const common: BuildOptions = {
     bundle: true,
     format: 'esm',
@@ -1101,7 +1117,8 @@ async function produceExport(opts: ExportGameOptions): Promise<ExportGameResult>
 
     progress({ phase: 'Copying SDK + runtime' });
     if (existsSync(opts.sdkDistDir)) {
-      await cp(opts.sdkDistDir, path.join(payloadDir, 'sdk'), {
+      const sdkOut = await resetRuntimeTree(payloadDir, 'sdk', [opts.sdkDistDir, opts.wasmDir]);
+      await cp(opts.sdkDistDir, sdkOut, {
         recursive: true, filter: shipsToBrowser(sourceMaps, opts.sdkDistDir, engineMap.entries),
       });
       if (!sourceMaps) await dropSourceMapRefs(path.join(payloadDir, 'sdk'));
@@ -1114,7 +1131,8 @@ async function produceExport(opts: ExportGameOptions): Promise<ExportGameResult>
           errors.push(`content needs "${id}" but ${file}.js is not in ${opts.wasmDir} — build the target that produces it (build-tools/build.config.js maps artifacts to targets) and re-export.`);
         }
       }
-      await cp(opts.wasmDir, path.join(payloadDir, 'wasm'), {
+      const wasmOut = await resetRuntimeTree(payloadDir, 'wasm', [opts.sdkDistDir, opts.wasmDir]);
+      await cp(opts.wasmDir, wasmOut, {
         recursive: true, filter: shipsSideModule(files.map((f) => f.file)),
       });
     } else errors.push(`wasm runtime dir not found: ${opts.wasmDir}`);

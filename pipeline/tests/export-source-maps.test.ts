@@ -5,7 +5,7 @@
  *        bundles the export writes and the SDK tree it copies beside them.
  */
 import { describe, it, expect } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, renameSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -48,6 +48,33 @@ const run = (f: { root: string; out: string }, sourcemap?: boolean) => exportGam
 });
 
 describe('source maps in a web package', () => {
+  it('refuses to replace a runtime output that also supplies the SDK input', async () => {
+    const f = setup();
+    try {
+      mkdirSync(f.out);
+      const sdk = path.join(f.out, 'sdk');
+      renameSync(path.join(f.root, '_sdk'), sdk);
+      const before = readFileSync(path.join(sdk, 'index.js'), 'utf8');
+      await expect(exportGame({
+        root: f.root, entryScene: 'scenes/main.esscene', hostsDir: HOSTS, packagesDir: OFFICIAL_PACKAGES,
+        sdkDistDir: sdk, wasmDir: path.join(f.root, '_wasm'), outDir: f.out,
+      })).rejects.toThrow(/overlaps an input/);
+      expect(readFileSync(path.join(sdk, 'index.js'), 'utf8')).toBe(before);
+    } finally { rmSync(f.root, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 }); }
+  }, 60_000);
+
+  it('removes maps when re-exporting a development package without them', async () => {
+    const f = setup();
+    try {
+      expect((await run(f, true)).ok).toBe(true);
+      expect(existsSync(path.join(f.out, 'game.js.map'))).toBe(true);
+      expect((await run(f, false)).ok).toBe(true);
+      for (const rel of ['game.js.map', 'sdk/index.js.map', 'sdk/shared/resource.js.map']) {
+        expect([rel, existsSync(path.join(f.out, rel))]).toEqual([rel, false]);
+      }
+    } finally { rmSync(f.root, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 }); }
+  }, 60_000);
+
   it('ships none by default, and leaves no script asking for one', async () => {
     const f = setup();
     try {

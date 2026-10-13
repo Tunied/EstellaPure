@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(export): remove obsolete web runtime files on rebuild':
+    { note: 'Repeated Web exports drop obsolete runtime files.' },
   'fix(editor): report failed exports accurately':
     { note: 'Editor export results report failed builds accurately.' },
   'fix(assets): release app-owned loaders during plugin cleanup':

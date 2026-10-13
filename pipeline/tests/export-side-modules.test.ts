@@ -68,6 +68,20 @@ const entities = (...components: Array<{ type: string; data?: unknown }>) =>
   [{ id: 0, components }];
 
 describe('web package side modules', () => {
+  it('drops a removed solver and preserves output-root files on re-export', async () => {
+    const f = setup({ version: '1.0', name: 'Main', entities: entities({ type: 'RigidBody2D', data: {} }) });
+    try {
+      expect((await run(f)).ok).toBe(true);
+      expect(shipped(f.out)).toEqual(['physics']);
+      writeFileSync(path.join(f.out, 'host-config.json'), 'KEEP');
+      writeFileSync(path.join(f.root, 'scenes', 'main.esscene'), JSON.stringify({ version: '1.0', name: 'Main', entities: [] }));
+      expect((await run(f)).ok).toBe(true);
+      expect(shipped(f.out)).toEqual([]);
+      expect(existsSync(path.join(f.out, 'wasm', 'physics.js'))).toBe(false);
+      expect(existsSync(path.join(f.out, 'host-config.json'))).toBe(true);
+    } finally { rmSync(f.root, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 }); }
+  }, 60_000);
+
   it('carries the engine and nothing optional for a scene that asks for nothing', async () => {
     const f = setup({ version: '1.0', name: 'Main', entities: entities({ type: 'Sprite', data: {} }) });
     try {
