@@ -4,6 +4,31 @@
 using namespace esengine;
 using namespace esengine::ecs;
 
+TEST_CASE("transformless grouping nodes preserve descendant composition") {
+    Registry r; TransformSystem system;
+    const auto root = r.create(), group = r.create(), child = r.create();
+    r.emplace<Transform>(child).position.x = 5;
+    setParent(r, child, group);
+    SUBCASE("grouping root") {
+        system.ensureComposed(r);
+        r.get<Transform>(child).ensureDecomposed();
+        CHECK(r.get<Transform>(child).worldPosition.x == doctest::Approx(5));
+    }
+    SUBCASE("group between transformed ancestors and descendants") {
+        r.emplace<Transform>(root).position.x = 10;
+        r.get<Transform>(root).scale.x = 2;
+        setParent(r, group, root);
+        system.ensureComposed(r);
+        r.get<Transform>(child).ensureDecomposed();
+        CHECK(r.get<Transform>(child).worldPosition.x == doctest::Approx(20));
+        r.get<Transform>(root).position.x = 30;
+        r.emplace<TransformDirty>(root);
+        invalidateTransformComposition(); system.ensureComposed(r);
+        r.get<Transform>(child).ensureDecomposed();
+        CHECK(r.get<Transform>(child).worldPosition.x == doctest::Approx(40));
+    }
+}
+
 TEST_CASE("valid deep hierarchies compose every descendant") {
     Registry r; TransformSystem system;
     Entity parent = INVALID_ENTITY, leaf;

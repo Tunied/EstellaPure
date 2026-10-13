@@ -210,6 +210,15 @@ private:
             }
         });
 
+        if (have_children_) {
+            const glm::mat4 identity{1.0f};
+            registry.eachLive<Children>([&registry, this, &identity](Entity entity, Children& children) {
+                if (registry.has<Transform>(entity) || registry.has<Parent>(entity) || !visitOnce(entity)) return;
+                if (have_dirty_ && registry.has<TransformDirty>(entity)) dirty_to_clear_.push_back(entity);
+                for (Entity child : children.entities) updateEntityTransform(registry, child, identity, true);
+            });
+        }
+
         for (Entity e : dirty_to_clear_) {
             if (registry.has<TransformDirty>(e)) {
                 registry.remove<TransformDirty>(e);
@@ -260,11 +269,12 @@ private:
         // growth. Per-composition stamps bound corrupt duplicate/cyclic links.
         for (;;) {
             auto* transform = registry.tryGet<Transform>(task.entity);
-            if (transform && visitOnce(task.entity)) {
+            if (registry.valid(task.entity) && visitOnce(task.entity)) {
                 const bool localDirty = have_dirty_ && registry.has<TransformDirty>(task.entity);
                 const bool dirty = task.parentDirty || localDirty;
-                const bool keepStatic = have_static_ && registry.has<TransformStatic>(task.entity) && !dirty;
-                if (!keepStatic) {
+                const bool keepStatic = transform && have_static_ && registry.has<TransformStatic>(task.entity) && !dirty;
+                const glm::mat4* childMatrix = task.parentMatrix;
+                if (transform && !keepStatic) {
                     const auto matrix = *task.parentMatrix * math::compose(transform->position, transform->rotation, transform->scale);
                     if (changedOut_) {
                         ++visited_;
@@ -272,8 +282,9 @@ private:
                     }
                     transform->cachedMatrix_ = matrix;
                     transform->decomposed_ = false;
-                    if (localDirty) dirty_to_clear_.push_back(task.entity);
                 }
+                if (localDirty) dirty_to_clear_.push_back(task.entity);
+                if (transform) childMatrix = &transform->cachedMatrix_;
                 if (auto* children = registry.tryGet<Children>(task.entity)) {
                     const auto& list = children->entities;
                     // Descend directly into the first child. Only siblings need a
@@ -281,10 +292,10 @@ private:
                     for (usize i = list.size(); i > 1; --i) {
                         // Transform storage is stable throughout composition; borrow
                         // its cache rather than copying a matrix into every task.
-                        pending_.push_back({list[i - 1], &transform->cachedMatrix_, keepStatic ? false : dirty});
+                        pending_.push_back({list[i - 1], childMatrix, keepStatic ? false : dirty});
                     }
                     if (!list.empty()) {
-                        task = {list[0], &transform->cachedMatrix_, keepStatic ? false : dirty};
+                        task = {list[0], childMatrix, keepStatic ? false : dirty};
                         continue;
                     }
                 }

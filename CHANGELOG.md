@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Transformless hierarchy groups preserve child world poses.** A grouping entity without its own Transform no longer stops composition of its descendants. Root groups start from identity, intermediate groups carry the ancestor matrix through, and dirty propagation and traversal guards continue through those nodes.
+
 - **Tilemap activity preserves painted data and owns generated collision.** Disabling a layer or its ancestor retains its chunks and derived layers. Runtime colliders inherit the map's movement and activity, remain outside saved scenes, and resume with their existing identities; inactive tile animations stop advancing.
 
 - **Static 2D bodies follow authored transforms and parent movement.** Box2D updates changed static poses in place, preserving bodies and shapes without repeating writes for unchanged poses. Initial body creation composes the hierarchy first, and parented static bodies no longer force dynamic-body writeback out of its batch path.
