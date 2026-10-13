@@ -38,6 +38,7 @@ export {
 export interface InstantiatePrefabOptions {
     assets?: Assets;
     assetBaseUrl?: string;
+    /** The parent must still accept the root after loading; failure rolls back the instance. */
     parent?: Entity;
     overrides?: PrefabOverride[];
 }
@@ -114,8 +115,11 @@ export async function instantiatePrefab(
     });
 
     const root = entityMap.get(rootId)!;
-    if (options?.parent !== undefined) {
-        world.setParent(root, options.parent);
+    if (options?.parent !== undefined && !world.trySetParent(root, options.parent)) {
+        for (const entity of entityMap.values()) {
+            if (world.valid(entity)) world.despawn(entity);
+        }
+        throw new Error(`Prefab "${normalized.name}" could not attach to parent ${options.parent}`);
     }
 
     return { root, entities: entityMap };

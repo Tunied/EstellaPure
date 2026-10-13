@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Prefab spawns roll back when their parent disappears.** Runtime instantiation checks that its requested parent accepts the root after asynchronous loading. A rejected attachment despawns the newly created hierarchy and rejects the spawn instead of leaving an unparented instance behind; live parents and the explicit no-parent sentinel remain supported.
+
 - **Scene completion errors settle the transition promise.** A throwing fade-completion callback rejects the caller's promise with its original error after clearing the old overlay, so callers can recover and later scene switches remain available. A callback that starts another fade keeps that new transition intact.
 
 - **Input cancellation stops released scroll flings.** UI scrolling discards existing coast state when the host cancels input, so a list already gliding after release remains at its current offset when the app resumes. A new press can still start a fresh drag in the same frame.

@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(prefab): roll back spawns when parent attachment fails':
+    { note: 'Prefab spawns roll back when their parent disappears.' },
   'fix(scene): reject transitions when completion callbacks fail':
     { note: 'Scene completion errors settle the transition promise.' },
   'feat(examples): demonstrate independent sprite playback controls':

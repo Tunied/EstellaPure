@@ -22,11 +22,13 @@ const mockLoadScene = vi.mocked(loadOwnedSceneWithAssets);
 
 function createMockWorld(): World {
     const parentMap = new Map<Entity, Entity>();
+    const setParent = vi.fn((child: Entity, parent: Entity) => {
+        parentMap.set(child, parent);
+    });
     return {
         spawn: vi.fn(() => 0 as Entity),
-        setParent: vi.fn((child: Entity, parent: Entity) => {
-            parentMap.set(child, parent);
-        }),
+        setParent,
+        trySetParent: vi.fn((child: Entity, parent: Entity) => { setParent(child, parent); return true; }),
         insert: vi.fn(),
         get: vi.fn(),
     } as unknown as World;
