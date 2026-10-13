@@ -18,8 +18,8 @@ candidate version contains two unfinished cards:
 
 | Card | Board status | Decision |
 |---|---|---|
-| RM-025 — disk cache budget / offline versions | Todo, P0 | Implement the shared runtime and editor workflow; this benefits 2D Web/mini-game delivery. |
-| RM-136 — GPU baking / adaptive sampling | Todo, P2 | Defer specialized 3D work according to the repository's 2D production priority. |
+| RM-025 — disk cache budget / offline versions | In Progress, P0 | Runtime/editor workflow implemented; physical acceptance remains pending. |
+| RM-136 — GPU baking / adaptive sampling | In Progress, P2 | Implemented the allowed incremental route after the 2D workflow; see the linked baking review. |
 
 RM-025's earlier static description is outdated: mini-game byte caches and native
 URL-to-safe-name mapping already exist. Cache names use XXH64, not SHA256. The
@@ -29,7 +29,8 @@ specified physical-device evidence; their status was not inferred from releases.
 
 The changes are pushed for draft review and unmerged. The initial review found
 no matching cache-budget PR; the two drafts above were subsequently created.
-No board completion or device acceptance is claimed and no remote card was changed.
+Both remote cards now contain implementation/verification evidence and are
+In Progress. No board completion or physical-device acceptance is claimed.
 
 ## Implemented
 
@@ -221,3 +222,10 @@ The same demonstration now runs in golden CI shard 3. Local output is
 `output/cache-crash.log` in the combined worktree. This strengthens crash/restart
 evidence for the Node filesystem contract; physical WeChat acceptance remains
 pending and is not substituted by this run.
+
+The cache branch's complete Build run
+[38390256156](https://github.com/esengine/estella/actions/runs/38390256156)
+passed all 17 jobs on `dc3677b68`, including scale budgets after the report-write
+fix. Editor #20 and #21 checks passed at their recorded heads. The newer combined
+branch's crash demonstration runs locally and is being checked in CI; those
+pending checks are not claimed to have passed.

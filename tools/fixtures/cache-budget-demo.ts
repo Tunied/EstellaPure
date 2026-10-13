@@ -49,15 +49,23 @@ async function offline(scratch: string, root: string) {
     if (a.updateStatus().revision !== 'v3' || current.some(b => b !== 3) || rollback.some(b => b !== 2)) throw Error('offline verification failed');
     const report = await a.diskCacheReport();
     const cleanup = await a.cleanDiskCache(16, true);
-    if (report.versions.some(v => v.reason && v.missing) || cleanup.releaseBytes !== 8
+    const currentVersion = report.versions.find(v => v.revision === 'v3' && v.reason === 'current');
+    const rollbackVersion = report.versions.find(v => v.revision === 'v2' && v.reason === 'rollback');
+    if (!currentVersion || !rollbackVersion || report.versions.some(v => v.reason && v.missing)
+        || cleanup.releaseBytes !== 8 || cleanup.budgetMet !== false || cleanup.remainingBytes !== 24
         || cleanup.report.entries.filter(e => e.name.endsWith('.tmp')).length !== 1
         || cleanup.report.entries.some(e => e.name.endsWith('.tmp') && !e.protection.includes('unindexed'))) {
         throw Error('crash recovery did not preserve protected versions and the interrupted temporary');
     }
+    for (const v of [2, 3]) {
+        const stored = await nodeAdapter.readCacheFile(assetUrl(root, v));
+        if (!stored || stored.byteLength !== 8 || new Uint8Array(stored).some(b => b !== v))
+            throw Error('cleanup deleted or damaged a protected version after restart');
+    }
     return { revision: a.updateStatus().revision, currentBytes: current.byteLength,
         rollbackBytes: rollback.byteLength, networkAllowed: false, freshProcess: true,
         protectedMissing: 0, releasedUncommittedBytes: cleanup.releaseBytes,
-        interruptedTemporaryProtected: true, remainingBytes: cleanup.remainingBytes };
+        interruptedTemporaryProtected: true, remainingBytes: cleanup.remainingBytes, budgetMet: cleanup.budgetMet };
 }
 
 type CrashPhase = 'resource-rename' | 'manifest-rename';
@@ -114,7 +122,7 @@ function crash(scratch: string, bundle: string, root: string, phase: CrashPhase)
         });
         child.once('exit', (code, signal) => {
             clearTimeout(timeout);
-            if (failure || !marker || code === 0) reject(Error(`${failure || 'unexpected child exit'}: ${stderr}`));
+            if (failure || !marker || signal !== 'SIGKILL') reject(Error(`${failure || 'unexpected child exit'}: ${stderr}`));
             else resolve({ ...marker, exitCode: code, signal, terminated: true });
         });
     });
