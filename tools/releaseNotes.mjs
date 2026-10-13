@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(video): synchronize live component playback settings':
+    { note: 'Video component playback settings update live streams.' },
   'fix(video): isolate plugin cleanup and stream ownership per app':
     { note: 'Video plugin cleanup releases only the selected App.' },
   'fix(video): replace live streams when component sources change':

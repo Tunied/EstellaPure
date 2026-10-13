@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Video component playback settings update live streams.** Changing volume, mute, loop, or playback rate updates the current stream without reopening the decoder. Unchanged settings avoid repeated backend calls across frames; source changes still create a stream with the current settings.
+
 - **Video plugin cleanup releases only the selected App.** Shared plugin instances retain separate video backends and stream maps for each App, so closing a preview cannot stop another App's video or leave its own backend behind. Cleanup detaches the world subscription and disables its old update system. Stopping component streams also retires them from the video service instead of pumping stopped handles.
 
 - **Video components switch streams when their source changes.** Changing a live component's source releases its previous stream and opens the new source. Unchanged sources keep their stream across frames; clearing the source or removing the entity still releases the current stream.

@@ -66,6 +66,8 @@ interface VideoPluginState {
     released: boolean;
 }
 
+type StreamSettings = Pick<VideoData, 'source' | 'volume' | 'muted' | 'loop' | 'playbackRate'>;
+
 export class VideoPlugin implements Plugin {
     name = 'video';
     private readonly states_ = new WeakMap<App, VideoPluginState>();
@@ -87,7 +89,7 @@ export class VideoPlugin implements Plugin {
         app.insertResource(VideoPlayer, video);
 
         const handles = new Map<number, VideoStreamHandle>();
-        const sources = new WeakMap<VideoStreamHandle, string>();
+        const settings = new WeakMap<VideoStreamHandle, StreamSettings>();
         const warnedNoSprite = new Set<number>();
         const live = new Set<number>();
 
@@ -124,7 +126,8 @@ export class VideoPlugin implements Plugin {
                         const id = entity as number;
                         live.add(id);
                         const previous = handles.get(id);
-                        if (!previous || sources.get(previous) !== v.source) {
+                        const applied = previous ? settings.get(previous) : undefined;
+                        if (!previous || !applied || applied.source !== v.source) {
                             if (previous) videoAPI.stop(previous);
                             const handle = videoAPI.play(v.source, {
                                 autoplay: v.autoplay,
@@ -134,7 +137,15 @@ export class VideoPlugin implements Plugin {
                                 playbackRate: v.playbackRate,
                             });
                             handles.set(id, handle);
-                            sources.set(handle, v.source);
+                            settings.set(handle, { source: v.source, volume: v.volume, muted: v.muted,
+                                loop: v.loop, playbackRate: v.playbackRate });
+                        } else {
+                            if (applied.volume !== v.volume) { previous.setVolume(v.volume); applied.volume = v.volume; }
+                            if (applied.muted !== v.muted) { previous.setMuted(v.muted); applied.muted = v.muted; }
+                            if (applied.loop !== v.loop) { previous.setLoop(v.loop); applied.loop = v.loop; }
+                            if (applied.playbackRate !== v.playbackRate) {
+                                previous.setPlaybackRate(v.playbackRate); applied.playbackRate = v.playbackRate;
+                            }
                         }
                     }
 

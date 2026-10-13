@@ -14,6 +14,29 @@ vi.mock('../src/platform/base', async original => ({
 const apps: App[] = [];
 afterEach(() => { for (const app of apps.splice(0)) app.quit(); vi.clearAllMocks(); });
 
+it('applies changed playback settings once without recreating the stream', async () => {
+    backend.createStream.mockImplementation((_url, options) => {
+        const handle = new NullVideoBackend().createStream('', options);
+        for (const key of ['stop', 'setVolume', 'setMuted', 'setLoop', 'setPlaybackRate'] as const) vi.spyOn(handle, key);
+        return handle;
+    });
+    const app = App.new(); apps.push(app); app.addPlugin(new VideoPlugin());
+    const entity = app.world.spawn(); app.world.insert(entity, Video, { source: 'clip.mp4' });
+    await app.tick(1 / 60);
+    const handle = backend.createStream.mock.results[0].value;
+    app.world.update(entity, Video, value => {
+        value.volume = 0.25; value.muted = false; value.loop = false; value.playbackRate = 2;
+    });
+    await app.tick(1 / 60);
+    expect(handle.setVolume).toHaveBeenCalledWith(0.25);
+    expect(handle.setMuted).toHaveBeenCalledWith(false);
+    expect(handle.setLoop).toHaveBeenCalledWith(false);
+    expect(handle.setPlaybackRate).toHaveBeenCalledWith(2);
+    for (let i = 0; i < 100; i++) await app.tick(1 / 60);
+    for (const key of ['setVolume', 'setMuted', 'setLoop', 'setPlaybackRate'] as const) expect(handle[key]).toHaveBeenCalledOnce();
+    expect(backend.createStream).toHaveBeenCalledOnce(); expect(handle.stop).not.toHaveBeenCalled();
+});
+
 it('switches a live source without restarting unchanged streams and releases retired handles', async () => {
     const handles: ReturnType<NullVideoBackend['createStream']>[] = [];
     backend.createStream.mockImplementation((_url, options) => {
