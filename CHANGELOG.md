@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Old audio asset leases do not release replacement clips.** Each loaded audio result releases the buffer generation and audio device it actually retained. Releasing an outgoing scene's asset after a clip update no longer unpins or evicts the current clip under the same path, including when the warm-cache budget is zero. Final release still retires the current buffer normally.
+
 - **Audio source updates retire pending decodes.** Invalidating a clip starts a new load instead of joining its outdated request. Late results release their buffers without overwriting current audio or deleting the newer request's deduplication record. Web Audio also tracks source revisions across file reads and decode completion so old requests cannot restore stale URL-cache entries.
 
 - **Late audio decodes do not repopulate closed devices.** Audio preloads that finish after disposal release their decoded buffers instead of restoring cache entries. Concurrent callers still share one decode and one release, and new preloads on a closed API perform no backend work. Editor Stop now leaves the buffer count and resident bytes at zero even when a decode completes afterwards.

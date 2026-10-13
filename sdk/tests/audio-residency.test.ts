@@ -9,7 +9,14 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AudioAPI } from '../src/audio/Audio';
+import { Assets } from '../src/asset/Assets';
+import type { Backend } from '../src/asset/Backend';
 import type { PlatformAudioBackend, AudioBufferHandle, AudioHandle } from '../src/audio/PlatformAudioBackend';
+
+vi.mock('../src/wasm/resourceManager', () => ({
+    requireResourceManager: () => ({}), getResourceManager: () => null,
+    evictTextureDimensions: vi.fn(),
+}));
 
 interface MockBackend extends PlatformAudioBackend {
     loads: string[];
@@ -65,6 +72,54 @@ describe('AudioAPI buffer residency', () => {
         backend = createMockBackend();
         audio = new AudioAPI(backend);
         audio.setBufferBudget(1000);
+    });
+
+    it.each([0, 1000])('releasing an old asset lease cannot release the replacement clip, budget=%i', async budget => {
+        audio.setBufferBudget(budget);
+        const assets = Assets.create({
+            module: null,
+            getAudio: () => audio,
+            backend: {
+                fetchBinary: async () => new ArrayBuffer(8),
+                fetchText: async () => '{}',
+                resolveUrl: (path: string) => path,
+            } as Backend,
+        });
+        const old = await assets.acquireTyped('audio', 'edited.wav');
+        const before = audio.getBufferHandle('edited.wav');
+        expect(assets.invalidate('edited.wav')).toBe(true);
+        const current = await assets.acquireTyped('audio', 'edited.wav');
+        const replacement = audio.getBufferHandle('edited.wav');
+        expect(replacement).toBeDefined();
+        expect(replacement).not.toBe(before);
+        old.release();
+        expect(audio.getBufferHandle('edited.wav')).toBe(replacement);
+        expect(audio.getBufferStats()).toMatchObject({ bufferCount: 1, evictableCount: 0 });
+        expect(audio.trimBufferCache()).toBe(0);
+        current.release();
+        audio.trimBufferCache();
+        expect(audio.getBufferStats()).toMatchObject({ bufferCount: 0, bufferBytes: 0 });
+    });
+
+    it('releases a lease on its original device when the audio provider changes', async () => {
+        audio.setBufferBudget(0);
+        const original = audio;
+        const assets = Assets.create({
+            module: null, getAudio: () => audio,
+            backend: { fetchBinary: async () => new ArrayBuffer(8), fetchText: async () => '{}',
+                resolveUrl: (path: string) => path } as Backend,
+        });
+        const old = await assets.acquireTyped('audio', 'edited.wav');
+        audio = new AudioAPI(createMockBackend());
+        audio.setBufferBudget(0);
+        assets.invalidate('edited.wav');
+        const current = await assets.acquireTyped('audio', 'edited.wav');
+        const replacement = audio.getBufferHandle('edited.wav');
+        old.release();
+        expect(original.getBufferStats().bufferCount).toBe(0);
+        expect(audio.getBufferHandle('edited.wav')).toBe(replacement);
+        current.release();
+        expect(audio.getBufferStats().bufferCount).toBe(0);
     });
 
     it('preload lands in the warm cache (evictable), playable immediately', async () => {

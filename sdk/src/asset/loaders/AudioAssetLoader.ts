@@ -5,6 +5,7 @@ import type { AudioAPI } from '../../audio/Audio';
 import { log } from '../../util/logger';
 
 export class AudioAssetLoader implements AssetLoader<AudioResult> {
+    private readonly releases_ = new WeakMap<AudioResult, () => void>();
     readonly type = 'audio';
     readonly extensions = ['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac', '.webm'];
 
@@ -21,7 +22,7 @@ export class AudioAssetLoader implements AssetLoader<AudioResult> {
         // Warm-cache hit: the buffer survived its last release as an evictable
         // entry — pin it and skip the whole fetch + decode.
         if (audio.retainBuffer(path)) {
-            return { bufferId: path };
+            return this.ownedResult_(audio, path);
         }
         // A `url` backend (a mini-game player) streams the file itself: fetching
         // it here reads the whole clip into memory to drop it, and its source
@@ -33,14 +34,22 @@ export class AudioAssetLoader implements AssetLoader<AudioResult> {
             await audio.preloadFromData(path, await ctx.loadBinary(buildPath));
         }
         audio.retainBuffer(path);
-        return { bufferId: path };
+        return this.ownedResult_(audio, path);
+    }
+
+    private ownedResult_(audio: AudioAPI, path: string): AudioResult {
+        const result = { bufferId: path };
+        const buffer = audio.getBufferHandle(path);
+        if (buffer) this.releases_.set(result, () => {
+            if (audio.getBufferHandle(path) === buffer) audio.releaseBuffer(path);
+        });
+        return result;
     }
 
     unload(asset: AudioResult): void {
-        // Drops the one reference Assets holds; the AudioAPI decides what that
-        // means — retain as an evictable warm-cache entry under the budget, or
-        // free outright when the budget is 0.
-        this.getAudio_()?.releaseBuffer(asset.bufferId);
+        const release = this.releases_.get(asset);
+        this.releases_.delete(asset);
+        release?.();
     }
 
     invalidate(path: string): boolean {
