@@ -1,7 +1,11 @@
 # v0.78.0 card review and cache-budget verification — 2026-10-13
 
-The latest fetched engine mainline is `acdc5ded8cc939d81cbb2128d12e93609c0b3da1`;
-its editor submodule is `53e998badfa4dfce0d377c0c29b6107502bb893d`.
+The verified branch is based on engine `19f7ec25279717b874afcae87d2c5e047b458f7b`
+and editor `ba95cde5127b5a6c8c24f2860f365397b20a0071`. Draft reviews are
+[engine #95](https://github.com/esengine/estella/pull/95) and
+[editor #20](https://github.com/esengine/estella-editor/pull/20).
+The initial review used engine `acdc5ded8cc939d81cbb2128d12e93609c0b3da1`
+and editor `53e998badfa4dfce0d377c0c29b6107502bb893d`, before the rebase below.
 [v0.78.0](https://github.com/esengine/estella/releases/tag/v0.78.0) was published
 on 2026-10-12. Existing uncommitted changes in `D:/estella` and its editor were
 preserved. Work is on `codex/cache-version-budget` in a separate checkout.
@@ -20,9 +24,9 @@ actual missing work was management, version protection and author-facing control
 Earlier pending device cards (including RM-033 and RM-054) still require their
 specified physical-device evidence; their status was not inferred from releases.
 
-The changes are local and unmerged. A `gh pr list --state all --search 'cache
-budget'` query returned no matching engine PR at review time. No board completion
-or device acceptance is claimed and no remote card was changed.
+The changes are pushed for draft review and unmerged. The initial review found
+no matching cache-budget PR; the two drafts above were subsequently created.
+No board completion or device acceptance is claimed and no remote card was changed.
 
 ## Implemented
 
@@ -183,3 +187,9 @@ startup starvation, not a proven Electron root cause. Failed runs remain in
 It rendered green/red/blue, released 209 B while preserving 418 B of current and
 rollback resources, kept pixels identical, and restarted offline without a CDN
 request. This is contract-host evidence, not physical-device acceptance.
+
+The verifier is now a named release criterion and runs in the third golden CI
+shard, which retains its JSON and screenshots. Engine Build was dispatched on
+the implementation branch; the first editor CI ran before its companion engine
+branch existed and failed to resolve the new SDK types. It was rerun after that
+branch was pushed. Remote results are pending, not inferred from local passes.
