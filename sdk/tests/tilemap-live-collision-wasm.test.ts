@@ -3,7 +3,8 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { HAS_WASM, loadWasmModule } from './helpers/loadWasm';
 import { App } from '../src/app/app';
-import { Transform, TilemapLayer } from '../src/ecs/component';
+import { Transform, TilemapLayer, Disabled, RuntimeOnly, Parent } from '../src/ecs/component';
+import { serializeScene } from '../src/scene/scene';
 import { TilemapPlugin, TilemapRuntimeState } from '../src/tilemap/tilemapPlugin';
 import { Tilemaps } from '../src/tilemap/tilemapAPI';
 
@@ -51,13 +52,13 @@ describe.skipIf(!HAS_WASM)('live native tile collision', () => {
         tiles.setTile(entity, -1, -1, 1); await app.tick(1 / 60);
         expect(colliders().length).toBeGreaterThan(0);
     });
-    it('updates collision after a layer move and palette removal', async () => {
+    it('inherits layer movement without rebuilding and removes collision with its palette', async () => {
         const { app, entity, colliders } = await scene();
         const original = [...colliders()];
         app.world.update(entity, Transform, value => { value.position.x = 32; });
         await app.tick(1 / 60);
-        expect(colliders()).not.toEqual(original);
-        for (const id of original) expect(app.world.valid(id)).toBe(false);
+        expect(colliders()).toEqual(original);
+        for (const id of original) expect(app.world.get(id, Parent).entity).toBe(entity);
         app.getResource(TilemapRuntimeState).setLayerTilesets(entity, []);
         await app.tick(1 / 60);
         expect(colliders() ?? []).toHaveLength(0);
@@ -79,5 +80,35 @@ describe.skipIf(!HAS_WASM)('live native tile collision', () => {
         expect(colliders()).not.toEqual(original);
         expect(app.world.get(colliders()[0], Transform).position.x).toBe(24);
         for (const id of original) expect(app.world.valid(id)).toBe(false);
+    });
+    it('preserves tiles and collider identity while disabling and reenabling a layer', async () => {
+        const { app, entity, tiles, colliders } = await scene();
+        const original = [...colliders()];
+        app.world.insert(entity, Disabled);
+        await app.tick(1 / 60);
+        expect(tiles.getTile(entity, 0, 0)).toBe(1);
+        for (const collider of original) expect(app.world.isEntityActive(collider)).toBe(false);
+        app.world.remove(entity, Disabled); await app.tick(1 / 60);
+        expect(colliders()).toEqual(original);
+        for (const collider of original) expect(app.world.isEntityActive(collider)).toBe(true);
+    });
+    it('keeps generated collision out of serialized scenes', async () => {
+        const { app, entity, colliders } = await scene();
+        for (const collider of colliders()) {
+            expect(app.world.has(collider, RuntimeOnly)).toBe(true);
+            expect(app.world.get(collider, Parent).entity).toBe(entity);
+        }
+        expect(serializeScene(app.world).entities).toHaveLength(1);
+    });
+    it('inherits a disabled ancestor without losing painted tiles', async () => {
+        const { app, entity, tiles, colliders } = await scene();
+        const parent = app.world.spawn(); app.world.insert(parent, Transform);
+        app.world.setParent(entity, parent);
+        const original = [...colliders()];
+        app.world.insert(parent, Disabled); await app.tick(1 / 60);
+        expect(tiles.getTile(entity, 0, 0)).toBe(1);
+        for (const collider of original) expect(app.world.isEntityActive(collider)).toBe(false);
+        app.world.remove(parent, Disabled); await app.tick(1 / 60);
+        expect(colliders()).toEqual(original);
     });
 });

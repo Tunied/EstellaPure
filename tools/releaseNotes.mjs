@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(tilemap): preserve inactive layers and own runtime colliders':
+    { note: 'Tilemap activity preserves painted data and owns generated collision.' },
   'fix(physics): synchronize static body transforms in place':
     { note: 'Static 2D bodies follow authored transforms and parent movement.' },
   'fix(tilemap): invalidate caches when a layer is recreated':
