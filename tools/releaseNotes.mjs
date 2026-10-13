@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(tilemap): invalidate caches when a layer is recreated':
+    { note: 'Recreated tilemap layers discard old geometry and collision.' },
   'fix(tilemap): isolate runtime tools and scene codecs per world':
     { note: 'Tilemap runtimes and saved chunks stay with their own worlds.' },
   'fix(tilemap): rebuild native collision after live map edits':

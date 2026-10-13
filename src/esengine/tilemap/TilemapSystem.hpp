@@ -114,6 +114,7 @@ public:
     void setHexParams(Entity entity, f32 sideLength, bool staggerAxisX, bool staggerIndexEven);
 
     struct LayerData {
+        u32 generation = 0;
         u32 width = 0;   // finite-layer bounds (0 = infinite); tiles live in `chunks`.
         u32 height = 0;
         f32 tile_width = 0;
@@ -191,6 +192,7 @@ public:
     const LayerMap& allLayers() const { return layers_; }
 
 private:
+    u32 next_generation_ = 0;
     LayerMap layers_;
 };
 

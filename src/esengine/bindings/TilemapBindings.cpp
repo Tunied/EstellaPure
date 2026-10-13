@@ -121,6 +121,11 @@ u32 tilemap_getEditRevision(u32 entity) {
     return layer ? layer->edit_revision : 0;
 }
 
+u32 tilemap_getGeneration(u32 entity) {
+    const auto* layer = getTilemapSystem().getLayerData(Entity::fromRaw(entity));
+    return layer ? layer->generation : 0;
+}
+
 void tilemap_setRenderProps(u32 entity, u32 textureHandle, u32 tilesetColumns,
                             f32 uvTileW, f32 uvTileH,
                             i32 sortLayer, f32 depth,

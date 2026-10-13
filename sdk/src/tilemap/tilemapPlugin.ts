@@ -36,6 +36,7 @@ const GRID_STAGGERED = 2;
 const GRID_HEXAGONAL = 3;
 
 interface CollisionInputs {
+    generation: number;
     revision: number;
     width: number;
     height: number;
@@ -402,8 +403,11 @@ export class TilemapRuntime {
                     const revision = playMode && (hasBox || hasShapes)
                         ? engine.tilemap_getEditRevision?.(entity) ?? 0
                         : 0;
+                    const generation = playMode && (hasBox || hasShapes)
+                        ? engine.tilemap_getGeneration?.(entity) ?? 0
+                        : 0;
                     const previous = collisionInputs.get(entity);
-                    const changed = !previous || previous.revision !== revision
+                    const changed = !previous || previous.generation !== generation || previous.revision !== revision
                         || previous.width !== layerData.cellSize.x || previous.height !== layerData.cellSize.y
                         || previous.x !== ox || previous.y !== oy || previous.pixelsPerUnit !== pixelsPerUnit
                         || previous.ids !== collIds || previous.shapes !== tileShapes;
@@ -428,7 +432,7 @@ export class TilemapRuntime {
                             ));
                         }
                         collisionEntities.set(entity, spawned);
-                        collisionInputs.set(entity, { revision, width: layerData.cellSize.x,
+                        collisionInputs.set(entity, { generation, revision, width: layerData.cellSize.x,
                             height: layerData.cellSize.y, x: ox, y: oy, pixelsPerUnit,
                             ids: collIds, shapes: tileShapes });
                     }

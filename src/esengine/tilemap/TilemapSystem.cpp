@@ -107,6 +107,7 @@ void buildChunksFromFlat(TilemapSystem::LayerData& layer,
 void TilemapSystem::initLayer(Entity entity, u32 width, u32 height,
                                f32 tileWidth, f32 tileHeight) {
     LayerData layer;
+    layer.generation = ++next_generation_;
     layer.width = width;
     layer.height = height;
     layer.tile_width = tileWidth;
@@ -116,6 +117,7 @@ void TilemapSystem::initLayer(Entity entity, u32 width, u32 height,
 
 void TilemapSystem::initInfiniteLayer(Entity entity, f32 tileWidth, f32 tileHeight) {
     LayerData layer;
+    layer.generation = ++next_generation_;
     layer.width = 0;
     layer.height = 0;
     layer.tile_width = tileWidth;

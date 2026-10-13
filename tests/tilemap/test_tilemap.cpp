@@ -13,6 +13,20 @@ using namespace esengine::tilemap;
 
 static Entity E(u32 idx) { return Entity::make(idx, 1); }
 
+TEST_CASE("tilemap_replacement_has_a_distinct_generation") {
+    TilemapSystem sys;
+    sys.initLayer(E(0), 2, 2, 16, 16);
+    const auto first = sys.getLayerData(E(0))->generation;
+    sys.setTile(E(0), 0, 0, 1);
+    CHECK(sys.getLayerData(E(0))->generation == first);
+    sys.initInfiniteLayer(E(0), 16, 16);
+    const auto second = sys.getLayerData(E(0))->generation;
+    CHECK(second > first);
+    sys.destroyLayer(E(0));
+    sys.initLayer(E(0), 2, 2, 16, 16);
+    CHECK(sys.getLayerData(E(0))->generation > second);
+}
+
 TEST_CASE("tilemap_unchanged_writes_preserve_sparse_storage_and_revision") {
     TilemapSystem sys;
     sys.initInfiniteLayer(E(0), 16.0f, 16.0f);

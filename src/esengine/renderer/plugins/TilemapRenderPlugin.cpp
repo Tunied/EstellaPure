@@ -160,6 +160,11 @@ void TilemapRenderPlugin::collect(RenderCollectContext& collect_ctx) {
     const CameraView& cam = collect_ctx.camera;
 
     for (const auto& [entity, layer] : layers) {
+        auto cachedLayer = layer_caches_.find(entity);
+        if (cachedLayer != layer_caches_.end() && cachedLayer->second.generation != layer.generation) {
+            layer_caches_.erase(cachedLayer);
+            cachedLayer = layer_caches_.end();
+        }
         if (registry.valid(entity) && !registry.isEntityActive(entity)) continue;
         // The TilemapLayer component is the single source of a layer's visual
         // metadata — the renderer reads it live each frame (so animated
@@ -308,7 +313,9 @@ void TilemapRenderPlugin::collect(RenderCollectContext& collect_ctx) {
 
         if (minCX >= maxCX || minCY >= maxCY) continue;
 
-        auto& chunkCaches = layer_caches_[entity];
+        auto& layerCache = cachedLayer != layer_caches_.end() ? cachedLayer->second : layer_caches_[entity];
+        layerCache.generation = layer.generation;
+        auto& chunkCaches = layerCache.chunks;
 
         // Per-slot merged geometry for this layer (one draw call per slot/texture).
         if (slot_vertices_scratch_.size() < slots.size()) {

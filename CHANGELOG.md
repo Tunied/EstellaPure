@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Recreated tilemap layers discard old geometry and collision.** A layer generation distinguishes replacement from ordinary edits, even when the same entity and edit count are reused. Reinitializing or immediately recreating a layer releases its old chunk meshes and rebuilds collision from the replacement; unchanged layers retain their caches.
+
 - **Tilemap runtimes and saved chunks stay with their own worlds.** Closing a preview or an older App no longer destroys another core's same-numbered layers or disables its collision updates. Scene codecs serialize each world's own tiles; closing the current runtime restores the previous live tooling interface and collision lookup, and releases the retired codec.
 
 - **Native tilemap collisions follow live edits.** Changing painted tiles, importing an empty map, moving a layer or removing its collision palette replaces obsolete runtime colliders. A native content revision keeps unchanged frames and repeated writes from exporting the map or rebuilding collision.

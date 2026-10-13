@@ -76,7 +76,11 @@ private:
     };
 
     using ChunkMap = std::unordered_map<tilemap::ChunkCoord, ChunkCache, tilemap::ChunkCoordHash>;
-    using LayerChunkMap = std::unordered_map<Entity, ChunkMap>;
+    struct LayerCache {
+        u32 generation = 0;
+        ChunkMap chunks;
+    };
+    using LayerChunkMap = std::unordered_map<Entity, LayerCache>;
 
     void rebuildChunk(const tilemap::TilemapSystem::LayerData& layer,
                       const tilemap::ChunkData& chunk, tilemap::ChunkCoord coord,

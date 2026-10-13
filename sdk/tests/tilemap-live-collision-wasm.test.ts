@@ -69,4 +69,15 @@ describe.skipIf(!HAS_WASM)('live native tile collision', () => {
         await app.tick(1 / 60);
         expect(colliders()).toHaveLength(0);
     });
+    it.each(['reinitialize', 'recreate'])('replaces collision after layer %s with the same edit count', async mode => {
+        const { app, entity, tiles, colliders } = await scene();
+        const original = [...colliders()];
+        if (mode === 'recreate') tiles.destroyLayer(entity);
+        tiles.initLayer(entity, 2, 2, 16, 16);
+        tiles.setTile(entity, 1, 0, 1);
+        await app.tick(1 / 60);
+        expect(colliders()).not.toEqual(original);
+        expect(app.world.get(colliders()[0], Transform).position.x).toBe(24);
+        for (const id of original) expect(app.world.valid(id)).toBe(false);
+    });
 });
