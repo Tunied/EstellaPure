@@ -494,6 +494,7 @@ shutdownRenderer: () => void
 tilemap_destroyLayer: ((entity: number) => void) | undefined
 tilemap_exportChunks: ((entity: number) => string) | undefined
 tilemap_fillRect: ((entity: number, x: number, y: number, w: number, h: number, tileId: number) => void) | undefined
+tilemap_getEditRevision: ((entity: number) => number) | undefined
 tilemap_getTile: ((entity: number, x: number, y: number) => number) | undefined
 tilemap_hasLayer: ((entity: number) => boolean) | undefined
 tilemap_importChunks: ((entity: number, encoded: string) => boolean) | undefined
