@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Mini-game verification unregisters keyboard callbacks.** The launch host now removes the DOM listener belonging to each vendor keyboard callback. Repeated platform input binding no longer leaves retired keyboard subscribers active, and duplicate registrations do not multiply notifications.
+
 - **Mini-game verification forwards touch gestures.** The package launch host forwards real canvas touch events and unregisters individual subscribers. The UI controls project now verifies the mini-game touch path alongside Web mouse input, using the modal button's current position instead of the dropdown below it.
 
 - **Inertial scrolling travels consistently across frame rates.** Coast displacement integrates the exponentially decaying velocity instead of using its initial value for the whole frame. Frames that cross the stopping threshold integrate only the remaining motion, so a slow frame no longer extends a fling. Constant-speed and immediate-stop settings remain finite.

@@ -43,6 +43,28 @@ export function miniGameTouchBridge(canvas) {
   return api;
 }
 
+/** Keep keyboard callback identity so a platform unbind removes its DOM listener. */
+export function miniGameKeyboardBridge(target) {
+  const api = {};
+  for (const phase of ['Down', 'Up']) {
+    const kind = 'key' + phase.toLowerCase();
+    const listeners = new Map();
+    api['onKey' + phase] = callback => {
+      if (listeners.has(callback)) return;
+      const listener = event => callback({ code: event.code, key: event.key });
+      listeners.set(callback, listener);
+      target.addEventListener(kind, listener);
+    };
+    api['offKey' + phase] = callback => {
+      const listener = listeners.get(callback);
+      if (!listener) return;
+      target.removeEventListener(kind, listener);
+      listeners.delete(callback);
+    };
+  }
+  return api;
+}
+
 /**
  * The page source; `BASE` is substituted with the served root.
  *
@@ -66,6 +88,7 @@ export const HOST_PAGE = (entry, failSubpackage = null) => `<!doctype html>
   screenCanvas.height = window.innerHeight;
   document.body.appendChild(screenCanvas);
   const touchBridge = (${miniGameTouchBridge.toString()})(screenCanvas);
+  const keyboardBridge = (${miniGameKeyboardBridge.toString()})(window);
   let screenTaken = false;
   const makeCanvas = () => {
     if (!screenTaken) { screenTaken = true; return screenCanvas; }
@@ -161,10 +184,7 @@ export const HOST_PAGE = (entry, failSubpackage = null) => `<!doctype html>
       };
     },
     ...touchBridge,
-    // Keyboard: forwarded from the real DOM so a driven run can reach the game.
-    onKeyDown: (cb) => window.addEventListener('keydown', (e) => cb({ code: e.code, key: e.key })),
-    onKeyUp: (cb) => window.addEventListener('keyup', (e) => cb({ code: e.code, key: e.key })),
-    offKeyDown: noop, offKeyUp: noop,
+    ...keyboardBridge,
     onMemoryWarning: noop, offMemoryWarning: noop,
     onError: noop, offError: noop,
     onUnhandledRejection: noop, offUnhandledRejection: noop,
