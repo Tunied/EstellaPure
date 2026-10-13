@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Skeletal previews reload after directory changes.** Directory notifications match the skeleton's actual source and page paths, including normalized Windows paths and trailing separators. Moving a page directory away and restoring it now refreshes the open viewport; similarly named sibling directories do not trigger a reload.
+
 - **Deleted sprite images clear and restored images reload.** The editor invalidates removed paths and reprojects missing or newly restored references, including directory-only watcher notifications. Browser texture loads use a new image-cache address after invalidation so restored pixels and dimensions replace the old image; ordinary loads and native image paths keep their existing addresses.
 
 - **Late skeletal loads release obsolete viewport bindings.** A skeleton fetch that finishes after scene replacement, entity deletion or skeletal component removal now drops its late instances before the next queued load. Surviving entities keep their bindings, and a replaced scene no longer receives the old load's panel refresh.
