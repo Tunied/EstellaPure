@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Empty and collapsed scroll views keep finite scrollbar geometry.** Thumb sizing handles zero content without dividing by zero and clamps the minimum thumb length to the available track. Clearing a list or collapsing its viewport no longer writes Infinity or NaN into native UI nodes, and tiny viewports keep their thumbs inside the track before normal sizing resumes on restore.
+
 - **Idle scrollbars stop forcing UI layout work.** Overlay thumbs write their node geometry only when position, length or units change, including during fade-out and after becoming invisible. Comparisons use the native float precision so fractional thumb sizes settle instead of dirtying layout every frame; scrolling and viewport/content resizing still refresh their geometry.
 
 - **Running tilemaps follow published tileset updates.** Tileset publication versions invalidate each app's cached render table, animations and collision model after a successful replacement, without requiring a reference edit or scene reload. Failed replacements keep the working version; unchanged frames read only a version counter and avoid rebuilding the table or resolving resource paths again.

@@ -70,8 +70,10 @@ function layoutThumb(
     alpha: number,
 ): void {
     if (!world.valid(thumb)) return;
-    const len = Math.max(THUMB_MIN_LENGTH, (viewportLen / contentLen) * viewportLen);
-    const range = Math.max(0, viewportLen - len);
+    const track = Math.max(0, viewportLen);
+    const proportional = contentLen > 0 ? (track / contentLen) * track : track;
+    const len = Math.min(track, Math.max(THUMB_MIN_LENGTH, proportional));
+    const range = Math.max(0, track - len);
     const along = maxOffset > 0 ? (offset / maxOffset) * range : 0;
 
     const n = world.get(thumb, UINode) as UINodeData;

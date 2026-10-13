@@ -60,6 +60,31 @@ describe.skipIf(!HAS_WASM)('scroll motion ownership on real WASM', () => {
         } finally { insert.mockRestore(); }
     });
 
+    it('keeps native scrollbar dimensions finite when content and viewport become empty', async () => {
+        const scroll = new ScrollContainer({ viewportSize: { x: 100, y: 100 },
+            contentSize: { x: 300, y: 300 }, direction: 'both' });
+        plugin.attachScrollContainer(entity, scroll); await step(0);
+        scroll.scrollBy({ x: 50, y: 50 }); await step(0);
+        const { UINode } = await import('../src/ui/core/ui-node');
+        const thumbs = app.world.getEntitiesWithComponents([UINode]);
+        expect(thumbs).toHaveLength(2);
+        for (const size of [100, 0, 10]) {
+            scroll.setSizes({ x: size, y: size }, { x: 0, y: 0 }); await step(0);
+            for (const thumb of thumbs) {
+                const n = app.world.get(thumb, UINode);
+                for (const dimension of [n.width, n.height, n.insetTop, n.insetLeft]) {
+                    expect(Number.isFinite(dimension.value)).toBe(true);
+                }
+            }
+        }
+        scroll.setSizes({ x: 100, y: 100 }, { x: 300, y: 300 });
+        scroll.scrollBy({ x: 50, y: 50 }); await step(0);
+        for (const thumb of thumbs) {
+            const n = app.world.get(thumb, UINode);
+            expect(Math.max(n.width.value, n.height.value)).toBeCloseTo(100 / 3);
+        }
+    });
+
     it('a replaced container does not inherit an active pointer drag', async () => {
         const old = container(); plugin.attachScrollContainer(entity, old); await drag();
         expect(old.getOffset().y).toBe(80);

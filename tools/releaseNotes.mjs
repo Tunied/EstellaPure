@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ui): bound scrollbar geometry for empty viewports':
+    { note: 'Empty and collapsed scroll views keep finite scrollbar geometry.' },
   'perf(ui): avoid geometry writes for idle scrollbar thumbs':
     { note: 'Idle scrollbars stop forcing UI layout work.' },
   'fix(tilemap): refresh layers after tileset publication changes':

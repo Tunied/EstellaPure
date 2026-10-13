@@ -134,6 +134,24 @@ describe('UIScrollbarSystem', () => {
         expect(writes.mock.calls.filter(([, component]) => component === UINode)).toHaveLength(1);
     });
 
+    it.each([
+        [{ x: 100, y: 100 }, { x: 100, y: 0 }],
+        [{ x: 100, y: 0 }, { x: 100, y: 0 }],
+        [{ x: 100, y: 10 }, { x: 100, y: 300 }],
+    ])('keeps resized thumb geometry finite and within its viewport (%j, %j)', (viewportSize, contentSize) => {
+        tick(); scroll.scrollBy({ x: 0, y: 50 }); tick();
+        const thumb = thumbs()[0];
+        scroll.setSizes(viewportSize, contentSize); tick();
+        const n = world.get(thumb, UINode) as { height: { value: number }; insetTop: { value: number } };
+        expect(Number.isFinite(n.height.value)).toBe(true);
+        expect(Number.isFinite(n.insetTop.value)).toBe(true);
+        expect(n.height.value).toBeGreaterThanOrEqual(0);
+        expect(n.height.value).toBeLessThanOrEqual(viewportSize.y);
+        scroll.setSizes({ x: 100, y: 100 }, { x: 100, y: 300 });
+        scroll.scrollBy({ x: 0, y: 50 }); tick();
+        expect((world.get(thumb, UINode) as { height: { value: number } }).height.value).toBeCloseTo(100 / 3);
+    });
+
     it('a horizontal-only container never grows a vertical thumb', () => {
         registry.detach(viewport as number);
         const h = new ScrollContainer({
