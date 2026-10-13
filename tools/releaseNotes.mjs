@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(tilemap): rebuild native collision after live map edits':
+    { note: 'Native tilemap collisions follow live edits.' },
   'perf(tilemap): skip unchanged tile writes and empty chunk allocation':
     { note: 'Unchanged tile writes preserve chunk caches.' },
   'fix(audio): distinguish source completion from interrupted voices':

@@ -1,0 +1,72 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { HAS_WASM, loadWasmModule } from './helpers/loadWasm';
+import { App } from '../src/app/app';
+import { Transform, TilemapLayer } from '../src/ecs/component';
+import { TilemapPlugin, TilemapRuntimeState } from '../src/tilemap/tilemapPlugin';
+import { TilemapAPI, Tilemaps } from '../src/tilemap/tilemapAPI';
+
+let engine: import('../src/wasm').ESEngineModule;
+const registries: Array<{ delete(): void }> = [];
+const apps: App[] = [];
+afterEach(() => {
+    vi.restoreAllMocks();
+    for (const app of apps.splice(0)) app.quit();
+    for (const registry of registries.splice(0)) registry.delete();
+});
+
+describe.skipIf(!HAS_WASM)('live native tile collision', () => {
+    beforeAll(async () => {
+        engine = await loadWasmModule();
+        engine.setActiveContext(null);
+        expect(typeof engine.tilemap_getEditRevision).toBe('function');
+    });
+    async function scene() {
+        const registry = new engine.Registry(); registries.push(registry as unknown as { delete(): void });
+        const app = App.new(); app.connectCpp(registry, engine); app.addPlugin(new TilemapPlugin()); apps.push(app);
+        const entity = app.world.spawn();
+        app.world.insert(entity, Transform);
+        app.world.insert(entity, TilemapLayer, { cellSize: { x: 16, y: 16 } });
+        const tiles = app.getResource(Tilemaps);
+        app.getResource(TilemapRuntimeState).setLayerTilesets(entity, ['builtin:collision']);
+        tiles.initInfiniteLayer(entity, 16, 16);
+        const emptyBlob = tiles.exportChunks(entity);
+        tiles.setTile(entity, 0, 0, 1);
+        await app.tick(1 / 60);
+        const colliders = () => (app.getResource(TilemapRuntimeState) as unknown as { collisionEntities_: Map<number, import('../src/types').Entity[]> }).collisionEntities_.get(entity)!;
+        return { app, entity, tiles, colliders, emptyBlob };
+    }
+    it('retains unchanged colliders and removes them after erasing their tile', async () => {
+        const { app, entity, tiles, colliders } = await scene();
+        const original = [...colliders()]; expect(original.length).toBeGreaterThan(0);
+        const exports = vi.spyOn(TilemapAPI, 'exportChunks');
+        for (let i = 0; i < 20; i++) { tiles.setTile(entity, 0, 0, 1); await app.tick(1 / 60); }
+        expect(colliders()).toEqual(original);
+        expect(exports).not.toHaveBeenCalled();
+        tiles.setTile(entity, 0, 0, 0); await app.tick(1 / 60);
+        expect(colliders()).toHaveLength(0);
+        expect(exports).toHaveBeenCalledTimes(1);
+        for (const id of original) expect(app.world.valid(id)).toBe(false);
+        tiles.setTile(entity, -1, -1, 1); await app.tick(1 / 60);
+        expect(colliders().length).toBeGreaterThan(0);
+    });
+    it('updates collision after a layer move and palette removal', async () => {
+        const { app, entity, colliders } = await scene();
+        const original = [...colliders()];
+        app.world.update(entity, Transform, value => { value.position.x = 32; });
+        await app.tick(1 / 60);
+        expect(colliders()).not.toEqual(original);
+        for (const id of original) expect(app.world.valid(id)).toBe(false);
+        app.getResource(TilemapRuntimeState).setLayerTilesets(entity, []);
+        await app.tick(1 / 60);
+        expect(colliders() ?? []).toHaveLength(0);
+    });
+    it('removes old collision when importing an empty map', async () => {
+        const { app, entity, tiles, colliders, emptyBlob } = await scene();
+        expect(colliders().length).toBeGreaterThan(0);
+        expect(tiles.importChunks(entity, emptyBlob)).toBe(true);
+        await app.tick(1 / 60);
+        expect(colliders()).toHaveLength(0);
+    });
+});

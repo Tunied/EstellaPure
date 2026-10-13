@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Native tilemap collisions follow live edits.** Changing painted tiles, importing an empty map, moving a layer or removing its collision palette replaces obsolete runtime colliders. A native content revision keeps unchanged frames and repeated writes from exporting the map or rebuilding collision.
+
 - **Unchanged tile writes preserve chunk caches.** Repainting a tile with its existing value no longer advances the chunk revision or forces geometry rebuilding. Erasing untouched empty space does not allocate empty chunks, including negative coordinates in infinite maps.
 
 - **Audio sources distinguish interrupted voices from completed clips.** A refused or preempted voice lowers `playing` without setting the natural-completion latch. Only a backend end signal for a non-looping source marks it `finished`; existing backend completion callbacks remain attached and replays clear the latch.

@@ -35,6 +35,17 @@ const GRID_TYPE_MAP: Record<string, number> = {
 const GRID_STAGGERED = 2;
 const GRID_HEXAGONAL = 3;
 
+interface CollisionInputs {
+    revision: number;
+    width: number;
+    height: number;
+    x: number;
+    y: number;
+    pixelsPerUnit: number;
+    ids: number[] | undefined;
+    shapes: Map<number, ResolvedTileCollision> | undefined;
+}
+
 /**
  * One app's tilemap runtime: every derived layer, collider, animation and
  * resolved tileset it is holding.
@@ -43,6 +54,7 @@ const GRID_HEXAGONAL = 3;
  * entities from 1, and a shared instance cannot tell them apart.
  */
 export class TilemapRuntime {
+    private collisionInputs_ = new Map<number, CollisionInputs>();
     private applyTilesetRefs_: ((entity: number, refs: readonly string[]) => void) | null = null;
     private initializedLayers_ = new Set<number>();
     /** TilemapLayer entity → the tile size last pushed to its C++ layer (`w*K+h`).
@@ -118,7 +130,13 @@ export class TilemapRuntime {
         const applyTilesetRefs = (entity: number, refs: readonly string[]): void => {
             const clean = refs.filter((r): r is string => typeof r === 'string' && r !== '');
             if (clean.length > 0) tilesetRefs.set(entity, clean.slice());
-            else tilesetRefs.delete(entity);
+            else {
+                if (tilesetRefs.has(entity)) {
+                    nativeCollisionIds.delete(entity);
+                    nativeTileShapes.delete(entity);
+                }
+                tilesetRefs.delete(entity);
+            }
             liveResolved.delete(entity);
         };
         this.applyTilesetRefs_ = applyTilesetRefs;
@@ -192,6 +210,7 @@ export class TilemapRuntime {
         const animatedLayers = this.animatedLayers_;
         const sourceLayerEntities = this.sourceLayerEntities_;
         const collisionEntities = this.collisionEntities_;
+        const collisionInputs = this.collisionInputs_;
 
         const tilemapSyncSystem: SystemDef = {
             _id: Symbol('TilemapSyncSystem'),
@@ -215,6 +234,7 @@ export class TilemapRuntime {
                         for (const e of ents) world.despawn(e);
                     }
                     collisionEntities.clear();
+                    collisionInputs.clear();
                 }
 
                 const layerEntities = world.getEntitiesWithComponents(
@@ -226,6 +246,7 @@ export class TilemapRuntime {
                     if (!currentLayerSet.has(entity)) {
                         TilemapAPI.destroyLayer(entity);
                         initializedLayers.delete(entity);
+                        collisionInputs.delete(entity);
                         appliedCellSize.delete(entity);
                         appliedGrid.delete(entity);
                         nativeCollisionIds.delete(entity);
@@ -251,7 +272,12 @@ export class TilemapRuntime {
 
                     const refs = tilesetRefs.get(entity);
                     // A layer needs either a copied texture (legacy) or .estileset ref(s).
-                    if (!layerData.tileset && (!refs || refs.length === 0)) continue;
+                    if (!layerData.tileset && (!refs || refs.length === 0)) {
+                        for (const collider of collisionEntities.get(entity) ?? []) world.despawn(collider);
+                        collisionEntities.delete(entity);
+                        collisionInputs.delete(entity);
+                        continue;
+                    }
 
                     // RC2a: the TilemapLayer component is the single source of visual
                     // metadata; the C++ renderer reads tint/opacity/tileset/columns/
@@ -360,19 +386,30 @@ export class TilemapRuntime {
                         }
                     }
 
-                    // Native path: collidable tiles spawn static colliders once in play mode
-                    // — plain solid boxes greedy-merged, rich shapes (polygon/circle/one-way/
-                    // material) one collider each — using the live `.estileset` shapes when
-                    // resolved, else the baked id set.
+                    // Rebuild native collision when its content or geometry changes;
+                    // merge solid boxes and preserve individual rich shapes.
                     const collIds = nativeCollisionIds.get(entity);
                     const tileShapes = nativeTileShapes.get(entity);
                     const hasBox = collIds != null && collIds.length > 0;
                     const hasShapes = tileShapes != null && tileShapes.size > 0;
+                    const tf = world.tryGet(entity, Transform) as { position: { x: number; y: number } } | null;
+                    const ox = tf?.position.x ?? 0;
+                    const oy = tf?.position.y ?? 0;
+                    const revision = playMode && (hasBox || hasShapes)
+                        ? engine.tilemap_getEditRevision?.(entity) ?? 0
+                        : 0;
+                    const previous = collisionInputs.get(entity);
+                    const changed = !previous || previous.revision !== revision
+                        || previous.width !== layerData.cellSize.x || previous.height !== layerData.cellSize.y
+                        || previous.x !== ox || previous.y !== oy || previous.pixelsPerUnit !== pixelsPerUnit
+                        || previous.ids !== collIds || previous.shapes !== tileShapes;
+                    if (playMode && collisionEntities.has(entity) && (changed || (!hasBox && !hasShapes))) {
+                        for (const collider of collisionEntities.get(entity)!) world.despawn(collider);
+                        collisionEntities.delete(entity);
+                        collisionInputs.delete(entity);
+                    }
                     if (playMode && (hasBox || hasShapes) && !collisionEntities.has(entity)) {
                         const chunks = decodeTilemapChunks(TilemapAPI.exportChunks(entity));
-                        const tf = world.tryGet(entity, Transform) as { position: { x: number; y: number } } | null;
-                        const ox = tf?.position.x ?? 0;
-                        const oy = tf?.position.y ?? 0;
                         const spawned: Entity[] = [];
                         if (hasBox) {
                             spawned.push(...generateChunkCollision(
@@ -387,6 +424,9 @@ export class TilemapRuntime {
                             ));
                         }
                         collisionEntities.set(entity, spawned);
+                        collisionInputs.set(entity, { revision, width: layerData.cellSize.x,
+                            height: layerData.cellSize.y, x: ox, y: oy, pixelsPerUnit,
+                            ids: collIds, shapes: tileShapes });
                     }
                 }
 
@@ -735,6 +775,7 @@ export class TilemapRuntime {
         this.sourceDerivedFrom_.clear();
         // Collider entities die with the world on reset/teardown; just drop our bookkeeping.
         this.collisionEntities_.clear();
+        this.collisionInputs_.clear();
         this.nativeCollisionIds_.clear();
         this.nativeTileShapes_.clear();
         this.tilesetRefs_.clear();

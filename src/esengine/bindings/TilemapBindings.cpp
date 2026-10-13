@@ -116,6 +116,11 @@ bool tilemap_hasLayer(u32 entity) {
     return getTilemapSystem().hasLayer(Entity::fromRaw(entity));
 }
 
+u32 tilemap_getEditRevision(u32 entity) {
+    const auto* layer = getTilemapSystem().getLayerData(Entity::fromRaw(entity));
+    return layer ? layer->edit_revision : 0;
+}
+
 void tilemap_setRenderProps(u32 entity, u32 textureHandle, u32 tilesetColumns,
                             f32 uvTileW, f32 uvTileH,
                             i32 sortLayer, f32 depth,
@@ -274,6 +279,7 @@ bool tilemap_importChunks(u32 entity, const std::string& encoded) {
     bool first = true;
     bool lost = false;
 
+    if (!layer->chunks.empty()) ++layer->edit_revision;
     layer->chunks.clear();
     const bool walked = tilemap::walkBlobCells(raw.data(), raw.size(), header,
         [&](i32 x, i32 y, u16 word) {

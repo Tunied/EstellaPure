@@ -38,6 +38,7 @@ void tilemap_initInfinite(u32 entity, f32 tileWidth, f32 tileHeight);
 void tilemap_initInfiniteLayer(u32 entity, f32 tileWidth, f32 tileHeight);
 void tilemap_destroyLayer(u32 entity);
 bool tilemap_hasLayer(u32 entity);
+u32 tilemap_getEditRevision(u32 entity);
 
 // — Tiles —
 

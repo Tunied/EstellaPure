@@ -242,6 +242,7 @@ export interface NativeEngineApi {
     tilemap_exportChunks?(entity: number): string;
     tilemap_fillRect?(entity: number, x: number, y: number, w: number, h: number, tileId: number): void;
     tilemap_flipTile?(entity: number, x: number, y: number, flipH: boolean, flipV: boolean, flipD: boolean): void;
+    tilemap_getEditRevision?(entity: number): number;
     tilemap_getTile?(entity: number, x: number, y: number): number;
     tilemap_getTileProperty?(entity: number, x: number, y: number, key: string): string;
     tilemap_hasLayer?(entity: number): boolean;
@@ -524,6 +525,7 @@ export function createNativeEngineApi(
     bind('tilemap_exportChunks', 'es_tilemap_exportChunks', false);
     bind('tilemap_fillRect', 'es_tilemap_fillRect', false);
     bind('tilemap_flipTile', 'es_tilemap_flipTile', false);
+    bind('tilemap_getEditRevision', 'es_tilemap_getEditRevision', false);
     bind('tilemap_getTile', 'es_tilemap_getTile', false);
     bind('tilemap_getTileProperty', 'es_tilemap_getTileProperty', false);
     bind('tilemap_hasLayer', 'es_tilemap_hasLayer', false);
