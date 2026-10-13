@@ -20,6 +20,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Mini-game storage preserves empty strings.** The adapter distinguishes an explicitly stored empty string from an absent key through the host's key list, matching Web storage and preserving empty text preferences across adapter restarts. Non-empty reads keep their direct path; unavailable host storage remains a safe absent result.
+
 - **Audio preferences survive game restart.** Audio-demo saves and restores master, music and SFX volumes through engine storage, validates saved values, and restores the displayed percentages and actual bus gains at startup. Golden verification uses independent browser processes with a stable origin and isolated profile, cycles master volume to mute and verifies that both the label and silent output survive restart.
 
 - **Release optimization commits valid WASM artifacts atomically.** A failed post-link optimizer now fails the build and preserves the original artifact. Cache scans can repair exact manifest references in a surviving legacy cache, and hosts without usable storage report unsupported cache writes.

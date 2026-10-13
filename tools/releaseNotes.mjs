@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(storage): preserve empty mini-game values':
+    { note: 'Mini-game storage preserves empty strings.' },
   'fix(examples): restore audio preferences across game restarts':
     { note: 'Audio preferences survive game restart.' },
   'fix(test): await atomic scale-report persistence':
