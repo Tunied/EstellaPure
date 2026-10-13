@@ -34,6 +34,9 @@ export type DebugChannelQuery =
     | { t: 'query'; reqId: number; kind: 'screen'; maxSide?: number }
     | { t: 'query'; reqId: number; kind: 'stats' }
     | { t: 'query'; reqId: number; kind: 'updateStatus' }
+    | { t: 'query'; reqId: number; kind: 'diskCache'; rescan?: boolean }
+    | { t: 'query'; reqId: number; kind: 'cleanDiskCache'; budgetBytes: number; execute?: boolean }
+    | { t: 'query'; reqId: number; kind: 'retainDiskCacheVersion'; revision: string; retain?: boolean }
     | { t: 'query'; reqId: number; kind: 'snapshot'; selectedId: number | null; withTree: boolean }
     | ({ t: 'query'; reqId: number; kind: 'control' } & DebugControl);
 

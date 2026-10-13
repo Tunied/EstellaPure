@@ -30,6 +30,16 @@ export const NOTES_FLOOR = 'v0.65.0';
 export const NOTED = {
   'fix(examples): restore audio preferences across game restarts':
     { note: 'Audio preferences survive game restart.' },
+  'fix(test): await atomic scale-report persistence':
+    { internal: 'Scale measurements await their ordered report writes; budgets and measured operations are unchanged.' },
+  'feat(cache): protect offline versions during budget cleanup':
+    { note: 'Disk cache budgets preserve offline content versions.' },
+  'feat(profiler): manage connected-device disk caches':
+    { note: 'Disk cache budgets preserve offline content versions.' },
+  'fix(cache): repair legacy entries and verify release artifacts':
+    { note: 'Release optimization commits valid WASM artifacts atomically.' },
+  'fix(ci): keep cache verifier comments within source gates':
+    { internal: 'Verification fixture comments and generated-output exclusion do not change a shipped game or editor.' },
   'test(audio): certify authored source playback after packaging':
     { note: 'Authored sound is verified in a packaged game.' },
   'fix(test): resolve golden output paths before spawning tools':

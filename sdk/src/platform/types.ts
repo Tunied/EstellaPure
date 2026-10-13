@@ -519,6 +519,12 @@ export interface PlatformAdapter {
      */
     readCacheFile?(key: string): Promise<ArrayBuffer | null>;
     writeCacheFile?(key: string, bytes: ArrayBuffer): Promise<void>;
+    /** Cache management is separate from byte storage. Entries are opaque safe
+     * names, never arbitrary paths; hosts must exclude application saves. */
+    canManageCache?(): boolean;
+    hasCacheStorage?(): boolean;
+    listCacheFiles?(): Promise<{ name: string; size: number; lastAccess: number }[]>;
+    removeCacheFile?(name: string): Promise<void>;
 
     /** Open a socket connection. Web → WebSocket, WeChat → wx.connectSocket,
      *  Node → a ws wrapper. Optional — platforms without networking (playable

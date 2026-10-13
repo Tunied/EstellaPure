@@ -229,6 +229,8 @@ export class NativePlatformAdapter implements PlatformAdapter {
         return this.bridge_.readCacheFile ? this.bridge_.readCacheFile(key) : null;
     }
 
+    hasCacheStorage(): boolean { return Boolean(this.bridge_.readCacheFile && this.bridge_.writeCacheFile); }
+
     async writeCacheFile(key: string, bytes: ArrayBuffer): Promise<void> {
         if (this.bridge_.writeCacheFile) await this.bridge_.writeCacheFile(key, bytes);
     }

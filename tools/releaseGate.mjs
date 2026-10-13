@@ -106,6 +106,13 @@ export const CRITERIA = [
     needs: ['tools/renderScenes.mjs', 'tools/verify-render.mjs'],
   },
   {
+    id: 'offline-versions-survive-cache-cleanup',
+    says: 'a mini-game package cleans old resource bytes at quota, preserves current and rollback versions, and restarts offline without downloading',
+    answeredBy: 'pnpm run verify:cache-budget',
+    needs: ['tools/launchers/cache-budget-render-verify.mjs',
+            'tools/cache-budget-render-fixture.mjs', 'tools/fixtures/cache-budget-render-fixture.ts'],
+  },
+  {
     id: 'hot-update-lands-or-rolls-back',
     says: 'a shipped build takes an update from a CDN, and refuses a broken one whole',
     // The corpus can package hot-update-demo and launch it; neither says an

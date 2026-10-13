@@ -174,6 +174,8 @@ native/ios/app.generated.yml
 
 # verify-golden's package scratch (exports it launches and throws away)
 /.golden/
+# Local verification logs, screenshots and exported fixtures.
+/output/
 # verify-playthrough's, on the same terms
 /.playthrough/
 

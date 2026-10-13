@@ -14,9 +14,15 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Added
+
+- **Disk cache budgets preserve offline content versions.** Node and capable mini-game hosts report resource usage, hashes, version ownership and protected bytes. Cleanup previews and applies LRU eviction while keeping current, pending, rollback and explicitly retained versions, coordinating with downloads and reporting actual released bytes. The editor's connected-device Profiler provides scans, budget previews, cleanup and version retention. Hosts without management report unavailable usage; saves and unknown files remain protected.
+
 ### Fixed
 
 - **Audio preferences survive game restart.** Audio-demo saves and restores master, music and SFX volumes through engine storage, validates saved values, and restores the displayed percentages and actual bus gains at startup. Golden verification uses independent browser processes with a stable origin and isolated profile, cycles master volume to mute and verifies that both the label and silent output survive restart.
+
+- **Release optimization commits valid WASM artifacts atomically.** A failed post-link optimizer now fails the build and preserves the original artifact. Cache scans can repair exact manifest references in a surviving legacy cache, and hosts without usable storage report unsupported cache writes.
 
 - **Authored sound is verified in a packaged game.** Audio-demo's existing spatial source starts through its authored Playing flag. A separate launch unlocks browser audio away from every sound control and reads all spectrum bars, proving output from the scene source while preserving the Beat toggle's independent API and fade demonstration. The golden registry requires this measured run before certifying authored sound.
 

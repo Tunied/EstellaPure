@@ -102,6 +102,35 @@ describe('a device asked about its content', () => {
     });
 });
 
+describe('a device asked about its disk cache', () => {
+    it('routes scans, previews, explicit cleanup and version retention through its Assets service', async () => {
+        vi.resetModules();
+        const base = await import('../src/platform/base');
+        const channel = await import('../src/runtime/debugChannel');
+        const { Assets } = await import('../src/asset/AssetPlugin');
+        const s = fakeSocket();
+        base.setPlatform({ name: 'wechat', now: () => performance.now(), createSocket: () => s.socket } as unknown as PlatformAdapter);
+        channel.startDebugChannel({ url: 'ws://editor:1/?token=t', project: 'Demo' });
+        s.open();
+        const disk = vi.fn(async () => ({ capability: 'managed', usedBytes: 16 }));
+        const clean = vi.fn(async () => ({ releaseBytes: 8 }));
+        const retain = vi.fn(async () => ({ capability: 'managed', usedBytes: 16 }));
+        channel.attachDebugChannel({ hasResource: (r: unknown) => r === Assets,
+            getResource: () => ({ getManifest: () => null, diskCacheReport: disk, cleanDiskCache: clean, retainDiskCacheVersion: retain }),
+            onFrameEnd: () => () => {},
+        } as unknown as App);
+        s.receive({ t: 'query', reqId: 31, kind: 'diskCache', rescan: true });
+        s.receive({ t: 'query', reqId: 32, kind: 'cleanDiskCache', budgetBytes: 8 });
+        s.receive({ t: 'query', reqId: 33, kind: 'cleanDiskCache', budgetBytes: 8, execute: true });
+        s.receive({ t: 'query', reqId: 34, kind: 'retainDiskCacheVersion', revision: 'v1', retain: false });
+        await flush();
+        expect(disk).toHaveBeenCalledWith(true);
+        expect(clean.mock.calls).toEqual([[8, false], [8, true]]);
+        expect(retain).toHaveBeenCalledWith('v1', false);
+        expect(s.sent.find((m) => (m as { reqId?: number }).reqId === 33)).toEqual({ t: 'reply', reqId: 33, data: { releaseBytes: 8 } });
+    });
+});
+
 describe('what the channel costs a device', () => {
     it('comes with the step of the device clock, so a 0 below it reads as unmeasured', async () => {
         vi.resetModules();

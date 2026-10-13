@@ -200,6 +200,15 @@ export function startDebugChannel(config: DebugChannelConfig): void {
                 reply({ t: 'reply', reqId: q.reqId, data: game.hasResource(Assets) ? game.getResource(Assets).updateStatus() : null });
                 return;
             }
+            if (q.kind === 'diskCache' || q.kind === 'cleanDiskCache' || q.kind === 'retainDiskCacheVersion') {
+                if (!game.hasResource(Assets)) throw Error('this game has no asset service');
+                const assets = game.getResource(Assets);
+                const data = q.kind === 'diskCache' ? await assets.diskCacheReport(q.rescan === true)
+                    : q.kind === 'retainDiskCacheVersion' ? await assets.retainDiskCacheVersion(q.revision, q.retain !== false)
+                    : await assets.cleanDiskCache(q.budgetBytes, q.execute === true);
+                reply({ t: 'reply', reqId: q.reqId, data });
+                return;
+            }
             if (q.kind === 'snapshot') {
                 reply({ t: 'reply', reqId: q.reqId, data: timed(() => worldSnapshot(game, q.selectedId, q.withTree)) });
                 return;

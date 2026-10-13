@@ -794,6 +794,21 @@ jobs:
       if: ${{ !cancelled() && matrix.shard == 1 }}
       run: pnpm run verify:remote-capture
 
+    - name: Check protected cache versions survive cleanup and offline restart
+      if: ${{ !cancelled() && matrix.shard == 3 }}
+      run: pnpm run verify:cache-budget
+
+    - name: Keep cache cleanup and offline restart evidence
+      if: ${{ !cancelled() && matrix.shard == 3 }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: cache-budget-evidence
+        path: |
+          output/cache-budget/render/verification.json
+          output/cache-budget/render/*.png
+        if-no-files-found: error
+        retention-days: 7
+
     # A package whose points missed is a claim about a PICTURE, and the picture
     # has to leave the runner, or nobody can tell a real regression from a frame
     # the software rasteriser had not finished.

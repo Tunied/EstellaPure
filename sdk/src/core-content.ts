@@ -109,6 +109,10 @@ export {
     type ApplyUpdateResult,
     type UpdateStages,
     type UpdateStatus,
+    type ContentCacheReport,
+    type ContentCacheEntry,
+    type CacheCleanupPreview,
+    type CacheCleanupResult,
 } from './asset';
 
 /** When the live bindings that READ the asset graph have caught up with it —

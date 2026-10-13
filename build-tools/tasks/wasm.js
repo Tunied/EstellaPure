@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import path from 'path';
-import { mkdir, cp, rm, stat, readFile } from 'fs/promises';
+import { mkdir, cp, rm, stat, readFile, rename } from 'fs/promises';
 import { existsSync } from 'fs';
+import { fileURLToPath } from 'node:url';
+import { randomUUID } from 'node:crypto';
 import config from '../build.config.js';
 import * as logger from '../utils/logger.js';
 import { runCommand, getCpuCount } from '../utils/emscripten.js';
@@ -51,12 +53,17 @@ async function computeWasmHash(target, targetConfig, debug) {
     // changed — which is a wasm that does not match the flags it was asked for.
     const toolchainHash = await hashDirectory(path.join(rootDir, 'cmake'), /\.cmake$/);
     const configHash = await hashFiles([cmakeLists]);
+    // The post-link optimizer is part of what a cached build promises. A change
+    // to its transaction or optimization level must not reuse yesterday's output.
+    const builderHash = await hashFiles([fileURLToPath(import.meta.url)]);
 
     const { createHash } = await import('crypto');
     return createHash('md5')
         .update(sourceHash)
         .update(configHash)
         .update(toolchainHash)
+        .update(builderHash)
+        .update(JSON.stringify(config.optimization[target] ?? {}))
         .update(flagsKey)
         .digest('hex');
 }
@@ -205,31 +212,33 @@ async function executeWasmBuild(target, targetConfig, { debug, clean, buildDir, 
     await copyOutputs(buildDir, outputDir, targetConfig.outputs);
 }
 
-async function optimizeWasmFiles(buildDir, outputs, optLevel = '-O2', env = undefined) {
+export async function optimizeWasmFiles(buildDir, outputs, optLevel = '-O2', env = undefined) {
     const wasmFiles = Object.keys(outputs).filter(src => src.endsWith('.wasm'));
     if (wasmFiles.length === 0) return;
 
-    const warnings = [];
     for (const src of wasmFiles) {
         const wasmPath = path.join(buildDir, src);
         if (!existsSync(wasmPath)) continue;
 
+        const optimizedPath = `${wasmPath}.opt-${randomUUID()}.wasm`;
         try {
             const before = (await stat(wasmPath)).size;
-            await runCommand('wasm-opt', [optLevel, '--enable-bulk-memory', '--enable-nontrapping-float-to-int', '--enable-simd', '-o', wasmPath, wasmPath], { silent: true, env });
-            const after = (await stat(wasmPath)).size;
+            await runCommand('wasm-opt', [optLevel, '--enable-bulk-memory', '--enable-nontrapping-float-to-int', '--enable-simd', '-o', optimizedPath, wasmPath], { silent: true, env });
+            const bytes = await readFile(optimizedPath);
+            if (!WebAssembly.validate(bytes)) throw new Error('optimizer produced invalid WASM');
+            const after = bytes.byteLength;
+            await rename(optimizedPath, wasmPath);
             const reduction = ((1 - after / before) * 100).toFixed(1);
             logger.debug(`wasm-opt ${optLevel}: ${src} ${(before / 1024).toFixed(0)}KB → ${(after / 1024).toFixed(0)}KB (-${reduction}%)`);
-        } catch {
-            const msg = `wasm-opt failed for ${src}, skipping optimization`;
-            logger.warn(msg);
-            warnings.push(msg);
+        } catch (error) {
+            // Keep the original artifact intact; never label a failed release
+            // stage successful or copy a partially overwritten file to the SDK.
+            throw new Error(`wasm-opt ${optLevel} failed for ${src}: ${error.stderr?.trim() || error.message}`, { cause: error });
+        } finally {
+            await rm(optimizedPath, { force: true, maxRetries: 10, retryDelay: 50 });
         }
     }
 
-    if (warnings.length > 0) {
-        logger.warn(`wasm-opt completed with ${warnings.length} warning(s)`);
-    }
 }
 
 async function copyOutputs(buildDir, outputDir, outputs) {

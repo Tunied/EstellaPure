@@ -6,6 +6,9 @@ import { Catalog, type AtlasFrameInfo } from './Catalog';
 import { ManifestModel, normalizeBundleMode, type AddressableManifest, type AddressableAssetType } from './AddressableManifest';
 import { diffManifests, type UpdatePlan, type AssetChange } from './hotUpdate';
 import { contentHashHex } from './contentHash';
+import { encodeUtf8 } from '../util/utf8';
+import { getPlatform, isPlatformInitialized } from '../platform/base';
+import { contentCacheFor, type CacheVersion, type ContentCacheReport, type CacheCleanupResult } from '../platform/contentCache';
 import { platformLoadSubpackage, platformGetStorageItem, platformSetStorageItem, platformRemoveStorageItem, platformWriteCacheFile } from '../platform';
 import type {
     AssetLoader, LoadContext, TextureResult, SpineResult,
@@ -411,6 +414,11 @@ export class Assets {
     private persistKey_: string | null = null;
     /** The revision this package shipped, read when persistence is armed at boot. */
     private shippedRevision_: string | null = null;
+    private cacheOwner_: string | null = null;
+    private cacheRollback_: CacheVersion | null = null;
+    private cacheLaunch_: CacheVersion | null = null;
+    private cacheLaunchRollback_: CacheVersion | null = null;
+    private activeUpdate_: PendingUpdate | null = null;
     private getAudio_: () => import('../audio/Audio').AudioAPI | null;
     private getSpriteAnimation_: () => import('../animation/SpriteAnimator').SpriteAnimationAPI | null;
     private getLocalization_: () => import('../i18n/Localization').LocalizationAPI | null;
@@ -1078,6 +1086,7 @@ export class Assets {
         const plan = diffManifests(this.manifestModel_, model);
         const remoteRoot = options.remoteRoot ?? this.remoteRoot_ ?? null;
         this.pendingUpdate_ = { model, manifestJson: json, remoteRoot };
+        await this.protectCacheVersions_();
         return plan;
     }
 
@@ -1093,7 +1102,10 @@ export class Assets {
      */
     async applyUpdate(onProgress?: (loaded: number, total: number) => void): Promise<ApplyUpdateResult> {
         this.applying_++;
-        const run = this.applyChain_.then(() => this.applyStaged_(onProgress));
+        const run = this.applyChain_.then(async () => {
+            try { return await this.applyStaged_(onProgress); }
+            finally { this.activeUpdate_ = null; }
+        });
         this.applyChain_ = run.catch(() => {});
         try {
             return await run;
@@ -1115,6 +1127,8 @@ export class Assets {
         // finished in between moved the base, and its assets need no second download.
         const changed = diffManifests(this.manifestModel_, pending.model).changedAssets;
         const root = pending.remoteRoot ?? undefined;
+        this.activeUpdate_ = pending;
+        await this.protectCacheVersions_();
 
         // Phase 1 — download + verify EVERY changed asset WITHOUT touching the
         // active manifest. Content-addressed, so these are brand-new urls (nothing
@@ -1151,6 +1165,17 @@ export class Assets {
             const tex = this.getTexture(c.key) ?? this.getTexture(`${UUID_REF_PREFIX}${c.key}`);
             if (tex) oldHandles.set(c.key, tex.handle);
         }
+        const rollback = this.cacheVersion_(this.manifestModel_, this.remoteRoot_, 'rollback');
+        // Protect both sides durably BEFORE committing: a crash may still boot
+        // the old persisted manifest until the new one has been stored.
+        const previousRollback = this.cacheRollback_;
+        this.cacheRollback_ = rollback;
+        try {
+            await this.protectCacheVersions_(this.cacheVersion_(pending.model, root, 'current'));
+        } catch (err) {
+            this.cacheRollback_ = previousRollback;
+            throw err;
+        }
         if (pending.remoteRoot != null) this.setRemoteRoot(pending.remoteRoot);
         this.setManifest(pending.model);
         // A newer check staged while this one downloaded stays staged.
@@ -1181,6 +1206,13 @@ export class Assets {
         // an app that is not ticking would never reach from here.
         await this.assetGraphSettled();
         const persisted = this.persistActiveManifest_(pending.manifestJson);
+        // Until storage accepts the new manifest, the previous next-launch
+        // version AND its rollback must remain pinned across subsequent updates.
+        if (persisted === true) {
+            this.cacheLaunch_ = this.cacheVersion_(pending.model, root, 'retained');
+            this.cacheLaunchRollback_ = rollback ? { ...rollback, reason: 'retained' } : null;
+        }
+        await this.protectCacheVersions_().catch(e => log.warn('asset', 'updated content is protected but its cache index could not be refreshed', e));
         if (persisted !== true) {
             log.warn('asset', persisted === false
                 ? 'applyUpdate: the update runs now, but was not stored — the next launch starts on the previous version'
@@ -1205,6 +1237,61 @@ export class Assets {
             } : null,
             applying: this.applying_ > 0,
         };
+    }
+
+    private cacheVersion_(model: ManifestModel | null, root: string | undefined, reason: CacheVersion['reason']): CacheVersion | null {
+        if (!model) return null;
+        const keys = model.entries().filter(e => normalizeBundleMode(model.group(e.group)?.bundleMode) === 'remote')
+            .map(e => this.backend.resolveUrl(this.manifestAssetUrl_(e.asset.path, true, root)))
+            // A remote group with no CDN root is shipped in the package. Its
+            // files need no cache protection and are not missing offline bytes.
+            .filter(key => /^https?:\/\//i.test(key));
+        return { revision: model.revision() ?? contentHashHex(encodeUtf8(JSON.stringify(keys))), reason, keys };
+    }
+
+    private async protectCacheVersions_(current?: CacheVersion | null): Promise<void> {
+        if (!isPlatformInitialized()) return;
+        const cache = contentCacheFor(getPlatform());
+        if (cache.capability() !== 'managed') return;
+        this.cacheOwner_ ??= `assets:${this.persistKey_ ?? this.remoteRoot_ ?? 'package'}`;
+        this.cacheLaunch_ ??= this.cacheVersion_(this.manifestModel_, this.remoteRoot_, 'retained');
+        const versions = [current ?? this.cacheVersion_(this.manifestModel_, this.remoteRoot_, 'current'),
+            this.cacheRollback_, this.cacheLaunch_, this.cacheLaunchRollback_];
+        for (const update of [this.pendingUpdate_, this.activeUpdate_]) if (update) {
+            versions.push(this.cacheVersion_(update.model, update.remoteRoot ?? undefined, 'pending'));
+        }
+        await cache.protect(this.cacheOwner_, versions.filter((v): v is CacheVersion => v !== null));
+    }
+
+    /** Disk cache statistics, distinct from texture/audio residency budgets.
+     * A scan reconciles interrupted writes/deletes; unknown files stay pinned. */
+    async diskCacheReport(rescan = false): Promise<ContentCacheReport> {
+        if (!isPlatformInitialized()) return { capability: 'unavailable', usedBytes: null, indexBytes: null,
+            protectedBytes: null, reclaimableBytes: null, entries: [], versions: [] };
+        // Keep in-memory protection even at quota: requiring an index write
+        // before showing/cleaning a full disk would make it impossible to free.
+        await this.protectCacheVersions_().catch(e => log.warn('asset', 'cache protection is active but its index could not be stored', e));
+        return { ...await contentCacheFor(getPlatform()).report(rescan), owner: this.cacheOwner_ ?? undefined };
+    }
+
+    /** Preview by default; execution recomputes LRU against current protections. */
+    async cleanDiskCache(budgetBytes: number, execute = false): Promise<CacheCleanupResult> {
+        if (!Number.isSafeInteger(budgetBytes) || budgetBytes < 0) throw Error('cache budget must be a non-negative safe integer');
+        await this.diskCacheReport();
+        if (!isPlatformInitialized()) return { report: await this.diskCacheReport(), budgetBytes,
+            candidates: [], releaseBytes: 0, remainingBytes: null, budgetMet: null, removed: [], failed: [] };
+        const result = await contentCacheFor(getPlatform()).cleanup(budgetBytes, execute);
+        result.report.owner = this.cacheOwner_ ?? undefined;
+        return result;
+    }
+
+    /** Keep an older downloaded build, independently of the rolling rollback. */
+    async retainDiskCacheVersion(revision: string, retain = true): Promise<ContentCacheReport> {
+        await this.diskCacheReport();
+        if (!isPlatformInitialized() || !this.cacheOwner_) throw Error('cache management unavailable');
+        const cache = contentCacheFor(getPlatform());
+        await cache.retainVersion(this.cacheOwner_, revision, retain);
+        return { ...await cache.report(), owner: this.cacheOwner_ };
     }
 
     /** Download one changed asset's bytes from its delivery source (remote → CDN
@@ -1251,7 +1338,7 @@ export class Assets {
         const raw = platformGetStorageItem(key);
         if (!raw) return false;
         try {
-            const parsed = JSON.parse(raw) as { manifest: AddressableManifest; remoteRoot?: string | null; base?: string | null };
+            const parsed = JSON.parse(raw) as { manifest: AddressableManifest; remoteRoot?: string | null; base?: string | null; cacheRollback?: CacheVersion | null };
             if (parsed.base === undefined || parsed.base !== this.shippedRevision_) {
                 log.info('asset', `a stored update (${parsed.manifest?.revision ?? '?'}) was made for another package `
                     + `(${parsed.base ?? 'unknown'}, this one ships ${this.shippedRevision_ ?? 'none'}) — starting on what shipped`);
@@ -1260,6 +1347,12 @@ export class Assets {
             }
             if (parsed.remoteRoot) this.setRemoteRoot(parsed.remoteRoot);
             this.setManifest(parsed.manifest);
+            if (parsed.cacheRollback && typeof parsed.cacheRollback.revision === 'string'
+                && Array.isArray(parsed.cacheRollback.keys) && parsed.cacheRollback.keys.every(k => typeof k === 'string')) {
+                this.cacheRollback_ = { ...parsed.cacheRollback, reason: 'rollback' };
+                this.cacheLaunchRollback_ = { ...this.cacheRollback_, reason: 'retained' };
+            }
+            void this.protectCacheVersions_().catch(e => log.warn('asset', 'cache protection could not be persisted', e));
             return true;
         } catch (e) {
             log.warn('asset', 'failed to restore persisted manifest', e);
@@ -1271,7 +1364,7 @@ export class Assets {
      *  Null with no persistence key. */
     private persistActiveManifest_(json: AddressableManifest): boolean | null {
         if (!this.persistKey_) return null;
-        const value = JSON.stringify({ manifest: json, remoteRoot: this.remoteRoot_ ?? null, base: this.shippedRevision_ });
+        const value = JSON.stringify({ manifest: json, remoteRoot: this.remoteRoot_ ?? null, base: this.shippedRevision_, cacheRollback: this.cacheRollback_ });
         try {
             platformSetStorageItem(this.persistKey_, value);
             return platformGetStorageItem(this.persistKey_) === value;
