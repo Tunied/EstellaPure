@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(render): refresh tilemap meshes after layout changes':
+    { note: 'Tilemap atlas and grid edits refresh cached meshes.' },
   'perf(physics): reuse static parent transform snapshots':
     { note: 'Static siblings reuse their parent transform snapshot.' },
   'fix(ecs): compose transforms through transformless groups':

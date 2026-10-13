@@ -315,6 +315,14 @@ void TilemapRenderPlugin::collect(RenderCollectContext& collect_ctx) {
 
         auto& layerCache = cachedLayer != layer_caches_.end() ? cachedLayer->second : layer_caches_[entity];
         layerCache.generation = layer.generation;
+        const LayoutInputs layout{layer.tile_width, layer.tile_height, layer.grid_type,
+            layer.hex_side_length, layer.hex_stagger_axis_x, layer.hex_stagger_index_even};
+        if (layerCache.layout != layout || layerCache.tilesets != slots || layerCache.resolved != resolved) {
+            layerCache.chunks.clear();
+            layerCache.layout = layout;
+            layerCache.tilesets = slots;
+            layerCache.resolved = resolved;
+        }
         auto& chunkCaches = layerCache.chunks;
 
         // Per-slot merged geometry for this layer (one draw call per slot/texture).

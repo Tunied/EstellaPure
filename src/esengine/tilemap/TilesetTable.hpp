@@ -27,6 +27,7 @@ struct TilesetSlot {
     // send the exact cell rect; 0 = a packed atlas, where it must inset half a
     // texel and stretch the tile instead.
     uint32_t extrude = 0;
+    bool operator==(const TilesetSlot&) const = default;
 };
 
 /**

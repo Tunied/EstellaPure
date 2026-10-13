@@ -73,11 +73,25 @@ private:
         u32 atlasCols = 0;
         u32 atlasRows = 0;
         bool valid = false;
+        bool operator==(const ResolvedSlot&) const = default;
+    };
+
+    struct LayoutInputs {
+        f32 tileWidth = 0;
+        f32 tileHeight = 0;
+        tilemap::GridType gridType = tilemap::GridType::Orthogonal;
+        f32 hexSideLength = 0;
+        bool staggerAxisX = false;
+        bool staggerIndexEven = false;
+        bool operator==(const LayoutInputs&) const = default;
     };
 
     using ChunkMap = std::unordered_map<tilemap::ChunkCoord, ChunkCache, tilemap::ChunkCoordHash>;
     struct LayerCache {
         u32 generation = 0;
+        LayoutInputs layout;
+        std::vector<tilemap::TilesetSlot> tilesets;
+        std::vector<ResolvedSlot> resolved;
         ChunkMap chunks;
     };
     using LayerChunkMap = std::unordered_map<Entity, LayerCache>;
