@@ -23,7 +23,7 @@ import { spawnUIEntity } from '../core/compose';
 import { px } from '../core/dimension';
 import { SdfTextRenderer } from './text-renderer';
 import type { ESEngineModule } from '../../wasm';
-import { measureWidth } from './layout';
+import { measureWidth, measurePrefixWidths } from './layout';
 import { resolveTextFamily } from './font-registry';
 import {
     textFieldDisplay, maskedPrefix, fieldSelection, nearestCaretIndex,
@@ -233,8 +233,7 @@ export class TextInputPlugin implements Plugin {
                 // Each line carries its own alignment offset, so undo THIS line's.
                 const textX = pointer.x - fieldLeft - ti.padding
                     - alignOffset(ti.textAlign, innerW, mw(line.text));
-                const prefixes: number[] = [];
-                for (let i = 0; i <= line.text.length; i++) prefixes.push(mw(line.text.slice(0, i)));
+                const prefixes = measurePrefixWidths(line.text, atlas, family, ti.fontSize, 0);
                 return line.start + nearestCaretIndex(prefixes, textX);
             }
 
@@ -244,10 +243,8 @@ export class TextInputPlugin implements Plugin {
             // guess about the offset lands the caret on the wrong glyph.
             const ao = alignOffsetOf.get(entity) ?? 0;
             const textX = pointer.x - fieldLeft - ti.padding - ao + scrollX;
-            const prefixes: number[] = [];
-            for (let i = 0; i <= val.length; i++) {
-                prefixes.push(mw(maskedPrefix(val, i, ti.password, PASSWORD_CHAR)));
-            }
+            const display = ti.password ? PASSWORD_CHAR.repeat(val.length) : val;
+            const prefixes = measurePrefixWidths(display, atlas, family, ti.fontSize, 0);
             return nearestCaretIndex(prefixes, textX);
         }
 

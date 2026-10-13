@@ -229,6 +229,37 @@ export function measureWidth(
     return w;
 }
 
+/** UTF-16 prefix widths for caret placement, measured in one pass. */
+export function measurePrefixWidths(
+    text: string, atlas: GlyphAtlas, fontFamily: string, fontSizePx: number, style: number, letterSpacing = 0,
+): number[] {
+    const pixelSize = atlas.pixelSizeFor(fontSizePx);
+    const scale = fontSizePx / pixelSize;
+    const advance = (cp: number): number => {
+        const glyph = atlas.getGlyph(cp, fontFamily, style, pixelSize);
+        return glyph ? glyph.advance * scale + letterSpacing : 0;
+    };
+    const widths = new Array<number>(text.length + 1);
+    widths[0] = 0;
+    let width = 0;
+    for (let i = 0; i < text.length;) {
+        const cp = text.codePointAt(i)!;
+        if (cp > 0xffff) {
+            // A textarea can address the boundary between a surrogate pair.
+            // Match measuring that truncated prefix, without adding it to the
+            // complete code point's advance.
+            widths[i + 1] = width + advance(text.charCodeAt(i));
+            width += advance(cp);
+            i += 2;
+        } else {
+            width += advance(cp);
+            i++;
+        }
+        widths[i] = width;
+    }
+    return widths;
+}
+
 /**
  * Greedy word-wrap using an arbitrary width `measure` (display px). Breaks at
  * spaces; a token wider than the line (long word, or CJK runs with no spaces) is

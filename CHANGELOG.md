@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Text caret picking measures long strings once.** Pointer placement in single-line, multiline and password fields accumulates glyph advances in linear time instead of repeatedly measuring every prefix. UTF-16 caret boundaries, glyph scaling, missing glyphs and masked password widths retain their existing positions.
+
 - **Disabled text fields reject queued input.** Text input checks effective entity activity and interaction state before accepting editor events, including disabled ancestors, and releases the editing surface on the next update.
 
 - **Removed text fields release OS input focus.** Deleting the focused entity or removing its TextInput component closes the editing surface even though the old component can no longer be updated.
