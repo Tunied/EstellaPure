@@ -9,6 +9,7 @@ import type { PlatformAdapter } from './types';
 import type { PlatformAudioBackend } from '../audio/PlatformAudioBackend';
 import { NullAudioBackend } from '../audio/NullAudioBackend';
 import { log } from '../util/logger';
+import { contentCacheFor } from './contentCache';
 
 let cacheWriteFailureReported = false;
 
@@ -208,7 +209,7 @@ export async function platformReadCacheFile(key: string): Promise<ArrayBuffer | 
     const p = getPlatform();
     if (!p.readCacheFile) return null;
     try {
-        return await p.readCacheFile(key);
+        return await contentCacheFor(p).read(key);
     } catch {
         return null;
     }
@@ -222,7 +223,7 @@ export async function platformWriteCacheFile(key: string, bytes: ArrayBuffer): P
     const p = getPlatform();
     if (!p.writeCacheFile) return 'unsupported';
     try {
-        await p.writeCacheFile(key, bytes);
+        await contentCacheFor(p).write(key, bytes);
         return 'stored';
     } catch (err) {
         if (!cacheWriteFailureReported) {

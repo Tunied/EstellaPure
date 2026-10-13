@@ -17,6 +17,8 @@ three layers: the developer-facing guides below, the generated C++ API reference
 
 ### Conventions
 
+Disk-cache usage and offline-version protection: [CACHE_BUDGET.md](./CACHE_BUDGET.md).
+
 | Document | What it is | Language |
 |---|---|---|
 | [CODING_STYLE.md](./CODING_STYLE.md) | C++ and TypeScript naming & formatting rules. | English |

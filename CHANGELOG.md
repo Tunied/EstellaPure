@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Added
+
+- **Disk cache budgets preserve offline content versions.** Node and capable mini-game hosts report resource usage, hashes, version ownership and protected bytes. Cleanup previews and applies LRU eviction while keeping current, pending, rollback and explicitly retained versions, coordinating with downloads and reporting actual released bytes. The editor's connected-device Profiler provides scans, budget previews, cleanup and version retention. Hosts without management report unavailable usage; saves and unknown files remain protected.
+
 ### Fixed
 
 - **Audio preferences survive game restart.** Audio-demo saves and restores master, music and SFX volumes through engine storage, validates saved values, and restores the displayed percentages and actual bus gains at startup. Golden verification uses independent browser processes with a stable origin and isolated profile, cycles master volume to mute and verifies that both the label and silent output survive restart.

@@ -11,7 +11,7 @@
  *
  * @beta   Pre-1.0: the node/headless host is young; the adapter surface may change.
  */
-import { readFile as fsReadFile, access, mkdir, writeFile, rename } from 'node:fs/promises';
+import { readFile as fsReadFile, access, mkdir, writeFile, rename, readdir, stat, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import type {
@@ -188,6 +188,23 @@ class NodePlatformAdapter implements PlatformAdapter {
         const tmp = `${file}.${process.pid}.tmp`;
         await writeFile(tmp, new Uint8Array(bytes));
         await rename(tmp, file);
+    }
+
+    canManageCache(): boolean { return true; }
+
+    async listCacheFiles(): Promise<{ name: string; size: number; lastAccess: number }[]> {
+        await mkdir(this.cacheDir_(), { recursive: true });
+        const entries = await readdir(this.cacheDir_(), { withFileTypes: true });
+        const files = entries.filter(e => e.isFile() && /^[0-9a-f]{16}(?:\.\d+\.tmp)?$/.test(e.name));
+        return Promise.all(files.map(async e => {
+            const s = await stat(join(this.cacheDir_(), e.name));
+            return { name: e.name, size: s.size, lastAccess: s.atimeMs };
+        }));
+    }
+
+    async removeCacheFile(name: string): Promise<void> {
+        if (!/^[0-9a-f]{16}$/.test(name)) throw Error('invalid cache entry');
+        await unlink(join(this.cacheDir_(), name));
     }
 }
 

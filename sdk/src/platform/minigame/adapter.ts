@@ -60,6 +60,7 @@ export class MiniGamePlatformAdapter implements PlatformAdapter {
     private openDataCtx_: MiniGameOpenDataContext | null = null;
     private openDataResolved_ = false;
     private recorder_: PlatformScreenRecorder | null | undefined;
+    private cacheWriteId_ = 0;
 
     constructor(profile: MiniGameProfile) {
         this.profile_ = profile;
@@ -111,13 +112,56 @@ export class MiniGamePlatformAdapter implements PlatformAdapter {
         }
     }
 
-    writeCacheFile(key: string, bytes: ArrayBuffer): Promise<void> {
+    async writeCacheFile(key: string, bytes: ArrayBuffer): Promise<void> {
         const dir = this.g_.env?.USER_DATA_PATH;
-        if (!dir) return Promise.reject(new Error(`${this.profile_.hostLabel} names no user data directory`));
-        return new Promise((resolve, reject) => this.fs().writeFile({
-            filePath: `${dir}/${cacheEntryName(key)}`, data: bytes,
+        if (!dir) throw new Error(`${this.profile_.hostLabel} names no user data directory`);
+        const file = `${dir}/${cacheEntryName(key)}`;
+        const fs = this.fs();
+        const temp = fs.rename ? `${file}.${++this.cacheWriteId_}.tmp` : file;
+        await new Promise<void>((resolve, reject) => fs.writeFile({
+            filePath: temp, data: bytes,
             success: () => resolve(),
             fail: (err) => reject(new Error(err.errMsg)),
+        }));
+        if (fs.rename) {
+            try {
+                await new Promise<void>((resolve, reject) => fs.rename!({ oldPath: temp, newPath: file,
+                    success: resolve, fail: err => reject(new Error(err.errMsg)) }));
+            } catch (err) {
+                fs.unlink?.({ filePath: temp });
+                throw err;
+            }
+        }
+    }
+
+    canManageCache(): boolean {
+        const fs = this.fs();
+        return Boolean(this.g_.env?.USER_DATA_PATH && fs.readdir && fs.stat && fs.unlink && fs.rename);
+    }
+
+    hasCacheStorage(): boolean { return Boolean(this.g_.env?.USER_DATA_PATH); }
+
+    async listCacheFiles(): Promise<{ name: string; size: number; lastAccess: number }[]> {
+        if (!this.canManageCache()) throw Error('cache management unavailable');
+        const fs = this.fs();
+        const dir = this.g_.env!.USER_DATA_PATH!;
+        const names = await new Promise<string[]>((resolve, reject) => fs.readdir!({ dirPath: dir,
+            success: r => resolve(r.files), fail: e => reject(new Error(e.errMsg)) }));
+        const result: { name: string; size: number; lastAccess: number }[] = [];
+        for (const name of names.filter(n => /^[0-9a-f]{16}(?:\.\d+\.tmp)?$/.test(n))) {
+            const stats = await new Promise<{ size: number; lastAccessedTime: number; isFile(): boolean }>((resolve, reject) =>
+                fs.stat!({ path: `${dir}/${name}`, recursive: false,
+                    success: r => resolve(r.stats), fail: e => reject(new Error(e.errMsg)) }));
+            if (stats.isFile()) result.push({ name, size: stats.size, lastAccess: stats.lastAccessedTime * 1000 });
+        }
+        return result;
+    }
+
+    async removeCacheFile(name: string): Promise<void> {
+        if (!this.canManageCache() || !/^[0-9a-f]{16}$/.test(name)) throw Error('invalid cache entry or unsupported host');
+        await new Promise<void>((resolve, reject) => this.fs().unlink!({
+            filePath: `${this.g_.env!.USER_DATA_PATH}/${name}`, success: resolve,
+            fail: e => reject(new Error(e.errMsg)),
         }));
     }
 

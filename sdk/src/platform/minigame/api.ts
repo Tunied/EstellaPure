@@ -41,6 +41,10 @@ export interface MiniGameImage {
 }
 
 export interface MiniGameFileSystemManager {
+    readdir?(opts: { dirPath: string; success?: (res: { files: string[] }) => void; fail?: (err: { errMsg: string }) => void }): void;
+    stat?(opts: { path: string; recursive?: boolean; success?: (res: { stats: { size: number; lastAccessedTime: number; isFile(): boolean } }) => void; fail?: (err: { errMsg: string }) => void }): void;
+    unlink?(opts: { filePath: string; success?: () => void; fail?: (err: { errMsg: string }) => void }): void;
+    rename?(opts: { oldPath: string; newPath: string; success?: () => void; fail?: (err: { errMsg: string }) => void }): void;
     readFileSync(path: string, encoding?: string): ArrayBuffer | string;
     readFile(opts: {
         filePath: string;

@@ -13,6 +13,7 @@ export {
     ManifestModel,
 } from './AddressableManifest';
 export { diffManifests, type UpdatePlan, type AssetChange } from './hotUpdate';
+export type { ContentCacheReport, ContentCacheEntry, CacheCleanupPreview, CacheCleanupResult } from '../platform/contentCache';
 export {
     resolveAssetGroup,
     activeRemoteRoot,
