@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Idle scrollbars stop forcing UI layout work.** Overlay thumbs write their node geometry only when position, length or units change, including during fade-out and after becoming invisible. Comparisons use the native float precision so fractional thumb sizes settle instead of dirtying layout every frame; scrolling and viewport/content resizing still refresh their geometry.
+
 - **Running tilemaps follow published tileset updates.** Tileset publication versions invalidate each app's cached render table, animations and collision model after a successful replacement, without requiring a reference edit or scene reload. Failed replacements keep the working version; unchanged frames read only a version counter and avoid rebuilding the table or resolving resource paths again.
 
 - **Lazy tilemaps acquire and release tileset slots correctly.** Runtime-only tileset references use owned slot acquisitions rather than the retired generic loader interface. Failed loads retry after the asset cooldown, shared references deduplicate requests, and removing the last layer or resetting the runtime releases both completed and late acquisitions.

@@ -4,7 +4,7 @@
  * @file  UIScrollbarSystem — overlay thumbs appear on scroll, track the offset,
  *        and fade out after idle.
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createScrollbarSystem } from '../src/ui/behavior/scrollbar';
 import { ScrollContainer, ScrollContainerRegistry } from '../src/ui/collection/scroll-container';
 import { UINode } from '../src/ui/core/ui-node';
@@ -119,6 +119,19 @@ describe('UIScrollbarSystem', () => {
         registry.detach(viewport as number);
         tick();
         expect(thumbs()).toHaveLength(0);
+    });
+
+    it('does not rewrite unchanged geometry during fade or after it becomes hidden', () => {
+        tick(); scroll.scrollBy({ x: 0, y: 50 }); tick();
+        const writes = vi.spyOn(world, 'insert');
+        for (let i = 0; i < 120; i++) tick();
+        expect(writes.mock.calls.filter(([, component]) => component === UINode)).toHaveLength(0);
+        expect((world.get(thumbs()[0], UIVisual) as { color: { a: number } }).color.a).toBe(0);
+        writes.mockClear();
+        for (let i = 0; i < 60; i++) tick();
+        expect(writes).not.toHaveBeenCalled();
+        scroll.setContentSize({ x: 100, y: 600 }); tick();
+        expect(writes.mock.calls.filter(([, component]) => component === UINode)).toHaveLength(1);
     });
 
     it('a horizontal-only container never grows a vertical thumb', () => {

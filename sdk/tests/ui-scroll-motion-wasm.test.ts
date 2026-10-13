@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App, flushPendingRegistrations } from '../src/app/app';
 import { AppContext, setDefaultContext } from '../src/ecs/context';
 import { Input, InputState, inputEventCallbacks } from '../src/input/input';
@@ -43,6 +43,23 @@ describe.skipIf(!HAS_WASM)('scroll motion ownership on real WASM', () => {
     async function drag() {
         input.noteMouseDown(0); await step(0); await step(40); await step(80);
     }
+    it('does not dirty native thumb geometry after fractional lengths settle', async () => {
+        const scroll = new ScrollContainer({ viewportSize: { x: 100, y: 100 },
+            contentSize: { x: 300, y: 300 }, direction: 'both' });
+        plugin.attachScrollContainer(entity, scroll); await step(0);
+        scroll.scrollBy({ x: 50, y: 50 }); await step(0);
+        const { UINode } = await import('../src/ui/core/ui-node');
+        const { UIVisual } = await import('../src/ui/core/ui-visual');
+        const thumbs = app.world.getEntitiesWithComponents([UINode, UIVisual]);
+        expect(thumbs).toHaveLength(2);
+        const insert = vi.spyOn(app.world, 'insert');
+        try {
+            for (let i = 0; i < 120; i++) await step(0);
+            expect(insert.mock.calls.filter(([, component]) => component === UINode)).toHaveLength(0);
+            for (const thumb of thumbs) expect(app.world.get(thumb, UIVisual).color.a).toBe(0);
+        } finally { insert.mockRestore(); }
+    });
+
     it('a replaced container does not inherit an active pointer drag', async () => {
         const old = container(); plugin.attachScrollContainer(entity, old); await drag();
         expect(old.getOffset().y).toBe(80);

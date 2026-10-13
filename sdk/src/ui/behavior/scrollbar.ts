@@ -14,7 +14,7 @@ import { defineSystem, type SystemDef } from '../../ecs/system';
 import { Res, Time, type TimeData } from '../../ecs/resource';
 import type { World } from '../../ecs/world';
 import type { Entity, Vec2 } from '../../types';
-import { px } from '../core/dimension';
+import { px, DimensionUnit } from '../core/dimension';
 import { spawnUIEntity } from '../core/compose';
 import { UINode, UIPositionType, type UINodeData } from '../core/ui-node';
 import { UIVisual, type UIVisualData } from '../core/ui-visual';
@@ -75,14 +75,21 @@ function layoutThumb(
     const along = maxOffset > 0 ? (offset / maxOffset) * range : 0;
 
     const n = world.get(thumb, UINode) as UINodeData;
-    if (axis === 'v') {
-        n.insetTop = px(along);
-        n.height = px(len);
-    } else {
-        n.insetLeft = px(along);
-        n.width = px(len);
+    // Match the f32 fields read back from the native node before deciding to write.
+    const position = Math.fround(along), length = Math.fround(len);
+    const currentPosition = axis === 'v' ? n.insetTop : n.insetLeft;
+    const currentLength = axis === 'v' ? n.height : n.width;
+    if (currentPosition.unit !== DimensionUnit.Px || currentPosition.value !== position
+        || currentLength.unit !== DimensionUnit.Px || currentLength.value !== length) {
+        if (axis === 'v') {
+            n.insetTop = px(position);
+            n.height = px(length);
+        } else {
+            n.insetLeft = px(position);
+            n.width = px(length);
+        }
+        world.insert(thumb, UINode, n);
     }
-    world.insert(thumb, UINode, n);
 
     const vis = world.get(thumb, UIVisual) as UIVisualData;
     const a = THUMB_ALPHA * alpha;

@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(ui): avoid geometry writes for idle scrollbar thumbs':
+    { note: 'Idle scrollbars stop forcing UI layout work.' },
   'fix(tilemap): refresh layers after tileset publication changes':
     { note: 'Running tilemaps follow published tileset updates.' },
   'fix(tilemap): own lazy tileset loads and retry failures':
