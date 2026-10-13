@@ -20,6 +20,7 @@
  *                        to distinguish a renderer failure from compositor capture
  *     --w / --h          surface size (default 640x360)
  *     --settle <n>       frames to let run before capturing (default 30)
+ *     --frame-ms <n>     simulated time per render frame (default 1000/60; 0 = real time)
  *     --timeout <ms>     how long to wait for the first frame (default 30000)
  *     --scene <name>     boot this named scene instead of the package's entry
  *     --allow-flat       accept a single-colour frame (a deliberately blank scene)
@@ -62,6 +63,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { onRendererConsole } from '../lib/rendererConsole.mjs';
 import { inputScript } from './inputScript.mjs';
+import { frameClockScript } from './frameClock.mjs';
 import { networkProfile } from './networkProfiles.mjs';
 
 // Headless / GPU-less (CI) WebGL2 falls back to SwiftShader; harmless with a GPU.
@@ -153,17 +155,6 @@ const MIME = {
 
 /** Serve the export directory. Range requests are not implemented: a build that
  *  needs them (video seek) would read as a broken asset here, not a broken server. */
-/** Advances the page's clock once per rendered frame, by `ms`: the loop reads its
- *  delta off the rAF timestamp, and a slow runner's frame would otherwise hand a
- *  game a quarter of a second at a time. */
-const clockScript = (ms) => `<script>(() => {
-  let now = performance.now(); let frame = -1;
-  const raf = window.requestAnimationFrame.bind(window);
-  window.requestAnimationFrame = (cb) => raf((real) => {
-    if (real !== frame) { frame = real; now += ${ms}; }
-    cb(now);
-  });
-})();</script>`;
 
 function serve(root, safeArea, frameMs, compress) {
   const server = http.createServer(async (req, res) => {
@@ -178,7 +169,7 @@ function serve(root, safeArea, frameMs, compress) {
       // outside after that is a variable nobody ever asks about again.
       if ((safeArea || frameMs) && rel === 'index.html') {
         const [t = 0, r = 0, b = 0, l = 0] = safeArea.split(',').map(Number);
-        const head = (frameMs ? clockScript(frameMs) : '')
+        const head = frameClockScript(frameMs)
           + (safeArea ? `<style>:root{--sat:${t}px;--sar:${r}px;--sab:${b}px;--sal:${l}px}</style>` : '');
         const html = String(bytes);
         const injected = html.replace('<head>', `<head>${head}`);

@@ -14,6 +14,7 @@
  *     --out <file.png>   write the captured frame
  *     --w / --h          surface size (default 640x360)
  *     --settle <n>       frames to let run before capturing (default 30)
+ *     --frame-ms <n>     simulated time per render frame (default 1000/60; 0 = real time)
  *     --timeout <ms>     how long to wait for the first frame (default 30000)
  *     --input <json>     drive it, same spec as launch-export
  *     --fail-subpackage <name>  the host refuses that 分包, to see what it does
@@ -27,6 +28,7 @@ import { fileURLToPath } from 'node:url';
 import { onRendererConsole } from '../lib/rendererConsole.mjs';
 import { HOST_PAGE } from './minigameHost.mjs';
 import { inputScript } from './inputScript.mjs';
+import { frameClockScript } from './frameClock.mjs';
 
 // Headless / GPU-less (CI) WebGL2 falls back to SwiftShader; harmless with a GPU.
 app.commandLine.appendSwitch('enable-unsafe-swiftshader');
@@ -52,6 +54,7 @@ const OUT = flag('out', '');
 const W = Number(flag('w', '640'));
 const H = Number(flag('h', '360'));
 const SETTLE = Number(flag('settle', '30'));
+const FRAME_MS = Number(flag('frame-ms', String(1000 / 60)));
 const TIMEOUT = Number(flag('timeout', '30000'));
 const INPUT = flag('input', '');
 /**
@@ -85,10 +88,11 @@ function serve(root, page) {
       // brotli), so the transport does — the stand-in host sees raw wasm either way.
       const brotli = abs.endsWith('.br');
       const ext = path.extname(brotli ? abs.slice(0, -3) : abs).toLowerCase();
+      const body = await readFile(abs);
       res.writeHead(200, {
         'content-type': MIME[ext] ?? 'application/octet-stream',
         ...(brotli ? { 'content-encoding': 'br' } : {}),
-      }).end(await readFile(abs));
+      }).end(body);
     } catch {
       res.writeHead(404).end();
     }
@@ -127,7 +131,8 @@ async function main() {
   }
   JSON.parse(readFileSync(manifest, 'utf8')); // a manifest the vendor cannot parse is a dead package
 
-  const server = await serve(DIR, HOST_PAGE(entry, FAIL_SUBPACKAGE || null));
+  const page = HOST_PAGE(entry, FAIL_SUBPACKAGE || null).replace('<head>', '<head>' + frameClockScript(FRAME_MS));
+  const server = await serve(DIR, page);
   const base = `http://127.0.0.1:${server.address().port}/`;
 
   const win = new BrowserWindow({
