@@ -696,11 +696,7 @@ export const EVIDENCE = {
  * the hole is visible in the gate's output instead of being mistaken for
  * coverage — the same bargain check-project-settings strikes.
  */
-export const KNOWN_GAPS = {
-  // Present in the engine and shown by non-golden samples, but never carried
-  // through the chain by a project the release argues from.
-  settings: 'Celestial Heights persists language, effects and key bindings and reads them back at boot; volume waits on the game having sound',
-};
+export const KNOWN_GAPS = {};
 
 /**
  * The corpus. `certifies` is the claim, `targets` the packages that must build
@@ -1055,7 +1051,7 @@ export const GOLDEN = [
   },
   {
     id: 'audio-demo',
-    certifies: ['audio', 'authored-sound'],
+    certifies: ['audio', 'authored-sound', 'settings'],
     targets: ['web', 'desktop'],
     tier: 'release',
     interactGap: 'a pad plays a sound and draws nothing of its own — the audio block below is the run that reads the result',
@@ -1064,6 +1060,8 @@ export const GOLDEN = [
     // read the bar the visualizer writes from an analyser bin.
     audio: { toggle: { x: 0.5, y: 0.41 }, bar: 'Bar0', floor: 6, frames: 60 },
     authoredAudio: { unlock: { x: 0.02, y: 0.02 }, bars: Array.from({ length: 16 }, (_, i) => `Bar${i}`), floor: 6, frames: 60 },
+    settings: { control: { x: 0.275, y: 0.513333 }, unlock: { x: 0.02, y: 0.02 }, label: 'MasterLabel',
+      expected: ['Master  66%', 'Master  33%', 'Master  0%'], bars: Array.from({ length: 16 }, (_, i) => `Bar${i}`), floor: 6, w: 800, h: 600, frames: 60 },
   },
 ];
 
@@ -1105,7 +1103,8 @@ export function atTier(tier) {
  */
 export function sharesOf(projects, n, owned) {
   const weight = (g) => g.targets.filter((t) => owned.has(t)).length
-    * (1 + [interactFor(g), audioFor(g), g.authoredAudio, safeAreaFor(g), atlasFor(g)].filter(Boolean).length + (suspendFor(g) ? 3 : 0));
+    * (1 + [interactFor(g), audioFor(g), g.authoredAudio, safeAreaFor(g), atlasFor(g)].filter(Boolean).length
+      + (g.settings ? g.settings.expected.length + 1 : 0) + (suspendFor(g) ? 3 : 0));
   const bins = Array.from({ length: n }, () => ({ projects: [], load: 0 }));
   for (const g of [...projects].sort((a, b) => weight(b) - weight(a))) {
     const bin = bins.reduce((least, b) => (b.load < least.load ? b : least));

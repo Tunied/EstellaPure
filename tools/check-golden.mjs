@@ -60,6 +60,7 @@ const NEEDS_RUN = {
   'texture-atlas': 'atlas',
   audio: 'audio',
   'authored-sound': 'authoredAudio',
+  settings: 'settings',
   'safe-area': 'safeArea',
   'pause-resume': 'suspend',
   'hot-update': 'runBy',

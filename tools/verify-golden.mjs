@@ -423,6 +423,15 @@ for (const { id, target } of pairs) {
   // that starts the sound redraws itself either way. So drive the toggle and read
   // the height the game wrote from an analyser bin — silence leaves it on its floor.
   const audio = audioFor(golden);
+  if (golden.settings && target === 'web') {
+    const run = spawnSync(process.execPath, [path.join(ROOT, 'tools/verify-settings.mjs'),
+      '--dir', out, '--spec', JSON.stringify(golden.settings)], { cwd: ROOT, encoding: 'utf8' });
+    const ok = run.status === 0;
+    results.push({ id, target, stage: 'settings', ok, why: ok ? '' : String(run.stderr || run.stdout || 'settings verifier did not complete') });
+    console.log(`${ok ? '✓' : '✗'} ${id} ${target} — settings process restart`);
+    for (const line of (run.stdout || '').trim().split('\n')) if (line) console.log(`    ${line}`);
+    if (!ok) for (const line of (run.stderr || '').trim().split('\n').slice(-8)) if (line) console.log(`    ${line}`);
+  }
   const authoredAudio = golden.authoredAudio;
   if (authoredAudio && target === 'web') {
     // This gesture only unlocks browser audio. It avoids every pad and the

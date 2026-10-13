@@ -23,6 +23,7 @@
  *     --frame-ms <n>     simulated time per render frame (default 1000/60; 0 = real time)
  *     --timeout <ms>     how long to wait for the first frame (default 30000)
  *     --scene <name>     boot this named scene instead of the package's entry
+ *     --port <n>         serve on a fixed loopback port for same-origin restart tests
  *     --allow-flat       accept a single-colour frame (a deliberately blank scene)
  *     --input <json>     drive it: {"keys":["ArrowRight"]} or {"pointer":{"x":.5,"y":.5}}
  *     --touch            present as a touch device (maxTouchPoints > 0), so a
@@ -156,7 +157,7 @@ const MIME = {
 /** Serve the export directory. Range requests are not implemented: a build that
  *  needs them (video seek) would read as a broken asset here, not a broken server. */
 
-function serve(root, safeArea, frameMs, compress) {
+function serve(root, safeArea, frameMs, compress, port = 0) {
   const server = http.createServer(async (req, res) => {
     try {
       let rel = decodeURIComponent(new URL(req.url, 'http://x').pathname).replace(/^\/+/, '');
@@ -195,7 +196,10 @@ function serve(root, safeArea, frameMs, compress) {
       res.writeHead(404).end();
     }
   });
-  return new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(server)));
+  return new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(port, '127.0.0.1', () => resolve(server));
+  });
 }
 
 /** Is more than one colour on screen? The question a boot-to-black build fails. */
@@ -231,7 +235,7 @@ const AI = flag('ai', '');
 const RENDER = has('render');
 /** Boot a named scene from the package instead of its entry. */
 const SCENE = flag('scene', '');
-  const server = await serve(DIR, flag('safe-area', ''), Number(flag('frame-ms', String(1000 / 60))), !!THROTTLE);
+  const server = await serve(DIR, flag('safe-area', ''), Number(flag('frame-ms', String(1000 / 60))), !!THROTTLE, Number(flag('port', '0')));
   const query = new URLSearchParams();
   if (PROBE || GAMEPLAY || PARTICLES || COMBAT || AI || RENDER || FACTS || RENDER_FACTS || STREAMING) query.set('headless', '');
   if (SCENE) query.set('scene', SCENE);

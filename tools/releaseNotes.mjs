@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(examples): restore audio preferences across game restarts':
+    { note: 'Audio preferences survive game restart.' },
   'test(audio): certify authored source playback after packaging':
     { note: 'Authored sound is verified in a packaged game.' },
   'fix(test): resolve golden output paths before spawning tools':

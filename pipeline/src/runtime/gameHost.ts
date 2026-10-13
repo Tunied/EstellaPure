@@ -354,9 +354,9 @@ async function boot(): Promise<void> {
       probe(names: string[] = []): {
         scene: string | null;
         transitioning: boolean;
-        at: Record<string, { x: number; y: number; z?: number; w?: number; h?: number }>;
+        at: Record<string, { x: number; y: number; z?: number; w?: number; h?: number; text?: string }>;
       } {
-        const at: Record<string, { x: number; y: number; z?: number; w?: number; h?: number }> = {};
+        const at: Record<string, { x: number; y: number; z?: number; w?: number; h?: number; text?: string }> = {};
         for (const name of names) {
           const entity = app.world.findEntityByName(name);
           if (entity === null || !app.world.has(entity, Transform)) continue;
@@ -367,6 +367,8 @@ async function boot(): Promise<void> {
           // z as well: a 3D driver asking where something is cannot be answered
           // by the plane, and a character walking a ramp moves in all three.
           at[name] = { x: p.x, y: p.y, z: p.z ?? 0 };
+          const text = optionalRead(app, entity, 'Text');
+          if (typeof text?.content === 'string') at[name].text = text.content;
           // A node's own size, for a claim about a value the game COMPUTED rather
           // than about where it ended up — a spectrum bar barely moves while its
           // height carries the whole answer.
