@@ -72,18 +72,36 @@ class TilemapBridge extends WasmBridge<NonNullable<EngineApi>> {
 
 const bridge = new TilemapBridge();
 let module_: TilemapModule | null = null;
+const legacyOwner = {};
+const bindings: Array<{ owner: object; engine: NonNullable<EngineApi> }> = [];
 
 /** @internal Wired by the engine plugins — not part of the public API.
  *  Takes whichever core is present (see ecs/engineApi.ts); the plugin only calls
  *  this once it has checked that the core compiles tilemaps, which is what makes
  *  the narrowing below sound. */
-export function initTilemapAPI(engine: NonNullable<EngineApi>): void {
+export function initTilemapAPI(engine: NonNullable<EngineApi>, owner: object = legacyOwner): void {
+    const previous = bindings.findIndex(binding => binding.owner === owner);
+    if (previous >= 0) bindings.splice(previous, 1);
+    bindings.push({ owner, engine });
     bridge.connect(engine);
     module_ = bridge.module as unknown as TilemapModule;
 }
 
 /** @internal Wired by the engine plugins — not part of the public API. */
-export function shutdownTilemapAPI(): void {
+export function shutdownTilemapAPI(owner?: object): void {
+    if (owner) {
+        const index = bindings.findIndex(binding => binding.owner === owner);
+        if (index < 0) return;
+        const wasCurrent = index === bindings.length - 1;
+        bindings.splice(index, 1);
+        if (!wasCurrent) return;
+        const current = bindings[bindings.length - 1];
+        if (current) {
+            bridge.connect(current.engine);
+            module_ = bridge.module as unknown as TilemapModule;
+            return;
+        }
+    } else bindings.length = 0;
     bridge.disconnect();
     module_ = null;
 }

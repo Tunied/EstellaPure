@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Tilemap runtimes and saved chunks stay with their own worlds.** Closing a preview or an older App no longer destroys another core's same-numbered layers or disables its collision updates. Scene codecs serialize each world's own tiles; closing the current runtime restores the previous live tooling interface and collision lookup, and releases the retired codec.
+
 - **Native tilemap collisions follow live edits.** Changing painted tiles, importing an empty map, moving a layer or removing its collision palette replaces obsolete runtime colliders. A native content revision keeps unchanged frames and repeated writes from exporting the map or rebuilding collision.
 
 - **Unchanged tile writes preserve chunk caches.** Repainting a tile with its existing value no longer advances the chunk revision or forces geometry rebuilding. Erasing untouched empty space does not allocate empty chunks, including negative coordinates in infinite maps.

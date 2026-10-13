@@ -6,9 +6,9 @@ import { Transform, TilemapLayer, Sprite, Canvas, RuntimeOnly, Marker, type Tile
 import { Schedule } from '../ecs/system';
 import { defineResource } from '../ecs/resource';
 import type { SystemDef } from '../ecs/system';
-import { initTilemapAPI, shutdownTilemapAPI, TilemapAPI, createTilemapAPI, Tilemaps } from './tilemapAPI';
+import { initTilemapAPI, shutdownTilemapAPI, createTilemapAPI, Tilemaps } from './tilemapAPI';
 import { Tilemap } from './components';
-import { registerSceneComponentCodec } from '../scene/scene';
+import { registerWorldSceneComponentCodec } from '../scene/scene';
 import { tilemapSource, resolvedTileset, type LoadedTilemapSource } from './tilesetCache';
 import { resolveTilesetModel } from './tilesetResolve';
 import { isCollisionPaletteRef, buildCollisionPaletteModel, parseCollisionMaterial } from './collisionPalette';
@@ -54,6 +54,8 @@ interface CollisionInputs {
  * entities from 1, and a shared instance cannot tell them apart.
  */
 export class TilemapRuntime {
+    private toolkit_: ReturnType<typeof createTilemapAPI> | null = null;
+    private unregisterCodec_: (() => void) | null = null;
     private collisionInputs_ = new Map<number, CollisionInputs>();
     private applyTilesetRefs_: ((entity: number, refs: readonly string[]) => void) | null = null;
     private initializedLayers_ = new Set<number>();
@@ -109,10 +111,12 @@ export class TilemapRuntime {
             log.warn('tilemap', 'this engine core has no tilemap support — layers will not render');
             return;
         }
-        initTilemapAPI(engine);
+        initTilemapAPI(engine, this);
         // And this app's own toolkit over its own core: `Res(Tilemaps)` must not
         // answer with whichever engine initialised the module seam last.
-        app.insertResource(Tilemaps, createTilemapAPI(engine));
+        const TilemapAPI = createTilemapAPI(engine);
+        this.toolkit_ = TilemapAPI;
+        app.insertResource(Tilemaps, TilemapAPI);
 
         // Tile chunks live in a C++ blob, not the component's field record, so
         // teach the scene (de)serializer to carry them out-of-band instead of
@@ -155,9 +159,9 @@ export class TilemapRuntime {
             const table: LayerCollisionTable = { boxIds: new Set(ids ?? []), shapes: shapes ?? new Map() };
             this.queryTableCache_.set(layer, { ids, shapes, table });
             return table;
-        });
+        }, this);
 
-        registerSceneComponentCodec('TilemapLayer', {
+        this.unregisterCodec_ = registerWorldSceneComponentCodec(app.world, 'TilemapLayer', {
             exportData: (entity, data) => {
                 const blob = TilemapAPI.exportChunks(entity);
                 if (blob) data.chunks = blob;
@@ -735,7 +739,7 @@ export class TilemapRuntime {
     ): void {
         for (const child of this.sourceLayerEntities_.get(entity) ?? []) {
             if (this.initializedLayers_.has(child)) {
-                TilemapAPI.destroyLayer(child);
+                this.toolkit_?.destroyLayer(child);
                 this.initializedLayers_.delete(child);
             }
             this.animatedLayers_.delete(child);
@@ -766,10 +770,11 @@ export class TilemapRuntime {
 
     resetLayers(): void {
         for (const entity of this.initializedLayers_) {
-            TilemapAPI.destroyLayer(entity);
+            this.toolkit_?.destroyLayer(entity);
         }
         this.initializedLayers_.clear();
         this.appliedCellSize_.clear();
+        this.appliedGrid_.clear();
         this.animatedLayers_.clear();
         this.sourceLayerEntities_.clear();
         this.sourceDerivedFrom_.clear();
@@ -787,9 +792,12 @@ export class TilemapRuntime {
 
     dispose(): void {
         this.resetLayers();
+        this.toolkit_ = null;
+        this.unregisterCodec_?.();
+        this.unregisterCodec_ = null;
         this.applyTilesetRefs_ = null;
-        _bindTileCollisionLookup(null);
-        shutdownTilemapAPI();
+        _bindTileCollisionLookup(null, this);
+        shutdownTilemapAPI(this);
     }
 }
 

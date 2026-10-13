@@ -249,6 +249,22 @@ export interface SceneComponentCodec {
 }
 
 const sceneComponentCodecs = new Map<string, SceneComponentCodec>();
+const worldComponentCodecs = new WeakMap<World, Map<string, SceneComponentCodec>>();
+
+/** @internal A world's component codecs take precedence over host defaults. */
+export function registerWorldSceneComponentCodec(world: World, type: string, codec: SceneComponentCodec): () => void {
+    let codecs = worldComponentCodecs.get(world);
+    if (!codecs) worldComponentCodecs.set(world, codecs = new Map());
+    codecs.set(type, codec);
+    return () => {
+        if (codecs.get(type) === codec) codecs.delete(type);
+        if (codecs.size === 0) worldComponentCodecs.delete(world);
+    };
+}
+
+function sceneComponentCodec(world: World, type: string): SceneComponentCodec | undefined {
+    return worldComponentCodecs.get(world)?.get(type) ?? sceneComponentCodecs.get(type);
+}
 
 /** Register a custom (de)serializer for a component type. Idempotent. */
 export function registerSceneComponentCodec(type: string, codec: SceneComponentCodec): void {
@@ -689,7 +705,7 @@ export function loadComponent(world: World, entity: Entity, compData: SceneCompo
     // Strip out-of-band fields (e.g. TilemapLayer's tile-chunk blob) before
     // validation/insert so the component insert doesn't choke on them; the
     // registered codec replays them once the component is in.
-    const codec = sceneComponentCodecs.get(compData.type);
+    const codec = sceneComponentCodec(world, compData.type);
     let outOfBand: Record<string, unknown> | undefined;
     if (codec?.outOfBandFields?.length) {
         for (const field of codec.outOfBandFields) {
@@ -770,7 +786,7 @@ export function serializeEntityComponents(world: World, entity: Entity): SceneCo
         const payload = (comp._builtin ? data : deepClone(data)) as Record<string, unknown>;
         // Components with out-of-band state (e.g. TilemapLayer chunks) fold
         // it into the record via their registered codec.
-        sceneComponentCodecs.get(typeName)?.exportData?.(entityNum, payload);
+        sceneComponentCodec(world, typeName)?.exportData?.(entityNum, payload);
         components.push({
             type: typeName,
             data: payload,

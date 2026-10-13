@@ -5,7 +5,7 @@ import { HAS_WASM, loadWasmModule } from './helpers/loadWasm';
 import { App } from '../src/app/app';
 import { Transform, TilemapLayer } from '../src/ecs/component';
 import { TilemapPlugin, TilemapRuntimeState } from '../src/tilemap/tilemapPlugin';
-import { TilemapAPI, Tilemaps } from '../src/tilemap/tilemapAPI';
+import { Tilemaps } from '../src/tilemap/tilemapAPI';
 
 let engine: import('../src/wasm').ESEngineModule;
 const registries: Array<{ delete(): void }> = [];
@@ -40,7 +40,7 @@ describe.skipIf(!HAS_WASM)('live native tile collision', () => {
     it('retains unchanged colliders and removes them after erasing their tile', async () => {
         const { app, entity, tiles, colliders } = await scene();
         const original = [...colliders()]; expect(original.length).toBeGreaterThan(0);
-        const exports = vi.spyOn(TilemapAPI, 'exportChunks');
+        const exports = vi.spyOn(tiles, 'exportChunks');
         for (let i = 0; i < 20; i++) { tiles.setTile(entity, 0, 0, 1); await app.tick(1 / 60); }
         expect(colliders()).toEqual(original);
         expect(exports).not.toHaveBeenCalled();

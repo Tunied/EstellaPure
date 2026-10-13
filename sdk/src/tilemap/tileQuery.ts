@@ -24,13 +24,20 @@ export interface LayerCollisionTable {
     shapes: ReadonlyMap<number, ResolvedTileCollision>;
 }
 
-let lookup_: ((layer: number) => LayerCollisionTable | null) | null = null;
+type CollisionLookup = (layer: number) => LayerCollisionTable | null;
+let lookup_: CollisionLookup | null = null;
+const legacyOwner = {};
+const lookups: Array<{ owner: object; fn: CollisionLookup }> = [];
 
 /** Plugin-internal: install (or clear, with null) the layer → collision-table resolver. */
 export function _bindTileCollisionLookup(
     fn: ((layer: number) => LayerCollisionTable | null) | null,
+    owner: object = legacyOwner,
 ): void {
-    lookup_ = fn;
+    const index = lookups.findIndex(entry => entry.owner === owner);
+    if (index >= 0) lookups.splice(index, 1);
+    if (fn) lookups.push({ owner, fn });
+    lookup_ = lookups[lookups.length - 1]?.fn ?? null;
 }
 
 const PLAIN_BOX: ResolvedTileCollision = { shape: { type: 'box' } };
