@@ -8,6 +8,7 @@ import { instantiatePrefab, type PrefabData } from '../src/prefab';
 import type { Assets } from '../src/asset/Assets';
 import { HAS_WASM, loadWasmModule } from './helpers/loadWasm';
 import type { ESEngineModule, CppRegistry } from '../src/wasm';
+import { INVALID_ENTITY } from '../src/types';
 
 const leaf = (name: string): PrefabData => ({ version: '2', name, rootEntityId: 'root', entities: [
     { prefabEntityId: 'root', name, parent: null, children: [], visible: true,
@@ -88,5 +89,32 @@ describe.skipIf(!HAS_WASM)('prepared prefabs use the same dependency graph as as
         const { assets, load } = assetsFor({ root });
         await expect(preparePrefab(assets, 'root')).rejects.toThrow(/Circular reference/);
         expect(load.mock.calls.length).toBeLessThanOrEqual(2);
+    });
+    it('rolls back a prepared hierarchy when its parent no longer exists', async () => {
+        const source = leaf('root'); source.entities[0].children = ['child'];
+        source.entities.push({ ...leaf('child').entities[0], prefabEntityId: 'child', parent: 'root' });
+        const { assets } = assetsFor({ root: source });
+        const prepared = await preparePrefab(assets, 'root');
+        const w = world();
+        try {
+            const parent = w.spawn(); w.despawn(parent);
+            expect(() => spawnPrepared(w, prepared, { parent })).toThrow(/parent/);
+            expect(w.getAllEntities()).toHaveLength(0);
+        } finally { for (const e of w.getAllEntities()) if (w.valid(e)) w.despawn(e); prepared.release(); }
+    });
+    it('supports live parents, position overrides and an explicit unparented spawn', async () => {
+        const { assets } = assetsFor({ root: leaf('root') });
+        const prepared = await preparePrefab(assets, 'root'), w = world();
+        try {
+            const parent = w.spawn();
+            const child = spawnPrepared(w, prepared, { parent, position: { x: 90, y: 80 } });
+            expect(w.get(child.root, Parent).entity).toBe(parent);
+            expect(w.get(child.root, Transform).position).toEqual({ x: 90, y: 80, z: 0 });
+            const standalone = spawnPrepared(w, prepared, { parent: INVALID_ENTITY });
+            expect(w.has(standalone.root, Parent)).toBe(false);
+            w.despawn(parent);
+            expect(w.valid(child.root)).toBe(false);
+            expect(w.valid(standalone.root)).toBe(true);
+        } finally { for (const e of w.getAllEntities()) if (w.valid(e)) w.despawn(e); prepared.release(); }
     });
 });

@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Prepared prefab spawns reject failed parent attachments.** The synchronous spawn path rolls back its new hierarchy and entity-owned resources when its parent no longer accepts the root, matching asynchronous instantiation. Preparation resources remain available for later valid spawns, and live parents, position overrides and explicit unparented copies remain supported.
+
 - **Standalone scene and prefab spawns release their resources.** Loads without a scene collector transfer acquired resources to the entities that reference them, then release the preload receipts. Destroying or rolling back a spawned hierarchy retires those acquisitions. Prefab document reads also use scoped receipts, including nested sources, so repeated spawns no longer accumulate unowned references.
 
 - **Prefab spawns roll back when their parent disappears.** Runtime instantiation checks that its requested parent accepts the root after asynchronous loading. A rejected attachment despawns the newly created hierarchy and rejects the spawn instead of leaving an unparented instance behind; live parents and the explicit no-parent sentinel remain supported.

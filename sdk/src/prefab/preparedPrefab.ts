@@ -116,6 +116,7 @@ export async function preparePrefabFromSource(
 }
 
 export interface SpawnPreparedOptions {
+    /** A rejected parent attachment rolls back the spawned hierarchy. */
     parent?: Entity;
     /** Where the root lands. Absent leaves the prefab's own transform. */
     position?: { x: number; y: number; z?: number };
@@ -139,7 +140,9 @@ export function spawnPrepared(
         ownership?.attach(world, entities);
         prepared.trackSpawnReferences?.(entities);
         const root = entities.get(prepared.rootId)!;
-        if (options?.parent !== undefined) world.setParent(root, options.parent);
+        if (options?.parent !== undefined && !world.trySetParent(root, options.parent)) {
+            throw new Error(`Prepared prefab "${prepared.scene.name}" could not attach to parent ${options.parent}`);
+        }
         if (options?.position) {
             // Transform is C++-backed, so the read is a copy: change it and hand it back.
             const transform = world.get(root, Transform);

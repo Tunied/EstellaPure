@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(prefab): roll back prepared spawns on parent rejection':
+    { note: 'Prepared prefab spawns reject failed parent attachments.' },
   'fix(asset): transfer standalone spawn resources to entity owners':
     { note: 'Standalone scene and prefab spawns release their resources.' },
   'fix(prefab): roll back spawns when parent attachment fails':
