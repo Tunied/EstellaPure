@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import { afterEach, expect, it, vi } from 'vitest';
 import type { TextEditorEvent } from '../src/platform/types';
+import { bootMockApp } from './helpers/mockApp';
 
 const surfaces: ReturnType<typeof createSurface>[] = [];
 function createSurface() {
@@ -32,7 +33,7 @@ const { UIEvents, UIEventQueue } = await import('../src/ui/core/events');
 const { TextInput } = await import('../src/ui/text/text-input');
 const apps: ReturnType<typeof App.new>[] = [];
 function build(plugin: InstanceType<typeof TextInputPlugin>) {
-    const app = App.new();
+    const app = bootMockApp().app;
     apps.push(app);
     app.addPlugin({ name: 'focus', build(app) {
         app.insertResource(FocusManager, new FocusManagerState());
@@ -95,4 +96,26 @@ it('cleanup without an app releases every remaining surface exactly once', () =>
         expect(surface.dispose).toHaveBeenCalledOnce();
         expect(surface.listeners.size).toBe(0);
     }
+});
+
+it.each(['despawn', 'remove'] as const)('blurs the OS surface when the focused field is %s', async removal => {
+    const app = build(new TextInputPlugin());
+    const field = app.world.spawn();
+    app.world.insert(field, TextInput, { value: '' });
+    app.getResource(FocusManager).focus(field);
+    await app.tick(1 / 60);
+    expect(surfaces[0].focus).toHaveBeenCalledOnce();
+    if (removal === 'despawn') app.world.despawn(field);
+    else app.world.remove(field, TextInput);
+    await app.tick(1 / 60);
+    expect(surfaces[0].blur).toHaveBeenCalledOnce();
+    await app.tick(1 / 60);
+    expect(surfaces[0].blur).toHaveBeenCalledOnce();
+    const next = app.world.spawn();
+    app.world.insert(next, TextInput, { value: '' });
+    app.getResource(FocusManager).focus(next);
+    await app.tick(1 / 60);
+    expect(surfaces[0].focus).toHaveBeenCalledTimes(2);
+    for (const listener of surfaces[0].listeners) listener({ kind: 'change' });
+    expect(app.world.get(next, TextInput).value).toBe('typed');
 });

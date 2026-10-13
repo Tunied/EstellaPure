@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Removed text fields release OS input focus.** Deleting the focused entity or removing its TextInput component closes the editing surface even though the old component can no longer be updated.
+
 - **Text input surfaces stay with their own apps.** Closing an older app or a preview removes its own text-editor listeners and surface, preserving typing in other running apps. Repeated cleanup releases each surface once.
 
 - **Tilemap atlas and grid edits refresh cached meshes.** Changing columns, texture dimensions, atlas borders or grid layout updates UVs and geometry without repainting tile data. Cached meshes now compare their resolved layout inputs, while unchanged inputs retain their geometry; editor pixel checks compare live edits with a fresh repaint.

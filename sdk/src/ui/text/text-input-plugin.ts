@@ -337,9 +337,10 @@ export class TextInputPlugin implements Plugin {
                     // Only a field that really lost focus is blurred. Re-attaching
                     // an editor to the field that already has focus must not blur
                     // the surface on its way in.
-                    if (prevFocusedTextInput !== null && prevFocusedTextInput !== currentFocused
-                        && world.valid(prevFocusedTextInput) && world.has(prevFocusedTextInput, TextInput)) {
-                        world.update(prevFocusedTextInput, TextInput, (ti) => { ti.focused = false; });
+                    if (prevFocusedTextInput !== null && prevFocusedTextInput !== currentFocused) {
+                        if (world.valid(prevFocusedTextInput) && world.has(prevFocusedTextInput, TextInput)) {
+                            world.update(prevFocusedTextInput, TextInput, (ti) => { ti.focused = false; });
+                        }
                         editor.blur();
                     }
 
