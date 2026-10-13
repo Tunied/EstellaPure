@@ -18,6 +18,7 @@
 #include <cstdio>  // pl_mpeg's declarations expect size_t / FILE from the includer
 #include <cstdlib>
 #include <cstring>
+#include <algorithm>
 
 #define PL_MPEG_IMPLEMENTATION
 #include "pl_mpeg.h"
@@ -30,6 +31,8 @@ struct Instance {
     plm_t* plm = nullptr;
     plm_frame_t* frame = nullptr;  // latest decoded frame; owned by plm
     bool newFrame = false;
+    double duration = 0;
+    bool frameIndexedSeek = false;
 };
 
 Instance g_instances[kMaxInstances];
@@ -44,6 +47,25 @@ void onVideoFrame(plm_t*, plm_frame_t* frame, void* user) {
     auto* inst = static_cast<Instance*>(user);
     inst->frame = frame;
     inst->newFrame = true;
+}
+
+/** Count picture headers in video payloads without decoding or copying frames. */
+double singleTimestampDuration(uint8_t* bytes, uint32_t size, double fps) {
+    plm_buffer_t* buffer = plm_buffer_create_with_memory(bytes, size, FALSE);
+    if (!buffer) return 0;
+    plm_demux_t* demux = plm_demux_create(buffer, TRUE);
+    if (!demux) { plm_buffer_destroy(buffer); return 0; }
+    uint32_t code = 0xffffffff;
+    uint32_t pictures = 0;
+    while (plm_packet_t* packet = plm_demux_decode(demux)) {
+        if (packet->type != PLM_DEMUX_PACKET_VIDEO_1) continue;
+        for (size_t i = 0; i < packet->length; i++) {
+            code = (code << 8) | packet->data[i];
+            if (code == 0x00000100) pictures++;
+        }
+    }
+    plm_demux_destroy(demux);
+    return fps > 0 ? pictures / fps : 0;
 }
 
 }  // namespace
@@ -87,6 +109,11 @@ int es_video_open(uintptr_t dataPtr, uint32_t size) {
     inst.plm = plm;
     inst.frame = nullptr;
     inst.newFrame = false;
+    inst.duration = plm_get_duration(plm);
+    inst.frameIndexedSeek = inst.duration <= 0;
+    if (inst.frameIndexedSeek) {
+        inst.duration = singleTimestampDuration(owned, size, plm_get_framerate(plm));
+    }
     plm_set_video_decode_callback(plm, onVideoFrame, &inst);
     return slot + 1;
 }
@@ -103,7 +130,7 @@ uint32_t es_video_height(int handle) {
 
 double es_video_duration(int handle) {
     Instance* inst = get(handle);
-    return inst ? plm_get_duration(inst->plm) : 0.0;
+    return inst ? inst->duration : 0.0;
 }
 
 double es_video_framerate(int handle) {
@@ -173,6 +200,16 @@ int es_video_frame_rgba(int handle, uintptr_t outPtr, uint32_t outSize) {
 int es_video_seek(int handle, double time) {
     Instance* inst = get(handle);
     if (!inst) return 0;
+    if (inst->frameIndexedSeek) {
+        const double fps = plm_get_framerate(inst->plm);
+        const double target = std::max(0.0, std::min(time, inst->duration - 1.0 / fps));
+        plm_rewind(inst->plm);
+        plm_frame_t* frame = plm_decode_video(inst->plm);
+        while (frame && frame->time < target) frame = plm_decode_video(inst->plm);
+        if (!frame) return 0;
+        onVideoFrame(inst->plm, frame, inst);
+        return 1;
+    }
     return plm_seek(inst->plm, time, /* seek_exact */ TRUE) ? 1 : 0;
 }
 

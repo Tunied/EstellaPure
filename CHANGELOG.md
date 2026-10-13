@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Single-timestamp MPEG videos report duration and support seeking.** Videos whose frames fit in one PES packet no longer report a zero duration or seek only to the first frame. The decoder counts picture headers without decoding frames at startup and uses frame-based seeking when packet timestamps cannot describe the timeline. Timestamp-based seeking remains in use for other streams.
+
 - **Video component playback settings update live streams.** Changing volume, mute, loop, or playback rate updates the current stream without reopening the decoder. Unchanged settings avoid repeated backend calls across frames; source changes still create a stream with the current settings.
 
 - **Video plugin cleanup releases only the selected App.** Shared plugin instances retain separate video backends and stream maps for each App, so closing a preview cannot stop another App's video or leave its own backend behind. Cleanup detaches the world subscription and disables its old update system. Stopping component streams also retires them from the video service instead of pumping stopped handles.

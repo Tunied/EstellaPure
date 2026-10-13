@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(video): support duration and seeking for single-timestamp streams':
+    { note: 'Single-timestamp MPEG videos report duration and support seeking.' },
   'fix(video): synchronize live component playback settings':
     { note: 'Video component playback settings update live streams.' },
   'fix(video): isolate plugin cleanup and stream ownership per app':

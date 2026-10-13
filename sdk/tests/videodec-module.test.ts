@@ -60,6 +60,36 @@ describe.skipIf(!HAS_VIDEODEC)('videodec side module (pl_mpeg)', () => {
         mod._es_video_close(h);
     });
 
+    it('reports a duration and seeks within a single video PES packet', () => {
+        const bytes = readFileSync(FIXTURE);
+        const start = bytes.indexOf(Buffer.from([0, 0, 1, 0xe0]));
+        expect(start).toBeGreaterThanOrEqual(0);
+        const end = start + 6 + bytes.readUInt16BE(start + 4);
+        const single = bytes.subarray(0, end);
+        const ptr = mod._malloc(single.length);
+        let h = 0;
+        try {
+            mod.HEAPU8.set(single, ptr); h = mod._es_video_open(ptr, single.length);
+            expect(h).toBeGreaterThan(0);
+            expect(mod._es_video_duration(h)).toBeGreaterThan(0.5);
+            expect(mod._es_video_seek(h, 0.5)).toBe(1);
+            expect(mod._es_video_time(h)).toBeGreaterThanOrEqual(0.5);
+            expect(mod._es_video_time(h)).toBeLessThan(0.55);
+            const rgba = mod._malloc(W * H * 4);
+            try {
+                expect(mod._es_video_frame_rgba(h, rgba, W * H * 4)).toBe(1);
+                expectColor(Array.from(mod.HEAPU8.subarray(rgba, rgba + 4)), 255, 0, 0);
+            } finally { mod._free(rgba); }
+            expect(mod._es_video_seek(h, 0)).toBe(1);
+            expect(mod._es_video_time(h)).toBe(0);
+            expect(mod._es_video_seek(h, 999)).toBe(1);
+            expect(mod._es_video_time(h)).toBeLessThan(mod._es_video_duration(h));
+            mod._es_video_set_loop(h, 1);
+            mod._es_video_advance(h, mod._es_video_duration(h) * 2);
+            expect(mod._es_video_has_ended(h)).toBe(0);
+        } finally { if (h) mod._es_video_close(h); mod._free(ptr); }
+    });
+
     it('rejects bytes that are not an MPEG stream', () => {
         const junk = new Uint8Array(256).fill(0x42);
         const ptr = mod._malloc(junk.length);
