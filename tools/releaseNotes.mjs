@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(editor): refresh camera previews against the live CPU budget':
+    { note: 'Camera preview scheduling follows its current CPU budget.' },
   'fix(test): unregister mini-game host keyboard subscribers':
     { note: 'Mini-game verification unregisters keyboard callbacks.' },
   'fix(test): forward mini-game touch gestures in package verification':
