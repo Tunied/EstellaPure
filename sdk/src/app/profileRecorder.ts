@@ -15,6 +15,8 @@ import {
 import type { ScopeCost } from './frameProfile';
 
 export interface ProfileRecorderOptions {
+    /** Use already enabled timings without changing their instrumentation switches. */
+    instrumentation?: 'enable' | 'existing';
     /** Frames kept before the oldest is dropped. 1800 is ~30s at 60Hz. */
     maxFrames?: number;
     /** The budget a reader judges the capture against. Defaults to 60Hz. */
@@ -82,8 +84,10 @@ export class ProfileRecorder {
         if (this.recording_) return;
         this.frames_.length = 0;
         this.seq_ = 0;
-        this.app_.enableStats();
-        engineApi(this.app_)?.engine_setCpuProfiling?.(true);
+        if (this.options_.instrumentation !== 'existing') {
+            this.app_.enableStats();
+            engineApi(this.app_)?.engine_setCpuProfiling?.(true);
+        }
         this.recording_ = true;
         this.detach_ = this.app_.onFrameEnd((dtMs) => this.capture_(dtMs));
     }
@@ -94,7 +98,7 @@ export class ProfileRecorder {
         this.recording_ = false;
         this.detach_?.();
         this.detach_ = null;
-        engineApi(this.app_)?.engine_setCpuProfiling?.(false);
+        if (this.options_.instrumentation !== 'existing') engineApi(this.app_)?.engine_setCpuProfiling?.(false);
     }
 
     /** Throw away what has been recorded, keeping the recorder running. */

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { App } from '../src/app/app';
 import { Schedule, defineSystem } from '../src/ecs/system';
 import { ProfileRecorder, ProfileRecorderPlugin } from '../src/app/profileRecorder';
@@ -11,6 +11,21 @@ function appWithSystem(name = 'Worker'): App {
     app.addSystemToSchedule(Schedule.Update, defineSystem([], () => {}, { name }));
     return app;
 }
+
+it('can observe existing timings without resetting stats or toggling native profiling', async () => {
+    const app = appWithSystem().enableStats();
+    const reset = vi.spyOn(app, 'enableStats');
+    const profiling = vi.fn();
+    const api = await import('../src/ecs/bridge/engineApi');
+    const native = vi.spyOn(api, 'engineApi').mockReturnValue({ engine_setCpuProfiling: profiling } as ReturnType<typeof api.engineApi>);
+    try {
+        const recorder = new ProfileRecorder(app, { instrumentation: 'existing' });
+        recorder.start(); await app.tick(1 / 60); await app.tick(1 / 60); recorder.stop();
+        expect(recorder.take().frames).toHaveLength(2);
+        await app.tick(1 / 60); expect(recorder.take().frames).toHaveLength(2);
+        expect(reset).not.toHaveBeenCalled(); expect(profiling).not.toHaveBeenCalled();
+    } finally { native.mockRestore(); reset.mockRestore(); app.quit(); }
+});
 
 describe('App.onFrameEnd', () => {
     it('fires once a frame, after the systems ran', async () => {

@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Play-mode performance captures include every recorded frame.** The editor's `profile_frames` command captures the running world's frame-end stream instead of its 250 ms telemetry snapshots, so frame counts, tail latency and system costs come from actual frames. Captures discard data if the play world is replaced, keep editor overhead visible, and can observe existing instrumentation without resetting timings or toggling another recorder's profiling switches.
+
 - **Inactive 2D bodies retain pending collider and body edits.** Physics reconciliation tracks the last synchronization of each body, so changes made while a parent or entity is inactive are applied on reactivation instead of being skipped by another body's newer global synchronization. Collider enable flags and rigid-body properties update in place, preserving the body and its existing simulation state.
 
 - **Paused sprites refresh replaced animation clips.** A sprite that has already applied a clip follows a newly published clip while paused, updating its displayed frame without advancing the frame index or timer or firing playback events. Unchanged paused frames avoid component writes, and an initially paused animator still leaves the authored sprite untouched until playback or an explicit frame selection.

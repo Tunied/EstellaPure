@@ -6530,6 +6530,7 @@ static prototype: ProfileRecorder
 ## ProfileRecorderOptions — interface @experimental
 ```
 budgetMs: number | undefined
+instrumentation: "enable" | "existing" | undefined
 maxFrames: number | undefined
 source: CaptureSource | undefined
 ```
