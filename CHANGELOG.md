@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Missing skeletal sources keep their recovery paths.** A failed viewport reload retains the last resolved skeleton, atlas and page dependencies so restoring an entire removed source directory triggers a fresh binding. Restored armatures draw their new image, and the viewport no longer remains on stale bindings that distort unrelated text.
+
 - **Skeletal previews reload after directory changes.** Directory notifications match the skeleton's actual source and page paths, including normalized Windows paths and trailing separators. Moving a page directory away and restoring it now refreshes the open viewport; similarly named sibling directories do not trigger a reload.
 
 - **Deleted sprite images clear and restored images reload.** The editor invalidates removed paths and reprojects missing or newly restored references, including directory-only watcher notifications. Browser texture loads use a new image-cache address after invalidation so restored pixels and dimensions replace the old image; ordinary loads and native image paths keep their existing addresses.

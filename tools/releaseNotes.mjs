@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(editor): preserve skeletal dependencies across failed reloads':
+    { note: 'Missing skeletal sources keep their recovery paths.' },
   'fix(editor): refresh skeletal previews after directory changes':
     { note: 'Skeletal previews reload after directory changes.' },
   'fix(asset): refresh deleted and restored sprite images':
