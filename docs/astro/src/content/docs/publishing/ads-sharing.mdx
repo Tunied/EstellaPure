@@ -308,3 +308,28 @@ resolving is the cue to go and ask it.
 There is no local stand-in in play mode, for the same reason sign-in has none —
 a rehearsed purchase that charges nothing and grants nothing rehearses only the
 dialog, and the part that goes wrong is behind it.
+
+
+## Poki Web exports
+
+In Project Settings → Packaging → Web, select **Poki**. The same choice can be
+saved in `packaging.platforms.web.channel` as `"poki"`, including a named Web
+export profile. Standalone is the default.
+
+The page loads the official Poki SDK in its head. Boot initializes it before
+project scripts and reports `gameLoadingFinished` after scene and asset loading.
+Initialization failure continues the game with ads unavailable. A pending SDK
+initialization is bounded to ten seconds; this does not bound script downloads.
+
+Use the existing `Ads` resource for rewarded and commercial breaks. Poki ignores
+the ad unit identifier: its SDK selects the placement. Grant rewards only when
+`completed` is true. The service pauses simulation and suspends audio while the
+break is pending, and rejects concurrent breaks without queuing them.
+
+Game logic must call the official `PokiSDK.gameplayStart()` and
+`PokiSDK.gameplayStop()` at actual play/pause/end transitions. The exporter does
+not infer gameplay from page loading or arbitrary input. These events, no-fill
+and successful ad behavior, and audio/input restoration require testing in the
+[Poki Inspector](https://developers.poki.com/guide/sdk-html5). A Web export is not
+platform approval. The channel page permits HTTPS resources/frames for the
+SDK-managed ads; standalone retains its same-origin policy.

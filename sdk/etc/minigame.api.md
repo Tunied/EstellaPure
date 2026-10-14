@@ -5850,6 +5850,7 @@ sideModules: { id: string; file: string; globalName?: string; }[] | undefined
 steamAppId: number | undefined
 uiTheme: "light" | undefined
 uiThemeColors: Record<string, string> | undefined
+webChannel: "poki" | undefined
 worlds: { scene: string; manifest: string; }[] | undefined
 ySortLayers: number | undefined
 ```

@@ -12,7 +12,7 @@
  *        (shared with the play realm's import-map work).
  */
 import {
-  createWebApp, setEditorMode, setPlayMode, Assets,
+  createWebApp, setEditorMode, setPlayMode, Assets, Ads,
   indexPackagedManifest, createPackagedAssetSource, applyAssetRefResolvers, initRuntime,
   HttpBackend, fetchDecodePixels, registerPackagedSideModules,
   packagedAppOptions, packagedRuntimeInit, Transform, SceneManager, UINode,
@@ -60,6 +60,7 @@ import type {
 import type { ESEngineModule } from 'esengine/wasm';
 import { attachSplash, type Splash } from '../export/splash';
 import { countedStream, engineDownloadTotal } from './engineDownload';
+import { initializePoki, type PokiSdk } from './pokiProfile';
 
 /**
  * Fetch the engine binary through a stream we can count, and hand the SAME
@@ -106,6 +107,9 @@ async function boot(): Promise<void> {
 
   const cfg = (await (await fetch('./game.config.json')).json()) as PackagedGameConfig;
   splash?.reach('config');
+  const poki = cfg.webChannel === 'poki'
+    ? await initializePoki((window as unknown as { PokiSDK?: PokiSdk }).PokiSDK, (message, error) => console.warn(message, error))
+    : null;
   // Before the engine boots, so a boot that fails is still heard by the editor.
   if (cfg.debugChannel) startDebugChannel(cfg.debugChannel);
 
@@ -202,6 +206,7 @@ async function boot(): Promise<void> {
     getViewportSize: () => ({ width: canvas.width, height: canvas.height }),
     wasmBaseUrl: wasmBase.replace(/\/$/, ''), // SDK appends "/<file>" — no trailing slash
   });
+  if (poki?.provider) app.getResource(Ads)?.setProvider(poki.provider);
   splash?.reach('app');
   setEditorMode(false);
   setPlayMode(true);
@@ -890,6 +895,7 @@ async function boot(): Promise<void> {
     // Everything the config APPLIES to a live app: physics, the mixer, the theme.
     ...packagedRuntimeInit(cfg),
   });
+  poki?.loaded();
   splash?.reach('assets');
   // Before run(), not after: run() may hand control to the emscripten loop and
   // never return, and the fade is what the first frames should arrive through.

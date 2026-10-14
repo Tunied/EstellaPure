@@ -26,6 +26,8 @@ published separately; it ships inside the editor.
 
 ### Added
 
+- **Web exports can select the Poki channel.** Project and named export settings inject its official SDK, initialize it with a bounded fallback, report loading after the scene is ready and connect rewarded/commercial breaks to the existing Ads service. The editor exposes the channel choice; standalone keeps its original resource policy. Game logic still reports gameplay transitions explicitly, and official Inspector/device acceptance remains pending.
+
 - **Playable scenarios run in headless Chromium and save bound evidence.** A CLI replays declared canvas clicks and host callbacks, records trusted pointers and user activation, checks hidden input and animation, and fails on unexpected requests, page errors, event mismatches, lost history or changed inputs. Reports and screenshots retain delivery/scenario/tool hashes and pending acceptance; eight network mocks run on the example in CI using that commit's Web runtime. No local editor or browser window is opened.
 
 ## [0.82.0] - 2026-10-14

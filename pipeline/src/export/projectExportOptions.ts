@@ -106,6 +106,7 @@ export async function projectExportOptions(
     ...(platform === 'android' && plat?.android?.releaseKey
       ? { androidKey: () => androidReleaseKey(root, plat.android!.releaseKey!, secrets.androidKeyPassphrase) }
       : {}),
+    ...(platform === 'web' && plat?.web?.channel === 'poki' ? { webChannel: 'poki' as const } : {}),
     desktopProductName: plat?.desktop?.productName,
     desktopChannel: plat?.desktop?.channel,
     steam: plat?.desktop?.steam,

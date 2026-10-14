@@ -338,7 +338,7 @@ function externalEngineImports(metafile: { outputs: Record<string, { imports?: {
  *  for desktop (the Electron shell sizes its own window). */
 function indexHtml(
   title: string, map: EngineImportMap, look: SplashLook, orientation?: ScreenOrientation,
-  debugChannel?: DebugChannelConfig,
+  debugChannel?: DebugChannelConfig, webChannel?: 'poki',
 ): string {
   // The editor a development build dials is the one address beyond 'self' the
   // page may connect to; a build without a channel lists none.
@@ -347,16 +347,22 @@ function indexHtml(
   const inlineScripts = [map.cspHash, ...(orientation ? [orientationLockCspHash(orientation)] : [])]
     .map((h) => `'${h}'`)
     .join(' ');
+  // Poki owns third-party ad frames, scripts and requests; its host policy is
+  // incompatible with the standalone page's same-origin resource restriction.
+  const channelPolicy = webChannel === 'poki'
+    ? `default-src 'self' data: blob: https:; script-src 'self' 'unsafe-eval' blob: https: ${inlineScripts}; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; connect-src 'self' data: blob: https:${connect}; frame-src https:; media-src 'self' data: blob: https:; worker-src 'self' blob:;`
+    : `default-src 'self'; script-src 'self' 'unsafe-eval' blob: ${inlineScripts}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' data: blob:${connect}; worker-src 'self' blob:;`;
   return `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'unsafe-eval' blob: ${inlineScripts}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' data: blob:${connect}; worker-src 'self' blob:;"
+      content="${channelPolicy}"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <title>${title}</title>
+    ${webChannel === 'poki' ? '<script src="https://game-cdn.poki.com/scripts/v2/poki-sdk.js"></script>' : ''}
     <script type="importmap">${map.json}</script>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -470,6 +476,8 @@ export interface ExportGameOptions {
   packagesDir: string;
   /** Project-relative startup entry (e.g. src/main.ts) → bundled to scripts.mjs. */
   scriptsEntry?: string;
+  /** Browser distribution channel; standalone leaves the original Web policy intact. */
+  webChannel?: 'poki';
   sdkDistDir: string;
   /** The engine runtime to copy. */
   wasmDir: string;
@@ -1162,13 +1170,14 @@ async function produceExport(opts: ExportGameOptions): Promise<ExportGameResult>
     splashBytes = Buffer.byteLength(splashCss(look.background ?? PAGE_BACKGROUND) + splashHtml(title, look));
     await writeFile(
       path.join(payloadDir, 'index.html'),
-      indexHtml(title, engineMap, look, platform === 'web' ? orientation : undefined, debugChannel),
+      indexHtml(title, engineMap, look, platform === 'web' ? orientation : undefined, debugChannel, platform === 'web' ? opts.webChannel : undefined),
     );
   }
   // Typed against the SDK's contract, so a field the runtimes read can never be
   // spelled differently here — the two sides share one declaration.
   const gameConfig: PackagedGameConfig = {
     entryScene: opts.entryScene, scenes,
+    ...(platform === 'web' && opts.webChannel ? { webChannel: opts.webChannel } : {}),
     ...(scriptsFile ? { scripts: scriptsFile } : {}),
     ...packagedRuntimeFields(runtime),
     ...(hotUpdate ? { hotUpdate } : {}),

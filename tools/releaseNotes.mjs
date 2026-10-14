@@ -28,6 +28,10 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(web): connect Poki channel exports to ads services':
+    { note: 'Web exports can select the Poki channel.' },
+  'feat(editor): expose Poki Web distribution channel':
+    { note: 'Web exports can select the Poki channel.' },
   'fix(ads): reject overlapping advertising requests':
     { note: 'Advertising requests preserve a single active break.' },
 

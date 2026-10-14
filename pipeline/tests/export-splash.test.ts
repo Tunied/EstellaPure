@@ -50,7 +50,7 @@ beforeAll(() => {
 afterAll(() => rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 }));
 
 /** Export for web and hand back the page plus whatever the build said about it. */
-async function page(splash?: ProjectPackaging['splash']): Promise<{ html: string; warnings: string[]; splashBytes?: number }> {
+async function page(splash?: ProjectPackaging['splash'], webChannel?: 'poki'): Promise<{ html: string; warnings: string[]; splashBytes?: number }> {
   const outDir = path.join(root, `dist-${Math.random().toString(36).slice(2)}`);
   const res = await exportGame({
     root,
@@ -60,7 +60,7 @@ async function page(splash?: ProjectPackaging['splash']): Promise<{ html: string
     wasmDir: path.join(root, '_wasm'),
     outDir,
     title: 'My Game',
-    platform: 'web',
+    platform: 'web', webChannel,
     runtime: runtimeConfigOf({ designResolution: { width: 800, height: 600 } }),
     splash,
   });
@@ -126,4 +126,23 @@ describe('the exported page’s start screen', () => {
     expect(html).toContain('data-min-ms="800"');
     expect(html).toContain('#102030');
   }, 180_000);
+});
+
+
+describe('Poki host page', () => {
+  it('loads the official SDK in the head before the game, with its channel policy', async () => {
+    const { html } = await page(undefined, 'poki');
+    const script = '<script src="https://game-cdn.poki.com/scripts/v2/poki-sdk.js"></script>';
+    expect(html.indexOf(script)).toBeGreaterThan(html.indexOf('<head>'));
+    expect(html.indexOf(script)).toBeLessThan(html.indexOf('</head>'));
+    expect(html.indexOf(script)).toBeLessThan(html.indexOf('src="./game.js"'));
+    expect(html).toContain('frame-src https:');
+    expect(html).toContain("script-src 'self' 'unsafe-eval' blob: https:");
+  });
+  it('keeps standalone exports free of SDK injection and broad HTTPS policy', async () => {
+    const { html } = await page();
+    expect(html).not.toContain('poki-sdk');
+    expect(html).not.toContain('frame-src https:');
+    expect(html).toContain("default-src 'self';");
+  });
 });

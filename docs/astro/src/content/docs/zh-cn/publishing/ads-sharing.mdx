@@ -274,3 +274,25 @@ resolve 只是「去问服务器」的信号。
 
 Play 模式里没有本地替身，理由和登录那节一样——一次不扣钱也不发货的排练，排练的只有
 那个弹窗，而真正会出问题的是弹窗后面。
+
+
+## Poki Web 导出
+
+在项目设置 → 打包 → Web 中选择 **Poki**，或设置
+`packaging.platforms.web.channel` 为 `"poki"`；命名的 Web 导出配置也可以
+保存此设置。默认仍为独立发行。
+
+页面在 head 加载官方 SDK，启动时在项目脚本之前初始化，并在场景与资源
+加载完成后发送 `gameLoadingFinished`。初始化失败时继续运行游戏，广告
+不可用；SDK 初始化等待上限为十秒，该上限不包含脚本下载时间。
+
+奖励广告与插屏继续使用 `Ads` 资源。Poki 由 SDK 选择广告位置，因此忽略
+广告单元 ID。只在 `completed` 为 true 时发放奖励。服务在广告请求期间
+暂停模拟、挂起音频，重叠请求直接拒绝且不排队。
+
+游戏逻辑应在实际开始、暂停、结束时调用官方
+`PokiSDK.gameplayStart()` / `PokiSDK.gameplayStop()`。导出器不把页面加载或
+任意输入推断为 gameplay 开始。事件顺序、无填充/成功广告、音频与输入
+恢复仍需在 [Poki Inspector](https://developers.poki.com/guide/sdk-html5)
+验证，成功导出不代表平台验收。渠道页面为 SDK 管理的广告允许 HTTPS
+资源和 iframe；独立发行继续使用同源资源策略。
