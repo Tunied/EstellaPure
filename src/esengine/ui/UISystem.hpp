@@ -20,6 +20,7 @@
 
 #include <memory>
 #include <unordered_set>
+#include <unordered_map>
 #include <vector>
 
 namespace esengine::resource { class ResourceManager; }
@@ -132,6 +133,20 @@ public:
     const std::unordered_set<u32>& screenDomain() const { return screen_domain_; }
 
 private:
+    struct InheritedState {
+        bool hidden = false;
+        f32 alpha = 1.0f;
+        bool blocked = false;
+    };
+    struct InheritedMemo {
+        u64 stamp = 0;
+        bool resolving = false;
+        InheritedState state;
+    };
+    std::unordered_map<Entity, InheritedMemo> inherited_cache_;
+    std::vector<Entity> inherited_path_;
+    u64 inherited_stamp_ = 0;
+    void propagateDetachedUIState(Registry& registry);
     /** @brief World-space pick for entities outside the layout tree (see .cpp) */
     void hitWorldContent(Registry& registry, const PickRay& ray,
                          const resource::ResourceManager* resources);

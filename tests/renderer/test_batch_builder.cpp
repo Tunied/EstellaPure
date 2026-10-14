@@ -1100,6 +1100,134 @@ TEST_CASE("UI stencil reference budget follows depth rather than sibling count")
     frame.endFrame();
 }
 
+TEST_CASE("detached UI refreshes inherited state without relocating its geometry") {
+    ecs::Registry registry;
+    ecs::UISystem ui;
+    const auto child = [&](Entity parent, bool node) {
+        const Entity entity = registry.create();
+        registry.emplace<ecs::Transform>(entity);
+        if (node) registry.emplace<ecs::UINode>(entity);
+        if (parent != INVALID_ENTITY) {
+            registry.emplace<ecs::Parent>(entity).entity = parent;
+            if (!registry.has<ecs::Children>(parent)) registry.emplace<ecs::Children>(parent);
+            registry.get<ecs::Children>(parent).entities.push_back(entity);
+        }
+        return entity;
+    };
+    const Entity root = child(INVALID_ENTITY, true);
+    registry.emplace<ecs::Canvas>(root);
+    const Entity group = child(root, false), leaf = child(group, true);
+    registry.get<ecs::UINode>(root).opacity = .5f;
+    registry.get<ecs::UINode>(leaf).opacity = .5f;
+    ui.layoutUpdate(registry, -100, -100, 100, 100, true);
+    CHECK(registry.get<ecs::UINode>(leaf).alpha_in_tree_ == doctest::Approx(.25f));
+    const auto position = registry.get<ecs::Transform>(leaf).position;
+    const auto size = registry.get<ecs::UINode>(leaf).computed_size_;
+    registry.remove<ecs::Canvas>(root);
+    auto& parent = registry.get<ecs::UINode>(root);
+    parent.display = ecs::UIDisplay::None;
+    parent.pointerEvents = ecs::UIPointerEvents::None;
+    ui.layoutUpdate(registry, -200, -200, 200, 200, true);
+    CHECK(ui.tree.nodes_.empty());
+    CHECK(parent.hidden_in_tree_);
+    CHECK(registry.get<ecs::UINode>(leaf).hidden_in_tree_);
+    CHECK(registry.get<ecs::UINode>(leaf).pointer_blocked_in_tree_);
+    CHECK(registry.get<ecs::Transform>(leaf).position == position);
+    CHECK(registry.get<ecs::UINode>(leaf).computed_size_ == size);
+    parent.display = ecs::UIDisplay::Flex;
+    parent.pointerEvents = ecs::UIPointerEvents::Auto;
+    parent.opacity = .8f;
+    ui.layoutUpdate(registry, -200, -200, 200, 200, false);
+    CHECK_FALSE(registry.get<ecs::UINode>(leaf).hidden_in_tree_);
+    CHECK_FALSE(registry.get<ecs::UINode>(leaf).pointer_blocked_in_tree_);
+    CHECK(registry.get<ecs::UINode>(leaf).alpha_in_tree_ == doctest::Approx(.4f));
+    registry.emplace<ecs::Canvas>(root);
+    ui.layoutUpdate(registry, -100, -100, 100, 100, false);
+    CHECK(ui.tree.nodes_.size() == 2);
+    CHECK(registry.get<ecs::UINode>(leaf).alpha_in_tree_ == doctest::Approx(.4f));
+}
+
+TEST_CASE("detached UI state walks shared deep ancestry iteratively and recovers from reparenting") {
+    ecs::Registry registry;
+    ecs::UISystem ui;
+    const Entity root = registry.create();
+    auto& parent = registry.emplace<ecs::UINode>(root);
+    parent.display = ecs::UIDisplay::None;
+    parent.opacity = .5f;
+    parent.pointerEvents = ecs::UIPointerEvents::None;
+    Entity group = root;
+    for (u32 i = 0; i < 50000; ++i) {
+        const Entity next = registry.create();
+        registry.emplace<ecs::Parent>(next).entity = group;
+        group = next;
+    }
+    std::vector<Entity> leaves;
+    for (u32 i = 0; i < 100; ++i) {
+        const Entity leaf = registry.create();
+        registry.emplace<ecs::Parent>(leaf).entity = group;
+        registry.emplace<ecs::UINode>(leaf).opacity = .25f;
+        leaves.push_back(leaf);
+    }
+    ui.layoutUpdate(registry, -100, -100, 100, 100, false);
+    for (Entity leaf : leaves) {
+        const auto& node = registry.get<ecs::UINode>(leaf);
+        CHECK(node.hidden_in_tree_);
+        CHECK(node.pointer_blocked_in_tree_);
+        CHECK(node.alpha_in_tree_ == doctest::Approx(.125f));
+    }
+    const Entity visible = registry.create();
+    registry.emplace<ecs::UINode>(visible).opacity = .8f;
+    registry.get<ecs::Parent>(group).entity = visible;
+    ui.layoutUpdate(registry, -100, -100, 100, 100, false);
+    for (Entity leaf : leaves) {
+        const auto& node = registry.get<ecs::UINode>(leaf);
+        CHECK_FALSE(node.hidden_in_tree_);
+        CHECK_FALSE(node.pointer_blocked_in_tree_);
+        CHECK(node.alpha_in_tree_ == doctest::Approx(.2f));
+    }
+}
+
+TEST_CASE("a Canvas inherits visibility and pointer policy from an ancestor outside its layout tree") {
+    ecs::Registry registry;
+    ecs::UISystem ui;
+    ecs::TransformSystem transforms;
+    const Entity parent = registry.create(), canvas = registry.create(), leaf = registry.create();
+    registry.emplace<ecs::Transform>(parent).position = {13, 17, 0};
+    registry.emplace<ecs::UINode>(parent).opacity = .5f;
+    registry.get<ecs::UINode>(parent).pointerEvents = ecs::UIPointerEvents::None;
+    registry.emplace<ecs::Children>(parent).entities.push_back(canvas);
+    registry.emplace<ecs::Parent>(canvas).entity = parent;
+    registry.emplace<ecs::Transform>(canvas);
+    registry.emplace<ecs::UINode>(canvas);
+    registry.emplace<ecs::Canvas>(canvas);
+    registry.emplace<ecs::Children>(canvas).entities.push_back(leaf);
+    registry.emplace<ecs::Parent>(leaf).entity = canvas;
+    registry.emplace<ecs::Transform>(leaf);
+    auto& node = registry.emplace<ecs::UINode>(leaf);
+    node.width = {40, 0};
+    node.height = {30, 0};
+    node.opacity = .5f;
+    registry.emplace<ecs::Interactable>(leaf);
+    ui.layoutUpdate(registry, -100, -100, 100, 100, true);
+    transforms.ensureComposed(registry);
+    REQUIRE(ui.tree.nodes_.size() == 2);
+    CHECK(node.alpha_in_tree_ == doctest::Approx(.25f));
+    auto& transform = registry.get<ecs::Transform>(leaf);
+    transform.ensureDecomposed();
+    const auto position = transform.worldPosition;
+    const ecs::PickRay ray{{position.x, position.y, 100}, {0, 0, -1}};
+    ui.hitTestUpdate(registry, ray, nullptr);
+    CHECK(ui.hitResult.hit_entity == INVALID_ENTITY);
+    registry.get<ecs::UINode>(parent).pointerEvents = ecs::UIPointerEvents::Auto;
+    ui.layoutUpdate(registry, -100, -100, 100, 100, false);
+    ui.hitTestUpdate(registry, ray, nullptr);
+    CHECK(ui.hitResult.hit_entity == leaf);
+    registry.get<ecs::UINode>(parent).display = ecs::UIDisplay::None;
+    ui.layoutUpdate(registry, -100, -100, 100, 100, false);
+    ui.hitTestUpdate(registry, ray, nullptr);
+    CHECK(ui.hitResult.hit_entity == INVALID_ENTITY);
+}
+
 TEST_CASE("nine-slice: small boxes contain their borders and preserve source UVs") {
     for (const glm::vec2 size : {glm::vec2{40, 30}, {10, 6}, {10, 30}, {40, 6}, {0, 6}, {10, 0}}) {
         Harness h;

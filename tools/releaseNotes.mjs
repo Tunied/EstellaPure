@@ -32,6 +32,8 @@ export const NOTED = {
     { internal: 'Example validation reports filesystem and process failures instead of dropping all non-TS diagnostics.' },
   'perf(templates): minify the WeChat publishing profile':
     { note: "The WeChat starter's publishing profile minifies its game bundle." },
+  'fix(ui): refresh inherited state outside Canvas layout trees':
+    { note: 'UI inheritance stays current after leaving a Canvas.' },
   'feat(templates): add WeChat gameplay and host-service starter':
     { note: 'The WeChat Mini Game starter combines gameplay and host-service examples.' },
   'feat(templates): ship a complete playable ad starter':

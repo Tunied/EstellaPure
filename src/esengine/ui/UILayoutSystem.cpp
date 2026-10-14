@@ -528,6 +528,48 @@ void unifiedLayoutPass(Registry& registry, UITree& tree, LayoutCache& cache,
 // UISystem layout entry (defined here to share the anon-namespace helpers)
 // =============================================================================
 
+void UISystem::propagateDetachedUIState(Registry& registry) {
+    if (++inherited_stamp_ == 0) {
+        inherited_cache_.clear();
+        ++inherited_stamp_;
+    }
+    registry.each<UINode>([&](Entity entity, UINode&) {
+        inherited_path_.clear();
+        InheritedState state;
+        Entity current = entity;
+        while (registry.valid(current)) {
+            auto& memo = inherited_cache_[current];
+            if (memo.stamp == inherited_stamp_) {
+                state = memo.resolving ? InheritedState{true, 0.0f, true} : memo.state;
+                break;
+            }
+            memo.stamp = inherited_stamp_;
+            memo.resolving = true;
+            inherited_path_.push_back(current);
+            const auto* parent = registry.tryGet<Parent>(current);
+            current = parent ? parent->entity : INVALID_ENTITY;
+        }
+        for (auto it = inherited_path_.rbegin(); it != inherited_path_.rend(); ++it) {
+            if (auto* node = registry.tryGet<UINode>(*it)) {
+                state.hidden = state.hidden || node->display == UIDisplay::None;
+                state.alpha *= std::clamp(node->opacity, 0.0f, 1.0f);
+                state.blocked = state.blocked || node->pointerEvents == UIPointerEvents::None;
+                node->hidden_in_tree_ = state.hidden;
+                node->alpha_in_tree_ = state.alpha;
+                node->pointer_blocked_in_tree_ = state.blocked;
+            }
+            auto& memo = inherited_cache_.at(*it);
+            memo.state = state;
+            memo.resolving = false;
+        }
+    });
+    // Keep live ancestry entries for reuse, but do not retain removed trees.
+    for (auto it = inherited_cache_.begin(); it != inherited_cache_.end();) {
+        if (it->second.stamp != inherited_stamp_) it = inherited_cache_.erase(it);
+        else ++it;
+    }
+}
+
 void UISystem::layoutUpdate(
     Registry& registry,
     f32 boxLeft, f32 boxBottom, f32 boxRight, f32 boxTop,
@@ -538,7 +580,10 @@ void UISystem::layoutUpdate(
     // the new world the previous world's layout. This is only load-bearing now
     // that styles persist between frames: the old pass reset every node it
     // touched, which hid the aliasing by throwing the stale state away.
-    if (layoutCache_ && lastRegistryId_ != registry.instanceId()) layoutCache_.reset();
+    if (lastRegistryId_ != registry.instanceId()) {
+        layoutCache_.reset();
+        inherited_cache_.clear();
+    }
     lastRegistryId_ = registry.instanceId();
     if (!layoutCache_) {
         layoutCache_ = std::make_unique<LayoutCache>();
@@ -554,6 +599,12 @@ void UISystem::layoutUpdate(
     // no re-solve can still have reparented something, and a renderer reading a
     // stale set would draw it in the wrong domain rather than in the wrong place.
     collectScreenDomain(registry, screen_domain_);
+
+    // Layout belongs to Canvas; visibility and input inheritance belong to the
+    // whole UI hierarchy, including nodes that just left their Canvas.
+    const bool detached = registry.view<UINode>().size() != tree.nodes_.size();
+    if (detached) propagateDetachedUIState(registry);
+    else if (!inherited_cache_.empty()) inherited_cache_.clear();
 
     LayoutRect box{ boxLeft, boxBottom, boxRight, boxTop };
 
@@ -603,8 +654,10 @@ void UISystem::layoutUpdate(
     // which is exactly when an entity may still be owned by the parent it had
     // last frame. Orphaning unconditionally (as this used to) dirtied every
     // Yoga node on every pass, so no solve could ever be partial.
-    propagateHiddenInTree(registry, tree);
-    propagateInheritedUIState(registry, tree);
+    if (!detached) {
+        propagateHiddenInTree(registry, tree);
+        propagateInheritedUIState(registry, tree);
+    }
     unifiedLayoutPass(registry, tree, *layoutCache_, box, structureChanged, forceWriteback);
     placeScreenRoots(registry, tree, *layoutCache_, box);
 
