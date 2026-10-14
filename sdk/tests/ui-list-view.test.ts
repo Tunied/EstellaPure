@@ -4,6 +4,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
     ListView,
     LinearLayoutProvider,
+    MeasuredLinearLayoutProvider,
     arrayDataSource,
     type DataSource,
 } from '../src/ui';
@@ -273,4 +274,19 @@ describe('ListView', () => {
         expect(headerFactory).toHaveBeenCalledTimes(1);
         expect(bodyFactory).toHaveBeenCalledTimes(2);
     });
+});
+
+
+it('retries the mount sync after a transient measured-layout failure', () => {
+    const world = createWorld();const parent = world.spawn();let unavailable = true;
+    const layout = new MeasuredLinearLayoutProvider({ crossSize: 100, mainSizeOf: i => {
+        if (unavailable && i === 2) throw new Error('temporary measurement failure');return 40;
+    } });
+    const list = new ListView({ world: world as unknown as World, parent,
+        dataSource: arrayDataSource(Array.from({ length: 100 }, (_, i) => i)),layout,
+        viewportSize: { x: 100, y: 160 },templates: { default: { factory, binder: () => {} } } });
+    expect(() => list.update()).toThrow('temporary measurement failure');
+    unavailable = false;list.update();
+    expect(list.getMountedCount()).toBe(6);
+    list.dispose();
 });

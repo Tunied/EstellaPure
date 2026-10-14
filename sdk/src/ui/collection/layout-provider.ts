@@ -114,6 +114,7 @@ export class MeasuredLinearLayoutProvider implements LayoutProvider {
     /** Prefix offsets: `offsets_[i]` = main-axis start of item `i`; length count+1. */
     private offsets_: number[] = [0];
     private total_ = 0;
+    private monotone_ = true;
     private builtFor_ = -1; // item count the offsets were built for; -1 forces rebuild
 
     constructor(opts: MeasuredLinearLayoutOptions) {
@@ -130,15 +131,18 @@ export class MeasuredLinearLayoutProvider implements LayoutProvider {
 
     private ensure_(count: number): void {
         if (this.builtFor_ === count) return;
-        this.builtFor_ = count;
         const offsets = new Array<number>(count + 1);
         offsets[0] = 0;
+        let monotone = true;
         for (let i = 0; i < count; i++) {
             offsets[i + 1] = offsets[i] + Math.max(0, this.mainSizeOf_(i)) + this.spacing_;
+            if (!Number.isFinite(offsets[i + 1]) || offsets[i + 1] < offsets[i]) monotone = false;
         }
         this.offsets_ = offsets;
         // Drop the trailing gap after the last item.
         this.total_ = count > 0 ? offsets[count] - this.spacing_ : 0;
+        this.monotone_ = monotone;
+        this.builtFor_ = count;
     }
 
     getContentSize(count: number): Vec2 {
@@ -162,8 +166,23 @@ export class MeasuredLinearLayoutProvider implements LayoutProvider {
         if (count <= 0) return [0, 0];
         const vStart = this.dir_ === 'column' ? viewport.y : viewport.x;
         const vEnd = vStart + (this.dir_ === 'column' ? viewport.height : viewport.width);
-        // offsets_ is sorted, so scan for the first item whose end clears vStart and
-        // the last whose start is before vEnd (linear — visible spans are short).
+        if (this.monotone_) {
+            let lo = 0, hi = count;
+            while (lo < hi) {
+                const mid = Math.floor((lo + hi) / 2);
+                if (this.offsets_[mid + 1] - this.spacing_ <= vStart) lo = mid + 1;
+                else hi = mid;
+            }
+            const start = lo;
+            hi = count;
+            while (lo < hi) {
+                const mid = Math.floor((lo + hi) / 2);
+                if (this.offsets_[mid] < vEnd) lo = mid + 1;
+                else hi = mid;
+            }
+            return start < lo ? [start, lo] : [0, 0];
+        }
+        // Non-monotone or non-finite offsets retain the existing ordered scan.
         let start = 0;
         while (start < count && this.offsets_[start + 1] - this.spacing_ <= vStart) start++;
         let end = start;

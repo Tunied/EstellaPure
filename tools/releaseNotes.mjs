@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(ui): search measured list bounds and retry failed syncs':
+    { note: 'Measured lists locate visible items without scanning every preceding row.' },
   'perf(text): wrap plain text with incremental glyph advances':
     { note: 'Plain-text wrapping avoids repeated whole-line glyph measurements.' },
   'perf(text): trim overflowing plain text with prefix advances':

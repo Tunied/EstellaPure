@@ -157,3 +157,47 @@ describe('GridLayoutProvider', () => {
         expect(p.getVisibleRange(VIEWPORT(0, 0, 100, 100), 0)).toEqual([0, 0]);
     });
 });
+
+
+it('finds a measured viewport near the end without scanning or remeasuring the entire list', () => {
+    const count = 100000;let measures = 0;
+    const p = new MeasuredLinearLayoutProvider({ crossSize: 200, mainSizeOf: i => { measures++; return 20 + i % 5; } });
+    const total = p.getContentSize(count).y;
+    const state = p as unknown as { offsets_: number[] };
+    let reads = 0;
+    state.offsets_ = new Proxy(state.offsets_, { get(target, key, receiver) {
+        if (typeof key === 'string' && /^\d+$/.test(key)) reads++;
+        return Reflect.get(target, key, receiver);
+    } });
+    const [start, end] = p.getVisibleRange(VIEWPORT(0, total - 240, 200, 240), count);
+    expect(start).toBeGreaterThan(count - 20);expect(end).toBe(count);
+    expect(reads).toBeLessThan(100);
+    expect(measures).toBe(count);
+});
+
+it('retries a failed measurement without publishing partial offsets', () => {
+    let fail = true;
+    const p = new MeasuredLinearLayoutProvider({ crossSize: 200, mainSizeOf: i => {
+        if (fail && i === 2) throw new Error('measure unavailable');return 20;
+    } });
+    expect(() => p.getContentSize(4)).toThrow('measure unavailable');
+    fail = false;
+    expect(p.getContentSize(4)).toEqual({ x: 200, y: 80 });
+    expect(p.getItemRect(3).y).toBe(60);
+});
+
+it.each(['row', 'column'] as const)('preserves measured range boundaries for %s lists', direction => {
+    for (const spacing of [-8, 0, 3]) {
+        const sizes = Array.from({ length: 50 }, (_, i) => i % 7 === 0 ? 0 : 3 + i % 11);
+        const p = new MeasuredLinearLayoutProvider({ direction, crossSize: 200, spacing, mainSizeOf: i => sizes[i] });
+        p.getContentSize(sizes.length);
+        const starts = [0];for (const size of sizes) starts.push(starts[starts.length - 1] + size + spacing);
+        for (let pos = -20; pos <= 500; pos += 2.5) for (const extent of [0, 1, 17, 250]) {
+            let start = 0;while (start < sizes.length && starts[start + 1] - spacing <= pos) start++;
+            let end = start;while (end < sizes.length && starts[end] < pos + extent) end++;
+            const expected = start < end ? [start, end] : [0, 0];
+            const viewport = direction === 'column' ? VIEWPORT(0, pos, 200, extent) : VIEWPORT(pos, 0, extent, 200);
+            expect(p.getVisibleRange(viewport, sizes.length)).toEqual(expected);
+        }
+    }
+});

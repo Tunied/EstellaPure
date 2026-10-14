@@ -167,7 +167,15 @@ export class ListView<T = unknown> {
     update(): void {
         if (this.disposed_ || !this.dirty_) return;
         this.dirty_ = false;
+        try {
+            this.sync_();
+        } catch (error) {
+            this.dirty_ = true;
+            throw error;
+        }
+    }
 
+    private sync_(): void {
         const count = this.dataSource_.getCount();
         const [visStart, visEnd] = this.layout_.getVisibleRange(this.getViewport(), count);
 
