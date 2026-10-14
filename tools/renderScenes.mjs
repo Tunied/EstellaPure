@@ -68,7 +68,7 @@ export const SCENES = [
   // What the BATCHER achieved, which no pixel can show: nineteen sprites over two
   // textures reach the GPU as three draws. Every break is accounted for to its
   // reason — one run head, two index gaps, no state break at all.
-  { id: "sprite-batch", tier: "pr", webgpu: true, env: { ESTELLA_VERIFY_SCENE: "/scenes/sprite-rendering.esscene", ESTELLA_VERIFY_MANIFEST: "/scenes/sprite-rendering.textures.json", ESTELLA_VERIFY_W: "256", ESTELLA_VERIFY_H: "256", ESTELLA_VERIFY_STEPS: "2", ESTELLA_VERIFY_COUNTERS: "{\"render.sprites\":19,\"batch.draws\":3,\"batch.merged\":16,\"batch.break.runStart\":1,\"batch.break.indexGap\":2}" } },
+  { id: "sprite-batch", tier: "pr", webgpu: true, env: { ESTELLA_VERIFY_SCENE: "/scenes/sprite-rendering.esscene", ESTELLA_VERIFY_MANIFEST: "/scenes/sprite-rendering.textures.json", ESTELLA_VERIFY_W: "256", ESTELLA_VERIFY_H: "256", ESTELLA_VERIFY_STEPS: "2", ESTELLA_VERIFY_COUNTERS: "{\"render.sprites\":19,\"batch.draws\":1,\"batch.merged\":18,\"batch.break.runStart\":1}" } },
     // Editor grid on/off pixel diff — guards the custom-draw reflected material path (drawMeshWithMaterial + MaterialConstants UBO).
   { id: "editor-grid", tier: "pr", webgpu: true, env: { ESTELLA_VERIFY_GRID: "64", ESTELLA_VERIFY_STEPS: "3" } },
     // The same grid respaced after it has drawn: a uniform changed after its first upload has to reach the frame, which on WebGPU it once did not (the grid stayed where the view first looked).

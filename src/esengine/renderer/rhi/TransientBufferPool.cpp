@@ -238,6 +238,21 @@ u32 TransientBufferPool::indicesUsed(LayoutId layout) const {
     return stream(layout).index_write_pos;
 }
 
+const u32* TransientBufferPool::indexData(LayoutId layout) const {
+    return stream(layout).index_staging.data();
+}
+
+bool TransientBufferPool::copyIndexRange(LayoutId layout, u32 offset, u32 count, u32& copiedAt) {
+    auto& s = stream(layout);
+    if (count == 0 || offset > s.index_write_pos || count > s.index_write_pos - offset
+        || count > ~u32{0} - s.index_write_pos) return false;
+    copiedAt = allocIndices(layout, count);
+    // Allocation can grow the vector; resolve both addresses afterwards.
+    std::memmove(s.index_staging.data() + copiedAt, s.index_staging.data() + offset,
+                 static_cast<usize>(count) * sizeof(u32));
+    return true;
+}
+
 BufferHandle TransientBufferPool::vertexBuffer(LayoutId layout) const {
     return stream(layout).vbo;
 }

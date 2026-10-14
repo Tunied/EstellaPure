@@ -69,6 +69,11 @@ public:
     u32 addProbe(const ProbeConstants& probe);
 
     u32 commandCount() const { return static_cast<u32>(commands_.size()); }
+    /** Entities by original submission type, independent of a merged run's head. */
+    u32 sourceEntityCount(RenderType type) const {
+        const auto index = static_cast<u32>(type);
+        return index < entity_counts_.size() ? entity_counts_[index] : 0;
+    }
     u32 mergedDrawCallCount() const { return merged_draw_calls_; }
     /** How many of the last finalize's draws started for @p reason. */
     u32 breakCount(BatchBreak reason) const { return breaks_[static_cast<u32>(reason)]; }
@@ -192,6 +197,7 @@ private:
     };
 
     std::vector<DrawCommand> commands_;
+    std::array<u32, static_cast<u32>(RenderType::Trail) + 1> entity_counts_{};
     /// Every skinned draw's bone matrices for this frame, indexed by skin_offset.
     std::vector<glm::mat4> skin_matrices_;
     std::vector<MorphConstants> morph_shapes_;

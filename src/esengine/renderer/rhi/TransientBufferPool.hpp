@@ -43,6 +43,8 @@ public:
 
     u32 appendVertices(LayoutId layout, const void* data, u32 byteSize);
     u32 appendIndices(LayoutId layout, const u32* data, u32 count);
+    /** Copy a valid written range to the stream tail; false leaves the stream unchanged. */
+    bool copyIndexRange(LayoutId layout, u32 offset, u32 count, u32& copiedAt);
 
     /** Upload every non-empty stream's staging to its VBO/EBO. */
     void upload();
@@ -70,6 +72,7 @@ public:
     u8* vertexData(LayoutId layout);
     u32 vertexBytesUsed(LayoutId layout) const;
     u32 indicesUsed(LayoutId layout) const;
+    const u32* indexData(LayoutId layout) const;
     BufferHandle vertexBuffer(LayoutId layout) const;
     BufferHandle indexBuffer(LayoutId layout) const;
 

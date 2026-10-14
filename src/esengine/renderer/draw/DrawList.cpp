@@ -41,10 +41,33 @@ bool relocateInstance(TransientBufferPool& pool, DrawCommand& cmd, u32 expectedA
     cmd.vertex_byte_offset = at;
     return true;
 }
+
+bool joinBatchIndexRanges(TransientBufferPool& pool, DrawCommand& head, DrawCommand& next) {
+    const u32 used = pool.indicesUsed(LayoutId::Batch);
+    const u32 vertexBytes = pool.vertexBytesUsed(LayoutId::Batch);
+    const u32 stride = pool.vertexStride(LayoutId::Batch);
+    if (stride == 0) return false;
+    const auto owned = [&](const DrawCommand& cmd) {
+        return cmd.vertex_buffer == BufferHandle::Invalid && cmd.index_buffer == BufferHandle::Invalid
+            && cmd.index_count != 0 && cmd.index_offset <= used && cmd.index_count <= used - cmd.index_offset
+            && cmd.vertex_byte_offset <= vertexBytes
+            && cmd.vertex_count <= (vertexBytes - cmd.vertex_byte_offset) / stride;
+    };
+    if (!owned(head) || !owned(next) || head.depth_bias != next.depth_bias) return false;
+    u32 at;
+    if (head.index_offset + head.index_count != used) {
+        if (!pool.copyIndexRange(LayoutId::Batch, head.index_offset, head.index_count, at)) return false;
+        head.index_offset = at;
+    }
+    if (!pool.copyIndexRange(LayoutId::Batch, next.index_offset, next.index_count, at)) return false;
+    next.index_offset = at;
+    return head.index_offset + head.index_count == next.index_offset;
+}
 }  // namespace
 
 void DrawList::clear() {
     commands_.clear();
+    entity_counts_.fill(0);
     sort_entries_.clear();
     skin_matrices_.clear();
     morph_shapes_.clear();
@@ -77,6 +100,8 @@ void DrawList::push(const DrawCommand& cmd) {
     // push is the one funnel every render path goes through, so a path added
     // later cannot produce a depth draw this fails to count. See needsDepth.
     depth_required_ = depth_required_ || cmd.depth_test || cmd.depth_write;
+    const auto type = static_cast<u32>(cmd.type);
+    if (type < entity_counts_.size()) entity_counts_[type] += cmd.entity_count;
     commands_.push_back(cmd);
 }
 
@@ -122,6 +147,10 @@ void DrawList::finalize(TransientBufferPool& pool) {
         if (writeIdx > 0) {
             DrawCommand& head = commands_[writeIdx - 1];
             blocker = head.mergeBlocker(commands_[i]);
+            if (blocker == BatchBreak::IndexGap && head.layout_id == LayoutId::Batch
+                && joinBatchIndexRanges(pool, head, commands_[i])) {
+                blocker = head.mergeBlocker(commands_[i]);
+            }
             if (blocker == BatchBreak::None && head.instance_count != 0) {
                 // One more instance of geometry already being drawn. The head's
                 // own record moves first, so the run has somewhere to grow.

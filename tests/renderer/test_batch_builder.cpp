@@ -212,6 +212,74 @@ TEST_CASE("finalize: adjacent same-key Batch draws with different textures merge
     CHECK(verts[7].texIndex == 1.0f);
 }
 
+TEST_CASE("finalize: sorted Batch index gaps merge in painter order with their texture slots") {
+    Harness h;
+    BatchVertex quad[4] = {};
+    appendQuad(h.pool, h.list, h.clips, quad, quadKey(10, 3));
+    appendQuad(h.pool, h.list, h.clips, quad, quadKey(11, 1));
+    appendQuad(h.pool, h.list, h.clips, quad, quadKey(12, 2));
+    h.list.finalize(h.pool);
+    REQUIRE(h.list.mergedDrawCallCount() == 1);
+    const auto& cmd = h.list.command(0);
+    REQUIRE(cmd.index_count == 18);
+    const u32 expected[] = {4,5,6,6,7,4, 8,9,10,10,11,8, 0,1,2,2,3,0};
+    const auto* indices = h.pool.indexData(LayoutId::Batch) + cmd.index_offset;
+    for (u32 i = 0; i < 18; i++) CHECK(indices[i] == expected[i]);
+    REQUIRE(cmd.texture_count == 3);
+    CHECK(cmd.texture_ids[0] == 11);
+    CHECK(cmd.texture_ids[1] == 12);
+    CHECK(cmd.texture_ids[2] == 10);
+    const auto* verts = reinterpret_cast<const BatchVertex*>(h.pool.vertexData(LayoutId::Batch));
+    CHECK(verts[0].texIndex == 2);
+    CHECK(verts[4].texIndex == 0);
+    CHECK(verts[8].texIndex == 1);
+}
+
+TEST_CASE("index range copies survive staging growth and reject unwritten sources") {
+    MockGfxDevice device;
+    TransientBufferPool pool{device};
+    pool.init(64, 2);
+    const u32 values[] = {9,8,7,6,5,4};
+    pool.appendIndices(LayoutId::Batch, values, 6);
+    u32 at = 99;
+    REQUIRE(pool.copyIndexRange(LayoutId::Batch, 0, 6, at));
+    CHECK(at == 6);
+    for (u32 i = 0; i < 6; i++) CHECK(pool.indexData(LayoutId::Batch)[at + i] == values[i]);
+    CHECK_FALSE(pool.copyIndexRange(LayoutId::Batch, 12, 1, at));
+    CHECK_FALSE(pool.copyIndexRange(LayoutId::Batch, 0, 13, at));
+    CHECK(pool.indicesUsed(LayoutId::Batch) == 12);
+    pool.shutdown();
+}
+
+TEST_CASE("finalize: mixed Sprite and Text runs preserve source type counts") {
+    Harness h;
+    BatchVertex quad[4] = {};
+    auto sprite = quadKey(10, 2), text = quadKey(11, 1);
+    text.type = RenderType::Text;
+    appendQuad(h.pool, h.list, h.clips, quad, sprite);
+    appendQuad(h.pool, h.list, h.clips, quad, text);
+    h.list.finalize(h.pool);
+    REQUIRE(h.list.mergedDrawCallCount() == 1);
+    CHECK(h.list.sourceEntityCount(RenderType::Sprite) == 1);
+    CHECK(h.list.sourceEntityCount(RenderType::Text) == 1);
+    h.list.clear();
+    CHECK(h.list.sourceEntityCount(RenderType::Sprite) == 0);
+    CHECK(h.list.sourceEntityCount(RenderType::Text) == 0);
+}
+
+TEST_CASE("finalize: external Batch buffers retain their separate index ranges") {
+    Harness h;
+    BatchVertex quad[4] = {};
+    appendQuad(h.pool, h.list, h.clips, quad, quadKey(10, 2));
+    appendQuad(h.pool, h.list, h.clips, quad, quadKey(10, 1));
+    auto a = h.list.command(0), b = h.list.command(1);
+    a.vertex_buffer = b.vertex_buffer = static_cast<BufferHandle>(123);
+    h.list.clear(); h.list.push(a); h.list.push(b);
+    h.list.finalize(h.pool);
+    CHECK(h.list.mergedDrawCallCount() == 2);
+    CHECK(h.pool.indicesUsed(LayoutId::Batch) == 12);
+}
+
 TEST_CASE("finalize: different streams never coalesce; instanced draws stay one per emitter") {
     Harness h;
     BatchVertex quad[4] = {};
@@ -1034,7 +1102,7 @@ TEST_CASE("opaque: material still outranks depth, since order cannot change the 
 // 20 bits is sign + exponent + 11 mantissa bits, so the step is ~2^-11 of the
 // exponent's range: about 0.004 around z=10. Closer than that shares a key and
 // keeps submission order, which is the quantization talking, not a rule.
-TEST_CASE("transparent: hundredths of depth separate; thousandths share a bucket") {
+TEST_CASE("transparent: sorted index runs preserve distinct depth keys and quantized ties") {
     Harness h;
     BatchVertex quad[4] = {};
 
@@ -1042,19 +1110,27 @@ TEST_CASE("transparent: hundredths of depth separate; thousandths share a bucket
     BatchDrawKey farther = quadKey(2, 3); farther.materialId = 1; farther.depth = 10.00f;
     appendQuad(h.pool, h.list, h.clips, quad, nearer);
     appendQuad(h.pool, h.list, h.clips, quad, farther);
+    CHECK(h.list.command(1).sort_key < h.list.command(0).sort_key);
     h.list.finalize(h.pool);
 
-    REQUIRE(h.list.mergedDrawCallCount() == 2);
+    REQUIRE(h.list.mergedDrawCallCount() == 1);
     CHECK(h.list.command(0).texture_ids[0] == 2);
-    CHECK(h.list.command(1).texture_ids[0] == 1);
+    CHECK(h.list.command(0).texture_ids[1] == 1);
+    const auto* sorted = h.pool.indexData(LayoutId::Batch) + h.list.command(0).index_offset;
+    CHECK(sorted[0] == 4);
+    CHECK(sorted[6] == 0);
 
     Harness fine;
     BatchDrawKey a = quadKey(1, 3); a.materialId = 1; a.depth = 10.001f;
     BatchDrawKey b = quadKey(2, 3); b.materialId = 1; b.depth = 10.000f;
     appendQuad(fine.pool, fine.list, fine.clips, quad, a);
     appendQuad(fine.pool, fine.list, fine.clips, quad, b);
+    CHECK(fine.list.command(0).sort_key == fine.list.command(1).sort_key);
     fine.list.finalize(fine.pool);
     CHECK(fine.list.mergedDrawCallCount() == 1);
+    const auto* tied = fine.pool.indexData(LayoutId::Batch) + fine.list.command(0).index_offset;
+    CHECK(tied[0] == 0);
+    CHECK(tied[6] == 4);
 }
 
 // ─── Transient buffer growth ─────────────────────────────────────────────────
@@ -1179,11 +1255,18 @@ TEST_CASE("group: an outsider cannot be drawn between two members") {
     appendQuad(h.pool, h.list, h.clips, quad, high);
     h.list.finalize(h.pool);
 
-    REQUIRE(h.list.mergedDrawCallCount() == 3);
+    REQUIRE(h.list.mergedDrawCallCount() == 2);
     // The two members adjacent and in their stated order, the outsider clear of both.
     CHECK(h.list.command(0).texture_ids[0] == 1);
-    CHECK(h.list.command(1).texture_ids[0] == 3);
-    CHECK(h.list.command(2).texture_ids[0] == 2);
+    CHECK(h.list.command(0).texture_ids[1] == 3);
+    CHECK(h.list.command(1).texture_ids[0] == 2);
+    const auto* indices = h.pool.indexData(LayoutId::Batch) + h.list.command(0).index_offset;
+    CHECK(indices[0] == 0);
+    CHECK(indices[6] == 8);
+    const auto members = h.list.runEntities(0);
+    REQUIRE(members.size() == 2);
+    CHECK(members[0] == Entity(11));
+    CHECK(members[1] == Entity(12));
 }
 
 // Everything derived from a layer has to come from the GROUP's layer. A member whose
@@ -1266,8 +1349,15 @@ TEST_CASE("group: a nested group's contents stay one block") {
     appendQuad(h.pool, h.list, h.clips, quad, blockHigh);
     h.list.finalize(h.pool);
 
-    REQUIRE(h.list.mergedDrawCallCount() == 3);
-    CHECK(h.list.command(2).texture_ids[0] == 2);  // the sibling is above the whole block
+    REQUIRE(h.list.mergedDrawCallCount() == 2);
+    CHECK(h.list.command(1).texture_ids[0] == 2);  // the sibling is above the whole block
+    const auto* indices = h.pool.indexData(LayoutId::Batch) + h.list.command(0).index_offset;
+    CHECK(indices[0] == 0);
+    CHECK(indices[6] == 8);
+    const auto members = h.list.runEntities(0);
+    REQUIRE(members.size() == 2);
+    CHECK(members[0] == Entity(41));
+    CHECK(members[1] == Entity(42));
 }
 
 // A group that is not there changes nothing — the field that decides is the table,

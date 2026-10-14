@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(renderer): coalesce sorted 2d batch index gaps':
+    { note: 'Sorted 2D batches join across emission index gaps.' },
   'fix(inspector): read current native parent membership in runtime snapshots':
     { note: 'Runtime hierarchy inspection follows native parent additions and removals.' },
   'perf(inspector): index script names once per runtime tree snapshot':

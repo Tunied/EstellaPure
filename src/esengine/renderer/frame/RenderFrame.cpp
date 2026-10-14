@@ -439,23 +439,16 @@ void RenderFrame::accumulateStats(const DrawList& list) {
         // instance_count times; a batched one merged its indices in already. The
         // multiply is what stops the number meaning two things on the two paths.
         stats_.triangles += (cmd.index_count / 3) * (cmd.instance_count ? cmd.instance_count : 1);
-        switch (cmd.type) {
-        case RenderType::Sprite:
-        case RenderType::UIElement:
-            stats_.sprites += cmd.entity_count; break;
-        case RenderType::Text:     stats_.text += cmd.entity_count; break;
-        case RenderType::Mesh:
-        case RenderType::ExternalMesh:
-        case RenderType::Trail:
-            stats_.meshes += cmd.entity_count; break;
-#ifdef ES_ENABLE_PARTICLES
-        case RenderType::Particle: stats_.particles += cmd.entity_count; break;
-#endif
-        case RenderType::Shape:    stats_.shapes += cmd.entity_count; break;
-        case RenderType::Skeletal: stats_.skeletal += cmd.entity_count; break;
-        default: break;
-        }
     }
+    stats_.sprites += list.sourceEntityCount(RenderType::Sprite) + list.sourceEntityCount(RenderType::UIElement);
+    stats_.text += list.sourceEntityCount(RenderType::Text);
+    stats_.meshes += list.sourceEntityCount(RenderType::Mesh) + list.sourceEntityCount(RenderType::ExternalMesh)
+                   + list.sourceEntityCount(RenderType::Trail);
+#ifdef ES_ENABLE_PARTICLES
+    stats_.particles += list.sourceEntityCount(RenderType::Particle);
+#endif
+    stats_.shapes += list.sourceEntityCount(RenderType::Shape);
+    stats_.skeletal += list.sourceEntityCount(RenderType::Skeletal);
 }
 
 void RenderFrame::flush() {
