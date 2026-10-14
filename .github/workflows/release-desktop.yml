@@ -738,7 +738,7 @@ jobs:
   # (an empty step list is the tell). `v*` is allowed now; a fork or a fresh
   # clone has to add it once, under Settings → Environments → github-pages.
   docs:
-    needs: publish
+    needs: [publish, mirror]
     uses: ./.github/workflows/docs.yml
     with:
       engine-artifact-run: ${{ github.run_id }}

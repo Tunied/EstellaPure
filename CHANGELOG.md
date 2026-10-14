@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Release websites wait for mirrored download metadata.** Documentation deployment starts after the release mirror completes and rejects a latest.json version that differs from the site build, preventing a freshly published page from reverting its version label and download sizes to the previous release.
+
 - **Hidden text and skeletal batches skip vertex conversion.** Camera masks and empty scissors are checked before transforming caller-provided vertices, allocating transient storage or resolving shaders. The same visibility helper preserves SortingGroup layers and explicit text culling bits; visible batches retain their original geometry and per-type statistics.
 
 - **Camera-excluded bulk draws skip transient geometry.** Batch and shape submissions check the camera mask before copying vertices or rebasing indices. SortingGroup layers and explicit culling bits keep their existing behavior; resident-vertex submissions skip excluded indices without discarding geometry owned by their caller.

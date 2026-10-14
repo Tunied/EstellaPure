@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(release): deploy website after mirrored metadata is ready':
+    { note: 'Release websites wait for mirrored download metadata.' },
   'perf(renderer): skip hidden text and skeletal vertex conversion':
     { note: 'Hidden text and skeletal batches skip vertex conversion.' },
   'perf(renderer): cull bulk draws before staging geometry':

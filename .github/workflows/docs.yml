@@ -107,6 +107,8 @@ jobs:
           node --input-type=module <<'JS'
           import {readFileSync} from 'node:fs';
           const info=JSON.parse(readFileSync('docs/dist/latest.json','utf8'));
+          const expected=JSON.parse(readFileSync('package.json','utf8')).version;
+          if(info.version!==expected)throw Error(`Release metadata version ${info.version} does not match site version ${expected}`);
           if(!/^\d+\.\d+\.\d+$/.test(info.version))throw Error('Invalid release version');
           for(const platform of ['win','mac-arm64']){
             const file=info.downloads?.[platform];
