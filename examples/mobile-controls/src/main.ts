@@ -25,7 +25,7 @@ const refreshStatus = (world: World): void => {
     if (status === null || !world.valid(status)) return;
     const caps = Device.capabilities();
     const content = trainer
-        ? `${trainer.phase.toUpperCase()} / ${trainer.message}\nRound: ${trainer.hits} / 3 hits / Credits: ${trainer.credits} / Motion: ${motion ? motionData : 'off'} / ${message}`
+        ? `${trainer.phase.toUpperCase()} / ${trainer.message}\nRound: ${trainer.hits} / 3 hits / Credits: ${trainer.credits} / ${trainer.saveMessage || `Motion: ${motion ? motionData : 'off'} / ${message}`}`
         : `${message}\nHits: ${hits} / Sensor data: ${motion ? motionData : 'off'} / Vibration API: ${caps.vibration ? 'available' : 'unavailable'}`;
     if (world.get(status, Text).content !== content) world.insert(status, Text, { ...world.get(status, Text), content });
 };

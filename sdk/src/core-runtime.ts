@@ -274,6 +274,7 @@ export {
 } from './ecs/resource';
 
 export { Storage } from './util/storage';
+export { Scores } from './services/scores';
 
 // =============================================================================
 // Input

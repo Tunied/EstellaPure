@@ -9,6 +9,7 @@ export interface CrazyGamesData {
 }
 export interface CrazyGamesSdk {
     init(): Promise<void>;
+    user?: { submitScore(payload: { score: number; encryptedScore: string }): void | Promise<void> };
     ad: { requestAd(type: 'rewarded' | 'midgame', callbacks: {
         adStarted(): void; adFinished(): void; adError(error: unknown): void;
     }): void };
@@ -51,6 +52,19 @@ export function crazyGamesAdProvider(sdk: CrazyGamesSdk): AdProvider {
 }
 
 export const CRAZYGAMES_STORAGE_KEY = 'estella.storage.v1';
+
+/** Official HTML5 wire format: random 12-byte IV followed by AES-GCM ciphertext/tag. */
+export async function encryptCrazyGamesScore(score: number, encryptionKey: string, crypto: Crypto = globalThis.crypto): Promise<string> {
+    if (!Number.isFinite(score)) throw new Error('Score must be finite');
+    if (!/^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=$/.test(encryptionKey)) throw new Error('CrazyGames score encryption key must encode 32 bytes');
+    const bytes = Uint8Array.from(atob(encryptionKey), char => char.charCodeAt(0));
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const key = await crypto.subtle.importKey('raw', bytes, { name: 'AES-GCM' }, false, ['encrypt']);
+    const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(String(score)));
+    const combined = new Uint8Array(iv.length + encrypted.byteLength);
+    combined.set(iv); combined.set(new Uint8Array(encrypted), iv.length);
+    return btoa(String.fromCharCode(...combined));
+}
 type StorageAdapter = Pick<PlatformAdapter, 'getStorageItem' | 'setStorageItem' | 'removeStorageItem' | 'clearStorage'>;
 
 /** One engine-owned envelope supports prefix clearing without deleting other SDK data. */
@@ -88,7 +102,7 @@ export function crazyGamesStorage(data: CrazyGamesData | undefined): StorageAdap
 }
 
 export async function initializeCrazyGames(
-    sdk: CrazyGamesSdk | undefined, warn: (message: string, error?: unknown) => void, timeoutMs = 10000,
+    sdk: CrazyGamesSdk | undefined, warn: (message: string, error?: unknown) => void, timeoutMs = 10000, scoreKey?: string,
 ) {
     let initialized = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -107,6 +121,11 @@ export async function initializeCrazyGames(
     return {
         provider: initialized && sdk ? crazyGamesAdProvider(sdk) : null,
         storage: crazyGamesStorage(initialized ? sdk?.data : undefined),
+        submitScore: initialized && sdk?.user?.submitScore && scoreKey && globalThis.crypto?.subtle
+            ? async (score: number): Promise<void> => {
+                const encryptedScore = await encryptCrazyGamesScore(score, scoreKey);
+                await sdk.user!.submitScore({ score, encryptedScore });
+            } : undefined,
         onAudioMute(callback: (muted: boolean) => void): () => void {
             if (!initialized || !sdk) { callback(false); return () => {}; }
             let active = true;

@@ -12,11 +12,13 @@ export interface TrainingHooks {
     gameplayStop(): void;
     reset(): void;
     changed(): void;
+    rewardGranted?(credits: number): void;
 }
 export class TrainingSession {
     phase: TrainingPhase = 'menu';
     credits = 0;
     hits = 0;
+    saveMessage = '';
     message = 'Press START to begin a three-hit training round.';
     private hidden = false;
     private disposed = false;
@@ -61,7 +63,7 @@ export class TrainingSession {
         try {
             const result = await this.ads.showRewarded(this.adUnit);
             if (this.disposed) return;
-            if (result.completed) { this.credits++; this.message = 'Reward earned: +1 training credit.'; }
+            if (result.completed) { this.credits++; this.message = 'Reward earned: +1 training credit.'; this.hooks.rewardGranted?.(this.credits); }
             else this.message = 'Video not completed. No reward granted.';
         } catch {
             if (this.disposed) return;

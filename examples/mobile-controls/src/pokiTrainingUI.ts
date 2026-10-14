@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
-import { createButton, spawnUIEntity, Text, Name, UIPositionType, px, type AdsAPI } from 'esengine';
+import { createButton, spawnUIEntity, Text, Name, UIPositionType, px, Storage, Scores, type AdsAPI } from 'esengine';
 import { TrainingSession } from './pokiTraining';
+import { TrainingSave } from './trainingSave';
 
 type ButtonOptions = Parameters<typeof createButton>[0];
 interface PokiGameplay { gameplayStart(): void; gameplayStop(): void }
@@ -13,6 +14,8 @@ export function setupWebTraining(
     if (typeof document === 'undefined') return null;
     const channel = document.documentElement?.dataset?.webChannel;
     if (channel !== 'poki' && channel !== 'crazygames') return null;
+    const save = channel === 'crazygames' ? new TrainingSave(Storage) : null;
+    let submittingScore = false;
     const notify = (event: keyof PokiGameplay): void => {
         if (channel === 'crazygames' && document.documentElement.dataset.webSdkReady !== 'true') return;
         const hosts = globalThis as unknown as { PokiSDK?: PokiGameplay; CrazyGames?: { SDK?: { game?: PokiGameplay } } };
@@ -22,26 +25,37 @@ export function setupWebTraining(
     };
     const controls: Array<{ button: ReturnType<typeof createButton>; label: ReturnType<typeof spawnUIEntity> }> = [];
     const update = (): void => {
-        if (controls.length !== 3 || !world.valid(parent) || world.isDestructionPending(parent)) return;
+        if (controls.length !== (channel === 'crazygames' ? 4 : 3) || !world.valid(parent) || world.isDestructionPending(parent)) return;
         const phase = session.phase;
-        const labels = [phase === 'menu' ? 'START' : phase === 'finished' ? 'REPLAY' : 'RESUME', 'PAUSE', ads.available ? 'WATCH AD +1' : 'ADS UNAVAILABLE'];
+        const labels = [phase === 'menu' ? 'START' : phase === 'finished' ? 'REPLAY' : 'RESUME', 'PAUSE', ads.available ? (channel === 'crazygames' ? 'AD +1' : 'WATCH AD +1') : (channel === 'crazygames' ? 'NO ADS' : 'ADS UNAVAILABLE'), Scores.available ? 'SEND SCORE' : 'NO SCORES'];
         controls.forEach(({ button, label }, index) => {
-            button.setDisabled(index === 0 ? phase === 'playing' || phase === 'ad'
-                : index === 1 ? phase !== 'playing' : !ads.available || phase === 'ad');
+            button.setDisabled(submittingScore || (index === 0 ? phase === 'playing' || phase === 'ad'
+                : index === 1 ? phase !== 'playing' : index === 2 ? !ads.available || phase === 'ad' : !Scores.available || phase !== 'finished'));
             world.insert(label, Text, { ...world.get(label, Text), content: labels[index] });
         });
         refresh();
     };
     const session = new TrainingSession(ads, {
         gameplayStart: () => notify('gameplayStart'), gameplayStop: () => notify('gameplayStop'), reset, changed: update,
+        rewardGranted: credits => { save?.save(credits); if (save) session.saveMessage = save.message; },
     }, channel);
+    if (save) { session.credits = save.load(); session.saveMessage = save.message; }
     const actions = [() => { void session.begin(); }, () => session.pause(), () => { void session.reward(); }];
-    for (let index = 0; index < 3; index++) {
+    if (channel === 'crazygames') actions.push(() => {
+        if (submittingScore || session.phase !== 'finished' || !Scores.available) return;
+        submittingScore = true; session.message = 'Sending round score...'; update();
+        void Scores.submit(session.hits).then(() => {
+            session.message = 'Score sent. Platform ranking validation is pending.';
+        }, () => { session.message = 'Score submission failed. You can retry.'; }).finally(() => {
+            submittingScore = false; update();
+        });
+    });
+    for (let index = 0; index < actions.length; index++) {
         const button = createButton({ world, events, parent, userGesture: true,
-            node: { position: UIPositionType.Absolute, insetLeft: px(232 + index * 118), insetTop: px(346), width: px(112), height: px(36) },
+            node: { position: UIPositionType.Absolute, insetLeft: px(channel === 'crazygames' ? 220 + index * 92 : 232 + index * 118), insetTop: px(346), width: px(channel === 'crazygames' ? 88 : 112), height: px(36) },
             onClick: actions[index],
         });
-        world.insert(button.entity, Name, { value: ['TrainingStart', 'TrainingPause', 'TrainingReward'][index] });
+        world.insert(button.entity, Name, { value: ['TrainingStart', 'TrainingPause', 'TrainingReward', 'TrainingScore'][index] });
         const label = spawnUIEntity({ world, parent: button.entity, node: { fill: true }, text: { content: '', fontSize: 13 } });
         controls.push({ button, label });
     }

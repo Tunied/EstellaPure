@@ -72,6 +72,8 @@ jobs:
       run: |
         node pipeline/bin/estella.mjs export examples/mobile-controls --profile crazygames --wasm build/wasm/web --out output/crazygames-training-ci-export --json output/crazygames-training-ci-export.json
         node tools/tests/crazygames-training.e2e.mjs --dir output/crazygames-training-ci-export --out output/crazygames-training-ci-check
+        node tools/tests/export-crazygames-score-fixture.mjs --wasm build/wasm/web --out output/crazygames-training-ci-score-export
+        node tools/tests/crazygames-training.e2e.mjs --dir output/crazygames-training-ci-score-export --expect-scores --out output/crazygames-training-ci-score-check
     - name: Upload hash-bound local observations and screenshots
       if: always()
       uses: actions/upload-artifact@v7

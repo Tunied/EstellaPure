@@ -7,7 +7,7 @@ import { Res, Time, type TimeData } from '../ecs/resource';
 import { Audio, AudioAPI, setAudioHostSuspended } from './Audio';
 import { AudioSource, AudioListener, type AudioSourceData, type AudioListenerData } from './AudioComponents';
 import { WorldTransform, type WorldTransformData } from '../ecs/component';
-import { getPlatform, platformCreateAudioBackend, platformOnMemoryWarning } from '../platform/base';
+import { getPlatform, isPlatformInitialized, platformCreateAudioBackend, platformOnMemoryWarning } from '../platform/base';
 import { q } from '../math/quat';
 import { calculateAttenuation, calculatePanning, spatialDistance, type SpatialAudioConfig, AttenuationModel } from './SpatialAudio';
 import type { AudioHandle } from './PlatformAudioBackend';
@@ -79,7 +79,9 @@ export class AudioPlugin implements Plugin {
         const audio = new AudioAPI(backend, mixer);
         app.insertResource(Audio, audio);
         const muteOwner = {};
-        const offAudioMute = getPlatform().onAudioMute?.(muted => setAudioHostSuspended(audio, muteOwner, muted)) ?? (() => {});
+        const offAudioMute = (isPlatformInitialized()
+            ? getPlatform().onAudioMute?.(muted => setAudioHostSuspended(audio, muteOwner, muted))
+            : undefined) ?? (() => {});
 
         // OS memory pressure → drop the decoded-buffer warm cache. Held
         // buffers keep playing; re-fetch cost returns only for evicted ones.

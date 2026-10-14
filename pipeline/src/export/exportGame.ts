@@ -478,6 +478,7 @@ export interface ExportGameOptions {
   scriptsEntry?: string;
   /** Browser distribution channel; standalone leaves the original Web policy intact. */
   webChannel?: 'poki' | 'crazygames';
+  leaderboardEncryptionKey?: string;
   sdkDistDir: string;
   /** The engine runtime to copy. */
   wasmDir: string;
@@ -1178,6 +1179,8 @@ async function produceExport(opts: ExportGameOptions): Promise<ExportGameResult>
   const gameConfig: PackagedGameConfig = {
     entryScene: opts.entryScene, scenes,
     ...(platform === 'web' && opts.webChannel ? { webChannel: opts.webChannel } : {}),
+    ...(platform === 'web' && opts.webChannel === 'crazygames' && opts.leaderboardEncryptionKey
+      ? { leaderboardEncryptionKey: opts.leaderboardEncryptionKey } : {}),
     ...(scriptsFile ? { scripts: scriptsFile } : {}),
     ...packagedRuntimeFields(runtime),
     ...(hotUpdate ? { hotUpdate } : {}),

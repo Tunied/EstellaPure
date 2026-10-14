@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import { describe, it, expect, vi } from 'vitest';
-import { crazyGamesAdProvider, crazyGamesStorage, initializeCrazyGames, CRAZYGAMES_STORAGE_KEY, type CrazyGamesSdk } from '../src/runtime/crazyGamesProfile';
+import { crazyGamesAdProvider, crazyGamesStorage, initializeCrazyGames, encryptCrazyGamesScore, CRAZYGAMES_STORAGE_KEY, type CrazyGamesSdk } from '../src/runtime/crazyGamesProfile';
+import { webcrypto } from 'node:crypto';
 import { parseManifest } from '../src/project/format';
 import { projectExportOptions } from '../src/export/projectExportOptions';
 
@@ -20,6 +21,44 @@ function fixture() {
 }
 
 describe('CrazyGames channel adapter', () => {
+    it('preserves a client score key only on CrazyGames Web exports', async () => {
+        const key = Buffer.alloc(32, 7).toString('base64');
+        const manifest = parseManifest({ name: 'Game', packaging: { platforms: { web: { channel: 'crazygames', leaderboardEncryptionKey: key } } } });
+        expect((await projectExportOptions(process.cwd(), manifest, 'web')).leaderboardEncryptionKey).toBe(key);
+        expect((await projectExportOptions(process.cwd(), manifest, 'wechat')).leaderboardEncryptionKey).toBeUndefined();
+        manifest.packaging!.platforms!.web!.channel = 'poki';
+        expect((await projectExportOptions(process.cwd(), manifest, 'web')).leaderboardEncryptionKey).toBeUndefined();
+        for (const invalid of ['broken', Buffer.alloc(16).toString('base64'), 42]) {
+            expect(() => parseManifest({ name: 'Game', packaging: { platforms: { web: { leaderboardEncryptionKey: invalid } } } })).toThrow('32-byte');
+        }
+    });
+    it('uses random IVs and the documented decryptable AES-GCM score payload', async () => {
+        const keyBytes = new Uint8Array(32).fill(7), key = Buffer.from(keyBytes).toString('base64');
+        const crypto = webcrypto as unknown as Crypto;
+        const first = await encryptCrazyGamesScore(152.1, key, crypto);
+        const second = await encryptCrazyGamesScore(152.1, key, crypto);
+        expect(first).not.toBe(second);
+        const payload = Uint8Array.from(Buffer.from(first, 'base64'));
+        const imported = await crypto.subtle.importKey('raw', keyBytes, { name: 'AES-GCM' }, false, ['decrypt']);
+        const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: payload.slice(0, 12) }, imported, payload.slice(12));
+        expect(new TextDecoder().decode(plain)).toBe('152.1');
+        await expect(encryptCrazyGamesScore(NaN, key, crypto)).rejects.toThrow('finite');
+        await expect(encryptCrazyGamesScore(10, 'invalid', crypto)).rejects.toThrow('32 bytes');
+    });
+    it('enables score submission only after initialization with a configured SDK user method', async () => {
+        const { sdk } = fixture(), key = Buffer.alloc(32, 7).toString('base64');
+        sdk.user = { submitScore: vi.fn(async () => {}) };
+        const session = await initializeCrazyGames(sdk, vi.fn(), 10000, key);
+        await session.submitScore!(42);
+        expect(sdk.user.submitScore).toHaveBeenCalledWith({ score: 42, encryptedScore: expect.any(String) });
+        await expect(session.submitScore!(Infinity)).rejects.toThrow('finite');
+        expect(sdk.user.submitScore).toHaveBeenCalledOnce();
+        vi.mocked(sdk.user.submitScore).mockRejectedValueOnce(new Error('host rejected'));
+        await expect(session.submitScore!(2)).rejects.toThrow('host rejected');
+        expect((await initializeCrazyGames(sdk, vi.fn())).submitScore).toBeUndefined();
+        sdk.init = vi.fn(async () => { throw new Error('init failed'); });
+        expect((await initializeCrazyGames(sdk, vi.fn(), 10000, key)).submitScore).toBeUndefined();
+    });
     it('preserves the named Web channel and rejects misspellings', async () => {
         const manifest = parseManifest({ name: 'Game', packaging: { profiles: { cg: { platform: 'web', platforms: { web: { channel: 'crazygames' } } } } } });
         expect((await projectExportOptions(process.cwd(), manifest, 'web', 'cg')).webChannel).toBe('crazygames');

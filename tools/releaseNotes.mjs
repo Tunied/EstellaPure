@@ -28,6 +28,10 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(crazygames): add score submissions and saved training credits':
+    { note: 'CrazyGames scores and saved training credits follow platform contracts.' },
+  'feat(settings): configure CrazyGames client score encryption key':
+    { note: 'CrazyGames scores and saved training credits follow platform contracts.' },
   'perf(ui): keep text measurement atlases off GPU':
     { note: 'Text measurement avoids GPU glyph pages.' },
   'feat(crazygames): connect Web ads storage and host audio policy':

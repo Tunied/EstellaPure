@@ -112,10 +112,10 @@ async function boot(): Promise<void> {
     ? await initializePoki((window as unknown as { PokiSDK?: PokiSdk }).PokiSDK, (message, error) => console.warn(message, error))
     : null;
   const crazyGames = cfg.webChannel === 'crazygames'
-    ? await initializeCrazyGames((window as unknown as { CrazyGames?: { SDK: CrazyGamesSdk } }).CrazyGames?.SDK, (message, error) => console.warn(message, error))
+    ? await initializeCrazyGames((window as unknown as { CrazyGames?: { SDK: CrazyGamesSdk } }).CrazyGames?.SDK, (message, error) => console.warn(message, error), 10000, cfg.leaderboardEncryptionKey)
     : null;
   if (crazyGames) {
-    extendPlatform({ ...crazyGames.storage, onAudioMute: crazyGames.onAudioMute });
+    extendPlatform({ ...crazyGames.storage, onAudioMute: crazyGames.onAudioMute, submitScore: crazyGames.submitScore });
     document.documentElement.dataset.webSdkReady = String(crazyGames.provider !== null);
   }
   // Before the engine boots, so a boot that fails is still heard by the editor.

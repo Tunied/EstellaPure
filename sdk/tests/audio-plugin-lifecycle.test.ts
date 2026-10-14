@@ -7,6 +7,7 @@ const muteListeners = new Set<(muted: boolean) => void>();
 let hostMuted = false;
 vi.mock('../src/platform/base', async original => ({
     ...await original<typeof import('../src/platform/base')>(),
+    isPlatformInitialized: () => true,
     getPlatform: () => ({ onAudioMute: (callback: (muted: boolean) => void) => {
         muteListeners.add(callback); callback(hostMuted);
         return () => muteListeners.delete(callback);

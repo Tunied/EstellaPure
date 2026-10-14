@@ -672,6 +672,9 @@ export interface PlatformAdapter {
     /** Host audio policy; game volume/resume controls cannot override it. */
     onAudioMute?(handler: (muted: boolean) => void): () => void;
 
+    /** Send one score to the host. Completion does not certify ranking acceptance. */
+    submitScore?(score: number): Promise<void>;
+
     getStorageItem(key: string): string | null;
     setStorageItem(key: string, value: string): void;
     removeStorageItem(key: string): void;

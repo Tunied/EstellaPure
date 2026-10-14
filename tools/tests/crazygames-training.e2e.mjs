@@ -21,6 +21,10 @@ const files=(under='')=>fs.readdirSync(path.join(root,under),{withFileTypes:true
     return [file];
 });
 const identities=Object.fromEntries(files().map(file=>[file,sha(path.join(root,file))]));
+const config=JSON.parse(fs.readFileSync(path.join(root,'game.config.json'),'utf8'));
+const expectsScores=args.includes('--expect-scores');
+assert.equal(Boolean(config.leaderboardEncryptionKey),expectsScores,'Export must match the score test mode');
+if(expectsScores)assert.equal(config.leaderboardEncryptionKey,Buffer.alloc(32,7).toString('base64'),'Use the mock fixture client key');
 const mime={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.json':'application/json','.wasm':'application/wasm','.png':'image/png'};
 const server=http.createServer((req,res)=>{
     try {
@@ -36,7 +40,7 @@ const browser=await chromium.launch({headless:true,args:['--enable-unsafe-swifts
 const report={mode:'local-mock',headless:true,status:'failed',identities,verifierSha256:sha(new URL(import.meta.url)),cases:[],
     pending:['Official CrazyGames QA','Production ad fill','Cross-account cloud restoration','Physical-device and audible quality acceptance','Leaderboards']};
 try {
-    for (const mode of ['normal','init-failed','sdk-missing','save-disabled']) {
+    for (const mode of ['normal','init-failed','sdk-missing','save-disabled','save-corrupt']) {
         const context=await browser.newContext({viewport:{width:800,height:450}}), page=await context.newPage();
         const observation={mode,status:'failed',errors:[],unexpectedRequests:[]};report.cases.push(observation);
         page.on('pageerror',error=>observation.errors.push(String(error)));
@@ -48,7 +52,9 @@ try {
             const url=route.request().url();
             if (url.startsWith(origin+'/')) return route.continue();
             if (url==='https://sdk.crazygames.com/crazygames-sdk-v3.js') return route.fulfill({contentType:'text/javascript',body:mode==='sdk-missing' ? '' : `
-                window.__events=[];window.__settingsListeners=new Set();window.__data=new Map();
+                window.__events=[];window.__settingsListeners=new Set();window.__scores=[];
+                window.__data=new Map(JSON.parse(localStorage.getItem('__crazygames_mock_data') ?? '[]'));
+                ${mode==='save-corrupt' ? `__data.set('estella.storage.v1',JSON.stringify({'esengine:mobile-controls.training-credits.v1':'broken'}));` : ''}
                 const record=event=>__events.push(event);
                 window.CrazyGames={SDK:{
                     init(){record('init');return ${mode==='init-failed' ? 'Promise.reject(new Error("blocked"))' : 'Promise.resolve()'}},
@@ -56,8 +62,9 @@ try {
                         gameplayStart(){record('start')},gameplayStop(){record('stop')},
                         addSettingsChangeListener(cb){__settingsListeners.add(cb)},removeSettingsChangeListener(cb){__settingsListeners.delete(cb)}},
                     ad:{requestAd(type,cb){record(type);window.__ad=cb;cb.adStarted()}},
+                    user:{submitScore(payload){record('score');__scores.push(payload)}},
                     data:{getItem(key){${mode==='save-disabled' ? 'throw new Error("Progress Save disabled");' : 'return __data.get(key) ?? null;'}},
-                        setItem(key,value){__data.set(key,value)},removeItem(key){__data.delete(key)}}
+                        setItem(key,value){__data.set(key,value);localStorage.setItem('__crazygames_mock_data',JSON.stringify([...__data]))},removeItem(key){__data.delete(key)}}
                 }};
                 window.__mute=value=>{CrazyGames.SDK.game.settings.muteAudio=value;for(const cb of __settingsListeners)cb({muteAudio:value})};
             `});
@@ -71,8 +78,9 @@ try {
                 const box=await page.evaluate(n=>__estellaCooked.probe([n]).at[n],name);assert(box,`Missing ${name}`);
                 await page.mouse.click(400+box.x,225-box.y);
             };
-            const phase=value=>page.waitForFunction(v=>__estellaCooked.probe(['DeviceStatus']).at.DeviceStatus.text.startsWith(v),value.toUpperCase());
-            const active=mode==='normal'||mode==='save-disabled';
+            const phase=value=>page.waitForFunction(v=>window.__estellaCooked?.probe(['DeviceStatus']).at.DeviceStatus?.text?.startsWith(v),value.toUpperCase());
+            const active=mode==='normal'||mode==='save-disabled'||mode==='save-corrupt';
+            assert.equal(await page.evaluate(async()=>(await import('esengine')).Scores.available),active && expectsScores);
             assert.deepEqual(await page.evaluate(()=>window.__events ?? []),mode==='sdk-missing' ? [] : active ? ['init','loading','loaded'] : ['init']);
             await click('TrainingStart');await phase('playing');
             if (active) {
@@ -94,6 +102,36 @@ try {
                 assert.match(await page.evaluate(()=>__estellaCooked.probe(['DeviceStatus']).at.DeviceStatus.text),/Credits: 1/);
                 await click('TrainingPause');await phase('paused');await click('TrainingStart');await phase('ad');
                 await page.evaluate(()=>__ad.adFinished());await phase('playing');
+                observation.gameplayEvents=await page.evaluate(()=>__events.slice());
+                assert.deepEqual(observation.gameplayEvents,['init','loading','loaded','start','stop','rewarded','start','stop','rewarded','start','stop','midgame','start']);
+                if(expectsScores) {
+                    const at=await page.evaluate(()=>__estellaCooked.probe(['Player','Target']).at);
+                    if(Math.abs(at.Target.y-at.Player.y)>15) {
+                        const vertical=at.Target.y>at.Player.y?'KeyW':'KeyS';await page.keyboard.down(vertical);
+                        await page.waitForFunction(()=>{const p=__estellaCooked.probe(['Player','Target']).at;return Math.abs(p.Player.y-p.Target.y)<15;});await page.keyboard.up(vertical);
+                    }
+                    const current=await page.evaluate(()=>__estellaCooked.probe(['Player','Target']).at);
+                    const horizontal=current.Target.x>current.Player.x?'KeyD':'KeyA';await page.keyboard.down(horizontal);
+                    await page.waitForFunction(()=>{const p=__estellaCooked.probe(['Player','Target']).at;return Math.hypot(p.Player.x-p.Target.x,p.Player.y-p.Target.y)<60;});await page.keyboard.up(horizontal);
+                    for(let hit=0;hit<3;hit++){await page.keyboard.press('Space',{delay:80});await page.waitForTimeout(80);}
+                    await phase('finished');await click('TrainingScore');
+                    await page.waitForFunction(()=>__estellaCooked.probe(['DeviceStatus']).at.DeviceStatus.text.includes('Score sent'));
+                    observation.score=await page.evaluate(async()=>{
+                        const payload=__scores[0],bytes=Uint8Array.from(atob(payload.encryptedScore),char=>char.charCodeAt(0));
+                        const key=await crypto.subtle.importKey('raw',new Uint8Array(32).fill(7),{name:'AES-GCM'},false,['decrypt']);
+                        const plaintext=await crypto.subtle.decrypt({name:'AES-GCM',iv:bytes.slice(0,12)},key,bytes.slice(12));
+                        return {score:payload.score,decrypted:new TextDecoder().decode(plaintext),count:__scores.length};
+                    });
+                    assert.deepEqual(observation.score,{score:3,decrypted:'3',count:1});
+                }
+                if(mode==='normal') {
+                    await page.reload();await phase('menu');await page.waitForFunction(()=>!document.getElementById('es-splash'));
+                    observation.restoredCredits=await page.evaluate(()=>__estellaCooked.probe(['DeviceStatus']).at.DeviceStatus.text);
+                    assert.match(observation.restoredCredits,/Credits: 1/);
+                } else {
+                    assert.match(await page.evaluate(()=>__estellaCooked.probe(['DeviceStatus']).at.DeviceStatus.text),/Save unavailable/);
+                    if(mode==='save-corrupt')assert.equal(await page.evaluate(()=>JSON.parse(__data.get('estella.storage.v1'))['esengine:mobile-controls.training-credits.v1']),'broken');
+                }
                 observation.storage=await page.evaluate(async()=>{
                     const {Storage}=await import('esengine');
                     try {Storage.setString('training-check','retained');const restored=Storage.getString('training-check');
@@ -101,9 +139,8 @@ try {
                         return {restored,cleared:Storage.has('training-check'),publisher:CrazyGames.SDK.data.getItem('publisher-data')};
                     } catch(error) {return {error:String(error),localFallback:localStorage.getItem('esengine:training-check')};}
                 });
-                if (mode==='normal') assert.deepEqual(observation.storage,{restored:'retained',cleared:false,publisher:'keep'});
+                if (mode!=='save-disabled') assert.deepEqual(observation.storage,{restored:'retained',cleared:false,publisher:'keep'});
                 else {assert.match(observation.storage.error,/Progress Save disabled/);assert.equal(observation.storage.localFallback,null);}
-                assert.deepEqual(await page.evaluate(()=>__events),['init','loading','loaded','start','stop','rewarded','start','stop','rewarded','start','stop','midgame','start']);
             } else {
                 assert.match(await page.evaluate(()=>__estellaCooked.probe(['TrainingReward']).at.TrainingReward ? __estellaCooked.probe(['DeviceStatus']).at.DeviceStatus.text : ''),/Credits: 0/);
                 observation.storage=await page.evaluate(async()=>{try{(await import('esengine')).Storage.setString('training-check','bad');return 'unexpected success';}catch(error){return String(error);}});

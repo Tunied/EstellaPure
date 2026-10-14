@@ -90,8 +90,10 @@ Export with `node pipeline/bin/estella.mjs export examples/mobile-controls
 --profile crazygames --out output/crazygames-training-web`. This profile uses
 the same authored room and START / PAUSE / REPLAY / WATCH AD controls. Gameplay
 events go to `CrazyGames.SDK.game`; focus changes do not emit gameplay events,
-because the SDK handles focus itself. Credits in this training example remain
-session-only.
+because the SDK handles focus itself. Reward credits load and save through
+the engine's `Storage` API on this channel. A page reload restores saved credits.
+Unreadable, disabled or externally changed saves are preserved; failed saving
+is displayed as session-only progress. Poki credits remain session-only.
 
 The export host awaits the official v3 SDK, reports loading, and connects the
 existing Ads service to rewarded and midgame callbacks. Only `adFinished`
@@ -107,9 +109,23 @@ envelope, and `Storage.clear()` preserves other publisher data. The SDK's
 overall 1 MB limit still applies. A synchronous save is not acknowledgment of
 cloud backup or proof of cross-account restoration.
 
-Leaderboard integration, official platform QA and physical-device acceptance
-remain separate work. This profile does not claim those checks are complete.
+For an invited leaderboard, configure the 32-byte Base64 client Encryption Key
+under Web packaging in the editor (`packaging.platforms.web.leaderboardEncryptionKey`).
+The key is shipped in the client; never enter the server API Key. After three
+hits, SEND SCORE submits the round's three points through `Scores.submit`.
+Without a configured key or SDK score capability, the button is disabled.
+The platform leaderboard must use matching score rules. The engine encrypts
+the numeric score using the official HTML5 AES-GCM format and sends both values.
+A successful call means sent, not that the server accepted a ranking.
+
+The headless score fixture copies this source into a temporary directory and
+uses a known mock-only key. It is not a platform credential and must not be
+used for a production submission. Ordinary example profiles carry no key.
+Official platform QA, leaderboard invitation/configuration, cross-account
+cloud restoration and physical-device acceptance remain separate checks.
 See the official [SDK introduction](https://docs.crazygames.com/sdk/intro/),
 [game lifecycle](https://docs.crazygames.com/sdk/game/),
 [video ads](https://docs.crazygames.com/sdk/video-ads/) and
 [Data module](https://docs.crazygames.com/sdk/data/).
+For scores, see [leaderboard requirements](https://docs.crazygames.com/sdk/leaderboards/)
+and [client score submission](https://docs.crazygames.com/sdk/leaderboards-client/).
