@@ -15,6 +15,12 @@ import {
 import { layoutLine, buildGlyphVertices } from '../src/ui/text/layout';
 
 const SPACE = 32;
+
+it('accepts the final Uint16 vertex and rejects an oversized raw glyph batch', () => {
+    const glyph = { pageId: 1, u0: 0, v0: 0, u1: 1, v1: 1, x0: 0, y0: 0, x1: 1, y1: 1 };
+    expect(buildGlyphVertices(new Array(16384).fill(glyph), [1, 1, 1, 1]).indices.at(-1)).toBe(65535);
+    expect(() => buildGlyphVertices(new Array(16385).fill(glyph), [1, 1, 1, 1])).toThrow(/Uint16 index range/);
+});
 const UNKNOWN = 0xffff;
 
 function makeAtlas(): GlyphAtlas {

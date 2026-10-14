@@ -24,6 +24,7 @@ published separately; it ships inside the editor.
 
 - **MRAID store clicks carry their destination.** `playableCta(url)` forwards an explicit store link, with host-provided `clickTag` as the MRAID fallback. Missing and malformed destinations no longer call `mraid.open` with no URL. HTTP(S), Android market and iOS App Store schemes are supported; other networks retain their host-selected store destinations.
 
+- **Long text preserves glyphs beyond the 16-bit index limit.** Oversized atlas-page runs split into batches of at most 16,384 quads while retaining positions, colors and effect ordering. The text-submit ABI stays unchanged, and raw glyph builders reject oversized batches instead of silently wrapping indices.
 
 - **UI text fades reuse cached geometry.** Inherited opacity changes update vertex alpha without repeating glyph lookup, layout or index generation. Bitmap and SDF text retain their original fill, rich-text, shadow and outline alpha, restoring it without cumulative fading; authored color and layout changes still rebuild the cache.
 

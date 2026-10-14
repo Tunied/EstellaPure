@@ -17,10 +17,10 @@ import { CanvasGlyphRasterizer, type CanvasGlyphRasterizerOptions } from './glyp
 import { NativeGlyphRasterizer } from './native-glyph-rasterizer';
 import { EngineAtlasPageStore } from './atlas-page-store';
 import { TextAlign, TextVerticalAlign, TextOverflow } from '../core/text';
-import { layoutText, buildGlyphVertices, type LaidGlyph, type RGBA } from './layout';
+import { layoutText, buildGlyphVertices, MAX_TEXT_BATCH_GLYPHS, type LaidGlyph, type RGBA } from './layout';
 import { submitTextBatch, TEXT_VERTEX_FLOATS } from './submit';
 
-/** Receives one (vertices, indices) batch per atlas page used by the text. */
+/** Receives index-safe glyph batches, each bound to one atlas page. */
 export type GlyphBatchSink = (vertices: Float32Array, indices: Uint16Array, pageId: number) => void;
 
 export interface DrawTextParams {
@@ -169,9 +169,8 @@ export function textBlockOriginY(
 }
 
 /**
- * Lay out `text` against `atlas` and emit one quad batch per atlas page to
- * `sink`. Pure given the atlas — no engine/Canvas dependency — so the grouping
- * and geometry are unit-testable.
+ * Lay out text against the atlas and emit index-safe quad batches to the sink.
+ * Pure given the atlas, so grouping and geometry are unit-testable.
  */
 export function drawTextWith(atlas: GlyphAtlas, sink: GlyphBatchSink, p: DrawTextParams): void {
     const opacity = p.opacity ?? 1;
@@ -201,12 +200,19 @@ export function drawTextWith(atlas: GlyphAtlas, sink: GlyphBatchSink, p: DrawTex
     );
 
     // A string can reference glyphs across several atlas pages; each page is a
-    // distinct texture, so group by page and emit one batch per page.
+    // distinct texture. Split oversized pages once, before emitting effects.
     const byPage = new Map<number, LaidGlyph[]>();
     for (const g of layout.glyphs) {
         let arr = byPage.get(g.pageId);
         if (!arr) { arr = []; byPage.set(g.pageId, arr); }
         arr.push(g);
+    }
+    const chunks: Array<[number, readonly LaidGlyph[]]> = [];
+    for (const [pageId, glyphs] of byPage) {
+        for (let start = 0; start < glyphs.length; start += MAX_TEXT_BATCH_GLYPHS) {
+            chunks.push([pageId, glyphs.length <= MAX_TEXT_BATCH_GLYPHS
+                ? glyphs : glyphs.slice(start, start + MAX_TEXT_BATCH_GLYPHS)]);
+        }
     }
 
     const baseX = (p.originX ?? 0) + textBlockOffsetX(p.align, boxWidth, layout.width);
@@ -214,7 +220,7 @@ export function drawTextWith(atlas: GlyphAtlas, sink: GlyphBatchSink, p: DrawTex
     // glyphs in the same atlas/layer, so they batch and draw in submit order —
     // shadow + outline first (behind), fill last (on top).
     const emitPass = (color: RGBA, dx: number, dy: number, bias = 0, useGlyphColors = false): void => {
-        for (const [pageId, glyphs] of byPage) {
+        for (const [pageId, glyphs] of chunks) {
             const { vertices, indices } = buildGlyphVertices(glyphs, color, baseX + dx, originY + dy, bias, useGlyphColors);
             if (opacity !== 1) {
                 for (let i = 7; i < vertices.length; i += TEXT_VERTEX_FLOATS) vertices[i] *= opacity;

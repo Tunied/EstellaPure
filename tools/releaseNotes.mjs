@@ -32,6 +32,8 @@ export const NOTED = {
     { note: 'MRAID store clicks carry their destination.' },
   'fix(playable): observe MRAID readiness and viewability':
     { note: 'MRAID playables wait for ready and viewable hosts.' },
+  'fix(ui): split long text before glyph indices wrap':
+    { note: 'Long text preserves glyphs beyond the 16-bit index limit.' },
   'feat(playable): package TikTok and overseas Pangle creatives':
     { note: 'TikTok and overseas Pangle package the same playable project.' },
   'perf(ui): reuse text geometry during inherited opacity fades':

@@ -102,6 +102,9 @@ export interface GlyphVertexData {
     indices: Uint16Array;   // 6 per glyph
 }
 
+/** Four vertices per glyph must fit the text-submit ABI's Uint16 indices. */
+export const MAX_TEXT_BATCH_GLYPHS = 0x10000 / 4;
+
 /**
  * Build interleaved glyph vertices and indices, with atlas v0 at screen-top.
  * `originX/Y` positions the batch inside its text box. Disable per-glyph colors
@@ -116,6 +119,7 @@ export function buildGlyphVertices(
     useGlyphColors = true,
 ): GlyphVertexData {
     const n = glyphs.length;
+    if (n > MAX_TEXT_BATCH_GLYPHS) throw new RangeError('Glyph batch exceeds the Uint16 index range; split it before tessellation');
     const vertices = new Float32Array(n * 4 * TEXT_VERTEX_FLOATS);
     const indices = new Uint16Array(n * 6);
 

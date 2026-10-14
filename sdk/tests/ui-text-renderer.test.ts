@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 /**
- * @file  REARCH_GUI P1.3b — drawTextWith orchestration: lays text out against a
- *        (mock-backed) GlyphAtlas and emits one quad batch per atlas page. Pure
- *        given the atlas, so the per-page grouping + geometry are headless-tested.
+ * @file drawTextWith grouping, index-safe batches and effect geometry over a
+ *       mock-backed GlyphAtlas, without Canvas or GL.
  */
 import { describe, it, expect, vi } from 'vitest';
 
@@ -29,6 +28,44 @@ function makeAtlas(pageSize: number, spread = 6): GlyphAtlas {
 }
 
 describe('REARCH_GUI P1.3b: drawTextWith', () => {
+    it.each([16384, 16385, 32769])('preserves every glyph when one atlas page carries %i quads', count => {
+        const batches: Array<{ vertices: Float32Array; indices: Uint16Array }> = [];
+        drawTextWith(makeAtlas(1024), (vertices, indices) => batches.push({ vertices, indices }), {
+            text: 'A'.repeat(count), fontFamily: 'Arial', fontSizePx: 24, color: [1, 1, 1, 1],
+        });
+        expect(batches).toHaveLength(Math.ceil(count / 16384));
+        let emitted = 0;
+        for (const { vertices, indices } of batches) {
+            const glyphs = vertices.length / (4 * TEXT_VERTEX_FLOATS);
+            expect(glyphs).toBeLessThanOrEqual(16384);
+            expect(indices).toHaveLength(glyphs * 6);
+            expect(indices[0]).toBe(0);
+            expect(indices.at(-1)).toBe(glyphs * 4 - 1);
+            expect(vertices[0]).toBeCloseTo(emitted * 5.5 + 0.5);
+            emitted += glyphs;
+        }
+        expect(emitted).toBe(count);
+    });
+
+    it('keeps all shadow and outline chunks behind an oversized fill', () => {
+        const sink = vi.fn();
+        drawTextWith(makeAtlas(1024), sink, {
+            text: 'A'.repeat(16385), fontFamily: 'Arial', fontSizePx: 24,
+            color: [1, 1, 1, 0.8], opacity: 0.5,
+            shadow: { color: [0, 0, 0, 0.6], dx: 2, dy: 2 },
+            outline: { color: [0, 1, 0, 0.4], width: 1 },
+        });
+        expect(sink).toHaveBeenCalledTimes(6);
+        const alpha = [0.3, 0.3, 0.2, 0.2, 0.4, 0.4];
+        for (let i = 0; i < 6; i++) {
+            const vertices = sink.mock.calls[i][0] as Float32Array;
+            const indices = sink.mock.calls[i][1] as Uint16Array;
+            expect(vertices.length / TEXT_VERTEX_FLOATS).toBeLessThanOrEqual(65536);
+            expect(indices.at(-1)).toBe(vertices.length / TEXT_VERTEX_FLOATS - 1);
+            expect(vertices[7]).toBeCloseTo(alpha[i]);
+        }
+    });
+
     it('keeps rich fill colors out of shadow and outline passes on both atlas modes', () => {
         for (const spread of [0, 6]) {
             for (const blur of [0, 2]) {
