@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Runtime snapshots reuse visibility membership and direct readers.** Live tree snapshots reuse each entity's component names and pre-resolve visibility getters instead of repeating renderer checks and marshaling a full component for every row. UI display priority and transient renderer visibility remain intact, missing reader values retain the normal read fallback, and only primitive visibility flags escape borrowed data. Selected component values remain independent of later snapshots.
+
 - **Runtime inspection batches builtin membership across the core boundary.** Generated web and native bindings report an entity's current builtin component names in one call. The SDK merges script and extension components, refreshes extension bindings on registration or reconnect, and falls back to individual checks on older cores. Entity destruction, id reuse and separate registries retain their live membership semantics.
 
 - **Runtime inspection avoids duplicate builtin component checks.** Entity component enumeration checks cached builtin bindings once and reads the shared builtin catalogue instead of allocating a merged builtin/script map for every entity. Live tree snapshots retain uncached membership checks and immediately reflect component additions and removals.
