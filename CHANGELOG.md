@@ -14,6 +14,8 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+## [0.79.0] - 2026-10-14
+
 ### Added
 
 - **Sprite playback can be tried independently of its state machine.** The sprite-animation example uses P to pause and resume the two plain-clip bystanders while the player's Animator continues running. Its packaged interaction exercises both controls, and editor verification checks that paused frame indices and timers remain unchanged before resuming.
@@ -14142,7 +14144,8 @@ not kept before this file was introduced — see the Git history at
 `github.com/esengine/estella` for the full commit-level record since the first
 commit on 2026-01-25.
 
-[Unreleased]: https://github.com/esengine/estella/compare/v0.78.0...HEAD
+[Unreleased]: https://github.com/esengine/estella/compare/v0.79.0...HEAD
+[0.79.0]: https://github.com/esengine/estella/compare/v0.78.0...v0.79.0
 [0.78.0]: https://github.com/esengine/estella/compare/v0.77.0...v0.78.0
 [0.77.0]: https://github.com/esengine/estella/compare/v0.76.0...v0.77.0
 [0.76.0]: https://github.com/esengine/estella/compare/v0.75.0...v0.76.0

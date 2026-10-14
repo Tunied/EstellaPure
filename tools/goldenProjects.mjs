@@ -90,6 +90,10 @@ export const CENSUS_FLOOR = '0.60.0';
  * that does not exist, and release notes are a different act. Theirs is ungated.
  */
 export const SHIPPED = {
+  'Sprite playback can be tried independently of its state machine':
+    { certifies: 'animation' },
+  'Disk cache budgets preserve offline content versions':
+    { notCertifiable: 'host storage management and connected-device Profiler controls, rather than a packaged scene; sdk/tests/content-cache-budget.test.ts and hot-update-cache-budget.test.ts hold offline version protection, and desktop/tests/content-cache-section.test.tsx holds the management UI' },
   'Material state can be applied as one complete snapshot':
     { notCertifiable: 'an SDK mutation and ownership contract; sdk/tests/material.test.ts, material-texture-leases.test.ts and the material-live-textures editor check hold snapshots, lifetime and saved Play parity' },
   // — 0.77.0 —
