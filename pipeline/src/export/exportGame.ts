@@ -54,6 +54,7 @@ const BUILTIN_MINIGAME_PROFILES: Readonly<Record<string, MiniGameExportProfile>>
   alipay: alipayExportProfile,
   huawei: huaweiExportProfile,
 };
+import type { PlayableCheckReport } from './playableCheck';
 import { exportPlayable } from './exportPlayable';
 import { genericPlayableProfile, type PlayableAdProfile } from './playableAdProfile';
 import type { OnExportProgress } from './exportProgress';
@@ -308,6 +309,7 @@ export interface ExportGameResult {
   packageFile?: string;
   /** Playable: what the single file is made of. See ExportPlayableResult. */
   inlineParts?: { path: string; bytes: number }[];
+  playableCheck?: PlayableCheckReport;
   /** The start screen written into the host page, logo included. */
   splashBytes?: number;
   /** What the package weighs, and how it fared against the limits in force.

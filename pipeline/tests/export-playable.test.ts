@@ -109,6 +109,9 @@ describe('exportGame (playable)', () => {
     });
 
     expect(res.ok).toBe(true);
+    expect(res.playableCheck?.status).toBe('needs-runtime');
+    expect(res.playableCheck?.htmlSha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(res.playableCheck?.checks.find(check => check.id === 'cta-interaction')?.status).toBe('needs-runtime');
     expect(res.platform).toBe('playable');
 
     // Single file: only index.html, temp cook dir removed, no staged assets dir.

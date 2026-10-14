@@ -52,6 +52,10 @@ export interface PlayableAdProfile {
     readonly delivery?: 'single-html' | 'zip';
     /** Portable archive filename; defaults to playable.zip. */
     readonly zipFileName?: string;
+    /** Exact host SDK scripts allowed by this network’s published integration. */
+    readonly allowedExternalScripts?: readonly string[];
+    /** Required config.json orientation key; values are 0, 1 or 2. */
+    readonly configOrientationField?: string;
     /** Anything else the developer must know before uploading. Reported as a
      *  warning, because an export that looks finished but isn't is worse. */
     readonly deliveryNote?: string;
@@ -107,6 +111,7 @@ export const metaPlayableProfile: PlayableAdProfile = {
  * @see https://support.google.com/google-ads/answer/9981650
  */
 export const googlePlayableProfile: PlayableAdProfile = {
+    allowedExternalScripts: ['https://tpc.googlesyndication.com/pagead/gadgets/html5/api/exitapi.js'],
     id: 'google',
     label: 'Google Ads (App campaigns)',
     maxBytes: 5 * 1024 * 1024,
@@ -206,6 +211,8 @@ onActive:function(fn){listeners.push(fn);fn(active);return function(){listeners=
 
 /** @see https://ads.tiktok.com/resources/help/article/playable-ads?lang=en */
 export const tiktokPlayableProfile: PlayableAdProfile = {
+    allowedExternalScripts: ['https://sf16-muse-va.ibytedtos.com/obj/union-fe-nc-i18n/playable/sdk/playable-sdk.js'],
+    configOrientationField: 'Playable_orientation',
     id: 'tiktok', label: 'TikTok', maxBytes: 5 * 1024 * 1024 - 1,
     limitNote: 'TikTok requires a ZIP less than 5MB (official September 2026 specification)',
     delivery: 'zip',
@@ -224,6 +231,7 @@ export const tiktokPlayableProfile: PlayableAdProfile = {
 /** @see https://ads.tiktok.com/resources/help/article/how-to-create-tiktok-pangle-playable-ads */
 export const panglePlayableProfile: PlayableAdProfile = {
     ...tiktokPlayableProfile,
+    configOrientationField: 'playable_orientation',
     id: 'pangle', label: 'TikTok Ad Network (Pangle, overseas)',
     limitNote: 'TikTok Ad Network requires a ZIP less than 5MB (official September 2026 specification)',
     emitBody: () => '<script src="https://sf16-muse-va.ibytedtos.com/obj/union-fe-nc-i18n/playable/sdk/playable-sdk.js"></script>',

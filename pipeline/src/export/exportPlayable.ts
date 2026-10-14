@@ -34,6 +34,7 @@ import { officialPackagesPlugin } from '../bundle/officialPackages';
 import { explainBundleErrors, type BundleMessage } from '../bundle/bundleDiagnostics';
 import type { ScreenOrientation } from './orientationHtml';
 import { genericPlayableProfile, playableAdInjection, isPlayableZipFileName, type PlayableAdProfile } from './playableAdProfile';
+import { checkPlayable, type PlayableCheckReport } from './playableCheck';
 import { makeZip } from '../../../build-tools/utils/zip.js';
 import { scanSideModuleIds, sideModuleFiles } from '../bundle/sideModuleScan';
 import { forcedSideModules, moduleChoices } from '../bundle/engineInstalls';
@@ -59,6 +60,7 @@ export interface ExportPlayableResult {
    * n bytes — true, and useless on the one target where size is a hard cap.
    */
   inlineParts: { path: string; bytes: number }[];
+  playableCheck?: PlayableCheckReport;
   warnings: string[];
   errors: string[];
 }
@@ -401,6 +403,7 @@ export async function exportPlayable(opts: {
   // stays beside it: it is what "Preview over http" serves, and what a developer opens
   // to look at the thing.
   let zipFile: string | undefined;
+  let archiveFiles: { name: string; content: string }[] = [];
   let bytes = htmlBytes;
   if (adProfile.delivery === 'zip') {
     progress({ phase: 'Archiving' });
@@ -420,6 +423,7 @@ export async function exportPlayable(opts: {
         names.add(name);
         files.push({ name: file.name, data: Buffer.from(file.content, 'utf8') });
       }
+      archiveFiles = files.filter(file => file.name !== 'index.html').map(file => ({ name: file.name, content: file.data.toString('utf8') }));
       await writeFile(zipFile, makeZip(files));
       // The archive is the file being sent, so it is the one the limit applies to.
       bytes = (await stat(zipFile)).size;
@@ -434,7 +438,9 @@ export async function exportPlayable(opts: {
   // the playable and the 4MB WeChat main package alike.
   if (adProfile.deliveryNote) warnings.push(adProfile.deliveryNote);
 
+  const playableCheck = checkPlayable({ profile: adProfile, html: await readFile(outFile), delivery: await readFile(zipFile ?? outFile), archiveFiles });
   return {
+    playableCheck,
     ok: errors.length === 0, platform: 'playable', outDir: absOut,
     included: cook.included.length, bytes, htmlBytes, zipFile, inlineParts: spans, warnings, errors,
   };

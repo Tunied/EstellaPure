@@ -512,6 +512,12 @@ async function importPlatformModule(
       if (candidate.zipFileName !== undefined && !isPlayableZipFileName(candidate.zipFileName)) {
         return { error: '`zipFileName` must be a portable alphanumeric/underscore ZIP filename' };
       }
+      if (candidate.allowedExternalScripts !== undefined && (!Array.isArray(candidate.allowedExternalScripts) || !candidate.allowedExternalScripts.every(url => typeof url === 'string' && /^https:\/\//.test(url)))) {
+        return { error: 'allowedExternalScripts must list exact HTTPS host SDK URLs' };
+      }
+      if (candidate.configOrientationField !== undefined && (typeof candidate.configOrientationField !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(candidate.configOrientationField))) {
+        return { error: 'configOrientationField must name a JSON field' };
+      }
       for (const hook of ['emitHead', 'emitBody', 'emitBridge', 'emitZipFiles'] as const) {
         if (candidate[hook] !== undefined && typeof candidate[hook] !== 'function') {
           return { error: `playable profile hook ${hook} must be a function` };
@@ -637,6 +643,8 @@ export async function loadPlayableProfile(root: string | null, id: string | unde
       maxHtmlBytes: mod.maxHtmlBytes,
       delivery: mod.delivery,
       zipFileName: mod.zipFileName,
+      allowedExternalScripts: mod.allowedExternalScripts,
+      configOrientationField: mod.configOrientationField,
       deliveryNote: mod.deliveryNote,
       emitHead: mod.emitHead,
       emitBody: mod.emitBody,

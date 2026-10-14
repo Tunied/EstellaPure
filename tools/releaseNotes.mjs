@@ -28,6 +28,10 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(playable): report export checks and pending acceptance':
+    { note: 'Playable exports report static checks and pending acceptance.' },
+  'feat(editor): show playable export checks in package results':
+    { note: 'Playable exports report static checks and pending acceptance.' },
   'fix(playable): pass store destinations through the CTA bridge':
     { note: 'MRAID store clicks carry their destination.' },
   'fix(playable): observe MRAID readiness and viewability':

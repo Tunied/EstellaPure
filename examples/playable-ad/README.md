@@ -40,3 +40,9 @@ or let the ad host supply `window.clickTag`. HTTP(S), Android `market:` and iOS
 `itms-apps:` store links are supported. Without a valid destination the bridge
 reports the missing configuration and does not call `mraid.open`. The sample
 project has no published app destination; configure yours before network acceptance.
+
+Exports return a `playableCheck` report. Save it with `--json report.json` on the CLI,
+or inspect it in the editor’s package result. It records HTML/delivery hashes,
+network budgets, literal resource references and required orientation config.
+CTA, host lifecycle, dynamic requests and network/device acceptance remain marked
+for runtime verification; a static pass does not imply ad approval.

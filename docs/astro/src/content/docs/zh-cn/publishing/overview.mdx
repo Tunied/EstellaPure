@@ -108,6 +108,8 @@ Mintegral 中，胜负结束时调用 `playableGameEnd()`，玩家重玩时调�
 
 MRAID 安装按钮须通过 `playableCta(storeUrl)` 传入目标地址，或由宿主提供 `window.clickTag`。支持 HTTP(S)、Android `market:` 和 iOS `itms-apps:` 商店链接；地址缺失或无效时提示配置问题，不调用 `mraid.open`。其他网络继续使用自己的商店接口。
 
+试玩导出结果包含 `playableCheck`，打包窗口可查看，命令行可通过 `--json report.json` 保存。报告测量实际交付文件，检查 HTML/CSS 资源引用及必需的方向配置；只按所选 profile 放行指定的宿主 SDK 脚本。文件哈希将检查结果对应到本次导出。CTA、宿主生命周期、动态请求和设备／平台验收保持待运行验证，不把接口声明算作商店跳转成功。
+
 ### 我们没内置的平台
 
 自己定义就行——内置的那几家写的就是这份契约,没有做不到的事。**打包项目 → 新建平台** 可以

@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Added
+
+- **Playable exports report static checks and pending acceptance.** Export results and the editor package dialog show actual HTML/delivery hashes, network size limits, literal resource references and orientation config checks. Mandatory network SDK scripts are allowed explicitly. CTA, lifecycle, dynamic requests and device/network acceptance remain pending runtime evidence, including when static checks pass.
+
 ## [0.81.0] - 2026-10-14
 
 ### Added

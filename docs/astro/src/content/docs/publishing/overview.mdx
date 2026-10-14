@@ -124,6 +124,8 @@ For Mintegral, call `playableGameEnd()` on a win or loss and `playableRetry()` w
 
 MRAID store buttons must pass a destination with `playableCta(storeUrl)` or use a host-provided `window.clickTag`. HTTP(S), Android `market:` and iOS `itms-apps:` links are supported. Missing or invalid destinations produce a configuration warning without calling `mraid.open`. Other networks continue using their own store hooks.
 
+Playable exports include `playableCheck` in their result; the package dialog displays it and the CLI can save it with `--json report.json`. Checks measure the actual delivered file, identify HTML/CSS resource references and validate required orientation config. Exact mandatory host SDK scripts are allowed by the selected profile. File hashes tie the findings to this export. CTA, host lifecycle, dynamic requests and device/network acceptance remain pending runtime verification. The report does not claim that a bridge declaration proves a successful store click.
+
 ### A network we don't ship
 
 Define it yourself — the built-in networks are written against this exact contract,
