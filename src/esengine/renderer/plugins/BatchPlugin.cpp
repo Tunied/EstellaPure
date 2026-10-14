@@ -68,12 +68,18 @@ void BatchPlugin::emitNineSlice(
     f32 R = border.y;
     f32 T = border.z;
     f32 B = border.w;
+    if (size.x == 0.0f || size.y == 0.0f) return;
+
+    // Fit destination borders proportionally when the box is smaller than
+    // their sum. Source UV borders still sample the original texture region.
+    const f32 sx = size.x >= 0.0f && L + R > 0.0f ? std::min(1.0f, size.x / (L + R)) : 1.0f;
+    const f32 sy = size.y >= 0.0f && T + B > 0.0f ? std::min(1.0f, size.y / (T + B)) : 1.0f;
 
     f32 baseX = position.x - size.x * pivotNorm.x;
     f32 baseY = position.y - size.y * pivotNorm.y;
 
-    f32 x[4] = { baseX, baseX + L, baseX + size.x - R, baseX + size.x };
-    f32 y[4] = { baseY, baseY + B, baseY + size.y - T, baseY + size.y };
+    f32 x[4] = { baseX, baseX + L * sx, baseX + size.x - R * sx, baseX + size.x };
+    f32 y[4] = { baseY, baseY + B * sy, baseY + size.y - T * sy, baseY + size.y };
 
     f32 u[4], v[4];
     if (texSize.x > 0.0f && texSize.y > 0.0f) {

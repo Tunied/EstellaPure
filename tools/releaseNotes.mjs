@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(renderer): fit nine-slice borders inside small boxes':
+    { note: 'Small nine-slice visuals keep borders inside their box.' },
   'fix(docs): escape playable size limits in MDX':
     { internal: 'escapes a less-than sign in both translations so the existing size-limit text compiles as MDX and the release website can deploy' },
   'feat(playable): report export checks and pending acceptance':

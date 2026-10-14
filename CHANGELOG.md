@@ -20,6 +20,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Small nine-slice visuals keep borders inside their box.** Sprite and UI nine-slice geometry proportionally shrinks opposing borders when their total exceeds the destination size, retaining the texture's original border UVs. Zero-width or zero-height nine-slices emit no geometry; ordinary sizes retain their existing border widths.
+
 - **Fully transparent UI visuals skip geometry uploads.** Default-material solid, image, nine-slice, tiled and filled visuals stop generating vertices and indices when their own or inherited alpha is zero, and resume when visible. Stencil mask geometry and custom-material draws remain available for clipping and shader-defined output.
 
 ## [0.81.0] - 2026-10-14

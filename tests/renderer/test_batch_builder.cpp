@@ -43,6 +43,10 @@ struct Harness {
     ~Harness() { pool.shutdown(); }
 };
 
+struct NineSlicePlugin : UIElementPlugin {
+    using BatchPlugin::emitNineSlice;
+};
+
 BatchDrawKey quadKey(u32 textureId, i32 layer = 0) {
     BatchDrawKey key{};
     key.stage = RenderStage::Transparent;
@@ -272,6 +276,48 @@ TEST_CASE("camera mask: hidden text and skeletal submissions upload no geometry"
     CHECK(frame.stats().text == 1);
     CHECK(frame.stats().skeletal == 1);
     CHECK(frame.stats().triangles == 4);
+}
+
+TEST_CASE("nine-slice: small boxes contain their borders and preserve source UVs") {
+    for (const glm::vec2 size : {glm::vec2{40, 30}, {10, 6}, {10, 30}, {40, 6}, {0, 6}, {10, 0}}) {
+        Harness h;
+        NineSlicePlugin plugin;
+        const glm::vec3 position{13, 17, 0};
+        const glm::vec2 pivot{.25f, .75f};
+        plugin.emitNineSlice(h.pool, h.list, h.clips, position, size, pivot,
+                            0, {100, 100}, {8, 12, 10, 6}, {0, 0}, {1, 1}, {1, 1, 1, 1}, quadKey(1));
+        const u32 bytes = h.pool.vertexBytesUsed(LayoutId::Batch);
+        if (size.x == 0 || size.y == 0) {
+            CHECK(bytes == 0);
+            CHECK(h.pool.indicesUsed(LayoutId::Batch) == 0);
+            CHECK(h.list.commandCount() == 0);
+            continue;
+        }
+        const auto* vertices = reinterpret_cast<const BatchVertex*>(h.pool.vertexData(LayoutId::Batch));
+        const u32 count = bytes / sizeof(BatchVertex);
+        REQUIRE(count > 0);
+        const glm::vec2 low = glm::vec2(position) - size * pivot;
+        const glm::vec2 high = low + size;
+        f32 area = 0;
+        bool hasLeftUV = false, hasRightUV = false, hasBottomUV = false, hasTopUV = false;
+        for (u32 i = 0; i < count; ++i) {
+            CHECK(vertices[i].position.x >= low.x - .0001f);
+            CHECK(vertices[i].position.x <= high.x + .0001f);
+            CHECK(vertices[i].position.y >= low.y - .0001f);
+            CHECK(vertices[i].position.y <= high.y + .0001f);
+            hasLeftUV |= std::abs(vertices[i].texCoord.x - .08f) < .0001f;
+            hasRightUV |= std::abs(vertices[i].texCoord.x - .88f) < .0001f;
+            hasBottomUV |= std::abs(vertices[i].texCoord.y - .06f) < .0001f;
+            hasTopUV |= std::abs(vertices[i].texCoord.y - .90f) < .0001f;
+            if (i % 4 == 0) area += (vertices[i + 1].position.x - vertices[i].position.x)
+                                  * (vertices[i + 3].position.y - vertices[i].position.y);
+        }
+        CHECK(area == doctest::Approx(size.x * size.y));
+        CHECK(hasLeftUV);
+        CHECK(hasRightUV);
+        CHECK(hasBottomUV);
+        CHECK(hasTopUV);
+    }
 }
 
 TEST_CASE("UI visuals: zero alpha skips geometry and a restored fade draws again") {
