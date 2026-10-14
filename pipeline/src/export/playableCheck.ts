@@ -3,7 +3,7 @@
 import { createHash } from 'node:crypto';
 import type { PlayableAdProfile } from './playableAdProfile';
 
-export type PlayableCheckId = 'delivery-size' | 'html-size' | 'markup-resources' | 'orientation-config' | 'cta-interaction' | 'host-lifecycle' | 'runtime-requests' | 'network-acceptance';
+export type PlayableCheckId = 'delivery-size' | 'html-size' | 'markup-resources' | 'host-sdk' | 'orientation-config' | 'cta-interaction' | 'host-lifecycle' | 'runtime-requests' | 'network-acceptance';
 
 export interface PlayableCheckItem {
   id: PlayableCheckId;
@@ -18,6 +18,29 @@ export interface PlayableCheckReport {
   htmlSha256: string;
   deliverySha256: string;
   checks: PlayableCheckItem[];
+}
+
+/** Mask raw text while preserving positions so JS strings are not HTML tags. */
+function sdkPlacement(html: string, rule: NonNullable<PlayableAdProfile['requiredSdk']>): boolean {
+  const scripts: { index: number; src?: string; code: string; delayed: boolean; executable: boolean }[] = [];
+  const markup = html.replace(/<!--[\s\S]*?-->/g, match => ' '.repeat(match.length))
+    .replace(/<(script|style)\b((?:"[^"]*"|'[^']*'|[^'">])*)>([\s\S]*?)<\/\1\s*>/gi,
+      (whole: string, tag: string, attributes: string, code: string, index: number) => {
+        const attrs = [...attributes.matchAll(/([^\s=/'">]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g)];
+        const type = attrs.find(attr => attr[1].toLowerCase() === 'type')?.slice(2).find(value => value !== undefined)?.trim().toLowerCase() ?? '';
+        if (tag.toLowerCase() === 'script') scripts.push({ index, code,
+          src: attrs.find(attr => attr[1].toLowerCase() === 'src')?.slice(2).find(value => value !== undefined),
+          executable: !type || type === 'module' || /^(text|application)\/(x-)?(java|ecma)script(1\.[0-9])?$/.test(type),
+          delayed: type === 'module' || attrs.some(attr => ['async', 'defer'].includes(attr[1].toLowerCase())) });
+        const prefix = 2 + tag.length + attributes.length;
+        return whole.slice(0, prefix) + ' '.repeat(code.length) + whole.slice(prefix + code.length);
+      });
+  const section = rule.placement === 'head' ? /<head\b[^>]*>[\s\S]*?<\/head\s*>/i.exec(markup)
+    : /<body\b[^>]*>[\s\S]*?<\/body\s*>/i.exec(markup);
+  if (!section) return false;
+  const sdk = scripts.find(script => script.src === rule.url);
+  if (!sdk || !sdk.executable || (rule.placement === 'body-before-game' && sdk.delayed) || sdk.index < section.index || sdk.index >= section.index + section[0].length) return false;
+  return rule.placement === 'head' || !scripts.some(script => script.index < sdk.index && script.executable && (script.src || script.code.trim()));
 }
 
 /** Checks literal HTML references; embedded scripts still need request tracing. */
@@ -60,6 +83,8 @@ export function checkPlayable(input: {
   const rejected = refs.filter(ref => ref.tag !== 'srcset' && (ref.tag !== 'script' || !profile.allowedExternalScripts?.includes(ref.url)));
   checks.push({ id: 'markup-resources', status: rejected.length ? 'fail' : refs.some(ref => ref.tag === 'srcset') ? 'needs-runtime' : 'pass',
     detail: rejected.length ? rejected.map(ref => `${ref.tag}: ${ref.url}`).join('\n') : 'No unapproved simple HTML/CSS references. Trace srcset, dynamic requests and generated markup at runtime.' });
+  if (profile.requiredSdk) check('host-sdk', sdkPlacement(html.toString('utf8'), profile.requiredSdk),
+    `Required script: ${profile.requiredSdk.url}; placement: ${profile.requiredSdk.placement}`);
   if (profile.configOrientationField) {
     let valid = false;
     try { const config = JSON.parse(archiveFiles.find(file => file.name === 'config.json')?.content ?? ''); valid = [0, 1, 2].includes(config?.[profile.configOrientationField]); } catch { /* Missing or malformed configuration is a failed check. */ }

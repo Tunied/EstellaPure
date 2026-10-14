@@ -515,6 +515,9 @@ async function importPlatformModule(
       if (candidate.allowedExternalScripts !== undefined && (!Array.isArray(candidate.allowedExternalScripts) || !candidate.allowedExternalScripts.every(url => typeof url === 'string' && /^https:\/\//.test(url)))) {
         return { error: 'allowedExternalScripts must list exact HTTPS host SDK URLs' };
       }
+      if (candidate.requiredSdk !== undefined && (!candidate.requiredSdk || typeof candidate.requiredSdk.url !== 'string' || !/^https:\/\//.test(candidate.requiredSdk.url) || !['head', 'body-before-game'].includes(candidate.requiredSdk.placement))) {
+        return { error: 'requiredSdk needs an HTTPS URL and head/body-before-game placement' };
+      }
       if (candidate.configOrientationField !== undefined && (typeof candidate.configOrientationField !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(candidate.configOrientationField))) {
         return { error: 'configOrientationField must name a JSON field' };
       }
@@ -644,6 +647,7 @@ export async function loadPlayableProfile(root: string | null, id: string | unde
       delivery: mod.delivery,
       zipFileName: mod.zipFileName,
       allowedExternalScripts: mod.allowedExternalScripts,
+      requiredSdk: mod.requiredSdk,
       configOrientationField: mod.configOrientationField,
       deliveryNote: mod.deliveryNote,
       emitHead: mod.emitHead,

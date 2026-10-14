@@ -28,8 +28,15 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+
   'fix(transform): preserve reflected world transforms and UI bounds':
     { note: 'World transforms preserve mirrored axes.' },
+
+  'fix(playable): verify required SDK script presence and order':
+    { note: 'Playable checks verify mandatory SDK scripts and placement.' },
+  'feat(editor): label required host SDK export checks':
+    { note: 'Playable checks verify mandatory SDK scripts and placement.' },
+
   'fix(renderer): mirror nine-slice cells and texture borders':
     { note: 'Nine-slice texture flips preserve asymmetric borders.' },
   'fix(renderer): fit nine-slice borders inside small boxes':

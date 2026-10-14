@@ -128,6 +128,8 @@ Playable exports include `playableCheck` in their result; the package dialog dis
 
 Use `pnpm preview:playable path/to/index.html --report export-result.json` from the engine repository for a local container mock. It prints a loopback URL and does not open a browser. Ready, Show and Hide simulate host callbacks; the viewport selector changes aspect ratio, and Save Log records store calls with the original HTML hash. MRAID can use `--store-url` for your destination. The served copy substitutes mandatory SDK scripts and blocks external requests; the delivered HTML stays unchanged. These mock records do not replace official SDK or device acceptance.
 
+The required host SDK check verifies literal script tags and their placement. Google Exit API belongs in head; TikTok/Pangle must load before game scripts in body. Missing scripts, incorrect positions and delayed TikTok/Pangle SDK loading fail this static check. Actual SDK availability and CTA behavior remain runtime checks.
+
 ### A network we don't ship
 
 Define it yourself — the built-in networks are written against this exact contract,

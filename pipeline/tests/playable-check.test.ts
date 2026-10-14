@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import { describe, it, expect } from 'vitest';
 import { checkPlayable } from '../src/export/playableCheck';
-import { genericPlayableProfile, tiktokPlayableProfile } from '../src/export/playableAdProfile';
+import { genericPlayableProfile, tiktokPlayableProfile, googlePlayableProfile } from '../src/export/playableAdProfile';
 
 const inspect = (html: string, profile = genericPlayableProfile, config?: string) => checkPlayable({
   profile, html: Buffer.from(html), delivery: Buffer.from(html),
@@ -46,6 +46,33 @@ describe('playable export checks', () => {
   it('keeps ambiguous srcset parsing pending and rejects visible external candidates', () => {
     expect(inspect('<img srcset="data:image/png;base64,AAAA 1x">').checks.find(item => item.id === 'markup-resources')?.status).toBe('needs-runtime');
     expect(inspect('<img srcset="data:image/png;base64,AAAA 1x, https://example.com/img.png 2x">').status).toBe('failed');
+  });
+
+  it('rejects a missing SDK even when the allowlist permits its URL', () => {
+    const report = inspect('<html><head></head><body></body></html>', tiktokPlayableProfile, '{"Playable_orientation":0}');
+    expect(report.checks.find(item => item.id === 'markup-resources')?.status).toBe('pass');
+    expect(report.checks.find(item => item.id === 'host-sdk')?.status).toBe('fail');
+  });
+
+  it('requires the Google exit script in head', () => {
+    const script = googlePlayableProfile.emitHead!({ title: 'T', orientation: 'portrait' });
+    expect(inspect(`<html><head>${script}</head><body></body></html>`, googlePlayableProfile).status).toBe('needs-runtime');
+    expect(inspect(`<html><head></head><body>${script}</body></html>`, googlePlayableProfile).status).toBe('failed');
+  });
+
+  it.each(['head', 'late', 'async', 'defer', 'data'])('rejects incorrectly placed or nonexecuting TikTok SDK: %s', mode => {
+    let script = tiktokPlayableProfile.emitBody!({ title: 'T', orientation: 'portrait' });
+    if (['async', 'defer'].includes(mode)) script = script.replace('<script ', `<script ${mode} `);
+    if (mode === 'data') script = script.replace('<script ', '<script type="application/json" ');
+    const html = mode === 'head' ? `<head>${script}</head><body></body>`
+      : `<head></head><body>${mode === 'late' ? '<script>startGame()</script>' : ''}${script}</body>`;
+    expect(inspect(html, tiktokPlayableProfile, '{"Playable_orientation":0}').checks.find(item => item.id === 'host-sdk')?.status).toBe('fail');
+  });
+
+  it('ignores commented tags and JS strings, allowing JSON metadata before the SDK', () => {
+    const script = tiktokPlayableProfile.emitBody!({ title: 'T', orientation: 'portrait' });
+    const html = `<head><!-- <script src="ignored"></script> --><script type="application/json">{"x":"<body>"}</script></head><body>${script}<script>const text="<head>";</script></body>`;
+    expect(inspect(html, tiktokPlayableProfile, '{"Playable_orientation":0}').checks.find(item => item.id === 'host-sdk')?.status).toBe('pass');
   });
 
   it('reports an oversized deliverable without declaring runtime acceptance', () => {

@@ -64,6 +64,22 @@
             "network": "applovin"
           }
         }
+      },
+      "google": {
+        "platform": "playable",
+        "platforms": {
+          "playable": {
+            "network": "google"
+          }
+        }
+      },
+      "meta": {
+        "platform": "playable",
+        "platforms": {
+          "playable": {
+            "network": "meta"
+          }
+        }
       }
     }
   }

@@ -438,6 +438,15 @@ describe('playable ad networks', () => {
     expect(row!.error).toMatch(/zipFileName/);
   });
 
+  it('rejects an invalid mandatory SDK policy before exporting', async () => {
+    writePlatform('bad-sdk-policy.mjs', `export default {
+      id: 'bad-sdk-policy', kind: 'playable', label: 'Bad SDK policy', maxBytes: 100, limitNote: 'x',
+      requiredSdk: { url: 'https://example.com/sdk.js', placement: 'anywhere' }
+    };`);
+    const row = (await listPlayableNetworks(root)).find(r => r.id === 'bad-sdk-policy');
+    expect(row!.error).toMatch(/requiredSdk/);
+  });
+
   it('reports malformed host hooks before attempting export', async () => {
     writePlatform('bad-hook.mjs', `export default {
       id: 'bad-hook', kind: 'playable', label: 'Bad Hook', maxBytes: 100, limitNote: 'x', emitZipFiles: 'config.json'

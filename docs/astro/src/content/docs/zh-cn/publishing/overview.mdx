@@ -112,6 +112,8 @@ MRAID 安装按钮须通过 `playableCta(storeUrl)` 传入目标地址，或由�
 
 在引擎仓库执行 `pnpm preview:playable path/to/index.html --report export-result.json` 可启动本地容器模拟，只打印回环地址，不自动打开浏览器。Ready、Show、Hide 模拟宿主回调，可切换横竖屏；Save Log 保存商店调用及原 HTML 哈希。MRAID 可通过 `--store-url` 配置商店地址。预览副本替换必需 SDK 并阻止外部请求，原导出 HTML 不变；模拟记录不代替官方 SDK 或真机验收。
 
+必需宿主 SDK 检查会核对真实的 script 标签及其位置：Google Exit API 位于 head，TikTok／Pangle 位于 body 且在游戏脚本之前。缺少脚本、位置错误或 TikTok／Pangle SDK 延迟加载都会使静态检查失败。真实 SDK 是否可用及 CTA 行为仍需运行验证。
+
 ### 我们没内置的平台
 
 自己定义就行——内置的那几家写的就是这份契约,没有做不到的事。**打包项目 → 新建平台** 可以

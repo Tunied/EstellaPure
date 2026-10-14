@@ -76,3 +76,8 @@ record marked `local-mock`, with the original HTML hash. External requests are
 blocked in this preview and recorded as violations, so this is a controlled mock,
 not proof of the original package's behavior in the real SDK. Official previews
 and physical devices remain separate acceptance steps.
+
+The `google` and `meta` named profiles export the same scene for the existing
+networks. Mandatory SDK checks now verify both presence and placement: Google
+Exit API in head, TikTok/Pangle before game scripts in body. SDK addresses merely
+appearing in an allowlist or in JavaScript text do not satisfy this check.

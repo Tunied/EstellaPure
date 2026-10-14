@@ -54,6 +54,8 @@ export interface PlayableAdProfile {
     readonly zipFileName?: string;
     /** Exact host SDK scripts allowed by this network’s published integration. */
     readonly allowedExternalScripts?: readonly string[];
+    /** Mandatory literal SDK script and its position in the delivered HTML. */
+    readonly requiredSdk?: { url: string; placement: 'head' | 'body-before-game' };
     /** Required config.json orientation key; values are 0, 1 or 2. */
     readonly configOrientationField?: string;
     /** Anything else the developer must know before uploading. Reported as a
@@ -112,6 +114,7 @@ export const metaPlayableProfile: PlayableAdProfile = {
  */
 export const googlePlayableProfile: PlayableAdProfile = {
     allowedExternalScripts: ['https://tpc.googlesyndication.com/pagead/gadgets/html5/api/exitapi.js'],
+    requiredSdk: { url: 'https://tpc.googlesyndication.com/pagead/gadgets/html5/api/exitapi.js', placement: 'head' },
     id: 'google',
     label: 'Google Ads (App campaigns)',
     maxBytes: 5 * 1024 * 1024,
@@ -212,6 +215,7 @@ onActive:function(fn){listeners.push(fn);fn(active);return function(){listeners=
 /** @see https://ads.tiktok.com/resources/help/article/playable-ads?lang=en */
 export const tiktokPlayableProfile: PlayableAdProfile = {
     allowedExternalScripts: ['https://sf16-muse-va.ibytedtos.com/obj/union-fe-nc-i18n/playable/sdk/playable-sdk.js'],
+    requiredSdk: { url: 'https://sf16-muse-va.ibytedtos.com/obj/union-fe-nc-i18n/playable/sdk/playable-sdk.js', placement: 'body-before-game' },
     configOrientationField: 'Playable_orientation',
     id: 'tiktok', label: 'TikTok', maxBytes: 5 * 1024 * 1024 - 1,
     limitNote: 'TikTok requires a ZIP less than 5MB (official September 2026 specification)',

@@ -276,6 +276,7 @@ describe('exportGame (playable)', () => {
     });
     expect(res.ok).toBe(true);
     const html = readFileSync(path.join(o, 'index.html'), 'utf8');
+    expect(res.playableCheck?.checks.find(check => check.id === 'host-sdk')?.status).toBe('pass');
     const sdk = profile.emitBody!({ title: 'T', orientation: 'portrait' });
     expect(html.indexOf(sdk)).toBeGreaterThan(html.indexOf('<body>'));
     expect(html.indexOf(sdk)).toBeLessThan(html.indexOf('window.__ESTELLA_PLAYABLE__'));

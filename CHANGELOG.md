@@ -22,7 +22,11 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+
 - **World transforms preserve mirrored axes.** Quaternion decomposition retains signed scale instead of converting reflected bases into invalid rotations. Planar transforms keep a Z rotation, including collapsed axes; mirrored UI pointer bounds and flat render bounds follow their displayed geometry.
+
+- **Playable checks verify mandatory SDK scripts and placement.** The report detects missing Google/TikTok/Pangle scripts, incorrect head/body placement and delayed TikTok/Pangle loading before game code. Script text and JSON metadata do not count as SDK tags. The editor shows the SDK finding separately, while interaction and availability remain pending runtime evidence.
+
 
 - **Nine-slice texture flips preserve asymmetric borders.** Flipped UV spans sample inside their original region and exchange opposing border widths, producing the complete mirrored texture. The shared geometry builder retains all cells for signed destination extents, including small boxes and rotated draws.
 
