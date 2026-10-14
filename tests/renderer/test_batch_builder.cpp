@@ -14,6 +14,9 @@
 #include "esengine/renderer/draw/DrawList.hpp"
 #include "esengine/renderer/store/MaterialStore.hpp"
 #include "esengine/renderer/rhi/TransientBufferPool.hpp"
+#include "esengine/renderer/frame/RenderFrame.hpp"
+#include "esengine/renderer/frame/RenderContext.hpp"
+#include "esengine/resource/ResourceManager.hpp"
 
 #include <functional>
 #include <utility>
@@ -233,6 +236,38 @@ TEST_CASE("finalize: sorted Batch index gaps merge in painter order with their t
     CHECK(verts[0].texIndex == 2);
     CHECK(verts[4].texIndex == 0);
     CHECK(verts[8].texIndex == 1);
+}
+
+TEST_CASE("camera mask: hidden text and skeletal submissions upload no geometry") {
+    MockGfxDevice device;
+    RenderContext context(device);
+    resource::ResourceManager resources;
+    RenderFrame frame(device, context, resources);
+    frame.init(64, 64);
+    const glm::mat4 transform(1.0f);
+    const f32 text[36] = {};
+    const f32 skeletal[32] = {};
+    const u16 indices[] = {0, 1, 2, 2, 3, 0};
+    frame.begin(transform);
+    frame.setCullingMask(1u << 6);
+    const int uploads = device.updateBufferCalls;
+    for (u32 i = 0; i < 1000; ++i) {
+        frame.submitTextBatch(text, 4, indices, 6, 1, &transform[0][0], Entity(1), 4, 0, false);
+        frame.submitSkeletalBatch(skeletal, 4, indices, 6, 1, 0, &transform[0][0], Entity(2), 4, 0, 0, false);
+    }
+    frame.flush();
+    CHECK(frame.stats().draw_calls == 0);
+    CHECK(device.updateBufferCalls == uploads);
+    frame.end();
+    frame.begin(transform);
+    frame.setCullingMask(1u << 6);
+    frame.submitTextBatch(text, 4, indices, 6, 1, &transform[0][0], Entity(1), 4, 0, false, 1u << 6);
+    frame.submitSkeletalBatch(skeletal, 4, indices, 6, 1, 0, &transform[0][0], Entity(2), 6, 0, 0, false);
+    frame.flush();
+    CHECK(frame.stats().sprites == 0);
+    CHECK(frame.stats().text == 1);
+    CHECK(frame.stats().skeletal == 1);
+    CHECK(frame.stats().triangles == 4);
 }
 
 TEST_CASE("camera mask: excluded bulk geometry does not enter transient streams") {

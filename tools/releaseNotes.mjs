@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(renderer): skip hidden text and skeletal vertex conversion':
+    { note: 'Hidden text and skeletal batches skip vertex conversion.' },
   'perf(renderer): cull bulk draws before staging geometry':
     { note: 'Camera-excluded bulk draws skip transient geometry.' },
   'perf(renderer): reject full texture runs before copying indices':

@@ -16,6 +16,14 @@
 
 namespace esengine {
 
+bool batchEntityVisible(const DrawList& drawList, const ClipState& clips,
+                        Entity entity, i32 layer, u32 cullBit) {
+    if (clips.isEmptyScissor(entity)) return false;
+    if (cullBit) return drawList.layerVisible(cullBit);
+    const auto identity = drawList.sortIdentity(entity.id(), layer, 0);
+    return drawList.layerVisible(DrawList::layerBit(identity.layer));
+}
+
 namespace {
 
 // Reused across calls so offsetting local indices into the target stream costs no
@@ -24,18 +32,12 @@ namespace {
 // the allocation across the frame, mirroring DrawList::sorted_scratch_.
 std::vector<u32> g_indexScratch;
 
-bool submissionVisible(const DrawList& drawList, const BatchDrawKey& key) {
-    if (key.cullBit) return drawList.layerVisible(key.cullBit);
-    const auto identity = drawList.sortIdentity(key.entity.id(), key.layer, key.order);
-    return drawList.layerVisible(DrawList::layerBit(identity.layer));
-}
-
 template <typename IndexT>
 void pushBatchCommandImpl(TransientBufferPool& pool, DrawList& drawList, const ClipState& clips,
                           u32 vertexByteOffset, u32 vertexCount,
                           const IndexT* localIndices, u32 indexCount,
                           const BatchDrawKey& key) {
-    if (indexCount == 0 || clips.isEmptyScissor(key.entity) || !submissionVisible(drawList, key)) return;
+    if (indexCount == 0 || !batchEntityVisible(drawList, clips, key.entity, key.layer, key.cullBit)) return;
 
     u32 baseVertex = vertexByteOffset / pool.vertexStride(key.layoutId);
     g_indexScratch.resize(indexCount);
@@ -190,8 +192,8 @@ void appendIndexedDraw(TransientBufferPool& pool, DrawList& drawList, const Clip
                        const void* verts, u32 vertexCount,
                        const u32* localIndices, u32 indexCount,
                        const BatchDrawKey& key) {
-    if (vertexCount == 0 || indexCount == 0 || clips.isEmptyScissor(key.entity)
-        || !submissionVisible(drawList, key)) return;
+    if (vertexCount == 0 || indexCount == 0
+        || !batchEntityVisible(drawList, clips, key.entity, key.layer, key.cullBit)) return;
     u32 vertexByteOffset = pool.appendVertices(
         key.layoutId, verts, vertexCount * pool.vertexStride(key.layoutId));
     pushBatchCommandImpl(pool, drawList, clips, vertexByteOffset, vertexCount, localIndices, indexCount, key);

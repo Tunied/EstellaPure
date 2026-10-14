@@ -151,6 +151,11 @@ struct BatchDrawKey {
     u32 lightmapTextureId = 0;
 };
 
+/// Check before formatting caller-owned vertices, using the same group layer,
+/// explicit camera bit and empty-scissor rules as batch submission.
+bool batchEntityVisible(const DrawList& drawList, const ClipState& clips,
+                        Entity entity, i32 layer, u32 cullBit = 0);
+
 /**
  * @brief Atomic primitive: assemble + clip + push one DrawCommand for an index range ALREADY
  *        written into (or, for instanced draws, static in) the key's stream.

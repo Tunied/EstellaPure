@@ -47,7 +47,8 @@ void RenderFrame::submitTextBatch(
     u32 textureId, const f32* transform16,
     Entity entity, i32 layer, f32 depth, bool sdf, u32 cullBit
 ) {
-    if (vertexCount <= 0 || indexCount <= 0) return;
+    if (vertexCount <= 0 || indexCount <= 0
+        || !batchEntityVisible(draw_list_, clip_state_, entity, layer, cullBit)) return;
 
     glm::mat4 model = glm::make_mat4(transform16);
 
@@ -87,7 +88,8 @@ void RenderFrame::submitSkeletalBatch(
     const f32* transform16,
     Entity entity, i32 layer, f32 depth, u32 materialId, bool premultipliedColor
 ) {
-    if (vertexCount <= 0 || indexCount <= 0) return;
+    if (vertexCount <= 0 || indexCount <= 0
+        || !batchEntityVisible(draw_list_, clip_state_, entity, layer)) return;
 
     constexpr i32 FLOATS_PER_VERTEX = 8;
     glm::mat4 model = glm::make_mat4(transform16);
