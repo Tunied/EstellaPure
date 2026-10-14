@@ -30,6 +30,8 @@ export const NOTES_FLOOR = 'v0.65.0';
 export const NOTED = {
   'feat(storage): await asynchronous host persistence':
     { note: 'Storage exposes asynchronous write acknowledgment.' },
+  'fix(text): rasterize enlarged bitmap glyphs within atlas limits':
+    { note: 'Bitmap glyphs survive enlarged text and camera zoom.' },
   'feat(crazygames): add score submissions and saved training credits':
     { note: 'CrazyGames scores and saved training credits follow platform contracts.' },
   'feat(settings): configure CrazyGames client score encryption key':

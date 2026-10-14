@@ -28,6 +28,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Bitmap glyphs survive enlarged text and camera zoom.** Canvas scratch surfaces grow to fit glyphs within the configured atlas dimensions instead of dropping tiles larger than their initial size. Resizing restores font, bold/italic style and alignment before drawing; smaller requests reuse the grown surface, and oversized tiles remain bounded by the atlas limit.
+
 - **AudioPlugin checks platform initialization before subscribing to host mute.** Independent audio backend tests and direct construction no longer fail while reading an optional platform capability.
 
 - **SDK text uploads only glyphs visible to the current draw pass.** Bitmap and SDF caches retain the complete layout while block bounds reject camera-excluded runs and partial runs compact vertices with rebased indices. Culling uses the actual camera or screen-overlay projection with the full model matrix, preserving shear, shadows and clip-edge intersections; invalid or omitted projections retain the legacy submission path.

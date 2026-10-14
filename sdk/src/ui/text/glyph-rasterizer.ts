@@ -73,6 +73,8 @@ export interface CanvasGlyphRasterizerOptions {
     padding?: number;
     /** Produce an SDF (scalable) vs a plain-alpha bitmap (native AA). Default true. */
     sdf?: boolean;
+    /** Maximum stored glyph dimensions, including padding. Default at least 1024. */
+    maxGlyphSize?: number;
 }
 
 type Canvas2D = PlatformCanvas;
@@ -92,6 +94,7 @@ export class CanvasGlyphRasterizer implements GlyphRasterizer {
     private readonly module: ESEngineModule | null;
     private readonly pad: number;
     private readonly sdf: boolean;
+    private readonly maxGlyphSize: number;
     private readonly canvas: Canvas2D;
     private readonly ctx: Ctx2D | null;
 
@@ -102,10 +105,14 @@ export class CanvasGlyphRasterizer implements GlyphRasterizer {
         this.renderSize = opts.renderSize ?? 48;
         this.pad = opts.padding ?? 6;
         this.sdf = opts.sdf ?? true;
+        const requestedMax = opts.maxGlyphSize;
+        this.maxGlyphSize = requestedMax !== undefined && Number.isFinite(requestedMax)
+            ? Math.max(0, Math.floor(requestedMax))
+            : Math.max(1024, Math.ceil(this.renderSize * 2 + this.pad * 2));
         // Scratch canvas sized for the largest glyph (em + ascenders + padding),
         // at supersampled resolution on the SDF path.
         const ss = this.sdf ? SDF_SUPERSAMPLE : 1;
-        const dim = Math.ceil((this.renderSize * 2 + this.pad * 2) * ss);
+        const dim = Math.max(1, Math.min(Math.ceil(this.renderSize * 2 + this.pad * 2), this.maxGlyphSize)) * ss;
         this.canvas = platformCreateCanvas(dim, dim);
         this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
     }
@@ -120,7 +127,8 @@ export class CanvasGlyphRasterizer implements GlyphRasterizer {
         const ss = this.sdf ? SDF_SUPERSAMPLE : 1;
         const weight = (style & FONT_STYLE_BOLD) ? 'bold ' : '';
         const italic = (style & FONT_STYLE_ITALIC) ? 'italic ' : '';
-        ctx.font = `${italic}${weight}${pixelSize * ss}px ${fontFamily}`;
+        const font = `${italic}${weight}${pixelSize * ss}px ${fontFamily}`;
+        ctx.font = font;
         ctx.textBaseline = 'alphabetic';
         ctx.textAlign = 'left';
 
@@ -144,7 +152,15 @@ export class CanvasGlyphRasterizer implements GlyphRasterizer {
         const h = inkH + pad * 2;
         const wSS = w * ss;
         const hSS = h * ss;
-        if (wSS > this.canvas.width || hSS > this.canvas.height) return null; // glyph too large for scratch
+        if (w > this.maxGlyphSize || h > this.maxGlyphSize) return null;
+        if (wSS > this.canvas.width || hSS > this.canvas.height) {
+            if (wSS > this.canvas.width) this.canvas.width = wSS;
+            if (hSS > this.canvas.height) this.canvas.height = hSS;
+            // Canvas resizing resets drawing state, even when the context survives.
+            ctx.font = font;
+            ctx.textBaseline = 'alphabetic';
+            ctx.textAlign = 'left';
+        }
 
         ctx.clearRect(0, 0, wSS, hSS);
         ctx.fillStyle = '#ffffff';

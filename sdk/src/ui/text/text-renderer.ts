@@ -300,7 +300,7 @@ export class SdfTextRenderer {
         this.sdf = opts.sdf ?? true;
         const rasterizer = platformHasGlyphRasterizer()
             ? new NativeGlyphRasterizer({ renderSize: opts.renderSize, padding: opts.padding, sdf: this.sdf })
-            : new CanvasGlyphRasterizer(module, opts);
+            : new CanvasGlyphRasterizer(module, { ...opts, maxGlyphSize: Math.min(opts.maxGlyphSize ?? Infinity, opts.pageSize ?? 1024) });
         this.atlas = new GlyphAtlas(
             rasterizer,
             opts.metricsOnly ? null : new EngineAtlasPageStore(module),
