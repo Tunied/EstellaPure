@@ -69,11 +69,15 @@ void BatchPlugin::emitNineSlice(
     f32 T = border.z;
     f32 B = border.w;
     if (size.x == 0.0f || size.y == 0.0f) return;
+    if (uvScale.x < 0.0f) std::swap(L, R);
+    if (uvScale.y < 0.0f) std::swap(T, B);
 
     // Fit destination borders proportionally when the box is smaller than
     // their sum. Source UV borders still sample the original texture region.
-    const f32 sx = size.x >= 0.0f && L + R > 0.0f ? std::min(1.0f, size.x / (L + R)) : 1.0f;
-    const f32 sy = size.y >= 0.0f && T + B > 0.0f ? std::min(1.0f, size.y / (T + B)) : 1.0f;
+    const f32 directionX = std::copysign(1.0f, size.x);
+    const f32 directionY = std::copysign(1.0f, size.y);
+    const f32 sx = directionX * (L + R > 0.0f ? std::min(1.0f, std::abs(size.x) / (L + R)) : 1.0f);
+    const f32 sy = directionY * (T + B > 0.0f ? std::min(1.0f, std::abs(size.y) / (T + B)) : 1.0f);
 
     f32 baseX = position.x - size.x * pivotNorm.x;
     f32 baseY = position.y - size.y * pivotNorm.y;
@@ -83,13 +87,15 @@ void BatchPlugin::emitNineSlice(
 
     f32 u[4], v[4];
     if (texSize.x > 0.0f && texSize.y > 0.0f) {
+        const f32 uvDirectionX = std::copysign(1.0f, uvScale.x);
+        const f32 uvDirectionY = std::copysign(1.0f, uvScale.y);
         u[0] = uvOffset.x;
-        u[1] = uvOffset.x + L / texSize.x;
-        u[2] = uvOffset.x + uvScale.x - R / texSize.x;
+        u[1] = uvOffset.x + uvDirectionX * L / texSize.x;
+        u[2] = uvOffset.x + uvScale.x - uvDirectionX * R / texSize.x;
         u[3] = uvOffset.x + uvScale.x;
         v[0] = uvOffset.y;
-        v[1] = uvOffset.y + B / texSize.y;
-        v[2] = uvOffset.y + uvScale.y - T / texSize.y;
+        v[1] = uvOffset.y + uvDirectionY * B / texSize.y;
+        v[2] = uvOffset.y + uvScale.y - uvDirectionY * T / texSize.y;
         v[3] = uvOffset.y + uvScale.y;
     } else {
         u[0] = uvOffset.x;
@@ -110,7 +116,7 @@ void BatchPlugin::emitNineSlice(
         for (i32 col = 0; col < 3; ++col) {
             f32 pw = x[col + 1] - x[col];
             f32 ph = y[row + 1] - y[row];
-            if (pw <= 0.0f || ph <= 0.0f) continue;
+            if (pw * directionX <= 0.0f || ph * directionY <= 0.0f) continue;
 
             BatchVertex verts[4];
             verts[0] = { rotatePoint(position, x[col],     y[row],     cosA, sinA), pc, {u[col],     v[row]}     };

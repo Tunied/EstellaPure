@@ -320,6 +320,47 @@ TEST_CASE("nine-slice: small boxes contain their borders and preserve source UVs
     }
 }
 
+TEST_CASE("nine-slice: signed transforms and UV flips preserve every cell") {
+    NineSlicePlugin plugin;
+    const glm::vec3 position{13, 17, 0};
+    const glm::vec2 pivot{.25f, .75f}, uvOffset{.2f, .1f}, uvScale{.6f, .8f};
+    for (const glm::vec2 size : {glm::vec2{40, 30}, {10, 6}}) {
+        Harness reference;
+        plugin.emitNineSlice(reference.pool, reference.list, reference.clips, position, size, pivot,
+                            0, {100, 100}, {8, 12, 10, 6}, uvOffset, uvScale, {1, 1, 1, 1}, quadKey(1));
+        const u32 bytes = reference.pool.vertexBytesUsed(LayoutId::Batch);
+        const auto* original = reinterpret_cast<const BatchVertex*>(reference.pool.vertexData(LayoutId::Batch));
+        for (f32 signX : {1.0f, -1.0f}) for (f32 signY : {1.0f, -1.0f}) {
+            for (f32 flipX : {1.0f, -1.0f}) for (f32 flipY : {1.0f, -1.0f}) {
+                for (f32 angle : {0.0f, .4f}) {
+                    Harness h;
+                    const glm::vec2 offset = uvOffset + glm::vec2(flipX < 0 ? uvScale.x : 0, flipY < 0 ? uvScale.y : 0);
+                    plugin.emitNineSlice(h.pool, h.list, h.clips, position, size * glm::vec2(signX, signY), pivot,
+                                        angle, {100, 100}, {8, 12, 10, 6}, offset, uvScale * glm::vec2(flipX, flipY),
+                                        {1, 1, 1, 1}, quadKey(1));
+                    REQUIRE(h.pool.vertexBytesUsed(LayoutId::Batch) == bytes);
+                    CHECK(h.pool.indicesUsed(LayoutId::Batch) == reference.pool.indicesUsed(LayoutId::Batch));
+                    const auto* vertices = reinterpret_cast<const BatchVertex*>(h.pool.vertexData(LayoutId::Batch));
+                    for (u32 i = 0; i < bytes / sizeof(BatchVertex); ++i) {
+                        glm::vec2 local = glm::vec2(original[i].position) - glm::vec2(position);
+                        if (flipX < 0) local.x = size.x * (1 - 2 * pivot.x) - local.x;
+                        if (flipY < 0) local.y = size.y * (1 - 2 * pivot.y) - local.y;
+                        local *= glm::vec2(signX, signY);
+                        const glm::vec2 expected{position.x + local.x * std::cos(angle) - local.y * std::sin(angle),
+                                                 position.y + local.x * std::sin(angle) + local.y * std::cos(angle)};
+                        bool found = false;
+                        for (u32 j = 0; j < bytes / sizeof(BatchVertex); ++j) {
+                            found |= glm::length(glm::vec2(vertices[j].position) - expected) < .0001f
+                                  && glm::length(vertices[j].texCoord - original[i].texCoord) < .0001f;
+                        }
+                        CHECK(found);
+                    }
+                }
+            }
+        }
+    }
+}
+
 TEST_CASE("UI visuals: zero alpha skips geometry and a restored fade draws again") {
     for (auto mode : {ecs::UIVisualType::SolidColor, ecs::UIVisualType::Image,
                       ecs::UIVisualType::NineSlice, ecs::UIVisualType::Tiled,

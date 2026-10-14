@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(renderer): mirror nine-slice cells and texture borders':
+    { note: 'Nine-slice texture flips preserve asymmetric borders.' },
   'fix(renderer): fit nine-slice borders inside small boxes':
     { note: 'Small nine-slice visuals keep borders inside their box.' },
   'fix(docs): escape playable size limits in MDX':
