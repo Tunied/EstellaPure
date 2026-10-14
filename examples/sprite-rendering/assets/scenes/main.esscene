@@ -40,8 +40,8 @@
           "type": "Transform",
           "data": {
             "position": {
-              "x": -250,
-              "y": 150,
+              "x": -265,
+              "y": 145,
               "z": 0
             }
           }
@@ -50,15 +50,16 @@
           "type": "Sprite",
           "data": {
             "size": {
-              "x": 120,
-              "y": 40
+              "x": 68,
+              "y": 68
             },
             "color": {
               "r": 0.93,
               "g": 0.17,
               "b": 0.17,
               "a": 0.9
-            }
+            },
+            "texture": "@uuid:f4cc3e01-0940-499e-8bdd-b6440397290f"
           }
         },
         {
@@ -81,8 +82,8 @@
           "type": "Transform",
           "data": {
             "position": {
-              "x": -230,
-              "y": 90,
+              "x": -252,
+              "y": 107,
               "z": 0
             }
           }
@@ -91,8 +92,8 @@
           "type": "Sprite",
           "data": {
             "size": {
-              "x": 120,
-              "y": 40
+              "x": 68,
+              "y": 68
             },
             "color": {
               "r": 0.93,
@@ -100,7 +101,8 @@
               "b": 0.17,
               "a": 0.9
             },
-            "layer": 1
+            "layer": 1,
+            "texture": "@uuid:f4cc3e01-0940-499e-8bdd-b6440397290f"
           }
         },
         {
@@ -124,8 +126,8 @@
           "type": "Transform",
           "data": {
             "position": {
-              "x": -210,
-              "y": 30,
+              "x": -239,
+              "y": 69,
               "z": 0
             }
           }
@@ -134,8 +136,8 @@
           "type": "Sprite",
           "data": {
             "size": {
-              "x": 120,
-              "y": 40
+              "x": 68,
+              "y": 68
             },
             "color": {
               "r": 0.55,
@@ -143,7 +145,8 @@
               "b": 0.17,
               "a": 0.9
             },
-            "layer": 2
+            "layer": 2,
+            "texture": "@uuid:f4cc3e01-0940-499e-8bdd-b6440397290f"
           }
         },
         {
@@ -167,8 +170,8 @@
           "type": "Transform",
           "data": {
             "position": {
-              "x": -190,
-              "y": -30,
+              "x": -226,
+              "y": 31,
               "z": 0
             }
           }
@@ -177,8 +180,8 @@
           "type": "Sprite",
           "data": {
             "size": {
-              "x": 120,
-              "y": 40
+              "x": 68,
+              "y": 68
             },
             "color": {
               "r": 0.17,
@@ -186,7 +189,8 @@
               "b": 0.36,
               "a": 0.9
             },
-            "layer": 3
+            "layer": 3,
+            "texture": "@uuid:f4cc3e01-0940-499e-8bdd-b6440397290f"
           }
         },
         {
@@ -210,8 +214,8 @@
           "type": "Transform",
           "data": {
             "position": {
-              "x": -170,
-              "y": -90,
+              "x": -213,
+              "y": -7,
               "z": 0
             }
           }
@@ -220,8 +224,8 @@
           "type": "Sprite",
           "data": {
             "size": {
-              "x": 120,
-              "y": 40
+              "x": 68,
+              "y": 68
             },
             "color": {
               "r": 0.17,
@@ -229,7 +233,8 @@
               "b": 0.93,
               "a": 0.9
             },
-            "layer": 4
+            "layer": 4,
+            "texture": "@uuid:f4cc3e01-0940-499e-8bdd-b6440397290f"
           }
         },
         {
@@ -253,8 +258,8 @@
           "type": "Transform",
           "data": {
             "position": {
-              "x": -150,
-              "y": -150,
+              "x": -200,
+              "y": -45,
               "z": 0
             }
           }
@@ -263,8 +268,8 @@
           "type": "Sprite",
           "data": {
             "size": {
-              "x": 120,
-              "y": 40
+              "x": 68,
+              "y": 68
             },
             "color": {
               "r": 0.17,
@@ -272,7 +277,8 @@
               "b": 0.93,
               "a": 0.9
             },
-            "layer": 5
+            "layer": 5,
+            "texture": "@uuid:f4cc3e01-0940-499e-8bdd-b6440397290f"
           }
         },
         {
@@ -296,8 +302,8 @@
           "type": "Transform",
           "data": {
             "position": {
-              "x": -130,
-              "y": -210,
+              "x": -187,
+              "y": -83,
               "z": 0
             }
           }
@@ -306,8 +312,8 @@
           "type": "Sprite",
           "data": {
             "size": {
-              "x": 120,
-              "y": 40
+              "x": 68,
+              "y": 68
             },
             "color": {
               "r": 0.55,
@@ -315,7 +321,8 @@
               "b": 0.93,
               "a": 0.9
             },
-            "layer": 6
+            "layer": 6,
+            "texture": "@uuid:f4cc3e01-0940-499e-8bdd-b6440397290f"
           }
         },
         {
@@ -339,8 +346,8 @@
           "type": "Transform",
           "data": {
             "position": {
-              "x": -110,
-              "y": -270,
+              "x": -174,
+              "y": -121,
               "z": 0
             }
           }
@@ -349,8 +356,8 @@
           "type": "Sprite",
           "data": {
             "size": {
-              "x": 120,
-              "y": 40
+              "x": 68,
+              "y": 68
             },
             "color": {
               "r": 0.93,
@@ -358,7 +365,8 @@
               "b": 0.74,
               "a": 0.9
             },
-            "layer": 7
+            "layer": 7,
+            "texture": "@uuid:f4cc3e01-0940-499e-8bdd-b6440397290f"
           }
         },
         {
@@ -392,11 +400,11 @@
           "type": "Sprite",
           "data": {
             "size": {
-              "x": 40,
-              "y": 40
+              "x": 76,
+              "y": 76
             },
             "layer": 10,
-            "texture": "@uuid:ac9483ea-42c0-4fce-8a31-cf4cdc224330"
+            "texture": "@uuid:46f5935f-b90e-45fc-a36d-103016f5d654"
           }
         }
       ],
@@ -422,17 +430,17 @@
           "type": "Sprite",
           "data": {
             "size": {
-              "x": 24,
-              "y": 24
+              "x": 30,
+              "y": 30
             },
             "color": {
               "r": 0.96,
               "g": 0.24,
               "b": 0.24,
-              "a": 1
+              "a": 0.5
             },
             "layer": 11,
-            "texture": "@uuid:ac9483ea-42c0-4fce-8a31-cf4cdc224330"
+            "texture": "@uuid:00e230dd-a215-44dc-af21-8322d452a977"
           }
         },
         {
@@ -465,17 +473,17 @@
           "type": "Sprite",
           "data": {
             "size": {
-              "x": 24,
-              "y": 24
+              "x": 30,
+              "y": 30
             },
             "color": {
               "r": 0.96,
               "g": 0.96,
               "b": 0.24,
-              "a": 1
+              "a": 0.6
             },
             "layer": 11,
-            "texture": "@uuid:ac9483ea-42c0-4fce-8a31-cf4cdc224330"
+            "texture": "@uuid:00e230dd-a215-44dc-af21-8322d452a977"
           }
         },
         {
@@ -510,17 +518,17 @@
           "type": "Sprite",
           "data": {
             "size": {
-              "x": 24,
-              "y": 24
+              "x": 30,
+              "y": 30
             },
             "color": {
               "r": 0.24,
               "g": 0.96,
               "b": 0.24,
-              "a": 1
+              "a": 0.7
             },
             "layer": 11,
-            "texture": "@uuid:ac9483ea-42c0-4fce-8a31-cf4cdc224330"
+            "texture": "@uuid:00e230dd-a215-44dc-af21-8322d452a977"
           }
         },
         {
@@ -555,17 +563,17 @@
           "type": "Sprite",
           "data": {
             "size": {
-              "x": 24,
-              "y": 24
+              "x": 30,
+              "y": 30
             },
             "color": {
               "r": 0.24,
               "g": 0.96,
               "b": 0.96,
-              "a": 1
+              "a": 0.8
             },
             "layer": 11,
-            "texture": "@uuid:ac9483ea-42c0-4fce-8a31-cf4cdc224330"
+            "texture": "@uuid:00e230dd-a215-44dc-af21-8322d452a977"
           }
         },
         {
@@ -600,17 +608,17 @@
           "type": "Sprite",
           "data": {
             "size": {
-              "x": 24,
-              "y": 24
+              "x": 30,
+              "y": 30
             },
             "color": {
               "r": 0.24,
               "g": 0.24,
               "b": 0.96,
-              "a": 1
+              "a": 0.9
             },
             "layer": 11,
-            "texture": "@uuid:ac9483ea-42c0-4fce-8a31-cf4cdc224330"
+            "texture": "@uuid:00e230dd-a215-44dc-af21-8322d452a977"
           }
         },
         {
@@ -645,17 +653,17 @@
           "type": "Sprite",
           "data": {
             "size": {
-              "x": 24,
-              "y": 24
+              "x": 30,
+              "y": 30
             },
             "color": {
               "r": 0.96,
               "g": 0.24,
               "b": 0.96,
-              "a": 1
+              "a": 1.0
             },
             "layer": 11,
-            "texture": "@uuid:ac9483ea-42c0-4fce-8a31-cf4cdc224330"
+            "texture": "@uuid:00e230dd-a215-44dc-af21-8322d452a977"
           }
         },
         {
@@ -680,8 +688,8 @@
           "type": "Transform",
           "data": {
             "position": {
-              "x": -90,
-              "y": -200,
+              "x": -285,
+              "y": -220,
               "z": 0
             }
           }
@@ -690,8 +698,8 @@
           "type": "Sprite",
           "data": {
             "size": {
-              "x": 50,
-              "y": 30
+              "x": 62,
+              "y": 62
             },
             "color": {
               "r": 0.4,
@@ -700,7 +708,7 @@
               "a": 1
             },
             "layer": 5,
-            "texture": "@uuid:d7cfc683-b474-4c6a-bedf-c5149593510a"
+            "texture": "@uuid:79ee30b8-02f3-437f-8bc0-2c473de88962"
           }
         },
         {
@@ -720,8 +728,8 @@
           "type": "Transform",
           "data": {
             "position": {
-              "x": -10,
-              "y": -200,
+              "x": -210,
+              "y": -220,
               "z": 0
             }
           }
@@ -730,8 +738,8 @@
           "type": "Sprite",
           "data": {
             "size": {
-              "x": 50,
-              "y": 30
+              "x": 62,
+              "y": 62
             },
             "color": {
               "r": 0.4,
@@ -741,7 +749,7 @@
             },
             "flipX": true,
             "layer": 5,
-            "texture": "@uuid:d7cfc683-b474-4c6a-bedf-c5149593510a"
+            "texture": "@uuid:79ee30b8-02f3-437f-8bc0-2c473de88962"
           }
         },
         {
@@ -761,8 +769,8 @@
           "type": "Transform",
           "data": {
             "position": {
-              "x": 70,
-              "y": -200,
+              "x": -135,
+              "y": -220,
               "z": 0
             }
           }
@@ -771,8 +779,8 @@
           "type": "Sprite",
           "data": {
             "size": {
-              "x": 50,
-              "y": 30
+              "x": 62,
+              "y": 62
             },
             "color": {
               "r": 0.4,
@@ -782,7 +790,7 @@
             },
             "flipY": true,
             "layer": 5,
-            "texture": "@uuid:d7cfc683-b474-4c6a-bedf-c5149593510a"
+            "texture": "@uuid:79ee30b8-02f3-437f-8bc0-2c473de88962"
           }
         },
         {
@@ -802,8 +810,8 @@
           "type": "Transform",
           "data": {
             "position": {
-              "x": 150,
-              "y": -200,
+              "x": -60,
+              "y": -220,
               "z": 0
             }
           }
@@ -812,8 +820,8 @@
           "type": "Sprite",
           "data": {
             "size": {
-              "x": 50,
-              "y": 30
+              "x": 62,
+              "y": 62
             },
             "color": {
               "r": 0.4,
@@ -824,7 +832,7 @@
             "flipX": true,
             "flipY": true,
             "layer": 5,
-            "texture": "@uuid:d7cfc683-b474-4c6a-bedf-c5149593510a"
+            "texture": "@uuid:79ee30b8-02f3-437f-8bc0-2c473de88962"
           }
         },
         {
@@ -848,8 +856,8 @@
           "type": "Transform",
           "data": {
             "position": {
-              "x": 250,
-              "y": -190,
+              "x": 210,
+              "y": -220,
               "z": 0
             }
           }
@@ -885,8 +893,8 @@
           "type": "Sprite",
           "data": {
             "size": {
-              "x": 120,
-              "y": 120
+              "x": 80,
+              "y": 80
             },
             "color": {
               "r": 0.18,
@@ -895,7 +903,8 @@
               "a": 1
             },
             "layer": 9,
-            "order": 0
+            "order": 0,
+            "texture": "@uuid:46f5935f-b90e-45fc-a36d-103016f5d654"
           }
         }
       ]
@@ -921,8 +930,8 @@
           "type": "Sprite",
           "data": {
             "size": {
-              "x": 70,
-              "y": 70
+              "x": 56,
+              "y": 56
             },
             "color": {
               "r": 0.99,
@@ -931,7 +940,2129 @@
               "a": 1
             },
             "layer": 0,
-            "order": 1
+            "order": 1,
+            "texture": "@uuid:7263aa3e-66b5-479f-b248-7c9ce08cd0a5"
+          }
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "name": "Space background",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 800,
+              "y": 600
+            },
+            "color": {
+              "r": 0.045,
+              "g": 0.063,
+              "b": 0.1,
+              "a": 1
+            },
+            "layer": -30
+          }
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "name": "Fleet panel",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -190,
+              "y": 15,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 350,
+              "y": 350
+            },
+            "color": {
+              "r": 0.075,
+              "g": 0.105,
+              "b": 0.155,
+              "a": 1
+            },
+            "layer": -20
+          }
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "name": "Orbit panel",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 200,
+              "y": 15,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 340,
+              "y": 350
+            },
+            "color": {
+              "r": 0.075,
+              "g": 0.105,
+              "b": 0.155,
+              "a": 1
+            },
+            "layer": -20
+          }
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "name": "Flip panel",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -190,
+              "y": -225,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 350,
+              "y": 110
+            },
+            "color": {
+              "r": 0.075,
+              "g": 0.105,
+              "b": 0.155,
+              "a": 1
+            },
+            "layer": -20
+          }
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "name": "Group panel",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 200,
+              "y": -225,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 340,
+              "y": 110
+            },
+            "color": {
+              "r": 0.075,
+              "g": 0.105,
+              "b": 0.155,
+              "a": 1
+            },
+            "layer": -20
+          }
+        }
+      ]
+    },
+    {
+      "id": 28,
+      "name": "Starfield 00",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -372,
+              "y": -267,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 3,
+              "y": 3
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "name": "Starfield 01",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -235,
+              "y": -184,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 4,
+              "y": 4
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "name": "Starfield 02",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -98,
+              "y": -101,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 5,
+              "y": 5
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 31,
+      "name": "Starfield 03",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 39,
+              "y": -18,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 3,
+              "y": 3
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "name": "Starfield 04",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 176,
+              "y": 65,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 4,
+              "y": 4
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 33,
+      "name": "Starfield 05",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 313,
+              "y": 148,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 5,
+              "y": 5
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 34,
+      "name": "Starfield 06",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -294,
+              "y": 231,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 3,
+              "y": 3
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 35,
+      "name": "Starfield 07",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -157,
+              "y": -220,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 4,
+              "y": 4
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 36,
+      "name": "Starfield 08",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -20,
+              "y": -137,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 5,
+              "y": 5
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 37,
+      "name": "Starfield 09",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 117,
+              "y": -54,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 3,
+              "y": 3
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 38,
+      "name": "Starfield 10",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 254,
+              "y": 29,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 4,
+              "y": 4
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 39,
+      "name": "Starfield 11",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -353,
+              "y": 112,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 5,
+              "y": 5
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 40,
+      "name": "Starfield 12",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -216,
+              "y": 195,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 3,
+              "y": 3
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 41,
+      "name": "Starfield 13",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -79,
+              "y": -256,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 4,
+              "y": 4
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 42,
+      "name": "Starfield 14",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 58,
+              "y": -173,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 5,
+              "y": 5
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 43,
+      "name": "Starfield 15",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 195,
+              "y": -90,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 3,
+              "y": 3
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 44,
+      "name": "Starfield 16",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 332,
+              "y": -7,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 4,
+              "y": 4
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 45,
+      "name": "Starfield 17",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -275,
+              "y": 76,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 5,
+              "y": 5
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 46,
+      "name": "Starfield 18",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -138,
+              "y": 159,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 3,
+              "y": 3
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 47,
+      "name": "Starfield 19",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -1,
+              "y": 242,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 4,
+              "y": 4
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 48,
+      "name": "Starfield 20",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 136,
+              "y": -209,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 5,
+              "y": 5
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 49,
+      "name": "Starfield 21",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 273,
+              "y": -126,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 3,
+              "y": 3
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 50,
+      "name": "Starfield 22",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -334,
+              "y": -43,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 4,
+              "y": 4
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 51,
+      "name": "Starfield 23",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -197,
+              "y": 40,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 5,
+              "y": 5
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 52,
+      "name": "Starfield 24",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -60,
+              "y": 123,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 3,
+              "y": 3
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 53,
+      "name": "Starfield 25",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 77,
+              "y": 206,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 4,
+              "y": 4
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 54,
+      "name": "Starfield 26",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 214,
+              "y": -245,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 5,
+              "y": 5
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 55,
+      "name": "Starfield 27",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 351,
+              "y": -162,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 3,
+              "y": 3
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 56,
+      "name": "Starfield 28",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -256,
+              "y": -79,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 4,
+              "y": 4
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 57,
+      "name": "Starfield 29",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -119,
+              "y": 4,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 5,
+              "y": 5
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 58,
+      "name": "Starfield 30",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 18,
+              "y": 87,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 3,
+              "y": 3
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 59,
+      "name": "Starfield 31",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 155,
+              "y": 170,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 4,
+              "y": 4
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 60,
+      "name": "Starfield 32",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 292,
+              "y": 253,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 5,
+              "y": 5
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 61,
+      "name": "Starfield 33",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -315,
+              "y": -198,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 3,
+              "y": 3
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 62,
+      "name": "Starfield 34",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -178,
+              "y": -115,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 4,
+              "y": 4
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 63,
+      "name": "Starfield 35",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -41,
+              "y": -32,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 5,
+              "y": 5
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 64,
+      "name": "Starfield 36",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 96,
+              "y": 51,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 3,
+              "y": 3
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 65,
+      "name": "Starfield 37",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 233,
+              "y": 134,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 4,
+              "y": 4
+            },
+            "color": {
+              "r": 0.38,
+              "g": 0.49,
+              "b": 0.65,
+              "a": 0.65
+            },
+            "layer": -25,
+            "texture": "@uuid:04479859-ffa4-4c5f-ba77-29da64204a26"
+          }
+        }
+      ]
+    },
+    {
+      "id": 66,
+      "name": "Labels",
+      "parent": null,
+      "children": [
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "Canvas",
+          "data": {
+            "designResolution": {
+              "x": 800,
+              "y": 600
+            },
+            "scaleMode": 2
+          }
+        },
+        {
+          "type": "UINode",
+          "data": {}
+        }
+      ]
+    },
+    {
+      "id": 67,
+      "name": "Title",
+      "parent": 66,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "UINode",
+          "data": {
+            "position": 1,
+            "insetLeft": {
+              "unit": 0,
+              "value": 32
+            },
+            "insetTop": {
+              "unit": 0,
+              "value": 16
+            },
+            "width": {
+              "unit": 0,
+              "value": 740
+            },
+            "height": {
+              "unit": 0,
+              "value": 30
+            },
+            "pointerEvents": 1
+          }
+        },
+        {
+          "type": "Text",
+          "data": {
+            "content": "SPRITE LAB   /   SPACE",
+            "fontSize": 24,
+            "color": {
+              "r": 1,
+              "g": 0.76,
+              "b": 0.41,
+              "a": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 68,
+      "name": "Subtitle",
+      "parent": 66,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "UINode",
+          "data": {
+            "position": 1,
+            "insetLeft": {
+              "unit": 0,
+              "value": 32
+            },
+            "insetTop": {
+              "unit": 0,
+              "value": 51
+            },
+            "width": {
+              "unit": 0,
+              "value": 744
+            },
+            "height": {
+              "unit": 0,
+              "value": 30
+            },
+            "pointerEvents": 1
+          }
+        },
+        {
+          "type": "Text",
+          "data": {
+            "content": "One white texture. Eight tints. Independent movement and painter order.",
+            "fontSize": 13,
+            "color": {
+              "r": 0.65,
+              "g": 0.76,
+              "b": 0.9,
+              "a": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 69,
+      "name": "Fleet label",
+      "parent": 66,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "UINode",
+          "data": {
+            "position": 1,
+            "insetLeft": {
+              "unit": 0,
+              "value": 48
+            },
+            "insetTop": {
+              "unit": 0,
+              "value": 82
+            },
+            "width": {
+              "unit": 0,
+              "value": 320
+            },
+            "height": {
+              "unit": 0,
+              "value": 30
+            },
+            "pointerEvents": 1
+          }
+        },
+        {
+          "type": "Text",
+          "data": {
+            "content": "01  TINT + DRAW LAYERS",
+            "fontSize": 14,
+            "color": {
+              "r": 0.65,
+              "g": 0.76,
+              "b": 0.9,
+              "a": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 70,
+      "name": "Orbit label",
+      "parent": 66,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "UINode",
+          "data": {
+            "position": 1,
+            "insetLeft": {
+              "unit": 0,
+              "value": 448
+            },
+            "insetTop": {
+              "unit": 0,
+              "value": 82
+            },
+            "width": {
+              "unit": 0,
+              "value": 300
+            },
+            "height": {
+              "unit": 0,
+              "value": 30
+            },
+            "pointerEvents": 1
+          }
+        },
+        {
+          "type": "Text",
+          "data": {
+            "content": "02  ORBIT + ALPHA",
+            "fontSize": 14,
+            "color": {
+              "r": 0.65,
+              "g": 0.76,
+              "b": 0.9,
+              "a": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 71,
+      "name": "Flip label",
+      "parent": 66,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "UINode",
+          "data": {
+            "position": 1,
+            "insetLeft": {
+              "unit": 0,
+              "value": 48
+            },
+            "insetTop": {
+              "unit": 0,
+              "value": 452
+            },
+            "width": {
+              "unit": 0,
+              "value": 320
+            },
+            "height": {
+              "unit": 0,
+              "value": 30
+            },
+            "pointerEvents": 1
+          }
+        },
+        {
+          "type": "Text",
+          "data": {
+            "content": "03  ROTATE + FLIP",
+            "fontSize": 14,
+            "color": {
+              "r": 0.65,
+              "g": 0.76,
+              "b": 0.9,
+              "a": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 72,
+      "name": "Group label",
+      "parent": 66,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "UINode",
+          "data": {
+            "position": 1,
+            "insetLeft": {
+              "unit": 0,
+              "value": 448
+            },
+            "insetTop": {
+              "unit": 0,
+              "value": 452
+            },
+            "width": {
+              "unit": 0,
+              "value": 300
+            },
+            "height": {
+              "unit": 0,
+              "value": 30
+            },
+            "pointerEvents": 1
+          }
+        },
+        {
+          "type": "Text",
+          "data": {
+            "content": "04  SORTING GROUP",
+            "fontSize": 14,
+            "color": {
+              "r": 0.65,
+              "g": 0.76,
+              "b": 0.9,
+              "a": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 73,
+      "name": "Flip caption 0",
+      "parent": 66,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "UINode",
+          "data": {
+            "position": 1,
+            "insetLeft": {
+              "unit": 0,
+              "value": 80
+            },
+            "insetTop": {
+              "unit": 0,
+              "value": 556
+            },
+            "width": {
+              "unit": 0,
+              "value": 73
+            },
+            "height": {
+              "unit": 0,
+              "value": 30
+            },
+            "pointerEvents": 1
+          }
+        },
+        {
+          "type": "Text",
+          "data": {
+            "content": "NORMAL",
+            "fontSize": 10,
+            "color": {
+              "r": 0.65,
+              "g": 0.76,
+              "b": 0.9,
+              "a": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 74,
+      "name": "Flip caption 1",
+      "parent": 66,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "UINode",
+          "data": {
+            "position": 1,
+            "insetLeft": {
+              "unit": 0,
+              "value": 155
+            },
+            "insetTop": {
+              "unit": 0,
+              "value": 556
+            },
+            "width": {
+              "unit": 0,
+              "value": 73
+            },
+            "height": {
+              "unit": 0,
+              "value": 30
+            },
+            "pointerEvents": 1
+          }
+        },
+        {
+          "type": "Text",
+          "data": {
+            "content": "FLIP X",
+            "fontSize": 10,
+            "color": {
+              "r": 0.65,
+              "g": 0.76,
+              "b": 0.9,
+              "a": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 75,
+      "name": "Flip caption 2",
+      "parent": 66,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "UINode",
+          "data": {
+            "position": 1,
+            "insetLeft": {
+              "unit": 0,
+              "value": 230
+            },
+            "insetTop": {
+              "unit": 0,
+              "value": 556
+            },
+            "width": {
+              "unit": 0,
+              "value": 73
+            },
+            "height": {
+              "unit": 0,
+              "value": 30
+            },
+            "pointerEvents": 1
+          }
+        },
+        {
+          "type": "Text",
+          "data": {
+            "content": "FLIP Y",
+            "fontSize": 10,
+            "color": {
+              "r": 0.65,
+              "g": 0.76,
+              "b": 0.9,
+              "a": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 76,
+      "name": "Flip caption 3",
+      "parent": 66,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "UINode",
+          "data": {
+            "position": 1,
+            "insetLeft": {
+              "unit": 0,
+              "value": 305
+            },
+            "insetTop": {
+              "unit": 0,
+              "value": 556
+            },
+            "width": {
+              "unit": 0,
+              "value": 73
+            },
+            "height": {
+              "unit": 0,
+              "value": 30
+            },
+            "pointerEvents": 1
+          }
+        },
+        {
+          "type": "Text",
+          "data": {
+            "content": "FLIP XY",
+            "fontSize": 10,
+            "color": {
+              "r": 0.65,
+              "g": 0.76,
+              "b": 0.9,
+              "a": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 77,
+      "name": "Footer",
+      "parent": 66,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "UINode",
+          "data": {
+            "position": 1,
+            "insetLeft": {
+              "unit": 0,
+              "value": 448
+            },
+            "insetTop": {
+              "unit": 0,
+              "value": 560
+            },
+            "width": {
+              "unit": 0,
+              "value": 320
+            },
+            "height": {
+              "unit": 0,
+              "value": 30
+            },
+            "pointerEvents": 1
+          }
+        },
+        {
+          "type": "Text",
+          "data": {
+            "content": "CC0 artwork: Kenney Simple Space",
+            "fontSize": 11,
+            "color": {
+              "r": 0.65,
+              "g": 0.76,
+              "b": 0.9,
+              "a": 1
+            }
           }
         }
       ]

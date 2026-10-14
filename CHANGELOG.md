@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Changed
+
+- **Sprite rendering has a complete space art example.** CC0 ships, meteors and stations replace the basic bars and dots, with editable labels and four demonstration areas. Tint, overlapping draw layers, orbital motion, alpha, texture flips and SortingGroup retain their original teaching behavior; the example includes asset sources and licenses.
+
 ### Added
 
 - **Mobile controls share InputMap and device capability results.** Fixed/follow virtual joysticks and held buttons support independent touches, mouse Play preview, radial dead zones and cancellation. Web, mini-game and native adapters expose motion, vibration and screen wake with explicit unavailable/denied results; browser fullscreen and pointer lock observe exits. The Mobile Controls example demonstrates the workflow. Physical device acceptance remains pending.

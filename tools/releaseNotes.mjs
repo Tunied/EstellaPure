@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(examples): refresh sprite rendering with CC0 space art':
+    { note: 'Sprite rendering has a complete space art example.' },
   'perf(renderer): coalesce sorted 2d batch index gaps':
     { note: 'Sorted 2D batches join across emission index gaps.' },
   'fix(inspector): read current native parent membership in runtime snapshots':
