@@ -29,6 +29,23 @@ function makeAtlas(pageSize: number): GlyphAtlas {
 }
 
 describe('REARCH_GUI P1.3b: drawTextWith', () => {
+    it('applies inherited opacity to explicit rich colors and invalidates cached geometry', () => {
+        const atlas = makeAtlas(1024);
+        const sink = vi.fn();
+        const params: DrawTextParams = {
+            text: '<color=#ff000080>A</color>', fontFamily: 'Arial', fontSizePx: 24,
+            color: [1, 1, 1, 1], richText: true, opacity: 0.5,
+        };
+        drawTextWith(atlas, sink, params);
+        expect(sink).toHaveBeenCalledTimes(1);
+        expect((sink.mock.calls[0][0] as Float32Array)[7]).toBeCloseTo(128 / 255 * 0.5);
+        expect(signatureOf(params)).not.toBe(signatureOf({ ...params, opacity: 1 }));
+        expect(signatureOf({ ...params, opacity: undefined })).toBe(signatureOf({ ...params, opacity: 1 }));
+        sink.mockClear();
+        drawTextWith(atlas, sink, { ...params, opacity: 0 });
+        expect(sink).not.toHaveBeenCalled();
+    });
+
     it('emits one batch covering all glyphs when they fit on a single page', () => {
         const atlas = makeAtlas(1024);
         const sink = vi.fn();

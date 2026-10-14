@@ -18,7 +18,7 @@ import { NativeGlyphRasterizer } from './native-glyph-rasterizer';
 import { EngineAtlasPageStore } from './atlas-page-store';
 import { TextAlign, TextVerticalAlign, TextOverflow } from '../core/text';
 import { layoutText, buildGlyphVertices, type LaidGlyph, type RGBA } from './layout';
-import { submitTextBatch } from './submit';
+import { submitTextBatch, TEXT_VERTEX_FLOATS } from './submit';
 
 /** Receives one (vertices, indices) batch per atlas page used by the text. */
 export type GlyphBatchSink = (vertices: Float32Array, indices: Uint16Array, pageId: number) => void;
@@ -28,6 +28,8 @@ export interface DrawTextParams {
     fontFamily: string;
     fontSizePx: number;
     color: RGBA;
+    /** Inherited opacity applied to every fill, rich-color, shadow and outline vertex. */
+    opacity?: number;
     originX?: number;
     originY?: number;
     style?: number;
@@ -172,6 +174,8 @@ export function textBlockOriginY(
  * and geometry are unit-testable.
  */
 export function drawTextWith(atlas: GlyphAtlas, sink: GlyphBatchSink, p: DrawTextParams): void {
+    const opacity = p.opacity ?? 1;
+    if (opacity <= 0) return;
     const layout = layoutText(p.text, atlas, p.fontFamily, {
         fontSizePx: p.fontSizePx,
         letterSpacing: p.letterSpacing,
@@ -212,6 +216,9 @@ export function drawTextWith(atlas: GlyphAtlas, sink: GlyphBatchSink, p: DrawTex
     const emitPass = (color: RGBA, dx: number, dy: number, bias = 0): void => {
         for (const [pageId, glyphs] of byPage) {
             const { vertices, indices } = buildGlyphVertices(glyphs, color, baseX + dx, originY + dy, bias);
+            if (opacity !== 1) {
+                for (let i = 7; i < vertices.length; i += TEXT_VERTEX_FLOATS) vertices[i] *= opacity;
+            }
             sink(vertices, indices, pageId);
         }
     };
@@ -347,6 +354,6 @@ export function signatureOf(p: DrawTextParams): string {
         p.maxWidth ?? 0, p.boxWidth ?? 0, p.boxHeight ?? 0,
         p.overflow ?? TextOverflow.Visible,
         p.originX ?? 0, p.originY ?? 0,
-        p.color.join(','), shadow, outline,
+        p.color.join(','), p.opacity ?? 1, shadow, outline,
     ]);
 }

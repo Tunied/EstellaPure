@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ui): apply inherited opacity to all text passes':
+    { note: 'UI text effects follow inherited opacity.' },
   'test(renderer): cover clip recovery between camera passes':
     { internal: 'adds cross-camera regression coverage for empty text and skeletal clips and their recovery; no runtime behavior changes' },
   'fix(release): deploy website after mirrored metadata is ready':

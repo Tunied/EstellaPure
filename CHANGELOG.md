@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **UI text effects follow inherited opacity.** Parent transparency now fades text shadows, outlines and explicit rich-text colors together with the fill. Opacity changes invalidate cached batches, and fully transparent subtrees skip glyph layout and submission until they become visible again.
+
 - **Release websites wait for mirrored download metadata.** Documentation deployment starts after the release mirror completes and rejects a latest.json version that differs from the site build, preventing a freshly published page from reverting its version label and download sizes to the previous release.
 
 - **Hidden text and skeletal batches skip vertex conversion.** Camera masks and empty scissors are checked before transforming caller-provided vertices, allocating transient storage or resolving shaders. The same visibility helper preserves SortingGroup layers and explicit text culling bits; visible batches retain their original geometry and per-type statistics.

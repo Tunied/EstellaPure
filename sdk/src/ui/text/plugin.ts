@@ -162,6 +162,7 @@ export class TextPlugin implements Plugin {
             // display:none anywhere up the UI tree hides this text too.
             if (api?.getUINodeHiddenInTree?.(registry, entity)) continue;
             const groupAlpha = api?.getUINodeAlphaInTree?.(registry, entity) ?? 1;
+            if (groupAlpha <= 0) continue;
             seen.add(entity as number);
 
             const tr = world.get(entity, Transform) as TransformData;
@@ -229,7 +230,8 @@ export class TextPlugin implements Plugin {
                     // Subtree opacity (UINode.opacity) is resolved in C++ by the
                     // layout pass; text is drawn here, so it multiplies the same
                     // inherited alpha in and fades with its panel like visuals do.
-                    color: [t.color.r, t.color.g, t.color.b, t.color.a * groupAlpha],
+                    color: [t.color.r, t.color.g, t.color.b, t.color.a],
+                    opacity: groupAlpha,
                     style,
                     richText: t.richText,
                     align: t.align,

@@ -177,6 +177,34 @@ function buildScene(app: ReturnType<typeof createNativeApp>, setScene: (canvas: 
 }
 
 describe('a frame on the native core', () => {
+    it('fades text fill, shadow and outline together and skips transparent subtrees', async () => {
+        const { scope, submitSpy, setScene } = makeHostScope();
+        let alpha = 0.5;
+        scope.es_getUINodeAlphaInTree = () => alpha;
+        const app = createNativeApp(makeBridge(scope), scope);
+        await app.tick(0);
+        const label = buildScene(app, setScene);
+        app.world.insert(label, Text, {
+            content: 'Fade', fontSize: 32, renderMode: TextRenderMode.Sdf,
+            color: { r: 1, g: 1, b: 1, a: 0.8 },
+            shadowOffsetX: 1, shadowColor: { r: 0, g: 0, b: 0, a: 0.6 },
+            strokeWidth: 1, strokeColor: { r: 0, g: 0, b: 0, a: 0.4 },
+        });
+        await app.tick(1 / 60);
+        expect(submitSpy).toHaveBeenCalledTimes(3);
+        expect((submitSpy.mock.calls[0][0] as Float32Array)[7]).toBeCloseTo(0.3);
+        expect((submitSpy.mock.calls[1][0] as Float32Array)[7]).toBeCloseTo(0.2);
+        expect((submitSpy.mock.calls[2][0] as Float32Array)[7]).toBeCloseTo(0.4);
+        alpha = 0;
+        submitSpy.mockClear();
+        await app.tick(1 / 60);
+        expect(submitSpy).not.toHaveBeenCalled();
+        alpha = 1;
+        await app.tick(1 / 60);
+        expect(submitSpy).toHaveBeenCalledTimes(3);
+        expect((submitSpy.mock.calls[2][0] as Float32Array)[7]).toBeCloseTo(0.8);
+    });
+
     it('renders the scene through the SDK pipeline, text and all', async () => {
         const { scope, uploads, calls, rasterizeSpy, submitSpy, beginSpy, setScene } = makeHostScope();
         const app = createNativeApp(makeBridge(scope), scope);
