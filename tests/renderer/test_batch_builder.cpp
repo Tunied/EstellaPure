@@ -270,6 +270,45 @@ TEST_CASE("camera mask: hidden text and skeletal submissions upload no geometry"
     CHECK(frame.stats().triangles == 4);
 }
 
+TEST_CASE("camera passes: empty text and skeletal clips recover on the next camera") {
+    MockGfxDevice device;
+    RenderContext context(device);
+    resource::ResourceManager resources;
+    ecs::Registry registry;
+    RenderFrame frame(device, context, resources);
+    frame.init(64, 64);
+    const glm::mat4 transform(1.0f);
+    const f32 text[36] = {};
+    const f32 skeletal[32] = {};
+    const u16 indices[] = {0, 1, 2, 2, 3, 0};
+    for (const auto& size : {std::pair{0, 10}, std::pair{10, 0}, std::pair{-1, 10}, std::pair{10, -1}}) {
+        frame.beginFrame();
+        frame.begin(transform);
+        frame.setEntityClipRect(1, 0, 0, size.first, size.second);
+        frame.setEntityClipRect(2, 0, 0, size.first, size.second);
+        frame.collectAll(registry);
+        const int uploads = device.updateBufferCalls;
+        frame.submitTextBatch(text, 4, indices, 6, 1, &transform[0][0], Entity(1), 0, 0, false);
+        frame.submitSkeletalBatch(skeletal, 4, indices, 6, 1, 0, &transform[0][0], Entity(2), 0, 0, 0, false);
+        frame.flush();
+        CHECK(device.updateBufferCalls == uploads);
+        CHECK(frame.stats().draw_calls == 0);
+        frame.end();
+
+        frame.begin(transform);
+        frame.clearAllClipRects();
+        frame.collectAll(registry);
+        frame.submitTextBatch(text, 4, indices, 6, 1, &transform[0][0], Entity(1), 0, 0, false);
+        frame.submitSkeletalBatch(skeletal, 4, indices, 6, 1, 0, &transform[0][0], Entity(2), 0, 0, 0, false);
+        frame.flush();
+        CHECK(frame.stats().text == 1);
+        CHECK(frame.stats().skeletal == 1);
+        CHECK(frame.stats().triangles == 4);
+        frame.end();
+        frame.endFrame();
+    }
+}
+
 TEST_CASE("camera mask: excluded bulk geometry does not enter transient streams") {
     for (LayoutId layout : {LayoutId::Batch, LayoutId::Shape}) {
         Harness h;
