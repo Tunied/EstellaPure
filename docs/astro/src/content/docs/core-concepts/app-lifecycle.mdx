@@ -225,6 +225,8 @@ from there; if you are writing a game, you should never need to name them.
 | `app.setMaxDeltaTime(s)` | Clamp on a single frame's delta. Default `0.25`. |
 | `app.setMaxFixedSteps(n)` | Cap on fixed-step catch-up per frame. Default `8`. A time budget additionally caps catch-up so a too-heavy sim degrades to slow motion instead of freezing. |
 | `app.setPaused(v)` / `app.isPaused()` | User pause. While paused only `Schedule.Last` runs. |
+| `app.holdExecution()` | Returns an idempotent release function. While any owner holds execution, automatic frames, tick, stepping and native game input are held. Audio and video plugins cooperate. |
+| `app.isExecutionHeld()` / `app.onExecutionChange(fn)` | Query the hold, or observe it with an initial notification and disposer. Observers are withdrawn on quit. |
 | `app.stepFrame()` | Queue exactly one full frame while paused (editor "step"). |
 | `app.setPlaySpeed(x)` / `app.getPlaySpeed()` | Time scale, clamped to `0.1`–`4.0`. Default `1.0`. |
 | `app.setTargetFrameRate(fps)` / `app.getTargetFrameRate()` | Frame cap; `0` (default) = uncapped (vsync). |
@@ -233,6 +235,29 @@ Within one frame the schedules run: `First` → the fixed trio
 (`FixedPreUpdate` / `FixedUpdate` / `FixedPostUpdate`, zero or more times from
 the accumulator) → `PreUpdate` → `Update` → `PostUpdate` → `Last`. `Startup`
 systems are flushed before the first frame.
+
+### Execution holds
+
+Use an execution hold when a host requires the game to stop rendering and interacting:
+
+```typescript
+const release = app.holdExecution();
+// Other host owners may acquire their own holds.
+release(); // the last release resumes automatic execution, preserving user pause
+```
+
+The input funnel discards held keys and press edges; UI gesture captures are
+cancelled rather than clicked after resuming. Audio resume and video play cannot
+override the hold. Paused, stopped or completed videos remain so after release.
+Startup systems that had not begun are retained, and resuming waits for an
+interrupted asynchronous startup before the first new frame. The frame clock
+is rebased so host pause time does not become a simulation catch-up interval.
+
+Already-started asynchronous systems can still settle. The engine prevents
+later systems and completed-frame observers from running for that interrupted
+frame; arbitrary JavaScript promises, timers and external network requests are
+owned by the game. Use `onExecutionChange` to abort or suspend those tasks and
+restart them after release. Quit invalidates outstanding release functions.
 
 ### Errors, physics, stats
 

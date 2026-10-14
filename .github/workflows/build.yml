@@ -74,6 +74,10 @@ jobs:
         node tools/tests/crazygames-training.e2e.mjs --dir output/crazygames-training-ci-export --out output/crazygames-training-ci-check
         node tools/tests/export-crazygames-score-fixture.mjs --wasm build/wasm/web --out output/crazygames-training-ci-score-export
         node tools/tests/crazygames-training.e2e.mjs --dir output/crazygames-training-ci-score-export --expect-scores --out output/crazygames-training-ci-score-check
+    - name: Check execution holds in an authored game and real browser media
+      run: |
+        node tools/tests/export-execution-hold-fixture.mjs --wasm build/wasm/web --out output/execution-hold-ci-export
+        node tools/tests/execution-hold.e2e.mjs --dir output/execution-hold-ci-export --out output/execution-hold-ci-check
     - name: Upload hash-bound local observations and screenshots
       if: always()
       uses: actions/upload-artifact@v7
@@ -94,6 +98,13 @@ jobs:
       with:
         name: crazygames-training-local-mock-checks
         path: output/crazygames-training-ci-*
+        retention-days: 3
+    - name: Upload execution hold observations and screenshot
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: execution-hold-headless-checks
+        path: output/execution-hold-ci-*
         retention-days: 3
 
   # The engine binaries, and nothing else: every gate below waits on this job, so

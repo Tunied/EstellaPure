@@ -24,7 +24,7 @@ import type { BridgeConnectOptions } from '../ecs/bridge/BuiltinBridge';
 import { UICameraInfo } from '../ui/core/ui-camera-info';
 import { ScreenLayout } from '../ui/core/screen-layout';
 import { ScreenOverlay, defaultScreenOverlay } from '../ui/core/screen-overlay';
-import { inputPlugin, Input } from '../input/input';
+import { inputPlugin, Input, setInputExecutionHeld } from '../input/input';
 import { assetPlugin } from '../asset';
 import { prefabsPlugin } from '../prefab/prefabServer';
 import { setWasmErrorHandler } from '../wasm/wasmError';
@@ -113,6 +113,7 @@ interface InflightSystem {
 }
 
 interface SystemEntry {
+    startupInvoked?: boolean;
     system: SystemDef;
     runBefore?: string[];
     runAfter?: string[];
@@ -169,6 +170,9 @@ export class App {
     private readonly setMembership_ = new Map<string, string[]>();
 
     private running_ = false;
+    private readonly executionHolds_ = new Set<object>();
+    private executionEpoch_ = 0;
+    private readonly executionObservers_: Array<(held: boolean) => void> = [];
     private loopVersion_ = 0;
     private queuedFrame_: number | null = null;
     private frameInFlight_: Promise<void> | null = null;
@@ -867,6 +871,7 @@ export class App {
     }
 
     stepFrame(): void {
+        if (this.isExecutionHeld()) return;
         this.step_pending_ = true;
     }
 
@@ -1167,10 +1172,67 @@ export class App {
     // =========================================================================
 
     async tick(delta: number): Promise<void> {
+        if (this.isExecutionHeld()) return;
+        const epoch = this.executionEpoch_;
+        this.frame_paused_ = false;
         this.boot_();
 
         await this.flushStartupSystems_();
+        if (epoch !== this.executionEpoch_ || this.isExecutionHeld()) return;
         await this.runFrame_(delta);
+    }
+
+    /** Hold frame execution without changing the game's own pause state. */
+    holdExecution(): () => void {
+        const owner = {}, quitEpoch = this.quitEpoch_;
+        const first = this.executionHolds_.size === 0;
+        this.executionHolds_.add(owner);
+        if (first) {
+            this.executionEpoch_++;
+            this.frame_paused_ = true;
+            this.invalidateLoop_();
+            if (this.hasResource(Input)) setInputExecutionHeld(this.getResource(Input), this, true);
+            this.notifyExecution_();
+        }
+        return () => {
+            if (quitEpoch !== this.quitEpoch_ || !this.executionHolds_.delete(owner) || this.executionHolds_.size) return;
+            if (this.hasResource(Input)) setInputExecutionHeld(this.getResource(Input), this, false);
+            this.notifyExecution_();
+            if (this.isExecutionHeld()) return;
+            const version = this.loopVersion_;
+            // An interrupted asynchronous frame settles before another frame starts.
+            void (this.frameInFlight_ ?? Promise.resolve()).then(() => {
+                if (!this.running_ || this.isExecutionHeld() || version !== this.loopVersion_) return;
+                this.lastTime_ = platformNow();
+                if (typeof requestAnimationFrame === 'function') this.queueLoopFrame_();
+                else void this.mainLoop();
+            });
+        };
+    }
+
+    isExecutionHeld(): boolean { return this.executionHolds_.size > 0; }
+
+    /** Observe execution holds, including the initial state. Media/timer owners can cooperate here. */
+    onExecutionChange(callback: (held: boolean) => void): () => void {
+        this.executionObservers_.push(callback);
+        this.callExecutionObserver_(callback);
+        return () => {
+            const index = this.executionObservers_.indexOf(callback);
+            if (index >= 0) this.executionObservers_.splice(index, 1);
+        };
+    }
+
+    private notifyExecution_(): void {
+        for (const callback of [...this.executionObservers_]) {
+            this.callExecutionObserver_(callback);
+        }
+    }
+
+    private callExecutionObserver_(callback: (held: boolean) => void): void {
+        try {
+            const result: unknown = callback(this.isExecutionHeld());
+            if (result instanceof Promise) void result.catch(error => log.error('app', 'Execution observer error', error));
+        } catch (error) { log.error('app', 'Execution observer error', error); }
     }
 
     /**
@@ -1190,6 +1252,9 @@ export class App {
      * its delta.
      */
     async stepFrames(frames = 1, dt = 1 / 60): Promise<void> {
+        if (this.isExecutionHeld()) return;
+        const executionEpoch = this.executionEpoch_, quitEpoch = this.quitEpoch_;
+        const previousStep = this.step_pending_;
         const wasRunning = this.running_;
         const wasPaused = this.user_paused_;
         this.invalidateLoop_();
@@ -1198,17 +1263,26 @@ export class App {
         try {
             await this.frameInFlight_;
             this.user_paused_ = false;
-            for (let i = 0; i < frames; i++) { this.step_pending_ = true; await this.tick(dt); }
+            for (let i = 0; i < frames; i++) {
+                if (this.isExecutionHeld() || executionEpoch !== this.executionEpoch_) break;
+                this.step_pending_ = true; await this.tick(dt);
+            }
         } finally {
-            this.user_paused_ = wasPaused;
-            if (wasRunning && version === this.loopVersion_) {
+            if (quitEpoch === this.quitEpoch_) {
+                this.user_paused_ = wasPaused;
+                if (executionEpoch !== this.executionEpoch_ || this.isExecutionHeld()) this.step_pending_ = previousStep;
+            }
+            if (wasRunning && quitEpoch === this.quitEpoch_
+                && (version === this.loopVersion_ || executionEpoch !== this.executionEpoch_)) {
                 this.lastTime_ = platformNow();
                 this.running_ = true;
                 // Resumed on the next animation frame, not by starting one here:
                 // a frame begun inside this call's own microtask drain swallows
                 // the input edge a caller injects the moment it returns.
-                if (typeof requestAnimationFrame === 'function') this.queueLoopFrame_();
-                else void this.mainLoop();
+                if (!this.isExecutionHeld()) {
+                    if (typeof requestAnimationFrame === 'function') this.queueLoopFrame_();
+                    else void this.mainLoop();
+                }
             }
         }
     }
@@ -1219,8 +1293,13 @@ export class App {
         }
 
         this.running_ = true;
+        if (this.isExecutionHeld()) return;
+        const version = this.loopVersion_;
+        this.frame_paused_ = false;
         this.boot_();
         await this.flushStartupSystems_();
+
+        if (!this.running_ || this.isExecutionHeld() || version !== this.loopVersion_) return;
 
         this.lastTime_ = platformNow();
         this.mainLoop();
@@ -1235,6 +1314,7 @@ export class App {
     }
 
     private queueLoopFrame_(): void {
+        if (this.isExecutionHeld() || this.queuedFrame_ !== null) return;
         if (typeof requestAnimationFrame !== 'function') return;
         const version = this.loopVersion_;
         this.queuedFrame_ = requestAnimationFrame((time) => {
@@ -1245,7 +1325,7 @@ export class App {
     }
 
     private mainLoop = async (rafTime?: number, version = this.loopVersion_): Promise<void> => {
-        if (!this.running_ || version !== this.loopVersion_) {
+        if (!this.running_ || this.isExecutionHeld() || version !== this.loopVersion_) {
             return;
         }
 
@@ -1276,8 +1356,10 @@ export class App {
         const rawDelta = Math.max(0, Math.min(deltaMs / 1000, this.maxDeltaTime_));
         const delta = rawDelta * this.play_speed_;
 
+        this.frame_paused_ = false;
+        this.boot_();
         await this.flushStartupSystems_();
-        if (!this.running_ || version !== this.loopVersion_) return;
+        if (!this.running_ || this.isExecutionHeld() || version !== this.loopVersion_) return;
         const frame = this.runFrame_(delta, Math.max(0, deltaMs));
         this.frameInFlight_ = frame;
         try { await frame; }
@@ -1298,6 +1380,9 @@ export class App {
     }
 
     private quit_(options?: { keepRenderer?: boolean }): void {
+        this.executionEpoch_++;
+        this.executionHolds_.clear();
+        if (this.hasResource(Input)) setInputExecutionHeld(this.getResource(Input), this, false);
         this.invalidateLoop_();
         this.running_ = false;
 
@@ -1307,6 +1392,7 @@ export class App {
             }
         }
         this.installed_plugins_.length = 0;
+        this.executionObservers_.length = 0;
         this.installedPluginSet_.clear();
         this.installedPluginNames_.clear();
 
@@ -1405,6 +1491,9 @@ export class App {
     }
 
     private async runFrame_(delta: number, frameMs = delta * 1000): Promise<void> {
+        if (this.isExecutionHeld()) return;
+        const executionEpoch = this.executionEpoch_;
+        const current = () => !this.isExecutionHeld() && executionEpoch === this.executionEpoch_;
         this.runner_?.clearTimings();
         this.phaseTimings_?.clear();
         this.frameScopes_?.clear();
@@ -1415,9 +1504,10 @@ export class App {
         this.frame_paused_ = false;
 
         if (this.isPaused() && !this.step_pending_) {
-            await this.runSchedule(Schedule.Last);
+            await this.runSchedule(Schedule.Last, executionEpoch);
         } else {
-            await this.runSchedule(Schedule.First);
+            await this.runSchedule(Schedule.First, executionEpoch);
+            if (!current()) return;
 
             // The SCALED delta, so Time.scale = 0 stops the fixed steps too —
             // otherwise physics would keep stepping through a paused world.
@@ -1439,10 +1529,11 @@ export class App {
                 // (1-based) — the simulation time axis netcode stamps packets with.
                 this.resources_.get(Time).fixedTick++;
                 input?.beginFixedStep();
-                await this.runSchedule(Schedule.FixedPreUpdate);
-                await this.runSchedule(Schedule.FixedUpdate);
-                await this.runSchedule(Schedule.FixedPostUpdate);
+                await this.runSchedule(Schedule.FixedPreUpdate, executionEpoch);
+                await this.runSchedule(Schedule.FixedUpdate, executionEpoch);
+                await this.runSchedule(Schedule.FixedPostUpdate, executionEpoch);
                 input?.endFixedStep();
+                if (!current()) return;
                 fixedSteps++;
                 // Stop catching up once this frame's fixed steps blow the time
                 // budget — drop the backlog below so we don't spiral.
@@ -1459,16 +1550,17 @@ export class App {
             this.resources_.get(Time).fixedAlpha =
                 this.fixedTimestep_ > 0 ? this.fixedAccumulator_ / this.fixedTimestep_ : 0;
 
-            await this.runSchedule(Schedule.PreUpdate);
-            await this.runSchedule(Schedule.Update);
-            await this.runSchedule(Schedule.PostUpdate);
-            await this.runSchedule(Schedule.Last);
+            await this.runSchedule(Schedule.PreUpdate, executionEpoch);
+            await this.runSchedule(Schedule.Update, executionEpoch);
+            await this.runSchedule(Schedule.PostUpdate, executionEpoch);
+            await this.runSchedule(Schedule.Last, executionEpoch);
 
             if (this.step_pending_) {
                 this.step_pending_ = false;
             }
         }
 
+        if (!current()) return;
         this.frameTiming_ = { seq: (this.frameTiming_?.seq ?? 0) + 1, frameMs };
         for (const observe of this.frameObservers_) {
             try { observe(frameMs); } catch (e) {
@@ -1653,26 +1745,29 @@ export class App {
         return sorted;
     }
 
-    private flushing_startup_ = false;
+    private startupInFlight_: Promise<void> | null = null;
 
     private async flushStartupSystems_(): Promise<void> {
-        if (this.flushing_startup_) return;
         const startup = this.systems_.get(Schedule.Startup)!;
-        if (startup.length === 0) return;
-        this.flushing_startup_ = true;
-        try {
-            await this.runSchedule(Schedule.Startup);
-            startup.length = 0;
-            this.sortedSystemsCache_.delete(Schedule.Startup);
-            this.dependencyCache_.delete(Schedule.Startup);
-        } finally {
-            this.flushing_startup_ = false;
+        const executionEpoch = this.executionEpoch_;
+        while (startup.length && !this.isExecutionHeld() && !this.frame_paused_ && executionEpoch === this.executionEpoch_) {
+            if (!this.startupInFlight_) {
+                this.startupInFlight_ = Promise.resolve().then(async () => {
+                    await this.runSchedule(Schedule.Startup, executionEpoch);
+                    for (let index = startup.length - 1; index >= 0; index--) {
+                        if (startup[index].startupInvoked) startup.splice(index, 1);
+                    }
+                    this.sortedSystemsCache_.delete(Schedule.Startup);
+                    this.dependencyCache_.delete(Schedule.Startup);
+                }).finally(() => { this.startupInFlight_ = null; });
+            }
+            await this.startupInFlight_;
         }
     }
 
-    private async runSchedule(schedule: Schedule): Promise<void> {
+    private async runSchedule(schedule: Schedule, executionEpoch = this.executionEpoch_): Promise<void> {
         const rawSystems = this.systems_.get(schedule);
-        if (!rawSystems || !this.runner_ || this.frame_paused_) {
+        if (!rawSystems || !this.runner_ || this.frame_paused_ || this.isExecutionHeld() || executionEpoch !== this.executionEpoch_) {
             return;
         }
 
@@ -1700,8 +1795,9 @@ export class App {
 
         for (let i = 0; i < systems.length; i++) {
             const entry = systems[i];
-            if (this.frame_paused_) break;
-            if (entry.runIf && !entry.runIf()) continue;
+            if (this.frame_paused_ || this.isExecutionHeld() || executionEpoch !== this.executionEpoch_) break;
+            if (schedule === Schedule.Startup && entry.startupInvoked) continue;
+            if (entry.runIf && !entry.runIf()) { if (schedule === Schedule.Startup) entry.startupInvoked = true; continue; }
 
             // Where the declarations are spent rather than reported: a system
             // starts beside an unfinished one only when it neither depends on it
@@ -1714,6 +1810,9 @@ export class App {
                 );
                 if (blocked) await settle();
             }
+
+            if (this.frame_paused_ || this.isExecutionHeld() || executionEpoch !== this.executionEpoch_) break;
+            if (schedule === Schedule.Startup) entry.startupInvoked = true;
 
             try {
                 this.currentSystem_ = entry.system._name;

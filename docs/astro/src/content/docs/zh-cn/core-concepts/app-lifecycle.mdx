@@ -209,6 +209,8 @@ export const scorePlugin: Plugin = {
 | `app.setMaxDeltaTime(s)` | 单帧 delta 的钳制上限。默认 `0.25`。 |
 | `app.setMaxFixedSteps(n)` | 每帧固定步追赶的上限。默认 `8`。此外还有时间预算封顶追赶,过重的模拟会退化为慢动作而不是卡死。 |
 | `app.setPaused(v)` / `app.isPaused()` | 用户暂停。暂停期间只有 `Schedule.Last` 运行。 |
+| `app.holdExecution()` | 返回幂等的释放函数。任一持有者挂起时，自动帧、tick、步进及原生游戏输入均停止，音频与视频插件配合挂起。 |
+| `app.isExecutionHeld()` / `app.onExecutionChange(fn)` | 查询挂起状态，或订阅状态变化（含初始通知，返回取消订阅函数）。退出时移除订阅。 |
 | `app.stepFrame()` | 在暂停时排入恰好一整帧(编辑器"步进")。 |
 | `app.setPlaySpeed(x)` / `app.getPlaySpeed()` | 时间缩放,钳制在 `0.1`–`4.0`。默认 `1.0`。 |
 | `app.setTargetFrameRate(fps)` / `app.getTargetFrameRate()` | 帧率上限;`0`(默认)= 不封顶(vsync)。 |
@@ -216,6 +218,24 @@ export const scorePlugin: Plugin = {
 一帧之内调度的运行顺序是:`First` → 固定三件套(`FixedPreUpdate` /
 `FixedUpdate` / `FixedPostUpdate`,由累加器决定跑零到多次)→ `PreUpdate` →
 `Update` → `PostUpdate` → `Last`。`Startup` 系统在首帧之前冲刷。
+
+### 执行挂起
+
+当宿主要求游戏停止渲染和交互时，可以取得执行挂起：
+
+```typescript
+const release = app.holdExecution();
+// 其他宿主控制器可以取得独立的挂起。
+release(); // 最后一个持有者释放后恢复自动执行，保留玩家自己的暂停状态
+```
+
+输入入口清除按键和按下边沿，取消 UI 手势捕获，恢复后不补发旧点击。音频 resume 和视频 play
+不能覆盖挂起；玩家暂停、停止或已播完的视频不会被恢复操作重新启动。未开始的 Startup 系统会
+保留，恢复时先等待被打断的异步启动完成，再运行新帧。帧时钟重新校准，不把宿主暂停时长用于追帧。
+
+已经开始的异步系统仍可能完成；引擎阻止该帧后续系统与完整帧观察者执行。任意 JavaScript Promise、
+定时器与外部网络请求仍由游戏管理，应通过 `onExecutionChange` 中止或挂起这些任务，并在释放后
+恢复。退出会让尚未调用的释放函数失效。
 
 ### 错误、物理、统计
 

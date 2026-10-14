@@ -46,6 +46,7 @@ interface AudioPluginState {
     released: boolean;
     offMemoryWarning: () => void;
     offAudioMute: () => void;
+    offExecution: () => void;
     offDespawn: () => void;
 }
 
@@ -82,6 +83,8 @@ export class AudioPlugin implements Plugin {
         const offAudioMute = (isPlatformInitialized()
             ? getPlatform().onAudioMute?.(muted => setAudioHostSuspended(audio, muteOwner, muted))
             : undefined) ?? (() => {});
+        const executionOwner = {};
+        const offExecution = app.onExecutionChange(held => setAudioHostSuspended(audio, executionOwner, held));
 
         // OS memory pressure → drop the decoded-buffer warm cache. Held
         // buffers keep playing; re-fetch cost returns only for evicted ones.
@@ -107,7 +110,7 @@ export class AudioPlugin implements Plugin {
             }
             playedEntities.delete(entity);
         });
-        const state = { activeSourceHandles, playedEntities, audio, offMemoryWarning, offAudioMute, offDespawn, released: false };
+        const state = { activeSourceHandles, playedEntities, audio, offMemoryWarning, offAudioMute, offExecution, offDespawn, released: false };
         this.states_.set(app, state);
         this.latestState_ = state;
         const stopVoice = (id: number): void => {
@@ -329,6 +332,7 @@ export class AudioPlugin implements Plugin {
         if (app) this.states_.delete(app);
         if (state === this.latestState_) this.latestState_ = null;
         state.offAudioMute();
+        state.offExecution();
         state.offMemoryWarning();
         state.offDespawn();
         this.stopSources_(state);

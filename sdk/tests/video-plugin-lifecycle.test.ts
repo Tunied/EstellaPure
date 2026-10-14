@@ -29,7 +29,9 @@ it('quitting an older app releases its video backend and preserves the newer app
     first.quit();
     expect(backends[0].dispose).toHaveBeenCalledOnce();
     expect(backends[1].dispose).not.toHaveBeenCalled();
-    expect(a.stop).toHaveBeenCalledOnce(); expect(b.stop).not.toHaveBeenCalled();
+    expect(vi.mocked(backends[0].createStream).mock.results[0].value.stop).toHaveBeenCalledOnce();
+    expect(vi.mocked(backends[1].createStream).mock.results[0].value.stop).not.toHaveBeenCalled();
+    expect(a.isPlaying).toBe(false); expect(b.isPlaying).toBe(true);
     second.quit(); expect(backends[1].dispose).toHaveBeenCalledOnce();
 });
 
@@ -37,10 +39,12 @@ it('releases 100 preview backends without stopping the main app video', () => {
     const plugin = new VideoPlugin(), main = build(plugin);
     const handle = main.getResource(VideoPlayer).play('main.mp4');
     for (let i = 0; i < 100; i++) { const preview = build(plugin); preview.quit(); }
-    expect(handle.stop).not.toHaveBeenCalled();
+    expect(vi.mocked(backends[0].createStream).mock.results[0].value.stop).not.toHaveBeenCalled();
+    expect(handle.isPlaying).toBe(true);
     expect(backends[0].dispose).not.toHaveBeenCalled();
     for (const backend of backends.slice(1)) expect(backend.dispose).toHaveBeenCalledOnce();
-    main.quit(); expect(handle.stop).toHaveBeenCalledOnce();
+    main.quit(); expect(vi.mocked(backends[0].createStream).mock.results[0].value.stop).toHaveBeenCalledOnce();
+    expect(handle.isPlaying).toBe(false);
 });
 
 it('stopAll retires component handles from the video service, once', async () => {

@@ -82,6 +82,9 @@ export class InputRouter {
         return this.mods_;
     }
 
+    /** Clear cancelled key chords without delivering input to handlers. */
+    resetModifiers(): void { this.mods_ = NO_MODS; }
+
     // ── Dispatch (called by InputPlugin) ────────────────────────────────
 
     dispatchKeyDown(code: string): boolean {

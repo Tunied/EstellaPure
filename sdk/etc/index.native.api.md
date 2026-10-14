@@ -762,13 +762,16 @@ getResourceEntries: () => Array<[string, unknown]>
 getSystemTimings: () => ReadonlyMap<string, number> | null
 getTargetFrameRate: () => number
 hasResource: <T>(resource: ResourceDef<T>) => boolean
+holdExecution: () => () => void
 hotSwapSystems: (incoming: ReadonlyArray<{ schedule: number; system: SystemDef; }>) => boolean
 insertResource: <T>(resource: ResourceDef<T>, value: T) => App
 installCompiledSystems: (source: string | BufferSource, manifest: AotManifest) => Promise<number>
+isExecutionHeld: () => boolean
 isPaused: () => boolean
 isPhysicsReady: boolean
 measureFrameScope: <T>(name: string, fn: () => T, options?: { remainder?: ScopeRemainder; }) => T
 onError: (handler: (error: unknown, systemName: string) => void) => App
+onExecutionChange: (callback: (held: boolean) => void) => () => void
 onFrameEnd: (fn: (dtMs: number) => void) => () => void
 onSystemError: (handler: (error: Error, systemName?: string) => "continue" | "pause") => App
 onWasmError: (handler: (error: unknown, context: string) => void) => App
@@ -4417,7 +4420,7 @@ version: number
 ## InputPlugin — class @experimental
 ```
 build: (app: App) => void
-cleanup: () => void
+cleanup: (app?: App) => void
 name: string
 static new (target?: unknown): InputPlugin
 static prototype: InputPlugin
@@ -4436,6 +4439,7 @@ dispatchTouchEnd: (id: number) => boolean
 dispatchTouchMove: (id: number, x: number, y: number) => boolean
 dispatchTouchStart: (id: number, x: number, y: number) => boolean
 dispatchWheel: (deltaX: number, deltaY: number) => boolean
+resetModifiers: () => void
 setEditorHandler: (handler: InputHandler | null) => () => void
 setUIHandler: (handler: InputHandler | null) => () => void
 static new (): InputRouter
@@ -9973,7 +9977,7 @@ setRefResolver: (resolver: ((ref: string) => string) | null) => void
 stop: (handle: VideoStreamHandle) => void
 stopAll: () => void
 update: (module: ESEngineModule | null) => void
-static new (backend: PlatformVideoBackend): VideoAPI
+static new (backend: PlatformVideoBackend, observeExecution?: (callback: (held: boolean) => void) => () => void): VideoAPI
 static prototype: VideoAPI
 ```
 

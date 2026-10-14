@@ -407,6 +407,21 @@ export class InputState {
  */
 export const Input = defineResource<InputState>(new InputState(), 'Input');
 
+const executionOwners = new WeakMap<InputState, Set<object>>();
+/** Internal, per-owner execution gate for the platform event funnel. */
+export function setInputExecutionHeld(state: InputState, owner: object, held: boolean): void {
+    let owners = executionOwners.get(state);
+    if (held) {
+        if (!owners) { owners = new Set(); executionOwners.set(state, owners); }
+        const wasHeld = owners.size > 0;
+        owners.add(owner);
+        if (!wasHeld) inputEventCallbacks(state).onInputCancel?.();
+    } else {
+        owners?.delete(owner);
+        if (!owners?.size) executionOwners.delete(state);
+    }
+}
+
 /**
  * The callbacks a platform's raw events arrive through — routed past the UI
  * first, then recorded on `state`.
@@ -428,15 +443,18 @@ export function inputEventCallbacks(state: InputState): InputEventCallbacks {
     };
     return {
         onKeyDown(code) {
+            if (executionOwners.has(state)) return claimsKeyDefault(state, code);
             if (inputRouter.dispatchKeyDown(code)) return true;
             state.noteKeyDown(code);
             return claimsKeyDefault(state, code);
         },
         onKeyUp(code) {
+            if (executionOwners.has(state)) return;
             if (inputRouter.dispatchKeyUp(code)) state.keysDown.delete(code);
             else if (state.keysDown.has(code)) state.noteKeyUp(code);
         },
         onPointerMove(x, y) {
+            if (executionOwners.has(state)) return;
             // Pointer position tracks the cursor even when consumed so
             // gameplay code that reads `getMousePosition()` (e.g. HUD
             // cursor rendering) doesn't freeze while the editor is
@@ -446,12 +464,14 @@ export function inputEventCallbacks(state: InputState): InputEventCallbacks {
             inputRouter.dispatchPointerMove(x, y);
         },
         onPointerDown(button, x, y) {
+            if (executionOwners.has(state)) return;
             state.mouseX = x;
             state.mouseY = y;
             if (inputRouter.dispatchPointerDown(button, x, y)) return;
             state.noteMouseDown(button);
         },
         onPointerUp(button) {
+            if (executionOwners.has(state)) return;
             if (inputRouter.dispatchPointerUp(button)) {
                 state.mouseButtons.delete(button);
                 if (button === 0) cancelPrimaryPointer(state);
@@ -459,17 +479,20 @@ export function inputEventCallbacks(state: InputState): InputEventCallbacks {
             else if (state.mouseButtons.has(button)) state.noteMouseUp(button);
         },
         onWheel(deltaX, deltaY) {
+            if (executionOwners.has(state)) return;
             if (inputRouter.dispatchWheel(deltaX, deltaY)) return;
             state.scrollDeltaX += deltaX;
             state.scrollDeltaY += deltaY;
         },
         onTouchStart(id, x, y) {
+            if (executionOwners.has(state)) return;
             if (inputRouter.dispatchTouchStart(id, x, y)) return;
             const point = { id, x, y };
             state.touches.set(id, point);
             state.touchesStarted.set(id, point);
         },
         onTouchMove(id, x, y) {
+            if (executionOwners.has(state)) return;
             if (inputRouter.dispatchTouchMove(id, x, y)) return;
             const existing = state.touches.get(id);
             if (existing) {
@@ -478,9 +501,11 @@ export function inputEventCallbacks(state: InputState): InputEventCallbacks {
             }
         },
         onTouchEnd(id) {
+            if (executionOwners.has(state)) return;
             finishTouch(id, inputRouter.dispatchTouchEnd(id));
         },
         onTouchCancel(id, primary) {
+            if (executionOwners.has(state)) return;
             inputRouter.dispatchTouchCancel(id);
             state.touches.delete(id);
             state.touchesStarted.delete(id);
@@ -495,6 +520,7 @@ export function inputEventCallbacks(state: InputState): InputEventCallbacks {
             }
         },
         onInputCancel() {
+            inputRouter.resetModifiers();
             state.keysDown.clear();
             state.mouseButtons.clear();
             state.touches.clear();
@@ -513,6 +539,7 @@ export class InputPlugin implements Plugin {
     name = 'input';
     private target_: unknown;
     private unbind_: (() => void) | null = null;
+    private readonly executionCleanup_ = new WeakMap<App, () => void>();
 
     constructor(target?: unknown) {
         this.target_ = target ?? null;
@@ -521,6 +548,8 @@ export class InputPlugin implements Plugin {
     build(app: App): void {
         const state = new InputState();
         app.insertResource(Input, state);
+        const offExecution = app.onExecutionChange(held => setInputExecutionHeld(state, app, held));
+        this.executionCleanup_.set(app, () => { offExecution(); setInputExecutionHeld(state, app, false); });
 
         state.touchAvailable = getPlatform().hasTouch?.() ?? false;
         getPlatform().bindInputEvents(inputEventCallbacks(state), this.target_ ?? undefined);
@@ -541,7 +570,8 @@ export class InputPlugin implements Plugin {
         }, { name: 'InputClearSystem' }));
     }
 
-    cleanup(): void {
+    cleanup(app?: App): void {
+        if (app) { this.executionCleanup_.get(app)?.(); this.executionCleanup_.delete(app); }
         platformUnbindInputEvents();
     }
 }

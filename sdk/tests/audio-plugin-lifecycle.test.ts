@@ -43,6 +43,13 @@ it('host mute overrides game resume and preserves explicit suspension after host
     audio.resume(); expect(backend.resume).toHaveBeenCalledOnce();
     app.quit(); expect(muteListeners.size).toBe(0);
 });
+it('execution holds keep audio suspended until the final owner releases, preserving user suspension', () => {
+    const app=build(new AudioPlugin()),audio=app.getResource(Audio),backend=backends[0];
+    const first=app.holdExecution(),second=app.holdExecution();audio.resume();
+    expect(backend.suspend).toHaveBeenCalledOnce();expect(backend.resume).not.toHaveBeenCalled();
+    first();expect(backend.resume).not.toHaveBeenCalled();audio.suspend();second();
+    expect(backend.resume).not.toHaveBeenCalled();audio.resume();expect(backend.resume).toHaveBeenCalledOnce();
+});
 it('quitting an older app releases its backend and preserves the newer app voice and subscription', async () => {
     const plugin=new AudioPlugin(), first=build(plugin), second=build(plugin);
     const a=first.getResource(Audio), b=second.getResource(Audio);

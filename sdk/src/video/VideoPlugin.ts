@@ -85,7 +85,7 @@ export class VideoPlugin implements Plugin {
                 try { return app.getResource(Audio); } catch { return null; }
             },
         }) ?? new NullVideoBackend();
-        const video = new VideoAPI(backend);
+        const video = new VideoAPI(backend, app.onExecutionChange.bind(app));
         app.insertResource(VideoPlayer, video);
 
         const handles = new Map<number, VideoStreamHandle>();

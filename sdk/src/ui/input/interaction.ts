@@ -84,6 +84,10 @@ export class UIInteractionPlugin implements Plugin {
         app.insertResource(UIControlPointers, { pointers: controlPointers });
         /** Where each pointer last hit, so a settled pointer skips the raycast. */
         const lastHit = new UiPointerHitCache();
+        const offExecution = app.onExecutionChange(held => {
+            if (!held) return;
+            book.clear(); controlPointers.clear(); lastHit.clear(); expireGestureFired(world);
+        });
         let lastLayoutGen = -1;
         let lastWorldVersion = -1;
         let lastTick = -1;
@@ -94,6 +98,7 @@ export class UIInteractionPlugin implements Plugin {
         // During the host's release event, from what the last frame saw: the
         // control this pointer pressed, if it is still the one under it.
         const releaseInGesture = (pointer: number): void => {
+            if (app.isExecutionHeld()) return;
             const held = book.releasing(pointer, lastHit.get(pointer)?.entity ?? null);
             if (held === null || !eligible(held)) return;
             if (world.has(held, Interactable) && !(world.get(held, Interactable) as InteractableData).enabled) return;
@@ -104,6 +109,7 @@ export class UIInteractionPlugin implements Plugin {
             onPointerUp: (button) => { if (button === 0) releaseInGesture(MOUSE_POINTER); },
         });
         this.releases_.set(app, () => {
+            offExecution();
             unregister();
             book.clear();
             controlPointers.clear();
