@@ -17,3 +17,15 @@ An offline mock verifies wiring, not ad-network approval.
 
 See [asset licenses](ASSET_LICENSES.md) and the
 [official Mintegral test guide](https://www.playturbo.com/review/doc).
+
+Named export profiles `mintegral`, `tiktok`, and `pangle` package the same scene.
+For example: `node pipeline/bin/estella.mjs export examples/playable-ad --profile tiktok`.
+TikTok and overseas Pangle include a root `config.json` declaring both orientations,
+with each network's documented field casing. They load the mandatory official host
+SDK before game scripts and use `window.openAppStore()` through `playableCta()`.
+Both use the live lowercase CDN SDK URL documented by Pangle; TikTok's mixed-case
+URL returned 404 during verification. The profiles are not domestic Douyin or
+domestic Pangle exports. Validate uploads in the appropriate Ads Manager preview.
+
+Specifications: [TikTok](https://ads.tiktok.com/resources/help/article/playable-ads?lang=en),
+[overseas Pangle](https://ads.tiktok.com/resources/help/article/how-to-create-tiktok-pangle-playable-ads).

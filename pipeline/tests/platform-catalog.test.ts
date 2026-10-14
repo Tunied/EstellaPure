@@ -363,7 +363,7 @@ describe('playable ad networks', () => {
     };`);
     const rows = await listPlayableNetworks(root);
     expect(rows.filter((r) => r.source === 'builtin').map((r) => r.id))
-      .toEqual(['generic', 'meta', 'google', 'mraid', 'unity', 'applovin', 'mintegral']);
+      .toEqual(['generic', 'meta', 'google', 'mraid', 'unity', 'applovin', 'mintegral', 'tiktok', 'pangle']);
     // A project network names the file that defines it, so the dialog can point at it
     // (and at the error, when one fails to load). Built-ins have no file.
     expect(rows.find((r) => r.id === 'acme-ads')).toMatchObject({
@@ -436,6 +436,14 @@ describe('playable ad networks', () => {
     };`);
     const row = (await listPlayableNetworks(root)).find((r) => r.id === 'unsafe-zip');
     expect(row!.error).toMatch(/zipFileName/);
+  });
+
+  it('reports malformed host hooks before attempting export', async () => {
+    writePlatform('bad-hook.mjs', `export default {
+      id: 'bad-hook', kind: 'playable', label: 'Bad Hook', maxBytes: 100, limitNote: 'x', emitZipFiles: 'config.json'
+    };`);
+    const row = (await listPlayableNetworks(root)).find(r => r.id === 'bad-hook');
+    expect(row!.error).toMatch(/emitZipFiles.*function/);
   });
 
   it('rejects a playable profile missing the facts the warning needs', async () => {

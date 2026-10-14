@@ -57,6 +57,10 @@ export interface PlayableAdProfile {
     readonly deliveryNote?: string;
     /** Markup for `<head>`: an orientation meta tag, the network's own SDK script. */
     emitHead?(ctx: PlayableAdContext): string;
+    /** Host SDK markup placed in body before all game scripts. */
+    emitBody?(ctx: PlayableAdContext): string;
+    /** Additional root files included in a ZIP, such as network config.json. */
+    emitZipFiles?(ctx: PlayableAdContext): { name: string; content: string }[];
     /**
      * An inline script installing `globalThis.__ESTELLA_PLAYABLE__`, whose `cta()`
      * calls this network's click-through API. The game side of that seam is the
@@ -184,6 +188,32 @@ onActive:function(fn){listeners.push(fn);fn(active);return function(){listeners=
 })();`,
 };
 
+/** @see https://ads.tiktok.com/resources/help/article/playable-ads?lang=en */
+export const tiktokPlayableProfile: PlayableAdProfile = {
+    id: 'tiktok', label: 'TikTok', maxBytes: 5 * 1024 * 1024 - 1,
+    limitNote: 'TikTok requires a ZIP less than 5MB (official September 2026 specification)',
+    delivery: 'zip',
+    deliveryNote: 'Test the upload in TikTok Ads Manager; store redirects are disabled during preview. Only the mandatory host SDK is external.',
+    // The mixed-case TikTok documentation URL returns 404; the compatible Pangle URL is live.
+    emitBody: () => '<script src="https://sf16-muse-va.ibytedtos.com/obj/union-fe-nc-i18n/playable/sdk/playable-sdk.js"></script>',
+    emitZipFiles: () => [{ name: 'config.json', content: JSON.stringify({ Playable_orientation: 0 }) }],
+    emitBridge: () => `(function(){
+  window.__ESTELLA_PLAYABLE__={
+  cta:function(){if(typeof window.openAppStore==="function")window.openAppStore();},
+  onActive:function(fn){function changed(){fn(!document.hidden);}document.addEventListener("visibilitychange",changed);changed();return function(){document.removeEventListener("visibilitychange",changed);};}
+  };
+  })();`,
+};
+
+/** @see https://ads.tiktok.com/resources/help/article/how-to-create-tiktok-pangle-playable-ads */
+export const panglePlayableProfile: PlayableAdProfile = {
+    ...tiktokPlayableProfile,
+    id: 'pangle', label: 'TikTok Ad Network (Pangle, overseas)',
+    limitNote: 'TikTok Ad Network requires a ZIP less than 5MB (official September 2026 specification)',
+    emitBody: () => '<script src="https://sf16-muse-va.ibytedtos.com/obj/union-fe-nc-i18n/playable/sdk/playable-sdk.js"></script>',
+    emitZipFiles: () => [{ name: 'config.json', content: JSON.stringify({ playable_orientation: 0 }) }],
+};
+
 /** The networks the editor ships, by id. A network absent here is not unsupported:
  *  a project defines its own with the same contract (`kind: 'playable'`). */
 export const BUILTIN_PLAYABLE_PROFILES: readonly PlayableAdProfile[] = [
@@ -194,6 +224,8 @@ export const BUILTIN_PLAYABLE_PROFILES: readonly PlayableAdProfile[] = [
     unityPlayableProfile,
     applovinPlayableProfile,
     mintegralPlayableProfile,
+    tiktokPlayableProfile,
+    panglePlayableProfile,
 ];
 
 export function builtinPlayableProfile(id: string | undefined): PlayableAdProfile | null {
@@ -204,9 +236,10 @@ export function builtinPlayableProfile(id: string | undefined): PlayableAdProfil
 export function playableAdInjection(
     profile: PlayableAdProfile,
     ctx: PlayableAdContext,
-): { head: string; bridge: string } {
+): { head: string; body: string; bridge: string } {
     return {
         head: profile.emitHead?.(ctx) ?? '',
+        body: profile.emitBody?.(ctx) ?? '',
         bridge: profile.emitBridge?.(ctx) ?? '',
     };
 }

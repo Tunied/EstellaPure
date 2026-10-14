@@ -9,7 +9,7 @@
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { runtimeConfigOf } from '../src/project/runtimeConfig';
-import { BUILTIN_PLAYABLE_PROFILES } from '../src/export/playableAdProfile';
+import { BUILTIN_PLAYABLE_PROFILES, tiktokPlayableProfile, panglePlayableProfile } from '../src/export/playableAdProfile';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -262,6 +262,37 @@ describe('exportGame (playable)', () => {
     // second time as a file sitting in the output dir.
     expect(res.size?.deliverableName).toBe(zipFileName ?? 'playable.zip');
     expect(res.size?.deliverableBytes).toBe(sized.bytes);
+  }, 60_000);
+
+  it.each([tiktokPlayableProfile, panglePlayableProfile])('ships $id config and its literal SDK before game scripts', async (profile) => {
+    const o = path.join(root, 'network-' + profile.id);
+    const res = await exportGame({
+      root, entryScene: 'scenes/main.esscene', hostsDir: HOSTS, packagesDir: OFFICIAL_PACKAGES,
+      scriptsEntry: 'src/main.ts', sdkDistDir: path.join(root, '_sdk'), wasmDir: path.join(root, '_wasm'),
+      outDir: o, platform: 'playable', playableAdProfile: profile,
+    });
+    expect(res.ok).toBe(true);
+    const html = readFileSync(path.join(o, 'index.html'), 'utf8');
+    const sdk = profile.emitBody!({ title: 'T', orientation: 'portrait' });
+    expect(html.indexOf(sdk)).toBeGreaterThan(html.indexOf('<body>'));
+    expect(html.indexOf(sdk)).toBeLessThan(html.indexOf('window.__ESTELLA_PLAYABLE__'));
+    expect(html).not.toContain('mraid');
+    const files = execFileSync('unzip', ['-Z1', res.zipFile!], { encoding: 'utf8' }).trim().split('\n');
+    expect(files).toEqual(['index.html', 'config.json']);
+    const config = JSON.parse(execFileSync('unzip', ['-p', res.zipFile!, 'config.json'], { encoding: 'utf8' }));
+    expect(config).toEqual(profile.id === 'tiktok' ? { Playable_orientation: 0 } : { playable_orientation: 0 });
+    expect(res.size?.verdicts.find(v => v.budget.scope === 'deliverable')?.budget.maxBytes).toBe(5 * 1024 * 1024 - 1);
+  }, 60_000);
+
+  it.each(['../config.json', 'INDEX.html', 'CON.json'])('rejects unsafe or colliding ZIP metadata: %s', async name => {
+    const res = await exportGame({
+      root, entryScene: 'scenes/main.esscene', hostsDir: HOSTS, packagesDir: OFFICIAL_PACKAGES,
+      scriptsEntry: 'src/main.ts', sdkDistDir: path.join(root, '_sdk'), wasmDir: path.join(root, '_wasm'),
+      outDir: path.join(root, 'bad-extra'), platform: 'playable',
+      playableAdProfile: { ...tiktokPlayableProfile, emitZipFiles: () => [{ name, content: '{}' }] },
+    });
+    expect(res.ok).toBe(false);
+    expect(res.errors.join('\n')).toMatch(/unique portable root filenames/);
   }, 60_000);
 
   it('rejects an oversized HTML even when a ZIP is the uploaded file', async () => {
@@ -517,7 +548,7 @@ describe('playable ad profiles', () => {
       const quoted = /(\d+(?:\.\d+)?)\s*MB/i.exec(p.limitNote);
       expect(quoted, `${p.id}: limitNote must quote the cap it enforces — "${p.limitNote}"`).not.toBeNull();
       expect(p.maxBytes, `${p.id} enforces ${p.maxBytes}B, its note says ${quoted?.[1]}MB`)
-        .toBe(Number(quoted?.[1]) * 1024 * 1024);
+        .toBe(Number(quoted?.[1]) * 1024 * 1024 - (p.limitNote.includes('less than') ? 1 : 0));
     }
   });
 });

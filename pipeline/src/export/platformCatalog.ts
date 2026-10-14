@@ -512,6 +512,11 @@ async function importPlatformModule(
       if (candidate.zipFileName !== undefined && !isPlayableZipFileName(candidate.zipFileName)) {
         return { error: '`zipFileName` must be a portable alphanumeric/underscore ZIP filename' };
       }
+      for (const hook of ['emitHead', 'emitBody', 'emitBridge', 'emitZipFiles'] as const) {
+        if (candidate[hook] !== undefined && typeof candidate[hook] !== 'function') {
+          return { error: `playable profile hook ${hook} must be a function` };
+        }
+      }
       return { mod: candidate };
     }
     if (typeof candidate.emitConfigFiles !== 'function') return { error: 'profile has no `emitConfigFiles(ctx)`' };
@@ -634,6 +639,8 @@ export async function loadPlayableProfile(root: string | null, id: string | unde
       zipFileName: mod.zipFileName,
       deliveryNote: mod.deliveryNote,
       emitHead: mod.emitHead,
+      emitBody: mod.emitBody,
+      emitZipFiles: mod.emitZipFiles,
       emitBridge: mod.emitBridge,
     };
   }

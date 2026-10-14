@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(playable): package TikTok and overseas Pangle creatives':
+    { note: 'TikTok and overseas Pangle package the same playable project.' },
   'fix(ui): keep pointer carets outside surrogate pairs':
     { note: 'Pointer carets keep supplementary characters intact.' },
   'fix(ui): deliver native text input events within the UI frame':

@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Added
 
+- **TikTok and overseas Pangle package the same playable project.** Network profiles include root orientation config, load the official host SDK before game scripts, and dispatch store gestures through the host. ZIP limits stay below 5MB; metadata paths and duplicate filenames are checked before archiving. The Playable Ad example includes named exports for all three new networks.
+
 - **Playable exports handle Mintegral start, completion and retry.** The network profile embeds resources in `index.html` and emits `index.zip`; the runtime waits for host start, pauses gameplay and audio on close, and preserves game-owned pause state. `playableGameEnd()` and `playableRetry()` report gameplay outcomes separately from installation. A responsive CC0 space fleet example demonstrates the complete flow.
 
 ### Fixed

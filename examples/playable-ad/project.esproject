@@ -15,6 +15,32 @@
       "playable": {
         "network": "mintegral"
       }
+    },
+    "profiles": {
+      "mintegral": {
+        "platforms": {
+          "playable": {
+            "network": "mintegral"
+          }
+        },
+        "platform": "playable"
+      },
+      "tiktok": {
+        "platforms": {
+          "playable": {
+            "network": "tiktok"
+          }
+        },
+        "platform": "playable"
+      },
+      "pangle": {
+        "platforms": {
+          "playable": {
+            "network": "pangle"
+          }
+        },
+        "platform": "playable"
+      }
     }
   }
 }

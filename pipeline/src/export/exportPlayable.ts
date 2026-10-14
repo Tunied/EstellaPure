@@ -118,7 +118,7 @@ function indexHtml(
   title: string,
   globals: string,
   loader: string,
-  network: { head: string; bridge: string },
+  network: { head: string; body: string; bridge: string },
 ): string {
   return `<!doctype html>
 <html lang="en">
@@ -133,7 +133,7 @@ function indexHtml(
     </style>
   </head>
   <body>
-    <canvas id="canvas"></canvas>${network.bridge ? `\n    <script>${inlineSafe(network.bridge)}</script>` : ''}
+    <canvas id="canvas"></canvas>${network.body ? `\n    ${network.body}` : ''}${network.bridge ? `\n    <script>${inlineSafe(network.bridge)}</script>` : ''}
     <script>${inlineSafe(globals)}</script>
     <script>${inlineSafe(loader)}</script>
   </body>
@@ -408,7 +408,19 @@ export async function exportPlayable(opts: {
     if (!isPlayableZipFileName(zipName)) errors.push('Playable ZIP filename must be a portable name ending in .zip, without directories.');
     else {
       zipFile = path.join(absOut, zipName);
-      await writeFile(zipFile, makeZip([{ name: 'index.html', data: await readFile(outFile) }]));
+      const extraFiles = adProfile.emitZipFiles?.({ title, orientation }) ?? [];
+      const names = new Set(['index.html']);
+      const files = [{ name: 'index.html', data: await readFile(outFile) }];
+      for (const file of extraFiles) {
+        const name = typeof file?.name === 'string' ? file.name.toLowerCase() : '';
+        if (!name || !/^[a-z0-9_]+\.[a-z0-9]+$/.test(name) || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])\./.test(name) || names.has(name) || typeof file.content !== 'string') {
+          errors.push('Playable ZIP extra files need unique portable root filenames and text content.');
+          continue;
+        }
+        names.add(name);
+        files.push({ name: file.name, data: Buffer.from(file.content, 'utf8') });
+      }
+      await writeFile(zipFile, makeZip(files));
       // The archive is the file being sent, so it is the one the limit applies to.
       bytes = (await stat(zipFile)).size;
     }
