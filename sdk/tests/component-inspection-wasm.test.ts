@@ -21,14 +21,17 @@ describe.skipIf(!HAS_WASM)('bulk builtin inspection on the core', () => {
             world.insert(entity, script);
             world.insert(entity, Disabled);
             const bulk = world.getComponentTypes(entity);
+            expect(world.getComponentTypesBatch([entity, entity])).toEqual([bulk, bulk]);
             expect(bulk).toEqual(expect.arrayContaining(['Name', 'Transform', 'Sprite', 'Disabled', 'BulkInspectionScript']));
             const read = registry.getBuiltinComponentNames!;
             registry.getBuiltinComponentNames = undefined;
             const legacy = world.getComponentTypes(entity);
+            expect(world.getComponentTypesBatch([entity])).toEqual([legacy]);
             registry.getBuiltinComponentNames = read;
             expect(bulk).toEqual(legacy);
             registry.removeSprite(entity);
             expect(world.getComponentTypes(entity)).not.toContain('Sprite');
+            expect(world.getComponentTypesBatch([entity])).toEqual([world.getComponentTypes(entity)]);
             world.remove(entity, script);
             expect(world.getComponentTypes(entity)).not.toContain('BulkInspectionScript');
             world.despawn(entity);

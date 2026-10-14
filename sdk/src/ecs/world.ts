@@ -1086,6 +1086,21 @@ export class World {
     /** The names of every component on `entity` — for inspectors and diagnostics;
      *  a system asks {@link has} about the definitions it knows. */
     getComponentTypes(entity: Entity): string[] {
+        return this.componentTypes_(entity);
+    }
+
+    /** @internal Inspect a group with one script catalogue index, preserving input order. */
+    getComponentTypesBatch(entities: readonly Entity[]): string[][] {
+        if (entities.length === 0) return [];
+        const scriptNames = new Map<symbol, string>();
+        for (const [name, def] of getUserComponents()) {
+            // Match the scalar lookup's first registered name for an id.
+            if (!scriptNames.has(def._id)) scriptNames.set(def._id, name);
+        }
+        return entities.map(entity => this.componentTypes_(entity, scriptNames));
+    }
+
+    private componentTypes_(entity: Entity, scriptNames?: ReadonlyMap<symbol, string>): string[] {
         const names = this.builtin_.componentNames(entity);
         const types = new Set<string>(names ?? []);
         const methods = this.builtin_.getMethodCache();
@@ -1104,9 +1119,14 @@ export class World {
         }
         const ids = this.scripts_.getEntityComponentIds(entity);
         if (ids) {
-            const registry = getUserComponents();
+            const registry = scriptNames ? null : getUserComponents();
             for (const id of ids) {
-                for (const [name, def] of registry) {
+                if (scriptNames) {
+                    const name = scriptNames.get(id);
+                    if (name !== undefined) types.add(name);
+                    continue;
+                }
+                for (const [name, def] of registry!) {
                     if (def._id === id) {
                         types.add(name);
                         break;

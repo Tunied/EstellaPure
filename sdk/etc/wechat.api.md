@@ -9878,6 +9878,7 @@ tabIndex: number | undefined
 @internal enableChangeTracking: (component: AnyComponentDef) => void
 @internal endIteration: () => void
 @internal ensureTransformsComposed: () => void
+@internal getComponentTypesBatch: (entities: readonly Entity[]) => string[][]
 @internal getCppRegistry: () => CppRegistry | null
 @internal getQueryCacheStats: () => QueryCacheStats
 @internal getRemovedEntitiesSince: (component: AnyComponentDef, sinceTick: number) => Entity[]

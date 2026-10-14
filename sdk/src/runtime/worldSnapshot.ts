@@ -165,12 +165,13 @@ export function worldSnapshot(
     };
 
     let selectedTypes: string[] | null = null;
+    const treeTypes = withTree ? world.getComponentTypesBatch(all) : null;
     const tree = withTree
         ? {
             version: '1.0' as const, name: 'live' as const,
-            entities: all.map((e) => {
+            entities: all.map((e, index) => {
                 const id = e as never as number;
-                const types = world.getComponentTypes(e);
+                const types = treeTypes![index];
                 if (id === selectedId) selectedTypes = types;
                 return shape(id, filterInspectableTypes(types).map((type) => ({ type, data: {} })), types);
             }),

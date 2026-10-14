@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(inspector): index script names once per runtime tree snapshot':
+    { note: 'Runtime tree inspection indexes script component names once per snapshot.' },
   'perf(inspector): reuse hierarchy links for selected runtime details':
     { note: 'Selected runtime details reuse maintained hierarchy links.' },
   'fix(inspector): clear destroyed runtime entity selections':
