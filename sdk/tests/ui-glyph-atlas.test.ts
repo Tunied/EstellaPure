@@ -260,3 +260,37 @@ describe('GlyphAtlas: a page painted again is the page that was uploaded', () =>
         expect(repainted).toEqual(images[0]);
     });
 });
+
+
+describe('page-free glyph cache lifetime', () => {
+    it.each(['missing', 'whitespace', 'oversized', 'measurement'] as const)(
+        'bounds historical %s entries while keeping recently used metrics and drawable glyphs', kind => {
+            const rasterizer = makeRasterizer();
+            const store = makeStore();
+            const atlas = new GlyphAtlas(rasterizer, kind === 'measurement' ? null : store, { pageSize: 64 });
+            const cp = { missing: UNKNOWN, whitespace: SPACE, oversized: HUGE, measurement: 65 }[kind];
+            const first = atlas.getGlyph(cp, 'Arial', 0, 1);
+            const hot = atlas.getGlyph(cp, 'Arial', 0, 2);
+            const drawable = kind === 'measurement' ? null : atlas.getGlyph(66, 'Arial');
+            for (let size = 3; size < 12003; size++) {
+                atlas.getGlyph(cp, 'Arial', 0, size);
+                expect(atlas.getGlyph(cp, 'Arial', 0, 2)).toBe(hot);
+            }
+            const calls = rasterizer.rasterize.mock.calls.length;
+            atlas.getGlyph(cp, 'Arial', 0, 1);
+            expect(rasterizer.rasterize.mock.calls.length).toBe(calls + 1);
+            const entries = Object.values(atlas).filter(v => v instanceof Map)
+                .reduce((total, map) => total + map.size, 0);
+            expect(entries).toBeLessThanOrEqual(4097);
+            expect(atlas.getGlyph(cp, 'Arial', 0, 2)).toBe(hot);
+            if (drawable) {
+                expect(atlas.getGlyph(66, 'Arial')).toBe(drawable);
+                expect(store.uploadSubRegion).toHaveBeenCalledTimes(1);
+                expect(atlas.pageCount).toBe(1);
+            } else expect(atlas.pageCount).toBe(0);
+            atlas.dispose();
+            const afterDispose = rasterizer.rasterize.mock.calls.length;
+            expect(atlas.getGlyph(cp, 'Arial', 0, 2)).toEqual(first);
+            expect(rasterizer.rasterize.mock.calls.length).toBe(afterDispose + 1);
+        });
+});

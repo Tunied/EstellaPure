@@ -110,7 +110,8 @@ export class GlyphAtlas {
     private dpr: number;
     private contentScale_ = 1;
     private generation_ = 0;
-    private readonly cache = new Map<string, GlyphEntry | null>();
+    private readonly cache = new Map<string, GlyphEntry>();
+    private readonly cpuCache = new Map<string, GlyphEntry | null>();
     private readonly pages: number[] = [];
     private readonly packers: Packer[] = [];
     private readonly placements: GlyphPlacement[][] = [];
@@ -139,6 +140,7 @@ export class GlyphAtlas {
         this.packers.length = 0;
         this.placements.length = 0;
         this.cache.clear();
+        this.cpuCache.clear();
         this.mute_.clear();
         this.generation_++;
         const errors: unknown[] = [];
@@ -230,12 +232,18 @@ export class GlyphAtlas {
     /**
      * Get a glyph's atlas entry, rasterizing + packing it on first use. Returns
      * null for glyphs the rasterizer cannot produce (caller skips / uses fallback).
-     * The result is cached (including the null), so a miss is paid once.
+     * Drawable entries follow page lifetime; page-free entries use a bounded LRU.
      */
     getGlyph(codepoint: number, fontFamily: string, style = 0, pixelSize = this.renderSize): GlyphEntry | null {
         const k = this.key(codepoint, fontFamily, style, pixelSize);
         const hit = this.cache.get(k);
         if (hit !== undefined) return hit;
+        const cpuHit = this.cpuCache.get(k);
+        if (cpuHit !== undefined) {
+            this.cpuCache.delete(k);
+            this.cpuCache.set(k, cpuHit);
+            return cpuHit;
+        }
 
         const raster = this.rasterizer.rasterize(codepoint, fontFamily, style, pixelSize);
         if (!raster) {
@@ -247,7 +255,7 @@ export class GlyphAtlas {
                 log.warn('text', `no glyph for U+${codepoint.toString(16).toUpperCase()} in `
                     + `"${fontFamily}" — this family produced none, so its text draws nothing`);
             }
-            this.cache.set(k, null);
+            this.cacheCPU(k, null);
             return null;
         }
 
@@ -259,13 +267,13 @@ export class GlyphAtlas {
                 width: 0, height: 0,
                 advance: raster.advance, bearingX: raster.bearingX, bearingY: raster.bearingY,
             };
-            this.cache.set(k, entry);
+            this.cacheCPU(k, entry);
             return entry;
         }
 
         if (!this.store) {
             if (raster.width + this.padding > this.pageSize || raster.height + this.padding > this.pageSize) {
-                this.cache.set(k, null);
+                this.cacheCPU(k, null);
                 return null;
             }
             const entry: GlyphEntry = {
@@ -273,14 +281,14 @@ export class GlyphAtlas {
                 width: raster.width, height: raster.height,
                 advance: raster.advance, bearingX: raster.bearingX, bearingY: raster.bearingY,
             };
-            this.cache.set(k, entry);
+            this.cacheCPU(k, entry);
             return entry;
         }
 
         const placed = this.place(raster.width, raster.height);
         if (!placed) {
             // Glyph larger than a whole page — cannot atlas it. Cache null.
-            this.cache.set(k, null);
+            this.cacheCPU(k, null);
             return null;
         }
 
@@ -306,6 +314,14 @@ export class GlyphAtlas {
         };
         this.cache.set(k, entry);
         return entry;
+    }
+
+    /** Page-free entries can be recreated without changing any live layout or UV. */
+    private cacheCPU(key: string, glyph: GlyphEntry | null): void {
+        this.cpuCache.set(key, glyph);
+        if (this.cpuCache.size > 4096) {
+            this.cpuCache.delete(this.cpuCache.keys().next().value!);
+        }
     }
 
     /** Reserve a w×h cell across pages, opening a new page when the last is full. */

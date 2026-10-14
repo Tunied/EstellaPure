@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Page-free text glyph caches stay bounded.** Missing and oversized glyphs, whitespace metrics and measurement-only entries use a 4096-entry least-recently-used cache. Historical fonts and sizes retire without touching live drawable pages or cached layout coordinates; recently used measurements remain cached and retired entries rasterize again on demand.
+
 ## [0.85.0] - 2026-10-15
 
 ### Added
