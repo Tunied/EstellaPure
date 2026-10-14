@@ -582,6 +582,11 @@ export function getComponentRegistry(): Map<string, AnyComponentDef> {
     return all;
 }
 
+/** @internal Shared builtin definitions, without constructing a merged catalogue. */
+export function builtinComponentRegistry(): ReadonlyMap<string, AnyComponentDef> {
+    return builtinRegistry;
+}
+
 /** Just the current context's user/script components (excludes builtins). */
 export function getUserComponents(): Map<string, AnyComponentDef> {
     return userComponents();

@@ -6,7 +6,7 @@
  */
 
 import { Entity, entityGeneration, entityIndex, makeEntity, INVALID_ENTITY } from '../types';
-import { AnyComponentDef, ComponentDef, ComponentData, BuiltinComponentDef, isBuiltinComponent, getComponentRegistry, getUserComponents, getComponent, Disabled, Name, Parent, Children, type ParentData, type ChildrenData } from './component';
+import { AnyComponentDef, ComponentDef, ComponentData, BuiltinComponentDef, isBuiltinComponent, builtinComponentRegistry, getUserComponents, getComponent, Disabled, Name, Parent, Children, type ParentData, type ChildrenData } from './component';
 import type { CppRegistry, ESEngineModule } from '../wasm';
 import { handleWasmError } from '../wasm/wasmError';
 import { BuiltinBridge, builtinFromWasm, numberListFieldsOf, convertForWasm, type BridgeConnectOptions,
@@ -1087,12 +1087,13 @@ export class World {
      *  a system asks {@link has} about the definitions it knows. */
     getComponentTypes(entity: Entity): string[] {
         const types = new Set<string>();
-        for (const [name, methods] of this.builtin_.getMethodCache()) {
-            try { if (methods.has(entity)) types.add(name); } catch (e) { log.warn('world', `Component check failed for ${name}`, e); }
+        const methods = this.builtin_.getMethodCache();
+        for (const [name, binding] of methods) {
+            try { if (binding.has(entity)) types.add(name); } catch (e) { log.warn('world', `Component check failed for ${name}`, e); }
         }
         if (this.builtin_.hasCpp) {
-            for (const [name, comp] of getComponentRegistry()) {
-                if (isBuiltinComponent(comp) && !types.has(name)) {
+            for (const [name, comp] of builtinComponentRegistry()) {
+                if (isBuiltinComponent(comp) && !methods.has(name)) {
                     try {
                         const m = this.builtin_.getBuiltinMethods(comp._cppName);
                         if (m.has(entity)) types.add(name);

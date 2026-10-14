@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Runtime inspection avoids duplicate builtin component checks.** Entity component enumeration checks cached builtin bindings once and reads the shared builtin catalogue instead of allocating a merged builtin/script map for every entity. Live tree snapshots retain uncached membership checks and immediately reflect component additions and removals.
+
 - **Unused transient streams no longer reserve GPU buffers.** Renderer pools initialize pipeline layouts without reserving vertex/index buffers or CPU staging for every stream. Each stream allocates storage on its first non-empty write, preserving buffer reuse, growth and recovery while avoiding unused particle, shape and sky allocations in 2D scenes.
 
 - **GPU memory estimates include buffers and render targets.** Runtime reports and editor captures count live buffer capacity, texture mip chains, compressed blocks and target attachments without double-counting framebuffer references. WebGPU also includes private fallback, surface and readback resources. Lost or destroyed resources stop contributing; the profiler labels this as an estimate that excludes driver overhead, shader binaries and host-owned swapchain images.

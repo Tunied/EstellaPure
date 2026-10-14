@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(ecs): avoid duplicate component checks during inspection':
+    { note: 'Runtime inspection avoids duplicate builtin component checks.' },
   'perf(renderer): allocate transient stream storage on first use':
     { note: 'Unused transient streams no longer reserve GPU buffers.' },
   'fix(profiler): label live gpu storage estimates':

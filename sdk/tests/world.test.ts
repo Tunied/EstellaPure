@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { World, computeQueryCacheKey } from '../src/ecs/world';
-import { defineComponent, defineTag, defineBuiltin, Name } from '../src/ecs/component';
+import { defineComponent, defineTag, defineBuiltin, Name, Transform } from '../src/ecs/component';
 import { createMockModule } from './mocks/wasm';
 
 describe('World', () => {
@@ -791,6 +791,28 @@ describe('World', () => {
     // =========================================================================
 
     describe('getComponentTypes', () => {
+        it('checks each known builtin once and reflects component mutations immediately', () => {
+            const module = createMockModule();
+            const registry = module.getRegistry();
+            const original = registry.hasTransform!;
+            const has = vi.fn((entity: number) => original(entity));
+            registry.hasTransform = has;
+            const inspected = new World();
+            inspected.connectCpp(registry, module);
+            const entity = inspected.spawn();
+            has.mockClear();
+            expect(inspected.getComponentTypes(entity)).not.toContain('Transform');
+            expect(has).toHaveBeenCalledTimes(1);
+            inspected.insert(entity, Transform);
+            expect(inspected.getComponentTypes(entity)).toContain('Transform');
+            inspected.remove(entity, Transform);
+            expect(inspected.getComponentTypes(entity)).not.toContain('Transform');
+            inspected.insert(entity, Position, { x: 1, y: 2 });
+            expect(inspected.getComponentTypes(entity)).toContain('TestPosition');
+            inspected.remove(entity, Position);
+            expect(inspected.getComponentTypes(entity)).not.toContain('TestPosition');
+        });
+
         it('should return an array (may be empty for script-only without registry)', () => {
             const entity = world.spawn();
             world.insert(entity, Position, { x: 0, y: 0 });
