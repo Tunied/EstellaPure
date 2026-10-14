@@ -397,7 +397,8 @@ inline void orientedWorldAabb(const glm::vec3& position, const glm::quat& rotati
  */
 inline glm::vec3 flatHalfExtents(const glm::vec2& turn, const glm::vec3& half) {
     const f32 c = std::abs(turn.x), s = std::abs(turn.y);
-    return {c * half.x + s * half.y, s * half.x + c * half.y, half.z};
+    const glm::vec3 extent = glm::abs(half);
+    return {c * extent.x + s * extent.y, s * extent.x + c * extent.y, extent.z};
 }
 
 class RenderTypePlugin {

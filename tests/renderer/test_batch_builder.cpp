@@ -278,6 +278,17 @@ TEST_CASE("camera mask: hidden text and skeletal submissions upload no geometry"
     CHECK(frame.stats().triangles == 4);
 }
 
+TEST_CASE("flat bounds: reflected extents enclose the same rotated box") {
+    for (f32 x : {1.0f, -1.0f}) for (f32 y : {1.0f, -1.0f}) {
+        for (f32 angle : {0.0f, .7f}) {
+            const auto extent = flatHalfExtents({std::cos(angle), std::sin(angle)}, {3*x, 5*y, -2});
+            CHECK(extent.x == doctest::Approx(std::abs(std::cos(angle))*3 + std::abs(std::sin(angle))*5));
+            CHECK(extent.y == doctest::Approx(std::abs(std::sin(angle))*3 + std::abs(std::cos(angle))*5));
+            CHECK(extent.z == 2);
+        }
+    }
+}
+
 TEST_CASE("nine-slice: small boxes contain their borders and preserve source UVs") {
     for (const glm::vec2 size : {glm::vec2{40, 30}, {10, 6}, {10, 30}, {40, 6}, {0, 6}, {10, 0}}) {
         Harness h;

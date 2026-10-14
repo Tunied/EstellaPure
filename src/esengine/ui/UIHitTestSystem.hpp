@@ -45,7 +45,8 @@ inline bool pointInOBB(
     f32 bottom = worldY - worldH * pivotY;
     f32 top = worldY + worldH * (1.0f - pivotY);
 
-    return localX >= left && localX <= right && localY >= bottom && localY <= top;
+    return localX >= std::min(left, right) && localX <= std::max(left, right)
+        && localY >= std::min(bottom, top) && localY <= std::max(bottom, top);
 }
 
 /**

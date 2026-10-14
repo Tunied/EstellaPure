@@ -294,8 +294,29 @@ inline void decompose(const glm::mat4& matrix, glm::vec3& position, glm::quat& r
     scale.y = glm::length(glm::vec3(matrix[1]));
     scale.z = glm::length(glm::vec3(matrix[2]));
 
+    // A planar reflection stays a Z rotation plus signed XY scale. This also
+    // keeps a collapsed axis from producing a non-unit rotation quaternion.
+    if (matrix[0].z == 0.0f && matrix[1].z == 0.0f && matrix[2].x == 0.0f && matrix[2].y == 0.0f) {
+        glm::vec2 direction{1.0f, 0.0f};
+        if (scale.x > EPSILON) {
+            direction = glm::vec2(matrix[0]) / scale.x;
+            if (matrix[0].x * matrix[1].y - matrix[0].y * matrix[1].x < 0.0f) scale.y = -scale.y;
+        } else if (scale.y > EPSILON) {
+            direction = glm::vec2(matrix[1].y, -matrix[1].x) / scale.y;
+        }
+        scale.z = matrix[2].z;
+        rotation = glm::quat_cast(glm::mat3(glm::vec3(direction, 0.0f),
+                                            glm::vec3(-direction.y, direction.x, 0.0f),
+                                            glm::vec3(0.0f, 0.0f, 1.0f)));
+        return;
+    }
+
+    // Quaternion conversion requires a proper rotation, not a reflection.
+    // Put the spatial reflection on one scale axis before converting the basis.
+    if (glm::determinant(glm::mat3(matrix)) < 0.0f) scale.x = -scale.x;
+
     // Guard zero-scale axes to avoid NaN/Inf in the quaternion.
-    const float sx = scale.x > EPSILON ? scale.x : EPSILON;
+    const float sx = std::abs(scale.x) > EPSILON ? scale.x : std::copysign(EPSILON, scale.x);
     const float sy = scale.y > EPSILON ? scale.y : EPSILON;
     const float sz = scale.z > EPSILON ? scale.z : EPSILON;
 

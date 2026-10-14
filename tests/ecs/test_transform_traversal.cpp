@@ -4,6 +4,59 @@
 using namespace esengine;
 using namespace esengine::ecs;
 
+static void checkReconstructedTransform(const glm::mat4& matrix, bool planar) {
+    Transform transform;
+    transform.cachedMatrix_ = matrix;
+    transform.decomposed_ = false;
+    transform.ensureDecomposed();
+    const auto rebuilt = glm::translate(glm::mat4(1), transform.worldPosition)
+                       * glm::mat4_cast(transform.worldRotation)
+                       * glm::scale(glm::mat4(1), transform.worldScale);
+    CHECK(glm::length(transform.worldRotation) == doctest::Approx(1));
+    if (planar) {
+        CHECK(transform.worldRotation.x == doctest::Approx(0));
+        CHECK(transform.worldRotation.y == doctest::Approx(0));
+    }
+    for (int col = 0; col < 4; ++col) for (int row = 0; row < 4; ++row) {
+        CHECK(std::isfinite(rebuilt[col][row]));
+        CHECK(rebuilt[col][row] == doctest::Approx(matrix[col][row]).epsilon(.0001));
+    }
+}
+
+TEST_CASE("signed transforms reconstruct planar and spatial mirrors") {
+    for (float x : {1.0f, -1.0f}) for (float y : {1.0f, -1.0f}) for (float z : {1.0f, -1.0f}) {
+        for (bool planar : {false, true}) {
+            const auto rotation = planar ? glm::angleAxis(.7f, glm::vec3(0, 0, 1))
+                                         : glm::quat(glm::vec3(.3f, -.5f, .9f));
+            const auto matrix = glm::translate(glm::mat4(1), glm::vec3(4, -7, 3))
+                              * glm::mat4_cast(rotation) * glm::scale(glm::mat4(1), glm::vec3(2*x, 3*y, 4*z));
+            checkReconstructedTransform(matrix, planar);
+        }
+    }
+}
+
+TEST_CASE("planar mirrors compose through parents and collapsed axes stay finite") {
+    for (float x : {1.0f, -1.0f}) for (float y : {1.0f, -1.0f}) {
+        Registry registry; TransformSystem system;
+        const auto parent = registry.create(), child = registry.create();
+        auto& p = registry.emplace<Transform>(parent);
+        p.rotation = glm::angleAxis(.7f, glm::vec3(0, 0, 1));
+        p.scale = {x, y, -1};
+        auto& c = registry.emplace<Transform>(child);
+        c.position = {3, 4, 0};
+        c.rotation = glm::angleAxis(-.2f, glm::vec3(0, 0, 1));
+        c.scale = {-2, 3, 1};
+        setParent(registry, child, parent);
+        system.ensureComposed(registry);
+        checkReconstructedTransform(c.cachedMatrix_, true);
+    }
+    for (const glm::vec3 scale : {glm::vec3{0, 3, 4}, {2, 0, 4}, {0, -3, -4}, {0, 0, 0}}) {
+        const auto matrix = glm::mat4_cast(glm::angleAxis(.7f, glm::vec3(0, 0, 1)))
+                          * glm::scale(glm::mat4(1), scale);
+        checkReconstructedTransform(matrix, true);
+    }
+}
+
 TEST_CASE("transformless grouping nodes preserve descendant composition") {
     Registry r; TransformSystem system;
     const auto root = r.create(), group = r.create(), child = r.create();

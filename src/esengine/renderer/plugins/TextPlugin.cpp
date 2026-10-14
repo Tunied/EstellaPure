@@ -157,11 +157,11 @@ void TextPlugin::collect(RenderCollectContext& collect_ctx) {
         glm::vec3 position = parallaxedWorldPosition(transform, bt.parallax, collect_ctx.camera);
         const f32 s = transform.worldScale.x;
 
-        glm::vec3 halfExtents = glm::vec3(
+        glm::vec3 halfExtents = glm::abs(glm::vec3(
             cache.width * s * 0.5f,
             cache.height * transform.worldScale.y * 0.5f,
             0.0f
-        );
+        ));
         if (!frustum.intersectsAABB(position, halfExtents)) {
             ++collect_ctx.culled;
             continue;

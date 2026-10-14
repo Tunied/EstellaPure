@@ -2,9 +2,31 @@
 #include <doctest.h>
 #include "esengine/ui/UITree.hpp"
 #include "esengine/ui/UIRenderOrderSystem.hpp"
+#include "esengine/ui/UIHitTestSystem.hpp"
 
 using namespace esengine;
 using namespace esengine::ecs;
+
+TEST_CASE("mirrored UI boxes keep their pivot and rotated pointer bounds") {
+    for (float x : {1.0f, -1.0f}) for (float y : {1.0f, -1.0f}) {
+        for (float angle : {0.0f, .7f}) {
+            const auto rotation = glm::angleAxis(angle, glm::vec3(0, 0, 1));
+            const auto world = [&](glm::vec2 local) {
+                local *= glm::vec2(x, y);
+                return glm::vec2(13, 17) + glm::vec2(local.x * std::cos(angle) - local.y * std::sin(angle),
+                                                   local.x * std::sin(angle) + local.y * std::cos(angle));
+            };
+            for (const glm::vec2 local : {glm::vec2{-1, -3}, {5, 1}}) {
+                const auto point = world(local);
+                CHECK(pointInOBB(point.x, point.y, 13, 17, 10*x, 8*y, .2f, .75f, rotation.z, rotation.w));
+            }
+            for (const glm::vec2 local : {glm::vec2{-3, 0}, {9, 0}, {0, -7}, {0, 3}}) {
+                const auto point = world(local);
+                CHECK_FALSE(pointInOBB(point.x, point.y, 13, 17, 10*x, 8*y, .2f, .75f, rotation.z, rotation.w));
+            }
+        }
+    }
+}
 
 TEST_CASE("nested canvas roots respect hierarchy instead of component insertion order") {
     for (bool nestedFirst : {false, true}) {
