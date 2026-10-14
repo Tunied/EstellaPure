@@ -338,7 +338,7 @@ function externalEngineImports(metafile: { outputs: Record<string, { imports?: {
  *  for desktop (the Electron shell sizes its own window). */
 function indexHtml(
   title: string, map: EngineImportMap, look: SplashLook, orientation?: ScreenOrientation,
-  debugChannel?: DebugChannelConfig, webChannel?: 'poki' | 'crazygames',
+  debugChannel?: DebugChannelConfig, webChannel?: 'poki' | 'crazygames' | 'youtube',
 ): string {
   // The editor a development build dials is the one address beyond 'self' the
   // page may connect to; a build without a channel lists none.
@@ -349,11 +349,11 @@ function indexHtml(
     .join(' ');
   // Channel SDKs own third-party ad frames, scripts and requests; their policy is
   // incompatible with the standalone page's same-origin resource restriction.
-  const channelPolicy = webChannel === 'poki' || webChannel === 'crazygames'
+  const channelPolicy = webChannel === 'poki' || webChannel === 'crazygames' || webChannel === 'youtube'
     ? `default-src 'self' data: blob: https:; script-src 'self' 'unsafe-eval' blob: https: ${inlineScripts}; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; connect-src 'self' data: blob: https:${connect}; frame-src https:; media-src 'self' data: blob: https:; worker-src 'self' blob:;`
     : `default-src 'self'; script-src 'self' 'unsafe-eval' blob: ${inlineScripts}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' data: blob:${connect}; worker-src 'self' blob:;`;
   return `<!doctype html>
-<html lang="en" data-web-channel="${webChannel === 'poki' ? 'poki' : webChannel === 'crazygames' ? 'crazygames' : 'standalone'}">
+<html lang="en" data-web-channel="${webChannel === 'poki' ? 'poki' : webChannel === 'crazygames' ? 'crazygames' : webChannel === 'youtube' ? 'youtube' : 'standalone'}">
   <head>
     <meta charset="UTF-8" />
     <meta
@@ -362,7 +362,7 @@ function indexHtml(
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <title>${title}</title>
-    ${webChannel === 'poki' ? '<script src="https://game-cdn.poki.com/scripts/v2/poki-sdk.js"></script>' : webChannel === 'crazygames' ? '<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>' : ''}
+    ${webChannel === 'poki' ? '<script src="https://game-cdn.poki.com/scripts/v2/poki-sdk.js"></script>' : webChannel === 'crazygames' ? '<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>' : webChannel === 'youtube' ? '<script src="https://www.youtube.com/game_api/v1"></script>' : ''}
     <script type="importmap">${map.json}</script>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -477,7 +477,7 @@ export interface ExportGameOptions {
   /** Project-relative startup entry (e.g. src/main.ts) → bundled to scripts.mjs. */
   scriptsEntry?: string;
   /** Browser distribution channel; standalone leaves the original Web policy intact. */
-  webChannel?: 'poki' | 'crazygames';
+  webChannel?: 'poki' | 'crazygames' | 'youtube';
   leaderboardEncryptionKey?: string;
   sdkDistDir: string;
   /** The engine runtime to copy. */

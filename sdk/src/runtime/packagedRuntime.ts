@@ -38,7 +38,7 @@ import type { AotManifest } from '../ecs/aot/AotSystems';
  */
 export interface PackagedGameConfig {
     /** External Web distribution SDK selected by this export. */
-    webChannel?: 'poki' | 'crazygames';
+    webChannel?: 'poki' | 'crazygames' | 'youtube';
     /** Public client encryption key for invited CrazyGames leaderboards; never a server API key. */
     leaderboardEncryptionKey?: string;
     /** Project-relative path of the scene the game boots into. */

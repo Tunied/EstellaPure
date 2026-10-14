@@ -78,6 +78,10 @@ jobs:
       run: |
         node tools/tests/export-execution-hold-fixture.mjs --wasm build/wasm/web --out output/execution-hold-ci-export
         node tools/tests/execution-hold.e2e.mjs --dir output/execution-hold-ci-export --out output/execution-hold-ci-check
+    - name: Check YouTube readiness, SDK pause and cloud saves in SDK mocks
+      run: |
+        node pipeline/bin/estella.mjs export examples/mobile-controls --profile youtube --wasm build/wasm/web --out output/youtube-training-ci-export
+        node tools/tests/youtube-training.e2e.mjs --dir output/youtube-training-ci-export --out output/youtube-training-ci-check
     - name: Upload hash-bound local observations and screenshots
       if: always()
       uses: actions/upload-artifact@v7
@@ -105,6 +109,13 @@ jobs:
       with:
         name: execution-hold-headless-checks
         path: output/execution-hold-ci-*
+        retention-days: 3
+    - name: Upload YouTube training local mock observations
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: youtube-training-local-mock-checks
+        path: output/youtube-training-ci-*
         retention-days: 3
 
   # The engine binaries, and nothing else: every gate below waits on this job, so

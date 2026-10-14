@@ -19,3 +19,6 @@
 - After completing appropriate verification, commit and push changes directly to
   the main branch (currently master). Do not create pull requests unless the user
   explicitly requests one.
+
+- Routine roadmap work must not bump versions, create tags, or publish releases.
+  Release actions require an explicit user request.

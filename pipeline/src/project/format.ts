@@ -409,7 +409,7 @@ export interface ProjectPackaging {
   /** Per-platform packaging config: each target's slice of the app identity, plus
    *  whatever only it has (a WeChat appid, an Android versionCode). */
   platforms?: {
-    web?: { channel?: 'standalone' | 'poki' | 'crazygames'; leaderboardEncryptionKey?: string };
+    web?: { channel?: 'standalone' | 'poki' | 'crazygames' | 'youtube'; leaderboardEncryptionKey?: string };
     wechat?: WeChatPackaging;
     douyin?: MiniGamePackaging;
     bilibili?: MiniGamePackaging;
@@ -911,11 +911,11 @@ export function parseManifest(raw: unknown): ProjectManifest {
       const platforms: NonNullable<ProjectPackaging['platforms']> = {};
       const web = pl.web as Record<string, unknown> | undefined;
       if (web && typeof web === 'object') {
-        if (web.channel !== undefined && web.channel !== 'standalone' && web.channel !== 'poki' && web.channel !== 'crazygames') {
-          throw new Error('packaging.platforms.web.channel must be standalone, poki or crazygames');
+        if (web.channel !== undefined && web.channel !== 'standalone' && web.channel !== 'poki' && web.channel !== 'crazygames' && web.channel !== 'youtube') {
+          throw new Error('packaging.platforms.web.channel must be standalone, poki, crazygames or youtube');
         }
         const config: NonNullable<NonNullable<ProjectPackaging['platforms']>['web']> = {};
-        if (web.channel) config.channel = web.channel as 'standalone' | 'poki' | 'crazygames';
+        if (web.channel) config.channel = web.channel as 'standalone' | 'poki' | 'crazygames' | 'youtube';
         if (web.leaderboardEncryptionKey !== undefined && web.leaderboardEncryptionKey !== '') {
           if (typeof web.leaderboardEncryptionKey !== 'string' || !/^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=$/.test(web.leaderboardEncryptionKey)) {
             throw new Error('packaging.platforms.web.leaderboardEncryptionKey must be a base64-encoded 32-byte client encryption key');

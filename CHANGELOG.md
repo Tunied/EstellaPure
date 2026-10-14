@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Added
+
+- **YouTube Playables Web exports honor host readiness and persistence.** The editor offers the channel and named example profile. Exports load the official SDK, report painted loading and interactive readiness, follow SDK pause/audio policy, and await cloud save acknowledgment before sending the saved highest score. Failed or unreadable cloud loads preserve progress; SDK no-ops disable host services. Headless SDK mock checks cover readiness, pause, reward credits and reloads; official certification and devices remain pending.
+
 ## [0.84.0] - 2026-10-15
 
 ### Added

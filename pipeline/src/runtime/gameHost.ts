@@ -12,7 +12,7 @@
  *        (shared with the play realm's import-map work).
  */
 import {
-  createWebApp, setEditorMode, setPlayMode, Assets, Ads, extendPlatform,
+  createWebApp, setEditorMode, setPlayMode, Assets, Ads, extendPlatform, getPlatform,
   indexPackagedManifest, createPackagedAssetSource, applyAssetRefResolvers, initRuntime,
   HttpBackend, fetchDecodePixels, registerPackagedSideModules,
   packagedAppOptions, packagedRuntimeInit, Transform, SceneManager, UINode,
@@ -62,6 +62,7 @@ import { attachSplash, type Splash } from '../export/splash';
 import { countedStream, engineDownloadTotal } from './engineDownload';
 import { initializePoki, type PokiSdk } from './pokiProfile';
 import { initializeCrazyGames, type CrazyGamesSdk } from './crazyGamesProfile';
+import { initializeYouTube, type YouTubeSdk } from './youtubeProfile';
 
 /**
  * Fetch the engine binary through a stream we can count, and hand the SAME
@@ -108,6 +109,24 @@ async function boot(): Promise<void> {
 
   const cfg = (await (await fetch('./game.config.json')).json()) as PackagedGameConfig;
   splash?.reach('config');
+  const youtube = cfg.webChannel === 'youtube'
+    ? initializeYouTube((window as unknown as { ytgame?: YouTubeSdk }).ytgame, (message, error) => console.warn(message, error))
+    : null;
+  if (youtube) {
+    await youtube.waitActive();
+    // A painted loading screen qualifies as the first frame; it precedes cloud loading.
+    await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    await youtube.waitActive();
+    youtube.firstFrameReady();
+    await youtube.load();
+    const fetchFromHost = getPlatform().fetch.bind(getPlatform());
+    extendPlatform({ ...youtube.storage, onAudioMute: youtube.onAudioMute, submitScore: youtube.submitScore,
+      fetch: async (url, options) => {
+        await youtube.waitActive(); const response = await fetchFromHost(url, options); await youtube.waitActive(); return response;
+      },
+    });
+    document.documentElement.dataset.webSdkReady = String(youtube.provider !== null);
+  }
   const poki = cfg.webChannel === 'poki'
     ? await initializePoki((window as unknown as { PokiSDK?: PokiSdk }).PokiSDK, (message, error) => console.warn(message, error))
     : null;
@@ -120,6 +139,7 @@ async function boot(): Promise<void> {
   }
   // Before the engine boots, so a boot that fails is still heard by the editor.
   if (cfg.debugChannel) startDebugChannel(cfg.debugChannel);
+  await youtube?.waitActive();
 
   // The project's own components and systems. The config SAYS whether this build
   // has any, so a load failure is a failure rather than a build that turned out
@@ -159,7 +179,9 @@ async function boot(): Promise<void> {
     ? (cfg.scenes ?? []).find((s) => s.name === wanted)?.path
     : cfg.entryScene;
   if (!chosen) throw new Error(`[estella] no scene named "${wanted}" in this package`);
+  await youtube?.waitActive();
   const sceneData = (await (await fetch(`./${chosen}`)).json()) as SceneData;
+  await youtube?.waitActive();
 
   // The cooked worlds this build carries. Fetched beside the entry scene because
   // residency answers for the entry scene from its first frame, and a manifest
@@ -216,6 +238,15 @@ async function boot(): Promise<void> {
   });
   if (poki?.provider) app.getResource(Ads)?.setProvider(poki.provider);
   if (crazyGames?.provider) app.getResource(Ads)?.setProvider(crazyGames.provider);
+  if (youtube) app.addPlugin({ name: 'YouTubeHost', build(host) {
+    if (youtube.provider) host.getResource(Ads)?.setProvider(youtube.provider);
+    let release: (() => void) | null = null;
+    const off = youtube.onPause(paused => {
+      if (paused && !release) release = host.holdExecution();
+      else if (!paused && release) { const finish = release; release = null; finish(); }
+    });
+    this.cleanup = () => { off(); release?.(); youtube.dispose(); };
+  } });
   splash?.reach('app');
   setEditorMode(false);
   setPlayMode(true);
@@ -911,6 +942,17 @@ async function boot(): Promise<void> {
   // never return, and the fade is what the first frames should arrive through.
   splash?.reach('ready');
   splash?.done();
+  if (youtube) {
+    let sent = false;
+    const offFrame = app.onFrameEnd(() => {
+      if (sent) return; sent = true; offFrame();
+      const ready = async () => {
+        while (document.getElementById('es-splash')) await new Promise<void>(resolve => setTimeout(resolve, 30));
+        await youtube.gameReady();
+      };
+      void ready().catch(error => console.warn('[YouTube] Ready notification failed', error));
+    });
+  }
   app.run();
 }
 

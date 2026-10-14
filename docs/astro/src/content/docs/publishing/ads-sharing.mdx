@@ -352,3 +352,25 @@ running for the session; the Inspector supplies its testing context. This path
 has been checked with the training example's real SDK initialization, loading,
 play/pause and rewarded completion. Complete the remaining QA modules before
 submission; these observations do not certify devices or production ad fill.
+
+## YouTube Playables Web exports
+
+Select **YouTube Playables** in Web packaging or set
+`packaging.platforms.web.channel` to `"youtube"`. The Mobile Controls example
+provides a named `youtube` profile. The official SDK loads before game code;
+`firstFrameReady` reports the painted loading screen and `gameReady` waits
+until the scene is interactive and the loading overlay has disappeared.
+
+SDK pause/resume holds engine frames, input, audio and video independently of
+player pause. Game-owned asynchronous work must cooperate with execution
+notifications. Visibility events do not override SDK pause. Reward credits
+require a true SDK result. Cloud data must load successfully before writes;
+failed or unreadable loads preserve existing progress. Await `Storage.flush()`
+or `SaveManager.saveAsync()` to observe SDK save acknowledgment. Saves above
+3 MiB are rejected; pause-time saves above 64 KiB remain pending. The example
+sends the highest score only after saving that value successfully.
+
+Outside the Playables environment, local SDK no-ops do not enable ads, scores
+or cloud saving. Headless SDK mock checks are separate from official Test Suite
+certification, real cloud restoration and physical-device acceptance. See the
+[official integration requirements](https://developers.google.com/youtube/gaming/playables/certification/requirements_integration).

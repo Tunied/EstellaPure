@@ -5770,7 +5770,7 @@ sideModules: { id: string; file: string; globalName?: string; }[] | undefined
 steamAppId: number | undefined
 uiTheme: "light" | undefined
 uiThemeColors: Record<string, string> | undefined
-webChannel: "poki" | "crazygames" | undefined
+webChannel: "poki" | "crazygames" | "youtube" | undefined
 worlds: { scene: string; manifest: string; }[] | undefined
 ySortLayers: number | undefined
 ```

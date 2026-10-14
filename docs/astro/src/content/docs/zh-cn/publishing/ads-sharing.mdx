@@ -312,3 +312,21 @@ CI 使用真正无头 Chromium、SDK 模拟和同提交 Web WASM 检查这些流
 Inspector 会提供测试上下文。训练示例的真实 SDK 初始化、加载、开始/暂停
 和奖励完成已通过这条入口核实；提交前仍须逐项完成其余 QA 模块，不能把
 这些观察等同于设备验收或正式投放的广告填充保证。
+
+## YouTube Playables Web 导出
+
+在 Web 打包设置选择 **YouTube Playables**，或将
+`packaging.platforms.web.channel` 设置为 `"youtube"`。Mobile Controls
+提供同名导出档。官方 SDK 在游戏代码前加载：加载画面绘制后通知
+`firstFrameReady`，场景可交互且加载遮罩消失后通知 `gameReady`。
+
+SDK 的暂停/恢复独立控制引擎帧、输入、音频和视频，保留玩家暂停选择。
+游戏自有异步任务须配合执行状态通知；页面可见性事件不能覆盖宿主暂停。
+奖励只有在 SDK 返回 true 时发放。云数据读取成功前不能写入，读取失败或
+数据无法识别时保留已有进度。通过 `await Storage.flush()` 或
+`SaveManager.saveAsync()` 等待 SDK 保存确认。存档上限为 3 MiB；暂停时
+超过 64 KiB 的保存保持待重试，不截断数据。示例保存最高分成功后才提交同一分数。
+
+本地 SDK 的空操作不启用广告、分数或云存档。无头 SDK 模拟检查与官方
+Test Suite 认证、真实云恢复和物理设备验收分别记录。参见
+[官方接入要求](https://developers.google.com/youtube/gaming/playables/certification/requirements_integration)。

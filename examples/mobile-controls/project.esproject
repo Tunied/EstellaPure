@@ -12,6 +12,14 @@
   "spineVersion": "none",
   "packaging": {
     "profiles": {
+      "youtube": {
+        "platform": "web",
+        "platforms": {
+          "web": {
+            "channel": "youtube"
+          }
+        }
+      },
       "crazygames": {
         "platform": "web",
         "platforms": {

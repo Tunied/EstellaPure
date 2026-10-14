@@ -28,6 +28,10 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(youtube): connect Playables readiness pause and cloud saves':
+    { note: 'YouTube Playables Web exports honor host readiness and persistence.' },
+  'feat(settings): add YouTube Playables Web channel':
+    { note: 'YouTube Playables Web exports honor host readiness and persistence.' },
   'perf(text): reclaim unused glyph pages at frame boundaries':
     { note: 'Unused text atlas pages retire at frame boundaries.' },
   'feat(app): hold execution across frames input and media':

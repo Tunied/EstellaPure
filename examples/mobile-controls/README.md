@@ -129,3 +129,29 @@ See the official [SDK introduction](https://docs.crazygames.com/sdk/intro/),
 [Data module](https://docs.crazygames.com/sdk/data/).
 For scores, see [leaderboard requirements](https://docs.crazygames.com/sdk/leaderboards/)
 and [client score submission](https://docs.crazygames.com/sdk/leaderboards-client/).
+
+## YouTube Playables Web training profile
+
+Export with `node pipeline/bin/estella.mjs export examples/mobile-controls
+--profile youtube --out output/youtube-training-web`. The editor also exposes
+YouTube Playables under Web channel settings. The official SDK loads before
+game code. The host reports the painted loading screen with `firstFrameReady`
+and waits until the scene is interactive and the loading overlay has gone
+before reporting `gameReady`.
+
+SDK pause/resume events hold engine frames, input, audio and video. Browser
+visibility events never override a host pause. Game-owned asynchronous work
+must cooperate with pause; execution holds cannot cancel already running JavaScript.
+
+Cloud data must load successfully before any write. Missing SDKs, local SDK
+no-ops, failed reads and unreadable saves disable cloud writes without a local
+fallback. Use `await Storage.flush()` or `SaveManager.saveAsync()` to observe
+SDK acknowledgment. The envelope has a 3 MiB limit; pause-time saves above
+64 KiB remain pending rather than being truncated. The training UI restores
+reward credits, grants rewards only when the SDK returns true, and submits
+the highest score only after that same value has been saved successfully.
+
+Headless checks use explicit SDK mocks. Official Playables invitation,
+Test Suite certification, real cloud restoration and device acceptance remain
+pending. See the official [integration requirements](https://developers.google.com/youtube/gaming/playables/certification/requirements_integration)
+and [SDK reference](https://developers.google.com/youtube/gaming/playables/reference/sdk).

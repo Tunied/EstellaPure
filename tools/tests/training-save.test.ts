@@ -38,3 +38,16 @@ it('surfaces unreadable storage as session-only progress without writing fallbac
     const save=new TrainingSave(storage);expect(save.load()).toBe(0);save.save(1);
     expect(storage.setString).not.toHaveBeenCalled();expect(save.message).toContain('session');
 });
+it('reports async saving only after acknowledgment and preserves pending status for newer writes',async()=>{
+    const {storage}=fixture();let first!:()=>void,second!:()=>void;
+    const flush=vi.fn().mockImplementationOnce(()=>new Promise<void>(resolve=>{first=resolve;}))
+        .mockImplementationOnce(()=>new Promise<void>(resolve=>{second=resolve;}));
+    const save=new TrainingSave({...storage,flush});save.load();const a=save.saveAsync(1),b=save.saveAsync(2);
+    first();await a;expect(save.message).toBe('Saving progress...');second();await b;expect(save.message).toContain('acknowledged');
+});
+it('does not acknowledge failed async writes or unreadable progress',async()=>{
+    const {storage}=fixture(),flush=vi.fn(async()=>{throw new Error('offline');}),save=new TrainingSave({...storage,flush});save.load();
+    await save.saveAsync(1);expect(save.message).toContain('Save failed');
+    storage.getString.mockImplementation(()=>{throw new Error('unavailable');});save.load();flush.mockClear();await save.saveAsync(2);
+    expect(flush).not.toHaveBeenCalled();
+});
