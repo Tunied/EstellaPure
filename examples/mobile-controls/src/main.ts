@@ -2,8 +2,10 @@ import {
     addStartupSystem, addSystemToSchedule, defineSystem, Schedule, Res, GetWorld,
     Input, InputMap, Axis2D, Button, Keys2D, Key, Virtual, Time, Transform, Sprite,
     UIEvents, Text, Name, UINode, UIPositionType, spawnUIEntity, createButton, px, Device,
-    type Entity, type DeviceResult,
+    Ads, type World, type Entity, type DeviceResult,
 } from 'esengine';
+import { setupPokiTraining } from './pokiTrainingUI';
+import type { TrainingSession } from './pokiTraining';
 
 const controls = new InputMap({ Move: Axis2D(Keys2D('KeyW', 'KeyS', 'KeyA', 'KeyD'), Virtual('move')),
     Fire: Button(Key('Space'), Virtual('fire')) });
@@ -12,13 +14,23 @@ let motion = false;
 let motionData = 'off';
 let status: Entity | null = null;
 let message = 'Drag the left stick and hold Fire. WASD / Space also work.';
+let trainer: TrainingSession | null = null;
 let hits = 0;
 let hitFlash = 0;
 let recoil = 0;
 let misses = 0;
 const report = (name: string) => (result: DeviceResult) => { message = `${name}: ${result.status}${result.reason ? ` (${result.reason})` : ''}`; };
 
-addStartupSystem(defineSystem([Res(UIEvents), GetWorld()], (events, world) => {
+const refreshStatus = (world: World): void => {
+    if (status === null || !world.valid(status)) return;
+    const caps = Device.capabilities();
+    const content = trainer
+        ? `${trainer.phase.toUpperCase()} / ${trainer.message}\nRound: ${trainer.hits} / 3 hits / Credits: ${trainer.credits} / Motion: ${motion ? motionData : 'off'} / ${message}`
+        : `${message}\nHits: ${hits} / Sensor data: ${motion ? motionData : 'off'} / Vibration API: ${caps.vibration ? 'available' : 'unavailable'}`;
+    if (world.get(status, Text).content !== content) world.insert(status, Text, { ...world.get(status, Text), content });
+};
+
+addStartupSystem(defineSystem([Res(UIEvents), Res(Ads), GetWorld()], (events, ads, world) => {
     const canvas = world.findEntityByName('Canvas'); if (canvas === null) return;
     spawnUIEntity({ world, parent: canvas,
         node: { position: UIPositionType.Absolute, insetLeft: px(30), insetTop: px(6), width: px(740), height: px(22), pointerEvents: 1 },
@@ -60,10 +72,25 @@ addStartupSystem(defineSystem([Res(UIEvents), GetWorld()], (events, world) => {
         visual: { color: { r: 0.075, g: 0.09, b: 0.14, a: 0.95 } },
         text: { content: 'Approach the monster, then attack.\nWASD / stick to move / Space / Fire to attack', fontSize: 13 } });
     world.insert(hint, UINode, { ...world.get(hint, UINode), pointerEvents: 1 });
+    const player = world.findEntityByName('Player'); const target = world.findEntityByName('Target');
+    if (player !== null && target !== null) {
+        const playerStart = { ...world.get(player, Transform).position };
+        const targetStart = { ...world.get(target, Transform).position };
+        trainer = setupPokiTraining(world, events, canvas, ads, () => {
+            hits = 0; misses = 0; hitFlash = 0; recoil = 0;
+            for (const [entity, position] of [[player, playerStart], [target, targetStart]] as const) {
+                const transform = world.get(entity, Transform); transform.position = { ...position };
+                transform.scale = { x: 1, y: 1, z: 1 }; world.insert(entity, Transform, transform);
+                world.insert(entity, Sprite, { ...world.get(entity, Sprite), color: { r: 1, g: 1, b: 1, a: 1 } });
+            }
+        }, () => refreshStatus(world));
+        refreshStatus(world);
+    }
 }, { name: 'MobileControlsSetup' }));
 
 addSystemToSchedule(Schedule.Update, defineSystem([Res(Input), Res(Time), GetWorld()], (input, time, world) => {
     controls.evaluate(input);
+    if (trainer && trainer.phase !== 'playing') { refreshStatus(world); return; }
     const player = world.findEntityByName('Player'); const target = world.findEntityByName('Target');
     if (player === null || target === null) return;
     const axis = controls.axis2d('Move'); const transform = world.get(player, Transform);
@@ -85,7 +112,7 @@ addSystemToSchedule(Schedule.Update, defineSystem([Res(Input), Res(Time), GetWor
     if (controls.pressed('Fire')) {
         recoil = 0.12;
         if (Math.hypot(destination.x - transform.position.x, destination.y - transform.position.y) < 85) {
-            hits++; hitFlash = 0.3; message = `Hit! Training score: ${hits}`; void Device.vibrate({ duration: 'short', intensity: 'heavy' }).then(report('Hit vibration'));
+            hits++; trainer?.hit(); hitFlash = 0.3; message = `Hit! Training score: ${hits}`; void Device.vibrate({ duration: 'short', intensity: 'heavy' }).then(report('Hit vibration'));
             if (hits % 3 === 0) {
                 targetTransform.position = { ...destination,
                     x: destination.x > 0 ? -180 : 180, y: hits % 2 === 0 ? -40 : 40 };
@@ -93,9 +120,5 @@ addSystemToSchedule(Schedule.Update, defineSystem([Res(Input), Res(Time), GetWor
             }
         } else { misses++; message = `Out of reach - move closer to the monster. Misses: ${misses}`; }
     }
-    if (status !== null && world.valid(status)) {
-        const caps = Device.capabilities();
-        const content = `${message}\nHits: ${hits} / Sensor data: ${motion ? motionData : 'off'} / Vibration API: ${caps.vibration ? 'available' : 'unavailable'}`;
-        if (world.get(status, Text).content !== content) world.insert(status, Text, { ...world.get(status, Text), content });
-    }
+    refreshStatus(world);
 }, { name: 'MobileControlsUpdate' }));

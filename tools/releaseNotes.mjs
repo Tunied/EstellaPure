@@ -28,6 +28,12 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(audio): preserve latest Web device suspension intent':
+    { note: 'Web audio preserves the latest device pause intent.' },
+  'feat(poki): add authored training gameplay flow':
+    { note: 'Poki training reports authored gameplay and ad outcomes.' },
+  'feat(editor): point Poki settings to the training example':
+    { note: 'Poki training reports authored gameplay and ad outcomes.' },
   'feat(web): connect Poki channel exports to ads services':
     { note: 'Web exports can select the Poki channel.' },
   'feat(editor): expose Poki Web distribution channel':

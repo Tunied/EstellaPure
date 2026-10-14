@@ -353,7 +353,7 @@ function indexHtml(
     ? `default-src 'self' data: blob: https:; script-src 'self' 'unsafe-eval' blob: https: ${inlineScripts}; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; connect-src 'self' data: blob: https:${connect}; frame-src https:; media-src 'self' data: blob: https:; worker-src 'self' blob:;`
     : `default-src 'self'; script-src 'self' 'unsafe-eval' blob: ${inlineScripts}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' data: blob:${connect}; worker-src 'self' blob:;`;
   return `<!doctype html>
-<html lang="en">
+<html lang="en" data-web-channel="${webChannel === 'poki' ? 'poki' : 'standalone'}">
   <head>
     <meta charset="UTF-8" />
     <meta

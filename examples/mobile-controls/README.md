@@ -41,3 +41,27 @@ The browser/mini-game contract host verifies export, rendering and input wiring.
 It cannot certify WeChat base-library behavior, Safari permission prompts on a
 phone, native sensor axes, vibration hardware, or real background/foreground
 behavior. Those remain separate device acceptance checks.
+
+
+## Poki Web training profile
+
+Export the same room with `node pipeline/bin/estella.mjs export
+examples/mobile-controls --profile poki`. START begins a three-hit round; PAUSE
+stops gameplay, RESUME gives Poki a commercial opportunity, and the third hit
+ends the round. REPLAY resets the player and monster after a commercial break.
+WATCH AD +1 is an explicit opt-in for one training credit. A skipped or failed
+video grants no credit. Credits persist across rounds for this page session;
+this example does not implement cloud storage.
+
+Only the Poki export adds these controls. The HTML channel marker preserves this
+flow even if the SDK script fails: training still works, ads remain unavailable.
+Gameplay notifications use the official SDK directly; loading notifications
+remain the export host's responsibility. Device permission/fullscreen buttons
+never start gameplay. Hidden gameplay stops once; returning requires RESUME.
+An ad that closes while hidden preserves the paused state instead of sending a
+new gameplay-start event. Menu or finished-state rewards do not report gameplay.
+
+The profile uses the same CC0 room, authored joystick and character textures.
+Its local headless scenario is SDK wiring evidence, not Poki Inspector approval
+or physical-device acceptance. Test with the official
+[Poki Inspector](https://developers.poki.com/guide/sdk-html5) before submission.

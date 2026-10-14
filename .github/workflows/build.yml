@@ -63,12 +63,24 @@ jobs:
           node pipeline/bin/estella.mjs export examples/playable-ad --profile "$playable_network" --wasm build/wasm/web --out "output/playable-ci-export-$playable_network" --json "output/playable-ci-export-$playable_network.json" || exit 1
           node tools/verify-playable.mjs "output/playable-ci-export-$playable_network/index.html" --report "output/playable-ci-export-$playable_network.json" --scenario examples/playable-ad/playable-check.json --out "output/playable-ci-check-$playable_network" --store-url https://example.com/store || exit 1
         done
+    - name: Check authored Poki gameplay and the standalone example in SDK mocks
+      run: |
+        node pipeline/bin/estella.mjs export examples/mobile-controls --profile poki --wasm build/wasm/web --out output/poki-training-ci-export --json output/poki-training-ci-export.json
+        node pipeline/bin/estella.mjs export examples/mobile-controls --platform web --wasm build/wasm/web --out output/poki-training-ci-standalone --json output/poki-training-ci-standalone.json
+        node tools/tests/poki-training.e2e.mjs --dir output/poki-training-ci-export --standalone output/poki-training-ci-standalone --out output/poki-training-ci-check
     - name: Upload hash-bound local observations and screenshots
       if: always()
       uses: actions/upload-artifact@v7
       with:
         name: playable-local-mock-checks
         path: output/playable-ci-*
+        retention-days: 3
+    - name: Upload Poki training local observations and screenshots
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: poki-training-local-mock-checks
+        path: output/poki-training-ci-*
         retention-days: 3
 
   # The engine binaries, and nothing else: every gate below waits on this job, so

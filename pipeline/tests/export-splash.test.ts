@@ -136,11 +136,13 @@ describe('Poki host page', () => {
     expect(html.indexOf(script)).toBeGreaterThan(html.indexOf('<head>'));
     expect(html.indexOf(script)).toBeLessThan(html.indexOf('</head>'));
     expect(html.indexOf(script)).toBeLessThan(html.indexOf('src="./game.js"'));
+    expect(html).toContain('data-web-channel="poki"');
     expect(html).toContain('frame-src https:');
     expect(html).toContain("script-src 'self' 'unsafe-eval' blob: https:");
   });
   it('keeps standalone exports free of SDK injection and broad HTTPS policy', async () => {
     const { html } = await page();
+    expect(html).toContain('data-web-channel="standalone"');
     expect(html).not.toContain('poki-sdk');
     expect(html).not.toContain('frame-src https:');
     expect(html).toContain("default-src 'self';");

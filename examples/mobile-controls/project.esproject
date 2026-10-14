@@ -9,5 +9,17 @@
     "width": 800,
     "height": 450
   },
-  "spineVersion": "none"
+  "spineVersion": "none",
+  "packaging": {
+    "profiles": {
+      "poki": {
+        "platform": "web",
+        "platforms": {
+          "web": {
+            "channel": "poki"
+          }
+        }
+      }
+    }
+  }
 }
