@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Added
 
+- **The WeChat starter's publishing profile minifies its game bundle.** The named WeChat profile uses Shipping settings while Web authoring uses Development settings. Both preserve gameplay and host-service behavior. Headless observations record scene-initialization timing separately from actual device cold startup; unchanged-scene bundle comparisons measure the byte savings.
+
 - **The WeChat Mini Game starter combines gameplay and host-service examples.** A CC0 fleet game includes honest login-code/server-exchange status, sharing without false completion rewards, opt-in configured rewarded video and device-local credit restoration. Unreadable or changed saves are preserved. Named Web/WeChat profiles, compressed engine subpackaging, licenses and a creation-to-submission guide are included; real accounts, server authentication and device/platform approval remain separate.
 
 - **The Playable Ad starter includes a complete editable game.** New projects receive CC0 space art, three-ship selection, completion, replay and an explicit store button instead of a tap-anywhere redirect. Eight named network profiles, a configurable MRAID destination, licenses, a portrait/landscape headless scenario and a creation-to-submission guide ship together. Local mocks and size checks remain separate from official network approval and external publication exercises.

@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(templates): minify the WeChat publishing profile':
+    { note: "The WeChat starter's publishing profile minifies its game bundle." },
   'feat(templates): add WeChat gameplay and host-service starter':
     { note: 'The WeChat Mini Game starter combines gameplay and host-service examples.' },
   'feat(templates): ship a complete playable ad starter':

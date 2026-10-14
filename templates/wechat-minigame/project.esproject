@@ -12,6 +12,6 @@
   "spineVersion": "none",
   "packaging": {
     "orientation": "portrait", "compressWasm": true, "engineSubpackage": true,
-    "profiles": { "wechat": { "platform": "wechat" }, "web": { "platform": "web" } }
+    "profiles": { "wechat": { "platform": "wechat", "config": "shipping" }, "web": { "platform": "web", "config": "development" } }
   }
 }

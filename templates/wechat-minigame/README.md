@@ -35,7 +35,11 @@ node pipeline/bin/estella.mjs export /path/to/project --profile web --out output
 ```
 
 The WeChat profile puts the engine in a startup subpackage and compresses WASM
-to `.wasm.br`. Use WeChat base library 2.14.0 or newer for compressed WASM and
+to `.wasm.br`. Its Shipping configuration also minifies the game bundle; the
+Web preview profile stays in Development configuration for authoring. Shipping does not
+remove the login/share/reward behavior. Use the exported size report to compare
+your actual project, and measure cold startup on target devices.
+Use WeChat base library 2.14.0 or newer for compressed WASM and
 set the minimum version in your console. The exported size report separates
 initial and subpackage bytes. Review its budget verdicts before publishing.
 Use your real AppID and valid ad unit in WeChat DevTools and campaign settings;

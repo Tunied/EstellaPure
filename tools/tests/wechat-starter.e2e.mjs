@@ -28,6 +28,8 @@ try {
  page.on('pageerror',error=>report.errors.push(String(error)));page.on('console',message=>{if(message.type()==='error')report.errors.push(message.text());});
  await context.route('**/*',route=>{if(route.request().url().startsWith(origin+'/'))return route.continue();report.unexpectedRequests.push(route.request().url());return route.abort();});
  await page.goto(origin+'/');await page.waitForFunction(()=>globalThis.__wxStarterProbe&&globalThis.__estellaLoading===null,{},{timeout:30000});
+ report.sceneInitializedMs=await page.evaluate(()=>performance.now());
+ report.timingScope='Local contract-host scene initialization after the loading indicator clears. Not real-device cold startup or official time-to-interactive certification.';
  const state=()=>page.evaluate(()=>__wxStarterProbe());const tap=async(x,y)=>{await page.touchscreen.tap(360*x,640*y);};
  for(const x of [.2,.5,.8])await tap(x,.45);await page.waitForFunction(()=>__wxStarterProbe().selected===3);
  await tap(.5,.96);await page.waitForFunction(()=>__wxStarterProbe().selected===0);
