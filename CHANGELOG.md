@@ -18,6 +18,8 @@ published separately; it ships inside the editor.
 
 - **Collapsed 2D hierarchies skip geometry and recover reliably.** Transform composition propagates authored zero-area state through planar rotations and transformless groups, preventing floating-point residue from reviving degenerate boxes. Sprite, UI, native bitmap text, picking and empty scissor/stencil subtrees share the guard. Valid tiny spans and children that regain area through a 3D tilt remain available; hidden bitmap runs skip font layout and submission.
 
+- **Web audio preserves the latest device pause intent.** Late browser resume/suspend operations cannot undo a newer takeover request; initial autoplay-unlock gestures and ensureResumed respect explicit suspension. Reconciliation stops at the current request and ignores disposed contexts, preserving the user mixer and avoiding retry loops for blocked playback.
+
 - **Advertising requests preserve a single active break.** Rewarded and interstitial requests reject immediately while another ad is showing, before creating a competing unit. The active break retains its showing flag, clock pause and audio suspension until it closes; errors release the guard so a later request can proceed. Rejected requests are not queued for playback.
 
 - **UI geometry, picking and scissors retain parent-induced shear.** Solid, image, nine-slice, tiled and filled visuals use the complete parent basis for vertices and camera bounds. UI, editor and world-sprite picking test the same local boxes, and scissor bounds project their actual corners. Mirrored radial fills retain their wedges and UVs; axis-aligned positive UI keeps its existing geometry path.
@@ -27,6 +29,8 @@ published separately; it ships inside the editor.
 - **Sprites retain parent-induced shear in every draw mode.** Ordinary, nine-slice and tiled geometry follows the complete parent transform, and camera bounds use the same basis. Mirrored tiled grids retain positive tile steps before applying signed axes, including the capped fallback. Zero-area sprites skip geometry; existing material, UV and batch state is preserved.
 
 ### Added
+
+- **Poki training reports authored gameplay and ad outcomes.** The mobile-controls example adds a named Poki Web profile with explicit start, pause, three-hit completion, replay and opt-in reward controls. Device actions and returning to the page never infer gameplay start; rewards require completion, background and scene cleanup preserve state, and missing SDKs leave training usable. Headless CI checks real input, event order, audio transitions, landscape rotation and the original standalone controls using SDK mocks.
 
 - **Web exports can select the Poki channel.** Project and named export settings inject its official SDK, initialize it with a bounded fallback, report loading after the scene is ready and connect rewarded/commercial breaks to the existing Ads service. The editor exposes the channel choice; standalone keeps its original resource policy. Game logic still reports gameplay transitions explicitly, and official Inspector/device acceptance remains pending.
 

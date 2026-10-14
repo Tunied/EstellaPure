@@ -4,6 +4,7 @@ import type { AudioHandle, AudioBufferHandle, PlayConfig, PlatformAudioBackend, 
 import { AudioMixer } from './AudioMixer';
 import { AudioPool, type PooledAudioNode } from './AudioPool';
 import { getPlatform } from '../platform/base';
+import { log } from '../util/logger';
 
 class WebAudioHandle implements AudioHandle {
     readonly id: number;
@@ -157,6 +158,9 @@ export class WebAudioBackend implements PlatformAudioBackend {
     private nextBufferId_ = 0;
     private nextHandleId_ = 0;
     private resumeHandler_: (() => void) | null = null;
+    private explicitlySuspended_ = false;
+    private deviceIntentRevision_ = 0;
+    private contextGeneration_ = 0;
     private analyser_: AnalyserNode | null = null;
 
     get mixer(): AudioMixer | null {
@@ -168,6 +172,9 @@ export class WebAudioBackend implements PlatformAudioBackend {
     }
 
     async initialize(options: AudioBackendInitOptions = {}): Promise<void> {
+        this.contextGeneration_++;
+        this.deviceIntentRevision_++;
+        this.explicitlySuspended_ = false;
         this.context_ = new AudioContext();
         this.mixer_ = new AudioMixer(this.context_, options.mixerConfig);
         this.pool_ = new AudioPool(this.context_, options.initialPoolSize);
@@ -181,7 +188,8 @@ export class WebAudioBackend implements PlatformAudioBackend {
 
         if (this.context_.state === 'suspended') {
             const resume = () => {
-                this.context_!.resume();
+                if (this.explicitlySuspended_) return;
+                this.resume();
                 document.removeEventListener('touchstart', resume);
                 document.removeEventListener('mousedown', resume);
                 document.removeEventListener('keydown', resume);
@@ -195,9 +203,43 @@ export class WebAudioBackend implements PlatformAudioBackend {
     }
 
     async ensureResumed(): Promise<void> {
-        if (this.context_ && this.context_.state === 'suspended') {
-            await this.context_.resume();
+        if (!this.explicitlySuspended_ && this.context_?.state === 'suspended') {
+            await this.requestDeviceIntent_(false);
         }
+    }
+
+    private requestDeviceIntent_(suspended: boolean): Promise<void> {
+        if (this.explicitlySuspended_ !== suspended) {
+            this.explicitlySuspended_ = suspended;
+            this.deviceIntentRevision_++;
+        }
+        const revision = this.deviceIntentRevision_;
+        const context = this.context_;
+        if (!context || context.state === 'closed') return Promise.resolve();
+        return this.applyDeviceIntent_(context, suspended, revision, this.contextGeneration_);
+    }
+
+    private async applyDeviceIntent_(context: AudioContext, suspended: boolean, revision: number, generation: number): Promise<void> {
+        // Invoke synchronously to preserve the original user-gesture stack.
+        await (suspended ? context.suspend() : context.resume());
+        if (context !== this.context_ || generation !== this.contextGeneration_ || context.state === 'closed') return;
+        // Browser transitions can settle out of order. Reapply the latest intent
+        // only when a newer request superseded this operation; blocked autoplay
+        // or an OS interruption must not produce an unbounded retry loop.
+        if (revision !== this.deviceIntentRevision_
+            && context.state !== (this.explicitlySuspended_ ? 'suspended' : 'running')) {
+            await this.applyDeviceIntent_(context, this.explicitlySuspended_, this.deviceIntentRevision_, generation);
+        }
+    }
+
+    private fireDeviceIntent_(suspended: boolean): void {
+        const context = this.context_;
+        const generation = this.contextGeneration_;
+        void this.requestDeviceIntent_(suspended).catch(error => {
+            if (context === this.context_ && generation === this.contextGeneration_) {
+                log.warn('audio', 'Audio device transition failed', error);
+            }
+        });
     }
 
     async loadBuffer(url: string): Promise<AudioBufferHandle> {
@@ -312,14 +354,17 @@ export class WebAudioBackend implements PlatformAudioBackend {
     }
 
     suspend(): void {
-        this.context_?.suspend();
+        this.fireDeviceIntent_(true);
     }
 
     resume(): void {
-        this.context_?.resume();
+        this.fireDeviceIntent_(false);
     }
 
     dispose(): void {
+        this.contextGeneration_++;
+        this.deviceIntentRevision_++;
+        this.explicitlySuspended_ = false;
         if (this.resumeHandler_) {
             document.removeEventListener('touchstart', this.resumeHandler_);
             document.removeEventListener('mousedown', this.resumeHandler_);

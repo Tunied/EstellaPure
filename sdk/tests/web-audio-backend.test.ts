@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { WebAudioBackend } from '../src/audio/WebAudioBackend';
 import { setPlatform } from '../src/platform/base';
 import type { PlatformAdapter } from '../src/platform/types';
@@ -106,6 +106,8 @@ describe('WebAudioBackend', () => {
         setupMockPlatform();
         backend = new WebAudioBackend();
     });
+
+    afterEach(() => backend.dispose());
 
     it('should have name "WebAudio"', () => {
         expect(backend.name).toBe('WebAudio');
@@ -523,6 +525,76 @@ describe('WebAudioBackend', () => {
             const mockCtx = (globalThis as any).__mockAudioContext;
             backend.resume();
             expect(mockCtx.resume).toHaveBeenCalled();
+        });
+    });
+
+    describe('explicit suspension versus autoplay unlock', () => {
+        for (const event of ['keydown', 'mousedown', 'touchstart']) {
+            it(`keeps the device suspended through ${event} until explicit resume`, async () => {
+                const mockCtx = (globalThis as any).__mockAudioContext;
+                mockCtx.state = 'suspended';
+                await backend.initialize(); backend.suspend();
+                document.dispatchEvent(new Event(event));
+                expect(mockCtx.resume).not.toHaveBeenCalled();
+                backend.resume(); expect(mockCtx.resume).toHaveBeenCalledTimes(1);
+                mockCtx.resume.mockClear();
+                document.dispatchEvent(new Event(event));
+                expect(mockCtx.resume).toHaveBeenCalledTimes(1);
+                mockCtx.resume.mockClear();
+                document.dispatchEvent(new Event(event));
+                expect(mockCtx.resume).not.toHaveBeenCalled();
+            });
+        }
+        it('a late resume cannot reopen the device after a newer suspend request', async () => {
+            const mockCtx = (globalThis as any).__mockAudioContext;
+            mockCtx.state = 'suspended';
+            let finish!: () => void;
+            mockCtx.resume.mockImplementation(() => new Promise<void>(resolve => { finish = () => { mockCtx.state = 'running'; resolve(); }; }));
+            mockCtx.suspend.mockImplementation(async () => { mockCtx.state = 'suspended'; });
+            await backend.initialize(); backend.resume(); backend.suspend();
+            finish(); await new Promise(resolve => setTimeout(resolve, 0));
+            expect(mockCtx.state).toBe('suspended'); expect(mockCtx.suspend).toHaveBeenCalledTimes(2);
+        });
+        it('a late suspend cannot silence the device after a newer resume request', async () => {
+            const mockCtx = (globalThis as any).__mockAudioContext;
+            let finish!: () => void;
+            mockCtx.suspend.mockImplementation(() => new Promise<void>(resolve => { finish = () => { mockCtx.state = 'suspended'; resolve(); }; }));
+            mockCtx.resume.mockImplementation(async () => { mockCtx.state = 'running'; });
+            await backend.initialize(); backend.suspend(); backend.resume();
+            finish(); await new Promise(resolve => setTimeout(resolve, 0));
+            expect(mockCtx.state).toBe('running'); expect(mockCtx.resume).toHaveBeenCalledTimes(2);
+        });
+        it('a disposed context settling late cannot issue another device transition', async () => {
+            const mockCtx = (globalThis as any).__mockAudioContext;
+            mockCtx.state = 'suspended';
+            let finish!: () => void;
+            mockCtx.resume.mockImplementation(() => new Promise<void>(resolve => { finish = () => { mockCtx.state = 'running'; resolve(); }; }));
+            await backend.initialize(); backend.resume(); backend.suspend(); backend.dispose();
+            const count = mockCtx.suspend.mock.calls.length;
+            finish(); await new Promise(resolve => setTimeout(resolve, 0));
+            expect(mockCtx.suspend).toHaveBeenCalledTimes(count);
+        });
+        it('preserves ensureResumed rejection when the browser rejects playback', async () => {
+            const mockCtx = (globalThis as any).__mockAudioContext;
+            mockCtx.state = 'suspended'; mockCtx.resume.mockRejectedValue(new Error('playback denied'));
+            await backend.initialize();
+            await expect(backend.ensureResumed()).rejects.toThrow('playback denied');
+            expect(mockCtx.resume).toHaveBeenCalledTimes(1);
+        });
+        it('does not loop when a current resume settles without unlocking the device', async () => {
+            const mockCtx = (globalThis as any).__mockAudioContext;
+            mockCtx.state = 'suspended';
+            await backend.initialize(); backend.resume();
+            await new Promise(resolve => setTimeout(resolve, 0));
+            expect(mockCtx.resume).toHaveBeenCalledTimes(1);
+        });
+        it('ensureResumed cannot bypass a fullscreen takeover suspension', async () => {
+            const mockCtx = (globalThis as any).__mockAudioContext;
+            mockCtx.state = 'suspended';
+            await backend.initialize(); backend.suspend();
+            await backend.ensureResumed(); expect(mockCtx.resume).not.toHaveBeenCalled();
+            backend.resume(); mockCtx.resume.mockClear();
+            await backend.ensureResumed(); expect(mockCtx.resume).toHaveBeenCalledTimes(1);
         });
     });
 
