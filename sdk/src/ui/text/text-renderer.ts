@@ -264,6 +264,8 @@ interface CachedTextBatch {
     vertices: Float32Array;
     indices: Uint16Array;
     pageId: number;
+    /** Original vertex alphas, retained lazily so repeated fades never compound. */
+    alphas?: Float32Array;
 }
 
 interface TextCacheEntry {
@@ -271,6 +273,7 @@ interface TextCacheEntry {
     /** Atlas generation the geometry was built against (bitmap content-scale). */
     gen: number;
     batches: CachedTextBatch[];
+    opacity: number;
 }
 
 export class SdfTextRenderer {
@@ -316,20 +319,32 @@ export class SdfTextRenderer {
         depth: number,
         cullBit = 0,
     ): void {
+        const opacity = p.opacity ?? 1;
+        if (opacity <= 0) return;
         const gen = this.atlas.generation;
-        const sig = signatureOf(p);
+        const sig = textSignature(p, 1);
         let entry = this.cache_.get(entity);
         if (!entry || entry.gen !== gen || entry.sig !== sig) {
             const batches: CachedTextBatch[] = [];
             drawTextWith(this.atlas, (vertices, indices, pageId) => {
                 batches.push({ vertices, indices, pageId });
-            }, p);
-            entry = { sig, gen, batches };
+            }, { ...p, opacity: 1 });
+            entry = { sig, gen, batches, opacity: 1 };
             this.cache_.set(entity, entry);
         }
         for (const b of entry.batches) {
+            if (entry.opacity !== opacity) {
+                if (!b.alphas) {
+                    b.alphas = new Float32Array(b.vertices.length / TEXT_VERTEX_FLOATS);
+                    for (let i = 0; i < b.alphas.length; i++) b.alphas[i] = b.vertices[i * TEXT_VERTEX_FLOATS + 7];
+                }
+                for (let i = 0; i < b.alphas.length; i++) {
+                    b.vertices[i * TEXT_VERTEX_FLOATS + 7] = b.alphas[i] * opacity;
+                }
+            }
             submitTextBatch(this.module, b.vertices, b.indices, b.pageId, transform, entity, layer, depth, this.sdf, cullBit);
         }
+        entry.opacity = opacity;
     }
 
     /** Drop cached geometry for entities not drawn this frame (despawned / hidden / no longer text). */
@@ -343,6 +358,10 @@ export class SdfTextRenderer {
 
 /** Serialize every DrawTextParams field that affects the laid-out, colored geometry. */
 export function signatureOf(p: DrawTextParams): string {
+    return textSignature(p, p.opacity ?? 1);
+}
+
+function textSignature(p: DrawTextParams, opacity: number): string {
     const shadow = p.shadow
         ? `${p.shadow.color.join(',')}:${p.shadow.dx}:${p.shadow.dy}:${p.shadow.blur ?? 0}`
         : '';
@@ -354,6 +373,6 @@ export function signatureOf(p: DrawTextParams): string {
         p.maxWidth ?? 0, p.boxWidth ?? 0, p.boxHeight ?? 0,
         p.overflow ?? TextOverflow.Visible,
         p.originX ?? 0, p.originY ?? 0,
-        p.color.join(','), p.opacity ?? 1, shadow, outline,
+        p.color.join(','), opacity, shadow, outline,
     ]);
 }

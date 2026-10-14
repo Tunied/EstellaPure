@@ -8,6 +8,46 @@ vi.mock('../src/ui/text/submit', async importOriginal => ({
     ...await importOriginal<typeof import('../src/ui/text/submit')>(), submitTextBatch: vi.fn(),
 }));
 
+it.each([false, true])('reuses multi-page fading geometry without cumulative alpha loss, sdf=%j', sdf => {
+    let nextPage = 1000;
+    const atlas = new GlyphAtlas({ renderSize: 48, spread: sdf ? 6 : 0, rasterize: () => ({
+        pixels: new Uint8Array(10 * 12 * 4), width: 10, height: 12,
+        advance: 11, bearingX: 1, bearingY: 10,
+    }) }, { createPage: () => nextPage++, uploadSubRegion: () => {} }, { pageSize: 32, padding: 1, sdf });
+    const renderer = Object.assign(Object.create(SdfTextRenderer.prototype), {
+        atlas, sdf, module: null, cache_: new Map(),
+    }) as SdfTextRenderer;
+    const p: DrawTextParams = {
+        text: '<color=#ff000080>ABC</color>DEF', richText: true, fontFamily: 'Arial', fontSizePx: 24,
+        color: [1, 1, 1, 0.8], shadow: { color: [0, 0, 0, 0.6], dx: 1, dy: 1 },
+        outline: { color: [0, 1, 0, 0.4], width: 1 },
+    };
+    const transform = new Float32Array(16), submit = vi.mocked(submitTextBatch);
+    submit.mockClear(); renderer.drawText(p, transform, 1, 0, 0);
+    const vertices = submit.mock.calls.map(call => call[1]);
+    expect(atlas.pageCount).toBeGreaterThan(1);
+    const indices = submit.mock.calls.map(call => call[2]);
+    const reads = vi.spyOn(atlas, 'getGlyph');
+    for (const opacity of [0.5, 0.2, 0.8, 1]) {
+        reads.mockClear(); submit.mockClear();
+        renderer.drawText({ ...p, opacity }, transform, 1, 0, 0);
+        expect(reads).not.toHaveBeenCalled();
+        expect(submit.mock.calls).toHaveLength(vertices.length);
+        for (let i = 0; i < vertices.length; i++) {
+            expect(submit.mock.calls[i][1]).toBe(vertices[i]);
+            expect(submit.mock.calls[i][2]).toBe(indices[i]);
+        }
+        const expected: Float32Array[] = [];
+        drawTextWith(atlas, v => expected.push(v), { ...p, opacity });
+        expect(submit.mock.calls.map(call => Array.from(call[1]))).toEqual(expected.map(v => Array.from(v)));
+    }
+    submit.mockClear(); renderer.drawText({ ...p, opacity: 0 }, transform, 1, 0, 0);
+    expect(submit).not.toHaveBeenCalled();
+    reads.mockClear();
+    renderer.drawText({ ...p, color: [1, 1, 0, 0.3] }, transform, 1, 0, 0);
+    expect(reads).toHaveBeenCalled();
+});
+
 it('rebuilds only changed overflow geometry while other static text keeps its cached batches', () => {
     const atlas = new GlyphAtlas({ renderSize: 48, spread: 0, rasterize: () => ({
         pixels: new Uint8Array(10 * 12 * 4), width: 10, height: 12,

@@ -30,6 +30,8 @@ export const NOTES_FLOOR = 'v0.65.0';
 export const NOTED = {
   'feat(playable): package TikTok and overseas Pangle creatives':
     { note: 'TikTok and overseas Pangle package the same playable project.' },
+  'perf(ui): reuse text geometry during inherited opacity fades':
+    { note: 'UI text fades reuse cached geometry.' },
   'fix(ui): keep pointer carets outside surrogate pairs':
     { note: 'Pointer carets keep supplementary characters intact.' },
   'fix(ui): deliver native text input events within the UI frame':
