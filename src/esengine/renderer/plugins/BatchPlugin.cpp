@@ -138,7 +138,9 @@ void BatchPlugin::emitRadialFill(
 ) {
     constexpr f32 TWO_PI = 6.2831853071795864f;
     sweep = std::clamp(sweep, 0.0f, TWO_PI);
-    f32 hx = size.x * 0.5f, hy = size.y * 0.5f;
+    const glm::vec2 absSize = glm::abs(size);
+    const glm::vec2 direction{size.x < 0 ? -1.0f : 1.0f, size.y < 0 ? -1.0f : 1.0f};
+    f32 hx = absSize.x * 0.5f, hy = absSize.y * 0.5f;
     if (sweep <= 0.0001f || hx <= 0.0f || hy <= 0.0f) return;
 
     // Sample angles are the two endpoints plus any box corner the sweep crosses,
@@ -179,9 +181,9 @@ void BatchPlugin::emitRadialFill(
                          asa > 1e-6f ? hy / asa : 1e30f);
         glm::vec2 p{ t * ca, t * sa };  // box-local, centered
         verts[i + 1] = {
-            rotatePoint(center, center.x + p.x, center.y + p.y, cosR, sinR),
+            rotatePoint(center, center.x + p.x * direction.x, center.y + p.y * direction.y, cosR, sinR),
             pc,
-            uvOffset + glm::vec2(p.x / size.x + 0.5f, p.y / size.y + 0.5f) * uvScale,
+            uvOffset + glm::vec2(p.x / absSize.x + 0.5f, p.y / absSize.y + 0.5f) * uvScale,
         };
     }
 

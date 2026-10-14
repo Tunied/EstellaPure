@@ -25,6 +25,8 @@
 #include "esengine/ecs/components/UINode.hpp"
 #include "esengine/ecs/components/UIVisual.hpp"
 #include "esengine/ecs/components/UIMask.hpp"
+#include "esengine/ecs/components/Interactable.hpp"
+#include "esengine/ui/UISystem.hpp"
 #include "esengine/ecs/components/Hierarchy.hpp"
 
 #include <functional>
@@ -51,6 +53,7 @@ struct Harness {
 
 struct NineSlicePlugin : UIElementPlugin {
     using BatchPlugin::emitNineSlice;
+    using BatchPlugin::emitRadialFill;
 };
 
 BatchDrawKey quadKey(u32 textureId, i32 layer = 0) {
@@ -366,6 +369,168 @@ TEST_CASE("sprites: affine parents preserve every draw mode and mirrored tile gr
             resources.shutdown();
         }
     }
+}
+
+TEST_CASE("UI visuals: affine parents preserve box-local geometry and fill edges") {
+    for (auto type : {ecs::UIVisualType::SolidColor, ecs::UIVisualType::Image,
+                      ecs::UIVisualType::NineSlice, ecs::UIVisualType::Tiled, ecs::UIVisualType::Filled}) {
+        for (bool mirror : {false, true}) for (bool radial : {false, true}) {
+            if (radial && type != ecs::UIVisualType::Filled) continue;
+            Harness h;
+            RenderContext context(h.device);
+            resource::ResourceManager resources;
+            resources.init(h.device);
+            const u8 pixels[16 * 16 * 4] = {};
+            const auto texture = resources.createTexture(resource::ResourceContent::Retained,
+                                                         16, 16, pixels, TextureFormat::RGBA8);
+            ecs::Registry registry;
+            const auto parent = registry.create(), entity = registry.create();
+            registry.emplace<ecs::Parent>(entity).entity = parent;
+            auto& transform = registry.emplace<ecs::Transform>(entity);
+            transform.cachedMatrix_ = glm::scale(glm::mat4(1), glm::vec3(2, 1, 1))
+                                    * glm::translate(glm::mat4(1), glm::vec3(4, -7, 0))
+                                    * glm::mat4_cast(glm::angleAxis(.7f, glm::vec3(0, 0, 1)))
+                                    * glm::scale(glm::mat4(1), glm::vec3(mirror ? -3 : 3, 2, 1));
+            transform.decomposed_ = false;
+            registry.emplace<ecs::UINode>(entity).computed_size_ = {20, 30};
+            auto& visual = registry.emplace<ecs::UIVisual>(entity);
+            visual.texture = texture;
+            visual.visualType = type;
+            visual.sliceBorder = {2, 2, 2, 2};
+            visual.fillAmount = .5f;
+            visual.fillMethod = radial ? ecs::UIFillMethod::Radial360 : ecs::UIFillMethod::Horizontal;
+            visual.fillOrigin = radial ? ecs::UIFillOrigin::Top : ecs::UIFillOrigin::Left;
+            Frustum frustum;
+            frustum.extractFromMatrix(glm::ortho(-500.0f, 500.0f, -500.0f, 500.0f));
+            RenderFrameContext frameContext{context, resources};
+            RenderCollectContext collect{registry, frustum, h.clips, h.pool, h.list, frameContext, {}};
+            UIElementPlugin plugin;
+            plugin.init(frameContext);
+            plugin.collect(collect);
+            const u32 count = h.pool.vertexBytesUsed(LayoutId::Batch) / sizeof(BatchVertex);
+            CHECK(count > 0);
+            const auto* vertices = reinterpret_cast<const BatchVertex*>(h.pool.vertexData(LayoutId::Batch));
+            const auto inverse = glm::inverse(transform.cachedMatrix_);
+            for (u32 i = 0; i < count; ++i) {
+                const auto local = glm::vec3(inverse * glm::vec4(vertices[i].position, 1));
+                CHECK(local.x >= -10.001f);
+                CHECK(local.x <= 10.001f);
+                CHECK(local.y >= -15.001f);
+                CHECK(local.y <= 15.001f);
+                if (type == ecs::UIVisualType::Filled) {
+                    if (radial) CHECK(local.x >= -.001f);
+                    else CHECK(local.x <= .001f);
+                }
+            }
+            const auto corner = glm::vec3(transform.cachedMatrix_ * glm::vec4(-10, 15, 0, 1));
+            frustum.extractFromMatrix(glm::ortho(corner.x-.1f, corner.x+.1f, corner.y-.1f, corner.y+.1f));
+            h.pool.beginFrame();
+            h.list.clear();
+            plugin.collect(collect);
+            CHECK(h.pool.vertexBytesUsed(LayoutId::Batch) > 0);
+            resources.shutdown();
+        }
+    }
+}
+
+TEST_CASE("radial fills: signed boxes mirror positions while retaining sampled UVs") {
+    for (f32 x : {1.0f, -1.0f}) for (f32 y : {1.0f, -1.0f}) {
+        Harness original, reflected;
+        NineSlicePlugin plugin;
+        const glm::vec3 center{13, 17, 0};
+        plugin.emitRadialFill(original.pool, original.list, original.clips,
+                             center, {20, 30}, 0, 1.5707963f, 3.1415927f,
+                             {.2f, .3f}, {.4f, .5f}, {1, 1, 1, 1}, quadKey(1));
+        plugin.emitRadialFill(reflected.pool, reflected.list, reflected.clips,
+                             center, {20*x, 30*y}, 0, 1.5707963f, 3.1415927f,
+                             {.2f, .3f}, {.4f, .5f}, {1, 1, 1, 1}, quadKey(1));
+        REQUIRE(original.pool.vertexBytesUsed(LayoutId::Batch) > 0);
+        REQUIRE(reflected.pool.vertexBytesUsed(LayoutId::Batch) == original.pool.vertexBytesUsed(LayoutId::Batch));
+        const auto* a = reinterpret_cast<const BatchVertex*>(original.pool.vertexData(LayoutId::Batch));
+        const auto* b = reinterpret_cast<const BatchVertex*>(reflected.pool.vertexData(LayoutId::Batch));
+        for (u32 i = 0; i < original.pool.vertexBytesUsed(LayoutId::Batch) / sizeof(BatchVertex); ++i) {
+            CHECK(b[i].position.x == doctest::Approx(center.x + (a[i].position.x-center.x)*x));
+            CHECK(b[i].position.y == doctest::Approx(center.y + (a[i].position.y-center.y)*y));
+            CHECK(b[i].texCoord == a[i].texCoord);
+        }
+    }
+}
+
+TEST_CASE("UI and sprite picking: parent shear follows authored local bounds") {
+    for (bool uiNode : {false, true}) for (bool mirror : {false, true}) {
+        ecs::Registry registry;
+        const auto parent = registry.create(), entity = registry.create();
+        registry.emplace<ecs::Canvas>(parent);
+        registry.emplace<ecs::Transform>(parent);
+        registry.emplace<ecs::UINode>(parent).computed_size_ = {200, 200};
+        registry.emplace<ecs::Children>(parent).entities.push_back(entity);
+        registry.emplace<ecs::Parent>(entity).entity = parent;
+        auto& transform = registry.emplace<ecs::Transform>(entity);
+        transform.cachedMatrix_ = glm::scale(glm::mat4(1), glm::vec3(2, 1, 1))
+                                * glm::translate(glm::mat4(1), glm::vec3(4, -7, 0))
+                                * glm::mat4_cast(glm::angleAxis(.7f, glm::vec3(0, 0, 1)))
+                                * glm::scale(glm::mat4(1), glm::vec3(mirror ? -3 : 3, 2, 1));
+        transform.decomposed_ = false;
+        registry.emplace<ecs::Interactable>(entity);
+        if (uiNode) registry.emplace<ecs::UINode>(entity).computed_size_ = {20, 30};
+        else registry.emplace<ecs::Sprite>(entity).size = {20, 30};
+        ecs::UISystem ui;
+        ui.tree.rebuild(registry);
+        for (const glm::vec2 local : {glm::vec2(9, 14), {-9, -14}, {11, 0}, {0, 16}}) {
+            const auto point = glm::vec3(transform.cachedMatrix_ * glm::vec4(local, 0, 1));
+            const bool inside = std::abs(local.x) < 10 && std::abs(local.y) < 15;
+            ui.hitTestUpdate(registry, ecs::PickRay{{point.x, point.y, 100}, {0, 0, -1}}, nullptr);
+            CHECK((ui.hitResult.hit_entity == entity) == inside);
+            if (uiNode) CHECK((ui.pick(registry, point.x, point.y) == entity.id()) == inside);
+        }
+        const auto child = registry.create();
+        registry.emplace<ecs::Parent>(child).entity = entity;
+        if (!uiNode) registry.emplace<ecs::UINode>(entity).computed_size_ = {20, 30};
+        registry.emplace<ecs::UIMask>(entity);
+        for (const glm::vec2 local : {glm::vec2(9, 14), {-9, -14}, {11, 0}, {0, 16}}) {
+            const auto point = glm::vec3(transform.cachedMatrix_ * glm::vec4(local, 0, 1));
+            CHECK(ecs::isClippedByMask(registry, child, point.x, point.y)
+                  == (std::abs(local.x) > 10 || std::abs(local.y) > 15));
+        }
+    }
+}
+
+TEST_CASE("UI scissor: affine corners determine the projected clip rectangle") {
+    MockGfxDevice device;
+    RenderContext context(device);
+    resource::ResourceManager resources;
+    ecs::Registry registry;
+    RenderFrame frame(device, context, resources);
+    frame.init(200, 200);
+    const auto parent = registry.create(), mask = registry.create(), child = registry.create();
+    registry.emplace<ecs::Parent>(mask).entity = parent;
+    registry.emplace<ecs::Children>(mask).entities.push_back(child);
+    registry.emplace<ecs::Parent>(child).entity = mask;
+    auto& transform = registry.emplace<ecs::Transform>(mask);
+    transform.cachedMatrix_ = glm::scale(glm::mat4(1), glm::vec3(2, 1, 1))
+                            * glm::mat4_cast(glm::angleAxis(.7f, glm::vec3(0, 0, 1)));
+    transform.decomposed_ = false;
+    registry.emplace<ecs::UINode>(mask).computed_size_ = {20, 30};
+    registry.emplace<ecs::UIMask>(mask).mode = ecs::MaskMode::Scissor;
+    const auto half = glm::abs(glm::vec3(transform.cachedMatrix_[0])) * 10.0f
+                    + glm::abs(glm::vec3(transform.cachedMatrix_[1])) * 15.0f;
+    const std::array<i32, 4> expected{static_cast<i32>(std::round(100-half.x)),
+                                     static_cast<i32>(std::round(100-half.y)),
+                                     static_cast<i32>(std::round(2*half.x)),
+                                     static_cast<i32>(std::round(2*half.y))};
+    const f32 vertices[36] = {};
+    const u16 indices[] = {0, 1, 2, 2, 3, 0};
+    const glm::mat4 identity(1);
+    frame.beginFrame();
+    frame.begin(glm::ortho(-100.0f, 100.0f, -100.0f, 100.0f));
+    frame.processMasks(registry, 0, 0, 200, 200);
+    frame.collectAll(registry);
+    frame.submitTextBatch(vertices, 4, indices, 6, 1, &identity[0][0], child, 0, 0, false);
+    frame.flush();
+    frame.end();
+    CHECK(std::find(device.scissorRectangles.begin(), device.scissorRectangles.end(), expected)
+          != device.scissorRectangles.end());
+    frame.endFrame();
 }
 
 TEST_CASE("sprites: tile budget applies before integer conversion") {

@@ -66,15 +66,9 @@ void UISystem::hitTestUpdate(Registry& registry, const PickRay& worldRay, const 
         f32 baseH = node->computed_size_.y;
         f32 pivotX = 0.5f, pivotY = 0.5f;
 
-        f32 worldW = baseW * t.worldScale.x;
-        f32 worldH = baseH * t.worldScale.y;
-
-        if (pointInOBB(
-            mouseWorldX, mouseWorldY,
-            t.worldPosition.x, t.worldPosition.y,
-            worldW, worldH,
-            pivotX, pivotY,
-            t.worldRotation.z, t.worldRotation.w
+        if (pointInTransformedBox(
+            registry, entity, t, mouseWorldX, mouseWorldY,
+            baseW, baseH, pivotX, pivotY
         )) {
             if (isClippedByMask(registry, entity, mouseWorldX, mouseWorldY)) {
                 continue;
@@ -132,12 +126,9 @@ void UISystem::hitWorldContent(Registry& registry, const PickRay& ray,
             f32 px = 0.0f, py = 0.0f, hitT = 0.0f;
             if (!rayHitsPlaneZ(ray, t.worldPosition.z, px, py, hitT)) return;
 
-            if (!pointInOBB(
-                px, py,
-                t.worldPosition.x, t.worldPosition.y,
-                sprite.size.x * t.worldScale.x, sprite.size.y * t.worldScale.y,
-                sprite.pivot.x, sprite.pivot.y,
-                t.worldRotation.z, t.worldRotation.w
+            if (!pointInTransformedBox(
+                registry, entity, t, px, py, sprite.size.x, sprite.size.y,
+                sprite.pivot.x, sprite.pivot.y
             )) return;
 
             consider(entity, hitT, static_cast<i32>(sprite.layer));
@@ -199,13 +190,9 @@ u32 UISystem::pickAll(Registry& registry, f32 worldX, f32 worldY) {
         auto& t = registry.get<Transform>(entity);
         t.ensureDecomposed();
 
-        if (!pointInOBB(
-            worldX, worldY,
-            t.worldPosition.x, t.worldPosition.y,
-            node->computed_size_.x * t.worldScale.x,
-            node->computed_size_.y * t.worldScale.y,
-            0.5f, 0.5f,
-            t.worldRotation.z, t.worldRotation.w
+        if (!pointInTransformedBox(
+            registry, entity, t, worldX, worldY,
+            node->computed_size_.x, node->computed_size_.y, 0.5f, 0.5f
         )) continue;
 
         if (isClippedByMask(registry, entity, worldX, worldY)) continue;

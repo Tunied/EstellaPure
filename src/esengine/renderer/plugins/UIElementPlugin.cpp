@@ -6,6 +6,7 @@
 #include "../frame/RenderFrame.hpp"
 #include "../rhi/Texture.hpp"
 #include "../../ecs/components/Transform.hpp"
+#include "../../ecs/components/Hierarchy.hpp"
 #include "../../ecs/components/UIVisual.hpp"
 #include "../../ecs/components/UINode.hpp"
 #include "../../ecs/components/UIMask.hpp"
@@ -79,6 +80,11 @@ void UIElementPlugin::collect(RenderCollectContext& collect_ctx) {
         const auto& rotation = transform.worldRotation;
         const auto& scale = transform.worldScale;
         if (scale.x == 0.0f || scale.y == 0.0f) continue;
+        const bool parented = registry.has<ecs::Parent>(entity);
+        const glm::vec3 basisOrigin = position;
+        const auto& matrix = transform.cachedMatrix_;
+        const bool mapBasis = parented && (matrix[0].y != 0 || matrix[1].x != 0
+            || matrix[0].z != 0 || matrix[1].z != 0 || matrix[0].x < 0 || matrix[1].y < 0);
 
         // UI bakes the pivot into the world position here, so the quad is emitted centered.
         f32 dx = (0.5f - pivotX) * w * scale.x;
@@ -99,9 +105,14 @@ void UIElementPlugin::collect(RenderCollectContext& collect_ctx) {
         // `position` above already carries the turned offset, so only the extents do.
         glm::vec3 halfExtents = flatHalfExtents(
             flatTurnZ(rotation), glm::vec3(w * scale.x, h * scale.y, 0.0f) * 0.5f);
+        if (parented) {
+            halfExtents = glm::abs(glm::vec3(transform.cachedMatrix_[0])) * w * .5f
+                        + glm::abs(glm::vec3(transform.cachedMatrix_[1])) * h * .5f;
+        }
         if (!collect_ctx.visible(position, halfExtents, false)) { ++collect_ctx.culled; continue; }
 
         f32 angle = 2.0f * std::atan2(rotation.z, rotation.w);
+        if (mapBasis) angle = 0.0f;
         i32 layer = UI_BASE_LAYER + renderer.uiOrder;
 
         u32 textureId = ctx.white_texture_id;
@@ -270,6 +281,7 @@ void UIElementPlugin::collect(RenderCollectContext& collect_ctx) {
         glm::vec4 color = renderer.color;
         color.a *= node->alpha_in_tree_;
 
+        const u32 vertexStart = buffers.vertexBytesUsed(LayoutId::Batch);
         if (isRadialFill) {
             f32 sweep = std::clamp(renderer.fillAmount, 0.0f, 1.0f)
                       * radialMaxSweep(renderer.fillMethod);
@@ -286,6 +298,16 @@ void UIElementPlugin::collect(RenderCollectContext& collect_ctx) {
             emitQuad(buffers, draw_list, clips,
                 position, finalSize, CENTERED_PIVOT,
                 angle, uvOffset, uvScale, color, key);
+        }
+        if (mapBasis) {
+            const glm::vec3 basisX = glm::vec3(transform.cachedMatrix_[0]) / scale.x;
+            const glm::vec3 basisY = glm::vec3(transform.cachedMatrix_[1]) / scale.y;
+            const u32 vertexEnd = buffers.vertexBytesUsed(LayoutId::Batch);
+            auto* vertices = reinterpret_cast<BatchVertex*>(buffers.vertexData(LayoutId::Batch));
+            for (u32 i = vertexStart / sizeof(BatchVertex); i < vertexEnd / sizeof(BatchVertex); ++i) {
+                const auto delta = vertices[i].position - basisOrigin;
+                vertices[i].position = basisOrigin + basisX * delta.x + basisY * delta.y;
+            }
         }
     }
 }

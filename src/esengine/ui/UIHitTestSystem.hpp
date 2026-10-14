@@ -118,6 +118,30 @@ inline bool rayHitsOBB(const PickRay& ray,
     return true;
 }
 
+inline bool pointInTransformedBox(Registry& registry, Entity entity, Transform& transform,
+                                  f32 px, f32 py, f32 width, f32 height,
+                                  f32 pivotX, f32 pivotY) {
+    transform.ensureDecomposed();
+    if (!registry.has<Parent>(entity)) {
+        return pointInOBB(px, py, transform.worldPosition.x, transform.worldPosition.y,
+                          width * transform.worldScale.x, height * transform.worldScale.y,
+                          pivotX, pivotY, transform.worldRotation.z, transform.worldRotation.w);
+    }
+    if (width == 0.0f || height == 0.0f) return false;
+    const auto& matrix = transform.cachedMatrix_;
+    const f64 determinant = static_cast<f64>(matrix[0].x) * matrix[1].y
+                          - static_cast<f64>(matrix[1].x) * matrix[0].y;
+    if (determinant == 0.0 || !std::isfinite(determinant)) return false;
+    const f64 dx = static_cast<f64>(px) - transform.worldPosition.x;
+    const f64 dy = static_cast<f64>(py) - transform.worldPosition.y;
+    const f64 localX = (dx * matrix[1].y - dy * matrix[1].x) / determinant;
+    const f64 localY = (dy * matrix[0].x - dx * matrix[0].y) / determinant;
+    const f32 x0 = -width * pivotX, x1 = width * (1.0f - pivotX);
+    const f32 y0 = -height * pivotY, y1 = height * (1.0f - pivotY);
+    return localX >= std::min(x0, x1) && localX <= std::max(x0, x1)
+        && localY >= std::min(y0, y1) && localY <= std::max(y0, y1);
+}
+
 inline bool isClippedByMask(
     Registry& registry,
     Entity entity,
@@ -136,13 +160,9 @@ inline bool isClippedByMask(
             if (t && node) {
                 t->ensureDecomposed();
                 // UINode mask box is pivot-centered.
-                if (!pointInOBB(
-                    worldMouseX, worldMouseY,
-                    t->worldPosition.x, t->worldPosition.y,
-                    node->computed_size_.x * t->worldScale.x,
-                    node->computed_size_.y * t->worldScale.y,
-                    0.5f, 0.5f,
-                    t->worldRotation.z, t->worldRotation.w
+                if (!pointInTransformedBox(
+                    registry, ancestor, *t, worldMouseX, worldMouseY,
+                    node->computed_size_.x, node->computed_size_.y, 0.5f, 0.5f
                 )) {
                     return true;
                 }

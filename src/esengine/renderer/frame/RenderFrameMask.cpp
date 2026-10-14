@@ -29,9 +29,9 @@ ScreenRect intersectRects(const ScreenRect& a, const ScreenRect& b) {
     return {x1, y1, x2 - x1, y2 - y1};
 }
 
-glm::vec2 worldToScreen(f32 wx, f32 wy, const glm::mat4& vp,
+glm::vec2 worldToScreen(const glm::vec3& world, const glm::mat4& vp,
                          i32 vpX, i32 vpY, i32 vpW, i32 vpH) {
-    glm::vec4 clip = vp * glm::vec4(wx, wy, 0.0f, 1.0f);
+    glm::vec4 clip = vp * glm::vec4(world, 1.0f);
     f32 ndcX = clip.x / clip.w;
     f32 ndcY = clip.y / clip.w;
     f32 sx = static_cast<f32>(vpX) + (ndcX * 0.5f + 0.5f) * static_cast<f32>(vpW);
@@ -53,36 +53,28 @@ ScreenRect computeMaskScreenRect(
     // other pass has read this frame would be clipped to where it used to be.
     transform.ensureDecomposed();
 
-    f32 worldW = node.computed_size_.x * transform.worldScale.x;
-    f32 worldH = node.computed_size_.y * transform.worldScale.y;
-    if (worldW == 0.0f || worldH == 0.0f) return {0, 0, 0, 0};
-    f32 cx = transform.worldPosition.x;
-    f32 cy = transform.worldPosition.y;
-    f32 px = 0.5f;  // UINode box is pivot-centered
-    f32 py = 0.5f;
-
-    f32 localLeft = -worldW * px;
-    f32 localRight = worldW * (1.0f - px);
-    f32 localBottom = -worldH * py;
-    f32 localTop = worldH * (1.0f - py);
-
-    f32 angle = 2.0f * std::atan2(transform.worldRotation.z, transform.worldRotation.w);
-    f32 cosA = std::cos(angle);
-    f32 sinA = std::sin(angle);
-
-    glm::vec2 corners[4] = {
-        {cx + localLeft  * cosA - localBottom * sinA, cy + localLeft  * sinA + localBottom * cosA},
-        {cx + localRight * cosA - localBottom * sinA, cy + localRight * sinA + localBottom * cosA},
-        {cx + localRight * cosA - localTop    * sinA, cy + localRight * sinA + localTop    * cosA},
-        {cx + localLeft  * cosA - localTop    * sinA, cy + localLeft  * sinA + localTop    * cosA},
-    };
+    if (transform.worldScale.x == 0.0f || transform.worldScale.y == 0.0f) return {0, 0, 0, 0};
+    glm::vec3 axisX, axisY;
+    if (registry.has<ecs::Parent>(entity)) {
+        axisX = glm::vec3(transform.cachedMatrix_[0]);
+        axisY = glm::vec3(transform.cachedMatrix_[1]);
+    } else {
+        const auto turn = flatTurnZ(transform.worldRotation);
+        axisX = glm::vec3(turn.x, turn.y, 0) * transform.worldScale.x;
+        axisY = glm::vec3(-turn.y, turn.x, 0) * transform.worldScale.y;
+    }
+    const glm::vec3 hx = axisX * node.computed_size_.x * .5f;
+    const glm::vec3 hy = axisY * node.computed_size_.y * .5f;
+    const glm::vec3 center = transform.worldPosition;
+    const glm::vec3 corners[] = {center - hx - hy, center + hx - hy,
+                                center + hx + hy, center - hx + hy};
 
     f32 minX = std::numeric_limits<f32>::max();
     f32 minY = std::numeric_limits<f32>::max();
     f32 maxX = std::numeric_limits<f32>::lowest();
     f32 maxY = std::numeric_limits<f32>::lowest();
     for (const auto& c : corners) {
-        glm::vec2 s = worldToScreen(c.x, c.y, vp, vpX, vpY, vpW, vpH);
+        glm::vec2 s = worldToScreen(c, vp, vpX, vpY, vpW, vpH);
         minX = std::min(minX, s.x);
         minY = std::min(minY, s.y);
         maxX = std::max(maxX, s.x);

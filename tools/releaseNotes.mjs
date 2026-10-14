@@ -30,6 +30,9 @@ export const NOTES_FLOOR = 'v0.65.0';
 export const NOTED = {
   'fix(ads): reject overlapping advertising requests':
     { note: 'Advertising requests preserve a single active break.' },
+
+  'fix(ui): align affine visuals with picking and mask bounds':
+    { note: 'UI geometry, picking and scissors retain parent-induced shear.' },
   'fix(sprite): enforce tile budgets before integer conversion':
     { note: 'Extreme sprite tile counts reach the bounded fallback on native hosts.' },
   'fix(sprite): preserve affine geometry and mirrored tile grids':

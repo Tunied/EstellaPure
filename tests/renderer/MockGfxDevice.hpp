@@ -8,12 +8,14 @@
 #include "esengine/renderer/rhi/GfxDevice.hpp"
 
 #include <cstring>
+#include <array>
 #include <vector>
 
 namespace esengine {
 
 struct MockGfxDevice final : GfxDevice {
     std::vector<i32> stencilReferences;
+    std::vector<std::array<i32, 4>> scissorRectangles;
     // Device-loss entry points a backend calls on itself. Protected on GfxDevice,
     // so a harness driving the state machine needs them republished here.
     using GfxDevice::markDeviceLost;
@@ -130,7 +132,7 @@ struct MockGfxDevice final : GfxDevice {
     void clearStencil(i32) override {}
 
     void setScissorTest(bool) override {}
-    void setScissor(i32, i32, i32, i32) override {}
+    void setScissor(i32 x, i32 y, i32 w, i32 h) override { scissorRectangles.push_back({x, y, w, h}); }
 
     /** Set false to make allocation fail, the way a GPU out of memory does — the
      *  path a caller's "leaves it as it found it" promise is only true along. */
