@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Added
 
+- **The WeChat Mini Game starter combines gameplay and host-service examples.** A CC0 fleet game includes honest login-code/server-exchange status, sharing without false completion rewards, opt-in configured rewarded video and device-local credit restoration. Unreadable or changed saves are preserved. Named Web/WeChat profiles, compressed engine subpackaging, licenses and a creation-to-submission guide are included; real accounts, server authentication and device/platform approval remain separate.
+
 - **The Playable Ad starter includes a complete editable game.** New projects receive CC0 space art, three-ship selection, completion, replay and an explicit store button instead of a tap-anywhere redirect. Eight named network profiles, a configurable MRAID destination, licenses, a portrait/landscape headless scenario and a creation-to-submission guide ship together. Local mocks and size checks remain separate from official network approval and external publication exercises.
 
 - **YouTube headless checks enforce the documented hosting policy.** Training runs under the official CSP response header as well as its exported policy. Unexpected violations fail the check; an intentionally blocked external request proves that enforcement and reporting work. The publishing guide links the independent official bundle analyzer. SDK Test Suite and device acceptance remain separate.

@@ -1,13 +1,17 @@
 {
   "formatVersion": "1",
   "name": "WeChat Mini Game",
-  "description": "A portrait project sized and configured for the WeChat host — Build ▸ Package targets the mini-game platform.",
+  "description": "CC0 fleet game with login-code exchange, honest share status, opt-in rewarded video and device-local saved credits.",
   "tag": "Starter",
   "version": "1.0.0",
   "defaultScene": "assets/scenes/main.esscene",
   "designResolution": {
-    "width": 750,
-    "height": 1334
+    "width": 600,
+    "height": 600
   },
-  "spineVersion": "none"
+  "spineVersion": "none",
+  "packaging": {
+    "orientation": "portrait", "compressWasm": true, "engineSubpackage": true,
+    "profiles": { "wechat": { "platform": "wechat" }, "web": { "platform": "web" } }
+  }
 }

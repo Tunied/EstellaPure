@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(templates): add WeChat gameplay and host-service starter':
+    { note: 'The WeChat Mini Game starter combines gameplay and host-service examples.' },
   'feat(templates): ship a complete playable ad starter':
     { note: 'The Playable Ad starter includes a complete editable game.' },
   'test(launcher): preserve complete playable starter on creation':

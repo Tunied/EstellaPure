@@ -50,6 +50,11 @@ jobs:
       with:
         name: wasm-web
         path: build/wasm/web/
+    - name: Download this commit's WeChat runtime
+      uses: actions/download-artifact@v8
+      with:
+        name: wasm-wechat
+        path: build/wasm/wechat/
     - name: Build the shipping SDK
       run: pnpm --filter ./sdk build
     - name: Install headless Chromium
@@ -70,6 +75,11 @@ jobs:
           node pipeline/bin/estella.mjs export templates/playable-ad --profile "$playable_network" --wasm build/wasm/web --out "output/playable-template-ci-export-$playable_network" --json "output/playable-template-ci-export-$playable_network.json" || exit 1
           node tools/verify-playable.mjs "output/playable-template-ci-export-$playable_network/index.html" --report "output/playable-template-ci-export-$playable_network.json" --scenario templates/playable-ad/playable-check.json --out "output/playable-template-ci-check-$playable_network" --store-url https://example.com/store || exit 1
         done
+    - name: Check WeChat starter gameplay and host outcomes in a contract host
+      run: |
+        node pipeline/bin/estella.mjs export templates/wechat-minigame --profile wechat --wasm build/wasm/wechat --out output/wechat-starter-ci-production --json output/wechat-starter-ci-production.json
+        node tools/tests/export-wechat-starter-fixture.mjs --wasm build/wasm/wechat --out output/wechat-starter-ci-fixture
+        node tools/tests/wechat-starter.e2e.mjs --dir output/wechat-starter-ci-fixture --out output/wechat-starter-ci-check
     - name: Check authored Poki gameplay and the standalone example in SDK mocks
       run: |
         node pipeline/bin/estella.mjs export examples/mobile-controls --profile poki --wasm build/wasm/web --out output/poki-training-ci-export --json output/poki-training-ci-export.json
@@ -130,6 +140,13 @@ jobs:
       with:
         name: playable-template-local-mock-checks
         path: output/playable-template-ci-*
+        retention-days: 3
+    - name: Upload WeChat starter contract-host observations
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: wechat-starter-contract-checks
+        path: output/wechat-starter-ci-*
         retention-days: 3
 
   # The engine binaries, and nothing else: every gate below waits on this job, so

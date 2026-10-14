@@ -109,6 +109,14 @@ node build-tools/cli.js build -t wechat-glx
 
 ## 参见
 
+启动器的 **WeChat Mini Game** 模板包含 CC0 选船小关卡、登录码/服务器交换
+扩展点、分享请求、配置后启用的激励视频和设备本地积分。按复制后的
+`README.md` 完成创建、改造、导出与提交。`wechat` 导出档启用引擎分包与
+压缩 WASM；`web` 导出档可在本地游玩，并禁用不可用的宿主按钮。
+在 `src/config.ts` 配置自己的广告单元与服务器交换，不把 AppSecret 放进项目。
+取得登录码不等于认证，分享请求不证明完成，本地积分也不是云备份；
+真实账号、后端、广告和设备仍需分别验收。
+
 - [资源](/docs/zh-cn/assets/overview/) —— 可寻址分组与 cook 映射到分包。
 - [构建与导出](/docs/zh-cn/publishing/overview/) —— Package Project 对话框。
 - [视频](/docs/zh-cn/graphics/video/) —— 为微信随包发布的 MPEG-1 wasm 解码路径。

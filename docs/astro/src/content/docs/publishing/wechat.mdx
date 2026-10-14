@@ -143,6 +143,16 @@ levels download on demand rather than bloating the initial package:
 
 ## See also
 
+The **WeChat Mini Game** starter in the launcher includes a CC0 fleet game,
+login-code/server-exchange hook, share request, configured rewarded video and
+device-local saved credits. Follow its copied `README.md` to create, customize,
+export and submit. Its named `wechat` profile enables compressed engine
+subpackaging; its `web` profile offers local gameplay with unavailable host
+buttons disabled. Set your own ad unit and server integration in `src/config.ts`.
+No AppSecret or sample account is shipped. Login codes are not authenticated
+identity, share requests do not prove completion, and saved credits are not cloud
+backup. Validate your real account, backend, ads and devices separately.
+
 - [Assets](/docs/assets/overview/) — addressable groups and cooking map onto subpackages.
 - [Building & Exporting](/docs/publishing/overview/) — the Package Project dialog.
 - [Video](/docs/graphics/video/) — the MPEG-1 wasm decode path shipped for WeChat.
