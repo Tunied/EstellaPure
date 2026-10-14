@@ -40,14 +40,26 @@ export class InlineImagePlugin implements Plugin {
     name = 'ui-inline-image';
     readonly profileDomain = 'ui';
 
-    private cleanup_: (() => void) | null = null;
+    private readonly cleanups_ = new Map<App, () => void>();
 
-    cleanup(): void {
-        this.cleanup_?.();
-        this.cleanup_ = null;
+    cleanup(app?: App): void {
+        if (app) {
+            const cleanup = this.cleanups_.get(app);
+            this.cleanups_.delete(app);
+            cleanup?.();
+        } else {
+            const cleanups = [...this.cleanups_.values()];
+            this.cleanups_.clear();
+            const errors: unknown[] = [];
+            for (const cleanup of cleanups) {
+                try { cleanup(); } catch (error) { errors.push(error); }
+            }
+            if (errors.length) throw new Error(`Failed to release inline image resources: ${errors.map(String).join('; ')}`);
+        }
     }
 
     build(app: App): void {
+        this.cleanup(app);
         if (!app.pipeline) return; // logic-only host → nothing to draw
         // Null on the native core, which rasterizes glyphs through the platform
         // instead of the wasm heap — the measurement atlas below takes either.
@@ -191,10 +203,16 @@ export class InlineImagePlugin implements Plugin {
             }
         }
 
-        this.cleanup_ = () => {
-            for (const kids of childrenOf.values()) despawnKids(kids);
-            childrenOf.clear();
-        };
+        this.cleanups_.set(app, () => {
+            try {
+                for (const kids of childrenOf.values()) despawnKids(kids);
+            } finally {
+                childrenOf.clear();
+                const renderer = measurer;
+                measurer = null;
+                renderer?.dispose();
+            }
+        });
     }
 }
 

@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ui): scope inline text cleanup and release measurement pages':
+    { note: 'Inline rich text releases its own measurement atlas.' },
   'fix(ui): release text input measurement atlases on exit':
     { note: 'Input fields release their measurement glyph pages on exit.' },
   'chore(release): classify 0.83 host verification coverage':
