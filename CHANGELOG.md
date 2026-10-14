@@ -14,6 +14,8 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+## [0.84.0] - 2026-10-15
+
 ### Added
 
 - **App execution holds stop owned frames, input and media.** Hosts can hold execution independently of user pause, with nested owners and idempotent releases. Interrupted startup retains systems that had not begun, and resumed frames wait for pending startup. Native gesture input is discarded while held; audio and video preserve player preferences. Game-owned timers and asynchronous work can cooperate through execution notifications.
@@ -14297,7 +14299,8 @@ not kept before this file was introduced — see the Git history at
 `github.com/esengine/estella` for the full commit-level record since the first
 commit on 2026-01-25.
 
-[Unreleased]: https://github.com/esengine/estella/compare/v0.83.0...HEAD
+[Unreleased]: https://github.com/esengine/estella/compare/v0.84.0...HEAD
+[0.84.0]: https://github.com/esengine/estella/compare/v0.83.0...v0.84.0
 [0.83.0]: https://github.com/esengine/estella/compare/v0.82.0...v0.83.0
 [0.82.0]: https://github.com/esengine/estella/compare/v0.81.0...v0.82.0
 [0.81.0]: https://github.com/esengine/estella/compare/v0.80.0...v0.81.0

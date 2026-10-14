@@ -91,6 +91,12 @@ export const CENSUS_FLOOR = '0.60.0';
  * that does not exist, and release notes are a different act. Theirs is ungated.
  */
 export const SHIPPED = {
+  'Storage exposes asynchronous write acknowledgment':
+    { notCertifiable: 'host persistence acknowledgment rather than a rendered scene capability; sdk/tests/storage.test.ts and pipeline/tests/async-storage.test.ts verify pending writes, retry and load ordering; synchronous flush does not certify cloud backup' },
+  'CrazyGames scores and saved training credits follow platform contracts':
+    { notCertifiable: 'external score and SDK Data contracts; pipeline/tests/crazygames-profile.test.ts and tools/tests/crazygames-training.e2e.mjs verify encryption, saved credits and authored input using host mocks; live leaderboard acceptance and cloud backup remain pending' },
+  'CrazyGames Web exports connect the official v3 SDK':
+    { notCertifiable: 'export settings and external host services; pipeline/tests/crazygames-profile.test.ts and tools/tests/crazygames-training.e2e.mjs verify initialization, loading, ad ownership and mute using mocks; official platform and physical device acceptance remain pending' },
   'Poki training reports authored gameplay and ad outcomes':
     { notCertifiable: 'channel-specific SDK callbacks and authored training state; tools/tests/poki-training.test.ts and poki-training.e2e.mjs verify mocked input, lifecycle and ad outcomes; official Poki Inspector and physical device acceptance remain pending' },
   'Web exports can select the Poki channel':
