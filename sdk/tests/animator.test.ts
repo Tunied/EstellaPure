@@ -282,10 +282,8 @@ describe('AnimatorControllerAPI.update', () => {
         ctrl.update(world);
         expect((world.get(E, Animator) as AnimatorData).currentState).toBe('attack');
 
-        // Simulate the non-looping clip ending (SpriteAnimationAPI clears playing).
-        const sp = world.get(E, SpriteAnimator) as SpriteAnimatorData;
-        sp.playing = false;
-        world.insert(E, SpriteAnimator, sp);
+        // Simulate the completion latch written by SpriteAnimationAPI.
+        world.update(E, SpriteAnimator, (sp: SpriteAnimatorData) => { sp.playing = false; sp.finished = true; });
 
         ctrl.update(world); // exit time met → idle
         expect((world.get(E, Animator) as AnimatorData).currentState).toBe('idle');

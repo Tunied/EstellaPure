@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Paused sprite motions wait for actual completion before exit transitions.** Animator exit-time checks require the matching SpriteAnimator completion latch and stopped playback. Pausing or seeking to a stopped frame preserves the current state; resumed one-shot playback can complete normally, while a pending replay does not count as an ended clip.
+
 - **Measured lists locate visible items without scanning every preceding row.** Ordered cached offsets use binary searches for both viewport boundaries. Non-monotone or non-finite offsets retain the existing scan semantics. Failed measurements do not publish a completed cache, and list synchronization stays dirty after errors so a subsequent update can retry.
 
 - **Plain-text wrapping avoids repeated whole-line glyph measurements.** The atlas-backed wrap path appends glyph advances in their original order while sharing the greedy wrap decisions with arbitrary string measurement. Long words and wide lines stay linear in glyph queries; spaces, supplementary characters and signed spacing preserve prior line breaks and geometry. Canvas string measurement retains its existing behavior.

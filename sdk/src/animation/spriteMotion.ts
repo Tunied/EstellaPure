@@ -37,8 +37,7 @@ export const spriteMotionDriver: MotionDriver<AnimatorClipMotion> = {
     isFinished({ world, entity }, motion) {
         if (!world.has(entity, SpriteAnimator)) return false;
         const sp = world.get(entity, SpriteAnimator) as SpriteAnimatorData;
-        // Playing THIS clip and stopped — not merely stopped, which is also true
-        // on the frame before the clip has been applied at all.
-        return sp.clip === motion.clip && sp.clip !== '' && !sp.playing;
+        // Completion belongs to this clip; pause and a pending replay are not completion.
+        return sp.clip === motion.clip && sp.clip !== '' && sp.finished && !sp.playing;
     },
 };

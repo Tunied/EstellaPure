@@ -6,7 +6,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-    Animator, AnimatorControllerAPI, SpriteAnimator, motionOf,
+    Animator, AnimatorControllerAPI, SpriteAnimator, SpriteAnimationAPI, motionOf,
     type AnimatorData, type AnimatorControllerDef, type AnimatorMotion,
     type AnimatorState, type SpriteAnimatorData,
 } from '../src/animation';
@@ -35,6 +35,9 @@ function makeWorld() {
         return m;
     };
     return {
+        getCppRegistry: () => null, getWasmModule: () => null,
+        resolveGetter: () => null, resolveSetter: () => null,
+        isEntityActive: () => true,
         insert(e: number, c: unknown, data: unknown) { mapOf(c).set(e, data); },
         get(e: number, c: unknown) { return mapOf(c).get(e); },
         has(e: number, c: unknown) { return mapOf(c).has(e); },
@@ -212,7 +215,7 @@ describe('exit time is the motion’s answer, whatever kind it is', () => {
         return ctrl;
     };
 
-    it('waits for a sprite clip to stop', () => {
+    it('waits for a sprite clip to complete', () => {
         const world = makeWorld();
         const ctrl = new AnimatorControllerAPI();
         ctrl.registerController('atk', oneShot({ kind: 'sprite', clip: 'attack', loop: false }));
@@ -226,9 +229,29 @@ describe('exit time is the motion’s answer, whatever kind it is', () => {
         ctrl.update(world, 0.016);
         expect(stateOf(world)).toBe('Attack');
 
-        world.update(E, SpriteAnimator, (sp: SpriteAnimatorData) => { sp.playing = false; });
+        world.update(E, SpriteAnimator, (sp: SpriteAnimatorData) => { sp.playing = false; sp.finished = true; });
         ctrl.update(world, 0.016);
         expect(stateOf(world)).toBe('Idle');
+    });
+
+    it('keeps a paused sprite in its state until resumed playback actually completes', () => {
+        const world = makeWorld();const ctrl = new AnimatorControllerAPI();const sprites = new SpriteAnimationAPI();
+        sprites.registerClip({ name: 'attack', fps: 10, loop: false, frames: [{ texture: 1 }, { texture: 2 }] });
+        ctrl.registerController('atk', oneShot({ kind: 'sprite', clip: 'attack', loop: false }));
+        seed(world, 'atk');world.insert(E, SpriteAnimator, spriteData());
+        ctrl.update(world, 0);sprites.update(world, 0.05);
+        const sp = world.get(E, SpriteAnimator) as SpriteAnimatorData;
+        expect(sp.currentFrame).toBe(0);expect(sp.frameTimer).toBeCloseTo(0.05);
+        world.update(E, SpriteAnimator, (draft: SpriteAnimatorData) => { draft.playing = false; });
+        for (let i = 0; i < 5; i++) { sprites.update(world, 0.5);ctrl.update(world, 0.5); }
+        expect(stateOf(world)).toBe('Attack');expect(sp.finished).toBe(false);
+        expect(sp.frameTimer).toBeCloseTo(0.05);
+        world.update(E, SpriteAnimator, (draft: SpriteAnimatorData) => { draft.playing = true; });
+        sprites.update(world, 0.1);ctrl.update(world, 0.1);
+        expect(stateOf(world)).toBe('Attack');expect(sp.currentFrame).toBe(1);
+        sprites.update(world, 0.06);
+        expect(sp.finished).toBe(true);expect(sp.playing).toBe(false);
+        ctrl.update(world, 0.06);expect(stateOf(world)).toBe('Idle');
     });
 
     it('waits out a non-looping timeline on the animator’s own clock', () => {

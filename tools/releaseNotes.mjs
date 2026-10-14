@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(animation): keep paused sprite motions out of exit transitions':
+    { note: 'Paused sprite motions wait for actual completion before exit transitions.' },
   'perf(ui): search measured list bounds and retry failed syncs':
     { note: 'Measured lists locate visible items without scanning every preceding row.' },
   'feat(viewport): combine transform handles in a universal tool':

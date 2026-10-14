@@ -184,7 +184,7 @@ describe('AnimatorControllerAPI.update — nested machine', () => {
         ctrl.setTrigger(E, 'attack');
         ctrl.update(world); // → Combat/Swing (swing clip applied, loop:false)
         // Simulate the swing clip finishing so its exit-time edge can fire.
-        world.update(E, SpriteAnimator, (sp: SpriteAnimatorData) => { sp.playing = false; });
+        world.update(E, SpriteAnimator, (sp: SpriteAnimatorData) => { sp.playing = false; sp.finished = true; });
         ctrl.update(world);
         expect(animPath(world)).toBe('Combat/Recover');
         expect(clip(world)).toBe('recover');
