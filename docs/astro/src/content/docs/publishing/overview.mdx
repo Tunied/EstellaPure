@@ -85,6 +85,8 @@ Xcode, because only Apple can sign for a device.
 
 ## Playable ad networks
 
+With asset optimization set to **Auto**, playable exports honor PNG **Max Size**, including enabled `playable` import overrides, and compress eligible WAV clips to MP3 at the clip's authored bitrate. PNGs remain PNGs; no GPU texture decoder is added. A clip with compression disabled stays WAV, and **Skip** preserves source payloads. Sources and import settings are unchanged. These settings do not automatically reduce quality to meet a network budget; inspect the export's actual delivery size and check report.
+
 Every network takes the same single HTML file but disagrees on three things: how big
 it may be, what must sit in `<head>`, and which function sends the player to the
 store. Pick the network in the **Package Project** dialog — it sits with the Playable

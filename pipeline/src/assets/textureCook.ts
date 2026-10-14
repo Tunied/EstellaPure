@@ -106,6 +106,8 @@ export interface TextureCookInput {
   /** Null when this cook compresses nothing — the decision is still taken. */
   encoder: TextureEncoder | null;
   compressTextures: boolean;
+  /** Apply authored Max Size while shipping raw PNGs, without a KTX2 encoder. */
+  resizeTextures?: boolean;
   atlasTextures: boolean;
   /** A mesh draws this texture (texturesDrawnIn3D) — what Auto compression resolves by. */
   drawnIn3D: boolean;
@@ -146,7 +148,7 @@ export async function cookTexture(input: TextureCookInput): Promise<TextureCookO
   // compression (a huge UI sprite can ship as a smaller raw PNG), and the
   // ENCODED size is what block alignment is judged on.
   const sourceSize = raster ? safePngDimensions(data) : null;
-  const scaled = !!(textureEnc && sourceSize && tex.maxSize > 0 &&
+  const scaled = !!((textureEnc || input.resizeTextures) && sourceSize && tex.maxSize > 0 &&
     tex.maxSize < Math.max(sourceSize.width, sourceSize.height));
   const size = scaled ? downscaledSize(sourceSize!.width, sourceSize!.height, tex.maxSize) : sourceSize;
   const scaledImage = () => downscaleRgba(decodePngImage(path, data), tex.maxSize);

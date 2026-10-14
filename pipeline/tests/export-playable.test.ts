@@ -20,6 +20,8 @@ import { runtimeHostPrebuild } from '../src/bundle/runtimeHosts';
 import { build } from 'esbuild';
 import { inflateRaw } from '../src/runtime/inflate';
 import { OFFICIAL_PACKAGES } from './officialPackagesDir';
+import { solidPng } from './fixtures/solidPng.mjs';
+import { decodePngImage } from '../src/assets/atlasPacker';
 
 /**
  * Read an inlined payload back out of the page, the way the host does.
@@ -91,6 +93,82 @@ export function glContextAttributes(){return {};}\n`);
 afterAll(() => rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 }));
 
 describe('exportGame (playable)', () => {
+  it('honors image platform overrides, audio settings and the build opt-out without changing sources', async () => {
+    const imageId = '11111111-1111-4111-8111-111111111111';
+    const audioId = '22222222-2222-4222-8222-222222222222';
+    const loopId = '33333333-3333-4333-8333-333333333333';
+    const png = solidPng(128, 64, [40, 90, 200, 128]);
+    const wav = Buffer.alloc(44 + 44100 * 2);
+    wav.write('RIFF'); wav.writeUInt32LE(wav.length - 8, 4); wav.write('WAVE', 8);
+    wav.write('fmt ', 12); wav.writeUInt32LE(16, 16);
+    wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22);
+    wav.writeUInt32LE(44100, 24); wav.writeUInt32LE(88200, 28);
+    wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34);
+    wav.write('data', 36); wav.writeUInt32LE(wav.length - 44, 40);
+    for (let f = 0; f < 44100; f++) wav.writeInt16LE(Math.round(Math.sin(f / 20) * 12000), 44 + f * 2);
+    const put = (file: string, bytes: Buffer, uuid: string, type: string, importer: object) => {
+      writeFileSync(path.join(root, file), bytes);
+      writeFileSync(path.join(root, `${file}.meta`), JSON.stringify({ uuid, version: '2.0', type, importer }));
+    };
+    put('assets/ad-image.png', png, imageId, 'texture', {
+      maxSize: 64, compress: 'off', overrides: { playable: { enabled: true, maxSize: 32 } },
+    });
+    put('assets/ad-sound.wav', wav, audioId, 'audio', { compress: true, bitrateKbps: 96 });
+    put('assets/ad-loop.wav', wav, loopId, 'audio', { compress: false });
+    const scene = 'scenes/optimized.esscene';
+    writeFileSync(path.join(root, scene), JSON.stringify({ version: '1.0', name: 'Optimized', entities: [
+      { id: 0, components: [{ type: 'Sprite', data: { texture: `@uuid:${imageId}` } }] },
+      { id: 1, components: [{ type: 'AudioSource', data: { clip: `@uuid:${audioId}` } }] },
+      { id: 2, components: [{ type: 'AudioSource', data: { clip: `@uuid:${loopId}` } }] },
+    ] }));
+    writeFileSync(path.join(root, `${scene}.meta`), meta('44444444-4444-4444-8444-444444444444', 'scene'));
+    const optimized = await exportGame({
+      root, entryScene: scene, hostsDir: HOSTS, packagesDir: OFFICIAL_PACKAGES,
+      sdkDistDir: path.join(root, '_sdk'), wasmDir: path.join(root, '_wasm'),
+      outDir: path.join(root, 'optimized'), platform: 'playable', compressTextures: true, compressAudio: true,
+    });
+    const raw = await exportGame({
+      root, entryScene: scene, hostsDir: HOSTS, packagesDir: OFFICIAL_PACKAGES,
+      sdkDistDir: path.join(root, '_sdk'), wasmDir: path.join(root, '_wasm'),
+      outDir: path.join(root, 'raw'), platform: 'playable', compressTextures: false, compressAudio: false,
+    });
+    const assetsIn = (dir: string): Record<string, string> => {
+      const html = readFileSync(path.join(dir, 'index.html'), 'utf8');
+      const json = html.split('window.__GAME_ASSETS__=')[1].split(';window.__GAME_PATHMAP__=')[0];
+      return JSON.parse(json);
+    };
+    expect(optimized.ok, optimized.errors.join('\n')).toBe(true);
+    expect(raw.ok, raw.errors.join('\n')).toBe(true);
+    const encoded = assetsIn(optimized.outDir), original = assetsIn(raw.outDir);
+    const resized = decodePngImage('ad-image', Buffer.from(encoded[`@uuid:${imageId}`].split(',')[1], 'base64'));
+    expect([resized.width, resized.height]).toEqual([32, 16]);
+    expect(Array.from(resized.rgba.slice(0, 4))).toEqual([40, 90, 200, 128]);
+    expect(encoded[`@uuid:${imageId}`]).toMatch(/^data:image\/png;/);
+    expect(encoded[`@uuid:${audioId}`]).toMatch(/^data:audio\/mpeg;/);
+    expect(encoded[`@uuid:${loopId}`]).toBe(`data:audio/wav;base64,${wav.toString('base64')}`);
+    expect(original[`@uuid:${imageId}`]).toBe(`data:image/png;base64,${png.toString('base64')}`);
+    expect(original[`@uuid:${audioId}`]).toBe(encoded[`@uuid:${loopId}`]);
+    expect(readFileSync(path.join(optimized.outDir, 'index.html')).byteLength)
+      .toBeLessThan(readFileSync(path.join(raw.outDir, 'index.html')).byteLength);
+    expect(readFileSync(path.join(root, 'assets/ad-image.png'))).toEqual(png);
+    expect(readFileSync(path.join(root, 'assets/ad-sound.wav'))).toEqual(wav);
+  }, 60_000);
+
+  it('fails when an authored image resize cannot produce a reached asset', async () => {
+    const id = '55555555-5555-4555-8555-555555555555';
+    writeFileSync(path.join(root, 'assets/broken.png'), solidPng(128, 64, [20, 30, 40, 255]).subarray(0, 33));
+    writeFileSync(path.join(root, 'assets/broken.png.meta'), JSON.stringify({ uuid: id, version: '2.0', type: 'texture', importer: { maxSize: 32 } }));
+    writeFileSync(path.join(root, 'scenes/broken.esscene'), JSON.stringify({ version: '1.0', name: 'Broken', entities: [
+      { id: 0, components: [{ type: 'Sprite', data: { texture: `@uuid:${id}` } }] },
+    ] }));
+    writeFileSync(path.join(root, 'scenes/broken.esscene.meta'), meta('66666666-6666-4666-8666-666666666666', 'scene'));
+    const result = await exportGame({ root, entryScene: 'scenes/broken.esscene', hostsDir: HOSTS,
+      packagesDir: OFFICIAL_PACKAGES, sdkDistDir: path.join(root, '_sdk'), wasmDir: path.join(root, '_wasm'),
+      outDir: path.join(root, 'broken'), platform: 'playable', compressTextures: true });
+    expect(result.ok).toBe(false);
+    expect(result.errors.some(error => error.includes('assets/broken.png'))).toBe(true);
+  });
+
   it('produces one self-contained index.html with everything inlined', async () => {
     const res = await exportGame({
       root,

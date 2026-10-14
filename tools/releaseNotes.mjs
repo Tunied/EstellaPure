@@ -28,6 +28,9 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(playable): honor authored texture and audio optimization':
+    { note: 'Playable exports honor authored image and audio optimization.' },
+
   'fix(playable): bind preview records to delivery hashes':
     { note: 'Playable preview records identify the delivered archive.' },
 

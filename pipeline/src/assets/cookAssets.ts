@@ -454,6 +454,8 @@ export async function cookAssets(
   opts: {
     entryScenes: string[]; outDir: string;
     contentAddressed?: boolean; compressTextures?: boolean; atlasTextures?: boolean;
+    /** Honor PNG Max Size without enabling GPU compression or loading Basis. */
+    resizeTextures?: boolean;
     compressAudio?: boolean; transcodeVideo?: boolean;
     /** Target platform — selects each texture's per-platform Import Settings
      *  override (Default when absent). No effect on audio/video/atlas. */
@@ -767,6 +769,7 @@ export async function cookAssets(
           root, path: entry.path, data, ext, importer: entry.importer, platform,
           encoder: textureEnc ? { module: textureEnc, id: encoderId } : null,
           compressTextures, atlasTextures, drawnIn3D: drawnIn3D.has(entry.uuid),
+          resizeTextures: opts.resizeTextures,
         });
         data = t.data; ext = t.ext; cook = t.cook; compressedFormats = t.compressedFormats;
         warnings.push(...t.warnings);

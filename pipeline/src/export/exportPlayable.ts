@@ -216,6 +216,10 @@ export async function exportPlayable(opts: {
    * to the pixel). An explicit `false` is still honoured.
    */
   minify?: boolean;
+  /** Honor authored PNG Max Size; playables still ship images rather than KTX2. */
+  resizeTextures?: boolean;
+  /** WAV to MP3 at the authored bitrate, honoring each clip's compression opt-out. */
+  compressAudio?: boolean;
   /** What the project says about its engine modules; see ProjectFeatures.modules. */
   features?: ProjectFeatures;
   /** Per-target overrides laid over those. */
@@ -243,11 +247,14 @@ export async function exportPlayable(opts: {
 
   // 1. Cook reachable assets to a temp dir (everything ends up inlined → removed after).
   progress({ phase: 'Cooking assets' });
-  // Playable inlines everything base64 (no KTX2 transcoder), so it doesn't set
-  // compressTextures — the platform is threaded for when per-platform Import
-  // Settings (e.g. a tighter Max Size for the ad-size cap) gain a raw-downscale path.
-  const cook = await cookAssets(opts.root, { entryScenes: [opts.entryScene], outDir: cookDir, platform: 'playable' });
+  // No KTX2 transcoder: PNGs honor Max Size through the raw-image path. Audio
+  // uses the same per-clip settings as other targets. Neither changes sources.
+  const cook = await cookAssets(opts.root, {
+    entryScenes: [opts.entryScene], outDir: cookDir, platform: 'playable',
+    resizeTextures: opts.resizeTextures, compressAudio: opts.compressAudio,
+  });
   warnings.push(...cook.warnings);
+  errors.push(...cook.failed.map(failure => `assets: ${failure}`));
 
   // 2. Assets → base64 data URLs, keyed by the scene's @uuid: refs; plus a
   //    compact logical-path → key map so PATH-style refs (a scene's material
