@@ -65,3 +65,21 @@ The profile uses the same CC0 room, authored joystick and character textures.
 Its local headless scenario is SDK wiring evidence, not Poki Inspector approval
 or physical-device acceptance. Test with the official
 [Poki Inspector](https://developers.poki.com/guide/sdk-html5) before submission.
+
+
+### Inspect the real SDK without starting the editor
+
+From the repository root, export and serve the directory locally:
+
+```text
+node pipeline/bin/estella.mjs export examples/mobile-controls --profile poki --out output/poki-training-web
+python -m http.server 8080 --bind 127.0.0.1 --directory output/poki-training-web
+```
+
+Keep the server running, open the official Inspector, and enter
+`http://127.0.0.1:8080/` in its URL field, then choose Open. The Inspector adds its
+SDK testing context to the game URL. Watch its event log while starting, pausing,
+resuming, watching a rewarded ad, completing the round and replaying. Let the
+SDK's test ad finish naturally; no callbacks are replaced by this workflow.
+The SDK Basics checklist and the other QA modules must be evaluated individually.
+A clear event log is not full platform or device acceptance.

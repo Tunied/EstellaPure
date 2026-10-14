@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Changed
+
+- **Poki training documents the official Inspector URL workflow.** A localhost export can be checked with the real SDK without starting the editor. The guide distinguishes observed SDK initialization, loading, gameplay and reward events from the remaining manual QA, device acceptance and production ad behavior.
+
 ### Fixed
 
 - **Inline rich text releases its own measurement atlas.** Cleanup belongs to each App, so closing an older preview cannot remove a newer preview's inline image children. Exiting releases measurement glyph pages and repeated cleanup remains safe.
