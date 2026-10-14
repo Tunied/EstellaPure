@@ -41,7 +41,8 @@
     "verify:glx": "node tools/verify-glx-fallback.mjs",
     "verify:remote-capture": "node tools/verify-remote-capture.mjs --platform web && node tools/verify-remote-capture.mjs --platform wechat",
     "verify:hotupdate": "node tools/with-env.mjs ESTELLA_HOTUPDATE_FIXTURE=1 -- pnpm --filter @estella/pipeline exec vitest run tests/hotupdate-verify-fixture.test.ts && node tools/run-electron.mjs tools/launchers/headless-hotupdate-verify.mjs",
-    "verify:cache-budget": "node tools/run-electron.mjs tools/launchers/cache-budget-render-verify.mjs"
+    "verify:cache-budget": "node tools/run-electron.mjs tools/launchers/cache-budget-render-verify.mjs",
+    "preview:playable": "node tools/playable-preview.mjs"
   },
   "dependencies": {
     "chalk": "^5.3.0",

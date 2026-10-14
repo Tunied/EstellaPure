@@ -46,3 +46,33 @@ or inspect it in the editor’s package result. It records HTML/delivery hashes,
 network budgets, literal resource references and required orientation config.
 CTA, host lifecycle, dynamic requests and network/device acceptance remain marked
 for runtime verification; a static pass does not imply ad approval.
+
+## Local container preview
+
+After exporting, run from the engine repository:
+
+```sh
+pnpm preview:playable output/preview-mintegral/index.html --report output/preview-mintegral.json
+pnpm preview:playable output/preview-unity/index.html --report output/preview-unity.json --store-url https://example.com/your-store-url
+```
+
+The command prints a loopback URL and opens no browser. Open the URL yourself when
+wanted. The source HTML is read once, remains unchanged, and is identified by its
+SHA256; restart the command after exporting a new build. `--report` verifies the
+file hash and derives the network from the export result. Without a report, choose
+`--network mintegral`, `mraid`, `unity`, `applovin`, `tiktok`, `pangle`, `google`,
+`meta`, or `generic` explicitly.
+
+For MRAID, Ready releases the host-loading state, then Show makes the ad viewable.
+Mintegral announces Creative Ready after resources load; Show calls gameStart and
+Hide calls gameClose. Completion and close stay separate. The creative's Try Again
+button calls gameRetry; reloading the iframe restarts the whole scene. TikTok/Pangle
+mock their mandatory SDK and observe page visibility. Google/Meta expose their
+store hooks; their lifecycle still needs the real network container.
+
+The viewport selector checks portrait and landscape. Store calls are logged rather
+than opened; enter your own store destination for MRAID. Save Log downloads a JSON
+record marked `local-mock`, with the original HTML hash. External requests are
+blocked in this preview and recorded as violations, so this is a controlled mock,
+not proof of the original package's behavior in the real SDK. Official previews
+and physical devices remain separate acceptance steps.

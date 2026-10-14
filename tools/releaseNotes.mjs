@@ -34,6 +34,8 @@ export const NOTED = {
     { note: 'Small nine-slice visuals keep borders inside their box.' },
   'fix(docs): escape playable size limits in MDX':
     { internal: 'escapes a less-than sign in both translations so the existing size-limit text compiles as MDX and the release website can deploy' },
+  'feat(playable): preview creatives in local mock containers':
+    { note: 'Playable creatives have a local container preview.' },
   'feat(playable): report export checks and pending acceptance':
     { note: 'Playable exports report static checks and pending acceptance.' },
   'feat(editor): show playable export checks in package results':

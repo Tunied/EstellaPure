@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Added
 
+- **Playable creatives have a local container preview.** A CLI server simulates MRAID, Mintegral and page-visibility callbacks, records store gestures without opening a store, and switches portrait/landscape viewports. It opens no browser and preserves the delivered HTML; export-report hashes prevent mixing records from different builds. Logs remain marked as local mocks rather than network approval.
+
 - **Playable exports report static checks and pending acceptance.** Export results and the editor package dialog show actual HTML/delivery hashes, network size limits, literal resource references and orientation config checks. Mandatory network SDK scripts are allowed explicitly. CTA, lifecycle, dynamic requests and device/network acceptance remain pending runtime evidence, including when static checks pass.
 
 ### Fixed
