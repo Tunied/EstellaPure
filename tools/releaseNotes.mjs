@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(text): reclaim unused glyph pages at frame boundaries':
+    { note: 'Unused text atlas pages retire at frame boundaries.' },
   'feat(storage): await asynchronous host persistence':
     { note: 'Storage exposes asynchronous write acknowledgment.' },
   'fix(text): rasterize enlarged bitmap glyphs within atlas limits':

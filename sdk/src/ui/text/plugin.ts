@@ -125,6 +125,14 @@ export class TextPlugin implements Plugin {
 
         const world = app.world;
 
+        app.addSystemToSchedule(Schedule.PreUpdate, defineSystem([], () => {
+            const state = this.states_.get(app);
+            if (!state) return;
+            for (const renderer of [state.world.bitmap, state.world.sdf, state.screen.bitmap, state.screen.sdf]) {
+                renderer?.beginFrame();
+            }
+        }, { name: 'TextPageLifetimeSystem' }));
+
         // A Text node inside a UINode is a UI render node: ensure it carries a
         // UIVisual (visualType None — not drawn as a quad) so the UI
         // render-order pass assigns it a uiOrder and the SDF glyphs sort with

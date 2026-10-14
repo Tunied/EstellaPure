@@ -178,6 +178,33 @@ function buildScene(app: ReturnType<typeof createNativeApp>, setScene: (canvas: 
 }
 
 describe('a frame on the native core', () => {
+    it('reclaims obsolete glyph pages at frame boundaries without rerasterizing live text', async () => {
+        const host = makeHostScope();
+        const app = createNativeApp(makeBridge(host.scope), host.scope);
+        await app.tick(0);
+        const renderer = new SdfTextRenderer(null, { sdf: false, pageSize: 16 });
+        const matrix = new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]);
+        const parameters = { text: 'A', fontFamily: 'Arial', fontSizePx: 32, color: [1,1,1,1] as const };
+        renderer.beginFrame();
+        renderer.drawText(parameters, matrix, 1, 0, 0);
+        renderer.beginFrame();
+        renderer.drawText({ ...parameters, fontFamily: 'Other' }, matrix, 1, 0, 0);
+        expect(host.textures.size).toBe(2);
+        renderer.beginFrame();
+        expect(host.textures.size).toBe(1);
+        const requests = host.rasterizeSpy.mock.calls.length;
+        renderer.drawText({ ...parameters, fontFamily: 'Other' }, matrix, 1, 0, 0);
+        expect(host.rasterizeSpy).toHaveBeenCalledTimes(requests);
+        renderer.beginFrame();
+        expect(host.textures.size).toBe(1);
+        // No label drew this frame: the following boundary reclaims its layout.
+        renderer.beginFrame();
+        expect(host.textures.size).toBe(0);
+        renderer.drawText(parameters, matrix, 1, 0, 0);
+        expect(host.textures.size).toBe(1);
+        renderer.dispose(); app.quit({keepRenderer:true});
+    });
+
     it.each([true, false])('culls long cached glyphs and restores the complete layout (sdf=%s)', async sdf => {
         const host = makeHostScope();
         const app = createNativeApp(makeBridge(host.scope), host.scope);

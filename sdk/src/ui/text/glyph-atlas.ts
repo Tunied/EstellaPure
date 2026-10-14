@@ -147,6 +147,27 @@ export class GlyphAtlas {
         if (errors.length) throw new Error(`Failed to release glyph atlas pages: ${errors.map(String).join('; ')}`);
     }
 
+    /** Release pages not referenced by retained layouts, at a submitted-frame boundary. */
+    retainPages(live: ReadonlySet<number>): void {
+        const removed = new Set<number>();
+        for (let i = this.pages.length - 1; i >= 0; i--) {
+            if (live.has(this.pages[i])) continue;
+            removed.add(this.pages[i]);
+            this.pages.splice(i, 1);
+            this.packers.splice(i, 1);
+            this.placements.splice(i, 1);
+        }
+        if (removed.size === 0) return;
+        for (const [key, glyph] of this.cache) {
+            if (glyph && removed.has(glyph.pageId)) this.cache.delete(key);
+        }
+        const errors: unknown[] = [];
+        for (const page of removed) {
+            try { this.store?.releasePage?.(page); } catch (error) { errors.push(error); }
+        }
+        if (errors.length) throw new Error(`Failed to release unused glyph pages: ${errors.map(String).join('; ')}`);
+    }
+
     /**
      * Bumped only when a change can alter the atlas coordinates of glyphs that
      * are already placed — i.e. a bitmap content-scale change (glyphs re-rasterize
@@ -296,9 +317,9 @@ export class GlyphAtlas {
 
     private addPage(): void {
         if (!this.store) throw new Error('Measurement atlases cannot allocate pages.');
-        const page = this.pages.length;
-        this.placements.push([]);
-        this.pages.push(this.store.createPage(this.pageSize, (pixels) => this.paintPage(page, pixels)));
+        const glyphs: GlyphPlacement[] = [];
+        this.placements.push(glyphs);
+        this.pages.push(this.store.createPage(this.pageSize, (pixels) => this.paintPage(glyphs, pixels)));
         this.packers.push(new ShelfPacker(this.pageSize, this.pageSize));
     }
 
@@ -307,9 +328,9 @@ export class GlyphAtlas {
      * glyph that now comes out larger (its font finished loading) is clipped to
      * its cell rather than drawn over a neighbour's.
      */
-    private paintPage(page: number, pixels: Uint8Array): void {
+    private paintPage(glyphs: readonly GlyphPlacement[], pixels: Uint8Array): void {
         const size = this.pageSize;
-        for (const g of this.placements[page]) {
+        for (const g of glyphs) {
             const raster = this.rasterizer.rasterize(g.codepoint, g.fontFamily, g.style, g.pixelSize);
             if (!raster) continue;
             const width = Math.min(raster.width, g.width);

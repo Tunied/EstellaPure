@@ -207,6 +207,29 @@ describe('GlyphAtlas: a page painted again is the page that was uploaded', () =>
         return { store, images, painters };
     }
 
+    it('prunes unused pages without changing live UVs or their restore painter', () => {
+        const { store, images, painters } = imageStore();
+        const releasePage = vi.fn();
+        const atlas = new GlyphAtlas(patternRasterizer(), { ...store, releasePage }, { pageSize: PAGE, padding: 1 });
+        for (let i = 0; i < 30; i++) atlas.getGlyph(0x100 + i, 'Arial');
+        const retired = atlas.getGlyph(0x100, 'Arial')!;
+        const kept = atlas.getGlyph(0x11d, 'Arial')!;
+        expect(retired.pageId).not.toBe(kept.pageId);
+        const generation = atlas.generation;
+        atlas.retainPages(new Set([kept.pageId]));
+        expect(atlas.pageCount).toBe(1);
+        expect(releasePage).toHaveBeenCalledWith(retired.pageId);
+        expect(atlas.generation).toBe(generation);
+        expect(atlas.getGlyph(0x11d, 'Arial')).toBe(kept);
+        const repaint = new Uint8Array(PAGE * PAGE * 4);
+        painters[kept.pageId](repaint);
+        expect(repaint).toEqual(images[kept.pageId]);
+        expect(atlas.getGlyph(0x100, 'Arial')!.pageId).not.toBe(retired.pageId);
+        atlas.retainPages(new Set());
+        expect(atlas.pageCount).toBe(0);
+        expect(atlas.getGlyph(0x100, 'Arial')).not.toBeNull();
+    });
+
     it('repaints every page byte for byte, across pages, skipping blanks', () => {
         const { store, images, painters } = imageStore();
         const atlas = new GlyphAtlas(patternRasterizer(), store, { pageSize: PAGE, padding: 1 });

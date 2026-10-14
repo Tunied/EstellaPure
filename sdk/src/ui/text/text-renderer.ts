@@ -291,6 +291,7 @@ export class SdfTextRenderer {
     private readonly sdf: boolean;
     private readonly cache_ = new Map<number, TextCacheEntry>();
     private readonly clipPlanes_ = new Float64Array(36);
+    private readonly drawn_ = new Set<number>();
 
     /** `module` is null on the native core (no wasm heap); the glyph source is
      *  then the platform's own rasterizer, since there is no 2D canvas to draw
@@ -313,7 +314,22 @@ export class SdfTextRenderer {
         this.atlas.setContentScale(scale);
     }
 
+    /** Previous frame has submitted; remove unused layouts and their GPU pages. */
+    beginFrame(): void {
+        if (this.atlas.metricsOnly) return;
+        for (const entity of this.cache_.keys()) {
+            if (!this.drawn_.has(entity)) this.cache_.delete(entity);
+        }
+        const pages = new Set<number>();
+        for (const entry of this.cache_.values()) {
+            for (const batch of entry.batches) pages.add(batch.pageId);
+        }
+        this.drawn_.clear();
+        this.atlas.retainPages(pages);
+    }
+
     dispose(): void {
+        this.drawn_.clear();
         this.cache_.clear();
         this.atlas.dispose();
     }
@@ -339,6 +355,7 @@ export class SdfTextRenderer {
         if (this.atlas.metricsOnly) throw new Error('Measurement atlases cannot submit text.');
         const opacity = p.opacity ?? 1;
         if (opacity <= 0) return;
+        this.drawn_.add(entity);
         const gen = this.atlas.generation;
         const sig = textSignature(p, 1);
         let entry = this.cache_.get(entity);

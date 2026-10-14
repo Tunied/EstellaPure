@@ -28,6 +28,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Unused text atlas pages retire at frame boundaries.** Cached layouts retain their referenced pages while obsolete sizes, replaced labels, hidden text and inactive bitmap/SDF modes release unreferenced GPU pages on a subsequent frame. Page restore callbacks capture their own placement lists, preserving live UVs after other pages are removed; stable text keeps its raster and geometry caches.
+
 - **Bitmap glyphs survive enlarged text and camera zoom.** Canvas scratch surfaces grow to fit glyphs within the configured atlas dimensions instead of dropping tiles larger than their initial size. Resizing restores font, bold/italic style and alignment before drawing; smaller requests reuse the grown surface, and oversized tiles remain bounded by the atlas limit.
 
 - **AudioPlugin checks platform initialization before subscribing to host mute.** Independent audio backend tests and direct construction no longer fail while reading an optional platform capability.

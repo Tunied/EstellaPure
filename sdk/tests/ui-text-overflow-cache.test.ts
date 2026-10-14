@@ -4,6 +4,17 @@ import { GlyphAtlas } from '../src/ui/text/glyph-atlas';
 import { SdfTextRenderer, drawTextWith, type DrawTextParams } from '../src/ui/text/text-renderer';
 import { TextOverflow } from '../src/ui/core/text';
 import { submitTextBatch } from '../src/ui/text/submit';
+vi.mock('../src/platform', () => ({
+    platformHasGlyphRasterizer: () => false,
+    platformCreateCanvas: (width: number, height: number) => ({ width, height, getContext: () => null }),
+}));
+
+function rendererWithAtlas(atlas: GlyphAtlas, sdf: boolean): SdfTextRenderer {
+    const renderer = new SdfTextRenderer(null, { sdf, metricsOnly: true });
+    Object.defineProperty(renderer, 'atlas', { value: atlas });
+    return renderer;
+}
+
 vi.mock('../src/ui/text/submit', async importOriginal => ({
     ...await importOriginal<typeof import('../src/ui/text/submit')>(), submitTextBatch: vi.fn(),
 }));
@@ -14,9 +25,7 @@ it.each([false, true])('reuses multi-page fading geometry without cumulative alp
         pixels: new Uint8Array(10 * 12 * 4), width: 10, height: 12,
         advance: 11, bearingX: 1, bearingY: 10,
     }) }, { createPage: () => nextPage++, uploadSubRegion: () => {} }, { pageSize: 32, padding: 1, sdf });
-    const renderer = Object.assign(Object.create(SdfTextRenderer.prototype), {
-        atlas, sdf, module: null, cache_: new Map(),
-    }) as SdfTextRenderer;
+    const renderer = rendererWithAtlas(atlas, sdf);
     const p: DrawTextParams = {
         text: '<color=#ff000080>ABC</color>DEF', richText: true, fontFamily: 'Arial', fontSizePx: 24,
         color: [1, 1, 1, 0.8], shadow: { color: [0, 0, 0, 0.6], dx: 1, dy: 1 },
@@ -54,9 +63,7 @@ it('rebuilds only changed overflow geometry while other static text keeps its ca
         advance: 11, bearingX: 1, bearingY: 10,
     }) }, { createPage: () => 1000, uploadSubRegion: () => {} }, { pageSize: 1024, padding: 1, sdf: false });
     // Inject an atlas and submission sink, preserving the real renderer cache path.
-    const renderer = Object.assign(Object.create(SdfTextRenderer.prototype), {
-        atlas, sdf: false, module: null, cache_: new Map(),
-    }) as SdfTextRenderer;
+    const renderer = rendererWithAtlas(atlas, false);
     const transform = new Float32Array(16);
     const params: DrawTextParams = { text: 'ABCDEF', fontFamily: 'Arial', fontSizePx: 48,
         color: [1, 1, 1, 1], boxWidth: 24, boxHeight: 60, overflow: TextOverflow.Visible };
@@ -86,9 +93,7 @@ it('invalidates cached geometry when text and font names contain field delimiter
         pixels: new Uint8Array(10 * 12 * 4), width: 10, height: 12,
         advance: 11, bearingX: 1, bearingY: 10,
     }) }, { createPage: () => 1000, uploadSubRegion: () => {} }, { pageSize: 1024, padding: 1, sdf: false });
-    const renderer = Object.assign(Object.create(SdfTextRenderer.prototype), {
-        atlas, sdf: false, module: null, cache_: new Map(),
-    }) as SdfTextRenderer;
+    const renderer = rendererWithAtlas(atlas, false);
     const transform = new Float32Array(16);
     const submit = vi.mocked(submitTextBatch);
     const first: DrawTextParams = { text: 'A|B', fontFamily: 'Arial', fontSizePx: 48, color: [1, 1, 1, 1] };
