@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(docs): escape playable size limits in MDX':
+    { internal: 'escapes a less-than sign in both translations so the existing size-limit text compiles as MDX and the release website can deploy' },
   'feat(playable): report export checks and pending acceptance':
     { note: 'Playable exports report static checks and pending acceptance.' },
   'feat(editor): show playable export checks in package results':
