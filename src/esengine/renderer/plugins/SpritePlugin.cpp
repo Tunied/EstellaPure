@@ -7,6 +7,7 @@
 #include "../rhi/Texture.hpp"
 #include "../../ecs/components/Transform.hpp"
 #include "../../ecs/components/Hierarchy.hpp"
+#include "../../ecs/FlatGeometry.hpp"
 #include "../../ecs/components/Sprite.hpp"
 #include "../../ecs/components/SpriteMask.hpp"
 #include "../../ecs/components/UINode.hpp"
@@ -37,14 +38,15 @@ void SpritePlugin::collect(RenderCollectContext& collect_ctx) {
         const auto& rotation = transform.worldRotation;
         const auto& scale = transform.worldScale;
 
-        if (scale.x == 0.0f || scale.y == 0.0f || sprite.size.x == 0.0f || sprite.size.y == 0.0f) continue;
+        const bool parented = registry.has<ecs::Parent>(entity);
+        if (scale.x == 0 || scale.y == 0 || !ecs::hasFlatGeometryArea(registry, entity, transform)
+            || sprite.size.x == 0.0f || sprite.size.y == 0.0f) continue;
 
         glm::vec2 finalSize = sprite.size * glm::vec2(scale);
         // The quad turns about `position`, so its pivot offset turns with it and its
         // extents grow. Bounding the unturned box instead loses a turned sprite while
         // part of it is still on screen — at 45 degrees the box is 41% short.
         const glm::vec2 turn = flatTurnZ(rotation);
-        const bool parented = registry.has<ecs::Parent>(entity);
         const glm::vec3 axisX = parented ? glm::vec3(transform.cachedMatrix_[0])
             : glm::vec3(turn.x, turn.y, 0.0f) * scale.x;
         const glm::vec3 axisY = parented ? glm::vec3(transform.cachedMatrix_[1])

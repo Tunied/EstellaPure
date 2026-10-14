@@ -18,6 +18,7 @@
 #include "Registry.hpp"
 #include "components/Transform.hpp"
 #include "components/Hierarchy.hpp"
+#include "FlatGeometry.hpp"
 #include "../math/Math.hpp"
 
 #include <algorithm>
@@ -139,6 +140,7 @@ private:
         Entity entity;
         const glm::mat4* parentMatrix;
         bool parentDirty;
+        bool parentFlatCollapsed;
     };
     std::vector<TraversalTask> pending_;
     std::vector<u32> traversal_stamps_;
@@ -146,6 +148,18 @@ private:
     bool have_dirty_ = false;
     bool have_static_ = false;
     bool have_children_ = false;
+    bool have_collapsed_ = false;
+
+    void setFlatCollapsed(Registry& registry, Entity entity, bool collapsed) {
+        if (!collapsed && !have_collapsed_) return;
+        const bool present = have_collapsed_ && registry.has<FlatGeometryCollapsed>(entity);
+        if (collapsed && !present) {
+            registry.emplace<FlatGeometryCollapsed>(entity);
+            have_collapsed_ = true;
+        } else if (!collapsed && present) {
+            registry.remove<FlatGeometryCollapsed>(entity);
+        }
+    }
 
     bool visitOnce(Entity entity) {
         const auto index = entity.index();
@@ -185,11 +199,12 @@ private:
         have_dirty_ = !registry.entitiesWith<TransformDirty>().empty();
         have_static_ = !registry.entitiesWith<TransformStatic>().empty();
         have_children_ = !registry.entitiesWith<Children>().empty();
+        have_collapsed_ = !registry.entitiesWith<FlatGeometryCollapsed>().empty();
         const bool haveParents = !registry.entitiesWith<Parent>().empty();
 
         // eachLive (no per-frame snapshot copy of the entity list): the callback
-        // only reads/writes Transform fields and defers TransformDirty removal to
-        // dirty_to_clear_, so it never structurally mutates the Transform pool.
+        // writes Transform fields and derived collapse tags, while deferring
+        // TransformDirty removal; the Transform pool itself stays stable.
         registry.eachLive<Transform>([&registry, this, haveParents](Entity entity, Transform& transform) {
             if (!haveParents || !registry.has<Parent>(entity)) {
                 bool isStatic = have_static_ && registry.has<TransformStatic>(entity);
@@ -200,7 +215,8 @@ private:
                     if (children) {
                         visitOnce(entity);
                         for (Entity child : children->entities) {
-                            updateEntityTransform(registry, child, transform.cachedMatrix_, false);
+                            updateEntityTransform(registry, child, transform.cachedMatrix_, false,
+                                registry.has<FlatGeometryCollapsed>(entity));
                         }
                     }
                     return;
@@ -215,7 +231,8 @@ private:
             registry.eachLive<Children>([&registry, this, &identity](Entity entity, Children& children) {
                 if (registry.has<Transform>(entity) || registry.has<Parent>(entity) || !visitOnce(entity)) return;
                 if (have_dirty_ && registry.has<TransformDirty>(entity)) dirty_to_clear_.push_back(entity);
-                for (Entity child : children.entities) updateEntityTransform(registry, child, identity, true);
+                setFlatCollapsed(registry, entity, false);
+                for (Entity child : children.entities) updateEntityTransform(registry, child, identity, true, false);
             });
         }
 
@@ -240,6 +257,8 @@ private:
         transform.worldRotation = transform.rotation;
         transform.worldScale = transform.scale;
         transform.decomposed_ = true;
+        const bool collapsed = transform.scale.x == 0 || transform.scale.y == 0;
+        setFlatCollapsed(registry, entity, collapsed);
 
         if (localDirty) {
             dirty_to_clear_.push_back(entity);
@@ -257,14 +276,14 @@ private:
         transform.cachedMatrix_ = math::compose(transform.worldPosition, transform.worldRotation, transform.worldScale);
         visitOnce(entity);
         for (Entity child : children->entities) {
-            updateEntityTransform(registry, child, transform.cachedMatrix_, true);
+            updateEntityTransform(registry, child, transform.cachedMatrix_, true, collapsed);
         }
     }
 
     void updateEntityTransform(Registry& registry, Entity entity,
-                               const glm::mat4& parentWorldMatrix, bool parentDirty) {
+                               const glm::mat4& parentWorldMatrix, bool parentDirty, bool parentFlatCollapsed) {
         pending_.clear();
-        TraversalTask task{entity, &parentWorldMatrix, parentDirty};
+        TraversalTask task{entity, &parentWorldMatrix, parentDirty, parentFlatCollapsed};
         // Explicit DFS preserves child order without a depth limit or call-stack
         // growth. Per-composition stamps bound corrupt duplicate/cyclic links.
         for (;;) {
@@ -274,7 +293,10 @@ private:
                 const bool dirty = task.parentDirty || localDirty;
                 const bool keepStatic = transform && have_static_ && registry.has<TransformStatic>(task.entity) && !dirty;
                 const glm::mat4* childMatrix = task.parentMatrix;
+                bool flatCollapsed = task.parentFlatCollapsed;
                 if (transform && !keepStatic) {
+                    flatCollapsed = transform->scale.x == 0 || transform->scale.y == 0
+                        || (task.parentFlatCollapsed && transform->rotation.x == 0 && transform->rotation.y == 0);
                     const auto matrix = *task.parentMatrix * math::compose(transform->position, transform->rotation, transform->scale);
                     if (changedOut_) {
                         ++visited_;
@@ -282,7 +304,10 @@ private:
                     }
                     transform->cachedMatrix_ = matrix;
                     transform->decomposed_ = false;
+                } else if (keepStatic) {
+                    flatCollapsed = registry.has<FlatGeometryCollapsed>(task.entity);
                 }
+                setFlatCollapsed(registry, task.entity, flatCollapsed);
                 if (localDirty) dirty_to_clear_.push_back(task.entity);
                 if (transform) childMatrix = &transform->cachedMatrix_;
                 if (auto* children = registry.tryGet<Children>(task.entity)) {
@@ -292,10 +317,10 @@ private:
                     for (usize i = list.size(); i > 1; --i) {
                         // Transform storage is stable throughout composition; borrow
                         // its cache rather than copying a matrix into every task.
-                        pending_.push_back({list[i - 1], childMatrix, keepStatic ? false : dirty});
+                        pending_.push_back({list[i - 1], childMatrix, keepStatic ? false : dirty, flatCollapsed});
                     }
                     if (!list.empty()) {
-                        task = {list[0], childMatrix, keepStatic ? false : dirty};
+                        task = {list[0], childMatrix, keepStatic ? false : dirty, flatCollapsed};
                         continue;
                     }
                 }

@@ -7,6 +7,7 @@
 #include "../rhi/Texture.hpp"
 #include "../../ecs/components/Transform.hpp"
 #include "../../ecs/components/Hierarchy.hpp"
+#include "../../ecs/FlatGeometry.hpp"
 #include "../../ecs/components/BitmapText.hpp"
 #include "../../text/BitmapFont.hpp"
 
@@ -151,6 +152,9 @@ void TextPlugin::collect(RenderCollectContext& collect_ctx) {
         if (!bt.enabled) continue;
         if (bt.text.empty() || !bt.font.isValid()) continue;
         if (!batchEntityVisible(draw_list, clips, entity, bt.layer, 0)) continue;
+        auto& transform = textView.get<ecs::Transform>(entity);
+        const bool parented = registry.has<ecs::Parent>(entity);
+        if (!ecs::hasFlatGeometryArea(registry, entity, transform)) continue;
 
         auto* font = ctx.resources.getBitmapFont(bt.font);
         if (!font) continue;
@@ -175,10 +179,9 @@ void TextPlugin::collect(RenderCollectContext& collect_ctx) {
         }
         if (cache.indices.empty()) continue;
 
-        auto& transform = textView.get<ecs::Transform>(entity);
         glm::vec3 position = parallaxedWorldPosition(transform, bt.parallax, collect_ctx.camera);
         glm::vec3 axisX, axisY;
-        if (registry.has<ecs::Parent>(entity)) {
+        if (parented) {
             axisX = glm::vec3(transform.cachedMatrix_[0]);
             axisY = glm::vec3(transform.cachedMatrix_[1]);
         } else {

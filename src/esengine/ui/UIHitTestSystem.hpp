@@ -13,6 +13,7 @@
 #include "../ecs/components/Hierarchy.hpp"
 #include "../ecs/components/UINode.hpp"
 #include "../ecs/components/UIMask.hpp"
+#include "../ecs/FlatGeometry.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -121,7 +122,7 @@ inline bool rayHitsOBB(const PickRay& ray,
 inline bool pointInTransformedBox(Registry& registry, Entity entity, Transform& transform,
                                   f32 px, f32 py, f32 width, f32 height,
                                   f32 pivotX, f32 pivotY) {
-    transform.ensureDecomposed();
+    if (!hasFlatGeometryArea(registry, entity, transform)) return false;
     if (!registry.has<Parent>(entity)) {
         return pointInOBB(px, py, transform.worldPosition.x, transform.worldPosition.y,
                           width * transform.worldScale.x, height * transform.worldScale.y,

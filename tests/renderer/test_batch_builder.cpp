@@ -27,6 +27,8 @@
 #include "esengine/ecs/components/UIMask.hpp"
 #include "esengine/ecs/components/Interactable.hpp"
 #include "esengine/ui/UISystem.hpp"
+#include "esengine/ecs/FlatGeometry.hpp"
+#include "esengine/ecs/TransformSystem.hpp"
 #include "esengine/ecs/components/Hierarchy.hpp"
 
 #include <functional>
@@ -531,6 +533,208 @@ TEST_CASE("UI scissor: affine corners determine the projected clip rectangle") {
     CHECK(std::find(device.scissorRectangles.begin(), device.scissorRectangles.end(), expected)
           != device.scissorRectangles.end());
     frame.endFrame();
+}
+
+TEST_CASE("flat geometry: collapsed parent bases skip uploads and recover") {
+    for (bool ui : {false, true}) {
+        for (u32 mode = 0; mode < (ui ? 5u : 3u); ++mode) {
+            Harness h;
+            RenderContext context(h.device);
+            resource::ResourceManager resources;
+            resources.init(h.device);
+            const u8 pixels[16 * 16 * 4] = {};
+            const auto texture = resources.createTexture(resource::ResourceContent::Retained,
+                                                         16, 16, pixels, TextureFormat::RGBA8);
+            resource::TextureMetadata metadata;
+            metadata.sliceBorder = {2, 2, 2, 2};
+            resources.setTextureMetadata(texture, metadata);
+            ecs::Registry registry;
+            const auto parent = registry.create(), entity = registry.create();
+            registry.emplace<ecs::Parent>(entity).entity = parent;
+            auto& transform = registry.emplace<ecs::Transform>(entity);
+            transform.cachedMatrix_[0] = {1, 1, 0, 0};
+            transform.cachedMatrix_[1] = {.5f, .5f, 0, 0};
+            if (ui) {
+                registry.emplace<ecs::UINode>(entity).computed_size_ = {20, 30};
+                auto& visual = registry.emplace<ecs::UIVisual>(entity);
+                visual.texture = texture;
+                visual.visualType = static_cast<ecs::UIVisualType>(mode + 1);
+                visual.fillMethod = ecs::UIFillMethod::Radial360;
+            } else {
+                auto& sprite = registry.emplace<ecs::Sprite>(entity);
+                sprite.size = {20, 30};
+                sprite.tileSize = {10, 10};
+                sprite.texture = texture;
+                const ecs::SpriteDrawMode modes[] = {ecs::SpriteDrawMode::Simple,
+                    ecs::SpriteDrawMode::NineSlice, ecs::SpriteDrawMode::Tiled};
+                sprite.drawMode = modes[mode];
+            }
+            Frustum frustum;
+            frustum.extractFromMatrix(glm::ortho(-500.0f, 500.0f, -500.0f, 500.0f));
+            RenderFrameContext frameContext{context, resources};
+            RenderCollectContext collect{registry, frustum, h.clips, h.pool, h.list, frameContext, {}};
+            UIElementPlugin uiPlugin;
+            SpritePlugin spritePlugin;
+            uiPlugin.init(frameContext);
+            spritePlugin.init(frameContext);
+            for (bool collapsed : {true, false, true}) {
+                transform.cachedMatrix_[1] = collapsed ? glm::vec4(.5f, .5f, 0, 0) : glm::vec4(.5f, -.5f, 0, 0);
+                transform.decomposed_ = false;
+                h.pool.beginFrame();
+                h.list.clear();
+                if (ui) uiPlugin.collect(collect);
+                else spritePlugin.collect(collect);
+                CHECK((h.pool.vertexBytesUsed(LayoutId::Batch) == 0) == collapsed);
+                CHECK((h.pool.indicesUsed(LayoutId::Batch) == 0) == collapsed);
+            }
+            resources.shutdown();
+        }
+    }
+}
+
+TEST_CASE("UI masks: collapsed parent bases clip the complete subtree") {
+    for (auto mode : {ecs::MaskMode::Scissor, ecs::MaskMode::Stencil}) {
+        MockGfxDevice device;
+        RenderContext context(device);
+        resource::ResourceManager resources;
+        ecs::Registry registry;
+        RenderFrame frame(device, context, resources);
+        frame.init(64, 64);
+        const auto parent = registry.create(), mask = registry.create(), child = registry.create();
+        registry.emplace<ecs::Parent>(mask).entity = parent;
+        registry.emplace<ecs::Children>(mask).entities.push_back(child);
+        registry.emplace<ecs::Parent>(child).entity = mask;
+        auto& transform = registry.emplace<ecs::Transform>(mask);
+        transform.cachedMatrix_[0] = {1, 1, 0, 0};
+        registry.emplace<ecs::UINode>(mask).computed_size_ = {20, 20};
+        registry.emplace<ecs::UIMask>(mask).mode = mode;
+        const f32 vertices[36] = {};
+        const u16 indices[] = {0, 1, 2, 2, 3, 0};
+        const glm::mat4 identity(1);
+        for (bool collapsed : {true, false, true}) {
+            transform.cachedMatrix_[1] = collapsed ? glm::vec4(.5f, .5f, 0, 0) : glm::vec4(.5f, -.5f, 0, 0);
+            transform.decomposed_ = false;
+            frame.beginFrame();
+            frame.begin(glm::ortho(-32.0f, 32.0f, -32.0f, 32.0f));
+            frame.processMasks(registry, 0, 0, 64, 64);
+            frame.collectAll(registry);
+            const auto uploads = device.updateBufferCalls;
+            frame.submitTextBatch(vertices, 4, indices, 6, 1, &identity[0][0], child, 0, 0, false);
+            frame.flush();
+            frame.end();
+            CHECK(frame.stats().text == (collapsed ? 0 : 1));
+            if (collapsed) CHECK(device.updateBufferCalls == uploads);
+            frame.endFrame();
+        }
+    }
+}
+
+TEST_CASE("flat geometry: tiny finite and tilted spans retain their area") {
+    ecs::Transform transform;
+    transform.cachedMatrix_[0] = {1, 1, 0, 0};
+    transform.cachedMatrix_[1] = {.5f, .5f, 0, 0};
+    CHECK_FALSE(ecs::hasFlatGeometryArea(transform, true));
+    CHECK(ecs::hasFlatGeometryArea(transform, false));
+    transform.cachedMatrix_[1].z = 1;
+    CHECK(ecs::hasFlatGeometryArea(transform, true));
+    transform.cachedMatrix_[0] = {1e-30f, 0, 0, 0};
+    transform.cachedMatrix_[1] = {0, 1e-30f, 0, 0};
+    CHECK(ecs::hasFlatGeometryArea(transform, true));
+    transform.cachedMatrix_[1].y = std::numeric_limits<f32>::infinity();
+    CHECK_FALSE(ecs::hasFlatGeometryArea(transform, true));
+}
+
+TEST_CASE("flat geometry: authored planar zero scales remain collapsed through rotation") {
+    for (f32 angle : {0.0f, .4f, .7f}) {
+        ecs::Registry registry;
+        ecs::TransformSystem system;
+        const auto parent = registry.create(), group = registry.create(), child = registry.create();
+        auto& root = registry.emplace<ecs::Transform>(parent);
+        root.scale.x = 0;
+        root.rotation = glm::angleAxis(.7f, glm::vec3(0, 0, 1));
+        auto& transform = registry.emplace<ecs::Transform>(child);
+        transform.rotation = glm::angleAxis(angle, glm::vec3(0, 0, 1));
+        ecs::setParent(registry, group, parent);
+        ecs::setParent(registry, child, group);
+        system.ensureComposed(registry);
+        CHECK_FALSE(ecs::hasFlatGeometryArea(registry, child, transform));
+        CHECK_FALSE(ecs::pointInTransformedBox(registry, child, transform, 0, 0, 20, 30, .5f, .5f));
+        registry.get<ecs::Transform>(parent).scale.x = 1;
+        ecs::invalidateTransformComposition();
+        system.ensureComposed(registry);
+        CHECK(ecs::hasFlatGeometryArea(registry, child, transform));
+        CHECK(ecs::pointInTransformedBox(registry, child, transform, 0, 0, 20, 30, .5f, .5f));
+        registry.get<ecs::Transform>(parent).scale.x = 0;
+        transform.rotation = glm::angleAxis(.5f, glm::vec3(0, 1, 0));
+        ecs::invalidateTransformComposition();
+        system.ensureComposed(registry);
+        CHECK(ecs::hasFlatGeometryArea(registry, child, transform));
+        ecs::setParent(registry, child, INVALID_ENTITY);
+        system.ensureComposed(registry);
+        CHECK(ecs::hasFlatGeometryArea(registry, child, transform));
+    }
+}
+
+TEST_CASE("flat geometry: deep collapsed groups propagate and recover in one traversal") {
+    ecs::Registry registry;
+    ecs::TransformSystem system;
+    const auto root = registry.create();
+    registry.emplace<ecs::Transform>(root).scale.x = 0;
+    auto parent = root;
+    for (u32 i = 0; i < 50000; ++i) {
+        const auto child = registry.create();
+        registry.emplace<ecs::Parent>(child).entity = parent;
+        registry.emplace<ecs::Children>(parent).entities.push_back(child);
+        parent = child;
+    }
+    auto& transform = registry.emplace<ecs::Transform>(parent);
+    transform.rotation = glm::angleAxis(.4f, glm::vec3(0, 0, 1));
+    system.ensureComposed(registry);
+    CHECK_FALSE(ecs::hasFlatGeometryArea(registry, parent, transform));
+    registry.get<ecs::Transform>(root).scale.x = 1;
+    ecs::invalidateTransformComposition();
+    system.ensureComposed(registry);
+    CHECK(ecs::hasFlatGeometryArea(registry, parent, transform));
+    CHECK(registry.entitiesWith<ecs::FlatGeometryCollapsed>().empty());
+}
+
+TEST_CASE("bitmap text: collapsed parent bases skip long glyph runs and recover") {
+    Harness h;
+    RenderContext context(h.device);
+    resource::ResourceManager resources;
+    resources.init(h.device);
+    const u8 pixels[16 * 16 * 4] = {};
+    const auto texture = resources.createTexture(resource::ResourceContent::Retained,
+                                                 16, 16, pixels, TextureFormat::RGBA8);
+    const auto font = resources.createBitmapFont(
+        "common lineHeight=16 base=12 scaleW=16 scaleH=16 pages=1\n"
+        "char id=65 x=0 y=0 width=8 height=16 xoffset=0 yoffset=0 xadvance=10 page=0 chnl=15\n",
+        texture, 16, 16);
+    REQUIRE(font.isValid());
+    ecs::Registry registry;
+    const auto parent = registry.create(), entity = registry.create();
+    registry.emplace<ecs::Parent>(entity).entity = parent;
+    auto& transform = registry.emplace<ecs::Transform>(entity);
+    transform.cachedMatrix_[0] = {1, 1, 0, 0};
+    auto& text = registry.emplace<ecs::BitmapText>(entity);
+    text.font = font;
+    text.text = std::string(65536, 'A');
+    Frustum frustum;
+    frustum.extractFromMatrix(glm::ortho(-1e7f, 1e7f, -1e7f, 1e7f));
+    RenderFrameContext frameContext{context, resources};
+    RenderCollectContext collect{registry, frustum, h.clips, h.pool, h.list, frameContext, {}};
+    TextPlugin plugin;
+    plugin.init(frameContext);
+    for (bool collapsed : {true, false, true}) {
+        transform.cachedMatrix_[1] = collapsed ? glm::vec4(.5f, .5f, 0, 0) : glm::vec4(.5f, -.5f, 0, 0);
+        transform.decomposed_ = false;
+        h.pool.beginFrame();
+        h.list.clear();
+        plugin.collect(collect);
+        CHECK(h.pool.vertexBytesUsed(LayoutId::Batch) == (collapsed ? 0 : 65536 * 4 * sizeof(BatchVertex)));
+        CHECK(h.pool.indicesUsed(LayoutId::Batch) == (collapsed ? 0 : 65536 * 6));
+    }
+    resources.shutdown();
 }
 
 TEST_CASE("sprites: tile budget applies before integer conversion") {

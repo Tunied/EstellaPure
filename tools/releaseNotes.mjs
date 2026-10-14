@@ -32,6 +32,8 @@ export const NOTED = {
     { note: 'Web exports can select the Poki channel.' },
   'feat(editor): expose Poki Web distribution channel':
     { note: 'Web exports can select the Poki channel.' },
+  'fix(renderer): skip collapsed flat hierarchies without epsilon culling':
+    { note: 'Collapsed 2D hierarchies skip geometry and recover reliably.' },
   'fix(ads): reject overlapping advertising requests':
     { note: 'Advertising requests preserve a single active break.' },
 

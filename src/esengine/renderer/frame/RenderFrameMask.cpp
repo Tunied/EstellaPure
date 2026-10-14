@@ -6,6 +6,7 @@
 #include "../../ecs/components/UINode.hpp"
 #include "../../ecs/components/UIMask.hpp"
 #include "../../ecs/components/Hierarchy.hpp"
+#include "../../ecs/FlatGeometry.hpp"
 
 #include <glm/glm.hpp>
 
@@ -53,7 +54,8 @@ ScreenRect computeMaskScreenRect(
     // other pass has read this frame would be clipped to where it used to be.
     transform.ensureDecomposed();
 
-    if (transform.worldScale.x == 0.0f || transform.worldScale.y == 0.0f) return {0, 0, 0, 0};
+    if (transform.worldScale.x == 0 || transform.worldScale.y == 0
+        || !ecs::hasFlatGeometryArea(registry, entity, transform)) return {0, 0, 0, 0};
     glm::vec3 axisX, axisY;
     if (registry.has<ecs::Parent>(entity)) {
         axisX = glm::vec3(transform.cachedMatrix_[0]);
@@ -160,7 +162,8 @@ bool hasEmptyMaskBox(ecs::Registry& registry, Entity entity) {
     if (!node || !transform) return false;
     if (node->computed_size_.x <= 0.0f || node->computed_size_.y <= 0.0f) return true;
     transform->ensureDecomposed();
-    return transform->worldScale.x == 0.0f || transform->worldScale.y == 0.0f;
+    return transform->worldScale.x == 0 || transform->worldScale.y == 0
+        || !ecs::hasFlatGeometryArea(registry, entity, *transform);
 }
 
 void applyStencilHierarchy(ecs::Registry& registry, RenderFrame& frame,

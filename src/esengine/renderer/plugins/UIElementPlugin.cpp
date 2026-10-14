@@ -7,6 +7,7 @@
 #include "../rhi/Texture.hpp"
 #include "../../ecs/components/Transform.hpp"
 #include "../../ecs/components/Hierarchy.hpp"
+#include "../../ecs/FlatGeometry.hpp"
 #include "../../ecs/components/UIVisual.hpp"
 #include "../../ecs/components/UINode.hpp"
 #include "../../ecs/components/UIMask.hpp"
@@ -79,8 +80,8 @@ void UIElementPlugin::collect(RenderCollectContext& collect_ctx) {
         glm::vec3 position = transform.worldPosition;
         const auto& rotation = transform.worldRotation;
         const auto& scale = transform.worldScale;
-        if (scale.x == 0.0f || scale.y == 0.0f) continue;
         const bool parented = registry.has<ecs::Parent>(entity);
+        if (scale.x == 0 || scale.y == 0 || !ecs::hasFlatGeometryArea(registry, entity, transform)) continue;
         const glm::vec3 basisOrigin = position;
         const auto& matrix = transform.cachedMatrix_;
         const bool mapBasis = parented && (matrix[0].y != 0 || matrix[1].x != 0
