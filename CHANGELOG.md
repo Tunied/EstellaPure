@@ -14,6 +14,8 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+## [0.86.0] - 2026-10-15
+
 ### Fixed
 
 - **Pointer dragging follows sheared parent transforms.** World deltas use the inverse of the parent's complete flat transform for both local positions and UI insets, preserving pointer alignment through non-uniformly scaled, rotated hierarchies. Singular transforms end capture without modifying hidden coordinates. Per-App matrix scratch is allocated lazily, reused across frames and released with capture on plugin cleanup; cores without matrix access retain their existing fallback.
@@ -14355,7 +14357,8 @@ not kept before this file was introduced — see the Git history at
 `github.com/esengine/estella` for the full commit-level record since the first
 commit on 2026-01-25.
 
-[Unreleased]: https://github.com/esengine/estella/compare/v0.85.0...HEAD
+[Unreleased]: https://github.com/esengine/estella/compare/v0.86.0...HEAD
+[0.86.0]: https://github.com/esengine/estella/compare/v0.85.0...v0.86.0
 [0.85.0]: https://github.com/esengine/estella/compare/v0.84.0...v0.85.0
 [0.84.0]: https://github.com/esengine/estella/compare/v0.83.0...v0.84.0
 [0.83.0]: https://github.com/esengine/estella/compare/v0.82.0...v0.83.0

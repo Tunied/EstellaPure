@@ -7,8 +7,8 @@ upgrading to the latest release is the supported path to a fix.
 
 | Version | Supported |
 |---------|-----------|
-| 0.85.x  | Yes       |
-| < 0.85  | No        |
+| 0.86.x  | Yes       |
+| < 0.86  | No        |
 
 `tools/check-release-metadata.mjs` fails the build if this table stops matching
 the version being shipped, so it cannot quietly fall behind again.
