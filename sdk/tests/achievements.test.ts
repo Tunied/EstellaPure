@@ -55,6 +55,16 @@ describe('the unknown-id guard', () => {
 });
 
 describe('the local provider', () => {
+    it('defers storage until used and retries reads after permission recovery', () => {
+        const read = vi.spyOn(Storage, 'getJSON').mockImplementation(() => { throw new Error('saving unavailable'); });
+        try {
+            const api = new AchievementsAPI();
+            expect(api.available).toBe(false); expect(read).not.toHaveBeenCalled();
+            expect(() => api.getStat('kills')).toThrow('saving unavailable');
+            read.mockReturnValue({ unlocked: ['A'], stats: { kills: 2 } });
+            expect(api.unlocked('A')).toBe(true); expect(api.getStat('kills')).toBe(2);
+        } finally { read.mockRestore(); }
+    });
     it('records an unlock and survives a restart', async () => {
         const api = new AchievementsAPI();
         await api.unlock('FIRST_BLOOD');

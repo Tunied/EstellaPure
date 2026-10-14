@@ -68,6 +68,10 @@ jobs:
         node pipeline/bin/estella.mjs export examples/mobile-controls --profile poki --wasm build/wasm/web --out output/poki-training-ci-export --json output/poki-training-ci-export.json
         node pipeline/bin/estella.mjs export examples/mobile-controls --platform web --wasm build/wasm/web --out output/poki-training-ci-standalone --json output/poki-training-ci-standalone.json
         node tools/tests/poki-training.e2e.mjs --dir output/poki-training-ci-export --standalone output/poki-training-ci-standalone --out output/poki-training-ci-check
+    - name: Check CrazyGames gameplay, storage and host mute in SDK mocks
+      run: |
+        node pipeline/bin/estella.mjs export examples/mobile-controls --profile crazygames --wasm build/wasm/web --out output/crazygames-training-ci-export --json output/crazygames-training-ci-export.json
+        node tools/tests/crazygames-training.e2e.mjs --dir output/crazygames-training-ci-export --out output/crazygames-training-ci-check
     - name: Upload hash-bound local observations and screenshots
       if: always()
       uses: actions/upload-artifact@v7
@@ -81,6 +85,13 @@ jobs:
       with:
         name: poki-training-local-mock-checks
         path: output/poki-training-ci-*
+        retention-days: 3
+    - name: Upload CrazyGames training local observations and screenshots
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: crazygames-training-local-mock-checks
+        path: output/crazygames-training-ci-*
         retention-days: 3
 
   # The engine binaries, and nothing else: every gate below waits on this job, so

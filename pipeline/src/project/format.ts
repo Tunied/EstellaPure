@@ -409,7 +409,7 @@ export interface ProjectPackaging {
   /** Per-platform packaging config: each target's slice of the app identity, plus
    *  whatever only it has (a WeChat appid, an Android versionCode). */
   platforms?: {
-    web?: { channel?: 'standalone' | 'poki' };
+    web?: { channel?: 'standalone' | 'poki' | 'crazygames' };
     wechat?: WeChatPackaging;
     douyin?: MiniGamePackaging;
     bilibili?: MiniGamePackaging;
@@ -911,10 +911,10 @@ export function parseManifest(raw: unknown): ProjectManifest {
       const platforms: NonNullable<ProjectPackaging['platforms']> = {};
       const web = pl.web as Record<string, unknown> | undefined;
       if (web && typeof web === 'object') {
-        if (web.channel !== undefined && web.channel !== 'standalone' && web.channel !== 'poki') {
-          throw new Error('packaging.platforms.web.channel must be standalone or poki');
+        if (web.channel !== undefined && web.channel !== 'standalone' && web.channel !== 'poki' && web.channel !== 'crazygames') {
+          throw new Error('packaging.platforms.web.channel must be standalone, poki or crazygames');
         }
-        if (web.channel) platforms.web = { channel: web.channel as 'standalone' | 'poki' };
+        if (web.channel) platforms.web = { channel: web.channel as 'standalone' | 'poki' | 'crazygames' };
       }
       const wx = pl.wechat as Record<string, unknown> | undefined;
       if (wx && typeof wx === 'object') {

@@ -12,7 +12,7 @@
  *        (shared with the play realm's import-map work).
  */
 import {
-  createWebApp, setEditorMode, setPlayMode, Assets, Ads,
+  createWebApp, setEditorMode, setPlayMode, Assets, Ads, extendPlatform,
   indexPackagedManifest, createPackagedAssetSource, applyAssetRefResolvers, initRuntime,
   HttpBackend, fetchDecodePixels, registerPackagedSideModules,
   packagedAppOptions, packagedRuntimeInit, Transform, SceneManager, UINode,
@@ -61,6 +61,7 @@ import type { ESEngineModule } from 'esengine/wasm';
 import { attachSplash, type Splash } from '../export/splash';
 import { countedStream, engineDownloadTotal } from './engineDownload';
 import { initializePoki, type PokiSdk } from './pokiProfile';
+import { initializeCrazyGames, type CrazyGamesSdk } from './crazyGamesProfile';
 
 /**
  * Fetch the engine binary through a stream we can count, and hand the SAME
@@ -110,6 +111,13 @@ async function boot(): Promise<void> {
   const poki = cfg.webChannel === 'poki'
     ? await initializePoki((window as unknown as { PokiSDK?: PokiSdk }).PokiSDK, (message, error) => console.warn(message, error))
     : null;
+  const crazyGames = cfg.webChannel === 'crazygames'
+    ? await initializeCrazyGames((window as unknown as { CrazyGames?: { SDK: CrazyGamesSdk } }).CrazyGames?.SDK, (message, error) => console.warn(message, error))
+    : null;
+  if (crazyGames) {
+    extendPlatform({ ...crazyGames.storage, onAudioMute: crazyGames.onAudioMute });
+    document.documentElement.dataset.webSdkReady = String(crazyGames.provider !== null);
+  }
   // Before the engine boots, so a boot that fails is still heard by the editor.
   if (cfg.debugChannel) startDebugChannel(cfg.debugChannel);
 
@@ -207,6 +215,7 @@ async function boot(): Promise<void> {
     wasmBaseUrl: wasmBase.replace(/\/$/, ''), // SDK appends "/<file>" — no trailing slash
   });
   if (poki?.provider) app.getResource(Ads)?.setProvider(poki.provider);
+  if (crazyGames?.provider) app.getResource(Ads)?.setProvider(crazyGames.provider);
   splash?.reach('app');
   setEditorMode(false);
   setPlayMode(true);
@@ -896,6 +905,7 @@ async function boot(): Promise<void> {
     ...packagedRuntimeInit(cfg),
   });
   poki?.loaded();
+  crazyGames?.loaded();
   splash?.reach('assets');
   // Before run(), not after: run() may hand control to the emscripten loop and
   // never return, and the fade is what the first frames should arrive through.

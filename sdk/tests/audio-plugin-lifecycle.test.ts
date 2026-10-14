@@ -3,8 +3,14 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import type { PlatformAudioBackend, AudioHandle } from '../src/audio/PlatformAudioBackend';
 const backends: PlatformAudioBackend[] = [], listeners = new Set<() => void>();
+const muteListeners = new Set<(muted: boolean) => void>();
+let hostMuted = false;
 vi.mock('../src/platform/base', async original => ({
     ...await original<typeof import('../src/platform/base')>(),
+    getPlatform: () => ({ onAudioMute: (callback: (muted: boolean) => void) => {
+        muteListeners.add(callback); callback(hostMuted);
+        return () => muteListeners.delete(callback);
+    } }),
     platformCreateAudioBackend: () => {
         const backend = { name: 'Mock', mixer: null, isReady: true,
             initialize: vi.fn().mockResolvedValue(undefined), ensureResumed: vi.fn().mockResolvedValue(undefined),
@@ -24,7 +30,18 @@ const { Audio } = await import('../src/audio/Audio');
 const { AudioSource } = await import('../src/audio/AudioComponents');
 const apps: ReturnType<typeof App.new>[] = [];
 function build(plugin: InstanceType<typeof AudioPlugin>) { const app=App.new(); apps.push(app); app.addPlugin(plugin); return app; }
-afterEach(() => { for(const app of apps.splice(0)) app.quit(); backends.length=0; listeners.clear(); });
+afterEach(() => { for(const app of apps.splice(0)) app.quit(); backends.length=0; listeners.clear(); muteListeners.clear(); hostMuted=false; });
+it('host mute overrides game resume and preserves explicit suspension after host unmute', () => {
+    hostMuted = true;
+    const app = build(new AudioPlugin()), audio = app.getResource(Audio), backend = backends[0];
+    expect(backend.suspend).toHaveBeenCalledOnce();
+    audio.resume(); expect(backend.resume).not.toHaveBeenCalled();
+    audio.suspend();
+    for (const callback of muteListeners) callback(false);
+    expect(backend.resume).not.toHaveBeenCalled();
+    audio.resume(); expect(backend.resume).toHaveBeenCalledOnce();
+    app.quit(); expect(muteListeners.size).toBe(0);
+});
 it('quitting an older app releases its backend and preserves the newer app voice and subscription', async () => {
     const plugin=new AudioPlugin(), first=build(plugin), second=build(plugin);
     const a=first.getResource(Audio), b=second.getResource(Audio);

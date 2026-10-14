@@ -669,6 +669,9 @@ export interface PlatformAdapter {
      *  Absent on hosts without a safe-area source. */
     safeAreaInsets?(): { top: number; bottom: number; left: number; right: number };
 
+    /** Host audio policy; game volume/resume controls cannot override it. */
+    onAudioMute?(handler: (muted: boolean) => void): () => void;
+
     getStorageItem(key: string): string | null;
     setStorageItem(key: string, value: string): void;
     removeStorageItem(key: string): void;

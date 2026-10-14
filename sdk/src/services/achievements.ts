@@ -62,21 +62,25 @@ export function createLocalAchievements(): AchievementProvider {
         const raw = Storage.getJSON<LocalState>(STORAGE_KEY);
         return { unlocked: raw?.unlocked ?? [], stats: raw?.stats ?? {} };
     };
-    let state = read();
-    const flush = () => Storage.setJSON(STORAGE_KEY, state);
+    // Creating an unused service must not require persistence permission.
+    // A failed read remains retryable, and actual storage operations still fail explicitly.
+    let state: LocalState | undefined;
+    const current = () => state ??= read();
+    const flush = () => Storage.setJSON(STORAGE_KEY, current());
 
     return {
         platformBacked: false,
         unlock: (id) => {
+            const state = current();
             if (!state.unlocked.includes(id)) {
                 state.unlocked.push(id);
                 flush();
             }
             return Promise.resolve();
         },
-        unlocked: (id) => state.unlocked.includes(id),
-        setStat: (name, value) => { state.stats[name] = value; flush(); },
-        getStat: (name) => state.stats[name] ?? 0,
+        unlocked: (id) => current().unlocked.includes(id),
+        setStat: (name, value) => { current().stats[name] = value; flush(); },
+        getStat: (name) => current().stats[name] ?? 0,
         store: () => Promise.resolve(),
         reset: () => {
             state = { unlocked: [], stats: {} };

@@ -50,7 +50,7 @@ beforeAll(() => {
 afterAll(() => rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 }));
 
 /** Export for web and hand back the page plus whatever the build said about it. */
-async function page(splash?: ProjectPackaging['splash'], webChannel?: 'poki'): Promise<{ html: string; warnings: string[]; splashBytes?: number }> {
+async function page(splash?: ProjectPackaging['splash'], webChannel?: 'poki' | 'crazygames'): Promise<{ html: string; warnings: string[]; splashBytes?: number }> {
   const outDir = path.join(root, `dist-${Math.random().toString(36).slice(2)}`);
   const res = await exportGame({
     root,
@@ -130,6 +130,16 @@ describe('the exported page’s start screen', () => {
 
 
 describe('Poki host page', () => {
+  it('loads CrazyGames v3 before the game without injecting Poki', async () => {
+    const { html } = await page(undefined, 'crazygames');
+    const script = '<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>';
+    expect(html.indexOf(script)).toBeGreaterThan(html.indexOf('<head>'));
+    expect(html.indexOf(script)).toBeLessThan(html.indexOf('</head>'));
+    expect(html.indexOf(script)).toBeLessThan(html.indexOf('src="./game.js"'));
+    expect(html).toContain('data-web-channel="crazygames"');
+    expect(html).toContain('frame-src https:');
+    expect(html).not.toContain('poki-sdk');
+  });
   it('loads the official SDK in the head before the game, with its channel policy', async () => {
     const { html } = await page(undefined, 'poki');
     const script = '<script src="https://game-cdn.poki.com/scripts/v2/poki-sdk.js"></script>';
@@ -144,6 +154,7 @@ describe('Poki host page', () => {
     const { html } = await page();
     expect(html).toContain('data-web-channel="standalone"');
     expect(html).not.toContain('poki-sdk');
+    expect(html).not.toContain('crazygames-sdk');
     expect(html).not.toContain('frame-src https:');
     expect(html).toContain("default-src 'self';");
   });

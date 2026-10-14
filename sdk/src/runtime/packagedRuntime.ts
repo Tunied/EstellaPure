@@ -38,7 +38,7 @@ import type { AotManifest } from '../ecs/aot/AotSystems';
  */
 export interface PackagedGameConfig {
     /** External Web distribution SDK selected by this export. */
-    webChannel?: 'poki';
+    webChannel?: 'poki' | 'crazygames';
     /** Project-relative path of the scene the game boots into. */
     entryScene: string;
     /** Every switchable scene (SceneManager name + cooked path); includes the entry. */

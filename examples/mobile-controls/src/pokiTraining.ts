@@ -20,14 +20,14 @@ export class TrainingSession {
     message = 'Press START to begin a three-hit training round.';
     private hidden = false;
     private disposed = false;
-    constructor(private readonly ads: TrainingAds, private readonly hooks: TrainingHooks) {}
+    constructor(private readonly ads: TrainingAds, private readonly hooks: TrainingHooks, private readonly adUnit = 'poki') {}
 
     async begin(): Promise<void> {
         if (this.disposed || this.hidden || this.phase === 'playing' || this.phase === 'ad') return;
         const previous = this.phase;
         if (previous !== 'menu' && this.ads.available) {
             this.phase = 'ad'; this.message = 'Commercial break. Training is paused.'; this.hooks.changed();
-            try { await this.ads.showInterstitial('poki'); }
+            try { await this.ads.showInterstitial(this.adUnit); }
             catch { this.message = 'No commercial available. Continue training.'; }
         }
         if (this.disposed) return;
@@ -59,7 +59,7 @@ export class TrainingSession {
         if (previous === 'playing') this.hooks.gameplayStop();
         this.phase = 'ad'; this.message = 'Rewarded break. Watch to earn one training credit.'; this.hooks.changed();
         try {
-            const result = await this.ads.showRewarded('poki');
+            const result = await this.ads.showRewarded(this.adUnit);
             if (this.disposed) return;
             if (result.completed) { this.credits++; this.message = 'Reward earned: +1 training credit.'; }
             else this.message = 'Video not completed. No reward granted.';

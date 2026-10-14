@@ -4,10 +4,10 @@ import type { App, Plugin } from '../app/app';
 import type { Entity, Vec3 } from '../types';
 import { defineSystem, Schedule } from '../ecs/system';
 import { Res, Time, type TimeData } from '../ecs/resource';
-import { Audio, AudioAPI } from './Audio';
+import { Audio, AudioAPI, setAudioHostSuspended } from './Audio';
 import { AudioSource, AudioListener, type AudioSourceData, type AudioListenerData } from './AudioComponents';
 import { WorldTransform, type WorldTransformData } from '../ecs/component';
-import { platformCreateAudioBackend, platformOnMemoryWarning } from '../platform/base';
+import { getPlatform, platformCreateAudioBackend, platformOnMemoryWarning } from '../platform/base';
 import { q } from '../math/quat';
 import { calculateAttenuation, calculatePanning, spatialDistance, type SpatialAudioConfig, AttenuationModel } from './SpatialAudio';
 import type { AudioHandle } from './PlatformAudioBackend';
@@ -45,6 +45,7 @@ interface AudioPluginState {
     audio: AudioAPI;
     released: boolean;
     offMemoryWarning: () => void;
+    offAudioMute: () => void;
     offDespawn: () => void;
 }
 
@@ -77,6 +78,8 @@ export class AudioPlugin implements Plugin {
         const mixer = backend.mixer;
         const audio = new AudioAPI(backend, mixer);
         app.insertResource(Audio, audio);
+        const muteOwner = {};
+        const offAudioMute = getPlatform().onAudioMute?.(muted => setAudioHostSuspended(audio, muteOwner, muted)) ?? (() => {});
 
         // OS memory pressure → drop the decoded-buffer warm cache. Held
         // buffers keep playing; re-fetch cost returns only for evicted ones.
@@ -102,7 +105,7 @@ export class AudioPlugin implements Plugin {
             }
             playedEntities.delete(entity);
         });
-        const state = { activeSourceHandles, playedEntities, audio, offMemoryWarning, offDespawn, released: false };
+        const state = { activeSourceHandles, playedEntities, audio, offMemoryWarning, offAudioMute, offDespawn, released: false };
         this.states_.set(app, state);
         this.latestState_ = state;
         const stopVoice = (id: number): void => {
@@ -323,6 +326,7 @@ export class AudioPlugin implements Plugin {
         state.released = true;
         if (app) this.states_.delete(app);
         if (state === this.latestState_) this.latestState_ = null;
+        state.offAudioMute();
         state.offMemoryWarning();
         state.offDespawn();
         this.stopSources_(state);

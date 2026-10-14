@@ -5557,7 +5557,7 @@ sideModules: { id: string; file: string; globalName?: string; }[] | undefined
 steamAppId: number | undefined
 uiTheme: "light" | undefined
 uiThemeColors: Record<string, string> | undefined
-webChannel: "poki" | undefined
+webChannel: "poki" | "crazygames" | undefined
 worlds: { scene: string; manifest: string; }[] | undefined
 ySortLayers: number | undefined
 ```
@@ -5987,6 +5987,7 @@ name: PlatformName
 now: () => number
 onAppHide: ((callback: () => void) => () => void) | undefined
 onAppShow: ((callback: () => void) => () => void) | undefined
+onAudioMute: ((handler: (muted: boolean) => void) => () => void) | undefined
 onContextLost: ((callback: () => void) => () => void) | undefined
 onMemoryWarning: ((callback: () => void) => () => void) | undefined
 onShareRequest: ((provide: () => PlatformShareOptions) => void) | undefined

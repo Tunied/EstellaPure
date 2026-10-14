@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Added
+
+- **CrazyGames Web exports connect the official v3 SDK.** Channel profiles initialize loading notifications, rewarded and midgame ads, SDK Data storage and host audio mute. Failed initialization disables host services without blocking training; save errors remain explicit, and engine storage clearing preserves other publisher data. Unused achievement services defer their storage read so unavailable saving does not block startup. The editor offers channel selection and the Mobile Controls profile reports authored gameplay transitions. Leaderboards and official platform/device acceptance remain pending.
+
 ### Changed
 
 - **Poki training documents the official Inspector URL workflow.** A localhost export can be checked with the real SDK without starting the editor. The guide distinguishes observed SDK initialization, loading, gameplay and reward events from the remaining manual QA, device acceptance and production ad behavior.

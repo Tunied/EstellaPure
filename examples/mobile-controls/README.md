@@ -83,3 +83,33 @@ resuming, watching a rewarded ad, completing the round and replaying. Let the
 SDK's test ad finish naturally; no callbacks are replaced by this workflow.
 The SDK Basics checklist and the other QA modules must be evaluated individually.
 A clear event log is not full platform or device acceptance.
+
+## CrazyGames Web training profile
+
+Export with `node pipeline/bin/estella.mjs export examples/mobile-controls
+--profile crazygames --out output/crazygames-training-web`. This profile uses
+the same authored room and START / PAUSE / REPLAY / WATCH AD controls. Gameplay
+events go to `CrazyGames.SDK.game`; focus changes do not emit gameplay events,
+because the SDK handles focus itself. Credits in this training example remain
+session-only.
+
+The export host awaits the official v3 SDK, reports loading, and connects the
+existing Ads service to rewarded and midgame callbacks. Only `adFinished`
+grants a rewarded credit. SDK initialization failure leaves training playable
+with ads unavailable. Host audio mute overrides game audio and video controls
+without changing the player's own mute or suspension preference.
+
+On this channel the engine's `Storage` API uses SDK Data for both guests and
+signed-in players. Enable Progress Save in the CrazyGames submission settings.
+Disabled saving, invalid stored data and SDK failures surface as errors; there
+is no silent localStorage fallback. Engine keys share the `estella.storage.v1`
+envelope, and `Storage.clear()` preserves other publisher data. The SDK's
+overall 1 MB limit still applies. A synchronous save is not acknowledgment of
+cloud backup or proof of cross-account restoration.
+
+Leaderboard integration, official platform QA and physical-device acceptance
+remain separate work. This profile does not claim those checks are complete.
+See the official [SDK introduction](https://docs.crazygames.com/sdk/intro/),
+[game lifecycle](https://docs.crazygames.com/sdk/game/),
+[video ads](https://docs.crazygames.com/sdk/video-ads/) and
+[Data module](https://docs.crazygames.com/sdk/data/).

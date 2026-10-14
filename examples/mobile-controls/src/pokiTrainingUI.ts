@@ -6,15 +6,19 @@ import { TrainingSession } from './pokiTraining';
 type ButtonOptions = Parameters<typeof createButton>[0];
 interface PokiGameplay { gameplayStart(): void; gameplayStop(): void }
 
-export function setupPokiTraining(
+export function setupWebTraining(
     world: ButtonOptions['world'], events: ButtonOptions['events'], parent: NonNullable<ButtonOptions['parent']>,
     ads: AdsAPI, reset: () => void, refresh: () => void,
 ): TrainingSession | null {
-    if (typeof document === 'undefined' || document.documentElement?.dataset?.webChannel !== 'poki') return null;
+    if (typeof document === 'undefined') return null;
+    const channel = document.documentElement?.dataset?.webChannel;
+    if (channel !== 'poki' && channel !== 'crazygames') return null;
     const notify = (event: keyof PokiGameplay): void => {
-        const sdk = (globalThis as unknown as { PokiSDK?: PokiGameplay }).PokiSDK;
+        if (channel === 'crazygames' && document.documentElement.dataset.webSdkReady !== 'true') return;
+        const hosts = globalThis as unknown as { PokiSDK?: PokiGameplay; CrazyGames?: { SDK?: { game?: PokiGameplay } } };
+        const sdk = channel === 'poki' ? hosts.PokiSDK : hosts.CrazyGames?.SDK?.game;
         try { sdk?.[event](); }
-        catch (error) { console.warn('[training] Poki gameplay event failed', event, error); }
+        catch (error) { console.warn('[training] Gameplay event failed', channel, event, error); }
     };
     const controls: Array<{ button: ReturnType<typeof createButton>; label: ReturnType<typeof spawnUIEntity> }> = [];
     const update = (): void => {
@@ -30,7 +34,7 @@ export function setupPokiTraining(
     };
     const session = new TrainingSession(ads, {
         gameplayStart: () => notify('gameplayStart'), gameplayStop: () => notify('gameplayStop'), reset, changed: update,
-    });
+    }, channel);
     const actions = [() => { void session.begin(); }, () => session.pause(), () => { void session.reward(); }];
     for (let index = 0; index < 3; index++) {
         const button = createButton({ world, events, parent, userGesture: true,
@@ -43,9 +47,12 @@ export function setupPokiTraining(
     }
     const onVisibility = () => session.visibility(document.hidden);
     const onHide = () => session.visibility(true);
-    document.addEventListener('visibilitychange', onVisibility);
-    window.addEventListener('pagehide', onHide);
-    window.addEventListener('pageshow', onVisibility);
+    // CrazyGames manages focus itself; its gameplay events describe game state only.
+    if (channel === 'poki') {
+        document.addEventListener('visibilitychange', onVisibility);
+        window.addEventListener('pagehide', onHide);
+        window.addEventListener('pageshow', onVisibility);
+    }
     const offDespawn = world.onDespawn(entity => {
         if (entity !== parent) return;
         document.removeEventListener('visibilitychange', onVisibility);
@@ -54,7 +61,7 @@ export function setupPokiTraining(
         offDespawn(); session.dispose();
         controls.forEach(({ button }) => button.dispose());
     });
-    session.visibility(document.hidden);
+    if (channel === 'poki') session.visibility(document.hidden);
     update();
     return session;
 }

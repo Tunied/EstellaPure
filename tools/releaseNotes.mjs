@@ -30,6 +30,10 @@ export const NOTES_FLOOR = 'v0.65.0';
 export const NOTED = {
   'perf(ui): keep text measurement atlases off GPU':
     { note: 'Text measurement avoids GPU glyph pages.' },
+  'feat(crazygames): connect Web ads storage and host audio policy':
+    { note: 'CrazyGames Web exports connect the official v3 SDK.' },
+  'feat(settings): add CrazyGames Web channel selection':
+    { note: 'CrazyGames Web exports connect the official v3 SDK.' },
   'fix(ui): scope inline text cleanup and release measurement pages':
     { note: 'Inline rich text releases its own measurement atlas.' },
   'docs(poki): document official Inspector URL validation':

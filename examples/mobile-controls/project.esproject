@@ -12,6 +12,14 @@
   "spineVersion": "none",
   "packaging": {
     "profiles": {
+      "crazygames": {
+        "platform": "web",
+        "platforms": {
+          "web": {
+            "channel": "crazygames"
+          }
+        }
+      },
       "poki": {
         "platform": "web",
         "platforms": {

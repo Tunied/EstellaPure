@@ -17,6 +17,15 @@ function harness() {
 }
 
 describe('authored Poki training flow', () => {
+    it('routes both ad types through the selected Web channel', async () => {
+        const ids: string[] = [];
+        const session = new TrainingSession({ available: true,
+            showRewarded: async id => { ids.push(id); return { completed: true }; },
+            showInterstitial: async id => { ids.push(id); },
+        }, { gameplayStart() {}, gameplayStop() {}, reset() {}, changed() {} }, 'crazygames');
+        await session.begin(); session.pause(); await session.begin(); await session.reward();
+        expect(ids).toEqual(['crazygames', 'crazygames']);
+    });
     it('menu hits and construction emit no gameplay; first intent starts once', async () => {
         const { session, events } = harness(); session.hit(); session.hit();
         expect(session.hits).toBe(0); expect(events).toEqual([]);

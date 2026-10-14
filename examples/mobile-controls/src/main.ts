@@ -4,7 +4,7 @@ import {
     UIEvents, Text, Name, UINode, UIPositionType, spawnUIEntity, createButton, px, Device,
     Ads, type World, type Entity, type DeviceResult,
 } from 'esengine';
-import { setupPokiTraining } from './pokiTrainingUI';
+import { setupWebTraining } from './pokiTrainingUI';
 import type { TrainingSession } from './pokiTraining';
 
 const controls = new InputMap({ Move: Axis2D(Keys2D('KeyW', 'KeyS', 'KeyA', 'KeyD'), Virtual('move')),
@@ -76,7 +76,7 @@ addStartupSystem(defineSystem([Res(UIEvents), Res(Ads), GetWorld()], (events, ad
     if (player !== null && target !== null) {
         const playerStart = { ...world.get(player, Transform).position };
         const targetStart = { ...world.get(target, Transform).position };
-        trainer = setupPokiTraining(world, events, canvas, ads, () => {
+        trainer = setupWebTraining(world, events, canvas, ads, () => {
             hits = 0; misses = 0; hitFlash = 0; recoil = 0;
             for (const [entity, position] of [[player, playerStart], [target, targetStart]] as const) {
                 const transform = world.get(entity, Transform); transform.position = { ...position };
