@@ -269,6 +269,7 @@ export interface NativeEngineApi {
     tilemap_worldToTile?(entity: number, wx: number, wy: number, originX: number, originY: number): number;
     trail_clear?(registry: unknown, entity: number): void;
     trail_update?(registry: unknown, dt: number): void;
+    transform_copyFlatRenderMatrix?(registry: unknown, entity: number, outputPtr: number): boolean;
     transform_update?(registry: unknown): void;
     uiHitTest_getHitEntity?(): number;
     uiHitTest_pick?(registry: unknown, worldX: number, worldY: number): number;
@@ -554,6 +555,7 @@ export function createNativeEngineApi(
     bind('tilemap_worldToTile', 'es_tilemap_worldToTile', false);
     bind('trail_clear', 'es_trail_clear', true);
     bind('trail_update', 'es_trail_update', true);
+    bind('transform_copyFlatRenderMatrix', 'es_transform_copyFlatRenderMatrix', true);
     bind('transform_update', 'es_transform_update', true);
     bind('uiHitTest_getHitEntity', 'es_uiHitTest_getHitEntity', false);
     bind('uiHitTest_pick', 'es_uiHitTest_pick', true);

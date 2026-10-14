@@ -834,6 +834,7 @@ EMSCRIPTEN_BINDINGS(esengine_ui_systems) {
     emscripten::function("getUINodeComputedWidth", &esengine::getUINodeComputedWidth);
     emscripten::function("getUINodeComputedHeight", &esengine::getUINodeComputedHeight);
     emscripten::function("transform_update", &esengine::transform_update);
+    emscripten::function("transform_copyFlatRenderMatrix", &esengine::transform_copyFlatRenderMatrix);
 
     // Tweens (AnimationBindings.hpp) — the same declarations the native
     // wrappers are generated from.

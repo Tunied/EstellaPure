@@ -85,4 +85,8 @@ f32 getUINodeComputedHeight(ecs::Registry& registry, u32 entity);
 /** Compose world transforms now (the UI layout pass reads them). */
 void transform_update(ecs::Registry& registry);
 
+/** Copy a drawable entity's complete world matrix to 16 caller-owned floats.
+ *  False for missing or collapsed geometry; leaves the output unchanged. */
+bool transform_copyFlatRenderMatrix(ecs::Registry& registry, u32 entity, uintptr_t outputPtr);
+
 }  // namespace esengine

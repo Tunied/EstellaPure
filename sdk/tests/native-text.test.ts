@@ -177,6 +177,38 @@ function buildScene(app: ReturnType<typeof createNativeApp>, setScene: (canvas: 
 }
 
 describe('a frame on the native core', () => {
+    it('copies the full text basis and skips collapsed labels before rasterization', async () => {
+        const { scope, submitSpy, rasterizeSpy, setScene } = makeHostScope();
+        const heap = new ArrayBuffer(65536), frees = vi.fn();
+        let cursor = 64, drawable = false;
+        const matrix = [2, 1, 0, 0, 3, 4, 0, 0, 0, 0, 1, 0, 13, 17, 0, 1];
+        scope.es_heap = () => heap;
+        scope.es_malloc = (bytes: number) => { const offset = cursor; cursor += Math.ceil(bytes / 8) * 8; return offset; };
+        scope.es_free = frees;
+        scope.es_transform_copyFlatRenderMatrix = (_entity: number, pointer: number) => {
+            if (!drawable) return false;
+            new Float32Array(heap, pointer, 16).set(matrix);
+            return true;
+        };
+        const app = createNativeApp(makeBridge(scope), scope);
+        await app.tick(0);
+        const label = buildScene(app, setScene);
+        app.world.insert(label, Text, { content: 'Z', fontSize: 32, renderMode: TextRenderMode.Sdf });
+        await app.tick(1 / 60);
+        expect(rasterizeSpy).not.toHaveBeenCalled();
+        expect(submitSpy).not.toHaveBeenCalled();
+        expect(frees).toHaveBeenCalled();
+        drawable = true;
+        await app.tick(1 / 60);
+        expect(submitSpy).toHaveBeenCalled();
+        expect(Array.from(submitSpy.mock.calls[0][5] as Float32Array)).toEqual(matrix);
+        rasterizeSpy.mockClear(); submitSpy.mockClear();
+        drawable = false;
+        await app.tick(1 / 60);
+        expect(rasterizeSpy).not.toHaveBeenCalled();
+        expect(submitSpy).not.toHaveBeenCalled();
+    });
+
     it('fades text fill, shadow and outline together and skips transparent subtrees', async () => {
         const { scope, submitSpy, setScene } = makeHostScope();
         let alpha = 0.5;

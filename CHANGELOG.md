@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **SDK text follows the full parent transform and skips collapsed labels.** Bitmap and SDF labels copy the engine's complete matrix instead of reconstructing decomposed TRS, retaining shear and mirrors. The shared Web/native bridge rejects known zero-area labels before atlas creation or layout, uses one reusable scratch matrix per render pass and handles childless roots without a stale matrix cache. Legacy cores retain their existing fallback.
+
 - **Collapsed 2D hierarchies skip geometry and recover reliably.** Transform composition propagates authored zero-area state through planar rotations and transformless groups, preventing floating-point residue from reviving degenerate boxes. Sprite, UI, native bitmap text, picking and empty scissor/stencil subtrees share the guard. Valid tiny spans and children that regain area through a 3D tilt remain available; hidden bitmap runs skip font layout and submission.
 
 - **Web audio preserves the latest device pause intent.** Late browser resume/suspend operations cannot undo a newer takeover request; initial autoplay-unlock gestures and ensureResumed respect explicit suspension. Reconciliation stops at the current request and ignores disposed contexts, preserving the user mixer and avoiding retry loops for blocked playback.

@@ -22,6 +22,8 @@
 #include "../ecs/components/Transform.hpp"
 #include "../ecs/components/UINode.hpp"
 #include "../ecs/components/UIVisual.hpp"
+#include "../ecs/FlatGeometry.hpp"
+#include <cstring>
 
 namespace esengine {
 
@@ -132,6 +134,13 @@ f32 getUINodeComputedHeight(ecs::Registry& registry, u32 entity) {
     auto* node = registry.tryGet<ecs::UINode>(Entity::fromRaw(entity));
     if (!node) return 0.0f;
     return node->computed_size_.y;
+}
+
+bool transform_copyFlatRenderMatrix(ecs::Registry& registry, u32 entity, uintptr_t outputPtr) {
+    glm::mat4 matrix;
+    if (!outputPtr || !ecs::copyFlatRenderMatrix(registry, Entity::fromRaw(entity), matrix)) return false;
+    std::memcpy(reinterpret_cast<void*>(outputPtr), glm::value_ptr(matrix), sizeof(glm::mat4));
+    return true;
 }
 
 void transform_update(ecs::Registry& registry) {

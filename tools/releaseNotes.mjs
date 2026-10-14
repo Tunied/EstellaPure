@@ -34,6 +34,8 @@ export const NOTED = {
     { note: 'Poki training reports authored gameplay and ad outcomes.' },
   'feat(editor): point Poki settings to the training example':
     { note: 'Poki training reports authored gameplay and ad outcomes.' },
+  'fix(text): preserve full transforms in SDK label rendering':
+    { note: 'SDK text follows the full parent transform and skips collapsed labels.' },
   'feat(web): connect Poki channel exports to ads services':
     { note: 'Web exports can select the Poki channel.' },
   'feat(editor): expose Poki Web distribution channel':

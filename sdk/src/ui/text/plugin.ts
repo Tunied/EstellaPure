@@ -27,6 +27,7 @@ import { getUINodeWidth, getUINodeHeight, ensureUIVisual } from '../util/helpers
 import { resolveTextFamily } from './font-registry';
 import { platformDevicePixelRatio } from '../../platform';
 import { engineApi } from '../../ecs/bridge/engineApi';
+import { withScratch } from '../../wasm/wasmScratch';
 // UI quads use layer = base + uiOrder, off the C++ declaration that owns it.
 import { UI_BASE_LAYER } from '../../wasm/constants.generated';
 
@@ -93,6 +94,7 @@ export class TextPlugin implements Plugin {
     private readonly world_: TextDomainState = { bitmap: null, sdf: null };
     private readonly screen_: TextDomainState = { bitmap: null, sdf: null };
     private readonly matrix_ = new Float32Array(16);
+    private matrixHeap_: Float32Array | null = null;
 
     build(app: App): void {
         registerComponent('Text', Text);
@@ -135,6 +137,28 @@ export class TextPlugin implements Plugin {
      * spelling of that rule in TS is a second rule.
      */
     private drawDomain(app: App, screen: boolean): void {
+        const api = engineApi(app);
+        if (!api?.transform_copyFlatRenderMatrix || !api.HEAPU8 || !api._malloc || !api._free) {
+            this.drawDomainWithMatrix(app, screen);
+            return;
+        }
+        const registry = app.world.getCppRegistry() as CppRegistry;
+        withScratch({ _malloc: size => api._malloc!(size), _free: ptr => api._free!(ptr) }, alloc => {
+            let pointer = 0;
+            this.drawDomainWithMatrix(app, screen, entity => {
+                if (!pointer) pointer = alloc(16 * 4);
+                if (!pointer) throw new Error('Could not allocate text transform scratch.');
+                if (!api.transform_copyFlatRenderMatrix!(registry, entity, pointer)) return false;
+                const heap = api.HEAPU8!;
+                if (this.matrixHeap_?.buffer !== heap.buffer) this.matrixHeap_ = new Float32Array(heap.buffer);
+                const offset = (heap.byteOffset + pointer) / 4;
+                for (let i = 0; i < 16; i++) this.matrix_[i] = this.matrixHeap_[offset + i]!;
+                return true;
+            });
+        });
+    }
+
+    private drawDomainWithMatrix(app: App, screen: boolean, readMatrix?: (entity: number) => boolean): void {
         const world = app.world;
         const registry = world.getCppRegistry() as CppRegistry;
         // Through engineApi, not app.wasmModule: a device has no wasm module, and
@@ -163,6 +187,7 @@ export class TextPlugin implements Plugin {
             if (api?.getUINodeHiddenInTree?.(registry, entity)) continue;
             const groupAlpha = api?.getUINodeAlphaInTree?.(registry, entity) ?? 1;
             if (groupAlpha <= 0) continue;
+            if (readMatrix && !readMatrix(entity as number)) continue;
             seen.add(entity as number);
 
             const tr = world.get(entity, Transform) as TransformData;
@@ -171,7 +196,7 @@ export class TextPlugin implements Plugin {
                 resolveTextRenderMode(t.renderMode, tr.worldScale.x),
                 contentScale,
             );
-            composeTRS(this.matrix_, tr.worldPosition, tr.worldRotation, tr.worldScale);
+            if (!readMatrix) composeTRS(this.matrix_, tr.worldPosition, tr.worldRotation, tr.worldScale);
 
             const style = (t.bold ? UI_TEXT_BOLD : 0) | (t.italic ? UI_TEXT_ITALIC : 0);
             // Text.lineHeight is a ratio of fontSize (legacy convention).

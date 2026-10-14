@@ -766,6 +766,7 @@ export interface ESEngineModule {
     /** Subtree opacity resolved by the layout pass (UINode.opacity multiplied down). */
     getUINodeAlphaInTree?(registry: CppRegistry, entity: number): number;
     transform_update(registry: CppRegistry): void;
+    transform_copyFlatRenderMatrix?(registry: CppRegistry, entity: number, outputPtr: number): boolean;
 
     // Animation (Tween) API
     anim_createTween(registry: CppRegistry, entity: number, targetProp: number,

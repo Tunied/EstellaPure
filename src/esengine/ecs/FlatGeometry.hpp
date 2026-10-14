@@ -32,4 +32,12 @@ inline bool hasFlatGeometryArea(Registry& registry, Entity entity, Transform& tr
         && hasFlatGeometryArea(transform, registry.has<Parent>(entity));
 }
 
+inline bool copyFlatRenderMatrix(Registry& registry, Entity entity, glm::mat4& output) {
+    auto* transform = registry.tryGet<Transform>(entity);
+    if (!transform || !hasFlatGeometryArea(registry, entity, *transform)) return false;
+    output = registry.has<Parent>(entity) ? transform->cachedMatrix_
+        : math::compose(transform->worldPosition, transform->worldRotation, transform->worldScale);
+    return true;
+}
+
 }  // namespace esengine::ecs

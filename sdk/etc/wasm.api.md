@@ -508,6 +508,7 @@ tilemap_setTiles: ((entity: number, tilesPtr: number, count: number) => void) | 
 trail_clear: ((registry: CppRegistry, entity: number) => void) | undefined
 trail_update: ((registry: CppRegistry, dt: number) => void) | undefined
 transform_compositionChanges: (() => { serial: number; tracking: boolean; overflowed: boolean; count: number; visited: number; ptr: number; }) | undefined
+transform_copyFlatRenderMatrix: ((registry: CppRegistry, entity: number, outputPtr: number) => boolean) | undefined
 transform_ensureComposed: ((registry: CppRegistry) => void) | undefined
 transform_epochAddress: (() => number) | undefined
 transform_setChangeTracking: ((on: boolean) => void) | undefined

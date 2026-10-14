@@ -737,6 +737,33 @@ TEST_CASE("bitmap text: collapsed parent bases skip long glyph runs and recover"
     resources.shutdown();
 }
 
+TEST_CASE("text transform bridge: full parent basis and childless root TRS reach the caller") {
+    ecs::Registry registry;
+    const auto parent = registry.create(), child = registry.create();
+    registry.emplace<ecs::Parent>(child).entity = parent;
+    auto& transform = registry.emplace<ecs::Transform>(child);
+    transform.cachedMatrix_[0] = {2, 1, 0, 0};
+    transform.cachedMatrix_[1] = {3, 4, 0, 0};
+    transform.cachedMatrix_[3] = {13, 17, 0, 1};
+    transform.decomposed_ = false;
+    glm::mat4 output(9);
+    CHECK(ecs::copyFlatRenderMatrix(registry, child, output));
+    CHECK(output == transform.cachedMatrix_);
+    registry.emplace<ecs::FlatGeometryCollapsed>(child);
+    const auto retained = output;
+    CHECK_FALSE(ecs::copyFlatRenderMatrix(registry, child, output));
+    CHECK(output == retained);
+    CHECK_FALSE(ecs::copyFlatRenderMatrix(registry, INVALID_ENTITY, output));
+    const auto root = registry.create();
+    auto& rootTransform = registry.emplace<ecs::Transform>(root);
+    rootTransform.worldPosition = {4, 7, 2};
+    rootTransform.worldScale = {-2, 3, 4};
+    rootTransform.worldRotation = glm::angleAxis(.7f, glm::vec3(0, 1, 0));
+    CHECK(ecs::copyFlatRenderMatrix(registry, root, output));
+    CHECK(output == math::compose(rootTransform.worldPosition, rootTransform.worldRotation, rootTransform.worldScale));
+    CHECK(rootTransform.cachedMatrix_ == glm::mat4(1));
+}
+
 TEST_CASE("sprites: tile budget applies before integer conversion") {
     struct Case { glm::vec2 tile, spacing; u32 quads; };
     const Case cases[] = {
