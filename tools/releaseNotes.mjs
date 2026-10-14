@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'chore(release): classify editor capabilities for v0.86.0':
+    { internal: 'Release capability census records the editor-only features and their existing unit and CI acceptance paths.' },
   'test(viewport): distinguish plane handles in axis acceptance':
     { internal: 'Pixel acceptance masks the blue XY plane using rendered axis reach so it measures the projected Z arm independently.' },
   'fix(ui): transform drag deltas through full parent matrices':

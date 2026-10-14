@@ -91,6 +91,16 @@ export const CENSUS_FLOOR = '0.60.0';
  * that does not exist, and release notes are a different act. Theirs is ungated.
  */
 export const SHIPPED = {
+  'Spatial transform handles expose all three planes and distinct centers.':
+    { notCertifiable: 'Editor interaction rather than a rendered game capability; desktop/tests/gizmo-planes.test.ts checks plane geometry and constraints, and tools/verify-gizmo-planes.mjs exercises editor gestures in CI.' },
+  'Universal Transform combines move, rotate and scale handles.':
+    { notCertifiable: 'Editor interaction rather than a rendered game capability; desktop/tests/gizmo-universal.test.ts checks operation selection and separated handle geometry. tools/verify-gizmo-planes.mjs exercises the combined tool in CI.' },
+  'Alt-copy on transform handles reaches the tool.':
+    { notCertifiable: 'Editor navigation and duplication interaction; tools/verify-gizmo-origins.mjs exercises Alt-copy gestures and captured pivot policies in CI rather than standalone game scenes.' },
+  'Multi-selection transforms support Individual Origins.':
+    { notCertifiable: 'Editor authoring interaction; desktop/tests/gizmo-pivot-drag.test.ts checks target transforms and tools/verify-gizmo-origins.mjs exercises editor gestures in CI.' },
+  'Transform handle size is configurable.':
+    { notCertifiable: 'Editor preference and interaction geometry; desktop/tests/gizmo-size.test.ts checks scaling and captured sizes. Game-scene certification does not exercise editor settings.' },
   "Transform handles preview the pointer's target before a drag.":
     { notCertifiable: "Editor interaction rather than a rendered game capability; desktop/tests/gizmo-hover.test.ts verifies shared hit decisions. tools/verify-gizmo-hover.mjs runs editor pointer and screenshot acceptance in CI." },
   "The WeChat starter's publishing profile minifies its game bundle.":
