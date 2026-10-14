@@ -147,6 +147,17 @@ void DrawList::finalize(TransientBufferPool& pool) {
         if (writeIdx > 0) {
             DrawCommand& head = commands_[writeIdx - 1];
             blocker = head.mergeBlocker(commands_[i]);
+            // Reject a new sampler before moving indices: a full run cannot
+            // use that copy. Existing samplers still fit at the slot ceiling.
+            if ((blocker == BatchBreak::None || blocker == BatchBreak::IndexGap)
+                && head.layout_id == LayoutId::Batch && commands_[i].texture_count >= 1
+                && head.texture_count >= MAX_CMD_TEXTURE_SLOTS - mask_2d_slots_) {
+                const auto* begin = head.texture_ids;
+                const auto* end = begin + head.texture_count;
+                if (std::find(begin, end, commands_[i].texture_ids[0]) == end) {
+                    blocker = BatchBreak::TextureSlots;
+                }
+            }
             if (blocker == BatchBreak::IndexGap && head.layout_id == LayoutId::Batch
                 && joinBatchIndexRanges(pool, head, commands_[i])) {
                 blocker = head.mergeBlocker(commands_[i]);

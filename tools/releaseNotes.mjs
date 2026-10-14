@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(renderer): reject full texture runs before copying indices':
+    { note: 'Full texture batches avoid unused index copies.' },
   'fix(examples): distinguish motion requests from sensor samples':
     { note: 'Mobile controls share InputMap and device capability results.' },
   'feat(examples): refresh sprite rendering with CC0 space art':

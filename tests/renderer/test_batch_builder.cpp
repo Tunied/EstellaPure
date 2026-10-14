@@ -235,6 +235,34 @@ TEST_CASE("finalize: sorted Batch index gaps merge in painter order with their t
     CHECK(verts[8].texIndex == 1);
 }
 
+TEST_CASE("finalize: full texture slots reject index copies but allow existing textures") {
+    for (bool masked : {false, true}) {
+        for (bool reuse : {false, true}) {
+            Harness h;
+            if (masked) {
+                h.list.reserveMask2DSlots(1);
+                h.list.setMask2DTexture(7, 123);
+            }
+            const u32 budget = MAX_CMD_TEXTURE_SLOTS - (masked ? 1 : 0);
+            BatchVertex quad[4] = {};
+            appendQuad(h.pool, h.list, h.clips, quad, quadKey(reuse ? 1 : 99, 2));
+            for (u32 texture = 1; texture <= budget; ++texture) {
+                appendQuad(h.pool, h.list, h.clips, quad, quadKey(texture, 1));
+            }
+            const u32 emitted = h.pool.indicesUsed(LayoutId::Batch);
+            h.list.finalize(h.pool);
+            CHECK(h.list.mergedDrawCallCount() == (reuse ? 1 : 2));
+            CHECK(h.pool.indicesUsed(LayoutId::Batch) == emitted + (reuse ? 6 : 0));
+            CHECK(h.list.command(0).texture_count == budget);
+            CHECK(h.list.command(0).index_count == (budget + (reuse ? 1 : 0)) * 6);
+            if (!reuse) {
+                CHECK(h.list.command(1).index_offset == 0);
+                CHECK(h.list.command(1).break_reason == BatchBreak::TextureSlots);
+            }
+        }
+    }
+}
+
 TEST_CASE("index range copies survive staging growth and reject unwritten sources") {
     MockGfxDevice device;
     TransientBufferPool pool{device};
