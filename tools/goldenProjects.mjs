@@ -91,6 +91,8 @@ export const CENSUS_FLOOR = '0.60.0';
  * that does not exist, and release notes are a different act. Theirs is ungated.
  */
 export const SHIPPED = {
+  'Mobile controls share InputMap and device capability results':
+    { notCertifiable: 'mobile-controls certifies virtual input and UI on packaged Web and mini-game targets; sdk/tests/virtual-controls.test.ts, input-map-virtual.test.ts and device.test.ts hold control cancellation and device adapter results; motion, vibration and wake still need physical device acceptance' },
   'Sprite playback can be tried independently of its state machine':
     { certifies: 'animation' },
   'Disk cache budgets preserve offline content versions':

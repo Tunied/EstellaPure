@@ -14,6 +14,8 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+## [0.80.0] - 2026-10-14
+
 ### Changed
 
 - **Sprite rendering has a complete space art example.** CC0 ships, meteors and stations replace the basic bars and dots, with editable labels and four demonstration areas. Tint, overlapping draw layers, orbital motion, alpha, texture flips and SortingGroup retain their original teaching behavior; the example includes asset sources and licenses.
@@ -14167,7 +14169,8 @@ not kept before this file was introduced — see the Git history at
 `github.com/esengine/estella` for the full commit-level record since the first
 commit on 2026-01-25.
 
-[Unreleased]: https://github.com/esengine/estella/compare/v0.79.0...HEAD
+[Unreleased]: https://github.com/esengine/estella/compare/v0.80.0...HEAD
+[0.80.0]: https://github.com/esengine/estella/compare/v0.79.0...v0.80.0
 [0.79.0]: https://github.com/esengine/estella/compare/v0.78.0...v0.79.0
 [0.78.0]: https://github.com/esengine/estella/compare/v0.77.0...v0.78.0
 [0.77.0]: https://github.com/esengine/estella/compare/v0.76.0...v0.77.0
