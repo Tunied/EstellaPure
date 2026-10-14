@@ -168,15 +168,14 @@ bool hasEmptyMaskBox(ecs::Registry& registry, Entity entity) {
 
 void applyStencilHierarchy(ecs::Registry& registry, RenderFrame& frame,
                             Entity entity, i32 refValue,
-                            const std::unordered_set<u32>& stencilSet, i32& nextRef, bool& overflowed,
+                            const std::unordered_set<u32>& stencilSet, bool& overflowed,
                             std::vector<std::pair<Entity, i32>>& work) {
-    if (overflowed) return;
     work.clear();
     if (hasEmptyMaskBox(registry, entity)) {
         refValue = 0;
         frame.setEntityClipRect(entity.id(), 0, 0, 0, 0);
     } else {
-        frame.setEntityStencilMask(entity.id(), refValue);
+        frame.setEntityStencilMask(entity.id(), refValue, true);
     }
     const auto enqueueChildren = [&](Entity owner, i32 parentRef) {
         if (!registry.has<ecs::Children>(owner)) return;
@@ -203,11 +202,16 @@ void applyStencilHierarchy(ecs::Registry& registry, RenderFrame& frame,
                 enqueueChildren(owner, 0);
                 continue;
             }
-            if (nextRef > MAX_STENCIL_REF) { overflowed = true; work.clear(); return; }
-            currentRef = nextRef++;
-            frame.setEntityStencilMask(owner.id(), currentRef);
+            if (currentRef == MAX_STENCIL_REF) {
+                overflowed = true;
+                frame.setEntityClipRect(owner.id(), 0, 0, 0, 0);
+                enqueueChildren(owner, 0);
+                continue;
+            }
+            ++currentRef;
+            frame.setEntityStencilMask(owner.id(), currentRef, true);
         } else {
-            frame.setEntityStencilTest(owner.id(), currentRef);
+            frame.setEntityStencilTest(owner.id(), currentRef, true);
         }
         enqueueChildren(owner, currentRef);
     }
@@ -277,12 +281,9 @@ void RenderFrame::processMasks(ecs::Registry& registry, const glm::mat4& project
             }
         }
 
-        i32 nextRef = 1;
         bool overflowed = false;
         for (auto entity : rootStencils) {
-            if (overflowed) break;
-            if (nextRef > MAX_STENCIL_REF) break;
-            applyStencilHierarchy(registry, *this, entity, nextRef++, stencilSet, nextRef, overflowed, mask_stencil_walk_scratch_);
+            applyStencilHierarchy(registry, *this, entity, 1, stencilSet, overflowed, mask_stencil_walk_scratch_);
         }
 
         if (overflowed) {

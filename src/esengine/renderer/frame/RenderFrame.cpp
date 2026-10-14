@@ -918,12 +918,12 @@ void RenderFrame::clearAllClipRects() {
     clip_rects_.clear();
 }
 
-void RenderFrame::setEntityStencilMask(u32 entity, i32 refValue) {
-    stencil_masks_[entity] = {refValue, true};
+void RenderFrame::setEntityStencilMask(u32 entity, i32 refValue, bool hierarchical) {
+    stencil_masks_[entity] = {refValue, true, hierarchical};
 }
 
-void RenderFrame::setEntityStencilTest(u32 entity, i32 refValue) {
-    stencil_masks_[entity] = {refValue, false};
+void RenderFrame::setEntityStencilTest(u32 entity, i32 refValue, bool hierarchical) {
+    stencil_masks_[entity] = {refValue, false, hierarchical};
 }
 
 void RenderFrame::clearAllStencilMasks() {
@@ -950,6 +950,11 @@ void RenderFrame::buildClipState() {
     }
 
     for (const auto& [entity, info] : stencil_masks_) {
+        if (info.hierarchical) {
+            if (info.is_mask) clip_state_.setUIStencilMask(entity, info.ref_value);
+            else clip_state_.setUIStencilTest(entity, info.ref_value);
+            continue;
+        }
         if (info.is_mask) {
             clip_state_.setStencilMask(entity, info.ref_value);
         } else {
@@ -1064,6 +1069,9 @@ void RenderFrame::buildSpriteMasks(ecs::Registry& registry) {
         }
         masks[slot].ref = nextRef++;
         clip_state_.setStencilMask(mask_entities_scratch_[slot].id(), masks[slot].ref);
+    }
+    if (clip_state_.reserveSpriteStencilReferences(nextRef - 1)) {
+        ES_LOG_WARN("UI masks exceed remaining stencil references after SpriteMask allocation; overflowing subtrees are clipped");
     }
 
     auto spriteView = registry.activeView<ecs::Sprite>();

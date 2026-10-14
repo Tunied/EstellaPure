@@ -77,6 +77,7 @@ void DrawList::clear() {
     run_first_.clear();
     merged_draw_calls_ = 0;
     depth_required_ = false;
+    ui_stencil_required_ = false;
 }
 
 u32 DrawList::addSkinMatrices(const glm::mat4* matrices, u32 count) {
@@ -103,6 +104,7 @@ void DrawList::push(const DrawCommand& cmd) {
     const auto type = static_cast<u32>(cmd.type);
     if (type < entity_counts_.size()) entity_counts_[type] += cmd.entity_count;
     commands_.push_back(cmd);
+    ui_stencil_required_ = ui_stencil_required_ || (cmd.state_flags & CMD_STATE_UI_STENCIL);
 }
 
 void DrawList::finalize(TransientBufferPool& pool) {
@@ -134,6 +136,59 @@ void DrawList::finalize(TransientBufferPool& pool) {
         sorted_scratch_[i] = commands_[sort_entries_[i].index];
     }
     commands_.swap(sorted_scratch_);
+
+    // Sorted UI order is a preorder walk. Reuse each mask's exact geometry to
+    // restore its parent when the walk leaves that subtree; no new vertices,
+    // rectangular approximation, or per-depth texture is needed.
+    if (ui_stencil_required_) {
+        stencil_commands_scratch_.clear();
+        stencil_stack_scratch_.clear();
+        stencil_level_first_.clear();
+        const auto leaveMask = [&]() {
+            const u32 first = stencil_level_first_.back();
+            stencil_level_first_.pop_back();
+            while (stencil_stack_scratch_.size() > first) {
+                stencil_commands_scratch_.push_back(stencil_stack_scratch_.back());
+                auto& restore = stencil_commands_scratch_.back();
+                stencil_stack_scratch_.pop_back();
+                restore.state_flags |= restore.stencil_depth == 1
+                    ? CMD_STATE_STENCIL_ZERO : CMD_STATE_STENCIL_DECREMENT;
+                restore.entity_count = 0;
+                restore.entity = INVALID_ENTITY;
+                restore.depth_test = false;
+                restore.depth_write = false;
+            }
+        };
+        for (const DrawCommand& source : commands_) {
+            const bool ui = (source.state_flags & CMD_STATE_UI_STENCIL) != 0;
+            const bool mask = ui && (source.state_flags & CMD_STATE_STENCIL_WRITE);
+            const bool continuation = mask && !stencil_stack_scratch_.empty()
+                && stencil_stack_scratch_.back().entity == source.entity
+                && stencil_stack_scratch_.back().stencil_depth == source.stencil_depth;
+            const u32 wanted = ui ? source.stencil_depth - (mask && !continuation ? 1 : 0) : 0;
+            while (stencil_level_first_.size() > wanted) leaveMask();
+            // A culled or absent mask cannot license a child's draw against stale
+            // attachment values. A later root can still enter normally.
+            if (ui && stencil_level_first_.size() != wanted) continue;
+            stencil_commands_scratch_.push_back(source);
+            auto& command = stencil_commands_scratch_.back();
+            if (mask) {
+                if (!continuation) {
+                    stencil_level_first_.push_back(static_cast<u32>(stencil_stack_scratch_.size()));
+                }
+                stencil_stack_scratch_.push_back(command);
+                command.depth_test = false;
+                command.depth_write = false;
+                if (command.stencil_depth > 1) {
+                    command.state_flags |= CMD_STATE_STENCIL_INCREMENT;
+                    --command.stencil_ref;
+                }
+            }
+        }
+        while (!stencil_level_first_.empty()) leaveMask();
+        commands_.swap(stencil_commands_scratch_);
+        count = static_cast<u32>(commands_.size());
+    }
 
     merged_draw_calls_ = 0;
     run_entities_.clear();

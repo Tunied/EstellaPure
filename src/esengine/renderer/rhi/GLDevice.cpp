@@ -947,6 +947,16 @@ void GLDevice::applyStencilMode(GfxStencilMode mode) {
         setColorMask(false, false, false, false);
         setStencilMask(0xFF);
         break;
+    case GfxStencilMode::Increment:
+    case GfxStencilMode::Decrement:
+    case GfxStencilMode::Zero:
+        setStencilTest(true);
+        setStencilOp(GfxStencilOp::Keep, GfxStencilOp::Keep,
+            mode == GfxStencilMode::Increment ? GfxStencilOp::Incr
+                : mode == GfxStencilMode::Decrement ? GfxStencilOp::Decr : GfxStencilOp::Zero);
+        setColorMask(false, false, false, false);
+        setStencilMask(0xFF);
+        break;
     case GfxStencilMode::Test:
     case GfxStencilMode::TestOutside:
         setStencilTest(true);
@@ -1003,6 +1013,11 @@ void GLDevice::setStencilReference(i32 ref) {
         setStencilFunc(GfxStencilFunc::Always, ref, 0xFF);
         break;
     case GfxStencilMode::Test:
+        setStencilFunc(GfxStencilFunc::Equal, ref, 0xFF);
+        break;
+    case GfxStencilMode::Increment:
+    case GfxStencilMode::Decrement:
+    case GfxStencilMode::Zero:
         setStencilFunc(GfxStencilFunc::Equal, ref, 0xFF);
         break;
     case GfxStencilMode::TestOutside:

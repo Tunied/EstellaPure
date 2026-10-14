@@ -182,8 +182,8 @@ public:
     void setEntityClipRect(u32 entity, i32 x, i32 y, i32 w, i32 h);
     void clearAllClipRects();
 
-    void setEntityStencilMask(u32 entity, i32 refValue);
-    void setEntityStencilTest(u32 entity, i32 refValue);
+    void setEntityStencilMask(u32 entity, i32 refValue, bool hierarchical = false);
+    void setEntityStencilTest(u32 entity, i32 refValue, bool hierarchical = false);
     void clearAllStencilMasks();
 
     void submitTileQuad(
@@ -562,6 +562,7 @@ private:
     struct EntityStencilInfo {
         i32 ref_value = 0;
         bool is_mask = false;
+        bool hierarchical = false;
     };
     std::unordered_map<u32, EntityStencilInfo> stencil_masks_;
 

@@ -73,6 +73,16 @@ TEST_CASE("stencil modes translate to the same table GLDevice applies") {
     CHECK(toWGPUStencilWriteMask(GfxStencilMode::Write) == 0xFFu);
     CHECK(toWGPUStencilWriteMask(GfxStencilMode::Test) == 0x00u);
     CHECK(toWGPUStencilWriteMask(GfxStencilMode::Off) == 0x00u);
+
+    for (GfxStencilMode mode : {GfxStencilMode::Increment, GfxStencilMode::Decrement, GfxStencilMode::Zero}) {
+        const auto face = toWGPUStencilFace(mode);
+        CHECK(face.compare == WGPUCompareFunction_Equal);
+        CHECK(face.failOp == WGPUStencilOperation_Keep);
+        CHECK(face.depthFailOp == WGPUStencilOperation_Keep);
+        CHECK(face.passOp == (mode == GfxStencilMode::Increment ? WGPUStencilOperation_IncrementClamp
+            : mode == GfxStencilMode::Decrement ? WGPUStencilOperation_DecrementClamp : WGPUStencilOperation_Zero));
+        CHECK(toWGPUStencilWriteMask(mode) == 0xFFu);
+    }
 }
 
 TEST_CASE("pipeline depth-stencil state carries GL semantics exactly") {

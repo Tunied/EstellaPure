@@ -1286,7 +1286,7 @@ WGPURenderPipeline WebGPUDevice::ensurePipeline(u32 id) {
     WGPUColorTargetState target{};
     target.format = pass_color_format_;
     target.blend = desc.blendEnabled ? &blendState : nullptr;
-    target.writeMask = (desc.stencil == GfxStencilMode::Write) ? WGPUColorWriteMask_None
+    target.writeMask = writesStencil(desc.stencil) ? WGPUColorWriteMask_None
                                                                : WGPUColorWriteMask_All;
 
     WGPUFragmentState fragment{};

@@ -280,6 +280,15 @@ inline WGPUStencilFaceState toWGPUStencilFace(GfxStencilMode mode) {
         face.failOp = WGPUStencilOperation_Keep;
         face.passOp = WGPUStencilOperation_Keep;
         break;
+    case GfxStencilMode::Increment:
+    case GfxStencilMode::Decrement:
+    case GfxStencilMode::Zero:
+        face.compare = WGPUCompareFunction_Equal;
+        face.failOp = WGPUStencilOperation_Keep;
+        face.passOp = mode == GfxStencilMode::Increment ? WGPUStencilOperation_IncrementClamp
+            : mode == GfxStencilMode::Decrement ? WGPUStencilOperation_DecrementClamp
+            : WGPUStencilOperation_Zero;
+        break;
     case GfxStencilMode::TestOutside:
         face.compare = WGPUCompareFunction_NotEqual;
         face.failOp = WGPUStencilOperation_Keep;
@@ -298,7 +307,7 @@ inline WGPUStencilFaceState toWGPUStencilFace(GfxStencilMode mode) {
 /** @brief Stencil write mask per mode — the applyStencilMode table: Write fills
  *         all planes, Test reads without writing, Off never touches stencil. */
 inline u32 toWGPUStencilWriteMask(GfxStencilMode mode) {
-    return mode == GfxStencilMode::Write ? 0xFFu : 0x00u;
+    return writesStencil(mode) ? 0xFFu : 0x00u;
 }
 
 /**

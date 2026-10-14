@@ -222,6 +222,10 @@ private:
     std::vector<SortEntry> sort_entries_;
     std::vector<DrawCommand> sorted_scratch_;  // reused across frames to avoid a
                                                // per-frame heap alloc in finalize()
+    std::vector<DrawCommand> stencil_commands_scratch_;
+    std::vector<DrawCommand> stencil_stack_scratch_;
+    std::vector<u32> stencil_level_first_;
+    bool ui_stencil_required_ = false;
     /// @see setMask2DTexture — indexed by texture unit, 0 where that unit is not a mask.
     u32 mask_2d_textures_[MAX_CMD_TEXTURE_SLOTS] = {};
     /// @see reserveMask2DSlots

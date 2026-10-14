@@ -20,6 +20,10 @@ static constexpr u32 MAX_CMD_TEXTURE_SLOTS = 8;
 
 static constexpr u16 CMD_STATE_SCISSOR       = 0x01;
 static constexpr u16 CMD_STATE_STENCIL_WRITE = 0x02;
+static constexpr u16 CMD_STATE_UI_STENCIL = 0x20;
+static constexpr u16 CMD_STATE_STENCIL_INCREMENT = 0x40;
+static constexpr u16 CMD_STATE_STENCIL_DECREMENT = 0x80;
+static constexpr u16 CMD_STATE_STENCIL_ZERO = 0x100;
 static constexpr u16 CMD_STATE_STENCIL_TEST  = 0x04;
 static constexpr u16 CMD_STATE_CUSTOM_DRAW   = 0x08;
 // Tests the reference the other way: drawn only where the stencil does NOT match.
@@ -34,6 +38,9 @@ static constexpr u16 CMD_STATE_STENCIL_OUT   = 0x10;
  *          wrong way — which looks like a mask that works everywhere but one path.
  */
 inline GfxStencilMode stencilModeOf(u16 stateFlags) {
+    if (stateFlags & CMD_STATE_STENCIL_INCREMENT) return GfxStencilMode::Increment;
+    if (stateFlags & CMD_STATE_STENCIL_DECREMENT) return GfxStencilMode::Decrement;
+    if (stateFlags & CMD_STATE_STENCIL_ZERO) return GfxStencilMode::Zero;
     if (stateFlags & CMD_STATE_STENCIL_WRITE) return GfxStencilMode::Write;
     if (stateFlags & CMD_STATE_STENCIL_TEST) {
         return (stateFlags & CMD_STATE_STENCIL_OUT) ? GfxStencilMode::TestOutside
@@ -116,6 +123,7 @@ struct DrawCommand {
     u16 state_flags = 0;
     ScissorRect scissor;
     i32 stencil_ref = 0;
+    u16 stencil_depth = 0;
 
     Entity entity = INVALID_ENTITY;
     RenderType type = RenderType::Sprite;
@@ -358,6 +366,16 @@ struct DrawCommand {
     }
 
     BatchBreak mergeBlocker(const DrawCommand& next) const {
+        // UI mask vertices are replayed to restore their parent's stencil.
+        // Changing sampler indices while merging the entering draw would also
+        // change its later replay, so both must keep the same binding plan.
+        if ((state_flags & (CMD_STATE_UI_STENCIL | CMD_STATE_STENCIL_WRITE))
+            == (CMD_STATE_UI_STENCIL | CMD_STATE_STENCIL_WRITE)) {
+            if (texture_count != next.texture_count
+                || !std::equal(texture_ids, texture_ids + texture_count, next.texture_ids)) {
+                return BatchBreak::TextureSlots;
+            }
+        }
         // An instanced draw is one command per emitter, except where a second
         // command is the same geometry again — see sameInstancedGeometry, which
         // the merge answers by relocating the records rather than by a draw.

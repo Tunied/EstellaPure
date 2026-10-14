@@ -1028,13 +1028,15 @@ TEST_CASE("UI stencil traversal keeps nested and sibling references in authored 
         frame.processMasks(registry, 0, 0, 64, 64);
         frame.collectAll(registry);
         i32 layer = 0;
-        for (Entity entity : {a, b, c, d, e}) {
+        for (Entity entity : {root, a, nested, b, deep, c, d, e}) {
             frame.submitTextBatch(text, 4, indices, 6, 1, &transform[0][0], entity, layer++, 0, false);
         }
         frame.flush();
         frame.end();
-        CHECK(frame.stats().text == (empty ? 4 : 5));
-        const std::vector<i32> expected = empty ? std::vector<i32>{1, 2, 1} : std::vector<i32>{1, 2, 3, 1};
+        CHECK(frame.stats().text == (empty ? 6 : 8));
+        const std::vector<i32> expected = empty
+            ? std::vector<i32>{1, 1, 1, 2, 2, 1, 1}
+            : std::vector<i32>{1, 1, 1, 2, 2, 3, 3, 2, 1, 1};
         CHECK(device.stencilReferences.size() == expected.size());
         for (u32 i = 0; i < std::min(device.stencilReferences.size(), expected.size()); ++i) {
             CHECK(device.stencilReferences[i] == expected[i]);
@@ -1052,6 +1054,50 @@ TEST_CASE("flat bounds: reflected extents enclose the same rotated box") {
             CHECK(extent.z == 2);
         }
     }
+}
+
+TEST_CASE("UI stencil reference budget follows depth rather than sibling count") {
+    MockGfxDevice device;
+    RenderContext context(device);
+    resource::ResourceManager resources;
+    ecs::Registry registry;
+    RenderFrame frame(device, context, resources);
+    frame.init(64, 64);
+    const Entity root = registry.create();
+    registry.emplace<ecs::UIMask>(root).mode = ecs::MaskMode::Stencil;
+    registry.emplace<ecs::Children>(root);
+    std::vector<Entity> ordered{root};
+    for (u32 i = 0; i < 300; ++i) {
+        const Entity mask = registry.create(), content = registry.create();
+        registry.emplace<ecs::Parent>(mask).entity = root;
+        registry.emplace<ecs::Parent>(content).entity = mask;
+        registry.get<ecs::Children>(root).entities.push_back(mask);
+        registry.emplace<ecs::Children>(mask).entities.push_back(content);
+        registry.emplace<ecs::UIMask>(mask).mode = ecs::MaskMode::Stencil;
+        ordered.push_back(mask);
+        ordered.push_back(content);
+    }
+    const glm::mat4 transform(1);
+    const f32 text[36] = {};
+    const u16 indices[] = {0, 1, 2, 2, 3, 0};
+    frame.beginFrame();
+    frame.begin(transform);
+    frame.processMasks(registry, 0, 0, 64, 64);
+    frame.collectAll(registry);
+    i32 layer = 0;
+    for (Entity entity : ordered) {
+        frame.submitTextBatch(text, 4, indices, 6, 1, &transform[0][0], entity, layer++, 0, false);
+    }
+    frame.flush();
+    frame.end();
+    CHECK(frame.stats().text == 601);
+    REQUIRE(device.stencilReferences.size() == 902);
+    for (u32 i = 0; i < 300; ++i) {
+        CHECK(device.stencilReferences[1 + i * 3] == 1);
+        CHECK(device.stencilReferences[2 + i * 3] == 2);
+        CHECK(device.stencilReferences[3 + i * 3] == 2);
+    }
+    frame.endFrame();
 }
 
 TEST_CASE("nine-slice: small boxes contain their borders and preserve source UVs") {
@@ -2132,6 +2178,114 @@ TEST_CASE("stencil: a nested mask still writes before the content it clips") {
     CHECK((h.list.command(1).state_flags & CMD_STATE_STENCIL_WRITE) != 0);
     CHECK(h.list.command(2).stencil_ref == 2);
     CHECK((h.list.command(2).state_flags & CMD_STATE_STENCIL_TEST) != 0);
+}
+
+TEST_CASE("UI stencil restores parents between siblings without duplicating geometry") {
+    Harness h;
+    BatchVertex quad[4] = {};
+    const Entity outer{201}, first{202}, second{203}, leafA{204}, leafB{205}, tail{206};
+    h.clips.setUIStencilMask(outer.id(), 1);
+    h.clips.setUIStencilMask(first.id(), 2);
+    h.clips.setUIStencilMask(second.id(), 2);
+    h.clips.setUIStencilTest(leafA.id(), 2);
+    h.clips.setUIStencilTest(leafB.id(), 2);
+    h.clips.setUIStencilTest(tail.id(), 1);
+    // Sprite masks occupy the lower references; nested UI must never accept
+    // their pixels outside its own root.
+    h.clips.reserveSpriteStencilReferences(7);
+    i32 layer = 0;
+    for (Entity entity : {outer, first, leafA, second, leafB, tail}) {
+        auto key = quadKey(1, layer++);
+        key.entity = entity;
+        appendQuad(h.pool, h.list, h.clips, quad, key);
+    }
+    const u32 vertexBytes = h.pool.vertexBytesUsed(LayoutId::Batch);
+    const u32 indices = h.pool.indicesUsed(LayoutId::Batch);
+    h.list.finalize(h.pool);
+    REQUIRE(h.list.mergedDrawCallCount() == 9);
+    const GfxStencilMode modes[] = {GfxStencilMode::Write, GfxStencilMode::Increment,
+        GfxStencilMode::Test, GfxStencilMode::Decrement, GfxStencilMode::Increment,
+        GfxStencilMode::Test, GfxStencilMode::Decrement, GfxStencilMode::Test, GfxStencilMode::Zero};
+    const i32 refs[] = {8, 8, 9, 9, 8, 9, 9, 8, 8};
+    for (u32 i = 0; i < 9; ++i) {
+        const auto& command = h.list.command(i);
+        CHECK(stencilModeOf(command.state_flags) == modes[i]);
+        CHECK(command.stencil_ref == refs[i]);
+        if (writesStencil(modes[i])) {
+            CHECK_FALSE(command.depth_test);
+            CHECK_FALSE(command.depth_write);
+        }
+    }
+    CHECK(h.list.command(3).index_offset == h.list.command(1).index_offset);
+    CHECK(h.list.command(6).index_offset == h.list.command(4).index_offset);
+    CHECK(h.list.command(8).index_offset == h.list.command(0).index_offset);
+    CHECK(h.pool.vertexBytesUsed(LayoutId::Batch) == vertexBytes);
+    CHECK(h.pool.indicesUsed(LayoutId::Batch) == indices);
+}
+
+TEST_CASE("UI stencil keeps every piece of a mask and supports 255 nested levels") {
+    SUBCASE("multiple commands contribute to one mask") {
+        Harness h;
+        BatchVertex quad[4] = {};
+        h.clips.setUIStencilMask(301, 1);
+        h.clips.setUIStencilTest(302, 1);
+        for (u32 i = 0; i < 3; ++i) {
+            auto key = quadKey(i + 1, static_cast<i32>(i));
+            key.entity = Entity{i < 2 ? 301u : 302u};
+            appendQuad(h.pool, h.list, h.clips, quad, key);
+        }
+        h.list.finalize(h.pool);
+        REQUIRE(h.list.mergedDrawCallCount() == 5);
+        CHECK(stencilModeOf(h.list.command(0).state_flags) == GfxStencilMode::Write);
+        CHECK(stencilModeOf(h.list.command(1).state_flags) == GfxStencilMode::Write);
+        CHECK(stencilModeOf(h.list.command(2).state_flags) == GfxStencilMode::Test);
+        CHECK(stencilModeOf(h.list.command(3).state_flags) == GfxStencilMode::Zero);
+        CHECK(stencilModeOf(h.list.command(4).state_flags) == GfxStencilMode::Zero);
+        CHECK(h.list.command(0).texture_ids[0] == h.list.command(4).texture_ids[0]);
+        CHECK(h.list.command(1).texture_ids[0] == h.list.command(3).texture_ids[0]);
+        const auto* vertices = reinterpret_cast<const BatchVertex*>(h.pool.vertexData(LayoutId::Batch));
+        for (u32 vertex = 0; vertex < 8; ++vertex) CHECK(vertices[vertex].texIndex == 0);
+    }
+    SUBCASE("all eight stencil planes remain available") {
+        Harness h;
+        BatchVertex quad[4] = {};
+        for (u32 depth = 1; depth <= 255; ++depth) {
+            h.clips.setUIStencilMask(depth, static_cast<i32>(depth));
+            auto key = quadKey(1, static_cast<i32>(depth));
+            key.entity = Entity{depth};
+            appendQuad(h.pool, h.list, h.clips, quad, key);
+        }
+        h.clips.setUIStencilTest(256, 255);
+        auto key = quadKey(1, 256);
+        key.entity = Entity{256};
+        appendQuad(h.pool, h.list, h.clips, quad, key);
+        h.list.finalize(h.pool);
+        REQUIRE(h.list.mergedDrawCallCount() == 511);
+        CHECK(h.list.command(254).stencil_ref == 254);
+        CHECK(h.list.command(255).stencil_ref == 255);
+        CHECK(stencilModeOf(h.list.command(256).state_flags) == GfxStencilMode::Decrement);
+        CHECK(h.list.command(256).stencil_ref == 255);
+        CHECK(stencilModeOf(h.list.command(510).state_flags) == GfxStencilMode::Zero);
+    }
+    SUBCASE("missing mask geometry does not expose stale stencil values") {
+        Harness h;
+        BatchVertex quad[4] = {};
+        h.clips.setUIStencilTest(401, 1);
+        auto key = quadKey(1);
+        key.entity = Entity{401};
+        appendQuad(h.pool, h.list, h.clips, quad, key);
+        h.list.finalize(h.pool);
+        CHECK(h.list.mergedDrawCallCount() == 0);
+    }
+    SUBCASE("shared stencil capacity clips overflow instead of aliasing") {
+        ClipState clips;
+        clips.setUIStencilMask(501, 254);
+        clips.setUIStencilTest(502, 255);
+        clips.reserveSpriteStencilReferences(1);
+        CHECK(clips.getEntry(501)->stencil_ref == 255);
+        CHECK_FALSE(clips.isEmptyScissor(Entity{501}));
+        CHECK(clips.isEmptyScissor(Entity{502}));
+    }
 }
 
 // Where the guarantee stops. Nothing the engine emits puts a mask and its content

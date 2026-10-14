@@ -16,6 +16,7 @@ public:
         u16 flags = 0;
         ScissorRect scissor;
         i32 stencil_ref = 0;
+        u16 stencil_depth = 0;
     };
 
     void setScissor(u32 entity, i32 x, i32 y, i32 w, i32 h) {
@@ -27,8 +28,35 @@ public:
     void setStencilMask(u32 entity, i32 refValue) {
         auto& e = entries_[entity];
         e.flags |= CMD_STATE_STENCIL_WRITE;
-        e.flags &= ~CMD_STATE_STENCIL_TEST;
+        e.flags &= ~(CMD_STATE_STENCIL_TEST | CMD_STATE_STENCIL_OUT | CMD_STATE_UI_STENCIL);
         e.stencil_ref = refValue;
+        e.stencil_depth = 0;
+    }
+
+    void setUIStencilMask(u32 entity, i32 depth) {
+        setStencilMask(entity, depth);
+        entries_[entity].flags |= CMD_STATE_UI_STENCIL;
+        entries_[entity].stencil_depth = static_cast<u16>(depth);
+    }
+
+    void setUIStencilTest(u32 entity, i32 depth) {
+        setStencilTest(entity, depth);
+        entries_[entity].flags |= CMD_STATE_UI_STENCIL;
+        entries_[entity].stencil_depth = static_cast<u16>(depth);
+    }
+
+    bool reserveSpriteStencilReferences(i32 count) {
+        bool overflow = false;
+        for (auto& [entity, entry] : entries_) {
+            if (!(entry.flags & CMD_STATE_UI_STENCIL)) continue;
+            entry.stencil_ref += count;
+            if (entry.stencil_ref > 255) {
+                overflow = true;
+                entry.flags = CMD_STATE_SCISSOR;
+                entry.scissor = {0, 0, 0, 0};
+            }
+        }
+        return overflow;
     }
 
     bool isStencilMask(Entity entity) const {
@@ -39,16 +67,18 @@ public:
     void setStencilTest(u32 entity, i32 refValue) {
         auto& e = entries_[entity];
         e.flags |= CMD_STATE_STENCIL_TEST;
-        e.flags &= ~(CMD_STATE_STENCIL_WRITE | CMD_STATE_STENCIL_OUT);
+        e.flags &= ~(CMD_STATE_STENCIL_WRITE | CMD_STATE_STENCIL_OUT | CMD_STATE_UI_STENCIL);
         e.stencil_ref = refValue;
+        e.stencil_depth = 0;
     }
 
     /// Drawn only where the mask is NOT — the hole, rather than the window.
     void setStencilTestOutside(u32 entity, i32 refValue) {
         auto& e = entries_[entity];
         e.flags |= CMD_STATE_STENCIL_TEST | CMD_STATE_STENCIL_OUT;
-        e.flags &= ~CMD_STATE_STENCIL_WRITE;
+        e.flags &= ~(CMD_STATE_STENCIL_WRITE | CMD_STATE_UI_STENCIL);
         e.stencil_ref = refValue;
+        e.stencil_depth = 0;
     }
 
     void applyTo(Entity entity, DrawCommand& cmd) const {
@@ -57,6 +87,7 @@ public:
             cmd.state_flags = it->second.flags;
             cmd.scissor = it->second.scissor;
             cmd.stencil_ref = it->second.stencil_ref;
+            cmd.stencil_depth = it->second.stencil_depth;
         }
     }
 

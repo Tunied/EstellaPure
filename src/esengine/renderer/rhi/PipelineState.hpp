@@ -35,7 +35,15 @@ enum class GfxStencilMode : u8 {
     Write,        ///< Write the reference where drawn (mask fill): func Always, op Replace, color write off.
     Test,         ///< Draw only INSIDE the mask: func Equal, op Keep.
     TestOutside,  ///< Draw only OUTSIDE it: func NotEqual, op Keep — a hole, not a window.
+    Increment,    ///< Enter a nested mask only where the parent reference matches.
+    Decrement,    ///< Restore the parent reference on leaving a nested mask.
+    Zero,         ///< Retire a root mask without writing color.
 };
+
+inline bool writesStencil(GfxStencilMode mode) {
+    return mode == GfxStencilMode::Write || mode == GfxStencilMode::Increment
+        || mode == GfxStencilMode::Decrement || mode == GfxStencilMode::Zero;
+}
 
 /**
  * @brief Immutable description of a draw pipeline. Equality keys the pipeline cache, so

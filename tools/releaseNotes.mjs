@@ -34,6 +34,9 @@ export const NOTED = {
     { note: 'YouTube Playables Web exports honor host readiness and persistence.' },
   'feat(settings): add YouTube Playables Web channel':
     { note: 'YouTube Playables Web exports honor host readiness and persistence.' },
+
+  'fix(ui): intersect nested stencil masks and restore parent clipping':
+    { note: 'Nested UI stencil masks intersect their parents and restore clipping.' },
   'perf(text): reclaim unused glyph pages at frame boundaries':
     { note: 'Unused text atlas pages retire at frame boundaries.' },
   'feat(app): hold execution across frames input and media':
