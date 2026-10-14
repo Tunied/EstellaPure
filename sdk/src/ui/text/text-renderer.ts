@@ -308,6 +308,11 @@ export class SdfTextRenderer {
         this.atlas.setContentScale(scale);
     }
 
+    dispose(): void {
+        this.cache_.clear();
+        this.atlas.dispose();
+    }
+
     /**
      * Draw a line of text. `transform` is the entity's column-major world mat4;
      * glyph local positions (baseline y=0, y-up) are transformed at submit.

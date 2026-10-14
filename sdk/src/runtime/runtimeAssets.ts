@@ -8,7 +8,7 @@
  *          drives the same load path). Kept in its own module so neither the
  *          runtime loader nor the spine loader has to import the other.
  */
-import { TextureContent, type ESEngineModule } from '../wasm';
+import { TextureContent, type ESEngineModule, type CppResourceManager } from '../wasm';
 import { samplesAsSrgb } from '../ecs/env';
 import type { Backend } from '../asset/Backend';
 import type { ParsedTextureImportSettings } from '../asset/textureImportSettings';
@@ -153,8 +153,9 @@ export function createTextureFromPixels(
     content: TextureContent,
     flipY: boolean = true,
     params?: TextureParams,
+    owner?: CppResourceManager,
 ): number {
-    const rm = requireResourceManager();
+    const rm = owner ?? requireResourceManager();
     // Format code 2 = sRGB-encoded color (linear pipeline); 1 = plain RGBA8.
     const format = samplesAsSrgb(params?.srgb) ? 2 : 1;
     // Native path: no wasm heap — the ResourceManager uploads the bytes itself.
@@ -194,9 +195,10 @@ export function updateTextureSubregion(
     width: number,
     height: number,
     pixels: Uint8Array,
+    owner?: CppResourceManager,
 ): void {
     if (width <= 0 || height <= 0 || pixels.length === 0) return;
-    const rm = requireResourceManager();
+    const rm = owner ?? requireResourceManager();
     // Native byte path (no wasm heap); web embind lacks it and takes the heap path.
     if (rm.updateTextureSubregionFromBytes) {
         rm.updateTextureSubregionFromBytes(handle, x, y, width, height, pixels);

@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(text): isolate App glyph caches and release owned pages':
+    { note: 'Text atlases belong to each App and release their pages on exit.' },
   'fix(audio): preserve latest Web device suspension intent':
     { note: 'Web audio preserves the latest device pause intent.' },
   'feat(poki): add authored training gameplay flow':

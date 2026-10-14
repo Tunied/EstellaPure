@@ -14,7 +14,11 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+## [0.83.0] - 2026-10-14
+
 ### Fixed
+
+- **Text atlases belong to each App and release their pages on exit.** Preview restarts and separate runtime instances rasterize their own glyphs instead of reusing foreign texture IDs. Cleanup clears cached geometry, releases all owned pages and removes their restore callbacks without deleting a newer owner's registration.
 
 - **SDK text follows the full parent transform and skips collapsed labels.** Bitmap and SDF labels copy the engine's complete matrix instead of reconstructing decomposed TRS, retaining shear and mirrors. The shared Web/native bridge rejects known zero-area labels before atlas creation or layout, uses one reusable scratch matrix per render pass and handles childless roots without a stale matrix cache. Legacy cores retain their existing fallback.
 
@@ -14263,7 +14267,8 @@ not kept before this file was introduced — see the Git history at
 `github.com/esengine/estella` for the full commit-level record since the first
 commit on 2026-01-25.
 
-[Unreleased]: https://github.com/esengine/estella/compare/v0.82.0...HEAD
+[Unreleased]: https://github.com/esengine/estella/compare/v0.83.0...HEAD
+[0.83.0]: https://github.com/esengine/estella/compare/v0.82.0...v0.83.0
 [0.82.0]: https://github.com/esengine/estella/compare/v0.81.0...v0.82.0
 [0.81.0]: https://github.com/esengine/estella/compare/v0.80.0...v0.81.0
 [0.80.0]: https://github.com/esengine/estella/compare/v0.79.0...v0.80.0

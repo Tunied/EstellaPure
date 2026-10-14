@@ -8744,6 +8744,7 @@ width: number
 ## TextPlugin — class @experimental
 ```
 build: (app: App) => void
+cleanup: (app?: App) => void
 name: string
 static new (): TextPlugin
 static prototype: TextPlugin

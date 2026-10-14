@@ -127,7 +127,7 @@ function makeHostScope() {
     };
     installMockEcs(scope);
     return {
-        scope, uploads, calls, rasterizeSpy, submitSpy, beginSpy,
+        scope, uploads, calls, rasterizeSpy, submitSpy, beginSpy, textures,
         setScene: (canvas: number, cameras: number[]) => { canvasEntity = canvas; cameraEntities = cameras; },
     };
 }
@@ -177,6 +177,30 @@ function buildScene(app: ReturnType<typeof createNativeApp>, setScene: (canvas: 
 }
 
 describe('a frame on the native core', () => {
+    it('isolates glyph pages between apps and releases only the quitting owner', async () => {
+        const first = makeHostScope();
+        const appA = createNativeApp(makeBridge(first.scope), first.scope);
+        await appA.tick(0);
+        const labelA = buildScene(appA, first.setScene);
+        appA.world.insert(labelA, Text, { content: 'Ω', fontSize: 32, renderMode: TextRenderMode.Sdf });
+        await appA.tick(1 / 60);
+        expect(first.rasterizeSpy).toHaveBeenCalled();
+        expect(first.textures.size).toBe(1);
+        const second = makeHostScope();
+        const appB = createNativeApp(makeBridge(second.scope), second.scope);
+        await appB.tick(0);
+        const labelB = buildScene(appB, second.setScene);
+        appB.world.insert(labelB, Text, { content: 'Ω', fontSize: 32, renderMode: TextRenderMode.Sdf });
+        await appB.tick(1 / 60);
+        expect(second.rasterizeSpy).toHaveBeenCalled();
+        expect(second.textures.size).toBe(1);
+        appA.quit({ keepRenderer: true });
+        expect(first.textures.size).toBe(0);
+        expect(second.textures.size).toBe(1);
+        appB.quit({ keepRenderer: true });
+        expect(second.textures.size).toBe(0);
+    });
+
     it('copies the full text basis and skips collapsed labels before rasterization', async () => {
         const { scope, submitSpy, rasterizeSpy, setScene } = makeHostScope();
         const heap = new ArrayBuffer(65536), frees = vi.fn();

@@ -43,6 +43,25 @@ function makeStore() {
 }
 
 describe('REARCH_GUI P1.1c: GlyphAtlas', () => {
+    it('releases every page once, including when one release fails, and clears cached glyphs', () => {
+        const rasterizer = makeRasterizer();
+        const store = makeStore();
+        const releasePage = vi.fn((id: number) => {
+            if (id === 100) throw new Error('release failed');
+        });
+        const atlas = new GlyphAtlas(rasterizer, { ...store, releasePage }, { pageSize: 64, padding: 1 });
+        for (let i = 0; i < 25; i++) atlas.getGlyph(0x100 + i, 'Arial');
+        expect(atlas.pageCount).toBe(2);
+        expect(() => atlas.dispose()).toThrow('Failed to release glyph atlas pages');
+        expect(releasePage.mock.calls).toEqual([[100], [101]]);
+        expect(atlas.pageCount).toBe(0);
+        atlas.dispose();
+        expect(releasePage).toHaveBeenCalledTimes(2);
+        const calls = rasterizer.rasterize.mock.calls.length;
+        expect(atlas.getGlyph(0x100, 'Arial')!.pageId).toBe(102);
+        expect(rasterizer.rasterize).toHaveBeenCalledTimes(calls + 1);
+    });
+
     it('rasterizes, packs and uploads on first use; returns UVs + metrics', () => {
         const r = makeRasterizer();
         const s = makeStore();

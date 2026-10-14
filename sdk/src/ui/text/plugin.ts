@@ -88,13 +88,37 @@ interface TextDomainState {
 export class TextPlugin implements Plugin {
     name = 'text';
 
-    // One pair per DOMAIN: a bitmap atlas is rasterized at ONE content scale, and
-    // the two ask for different ones the moment a camera stops being the screen.
-    // Lazy, so text in only one domain pays for one pair.
-    private readonly world_: TextDomainState = { bitmap: null, sdf: null };
-    private readonly screen_: TextDomainState = { bitmap: null, sdf: null };
-    private readonly matrix_ = new Float32Array(16);
-    private matrixHeap_: Float32Array | null = null;
+    private readonly states_ = new WeakMap<App, {
+        world: TextDomainState;
+        screen: TextDomainState;
+        matrix: Float32Array;
+        matrixHeap: Float32Array | null;
+    }>();
+
+    private stateFor(app: App) {
+        let state = this.states_.get(app);
+        if (!state) {
+            state = {
+                world: { bitmap: null, sdf: null },
+                screen: { bitmap: null, sdf: null },
+                matrix: new Float32Array(16), matrixHeap: null,
+            };
+            this.states_.set(app, state);
+        }
+        return state;
+    }
+
+    cleanup(app?: App): void {
+        if (!app) return;
+        const state = this.states_.get(app);
+        if (!state) return;
+        this.states_.delete(app);
+        const errors: unknown[] = [];
+        for (const renderer of [state.world.bitmap, state.world.sdf, state.screen.bitmap, state.screen.sdf]) {
+            try { renderer?.dispose(); } catch (error) { errors.push(error); }
+        }
+        if (errors.length) throw new Error(`Failed to release text resources: ${errors.map(String).join('; ')}`);
+    }
 
     build(app: App): void {
         registerComponent('Text', Text);
@@ -137,6 +161,7 @@ export class TextPlugin implements Plugin {
      * spelling of that rule in TS is a second rule.
      */
     private drawDomain(app: App, screen: boolean): void {
+        const appState = this.stateFor(app);
         const api = engineApi(app);
         if (!api?.transform_copyFlatRenderMatrix || !api.HEAPU8 || !api._malloc || !api._free) {
             this.drawDomainWithMatrix(app, screen);
@@ -150,15 +175,16 @@ export class TextPlugin implements Plugin {
                 if (!pointer) throw new Error('Could not allocate text transform scratch.');
                 if (!api.transform_copyFlatRenderMatrix!(registry, entity, pointer)) return false;
                 const heap = api.HEAPU8!;
-                if (this.matrixHeap_?.buffer !== heap.buffer) this.matrixHeap_ = new Float32Array(heap.buffer);
+                if (appState.matrixHeap?.buffer !== heap.buffer) appState.matrixHeap = new Float32Array(heap.buffer);
                 const offset = (heap.byteOffset + pointer) / 4;
-                for (let i = 0; i < 16; i++) this.matrix_[i] = this.matrixHeap_[offset + i]!;
+                for (let i = 0; i < 16; i++) appState.matrix[i] = appState.matrixHeap[offset + i]!;
                 return true;
             });
         });
     }
 
     private drawDomainWithMatrix(app: App, screen: boolean, readMatrix?: (entity: number) => boolean): void {
+        const appState = this.stateFor(app);
         const world = app.world;
         const registry = world.getCppRegistry() as CppRegistry;
         // Through engineApi, not app.wasmModule: a device has no wasm module, and
@@ -174,7 +200,7 @@ export class TextPlugin implements Plugin {
         const contentScale = screen
             ? this.screenContentScale(app, dpr)
             : this.worldContentScale(app, dpr);
-        const state = screen ? this.screen_ : this.world_;
+        const state = screen ? appState.screen : appState.world;
 
         const seen = new Set<number>();
         for (const e of world.getEntitiesWithComponents([Text, Transform])) {
@@ -196,7 +222,7 @@ export class TextPlugin implements Plugin {
                 resolveTextRenderMode(t.renderMode, tr.worldScale.x),
                 contentScale,
             );
-            if (!readMatrix) composeTRS(this.matrix_, tr.worldPosition, tr.worldRotation, tr.worldScale);
+            if (!readMatrix) composeTRS(appState.matrix, tr.worldPosition, tr.worldRotation, tr.worldScale);
 
             const style = (t.bold ? UI_TEXT_BOLD : 0) | (t.italic ? UI_TEXT_ITALIC : 0);
             // Text.lineHeight is a ratio of fontSize (legacy convention).
@@ -271,7 +297,7 @@ export class TextPlugin implements Plugin {
                     shadow,
                     outline,
                 },
-                this.matrix_,
+                appState.matrix,
                 entity as number,
                 layer,
                 // Screen draws all share one depth: their order is the UI tree's,

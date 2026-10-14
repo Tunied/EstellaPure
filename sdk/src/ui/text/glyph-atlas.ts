@@ -57,6 +57,8 @@ export interface AtlasPageStore {
     createPage(size: number, paint: (pixels: Uint8Array) => void): number;
     /** Upload `pixels` into the [x,y,w,h] sub-rect of page `pageId`. */
     uploadSubRegion(pageId: number, x: number, y: number, w: number, h: number, pixels: Uint8Array): void;
+    /** Release an owned page. Optional for stores whose page lifetime is external. */
+    releasePage?(pageId: number): void;
 }
 
 /** A cached glyph's atlas location (normalized UVs) + metrics. */
@@ -126,6 +128,21 @@ export class GlyphAtlas {
 
     /** Number of atlas pages currently allocated. */
     get pageCount(): number { return this.pages.length; }
+
+    /** Release all pages and cached glyphs; repeated cleanup has no effect. */
+    dispose(): void {
+        const pages = this.pages.splice(0);
+        this.packers.length = 0;
+        this.placements.length = 0;
+        this.cache.clear();
+        this.mute_.clear();
+        this.generation_++;
+        const errors: unknown[] = [];
+        for (const page of pages) {
+            try { this.store.releasePage?.(page); } catch (error) { errors.push(error); }
+        }
+        if (errors.length) throw new Error(`Failed to release glyph atlas pages: ${errors.map(String).join('; ')}`);
+    }
 
     /**
      * Bumped only when a change can alter the atlas coordinates of glyphs that
