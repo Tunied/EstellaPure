@@ -14,6 +14,8 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+## [0.81.0] - 2026-10-14
+
 ### Added
 
 - **TikTok and overseas Pangle package the same playable project.** Network profiles include root orientation config, load the official host SDK before game scripts, and dispatch store gestures through the host. ZIP limits stay below 5MB; metadata paths and duplicate filenames are checked before archiving. The Playable Ad example includes named exports for all three new networks.
@@ -37,7 +39,7 @@ published separately; it ships inside the editor.
 
 - **Rich-text colors no longer recolor shadows and outlines.** Effect passes use their authored color and alpha on both bitmap and SDF atlases, including blurred shadows. The fill retains per-run colors, and inherited UI opacity continues to fade every pass.
 
-- **UI text effects follow inherited opacity.** Parent transparency now fades text shadows, outlines and explicit rich-text colors together with the fill. Opacity changes invalidate cached batches, and fully transparent subtrees skip glyph layout and submission until they become visible again.
+- **UI text effects follow inherited opacity.** Parent transparency now fades text shadows, outlines and explicit rich-text colors together with the fill. Authored color and layout changes invalidate cached batches; opacity-only changes reuse geometry, and fully transparent text skips glyph layout and submission until visible again.
 
 - **Release websites wait for mirrored download metadata.** Documentation deployment starts after the release mirror completes and rejects a latest.json version that differs from the site build, preventing a freshly published page from reverting its version label and download sizes to the previous release.
 
@@ -14202,7 +14204,8 @@ not kept before this file was introduced — see the Git history at
 `github.com/esengine/estella` for the full commit-level record since the first
 commit on 2026-01-25.
 
-[Unreleased]: https://github.com/esengine/estella/compare/v0.80.0...HEAD
+[Unreleased]: https://github.com/esengine/estella/compare/v0.81.0...HEAD
+[0.81.0]: https://github.com/esengine/estella/compare/v0.80.0...v0.81.0
 [0.80.0]: https://github.com/esengine/estella/compare/v0.79.0...v0.80.0
 [0.79.0]: https://github.com/esengine/estella/compare/v0.78.0...v0.79.0
 [0.78.0]: https://github.com/esengine/estella/compare/v0.77.0...v0.78.0

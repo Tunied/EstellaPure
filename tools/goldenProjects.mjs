@@ -91,6 +91,10 @@ export const CENSUS_FLOOR = '0.60.0';
  * that does not exist, and release notes are a different act. Theirs is ungated.
  */
 export const SHIPPED = {
+  'TikTok and overseas Pangle package the same playable project':
+    { notCertifiable: 'network-specific archive and host SDK contracts; pipeline/tests/export-playable.test.ts and playable-mraid.test.ts verify packaging and bridges; live ad-network acceptance remains pending' },
+  'Playable exports handle Mintegral start, completion and retry':
+    { notCertifiable: 'host container lifecycle rather than standalone scene behavior; sdk/tests/playable-host-pause.test.ts and pipeline/tests/export-playable.test.ts verify start, pause and packaging; live Mintegral acceptance remains pending' },
   'Mobile controls share InputMap and device capability results':
     { notCertifiable: 'mobile-controls certifies virtual input and UI on packaged Web and mini-game targets; sdk/tests/virtual-controls.test.ts, input-map-virtual.test.ts and device.test.ts hold control cancellation and device adapter results; motion, vibration and wake still need physical device acceptance' },
   'Sprite playback can be tried independently of its state machine':
