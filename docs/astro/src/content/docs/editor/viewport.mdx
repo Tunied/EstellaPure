@@ -37,6 +37,11 @@ selection changes recompute the target; leaving the canvas clears it. Navigation
 paint, picking and contributed tools keep their own pointer routing. Hover alone
 does not change transforms or begin an undo transaction.
 
+**Settings → Viewport → Gizmos → Transform handle size** scales the transform
+arrows, center plane, rotation rings and hit areas together from 0.5 to 2 (default
+1). The preference persists across editor sessions. Changing it during a handle
+drag takes effect after release; the current drag retains its size and sensitivity.
+
 Dragging a handle transforms the whole selection as one, about a shared pivot, and
 each drag is a single undo step. **Alt-drag** a selection to duplicate it and drag the
 copies. Nudge the selection with the **arrow keys** (one grid step; hold **Shift** for

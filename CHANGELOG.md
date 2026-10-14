@@ -18,6 +18,10 @@ published separately; it ships inside the editor.
 
 - **Page-free text glyph caches stay bounded.** Missing and oversized glyphs, whitespace metrics and measurement-only entries use a 4096-entry least-recently-used cache. Historical fonts and sizes retire without touching live drawable pages or cached layout coordinates; recently used measurements remain cached and retired entries rasterize again on demand.
 
+### Added
+
+- **Transform handle size is configurable.** Editor settings scale move/scale handles, rotation rings and hit areas together from 0.5 to 2, with the legacy size as default. The preference persists across sessions; active handle drags keep their captured size and sensitivity until release or cancellation.
+
 ## [0.85.0] - 2026-10-15
 
 ### Added

@@ -30,6 +30,8 @@ export const NOTES_FLOOR = 'v0.65.0';
 export const NOTED = {
   'perf(text): bound page-free glyph caches':
     { note: 'Page-free text glyph caches stay bounded.' },
+  'feat(viewport): configure transform handle size':
+    { note: 'Transform handle size is configurable.' },
   'feat(viewport): highlight transform handles under the pointer':
     { note: "Transform handles preview the pointer's target before a drag." },
   'fix(checks): report non-TypeScript example failures':
