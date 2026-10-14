@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Added
 
+- **Storage exposes asynchronous write acknowledgment.** Games can await Storage.flush or SaveManager.saveAsync without changing synchronous save slots. The host bridge loads before writing, serializes cloud requests, preserves newer progress during pending saves and keeps failed writes retryable; an unsupported load is never replaced with an empty save. A synchronous adapter's flush does not imply cloud backup.
+
 - **CrazyGames scores and saved training credits follow platform contracts.** Optional Scores submission encrypts finite scores in the official HTML5 format; the editor exposes the client encryption key only for CrazyGames. The example saves earned credits through SDK Data, restores them on reload and preserves unreadable or externally changed progress. A sent score does not certify leaderboard acceptance, and SDK saving does not certify cloud backup.
 
 - **CrazyGames Web exports connect the official v3 SDK.** Channel profiles initialize loading notifications, rewarded and midgame ads, SDK Data storage and host audio mute. Failed initialization disables host services without blocking training; save errors remain explicit, and engine storage clearing preserves other publisher data. Unused achievement services defer their storage read so unavailable saving does not block startup. The editor offers channel selection and the Mobile Controls profile reports authored gameplay transitions. Leaderboards and official platform/device acceptance remain pending.

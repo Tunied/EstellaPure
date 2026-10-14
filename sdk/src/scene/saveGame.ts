@@ -50,6 +50,8 @@ export interface SaveStorage {
     setJSON<T>(key: string, value: T): void;
     remove(key: string): void;
     has(key: string): boolean;
+    /** Optional acknowledgment of pending writes for asynchronous hosts. */
+    flush?(): Promise<void>;
 }
 
 export interface SaveManagerOptions {
@@ -88,6 +90,12 @@ export class SaveManager {
     save<T>(slot: string, data: T): void {
         const env: SaveEnvelope<T> = { version: this.version, data, savedAt: this.now() };
         this.storage.setJSON(this.key_(slot), env);
+    }
+
+    /** Save and await the host's writes when it supports asynchronous storage. */
+    async saveAsync<T>(slot: string, data: T): Promise<void> {
+        this.save(slot, data);
+        await this.storage.flush?.();
     }
 
     /** Load + migrate a slot's data, or null if empty/unreadable. */

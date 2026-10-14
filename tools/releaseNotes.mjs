@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(storage): await asynchronous host persistence':
+    { note: 'Storage exposes asynchronous write acknowledgment.' },
   'feat(crazygames): add score submissions and saved training credits':
     { note: 'CrazyGames scores and saved training credits follow platform contracts.' },
   'feat(settings): configure CrazyGames client score encryption key':

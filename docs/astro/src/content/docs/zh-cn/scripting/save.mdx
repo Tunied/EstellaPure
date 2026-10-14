@@ -83,9 +83,31 @@ Storage.has('keybinds');              // true
 就构建在它之上,两者持久化到同一个逐平台后端。
 
 <Aside>
-  两个 API 都是同步的,且落在平台的存储上,存储有大小限制(浏览器里通常几 MB)。存档只放
-  游戏状态——不要放大块资源。
+  读取和暂存写入仍是同步的；异步宿主的写入可能需要等待存储服务确认。存档只放游戏状态，
+  不要放大块资源，并遵守目标平台的大小限制。
 </Aside>
+
+## 等待异步保存
+
+在必须保存进度的节点，等待写入结果：
+
+```typescript
+await saves.saveAsync('slot1', { level: 4, score: 1500, hp: 80 });
+// 或者在多次 Storage 写入之后：
+Storage.setNumber('completedLevels', 4);
+await Storage.flush();
+```
+
+暂存写入失败或宿主 flush 失败时，这些方法会拒绝。云请求失败后，最新内存进度仍可能可读；
+应显示保存失败并重试 `Storage.flush()`，不能把可读当作已保存。
+`SaveManager.saveAsync` 保留同样的版本化信封与迁移规则。
+
+异步适配器提供 `PlatformAdapter.flushStorage()`，必须先成功读取已有数据，再允许写入。
+使用单一云端字符串的宿主应串行发送保存请求，保留保存期间的新变化。读取失败或遇到不支持
+的存档格式时，不能改写为空存档。
+
+同步适配器上的 flush 只表示已有写入完成，不会增加云存储，也不证明服务商的云备份成功。
+例如 CrazyGames SDK Data 会在 `setItem` 返回后单独安排备份。
 
 ## 实际存在哪里
 

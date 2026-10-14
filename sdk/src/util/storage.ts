@@ -6,6 +6,11 @@ import { log } from './logger';
 const KEY_PREFIX = 'esengine:';
 
 export const Storage = {
+    /** Await the host's pending writes; without this capability, no cloud acknowledgment is implied. */
+    async flush(): Promise<void> {
+        const platform = getPlatform();
+        await platform.flushStorage?.();
+    },
     getString(key: string, defaultValue?: string): string | undefined {
         const raw = getPlatform().getStorageItem(KEY_PREFIX + key);
         return raw !== null ? raw : defaultValue;

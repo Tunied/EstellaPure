@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { SaveManager, migrateSaveData, type SaveStorage } from '../src/scene/saveGame';
 
 describe('migrateSaveData', () => {
@@ -46,6 +46,28 @@ function memStorage(): SaveStorage & { _map: Map<string, string> } {
 }
 
 describe('SaveManager', () => {
+    it('saveAsync writes the versioned slot before awaiting the storage acknowledgment', async () => {
+        const storage = memStorage(); let finish!: () => void;
+        storage.flush = vi.fn(function(this: unknown) {
+            expect(this).toBe(storage);
+            return new Promise<void>(resolve => { finish = resolve; });
+        });
+        const manager = new SaveManager({ version: 2, storage, now: () => 7 });
+        let completed = false;
+        const pending = manager.saveAsync('s', { level: 3 }).then(() => { completed = true; });
+        expect(manager.load('s')).toEqual({ level: 3 });expect(manager.savedAt('s')).toBe(7);
+        await Promise.resolve();expect(completed).toBe(false);finish();await pending;expect(completed).toBe(true);
+    });
+    it('saveAsync preserves write and flush failures and supports synchronous storage', async () => {
+        const storage = memStorage(), manager = new SaveManager({ version: 1, storage });
+        await manager.saveAsync('s', { level: 1 });expect(manager.load('s')).toEqual({ level: 1 });
+        const flush = storage.flush = vi.fn(async () => { throw new Error('offline'); });
+        await expect(manager.saveAsync('s', { level: 2 })).rejects.toThrow('offline');
+        expect(manager.load('s')).toEqual({ level: 2 });flush.mockClear();
+        storage.setJSON = () => { throw new Error('write unavailable'); };
+        await expect(manager.saveAsync('s', { level: 3 })).rejects.toThrow('write unavailable');
+        expect(flush).not.toHaveBeenCalled();
+    });
     it('round-trips data with version + savedAt', () => {
         const storage = memStorage();
         const mgr = new SaveManager({ version: 1, storage, now: () => 1234 });

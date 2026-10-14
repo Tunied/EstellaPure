@@ -5975,6 +5975,7 @@ deviceQualityInfo: (() => DeviceQualityInfo) | undefined
 family: "minigame" | undefined
 fetch: (url: string, options?: PlatformRequestOptions) => Promise<PlatformResponse>
 fileExists: (path: string) => Promise<boolean>
+flushStorage: (() => Promise<void>) | undefined
 getStorageItem: (key: string) => string | null
 hasCacheStorage: (() => boolean) | undefined
 hasTouch: (() => boolean) | undefined
@@ -7322,6 +7323,7 @@ has: (slot: string) => boolean
 load: <T>(slot: string) => T | null
 remove: (slot: string) => void
 save: <T>(slot: string, data: T) => void
+saveAsync: <T>(slot: string, data: T) => Promise<void>
 savedAt: (slot: string) => number | null
 static new (opts: SaveManagerOptions): SaveManager
 static prototype: SaveManager
@@ -7343,6 +7345,7 @@ version: number
 
 ## SaveStorage — interface @experimental
 ```
+flush: (() => Promise<void>) | undefined
 getJSON: <T>(key: string, defaultValue?: T) => T | undefined
 has: (key: string) => boolean
 remove: (key: string) => void
@@ -8345,7 +8348,7 @@ position: StatsPosition | undefined
 
 ## Storage — const @experimental
 ```
-{ getString(key: string, defaultValue?: string): string | undefined; setString(key: string, value: string): void; getNumber(key: string, defaultValue?: number): number | undefined; setNumber(key: string, value: number): void; getBoolean(key: string, defaultValue?: boolean): boolean | undefined; setBoolean(key: string, value: boolean): void; getJSON<T>(key: string, defaultValue?: T): T | undefined; setJSON<T>(key: string, value: T): void; remove(key: string): void; has(key: string): boolean; clear(): void; }
+{ flush(): Promise<void>; getString(key: string, defaultValue?: string): string | undefined; setString(key: string, value: string): void; getNumber(key: string, defaultValue?: number): number | undefined; setNumber(key: string, value: number): void; getBoolean(key: string, defaultValue?: boolean): boolean | undefined; setBoolean(key: string, value: boolean): void; getJSON<T>(key: string, defaultValue?: T): T | undefined; setJSON<T>(key: string, value: T): void; remove(key: string): void; has(key: string): boolean; clear(): void; }
 ```
 
 ## StreamCell — interface @experimental

@@ -33,6 +33,23 @@ function createMockPlatform(): PlatformAdapter & { store: Map<string, string> } 
 }
 
 describe('Storage', () => {
+    it('awaits host writes with the adapter receiver and preserves rejections', async () => {
+        let finish!: () => void;
+        mock.flushStorage = vi.fn(function(this: unknown) {
+            expect(this).toBe(mock);
+            return new Promise<void>(resolve => { finish = resolve; });
+        });
+        let settled = false;
+        const pending = Storage.flush().then(() => { settled = true; });
+        await Promise.resolve(); expect(settled).toBe(false);
+        finish(); await pending; expect(settled).toBe(true);
+        mock.flushStorage = vi.fn(async () => { throw new Error('cloud unavailable'); });
+        await expect(Storage.flush()).rejects.toThrow('cloud unavailable');
+    });
+    it('supports synchronous adapters without implying a cloud acknowledgment', async () => {
+        Storage.setString('name', 'Alice');
+        await Storage.flush(); expect(Storage.getString('name')).toBe('Alice');
+    });
     let mock: ReturnType<typeof createMockPlatform>;
 
     beforeEach(() => {

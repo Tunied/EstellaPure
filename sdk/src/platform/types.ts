@@ -679,6 +679,8 @@ export interface PlatformAdapter {
     setStorageItem(key: string, value: string): void;
     removeStorageItem(key: string): void;
     clearStorage(prefix: string): void;
+    /** Await pending asynchronous storage writes. Absence implies synchronous storage only. */
+    flushStorage?(): Promise<void>;
 }
 
 // =============================================================================

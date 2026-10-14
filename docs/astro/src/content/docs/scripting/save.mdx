@@ -90,9 +90,35 @@ Storage.has('keybinds');              // true
 backend.
 
 <Aside>
-  Both APIs are synchronous and back onto the platform's storage, which has a size
-  limit (a few MB in browsers). Keep saves to game state — not bulk assets.
+  Reading and staging writes are synchronous. An asynchronous host can keep writes
+  pending until its storage service acknowledges them. Keep saves to game state —
+  not bulk assets, and observe the target's size limit.
 </Aside>
+
+## Await asynchronous saving
+
+At a milestone where progress must be saved, await the write result:
+
+```typescript
+await saves.saveAsync('slot1', { level: 4, score: 1500, hp: 80 });
+// Or after several Storage writes:
+Storage.setNumber('completedLevels', 4);
+await Storage.flush();
+```
+
+These methods reject when staging a write or the host's flush fails. The latest
+in-memory progress can remain readable after a failed cloud request; report the
+failure and retry `Storage.flush()` rather than treating readable data as saved.
+`SaveManager.saveAsync` retains the same versioned envelope and migration rules.
+
+An asynchronous adapter supplies `PlatformAdapter.flushStorage()` and must load
+existing data successfully before exposing writes. Hosts that serialize one
+cloud blob must serialize requests and preserve newer changes while an earlier
+save is in flight. A failed or unsupported load must not become an empty save.
+
+On a synchronous adapter, awaiting flush only completes the existing write; it
+does not add cloud storage or certify a provider's cloud backup. CrazyGames SDK
+Data, for example, schedules its own backup separately from `setItem`.
 
 ## Where it actually lands
 
