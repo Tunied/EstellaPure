@@ -15,7 +15,7 @@ import { Focusable, FocusManager, FocusManagerState } from '../input/focusable';
 import type { FocusableData } from '../input/focusable';
 import { UICameraInfo, type UICameraData } from '../core/ui-camera-info';
 import { Transform, type TransformData } from '../../ecs/component';
-import { UIEvents, UIEventQueue } from '../core/events';
+import { UIEvents, UIEventQueue, type UIEvent } from '../core/events';
 import { Res } from '../../ecs/resource';
 import { playModeOnly } from '../../ecs/env';
 import { ensureComponent, getUINodeWidth, getUINodeHeight } from '../util/helpers';
@@ -105,6 +105,7 @@ export class TextInputPlugin implements Plugin {
 
         let composing = false;
         let editingEntity: Entity | null = null;
+        let nativeEvents: UIEvent[] = [];
         let cursorVisible = true;
         let cursorTimer = 0;
         let lastTime = 0;
@@ -139,7 +140,7 @@ export class TextInputPlugin implements Plugin {
                     break;
                 case 'submit':
                     if (focused !== null) {
-                        (app.getResource(UIEvents) as UIEventQueue).emit(focused, 'submit');
+                        nativeEvents.push((app.getResource(UIEvents) as UIEventQueue).emit(focused, 'submit'));
                         if (getEditingTextInput() === focused) blurCurrent();
                     }
                     break;
@@ -167,6 +168,7 @@ export class TextInputPlugin implements Plugin {
 
         this.cleanupListeners_.set(app, () => {
             editingEntity = null;
+            nativeEvents = [];
             unsubscribe();
             editor.dispose();
             for (const ch of childrenOf.values()) {
@@ -196,7 +198,7 @@ export class TextInputPlugin implements Plugin {
                 d.cursorPos = Math.min(state.selectionStart, val.length);
             });
             if (valueChanged) {
-                (app.getResource(UIEvents) as UIEventQueue).emit(focused, 'change');
+                nativeEvents.push((app.getResource(UIEvents) as UIEventQueue).emit(focused, 'change'));
             }
             resetCursorBlink();
         }
@@ -313,6 +315,20 @@ export class TextInputPlugin implements Plugin {
             cursorVisible = true;
             cursorTimer = 0;
         }
+
+        // Native callbacks dispatch immediately. Restore their query records
+        // after interaction drains the old frame, without replaying callbacks.
+        app.addSystemToSchedule(Schedule.PreUpdate, defineSystem([], () => {
+            if (nativeEvents.length === 0) return;
+            const pending = nativeEvents;
+            nativeEvents = [];
+            const events = app.getResource(UIEvents) as UIEventQueue;
+            for (const event of pending) {
+                if (world.valid(event.target) && world.has(event.target, TextInput)) {
+                    events.requeue(event);
+                }
+            }
+        }, { name: 'TextInputEventSystem' }), { runAfter: [SystemLabel.UIInteraction] });
 
         let prevFocusedTextInput: Entity | null = null;
 

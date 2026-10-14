@@ -31,6 +31,7 @@ const { TextInputPlugin } = await import('../src/ui/text/text-input-plugin');
 const { FocusManager, FocusManagerState } = await import('../src/ui/input/focusable');
 const { UIEvents, UIEventQueue } = await import('../src/ui/core/events');
 const { TextInput } = await import('../src/ui/text/text-input');
+const { defineSystem, Schedule } = await import('../src/ecs/system');
 const { Disabled } = await import('../src/ecs/component');
 const { Interactable } = await import('../src/ui/input/interactable');
 const apps: ReturnType<typeof App.new>[] = [];
@@ -46,6 +47,47 @@ function build(plugin: InstanceType<typeof TextInputPlugin>) {
 afterEach(() => {
     for (const app of apps.splice(0)) app.quit();
     surfaces.length = 0;
+});
+
+it.each(['change', 'composition', 'submit'] as const)('delivers native %s after UI clearing and before Update consumers', async kind => {
+    const app = build(new TextInputPlugin());
+    const events = app.getResource(UIEvents);
+    app.addSystemToSchedule(Schedule.PreUpdate, defineSystem([], () => { events.drain(); }, { name: 'UIInteractionSystem' }));
+    const field = app.world.spawn();
+    app.world.insert(field, TextInput, { value: '' });
+    app.getResource(FocusManager).focus(field);
+    await app.tick(1 / 60);
+    const type = kind === 'submit' ? 'submit' : 'change';
+    const handler = vi.fn();
+    events.on(type, handler);
+    const counts: number[] = [];
+    app.addSystemToSchedule(Schedule.Update, defineSystem([], () => { counts.push(events.query(type).length); }));
+    for (const listener of surfaces[0].listeners) {
+        listener(kind === 'composition' ? { kind, composing: false } : { kind });
+    }
+    expect(handler).toHaveBeenCalledOnce();
+    await app.tick(1 / 60);
+    expect(counts).toEqual([1]);
+    expect(handler).toHaveBeenCalledOnce();
+    await app.tick(1 / 60);
+    expect(counts).toEqual([1, 0]);
+});
+
+it('drops the frame record when its native input field was destroyed', async () => {
+    const app = build(new TextInputPlugin());
+    const field = app.world.spawn();
+    app.world.insert(field, TextInput, { value: '' });
+    app.getResource(FocusManager).focus(field);
+    await app.tick(1 / 60);
+    const handler = vi.fn();
+    app.getResource(UIEvents).on('change', handler);
+    const events = app.getResource(UIEvents);
+    app.addSystemToSchedule(Schedule.PreUpdate, defineSystem([], () => { events.drain(); }, { name: 'UIInteractionSystem' }));
+    for (const listener of surfaces[0].listeners) listener({ kind: 'change' });
+    app.world.despawn(field);
+    await app.tick(1 / 60);
+    expect(handler).toHaveBeenCalledOnce();
+    expect(events.query('change')).toEqual([]);
 });
 
 it('quitting an older app releases only its text surface and preserves newer input', async () => {

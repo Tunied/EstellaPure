@@ -3,6 +3,19 @@ import { describe, expect, it } from 'vitest';
 import { EntityEventQueue } from '../src/ecs/entityEvents';
 import type { Entity, EntityEventObservation } from '../src';
 describe('dispatch observation', () => {
+ it('restores a frame record without redispatching handlers or debugger observations', () => {
+  const q = new EntityEventQueue(), seen: EntityEventObservation[] = [];
+  let calls = 0;
+  q.on('change', event => { calls++; event.preventDefault(); });
+  q.observe(event => seen.push(event));
+  const event = q.emit(1 as Entity, 'change');
+  q.requeue(event);
+  expect(q.query('change')).toEqual([event]);
+  q.drain(); q.requeue(event); q.requeue(event);
+  expect(q.query('change')).toEqual([event]);
+  expect(event.defaultPrevented).toBe(true);
+  expect(calls).toBe(1); expect(seen).toHaveLength(1);
+ });
  it('records completed target and actual bubble steps with one event identity', () => {
   const q = new EntityEventQueue(), seen: EntityEventObservation[] = [];
   q.on(2 as Entity, 'click', event => { event.preventDefault(); event.stopPropagation(); });

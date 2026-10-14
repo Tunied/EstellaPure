@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ui): deliver native text input events within the UI frame':
+    { note: 'Native text-input notifications survive frame boundaries.' },
   'fix(ui): preserve rich text shadow and outline colors':
     { note: 'Rich-text colors no longer recolor shadows and outlines.' },
   'fix(ui): apply inherited opacity to all text passes':

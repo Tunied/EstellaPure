@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Native text-input notifications survive frame boundaries.** Update systems can read browser and native Change and Submit events after UI interaction clears the previous frame. Subscription callbacks remain synchronous, including focus changes made on Submit; their records reach frame consumers without replaying callbacks. Destroyed fields and disposed editors discard queued records.
+
 - **Rich-text colors no longer recolor shadows and outlines.** Effect passes use their authored color and alpha on both bitmap and SDF atlases, including blurred shadows. The fill retains per-run colors, and inherited UI opacity continues to fade every pass.
 
 - **UI text effects follow inherited opacity.** Parent transparency now fades text shadows, outlines and explicit rich-text colors together with the fill. Opacity changes invalidate cached batches, and fully transparent subtrees skip glyph layout and submission until they become visible again.

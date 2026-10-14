@@ -294,6 +294,11 @@ export class EntityEventQueue {
         return this.pending_.filter((e) => e.type === type);
     }
 
+    /** Restore an already-dispatched event for frame consumers without calling handlers again. @internal */
+    requeue(event: EntityEvent): void {
+        if (!this.pending_.includes(event)) this.pending_.push(event);
+    }
+
     /** Remove all handlers and pending events. */
     clear(): void {
         this.entityHandlers_.clear();

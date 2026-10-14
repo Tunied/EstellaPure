@@ -3553,6 +3553,7 @@ type: string
 
 ## EntityEventQueue — class @experimental
 ```
+@internal requeue: (event: EntityEvent) => void
 clear: () => void
 drain: () => readonly EntityEvent[]
 emit: <TData = unknown>(entity: Entity, type: string, data?: TData) => EntityEvent<TData>
@@ -9339,6 +9340,7 @@ type: string
 
 ## UIEventQueue — class @experimental
 ```
+@internal requeue: (event: EntityEvent) => void
 clear: () => void
 drain: () => readonly EntityEvent[]
 emit: <TData = unknown>(entity: Entity, type: string, data?: TData) => EntityEvent<TData>
