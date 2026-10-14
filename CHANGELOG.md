@@ -16,13 +16,15 @@ published separately; it ships inside the editor.
 
 ### Added
 
+- **Playable asset quality adapts to the measured delivery budget.** Auto optimization tries lossless WebP, eligible lower MP3 bitrates and bounded WebP quality while preserving image dimensions and alpha. Each candidate is weighed as actual HTML/ZIP against the network, project and internal 3 MiB target; pixel art, font pages and data images stay lossless, and color-managed/animated/16-bit PNGs retain their original format. Reports and the editor show selected encodings, size changes and unmet targets; opt-outs and Skip are honored.
+
 - **Playable creatives have a local container preview.** A CLI server simulates MRAID, Mintegral and page-visibility callbacks, records store gestures without opening a store, and switches portrait/landscape viewports. It opens no browser and preserves the delivered HTML; export-report hashes prevent mixing records from different builds. Logs remain marked as local mocks rather than network approval.
 
 - **Playable exports report static checks and pending acceptance.** Export results and the editor package dialog show actual HTML/delivery hashes, network size limits, literal resource references and orientation config checks. Mandatory network SDK scripts are allowed explicitly. CTA, lifecycle, dynamic requests and device/network acceptance remain pending runtime evidence, including when static checks pass.
 
 ### Fixed
 
-- **Playable exports honor authored image and audio optimization.** Automatic asset optimization applies PNG Max Size (including playable overrides) without loading a GPU texture encoder, and converts eligible WAV clips to MP3 at their authored bitrate. Per-clip opt-outs and the build's Skip setting preserve originals; failed asset cooking prevents a successful export. Network budget driven quality selection remains pending.
+- **Playable exports honor authored image and audio optimization.** Automatic asset optimization applies PNG Max Size (including playable overrides) without loading a GPU texture encoder, and converts eligible WAV clips to MP3 at their authored bitrate. Per-clip opt-outs and the build's Skip setting preserve originals; failed asset cooking prevents a successful export.
 
 - **Playable preview records identify the delivered archive.** Full export reports verify the adjacent ZIP hash before previewing, catching config changes even when HTML stays identical. Downloaded logs retain HTML/delivery hashes and explicitly disclose omitted events; HTML-only previews remain labeled accordingly.
 

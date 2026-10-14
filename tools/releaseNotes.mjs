@@ -28,6 +28,11 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(playable): adapt asset quality to measured delivery budgets':
+    { note: 'Playable asset quality adapts to the measured delivery budget.' },
+  'feat(editor): show playable asset optimization decisions':
+    { note: 'Playable asset quality adapts to the measured delivery budget.' },
+
   'fix(playable): honor authored texture and audio optimization':
     { note: 'Playable exports honor authored image and audio optimization.' },
 

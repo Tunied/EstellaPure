@@ -23,11 +23,13 @@ import { runtimeHostEntry } from '../bundle/runtimeHosts';
 import {
   DEFAULT_RUNTIME_CONFIG, packagedRuntimeFields, type RuntimeProjectConfig,
 } from '../project/runtimeConfig';
-import { writeFile, mkdir, readFile, stat, rm } from 'node:fs/promises';
+import { writeFile, mkdir, readFile, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { deflateRawSync } from 'node:zlib';
 import path from 'node:path';
 import { cookAssets } from '../assets/cookAssets';
+import { scanAssetDatabase } from '../assets/assetDb';
+import { optimizePlayableAssets, type PlayableOptimizationAsset, type PlayablePayload } from './playableOptimization';
 import type { OnExportProgress } from './exportProgress';
 import { esengineAlias } from '../bundle/esengineResolve';
 import { officialPackagesPlugin } from '../bundle/officialPackages';
@@ -220,6 +222,8 @@ export async function exportPlayable(opts: {
   resizeTextures?: boolean;
   /** WAV to MP3 at the authored bitrate, honoring each clip's compression opt-out. */
   compressAudio?: boolean;
+  /** Project delivery budget, constrained by the network limit and 3 MiB regression target. */
+  sizeBudgetBytes?: number;
   /** What the project says about its engine modules; see ProjectFeatures.modules. */
   features?: ProjectFeatures;
   /** Per-target overrides laid over those. */
@@ -262,8 +266,8 @@ export async function exportPlayable(opts: {
   //    data — the runtime aliases them in memory, so the payload carries each
   //    data URL exactly once.
   progress({ phase: 'Encoding assets' });
-  const assets: Record<string, string> = {};
   const pathMap: Record<string, string> = {};
+  const optimizationAssets: PlayableOptimizationAsset[] = [];
   let manifestEntries: CookManifest['entries'] = [];
   try {
     const manifest = JSON.parse(await readFile(path.join(cookDir, 'assets.manifest.json'), 'utf8')) as CookManifest;
@@ -276,10 +280,11 @@ export async function exportPlayable(opts: {
     for (const e of manifest.entries) {
       const buf = await readFile(path.join(cookDir, e.path));
       const key = `@uuid:${e.uuid}`;
-      assets[key] = `data:${mimeOf(e.path)};base64,${buf.toString('base64')}`;
+      const dataUrl = `data:${mimeOf(e.path)};base64,${buf.toString('base64')}`;
       pathMap[e.sourcePath ?? e.path] = key;
       // The data URL, not the file: base64 is what the asset costs the package.
-      spans.push({ path: e.path, bytes: assets[key].length });
+      spans.push({ path: e.path, bytes: dataUrl.length });
+      optimizationAssets.push({ key, path: e.sourcePath ?? e.path, data: buf, mime: mimeOf(e.path) });
     }
   } catch (err) {
     errors.push(`assets: ${err instanceof Error ? err.message : String(err)}`);
@@ -367,75 +372,91 @@ export async function exportPlayable(opts: {
     forcedSideModules(moduleChoices(opts.features, opts.modulesByPlatform?.playable)),
   );
 
-  // 6. Assemble the single HTML, then drop the temp cook dir.
+  // 6. Assemble once for each measured candidate, with fixed engine/script spans.
   progress({ phase: 'Assembling HTML' });
   const span = (p: string, text: string): string => {
     spans.push({ path: p, bytes: Buffer.byteLength(text, 'utf8') });
     return text;
   };
-  const globals =
+  const beforeAssets =
     span('wasm/esengine.js', `window.__ENGINE_GLUE__=${JSON.stringify(glue)};`) +
     span('wasm/esengine.wasm', `window.__ENGINE_WASM__=${JSON.stringify(wasm)};`) +
-    span('wasm/side-modules', `window.__SIDE_MODULES__=${JSON.stringify(sideModules)};`) +
-    `window.__GAME_ASSETS__=${JSON.stringify(assets)};` +
+    span('wasm/side-modules', `window.__SIDE_MODULES__=${JSON.stringify(sideModules)};`);
+  const afterAssets =
     `window.__GAME_PATHMAP__=${JSON.stringify(pathMap)};` +
     span(`scenes/${sceneName}.json`, `window.__GAME_SCENES__=${JSON.stringify(scenes)};`) +
     `window.__GAME_FIRST__=${JSON.stringify(sceneName)};` +
-    // ONE global for the project's settings, in the same shape game.config.json
-    // carries them. Five separate globals meant the host and the export had to
-    // agree on five names, and a sixth setting simply never got a global.
-    // A playable is one file on an ad network's page: it takes the GL context
-    // its host hands over, so a WebGPU request has nowhere to land.
     `window.__GAME_RUNTIME__=${JSON.stringify(playableRuntimeFields(opts.runtime ?? DEFAULT_RUNTIME_CONFIG))};` +
-    // Last of the globals: the loader script that follows them inflates this one
-    // and hands it to the page.
     span('game-bundle.js', `window.__GAME_BUNDLE__=${JSON.stringify(pack(Buffer.from(bundle, 'utf8')))};`);
   const adProfile = opts.adProfile ?? genericPlayableProfile;
   const network = playableAdInjection(adProfile, { title, orientation });
   const outFile = path.join(absOut, 'index.html');
   span('game-loader.js', loader);
-  await writeFile(outFile, indexHtml(title, globals, loader, network));
-  await rm(cookDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
-
-  const htmlBytes = (await stat(outFile)).size;
-  if (adProfile.maxHtmlBytes !== undefined && htmlBytes > adProfile.maxHtmlBytes) {
-    errors.push(`${adProfile.label}: index.html is ${htmlBytes} bytes, exceeding the uncompressed HTML limit of ${adProfile.maxHtmlBytes} bytes. ${adProfile.limitNote}`);
-  }
-  // The page, plus the JSON scaffolding around the spans. Derived rather than
-  // summed, so the parts add up to the file whatever the assembly gains later.
-  const inlined = spans.reduce((n, s) => n + s.bytes, 0);
-  spans.push({ path: 'index.html', bytes: Math.max(0, htmlBytes - inlined) });
-
-  // A network that uploads an archive gets one, with index.html at the root. The HTML
-  // stays beside it: it is what "Preview over http" serves, and what a developer opens
-  // to look at the thing.
   let zipFile: string | undefined;
-  let archiveFiles: { name: string; content: string }[] = [];
-  let bytes = htmlBytes;
+  const archiveFiles: { name: string; content: string }[] = [];
   if (adProfile.delivery === 'zip') {
-    progress({ phase: 'Archiving' });
     const zipName = adProfile.zipFileName ?? 'playable.zip';
     if (!isPlayableZipFileName(zipName)) errors.push('Playable ZIP filename must be a portable name ending in .zip, without directories.');
     else {
       zipFile = path.join(absOut, zipName);
-      const extraFiles = adProfile.emitZipFiles?.({ title, orientation }) ?? [];
       const names = new Set(['index.html']);
-      const files = [{ name: 'index.html', data: await readFile(outFile) }];
-      for (const file of extraFiles) {
+      for (const file of adProfile.emitZipFiles?.({ title, orientation }) ?? []) {
         const name = typeof file?.name === 'string' ? file.name.toLowerCase() : '';
         if (!name || !/^[a-z0-9_]+\.[a-z0-9]+$/.test(name) || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])\./.test(name) || names.has(name) || typeof file.content !== 'string') {
           errors.push('Playable ZIP extra files need unique portable root filenames and text content.');
           continue;
         }
         names.add(name);
-        files.push({ name: file.name, data: Buffer.from(file.content, 'utf8') });
+        archiveFiles.push({ name: file.name, content: file.content });
       }
-      archiveFiles = files.filter(file => file.name !== 'index.html').map(file => ({ name: file.name, content: file.data.toString('utf8') }));
-      await writeFile(zipFile, makeZip(files));
-      // The archive is the file being sent, so it is the one the limit applies to.
-      bytes = (await stat(zipFile)).size;
     }
   }
+  const assemble = (payloads: ReadonlyMap<string, PlayablePayload>) => {
+    const urls: Record<string, string> = {};
+    for (const [key, value] of payloads) urls[key] = `data:${value.mime};base64,${Buffer.from(value.data).toString('base64')}`;
+    const html = Buffer.from(indexHtml(title, beforeAssets + `window.__GAME_ASSETS__=${JSON.stringify(urls)};` + afterAssets, loader, network));
+    const delivery = zipFile ? makeZip([{ name: 'index.html', data: html },
+      ...archiveFiles.map(file => ({ name: file.name, data: Buffer.from(file.content) }))]) : html;
+    return { html, delivery, htmlBytes: html.byteLength, deliveryBytes: delivery.byteLength };
+  };
+  const targetDeliveryBytes = Math.min(adProfile.maxBytes, opts.sizeBudgetBytes ?? Infinity, 3 * 1024 * 1024);
+  const baseline = assemble(new Map(optimizationAssets.map(asset => [asset.key, asset])));
+  if (errors.length === 0 && (opts.resizeTextures || opts.compressAudio) &&
+    (baseline.deliveryBytes > targetDeliveryBytes || baseline.htmlBytes > (adProfile.maxHtmlBytes ?? Infinity))) {
+    progress({ phase: 'Optimizing playable budget' });
+    const { index } = await scanAssetDatabase(opts.root, { write: false, adopt: false });
+    const byUuid = new Map(index.entries.map(entry => [entry.uuid, entry]));
+    const fontPages = new Set(index.entries.filter(entry => entry.path.toLowerCase().endsWith('.fnt'))
+      .flatMap(entry => index.deps[entry.uuid] ?? []));
+    for (const asset of optimizationAssets) {
+      const uuid = asset.key.slice('@uuid:'.length);
+      asset.importer = byUuid.get(uuid)?.importer;
+      asset.losslessOnly = fontPages.has(uuid);
+      if (opts.compressAudio && asset.path.toLowerCase().endsWith('.wav')) {
+        asset.sourceWav = await readFile(path.join(opts.root, asset.path));
+      }
+    }
+  }
+  const optimized = await optimizePlayableAssets({ root: opts.root, assets: optimizationAssets,
+    textures: errors.length === 0 && !!opts.resizeTextures, audio: errors.length === 0 && !!opts.compressAudio,
+    targetDeliveryBytes, maxHtmlBytes: adProfile.maxHtmlBytes,
+    measure: payloads => assemble(payloads), warnings });
+  optimized.report.mode = opts.resizeTextures || opts.compressAudio ? 'auto' : 'skip';
+  const final = assemble(optimized.payloads);
+  await writeFile(outFile, final.html);
+  if (zipFile) await writeFile(zipFile, final.delivery);
+  await rm(cookDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+  const htmlBytes = final.htmlBytes, bytes = final.deliveryBytes;
+  for (let i = 0; i < optimizationAssets.length; i++) {
+    const payload = optimized.payloads.get(optimizationAssets[i].key)!;
+    spans[i].bytes = `data:${payload.mime};base64,${Buffer.from(payload.data).toString('base64')}`.length;
+  }
+  if (!optimized.report.meetsTarget) warnings.push(`Playable optimization target not met: delivery ${bytes}/${targetDeliveryBytes} bytes, HTML ${htmlBytes}/${adProfile.maxHtmlBytes ?? 'unlimited'} bytes. Reduce assets or engine modules; no quality below WebP 80 / MP3 96 kbps is selected.`);
+  if (adProfile.maxHtmlBytes !== undefined && htmlBytes > adProfile.maxHtmlBytes) {
+    errors.push(`${adProfile.label}: index.html is ${htmlBytes} bytes, exceeding the uncompressed HTML limit of ${adProfile.maxHtmlBytes} bytes. ${adProfile.limitNote}`);
+  }
+  const inlined = spans.reduce((n, s) => n + s.bytes, 0);
+  spans.push({ path: 'index.html', bytes: Math.max(0, htmlBytes - inlined) });
 
   // A full WASM engine + assets routinely exceeds what a network accepts, and this
   // export used to say so in an English sentence it composed itself. It no longer
@@ -446,6 +467,7 @@ export async function exportPlayable(opts: {
   if (adProfile.deliveryNote) warnings.push(adProfile.deliveryNote);
 
   const playableCheck = checkPlayable({ profile: adProfile, html: await readFile(outFile), delivery: await readFile(zipFile ?? outFile), archiveFiles });
+  playableCheck.optimization = optimized.report;
   return {
     playableCheck,
     ok: errors.length === 0, platform: 'playable', outDir: absOut,

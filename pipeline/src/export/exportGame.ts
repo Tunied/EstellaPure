@@ -850,6 +850,7 @@ async function produceExport(opts: ExportGameOptions): Promise<ExportGameResult>
       minify: opts.minify,
       resizeTextures: opts.compressTextures,
       compressAudio: opts.compressAudio,
+      sizeBudgetBytes: opts.sizeBudgetBytes,
       features: opts.features,
       modulesByPlatform: opts.modulesByPlatform,
       runtime,

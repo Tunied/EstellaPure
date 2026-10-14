@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import { createHash } from 'node:crypto';
 import type { PlayableAdProfile } from './playableAdProfile';
+import type { PlayableOptimizationReport } from './playableOptimization';
 
 export type PlayableCheckId = 'delivery-size' | 'html-size' | 'markup-resources' | 'host-sdk' | 'orientation-config' | 'cta-interaction' | 'host-lifecycle' | 'runtime-requests' | 'network-acceptance';
 
@@ -18,6 +19,7 @@ export interface PlayableCheckReport {
   htmlSha256: string;
   deliverySha256: string;
   checks: PlayableCheckItem[];
+  optimization?: PlayableOptimizationReport;
 }
 
 /** Mask raw text while preserving positions so JS strings are not HTML tags. */
