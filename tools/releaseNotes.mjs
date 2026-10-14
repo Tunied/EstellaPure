@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(playable): pass store destinations through the CTA bridge':
+    { note: 'MRAID store clicks carry their destination.' },
   'fix(playable): observe MRAID readiness and viewability':
     { note: 'MRAID playables wait for ready and viewable hosts.' },
   'feat(playable): package TikTok and overseas Pangle creatives':

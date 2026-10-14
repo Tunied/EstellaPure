@@ -106,6 +106,8 @@ playableCta();
 
 Mintegral 中，胜负结束时调用 `playableGameEnd()`，玩家重玩时调用 `playableRetry()`。运行时在启动完成后调用 `gameReady()`，并响应 `gameStart()` / `gameClose()`；安装按钮通过用户手势调用 `playableCta()`。参见 `playable-ad` 示例和[官方容器检测工具](https://www.playturbo.com/review)。检测通过仍需广告审核和真机验收。
 
+MRAID 安装按钮须通过 `playableCta(storeUrl)` 传入目标地址，或由宿主提供 `window.clickTag`。支持 HTTP(S)、Android `market:` 和 iOS `itms-apps:` 商店链接；地址缺失或无效时提示配置问题，不调用 `mraid.open`。其他网络继续使用自己的商店接口。
+
 ### 我们没内置的平台
 
 自己定义就行——内置的那几家写的就是这份契约,没有做不到的事。**打包项目 → 新建平台** 可以

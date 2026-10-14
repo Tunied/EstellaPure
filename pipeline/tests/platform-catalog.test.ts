@@ -401,7 +401,7 @@ describe('playable ad networks', () => {
     // the host webview injects mraid itself.
     for (const id of ['mraid', 'unity', 'applovin']) {
       const p = (await loadPlayableProfile(root, id))!;
-      expect(p.emitBridge!({ title: 'T', orientation: 'landscape' })).toContain('mraid.open()');
+      expect(p.emitBridge!({ title: 'T', orientation: 'landscape' })).toContain('mraid.open(');
       expect(p.emitHead).toBeUndefined();
     }
     // No selection ⇒ generic, so a project that never chose still exports.

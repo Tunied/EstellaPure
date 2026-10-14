@@ -6211,7 +6211,7 @@ wasmBaseUrl: string | undefined
 
 ## PlayableAdBridge — interface @experimental
 ```
-cta: (() => void) | undefined
+cta: ((url?: string) => void) | undefined
 gameEnd: (() => void) | undefined
 onActive: ((listener: (active: boolean) => void) => () => void) | undefined
 ready: (() => void) | undefined
@@ -12284,7 +12284,7 @@ ParticlePlugin
 
 ## playableCta — function @experimental
 ```
-(): void
+(url?: string): void
 ```
 
 ## playableGameEnd — function @experimental

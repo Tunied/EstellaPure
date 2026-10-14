@@ -122,6 +122,8 @@ number to trust.
 
 For Mintegral, call `playableGameEnd()` on a win or loss and `playableRetry()` when the player restarts. The runtime calls `gameReady()` after startup finishes and responds to `gameStart()` / `gameClose()`. Keep installation tied to a user gesture through `playableCta()`. See the `playable-ad` example and [official container checker](https://www.playturbo.com/review). Passing that checker does not replace campaign approval or device acceptance.
 
+MRAID store buttons must pass a destination with `playableCta(storeUrl)` or use a host-provided `window.clickTag`. HTTP(S), Android `market:` and iOS `itms-apps:` links are supported. Missing or invalid destinations produce a configuration warning without calling `mraid.open`. Other networks continue using their own store hooks.
+
 ### A network we don't ship
 
 Define it yourself — the built-in networks are written against this exact contract,

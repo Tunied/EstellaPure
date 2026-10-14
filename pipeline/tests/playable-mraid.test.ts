@@ -23,7 +23,7 @@ describe('MRAID lifecycle', () => {
         c.ready(false); expect(active).toHaveBeenLastCalledWith(false);
         c.viewable(true); expect(active).toHaveBeenLastCalledWith(true);
         c.viewable(false); expect(active).toHaveBeenLastCalledWith(false);
-        c.bridge.cta(); expect(c.mraid.open).toHaveBeenCalledOnce();
+        c.bridge.cta('https://example.com/store'); expect(c.mraid.open).toHaveBeenCalledWith('https://example.com/store');
         release(); expect(c.events.get('ready')?.size).toBe(0); expect(c.events.get('viewableChange')?.size).toBe(0);
         const previous = active.mock.calls.length; c.viewable(true); expect(active).toHaveBeenCalledTimes(previous);
     });
@@ -38,10 +38,24 @@ describe('MRAID lifecycle', () => {
         expect(again).toHaveBeenLastCalledWith(true); third();
     });
 
+    it('uses a host clickTag and refuses missing or unsafe destinations', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const window: any = { clickTag: 'https://example.com/store', mraid: { open: vi.fn() } };
+        new Function('window', mraidPlayableProfile.emitBridge!({ title: 'T', orientation: 'portrait' }))(window);
+        window.__ESTELLA_PLAYABLE__.cta(); expect(window.mraid.open).toHaveBeenCalledWith(window.clickTag);
+        window.mraid.open.mockClear(); delete window.clickTag;
+        for (const url of [undefined, '', 'javascript:alert(1)', 'https://example.com/with space', 'https://']) window.__ESTELLA_PLAYABLE__.cta(url);
+        expect(window.mraid.open).not.toHaveBeenCalled();
+        for (const url of ['market://details?id=com.example.game', 'itms-apps://itunes.apple.com/app/id123']) {
+            window.__ESTELLA_PLAYABLE__.cta(url); expect(window.mraid.open).toHaveBeenLastCalledWith(url);
+        }
+        warn.mockRestore();
+    });
+
     it('keeps a standalone browser preview active with no MRAID container', () => {
         const window: any = {};
         new Function('window', mraidPlayableProfile.emitBridge!({ title: 'T', orientation: 'portrait' }))(window);
         const active = vi.fn(); window.__ESTELLA_PLAYABLE__.onActive(active);
-        expect(active).toHaveBeenCalledWith(true); expect(() => window.__ESTELLA_PLAYABLE__.cta()).not.toThrow();
+        expect(active).toHaveBeenCalledWith(true); expect(() => window.__ESTELLA_PLAYABLE__.cta('https://example.com/store')).not.toThrow();
     });
 });

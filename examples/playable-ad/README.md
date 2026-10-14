@@ -34,3 +34,9 @@ The `mraid`, `unity`, and `applovin` profiles wait for host readiness and viewab
 A hidden ad pauses gameplay and audio; cleanup removes container listeners. Plain
 browser preview remains active. Network upload and device acceptance remain separate
 from a local mock-container check.
+
+For MRAID store buttons, pass your app’s destination to `playableCta(storeUrl)`
+or let the ad host supply `window.clickTag`. HTTP(S), Android `market:` and iOS
+`itms-apps:` store links are supported. Without a valid destination the bridge
+reports the missing configuration and does not call `mraid.open`. The sample
+project has no published app destination; configure yours before network acceptance.

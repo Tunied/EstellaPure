@@ -19,7 +19,7 @@
 /** What the exported page installs on `globalThis` — one method per interaction. */
 export interface PlayableAdBridge {
     /** Hand the player off to the store, the way THIS network spells it. */
-    cta?(): void;
+    cta?(url?: string): void;
     ready?(): void;
     gameEnd?(): void;
     retry?(): void;
@@ -35,17 +35,14 @@ export function playableAdBridge(): PlayableAdBridge | undefined {
 }
 
 /**
- * Send the player to the store. Call it from whatever the ad's call-to-action is
- * (an end-card button, a tap after the win) — once, from game code, with no
- * network in sight.
- *
- * Silently does nothing outside a playable build, so the same scene runs in the
- * editor and on the web.
+ * Dispatch a user-gesture store click through the selected network.
+ * MRAID accepts an explicit store URL; other hosts select their own destination.
+ * Without a bridge, the scene remains playable and reports missing configuration.
  */
-export function playableCta(): void {
+export function playableCta(url?: string): void {
     const cta = playableAdBridge()?.cta;
     if (cta) {
-        cta();
+        cta(url);
         return;
     }
     if (!warned) {

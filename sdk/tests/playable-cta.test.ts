@@ -23,6 +23,12 @@ describe('playableCta', () => {
         expect(cta).toHaveBeenCalledTimes(1);
     });
 
+    it('forwards an explicit store URL to the network bridge', () => {
+        const cta = vi.fn(); g[KEY] = { cta };
+        playableCta('https://example.com/store');
+        expect(cta).toHaveBeenCalledWith('https://example.com/store');
+    });
+
     it('is a no-op with no bridge, so the same scene runs on the web', () => {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
         expect(hasPlayableCta()).toBe(false);

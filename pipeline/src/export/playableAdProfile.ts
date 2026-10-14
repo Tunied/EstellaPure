@@ -140,7 +140,12 @@ if(!subscribed)return;subscribed=false;
 if(typeof host.removeEventListener==="function"){host.removeEventListener("ready",ready);host.removeEventListener("viewableChange",viewable);}
 }
 window.__ESTELLA_PLAYABLE__={
-cta:function(){if(window.mraid&&typeof window.mraid.open==="function")window.mraid.open();},
+cta:function(url){
+var target=url===undefined?window.clickTag:url,valid=false;
+try{var parsed=new URL(target);valid=typeof target==="string"&&!/\\s/.test(target)&&["http:","https:","market:","itms-apps:"].indexOf(parsed.protocol)>=0&&!!parsed.hostname;}catch(error){}
+if(!valid){console.warn("[playable] MRAID CTA needs a store URL passed to playableCta(url) or supplied as clickTag.");return;}
+if(window.mraid&&typeof window.mraid.open==="function")window.mraid.open(target);
+},
 onActive:function(fn){subscribe();listeners.push(fn);fn(active);return function(){listeners=listeners.filter(function(item){return item!==fn;});if(!listeners.length)unsubscribe();};}
 };
 })();`;
