@@ -79,6 +79,7 @@ import { BUILTIN_PLATFORMS, compileTargetFor, isNativePlatform, desktopTemplateF
 import type { DesktopPackaging, ProjectFeatures, ProjectPackaging, SteamPackaging } from '../project/format';
 import type { SizeBudget } from '../project/sizeBudget';
 import { measureBuild, type BuildSizeReport } from './sizeReport';
+import { checkYouTubeBundle } from './youtubeBundle';
 import { sizeSettingsOf } from './sizeHistory';
 import { loadProjectModules, sideModuleDeclarations, stageProjectModules } from './projectModules';
 import { subsystemGapWarnings, targetGaps } from '../project/targetSupport';
@@ -632,7 +633,16 @@ export interface ExportGameOptions {
  * defines for itself would have none. See sizeReport.ts for what is counted.
  */
 export async function exportGame(opts: ExportGameOptions): Promise<ExportGameResult> {
-  const result = await attachSizeReport(await produceExport(opts), opts);
+  let result = await attachSizeReport(await produceExport(opts), opts);
+  if (result.ok && result.platform === 'web' && opts.webChannel === 'youtube') {
+    try {
+      const checked = await checkYouTubeBundle(result.outDir, result.size?.initialBytes ?? 0);
+      result = { ...result, ok: checked.errors.length === 0,
+        errors: [...result.errors, ...checked.errors], warnings: [...result.warnings, ...checked.warnings] };
+    } catch (error) {
+      result = { ...result, ok: false, errors: [...result.errors, `YouTube bundle validation failed: ${String(error)}`] };
+    }
+  }
   const exposed = committableSecrets(opts.root, opts.secretFiles ?? []);
   return exposed.length > 0 ? { ...result, warnings: [...result.warnings, ...exposed] } : result;
 }

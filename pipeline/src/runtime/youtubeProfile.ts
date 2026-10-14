@@ -45,7 +45,7 @@ export function initializeYouTube(sdk: YouTubeSdk | undefined, warn: (message: s
             if (paused && new TextEncoder().encode(data).byteLength > 64 * 1024) throw new Error('YouTube pause save exceeds 64 KiB');
             await sdk!.game.saveData(data);
         },
-    }, { maxBytes: 3 * 1024 * 1024, autoSave: true, warn: error => warn('[YouTube] Save failed; progress remains pending', error) });
+    }, { maxBytes: 3 * 1024 * 1024 - 1, autoSave: true, warn: error => warn('[YouTube] Save failed; progress remains pending', error) });
     if (!active) warn('[YouTube] Outside Playables environment; host ads, scores and cloud saving disabled');
     else {
         try { muted = !sdk!.system.isAudioEnabled(); } catch (error) { warn('[YouTube] Initial audio policy unavailable; muted', error); }

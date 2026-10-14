@@ -355,6 +355,12 @@ submission; these observations do not certify devices or production ad fill.
 
 ## YouTube Playables Web exports
 
+Export checks stored total size below 250 MiB, each file below 30 MiB, at most
+8000 files and supported filenames. Both CLI and editor show recommendation
+warnings. Static initial content is an estimate; actual compressed transfer
+through gameReady must remain below 30 MiB. Verify loading and peak heap on
+target devices and in the official Test Suite.
+
 Select **YouTube Playables** in Web packaging or set
 `packaging.platforms.web.channel` to `"youtube"`. The Mobile Controls example
 provides a named `youtube` profile. The official SDK loads before game code;
@@ -366,7 +372,7 @@ player pause. Game-owned asynchronous work must cooperate with execution
 notifications. Visibility events do not override SDK pause. Reward credits
 require a true SDK result. Cloud data must load successfully before writes;
 failed or unreadable loads preserve existing progress. Await `Storage.flush()`
-or `SaveManager.saveAsync()` to observe SDK save acknowledgment. Saves above
+or `SaveManager.saveAsync()` to observe SDK save acknowledgment. Saves at or above
 3 MiB are rejected; pause-time saves above 64 KiB remain pending. The example
 sends the highest score only after saving that value successfully.
 

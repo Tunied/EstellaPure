@@ -131,13 +131,14 @@ describe('the exported page’s start screen', () => {
 
 describe('Poki host page', () => {
   it('loads YouTube SDK before game code and carries its fixed channel marker', async () => {
-    const { html, config } = await page(undefined, 'youtube');
+    const { html, config, warnings } = await page(undefined, 'youtube');
     const script = '<script src="https://www.youtube.com/game_api/v1"></script>';
     expect(html.indexOf(script)).toBeGreaterThan(html.indexOf('<head>'));
     expect(html.indexOf(script)).toBeLessThan(html.indexOf('</head>'));
     expect(html.indexOf(script)).toBeLessThan(html.indexOf('src="./game.js"'));
     expect(html).toContain('data-web-channel="youtube"'); expect(config.webChannel).toBe('youtube');
     expect(html).not.toContain('crazygames-sdk'); expect(html).not.toContain('poki-sdk');
+    expect(warnings.some(warning => warning.includes('static bundle checks do not measure'))).toBe(true);
   });
   it('packages the client leaderboard key only for CrazyGames', async () => {
     const key = Buffer.alloc(32, 7).toString('base64');

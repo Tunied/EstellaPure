@@ -71,3 +71,9 @@ it('does not activate a cloud load after its timeout or start an abandoned pause
     f.pause();const unit=session.provider!.createRewardedAd!('credit'),pending=expect(unit.show()).rejects.toThrow('destroyed');
     unit.destroy?.();f.resume();await pending;expect(f.sdk.ads.requestRewardedAd).not.toHaveBeenCalled();session.dispose();
 });
+it('rejects an envelope exactly at 3 MiB without staging or sending the value',async()=>{
+    const f=fixture(),session=initializeYouTube(f.sdk,vi.fn());await session.load();
+    const overhead=new TextEncoder().encode(JSON.stringify({version:1,items:{key:''}})).byteLength;
+    expect(()=>session.storage.setStorageItem('key','x'.repeat(3*1024*1024-overhead))).toThrow('byte limit');
+    expect(session.storage.getStorageItem('key')).toBeNull();expect(f.sdk.game.saveData).not.toHaveBeenCalled();session.dispose();
+});

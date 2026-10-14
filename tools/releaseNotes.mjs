@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(youtube): validate export bundle constraints':
+    { note: 'YouTube exports check stored bundle constraints.' },
   'feat(youtube): connect Playables readiness pause and cloud saves':
     { note: 'YouTube Playables Web exports honor host readiness and persistence.' },
   'feat(settings): add YouTube Playables Web channel':

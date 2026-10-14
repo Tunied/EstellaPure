@@ -132,6 +132,13 @@ and [client score submission](https://docs.crazygames.com/sdk/leaderboards-clien
 
 ## YouTube Playables Web training profile
 
+The export checks stored total size (below 250 MiB), each file (below 30 MiB),
+file count (at most 8000) and allowed filename characters. It also warns about
+files at or above 512 KiB and static initial content at or above 15 MiB.
+Actual compressed transfer through gameReady must be below 30 MiB and needs
+runtime measurement. The headless report records local ready time and a startup
+heap sample, which do not certify device loading or peak gameplay heap.
+
 Export with `node pipeline/bin/estella.mjs export examples/mobile-controls
 --profile youtube --out output/youtube-training-web`. The editor also exposes
 YouTube Playables under Web channel settings. The official SDK loads before

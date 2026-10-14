@@ -28,7 +28,10 @@ try {
                 ${mode==='normal'?`if(localStorage.getItem('__youtube_mock_data')===null)localStorage.setItem('__youtube_mock_data',JSON.stringify({version:1,items:{'esengine:mobile-controls.training-best-score':'5'}}));`:''}
                 const record=event=>__events.push(event);const sdk={IN_PLAYABLES_ENV:${mode!=='local-noop'},
                     game:{firstFrameReady(){record('first');window.__firstLoading=!!document.getElementById('es-splash')},
-                        gameReady(){record('ready');window.__readyLoading=!!document.getElementById('es-splash')},
+                        gameReady(){record('ready');window.__readyLoading=!!document.getElementById('es-splash');
+                            window.__readyPerformance={gameReadyMs:performance.now(),jsHeapAtReadyBytes:performance.memory?.usedJSHeapSize??null,
+                                localEncodedResourceBytes:performance.getEntriesByType('resource').filter(e=>e.name.startsWith(location.origin+'/')).reduce((sum,e)=>sum+e.encodedBodySize,0),
+                                scope:'Local resource timing through mocked gameReady; excludes page and mock SDK transport. Heap is a startup sample, not a gameplay peak.'}},
                         loadData(){record('load');return ${mode==='load-failed'?'Promise.reject(new Error("offline"))':'Promise.resolve(localStorage.getItem("__youtube_mock_data")??"")'}},
                         saveData(data){record('save');localStorage.setItem('__youtube_mock_data',data);return Promise.resolve()}},
                     system:{isAudioEnabled(){return false},onAudioEnabledChange(cb){__muteListeners.add(cb);return()=>__muteListeners.delete(cb)},
@@ -48,7 +51,8 @@ try {
             }
             await page.waitForFunction(()=>window.__estellaCooked?.probe(['DeviceStatus']).at.DeviceStatus?.text,{}, {timeout:30000});
             await page.waitForFunction(()=>!document.getElementById('es-splash'));
-            if(mode!=='sdk-missing') {await page.waitForFunction(()=>__events.includes('ready'));assert(await page.evaluate(()=>__firstLoading));assert.equal(await page.evaluate(()=>__readyLoading),false);}
+            if(mode!=='sdk-missing') {await page.waitForFunction(()=>__events.includes('ready'));assert(await page.evaluate(()=>__firstLoading));assert.equal(await page.evaluate(()=>__readyLoading),false);
+                observation.performance=await page.evaluate(()=>__readyPerformance);assert(observation.performance.gameReadyMs>0);}
             const phase=value=>page.waitForFunction(v=>window.__estellaCooked?.probe(['DeviceStatus']).at.DeviceStatus?.text?.startsWith(v),value.toUpperCase());
             const click=async name=>{const box=await page.evaluate(n=>__estellaCooked.probe([n]).at[n],name);assert(box);await page.mouse.click(400+box.x,225-box.y);};
             const hosted=mode!=='local-noop'&&mode!=='sdk-missing';

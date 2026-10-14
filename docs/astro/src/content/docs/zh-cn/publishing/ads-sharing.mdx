@@ -315,6 +315,11 @@ Inspector 会提供测试上下文。训练示例的真实 SDK 初始化、加�
 
 ## YouTube Playables Web 导出
 
+导出检查总包低于 250 MiB、单文件低于 30 MiB、最多 8000 个文件，以及
+文件名只使用允许的字符。CLI 与编辑器都会显示建议限额警告。
+静态首包只是估算；截至 gameReady 的实际压缩传输须低于 30 MiB，
+加载速度与峰值堆内存仍须在目标设备和官方 Test Suite 中测量。
+
 在 Web 打包设置选择 **YouTube Playables**，或将
 `packaging.platforms.web.channel` 设置为 `"youtube"`。Mobile Controls
 提供同名导出档。官方 SDK 在游戏代码前加载：加载画面绘制后通知
