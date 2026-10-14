@@ -27,6 +27,8 @@ published separately; it ships inside the editor.
 - **Playable preview records identify the delivered archive.** Full export reports verify the adjacent ZIP hash before previewing, catching config changes even when HTML stays identical. Downloaded logs retain HTML/delivery hashes and explicitly disclose omitted events; HTML-only previews remain labeled accordingly.
 
 
+- **UI masks handle deep hierarchies and empty viewports.** Scissor and stencil propagation use reusable iterative work stacks instead of recursive calls, preserving nested and sibling stencil references. Zero-area rotated boxes remain empty clips; empty stencil subtrees and zero-area visuals skip geometry uploads and recover when their dimensions return.
+
 - **World transforms preserve mirrored axes.** Quaternion decomposition retains signed scale instead of converting reflected bases into invalid rotations. Planar transforms keep a Z rotation, including collapsed axes; mirrored UI pointer bounds and flat render bounds follow their displayed geometry.
 
 - **Playable checks verify mandatory SDK scripts and placement.** The report detects missing Google/TikTok/Pangle scripts, incorrect head/body placement and delayed TikTok/Pangle loading before game code. Script text and JSON metadata do not count as SDK tags. The editor shows the SDK finding separately, while interaction and availability remain pending runtime evidence.

@@ -34,6 +34,9 @@ export const NOTED = {
   'fix(playable): bind preview records to delivery hashes':
     { note: 'Playable preview records identify the delivered archive.' },
 
+
+  'fix(ui): bound mask traversal and skip empty viewport geometry':
+    { note: 'UI masks handle deep hierarchies and empty viewports.' },
   'fix(transform): preserve reflected world transforms and UI bounds':
     { note: 'World transforms preserve mirrored axes.' },
 

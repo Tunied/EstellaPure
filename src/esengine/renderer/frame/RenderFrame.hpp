@@ -909,6 +909,8 @@ private:
     std::vector<Entity> mask_scissor_scratch_;
     std::vector<Entity> mask_stencil_scratch_;
     std::vector<Entity> mask_root_scratch_;
+    std::vector<std::pair<Entity, ScissorRect>> mask_scissor_walk_scratch_;
+    std::vector<std::pair<Entity, i32>> mask_stencil_walk_scratch_;
     std::unordered_set<u32> mask_set_scratch_;
     std::unordered_set<u32> stencil_set_scratch_;
 };

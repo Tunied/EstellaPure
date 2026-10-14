@@ -13,6 +13,7 @@
 namespace esengine {
 
 struct MockGfxDevice final : GfxDevice {
+    std::vector<i32> stencilReferences;
     // Device-loss entry points a backend calls on itself. Protected on GfxDevice,
     // so a harness driving the state machine needs them republished here.
     using GfxDevice::markDeviceLost;
@@ -161,7 +162,7 @@ struct MockGfxDevice final : GfxDevice {
     /// Answers as GL does; a test that cares sets it.
     bool originTopLeft = false;
     bool textureOriginTopLeft() const override { return originTopLeft; }
-    void setStencilReference(i32) override {}
+    void setStencilReference(i32 ref) override { stencilReferences.push_back(ref); }
 
     void drawElements(u32 indexCount, GfxDataType, u32 byteOffset) override {
         ++drawElementsCalls;

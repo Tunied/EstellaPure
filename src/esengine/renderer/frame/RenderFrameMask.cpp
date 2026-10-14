@@ -18,9 +18,7 @@ namespace esengine {
 
 namespace {
 
-struct ScreenRect {
-    i32 x = 0, y = 0, w = 0, h = 0;
-};
+using ScreenRect = ScissorRect;
 
 ScreenRect intersectRects(const ScreenRect& a, const ScreenRect& b) {
     i32 x1 = std::max(a.x, b.x);
@@ -49,6 +47,7 @@ ScreenRect computeMaskScreenRect(
         return {0, 0, 0, 0};
     }
     const auto& node = registry.get<ecs::UINode>(entity);
+    if (node.computed_size_.x <= 0.0f || node.computed_size_.y <= 0.0f) return {0, 0, 0, 0};
     auto& transform = registry.get<ecs::Transform>(entity);
     // The world TRS below is decomposed on demand, so a mask whose transform no
     // other pass has read this frame would be clipped to where it used to be.
@@ -56,6 +55,7 @@ ScreenRect computeMaskScreenRect(
 
     f32 worldW = node.computed_size_.x * transform.worldScale.x;
     f32 worldH = node.computed_size_.y * transform.worldScale.y;
+    if (worldW == 0.0f || worldH == 0.0f) return {0, 0, 0, 0};
     f32 cx = transform.worldPosition.x;
     f32 cy = transform.worldPosition.y;
     f32 px = 0.5f;  // UINode box is pivot-centered
@@ -127,67 +127,94 @@ bool hasAncestorStencilMask(ecs::Registry& registry, Entity entity,
 void applyScissorToDescendants(
     ecs::Registry& registry, RenderFrame& frame, Entity entity,
     const ScreenRect& clipRect, const std::unordered_set<u32>& maskSet,
-    const glm::mat4& vp, i32 vpX, i32 vpY, i32 vpW, i32 vpH
+    const glm::mat4& vp, i32 vpX, i32 vpY, i32 vpW, i32 vpH,
+    std::vector<std::pair<Entity, ScissorRect>>& work
 ) {
-    if (!registry.has<ecs::Children>(entity)) return;
-    const auto& children = registry.get<ecs::Children>(entity);
-    for (auto child : children.entities) {
-        ScreenRect childClip = clipRect;
-
-        if (maskSet.count(child.id())) {
-            const auto& childMask = registry.get<ecs::UIMask>(child);
-            if (childMask.mode == ecs::MaskMode::Scissor) {
-                ScreenRect childRect = computeMaskScreenRect(registry, child, vp, vpX, vpY, vpW, vpH);
-                childClip = intersectRects(clipRect, childRect);
-            }
+    work.clear();
+    work.emplace_back(entity, clipRect);
+    usize walked = 0;
+    while (!work.empty()) {
+        if (++walked > registry.entityCount()) {
+            ES_LOG_WARN("Scissor hierarchy repeats nodes; stopping mask traversal");
+            work.clear();
+            return;
         }
-
-        frame.setEntityClipRect(child.id(), childClip.x, childClip.y, childClip.w, childClip.h);
-        applyScissorToDescendants(registry, frame, child, childClip, maskSet, vp, vpX, vpY, vpW, vpH);
+        const auto [owner, parentClip] = work.back();
+        work.pop_back();
+        if (!registry.has<ecs::Children>(owner)) continue;
+        const auto& children = registry.get<ecs::Children>(owner).entities;
+        for (auto it = children.rbegin(); it != children.rend(); ++it) {
+            const Entity child = *it;
+            if (!registry.valid(child)) continue;
+            ScreenRect childClip = parentClip;
+            if (maskSet.count(child.id())) {
+                const auto& childMask = registry.get<ecs::UIMask>(child);
+                if (childMask.mode == ecs::MaskMode::Scissor) {
+                    const auto childRect = computeMaskScreenRect(registry, child, vp, vpX, vpY, vpW, vpH);
+                    childClip = intersectRects(parentClip, childRect);
+                }
+            }
+            frame.setEntityClipRect(child.id(), childClip.x, childClip.y, childClip.w, childClip.h);
+            work.emplace_back(child, childClip);
+        }
     }
 }
 
 static constexpr i32 MAX_STENCIL_REF = 255;
 
-void applyStencilDescendants(ecs::Registry& registry, RenderFrame& frame,
-                              Entity entity, i32 refValue,
-                              const std::unordered_set<u32>& stencilSet, i32& nextRef, bool& overflowed);
+bool hasEmptyMaskBox(ecs::Registry& registry, Entity entity) {
+    const auto* node = registry.tryGet<ecs::UINode>(entity);
+    auto* transform = registry.tryGet<ecs::Transform>(entity);
+    if (!node || !transform) return false;
+    if (node->computed_size_.x <= 0.0f || node->computed_size_.y <= 0.0f) return true;
+    transform->ensureDecomposed();
+    return transform->worldScale.x == 0.0f || transform->worldScale.y == 0.0f;
+}
 
 void applyStencilHierarchy(ecs::Registry& registry, RenderFrame& frame,
                             Entity entity, i32 refValue,
-                            const std::unordered_set<u32>& stencilSet, i32& nextRef, bool& overflowed) {
+                            const std::unordered_set<u32>& stencilSet, i32& nextRef, bool& overflowed,
+                            std::vector<std::pair<Entity, i32>>& work) {
     if (overflowed) return;
-    frame.setEntityStencilMask(entity.id(), refValue);
-
-    if (!registry.has<ecs::Children>(entity)) return;
-    const auto& children = registry.get<ecs::Children>(entity);
-    for (auto child : children.entities) {
-        if (overflowed) return;
-        if (stencilSet.count(child.id())) {
-            if (nextRef > MAX_STENCIL_REF) { overflowed = true; return; }
-            applyStencilHierarchy(registry, frame, child, nextRef++, stencilSet, nextRef, overflowed);
-        } else {
-            frame.setEntityStencilTest(child.id(), refValue);
-            applyStencilDescendants(registry, frame, child, refValue, stencilSet, nextRef, overflowed);
-        }
+    work.clear();
+    if (hasEmptyMaskBox(registry, entity)) {
+        refValue = 0;
+        frame.setEntityClipRect(entity.id(), 0, 0, 0, 0);
+    } else {
+        frame.setEntityStencilMask(entity.id(), refValue);
     }
-}
-
-void applyStencilDescendants(ecs::Registry& registry, RenderFrame& frame,
-                              Entity entity, i32 refValue,
-                              const std::unordered_set<u32>& stencilSet, i32& nextRef, bool& overflowed) {
-    if (overflowed) return;
-    if (!registry.has<ecs::Children>(entity)) return;
-    const auto& children = registry.get<ecs::Children>(entity);
-    for (auto child : children.entities) {
-        if (overflowed) return;
-        if (stencilSet.count(child.id())) {
-            if (nextRef > MAX_STENCIL_REF) { overflowed = true; return; }
-            applyStencilHierarchy(registry, frame, child, nextRef++, stencilSet, nextRef, overflowed);
-        } else {
-            frame.setEntityStencilTest(child.id(), refValue);
-            applyStencilDescendants(registry, frame, child, refValue, stencilSet, nextRef, overflowed);
+    const auto enqueueChildren = [&](Entity owner, i32 parentRef) {
+        if (!registry.has<ecs::Children>(owner)) return;
+        const auto& children = registry.get<ecs::Children>(owner).entities;
+        for (auto it = children.rbegin(); it != children.rend(); ++it) {
+            if (registry.valid(*it)) work.emplace_back(*it, parentRef);
         }
+    };
+    enqueueChildren(entity, refValue);
+    usize walked = 0;
+    while (!work.empty()) {
+        if (++walked > registry.entityCount()) {
+            ES_LOG_WARN("Stencil hierarchy repeats nodes; stopping mask traversal");
+            work.clear();
+            return;
+        }
+        auto [owner, currentRef] = work.back();
+        work.pop_back();
+        if (currentRef == 0) {
+            frame.setEntityClipRect(owner.id(), 0, 0, 0, 0);
+        } else if (stencilSet.count(owner.id())) {
+            if (hasEmptyMaskBox(registry, owner)) {
+                frame.setEntityClipRect(owner.id(), 0, 0, 0, 0);
+                enqueueChildren(owner, 0);
+                continue;
+            }
+            if (nextRef > MAX_STENCIL_REF) { overflowed = true; work.clear(); return; }
+            currentRef = nextRef++;
+            frame.setEntityStencilMask(owner.id(), currentRef);
+        } else {
+            frame.setEntityStencilTest(owner.id(), currentRef);
+        }
+        enqueueChildren(owner, currentRef);
     }
 }
 
@@ -238,7 +265,7 @@ void RenderFrame::processMasks(ecs::Registry& registry, const glm::mat4& project
         for (auto entity : rootScissors) {
             ScreenRect rect = computeMaskScreenRect(registry, entity, projection, vpX, vpY, vpW, vpH);
             rect = intersectRects(rect, {vpX, vpY, vpW, vpH});
-            applyScissorToDescendants(registry, *this, entity, rect, maskSet, projection, vpX, vpY, vpW, vpH);
+            applyScissorToDescendants(registry, *this, entity, rect, maskSet, projection, vpX, vpY, vpW, vpH, mask_scissor_walk_scratch_);
         }
     }
 
@@ -260,7 +287,7 @@ void RenderFrame::processMasks(ecs::Registry& registry, const glm::mat4& project
         for (auto entity : rootStencils) {
             if (overflowed) break;
             if (nextRef > MAX_STENCIL_REF) break;
-            applyStencilHierarchy(registry, *this, entity, nextRef++, stencilSet, nextRef, overflowed);
+            applyStencilHierarchy(registry, *this, entity, nextRef++, stencilSet, nextRef, overflowed, mask_stencil_walk_scratch_);
         }
 
         if (overflowed) {

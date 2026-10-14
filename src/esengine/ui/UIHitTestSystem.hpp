@@ -31,6 +31,7 @@ inline bool pointInOBB(
     f32 pivotX, f32 pivotY,
     f32 rotationZ, f32 rotationW
 ) {
+    if (worldW == 0.0f || worldH == 0.0f) return false;
     f32 angle = quaternionToAngle2D(rotationZ, rotationW);
     f32 sinA = std::sin(-angle);
     f32 cosA = std::cos(-angle);

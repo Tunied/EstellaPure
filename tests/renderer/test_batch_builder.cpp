@@ -21,6 +21,7 @@
 #include "esengine/ecs/components/UINode.hpp"
 #include "esengine/ecs/components/UIVisual.hpp"
 #include "esengine/ecs/components/UIMask.hpp"
+#include "esengine/ecs/components/Hierarchy.hpp"
 
 #include <functional>
 #include <utility>
@@ -278,6 +279,104 @@ TEST_CASE("camera mask: hidden text and skeletal submissions upload no geometry"
     CHECK(frame.stats().triangles == 4);
 }
 
+TEST_CASE("UI masks: deep grouping hierarchies reach their leaf without call-stack recursion") {
+    for (auto mode : {ecs::MaskMode::Scissor, ecs::MaskMode::Stencil}) {
+        MockGfxDevice device;
+        RenderContext context(device);
+        resource::ResourceManager resources;
+        ecs::Registry registry;
+        RenderFrame frame(device, context, resources);
+        frame.init(64, 64);
+        const auto root = registry.create();
+        registry.emplace<ecs::Transform>(root);
+        registry.get<ecs::Transform>(root).worldRotation = glm::angleAxis(.7f, glm::vec3(0, 0, 1));
+        registry.get<ecs::Transform>(root).worldScale.y = -1;
+        auto& node = registry.emplace<ecs::UINode>(root);
+        node.computed_size_ = {20, 20};
+        registry.emplace<ecs::UIMask>(root).mode = mode;
+        Entity leaf = root;
+        for (u32 i = 0; i < 50000; ++i) {
+            const auto child = registry.create();
+            registry.emplace<ecs::Parent>(child).entity = leaf;
+            registry.emplace<ecs::Children>(leaf).entities.push_back(child);
+            leaf = child;
+        }
+        const glm::mat4 projection = glm::ortho(-32.0f, 32.0f, -32.0f, 32.0f);
+        const glm::mat4 transform(1);
+        const f32 text[36] = {};
+        const u16 indices[] = {0, 1, 2, 2, 3, 0};
+        for (bool empty : {true, false}) {
+            node.computed_size_.x = empty ? 0 : 20;
+            frame.beginFrame();
+            frame.begin(projection);
+            frame.processMasks(registry, 0, 0, 64, 64);
+            frame.collectAll(registry);
+            const int uploads = device.updateBufferCalls;
+            frame.submitTextBatch(text, 4, indices, 6, 1, &transform[0][0], leaf, 0, 0, false);
+            frame.flush();
+            if (empty) {
+                CHECK(frame.stats().text == 0);
+                CHECK(device.updateBufferCalls == uploads);
+            } else {
+                CHECK(frame.stats().text == 1);
+                CHECK(device.updateBufferCalls > uploads);
+            }
+            frame.end();
+            frame.endFrame();
+        }
+    }
+}
+
+TEST_CASE("UI stencil traversal keeps nested and sibling references in authored order") {
+    MockGfxDevice device;
+    RenderContext context(device);
+    resource::ResourceManager resources;
+    ecs::Registry registry;
+    RenderFrame frame(device, context, resources);
+    frame.init(64, 64);
+    const auto child = [&](Entity parent, bool mask) {
+        const Entity entity = registry.create();
+        if (parent != INVALID_ENTITY) {
+            registry.emplace<ecs::Parent>(entity).entity = parent;
+            if (!registry.has<ecs::Children>(parent)) registry.emplace<ecs::Children>(parent);
+            registry.get<ecs::Children>(parent).entities.push_back(entity);
+        }
+        if (mask) registry.emplace<ecs::UIMask>(entity).mode = ecs::MaskMode::Stencil;
+        return entity;
+    };
+    const Entity root = child(INVALID_ENTITY, true), a = child(root, false), nested = child(root, true);
+    const Entity b = child(nested, false), deep = child(nested, true), c = child(deep, false);
+    const Entity group = child(root, false), d = child(group, false), e = child(root, false);
+    registry.emplace<ecs::Transform>(deep);
+    auto& nestedBox = registry.emplace<ecs::UINode>(deep);
+    nestedBox.computed_size_ = {20, 20};
+    const glm::mat4 transform(1);
+    const f32 text[36] = {};
+    const u16 indices[] = {0, 1, 2, 2, 3, 0};
+    for (u32 repeat = 0; repeat < 4; ++repeat) {
+        const bool empty = repeat == 2;
+        nestedBox.computed_size_.y = empty ? 0 : 20;
+        device.stencilReferences.clear();
+        frame.beginFrame();
+        frame.begin(transform);
+        frame.processMasks(registry, 0, 0, 64, 64);
+        frame.collectAll(registry);
+        i32 layer = 0;
+        for (Entity entity : {a, b, c, d, e}) {
+            frame.submitTextBatch(text, 4, indices, 6, 1, &transform[0][0], entity, layer++, 0, false);
+        }
+        frame.flush();
+        frame.end();
+        CHECK(frame.stats().text == (empty ? 4 : 5));
+        const std::vector<i32> expected = empty ? std::vector<i32>{1, 2, 1} : std::vector<i32>{1, 2, 3, 1};
+        CHECK(device.stencilReferences.size() == expected.size());
+        for (u32 i = 0; i < std::min(device.stencilReferences.size(), expected.size()); ++i) {
+            CHECK(device.stencilReferences[i] == expected[i]);
+        }
+        frame.endFrame();
+    }
+}
+
 TEST_CASE("flat bounds: reflected extents enclose the same rotated box") {
     for (f32 x : {1.0f, -1.0f}) for (f32 y : {1.0f, -1.0f}) {
         for (f32 angle : {0.0f, .7f}) {
@@ -372,11 +471,13 @@ TEST_CASE("nine-slice: signed transforms and UV flips preserve every cell") {
     }
 }
 
-TEST_CASE("UI visuals: zero alpha skips geometry and a restored fade draws again") {
+TEST_CASE("UI visuals: invisible and collapsed boxes skip geometry and recover") {
+    enum class Hidden { OwnAlpha, InheritedAlpha, Width, Height, ScaleX, ScaleY };
     for (auto mode : {ecs::UIVisualType::SolidColor, ecs::UIVisualType::Image,
                       ecs::UIVisualType::NineSlice, ecs::UIVisualType::Tiled,
                       ecs::UIVisualType::Filled}) {
-        for (bool inherited : {false, true}) {
+        for (auto hidden : {Hidden::OwnAlpha, Hidden::InheritedAlpha, Hidden::Width,
+                            Hidden::Height, Hidden::ScaleX, Hidden::ScaleY}) {
             Harness h;
             RenderContext context(h.device);
             resource::ResourceManager resources;
@@ -390,8 +491,15 @@ TEST_CASE("UI visuals: zero alpha skips geometry and a restored fade draws again
             visual.sliceBorder = {2, 2, 2, 2};
             visual.fillMethod = ecs::UIFillMethod::Radial360;
             visual.fillAmount = .5f;
-            if (inherited) node.alpha_in_tree_ = 0;
-            else visual.color.a = 0;
+            auto& scale = registry.get<ecs::Transform>(entity).worldScale;
+            switch (hidden) {
+                case Hidden::OwnAlpha: visual.color.a = 0; break;
+                case Hidden::InheritedAlpha: node.alpha_in_tree_ = 0; break;
+                case Hidden::Width: node.computed_size_.x = 0; break;
+                case Hidden::Height: node.computed_size_.y = 0; break;
+                case Hidden::ScaleX: scale.x = 0; break;
+                case Hidden::ScaleY: scale.y = 0; break;
+            }
             RenderFrameContext frameContext{context, resources};
             frameContext.purpose = RenderPurpose::ScreenOverlay;
             std::unordered_set<u32> screen{entity.id()};
@@ -406,6 +514,8 @@ TEST_CASE("UI visuals: zero alpha skips geometry and a restored fade draws again
             CHECK(h.pool.indicesUsed(LayoutId::Batch) == 0);
             node.alpha_in_tree_ = .5f;
             visual.color.a = 1;
+            node.computed_size_ = {20, 20};
+            scale = {1, 1, 1};
             plugin.collect(collect);
             CHECK(h.list.commandCount() > 0);
             CHECK(h.pool.vertexBytesUsed(LayoutId::Batch) > 0);

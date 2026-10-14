@@ -70,7 +70,7 @@ void UIElementPlugin::collect(RenderCollectContext& collect_ctx) {
         if (clips.isEmptyScissor(entity)) { ++collect_ctx.culled; continue; }
         f32 w = node->computed_size_.x, h = node->computed_size_.y;
         f32 pivotX = 0.5f, pivotY = 0.5f;
-        if (w <= 0.0f && h <= 0.0f) continue;
+        if (w <= 0.0f || h <= 0.0f) continue;
 
         auto& transform = uiView.get<ecs::Transform>(entity);
         transform.ensureDecomposed();
@@ -78,6 +78,7 @@ void UIElementPlugin::collect(RenderCollectContext& collect_ctx) {
         glm::vec3 position = transform.worldPosition;
         const auto& rotation = transform.worldRotation;
         const auto& scale = transform.worldScale;
+        if (scale.x == 0.0f || scale.y == 0.0f) continue;
 
         // UI bakes the pivot into the world position here, so the quad is emitted centered.
         f32 dx = (0.5f - pivotX) * w * scale.x;

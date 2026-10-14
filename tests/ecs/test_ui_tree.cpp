@@ -8,6 +8,8 @@ using namespace esengine;
 using namespace esengine::ecs;
 
 TEST_CASE("mirrored UI boxes keep their pivot and rotated pointer bounds") {
+    CHECK_FALSE(pointInOBB(13, 17, 13, 17, 0, 8, .5f, .5f, 0, 1));
+    CHECK_FALSE(pointInOBB(13, 17, 13, 17, 10, 0, .5f, .5f, 0, 1));
     for (float x : {1.0f, -1.0f}) for (float y : {1.0f, -1.0f}) {
         for (float angle : {0.0f, .7f}) {
             const auto rotation = glm::angleAxis(angle, glm::vec3(0, 0, 1));
