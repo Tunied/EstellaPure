@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Input fields release their measurement glyph pages on exit.** App teardown disposes the caret measurement atlas as well as the visible text atlas, preventing a 4 MiB page from accumulating on each preview restart. Cleanup stays scoped to the exiting App.
+
 ## [0.83.0] - 2026-10-14
 
 ### Fixed

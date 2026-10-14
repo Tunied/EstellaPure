@@ -177,6 +177,9 @@ export class TextInputPlugin implements Plugin {
                 if (world.valid(ch.caret)) world.despawn(ch.caret);
             }
             childrenOf.clear();
+            const renderer = measureRenderer;
+            measureRenderer = null;
+            renderer?.dispose();
         });
 
         function syncFromEditor(): void {

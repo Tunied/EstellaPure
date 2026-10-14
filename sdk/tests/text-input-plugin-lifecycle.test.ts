@@ -4,6 +4,21 @@ import { afterEach, expect, it, vi } from 'vitest';
 import type { TextEditorEvent } from '../src/platform/types';
 import { bootMockApp } from './helpers/mockApp';
 
+const measurements = vi.hoisted(() => [] as Array<{ dispose: ReturnType<typeof vi.fn> }>);
+const dimensions = vi.hoisted(() => ({ width: vi.fn(() => 0), height: vi.fn(() => 0) }));
+vi.mock('../src/ui/util/helpers', async original => ({
+    ...await original<typeof import('../src/ui/util/helpers')>(),
+    getUINodeWidth: dimensions.width,
+    getUINodeHeight: dimensions.height,
+}));
+vi.mock('../src/ui/text/text-renderer', () => ({
+    SdfTextRenderer: class {
+        atlas = { renderSize: 64, getGlyph: () => ({ advance: 16 }) };
+        dispose = vi.fn();
+        constructor() { measurements.push(this); }
+    },
+}));
+
 const surfaces: ReturnType<typeof createSurface>[] = [];
 function createSurface() {
     const listeners = new Set<(event: TextEditorEvent) => void>();
@@ -32,7 +47,8 @@ const { FocusManager, FocusManagerState } = await import('../src/ui/input/focusa
 const { UIEvents, UIEventQueue } = await import('../src/ui/core/events');
 const { TextInput } = await import('../src/ui/text/text-input');
 const { defineSystem, Schedule } = await import('../src/ecs/system');
-const { Disabled } = await import('../src/ecs/component');
+const { Disabled, Transform } = await import('../src/ecs/component');
+const { UINode } = await import('../src/ui/core/ui-node');
 const { Interactable } = await import('../src/ui/input/interactable');
 const apps: ReturnType<typeof App.new>[] = [];
 function build(plugin: InstanceType<typeof TextInputPlugin>) {
@@ -47,6 +63,9 @@ function build(plugin: InstanceType<typeof TextInputPlugin>) {
 afterEach(() => {
     for (const app of apps.splice(0)) app.quit();
     surfaces.length = 0;
+    measurements.length = 0;
+    dimensions.width.mockReturnValue(0);
+    dimensions.height.mockReturnValue(0);
 });
 
 it.each(['change', 'composition', 'submit'] as const)('delivers native %s after UI clearing and before Update consumers', async kind => {
@@ -183,4 +202,26 @@ it.each(['entity', 'ancestor', 'interaction'] as const)('rejects queued input af
     await app.tick(1 / 60);
     expect(surfaces[0].blur).toHaveBeenCalledOnce();
     expect(app.world.get(field, TextInput).focused).toBe(false);
+});
+
+it('releases each App measurement atlas without disposing the newer field atlas', async () => {
+    dimensions.width.mockReturnValue(160);
+    dimensions.height.mockReturnValue(40);
+    const plugin = new TextInputPlugin();
+    const prepare = async () => {
+        const app = build(plugin), field = app.world.spawn();
+        app.world.insert(field, Transform, {});
+        app.world.insert(field, UINode, {});
+        app.world.insert(field, TextInput, { value: 'preview' });
+        await app.tick(1 / 60);
+        return app;
+    };
+    const first = await prepare(), second = await prepare();
+    expect(measurements).toHaveLength(2);
+    first.quit();
+    expect(measurements[0].dispose).toHaveBeenCalledOnce();
+    expect(measurements[1].dispose).not.toHaveBeenCalled();
+    second.quit();
+    second.quit();
+    expect(measurements[1].dispose).toHaveBeenCalledOnce();
 });
