@@ -21,6 +21,7 @@ import { setNativeTextSubmit, TEXT_VERTEX_FLOATS } from '../src/ui/text/submit';
 import { Camera, Canvas, Transform } from '../src/ecs/component';
 import { SdfTextRenderer } from '../src/ui/text/text-renderer';
 import { Text, TextRenderMode } from '../src/ui/core/text';
+import { UICameraInfo } from '../src/ui/core/ui-camera-info';
 import { PTR_ACCESSORS } from '../src/ecs/bridge/ptrAccessors.generated';
 import type { PlatformGlyphRequest } from '../src/platform/types';
 import type { NativeBridge } from '../src/platform/native/bridge';
@@ -178,6 +179,39 @@ function buildScene(app: ReturnType<typeof createNativeApp>, setScene: (canvas: 
 }
 
 describe('a frame on the native core', () => {
+    it('keeps bitmap geometry aligned with the native viewport after DPR changes', async () => {
+        const host = makeHostScope();
+        let density = 1;
+        const bridge = makeBridge(host.scope);
+        bridge.devicePixelRatio = () => density;
+        host.scope.es_renderer_surfaceSize = () => ({ width: 800 * density, height: 600 * density });
+        const app = createNativeApp(bridge, host.scope);
+        await app.tick(0);
+        const label = buildScene(app, host.setScene);
+        app.world.insert(label, Text, { content: 'A', fontSize: 32, renderMode: TextRenderMode.Bitmap });
+        for (const next of [1, 2, 3, 1]) {
+            density = next;
+            host.rasterizeSpy.mockClear();
+            host.submitSpy.mockClear();
+            await app.tick(1 / 60);
+            const camera = app.getResource(UICameraInfo);
+            const expected = Math.round(32 * Math.abs(camera.viewProjection[0]) * camera.vpW / 2);
+            expect(expected).toBeGreaterThan(0);
+            const request = host.rasterizeSpy.mock.calls.at(-1)?.[0];
+            if (request) expect(request.pixelSize).toBe(expected);
+            expect(host.submitSpy).toHaveBeenCalled();
+            const vertices = host.submitSpy.mock.calls[0][0] as Float32Array;
+            expect(Math.abs(vertices[TEXT_VERTEX_FLOATS] - vertices[0])).toBeCloseTo(8 * 32 / expected);
+            expect(host.textures.size).toBeLessThanOrEqual(2);
+            host.rasterizeSpy.mockClear();
+            await app.tick(1 / 60);
+            expect(host.rasterizeSpy).not.toHaveBeenCalled();
+            expect(host.textures.size).toBe(1);
+        }
+        app.quit({ keepRenderer: true });
+        expect(host.textures.size).toBe(0);
+    });
+
     it('reclaims obsolete glyph pages at frame boundaries without rerasterizing live text', async () => {
         const host = makeHostScope();
         const app = createNativeApp(makeBridge(host.scope), host.scope);

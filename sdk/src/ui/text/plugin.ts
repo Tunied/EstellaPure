@@ -229,6 +229,7 @@ export class TextPlugin implements Plugin {
                 app, state,
                 resolveTextRenderMode(t.renderMode, tr.worldScale.x),
                 contentScale,
+                dpr,
             );
             if (!readMatrix) composeTRS(appState.matrix, tr.worldPosition, tr.worldRotation, tr.worldScale);
 
@@ -347,6 +348,7 @@ export class TextPlugin implements Plugin {
         state: TextDomainState,
         kind: 'bitmap' | 'sdf',
         contentScale: number,
+        dpr: number,
     ): SdfTextRenderer {
         const module = app.wasmModule as ESEngineModule | null;
         if (kind === 'sdf') {
@@ -354,11 +356,11 @@ export class TextPlugin implements Plugin {
             return state.sdf;
         }
         if (!state.bitmap) {
-            const dpr = platformDevicePixelRatio();
             state.bitmap = new SdfTextRenderer(module, {
                 sdf: false, dpr, renderSize: Math.round(GLYPH_BASE_SIZE * dpr),
             });
         }
+        state.bitmap.setDevicePixelRatio(dpr);
         state.bitmap.setContentScale(contentScale);
         return state.bitmap;
     }

@@ -34,6 +34,8 @@ export const NOTED = {
     { note: 'The Playable Ad starter includes a complete editable game.' },
   'test(youtube): verify hosting CSP and negative control':
     { note: 'YouTube headless checks enforce the documented hosting policy.' },
+  'fix(text): refresh bitmap glyph density when device pixel ratio changes':
+    { note: 'Bitmap text follows device pixel ratio changes during an App.' },
   'feat(youtube): validate export bundle constraints':
     { note: 'YouTube exports check stored bundle constraints.' },
   'feat(youtube): connect Playables readiness pause and cloud saves':

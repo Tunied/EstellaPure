@@ -64,6 +64,31 @@ describe('resolveTextRenderMode', () => {
 });
 
 describe('GlyphAtlas content scale (bitmap rasterization density)', () => {
+    it('refreshes bitmap DPR and invalidates layouts only when the density changes', async () => {
+        const { GlyphAtlas } = await import('../src/ui/text/glyph-atlas');
+        const source = { renderSize: 48, spread: 0, rasterize: () => null };
+        const atlas = new GlyphAtlas(source, null, { sdf: false });
+        atlas.setContentScale(0.75);
+        const initial = atlas.generation;
+        for (const [density, size, generation] of [[1, 24, initial], [2, 48, initial + 1],
+            [2, 48, initial + 1], [3, 72, initial + 2], [1, 24, initial + 3]]) {
+            atlas.setDevicePixelRatio(density);
+            expect(atlas.pixelSizeFor(32)).toBe(size);
+            expect(atlas.generation).toBe(generation);
+        }
+        atlas.setDevicePixelRatio(NaN);
+        atlas.setDevicePixelRatio(Infinity);
+        atlas.setDevicePixelRatio(0);
+        expect(atlas.pixelSizeFor(32)).toBe(24);
+        expect(atlas.generation).toBe(initial + 3);
+        const invalid = new GlyphAtlas(source, null, { sdf: false, dpr: Infinity });
+        expect(invalid.pixelSizeFor(32)).toBe(32);
+        const sdf = new GlyphAtlas(source, null, { sdf: true });
+        sdf.setDevicePixelRatio(3);
+        expect(sdf.pixelSizeFor(32)).toBe(48);
+        expect(sdf.generation).toBe(0);
+    });
+
     it('folds the content scale into bitmap pixel sizes, but never SDF', async () => {
         const { GlyphAtlas } = await import('../src/ui/text/glyph-atlas');
         const fakeRasterizer = { renderSize: 48, rasterize: () => null };

@@ -26,6 +26,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Bitmap text follows device pixel ratio changes during an App.** World and screen text refresh bitmap atlas density from the current frame, rebuilding cached geometry for changed pixel sizes without restarting the App. Stable frames keep cached glyphs, SDF retains its fixed source size, and existing frame-boundary page retirement keeps referenced textures alive during transitions.
+
 - **Nested UI stencil masks intersect their parents and restore clipping.** Child masks enter only matching parent stencil pixels, and leaving a subtree replays its original geometry to restore the parent before siblings draw. Rotated and alpha-cutout shapes keep their intersections; mask replays preserve sampler bindings. Depth references are reused across siblings, with up to 255 nested levels when no SpriteMask references are reserved. Shared reference overflow clips affected subtrees instead of aliasing; restoration adds draws without allocating mask textures or duplicate vertices.
 
 ## [0.84.0] - 2026-10-15

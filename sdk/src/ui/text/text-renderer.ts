@@ -314,6 +314,10 @@ export class SdfTextRenderer {
         this.atlas.setContentScale(scale);
     }
 
+    setDevicePixelRatio(dpr: number): void {
+        this.atlas.setDevicePixelRatio(dpr);
+    }
+
     /** Previous frame has submitted; remove unused layouts and their GPU pages. */
     beginFrame(): void {
         if (this.atlas.metricsOnly) return;

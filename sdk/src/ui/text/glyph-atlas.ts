@@ -107,7 +107,7 @@ export class GlyphAtlas {
     private readonly pageSize: number;
     private readonly padding: number;
     private readonly sdf: boolean;
-    private readonly dpr: number;
+    private dpr: number;
     private contentScale_ = 1;
     private generation_ = 0;
     private readonly cache = new Map<string, GlyphEntry | null>();
@@ -123,7 +123,8 @@ export class GlyphAtlas {
         this.pageSize = opts.pageSize ?? 1024;
         this.padding = opts.padding ?? 1;
         this.sdf = opts.sdf ?? true;
-        this.dpr = opts.dpr ?? 1;
+        const dpr = opts.dpr ?? 1;
+        this.dpr = Number.isFinite(dpr) && dpr > 0 ? dpr : 1;
     }
 
     /** A null store keeps metrics in CPU memory without drawable atlas pages. */
@@ -170,7 +171,7 @@ export class GlyphAtlas {
 
     /**
      * Bumped only when a change can alter the atlas coordinates of glyphs that
-     * are already placed — i.e. a bitmap content-scale change (glyphs re-rasterize
+     * are already placed — i.e. a bitmap density change (glyphs re-rasterize
      * at a new pixel size). Placement is append-only, so adding a *new* glyph never
      * moves an existing one; callers cache laid-out geometry against this counter.
      */
@@ -197,6 +198,16 @@ export class GlyphAtlas {
         const next = Number.isFinite(scale) && scale > 0 ? scale : 1;
         if (next !== this.contentScale_) {
             this.contentScale_ = next;
+            this.generation_++;
+        }
+    }
+
+    /** Refresh bitmap density without retiring pages still owned by submitted layouts. */
+    setDevicePixelRatio(dpr: number): void {
+        if (this.sdf) return;
+        const next = Number.isFinite(dpr) && dpr > 0 ? dpr : 1;
+        if (next !== this.dpr) {
+            this.dpr = next;
             this.generation_++;
         }
     }
