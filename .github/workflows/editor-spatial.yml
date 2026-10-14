@@ -1,0 +1,60 @@
+name: Editor spatial acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      artifact-run:
+        description: Build run with successful Web artifacts from identical runtime sources
+        type: string
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  spatial:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ESTELLA_WIN_W: '1480'
+      ESTELLA_WIN_H: '920'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/editor-checkout
+        with:
+          ssh-key: ${{ secrets.EDITOR_SSH_KEY }}
+      - uses: ./.github/actions/setup
+      - name: Require identical runtime sources and a successful Web build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_RUN: ${{ inputs.artifact-run }}
+        run: |
+          [[ "$ARTIFACT_RUN" =~ ^[0-9]+$ ]]
+          source=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$ARTIFACT_RUN" --jq .head_sha)
+          git diff --exit-code "$source" HEAD -- src sdk native desktop include CMakeLists.txt package.json toolchain.manifest.json build-tools pipeline
+          passed=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$ARTIFACT_RUN/jobs?per_page=100" --jq '[.jobs[] | select(.name == "Web (Emscripten)" and .conclusion == "success")] | length')
+          test "$passed" -eq 1
+          gh run download "$ARTIFACT_RUN" --repo "$GITHUB_REPOSITORY" --name wasm-web --dir build/wasm/web
+      - name: Install the virtual display dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libasound2t64 libgtk-3-0t64 libgbm1
+      - name: Build the editor against the measured runtime
+        run: |
+          pnpm --filter ./sdk build
+          mkdir -p desktop/public/wasm
+          cp build/wasm/web/* desktop/public/wasm/
+          pnpm --dir desktop exec vite build
+      - name: Check trusted spatial gestures and undo
+        run: node tools/verify-gizmo-planes.mjs
+      - name: Keep spatial acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: gizmo-planes-editor-checks
+          path: output/gizmo-planes-ci
+          if-no-files-found: warn
+          retention-days: 3

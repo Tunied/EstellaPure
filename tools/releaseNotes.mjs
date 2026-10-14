@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'test(viewport): preserve spatial view through tool selection':
+    { internal: 'Spatial acceptance uses the actual editor projection command so selecting a tool retains the store-owned view; a focused CI workflow can reuse a proven identical runtime.' },
   'test(viewport): retain spatial drag startup diagnostics':
     { internal: 'CI spatial gesture acceptance preserves process output and reports startup failures before a trusted drag observation is available.' },
   'chore(release): classify editor capabilities for v0.86.0':
