@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Runtime inspectors clear destroyed entity selections.** A selected entity that despawns now returns no detail row instead of an empty ghost entity, including when its native slot is reused. Requests without a live selection or tree avoid traversing the world; disabled live entities remain inspectable.
+
 ## [0.79.0] - 2026-10-14
 
 ### Added

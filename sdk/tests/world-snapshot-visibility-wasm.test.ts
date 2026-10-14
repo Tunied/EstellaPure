@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { App } from '../src/app/app';
 import type { ESEngineModule } from '../src/wasm';
+import { entityIndex } from '../src/types';
 import { World } from '../src/ecs/world';
 import { Sprite, Transform, ensureBuiltinComponentsRegistered } from '../src/ecs/component';
 import { UINode, UIDisplay } from '../src/ui/core/ui-node';
@@ -10,6 +11,27 @@ import { HAS_WASM, loadWasmModule } from './helpers/loadWasm';
 describe.skipIf(!HAS_WASM)('snapshot visibility with borrowed core values', () => {
     let module: ESEngineModule;
     beforeAll(async () => { ensureBuiltinComponentsRegistered(); module = await loadWasmModule(); });
+    it('does not substitute a recycled native entity for a destroyed selection', () => {
+        const registry = new module.Registry(), world = new World();
+        world.connectCpp(registry, module);
+        const app = { world, hasResource: () => false } as unknown as App;
+        try {
+            const old = world.spawn('Old selection');
+            world.insert(old, Sprite, { enabled: false });
+            expect(worldSnapshot(app, old, false).selected?.name).toBe('Old selection');
+            world.despawn(old);
+            const replacement = world.spawn('Replacement');
+            world.insert(replacement, Sprite, { enabled: true });
+            expect(replacement).not.toBe(old);
+            expect(entityIndex(replacement)).toBe(entityIndex(old));
+            expect(worldSnapshot(app, old, false).selected).toBeNull();
+            const snapshot = worldSnapshot(app, old, true);
+            expect(snapshot.selected).toBeNull();
+            expect(snapshot.tree!.entities.map(e => e.id)).toEqual([replacement]);
+            expect(worldSnapshot(app, replacement, false).selected).toMatchObject({ name: 'Replacement', hidden: false });
+        } finally { world.disconnectCpp(); registry.delete(); }
+    });
+
     it('keeps opposite flags and selected values independent across snapshots', () => {
         const registry = new module.Registry(), world = new World();
         world.connectCpp(registry, module);

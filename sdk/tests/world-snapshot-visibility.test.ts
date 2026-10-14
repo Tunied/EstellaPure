@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import type { App } from '../src/app/app';
 import { World } from '../src/ecs/world';
-import { Sprite, Transform, defineComponent, unregisterComponent, ensureBuiltinComponentsRegistered } from '../src/ecs/component';
+import { Sprite, Transform, Disabled, defineComponent, unregisterComponent, ensureBuiltinComponentsRegistered } from '../src/ecs/component';
 import { UINode, UIDisplay } from '../src/ui/core/ui-node';
 import { hasVisibility, isEntityVisible } from '../src/ecs/entityUtils';
 import { worldSnapshot } from '../src/runtime/worldSnapshot';
@@ -15,6 +15,23 @@ function fixture() {
 }
 
 describe('runtime snapshot visibility', () => {
+    it('clears destroyed selections while keeping the remaining tree and disabled entities', () => {
+        const { world, app } = fixture();
+        const removed = world.spawn('Removed'), remaining = world.spawn('Remaining');
+        world.insert(remaining, Sprite, { enabled: false });
+        world.insert(remaining, Disabled);
+        expect(worldSnapshot(app, removed, false).selected?.name).toBe('Removed');
+        world.despawn(removed);
+        const snapshot = worldSnapshot(app, removed, true);
+        expect(snapshot.selected).toBeNull();
+        expect(snapshot.tree!.entities.map(e => e.id)).toEqual([remaining]);
+        expect(worldSnapshot(app, remaining, false).selected?.name).toBe('Remaining');
+        const enumerate = vi.spyOn(world, 'getAllEntities');
+        expect(worldSnapshot(app, removed, false)).toEqual({ tree: null, selected: null });
+        expect(worldSnapshot(app, null, false)).toEqual({ tree: null, selected: null });
+        expect(enumerate).not.toHaveBeenCalled();
+    });
+
     it('matches UI priority, sprite flags and bare entity semantics without repeated has checks', () => {
         const { world, app } = fixture();
         const shown = world.spawn('Shown'), hidden = world.spawn('Hidden'), ui = world.spawn('UI'), bare = world.spawn('Bare');

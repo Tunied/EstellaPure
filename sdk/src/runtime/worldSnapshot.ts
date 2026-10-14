@@ -91,6 +91,8 @@ export function worldSnapshot(
     app: App, selectedId: number | null, withTree: boolean, opts: WorldSnapshotOptions = {},
 ): WorldSnapshot {
     const world = app.world;
+    if (selectedId != null && !world.valid(selectedId as never)) selectedId = null;
+    if (!withTree && selectedId == null) return { tree: null, selected: null };
     const nameDef = getComponent('Name');
     const parentDef = getComponent('Parent');
     const ownerDef = getComponent('SceneOwner');
