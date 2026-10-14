@@ -598,6 +598,36 @@ describe('WebAudioBackend', () => {
         });
     });
 
+    it('returns a pooled node when source startup fails repeatedly', async () => {
+        const { bufferHandle, mockCtx } = await initAndLoadBuffer(backend);
+        const pool = (backend as any).pool_;
+        const capacity = pool.capacity;
+        const sources: any[] = [];
+        mockCtx.createBufferSource.mockImplementation(() => {
+            const source = createMockBufferSource();sources.push(source);
+            source.start.mockImplementation(() => { throw new RangeError('negative offset'); });return source;
+        });
+        for (let i = 0; i < 40; i++) expect(() => backend.play(bufferHandle, { startOffset: -1 })).toThrow('negative offset');
+        expect(pool.activeCount).toBe(0);expect(pool.capacity).toBe(capacity);
+        for (const source of sources) { expect(source.disconnect).toHaveBeenCalled();expect(source.onended).toBeNull(); }
+        mockCtx.createBufferSource.mockImplementation(createMockBufferSource);
+        const voice = backend.play(bufferHandle, {});expect(pool.activeCount).toBe(1);
+        voice.stop();expect(pool.activeCount).toBe(0);expect(pool.capacity).toBe(capacity);
+    });
+
+    it('keeps a failed resume paused and retries from the same offset', async () => {
+        const { bufferHandle, mockCtx } = await initAndLoadBuffer(backend);
+        const voice = backend.play(bufferHandle, {});mockCtx.currentTime = .25;voice.pause();
+        const rejected = createMockBufferSource();rejected.start.mockImplementation(() => { throw new Error('resume rejected'); });
+        mockCtx.createBufferSource.mockReturnValueOnce(rejected);
+        expect(() => voice.resume()).toThrow('resume rejected');expect(voice.isPlaying).toBe(false);
+        expect(voice.currentTime).toBeCloseTo(.25);expect(rejected.disconnect).toHaveBeenCalled();expect(rejected.onended).toBeNull();
+        mockCtx.currentTime = 10;voice.resume();expect(voice.isPlaying).toBe(true);
+        const accepted = mockCtx.createBufferSource.mock.results.at(-1).value;
+        expect(accepted.start).toHaveBeenCalledWith(0, .25);
+        voice.stop();expect((backend as any).pool_.activeCount).toBe(0);
+    });
+
     describe('dispose', () => {
         it('should close AudioContext and clear state', async () => {
             await backend.initialize();

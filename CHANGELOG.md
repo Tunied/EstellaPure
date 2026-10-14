@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Web audio startup failures release pooled nodes and keep resumes retryable.** Source creation, configuration and start errors return the acquired node before propagating the error, preventing failed plays from growing the pool. Failed resumes disconnect the rejected source while preserving the paused voice and playback offset; successful retries commit playback state only after startup succeeds.
+
 - **Tilemap rectangle fills clip safely across integer coordinate bounds.** Finite layers intersect the requested rectangle before visiting cells, avoiding work outside the map. Wide endpoint arithmetic preserves unsigned extents and clips infinite writes to representable coordinates; empty intersections return immediately. Negative chunk division avoids signed overflow, preserving tile storage and chunk import at both integer edges.
 
 - **Paused sprite motions wait for actual completion before exit transitions.** Animator exit-time checks require the matching SpriteAnimator completion latch and stopped playback. Pausing or seeking to a stopped frame preserves the current state; resumed one-shot playback can complete normally, while a pending replay does not count as an ended clip.

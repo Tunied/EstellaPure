@@ -80,21 +80,30 @@ class WebAudioHandle implements AudioHandle {
 
     resume(): void {
         if (this.playing_ || this.stopped_) return;
-        this.playing_ = true;
 
         const source = this.context_.createBufferSource();
-        source.buffer = this.buffer_;
-        source.loop = this.loop_;
-        source.playbackRate.value = this.playbackRate_;
-        source.connect(this.poolNode_.gain);
+        let startedAt: number;
+        try {
+            source.buffer = this.buffer_;
+            source.loop = this.loop_;
+            source.playbackRate.value = this.playbackRate_;
+            source.connect(this.poolNode_.gain);
+            this.bindOnEnded_(source);
+            startedAt = this.context_.currentTime;
+            source.start(0, this.pausedAt_);
+        } catch (error) {
+            source.onended = null;
+            try { source.stop(); } catch (_) { /* not started */ }
+            source.disconnect();
+            throw error;
+        }
 
         this.source_ = source;
         this.poolNode_.source = source;
         this.startOffset_ = this.pausedAt_;
-        this.startedAt_ = this.context_.currentTime;
+        this.startedAt_ = startedAt;
 
-        this.bindOnEnded_(source);
-        source.start(0, this.pausedAt_);
+        this.playing_ = true;
     }
 
     setVolume(volume: number): void {
@@ -319,23 +328,28 @@ export class WebAudioBackend implements PlatformAudioBackend {
             throw new Error(`Buffer ${buffer.id} not found`);
         }
 
-        const poolNode = this.pool_.acquire();
-        const source = this.context_.createBufferSource();
-        source.buffer = audioBuffer;
-        source.loop = config.loop ?? false;
-        source.playbackRate.value = config.playbackRate ?? 1.0;
-        source.connect(poolNode.gain);
-        poolNode.source = source;
-
-        poolNode.gain.gain.value = config.volume ?? 1.0;
-        poolNode.panner.pan.value = config.pan ?? 0;
-
-        const busName = config.bus ?? 'sfx';
-        const bus = this.mixer_.getBus(busName) ?? this.mixer_.sfx;
-        poolNode.panner.connect(bus.input);
-
         const startOffset = config.startOffset ?? 0;
-        source.start(0, startOffset);
+        const poolNode = this.pool_.acquire();
+        let source: AudioBufferSourceNode;
+        try {
+            source = this.context_.createBufferSource();
+            poolNode.source = source;
+            source.buffer = audioBuffer;
+            source.loop = config.loop ?? false;
+            source.playbackRate.value = config.playbackRate ?? 1.0;
+            source.connect(poolNode.gain);
+
+            poolNode.gain.gain.value = config.volume ?? 1.0;
+            poolNode.panner.pan.value = config.pan ?? 0;
+
+            const busName = config.bus ?? 'sfx';
+            const bus = this.mixer_.getBus(busName) ?? this.mixer_.sfx;
+            poolNode.panner.connect(bus.input);
+            source.start(0, startOffset);
+        } catch (error) {
+            this.pool_.release(poolNode);
+            throw error;
+        }
 
         const handleId = ++this.nextHandleId_;
         const handle = new WebAudioHandle(
