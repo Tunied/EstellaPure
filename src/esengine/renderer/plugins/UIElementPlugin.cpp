@@ -60,6 +60,13 @@ void UIElementPlugin::collect(RenderCollectContext& collect_ctx) {
         // Geometry from the UINode (CSS box) — always pivot-centered.
         const auto* node = registry.tryGet<ecs::UINode>(entity);
         if (!node || node->hidden_in_tree_) continue;
+        const auto* mask = registry.tryGet<ecs::UIMask>(entity);
+        const bool writesStencil = mask && mask->enabled && mask->mode == ecs::MaskMode::Stencil;
+        // Stencil draws still define clipping at zero alpha; custom materials
+        // may produce visible output independently of the vertex alpha.
+        if (renderer.material == 0 && !writesStencil
+            && renderer.color.a * node->alpha_in_tree_ == 0.0f
+            && !clips.isStencilMask(entity)) continue;
         if (clips.isEmptyScissor(entity)) { ++collect_ctx.culled; continue; }
         f32 w = node->computed_size_.x, h = node->computed_size_.y;
         f32 pivotX = 0.5f, pivotY = 0.5f;
@@ -236,8 +243,7 @@ void UIElementPlugin::collect(RenderCollectContext& collect_ctx) {
         // the mask pass runs this same draw with color writes off, so it needs
         // the variant that discards transparent fragments — otherwise the whole
         // quad writes stencil and a circular mask clips a rectangle.
-        if (const auto* mask = registry.tryGet<ecs::UIMask>(entity);
-            mask && mask->enabled && mask->mode == ecs::MaskMode::Stencil && mask->alphaCutoff > 0.0f) {
+        if (writesStencil && mask->alphaCutoff > 0.0f) {
             key.shaderId = ctx.frame->batchProgram({"ALPHA_CLIP"});
         }
 

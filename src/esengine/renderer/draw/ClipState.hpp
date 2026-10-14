@@ -31,6 +31,11 @@ public:
         e.stencil_ref = refValue;
     }
 
+    bool isStencilMask(Entity entity) const {
+        const auto it = entries_.find(entity.id());
+        return it != entries_.end() && (it->second.flags & CMD_STATE_STENCIL_WRITE) != 0;
+    }
+
     void setStencilTest(u32 entity, i32 refValue) {
         auto& e = entries_[entity];
         e.flags |= CMD_STATE_STENCIL_TEST;

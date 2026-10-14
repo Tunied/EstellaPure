@@ -32,6 +32,9 @@ export const NOTED = {
     { note: 'Playable exports report static checks and pending acceptance.' },
   'feat(editor): show playable export checks in package results':
     { note: 'Playable exports report static checks and pending acceptance.' },
+
+  'perf(ui): skip fully transparent visual geometry':
+    { note: 'Fully transparent UI visuals skip geometry uploads.' },
   'fix(playable): pass store destinations through the CTA bridge':
     { note: 'MRAID store clicks carry their destination.' },
   'fix(playable): observe MRAID readiness and viewability':

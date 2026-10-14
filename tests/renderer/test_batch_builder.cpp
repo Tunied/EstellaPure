@@ -17,6 +17,10 @@
 #include "esengine/renderer/frame/RenderFrame.hpp"
 #include "esengine/renderer/frame/RenderContext.hpp"
 #include "esengine/resource/ResourceManager.hpp"
+#include "esengine/renderer/plugins/UIElementPlugin.hpp"
+#include "esengine/ecs/components/UINode.hpp"
+#include "esengine/ecs/components/UIVisual.hpp"
+#include "esengine/ecs/components/UIMask.hpp"
 
 #include <functional>
 #include <utility>
@@ -268,6 +272,79 @@ TEST_CASE("camera mask: hidden text and skeletal submissions upload no geometry"
     CHECK(frame.stats().text == 1);
     CHECK(frame.stats().skeletal == 1);
     CHECK(frame.stats().triangles == 4);
+}
+
+TEST_CASE("UI visuals: zero alpha skips geometry and a restored fade draws again") {
+    for (auto mode : {ecs::UIVisualType::SolidColor, ecs::UIVisualType::Image,
+                      ecs::UIVisualType::NineSlice, ecs::UIVisualType::Tiled,
+                      ecs::UIVisualType::Filled}) {
+        for (bool inherited : {false, true}) {
+            Harness h;
+            RenderContext context(h.device);
+            resource::ResourceManager resources;
+            ecs::Registry registry;
+            const auto entity = registry.create();
+            registry.emplace<ecs::Transform>(entity);
+            auto& node = registry.emplace<ecs::UINode>(entity);
+            node.computed_size_ = {20, 20};
+            auto& visual = registry.emplace<ecs::UIVisual>(entity);
+            visual.visualType = mode;
+            visual.sliceBorder = {2, 2, 2, 2};
+            visual.fillMethod = ecs::UIFillMethod::Radial360;
+            visual.fillAmount = .5f;
+            if (inherited) node.alpha_in_tree_ = 0;
+            else visual.color.a = 0;
+            RenderFrameContext frameContext{context, resources};
+            frameContext.purpose = RenderPurpose::ScreenOverlay;
+            std::unordered_set<u32> screen{entity.id()};
+            Frustum frustum;
+            RenderCollectContext collect{registry, frustum, h.clips, h.pool, h.list, frameContext, {}};
+            collect.screen_ui = &screen;
+            UIElementPlugin plugin;
+            plugin.init(frameContext);
+            plugin.collect(collect);
+            CHECK(h.list.commandCount() == 0);
+            CHECK(h.pool.vertexBytesUsed(LayoutId::Batch) == 0);
+            CHECK(h.pool.indicesUsed(LayoutId::Batch) == 0);
+            node.alpha_in_tree_ = .5f;
+            visual.color.a = 1;
+            plugin.collect(collect);
+            CHECK(h.list.commandCount() > 0);
+            CHECK(h.pool.vertexBytesUsed(LayoutId::Batch) > 0);
+            CHECK(h.pool.indicesUsed(LayoutId::Batch) > 0);
+        }
+    }
+}
+
+TEST_CASE("UI visuals: transparent stencil masks and custom materials retain geometry") {
+    for (int kind : {0, 1, 2}) {
+        Harness h;
+        RenderContext context(h.device);
+        resource::ResourceManager resources;
+        ecs::Registry registry;
+        const auto entity = registry.create();
+        registry.emplace<ecs::Transform>(entity);
+        auto& node = registry.emplace<ecs::UINode>(entity);
+        node.computed_size_ = {20, 20};
+        node.alpha_in_tree_ = 0;
+        auto& visual = registry.emplace<ecs::UIVisual>(entity);
+        visual.visualType = ecs::UIVisualType::SolidColor;
+        if (kind == 0) visual.material = 42;
+        if (kind == 1) registry.emplace<ecs::UIMask>(entity).mode = ecs::MaskMode::Stencil;
+        if (kind == 2) h.clips.setStencilMask(entity.id(), 1);
+        RenderFrameContext frameContext{context, resources};
+        frameContext.purpose = RenderPurpose::ScreenOverlay;
+        std::unordered_set<u32> screen{entity.id()};
+        Frustum frustum;
+        RenderCollectContext collect{registry, frustum, h.clips, h.pool, h.list, frameContext, {}};
+        collect.screen_ui = &screen;
+        UIElementPlugin plugin;
+        plugin.init(frameContext);
+        plugin.collect(collect);
+        CHECK(h.list.commandCount() == 1);
+        CHECK(h.pool.vertexBytesUsed(LayoutId::Batch) == 4 * sizeof(BatchVertex));
+        CHECK(h.pool.indicesUsed(LayoutId::Batch) == 6);
+    }
 }
 
 TEST_CASE("camera passes: empty text and skeletal clips recover on the next camera") {
