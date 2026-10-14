@@ -30,6 +30,14 @@ handle:
 | Rotate | `E` | Projected axis rings; head-on 2D shows the Z ring. |
 | Scale | `R` | Projected axis boxes plus a center handle that scales the visible plane's two axes. |
 | Rect | `T` | The selected sprite or UI node's own rectangle grips. |
+| Universal Transform | `Y` | Move arrows and center plane, outer scale boxes and rotation rings together. |
+
+Universal Transform gives move handles priority over scale boxes, then rotation
+rings. Scale boxes sit beyond the arrow tips so they remain reachable; a drag
+along one complete box-arm length doubles that axis's scale. Each press chooses
+one operation, which remains fixed for the entire drag. Its hover and drag
+highlight affect only that operation. The separate W / E / R tools keep their
+existing geometry and T remains Rect.
 
 Hovering a transform handle highlights the handle that a press will grab. The
 cursor shows moving, rotation or the projected resize direction. Camera or
@@ -51,9 +59,12 @@ and child are both selected, the parent still carries its subtree to avoid apply
 the gesture twice. Locked targets stay excluded. The pivot policy is captured at
 the start of a drag, so changing it during that drag applies to the next gesture.
 
-Each drag is a single undo step; **Esc** cancels it. **Alt-drag** a selection to
+Each drag is a single undo step; **Esc** cancels it. **Alt-drag a selected handle** to
 duplicate it and drag the copies. Nudge the selection with the **arrow keys** (one
 grid step; hold **Shift** for ×10).
+
+Alt-left on the rest of the canvas still orbits the camera. Hidden or locked
+handles and contributed tools do not claim this copy gesture.
 
 **Align & distribute** — select two or more entities and a strip of alignment buttons
 appears in the viewport overlay: align **left / centre / right** edges and **top / middle /

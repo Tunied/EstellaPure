@@ -10,14 +10,18 @@ fs.writeFileSync(path.join(project,'src/main.ts'),'export {};');fs.writeFileSync
 const records=[];
 const read="(() => { const s=document.querySelector('.viewport__stage'); return {hover:s?.dataset.gizmoHover,cursor:s?.style.cursor,size:JSON.parse(localStorage.getItem('estella.settings') || '{}')['viewport.gizmoSize'],scene:JSON.stringify(window.__estellaEditor.surface.serializeScene())}; })()";
 try{
- for(const size of [0.5,1,2]) for(const c of [{mode:'move',x:50,y:0,id:'move.x',cursor:'move'},{mode:'scale',x:58,y:0,id:'scale.x',cursor:'ew-resize'},{mode:'rotate',x:42,y:0,id:'rotate.z',cursor:'grab'}]){
+ for(const size of [0.5,1,2]) for(const c of [{mode:'move',x:50,y:0,id:'move.x',cursor:'move'},{mode:'scale',x:58,y:0,id:'scale.x',cursor:'ew-resize'},{mode:'rotate',x:42,y:0,id:'rotate.z',cursor:'grab'},
+  {mode:'universal',name:'universal-move',x:42,y:0,id:'move.x',cursor:'move'},
+  {mode:'universal',name:'universal-scale',x:80,y:0,id:'scale.x',cursor:'ew-resize'},
+  {mode:'universal',name:'universal-rotate',x:30,y:-30,id:'rotate.z',cursor:'grab'}]){
+  const name=c.name ?? c.mode;
   const run=runElectron(['.'],{via:'npx',encoding:'utf8',cwd:path.join(root,'desktop'),timeout:180000,env:{
-   ESTELLA_SHOT:path.join(out,c.mode+'-'+size+'.png'),ESTELLA_SHOT_PROJECT:project,ESTELLA_SHOT_SCENE:'assets/scenes/main.esscene',
+   ESTELLA_SHOT:path.join(out,name+'-'+size+'.png'),ESTELLA_SHOT_PROJECT:project,ESTELLA_SHOT_SCENE:'assets/scenes/main.esscene',
    ESTELLA_SHOT_EVAL:`(async () => {const e=window.__estellaEditor;const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));const find=async selector=>{for(let i=0;i<50;i++){const node=document.querySelector(selector);if(node)return node;await wait(100);}throw Error('Missing settings control: '+selector);};e.runCommand('settings.open');const search=await find('.set-search input');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(search,'viewport.gizmoSize');search.dispatchEvent(new Event('input',{bubbles:true}));await wait(200);if(document.querySelectorAll('.set-content .set-row').length!==1)throw Error('Size search must identify one setting');const value=await find('.set-num');value.focus();value.value='${size}';value.blur();await wait(100);if(JSON.parse(localStorage.getItem('estella.settings')||'{}')['viewport.gizmoSize']!==${size})throw Error('Size preference was not saved');document.querySelector('.set-win').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));await wait(300);e.runCommand('mode.scene');e.runCommand('view.resetOrbit');e.surface.setGizmoDisplay({show:true,selectedOnly:true,iconSize:16,types:{}});e.surface.select(1);e.frame([1]);await wait(750);e.runCommand('tool.${c.mode}');return true;})()`,
    ESTELLA_SHOT_EDITOR_DRAG:JSON.stringify({selector:'.viewport__stage canvas',ox:c.x*size,oy:c.y*size,steps:1,hoverOnly:true,read})}});
   assert.equal(run.status,0,run.stderr);const line=run.stdout.split('\n').find(line=>line.startsWith('[editorDrag] '));assert(line,'Missing trusted hover observation');
   const result=JSON.parse(line.slice('[editorDrag] '.length));assert.equal(result.after.hover,c.id);assert.equal(result.after.cursor,c.cursor);assert.equal(result.after.size,size);assert.equal(result.after.scene,result.before.scene,'Hover edited the scene');
-  assert(fs.existsSync(path.join(out,c.mode+'-'+size+'.png')),'Missing editor screenshot');records.push({mode:c.mode,size,...result});
+  assert(fs.existsSync(path.join(out,name+'-'+size+'.png')),'Missing editor screenshot');records.push({mode:c.mode,name,size,...result});
  }
  fs.writeFileSync(path.join(out,'checks.json'),JSON.stringify({status:'checks-passed',mode:'CI-editor-trusted-hover',records},null,2));
  console.log('Gizmo hover CI: move/scale/rotate preselection and cursors pass; scene unchanged');
