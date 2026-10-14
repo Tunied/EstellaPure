@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(checks): report non-TypeScript example failures':
+    { internal: 'Example validation reports filesystem and process failures instead of dropping all non-TS diagnostics.' },
   'perf(templates): minify the WeChat publishing profile':
     { note: "The WeChat starter's publishing profile minifies its game bundle." },
   'feat(templates): add WeChat gameplay and host-service starter':

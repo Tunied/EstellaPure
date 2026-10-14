@@ -10,6 +10,7 @@ import path from 'path';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import * as logger from '../utils/logger.js';
+import { exampleFailureLines } from '../utils/exampleDiagnostics.js';
 
 // Every project directory that ships to users: the examples plus the editor's
 // bundled new-project templates (templates/).
@@ -124,9 +125,8 @@ export async function checkExamples(rootDir) {
             logger.success(example.name);
             results.passed++;
         } catch (err) {
-            const stderr = err.stdout?.toString() || err.stderr?.toString() || err.message;
             logger.error(`${example.name}`);
-            const lines = stderr.split('\n').filter(l => l.includes('error TS'));
+            const lines = exampleFailureLines(err);
             for (const line of lines.slice(0, 10)) {
                 logger.error(`  ${line.trim()}`);
             }
