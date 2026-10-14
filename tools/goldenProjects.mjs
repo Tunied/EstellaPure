@@ -91,6 +91,12 @@ export const CENSUS_FLOOR = '0.60.0';
  * that does not exist, and release notes are a different act. Theirs is ungated.
  */
 export const SHIPPED = {
+  'Playable asset quality adapts to the measured delivery budget':
+    { notCertifiable: 'export-time asset encoding and delivery size selection rather than standalone scene behavior; pipeline tests verify candidate quality, opt-outs and archive budgets; visual quality and live network acceptance still require runtime evidence' },
+  'Playable creatives have a local container preview':
+    { notCertifiable: 'a local mock host and CLI preview surface rather than a packaged scene capability; preview tests verify lifecycle callbacks, store gesture records and delivery hashes; mocks do not certify ad-network acceptance' },
+  'Playable exports report static checks and pending acceptance':
+    { notCertifiable: 'export diagnostics rather than standalone scene behavior; playable export tests verify SDK tags, resource references, orientation and delivery hashes; CTA, lifecycle and device/network acceptance remain pending runtime evidence' },
   'TikTok and overseas Pangle package the same playable project':
     { notCertifiable: 'network-specific archive and host SDK contracts; pipeline/tests/export-playable.test.ts and playable-mraid.test.ts verify packaging and bridges; live ad-network acceptance remains pending' },
   'Playable exports handle Mintegral start, completion and retry':

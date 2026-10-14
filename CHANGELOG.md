@@ -14,6 +14,8 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+## [0.82.0] - 2026-10-14
+
 ### Added
 
 - **Playable asset quality adapts to the measured delivery budget.** Auto optimization tries lossless WebP, eligible lower MP3 bitrates and bounded WebP quality while preserving image dimensions and alpha. Each candidate is weighed as actual HTML/ZIP against the network, project and internal 3 MiB target; pixel art, font pages and data images stay lossless, and color-managed/animated/16-bit PNGs retain their original format. Reports and the editor show selected encodings, size changes and unmet targets; opt-outs and Skip are honored.
@@ -14237,7 +14239,8 @@ not kept before this file was introduced — see the Git history at
 `github.com/esengine/estella` for the full commit-level record since the first
 commit on 2026-01-25.
 
-[Unreleased]: https://github.com/esengine/estella/compare/v0.81.0...HEAD
+[Unreleased]: https://github.com/esengine/estella/compare/v0.82.0...HEAD
+[0.82.0]: https://github.com/esengine/estella/compare/v0.81.0...v0.82.0
 [0.81.0]: https://github.com/esengine/estella/compare/v0.80.0...v0.81.0
 [0.80.0]: https://github.com/esengine/estella/compare/v0.79.0...v0.80.0
 [0.79.0]: https://github.com/esengine/estella/compare/v0.78.0...v0.79.0
