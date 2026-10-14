@@ -96,7 +96,7 @@ playableCta();
 | **Meta**(Facebook / Instagram) | `index.html` 2MB | `FbPlayableAd.onCTAClick()` | Meta 的 5MB 是 ZIP 包的总量;单文件试玩受 `index.html` 那条约束。禁止任何 HTTP 请求。 |
 | **Google Ads**(应用广告系列) | 5MB | `ExitApi.exit()` | 它的退出接口是 Google 托管的脚本,官方要求以字面 `<script>` 写在 `<head>` 里——导出会帮你写好。Google 上传 **ZIP**,所以要先把 `index.html` 压缩。 |
 | **MRAID 平台**(通用) | 5MB | `mraid.open()` | 适用于任何 MRAID 宿主。`mraid` 由宿主 webview 注入,`<head>` 无需任何内容。 |
-| **Unity Ads** | 5MB | `mraid.open()` | 要求试玩包等到 MRAID 的 `viewableChange` 之后再开始。 |
+| **Unity Ads** | 5MB | `mraid.open()` | 运行时自动等待 MRAID ready 和 viewable，隐藏时暂停游戏及音频，退出时释放宿主监听。 |
 | **AppLovin** | 5MB | `mraid.open()` | 要求所有资源内嵌——单文件试玩本来就是。 |
 | **Mintegral** | 5MB | `window.install()` | 导出资源内嵌的 `index.html` 和同名 `index.zip`。等待宿主开始，关闭时暂停游戏和音频。 |
 | **TikTok / 海外 Pangle** | ZIP <5MB | `window.openAppStore()` | 根目录包含 `config.json`，方向字段按平台区分；游戏脚本前注入官方 SDK。仍需广告管理平台预览验收，国内穿山甲另行适配。 |

@@ -121,18 +121,29 @@ export const googlePlayableProfile: PlayableAdProfile = {
 };
 
 /**
- * The MRAID networks. `mraid` is injected by the host webview, so nothing goes in
- * `<head>` — and `mraid.open()` is what the spec requires for a click-through
- * (an `<a href>` or `window.open` breaks click tracking, and some exchanges reject
- * it outright).
- *
- * Note for the game: MRAID hosts expect the playable to wait for the
- * `viewableChange` event before it starts, which is the game's call to make.
- * @see https://mraid.io/
+ * Host-injected MRAID handles store clicks and advert viewability.
+ * The runtime waits for readiness and visibility before running gameplay.
+ * @see https://docs.unity.com/en-us/grow/acquire/creatives/playable/specifications
  */
-const mraidBridge = (): string => 'window.__ESTELLA_PLAYABLE__={cta:function(){'
-    + 'if(typeof mraid!=="undefined"&&mraid.open)mraid.open();'
-    + '}};';
+const mraidBridge = (): string => `(function(){
+var host=window.mraid,listeners=[],active=!host,loaded=!host,subscribed=false;
+function publish(value){active=value;listeners.slice().forEach(function(fn){try{fn(value);}catch(error){console.error("[playable] lifecycle listener failed",error);}});}
+function viewable(value){publish(loaded&&!!value);}
+function ready(){loaded=true;if(typeof host.removeEventListener==="function")host.removeEventListener("ready",ready);publish(typeof host.isViewable==="function"&&host.isViewable());}
+function subscribe(){
+if(!host||subscribed||typeof host.addEventListener!=="function")return;
+subscribed=true;host.addEventListener("viewableChange",viewable);
+if(typeof host.getState==="function"&&host.getState()==="loading")host.addEventListener("ready",ready);else ready();
+}
+function unsubscribe(){
+if(!subscribed)return;subscribed=false;
+if(typeof host.removeEventListener==="function"){host.removeEventListener("ready",ready);host.removeEventListener("viewableChange",viewable);}
+}
+window.__ESTELLA_PLAYABLE__={
+cta:function(){if(window.mraid&&typeof window.mraid.open==="function")window.mraid.open();},
+onActive:function(fn){subscribe();listeners.push(fn);fn(active);return function(){listeners=listeners.filter(function(item){return item!==fn;});if(!listeners.length)unsubscribe();};}
+};
+})();`;
 
 export const mraidPlayableProfile: PlayableAdProfile = {
     id: 'mraid',

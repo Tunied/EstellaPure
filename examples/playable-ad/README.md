@@ -29,3 +29,8 @@ domestic Pangle exports. Validate uploads in the appropriate Ads Manager preview
 
 Specifications: [TikTok](https://ads.tiktok.com/resources/help/article/playable-ads?lang=en),
 [overseas Pangle](https://ads.tiktok.com/resources/help/article/how-to-create-tiktok-pangle-playable-ads).
+
+The `mraid`, `unity`, and `applovin` profiles wait for host readiness and viewability.
+A hidden ad pauses gameplay and audio; cleanup removes container listeners. Plain
+browser preview remains active. Network upload and device acceptance remain separate
+from a local mock-container check.

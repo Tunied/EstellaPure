@@ -22,7 +22,11 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+
 - **UI text fades reuse cached geometry.** Inherited opacity changes update vertex alpha without repeating glyph lookup, layout or index generation. Bitmap and SDF text retain their original fill, rich-text, shadow and outline alpha, restoring it without cumulative fading; authored color and layout changes still rebuild the cache.
+
+- **MRAID playables wait for ready and viewable hosts.** Unity, AppLovin and generic MRAID exports pause gameplay and audio until the host is ready and visible, stop when hidden, and release container callbacks on exit. Browser previews still run without an ad container.
+
 
 - **Pointer carets keep supplementary characters intact.** Clicking single-line, multiline or password fields no longer places the caret between the UTF-16 halves of an emoji or another supplementary code point. DOM selection offsets remain UTF-16-based, and existing prefix measurement behavior is preserved.
 

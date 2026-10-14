@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(playable): observe MRAID readiness and viewability':
+    { note: 'MRAID playables wait for ready and viewable hosts.' },
   'feat(playable): package TikTok and overseas Pangle creatives':
     { note: 'TikTok and overseas Pangle package the same playable project.' },
   'perf(ui): reuse text geometry during inherited opacity fades':

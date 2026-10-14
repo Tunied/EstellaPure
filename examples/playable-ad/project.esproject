@@ -40,6 +40,30 @@
           }
         },
         "platform": "playable"
+      },
+      "mraid": {
+        "platform": "playable",
+        "platforms": {
+          "playable": {
+            "network": "mraid"
+          }
+        }
+      },
+      "unity": {
+        "platform": "playable",
+        "platforms": {
+          "playable": {
+            "network": "unity"
+          }
+        }
+      },
+      "applovin": {
+        "platform": "playable",
+        "platforms": {
+          "playable": {
+            "network": "applovin"
+          }
+        }
       }
     }
   }

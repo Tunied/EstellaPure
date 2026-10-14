@@ -111,7 +111,7 @@ selected it is a no-op, so the same scene still runs in the editor and on the we
 | **Meta** (Facebook / Instagram) | 2MB for `index.html` | `FbPlayableAd.onCTAClick()` | Meta's 5MB figure is the total for a ZIP bundle; a single-file playable is capped by the `index.html` rule. Forbids any HTTP request. |
 | **Google Ads** (App campaigns) | 5MB | `ExitApi.exit()` | Its exit API is a Google-hosted script, which the docs require as a literal `<script>` in `<head>` — the export writes it for you. Google uploads a **ZIP**, so compress the `index.html` before uploading. |
 | **MRAID network** (generic) | 5MB | `mraid.open()` | For any MRAID host. `mraid` is injected by the webview, so nothing goes in `<head>`. |
-| **Unity Ads** | 5MB | `mraid.open()` | Expects the playable to wait for MRAID's `viewableChange` before starting. |
+| **Unity Ads** | 5MB | `mraid.open()` | The runtime waits for MRAID readiness and viewability, pauses on hidden ads, and removes host listeners on exit. |
 | **AppLovin** | 5MB | `mraid.open()` | Requires every resource embedded — which a single-file playable already is. |
 | **Mintegral** | 5MB | `window.install()` | Exports embedded `index.html` and matching `index.zip`. Waits for host start; game close pauses gameplay and audio. |
 | **TikTok / overseas Pangle** | ZIP <5MB | `window.openAppStore()` | Includes root `config.json`, each network’s orientation field, and the mandatory official SDK before game scripts. Ads Manager preview acceptance remains required. |
