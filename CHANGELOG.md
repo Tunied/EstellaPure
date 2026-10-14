@@ -14,6 +14,8 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+## [0.85.0] - 2026-10-15
+
 ### Added
 
 - **Transform handles preview the pointer's target before a drag.** Move/scale axes, the center plane and rotation rings use the same hit decision for hovering and pressing. Hover uses the drag highlight and projected resize cursor; it follows camera and selection changes, clears outside the canvas, and yields to navigation, paint, picking and contributed tools. Hover does not edit scene data. Real editor pointer and screenshot acceptance runs in CI.
@@ -14323,7 +14325,8 @@ not kept before this file was introduced — see the Git history at
 `github.com/esengine/estella` for the full commit-level record since the first
 commit on 2026-01-25.
 
-[Unreleased]: https://github.com/esengine/estella/compare/v0.84.0...HEAD
+[Unreleased]: https://github.com/esengine/estella/compare/v0.85.0...HEAD
+[0.85.0]: https://github.com/esengine/estella/compare/v0.84.0...v0.85.0
 [0.84.0]: https://github.com/esengine/estella/compare/v0.83.0...v0.84.0
 [0.83.0]: https://github.com/esengine/estella/compare/v0.82.0...v0.83.0
 [0.82.0]: https://github.com/esengine/estella/compare/v0.81.0...v0.82.0

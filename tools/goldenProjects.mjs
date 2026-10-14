@@ -91,6 +91,20 @@ export const CENSUS_FLOOR = '0.60.0';
  * that does not exist, and release notes are a different act. Theirs is ungated.
  */
 export const SHIPPED = {
+  "Transform handles preview the pointer's target before a drag.":
+    { notCertifiable: "Editor interaction rather than a rendered game capability; desktop/tests/gizmo-hover.test.ts verifies shared hit decisions. tools/verify-gizmo-hover.mjs runs editor pointer and screenshot acceptance in CI." },
+  "The WeChat starter's publishing profile minifies its game bundle.":
+    { notCertifiable: "Publishing profile configuration; tools/tests/wechat-starter.test.ts checks Shipping settings and bundle minification. Headless startup observations do not certify actual device cold startup." },
+  "The WeChat Mini Game starter combines gameplay and host-service examples.":
+    { notCertifiable: "Starter creation and host-service contracts; tools/tests/wechat-starter.test.ts and wechat-starter.e2e.mjs verify authored gameplay, local credit restoration and controlled host behavior. Real accounts, server exchange and device approval remain pending." },
+  "The Playable Ad starter includes a complete editable game.":
+    { notCertifiable: "Starter authoring and export configuration; desktop launcher tests and headless playable scenarios verify creation, gameplay and store actions. External network approval and publication remain pending." },
+  "YouTube headless checks enforce the documented hosting policy.":
+    { notCertifiable: "Hosting-policy verification infrastructure; tools/tests/youtube-training.e2e.mjs checks CSP enforcement and its negative control. Official SDK Test Suite and device acceptance remain pending." },
+  "YouTube exports check stored bundle constraints.":
+    { notCertifiable: "Export and host-storage contracts; pipeline/tests/youtube-bundle.test.ts and youtube-profile.test.ts verify size boundaries, filenames and cloud envelopes. Official transfer and peak heap certification remain pending." },
+  "YouTube Playables Web exports honor host readiness and persistence.":
+    { notCertifiable: "External platform lifecycle and persistence contracts; pipeline/tests/youtube-profile.test.ts and tools/tests/youtube-training.e2e.mjs verify readiness, pause, saved rewards and reloads with controlled SDK mocks. Official certification and devices remain pending." },
   'App execution holds stop owned frames, input and media':
     { notCertifiable: 'host execution ownership rather than a standalone rendered scene capability; sdk/tests/execution-hold.test.ts, video-execution-hold.test.ts and tools/tests/execution-hold.e2e.mjs verify nested holds, startup, input and media using controlled hosts; game-owned timers and asynchronous work require cooperation' },
   'Storage exposes asynchronous write acknowledgment':
