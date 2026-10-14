@@ -19,16 +19,14 @@ public:
     const char* collectScope() const override { return "render.collect.text"; }
 
 private:
-    // Glyph quads cached in fontSize-applied, scale-free units relative to the
-    // text origin, untinted. Transform scale, world position and color are
-    // per-frame linear factors applied at collect, so only a content change
-    // ({text, font, fontSize, spacing, align}) re-runs layout — and the whole
-    // text is one DrawCommand instead of one per glyph.
+    // Local glyph quads and ink bounds are cached per content signature.
+    // World transforms, parallax and tint apply at collect; the whole text
+    // remains one command rather than one per glyph.
     struct TextLayoutCache {
         std::vector<BatchVertex> vertices;
         std::vector<u32> indices;
-        f32 width = 0.0f;   // measureText extents at the cached fontSize
-        f32 height = 0.0f;
+        glm::vec3 min{0.0f};
+        glm::vec3 max{0.0f};
         std::string text;
         u32 font_id = 0;
         f32 font_size = 0.0f;

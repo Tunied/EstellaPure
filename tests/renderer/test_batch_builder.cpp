@@ -18,6 +18,8 @@
 #include "esengine/renderer/frame/RenderContext.hpp"
 #include "esengine/resource/ResourceManager.hpp"
 #include "esengine/renderer/plugins/UIElementPlugin.hpp"
+#include "esengine/renderer/plugins/TextPlugin.hpp"
+#include "esengine/ecs/components/BitmapText.hpp"
 #include "esengine/ecs/components/UINode.hpp"
 #include "esengine/ecs/components/UIVisual.hpp"
 #include "esengine/ecs/components/UIMask.hpp"
@@ -277,6 +279,77 @@ TEST_CASE("camera mask: hidden text and skeletal submissions upload no geometry"
     CHECK(frame.stats().text == 1);
     CHECK(frame.stats().skeletal == 1);
     CHECK(frame.stats().triangles == 4);
+}
+
+TEST_CASE("bitmap text: world geometry follows affine transforms and parallax") {
+    for (u32 kind : {0u, 1u, 2u}) {
+        const bool alignedEdge = kind == 1, rootWithoutMatrix = kind == 2;
+        Harness h;
+        RenderContext context(h.device);
+        resource::ResourceManager resources;
+        resources.init(h.device);
+        const u8 pixels[16 * 16 * 4] = {};
+        const auto texture = resources.createTexture(resource::ResourceContent::Retained, 16, 16,
+                                                     pixels, TextureFormat::RGBA8);
+        REQUIRE(texture.isValid());
+        const auto font = resources.createBitmapFont(
+            "common lineHeight=16 base=12 scaleW=16 scaleH=16 pages=1\n"
+            "char id=65 x=0 y=0 width=8 height=16 xoffset=2 yoffset=1 xadvance=10 page=0 chnl=15\n",
+            texture, 16, 16);
+        REQUIRE(font.isValid());
+        ecs::Registry registry;
+        const auto entity = registry.create();
+        auto& transform = registry.emplace<ecs::Transform>(entity);
+        auto& text = registry.emplace<ecs::BitmapText>(entity);
+        text.font = font;
+        text.text = "A";
+        glm::mat4 projection;
+        if (alignedEdge) {
+            text.align = ecs::TextAlign::Right;
+            transform.cachedMatrix_ = glm::translate(glm::mat4(1), glm::vec3(7, 0, 0));
+            projection = glm::ortho(-1.0f, 1.0f, -20.0f, 20.0f);
+        } else if (rootWithoutMatrix) {
+            transform.worldPosition = {4, -7, 0};
+            transform.worldRotation = glm::angleAxis(.7f, glm::vec3(0, 0, 1));
+            transform.worldScale = {-2, 3, 1};
+            text.parallax = {.5f, .25f};
+            projection = glm::ortho(-100.0f, 100.0f, -100.0f, 100.0f);
+        } else {
+            const auto parent = registry.create();
+            registry.emplace<ecs::Parent>(entity).entity = parent;
+            registry.emplace<ecs::Children>(parent).entities.push_back(entity);
+            transform.cachedMatrix_ = glm::scale(glm::mat4(1), glm::vec3(2, 1, 1))
+                                    * glm::translate(glm::mat4(1), glm::vec3(4, -7, 0))
+                                    * glm::mat4_cast(glm::angleAxis(.7f, glm::vec3(0, 0, 1)))
+                                    * glm::scale(glm::mat4(1), glm::vec3(-2, 3, 1));
+            text.parallax = {.5f, .25f};
+            projection = glm::ortho(-100.0f, 100.0f, -100.0f, 100.0f);
+        }
+        transform.decomposed_ = rootWithoutMatrix;
+        Frustum frustum;
+        frustum.extractFromMatrix(projection);
+        RenderFrameContext frameContext{context, resources};
+        RenderCollectContext collect{registry, frustum, h.clips, h.pool, h.list, frameContext, {}};
+        collect.camera.center = {10, 20};
+        TextPlugin plugin;
+        plugin.init(frameContext);
+        plugin.collect(collect);
+        REQUIRE(h.pool.vertexBytesUsed(LayoutId::Batch) == 4 * sizeof(BatchVertex));
+        CHECK(h.pool.indicesUsed(LayoutId::Batch) == 6);
+        const auto* vertices = reinterpret_cast<const BatchVertex*>(h.pool.vertexData(LayoutId::Batch));
+        const glm::vec2 local[] = {{2, -5}, {10, -5}, {10, 11}, {2, 11}};
+        for (u32 i = 0; i < 4; ++i) {
+            const auto matrix = rootWithoutMatrix
+                ? glm::translate(glm::mat4(1), transform.worldPosition) * glm::mat4_cast(transform.worldRotation)
+                  * glm::scale(glm::mat4(1), transform.worldScale)
+                : transform.cachedMatrix_;
+            const glm::vec3 origin = glm::vec3(matrix * glm::vec4(local[i].x - (alignedEdge ? 10 : 0), local[i].y, 0, 1));
+            const auto expected = origin + glm::vec3(collect.camera.center * (glm::vec2(1) - text.parallax), 0);
+            CHECK(vertices[i].position.x == doctest::Approx(expected.x));
+            CHECK(vertices[i].position.y == doctest::Approx(expected.y));
+        }
+        resources.shutdown();
+    }
 }
 
 TEST_CASE("UI masks: deep grouping hierarchies reach their leaf without call-stack recursion") {

@@ -6,10 +6,12 @@
 #include "../frame/RenderFrame.hpp"
 #include "../rhi/Texture.hpp"
 #include "../../ecs/components/Transform.hpp"
+#include "../../ecs/components/Hierarchy.hpp"
 #include "../../ecs/components/BitmapText.hpp"
 #include "../../text/BitmapFont.hpp"
 
 #include <cmath>
+#include <limits>
 
 namespace esengine {
 
@@ -47,9 +49,8 @@ void TextPlugin::rebuildLayout(const text::BitmapFont& font, const ecs::BitmapTe
     cache.vertices.clear();
     cache.indices.clear();
 
-    auto metrics = font.measureText(bt.text, bt.fontSize, bt.spacing);
-    cache.width = metrics.width;
-    cache.height = metrics.height;
+    cache.min = glm::vec3(std::numeric_limits<f32>::max());
+    cache.max = glm::vec3(std::numeric_limits<f32>::lowest());
 
     const f32 fs = bt.fontSize;
     const f32 spacing = bt.spacing;
@@ -94,6 +95,8 @@ void TextPlugin::rebuildLayout(const text::BitmapFont& font, const ecs::BitmapTe
             f32 halfH = glyph->height * fs * 0.5f;
             f32 cx = cursorX + (glyph->xOffset + glyph->width * 0.5f) * fs;
             f32 cy = (fontBase - glyph->yOffset - glyph->height * 0.5f) * fs;
+            cache.min = glm::min(cache.min, glm::vec3(cx - halfW, cy - halfH, 0.0f));
+            cache.max = glm::max(cache.max, glm::vec3(cx + halfW, cy + halfH, 0.0f));
 
             // Glyph rows are top-down in the atlas, so v is flipped (top at vMin).
             f32 uMin = glyph->x / texW;
@@ -118,7 +121,6 @@ void TextPlugin::rebuildLayout(const text::BitmapFont& font, const ecs::BitmapTe
 
 void TextPlugin::collect(RenderCollectContext& collect_ctx) {
     auto& registry = collect_ctx.registry;
-    auto& frustum = collect_ctx.frustum;
     auto& clips = collect_ctx.clip_state;
     auto& buffers = collect_ctx.buffer_pool;
     auto& draw_list = collect_ctx.draw_list;
@@ -129,6 +131,7 @@ void TextPlugin::collect(RenderCollectContext& collect_ctx) {
         const auto& bt = textView.get<ecs::BitmapText>(entity);
         if (!bt.enabled) continue;
         if (bt.text.empty() || !bt.font.isValid()) continue;
+        if (!batchEntityVisible(draw_list, clips, entity, bt.layer, 0)) continue;
 
         auto* font = ctx.resources.getBitmapFont(bt.font);
         if (!font) continue;
@@ -155,14 +158,20 @@ void TextPlugin::collect(RenderCollectContext& collect_ctx) {
 
         auto& transform = textView.get<ecs::Transform>(entity);
         glm::vec3 position = parallaxedWorldPosition(transform, bt.parallax, collect_ctx.camera);
-        const f32 s = transform.worldScale.x;
-
-        glm::vec3 halfExtents = glm::abs(glm::vec3(
-            cache.width * s * 0.5f,
-            cache.height * transform.worldScale.y * 0.5f,
-            0.0f
-        ));
-        if (!frustum.intersectsAABB(position, halfExtents)) {
+        glm::vec3 axisX, axisY;
+        if (registry.has<ecs::Parent>(entity)) {
+            axisX = glm::vec3(transform.cachedMatrix_[0]);
+            axisY = glm::vec3(transform.cachedMatrix_[1]);
+        } else {
+            const auto rotation = glm::mat3_cast(transform.worldRotation);
+            axisX = rotation[0] * transform.worldScale.x;
+            axisY = rotation[1] * transform.worldScale.y;
+        }
+        const glm::vec3 localCenter = (cache.min + cache.max) * 0.5f;
+        const glm::vec3 localHalf = (cache.max - cache.min) * 0.5f;
+        const glm::vec3 center = position + axisX * localCenter.x + axisY * localCenter.y;
+        const glm::vec3 halfExtents = glm::abs(axisX) * localHalf.x + glm::abs(axisY) * localHalf.y;
+        if (!collect_ctx.visible(center, halfExtents, false)) {
             ++collect_ctx.culled;
             continue;
         }
@@ -172,7 +181,7 @@ void TextPlugin::collect(RenderCollectContext& collect_ctx) {
         scratch_.reserve(cache.vertices.size());
         for (const BatchVertex& v : cache.vertices) {
             scratch_.push_back({
-                { position.x + v.position.x * s, position.y + v.position.y * s, position.z },
+                position + axisX * v.position.x + axisY * v.position.y,
                 packedColor, v.texCoord });
         }
 

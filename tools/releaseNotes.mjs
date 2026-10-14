@@ -33,6 +33,9 @@ export const NOTED = {
   'feat(editor): show playable asset optimization decisions':
     { note: 'Playable asset quality adapts to the measured delivery budget.' },
 
+
+  'fix(text): transform native bitmap glyphs and ink bounds':
+    { note: 'Native bitmap text follows its complete world transform.' },
   'fix(playable): honor authored texture and audio optimization':
     { note: 'Playable exports honor authored image and audio optimization.' },
 

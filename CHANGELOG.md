@@ -26,6 +26,9 @@ published separately; it ships inside the editor.
 
 - **Playable exports honor authored image and audio optimization.** Automatic asset optimization applies PNG Max Size (including playable overrides) without loading a GPU texture encoder, and converts eligible WAV clips to MP3 at their authored bitrate. Per-clip opt-outs and the build's Skip setting preserve originals; failed asset cooking prevents a successful export.
 
+- **Native bitmap text follows its complete world transform.** Glyph vertices retain rotation, independent axis scales, mirrors and parent-induced shear while preserving parallax and batching. Cached ink bounds include alignment and glyph offsets, preventing visible edge text from being culled; layout no longer repeats a separate full-text measurement.
+
+
 - **Playable preview records identify the delivered archive.** Full export reports verify the adjacent ZIP hash before previewing, catching config changes even when HTML stays identical. Downloaded logs retain HTML/delivery hashes and explicitly disclose omitted events; HTML-only previews remain labeled accordingly.
 
 
