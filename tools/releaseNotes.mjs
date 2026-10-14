@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ads): reject overlapping advertising requests':
+    { note: 'Advertising requests preserve a single active break.' },
   'fix(sprite): enforce tile budgets before integer conversion':
     { note: 'Extreme sprite tile counts reach the bounded fallback on native hosts.' },
   'fix(sprite): preserve affine geometry and mirrored tile grids':

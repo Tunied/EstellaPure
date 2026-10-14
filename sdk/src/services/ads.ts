@@ -111,9 +111,11 @@ export class AdsAPI {
      * Show a rewarded video and resolve with whether the reward was earned —
      * after the ad closed and the game is running again. Rejects when this
      * platform has no ad source (check {@link available} first) or the host
-     * genuinely has no fill; the game state is restored in every path.
+     * genuinely has no fill, or another ad is showing; the game state is restored
+     * in every path. Overlapping requests are rejected without queuing an ad.
      */
     showRewarded(adUnitId: string): Promise<PlatformRewardedAdResult> {
+        if (this.showing_) return Promise.reject(new Error(AdsAPI.ALREADY_SHOWING));
         const ad = this.rewardedUnit_(adUnitId);
         if (!ad) return Promise.reject(new Error(AdsAPI.NO_SOURCE));
         return this.withTakeover_(() => ad.show());
@@ -122,10 +124,13 @@ export class AdsAPI {
     /** Show an interstitial; resolves when it closed. Same contract as
      *  {@link showRewarded}, minus the reward. */
     showInterstitial(adUnitId: string): Promise<void> {
+        if (this.showing_) return Promise.reject(new Error(AdsAPI.ALREADY_SHOWING));
         const ad = this.interstitialUnit_(adUnitId);
         if (!ad) return Promise.reject(new Error(AdsAPI.NO_SOURCE));
         return this.withTakeover_(() => ad.show());
     }
+
+    private static readonly ALREADY_SHOWING = 'an ad is already showing — wait for it to close before requesting another';
 
     private static readonly NO_SOURCE =
         'no ad source on this platform — check Ads.available, or install a provider (the editor installs a mock in play mode)';

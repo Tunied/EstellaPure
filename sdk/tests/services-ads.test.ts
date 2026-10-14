@@ -100,3 +100,61 @@ describe('AdsAPI takeover ceremony', () => {
         expect(created).toBe(2);
     });
 });
+
+
+describe('AdsAPI overlapping requests', () => {
+    for (const first of ['rewarded', 'interstitial'] as const) {
+        it(`keeps the active ${first} and rejects both competing formats without creating units`, async () => {
+            const host = recordingHost();
+            const ads = new AdsAPI(createTakeover(host));
+            let finish!: () => void;
+            let created = 0;
+            const pending = new Promise<void>((resolve) => { finish = resolve; });
+            ads.setProvider({
+                createRewardedAd: () => {
+                    created++;
+                    return { preload: async () => {}, show: async () => { await pending; return { completed: true }; }, destroy() {} };
+                },
+                createInterstitialAd: () => {
+                    created++;
+                    return { preload: async () => {}, show: () => pending, destroy() {} };
+                },
+            });
+            const active = first === 'rewarded' ? ads.showRewarded('first') : ads.showInterstitial('first');
+            await expect(ads.showRewarded('other')).rejects.toThrow('already showing');
+            await expect(ads.showInterstitial('other')).rejects.toThrow('already showing');
+            expect(created).toBe(1);
+            expect(ads.showing).toBe(true);
+            expect(host.paused).toBe(true);
+            expect(host.events).toEqual(['pause', 'audio-off']);
+            finish();
+            await active;
+            expect(ads.showing).toBe(false);
+            expect(host.events).toEqual(['pause', 'audio-off', 'audio-on', 'unpause']);
+            await ads.showRewarded('other');
+            expect(created).toBe(2);
+        });
+    }
+
+    it('accepts another request after a rejected active ad closes', async () => {
+        const host = recordingHost();
+        const ads = new AdsAPI(createTakeover(host));
+        let fail!: (reason: Error) => void;
+        let attempts = 0;
+        ads.setProvider({
+            createRewardedAd: () => ({ preload: async () => {}, show: () => {
+                if (++attempts === 1) return new Promise<{ completed: boolean }>((_, reject) => { fail = reject; });
+                return Promise.resolve({ completed: true });
+            }, destroy() {} }),
+            createInterstitialAd: () => { throw new Error('must not create competing unit'); },
+        });
+        const active = ads.showRewarded('first');
+        const rejected = expect(active).rejects.toThrow('no fill');
+        await expect(ads.showInterstitial('other')).rejects.toThrow('already showing');
+        fail(new Error('no fill'));
+        await rejected;
+        expect(ads.showing).toBe(false);
+        expect(host.paused).toBe(false);
+        expect((await ads.showRewarded('first')).completed).toBe(true);
+    });
+});

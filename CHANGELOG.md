@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Advertising requests preserve a single active break.** Rewarded and interstitial requests reject immediately while another ad is showing, before creating a competing unit. The active break retains its showing flag, clock pause and audio suspension until it closes; errors release the guard so a later request can proceed. Rejected requests are not queued for playback.
+
 - **Extreme sprite tile counts reach the bounded fallback on native hosts.** Tile budgets are checked in floating point before converting loop counts to integers, preventing overflowing axes from bypassing the existing 16,384-quad cap. Tiny positive steps retain the single stretched quad; non-finite tile steps and sizes emit no geometry, and grids at the cap remain tiled.
 
 - **Sprites retain parent-induced shear in every draw mode.** Ordinary, nine-slice and tiled geometry follows the complete parent transform, and camera bounds use the same basis. Mirrored tiled grids retain positive tile steps before applying signed axes, including the capped fallback. Zero-area sprites skip geometry; existing material, UV and batch state is preserved.
