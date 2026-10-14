@@ -63,6 +63,13 @@ jobs:
           node pipeline/bin/estella.mjs export examples/playable-ad --profile "$playable_network" --wasm build/wasm/web --out "output/playable-ci-export-$playable_network" --json "output/playable-ci-export-$playable_network.json" || exit 1
           node tools/verify-playable.mjs "output/playable-ci-export-$playable_network/index.html" --report "output/playable-ci-export-$playable_network.json" --scenario examples/playable-ad/playable-check.json --out "output/playable-ci-check-$playable_network" --store-url https://example.com/store || exit 1
         done
+    - name: Export and check the complete playable starter in eight local network mocks
+      shell: bash
+      run: |
+        for playable_network in mintegral unity applovin mraid tiktok pangle google meta; do
+          node pipeline/bin/estella.mjs export templates/playable-ad --profile "$playable_network" --wasm build/wasm/web --out "output/playable-template-ci-export-$playable_network" --json "output/playable-template-ci-export-$playable_network.json" || exit 1
+          node tools/verify-playable.mjs "output/playable-template-ci-export-$playable_network/index.html" --report "output/playable-template-ci-export-$playable_network.json" --scenario templates/playable-ad/playable-check.json --out "output/playable-template-ci-check-$playable_network" --store-url https://example.com/store || exit 1
+        done
     - name: Check authored Poki gameplay and the standalone example in SDK mocks
       run: |
         node pipeline/bin/estella.mjs export examples/mobile-controls --profile poki --wasm build/wasm/web --out output/poki-training-ci-export --json output/poki-training-ci-export.json
@@ -116,6 +123,13 @@ jobs:
       with:
         name: youtube-training-local-mock-checks
         path: output/youtube-training-ci-*
+        retention-days: 3
+    - name: Upload complete playable starter local mock observations
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: playable-template-local-mock-checks
+        path: output/playable-template-ci-*
         retention-days: 3
 
   # The engine binaries, and nothing else: every gate below waits on this job, so

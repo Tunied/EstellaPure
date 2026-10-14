@@ -28,6 +28,10 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(templates): ship a complete playable ad starter':
+    { note: 'The Playable Ad starter includes a complete editable game.' },
+  'test(launcher): preserve complete playable starter on creation':
+    { note: 'The Playable Ad starter includes a complete editable game.' },
   'test(youtube): verify hosting CSP and negative control':
     { note: 'YouTube headless checks enforce the documented hosting policy.' },
   'feat(youtube): validate export bundle constraints':

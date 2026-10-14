@@ -1,13 +1,86 @@
 {
   "formatVersion": "1",
   "name": "Playable Ad",
-  "description": "One portrait scene sized for a playable: a tap anywhere calls the CTA, and there is nothing to load.",
+  "description": "A complete CC0 fleet-selection playable with completion, replay, an explicit store button and checked network export profiles.",
   "tag": "Starter",
   "version": "1.0.0",
   "defaultScene": "assets/scenes/main.esscene",
   "designResolution": {
-    "width": 720,
-    "height": 1280
+    "width": 600,
+    "height": 600
   },
-  "spineVersion": "none"
+  "spineVersion": "none",
+  "packaging": {
+    "platforms": {
+      "playable": {
+        "network": "mintegral"
+      }
+    },
+    "profiles": {
+      "mintegral": {
+        "platforms": {
+          "playable": {
+            "network": "mintegral"
+          }
+        },
+        "platform": "playable"
+      },
+      "tiktok": {
+        "platforms": {
+          "playable": {
+            "network": "tiktok"
+          }
+        },
+        "platform": "playable"
+      },
+      "pangle": {
+        "platforms": {
+          "playable": {
+            "network": "pangle"
+          }
+        },
+        "platform": "playable"
+      },
+      "mraid": {
+        "platform": "playable",
+        "platforms": {
+          "playable": {
+            "network": "mraid"
+          }
+        }
+      },
+      "unity": {
+        "platform": "playable",
+        "platforms": {
+          "playable": {
+            "network": "unity"
+          }
+        }
+      },
+      "applovin": {
+        "platform": "playable",
+        "platforms": {
+          "playable": {
+            "network": "applovin"
+          }
+        }
+      },
+      "google": {
+        "platform": "playable",
+        "platforms": {
+          "playable": {
+            "network": "google"
+          }
+        }
+      },
+      "meta": {
+        "platform": "playable",
+        "platforms": {
+          "playable": {
+            "network": "meta"
+          }
+        }
+      }
+    }
+  }
 }

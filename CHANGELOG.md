@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Added
 
+- **The Playable Ad starter includes a complete editable game.** New projects receive CC0 space art, three-ship selection, completion, replay and an explicit store button instead of a tap-anywhere redirect. Eight named network profiles, a configurable MRAID destination, licenses, a portrait/landscape headless scenario and a creation-to-submission guide ship together. Local mocks and size checks remain separate from official network approval and external publication exercises.
+
 - **YouTube headless checks enforce the documented hosting policy.** Training runs under the official CSP response header as well as its exported policy. Unexpected violations fail the check; an intentionally blocked external request proves that enforcement and reporting work. The publishing guide links the independent official bundle analyzer. SDK Test Suite and device acceptance remain separate.
 
 - **YouTube exports check stored bundle constraints.** Exports reject total packages at or above 250 MiB, individual files at or above 30 MiB, more than 8000 files and unsupported filenames. Cloud envelopes at exactly 3 MiB are rejected before staging. Recommendations and static initial-content estimates appear as warnings in both CLI and editor export results. Headless observations record local ready time and startup heap samples without claiming official transfer, peak heap or device certification.

@@ -110,6 +110,14 @@ playableCta();
 
 Mintegral 中，胜负结束时调用 `playableGameEnd()`，玩家重玩时调用 `playableRetry()`。运行时在启动完成后调用 `gameReady()`，并响应 `gameStart()` / `gameClose()`；安装按钮通过用户手势调用 `playableCta()`。参见 `playable-ad` 示例和[官方容器检测工具](https://www.playturbo.com/review)。检测通过仍需广告审核和真机验收。
 
+需要完整起点时，在启动器的 Templates 中选择 **Playable Ad**。新项目包含
+可编辑的选船小关卡、CC0 美术、明确的安装按钮、完成与重玩、八个导出档、
+素材许可和横竖屏无头检查场景。按复制后的 `README.md` 连续完成创建、
+导出、自检与平台提交。MRAID 的真实商店地址填写在 `src/config.ts`；其他
+渠道在活动或容器中配置自己的目标，模板不携带无关应用的商店地址。
+下方验证器命令的场景路径改为新项目中的 `playable-check.json`。
+官方预览、真机测试与外部开发者独立发布演练仍需单独验收。
+
 MRAID 安装按钮须通过 `playableCta(storeUrl)` 传入目标地址，或由宿主提供 `window.clickTag`。支持 HTTP(S)、Android `market:` 和 iOS `itms-apps:` 商店链接；地址缺失或无效时提示配置问题，不调用 `mraid.open`。其他网络继续使用自己的商店接口。
 
 试玩导出结果包含 `playableCheck`，打包窗口可查看，命令行可通过 `--json report.json` 保存。报告测量实际交付文件，检查 HTML/CSS 资源引用及必需的方向配置；只按所选 profile 放行指定的宿主 SDK 脚本。文件哈希将检查结果对应到本次导出。CTA、宿主生命周期、动态请求和设备／平台验收保持待运行验证，不把接口声明算作商店跳转成功。
