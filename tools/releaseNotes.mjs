@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'test(viewport): retain spatial drag startup diagnostics':
+    { internal: 'CI spatial gesture acceptance preserves process output and reports startup failures before a trusted drag observation is available.' },
   'chore(release): classify editor capabilities for v0.86.0':
     { internal: 'Release capability census records the editor-only features and their existing unit and CI acceptance paths.' },
   'test(viewport): distinguish plane handles in axis acceptance':

@@ -25,7 +25,8 @@ try{
    ESTELLA_SHOT:path.join(out,axis+'.png'),ESTELLA_SHOT_PROJECT:project,ESTELLA_SHOT_SCENE:'assets/scenes/main.esscene',
    ESTELLA_SHOT_EVAL:`(async()=>{const e=window.__estellaEditor;e.runCommand('mode.scene');e.surface.setViewPerspective(true);e.surface.setViewOrbit(45,30);e.surface.select(1);e.frame([1]);await new Promise(r=>setTimeout(r,750));e.runCommand('tool.${mode}');return true;})()`,
    ESTELLA_SHOT_EDITOR_DRAG:JSON.stringify({selector:'.viewport__stage canvas',point,dx:axis==='xyz'?58:11,dy:axis==='xyz'?0:7,read})}});
-  assert.equal(run.status,0,run.stderr);const line=run.stdout.split('\n').find(l=>l.startsWith('[editorDrag] '));assert(line,'Missing trusted spatial drag');
+  fs.writeFileSync(path.join(out,axis+'.log'),run.stdout+'\n'+run.stderr);
+  assert.equal(run.status,0,run.stderr);const line=run.stdout.split('\n').find(l=>l.startsWith('[editorDrag] '));assert(line,'Missing trusted spatial drag: '+axis+'\n'+run.stdout+'\n'+run.stderr);
   const result=JSON.parse(line.slice('[editorDrag] '.length));records.push({axis,...result});
   fs.writeFileSync(path.join(out,'observations.json'),JSON.stringify({status:'checking',records},null,2));
   const before=result.before.pose,after=result.after.pose;
