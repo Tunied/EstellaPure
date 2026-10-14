@@ -28,6 +28,7 @@
 #include "esengine/ecs/components/Hierarchy.hpp"
 
 #include <functional>
+#include <limits>
 #include <utility>
 #include <vector>
 
@@ -364,6 +365,52 @@ TEST_CASE("sprites: affine parents preserve every draw mode and mirrored tile gr
             }
             resources.shutdown();
         }
+    }
+}
+
+TEST_CASE("sprites: tile budget applies before integer conversion") {
+    struct Case { glm::vec2 tile, spacing; u32 quads; };
+    const Case cases[] = {
+        {{1e-20f, 1}, {}, 1},
+        {{1, 1e-20f}, {}, 1},
+        {{std::numeric_limits<f32>::denorm_min(), 1}, {}, 1},
+        {{1e-20f, 1e-20f}, {}, 1},
+        {{1, 1}, {}, 16384},
+        {{.5f, 1}, {}, 1},
+        {{1, 1}, {-1, 0}, 0},
+        {{1, 1}, {std::numeric_limits<f32>::quiet_NaN(), 0}, 0},
+        {{1, 1}, {std::numeric_limits<f32>::infinity(), 0}, 0},
+    };
+    for (const auto& item : cases) {
+        Harness h;
+        RenderContext context(h.device);
+        resource::ResourceManager resources;
+        resources.init(h.device);
+        ecs::Registry registry;
+        const auto entity = registry.create();
+        auto& transform = registry.emplace<ecs::Transform>(entity);
+        transform.worldScale = {1, 1, 1};
+        transform.decomposed_ = true;
+        auto& sprite = registry.emplace<ecs::Sprite>(entity);
+        sprite.size = {128, 128};
+        sprite.tileSize = item.tile;
+        sprite.tileSpacing = item.spacing;
+        sprite.drawMode = ecs::SpriteDrawMode::Tiled;
+        Frustum frustum;
+        frustum.extractFromMatrix(glm::ortho(-500.0f, 500.0f, -500.0f, 500.0f));
+        RenderFrameContext frameContext{context, resources};
+        RenderCollectContext collect{registry, frustum, h.clips, h.pool, h.list, frameContext, {}};
+        SpritePlugin plugin;
+        plugin.init(frameContext);
+        plugin.collect(collect);
+        CHECK(h.pool.vertexBytesUsed(LayoutId::Batch) == item.quads * 4 * sizeof(BatchVertex));
+        const auto* vertices = reinterpret_cast<const BatchVertex*>(h.pool.vertexData(LayoutId::Batch));
+        bool finite = true;
+        for (u32 i = 0; i < h.pool.vertexBytesUsed(LayoutId::Batch) / sizeof(BatchVertex); ++i) {
+            finite = finite && std::isfinite(vertices[i].position.x) && std::isfinite(vertices[i].position.y);
+        }
+        CHECK(finite);
+        resources.shutdown();
     }
 }
 
@@ -1454,15 +1501,15 @@ TEST_CASE("order: a higher order draws on top of a nearer sprite") {
     Harness h;
     BatchVertex quad[4] = {};
 
-    BatchDrawKey near = quadKey(1, /*layer=*/3);
-    near.depth = 50.0f;   // nearest — depth alone would put it last
-    BatchDrawKey far = quadKey(2, /*layer=*/3);
-    far.depth = -50.0f;
-    far.order = 1;
-    far.shaderId = 8;
+    BatchDrawKey nearer = quadKey(1, /*layer=*/3);
+    nearer.depth = 50.0f;   // nearest — depth alone would put it last
+    BatchDrawKey farther = quadKey(2, /*layer=*/3);
+    farther.depth = -50.0f;
+    farther.order = 1;
+    farther.shaderId = 8;
 
-    appendQuad(h.pool, h.list, h.clips, quad, near);
-    appendQuad(h.pool, h.list, h.clips, quad, far);
+    appendQuad(h.pool, h.list, h.clips, quad, nearer);
+    appendQuad(h.pool, h.list, h.clips, quad, farther);
     h.list.finalize(h.pool);
 
     REQUIRE(h.list.mergedDrawCallCount() == 2);
@@ -1728,21 +1775,21 @@ TEST_CASE("transparent: back-to-front holds across materials") {
     BatchVertex quad[4] = {};
 
     // Camera looks down -z, so larger z is nearer and must land last.
-    BatchDrawKey near = quadKey(1, /*layer=*/3);
-    near.materialId = 1;          // lowest material — would have sorted first
-    near.depth = 50.0f;
+    BatchDrawKey nearer = quadKey(1, /*layer=*/3);
+    nearer.materialId = 1;          // lowest material — would have sorted first
+    nearer.depth = 50.0f;
 
     BatchDrawKey middle = quadKey(2, /*layer=*/3);
     middle.materialId = 90000;
     middle.depth = 0.0f;
 
-    BatchDrawKey far = quadKey(3, /*layer=*/3);
-    far.materialId = 500;
-    far.depth = -50.0f;
+    BatchDrawKey farther = quadKey(3, /*layer=*/3);
+    farther.materialId = 500;
+    farther.depth = -50.0f;
 
-    appendQuad(h.pool, h.list, h.clips, quad, near);
+    appendQuad(h.pool, h.list, h.clips, quad, nearer);
     appendQuad(h.pool, h.list, h.clips, quad, middle);
-    appendQuad(h.pool, h.list, h.clips, quad, far);
+    appendQuad(h.pool, h.list, h.clips, quad, farther);
     h.list.finalize(h.pool);
 
     REQUIRE(h.list.mergedDrawCallCount() == 3);

@@ -194,9 +194,12 @@ void SpritePlugin::emitTiledQuads(
     const BatchDrawKey& key
 ) {
     glm::vec2 step = tileSize + tileSpacing;
-    if (step.x <= 0.0f || step.y <= 0.0f) return;
+    if (step.x <= 0.0f || step.y <= 0.0f
+        || !std::isfinite(step.x) || !std::isfinite(step.y)
+        || !std::isfinite(tileSize.x) || !std::isfinite(tileSize.y)) return;
 
     glm::vec2 absSize = glm::vec2(std::abs(size.x), std::abs(size.y));
+    if (!std::isfinite(absSize.x) || !std::isfinite(absSize.y)) return;
 
     f32 baseX = position.x - absSize.x * pivot.x;
     f32 baseY = position.y - absSize.y * pivot.y;
@@ -210,14 +213,14 @@ void SpritePlugin::emitTiledQuads(
 
     u32 pc = packColor(color);
 
-    i32 tilesY = static_cast<i32>(std::ceil(absSize.y / step.y));
-    i32 tilesX = static_cast<i32>(std::ceil(absSize.x / step.x));
+    const f64 countY = std::ceil(static_cast<f64>(absSize.y) / step.y);
+    const f64 countX = std::ceil(static_cast<f64>(absSize.x) / step.x);
 
-    // A huge size with a tiny tile step (bad data or a typo in the inspector)
-    // would otherwise emit billions of quads and freeze the frame. Degrade to a
-    // single stretched quad past a generous cap.
-    constexpr i64 kMaxTiledQuads = 16384;
-    if (static_cast<i64>(tilesX) * static_cast<i64>(tilesY) > kMaxTiledQuads) {
+    // Bound counts before integer conversion, which can turn overflowing native
+    // counts negative. Grids above the cap use one stretched quad.
+    constexpr f64 kMaxTiledQuads = 16384;
+    if (countX > kMaxTiledQuads || countY > kMaxTiledQuads
+        || countX * countY > kMaxTiledQuads) {
         BatchVertex verts[4];
         if (hasRotation) {
             verts[0] = { rotatePoint(position, baseX, baseY, cosA, sinA), pc, { uvOffset.x, uvOffset.y } };
@@ -233,6 +236,9 @@ void SpritePlugin::emitTiledQuads(
         appendQuad(buffers, draw_list, clips, verts, key);
         return;
     }
+
+    const i32 tilesX = static_cast<i32>(countX);
+    const i32 tilesY = static_cast<i32>(countY);
 
     for (i32 iy = 0; iy < tilesY; ++iy) {
         f32 ty = static_cast<f32>(iy) * step.y;

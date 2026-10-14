@@ -930,6 +930,11 @@ jobs:
       - name: Build the Linux host and its runtime template
         run: node build-tools/cli.js native --target linux
 
+      - name: Run native renderer regressions
+        run: |
+          cmake --build build/cmake/native-linux --target test_native_renderer --parallel 4
+          build/cmake/native-linux/test_native_renderer
+
       - name: A game packaged from it renders
         run: |
           ls -l /usr/share/vulkan/icd.d/ || true
@@ -985,6 +990,12 @@ jobs:
 
       - name: Build the Windows host and its runtime template
         run: node build-tools/cli.js native --target windows
+
+      - name: Run native renderer regressions
+        shell: bash
+        run: |
+          cmake --build build/cmake/native-windows --target test_native_renderer --parallel 4
+          ./build/cmake/native-windows/test_native_renderer.exe
 
       # No xvfb and no software driver: a Windows runner has a desktop and a
       # D3D12 device of its own, which is what the release job relies on too.

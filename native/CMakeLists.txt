@@ -264,6 +264,13 @@ target_compile_definitions(esengine PUBLIC   # NOT ES_PLATFORM_WEB
     ES_ENABLE_TILEMAP ES_ENABLE_PARTICLES ES_ENABLE_POSTPROCESS ES_ENABLE_SPINE)
 target_link_libraries(esengine PUBLIC glm yogacore webgpu_dawn)
 
+if(ESTELLA_DESKTOP)
+    add_executable(test_native_renderer EXCLUDE_FROM_ALL
+        "${REPO}/tests/renderer/test_batch_builder.cpp")
+    target_include_directories(test_native_renderer PRIVATE "${TP}/doctest")
+    target_link_libraries(test_native_renderer PRIVATE esengine)
+endif()
+
 # The host (opt-in): a QuickJS runtime drives the engine through the EHT-generated
 # bindings + the real SDK. Built only when QuickJS is provided; the
 # `node build-tools/cli.js native --quickjs <dir>` orchestration fetches QuickJS,
