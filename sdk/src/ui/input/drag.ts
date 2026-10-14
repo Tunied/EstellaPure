@@ -10,7 +10,7 @@ import { defineSystem, Schedule } from '../../ecs/system';
 import { Res } from '../../ecs/resource';
 import { Input } from '../../input/input';
 import { primaryPointerCancellationVersion } from '../../input/pointerCancellation';
-import { engineApi } from '../../ecs/bridge/engineApi';
+import { engineApi, type EngineApi } from '../../ecs/bridge/engineApi';
 import type { InputState } from '../../input/input';
 import type { Entity } from '../../types';
 import type { World } from '../../ecs/world';
@@ -33,8 +33,9 @@ function worldToLocalDelta(
     world: World,
     entity: Entity,
     dx: number,
-    dy: number
-): { x: number; y: number } {
+    dy: number,
+    readParent?: (parent: Entity, dx: number, dy: number) => { x: number; y: number } | null | undefined,
+): { x: number; y: number } | null {
     if (!world.has(entity, Parent)) {
         return { x: dx, y: dy };
     }
@@ -43,6 +44,8 @@ function worldToLocalDelta(
     if (!world.valid(parentEntity) || !world.has(parentEntity, Transform)) {
         return { x: dx, y: dy };
     }
+    const resolved = readParent?.(parentEntity, dx, dy);
+    if (resolved !== undefined) return resolved;
     const parentWt = world.get(parentEntity, Transform) as TransformData;
     const sx = parentWt.worldScale.x !== 0 ? parentWt.worldScale.x : 1;
     const sy = parentWt.worldScale.y !== 0 ? parentWt.worldScale.y : 1;
@@ -84,7 +87,22 @@ export class DragPlugin implements Plugin {
     name = PluginName.Drag;
     dependencies = [PluginName.UIInteraction];
 
+    private readonly cleanups_ = new Map<App, () => void>();
+
+    cleanup(app?: App): void {
+        if (app) {
+            const cleanup = this.cleanups_.get(app);
+            this.cleanups_.delete(app);
+            cleanup?.();
+        } else {
+            const cleanups = [...this.cleanups_.values()];
+            this.cleanups_.clear();
+            for (const cleanup of cleanups) cleanup();
+        }
+    }
+
     build(app: App): void {
+        this.cleanup(app);
         registerComponent('Draggable', Draggable);
         registerComponent('DragState', DragState);
 
@@ -92,6 +110,34 @@ export class DragPlugin implements Plugin {
         const events = app.getResource(UIEvents) as UIEventQueue;
         const engine = engineApi(app);
         const registry = world.getCppRegistry();
+        let matrixOwner: EngineApi | null = null;
+        let matrixPointer = 0;
+        let matrixHeap: Float32Array | null = null;
+        const releaseMatrix = (): void => {
+            const pointer = matrixPointer, owner = matrixOwner;
+            matrixPointer = 0;
+            matrixOwner = null;
+            matrixHeap = null;
+            if (pointer) owner?._free?.(pointer);
+        };
+        const readParentDelta = (parent: Entity, dx: number, dy: number): { x: number; y: number } | null | undefined => {
+            const api = engineApi(app), registry = world.getCppRegistry();
+            if (!api?.transform_copyFlatRenderMatrix || !api.HEAPU8 || !api._malloc || !api._free || !registry) return undefined;
+            if (matrixOwner !== api) { releaseMatrix();matrixOwner = api; }
+            if (!matrixPointer) {
+                matrixPointer = api._malloc(64);
+                if (!matrixPointer) throw new Error('Could not allocate drag transform scratch.');
+            }
+            if (!api.transform_copyFlatRenderMatrix(registry, parent, matrixPointer)) return null;
+            const heap = api.HEAPU8;
+            if (matrixHeap?.buffer !== heap.buffer) matrixHeap = new Float32Array(heap.buffer);
+            const at = (heap.byteOffset + matrixPointer) / 4;
+            const a = matrixHeap[at], b = matrixHeap[at + 1], c = matrixHeap[at + 4], d = matrixHeap[at + 5];
+            const det = a * d - b * c;
+            if (!Number.isFinite(det) || det === 0) return null;
+            const x = (d * dx - c * dy) / det, y = (a * dy - b * dx) / det;
+            return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+        };
         const eligible = (entity: Entity): boolean => world.isEntityActive(entity)
             && !world.isDestructionPending(entity)
             && world.has(entity, Draggable) && world.get(entity, Draggable).enabled
@@ -113,6 +159,10 @@ export class DragPlugin implements Plugin {
             }
             if (started) events.emit(entity, 'drag_end');
         };
+
+        this.cleanups_.set(app, () => {
+            try { stopCapture(); } finally { releaseMatrix(); }
+        });
 
         app.addSystemToSchedule(Schedule.PreUpdate, defineSystem(
             [Res(Input), Res(UICameraInfo), Res(ScreenLayout), Res(ScreenOverlay)],
@@ -226,6 +276,8 @@ export class DragPlugin implements Plugin {
 
                     const prevX = dragState.currentWorldPos.x;
                     const prevY = dragState.currentWorldPos.y;
+                    const localDelta = worldToLocalDelta(world, activeEntity, newWorldX - prevX, newWorldY - prevY, readParentDelta);
+                    if (!localDelta) { stopCapture();return; }
                     world.update(activeEntity, DragState, (d) => {
                         d.deltaWorld = { x: newWorldX - prevX, y: newWorldY - prevY };
                         d.currentWorldPos = { x: newWorldX, y: newWorldY };
@@ -239,20 +291,12 @@ export class DragPlugin implements Plugin {
                         // Nudge the CSS-box absolute insets (the layout input), so
                         // the dragged position survives the next layout pass.
                         const node = world.get(activeEntity, UINode) as UINodeData;
-                        const localDelta = worldToLocalDelta(
-                            world, activeEntity,
-                            dragState.deltaWorld.x, dragState.deltaWorld.y
-                        );
                         const baseL = node.insetLeft.unit === 0 ? node.insetLeft.value : 0;
                         const baseT = node.insetTop.unit === 0 ? node.insetTop.value : 0;
                         node.insetLeft = px(baseL + localDelta.x);
                         node.insetTop = px(baseT - localDelta.y); // inset top is y-down
                         world.insert(activeEntity, UINode, node);
                     } else if (world.has(activeEntity, Transform)) {
-                        const localDelta = worldToLocalDelta(
-                            world, activeEntity,
-                            dragState.deltaWorld.x, dragState.deltaWorld.y
-                        );
                         world.update(activeEntity, Transform, (t) => {
                             t.position.x += localDelta.x;
                             t.position.y += localDelta.y;

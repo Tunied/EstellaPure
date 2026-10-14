@@ -3154,6 +3154,7 @@ parent: DocumentEntityId | null
 ## DragPlugin — class @experimental
 ```
 build: (app: App) => void
+cleanup: (app?: App) => void
 dependencies: "uiInteraction"[]
 name: "drag"
 static new (): DragPlugin

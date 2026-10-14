@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Pointer dragging follows sheared parent transforms.** World deltas use the inverse of the parent's complete flat transform for both local positions and UI insets, preserving pointer alignment through non-uniformly scaled, rotated hierarchies. Singular transforms end capture without modifying hidden coordinates. Per-App matrix scratch is allocated lazily, reused across frames and released with capture on plugin cleanup; cores without matrix access retain their existing fallback.
+
 - **Web audio startup failures release pooled nodes and keep resumes retryable.** Source creation, configuration and start errors return the acquired node before propagating the error, preventing failed plays from growing the pool. Failed resumes disconnect the rejected source while preserving the paused voice and playback offset; successful retries commit playback state only after startup succeeds.
 
 - **Tilemap rectangle fills clip safely across integer coordinate bounds.** Finite layers intersect the requested rectangle before visiting cells, avoiding work outside the map. Wide endpoint arithmetic preserves unsigned extents and clips infinite writes to representable coordinates; empty intersections return immediately. Negative chunk division avoids signed overflow, preserving tile storage and chunk import at both integer edges.

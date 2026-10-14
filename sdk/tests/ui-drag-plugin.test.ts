@@ -9,7 +9,7 @@
  *        observable state (DragState.isDragging, Transform.position) rather than
  *        the emitted events.
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { flushPendingRegistrations } from '../src/app/app';
 import type { App } from '../src/app/app';
 import { Disabled, Transform } from '../src/ecs/component';
@@ -27,6 +27,7 @@ import { bootMockApp } from './helpers/mockApp';
 import type { Entity } from '../src/types';
 
 let app: App;
+afterEach(() => dragPlugin.cleanup(app));
 
 beforeEach(() => {
   app = bootMockApp().app;

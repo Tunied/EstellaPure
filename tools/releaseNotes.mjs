@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ui): transform drag deltas through full parent matrices':
+    { note: 'Pointer dragging follows sheared parent transforms.' },
   'fix(audio): release failed starts and preserve paused retries':
     { note: 'Web audio startup failures release pooled nodes and keep resumes retryable.' },
   'fix(tilemap): clip fills and preserve signed coordinate edges':
