@@ -91,6 +91,8 @@ export const CENSUS_FLOOR = '0.60.0';
  * that does not exist, and release notes are a different act. Theirs is ungated.
  */
 export const SHIPPED = {
+  'App execution holds stop owned frames, input and media':
+    { notCertifiable: 'host execution ownership rather than a standalone rendered scene capability; sdk/tests/execution-hold.test.ts, video-execution-hold.test.ts and tools/tests/execution-hold.e2e.mjs verify nested holds, startup, input and media using controlled hosts; game-owned timers and asynchronous work require cooperation' },
   'Storage exposes asynchronous write acknowledgment':
     { notCertifiable: 'host persistence acknowledgment rather than a rendered scene capability; sdk/tests/storage.test.ts and pipeline/tests/async-storage.test.ts verify pending writes, retry and load ordering; synchronous flush does not certify cloud backup' },
   'CrazyGames scores and saved training credits follow platform contracts':
