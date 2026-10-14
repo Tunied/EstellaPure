@@ -77,15 +77,15 @@ export function fieldSelection(selStart: number, selEnd: number, backward: boole
 }
 
 /**
- * The caret index whose position is closest to text-space offset `x`, given
- * `prefixWidths[i]` = the measured width of the first `i` characters
- * (`prefixWidths[0] === 0`, length = value length + 1). Used to place the caret
- * where a pointer clicks inside the field. Pure. Returns 0 for an empty field.
+ * Choose the closest measured UTF-16 prefix to text-space offset `x`.
+ * Supplying the original value excludes surrogate-pair interiors, including
+ * when the measured prefixes belong to password bullets. Empty fields return 0.
  */
-export function nearestCaretIndex(prefixWidths: readonly number[], x: number): number {
+export function nearestCaretIndex(prefixWidths: readonly number[], x: number, value?: string): number {
     let best = 0;
     let bestDist = Infinity;
     for (let i = 0; i < prefixWidths.length; i++) {
+        if (value && i > 0 && (value.codePointAt(i - 1) ?? 0) > 0xffff) continue;
         const d = Math.abs(prefixWidths[i] - x);
         if (d < bestDist) {
             bestDist = d;

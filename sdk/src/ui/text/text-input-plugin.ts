@@ -245,7 +245,7 @@ export class TextInputPlugin implements Plugin {
                 const textX = pointer.x - fieldLeft - ti.padding
                     - alignOffset(ti.textAlign, innerW, mw(line.text));
                 const prefixes = measurePrefixWidths(line.text, atlas, family, ti.fontSize, 0);
-                return line.start + nearestCaretIndex(prefixes, textX);
+                return line.start + nearestCaretIndex(prefixes, textX, line.text);
             }
 
             const scrollX = scrollXOf.get(entity) ?? 0;
@@ -256,7 +256,7 @@ export class TextInputPlugin implements Plugin {
             const textX = pointer.x - fieldLeft - ti.padding - ao + scrollX;
             const display = ti.password ? PASSWORD_CHAR.repeat(val.length) : val;
             const prefixes = measurePrefixWidths(display, atlas, family, ti.fontSize, 0);
-            return nearestCaretIndex(prefixes, textX);
+            return nearestCaretIndex(prefixes, textX, val);
         }
 
         function activateEditor(entity: Entity): void {

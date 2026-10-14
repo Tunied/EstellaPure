@@ -85,6 +85,16 @@ describe('fieldSelection', () => {
 });
 
 describe('nearestCaretIndex', () => {
+    it('skips surrogate interiors while keeping UTF-16 offsets for plain and masked text', () => {
+        expect(nearestCaretIndex([0, 10, 14, 24, 34], 10, '😀中X')).toBe(2);
+        expect(nearestCaretIndex([0, 10, 20, 30, 40], 12, '😀中X')).toBe(2);
+        expect(nearestCaretIndex([0, 10, 14, 24, 34], 5, '😀中X')).toBe(0);
+        expect(nearestCaretIndex([0, 10, 14, 24, 34], 24, '😀中X')).toBe(3);
+        expect(nearestCaretIndex([0, 10, 14, 24, 34], 100, '😀中X')).toBe(4);
+        expect(nearestCaretIndex([0, 8, 16, 24, 32], 24, '😀😎')).toBe(2);
+        expect(nearestCaretIndex([0, 8, 16], 8, '\ud83dX')).toBe(1);
+    });
+
     // Prefix widths for a 4-char field where each char is 10px wide.
     const widths = [0, 10, 20, 30, 40];
 

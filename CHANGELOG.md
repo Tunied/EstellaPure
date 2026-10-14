@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Pointer carets keep supplementary characters intact.** Clicking single-line, multiline or password fields no longer places the caret between the UTF-16 halves of an emoji or another supplementary code point. DOM selection offsets remain UTF-16-based, and existing prefix measurement behavior is preserved.
+
 - **Native text-input notifications survive frame boundaries.** Update systems can read browser and native Change and Submit events after UI interaction clears the previous frame. Subscription callbacks remain synchronous, including focus changes made on Submit; their records reach frame consumers without replaying callbacks. Destroyed fields and disposed editors discard queued records.
 
 - **Rich-text colors no longer recolor shadows and outlines.** Effect passes use their authored color and alpha on both bitmap and SDF atlases, including blurred shadows. The fill retains per-run colors, and inherited UI opacity continues to fade every pass.
