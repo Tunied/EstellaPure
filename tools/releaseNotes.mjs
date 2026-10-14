@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(inspector): reuse hierarchy links for selected runtime details':
+    { note: 'Selected runtime details reuse maintained hierarchy links.' },
   'fix(inspector): clear destroyed runtime entity selections':
     { note: 'Runtime inspectors clear destroyed entity selections.' },
   'perf(inspector): reuse membership and readers for snapshot visibility':

@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Selected runtime details reuse maintained hierarchy links.** Refreshing one entity reads its own parent and children instead of scanning every entity's parent. Child ordering still follows world storage, including after reparenting and draw-order edits; disabled children remain inspectable and native reparenting is read from the current core.
+
 - **Runtime inspectors clear destroyed entity selections.** A selected entity that despawns now returns no detail row instead of an empty ghost entity, including when its native slot is reused. Requests without a live selection or tree avoid traversing the world; disabled live entities remain inspectable.
 
 ## [0.79.0] - 2026-10-14

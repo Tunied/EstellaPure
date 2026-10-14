@@ -95,18 +95,39 @@ export function worldSnapshot(
     if (!withTree && selectedId == null) return { tree: null, selected: null };
     const nameDef = getComponent('Name');
     const parentDef = getComponent('Parent');
+    const childrenDef = getComponent('Children');
     const ownerDef = getComponent('SceneOwner');
-    const all = world.getAllEntities();
+    const all = withTree ? world.getAllEntities() : [];
 
     const parentOf = new Map<number, number>();
-    if (parentDef) {
-        for (const e of all) {
+    const childrenOf = new Map<number, number[]>();
+    if (!withTree && selectedId != null && childrenDef) {
+        const p = parentDef ? world.tryGet(selectedId as never, parentDef) as { entity?: number } | null : null;
+        if (p?.entity !== undefined) parentOf.set(selectedId, p.entity);
+        // Native hierarchy writers can move children without updating the SDK's
+        // membership cache. Ask the current core before reading this relation.
+        const hasChildren = world.resolveHas(childrenDef);
+        let c: { entities?: number[] } | null = null;
+        if (!hasChildren) {
+            c = world.tryGet(selectedId as never, childrenDef) as { entities?: number[] } | null;
+        } else if (hasChildren(selectedId as never)) {
+            const read = world.resolveGetter(childrenDef, 'retained');
+            c = (read ? read(selectedId as never) : world.tryGet(selectedId as never, childrenDef)) as { entities?: number[] } | null;
+        }
+        if (c?.entities?.length) {
+            // Children is maintained with Parent. The inspector's order is the
+            // world's storage order, which can differ from attachment order.
+            const members = new Set(c.entities);
+            childrenOf.set(selectedId, world.getAllEntities().filter(e => members.has(e)));
+        }
+    } else if (parentDef) {
+        const entities = withTree ? all : world.getAllEntities();
+        for (const e of entities) {
             const p = world.tryGet(e, parentDef) as { entity?: number } | null;
             if (p && p.entity !== undefined) parentOf.set(e as never as number, p.entity);
         }
+        for (const [child, parent] of parentOf) (childrenOf.get(parent) ?? childrenOf.set(parent, []).get(parent)!).push(child);
     }
-    const childrenOf = new Map<number, number[]>();
-    for (const [child, parent] of parentOf) (childrenOf.get(parent) ?? childrenOf.set(parent, []).get(parent)!).push(child);
 
     const nameOf = (e: number): string =>
         (nameDef ? (world.tryGet(e as never, nameDef) as { value?: string } | null)?.value : undefined) ?? `Entity_${e}`;

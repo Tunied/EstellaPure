@@ -3,7 +3,7 @@ import type { App } from '../src/app/app';
 import type { ESEngineModule } from '../src/wasm';
 import { entityIndex } from '../src/types';
 import { World } from '../src/ecs/world';
-import { Sprite, Transform, ensureBuiltinComponentsRegistered } from '../src/ecs/component';
+import { Sprite, Transform, Disabled, ensureBuiltinComponentsRegistered } from '../src/ecs/component';
 import { UINode, UIDisplay } from '../src/ui/core/ui-node';
 import { worldSnapshot } from '../src/runtime/worldSnapshot';
 import { HAS_WASM, loadWasmModule } from './helpers/loadWasm';
@@ -11,6 +11,38 @@ import { HAS_WASM, loadWasmModule } from './helpers/loadWasm';
 describe.skipIf(!HAS_WASM)('snapshot visibility with borrowed core values', () => {
     let module: ESEngineModule;
     beforeAll(async () => { ensureBuiltinComponentsRegistered(); module = await loadWasmModule(); });
+    it('keeps selected hierarchy in tree order after reparenting, reordering and disabled children', () => {
+        const registry = new module.Registry(), world = new World();
+        world.connectCpp(registry, module);
+        const app = { world, hasResource: () => false } as unknown as App;
+        try {
+            const group = world.spawn('Group'), other = world.spawn('Other');
+            const first = world.spawn('First'), second = world.spawn('Second'), third = world.spawn('Third');
+            world.setParent(second, group); world.setParent(first, group); world.setParent(third, group);
+            world.insert(second, Disabled);
+            const verify = (entity: typeof group) => {
+                const full = worldSnapshot(app, entity, true);
+                expect(worldSnapshot(app, entity, false).selected).toEqual(full.selected);
+                const row = full.tree!.entities.find(e => e.id === entity)!;
+                expect(full.selected!.parent).toEqual(row.parent);
+                expect(full.selected!.children).toEqual(row.children);
+            };
+            verify(group);
+            expect(worldSnapshot(app, group, false).selected!.children).toEqual([first, second, third]);
+            world.applyEntityOrder([third, second, first, group, other]);
+            verify(group);
+            expect(worldSnapshot(app, group, false).selected!.children).toEqual([third, second, first]);
+            registry.setParent(second, other); verify(group); verify(other); verify(second);
+            world.setParent(first, other); verify(group); verify(other); verify(first);
+            world.removeParent(first); world.despawn(third); verify(group); verify(first);
+            expect(worldSnapshot(app, group, false).selected!.children).toEqual([]);
+            const all = world.getAllEntities;
+            world.getAllEntities = () => { throw new Error('leaf detail enumerated the world'); };
+            expect(worldSnapshot(app, first, false).selected).toMatchObject({ parent: null, children: [] });
+            world.getAllEntities = all;
+        } finally { world.disconnectCpp(); registry.delete(); }
+    });
+
     it('does not substitute a recycled native entity for a destroyed selection', () => {
         const registry = new module.Registry(), world = new World();
         world.connectCpp(registry, module);
