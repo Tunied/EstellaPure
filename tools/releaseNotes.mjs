@@ -30,6 +30,8 @@ export const NOTES_FLOOR = 'v0.65.0';
 export const NOTED = {
   'fix(animation): keep paused sprite motions out of exit transitions':
     { note: 'Paused sprite motions wait for actual completion before exit transitions.' },
+  'feat(viewport): add spatial plane and center handles':
+    { note: 'Spatial transform handles expose all three planes and distinct centers.' },
   'perf(ui): search measured list bounds and retry failed syncs':
     { note: 'Measured lists locate visible items without scanning every preceding row.' },
   'feat(viewport): combine transform handles in a universal tool':

@@ -26,9 +26,9 @@ handle:
 | Tool | Shortcut | Gizmo |
 |---|---|---|
 | Select | `Q` | Pick / marquee only, no transform handles. |
-| Move | `W` | Projected axis arrows plus the center handle for the most visible world plane. Head-on 2D shows X / Y. |
+| Move | `W` | Projected arrows. Spatial views add XY / YZ / ZX planes and screen-plane movement at the center; head-on 2D keeps X / Y and its center plane. |
 | Rotate | `E` | Projected axis rings; head-on 2D shows the Z ring. |
-| Scale | `R` | Projected axis boxes plus a center handle that scales the visible plane's two axes. |
+| Scale | `R` | Projected axis boxes. Spatial views add plane handles and XYZ uniform scaling at the center; head-on 2D keeps two-axis center scaling. |
 | Rect | `T` | The selected sprite or UI node's own rectangle grips. |
 | Universal Transform | `Y` | Move arrows and center plane, outer scale boxes and rotation rings together. |
 
@@ -36,8 +36,15 @@ Universal Transform gives move handles priority over scale boxes, then rotation
 rings. Scale boxes sit beyond the arrow tips so they remain reachable; a drag
 along one complete box-arm length doubles that axis's scale. Each press chooses
 one operation, which remains fixed for the entire drag. Its hover and drag
-highlight affect only that operation. The separate W / E / R tools keep their
-existing geometry and T remains Rect.
+highlight affect only that operation. The separate W / E / R tools remain
+available and T remains Rect.
+
+Spatial plane handles turn into the quadrant facing the camera. Edge-on planes
+are hidden; the same projected corners are drawn and hit-tested. A World plane
+drag changes only its two named components. Local uses the rotated plane normal.
+The spatial move center follows a plane parallel to the presented camera through
+the selection pivot, captured at the start of the drag. Scale's spatial center
+applies one factor to X, Y and Z. These gestures keep single-step undo and Esc.
 
 Hovering a transform handle highlights the handle that a press will grab. The
 cursor shows moving, rotation or the projected resize direction. Camera or

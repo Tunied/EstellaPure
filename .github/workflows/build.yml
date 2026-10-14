@@ -728,6 +728,17 @@ jobs:
         path: output/gizmo-origins-ci/
         retention-days: 3
 
+    - name: Check spatial transform planes and center handles
+      if: matrix.shard == 1
+      run: node tools/verify-gizmo-planes.mjs
+    - name: Upload spatial transform acceptance evidence
+      if: always() && matrix.shard == 1
+      uses: actions/upload-artifact@v7
+      with:
+        name: gizmo-planes-editor-checks
+        path: output/gizmo-planes-ci/
+        retention-days: 3
+
     # Between the two heavy steps, so the disk each one costs is attributable.
     # The report at the bottom cannot do that, and it is the report that dies
     # with the runner: a full disk takes the log that would name what filled it,

@@ -28,6 +28,8 @@ published separately; it ships inside the editor.
 
 ### Added
 
+- **Spatial transform handles expose all three planes and distinct centers.** Move/scale tools offer camera-facing XY, YZ and ZX parallelograms, hiding edge-on planes and sharing their projected corners with hit tests. Spatial move uses the presented camera's screen plane, spatial scale uses one XYZ factor, and Local drags use the rotated plane normal. Head-on 2D keeps its original handle set; Universal shares the spatial move planes.
+
 - **Universal Transform combines move, rotate and scale handles.** The viewport toolbar and Command Palette offer a combined tool on Y, preserving T for Rect. Move handles win overlaps, then outer scale boxes, then rotation rings; each drag captures one operation and highlights only its target. Scale boxes remain separate from arrow tips, and their drag sensitivity uses the captured box-arm length. Existing pivot, size, transaction and copy paths remain shared.
 
 - **Alt-copy on transform handles reaches the tool.** Camera orbit no longer consumes an Alt-left press on a visible, editable selected transform handle; the rest of the canvas retains its navigation behavior. Individual Origins starts duplicates at the originals' positions before applying rotation or scale, and CI saves intermediate observations even when a gesture check fails.
