@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ui): preserve rich text shadow and outline colors':
+    { note: 'Rich-text colors no longer recolor shadows and outlines.' },
   'fix(ui): apply inherited opacity to all text passes':
     { note: 'UI text effects follow inherited opacity.' },
   'test(renderer): cover clip recovery between camera passes':

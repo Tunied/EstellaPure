@@ -103,11 +103,9 @@ export interface GlyphVertexData {
 }
 
 /**
- * Build interleaved vertices (x,y,u,v,r,g,b,a) + indices for a set of laid-out
- * glyphs (typically the subset that shares one atlas page).
- * Atlas v0 (top) maps to the screen-top corner, v1 (bottom) to screen-bottom,
- * so the quad samples the glyph upright. `originX/Y` offsets all glyphs (e.g. to
- * place the text by its UINode-resolved box origin).
+ * Build interleaved glyph vertices and indices, with atlas v0 at screen-top.
+ * `originX/Y` positions the batch inside its text box. Disable per-glyph colors
+ * when recoloring shadow and outline passes.
  */
 export function buildGlyphVertices(
     glyphs: readonly LaidGlyph[],
@@ -115,6 +113,7 @@ export function buildGlyphVertices(
     originX = 0,
     originY = 0,
     sdfBias = 0,
+    useGlyphColors = true,
 ): GlyphVertexData {
     const n = glyphs.length;
     const vertices = new Float32Array(n * 4 * TEXT_VERTEX_FLOATS);
@@ -122,7 +121,7 @@ export function buildGlyphVertices(
 
     for (let i = 0; i < n; i++) {
         const gl = glyphs[i];
-        const [r, g, b, a] = gl.color ?? color; // per-glyph color (rich text) falls back to the batch color
+        const [r, g, b, a] = (useGlyphColors ? gl.color : undefined) ?? color;
         const x0 = gl.x0 + originX, x1 = gl.x1 + originX;
         const y0 = gl.y0 + originY, y1 = gl.y1 + originY;
         const vo = i * 4 * TEXT_VERTEX_FLOATS;

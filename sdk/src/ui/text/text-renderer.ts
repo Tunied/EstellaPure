@@ -213,9 +213,9 @@ export function drawTextWith(atlas: GlyphAtlas, sink: GlyphBatchSink, p: DrawTex
     // Emit the glyph set once per page, recolored + offset. All passes are SDF
     // glyphs in the same atlas/layer, so they batch and draw in submit order —
     // shadow + outline first (behind), fill last (on top).
-    const emitPass = (color: RGBA, dx: number, dy: number, bias = 0): void => {
+    const emitPass = (color: RGBA, dx: number, dy: number, bias = 0, useGlyphColors = false): void => {
         for (const [pageId, glyphs] of byPage) {
-            const { vertices, indices } = buildGlyphVertices(glyphs, color, baseX + dx, originY + dy, bias);
+            const { vertices, indices } = buildGlyphVertices(glyphs, color, baseX + dx, originY + dy, bias, useGlyphColors);
             if (opacity !== 1) {
                 for (let i = 7; i < vertices.length; i += TEXT_VERTEX_FLOATS) vertices[i] *= opacity;
             }
@@ -249,7 +249,7 @@ export function drawTextWith(atlas: GlyphAtlas, sink: GlyphBatchSink, p: DrawTex
         else for (const [ox, oy] of OUTLINE_OFFSETS) emitPass(p.outline.color, ox * w, oy * w);
     }
     // Fill (on top).
-    emitPass(p.color, 0, 0);
+    emitPass(p.color, 0, 0, 0, true);
 }
 
 export interface TextRendererOptions extends CanvasGlyphRasterizerOptions {

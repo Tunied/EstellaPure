@@ -14,10 +14,10 @@ import {
 import { drawTextWith, signatureOf, tapAlpha } from '../src/ui/text/text-renderer';
 import type { DrawTextParams } from '../src/ui/text/text-renderer';
 
-function makeAtlas(pageSize: number): GlyphAtlas {
+function makeAtlas(pageSize: number, spread = 6): GlyphAtlas {
     const rasterizer: GlyphRasterizer = {
         renderSize: 48,
-        spread: 6,
+        spread,
         rasterize: (cp: number): RasterGlyph | null => {
             if (cp === 32) return { pixels: new Uint8Array(0), width: 0, height: 0, advance: 12, bearingX: 0, bearingY: 0 };
             return { pixels: new Uint8Array(10 * 12 * 4), width: 10, height: 12, advance: 11, bearingX: 1, bearingY: 10 };
@@ -29,6 +29,37 @@ function makeAtlas(pageSize: number): GlyphAtlas {
 }
 
 describe('REARCH_GUI P1.3b: drawTextWith', () => {
+    it('keeps rich fill colors out of shadow and outline passes on both atlas modes', () => {
+        for (const spread of [0, 6]) {
+            for (const blur of [0, 2]) {
+                const sink = vi.fn();
+                drawTextWith(makeAtlas(1024, spread), sink, {
+                    text: '<color=#ff000080>A</color>B', richText: true,
+                    fontFamily: 'Arial', fontSizePx: 24, color: [1, 1, 1, 1], opacity: 0.5,
+                    shadow: { color: [0, 0, 0, 0.6], dx: 2, dy: 2, blur },
+                    outline: { color: [0, 1, 0, 0.4], width: 1 },
+                });
+                const shadows = blur > 0 ? 9 : 1;
+                const outlines = spread > 0 ? 1 : 8;
+                expect(sink).toHaveBeenCalledTimes(shadows + outlines + 1);
+                for (let batch = 0; batch < shadows + outlines; ++batch) {
+                    const vertices = sink.mock.calls[batch][0] as Float32Array;
+                    const shadow = batch < shadows;
+                    const alpha = shadow ? tapAlpha(0.6, shadows) * 0.5 : 0.2;
+                    for (let i = 4; i < vertices.length; i += TEXT_VERTEX_FLOATS) {
+                        expect(Array.from(vertices.subarray(i, i + 3))).toEqual(shadow ? [0, 0, 0] : [0, 1, 0]);
+                        expect(vertices[i + 3]).toBeCloseTo(alpha);
+                    }
+                }
+                const fill = sink.mock.calls[shadows + outlines][0] as Float32Array;
+                expect(Array.from(fill.subarray(4, 7))).toEqual([1, 0, 0]);
+                expect(fill[7]).toBeCloseTo(128 / 255 * 0.5);
+                expect(Array.from(fill.subarray(4 * TEXT_VERTEX_FLOATS + 4, 4 * TEXT_VERTEX_FLOATS + 7))).toEqual([1, 1, 1]);
+                expect(fill[4 * TEXT_VERTEX_FLOATS + 7]).toBeCloseTo(0.5);
+            }
+        }
+    });
+
     it('applies inherited opacity to explicit rich colors and invalidates cached geometry', () => {
         const atlas = makeAtlas(1024);
         const sink = vi.fn();
