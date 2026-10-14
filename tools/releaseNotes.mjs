@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(sprite): preserve affine geometry and mirrored tile grids':
+    { note: 'Sprites retain parent-induced shear in every draw mode.' },
   'fix(text): preserve long bitmap strings and cull hidden glyphs':
     { note: 'Long native bitmap text preserves UTF-8 content without uploading hidden glyphs.' },
   'feat(playable): adapt asset quality to measured delivery budgets':

@@ -19,6 +19,8 @@
 #include "esengine/resource/ResourceManager.hpp"
 #include "esengine/renderer/plugins/UIElementPlugin.hpp"
 #include "esengine/renderer/plugins/TextPlugin.hpp"
+#include "esengine/renderer/plugins/SpritePlugin.hpp"
+#include "esengine/ecs/components/Sprite.hpp"
 #include "esengine/ecs/components/BitmapText.hpp"
 #include "esengine/ecs/components/UINode.hpp"
 #include "esengine/ecs/components/UIVisual.hpp"
@@ -279,6 +281,90 @@ TEST_CASE("camera mask: hidden text and skeletal submissions upload no geometry"
     CHECK(frame.stats().text == 1);
     CHECK(frame.stats().skeletal == 1);
     CHECK(frame.stats().triangles == 4);
+}
+
+TEST_CASE("sprites: affine parents preserve every draw mode and mirrored tile grid") {
+    for (auto mode : {ecs::SpriteDrawMode::Simple, ecs::SpriteDrawMode::NineSlice, ecs::SpriteDrawMode::Tiled}) {
+        for (bool parented : {false, true}) for (bool mirror : {false, true}) for (bool capped : {false, true}) {
+            if (capped && mode != ecs::SpriteDrawMode::Tiled) continue;
+            Harness h;
+            RenderContext context(h.device);
+            resource::ResourceManager resources;
+            resources.init(h.device);
+            const u8 pixels[16 * 16 * 4] = {};
+            const auto texture = resources.createTexture(resource::ResourceContent::Retained, 16, 16,
+                                                         pixels, TextureFormat::RGBA8);
+            resource::TextureMetadata metadata;
+            metadata.sliceBorder = {2, 2, 2, 2};
+            resources.setTextureMetadata(texture, metadata);
+            ecs::Registry registry;
+            const auto parent = registry.create(), entity = registry.create();
+            if (parented) registry.emplace<ecs::Parent>(entity).entity = parent;
+            auto& transform = registry.emplace<ecs::Transform>(entity);
+            const auto matrix = glm::scale(glm::mat4(1), glm::vec3(parented ? 2 : 1, 1, 1))
+                                    * glm::translate(glm::mat4(1), glm::vec3(4, -7, 0))
+                                    * glm::mat4_cast(glm::angleAxis(.7f, glm::vec3(0, 0, 1)))
+                                    * glm::scale(glm::mat4(1), glm::vec3(mirror ? -3 : 3, 2, 1));
+            if (parented) {
+                transform.cachedMatrix_ = matrix;
+                transform.decomposed_ = false;
+            } else {
+                // Childless roots intentionally leave cachedMatrix_ untouched.
+                transform.worldPosition = {4, -7, 0};
+                transform.worldRotation = glm::angleAxis(.7f, glm::vec3(0, 0, 1));
+                transform.worldScale = {mirror ? -3 : 3, 2, 1};
+                transform.decomposed_ = true;
+            }
+            auto& sprite = registry.emplace<ecs::Sprite>(entity);
+            sprite.texture = texture;
+            sprite.size = {20, 30};
+            sprite.pivot = {.25f, .75f};
+            sprite.tileSize = capped ? glm::vec2(.01f) : glm::vec2(4, 5);
+            sprite.drawMode = mode;
+            Frustum frustum;
+            frustum.extractFromMatrix(glm::ortho(-500.0f, 500.0f, -500.0f, 500.0f));
+            RenderFrameContext frameContext{context, resources};
+            RenderCollectContext collect{registry, frustum, h.clips, h.pool, h.list, frameContext, {}};
+            SpritePlugin plugin;
+            plugin.init(frameContext);
+            plugin.collect(collect);
+            const auto* vertices = reinterpret_cast<const BatchVertex*>(h.pool.vertexData(LayoutId::Batch));
+            const u32 count = h.pool.vertexBytesUsed(LayoutId::Batch) / sizeof(BatchVertex);
+            CHECK(count > 0);
+            const auto inverse = glm::inverse(matrix);
+            f32 area = 0;
+            for (u32 i = 0; i < count; ++i) {
+                const auto local = glm::vec3(inverse * glm::vec4(vertices[i].position, 1));
+                CHECK(local.x >= -5.001f);
+                CHECK(local.x <= 15.001f);
+                CHECK(local.y >= -22.501f);
+                CHECK(local.y <= 7.501f);
+                if (i % 4 == 0) {
+                    const auto a = vertices[i+1].position - vertices[i].position;
+                    const auto b = vertices[i+3].position - vertices[i].position;
+                    area += std::abs(a.x * b.y - a.y * b.x);
+                }
+            }
+            CHECK(area == doctest::Approx(parented ? 7200 : 3600).epsilon(.0001));
+            // A camera touching the actual transformed corner must not cull it.
+            const auto corner = glm::vec3(matrix * glm::vec4(-5, -22.5f, 0, 1));
+            frustum.extractFromMatrix(glm::ortho(corner.x - .1f, corner.x + .1f,
+                                                corner.y - .1f, corner.y + .1f));
+            h.pool.beginFrame();
+            h.list.clear();
+            plugin.collect(collect);
+            CHECK(h.pool.vertexBytesUsed(LayoutId::Batch) > 0);
+            for (auto zeroAxis : {0, 1}) {
+                sprite.size[zeroAxis] = 0;
+                h.pool.beginFrame();
+                h.list.clear();
+                plugin.collect(collect);
+                CHECK(h.pool.vertexBytesUsed(LayoutId::Batch) == 0);
+                sprite.size = {20, 30};
+            }
+            resources.shutdown();
+        }
+    }
 }
 
 TEST_CASE("bitmap text: world geometry follows affine transforms and parallax") {

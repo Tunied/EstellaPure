@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Sprites retain parent-induced shear in every draw mode.** Ordinary, nine-slice and tiled geometry follows the complete parent transform, and camera bounds use the same basis. Mirrored tiled grids retain positive tile steps before applying signed axes, including the capped fallback. Zero-area sprites skip geometry; existing material, UV and batch state is preserved.
+
 ## [0.82.0] - 2026-10-14
 
 ### Added

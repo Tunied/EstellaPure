@@ -6,6 +6,7 @@
 #include "../frame/RenderFrame.hpp"
 #include "../rhi/Texture.hpp"
 #include "../../ecs/components/Transform.hpp"
+#include "../../ecs/components/Hierarchy.hpp"
 #include "../../ecs/components/Sprite.hpp"
 #include "../../ecs/components/SpriteMask.hpp"
 #include "../../ecs/components/UINode.hpp"
@@ -36,18 +37,22 @@ void SpritePlugin::collect(RenderCollectContext& collect_ctx) {
         const auto& rotation = transform.worldRotation;
         const auto& scale = transform.worldScale;
 
+        if (scale.x == 0.0f || scale.y == 0.0f || sprite.size.x == 0.0f || sprite.size.y == 0.0f) continue;
+
         glm::vec2 finalSize = sprite.size * glm::vec2(scale);
-        glm::vec2 pivotOffset((0.5f - sprite.pivot.x) * finalSize.x,
-                              (0.5f - sprite.pivot.y) * finalSize.y);
         // The quad turns about `position`, so its pivot offset turns with it and its
         // extents grow. Bounding the unturned box instead loses a turned sprite while
         // part of it is still on screen — at 45 degrees the box is 41% short.
         const glm::vec2 turn = flatTurnZ(rotation);
-        glm::vec3 aabbCenter = position + glm::vec3(pivotOffset.x * turn.x - pivotOffset.y * turn.y,
-                                                    pivotOffset.x * turn.y + pivotOffset.y * turn.x,
-                                                    0.0f);
-        glm::vec3 halfExtents = flatHalfExtents(
-            turn, glm::vec3(std::abs(finalSize.x), std::abs(finalSize.y), 0.0f) * 0.5f);
+        const bool parented = registry.has<ecs::Parent>(entity);
+        const glm::vec3 axisX = parented ? glm::vec3(transform.cachedMatrix_[0])
+            : glm::vec3(turn.x, turn.y, 0.0f) * scale.x;
+        const glm::vec3 axisY = parented ? glm::vec3(transform.cachedMatrix_[1])
+            : glm::vec3(-turn.y, turn.x, 0.0f) * scale.y;
+        const glm::vec2 pivotOffset = (glm::vec2(.5f) - sprite.pivot) * sprite.size;
+        const glm::vec3 aabbCenter = position + axisX * pivotOffset.x + axisY * pivotOffset.y;
+        const glm::vec3 halfExtents = glm::abs(axisX) * std::abs(sprite.size.x) * .5f
+                                   + glm::abs(axisY) * std::abs(sprite.size.y) * .5f;
         // Never depth-tested unless a material says so, and that is resolved
         // below — so a sprite is judged by the view alone, and an occluder in
         // front of it does not get to speak.
@@ -97,6 +102,13 @@ void SpritePlugin::collect(RenderCollectContext& collect_ctx) {
         const bool hasTiling = draw.tiled;
         useNineSlice = draw.nineSlice;
 
+        // Emit into the existing batch stream, then map just this sprite's new
+        // vertices through its full basis. Parent matrices may contain shear;
+        // tiled grids also need positive steps before applying signed axes.
+        const bool mapBasis = parented || hasTiling;
+        if (mapBasis) angle = 0.0f;
+        const u32 vertexStart = buffers.vertexBytesUsed(LayoutId::Batch);
+
         BatchDrawKey key{
             .stage = ctx.current_stage,
             .layer = sprite.layer,
@@ -143,8 +155,8 @@ void SpritePlugin::collect(RenderCollectContext& collect_ctx) {
             emitTiledQuads(buffers, draw_list, clips,
                 position, finalSize, sprite.pivot,
                 angle, sprite.color, uvOff, uvSc,
-                sprite.tileSize * glm::vec2(scale),
-                sprite.tileSpacing * glm::vec2(scale),
+                sprite.tileSize * glm::abs(glm::vec2(scale)),
+                sprite.tileSpacing * glm::abs(glm::vec2(scale)),
                 key);
         } else if (useNineSlice) {
             emitNineSlice(buffers, draw_list, clips,
@@ -156,6 +168,19 @@ void SpritePlugin::collect(RenderCollectContext& collect_ctx) {
             emitQuad(buffers, draw_list, clips,
                 position, finalSize, sprite.pivot,
                 angle, uvOff, uvSc, sprite.color, key);
+        }
+        if (mapBasis) {
+            const glm::vec2 divisor = hasTiling ? glm::abs(finalSize) / sprite.size
+                                               : glm::vec2(scale);
+            const glm::vec3 basisX = axisX / divisor.x;
+            const glm::vec3 basisY = axisY / divisor.y;
+            const u32 vertexEnd = buffers.vertexBytesUsed(LayoutId::Batch);
+            // appendQuad can grow the pool, so retrieve its pointer after emission.
+            auto* vertices = reinterpret_cast<BatchVertex*>(buffers.vertexData(LayoutId::Batch));
+            for (u32 i = vertexStart / sizeof(BatchVertex); i < vertexEnd / sizeof(BatchVertex); ++i) {
+                const glm::vec3 delta = vertices[i].position - position;
+                vertices[i].position = position + basisX * delta.x + basisY * delta.y;
+            }
         }
     }
 }
