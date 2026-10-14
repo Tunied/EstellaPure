@@ -28,6 +28,7 @@ class TransientBufferPool {
 public:
     explicit TransientBufferPool(GfxDevice& device);
 
+    /** Initialize layouts; stream storage is allocated on its first non-empty write. */
     void init(u32 initialVertexBytes = 2 * 1024 * 1024,
               u32 initialIndexCount = 256 * 1024);
     void shutdown();
@@ -96,6 +97,7 @@ private:
     };
 
     void setupStream(LayoutId layout);
+    void ensureStorage(LayoutId layout);
     void uploadInstanceRows(Stream& s, u32& grows, u32& writes);
     static constexpr u32 instanceRowBytes() { return MESH_INSTANCE_TEXTURE_WIDTH * 16; }
     void growVertexStaging(Stream& s, u32 requiredBytes);

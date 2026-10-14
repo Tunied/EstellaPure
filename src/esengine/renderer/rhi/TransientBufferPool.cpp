@@ -111,6 +111,7 @@ void TransientBufferPool::uploadInstanceRows(Stream& s, u32& grows, u32& writes)
 
 u32 TransientBufferPool::allocVertices(LayoutId layout, u32 byteSize) {
     Stream& s = stream(layout);
+    if (byteSize) ensureStorage(layout);
     u32 offset = s.vertex_write_pos;
     u32 newPos = s.vertex_write_pos + byteSize;
     if (newPos > static_cast<u32>(s.vertex_staging.size())) {
@@ -122,6 +123,7 @@ u32 TransientBufferPool::allocVertices(LayoutId layout, u32 byteSize) {
 
 u32 TransientBufferPool::allocIndices(LayoutId layout, u32 count) {
     Stream& s = stream(layout);
+    if (count) ensureStorage(layout);
     u32 offset = s.index_write_pos;
     u32 newPos = s.index_write_pos + count;
     if (newPos > static_cast<u32>(s.index_staging.size())) {
@@ -248,19 +250,9 @@ u32 TransientBufferPool::vertexStride(LayoutId layout) const {
     return stream(layout).vertex_stride;
 }
 
-void TransientBufferPool::setupStream(LayoutId layout) {
+void TransientBufferPool::ensureStorage(LayoutId layout) {
     Stream& s = stream(layout);
-
-    if (layout == LayoutId::MeshInstance) {
-        // Only a stream, and not a vertex one: the frame's per-object records go
-        // in a texture, so a shader can reach any record by index rather than only
-        // the one the hardware happens to be on.
-        s.vertex_stride = MESH_INSTANCE_STRIDE;
-        s.vertex_staging.resize(instanceRowBytes());
-        s.texture_rows = 0;
-        return;
-    }
-
+    if (layout == LayoutId::MeshInstance || s.vbo != BufferHandle::Invalid) return;
     if (layout == LayoutId::ParticleInstance) {
         // Per-instance (per-particle) stream: dynamic, streamed each frame.
         s.vertex_staging.resize(initial_vertex_bytes_);
@@ -286,6 +278,33 @@ void TransientBufferPool::setupStream(LayoutId layout) {
             {GfxBufferUsage::Index, static_cast<u32>(sizeof(quadIdx)), /*dynamic=*/false},
             GfxContent::retained(), quadIdx);
 
+        return;
+    }
+    s.vertex_staging.resize(initial_vertex_bytes_);
+    s.index_staging.resize(initial_index_count_);
+    s.vbo_capacity = initial_vertex_bytes_;
+    s.ebo_capacity = initial_index_count_;
+
+    s.vbo = device_.createBuffer({GfxBufferUsage::Vertex, s.vbo_capacity, /*dynamic=*/true},
+                                 GfxContent::transient(), nullptr);
+    s.ebo = device_.createBuffer(
+        {GfxBufferUsage::Index, static_cast<u32>(s.ebo_capacity * sizeof(u32)), /*dynamic=*/true},
+        GfxContent::transient(), nullptr);
+}
+
+void TransientBufferPool::setupStream(LayoutId layout) {
+    Stream& s = stream(layout);
+
+    if (layout == LayoutId::MeshInstance) {
+        // Only a stream, and not a vertex one: the frame's per-object records go
+        // in a texture, so a shader can reach any record by index rather than only
+        // the one the hardware happens to be on.
+        s.vertex_stride = MESH_INSTANCE_STRIDE;
+        s.texture_rows = 0;
+        return;
+    }
+
+    if (layout == LayoutId::ParticleInstance) {
         // Slot 0: the static quad (per vertex). Slot 1: the instance stream (per instance),
         // rebased per draw in bindInstanceLayout.
         VertexLayoutDesc desc;
@@ -307,17 +326,6 @@ void TransientBufferPool::setupStream(LayoutId layout) {
         s.layout = device_.createVertexLayout(desc);
         return;
     }
-
-    s.vertex_staging.resize(initial_vertex_bytes_);
-    s.index_staging.resize(initial_index_count_);
-    s.vbo_capacity = initial_vertex_bytes_;
-    s.ebo_capacity = initial_index_count_;
-
-    s.vbo = device_.createBuffer({GfxBufferUsage::Vertex, s.vbo_capacity, /*dynamic=*/true},
-                                 GfxContent::transient(), nullptr);
-    s.ebo = device_.createBuffer(
-        {GfxBufferUsage::Index, static_cast<u32>(s.ebo_capacity * sizeof(u32)), /*dynamic=*/true},
-        GfxContent::transient(), nullptr);
 
     VertexLayoutDesc desc;
     switch (layout) {

@@ -1061,6 +1061,55 @@ TEST_CASE("transparent: hundredths of depth separate; thousandths share a bucket
 // A workload creeping upward each frame must not reallocate the GPU buffer every
 // frame. The staging vectors double, and the GPU capacity follows them.
 
+TEST_CASE("storage: idle streams allocate nothing and used streams survive recovery") {
+    MockGfxDevice device;
+    TransientBufferPool pool{device};
+    pool.init(4096, 1024);
+    CHECK(device.createBufferCalls == 0);
+    CHECK(device.estimatedGpuBytes() == 0);
+    for (auto layout : {LayoutId::Batch, LayoutId::Shape, LayoutId::Sky, LayoutId::ParticleInstance}) {
+        CHECK(pool.layoutHandle(layout) != VertexLayoutHandle::Invalid);
+        CHECK(pool.vertexStride(layout) > 0);
+        CHECK(pool.vertexBuffer(layout) == BufferHandle::Invalid);
+    }
+    pool.allocVertices(LayoutId::Batch, 0);
+    pool.allocIndices(LayoutId::Shape, 0);
+    pool.upload();
+    CHECK(device.createBufferCalls == 0);
+    BatchVertex vertices[4] = {};
+    const u32 indices[6] = {0, 1, 2, 2, 3, 0};
+    pool.appendVertices(LayoutId::Batch, vertices, sizeof(vertices));
+    pool.appendIndices(LayoutId::Batch, indices, 6);
+    pool.upload();
+    CHECK(device.createBufferCalls == 2);
+    CHECK(device.estimatedGpuBytes() == 8192);
+    const auto batch = pool.vertexBuffer(LayoutId::Batch);
+    pool.beginFrame();
+    pool.appendVertices(LayoutId::Batch, vertices, sizeof(vertices));
+    pool.upload();
+    CHECK(device.createBufferCalls == 2);
+    CHECK(pool.vertexBuffer(LayoutId::Batch) == batch);
+    std::vector<u8> particle(44);
+    pool.appendVertices(LayoutId::ParticleInstance, particle.data(), 44);
+    pool.upload();
+    CHECK(device.createBufferCalls == 5);
+    CHECK(device.estimatedGpuBytes() == 8192 + 4096 + 64 + 24);
+    CHECK(pool.vertexBuffer(LayoutId::Sky) == BufferHandle::Invalid);
+    CHECK(pool.vertexBuffer(LayoutId::Shape) == BufferHandle::Invalid);
+    const auto storage = device.estimatedGpuBytes();
+    device.notifyDeviceLost(GfxDeviceLostReason::ContextLost, "test");
+    CHECK(device.estimatedGpuBytes() == 0);
+    REQUIRE(device.recoverDevice());
+    CHECK(device.estimatedGpuBytes() == storage);
+    CHECK(pool.vertexBuffer(LayoutId::Batch) == batch);
+    pool.upload();
+    pool.shutdown();
+    CHECK(device.estimatedGpuBytes() == 0);
+    pool.init(4096, 1024);
+    CHECK(device.estimatedGpuBytes() == 0);
+    pool.shutdown();
+}
+
 TEST_CASE("growth: a slowly rising workload reallocates a handful of times, not per frame") {
     MockGfxDevice device;
     TransientBufferPool pool{device};

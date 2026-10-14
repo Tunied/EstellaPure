@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Unused transient streams no longer reserve GPU buffers.** Renderer pools initialize pipeline layouts without reserving vertex/index buffers or CPU staging for every stream. Each stream allocates storage on its first non-empty write, preserving buffer reuse, growth and recovery while avoiding unused particle, shape and sky allocations in 2D scenes.
+
 - **GPU memory estimates include buffers and render targets.** Runtime reports and editor captures count live buffer capacity, texture mip chains, compressed blocks and target attachments without double-counting framebuffer references. WebGPU also includes private fallback, surface and readback resources. Lost or destroyed resources stop contributing; the profiler labels this as an estimate that excludes driver overhead, shader binaries and host-owned swapchain images.
 
 - **Play-mode performance captures include every recorded frame.** The editor's `profile_frames` command captures the running world's frame-end stream instead of its 250 ms telemetry snapshots, so frame counts, tail latency and system costs come from actual frames. Captures discard data if the play world is replaced, keep editor overhead visible, and can observe existing instrumentation without resetting timings or toggling another recorder's profiling switches.

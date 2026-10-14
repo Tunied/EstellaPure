@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(renderer): allocate transient stream storage on first use':
+    { note: 'Unused transient streams no longer reserve GPU buffers.' },
   'fix(profiler): label live gpu storage estimates':
     { note: 'GPU memory estimates include buffers and render targets.' },
   'fix(profiler): account for live gpu resource storage':
