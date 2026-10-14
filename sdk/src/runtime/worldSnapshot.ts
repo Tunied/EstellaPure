@@ -98,12 +98,23 @@ export function worldSnapshot(
     const childrenDef = getComponent('Children');
     const ownerDef = getComponent('SceneOwner');
     const all = withTree ? world.getAllEntities() : [];
+    const treeTypes = withTree ? world.getComponentTypesBatch(all) : null;
+    const detailTypes = !withTree && selectedId != null ? world.getComponentTypes(selectedId as never) : null;
+    let parentReader: ReturnType<World['resolveGetter']> | undefined;
+    const parentValue = (entity: number, types: string[]): number | undefined => {
+        if (!parentDef || !types.includes(parentDef._name)) return undefined;
+        if (parentReader === undefined) parentReader = world.resolveGetter(parentDef);
+        // Membership comes from the current core, not the SDK's hierarchy cache.
+        // Only the scalar escapes a reader that may borrow its component value.
+        const p = (parentReader ? parentReader(entity as never) : world.get(entity as never, parentDef)) as { entity?: number } | null;
+        return p?.entity;
+    };
 
     const parentOf = new Map<number, number>();
     const childrenOf = new Map<number, number[]>();
     if (!withTree && selectedId != null && childrenDef) {
-        const p = parentDef ? world.tryGet(selectedId as never, parentDef) as { entity?: number } | null : null;
-        if (p?.entity !== undefined) parentOf.set(selectedId, p.entity);
+        const parent = parentValue(selectedId, detailTypes!);
+        if (parent !== undefined) parentOf.set(selectedId, parent);
         // Native hierarchy writers can move children without updating the SDK's
         // membership cache. Ask the current core before reading this relation.
         const hasChildren = world.resolveHas(childrenDef);
@@ -122,9 +133,10 @@ export function worldSnapshot(
         }
     } else if (parentDef) {
         const entities = withTree ? all : world.getAllEntities();
-        for (const e of entities) {
-            const p = world.tryGet(e, parentDef) as { entity?: number } | null;
-            if (p && p.entity !== undefined) parentOf.set(e as never as number, p.entity);
+        const types = treeTypes ?? world.getComponentTypesBatch(entities);
+        for (let i = 0; i < entities.length; i++) {
+            const parent = parentValue(entities[i], types[i]);
+            if (parent !== undefined) parentOf.set(entities[i], parent);
         }
         for (const [child, parent] of parentOf) (childrenOf.get(parent) ?? childrenOf.set(parent, []).get(parent)!).push(child);
     }
@@ -165,7 +177,6 @@ export function worldSnapshot(
     };
 
     let selectedTypes: string[] | null = null;
-    const treeTypes = withTree ? world.getComponentTypesBatch(all) : null;
     const tree = withTree
         ? {
             version: '1.0' as const, name: 'live' as const,
@@ -180,7 +191,7 @@ export function worldSnapshot(
 
     let selected: SnapshotEntity | null = null;
     if (selectedId != null) {
-        const types = selectedTypes ?? world.getComponentTypes(selectedId as never);
+        const types = selectedTypes ?? detailTypes ?? world.getComponentTypes(selectedId as never);
         const raw = filterInspectableTypes(types)
             .map((type) => {
                 const def = getComponent(type);

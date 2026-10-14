@@ -11,6 +11,37 @@ import { HAS_WASM, loadWasmModule } from './helpers/loadWasm';
 describe.skipIf(!HAS_WASM)('snapshot visibility with borrowed core values', () => {
     let module: ESEngineModule;
     beforeAll(async () => { ensureBuiltinComponentsRegistered(); module = await loadWasmModule(); });
+    it.each([[true, true], [false, true], [true, false]])('reflects native parent edits with bulk inspection %s and reader %s', (bulk, reader) => {
+        const registry = new module.Registry(), world = new World();
+        if (!bulk) registry.getBuiltinComponentNames = undefined;
+        world.connectCpp(registry, module);
+        if (!reader) {
+            const read = world.resolveGetter.bind(world);
+            world.resolveGetter = (component, mode) => component._name === 'Parent' ? null : read(component, mode);
+        }
+        const app = { world, hasResource: () => false } as unknown as App;
+        try {
+            const warm = world.spawn('Warm group'), group = world.spawn('Native group'), child = world.spawn('Child');
+            world.setParent(child, warm); world.removeParent(child);
+            world.insert(child, Disabled);
+            registry.setParent(child, group);
+            const before = worldSnapshot(app, child, true);
+            expect(before.selected!.parent).toBe(group);
+            expect(before.tree!.entities.find(e => e.id === child)!.parent).toBe(group);
+            expect(before.tree!.entities.find(e => e.id === group)!.children).toEqual([child]);
+            expect(worldSnapshot(app, child, false).selected!.parent).toBe(group);
+            expect(worldSnapshot(app, group, false).selected!.children).toEqual([child]);
+            world.setParent(child, warm);
+            registry.removeParent(child);
+            const after = worldSnapshot(app, child, true);
+            expect(after.selected!.parent).toBeNull();
+            expect(after.tree!.entities.find(e => e.id === child)!.parent).toBeNull();
+            expect(after.tree!.entities.find(e => e.id === warm)!.children).toEqual([]);
+            expect(worldSnapshot(app, child, false).selected!.parent).toBeNull();
+            expect(before.selected!.parent).toBe(group);
+        } finally { world.disconnectCpp(); registry.delete(); }
+    });
+
     it('keeps selected hierarchy in tree order after reparenting, reordering and disabled children', () => {
         const registry = new module.Registry(), world = new World();
         world.connectCpp(registry, module);

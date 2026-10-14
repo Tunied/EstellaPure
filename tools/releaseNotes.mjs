@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(inspector): read current native parent membership in runtime snapshots':
+    { note: 'Runtime hierarchy inspection follows native parent additions and removals.' },
   'perf(inspector): index script names once per runtime tree snapshot':
     { note: 'Runtime tree inspection indexes script component names once per snapshot.' },
   'perf(inspector): reuse hierarchy links for selected runtime details':

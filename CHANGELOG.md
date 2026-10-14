@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Runtime hierarchy inspection follows native parent additions and removals.** The tree and selected details use current component membership before reading a parent, so native edits appear immediately even when the SDK's cached hierarchy membership is stale. Detaching a node clears its parent instead of reporting the empty getter's sentinel; disabled nodes remain included.
+
 - **Runtime tree inspection indexes script component names once per snapshot.** Large script catalogues no longer require a name search for every component on every entity. The index is rebuilt for each group read, so registration, removal, aliases and context changes remain visible; builtin membership is still read from the current core.
 
 - **Selected runtime details reuse maintained hierarchy links.** Refreshing one entity reads its own parent and children instead of scanning every entity's parent. Child ordering still follows world storage, including after reparenting and draw-order edits; disabled children remain inspectable and native reparenting is read from the current core.
