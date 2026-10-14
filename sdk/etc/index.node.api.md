@@ -6891,8 +6891,8 @@ width: number
 
 ## RenderPipeline — class @experimental
 ```
-addPreFlushCallback: (cb: (registry: { _cpp: CppRegistry; }) => void) => void
-addScreenOverlayCallback: (cb: (registry: { _cpp: CppRegistry; }) => void) => void
+addPreFlushCallback: (cb: (registry: { _cpp: CppRegistry; }, viewProjection?: Float32Array) => void) => void
+addScreenOverlayCallback: (cb: (registry: { _cpp: CppRegistry; }, viewProjection?: Float32Array) => void) => void
 beginFrame: (elapsedSec?: number) => void
 beginScreenCapture: () => void
 endFrame: () => void
@@ -6902,7 +6902,7 @@ render: (params: RenderParams) => void
 renderCamera: (params: CameraRenderParams) => void
 renderScreenOverlay: (registry: { _cpp: CppRegistry; }, overlay: ScreenOverlayData, target?: number) => void
 renderingEnabled: boolean
-runPreFlushCallbacks: (registry: { _cpp: CppRegistry; }) => void
+runPreFlushCallbacks: (registry: { _cpp: CppRegistry; }, viewProjection?: Float32Array) => void
 setActiveScenes: (scenes: Set<string> | null) => void
 setPostProcess: (pp: PostProcessAPI | null) => void
 setQuality: (quality: QualityController, apply?: () => void) => void

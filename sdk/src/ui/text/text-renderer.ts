@@ -10,6 +10,7 @@
  * pages requires). `TextRenderer` wires it to the real Canvas2D rasterizer +
  * engine page store + submitTextBatch.
  */
+import { createTextCullGeometry, textClipPlanes, clipTextGeometry, type TextCullGeometry } from './text-culling';
 import type { ESEngineModule } from '../../wasm';
 import { platformHasGlyphRasterizer } from '../../platform';
 import { GlyphAtlas } from './glyph-atlas';
@@ -269,7 +270,7 @@ export interface TextRendererOptions extends CanvasGlyphRasterizerOptions {
 }
 
 /** One laid-out, tessellated page batch in the entity's local (untransformed) space. */
-interface CachedTextBatch {
+interface CachedTextBatch extends TextCullGeometry {
     vertices: Float32Array;
     indices: Uint16Array;
     pageId: number;
@@ -289,6 +290,7 @@ export class SdfTextRenderer {
     readonly atlas: GlyphAtlas;
     private readonly sdf: boolean;
     private readonly cache_ = new Map<number, TextCacheEntry>();
+    private readonly clipPlanes_ = new Float64Array(36);
 
     /** `module` is null on the native core (no wasm heap); the glyph source is
      *  then the platform's own rasterizer, since there is no 2D canvas to draw
@@ -332,6 +334,7 @@ export class SdfTextRenderer {
         layer: number,
         depth: number,
         cullBit = 0,
+        viewProjection?: Float32Array,
     ): void {
         if (this.atlas.metricsOnly) throw new Error('Measurement atlases cannot submit text.');
         const opacity = p.opacity ?? 1;
@@ -342,11 +345,12 @@ export class SdfTextRenderer {
         if (!entry || entry.gen !== gen || entry.sig !== sig) {
             const batches: CachedTextBatch[] = [];
             drawTextWith(this.atlas, (vertices, indices, pageId) => {
-                batches.push({ vertices, indices, pageId });
+                batches.push({ ...createTextCullGeometry(vertices, indices), pageId });
             }, { ...p, opacity: 1 });
             entry = { sig, gen, batches, opacity: 1 };
             this.cache_.set(entity, entry);
         }
+        const planes = viewProjection && textClipPlanes(this.clipPlanes_, viewProjection, transform) ? this.clipPlanes_ : null;
         for (const b of entry.batches) {
             if (entry.opacity !== opacity) {
                 if (!b.alphas) {
@@ -357,7 +361,8 @@ export class SdfTextRenderer {
                     b.vertices[i * TEXT_VERTEX_FLOATS + 7] = b.alphas[i] * opacity;
                 }
             }
-            submitTextBatch(this.module, b.vertices, b.indices, b.pageId, transform, entity, layer, depth, this.sdf, cullBit);
+            const visible = clipTextGeometry(b, planes);
+            if (visible) submitTextBatch(this.module, visible.vertices, visible.indices, b.pageId, transform, entity, layer, depth, this.sdf, cullBit);
         }
         entry.opacity = opacity;
     }

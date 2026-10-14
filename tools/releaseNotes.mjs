@@ -32,6 +32,8 @@ export const NOTED = {
     { note: 'CrazyGames scores and saved training credits follow platform contracts.' },
   'feat(settings): configure CrazyGames client score encryption key':
     { note: 'CrazyGames scores and saved training credits follow platform contracts.' },
+  'perf(text): cull cached glyph geometry per draw projection':
+    { note: 'SDK text uploads only glyphs visible to the current draw pass.' },
   'perf(ui): keep text measurement atlases off GPU':
     { note: 'Text measurement avoids GPU glyph pages.' },
   'feat(crazygames): connect Web ads storage and host audio policy':

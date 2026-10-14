@@ -178,6 +178,39 @@ function buildScene(app: ReturnType<typeof createNativeApp>, setScene: (canvas: 
 }
 
 describe('a frame on the native core', () => {
+    it.each([true, false])('culls long cached glyphs and restores the complete layout (sdf=%s)', async sdf => {
+        const host = makeHostScope();
+        const app = createNativeApp(makeBridge(host.scope), host.scope);
+        await app.tick(0);
+        const renderer = new SdfTextRenderer(null, { sdf });
+        const parameters = { text: 'A'.repeat(65535) + 'Z', fontFamily: 'Arial', fontSizePx: 32, color: [1, 1, 1, 1] as const };
+        const matrix = new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]);
+        const projection = matrix.slice(); projection[0] = 1 / 32; projection[5] = 1 / 64;
+        renderer.drawText(parameters, matrix, 1, 0, 0, 0, projection);
+        expect(host.submitSpy).toHaveBeenCalledOnce();
+        expect(host.submitSpy.mock.calls[0][1]).toBeLessThanOrEqual(20);
+        const rasterizations = host.rasterizeSpy.mock.calls.length;
+        host.submitSpy.mockClear(); matrix[12] = 1e7;
+        renderer.drawText(parameters, matrix, 1, 0, 0, 0, projection);
+        expect(host.submitSpy).not.toHaveBeenCalled();
+        matrix[12] = -65535 * 16;
+        renderer.drawText({ ...parameters, opacity: 0.25 }, matrix, 1, 0, 0, 0, projection);
+        expect(host.submitSpy).toHaveBeenCalledOnce();
+        const tail = host.submitSpy.mock.calls[0];
+        expect(tail[1]).toBeLessThanOrEqual(20);
+        const vertices = tail[0] as Float32Array, indices = tail[2] as Uint16Array;
+        expect(vertices[vertices.length - 4 * TEXT_VERTEX_FLOATS]).toBe(65535 * 16);
+        expect(vertices[7]).toBe(0.25);
+        expect(Math.max(...indices)).toBeLessThan(tail[1] as number);
+        host.submitSpy.mockClear(); matrix[12] = 0; projection[0] = 1 / (65536 * 16);
+        renderer.drawText(parameters, matrix, 1, 0, 0, 0, projection);
+        expect(host.submitSpy.mock.calls.reduce((sum, args) => sum + (args[1] as number), 0)).toBe(65536 * 4);
+        expect(host.submitSpy.mock.calls.reduce((sum, args) => sum + (args[2] as Uint16Array).length, 0)).toBe(65536 * 6);
+        expect((host.submitSpy.mock.calls[0][0] as Float32Array)[7]).toBe(1);
+        expect(host.rasterizeSpy).toHaveBeenCalledTimes(rasterizations);
+        renderer.dispose(); app.quit({ keepRenderer: true });
+    });
+
     it('measures native glyphs without allocating or uploading texture pages', async () => {
         const host = makeHostScope();
         const app = createNativeApp(makeBridge(host.scope), host.scope);

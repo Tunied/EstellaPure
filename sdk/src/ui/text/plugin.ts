@@ -149,8 +149,8 @@ export class TextPlugin implements Plugin {
 
         // Two passes, because there are two lists: the world's glyphs go into the
         // camera being collected, the screen's into the frame's overlay.
-        pipeline.addPreFlushCallback(() => this.drawDomain(app, /*screen=*/false));
-        pipeline.addScreenOverlayCallback(() => this.drawDomain(app, /*screen=*/true));
+        pipeline.addPreFlushCallback((_registry, projection) => this.drawDomain(app, /*screen=*/false, projection));
+        pipeline.addScreenOverlayCallback((_registry, projection) => this.drawDomain(app, /*screen=*/true, projection));
     }
 
     /**
@@ -160,11 +160,11 @@ export class TextPlugin implements Plugin {
      * a UI subtree's root and inherited (UISystem::screenDomain), and a second
      * spelling of that rule in TS is a second rule.
      */
-    private drawDomain(app: App, screen: boolean): void {
+    private drawDomain(app: App, screen: boolean, projection?: Float32Array): void {
         const appState = this.stateFor(app);
         const api = engineApi(app);
         if (!api?.transform_copyFlatRenderMatrix || !api.HEAPU8 || !api._malloc || !api._free) {
-            this.drawDomainWithMatrix(app, screen);
+            this.drawDomainWithMatrix(app, screen, undefined, projection);
             return;
         }
         const registry = app.world.getCppRegistry() as CppRegistry;
@@ -179,11 +179,11 @@ export class TextPlugin implements Plugin {
                 const offset = (heap.byteOffset + pointer) / 4;
                 for (let i = 0; i < 16; i++) appState.matrix[i] = appState.matrixHeap[offset + i]!;
                 return true;
-            });
+            }, projection);
         });
     }
 
-    private drawDomainWithMatrix(app: App, screen: boolean, readMatrix?: (entity: number) => boolean): void {
+    private drawDomainWithMatrix(app: App, screen: boolean, readMatrix?: (entity: number) => boolean, projection?: Float32Array): void {
         const appState = this.stateFor(app);
         const world = app.world;
         const registry = world.getCppRegistry() as CppRegistry;
@@ -304,6 +304,7 @@ export class TextPlugin implements Plugin {
                 // and a z left on a screen root would otherwise outrank a sibling.
                 screen ? 0 : tr.worldPosition.z,
                 api?.ui_getCullBit?.(registry, entity as number) ?? 0,
+                projection,
             );
         }
 

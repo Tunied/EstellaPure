@@ -22,6 +22,10 @@ vi.mock('../src/render/renderer', () => ({
         setViewId: vi.fn(),
         updateTransforms: vi.fn(),
         beginFrame: vi.fn(),
+        hasScreenOverlay: vi.fn().mockReturnValue(true),
+        beginScreenOverlay: vi.fn(),
+        submitScreenOverlay: vi.fn(),
+        endScreenOverlay: vi.fn(),
     },
 }));
 
@@ -74,6 +78,7 @@ import { RenderPipeline } from '../src/render/renderPipeline';
 import { Renderer } from '../src/render/renderer';
 import { PostProcess, type PostProcessAPI } from '../src/postprocess';
 import { Draw, endPresentedDraw } from '../src/render/draw';
+import { defaultScreenOverlay } from '../src/ui/core/screen-overlay';
 import { unregisterDrawCallback } from '../src/render/customDraw';
 const postProcessFixture = PostProcess as unknown as PostProcessAPI;
 
@@ -96,6 +101,25 @@ describe('RenderPipeline', () => {
         pipeline.setPostProcess(postProcessFixture);
         registry = { _cpp: {} as any };
         viewProjection = new Float32Array(16);
+    });
+
+    it('passes each camera projection and the independent overlay projection to glyph callbacks', () => {
+        const world = vi.fn(), screen = vi.fn();
+        pipeline.addPreFlushCallback(world);
+        pipeline.addScreenOverlayCallback(screen);
+        const second = new Float32Array(16); second[12] = 17;
+        for (const projection of [viewProjection, second]) {
+            pipeline.renderCamera({ registry, viewProjection: projection,
+                viewportPixels: { x: 0, y: 0, w: 800, h: 600 }, clearFlags: 3, elapsed: 0 });
+        }
+        expect(world.mock.calls.map(call => call[1])).toEqual([viewProjection, second]);
+        const overlay = defaultScreenOverlay();
+        overlay.active = true; overlay.vpW = 800; overlay.vpH = 600;
+        pipeline.renderScreenOverlay(registry, overlay);
+        expect(screen).toHaveBeenCalledWith(registry, overlay.projection);
+        expect(world).toHaveBeenCalledTimes(2);
+        pipeline.runPreFlushCallbacks(registry);
+        expect(world).toHaveBeenLastCalledWith(registry, undefined);
     });
 
     describe('render() call sequence', () => {

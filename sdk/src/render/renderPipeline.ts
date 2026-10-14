@@ -70,8 +70,8 @@ export class RenderPipeline {
     private lastWidth_ = 0;
     private lastHeight_ = 0;
     private activeScenes_: Set<string> | null = null;
-    private preFlushCallbacks_: ((registry: { _cpp: CppRegistry }) => void)[] = [];
-    private screenOverlayCallbacks_: ((registry: { _cpp: CppRegistry }) => void)[] = [];
+    private preFlushCallbacks_: ((registry: { _cpp: CppRegistry }, viewProjection?: Float32Array) => void)[] = [];
+    private screenOverlayCallbacks_: ((registry: { _cpp: CppRegistry }, viewProjection?: Float32Array) => void)[] = [];
     private postProcess_: PostProcessAPI | null = null;
     private quality_: QualityController | null = null;
     private applyQuality_: (() => void) | null = null;
@@ -101,7 +101,8 @@ export class RenderPipeline {
         this.postProcess_ = pp;
     }
 
-    addPreFlushCallback(cb: (registry: { _cpp: CppRegistry }) => void): void {
+    /** The optional projection is the current pass; legacy manual hosts may omit it. */
+    addPreFlushCallback(cb: (registry: { _cpp: CppRegistry }, viewProjection?: Float32Array) => void): void {
         this.preFlushCallbacks_.push(cb);
     }
 
@@ -111,7 +112,7 @@ export class RenderPipeline {
      * reason the two collects are: a callback that ran in both would put the same
      * glyph in each list. Runs between the overlay's collect and its pass.
      */
-    addScreenOverlayCallback(cb: (registry: { _cpp: CppRegistry }) => void): void {
+    addScreenOverlayCallback(cb: (registry: { _cpp: CppRegistry }, viewProjection?: Float32Array) => void): void {
         this.screenOverlayCallbacks_.push(cb);
     }
 
@@ -122,8 +123,8 @@ export class RenderPipeline {
      * it directly at the same point, between collecting the scene and flushing,
      * so text lands in the same frame either way.
      */
-    runPreFlushCallbacks(registry: { _cpp: CppRegistry }): void {
-        for (const cb of this.preFlushCallbacks_) cb(registry);
+    runPreFlushCallbacks(registry: { _cpp: CppRegistry }, viewProjection?: Float32Array): void {
+        for (const cb of this.preFlushCallbacks_) cb(registry, viewProjection);
     }
 
     beginFrame(elapsedSec = 0): void {
@@ -165,7 +166,7 @@ export class RenderPipeline {
         // exactly as a camera's own mask is.
         Renderer.setCullingMask(overlay.layerMask);
         Renderer.submitScreenOverlay(registry);
-        for (const cb of this.screenOverlayCallbacks_) cb(registry);
+        for (const cb of this.screenOverlayCallbacks_) cb(registry, overlay.projection);
         Renderer.endScreenOverlay(target);
     }
 
@@ -200,7 +201,7 @@ export class RenderPipeline {
 
         Renderer.updateTransforms(registry);
         Renderer.submitAll(registry, viewport.x, viewport.y, viewport.w, viewport.h);
-        this.runPreFlushCallbacks(registry);
+        this.runPreFlushCallbacks(registry, viewProjection);
         Renderer.flush();
 
         this.executeDrawCallbacks(viewProjection, viewport, _elapsed);

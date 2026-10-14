@@ -28,6 +28,8 @@ published separately; it ships inside the editor.
 
 - **AudioPlugin checks platform initialization before subscribing to host mute.** Independent audio backend tests and direct construction no longer fail while reading an optional platform capability.
 
+- **SDK text uploads only glyphs visible to the current draw pass.** Bitmap and SDF caches retain the complete layout while block bounds reject camera-excluded runs and partial runs compact vertices with rebased indices. Culling uses the actual camera or screen-overlay projection with the full model matrix, preserving shear, shadows and clip-edge intersections; invalid or omitted projections retain the legacy submission path.
+
 - **Text measurement avoids GPU glyph pages.** Input caret measurements and inline rich-text layout retain the same rasterized glyph advances, bearings and dimensions in CPU caches without packing or uploading textures. Ordinary text drawing keeps its existing atlas; measurement-only atlases reject draw submission instead of emitting invalid texture references.
 
 - **Inline rich text releases its own measurement atlas.** Cleanup belongs to each App, so closing an older preview cannot remove a newer preview's inline image children. Exiting releases measurement glyph pages and repeated cleanup remains safe.
