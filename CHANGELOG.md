@@ -20,7 +20,7 @@ published separately; it ships inside the editor.
 
 ### Added
 
-- **Mobile controls share InputMap and device capability results.** Fixed/follow virtual joysticks and held buttons support independent touches, mouse Play preview, radial dead zones and cancellation. Web, mini-game and native adapters expose motion, vibration and screen wake with explicit unavailable/denied results; browser fullscreen and pointer lock observe exits. The Mobile Controls example demonstrates the workflow. Physical device acceptance remains pending.
+- **Mobile controls share InputMap and device capability results.** Fixed/follow virtual joysticks and held buttons support independent touches, mouse Play preview, radial dead zones and cancellation. Web, mini-game and native adapters expose motion, vibration and screen wake with explicit unavailable/denied results; browser fullscreen and pointer lock observe exits. The Mobile Controls example distinguishes request success from raw sensor data and clears tilt when channels disappear. Physical device acceptance remains pending.
 
 ### Fixed
 

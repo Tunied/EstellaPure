@@ -11,6 +11,9 @@ texture filtering and explicit world layers. See [asset licenses](ASSET_LICENSES
 The top buttons request motion, screen wake, browser fullscreen and pointer lock
 from the player's own release event. The status text displays the request result.
 API availability is not proof that the current device has a sensor or motor.
+The sensor-data indicator shows waiting, receiving, empty raw channels, or paused
+separately from the request result. A successful request with empty channels does
+not enable tilt movement; use a phone with motion sensors to verify real readings.
 
 - Web motion and screen wake require a secure context (HTTPS or localhost).
 - iOS Safari asks for motion permission; denial is a returned `denied` result.

@@ -9,6 +9,7 @@ const controls = new InputMap({ Move: Axis2D(Keys2D('KeyW', 'KeyS', 'KeyA', 'Key
     Fire: Button(Key('Space'), Virtual('fire')) });
 let tilt = { x: 0, y: 0 };
 let motion = false;
+let motionData = 'off';
 let status: Entity | null = null;
 let message = 'Drag the left stick and hold Fire. WASD / Space also work.';
 let hits = 0;
@@ -32,8 +33,9 @@ addStartupSystem(defineSystem([Res(UIEvents), GetWorld()], (events, world) => {
         world.insert(handle.entity, Name, { value: text });
     };
     button('Tilt controls', 30, () => {
-        if (motion) { motion = false; tilt = { x: 0, y: 0 }; void Device.motion.stop().then(report('Motion stopped')); return; }
+        if (motion) { motion = false; motionData = 'off'; tilt = { x: 0, y: 0 }; void Device.motion.stop().then(report('Motion stopped')); return; }
         const caps = Device.capabilities();
+        motionData = 'waiting';
         void Device.motion.start({ accelerometer: caps.accelerometer, gyroscope: caps.gyroscope }).then(result => {
             motion = result.status === 'ok'; report('Motion')(result);
         });
@@ -42,10 +44,17 @@ addStartupSystem(defineSystem([Res(UIEvents), GetWorld()], (events, world) => {
     button('Fullscreen', 410, () => { void Device.fullscreen(!Device.state().fullscreen).then(report('Fullscreen')); });
     button('Pointer lock', 600, () => { void Device.pointerLock(!Device.state().pointerLocked).then(report('Pointer lock')); });
     Device.motion.onChange(sample => {
-        if (!motion || !sample.gravity) return;
+        if (!motion) return;
+        const hasRawMotion = !!(sample.acceleration || sample.accelerationIncludingGravity || sample.gyroscope);
+        motionData = hasRawMotion ? 'receiving' : 'no raw channels';
+        if (!hasRawMotion) { tilt = { x: 0, y: 0 }; return; }
+        if (!sample.gravity) return;
         tilt = { x: Math.max(-1, Math.min(1, sample.gravity.x / 5)), y: Math.max(-1, Math.min(1, sample.gravity.y / 5)) };
     });
-    Device.onChange(state => { if (!state.motionActive) tilt = { x: 0, y: 0 }; });
+    Device.onChange(state => {
+        if (!state.motionActive) { tilt = { x: 0, y: 0 }; motionData = motion ? 'paused' : 'off'; }
+        else motionData = 'waiting';
+    });
     const hint = spawnUIEntity({ world, parent: canvas,
         node: { position: UIPositionType.Absolute, insetLeft: px(230), insetTop: px(390), width: px(355), height: px(40) },
         visual: { color: { r: 0.075, g: 0.09, b: 0.14, a: 0.95 } },
@@ -86,7 +95,7 @@ addSystemToSchedule(Schedule.Update, defineSystem([Res(Input), Res(Time), GetWor
     }
     if (status !== null && world.valid(status)) {
         const caps = Device.capabilities();
-        const content = `${message}\nHits: ${hits} · Motion API: ${caps.accelerometer ? 'available' : 'unavailable'} · Vibration API: ${caps.vibration ? 'available' : 'unavailable'}`;
+        const content = `${message}\nHits: ${hits} / Sensor data: ${motion ? motionData : 'off'} / Vibration API: ${caps.vibration ? 'available' : 'unavailable'}`;
         if (world.get(status, Text).content !== content) world.insert(status, Text, { ...world.get(status, Text), content });
     }
 }, { name: 'MobileControlsUpdate' }));
