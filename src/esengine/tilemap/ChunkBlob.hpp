@@ -170,7 +170,7 @@ inline bool walkBlobCells(const u8* raw, usize size, const BlobHeader& header, F
 
 /** Floor division and its remainder, so a chunk left of the origin lands where
  *  it belongs rather than rounding toward zero. */
-inline i32 floorDiv(i32 a, i32 b) { return (a >= 0 ? a : a - (b - 1)) / b; }
+inline i32 floorDiv(i32 a, i32 b) { return a / b - static_cast<i32>(a % b < 0); }
 inline i32 floorMod(i32 a, i32 b) { const i32 m = a % b; return m < 0 ? m + b : m; }
 
 }  // namespace tilemap

@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <limits>
 
 namespace esengine::tilemap {
 
@@ -36,7 +37,7 @@ namespace {
 
 inline i32 chunkOf(i32 a) {  // floor(a / CHUNK_SIZE), negative-safe
     const i32 n = static_cast<i32>(CHUNK_SIZE);
-    return (a >= 0) ? (a / n) : -(((-a) + n - 1) / n);
+    return a / n - static_cast<i32>(a % n < 0);
 }
 
 // Finite layers (width>0) bound writes; infinite layers (width==0) take any coord.
@@ -178,9 +179,20 @@ void TilemapSystem::fillRect(Entity entity, i32 x, i32 y,
     auto it = layers_.find(entity);
     if (it == layers_.end()) return;
     auto& layer = it->second;
-    for (i32 ty = y; ty < y + static_cast<i32>(h); ++ty) {
-        for (i32 tx = x; tx < x + static_cast<i32>(w); ++tx) {
-            if (inBounds(layer, tx, ty)) writeTile(layer, tx, ty, tileId);
+    const i64 coordinateEnd = static_cast<i64>(std::numeric_limits<i32>::max()) + 1;
+    i64 startX = x, startY = y;
+    i64 endX = std::min(static_cast<i64>(x) + w, coordinateEnd);
+    i64 endY = std::min(static_cast<i64>(y) + h, coordinateEnd);
+    if (layer.width != 0 || layer.height != 0) {
+        startX = std::max(startX, i64{0});
+        startY = std::max(startY, i64{0});
+        endX = std::min(endX, static_cast<i64>(layer.width));
+        endY = std::min(endY, static_cast<i64>(layer.height));
+    }
+    if (startX >= endX || startY >= endY) return;
+    for (i64 ty = startY; ty < endY; ++ty) {
+        for (i64 tx = startX; tx < endX; ++tx) {
+            writeTile(layer, static_cast<i32>(tx), static_cast<i32>(ty), tileId);
         }
     }
 }

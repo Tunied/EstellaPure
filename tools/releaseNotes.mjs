@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(tilemap): clip fills and preserve signed coordinate edges':
+    { note: 'Tilemap rectangle fills clip safely across integer coordinate bounds.' },
   'fix(animation): keep paused sprite motions out of exit transitions':
     { note: 'Paused sprite motions wait for actual completion before exit transitions.' },
   'feat(viewport): add spatial plane and center handles':

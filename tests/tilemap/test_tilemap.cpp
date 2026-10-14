@@ -5,6 +5,7 @@
 #include <esengine/tilemap/TileFlip.hpp>
 #include <esengine/tilemap/ChunkBlob.hpp>
 
+#include <limits>
 #include <tuple>
 #include <vector>
 
@@ -559,9 +560,9 @@ TEST_CASE("tilemap_blob_walk") {
     std::memcpy(chunk, &cx, sizeof(cx));
     std::memcpy(chunk + sizeof(i32), &cy, sizeof(cy));
     const u16 corner = 3;
-    const u16 far = static_cast<u16>(4 | TILE_FLIP_D);
+    const u16 farTile = static_cast<u16>(4 | TILE_FLIP_D);
     std::memcpy(chunk + sizeof(i32) * 2, &corner, sizeof(corner));                       // local (0,0)
-    std::memcpy(chunk + sizeof(i32) * 2 + (31 * side + 31) * sizeof(u16), &far, sizeof(far));
+    std::memcpy(chunk + sizeof(i32) * 2 + (31 * side + 31) * sizeof(u16), &farTile, sizeof(farTile));
 
     BlobHeader header{};
     REQUIRE(parseBlobHeader(raw.data(), raw.size(), header));
@@ -577,7 +578,7 @@ TEST_CASE("tilemap_blob_walk") {
     CHECK(std::get<2>(seen[0]) == corner);
     CHECK(std::get<0>(seen[1]) == -1);
     CHECK(std::get<1>(seen[1]) == 95);
-    CHECK(std::get<2>(seen[1]) == far);
+    CHECK(std::get<2>(seen[1]) == farTile);
 
     SUBCASE("and a payload that stops short is refused rather than read past") {
         std::vector<u8> cut(raw.begin(), raw.end() - 4);
@@ -593,4 +594,39 @@ TEST_CASE("tilemap_chunk_floor") {
     CHECK(floorDiv(-17, 16) == -2);
     CHECK(floorMod(-1, 16) == 15);
     CHECK(floorMod(-16, 16) == 0);
+}
+
+
+TEST_CASE("tilemap_fill_clips_unsigned_extents_to_finite_bounds") {
+    TilemapSystem sys;
+    sys.initLayer(E(0), 3, 3, 16, 16);
+    sys.fillRect(E(0), -1, -1, std::numeric_limits<u32>::max(), std::numeric_limits<u32>::max(), 7);
+    for (i32 y = 0; y < 3; ++y) for (i32 x = 0; x < 3; ++x) CHECK(sys.getTile(E(0), x, y) == 7);
+    CHECK(sys.getLayerData(E(0))->chunks.size() == 1);
+    const auto revision = sys.getLayerData(E(0))->edit_revision;
+    sys.fillRect(E(0), std::numeric_limits<i32>::max(), std::numeric_limits<i32>::max(), 1, 1, 9);
+    CHECK(sys.getLayerData(E(0))->edit_revision == revision);
+}
+
+
+TEST_CASE("tilemap_signed_coordinate_edges_preserve_chunk_ownership") {
+    TilemapSystem sys;sys.initInfiniteLayer(E(0), 16, 16);
+    const i32 low = std::numeric_limits<i32>::min(), high = std::numeric_limits<i32>::max();
+    const std::vector<std::pair<i32, i32>> cells{{low, low}, {low + 15, low}, {low, low + 15},
+        {high, high}, {high - 15, high}, {high, high - 15}, {-17, -1}, {-16, 0}};
+    for (usize i = 0; i < cells.size(); ++i) sys.setTile(E(0), cells[i].first, cells[i].second, static_cast<u16>(i + 1));
+    for (usize i = 0; i < cells.size(); ++i) CHECK(sys.getTile(E(0), cells[i].first, cells[i].second) == i + 1);
+    const auto* layer = sys.getLayerData(E(0));
+    CHECK(layer->chunks.at({low / static_cast<i32>(CHUNK_SIZE), low / static_cast<i32>(CHUNK_SIZE)}).tiles[0] == 1);
+    CHECK(layer->chunks.at({high / static_cast<i32>(CHUNK_SIZE), high / static_cast<i32>(CHUNK_SIZE)}).tiles[CHUNK_SIZE * CHUNK_SIZE - 1] == 4);
+    CHECK(floorDiv(low, 16) == low / 16);CHECK(floorDiv(low + 1, 16) == low / 16);
+    CHECK(floorDiv(high, 16) == high / 16);CHECK(floorMod(low, 16) == 0);CHECK(floorMod(high, 16) == 15);
+    sys.fillRect(E(0), high, high, 2, 2, 9);
+    CHECK(sys.getTile(E(0), high, high) == 9);
+    CHECK(sys.getTile(E(0), low, low) == 1);
+    CHECK(layer->chunks.at({high / 16, high / 16}).tiles[0] == 0);
+    const auto revision = layer->edit_revision;
+    sys.fillRect(E(0), 0, low, 0, std::numeric_limits<u32>::max(), 8);
+    sys.fillRect(E(0), low, 0, std::numeric_limits<u32>::max(), 0, 8);
+    CHECK(layer->edit_revision == revision);
 }
