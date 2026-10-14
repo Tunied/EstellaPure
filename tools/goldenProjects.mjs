@@ -91,6 +91,12 @@ export const CENSUS_FLOOR = '0.60.0';
  * that does not exist, and release notes are a different act. Theirs is ungated.
  */
 export const SHIPPED = {
+  'Poki training reports authored gameplay and ad outcomes':
+    { notCertifiable: 'channel-specific SDK callbacks and authored training state; tools/tests/poki-training.test.ts and poki-training.e2e.mjs verify mocked input, lifecycle and ad outcomes; official Poki Inspector and physical device acceptance remain pending' },
+  'Web exports can select the Poki channel':
+    { notCertifiable: 'export settings and an external host SDK contract; pipeline/tests/poki-profile.test.ts verifies script injection and SDK fallback, while runtime Ads tests verify break ownership; official Poki acceptance remains pending' },
+  'Playable scenarios run in headless Chromium and save bound evidence':
+    { notCertifiable: 'verification tooling rather than a packaged scene capability; tools/tests/verify-playable.test.ts and verify-playable.e2e.mjs verify replay and bound evidence using network mocks; live ad-network acceptance remains pending' },
   'Playable asset quality adapts to the measured delivery budget':
     { notCertifiable: 'export-time asset encoding and delivery size selection rather than standalone scene behavior; pipeline tests verify candidate quality, opt-outs and archive budgets; visual quality and live network acceptance still require runtime evidence' },
   'Playable creatives have a local container preview':

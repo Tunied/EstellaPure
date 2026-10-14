@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'chore(release): classify 0.83 host verification coverage':
+    { internal: 'classifies release evidence scope without changing shipped runtime behavior' },
   'fix(text): isolate App glyph caches and release owned pages':
     { note: 'Text atlases belong to each App and release their pages on exit.' },
   'fix(audio): preserve latest Web device suspension intent':
