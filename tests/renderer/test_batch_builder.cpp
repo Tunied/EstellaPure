@@ -352,6 +352,70 @@ TEST_CASE("bitmap text: world geometry follows affine transforms and parallax") 
     }
 }
 
+TEST_CASE("bitmap text: UTF-8 strings retain every glyph beyond 64 KiB") {
+    for (u32 length : {65535u, 65536u, 65537u, 65539u}) {
+        Harness h;
+        RenderContext context(h.device);
+        resource::ResourceManager resources;
+        resources.init(h.device);
+        const u8 pixels[16 * 16 * 4] = {};
+        const auto texture = resources.createTexture(resource::ResourceContent::Retained, 16, 16,
+                                                     pixels, TextureFormat::RGBA8);
+        const auto font = resources.createBitmapFont(
+            "common lineHeight=16 base=16 scaleW=16 scaleH=16 pages=1\n"
+            "char id=65 x=0 y=0 width=8 height=16 xoffset=0 yoffset=0 xadvance=8 page=0 chnl=15\n"
+            "char id=128512 x=8 y=0 width=8 height=16 xoffset=0 yoffset=0 xadvance=8 page=0 chnl=15\n",
+            texture, 16, 16);
+        REQUIRE(font.isValid());
+        ecs::Registry registry;
+        const auto entity = registry.create();
+        registry.emplace<ecs::Transform>(entity);
+        auto& text = registry.emplace<ecs::BitmapText>(entity);
+        text.font = font;
+        text.align = ecs::TextAlign::Right;
+        text.text = length == 65539 ? std::string(65534, 'A') + "\xf0\x9f\x98\x80" + "A" : std::string(length, 'A');
+        const u32 glyphs = length == 65539 ? 65536 : length;
+        Frustum frustum;
+        frustum.extractFromMatrix(glm::ortho(-1000000.0f, 1000000.0f, -32.0f, 32.0f));
+        RenderFrameContext frameContext{context, resources};
+        RenderCollectContext collect{registry, frustum, h.clips, h.pool, h.list, frameContext, {}};
+        TextPlugin plugin;
+        plugin.init(frameContext);
+        plugin.collect(collect);
+        CHECK(h.pool.vertexBytesUsed(LayoutId::Batch) == glyphs * 4 * sizeof(BatchVertex));
+        CHECK(h.pool.indicesUsed(LayoutId::Batch) == glyphs * 6);
+        if (h.pool.vertexBytesUsed(LayoutId::Batch) == glyphs * 4 * sizeof(BatchVertex)) {
+            const auto* vertices = reinterpret_cast<const BatchVertex*>(h.pool.vertexData(LayoutId::Batch));
+            CHECK(vertices[0].position.x == doctest::Approx(-8.0f * glyphs));
+            CHECK(vertices[glyphs * 4 - 2].position.x == doctest::Approx(0));
+            CHECK(h.pool.indexData(LayoutId::Batch)[glyphs * 6 - 2] == glyphs * 4 - 1);
+        }
+        h.pool.beginFrame();
+        h.list.clear();
+        frustum.extractFromMatrix(glm::ortho(-16.0f, 0.0f, -32.0f, 32.0f));
+        plugin.collect(collect);
+        CHECK(h.pool.vertexBytesUsed(LayoutId::Batch) == 3 * 4 * sizeof(BatchVertex));
+        CHECK(h.pool.indicesUsed(LayoutId::Batch) == 18);
+        if (h.pool.vertexBytesUsed(LayoutId::Batch) == 3 * 4 * sizeof(BatchVertex)) {
+            const auto* vertices = reinterpret_cast<const BatchVertex*>(h.pool.vertexData(LayoutId::Batch));
+            CHECK(vertices[10].position.x == doctest::Approx(0));
+            CHECK(h.pool.indexData(LayoutId::Batch)[16] == 11);
+        }
+        h.pool.beginFrame();
+        h.list.clear();
+        frustum.extractFromMatrix(glm::ortho(-520.0f, -504.0f, -32.0f, 32.0f));
+        plugin.collect(collect);
+        CHECK(h.pool.vertexBytesUsed(LayoutId::Batch) == 4 * 4 * sizeof(BatchVertex));
+        CHECK(h.pool.indicesUsed(LayoutId::Batch) == 24);
+        if (h.pool.vertexBytesUsed(LayoutId::Batch) == 4 * 4 * sizeof(BatchVertex)) {
+            const auto* vertices = reinterpret_cast<const BatchVertex*>(h.pool.vertexData(LayoutId::Batch));
+            CHECK(vertices[0].position.x == doctest::Approx(-528));
+            CHECK(vertices[14].position.x == doctest::Approx(-496));
+        }
+        resources.shutdown();
+    }
+}
+
 TEST_CASE("UI masks: deep grouping hierarchies reach their leaf without call-stack recursion") {
     for (auto mode : {ecs::MaskMode::Scissor, ecs::MaskMode::Stencil}) {
         MockGfxDevice device;

@@ -24,6 +24,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Long native bitmap text preserves UTF-8 content without uploading hidden glyphs.** Byte lengths and decoder offsets no longer wrap at 64KiB. Complete layouts retain their glyph positions and alignment; cached block bounds reject camera-excluded runs, and partially visible runs submit only visible quads with rebased indices. Fully visible text keeps its existing batching path.
+
 - **Playable exports honor authored image and audio optimization.** Automatic asset optimization applies PNG Max Size (including playable overrides) without loading a GPU texture encoder, and converts eligible WAV clips to MP3 at their authored bitrate. Per-clip opt-outs and the build's Skip setting preserve originals; failed asset cooking prevents a successful export.
 
 - **Native bitmap text follows its complete world transform.** Glyph vertices retain rotation, independent axis scales, mirrors and parent-induced shear while preserving parallax and batching. Cached ink bounds include alignment and glyph offsets, preventing visible edge text from being culled; layout no longer repeats a separate full-text measurement.

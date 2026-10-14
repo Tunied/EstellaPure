@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(text): preserve long bitmap strings and cull hidden glyphs':
+    { note: 'Long native bitmap text preserves UTF-8 content without uploading hidden glyphs.' },
   'feat(playable): adapt asset quality to measured delivery budgets':
     { note: 'Playable asset quality adapts to the measured delivery budget.' },
   'feat(editor): show playable asset optimization decisions':

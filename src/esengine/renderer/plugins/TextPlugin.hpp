@@ -19,12 +19,15 @@ public:
     const char* collectScope() const override { return "render.collect.text"; }
 
 private:
+    static constexpr u32 GLYPHS_PER_BLOCK = 64;
+    struct GlyphBlock { glm::vec3 min, max; };
     // Local glyph quads and ink bounds are cached per content signature.
     // World transforms, parallax and tint apply at collect; the whole text
     // remains one command rather than one per glyph.
     struct TextLayoutCache {
         std::vector<BatchVertex> vertices;
         std::vector<u32> indices;
+        std::vector<GlyphBlock> blocks;
         glm::vec3 min{0.0f};
         glm::vec3 max{0.0f};
         std::string text;
@@ -34,12 +37,13 @@ private:
         u8 align = 0;
     };
 
-    static u32 decodeUtf8(const char* data, u16 length, u16& pos);
+    static u32 decodeUtf8(const char* data, usize length, usize& pos);
     void rebuildLayout(const text::BitmapFont& font, const ecs::BitmapText& bt,
                        f32 texW, f32 texH, TextLayoutCache& cache);
 
     std::unordered_map<Entity, TextLayoutCache> layout_cache_;
     std::vector<BatchVertex> scratch_;
+    std::vector<u32> index_scratch_;
 };
 
 }  // namespace esengine

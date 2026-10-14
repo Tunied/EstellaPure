@@ -15,7 +15,17 @@
 
 namespace esengine {
 
-u32 TextPlugin::decodeUtf8(const char* data, u16 length, u16& pos) {
+namespace {
+bool containsBox(const Frustum& frustum, const glm::vec3& center, const glm::vec3& half) {
+    for (const auto& plane : frustum.planes) {
+        const f32 radius = glm::dot(glm::abs(plane.normal), half);
+        if (plane.signedDistance(center) < radius) return false;
+    }
+    return true;
+}
+}
+
+u32 TextPlugin::decodeUtf8(const char* data, usize length, usize& pos) {
     u8 b0 = static_cast<u8>(data[pos]);
     if (b0 < 0x80) {
         return b0;
@@ -48,6 +58,7 @@ void TextPlugin::rebuildLayout(const text::BitmapFont& font, const ecs::BitmapTe
                                f32 texW, f32 texH, TextLayoutCache& cache) {
     cache.vertices.clear();
     cache.indices.clear();
+    cache.blocks.clear();
 
     cache.min = glm::vec3(std::numeric_limits<f32>::max());
     cache.max = glm::vec3(std::numeric_limits<f32>::lowest());
@@ -56,12 +67,12 @@ void TextPlugin::rebuildLayout(const text::BitmapFont& font, const ecs::BitmapTe
     const f32 spacing = bt.spacing;
     const f32 fontBase = font.getBase();
     const char* textData = bt.text.c_str();
-    const u16 textLen = static_cast<u16>(bt.text.size());
+    const usize textLen = bt.text.size();
 
     f32 totalWidth = 0;
     if (bt.align != ecs::TextAlign::Left) {
         u32 prevChar = 0;
-        for (u16 j = 0; j < textLen; ++j) {
+        for (usize j = 0; j < textLen; ++j) {
             u32 charCode = decodeUtf8(textData, textLen, j);
             auto* glyph = font.getGlyph(charCode);
             if (!glyph) continue;
@@ -81,7 +92,7 @@ void TextPlugin::rebuildLayout(const text::BitmapFont& font, const ecs::BitmapTe
     }
 
     u32 prevChar = 0;
-    for (u16 j = 0; j < textLen; ++j) {
+    for (usize j = 0; j < textLen; ++j) {
         u32 charCode = decodeUtf8(textData, textLen, j);
         auto* glyph = font.getGlyph(charCode);
         if (!glyph) continue;
@@ -97,6 +108,14 @@ void TextPlugin::rebuildLayout(const text::BitmapFont& font, const ecs::BitmapTe
             f32 cy = (fontBase - glyph->yOffset - glyph->height * 0.5f) * fs;
             cache.min = glm::min(cache.min, glm::vec3(cx - halfW, cy - halfH, 0.0f));
             cache.max = glm::max(cache.max, glm::vec3(cx + halfW, cy + halfH, 0.0f));
+            const glm::vec3 low{cx - halfW, cy - halfH, 0}, high{cx + halfW, cy + halfH, 0};
+            if (cache.vertices.size() % (GLYPHS_PER_BLOCK * 4) == 0) {
+                cache.blocks.push_back({low, high});
+            } else {
+                auto& block = cache.blocks.back();
+                block.min = glm::min(block.min, low);
+                block.max = glm::max(block.max, high);
+            }
 
             // Glyph rows are top-down in the atlas, so v is flipped (top at vMin).
             f32 uMin = glyph->x / texW;
@@ -178,16 +197,46 @@ void TextPlugin::collect(RenderCollectContext& collect_ctx) {
 
         u32 packedColor = packColor(bt.color);
         scratch_.clear();
-        scratch_.reserve(cache.vertices.size());
-        for (const BatchVertex& v : cache.vertices) {
-            scratch_.push_back({
-                position + axisX * v.position.x + axisY * v.position.y,
-                packedColor, v.texCoord });
+        index_scratch_.clear();
+        const bool allVisible = collect_ctx.isOverlay() || containsBox(collect_ctx.frustum, center, halfExtents);
+        if (allVisible) {
+            scratch_.reserve(cache.vertices.size());
+            for (const BatchVertex& v : cache.vertices) {
+                scratch_.push_back({position + axisX * v.position.x + axisY * v.position.y, packedColor, v.texCoord});
+            }
+        } else {
+            const glm::vec3 absX = glm::abs(axisX), absY = glm::abs(axisY);
+            const auto bounds = [&](const glm::vec3& low, const glm::vec3& high) {
+                const auto mid = (low + high) * .5f, half = (high - low) * .5f;
+                return std::pair{position + axisX * mid.x + axisY * mid.y, absX * half.x + absY * half.y};
+            };
+            for (u32 blockIndex = 0; blockIndex < cache.blocks.size(); ++blockIndex) {
+                const auto& block = cache.blocks[blockIndex];
+                const auto [blockCenter, blockHalf] = bounds(block.min, block.max);
+                if (!collect_ctx.visible(blockCenter, blockHalf, false)) continue;
+                const bool wholeBlock = containsBox(collect_ctx.frustum, blockCenter, blockHalf);
+                const u32 first = blockIndex * GLYPHS_PER_BLOCK * 4;
+                const u32 end = std::min(first + GLYPHS_PER_BLOCK * 4, static_cast<u32>(cache.vertices.size()));
+                for (u32 i = first; i < end; i += 4) {
+                    if (!wholeBlock) {
+                        const auto [glyphCenter, glyphHalf] = bounds(cache.vertices[i].position, cache.vertices[i + 2].position);
+                        if (!collect_ctx.visible(glyphCenter, glyphHalf, false)) continue;
+                    }
+                    const u32 base = static_cast<u32>(scratch_.size());
+                    for (u32 j = 0; j < 4; ++j) {
+                        const auto& v = cache.vertices[i + j];
+                        scratch_.push_back({position + axisX * v.position.x + axisY * v.position.y, packedColor, v.texCoord});
+                    }
+                    for (u32 index : BATCH_QUAD_INDICES) index_scratch_.push_back(base + index);
+                }
+            }
         }
+        if (scratch_.empty()) continue;
+        const auto& indices = allVisible ? cache.indices : index_scratch_;
 
         appendIndexedBatch(buffers, draw_list, clips,
             scratch_.data(), static_cast<u32>(scratch_.size()),
-            cache.indices.data(), static_cast<u32>(cache.indices.size()),
+            indices.data(), static_cast<u32>(indices.size()),
             BatchDrawKey{
                 .stage = ctx.current_stage,
                 .layer = bt.layer,
