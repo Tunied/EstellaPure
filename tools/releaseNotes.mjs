@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(playable): bind preview records to delivery hashes':
+    { note: 'Playable preview records identify the delivered archive.' },
 
   'fix(transform): preserve reflected world transforms and UI bounds':
     { note: 'World transforms preserve mirrored axes.' },

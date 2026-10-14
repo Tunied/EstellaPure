@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Playable preview records identify the delivered archive.** Full export reports verify the adjacent ZIP hash before previewing, catching config changes even when HTML stays identical. Downloaded logs retain HTML/delivery hashes and explicitly disclose omitted events; HTML-only previews remain labeled accordingly.
+
 
 - **World transforms preserve mirrored axes.** Quaternion decomposition retains signed scale instead of converting reflected bases into invalid rotations. Planar transforms keep a Z rotation, including collapsed axes; mirrored UI pointer bounds and flat render bounds follow their displayed geometry.
 

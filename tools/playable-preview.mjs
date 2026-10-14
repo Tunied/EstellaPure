@@ -82,35 +82,49 @@ button,input,select{font:inherit;border:1px solid #61718a;border-radius:6px;padd
 <button data-command="ready">Ready / 准备</button><button data-command="show">Show / 显示</button><button data-command="hide">Hide / 隐藏</button>
 <label>Viewport / 视口 <select id="viewport"><option value="360,640">360 × 640</option><option value="800,400">800 × 400</option></select></label>
 <input id="store-url" aria-label="Store URL" placeholder="MRAID store URL / 商店地址"><button id="reload">Reload / 重载</button><button id="save">Save log / 保存记录</button></div>
-<div class="layout"><iframe id="creative" title="Playable creative" width="360" height="640"></iframe><section class="events"><h2>Host events / 宿主事件</h2><ol id="events"></ol></section></div></main>
+<div class="layout"><iframe id="creative" title="Playable creative" width="360" height="640"></iframe><section class="events"><h2>Host events / 宿主事件</h2><p id="truncated-log" class="note" aria-live="polite" hidden></p><ol id="events"></ol></section></div></main>
 <script>
 const config=${safeJson(config)},source='estella-playable-preview',frame=document.getElementById('creative'),events=[];
-window.previewEvents=events;document.getElementById('identity').textContent=config.network+' · HTML SHA256 '+config.htmlSha256;
+let truncatedEvents=0;
+window.previewEvents=events;document.getElementById('identity').textContent=config.network+' · HTML SHA256 '+config.htmlSha256+(config.deliverySha256?' · Delivery SHA256 '+config.deliverySha256:' · HTML-only identity');
 document.getElementById('store-url').value=config.storeUrl||'';
 const load=()=>{frame.src='/creative?store='+encodeURIComponent(document.getElementById('store-url').value);};
 document.querySelectorAll('[data-command]').forEach(button=>button.onclick=()=>frame.contentWindow.postMessage({source,type:'command',command:button.dataset.command},location.origin));
 document.getElementById('reload').onclick=load;
 document.getElementById('viewport').onchange=event=>{const [w,h]=event.target.value.split(',');frame.width=w;frame.height=h;};
 window.addEventListener('message',event=>{if(event.source!==frame.contentWindow||event.origin!==location.origin||event.data?.source!==source||event.data.type!=='event')return;
-const record={...event.data,timeMs:Math.round(performance.now())};events.push(record);if(events.length>1000)events.shift();const item=document.createElement('li');item.textContent=record.name+' '+JSON.stringify(record.data)+(record.gesture?' [gesture]':'');document.getElementById('events').append(item);if(document.getElementById('events').children.length>1000)document.getElementById('events').firstChild.remove();});
-document.getElementById('save').onclick=()=>{const blob=new Blob([JSON.stringify({mode:'local-mock',network:config.network,htmlSha256:config.htmlSha256,events},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='playable-preview-log.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};load();
+const record={...event.data,timeMs:Math.round(performance.now())};events.push(record);if(events.length>1000){events.shift();truncatedEvents++;const notice=document.getElementById('truncated-log');notice.hidden=false;notice.textContent=truncatedEvents+' earlier events omitted / 已省略 '+truncatedEvents+' 条早期记录';}const item=document.createElement('li');item.textContent=record.name+' '+JSON.stringify(record.data)+(record.gesture?' [gesture]':'');document.getElementById('events').append(item);if(document.getElementById('events').children.length>1000)document.getElementById('events').firstChild.remove();});
+document.getElementById('save').onclick=()=>{const blob=new Blob([JSON.stringify({mode:'local-mock',identityScope:config.deliverySha256?'delivery':'html-only',network:config.network,htmlSha256:config.htmlSha256,deliverySha256:config.deliverySha256,deliveryFile:config.deliveryFile,truncatedEvents,events},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='playable-preview-log.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};load();
 </script></body></html>`;
 }
 
 export async function createPlayablePreview({ htmlFile, network, storeUrl = '', reportFile, port = 0 }) {
   const html = await readFile(htmlFile);
   const htmlSha256 = createHash('sha256').update(html).digest('hex');
+  let deliverySha256, deliveryFile;
   if (reportFile) {
     const result = JSON.parse(await readFile(reportFile, 'utf8'));
     const report = result.playableCheck ?? result;
     if (report.htmlSha256 !== htmlSha256) throw new Error('The report does not describe this HTML file. Export it again.');
     if (network && network !== report.network) throw new Error('The selected network differs from the export report.');
     network = report.network;
+    if (report.deliverySha256) {
+      let delivery = html;
+      deliveryFile = path.basename(htmlFile);
+      if (result.zipFile) {
+        if (typeof result.zipFile !== 'string') throw new Error('The export result ZIP filename must be a string.');
+        deliveryFile = path.basename(result.zipFile);
+        if (!/^[A-Za-z0-9_]+\.zip$/.test(deliveryFile) || /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])\.zip$/i.test(deliveryFile)) throw new Error('The report needs a portable ZIP filename.');
+        delivery = await readFile(path.join(path.dirname(path.resolve(htmlFile)), deliveryFile));
+      } else if (report.deliverySha256 !== htmlSha256) throw new Error('ZIP identity needs the full export result with zipFile, beside its HTML.');
+      deliverySha256 = createHash('sha256').update(delivery).digest('hex');
+      if (deliverySha256 !== report.deliverySha256) throw new Error('The delivered file differs from its export report. Export it again.');
+    }
   }
   if (!NETWORKS.includes(network)) throw new Error(`Choose --network ${NETWORKS.join('|')} or supply --report export-result.json.`);
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('Port must be an integer from 0 to 65535.');
   if (!/<head\b[^>]*>/i.test(html.toString('utf8'))) throw new Error('The creative needs an explicit HTML head.');
-  const config = { network, storeUrl, htmlSha256 };
+  const config = { network, storeUrl, htmlSha256, deliverySha256, deliveryFile };
   const server = createServer((request, response) => {
     const url = new URL(request.url, 'http://127.0.0.1');
     response.setHeader('Cache-Control', 'no-store');
@@ -130,7 +144,7 @@ export async function createPlayablePreview({ htmlFile, network, storeUrl = '', 
     else { response.writeHead(404); response.end('Not found'); }
   });
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(port, '127.0.0.1', resolve); });
-  return { server, url: `http://127.0.0.1:${server.address().port}/`, htmlSha256,
+  return { server, url: `http://127.0.0.1:${server.address().port}/`, htmlSha256, deliverySha256,
     close: () => new Promise(resolve => { server.close(resolve); server.closeAllConnections?.(); }) };
 }
 

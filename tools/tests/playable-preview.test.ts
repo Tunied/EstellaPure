@@ -5,6 +5,8 @@ import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { runInNewContext } from 'node:vm';
+import { createHash } from 'node:crypto';
+import { makeZip } from '../../build-tools/utils/zip.js';
 import { createPlayablePreview } from '../playable-preview.mjs';
 
 async function fixture(network: string, run: (preview: any, file: string) => Promise<void>) {
@@ -59,6 +61,37 @@ describe('local playable mock', () => {
       expect(messages.map(message => message.name)).toContain('creative-ready');
       expect(messages.map(message => message.name)).toContain('game-end');
       window.gameRetry(); expect(starts).toBe(1);
+    });
+  });
+
+  it('binds records to the actual relocated ZIP and refuses changed config with unchanged HTML', async () => {
+    await fixture('pangle', async (initial, file) => {
+      const html = await readFile(file), root = path.dirname(file), zipFile = path.join(root, 'playable.zip');
+      const zip = (orientation: number) => makeZip([{ name: 'index.html', data: html },
+        { name: 'config.json', data: Buffer.from(JSON.stringify({ playable_orientation: orientation })) }]);
+      const original = zip(0), deliverySha256 = createHash('sha256').update(original).digest('hex');
+      await writeFile(zipFile, original);
+      const reportFile = path.join(root, 'report.json');
+      await writeFile(reportFile, JSON.stringify({ zipFile: '/previous/export/playable.zip',
+        playableCheck: { network: 'pangle', htmlSha256: initial.htmlSha256, deliverySha256 } }));
+      const preview = await createPlayablePreview({ htmlFile: file, reportFile });
+      try {
+        expect(preview.deliverySha256).toBe(deliverySha256);
+        expect(await (await fetch(preview.url)).text()).toContain(deliverySha256);
+        expect(await readFile(zipFile)).toEqual(original);
+      } finally { await preview.close(); }
+      await writeFile(zipFile, zip(1));
+      expect(createHash('sha256').update(await readFile(file)).digest('hex')).toBe(initial.htmlSha256);
+      await expect(createPlayablePreview({ htmlFile: file, reportFile })).rejects.toThrow(/delivered file differs/);
+    });
+  });
+
+  it('refuses ZIP-only hashes without an archive filename and keeps HTML-only records explicit', async () => {
+    await fixture('mraid', async (initial, file) => {
+      const reportFile = path.join(path.dirname(file), 'report.json');
+      await writeFile(reportFile, JSON.stringify({ network: 'mraid', htmlSha256: initial.htmlSha256, deliverySha256: 'other' }));
+      await expect(createPlayablePreview({ htmlFile: file, reportFile })).rejects.toThrow(/full export result/);
+      expect(await (await fetch(initial.url)).text()).toContain('HTML-only identity');
     });
   });
 

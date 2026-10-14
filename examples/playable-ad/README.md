@@ -81,3 +81,10 @@ The `google` and `meta` named profiles export the same scene for the existing
 networks. Mandatory SDK checks now verify both presence and placement: Google
 Exit API in head, TikTok/Pangle before game scripts in body. SDK addresses merely
 appearing in an allowlist or in JavaScript text do not satisfy this check.
+
+When a full export result is supplied, the preview also verifies the actual ZIP
+beside the HTML against its delivery SHA256. Relocated exports use the archive
+filename, not the old absolute output path. A changed archive is rejected even
+when index.html stayed identical. Saved logs include both hashes and the delivery
+filename; HTML-only previews are labeled as such. Event history retains the last
+1,000 entries and displays/saves the count of omitted earlier events.

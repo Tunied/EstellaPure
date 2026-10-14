@@ -130,6 +130,8 @@ Use `pnpm preview:playable path/to/index.html --report export-result.json` from 
 
 The required host SDK check verifies literal script tags and their placement. Google Exit API belongs in head; TikTok/Pangle must load before game scripts in body. Missing scripts, incorrect positions and delayed TikTok/Pangle SDK loading fail this static check. Actual SDK availability and CTA behavior remain runtime checks.
 
+With a full export result, preview also checks the adjacent ZIP’s delivery hash; changing config while keeping identical HTML still invalidates the old report. Saved logs carry both hashes and the archive filename. Without delivery evidence they identify HTML only. A visible notice and log field disclose when older events were omitted from the 1,000-entry history.
+
 ### A network we don't ship
 
 Define it yourself — the built-in networks are written against this exact contract,
