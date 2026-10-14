@@ -72,14 +72,17 @@ describe('local playable mock', () => {
       const original = zip(0), deliverySha256 = createHash('sha256').update(original).digest('hex');
       await writeFile(zipFile, original);
       const reportFile = path.join(root, 'report.json');
-      await writeFile(reportFile, JSON.stringify({ zipFile: '/previous/export/playable.zip',
-        playableCheck: { network: 'pangle', htmlSha256: initial.htmlSha256, deliverySha256 } }));
-      const preview = await createPlayablePreview({ htmlFile: file, reportFile });
-      try {
-        expect(preview.deliverySha256).toBe(deliverySha256);
-        expect(await (await fetch(preview.url)).text()).toContain(deliverySha256);
-        expect(await readFile(zipFile)).toEqual(original);
-      } finally { await preview.close(); }
+      for (const previousPath of ['/previous/export/playable.zip', 'C:\\previous\\export\\playable.zip']) {
+        await writeFile(reportFile, JSON.stringify({ zipFile: previousPath,
+          playableCheck: { network: 'pangle', htmlSha256: initial.htmlSha256, deliverySha256 } }));
+        const preview = await createPlayablePreview({ htmlFile: file, reportFile });
+        try {
+          expect(preview.deliveryFile).toBe('playable.zip');
+          expect(preview.deliverySha256).toBe(deliverySha256);
+          expect(await (await fetch(preview.url)).text()).toContain(deliverySha256);
+          expect(await readFile(zipFile)).toEqual(original);
+        } finally { await preview.close(); }
+      }
       await writeFile(zipFile, zip(1));
       expect(createHash('sha256').update(await readFile(file)).digest('hex')).toBe(initial.htmlSha256);
       await expect(createPlayablePreview({ htmlFile: file, reportFile })).rejects.toThrow(/delivered file differs/);

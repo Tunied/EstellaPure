@@ -132,6 +132,16 @@ Playable exports include `playableCheck` in their result; the package dialog dis
 
 Use `pnpm preview:playable path/to/index.html --report export-result.json` from the engine repository for a local container mock. It prints a loopback URL and does not open a browser. Ready, Show and Hide simulate host callbacks; the viewport selector changes aspect ratio, and Save Log records store calls with the original HTML hash. MRAID can use `--store-url` for your destination. The served copy substitutes mandatory SDK scripts and blocks external requests; the delivered HTML stays unchanged. These mock records do not replace official SDK or device acceptance.
 
+For repeatable **headless local observations**, use Node 20+ and install Chromium with `pnpm exec playwright install chromium`, then run:
+
+```bash
+pnpm verify:playable output/playable/index.html --report output/playable.json --scenario examples/playable-ad/playable-check.json --out output/playable-observations --store-url https://example.com/store
+```
+
+Adapt the scenario to your scene. Version 1 declares `viewports` and `steps`: `click` uses normalized canvas `x`/`y`; `expect` names `store-click`, `game-end` or `game-retry` with an exact `count` and optional `userActivation`. `host` sends `ready`, `show` or `hide`; `frozen` compares canvas screenshots over `ms`; `wait` and `snapshot` record timing/images. Optional `networks` limits a step or expectation explicitly. Each viewport starts fresh. The shipping example checks portrait/landscape, CTA, completion/retry and supported hidden lifecycle; Google/Meta lifecycle remains pending.
+
+The command always uses headless Chromium with muted audio, without the editor. `runtime-check.json` saves original HTML/delivery, export-report, scenario, verifier and mock hashes, browser version, events and screenshot hashes. Unexpected requests—including CSP-blocked attempts—page errors, event-count/activation mismatches, hidden animation/input, truncation, failed static/export results and changed inputs fail verification. Windows/POSIX archive paths both resolve by the adjacent ZIP filename. The verdict is **local-mock**, covering the requested observations only; it substitutes host SDK scripts and observes active browser activation rather than proving an SDK's synchronous gesture rule. Original SDK behavior, audio lifecycle, quality review, official tools and device acceptance remain pending.
+
 The required host SDK check verifies literal script tags and their placement. Google Exit API belongs in head; TikTok/Pangle must load before game scripts in body. Missing scripts, incorrect positions and delayed TikTok/Pangle SDK loading fail this static check. Actual SDK availability and CTA behavior remain runtime checks.
 
 With a full export result, preview also checks the adjacent ZIP’s delivery hash; changing config while keeping identical HTML still invalidates the old report. Saved logs carry both hashes and the archive filename. Without delivery evidence they identify HTML only. A visible notice and log field disclose when older events were omitted from the 1,000-entry history.

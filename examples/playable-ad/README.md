@@ -88,3 +88,27 @@ filename, not the old absolute output path. A changed archive is rejected even
 when index.html stayed identical. Saved logs include both hashes and the delivery
 filename; HTML-only previews are labeled as such. Event history retains the last
 1,000 entries and displays/saves the count of omitted earlier events.
+
+Run the same scene without a browser window using its declarative click scenario
+(Node 20+ and Playwright Chromium):
+
+```bash
+pnpm exec playwright install chromium
+pnpm verify:playable output/playable-ad/index.html --report output/playable-ad.json --scenario examples/playable-ad/playable-check.json --out output/playable-check --store-url https://example.com/store
+```
+
+Use your actual export paths. The store URL here is a test destination; the mock
+records it without opening it. `runtime-check.json` and canvas screenshots bind
+the original HTML, actual delivery, export report, scenario, verifier and mock
+hashes. The command always launches headless Chromium and mutes audio; it does not
+launch the editor. A failed export/static check, unexpected request (including a
+blocked attempt), page error, wrong event count, hidden input/animation, truncated
+history or input changes makes verification fail.
+
+`playable-check.json` declares canvas-relative coordinates, observed intervals
+and per-network expectations. Each viewport starts fresh. Store checks observe
+trusted pointer releases and active browser user activation; they do not prove
+the original SDK's synchronous gesture requirements. Google/Meta lifecycle steps
+are explicitly not applicable, with missing coverage retained as pending. All
+records remain `local-mock`: original host SDK behavior, visual/audio quality,
+audio lifecycle, official tools and physical devices still need separate review.

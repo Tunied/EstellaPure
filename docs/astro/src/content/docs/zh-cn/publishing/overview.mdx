@@ -116,6 +116,16 @@ MRAID 安装按钮须通过 `playableCta(storeUrl)` 传入目标地址，或由�
 
 在引擎仓库执行 `pnpm preview:playable path/to/index.html --report export-result.json` 可启动本地容器模拟，只打印回环地址，不自动打开浏览器。Ready、Show、Hide 模拟宿主回调，可切换横竖屏；Save Log 保存商店调用及原 HTML 哈希。MRAID 可通过 `--store-url` 配置商店地址。预览副本替换必需 SDK 并阻止外部请求，原导出 HTML 不变；模拟记录不代替官方 SDK 或真机验收。
 
+要重复执行**无头本地观察**，使用 Node 20+，先执行 `pnpm exec playwright install chromium`，再运行：
+
+```bash
+pnpm verify:playable output/playable/index.html --report output/playable.json --scenario examples/playable-ad/playable-check.json --out output/playable-observations --store-url https://example.com/store
+```
+
+请按自己的场景调整点击计划。版本 1 声明 `viewports` 和 `steps`：`click` 的 `x`/`y` 是相对 canvas 的归一化坐标；`expect` 指定 `store-click`、`game-end` 或 `game-retry` 的准确 `count`，以及可选 `userActivation`。`host` 发送 `ready`、`show`、`hide`；`frozen` 在 `ms` 间隔比较画面；`wait`、`snapshot` 记录等待及截图。步骤或期望可用 `networks` 明确限定，每个视口独立启动。示例覆盖横竖屏、CTA、完成/重玩及支持的隐藏生命周期；Google/Meta 生命周期保持待验证。
+
+命令仅使用无头 Chromium，静音且不启动编辑器。`runtime-check.json` 记录原 HTML/交付文件、导出报告、场景计划、检查器和 mock 哈希，浏览器版本、事件及截图哈希。非预期请求（含 CSP 阻止的尝试）、页面错误、事件数量/激活状态不符、隐藏动画或输入、日志丢失、静态/导出失败及输入变更都使检查失败。Windows/POSIX 旧归档路径均按相邻 ZIP 文件名定位。结论仅为 **local-mock**，覆盖明确请求的观察；宿主 SDK 被替换，浏览器激活状态观察不能证明原 SDK 的同步调用规则。原 SDK 行为、音频生命周期、质量复核、官方工具和真机验收仍待完成。
+
 必需宿主 SDK 检查会核对真实的 script 标签及其位置：Google Exit API 位于 head，TikTok／Pangle 位于 body 且在游戏脚本之前。缺少脚本、位置错误或 TikTok／Pangle SDK 延迟加载都会使静态检查失败。真实 SDK 是否可用及 CTA 行为仍需运行验证。
 
 提供完整导出结果时，预览还会核对同目录 ZIP 的交付哈希；只改配置而 HTML 不变，也会使旧报告失效。保存的日志记录两种哈希和文件名；缺少交付证据时明确标为仅关联 HTML。事件历史最多保留 1,000 条，界面和日志会说明省略了多少早期记录。

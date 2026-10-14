@@ -34,6 +34,9 @@ export const NOTED = {
     { note: 'Sprites retain parent-induced shear in every draw mode.' },
   'fix(text): preserve long bitmap strings and cull hidden glyphs':
     { note: 'Long native bitmap text preserves UTF-8 content without uploading hidden glyphs.' },
+  'feat(playable): verify scenarios in headless Chromium':
+    { note: 'Playable scenarios run in headless Chromium and save bound evidence.' },
+
   'feat(playable): adapt asset quality to measured delivery budgets':
     { note: 'Playable asset quality adapts to the measured delivery budget.' },
   'feat(editor): show playable asset optimization decisions':

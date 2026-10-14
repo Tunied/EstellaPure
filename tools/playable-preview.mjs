@@ -113,7 +113,7 @@ export async function createPlayablePreview({ htmlFile, network, storeUrl = '', 
       deliveryFile = path.basename(htmlFile);
       if (result.zipFile) {
         if (typeof result.zipFile !== 'string') throw new Error('The export result ZIP filename must be a string.');
-        deliveryFile = path.basename(result.zipFile);
+        deliveryFile = path.win32.basename(path.posix.basename(result.zipFile));
         if (!/^[A-Za-z0-9_]+\.zip$/.test(deliveryFile) || /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])\.zip$/i.test(deliveryFile)) throw new Error('The report needs a portable ZIP filename.');
         delivery = await readFile(path.join(path.dirname(path.resolve(htmlFile)), deliveryFile));
       } else if (report.deliverySha256 !== htmlSha256) throw new Error('ZIP identity needs the full export result with zipFile, beside its HTML.');
@@ -144,7 +144,7 @@ export async function createPlayablePreview({ htmlFile, network, storeUrl = '', 
     else { response.writeHead(404); response.end('Not found'); }
   });
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(port, '127.0.0.1', resolve); });
-  return { server, url: `http://127.0.0.1:${server.address().port}/`, htmlSha256, deliverySha256,
+  return { server, url: `http://127.0.0.1:${server.address().port}/`, network, htmlSha256, deliverySha256, deliveryFile,
     close: () => new Promise(resolve => { server.close(resolve); server.closeAllConnections?.(); }) };
 }
 

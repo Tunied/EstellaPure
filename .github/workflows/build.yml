@@ -37,6 +37,40 @@ env:
     test_frame_lifecycle
 
 jobs:
+  playable-runtime:
+    name: Playable headless checks
+    runs-on: ubuntu-latest
+    needs: build-emscripten
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@v7
+    - uses: ./.github/actions/setup
+    - name: Download this commit's Web runtime
+      uses: actions/download-artifact@v8
+      with:
+        name: wasm-web
+        path: build/wasm/web/
+    - name: Build the shipping SDK
+      run: pnpm --filter ./sdk build
+    - name: Install headless Chromium
+      run: pnpm exec playwright install --with-deps chromium
+    - name: Check the verifier's failure paths
+      run: node --test tools/tests/verify-playable.e2e.mjs
+    - name: Export and check the real playable in eight local network mocks
+      shell: bash
+      run: |
+        for playable_network in mintegral unity applovin mraid tiktok pangle google meta; do
+          node pipeline/bin/estella.mjs export examples/playable-ad --profile "$playable_network" --wasm build/wasm/web --out "output/playable-ci-export-$playable_network" --json "output/playable-ci-export-$playable_network.json" || exit 1
+          node tools/verify-playable.mjs "output/playable-ci-export-$playable_network/index.html" --report "output/playable-ci-export-$playable_network.json" --scenario examples/playable-ad/playable-check.json --out "output/playable-ci-check-$playable_network" --store-url https://example.com/store || exit 1
+        done
+    - name: Upload hash-bound local observations and screenshots
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: playable-local-mock-checks
+        path: output/playable-ci-*
+        retention-days: 3
+
   # The engine binaries, and nothing else: every gate below waits on this job, so
   # a step here that no downstream job reads is a delay on all of them.
   build-emscripten:

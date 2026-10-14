@@ -42,7 +42,8 @@
     "verify:remote-capture": "node tools/verify-remote-capture.mjs --platform web && node tools/verify-remote-capture.mjs --platform wechat",
     "verify:hotupdate": "node tools/with-env.mjs ESTELLA_HOTUPDATE_FIXTURE=1 -- pnpm --filter @estella/pipeline exec vitest run tests/hotupdate-verify-fixture.test.ts && node tools/run-electron.mjs tools/launchers/headless-hotupdate-verify.mjs",
     "verify:cache-budget": "node tools/run-electron.mjs tools/launchers/cache-budget-render-verify.mjs",
-    "preview:playable": "node tools/playable-preview.mjs"
+    "preview:playable": "node tools/playable-preview.mjs",
+    "verify:playable": "node tools/verify-playable.mjs"
   },
   "dependencies": {
     "chalk": "^5.3.0",
@@ -63,6 +64,7 @@
     "electron": "^42.4.1",
     "esbuild": "^0.27.0",
     "madge": "^8.0.0",
+    "playwright": "1.62.1",
     "vitest": "^2.1.9"
   }
 }

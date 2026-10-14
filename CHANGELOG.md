@@ -20,6 +20,10 @@ published separately; it ships inside the editor.
 
 - **Sprites retain parent-induced shear in every draw mode.** Ordinary, nine-slice and tiled geometry follows the complete parent transform, and camera bounds use the same basis. Mirrored tiled grids retain positive tile steps before applying signed axes, including the capped fallback. Zero-area sprites skip geometry; existing material, UV and batch state is preserved.
 
+### Added
+
+- **Playable scenarios run in headless Chromium and save bound evidence.** A CLI replays declared canvas clicks and host callbacks, records trusted pointers and user activation, checks hidden input and animation, and fails on unexpected requests, page errors, event mismatches, lost history or changed inputs. Reports and screenshots retain delivery/scenario/tool hashes and pending acceptance; eight network mocks run on the example in CI using that commit's Web runtime. No local editor or browser window is opened.
+
 ## [0.82.0] - 2026-10-14
 
 ### Added

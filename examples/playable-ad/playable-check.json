@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "description": "Local host observations only. Store hooks are mocked; this is not network/device acceptance.",
+  "viewports": [{ "width": 360, "height": 640 }, { "width": 800, "height": 400 }],
+  "steps": [
+    { "type": "click", "name": "Install from a trusted click", "x": 0.5, "y": 0.82, "expect": { "event": "store-click", "count": 1, "userActivation": true } },
+    { "type": "click", "name": "Select left ship", "x": 0.2, "y": 0.45 },
+    { "type": "click", "name": "Select middle ship", "x": 0.5, "y": 0.45 },
+    { "type": "click", "name": "Complete the fleet", "x": 0.8, "y": 0.45, "expect": { "event": "game-end", "count": 1, "networks": ["mintegral"] } },
+    { "type": "host", "name": "Hide the creative", "command": "hide", "networks": ["mraid", "unity", "applovin", "mintegral", "tiktok", "pangle"] },
+    { "type": "frozen", "name": "Hidden animation stays frozen", "ms": 250, "networks": ["mraid", "unity", "applovin", "mintegral", "tiktok", "pangle"] },
+    { "type": "click", "name": "Hidden CTA accepts no input", "x": 0.5, "y": 0.82, "expect": { "event": "store-click", "count": 0 }, "observeMs": 300, "networks": ["mraid", "unity", "applovin", "mintegral", "tiktok", "pangle"] },
+    { "type": "host", "name": "Resume the creative", "command": "show", "networks": ["mraid", "unity", "applovin", "mintegral", "tiktok", "pangle"] },
+    { "type": "click", "name": "Resumed CTA accepts a trusted click", "x": 0.5, "y": 0.82, "expect": { "event": "store-click", "count": 1, "userActivation": true }, "networks": ["mraid", "unity", "applovin", "mintegral", "tiktok", "pangle"] },
+    { "type": "click", "name": "Retry the completed game", "x": 0.5, "y": 0.96, "expect": { "event": "game-retry", "count": 1, "userActivation": true }, "networks": ["mintegral"] },
+    { "type": "snapshot", "name": "Final canvas" }
+  ]
+}
