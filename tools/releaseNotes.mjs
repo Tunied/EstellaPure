@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(ecs): batch builtin component inspection through the core':
+    { note: 'Runtime inspection batches builtin membership across the core boundary.' },
   'perf(ecs): avoid duplicate component checks during inspection':
     { note: 'Runtime inspection avoids duplicate builtin component checks.' },
   'perf(renderer): allocate transient stream storage on first use':

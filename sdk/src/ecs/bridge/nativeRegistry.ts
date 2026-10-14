@@ -17,7 +17,7 @@
 import type { CppRegistry } from '../../wasm';
 import type { Entity } from '../../types';
 import { PTR_ACCESSORS } from './ptrAccessors.generated';
-import { REGISTRY_BINDINGS, SCENE_QUERY_BINDINGS, ACTIVITY_BINDINGS, DESTRUCTION_BINDINGS } from './nativeBindings';
+import { REGISTRY_BINDINGS, SCENE_QUERY_BINDINGS, ACTIVITY_BINDINGS, DESTRUCTION_BINDINGS, INSPECTION_BINDINGS } from './nativeBindings';
 import { COMPONENT_META } from '../component.generated';
 import { convertForWasm, convertFromWasm } from './BuiltinBridge';
 
@@ -88,6 +88,9 @@ export function createNativeRegistry(
     scope: Record<string, unknown> = globalThis as unknown as Record<string, unknown>,
 ): CppRegistry {
     const reg: Record<string, unknown> = {};
+    for (const [method, binding] of Object.entries(INSPECTION_BINDINGS)) {
+        if (typeof scope[binding] === 'function') reg[method] = (entity: Entity) => hostCall(scope, binding, [entity]);
+    }
     for (const [method, binding] of Object.entries(ACTIVITY_BINDINGS)) {
         if (typeof scope[binding] === 'function') reg[method] = (...args: unknown[]) => hostCall(scope, binding, args);
     }

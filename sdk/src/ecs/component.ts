@@ -570,9 +570,12 @@ export function isBuiltinComponent(comp: AnyComponentDef): comp is BuiltinCompon
 // Global builtin (C++-backed) component types — defined once at module load and
 // shared across every context. User components are per-AppContext (see above).
 const builtinRegistry = new Map<string, AnyComponentDef>();
+let builtinRegistryVersion_ = 0;
+let extraBuiltinCache_: { version: number; definitions: ReadonlyMap<string, AnyComponentDef> } | null = null;
 
 export function registerComponent(name: string, def: AnyComponentDef): void {
     builtinRegistry.set(name, def);
+    builtinRegistryVersion_++;
 }
 
 /** Complete catalogue: global builtins + the current context's user components. */
@@ -585,6 +588,14 @@ export function getComponentRegistry(): Map<string, AnyComponentDef> {
 /** @internal Shared builtin definitions, without constructing a merged catalogue. */
 export function builtinComponentRegistry(): ReadonlyMap<string, AnyComponentDef> {
     return builtinRegistry;
+}
+
+/** @internal Definitions outside the generated core catalogue, refreshed on registration. */
+export function extraBuiltinComponentRegistry(): ReadonlyMap<string, AnyComponentDef> {
+    if (extraBuiltinCache_?.version === builtinRegistryVersion_) return extraBuiltinCache_.definitions;
+    const definitions = new Map([...builtinRegistry].filter(([name]) => !hasOwn(COMPONENT_META, name)));
+    extraBuiltinCache_ = { version: builtinRegistryVersion_, definitions };
+    return definitions;
 }
 
 /** Just the current context's user/script components (excludes builtins). */

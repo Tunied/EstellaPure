@@ -239,6 +239,7 @@ class NativeBindingsGenerator:
             f'#include "{self.shim_header}"',
             '#include <type_traits>',
             '#include <cstddef>',
+            '#include <string>',
             '',
         ]
         components = sorted(self.components, key=lambda c: c.name)
@@ -259,7 +260,22 @@ class NativeBindingsGenerator:
             lines.append('')
         for comp in components:
             lines.extend(self._component(comp))
+        lines.extend([
+            'static JSValue es_getBuiltinComponentNames(JSContext* ctx, JSValueConst, int argc, JSValueConst* argv) {',
+            '    if (argc < 1) return JS_UNDEFINED;',
+            '    const auto e = esn_entity(ctx, argv[0]);',
+            '    std::string names;',
+        ])
+        for comp in components:
+            full = f'{comp.namespace}::{comp.name}' if comp.namespace else comp.name
+            lines.append(f'    if (esn_reg().has<{full}>(e)) {{ if (!names.empty()) names += "|"; names += "{comp.name}"; }}')
+        lines.extend([
+            '    return JS_NewStringLen(ctx, names.data(), names.size());',
+            '}', '',
+        ])
         lines.append('void esn_register(JSContext* ctx, JSValue global) {')
+        lines.append('    JS_SetPropertyStr(ctx, global, "es_getBuiltinComponentNames", '
+                     'JS_NewCFunction(ctx, es_getBuiltinComponentNames, "es_getBuiltinComponentNames", 1));')
         for comp in components:
             setter = f'es_set_{comp.name}'
             buffer = f'es_{comp.name}_buffer'

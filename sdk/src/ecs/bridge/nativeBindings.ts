@@ -219,6 +219,11 @@ export function hasRendererBindings(
     return Object.values(RENDERER_BINDINGS).every((name) => typeof scope[name] === 'function');
 }
 
+/** Optional bulk inspection; older hosts retain individual component checks. */
+export const INSPECTION_BINDINGS = {
+    getBuiltinComponentNames: 'es_getBuiltinComponentNames',
+} as const;
+
 /**
  * Scene queries the wasm module answers as module-level functions over the
  * registry. The native registry answers them itself (see createNativeRegistry);

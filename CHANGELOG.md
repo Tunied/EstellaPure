@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Runtime inspection batches builtin membership across the core boundary.** Generated web and native bindings report an entity's current builtin component names in one call. The SDK merges script and extension components, refreshes extension bindings on registration or reconnect, and falls back to individual checks on older cores. Entity destruction, id reuse and separate registries retain their live membership semantics.
+
 - **Runtime inspection avoids duplicate builtin component checks.** Entity component enumeration checks cached builtin bindings once and reads the shared builtin catalogue instead of allocating a merged builtin/script map for every entity. Live tree snapshots retain uncached membership checks and immediately reflect component additions and removals.
 
 - **Unused transient streams no longer reserve GPU buffers.** Renderer pools initialize pipeline layouts without reserving vertex/index buffers or CPU staging for every stream. Each stream allocates storage on its first non-empty write, preserving buffer reuse, growth and recovery while avoiding unused particle, shape and sky allocations in 2D scenes.

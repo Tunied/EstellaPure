@@ -69,6 +69,7 @@ entityCount: () => number
 getBitmapText: (entity: Entity) => BitmapText
 getBoxCollider2D: (entity: Entity) => BoxCollider2D
 getBoxCollider3D: (entity: Entity) => BoxCollider3D
+getBuiltinComponentNames: ((entity: Entity) => string) | undefined
 getCamera: (entity: Entity) => Camera
 getCanvas: (entity: Entity) => Canvas
 getCapsuleCollider2D: (entity: Entity) => CapsuleCollider2D

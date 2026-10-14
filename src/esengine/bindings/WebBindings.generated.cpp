@@ -2077,6 +2077,59 @@ EMSCRIPTEN_BINDINGS(esengine_registry) {
         }))
         .function("entityCount", &Registry::entityCount)
 
+        .function("getBuiltinComponentNames", optional_override([](Registry& r, u32 e) {
+            const auto entity = static_cast<Entity>(e);
+            std::string names;
+            if (r.has<esengine::ecs::BitmapText>(entity)) { if (!names.empty()) names += "|"; names += "BitmapText"; }
+            if (r.has<esengine::ecs::BoxCollider2D>(entity)) { if (!names.empty()) names += "|"; names += "BoxCollider2D"; }
+            if (r.has<esengine::ecs::BoxCollider3D>(entity)) { if (!names.empty()) names += "|"; names += "BoxCollider3D"; }
+            if (r.has<esengine::ecs::Camera>(entity)) { if (!names.empty()) names += "|"; names += "Camera"; }
+            if (r.has<esengine::ecs::Canvas>(entity)) { if (!names.empty()) names += "|"; names += "Canvas"; }
+            if (r.has<esengine::ecs::CapsuleCollider2D>(entity)) { if (!names.empty()) names += "|"; names += "CapsuleCollider2D"; }
+            if (r.has<esengine::ecs::CapsuleCollider3D>(entity)) { if (!names.empty()) names += "|"; names += "CapsuleCollider3D"; }
+            if (r.has<esengine::ecs::CharacterController3D>(entity)) { if (!names.empty()) names += "|"; names += "CharacterController3D"; }
+            if (r.has<esengine::ecs::Children>(entity)) { if (!names.empty()) names += "|"; names += "Children"; }
+            if (r.has<esengine::ecs::CircleCollider2D>(entity)) { if (!names.empty()) names += "|"; names += "CircleCollider2D"; }
+            if (r.has<esengine::ecs::ConvexCollider3D>(entity)) { if (!names.empty()) names += "|"; names += "ConvexCollider3D"; }
+            if (r.has<esengine::ecs::Draggable>(entity)) { if (!names.empty()) names += "|"; names += "Draggable"; }
+            if (r.has<esengine::ecs::DragonBonesAnimation>(entity)) { if (!names.empty()) names += "|"; names += "DragonBonesAnimation"; }
+            if (r.has<esengine::ecs::FlexContainer>(entity)) { if (!names.empty()) names += "|"; names += "FlexContainer"; }
+            if (r.has<esengine::ecs::Interactable>(entity)) { if (!names.empty()) names += "|"; names += "Interactable"; }
+            if (r.has<esengine::ecs::LODGroup>(entity)) { if (!names.empty()) names += "|"; names += "LODGroup"; }
+            if (r.has<esengine::ecs::Light>(entity)) { if (!names.empty()) names += "|"; names += "Light"; }
+            if (r.has<esengine::ecs::LightProbeVolume>(entity)) { if (!names.empty()) names += "|"; names += "LightProbeVolume"; }
+            if (r.has<esengine::ecs::MeshCollider3D>(entity)) { if (!names.empty()) names += "|"; names += "MeshCollider3D"; }
+            if (r.has<esengine::ecs::MeshLightmap>(entity)) { if (!names.empty()) names += "|"; names += "MeshLightmap"; }
+            if (r.has<esengine::ecs::MeshMorph>(entity)) { if (!names.empty()) names += "|"; names += "MeshMorph"; }
+            if (r.has<esengine::ecs::MeshRenderer>(entity)) { if (!names.empty()) names += "|"; names += "MeshRenderer"; }
+            if (r.has<esengine::ecs::MeshSkin>(entity)) { if (!names.empty()) names += "|"; names += "MeshSkin"; }
+            if (r.has<esengine::ecs::Occluder>(entity)) { if (!names.empty()) names += "|"; names += "Occluder"; }
+            if (r.has<esengine::ecs::Parent>(entity)) { if (!names.empty()) names += "|"; names += "Parent"; }
+            if (r.has<esengine::ecs::ParticleEmitter>(entity)) { if (!names.empty()) names += "|"; names += "ParticleEmitter"; }
+            if (r.has<esengine::ecs::ParticleForceField>(entity)) { if (!names.empty()) names += "|"; names += "ParticleForceField"; }
+            if (r.has<esengine::ecs::ReflectionProbe>(entity)) { if (!names.empty()) names += "|"; names += "ReflectionProbe"; }
+            if (r.has<esengine::ecs::RigidBody2D>(entity)) { if (!names.empty()) names += "|"; names += "RigidBody2D"; }
+            if (r.has<esengine::ecs::RigidBody3D>(entity)) { if (!names.empty()) names += "|"; names += "RigidBody3D"; }
+            if (r.has<esengine::ecs::SegmentCollider2D>(entity)) { if (!names.empty()) names += "|"; names += "SegmentCollider2D"; }
+            if (r.has<esengine::ecs::ShadowCaster2D>(entity)) { if (!names.empty()) names += "|"; names += "ShadowCaster2D"; }
+            if (r.has<esengine::ecs::ShapeRenderer>(entity)) { if (!names.empty()) names += "|"; names += "ShapeRenderer"; }
+            if (r.has<esengine::ecs::SortingGroup>(entity)) { if (!names.empty()) names += "|"; names += "SortingGroup"; }
+            if (r.has<esengine::ecs::SphereCollider3D>(entity)) { if (!names.empty()) names += "|"; names += "SphereCollider3D"; }
+            if (r.has<esengine::ecs::SpineAnimation>(entity)) { if (!names.empty()) names += "|"; names += "SpineAnimation"; }
+            if (r.has<esengine::ecs::Sprite>(entity)) { if (!names.empty()) names += "|"; names += "Sprite"; }
+            if (r.has<esengine::ecs::SpriteMask>(entity)) { if (!names.empty()) names += "|"; names += "SpriteMask"; }
+            if (r.has<esengine::ecs::TilemapLayer>(entity)) { if (!names.empty()) names += "|"; names += "TilemapLayer"; }
+            if (r.has<esengine::ecs::TrailRenderer>(entity)) { if (!names.empty()) names += "|"; names += "TrailRenderer"; }
+            if (r.has<esengine::ecs::Transform>(entity)) { if (!names.empty()) names += "|"; names += "Transform"; }
+            if (r.has<esengine::ecs::UIInteraction>(entity)) { if (!names.empty()) names += "|"; names += "UIInteraction"; }
+            if (r.has<esengine::ecs::UIMask>(entity)) { if (!names.empty()) names += "|"; names += "UIMask"; }
+            if (r.has<esengine::ecs::UINode>(entity)) { if (!names.empty()) names += "|"; names += "UINode"; }
+            if (r.has<esengine::ecs::UIScroll>(entity)) { if (!names.empty()) names += "|"; names += "UIScroll"; }
+            if (r.has<esengine::ecs::UIVisual>(entity)) { if (!names.empty()) names += "|"; names += "UIVisual"; }
+            if (r.has<esengine::ecs::Velocity>(entity)) { if (!names.empty()) names += "|"; names += "Velocity"; }
+            return names;
+        }))
+
         // BitmapText
         .function("hasBitmapText", optional_override([](Registry& r, u32 e) {
             return r.has<esengine::ecs::BitmapText>(static_cast<Entity>(e));

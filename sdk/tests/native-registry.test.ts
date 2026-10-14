@@ -36,6 +36,17 @@ function mockNativeScope(byteSize = 256): Record<string, unknown> {
 }
 
 describe('createNativeRegistry', () => {
+    it('uses optional bulk membership on hosts that provide it', () => {
+        const calls: number[] = [];
+        const reg = createNativeRegistry({ es_getBuiltinComponentNames: (entity: number) => {
+            calls.push(entity);
+            return 'Name|Sprite';
+        } });
+        expect(reg.getBuiltinComponentNames!(12 as never)).toBe('Name|Sprite');
+        expect(calls).toEqual([12]);
+        expect(createNativeRegistry({}).getBuiltinComponentNames).toBeUndefined();
+    });
+
     it('resolves a three-byte native component without constructing misaligned word views', () => {
         const buffer = new ArrayBuffer(3);
         const resolve = new NativeMemoryProvider({ es_Interactable_buffer: () => buffer })

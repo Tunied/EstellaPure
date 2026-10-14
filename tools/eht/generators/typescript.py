@@ -96,6 +96,8 @@ class TypeScriptGenerator:
             '    destroy(entity: Entity): void;',
             '    valid(entity: Entity): boolean;',
             '    entityCount(): number;',
+            '    /** All generated builtin names, separated by |; absent on older cores. */',
+            '    getBuiltinComponentNames?(entity: Entity): string;',
             '',
         ]
         for comp in self.components:

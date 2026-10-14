@@ -381,6 +381,16 @@ class EmbindGenerator:
             '',
         ]
 
+        lines.extend([
+            '        .function("getBuiltinComponentNames", optional_override([](Registry& r, u32 e) {',
+            '            const auto entity = static_cast<Entity>(e);',
+            '            std::string names;',
+        ])
+        for comp in self.components:
+            full = f'{comp.namespace}::{comp.name}' if comp.namespace else comp.name
+            lines.append(f'            if (r.has<{full}>(entity)) {{ if (!names.empty()) names += "|"; names += "{comp.name}"; }}')
+        lines.extend(['            return names;', '        }))', ''])
+
         for comp in self.components:
             full = f'{comp.namespace}::{comp.name}' if comp.namespace else comp.name
             name = comp.name

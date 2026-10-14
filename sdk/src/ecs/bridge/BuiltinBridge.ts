@@ -455,6 +455,7 @@ export class BuiltinBridge {
     private transformComposition_: TransformComposition | null = null;
     private memory_: MemoryProvider | null = null;
     private builtinMethodCache_ = new Map<string, BuiltinMethods>();
+    private extraMethodCache_ = new Map<string, BuiltinMethods>();
     private builtinEntitySets_ = new Map<string, Set<Entity>>();
 
     /**
@@ -493,6 +494,7 @@ export class BuiltinBridge {
         this.memory_ = options.memory
             ?? (module ? new WasmMemoryProvider(module, cppRegistry) : null);
         this.builtinMethodCache_.clear();
+        this.extraMethodCache_.clear();
         this.builtinEntitySets_.clear();
 
         // Install the terminal-abort guard so a C++ abort flips the module-dead
@@ -513,6 +515,7 @@ export class BuiltinBridge {
             this.module_ = null;
             this.memory_ = null;
             this.builtinMethodCache_.clear();
+            this.extraMethodCache_.clear();
             throw new Error(formatBridgeDiagnostic(verification));
         }
     }
@@ -524,6 +527,7 @@ export class BuiltinBridge {
         this.transformComposition_ = null;
         this.transformEpochWord_ = -1;
         this.builtinMethodCache_.clear();
+        this.extraMethodCache_.clear();
         this.builtinEntitySets_.clear();
     }
 
@@ -753,7 +757,30 @@ export class BuiltinBridge {
             remove: guard('remove', (removeFn as (e: Entity) => void).bind(reg)),
         };
         this.builtinMethodCache_.set(cppName, methods);
+        if (!hasOwn(COMPONENT_META, cppName)) this.extraMethodCache_.set(cppName, methods);
         return methods;
+    }
+
+    /** @internal One core call for all generated builtin memberships, when supported. */
+    componentNames(entity: Entity): string[] | null {
+        const registry = this.cppRegistry_;
+        if (!registry?.getBuiltinComponentNames) return null;
+        throwIfModuleAborted(this.module_, 'getBuiltinComponentNames');
+        try {
+            const names = registry.getBuiltinComponentNames(entity);
+            if (typeof names !== 'string') return null;
+            return names ? names.split('|') : [];
+        } catch (err) {
+            if (isModuleAborted(this.module_)) {
+                throw new WasmModuleAborted('getBuiltinComponentNames', undefined, err);
+            }
+            throw err;
+        }
+    }
+
+    /** @internal Bindings outside the generated membership query. */
+    getExtraMethodCache(): ReadonlyMap<string, BuiltinMethods> {
+        return this.extraMethodCache_;
     }
 
     getMethodCache(): Map<string, BuiltinMethods> {

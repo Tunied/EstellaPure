@@ -791,6 +791,28 @@ describe('World', () => {
     // =========================================================================
 
     describe('getComponentTypes', () => {
+        it('bulk inspection keeps late builtin extensions and clears bindings on reconnect', () => {
+            const module = createMockModule();
+            const registry = module.getRegistry();
+            registry.getBuiltinComponentNames = () => '';
+            const inspected = new World();
+            inspected.connectCpp(registry, module);
+            const entity = inspected.spawn();
+            expect(inspected.getComponentTypes(entity)).toEqual([]);
+            const extension = defineBuiltin('BulkInspectionExtension', { value: 0 });
+            inspected.insert(entity, extension, { value: 3 });
+            expect(inspected.getComponentTypes(entity)).toContain('BulkInspectionExtension');
+            inspected.remove(entity, extension);
+            expect(inspected.getComponentTypes(entity)).not.toContain('BulkInspectionExtension');
+            inspected.insert(entity, extension, { value: 4 });
+            const nextModule = createMockModule();
+            const nextRegistry = nextModule.getRegistry();
+            nextRegistry.getBuiltinComponentNames = () => '';
+            inspected.disconnectCpp();
+            inspected.connectCpp(nextRegistry, nextModule);
+            expect(inspected.getComponentTypes(entity)).not.toContain('BulkInspectionExtension');
+        });
+
         it('checks each known builtin once and reflects component mutations immediately', () => {
             const module = createMockModule();
             const registry = module.getRegistry();
