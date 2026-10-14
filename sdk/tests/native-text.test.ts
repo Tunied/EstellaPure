@@ -19,6 +19,7 @@ import { setPlatform } from '../src/platform/base';
 import { setRendererBackend } from '../src/render/renderer';
 import { setNativeTextSubmit, TEXT_VERTEX_FLOATS } from '../src/ui/text/submit';
 import { Camera, Canvas, Transform } from '../src/ecs/component';
+import { SdfTextRenderer } from '../src/ui/text/text-renderer';
 import { Text, TextRenderMode } from '../src/ui/core/text';
 import { PTR_ACCESSORS } from '../src/ecs/bridge/ptrAccessors.generated';
 import type { PlatformGlyphRequest } from '../src/platform/types';
@@ -177,6 +178,24 @@ function buildScene(app: ReturnType<typeof createNativeApp>, setScene: (canvas: 
 }
 
 describe('a frame on the native core', () => {
+    it('measures native glyphs without allocating or uploading texture pages', async () => {
+        const host = makeHostScope();
+        const app = createNativeApp(makeBridge(host.scope), host.scope);
+        await app.tick(0);
+        const renderer = new SdfTextRenderer(null, { metricsOnly: true });
+        const glyph = renderer.atlas.getGlyph('Ω'.codePointAt(0)!, 'Arial');
+        expect(glyph).not.toBeNull();
+        expect(host.rasterizeSpy).toHaveBeenCalled();
+        expect(host.textures.size).toBe(0);
+        expect(host.uploads).toEqual([]);
+        expect(renderer.atlas.pageCount).toBe(0);
+        expect(() => renderer.drawText({
+            text: 'Ω', fontFamily: 'Arial', fontSizePx: 32, color: [1, 1, 1, 1],
+        }, new Float32Array(16), 1, 0, 0)).toThrow('Measurement atlases cannot submit text');
+        renderer.dispose();
+        app.quit({ keepRenderer: true });
+    });
+
     it('isolates glyph pages between apps and releases only the quitting owner', async () => {
         const first = makeHostScope();
         const appA = createNativeApp(makeBridge(first.scope), first.scope);

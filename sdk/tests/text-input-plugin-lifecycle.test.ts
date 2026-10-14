@@ -3,6 +3,7 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import type { TextEditorEvent } from '../src/platform/types';
 import { bootMockApp } from './helpers/mockApp';
+import { log } from '../src/util/logger';
 
 const measurements = vi.hoisted(() => [] as Array<{ dispose: ReturnType<typeof vi.fn> }>);
 const dimensions = vi.hoisted(() => ({ width: vi.fn(() => 0), height: vi.fn(() => 0) }));
@@ -13,7 +14,7 @@ vi.mock('../src/ui/util/helpers', async original => ({
 }));
 vi.mock('../src/ui/text/text-renderer', () => ({
     SdfTextRenderer: class {
-        atlas = { renderSize: 64, getGlyph: () => ({ advance: 16 }) };
+        atlas = { renderSize: 64, pixelSizeFor: () => 64, getGlyph: () => ({ advance: 16 }) };
         dispose = vi.fn();
         constructor() { measurements.push(this); }
     },
@@ -66,6 +67,7 @@ afterEach(() => {
     measurements.length = 0;
     dimensions.width.mockReturnValue(0);
     dimensions.height.mockReturnValue(0);
+    vi.restoreAllMocks();
 });
 
 it.each(['change', 'composition', 'submit'] as const)('delivers native %s after UI clearing and before Update consumers', async kind => {
@@ -205,6 +207,7 @@ it.each(['entity', 'ancestor', 'interaction'] as const)('rejects queued input af
 });
 
 it('releases each App measurement atlas without disposing the newer field atlas', async () => {
+    const errors = vi.spyOn(log, 'error').mockImplementation(() => {});
     dimensions.width.mockReturnValue(160);
     dimensions.height.mockReturnValue(40);
     const plugin = new TextInputPlugin();
@@ -217,6 +220,7 @@ it('releases each App measurement atlas without disposing the newer field atlas'
         return app;
     };
     const first = await prepare(), second = await prepare();
+    expect(errors).not.toHaveBeenCalled();
     expect(measurements).toHaveLength(2);
     first.quit();
     expect(measurements[0].dispose).toHaveBeenCalledOnce();

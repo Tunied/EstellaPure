@@ -117,7 +117,7 @@ export class GlyphAtlas {
 
     constructor(
         private readonly rasterizer: GlyphRasterizer,
-        private readonly store: AtlasPageStore,
+        private readonly store: AtlasPageStore | null,
         opts: GlyphAtlasOptions = {},
     ) {
         this.pageSize = opts.pageSize ?? 1024;
@@ -125,6 +125,9 @@ export class GlyphAtlas {
         this.sdf = opts.sdf ?? true;
         this.dpr = opts.dpr ?? 1;
     }
+
+    /** A null store keeps metrics in CPU memory without drawable atlas pages. */
+    get metricsOnly(): boolean { return this.store === null; }
 
     /** Number of atlas pages currently allocated. */
     get pageCount(): number { return this.pages.length; }
@@ -139,7 +142,7 @@ export class GlyphAtlas {
         this.generation_++;
         const errors: unknown[] = [];
         for (const page of pages) {
-            try { this.store.releasePage?.(page); } catch (error) { errors.push(error); }
+            try { this.store?.releasePage?.(page); } catch (error) { errors.push(error); }
         }
         if (errors.length) throw new Error(`Failed to release glyph atlas pages: ${errors.map(String).join('; ')}`);
     }
@@ -228,6 +231,20 @@ export class GlyphAtlas {
             return entry;
         }
 
+        if (!this.store) {
+            if (raster.width + this.padding > this.pageSize || raster.height + this.padding > this.pageSize) {
+                this.cache.set(k, null);
+                return null;
+            }
+            const entry: GlyphEntry = {
+                pageId: -1, u0: 0, v0: 0, u1: 0, v1: 0,
+                width: raster.width, height: raster.height,
+                advance: raster.advance, bearingX: raster.bearingX, bearingY: raster.bearingY,
+            };
+            this.cache.set(k, entry);
+            return entry;
+        }
+
         const placed = this.place(raster.width, raster.height);
         if (!placed) {
             // Glyph larger than a whole page — cannot atlas it. Cache null.
@@ -278,6 +295,7 @@ export class GlyphAtlas {
     }
 
     private addPage(): void {
+        if (!this.store) throw new Error('Measurement atlases cannot allocate pages.');
         const page = this.pages.length;
         this.placements.push([]);
         this.pages.push(this.store.createPage(this.pageSize, (pixels) => this.paintPage(page, pixels)));

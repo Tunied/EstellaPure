@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(ui): keep text measurement atlases off GPU':
+    { note: 'Text measurement avoids GPU glyph pages.' },
   'fix(ui): scope inline text cleanup and release measurement pages':
     { note: 'Inline rich text releases its own measurement atlas.' },
   'docs(poki): document official Inspector URL validation':

@@ -99,7 +99,7 @@ export class TextInputPlugin implements Plugin {
         const alignOffsetOf = new Map<Entity, number>();
         let measureRenderer: SdfTextRenderer | null = null;
         const ensureMeasure = (): SdfTextRenderer => {
-            if (!measureRenderer) measureRenderer = new SdfTextRenderer(module);
+            if (!measureRenderer) measureRenderer = new SdfTextRenderer(module, { metricsOnly: true });
             return measureRenderer;
         };
 

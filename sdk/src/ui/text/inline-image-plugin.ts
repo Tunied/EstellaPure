@@ -70,7 +70,7 @@ export class InlineImagePlugin implements Plugin {
         // the images after the text runs (see `layoutText`). SDF so metrics are
         // resolution-independent; sub-pixel drift vs the draw atlas is invisible.
         let measurer: SdfTextRenderer | null = null;
-        const atlas = () => (measurer ??= new SdfTextRenderer(module)).atlas;
+        const atlas = () => (measurer ??= new SdfTextRenderer(module, { metricsOnly: true })).atlas;
 
         const childrenOf = new Map<Entity, Entity[]>();
         const textureOf = new Map<string, number>(); // src → handle (0 = failed)

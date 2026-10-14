@@ -20,6 +20,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Text measurement avoids GPU glyph pages.** Input caret measurements and inline rich-text layout retain the same rasterized glyph advances, bearings and dimensions in CPU caches without packing or uploading textures. Ordinary text drawing keeps its existing atlas; measurement-only atlases reject draw submission instead of emitting invalid texture references.
+
 - **Inline rich text releases its own measurement atlas.** Cleanup belongs to each App, so closing an older preview cannot remove a newer preview's inline image children. Exiting releases measurement glyph pages and repeated cleanup remains safe.
 
 - **Input fields release their measurement glyph pages on exit.** App teardown disposes the caret measurement atlas as well as the visible text atlas, preventing a 4 MiB page from accumulating on each preview restart. Cleanup stays scoped to the exiting App.

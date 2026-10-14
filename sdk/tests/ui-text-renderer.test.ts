@@ -13,7 +13,7 @@ import {
 import { drawTextWith, signatureOf, tapAlpha } from '../src/ui/text/text-renderer';
 import type { DrawTextParams } from '../src/ui/text/text-renderer';
 
-function makeAtlas(pageSize: number, spread = 6): GlyphAtlas {
+function makeAtlas(pageSize: number, spread = 6, metricsOnly = false): GlyphAtlas {
     const rasterizer: GlyphRasterizer = {
         renderSize: 48,
         spread,
@@ -24,10 +24,18 @@ function makeAtlas(pageSize: number, spread = 6): GlyphAtlas {
     };
     let next = 1000;
     const store: AtlasPageStore = { createPage: () => next++, uploadSubRegion: () => {} };
-    return new GlyphAtlas(rasterizer, store, { pageSize, padding: 1 });
+    return new GlyphAtlas(rasterizer, metricsOnly ? null : store, { pageSize, padding: 1 });
 }
 
 describe('REARCH_GUI P1.3b: drawTextWith', () => {
+    it('rejects measurement glyphs before emitting invalid texture references', () => {
+        const sink = vi.fn();
+        expect(() => drawTextWith(makeAtlas(64, 6, true), sink, {
+            text: 'A', fontFamily: 'Arial', fontSizePx: 24, color: [1, 1, 1, 1],
+        })).toThrow('Measurement atlases cannot submit text');
+        expect(sink).not.toHaveBeenCalled();
+    });
+
     it.each([16384, 16385, 32769])('preserves every glyph when one atlas page carries %i quads', count => {
         const batches: Array<{ vertices: Float32Array; indices: Uint16Array }> = [];
         drawTextWith(makeAtlas(1024), (vertices, indices) => batches.push({ vertices, indices }), {

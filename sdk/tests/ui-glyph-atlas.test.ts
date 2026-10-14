@@ -14,6 +14,8 @@ import {
     type RasterGlyph,
 } from '../src/ui/text/glyph-atlas';
 
+import { layoutText } from '../src/ui/text/layout';
+
 const UNKNOWN = 0xffff;
 const SPACE = 32;
 const HUGE = 0xaaaa;
@@ -60,6 +62,29 @@ describe('REARCH_GUI P1.1c: GlyphAtlas', () => {
         const calls = rasterizer.rasterize.mock.calls.length;
         expect(atlas.getGlyph(0x100, 'Arial')!.pageId).toBe(102);
         expect(rasterizer.rasterize).toHaveBeenCalledTimes(calls + 1);
+    });
+
+    it('matches measured rich layout without allocating pages, including styles and wrapping', () => {
+        const metricsRasterizer = makeRasterizer();
+        const metrics = new GlyphAtlas(metricsRasterizer, null);
+        const rendered = new GlyphAtlas(makeRasterizer(), makeStore());
+        const content = 'A Ω <b>styled</b><img src="icon.png" width="18" height="16"> text\nnext line';
+        const options = { fontSizePx: 24, maxWidth: 90, boxWidth: 120, rich: true, color: [1, 1, 1, 1] as const };
+        const measured = layoutText(content, metrics, 'Arial', options);
+        const expected = layoutText(content, rendered, 'Arial', options);
+        expect({ width: measured.width, lineHeight: measured.lineHeight, images: measured.images })
+            .toEqual({ width: expected.width, lineHeight: expected.lineHeight, images: expected.images });
+        expect(measured.glyphs.map(({ x0, y0, x1, y1 }) => ({ x0, y0, x1, y1 })))
+            .toEqual(expected.glyphs.map(({ x0, y0, x1, y1 }) => ({ x0, y0, x1, y1 })));
+        expect(metrics.pageCount).toBe(0);
+        expect(rendered.pageCount).toBeGreaterThan(0);
+        const calls = metricsRasterizer.rasterize.mock.calls.length;
+        layoutText(content, metrics, 'Arial', options);
+        expect(metricsRasterizer.rasterize).toHaveBeenCalledTimes(calls);
+        metrics.dispose();
+        layoutText(content, metrics, 'Arial', options);
+        expect(metricsRasterizer.rasterize.mock.calls.length).toBeGreaterThan(calls);
+        expect(metrics.pageCount).toBe(0);
     });
 
     it('rasterizes, packs and uploads on first use; returns UVs + metrics', () => {

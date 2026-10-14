@@ -173,6 +173,7 @@ export function textBlockOriginY(
  * Pure given the atlas, so grouping and geometry are unit-testable.
  */
 export function drawTextWith(atlas: GlyphAtlas, sink: GlyphBatchSink, p: DrawTextParams): void {
+    if (atlas.metricsOnly) throw new Error('Measurement atlases cannot submit text.');
     const opacity = p.opacity ?? 1;
     if (opacity <= 0) return;
     const layout = layoutText(p.text, atlas, p.fontFamily, {
@@ -259,6 +260,8 @@ export function drawTextWith(atlas: GlyphAtlas, sink: GlyphBatchSink, p: DrawTex
 }
 
 export interface TextRendererOptions extends CanvasGlyphRasterizerOptions {
+    /** Cache glyph metrics without creating or uploading GPU pages. */
+    metricsOnly?: boolean;
     /** Atlas page size in texels. Default 1024. */
     pageSize?: number;
     /** Device pixel ratio for bitmap-mode per-size rasterization. Default 1. */
@@ -298,7 +301,7 @@ export class SdfTextRenderer {
             : new CanvasGlyphRasterizer(module, opts);
         this.atlas = new GlyphAtlas(
             rasterizer,
-            new EngineAtlasPageStore(module),
+            opts.metricsOnly ? null : new EngineAtlasPageStore(module),
             { pageSize: opts.pageSize, sdf: this.sdf, dpr: opts.dpr },
         );
     }
@@ -330,6 +333,7 @@ export class SdfTextRenderer {
         depth: number,
         cullBit = 0,
     ): void {
+        if (this.atlas.metricsOnly) throw new Error('Measurement atlases cannot submit text.');
         const opacity = p.opacity ?? 1;
         if (opacity <= 0) return;
         const gen = this.atlas.generation;
