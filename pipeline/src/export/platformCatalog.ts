@@ -27,7 +27,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { defaultMiniGameEntry } from './miniGameExportProfile';
 import {
-  BUILTIN_PLAYABLE_PROFILES, builtinPlayableProfile, genericPlayableProfile,
+  BUILTIN_PLAYABLE_PROFILES, builtinPlayableProfile, genericPlayableProfile, isPlayableZipFileName,
   type PlayableAdProfile,
 } from './playableAdProfile';
 import { BUILTIN_PLATFORMS, DESKTOP_OSES, compileTargetFor, desktopTemplateFor, type PlatformPrereq } from '../project/platforms';
@@ -500,11 +500,17 @@ async function importPlatformModule(
       if (typeof candidate.maxBytes !== 'number' || !(candidate.maxBytes > 0)) {
         return { error: 'playable profile needs a positive `maxBytes` (the size this network accepts)' };
       }
+      if (candidate.maxHtmlBytes !== undefined && (!Number.isFinite(candidate.maxHtmlBytes) || candidate.maxHtmlBytes <= 0)) {
+        return { error: 'playable profile needs a positive finite `maxHtmlBytes`' };
+      }
       if (typeof candidate.limitNote !== 'string' || !candidate.limitNote) {
         return { error: 'playable profile needs a `limitNote` saying where `maxBytes` comes from' };
       }
       if (candidate.delivery !== undefined && candidate.delivery !== 'single-html' && candidate.delivery !== 'zip') {
         return { error: `\`delivery\` must be 'single-html' or 'zip' (got ${JSON.stringify(candidate.delivery)})` };
+      }
+      if (candidate.zipFileName !== undefined && !isPlayableZipFileName(candidate.zipFileName)) {
+        return { error: '`zipFileName` must be a portable alphanumeric/underscore ZIP filename' };
       }
       return { mod: candidate };
     }
@@ -623,7 +629,9 @@ export async function loadPlayableProfile(root: string | null, id: string | unde
       label: mod.label,
       maxBytes: mod.maxBytes as number,
       limitNote: mod.limitNote as string,
+      maxHtmlBytes: mod.maxHtmlBytes,
       delivery: mod.delivery,
+      zipFileName: mod.zipFileName,
       deliveryNote: mod.deliveryNote,
       emitHead: mod.emitHead,
       emitBridge: mod.emitBridge,

@@ -6,6 +6,7 @@
  */
 
 import { World } from '../ecs/world';
+
 import { installQuality } from '../render/qualityRuntime';
 import type { QualityConfig } from '../render/quality';
 import { Schedule, SystemDef, SystemRunner, SystemSet, mergeOrderingEdges, rescopeSystem, type RunCondition } from '../ecs/system';
@@ -54,6 +55,21 @@ import { DOMAIN_SCRIPTS, DOMAIN_UNATTRIBUTED, type ScopeCost, type ScopeRemainde
 import type { SideModuleHost } from '../sideModules/host';
 import { watchWebGPUDeviceLoss } from '../render/renderer';
 import { log } from '../util/logger';
+
+const hostPauseOwners = new WeakMap<App, Set<object>>();
+
+/** Internal host pause ownership, independent of the game's setPaused intent. */
+export function setAppHostPaused(app: App, owner: object, paused: boolean): void {
+    if (paused) {
+        let owners = hostPauseOwners.get(app);
+        if (!owners) hostPauseOwners.set(app, owners = new Set());
+        owners.add(owner);
+    } else {
+        const owners = hostPauseOwners.get(app);
+        owners?.delete(owner);
+        if (!owners?.size) hostPauseOwners.delete(app);
+    }
+}
 
 // =============================================================================
 // Plugin Interface
@@ -847,7 +863,7 @@ export class App {
     }
 
     isPaused(): boolean {
-        return this.user_paused_;
+        return this.user_paused_ || !!hostPauseOwners.get(this)?.size;
     }
 
     stepFrame(): void {
@@ -1182,7 +1198,7 @@ export class App {
         try {
             await this.frameInFlight_;
             this.user_paused_ = false;
-            for (let i = 0; i < frames; i++) await this.tick(dt);
+            for (let i = 0; i < frames; i++) { this.step_pending_ = true; await this.tick(dt); }
         } finally {
             this.user_paused_ = wasPaused;
             if (wasRunning && version === this.loopVersion_) {
@@ -1398,7 +1414,7 @@ export class App {
         this.world_.resetQueryPool();
         this.frame_paused_ = false;
 
-        if (this.user_paused_ && !this.step_pending_) {
+        if (this.isPaused() && !this.step_pending_) {
             await this.runSchedule(Schedule.Last);
         } else {
             await this.runSchedule(Schedule.First);
@@ -1773,7 +1789,7 @@ export class App {
         const time = this.resources_.get(Time);
         const scale = time.scale >= 0 ? time.scale : 0;
         time.unscaledDelta = delta;
-        time.delta = delta * scale;
+        time.delta = hostPauseOwners.get(this)?.size && !this.step_pending_ ? 0 : delta * scale;
         time.elapsed += time.delta;
         time.frameCount++;
         time.fixedDelta = this.fixedTimestep_;

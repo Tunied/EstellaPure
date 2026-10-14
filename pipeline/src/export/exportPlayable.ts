@@ -33,7 +33,7 @@ import { esengineAlias } from '../bundle/esengineResolve';
 import { officialPackagesPlugin } from '../bundle/officialPackages';
 import { explainBundleErrors, type BundleMessage } from '../bundle/bundleDiagnostics';
 import type { ScreenOrientation } from './orientationHtml';
-import { genericPlayableProfile, playableAdInjection, type PlayableAdProfile } from './playableAdProfile';
+import { genericPlayableProfile, playableAdInjection, isPlayableZipFileName, type PlayableAdProfile } from './playableAdProfile';
 import { makeZip } from '../../../build-tools/utils/zip.js';
 import { scanSideModuleIds, sideModuleFiles } from '../bundle/sideModuleScan';
 import { forcedSideModules, moduleChoices } from '../bundle/engineInstalls';
@@ -389,6 +389,9 @@ export async function exportPlayable(opts: {
   await rm(cookDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
 
   const htmlBytes = (await stat(outFile)).size;
+  if (adProfile.maxHtmlBytes !== undefined && htmlBytes > adProfile.maxHtmlBytes) {
+    errors.push(`${adProfile.label}: index.html is ${htmlBytes} bytes, exceeding the uncompressed HTML limit of ${adProfile.maxHtmlBytes} bytes. ${adProfile.limitNote}`);
+  }
   // The page, plus the JSON scaffolding around the spans. Derived rather than
   // summed, so the parts add up to the file whatever the assembly gains later.
   const inlined = spans.reduce((n, s) => n + s.bytes, 0);
@@ -401,10 +404,14 @@ export async function exportPlayable(opts: {
   let bytes = htmlBytes;
   if (adProfile.delivery === 'zip') {
     progress({ phase: 'Archiving' });
-    zipFile = path.join(absOut, 'playable.zip');
-    await writeFile(zipFile, makeZip([{ name: 'index.html', data: await readFile(outFile) }]));
-    // The archive is the file being sent, so it is the one the limit applies to.
-    bytes = (await stat(zipFile)).size;
+    const zipName = adProfile.zipFileName ?? 'playable.zip';
+    if (!isPlayableZipFileName(zipName)) errors.push('Playable ZIP filename must be a portable name ending in .zip, without directories.');
+    else {
+      zipFile = path.join(absOut, zipName);
+      await writeFile(zipFile, makeZip([{ name: 'index.html', data: await readFile(outFile) }]));
+      // The archive is the file being sent, so it is the one the limit applies to.
+      bytes = (await stat(zipFile)).size;
+    }
   }
 
   // A full WASM engine + assets routinely exceeds what a network accepts, and this

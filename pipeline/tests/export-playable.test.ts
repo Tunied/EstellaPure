@@ -232,7 +232,7 @@ describe('exportGame (playable)', () => {
 
   // A zip-delivery network gets an archive with index.html at the root, and the cap
   // then applies to the ARCHIVE — the file actually being uploaded.
-  it('writes playable.zip for a zip-delivery network and measures that', async () => {
+  it.each([undefined, 'index.zip'])('writes the selected ZIP filename (%s) and measures that', async (zipFileName) => {
     const o = path.join(root, 'dist-playable-zip');
     const res = await exportGame({
       root, entryScene: 'scenes/main.esscene', hostsDir: HOSTS, packagesDir: OFFICIAL_PACKAGES, scriptsEntry: 'src/main.ts',
@@ -240,12 +240,12 @@ describe('exportGame (playable)', () => {
       outDir: o, platform: 'playable',
       playableAdProfile: {
         id: 'zipnet', label: 'Zip Net', maxBytes: 5 * 1024 * 1024,
-        limitNote: 'Zip Net docs', delivery: 'zip',
+        limitNote: 'Zip Net docs', delivery: 'zip', zipFileName,
       },
     });
     expect(res.ok).toBe(true);
 
-    const zip = path.join(o, 'playable.zip');
+    const zip = path.join(o, zipFileName ?? 'playable.zip');
     expect(existsSync(zip)).toBe(true);
     // The HTML stays: it is what "Preview over http" serves.
     expect(existsSync(path.join(o, 'index.html'))).toBe(true);
@@ -260,8 +260,20 @@ describe('exportGame (playable)', () => {
     expect(sized.bytes).toBeLessThan(sized.htmlBytes);
     // The archive is what the limit is measured against, and it is NOT counted a
     // second time as a file sitting in the output dir.
-    expect(res.size?.deliverableName).toBe('playable.zip');
+    expect(res.size?.deliverableName).toBe(zipFileName ?? 'playable.zip');
     expect(res.size?.deliverableBytes).toBe(sized.bytes);
+  }, 60_000);
+
+  it('rejects an oversized HTML even when a ZIP is the uploaded file', async () => {
+    const res = await exportGame({
+      root, entryScene: 'scenes/main.esscene', hostsDir: HOSTS, packagesDir: OFFICIAL_PACKAGES,
+      scriptsEntry: 'src/main.ts', sdkDistDir: path.join(root, '_sdk'), wasmDir: path.join(root, '_wasm'),
+      outDir: path.join(root, 'html-cap'), platform: 'playable',
+      playableAdProfile: { id: 'htmlcap', label: 'HTML cap', maxBytes: 5 * 1024 * 1024,
+        maxHtmlBytes: 1, limitNote: 'HTML cap docs', delivery: 'zip' },
+    });
+    expect(res.ok).toBe(false);
+    expect(res.errors.join('\n')).toMatch(/uncompressed HTML limit/);
   }, 60_000);
 
   it('injects nothing and keeps the default cap with no network selected', async () => {

@@ -98,9 +98,12 @@ playableCta();
 | **MRAID 平台**(通用) | 5MB | `mraid.open()` | 适用于任何 MRAID 宿主。`mraid` 由宿主 webview 注入,`<head>` 无需任何内容。 |
 | **Unity Ads** | 5MB | `mraid.open()` | 要求试玩包等到 MRAID 的 `viewableChange` 之后再开始。 |
 | **AppLovin** | 5MB | `mraid.open()` | 要求所有资源内嵌——单文件试玩本来就是。 |
+| **Mintegral** | 5MB | `window.install()` | 导出资源内嵌的 `index.html` 和同名 `index.zip`。等待宿主开始，关闭时暂停游戏和音频。 |
 
 上限会变,所以每条警告都指名它用的是哪一家的上限、以及这个数字出自哪里,而不是丢一个
 让你盲信的数字。
+
+Mintegral 中，胜负结束时调用 `playableGameEnd()`，玩家重玩时调用 `playableRetry()`。运行时在启动完成后调用 `gameReady()`，并响应 `gameStart()` / `gameClose()`；安装按钮通过用户手势调用 `playableCta()`。参见 `playable-ad` 示例和[官方容器检测工具](https://www.playturbo.com/review)。检测通过仍需广告审核和真机验收。
 
 ### 我们没内置的平台
 

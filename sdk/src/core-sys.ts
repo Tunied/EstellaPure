@@ -339,6 +339,8 @@ export {
 export {
     playableCta,
     hasPlayableCta,
+    playableGameEnd,
+    playableRetry,
     type PlayableAdBridge,
 } from './runtime/playableCta';
 

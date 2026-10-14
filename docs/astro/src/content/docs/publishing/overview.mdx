@@ -113,10 +113,13 @@ selected it is a no-op, so the same scene still runs in the editor and on the we
 | **MRAID network** (generic) | 5MB | `mraid.open()` | For any MRAID host. `mraid` is injected by the webview, so nothing goes in `<head>`. |
 | **Unity Ads** | 5MB | `mraid.open()` | Expects the playable to wait for MRAID's `viewableChange` before starting. |
 | **AppLovin** | 5MB | `mraid.open()` | Requires every resource embedded — which a single-file playable already is. |
+| **Mintegral** | 5MB | `window.install()` | Exports embedded `index.html` and matching `index.zip`. Waits for host start; game close pauses gameplay and audio. |
 
 Limits move, so each one is reported against the network it came from: an oversized
 export names the cap it used and where that number is published, rather than a bare
 number to trust.
+
+For Mintegral, call `playableGameEnd()` on a win or loss and `playableRetry()` when the player restarts. The runtime calls `gameReady()` after startup finishes and responds to `gameStart()` / `gameClose()`. Keep installation tied to a user gesture through `playableCta()`. See the `playable-ad` example and [official container checker](https://www.playturbo.com/review). Passing that checker does not replace campaign approval or device acceptance.
 
 ### A network we don't ship
 

@@ -16,6 +16,11 @@
  */
 import type { ScreenOrientation } from './orientationHtml';
 
+export function isPlayableZipFileName(value: unknown): value is string {
+    return typeof value === 'string' && /^[A-Za-z0-9_]+\.zip$/.test(value)
+        && !/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])\.zip$/i.test(value);
+}
+
 /** Neutral facts the pipeline computed, handed to a profile's emitters. */
 export interface PlayableAdContext {
     title: string;
@@ -33,6 +38,8 @@ export interface PlayableAdProfile {
      * rather than a constant.
      */
     readonly maxBytes: number;
+    /** Optional uncompressed HTML limit in addition to the uploaded archive limit. */
+    readonly maxHtmlBytes?: number;
     /** Where {@link maxBytes} comes from, quoted in the warning so a developer can
      *  check it against the network's current docs rather than trusting us. */
     readonly limitNote: string;
@@ -43,6 +50,8 @@ export interface PlayableAdProfile {
      * Default `'single-html'`.
      */
     readonly delivery?: 'single-html' | 'zip';
+    /** Portable archive filename; defaults to playable.zip. */
+    readonly zipFileName?: string;
     /** Anything else the developer must know before uploading. Reported as a
      *  warning, because an export that looks finished but isn't is worse. */
     readonly deliveryNote?: string;
@@ -149,6 +158,32 @@ export const applovinPlayableProfile: PlayableAdProfile = {
     emitBridge: mraidBridge,
 };
 
+/** @see https://www.playturbo.com/review/doc */
+export const mintegralPlayableProfile: PlayableAdProfile = {
+    id: 'mintegral',
+    label: 'Mintegral',
+    maxBytes: 5 * 1024 * 1024,
+    maxHtmlBytes: 5 * 1024 * 1024,
+    limitNote: 'Mintegral accepts an embedded HTML playable up to 5MB',
+    delivery: 'zip',
+    zipFileName: 'index.zip',
+    deliveryNote: 'Call playableGameEnd() on win or loss, and playableRetry() when restarting. Mintegral supplies the store, ready and lifecycle hooks.',
+    emitBridge: () => `(function(){
+var active=typeof window.gameReady!=="function",listeners=[],ready=false;
+var oldStart=window.gameStart,oldClose=window.gameClose;
+function visibility(value){active=value;listeners.slice().forEach(function(fn){try{fn(value);}catch(error){console.error("[playable] lifecycle listener failed",error);}});}
+window.gameStart=function(){visibility(true);if(typeof oldStart==="function")oldStart.apply(this,arguments);};
+window.gameClose=function(){visibility(false);if(typeof oldClose==="function")oldClose.apply(this,arguments);};
+window.__ESTELLA_PLAYABLE__={
+cta:function(){if(typeof window.install==="function")window.install();},
+ready:function(){if(ready)return;ready=true;if(typeof window.gameReady==="function")window.gameReady();else visibility(true);},
+gameEnd:function(){if(typeof window.gameEnd==="function")window.gameEnd();},
+retry:function(){if(typeof window.gameRetry==="function")window.gameRetry();},
+onActive:function(fn){listeners.push(fn);fn(active);return function(){listeners=listeners.filter(function(item){return item!==fn;});};}
+};
+})();`,
+};
+
 /** The networks the editor ships, by id. A network absent here is not unsupported:
  *  a project defines its own with the same contract (`kind: 'playable'`). */
 export const BUILTIN_PLAYABLE_PROFILES: readonly PlayableAdProfile[] = [
@@ -158,6 +193,7 @@ export const BUILTIN_PLAYABLE_PROFILES: readonly PlayableAdProfile[] = [
     mraidPlayableProfile,
     unityPlayableProfile,
     applovinPlayableProfile,
+    mintegralPlayableProfile,
 ];
 
 export function builtinPlayableProfile(id: string | undefined): PlayableAdProfile | null {

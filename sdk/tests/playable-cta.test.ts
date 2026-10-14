@@ -6,7 +6,7 @@
  *        no bridge must stay playable rather than throw.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { playableCta, hasPlayableCta } from '../src/runtime/playableCta';
+import { playableCta, hasPlayableCta, playableGameEnd, playableRetry } from '../src/runtime/playableCta';
 
 const KEY = '__ESTELLA_PLAYABLE__';
 const g = globalThis as Record<string, unknown>;
@@ -38,5 +38,15 @@ describe('playableCta', () => {
         g[KEY] = {};
         expect(hasPlayableCta()).toBe(false);
         expect(() => playableCta()).not.toThrow();
+    });
+
+    it('notifies completion and retry separately from store clicks', () => {
+        const gameEnd = vi.fn(), retry = vi.fn(), cta = vi.fn();
+        g[KEY] = { gameEnd, retry, cta };
+        playableGameEnd(); playableRetry();
+        expect(gameEnd).toHaveBeenCalledTimes(1); expect(retry).toHaveBeenCalledTimes(1);
+        expect(cta).not.toHaveBeenCalled();
+        delete g[KEY];
+        expect(() => { playableGameEnd(); playableRetry(); }).not.toThrow();
     });
 });

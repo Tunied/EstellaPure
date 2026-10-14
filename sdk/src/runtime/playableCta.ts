@@ -20,13 +20,17 @@
 export interface PlayableAdBridge {
     /** Hand the player off to the store, the way THIS network spells it. */
     cta?(): void;
+    ready?(): void;
+    gameEnd?(): void;
+    retry?(): void;
+    onActive?(listener: (active: boolean) => void): () => void;
 }
 
 const GLOBAL_KEY = '__ESTELLA_PLAYABLE__';
 
 let warned = false;
 
-function bridge(): PlayableAdBridge | undefined {
+export function playableAdBridge(): PlayableAdBridge | undefined {
     return (globalThis as Record<string, unknown>)[GLOBAL_KEY] as PlayableAdBridge | undefined;
 }
 
@@ -39,7 +43,7 @@ function bridge(): PlayableAdBridge | undefined {
  * editor and on the web.
  */
 export function playableCta(): void {
-    const cta = bridge()?.cta;
+    const cta = playableAdBridge()?.cta;
     if (cta) {
         cta();
         return;
@@ -54,5 +58,11 @@ export function playableCta(): void {
 /** Whether an ad-network bridge is installed — for a game that wants to hide its
  *  store button when there is nowhere to send the player. */
 export function hasPlayableCta(): boolean {
-    return typeof bridge()?.cta === 'function';
+    return typeof playableAdBridge()?.cta === 'function';
 }
+
+/** Notify the ad container when the game reaches a win or loss. */
+export function playableGameEnd(): void { playableAdBridge()?.gameEnd?.(); }
+
+/** Notify the ad container when the player explicitly restarts the game. */
+export function playableRetry(): void { playableAdBridge()?.retry?.(); }

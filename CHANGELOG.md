@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Added
+
+- **Playable exports handle Mintegral start, completion and retry.** The network profile embeds resources in `index.html` and emits `index.zip`; the runtime waits for host start, pauses gameplay and audio on close, and preserves game-owned pause state. `playableGameEnd()` and `playableRetry()` report gameplay outcomes separately from installation. A responsive CC0 space fleet example demonstrates the complete flow.
+
 ### Fixed
 
 - **Pointer carets keep supplementary characters intact.** Clicking single-line, multiline or password fields no longer places the caret between the UTF-16 halves of an emoji or another supplementary code point. DOM selection offsets remain UTF-16-based, and existing prefix measurement behavior is preserved.

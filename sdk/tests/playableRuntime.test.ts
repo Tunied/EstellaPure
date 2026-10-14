@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('../src/runtime/runtimeLoader', () => ({
     initRuntime: vi.fn().mockResolvedValue(undefined),
@@ -14,6 +14,9 @@ import { initPlayableRuntime } from '../src/runtime/playableRuntime';
 import type { PlayableRuntimeConfig } from '../src/runtime/playableRuntime';
 import { initRuntime } from '../src/runtime/runtimeLoader';
 import { Assets } from '../src/asset/AssetPlugin';
+import { App } from '../src/app/app';
+import { Input, InputState } from '../src/input/input';
+import type { PlayableAdBridge } from '../src/runtime/playableCta';
 
 function createMockConfig(overrides?: Partial<PlayableRuntimeConfig>): PlayableRuntimeConfig {
     const canvas = { width: 320, height: 480 } as HTMLCanvasElement;
@@ -44,6 +47,32 @@ function createMockConfig(overrides?: Partial<PlayableRuntimeConfig>): PlayableR
 describe('initPlayableRuntime', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        delete (globalThis as Record<string, unknown>).__ESTELLA_PLAYABLE__;
+    });
+    afterEach(() => { delete (globalThis as Record<string, unknown>).__ESTELLA_PLAYABLE__; vi.restoreAllMocks(); });
+
+    it('announces ready after resources load and preserves game pause through host visibility', async () => {
+        const app = App.new(), state = new InputState(), order: string[] = [];
+        app.insertResource(Input, state); state.keysDown.add('KeyD');
+        state.setVirtualSource({}, 'move', 1, 0); state.setVirtual('manual', 1);
+        let active!: (value: boolean) => void;
+        const release = vi.fn();
+        const bridge: PlayableAdBridge = {
+            ready: () => { order.push('ready'); },
+            onActive: listener => { active = listener; listener(false); return release; },
+        };
+        (globalThis as Record<string, unknown>).__ESTELLA_PLAYABLE__ = bridge;
+        vi.mocked(initRuntime).mockImplementationOnce(async () => { order.push('loaded'); });
+        vi.spyOn(app, 'run').mockImplementation(async () => { order.push('run'); });
+        await initPlayableRuntime(createMockConfig({ app }));
+        expect(order).toEqual(['loaded', 'run', 'ready']);
+        expect(app.isPaused()).toBe(true); expect(state.keysDown.size).toBe(0);
+        expect(state.getVirtual('move').x).toBe(0); expect(state.getVirtual('manual').x).toBe(1);
+        app.setPaused(true); active(true); expect(app.isPaused()).toBe(true);
+        app.setPaused(false); active(false); expect(app.isPaused()).toBe(true);
+        state.keysDown.add('Space'); active(true); expect(app.isPaused()).toBe(false);
+        expect(state.keysDown.size).toBe(0);
+        app.quit(); expect(release).toHaveBeenCalledTimes(1);
     });
 
     it('passes scenes array and firstScene to initRuntime', async () => {

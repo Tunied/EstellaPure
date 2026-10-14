@@ -1,0 +1,20 @@
+{
+  "formatVersion": "1",
+  "name": "Playable Ad",
+  "description": "CC0 space fleet playable with persistent store CTA, completion and retry notifications.",
+  "tag": "Platform",
+  "version": "0.1.0",
+  "defaultScene": "assets/scenes/main.esscene",
+  "designResolution": {
+    "width": 600,
+    "height": 600
+  },
+  "spineVersion": "none",
+  "packaging": {
+    "platforms": {
+      "playable": {
+        "network": "mintegral"
+      }
+    }
+  }
+}

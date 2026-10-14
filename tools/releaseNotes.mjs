@@ -44,6 +44,8 @@ export const NOTED = {
     { note: 'Hidden text and skeletal batches skip vertex conversion.' },
   'perf(renderer): cull bulk draws before staging geometry':
     { note: 'Camera-excluded bulk draws skip transient geometry.' },
+  'feat(playable): add Mintegral container lifecycle':
+    { note: 'Playable exports handle Mintegral start, completion and retry.' },
   'perf(renderer): reject full texture runs before copying indices':
     { note: 'Full texture batches avoid unused index copies.' },
   'fix(examples): distinguish motion requests from sensor samples':

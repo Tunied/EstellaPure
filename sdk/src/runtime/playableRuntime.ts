@@ -11,6 +11,7 @@
  *          entry only owns the embedded asset source + the runtime boot.
  */
 import type { App } from '../app/app';
+import { setAppHostPaused } from '../app/app';
 import type { ESEngineModule } from '../wasm';
 import type { AudioProjectConfig } from '../audio/AudioProjectConfig';
 import { initRuntime } from './runtimeLoader';
@@ -20,7 +21,9 @@ import { EmbeddedBackend } from '../asset/Backend';
 import { ManifestModel, type AddressableManifest } from '../asset/AddressableManifest';
 import type { Physics2DPluginConfig } from '../physics/PhysicsTypes';
 import type { SceneData } from '../scene/scene';
-import { Audio } from '../audio/Audio';
+import { Audio, setAudioHostSuspended } from '../audio/Audio';
+import { Input, inputEventCallbacks } from '../input/input';
+import { playableAdBridge } from './playableCta';
 import { VideoPlayer } from '../video/VideoAPI';
 
 export interface PlayableRuntimeConfig {
@@ -160,5 +163,26 @@ export async function initPlayableRuntime(config: PlayableRuntimeConfig): Promis
         aspectRatio: config.canvas.width / config.canvas.height,
     });
 
-    app.run();
+    const bridge = playableAdBridge();
+    if (bridge?.onActive) {
+        const owner = {};
+        let release: (() => void) | undefined;
+        app.addPlugin({
+            name: 'playable-network-lifecycle',
+            build() {
+                release = bridge.onActive!(active => {
+                    setAppHostPaused(app, owner, !active);
+                    if (app.hasResource(Input)) inputEventCallbacks(app.getResource(Input)).onInputCancel?.();
+                    if (app.hasResource(Audio)) setAudioHostSuspended(app.getResource(Audio), owner, !active);
+                });
+            },
+            cleanup() {
+                release?.();
+                setAppHostPaused(app, owner, false);
+                if (app.hasResource(Audio)) setAudioHostSuspended(app.getResource(Audio), owner, false);
+            },
+        });
+    }
+    await app.run();
+    bridge?.ready?.();
 }

@@ -363,7 +363,7 @@ describe('playable ad networks', () => {
     };`);
     const rows = await listPlayableNetworks(root);
     expect(rows.filter((r) => r.source === 'builtin').map((r) => r.id))
-      .toEqual(['generic', 'meta', 'google', 'mraid', 'unity', 'applovin']);
+      .toEqual(['generic', 'meta', 'google', 'mraid', 'unity', 'applovin', 'mintegral']);
     // A project network names the file that defines it, so the dialog can point at it
     // (and at the error, when one fails to load). Built-ins have no file.
     expect(rows.find((r) => r.id === 'acme-ads')).toMatchObject({
@@ -427,6 +427,15 @@ describe('playable ad networks', () => {
     };`);
     const row = (await listPlayableNetworks(root)).find((r) => r.id === 'oddnet');
     expect(row!.error).toMatch(/delivery/);
+  });
+
+  it('rejects ZIP filenames that escape the export directory', async () => {
+    writePlatform('unsafe-zip.mjs', `export default {
+      id: 'unsafe-zip', kind: 'playable', label: 'Unsafe ZIP', maxBytes: 100, limitNote: 'x',
+      delivery: 'zip', zipFileName: '../escape.zip',
+    };`);
+    const row = (await listPlayableNetworks(root)).find((r) => r.id === 'unsafe-zip');
+    expect(row!.error).toMatch(/zipFileName/);
   });
 
   it('rejects a playable profile missing the facts the warning needs', async () => {

@@ -7,6 +7,16 @@ import { defineResource } from '../ecs/resource';
 import { RuntimeConfig } from '../defaults';
 import { log } from '../util/logger';
 
+const hostSuspensions = new WeakMap<AudioAPI, { owners: Set<object>; sync(): void }>();
+
+/** Internal host suspension, preserving explicit Audio.suspend/resume intent. */
+export function setAudioHostSuspended(audio: AudioAPI, owner: object, suspended: boolean): void {
+    const state = hostSuspensions.get(audio);
+    if (!state) return;
+    if (suspended) state.owners.add(owner); else state.owners.delete(owner);
+    state.sync();
+}
+
 /**
  * One decoded buffer's residency record. Mirrors the texture pool's
  * three-state lifecycle: held (refCount > 0, pinned by Assets) →
@@ -125,6 +135,7 @@ export class AudioAPI {
     private readonly fadingOut_ = new Set<AudioHandle>();
     private disposed_ = false;
     private suspended_ = false;
+    private deviceSuspended_ = false;
     private assetResolver_: ((url: string) => ArrayBuffer | null) | null = null;
     private refResolver_: ((ref: string) => string) | null = null;
     baseUrl = '';
@@ -132,6 +143,7 @@ export class AudioAPI {
     constructor(backend: PlatformAudioBackend, mixer: AudioMixer | null = null) {
         this.backend_ = backend;
         this.mixer_ = mixer;
+        hostSuspensions.set(this, { owners: new Set(), sync: () => this.syncHostSuspension_() });
     }
 
     /** What this platform's backend needs in order to play a clip — asked by the
@@ -475,12 +487,22 @@ export class AudioAPI {
     suspend(): void {
         this.backend_.suspend();
         this.suspended_ = true;
+        this.deviceSuspended_ = true;
     }
 
     /** Resume the audio device after {@link suspend}. */
     resume(): void {
-        this.backend_.resume();
         this.suspended_ = false;
+        if (!hostSuspensions.get(this)?.owners.size) {
+            this.backend_.resume(); this.deviceSuspended_ = false;
+        }
+    }
+
+    private syncHostSuspension_(): void {
+        const suspended = this.suspended_ || !!hostSuspensions.get(this)?.owners.size;
+        if (this.disposed_ || suspended === this.deviceSuspended_) return;
+        this.deviceSuspended_ = suspended;
+        if (suspended) this.backend_.suspend(); else this.backend_.resume();
     }
 
     setMasterVolume(volume: number): void {
