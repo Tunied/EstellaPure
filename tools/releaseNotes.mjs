@@ -32,6 +32,8 @@ export const NOTED = {
     { note: 'Plain-text wrapping avoids repeated whole-line glyph measurements.' },
   'perf(text): trim overflowing plain text with prefix advances':
     { note: 'Long plain-text overflow trims with linear glyph measurement work.' },
+  'feat(viewport): transform selections around individual origins':
+    { note: 'Multi-selection transforms support Individual Origins.' },
   'perf(text): bound page-free glyph caches':
     { note: 'Page-free text glyph caches stay bounded.' },
   'feat(viewport): configure transform handle size':

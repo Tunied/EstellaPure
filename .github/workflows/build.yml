@@ -717,6 +717,17 @@ jobs:
         path: output/gizmo-hover-ci/
         retention-days: 3
 
+    - name: Check Individual Origins gestures and transaction recovery
+      if: matrix.shard == 1
+      run: node tools/verify-gizmo-origins.mjs
+    - name: Upload Individual Origins acceptance evidence
+      if: always() && matrix.shard == 1
+      uses: actions/upload-artifact@v7
+      with:
+        name: gizmo-origins-editor-checks
+        path: output/gizmo-origins-ci/
+        retention-days: 3
+
     # Between the two heavy steps, so the disk each one costs is attributable.
     # The report at the bottom cannot do that, and it is the report that dies
     # with the runner: a full disk takes the log that would name what filled it,

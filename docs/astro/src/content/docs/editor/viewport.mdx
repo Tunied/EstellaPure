@@ -42,10 +42,18 @@ arrows, center plane, rotation rings and hit areas together from 0.5 to 2 (defau
 1). The preference persists across editor sessions. Changing it during a handle
 drag takes effect after release; the current drag retains its size and sensitivity.
 
-Dragging a handle transforms the whole selection as one, about a shared pivot, and
-each drag is a single undo step. **Alt-drag** a selection to duplicate it and drag the
-copies. Nudge the selection with the **arrow keys** (one grid step; hold **Shift** for
-×10).
+The viewport pivot button cycles **Center → Pivot → Individual Origins**. Center
+uses the selection's centroid; Pivot uses the active object's position. Individual
+Origins draws one handle at the selection center, but rotation and scale keep each
+target's position and change its own pose. Translation is the same in all modes.
+Choose a mode directly from the **View** menu or the Command Palette. If a parent
+and child are both selected, the parent still carries its subtree to avoid applying
+the gesture twice. Locked targets stay excluded. The pivot policy is captured at
+the start of a drag, so changing it during that drag applies to the next gesture.
+
+Each drag is a single undo step; **Esc** cancels it. **Alt-drag** a selection to
+duplicate it and drag the copies. Nudge the selection with the **arrow keys** (one
+grid step; hold **Shift** for ×10).
 
 **Align & distribute** — select two or more entities and a strip of alignment buttons
 appears in the viewport overlay: align **left / centre / right** edges and **top / middle /

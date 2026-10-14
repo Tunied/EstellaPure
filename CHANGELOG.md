@@ -24,6 +24,8 @@ published separately; it ships inside the editor.
 
 ### Added
 
+- **Multi-selection transforms support Individual Origins.** The viewport pivot control cycles Center, active-object Pivot and Individual Origins, with direct View menu and Command Palette choices. Individual rotation and scale keep each transform target's position, while translation, hierarchy pruning, locks, snapping and the existing undo/Alt-copy path remain shared. Each gesture captures its pivot policy.
+
 - **Transform handle size is configurable.** Editor settings scale move/scale handles, rotation rings and hit areas together from 0.5 to 2, with the legacy size as default. The preference persists across sessions; active handle drags keep their captured size and sensitivity until release or cancellation.
 
 ## [0.85.0] - 2026-10-15
