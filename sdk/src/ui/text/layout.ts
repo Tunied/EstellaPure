@@ -194,24 +194,22 @@ export interface MultilineTextOptions extends TextLayoutOptions {
 /** The character appended to a line the ellipsis mode cut. */
 const ELLIPSIS = '\u2026';
 
-/**
- * Cut `line` down to `limit` px, appending an ellipsis when asked. Trimmed one
- * code point at a time from the end rather than by a ratio: a proportional guess
- * lands mid-glyph on any font that is not monospace, and the ellipsis has to fit
- * INSIDE the limit or the trim it paid for was for nothing.
- */
+/** Trim at codepoint boundaries using shared prefix advances, including the mark. */
 function truncateLine(
     line: string, measure: (s: string) => number, limit: number, ellipsis: boolean,
+    measurePrefixes: (s: string) => readonly number[],
 ): string {
     if (limit <= 0 || measure(line) <= limit) return line;
     const tail = ellipsis ? ELLIPSIS : '';
+    const tailWidth = measure(tail);
+    const widths = measurePrefixes(line);
     const chars = [...line];
-    // Whole-glyph granularity, and the caller is told so: a partial glyph would
-    // need the renderer to scissor, which text does not go through.
-    while (chars.length > 0) {
-        chars.pop();
-        const candidate = chars.join('').trimEnd();
-        if (measure(candidate + tail) <= limit) return candidate + tail;
+    const ends = [0];
+    for (const ch of chars) ends.push(ends[ends.length - 1]! + ch.length);
+    for (let count = chars.length - 1; count >= 0; count--) {
+        while (count > 0 && chars[count - 1]!.trimEnd() === '') count--;
+        const end = ends[count]!;
+        if (widths[end]! + tailWidth <= limit) return line.slice(0, end) + tail;
     }
     return tail;
 }
@@ -370,12 +368,13 @@ export function layoutText(
         const kept = plainLines.slice(0, maxLines === Infinity ? undefined : maxLines);
         const dropped = kept.length < plainLines.length;
         const measure = (t: string) => measureWidth(t, atlas, fontFamily, opts.fontSizePx, style, opts.letterSpacing ?? 0);
+        const prefixes = (t: string) => measurePrefixWidths(t, atlas, fontFamily, opts.fontSizePx, style, opts.letterSpacing ?? 0);
         const cut = kept.map((line, i) => {
             const last = i === kept.length - 1;
             // The last kept line carries the ellipsis when lines were dropped, even
             // if it fits: the mark says "there is more", not "this line was long".
-            if (dropped && last && ellipsis) return truncateLine(line + ELLIPSIS, measure, widthLimit || Infinity, true);
-            return widthLimit > 0 ? truncateLine(line, measure, widthLimit, ellipsis) : line;
+            if (dropped && last && ellipsis) return truncateLine(line + ELLIPSIS, measure, widthLimit || Infinity, true, prefixes);
+            return widthLimit > 0 ? truncateLine(line, measure, widthLimit, ellipsis, prefixes) : line;
         });
         lineLayouts = cut.map(line => layoutLine(line, atlas, fontFamily, opts, style));
     }

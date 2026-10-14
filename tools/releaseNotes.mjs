@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(text): trim overflowing plain text with prefix advances':
+    { note: 'Long plain-text overflow trims with linear glyph measurement work.' },
   'perf(text): bound page-free glyph caches':
     { note: 'Page-free text glyph caches stay bounded.' },
   'feat(viewport): configure transform handle size':

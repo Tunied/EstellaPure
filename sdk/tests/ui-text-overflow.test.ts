@@ -122,3 +122,40 @@ describe('TextOverflow', () => {
         expect(linesOf(l)).toBe(2);
     });
 });
+
+
+it.each([TextOverflow.Clip, TextOverflow.Ellipsis])('clips long text with linear glyph lookup work (mode=%s)', overflow => {
+    const atlas = makeAtlas();
+    const get = atlas.getGlyph.bind(atlas);
+    let lookups = 0;
+    atlas.getGlyph = (...args) => { lookups++; return get(...args); };
+    const text = 'A'.repeat(3000);
+    const result = layoutText(text, atlas, 'Arial', { fontSizePx: F, boxWidth: 30, overflow });
+    expect(result.width).toBeLessThanOrEqual(30);
+    expect(result.glyphs.length).toBeGreaterThan(0);
+    expect(lookups).toBeLessThan(text.length * 3);
+});
+
+it.each([-8, 0, 2.25])('matches whole-codepoint trimming with spaces and signed spacing (%s)', letterSpacing => {
+    const atlas = makeAtlas();
+    for (const line of ['A😀 B  C测试   '.repeat(4), '😀😀😀abc', 'A\u2003B\u00a0C']) {
+        for (const overflow of [TextOverflow.Clip, TextOverflow.Ellipsis]) {
+            const measure = (s: string) => measureWidth(s, atlas, 'Arial', F, 0, letterSpacing);
+            for (const limit of [5, 13.5, 23, 50]) {
+                const tail = overflow === TextOverflow.Ellipsis ? '…' : '';
+                let expected = line;
+                if (measure(line) > limit) {
+                    const chars = [...line]; expected = tail;
+                    while (chars.length) {
+                        chars.pop(); const candidate = chars.join('').trimEnd() + tail;
+                        if (measure(candidate) <= limit) { expected = candidate; break; }
+                    }
+                }
+                const opts = { fontSizePx: F, letterSpacing };
+                const actual = layoutText(line, atlas, 'Arial', { ...opts, boxWidth: limit, overflow });
+                const reference = layoutText(expected, atlas, 'Arial', opts);
+                expect(actual).toEqual(reference);
+            }
+        }
+    }
+});
