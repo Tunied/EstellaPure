@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Camera-excluded bulk draws skip transient geometry.** Batch and shape submissions check the camera mask before copying vertices or rebasing indices. SortingGroup layers and explicit culling bits keep their existing behavior; resident-vertex submissions skip excluded indices without discarding geometry owned by their caller.
+
 - **Full texture batches avoid unused index copies.** Sorted 2D commands start a separate draw before copying indices when their new texture exceeds the available sampler slots, including slots reserved for masks. Existing textures still join full batches, preserving painter order and reducing transient index upload work.
 
 ## [0.80.0] - 2026-10-14

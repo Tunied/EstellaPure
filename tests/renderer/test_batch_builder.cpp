@@ -235,6 +235,63 @@ TEST_CASE("finalize: sorted Batch index gaps merge in painter order with their t
     CHECK(verts[8].texIndex == 1);
 }
 
+TEST_CASE("camera mask: excluded bulk geometry does not enter transient streams") {
+    for (LayoutId layout : {LayoutId::Batch, LayoutId::Shape}) {
+        Harness h;
+        h.list.setCullingMask(1u << 6);
+        auto hidden = quadKey(1, 4);
+        hidden.layoutId = layout;
+        BatchVertex quad[4] = {};
+        TestShapeVertex shape[4] = {};
+        const void* verts = layout == LayoutId::Batch ? static_cast<const void*>(quad)
+                                                     : static_cast<const void*>(shape);
+        for (u32 i = 0; i < 10000; ++i) {
+            appendIndexedDraw(h.pool, h.list, h.clips, verts, 4, BATCH_QUAD_INDICES, 6, hidden);
+        }
+        CHECK(h.list.commandCount() == 0);
+        CHECK(h.pool.vertexBytesUsed(layout) == 0);
+        CHECK(h.pool.indicesUsed(layout) == 0);
+
+        h.list.setSortingGroup(31, {6, 0, false, 0});
+        hidden.entity = Entity(31);
+        appendIndexedDraw(h.pool, h.list, h.clips, verts, 4, BATCH_QUAD_INDICES, 6, hidden);
+        CHECK(h.list.commandCount() == 1);
+        CHECK(h.pool.vertexBytesUsed(layout) == 4 * h.pool.vertexStride(layout));
+        CHECK(h.pool.indicesUsed(layout) == 6);
+    }
+}
+
+TEST_CASE("camera mask: resident geometry skips excluded indices with both source widths") {
+    Harness h;
+    h.list.setCullingMask(1u << 6);
+    BatchVertex quad[4] = {};
+    const u32 offset = h.pool.appendVertices(LayoutId::Batch, quad, sizeof(quad));
+    const u16 indices16[] = {0, 1, 2, 2, 3, 0};
+    auto hidden = quadKey(1, 4);
+    pushBatchCommand(h.pool, h.list, h.clips, offset, 4, BATCH_QUAD_INDICES, 6, hidden);
+    pushBatchCommand(h.pool, h.list, h.clips, offset, 4, indices16, 6, hidden);
+    CHECK(h.pool.indicesUsed(LayoutId::Batch) == 0);
+    CHECK(h.pool.vertexBytesUsed(LayoutId::Batch) == sizeof(quad));
+    CHECK(h.list.commandCount() == 0);
+    hidden.cullBit = 1u << 6;
+    pushBatchCommand(h.pool, h.list, h.clips, offset, 4, indices16, 6, hidden);
+    CHECK(h.pool.indicesUsed(LayoutId::Batch) == 6);
+    CHECK(h.list.commandCount() == 1);
+    auto excludedGroup = quadKey(1, 6);
+    excludedGroup.entity = Entity(32);
+    h.list.setSortingGroup(32, {4, 0, false, 0});
+    appendQuad(h.pool, h.list, h.clips, quad, excludedGroup);
+    auto excludedBit = quadKey(1, 6);
+    excludedBit.cullBit = 1u << 4;
+    appendQuad(h.pool, h.list, h.clips, quad, excludedBit);
+    CHECK(h.pool.vertexBytesUsed(LayoutId::Batch) == sizeof(quad));
+    CHECK(h.pool.indicesUsed(LayoutId::Batch) == 6);
+    CHECK(h.list.commandCount() == 1);
+    appendQuad(h.pool, h.list, h.clips, quad, quadKey(1, -1));
+    CHECK(h.pool.indicesUsed(LayoutId::Batch) == 12);
+    CHECK(h.list.commandCount() == 2);
+}
+
 TEST_CASE("finalize: full texture slots reject index copies but allow existing textures") {
     for (bool masked : {false, true}) {
         for (bool reuse : {false, true}) {
