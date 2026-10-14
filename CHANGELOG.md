@@ -24,6 +24,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Batch merging preserves depth bias and geometry bindings.** Non-instanced commands with different depth offsets, vertex/index buffers or vertex layouts now stay separate, preventing one draw from inheriting another's GPU state even when their index ranges are adjacent.
+
 - **Sorted 2D batches join across emission index gaps.** Compatible transient quads reuse contiguous index ranges in painter order even when their producers emitted them apart, reducing UI and text draw calls without combining different clipping states or external buffers. Mixed sprite/text batches retain their original per-type entity statistics.
 
 - **Runtime hierarchy inspection follows native parent additions and removals.** The tree and selected details use current component membership before reading a parent, so native edits appear immediately even when the SDK's cached hierarchy membership is stale. Detaching a node clears its parent instead of reporting the empty getter's sentinel; disabled nodes remain included.

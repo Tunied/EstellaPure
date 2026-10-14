@@ -280,6 +280,33 @@ TEST_CASE("finalize: external Batch buffers retain their separate index ranges")
     CHECK(h.pool.indicesUsed(LayoutId::Batch) == 12);
 }
 
+TEST_CASE("merge identity: depth bias and geometry bindings must agree") {
+    DrawCommand a{}, b{};
+    a.shader_id = b.shader_id = 7;
+    a.index_count = b.index_count = 6;
+    b.index_offset = 6;
+    CHECK(a.canMergeWith(b));
+    SUBCASE("depth bias") {
+        b.depth_bias = 1;
+        CHECK_FALSE(a.canMergeWith(b));
+    }
+    SUBCASE("vertex buffer") {
+        a.vertex_buffer = static_cast<BufferHandle>(11);
+        b.vertex_buffer = static_cast<BufferHandle>(12);
+        CHECK_FALSE(a.canMergeWith(b));
+    }
+    SUBCASE("index buffer") {
+        a.index_buffer = static_cast<BufferHandle>(11);
+        b.index_buffer = static_cast<BufferHandle>(12);
+        CHECK_FALSE(a.canMergeWith(b));
+    }
+    SUBCASE("vertex layout") {
+        a.vertex_layout = static_cast<VertexLayoutHandle>(11);
+        b.vertex_layout = static_cast<VertexLayoutHandle>(12);
+        CHECK_FALSE(a.canMergeWith(b));
+    }
+}
+
 TEST_CASE("finalize: different streams never coalesce; instanced draws stay one per emitter") {
     Harness h;
     BatchVertex quad[4] = {};

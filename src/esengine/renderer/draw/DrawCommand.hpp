@@ -372,7 +372,6 @@ struct DrawCommand {
             if (shader_id != next.shader_id) return BatchBreak::Shader;
             if (material_id != next.material_id) return BatchBreak::Material;
             if (cull != next.cull) return BatchBreak::Cull;
-        if (depth_bias != next.depth_bias) return BatchBreak::Cull;
             if (depth_bias != next.depth_bias) return BatchBreak::Cull;
             if (state_flags != next.state_flags) return BatchBreak::State;
             if (state_flags & CMD_STATE_SCISSOR) {
@@ -385,7 +384,8 @@ struct DrawCommand {
         }
         if (shader_id != next.shader_id) return BatchBreak::Shader;
         if (blend_mode != next.blend_mode) return BatchBreak::Blend;
-        if (layout_id != next.layout_id) return BatchBreak::Layout;
+        if (layout_id != next.layout_id || vertex_buffer != next.vertex_buffer
+            || index_buffer != next.index_buffer || vertex_layout != next.vertex_layout) return BatchBreak::Layout;
         // Same material handle => same uniforms/textures; different ones must not
         // coalesce. material_id 0 (no material) shares the path's defaults, so they still merge.
         if (material_id != next.material_id) return BatchBreak::Material;
@@ -401,6 +401,7 @@ struct DrawCommand {
         if (depth_test != next.depth_test) return BatchBreak::Depth;
         if (depth_write != next.depth_write) return BatchBreak::Depth;
         if (cull != next.cull) return BatchBreak::Cull;
+        if (depth_bias != next.depth_bias) return BatchBreak::Cull;
         if (state_flags != next.state_flags) return BatchBreak::State;
         if (state_flags & CMD_STATE_SCISSOR) {
             if (scissor != next.scissor) return BatchBreak::Scissor;

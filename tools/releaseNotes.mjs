@@ -32,6 +32,8 @@ export const NOTED = {
     { note: 'Mobile controls share InputMap and device capability results.' },
   'feat(examples): refresh sprite rendering with CC0 space art':
     { note: 'Sprite rendering has a complete space art example.' },
+  'fix(renderer): preserve depth bias and buffer identity in batch merges':
+    { note: 'Batch merging preserves depth bias and geometry bindings.' },
   'perf(renderer): coalesce sorted 2d batch index gaps':
     { note: 'Sorted 2D batches join across emission index gaps.' },
   'fix(inspector): read current native parent membership in runtime snapshots':
