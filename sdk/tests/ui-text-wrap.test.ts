@@ -9,7 +9,7 @@ import { describe, it, expect } from 'vitest';
 import {
     GlyphAtlas, type GlyphRasterizer, type AtlasPageStore, type RasterGlyph,
 } from '../src/ui/text/glyph-atlas';
-import { wrapLine, wrapRichRuns, measureWidth, layoutText } from '../src/ui/text/layout';
+import { wrapLine, wrapByMeasure, wrapRichRuns, measureWidth, layoutText } from '../src/ui/text/layout';
 import type { TextSegment } from '../src/ui/text/rich-text-parser';
 
 function makeAtlas(): GlyphAtlas {
@@ -90,4 +90,24 @@ describe('REARCH_GUI P1.4c: word-wrap', () => {
         expect(layout.glyphs.length).toBe(6);     // 3 lines × "AA"
         expect(layout.glyphs[5].y0).toBeLessThan(layout.glyphs[0].y0);
     });
+});
+
+
+it.each(['A'.repeat(4000), 'word '.repeat(800)])('wraps long lines with linear glyph queries', text => {
+    const atlas = makeAtlas();const get = atlas.getGlyph.bind(atlas);let calls = 0;
+    atlas.getGlyph = (...args) => { calls++; return get(...args); };
+    const lines = wrapLine(text, atlas, 'Arial', F, 0, 11000);
+    expect(lines.join('').length).toBeGreaterThan(0);
+    expect(calls).toBeLessThan(text.length * 5);
+});
+
+it.each([-5, 0, 1 / 3])('preserves arbitrary-measure wrap decisions at exact boundaries (spacing=%s)', spacing => {
+    const atlas = makeAtlas();
+    for (const text of [' A😀 测试  B\tC ', '文'.repeat(45), 'word '.repeat(40), 'A\u2003B\u00a0😀 C']) {
+        const measure = (s: string) => measureWidth(s, atlas, 'Arial', F, 0, spacing);
+        for (const width of [1, 5.5, 25, measure('A😀 测试'), 111.1]) {
+            expect(wrapLine(text, atlas, 'Arial', F, 0, width, spacing))
+                .toEqual(wrapByMeasure(text, measure, width));
+        }
+    }
 });

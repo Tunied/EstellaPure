@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Plain-text wrapping avoids repeated whole-line glyph measurements.** The atlas-backed wrap path appends glyph advances in their original order while sharing the greedy wrap decisions with arbitrary string measurement. Long words and wide lines stay linear in glyph queries; spaces, supplementary characters and signed spacing preserve prior line breaks and geometry. Canvas string measurement retains its existing behavior.
+
 - **Long plain-text overflow trims with linear glyph measurement work.** Clip and Ellipsis reuse one pass of prefix advances instead of remeasuring every shorter candidate. Trimming retains whole code points, trailing-whitespace handling and signed letter spacing; matching prefix order preserves the existing glyph geometry.
 
 - **Page-free text glyph caches stay bounded.** Missing and oversized glyphs, whitespace metrics and measurement-only entries use a 4096-entry least-recently-used cache. Historical fonts and sizes retire without touching live drawable pages or cached layout coordinates; recently used measurements remain cached and retired entries rasterize again on demand.

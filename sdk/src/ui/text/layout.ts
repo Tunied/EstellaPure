@@ -269,43 +269,70 @@ export function measurePrefixWidths(
  * it, so measured heights match rendered wraps.
  */
 export function wrapByMeasure(text: string, measure: (s: string) => number, maxWidth: number): string[] {
+    return wrapMeasured(text, measure, maxWidth);
+}
+
+function wrapMeasured(
+    text: string, measure: (s: string) => number, maxWidth: number,
+    appendWidth?: (width: number, suffix: string) => number,
+): string[] {
     const out: string[] = [];
     let cur = '';
-    const flush = () => { const t = cur.replace(/\s+$/, ''); if (t) out.push(t); cur = ''; };
+    let curWidth = 0;
+    const flush = () => { const t = cur.replace(/\s+$/, ''); if (t) out.push(t); cur = ''; curWidth = 0; };
+    const appended = (suffix: string) => appendWidth ? appendWidth(curWidth, suffix) : measure(cur + suffix);
     const charBreak = (token: string) => {
         for (const ch of token) {
-            if (cur && measure(cur + ch) > maxWidth) flush();
+            let width = cur ? appended(ch) : appendWidth?.(0, ch) ?? 0;
+            if (cur && width > maxWidth) {
+                flush();
+                width = appendWidth?.(0, ch) ?? 0;
+            }
             cur += ch;
+            curWidth = width;
         }
     };
 
     for (const token of text.split(/(\s+)/)) {
         if (token === '') continue;
-        if (/^\s+$/.test(token)) { if (cur) cur += token; continue; } // keep inter-word spaces, drop leading
+        if (/^\s+$/.test(token)) {
+            if (cur) { if (appendWidth) curWidth = appendWidth(curWidth, token); cur += token; }
+            continue;
+        }
         if (!cur) {
-            if (measure(token) <= maxWidth) cur = token;
+            const width = measure(token);
+            if (width <= maxWidth) { cur = token; curWidth = width; }
             else charBreak(token);
-        } else if (measure(cur + token) <= maxWidth) {
-            cur += token;
         } else {
-            flush();
-            if (measure(token) <= maxWidth) cur = token;
-            else charBreak(token);
+            const width = appended(token);
+            if (width <= maxWidth) { cur += token; curWidth = width; }
+            else {
+                flush();
+                const tokenWidth = measure(token);
+                if (tokenWidth <= maxWidth) { cur = token; curWidth = tokenWidth; }
+                else charBreak(token);
+            }
         }
     }
     flush();
     return out.length ? out : [''];
 }
 
-/**
- * Greedy word-wrap a single line to `maxWidth` (display px) using the glyph
- * atlas's advances. Thin wrapper over {@link wrapByMeasure}.
- */
+/** Greedy wrap using ordered glyph advances without remeasuring the current line. */
 export function wrapLine(
     text: string, atlas: GlyphAtlas, fontFamily: string, fontSizePx: number,
     style: number, maxWidth: number, letterSpacing = 0,
 ): string[] {
-    return wrapByMeasure(text, (s) => measureWidth(s, atlas, fontFamily, fontSizePx, style, letterSpacing), maxWidth);
+    const pixelSize = atlas.pixelSizeFor(fontSizePx);
+    const scale = fontSizePx / pixelSize;
+    const append = (width: number, suffix: string): number => {
+        for (const ch of suffix) {
+            const glyph = atlas.getGlyph(ch.codePointAt(0)!, fontFamily, style, pixelSize);
+            if (glyph) width += glyph.advance * scale + letterSpacing;
+        }
+        return width;
+    };
+    return wrapMeasured(text, s => append(0, s), maxWidth, append);
 }
 
 /**
