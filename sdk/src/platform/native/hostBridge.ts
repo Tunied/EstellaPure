@@ -20,6 +20,7 @@ import type {
 import type { PlatformGlyph, PlatformGlyphRequest, PlatformRequestOptions } from '../types';
 import { assertHostEnvironment } from './hostEnvironment';
 import { cacheEntryName } from '../cacheEntryName';
+import { NativeDevice, type NativeDeviceHost } from '../../device/native';
 import { hasAudioBindings } from '../../ecs/bridge/nativeBindings';
 
 /** Touch phases the host reports, matching the order it dispatches. */
@@ -32,7 +33,7 @@ const POINTER_DOWN = 0;
 const POINTER_MOVE = 1;
 
 /** The `es_*` primitives a native host binds. Required unless marked optional. */
-export interface NativeHostBindings {
+export interface NativeHostBindings extends NativeDeviceHost {
     /** A packaged file's bytes, or null when it is not in the package. */
     es_readAsset(path: string): ArrayBuffer | null;
     /** Decode a packaged image to top-first RGBA, or null on failure. */
@@ -192,8 +193,10 @@ export function createHostBridge(
     const audio = hostAudio(bindings, scope);
     const textEditor = hostTextEditor(bindings, scope);
     const lifecycle = hostLifecycle(scope);
+    let device: NativeDevice | null = null;
 
     return {
+        device: () => device ??= new NativeDevice(bindings, lifecycle),
         readFile: (path) => {
             const bytes = bindings.es_readAsset(path);
             return bytes ? Promise.resolve(bytes) : Promise.reject(new Error(`asset not found: ${path}`));

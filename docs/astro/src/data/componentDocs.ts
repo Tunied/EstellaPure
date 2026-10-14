@@ -108,6 +108,8 @@ export const COMPONENT_DOCS: Record<string, ComponentDoc> = {
   UIGear: { category: 'ui', summary: 'Per-page field values a controller drives declaratively, authored from the Details panel.', doc: 'ui/controllers', anchor: 'gears', anchorZh: '属性绑定' },
   UIDialog: { category: 'ui', summary: 'A modal dialog surface — backdrop, result, and open/close state.', doc: 'ui/widgets', anchor: 'dialog', anchorZh: 'dialog-对话框' },
   UIDropdown: { category: 'ui', summary: 'A dropdown selector: its options and the selected index.', doc: 'ui/widgets', anchor: 'dropdown', anchorZh: 'dropdown-下拉框' },
+  VirtualJoystick: { category: 'ui', summary: 'An independently captured fixed or follow joystick, feeding a named virtual InputMap axis.', doc: 'ui/widgets', anchor: 'virtualjoystick', anchorZh: 'virtualjoystick' },
+  VirtualButton: { category: 'ui', summary: 'A held virtual InputMap action with independent pointer ownership and normal button appearance.', doc: 'ui/widgets', anchor: 'virtualbutton', anchorZh: 'virtualbutton' },
   UISlider: { category: 'ui', summary: 'A draggable value along a range, with an optional step.', doc: 'ui/widgets', anchor: 'slider', anchorZh: 'slider-滑块' },
   UIToggle: { category: 'ui', summary: 'A two-state widget — checkbox or switch — and its group membership.', doc: 'ui/widgets', anchor: 'toggle', anchorZh: 'toggle-开关' },
   UIToggleGroup: { category: 'ui', summary: 'Makes the toggles beneath it exclusive — a radio group or tab bar. Put it on their common ancestor.', doc: 'ui/widgets', anchor: 'toggle', anchorZh: 'toggle-开关' },

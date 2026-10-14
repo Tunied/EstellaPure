@@ -5,6 +5,12 @@ import { App, flushPendingRegistrations } from '../src/app/app';
 import { AppContext, setDefaultContext } from '../src/ecs/context';
 import { setEditorMode, setPlayMode } from '../src/ecs/env';
 import { Input, InputState, inputEventCallbacks } from '../src/input/input';
+import { defineInputMap, Axis2D, Virtual } from '../src/input/inputMap';
+import { Transform } from '../src/ecs/component';
+import { createVirtualControlSystem, VirtualJoystick } from '../src/ui/behavior/virtual-controls';
+import { Schedule } from '../src/ecs/system';
+import { UINode } from '../src/ui/core/ui-node';
+import { SystemLabel } from '../src/ecs/systemLabels';
 import { UICameraInfo } from '../src/ui/core/ui-camera-info';
 import { ScreenOverlay } from '../src/ui/core/screen-overlay';
 import { UILayoutGeneration } from '../src/ui/layout/ui-layout-generation';
@@ -21,6 +27,7 @@ const hit = vi.hoisted(() => ({ entity: null as number | null }));
 vi.mock('../src/ui/util/ui-pick', () => ({
     screenToUiWorld: (_camera: unknown, x: number, y: number) => ({ x, y }),
     screenToUiLayout: (_overlay: unknown, x: number, y: number) => ({ x, y }),
+    isScreenEntity: () => true,
     uiPointerRay: () => ({}), uiLayoutRay: () => ({}), uiHitTestWorld: () => hit.entity,
 }));
 
@@ -43,6 +50,23 @@ describe.skipIf(!HAS_WASM)('pointer callback lifecycle on real WASM', () => {
         vi.restoreAllMocks();
         for (const entity of app.world.getAllEntities()) app.world.despawn(entity);
         app.world.disconnectCpp(); registry.delete();
+    });
+    it('evaluates a registered InputMap after virtual controls in the same frame', async () => {
+        const map = defineInputMap({ Move: Axis2D(Virtual('move')) });
+        flushPendingRegistrations(app);
+        const virtual = createVirtualControlSystem(app.world, app.getResource(UIEvents));
+        app.addSystemToSchedule(Schedule.PreUpdate, virtual.system, { runAfter: [SystemLabel.UIInteraction] });
+        const entity = app.world.spawn(); hit.entity = entity;
+        app.world.insert(entity, Transform); app.world.insert(entity, Interactable);
+        app.world.insert(entity, UINode);
+        app.world.insert(entity, VirtualJoystick);
+        const state = app.getResource(Input), callbacks = inputEventCallbacks(state);
+        callbacks.onTouchStart!(5, 50, 600); await app.tick(1 / 60);
+        expect(state.getVirtual('move').x).toBeCloseTo(1);
+        expect(map.axis2d('Move').x).toBeCloseTo(1);
+        state.clearFrameState(); callbacks.onTouchCancel!(5); await app.tick(1 / 60);
+        expect(map.axis2d('Move')).toEqual({ x: 0, y: 0 });
+        virtual.dispose();
     });
     it('keeps the replacement touch held and projects its current position', async () => {
         const entity = app.world.spawn(); hit.entity = entity; app.world.insert(entity, Interactable);

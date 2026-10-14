@@ -1,0 +1,13 @@
+{
+  "formatVersion": "1",
+  "name": "Mobile Controls",
+  "description": "Multi-touch virtual joystick and fire button, tilt controls, haptics, wake lock and browser display controls.",
+  "tag": "Input",
+  "version": "0.1.0",
+  "defaultScene": "assets/scenes/main.esscene",
+  "designResolution": {
+    "width": 800,
+    "height": 450
+  },
+  "spineVersion": "none"
+}

@@ -13,29 +13,28 @@
  * a harness gap wearing a product bug's clothes, which is the worst way to find
  * out. Optional members (`name?()`) may be skipped; required ones may not.
  */
-import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SHIM_MEMBERS } from './launchers/minigameHost.mjs';
+import { ts, createSdkProgram } from './lib/sdkProgram.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const API = 'sdk/src/platform/minigame/api.ts';
 
-const src = readFileSync(path.join(ROOT, API), 'utf8');
-const block = /export interface MiniGameGlobal\s*\{([\s\S]*?)\n\}/.exec(src);
-if (!block) {
+const { program, checker } = createSdkProgram([API.slice('sdk/'.length)]);
+const source = program.getSourceFile(path.join(ROOT, API));
+const declaration = source?.statements.find(node => ts.isInterfaceDeclaration(node) && node.name.text === 'MiniGameGlobal');
+if (!declaration) {
   console.error(`check-minigame-host: no MiniGameGlobal interface in ${API} — has it moved?`);
   process.exit(1);
 }
 
-// One member per declaration line: `name(...)` or `name?(...)`. Comment lines and
-// blanks carry no member, so they simply do not match.
+// The checker includes inherited members, so moving a capability into a shared
+// interface cannot hide a newly required host method from this contract gate.
 const required = [];
 const optional = [];
-for (const line of block[1].split('\n')) {
-  const m = /^\s{4}([a-zA-Z_][a-zA-Z0-9_]*)(\?)?\s*[(:]/.exec(line);
-  if (!m) continue;
-  (m[2] ? optional : required).push(m[1]);
+for (const member of checker.getPropertiesOfType(checker.getTypeAtLocation(declaration))) {
+  (member.flags & ts.SymbolFlags.Optional ? optional : required).push(member.name);
 }
 
 if (required.length === 0) {

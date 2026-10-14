@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Added
+
+- **Mobile controls share InputMap and device capability results.** Fixed/follow virtual joysticks and held buttons support independent touches, mouse Play preview, radial dead zones and cancellation. Web, mini-game and native adapters expose motion, vibration and screen wake with explicit unavailable/denied results; browser fullscreen and pointer lock observe exits. The Mobile Controls example demonstrates the workflow. Physical device acceptance remains pending.
+
 ### Fixed
 
 - **Sorted 2D batches join across emission index gaps.** Compatible transient quads reuse contiguous index ranges in painter order even when their producers emitted them apart, reducing UI and text draw calls without combining different clipping states or external buffers. Mixed sprite/text batches retain their original per-type entity statistics.
@@ -23,6 +27,7 @@ published separately; it ships inside the editor.
 - **Runtime tree inspection indexes script component names once per snapshot.** Large script catalogues no longer require a name search for every component on every entity. The index is rebuilt for each group read, so registration, removal, aliases and context changes remain visible; builtin membership is still read from the current core.
 
 - **Selected runtime details reuse maintained hierarchy links.** Refreshing one entity reads its own parent and children instead of scanning every entity's parent. Child ordering still follows world storage, including after reparenting and draw-order edits; disabled children remain inspectable and native reparenting is read from the current core.
+- **Widget prefabs preserve sibling paint order.** Serialization retains existing node identities while restoring children in authored order, so layered controls remain visible after scene loading. Virtual controls update before registered InputMap evaluation in the same frame.
 
 - **Runtime inspectors clear destroyed entity selections.** A selected entity that despawns now returns no detail row instead of an empty ghost entity, including when its native slot is reused. Requests without a live selection or tree avoid traversing the world; disabled live entities remain inspectable.
 

@@ -169,6 +169,7 @@ export interface NativeAudioBridge {
  * DOM canvas on native).
  */
 export interface NativeBridge {
+    device?(): import('../../device/types').DeviceBackend;
     /** Read a project-relative (packaged) file, or an absolute http(s) URL. */
     readFile(path: string): Promise<ArrayBuffer>;
     fileExists(path: string): Promise<boolean>;

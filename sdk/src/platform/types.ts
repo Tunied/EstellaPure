@@ -371,6 +371,8 @@ export type PlatformName = 'web' | 'wechat' | 'douyin' | 'node' | 'native' | (st
 export type PlatformFamily = 'minigame';
 
 export interface PlatformAdapter {
+    /** Lazy device services, so unused games bind no sensor/lifecycle listeners. */
+    device?(): import('../device/types').DeviceBackend;
     deviceQualityInfo?(): DeviceQualityInfo;
     readonly name: PlatformName;
 

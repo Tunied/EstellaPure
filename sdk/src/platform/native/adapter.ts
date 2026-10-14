@@ -31,6 +31,7 @@ import type {
     PlatformSocketOptions,
 } from '../types';
 import { NativeSocket } from './socket';
+import { unavailableDevice } from '../../device/core';
 import type { PlatformAudioBackend } from '../../audio/PlatformAudioBackend';
 import type { PlatformVideoBackend, VideoBackendContext } from '../../video/PlatformVideoBackend';
 import { WasmVideoBackend } from '../../video/WasmVideoBackend';
@@ -44,6 +45,8 @@ import type { NativeBridge, NativeInputListener } from './bridge';
 
 export class NativePlatformAdapter implements PlatformAdapter {
     readonly name = 'native' as const;
+    device() { return this.bridge_.device?.() ?? this.unavailableDevice_; }
+    private readonly unavailableDevice_ = unavailableDevice();
     private inputCleanup_: (() => void) | null = null;
 
     constructor(private readonly bridge_: NativeBridge) {

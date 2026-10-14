@@ -33,6 +33,7 @@
 #include "Host.hpp"
 #include "media/glyph_raster.hpp"   // GLYPH_BOLD / GLYPH_ITALIC, for the font match
 #include "platform/touch_stream.hpp"
+#include "platform/android_device.hpp"
 
 #define LOG_TAG "EstellaSDK"
 
@@ -165,6 +166,13 @@ void performHttp(JNIEnv* env, const eshost::FetchRequest& req, eshost::FetchResu
 }
 
 struct AndroidPlatform final : eshost::Platform {
+    eshost::AndroidDevice device;
+    int deviceCapabilities() const override { return device.capabilities(); }
+    bool startMotion(bool a, bool g, int interval) override { return device.start(a, g, interval); }
+    void stopMotion() override { device.stop(); }
+    bool pollMotion(eshost::MotionState& out) override { return device.poll(out); }
+    bool vibrate(int duration, int intensity) override { return device.vibrate(duration, intensity); }
+    bool keepScreenOn(bool enabled) override { return device.keepScreenOn(enabled); }
     AAssetManager* assets = nullptr;        // APK assets/ — the game + its content
     ANativeWindow* window = nullptr;
     ARect contentRect{};
@@ -895,6 +903,7 @@ std::string queryCacheDir(ANativeActivity* activity) {
 }  // namespace
 
 void android_main(android_app* app) {
+    g_platform.device.activity = app->activity;
     g_platform.assets = app->activity->assetManager;   // APK assets/ (the exported project)
     g_platform.vm = app->activity->vm;                  // for JNI HttpURLConnection (es_fetch)
     // Before boot: whether there is an editing surface decides whether the
@@ -930,6 +939,8 @@ void android_main(android_app* app) {
         }
         if (id >= 0 && source) source->process(app, source);
         if (app->destroyRequested) {
+            g_platform.device.stop();
+            g_platform.device.activity = nullptr;
             framesResumed(false);
             return;
         }

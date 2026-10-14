@@ -9,6 +9,8 @@
 -->
 <plist version="1.0">
 <dict>
+    <key>NSMotionUsageDescription</key>
+    <string>Motion controls let you tilt the device to control the game.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleExecutable</key>

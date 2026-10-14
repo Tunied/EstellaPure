@@ -30,6 +30,7 @@ import { UIToggle, UIToggleGroup, createToggleSystem } from './toggle';
 import { UIDropdown, createDropdownSystem } from './dropdown';
 import { createScrollbarSystem } from './scrollbar';
 import { registerComponent } from '../../ecs/component';
+import { VirtualJoystick, VirtualButton, createVirtualControlSystem } from './virtual-controls';
 
 /** Screen-px slop before a press becomes a scroll drag (matches Draggable). */
 const SCROLL_DRAG_THRESHOLD_PX = 5;
@@ -89,7 +90,14 @@ export class UIBehaviorPlugin implements Plugin {
         this.scrollContainers_?.detach(entity);
     }
 
+    private readonly controlCleanup_ = new WeakMap<App, () => void>();
+
+    cleanup(app?: App): void {
+        if (app) { this.controlCleanup_.get(app)?.(); this.controlCleanup_.delete(app); }
+    }
+
     build(app: App): void {
+        this.cleanup(app);
         // UIInteractionPlugin (declared as our dependency) owns the
         // UIEvents resource and wires onDespawn cleanup. We just grab
         // the queue so our systems emit into the same bus.
@@ -117,6 +125,13 @@ export class UIBehaviorPlugin implements Plugin {
             createDialogSystem(world, events),
             { runIf: playModeOnly },
         );
+
+        registerComponent('VirtualJoystick', VirtualJoystick);
+        registerComponent('VirtualButton', VirtualButton);
+        const virtualControls = createVirtualControlSystem(world, events);
+        this.controlCleanup_.set(app, virtualControls.dispose);
+        app.addSystemToSchedule(Schedule.PreUpdate, virtualControls.system,
+            { runAfter: [SystemLabel.UIInteraction], runIf: playModeOnly });
 
         registerComponent('UISlider', UISlider);
         app.addSystemToSchedule(

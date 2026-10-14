@@ -57,10 +57,58 @@ JSValue js_deviceName(JSContext* ctx, JSValueConst, int, JSValueConst*) {
     return JS_NewString(ctx, deviceName().c_str());
 }
 
+JSValue js_deviceCapabilities(JSContext* ctx, JSValueConst, int, JSValueConst*) {
+    return JS_NewInt32(ctx, hostAlive() && host().platform ? host().platform->deviceCapabilities() : 0);
+}
+JSValue js_startMotion(JSContext* ctx, JSValueConst, int argc, JSValueConst* argv) {
+    if (!hostAlive() || !host().platform || argc < 3) return JS_FALSE;
+    int32_t interval = 16;
+    if (JS_ToInt32(ctx, &interval, argv[2]) < 0) return JS_EXCEPTION;
+    return JS_NewBool(ctx, host().platform->startMotion(JS_ToBool(ctx, argv[0]) > 0,
+        JS_ToBool(ctx, argv[1]) > 0, interval));
+}
+JSValue js_stopMotion(JSContext*, JSValueConst, int, JSValueConst*) {
+    if (hostAlive() && host().platform) host().platform->stopMotion();
+    return JS_UNDEFINED;
+}
+JSValue motionVector(JSContext* ctx, const float* value) {
+    JSValue object = JS_NewObject(ctx);
+    JS_SetPropertyStr(ctx, object, "x", JS_NewFloat64(ctx, value[0]));
+    JS_SetPropertyStr(ctx, object, "y", JS_NewFloat64(ctx, value[1]));
+    JS_SetPropertyStr(ctx, object, "z", JS_NewFloat64(ctx, value[2]));
+    return object;
+}
+JSValue js_pollMotion(JSContext* ctx, JSValueConst, int, JSValueConst*) {
+    MotionState motion;
+    if (!hostAlive() || !host().platform || !host().platform->pollMotion(motion)) return JS_NULL;
+    JSValue result = JS_NewObject(ctx);
+    JS_SetPropertyStr(ctx, result, "timestamp", JS_NewFloat64(ctx, motion.timestamp));
+    JS_SetPropertyStr(ctx, result, "accelerationIncludingGravity", motion.hasAcceleration
+        ? motionVector(ctx, motion.acceleration) : JS_NULL);
+    JS_SetPropertyStr(ctx, result, "gyroscope", motion.hasGyroscope ? motionVector(ctx, motion.gyroscope) : JS_NULL);
+    return result;
+}
+JSValue js_vibrate(JSContext* ctx, JSValueConst, int argc, JSValueConst* argv) {
+    if (!hostAlive() || !host().platform || argc < 2) return JS_FALSE;
+    int32_t duration = 15, intensity = 2;
+    if (JS_ToInt32(ctx, &duration, argv[0]) < 0 || JS_ToInt32(ctx, &intensity, argv[1]) < 0) return JS_EXCEPTION;
+    return JS_NewBool(ctx, host().platform->vibrate(duration, intensity));
+}
+JSValue js_keepScreenOn(JSContext* ctx, JSValueConst, int argc, JSValueConst* argv) {
+    return JS_NewBool(ctx, hostAlive() && host().platform && argc > 0
+        && host().platform->keepScreenOn(JS_ToBool(ctx, argv[0]) > 0));
+}
+
 }  // namespace
 
 void registerDeviceBindings(HostState& h, JSValue global) {
     bindGlobal(h, global, "es_deviceName", js_deviceName, 0);
+    bindGlobal(h, global, "es_deviceCapabilities", js_deviceCapabilities, 0);
+    bindGlobal(h, global, "es_startMotion", js_startMotion, 3);
+    bindGlobal(h, global, "es_stopMotion", js_stopMotion, 0);
+    bindGlobal(h, global, "es_pollMotion", js_pollMotion, 0);
+    bindGlobal(h, global, "es_vibrate", js_vibrate, 2);
+    bindGlobal(h, global, "es_keepScreenOn", js_keepScreenOn, 1);
 }
 
 }  // namespace eshost

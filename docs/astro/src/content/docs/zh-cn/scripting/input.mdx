@@ -283,3 +283,43 @@ key-up 边沿,处理器看到的它仍是按住的,与 DOM `event.shiftKey` 的�
 
 - [相机](/docs/zh-cn/graphics/camera/) —— 对任意屏幕点用 `screenToWorld`。
 - [UI](/docs/zh-cn/ui/overview/) —— UI 在游戏世界之上消费指针输入。
+
+## 设备能力
+
+`Device.capabilities()` 报告宿主提供的 API，不代表已经验证了实体传感器或震动
+马达。请求返回 `ok`、`unavailable`、`denied` 或 `failed`，不支持的平台用返回值
+判断。
+
+```ts
+const off = Device.motion.onChange(sample => {
+  if (sample.gravity) console.log(sample.gravity);
+});
+// 浏览器需要授权时，在真实用户手势中调用。
+const result = await Device.motion.start({ accelerometer: true, gyroscope: false, rate: 'game' });
+await Device.vibrate({ duration: 'short' });
+await Device.keepScreenOn(true);
+await Device.fullscreen(true);
+await Device.pointerLock(true);
+off();
+await Device.motion.stop();
+await Device.keepScreenOn(false);
+```
+
+采样率档位为 `game`（约 16 ms）、`ui`（60 ms）和 `normal`（200 ms），实际频率
+受宿主限制。加速度和滤波重力使用 m/s²，陀螺仪使用 rad/s，Web 朝向使用度；
+缺失通道保留 `null`。原生和小游戏提供原始加速度、陀螺仪及重力滤波，绝对
+朝向不可用。轴遵循设备坐标，不自动随屏幕旋转，也不做姿态融合。
+
+Web 体感授权、全屏和指针锁定需要在原始用户事件中调用，可使用按钮的
+`userGesture: true`。体感与屏幕常亮需要 HTTPS 或 localhost。`Device.onChange`
+观察退出全屏、退出指针锁定及暂停；切后台会暂停体感并释放常亮，切回后恢复
+仍被请求的状态。`stop()` 和 `keepScreenOn(false)` 取消恢复意图。
+
+震动支持短/长，并在宿主支持时提供短震动的 light/medium/heavy 三档强度；
+Web 无法控制强度。旧原生二进制或没有对应 API 的平台返回不可用。原生支持
+需要重建包含传感器、权限和框架绑定的新 Android/iOS 运行时。
+
+平台依据：[Web 体感权限](https://developer.mozilla.org/en-US/docs/Web/API/DeviceMotionEvent/requestPermission)、
+[屏幕常亮](https://developer.mozilla.org/en-US/docs/Web/API/Screen_Wake_Lock_API)、
+[Android 传感器](https://developer.android.com/ndk/reference/group/sensor)、
+[iOS CoreMotion](https://developer.apple.com/documentation/coremotion/cmmotionmanager)。

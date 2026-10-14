@@ -16,6 +16,7 @@
  * video, sockets — are methods on `MiniGameProfile`, not derived from the global.
  */
 
+import type { MiniGameDeviceHost } from '../../device/minigame';
 import type { PlatformAudioBackend } from '../../audio/PlatformAudioBackend';
 import type { PlatformVideoBackend, VideoBackendContext } from '../../video/PlatformVideoBackend';
 import type {
@@ -254,7 +255,7 @@ export interface MiniGameSocketTask {
  * memory-pressure signal, app show/hide). The adapter probes for them at use
  * time, so a vendor missing one degrades gracefully rather than throwing.
  */
-export interface MiniGameGlobal {
+export interface MiniGameGlobal extends MiniGameDeviceHost {
     /** The writable directory a game may keep files in (`wx.env.USER_DATA_PATH`). */
     env?: { USER_DATA_PATH?: string };
     createCanvas(): MiniGameCanvas;

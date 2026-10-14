@@ -114,5 +114,19 @@ export function widgetToPrefab(build: (world: World) => Entity, name: string): P
     // codegen output, so their identities must be byte-stable across runs (a
     // UUID default would drift the generated `.esprefab` files every build).
     let n = 0;
-    return extractPrefab(entities, root, name, () => String(n++));
+    const prefab = extractPrefab(entities, root, name, () => String(n++));
+    // Keep existing identities, but serialize in the same sibling order that
+    // layout and paint use. Scene loading rebuilds Children from this order.
+    const byId = new Map(prefab.entities.map(entity => [entity.prefabEntityId, entity]));
+    const ordered: typeof prefab.entities = [];
+    const visited = new Set<typeof prefab.rootEntityId>();
+    const visit = (id: typeof prefab.rootEntityId) => {
+        const entity = byId.get(id);
+        if (!entity || visited.has(id)) return;
+        visited.add(id);
+        ordered.push(entity);
+        for (const child of entity.children) visit(child);
+    };
+    visit(prefab.rootEntityId);
+    return { ...prefab, entities: ordered };
 }

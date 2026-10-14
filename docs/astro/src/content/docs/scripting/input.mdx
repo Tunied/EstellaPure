@@ -302,3 +302,50 @@ Each `*Down` reads held state; `*Pressed` / `*Released` are the this-frame edges
 
 - [Camera](/docs/graphics/camera/) — `screenToWorld` for arbitrary screen points.
 - [UI](/docs/ui/overview/) — UI consumes pointer input above the game world.
+
+## Device capabilities
+
+`Device.capabilities()` reports the host APIs it exposes. It does not certify
+the physical sensor or vibration motor. Requests return `ok`, `unavailable`,
+`denied`, or `failed`; check the result rather than catching unsupported-platform
+exceptions.
+
+```ts
+const off = Device.motion.onChange(sample => {
+  if (sample.gravity) console.log(sample.gravity);
+});
+// Call from the actual player gesture when the browser requires permission.
+const result = await Device.motion.start({ accelerometer: true, gyroscope: false, rate: 'game' });
+await Device.vibrate({ duration: 'short' });
+await Device.keepScreenOn(true);
+await Device.fullscreen(true);
+await Device.pointerLock(true);
+// Stop subscriptions and requests when the control layer is retired.
+off();
+await Device.motion.stop();
+await Device.keepScreenOn(false);
+```
+
+Rates are `game` (about 16 ms), `ui` (60 ms), and `normal` (200 ms); host sampling
+limits still apply. Acceleration and filtered gravity use m/s², gyro uses rad/s,
+and filtered Web orientation uses degrees. Missing channels remain `null`.
+Native and mini-game adapters expose raw acceleration/gyro and gravity filtering;
+absolute orientation is unavailable there. Device axes are not rotated to the
+screen, and no pose fusion is performed.
+
+Web motion permission requests, fullscreen and pointer lock must run inside the
+original player event. Use `createButton`'s `userGesture: true` option. Motion and
+screen wake need HTTPS or localhost. `Device.onChange` observes fullscreen /
+pointer-lock exits and suspension. Motion and requested wake state resume on
+foreground; `stop()` and `keepScreenOn(false)` revoke that intent.
+
+Vibration is short/long with optional light/medium/heavy short intensity where
+reported supported. Web vibration cannot control intensity. Older native
+binaries and platforms without the APIs return unavailable. Native support needs
+the updated Android/iOS runtime, including its sensor, permission and framework
+bindings. Use the Mobile Controls example for an end-to-end project.
+
+Platform references: [Web motion permission](https://developer.mozilla.org/en-US/docs/Web/API/DeviceMotionEvent/requestPermission),
+[screen wake](https://developer.mozilla.org/en-US/docs/Web/API/Screen_Wake_Lock_API),
+[Android sensors](https://developer.android.com/ndk/reference/group/sensor),
+[iOS CoreMotion](https://developer.apple.com/documentation/coremotion/cmmotionmanager).

@@ -46,8 +46,11 @@ import { MiniGameAudioBackend } from '../../audio/MiniGameAudioBackend';
 import { MiniGameSocket } from '../../net/MiniGameSocket';
 import { WasmVideoBackend } from '../../video/WasmVideoBackend';
 import { createMiniGameRecorder } from './recorder';
+import { MiniGameDevice } from '../../device/minigame';
 
 export class MiniGamePlatformAdapter implements PlatformAdapter {
+    private device_: MiniGameDevice | null = null;
+    device(): MiniGameDevice { return this.device_ ??= new MiniGameDevice(this.g_); }
     readonly name: PlatformAdapter['name'];
     /** Every vendor built on this adapter answers `isMiniGame()` — no name list. */
     readonly family = 'minigame' as const;

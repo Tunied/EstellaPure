@@ -97,6 +97,7 @@ export function uiPointersOf(input: InputState): UiPointerSample[] {
 }
 
 export class UiPointerBook {
+    heldBy(pointer: number): Entity | null { return this.pressedBy_.get(pointer) ?? null; }
     private hoveredBy_ = new Map<number, Entity>();
     private pressedBy_ = new Map<number, Entity>();
     private cancelled_ = new Set<Entity>();

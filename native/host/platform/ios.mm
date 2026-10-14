@@ -26,6 +26,7 @@
 #include "Host.hpp"
 #include "platform/apple_common.hpp"   // Core Text + NSURLSession, shared with macOS
 #include "platform/touch_stream.hpp"
+#include "platform/ios_device.hpp"
 
 using esengine::u32;
 using esengine::u8;
@@ -47,6 +48,13 @@ using esengine::WebGPUDevice;
 namespace {
 
 struct IOSPlatform final : eshost::Platform {
+    eshost::IOSDevice device;
+    int deviceCapabilities() const override { return device.capabilities(); }
+    bool startMotion(bool a, bool g, int interval) override { return device.start(a, g, interval); }
+    void stopMotion() override { device.stop(); }
+    bool pollMotion(eshost::MotionState& out) override { return device.poll(out); }
+    bool vibrate(int duration, int intensity) override { return device.vibrate(duration, intensity); }
+    bool keepScreenOn(bool enabled) override { return device.keepScreenOn(enabled); }
     SafeInsets contentInsets;
     SafeInsets safeAreaInsets() const override { return contentInsets; }
     CAMetalLayer* layer = nil;

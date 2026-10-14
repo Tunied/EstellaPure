@@ -472,3 +472,34 @@ horizontal anchor never disturbs the vertical layout, and vice versa. See
 - [UI Binding](/docs/ui/data-binding/) — signals and two-way widget binding.
 - [UI Interaction](/docs/ui/interaction/) — focus, drag & drop, pointer events.
 - [UI Theme](/docs/ui/theming/) — tokens, roles, live theme swaps, the project theme.
+
+## VirtualJoystick
+
+A virtual joystick captures one pointer until it lifts or is cancelled. `inputId`
+names its InputMap `Virtual` binding. Fixed mode measures from the node centre;
+Follow mode starts at the captured finger. Radius, radial dead zone and return
+speed are editable in the inspector. The handle returns visually to rest while
+its input becomes zero immediately on release.
+
+```ts
+const stick = createVirtualJoystick({ world, parent: canvas, inputId: 'move',
+  mode: VirtualJoystickMode.Fixed, radius: 50, deadZone: 0.15 });
+const actions = defineInputMap({ Move: Axis2D(Virtual('move')) });
+```
+
+The editor's Create → UI palette includes the same generated prefab. Mouse drag
+in Play uses the same capture as touch. Disable, hide, remove, cancel or background
+a control to release its own contribution; other controls keep their outputs.
+Custom base/handle visuals are supported.
+
+## VirtualButton
+
+`createVirtualButton({ world, events, parent: canvas, inputId: 'fire', text: 'Fire' })`
+uses the normal button appearance and publishes a held scalar to `Virtual('fire')`.
+It supports independent fingers, multiple fingers on the same button, and taps
+completed between frames. Multiple controls can share a binding without one
+control's removal clearing the others. Use an explicit stable owner with
+`Input.setVirtualSource` for custom controls, then remove that owner at teardown.
+
+The **Mobile Controls** example authors both controls in its scene and combines
+them with keyboard bindings, optional tilt, and hit vibration.

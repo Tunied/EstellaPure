@@ -26,6 +26,7 @@ for your own game.
 | **tween-animation** | Animation | Ease positions, scales and colors over time. |
 | **cutscene** | Animation | A code-free cutscene: an FSM state plays a timeline via the built-in `timeline.play` / `timeline.finished` names, then hands over to gameplay (R to replay). |
 | **input-demo** | Input | Keyboard, mouse and pointer input with a motion trail. |
+| **mobile-controls** | Input | A CC0 pixel-art training room with an authored multi-touch joystick, attack button, tilt and device controls. |
 | **input-actions** | Input | Named, rebindable actions (`defineInputMap`) across keyboard + gamepad, plus swipe/pinch gestures with a mouse bridge. |
 | **audio-demo** | Audio | One-shot SFX and a beat visualizer driven by playback. |
 | **collision-layers** | Physics | Layer-based collision filtering between groups of bodies. |
@@ -76,3 +77,9 @@ so this asset is not free to reuse the way the CC0 art is — see [ASSETS.md](./
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for the layout every example follows and the
 conventions to keep them consistent.
+
+## Visual quality
+
+Upgrade examples incrementally, prioritizing 2D input, sprites/animation, tilemaps, UI and audio before specialized 3D showcases. Mobile Controls establishes the first art baseline: a coherent palette, readable objectives, editable scenery, textured controls and immediate interaction feedback.
+
+Use original project art or assets with an explicitly verified redistribution license. Keep the source URL, asset version and license in each example, include only assets it uses, and keep editable originals when drawing controls. Validate the rendered project and interactions in hidden editor and packaged Web/mini-game checks after art changes.

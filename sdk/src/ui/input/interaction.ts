@@ -29,6 +29,7 @@ import { fireGestureClick, expireGestureFired } from './gestureClick';
 import { inputRouter } from '../../input/inputRouter';
 import { SystemLabel, PluginName } from '../../ecs/systemLabels';
 import type { UILayoutGenerationData } from '../layout/ui-layout-generation';
+import { UIControlPointers, type ControlPointer } from './control-pointers';
 
 function emitWithBubbling(
     world: World,
@@ -79,6 +80,8 @@ export class UIInteractionPlugin implements Plugin {
         // onto the world — a raycast per pointer, and the writes its verdicts
         // imply. Gestures (drag, scroll, slider) stay on the primary pointer.
         const book = new UiPointerBook();
+        const controlPointers = new Map<number, ControlPointer>();
+        app.insertResource(UIControlPointers, { pointers: controlPointers });
         /** Where each pointer last hit, so a settled pointer skips the raycast. */
         const lastHit = new UiPointerHitCache();
         let lastLayoutGen = -1;
@@ -103,6 +106,7 @@ export class UIInteractionPlugin implements Plugin {
         this.releases_.set(app, () => {
             unregister();
             book.clear();
+            controlPointers.clear();
             lastHit.clear();
             expireGestureFired(world);
         });
@@ -129,6 +133,7 @@ export class UIInteractionPlugin implements Plugin {
                 const dpr = platformDevicePixelRatio();
                 const surfaceH = overlay.active ? overlay.surfaceH : camera.screenH;
                 const pointers = uiPointersOf(input);
+                controlPointers.clear();
                 lastHit.retain(pointers);
                 const layoutChanged = layoutGen.generation !== lastLayoutGen;
                 lastLayoutGen = layoutGen.generation;
@@ -155,6 +160,9 @@ export class UIInteractionPlugin implements Plugin {
                     // drawn with, which is what keeps a click where the pixel is.
                     const worldPointer = camera.valid ? screenToUiWorld(camera, glX, glY) : { x: 0, y: 0 };
                     const layoutPointer = overlay.active ? screenToUiLayout(overlay, glX, glY) : worldPointer;
+                    controlPointers.set(pointer.id, { id: pointer.id, down: pointer.down, pressed: pointer.pressed,
+                        entity: null, pressedEntity: null, layoutX: layoutPointer.x, layoutY: layoutPointer.y,
+                        worldX: worldPointer.x, worldY: worldPointer.y });
                     if (!primaryWritten && (pointer.down || !hasHeldPointer)) {
                         primaryWritten = true;
                         camera.worldMouseX = worldPointer.x;
@@ -217,6 +225,11 @@ export class UIInteractionPlugin implements Plugin {
                     }
                 }
                 book.prune(active);
+                for (const pointer of controlPointers.values()) pointer.entity = book.heldBy(pointer.id);
+                for (const event of pointerEvents) if (event.kind === 'press') {
+                    const pointer = controlPointers.get(event.pointer);
+                    if (pointer) pointer.pressedEntity = event.entity;
+                }
 
                 // `hovered` and `pressed` are facts about the ENTITY: true while
                 // any pointer is over or holding it, false once none is.

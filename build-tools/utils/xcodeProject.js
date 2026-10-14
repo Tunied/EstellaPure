@@ -47,7 +47,7 @@ const SYSTEM_FRAMEWORKS = [
     // Core Text names the font file the glyph rasterizer parses.
     'CoreText', 'Foundation',
     // miniaudio's CoreAudio backend, linked at build time (MA_NO_RUNTIME_LINKING).
-    'AVFoundation', 'CoreAudio', 'AudioToolbox',
+    'AVFoundation', 'CoreAudio', 'AudioToolbox', 'CoreMotion', 'CoreHaptics',
 ];
 
 /** Xcode's file type for an export resource, by extension. `folder` ships a

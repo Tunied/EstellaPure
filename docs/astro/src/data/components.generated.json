@@ -5756,6 +5756,83 @@
       ]
     },
     {
+      "name": "VirtualButton",
+      "source": "ts",
+      "fields": [
+        {
+          "key": "inputId",
+          "type": "string",
+          "default": "\"fire\""
+        },
+        {
+          "key": "value",
+          "type": "number",
+          "default": "1"
+        }
+      ],
+      "animatable": [
+        "value"
+      ]
+    },
+    {
+      "name": "VirtualJoystick",
+      "source": "ts",
+      "fields": [
+        {
+          "key": "inputId",
+          "type": "string",
+          "default": "\"move\""
+        },
+        {
+          "key": "mode",
+          "type": "enum",
+          "default": "Fixed",
+          "values": [
+            "Fixed",
+            "Follow"
+          ]
+        },
+        {
+          "key": "radius",
+          "type": "number",
+          "default": "50",
+          "range": "≥ 1"
+        },
+        {
+          "key": "deadZone",
+          "type": "number",
+          "default": "0.15",
+          "range": "0–0.99"
+        },
+        {
+          "key": "returnSpeed",
+          "type": "number",
+          "default": "18",
+          "range": "≥ 0"
+        },
+        {
+          "key": "base",
+          "type": "Entity",
+          "default": "none",
+          "advanced": true
+        },
+        {
+          "key": "handle",
+          "type": "Entity",
+          "default": "none",
+          "advanced": true
+        }
+      ],
+      "animatable": [
+        "mode",
+        "radius",
+        "deadZone",
+        "returnSpeed",
+        "base",
+        "handle"
+      ]
+    },
+    {
       "name": "WheelJoint2D",
       "source": "ts",
       "fields": [

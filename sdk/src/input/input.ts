@@ -220,6 +220,7 @@ export class InputState {
      * is touched and what is read stay one object when the layout moves.
      */
     private virtual_ = new Map<string, Vec2>();
+    private virtualSources_ = new Map<object, { id: string; x: number; y: number }>();
 
     /** Set a named virtual input; held until overwritten, so stopping means
      *  writing zero. `y` defaults to 0 for button/1D use. */
@@ -229,12 +230,32 @@ export class InputState {
     }
 
     getVirtual(id: string): Vec2 {
-        return this.virtual_.get(id) ?? ZERO_VIRTUAL;
+        const value = this.virtual_.get(id) ?? ZERO_VIRTUAL;
+        let x = value.x, y = value.y, contributed = false;
+        for (const source of this.virtualSources_.values()) {
+            if (source.id !== id) continue;
+            contributed = true; x += source.x; y += source.y;
+        }
+        return contributed ? { x: Math.max(-1, Math.min(1, x)), y: Math.max(-1, Math.min(1, y)) } : value;
     }
+
+    /** A control owns only its contribution, even when several share a binding. */
+    setVirtualSource(owner: object, id: string, x: number, y = 0): void {
+        if (x === 0 && y === 0) { this.virtualSources_.delete(owner); return; }
+        const source = this.virtualSources_.get(owner);
+        if (source) { source.id = id; source.x = x; source.y = y; }
+        else this.virtualSources_.set(owner, { id, x, y });
+    }
+
+    removeVirtualSource(owner: object): void { this.virtualSources_.delete(owner); }
+
+    /** @internal Host cancellation releases managed controls, leaving manual values to their writer. */
+    cancelVirtualSources(): void { this.virtualSources_.clear(); }
 
     /** Drop every virtual input — used when a control layer is torn down. */
     clearVirtual(): void {
         this.virtual_.clear();
+        this.virtualSources_.clear();
     }
 
     // — Gamepad (polled each frame; edges via current/prev diff, not events) —
@@ -477,6 +498,7 @@ export function inputEventCallbacks(state: InputState): InputEventCallbacks {
             state.keysDown.clear();
             state.mouseButtons.clear();
             state.touches.clear();
+            state.cancelVirtualSources();
             state.clearFrameState();
             state.keysPressedFixed.clear();
             state.keysReleasedFixed.clear();

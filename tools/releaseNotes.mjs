@@ -36,6 +36,10 @@ export const NOTED = {
     { note: 'Runtime tree inspection indexes script component names once per snapshot.' },
   'perf(inspector): reuse hierarchy links for selected runtime details':
     { note: 'Selected runtime details reuse maintained hierarchy links.' },
+  'feat(input): add mobile controls and device services':
+    { note: 'Mobile controls share InputMap and device capability results.' },
+  'feat(editor): author and verify mobile controls in Play':
+    { note: 'Mobile controls share InputMap and device capability results.' },
   'fix(inspector): clear destroyed runtime entity selections':
     { note: 'Runtime inspectors clear destroyed entity selections.' },
   'perf(inspector): reuse membership and readers for snapshot visibility':

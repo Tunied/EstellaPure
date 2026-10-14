@@ -8,6 +8,8 @@ import type { World } from '../src/ecs/world';
 import type { PrefabData } from '../src/prefab/types';
 import { widgetToPrefab } from '../src/ui/widgets/toPrefab';
 import { createButton } from '../src/ui/widgets/button';
+import { createVirtualJoystick, createVirtualButton } from '../src/ui/widgets/virtual-controls';
+import { VirtualJoystick, VirtualButton } from '../src/ui/behavior/virtual-controls';
 import { createToggle } from '../src/ui/widgets/toggle';
 import { createSlider } from '../src/ui/widgets/slider';
 import { createProgress } from '../src/ui/widgets/progress';
@@ -68,6 +70,23 @@ afterAll(() => {
 });
 
 describe('UI widget prefab codegen', () => {
+    it('VirtualJoystick: captures base/handle entity references for scene authoring', () => {
+        registerComponent('VirtualJoystick', VirtualJoystick);
+        const p = generate('VirtualJoystick', world => createVirtualJoystick({ world }).entity as number);
+        const root = entityById(p, p.rootEntityId);
+        const control = root.components.find(c => c.type === 'VirtualJoystick')!;
+        expect(root.children).toContain(control.data.base);
+        expect(root.children).toContain(control.data.handle);
+        expect(control.data.inputId).toBe('move');
+        const baseIndex = p.entities.findIndex(e => e.prefabEntityId === control.data.base);
+        const handleIndex = p.entities.findIndex(e => e.prefabEntityId === control.data.handle);
+        expect(baseIndex).toBeLessThan(handleIndex);
+    });
+    it('VirtualButton: exports a held action with the normal button appearance', () => {
+        registerComponent('VirtualButton', VirtualButton);
+        const p = generate('VirtualButton', world => createVirtualButton({ world, events: noEvents, text: 'Fire' }).entity as number);
+        expect(typesOf(p, p.rootEntityId)).toContain('VirtualButton');
+    });
     it('Button: factory → prefab captures the full clickable tree + label', () => {
         const prefab = generate('Button', (world) =>
             // No explicit states/colors: the factory's theme defaults also tag the

@@ -56,6 +56,8 @@ targets:
       - framework: ../../build/cmake/native-ios/Estella.xcframework
         embed: false
       - sdk: UIKit.framework
+      - sdk: CoreMotion.framework
+      - sdk: CoreHaptics.framework
       - sdk: Metal.framework
       - sdk: QuartzCore.framework
       - sdk: IOSurface.framework

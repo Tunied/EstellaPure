@@ -97,7 +97,21 @@ struct GamepadState {
  * @brief The platform seam: what the host needs that Android and iOS answer
  *        differently. The glue implements it; host_core owns everything else.
  */
+struct MotionState {
+    double timestamp = 0;
+    float acceleration[3]{};
+    float gyroscope[3]{};
+    bool hasAcceleration = false;
+    bool hasGyroscope = false;
+};
+
 struct Platform {
+    virtual int deviceCapabilities() const { return 0; }
+    virtual bool startMotion(bool, bool, int) { return false; }
+    virtual void stopMotion() {}
+    virtual bool pollMotion(MotionState&) { return false; }
+    virtual bool vibrate(int, int) { return false; }
+    virtual bool keepScreenOn(bool) { return false; }
     virtual ~Platform() = default;
 
     /** A packaged, project-relative file — the APK's `assets/` on Android, the

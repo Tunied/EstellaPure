@@ -66,6 +66,7 @@ export const NOT_EVIDENCE_FORMATS = {
   '.mjs': 'the project\'s own tooling — engine-gaps ledgers and helpers',
   '.gitignore': 'version control, not content',
   '.png': 'a texture; what USES it is authored elsewhere',
+  '.svg': 'editable vector artwork; what uses it is authored elsewhere',
   '.ktx2': 'a compressed texture; same',
   '.hdr': 'an environment map; the .esenv referencing it is the claim',
   '.gltf': 'an imported model; the .esmesh and prefab it produced are the claim',
@@ -593,7 +594,7 @@ export const EVIDENCE = {
   'sprite-mask': /\bSpriteMask\b/,
   // The composite controls, as opposed to the boxes they are laid out in: a
   // scene that carries one has taken the editor's Create → UI path.
-  'ui-widgets': /\b(UIToggle|UISlider|UIDropdown|UIDialog|UIScroll)\b/,
+  'ui-widgets': /\b(UIToggle|UISlider|UIDropdown|UIDialog|UIScroll|VirtualJoystick|VirtualButton)\b/,
   // Motion with no physics body behind it. `\b` keeps `linearVelocity` out —
   // a body's own speed is physics, and this is the component that moves a
   // transform without one.
@@ -714,6 +715,18 @@ export const KNOWN_GAPS = {};
  * it was aimed at: when one moves, the check fails loudly and names both frames.
  */
 export const GOLDEN = [
+  {
+    id: 'mobile-controls',
+    certifies: ['input', 'ui-layout', 'ui-widgets', 'text'],
+    targets: ['web', 'wechat', 'douyin'],
+    tier: 'pr',
+    interact: { keys: ['KeyD'], frames: 50 },
+    // Held off-centre from its initial press: a fixed stick drives the player.
+    interactByTarget: {
+      wechat: { touches: [{ from: 4, to: 45, x: 0.14, y: 0.84 }], frames: 50 },
+      douyin: { touches: [{ from: 4, to: 45, x: 0.14, y: 0.84 }], frames: 50 },
+    },
+  },
   {
     id: 'platformer',
     certifies: ['physics', 'input'],

@@ -23,6 +23,7 @@ export const SystemLabel = {
     UILayoutLate: 'UILayoutLateSystem',
     UIRenderOrder: 'UIRenderOrderSystem',
     UIInteraction: 'UIInteractionSystem',
+    VirtualControls: 'VirtualControlsSystem',
     ListView: 'ListViewSystem',
     Text: 'TextSystem',
     Focus: 'FocusSystem',

@@ -38,6 +38,16 @@ export const INFRASTRUCTURE = {
 
 export const SUBSYSTEMS = [
     {
+        id: 'mobile-controls',
+        title: 'Mobile controls & device services',
+        titleZh: '移动控件与设备能力',
+        source: ['device', 'ui'],
+        tier: 'experimental',
+        why: 'software contracts and exports are verified; physical sensor, haptic and permission acceptance is pending across target devices',
+        whyZh: '软件契约与导出已验证；目标真机的传感器、震动和授权验收仍待完成',
+        entry: ['Device', 'VirtualJoystick', 'VirtualButton'],
+    },
+    {
         id: 'ecs',
         title: 'ECS',
         titleZh: 'ECS',

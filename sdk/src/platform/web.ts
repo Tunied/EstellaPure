@@ -28,6 +28,7 @@ import type { PlatformVideoBackend } from '../video/PlatformVideoBackend';
 import { GameSocket } from '../net/GameSocket';
 import { createPrimaryPointer } from './primaryPointer';
 import { createWebRecorder } from './webRecorder';
+import { WebDevice } from '../device/web';
 
 const WHEEL_LINE_HEIGHT = 16;
 
@@ -36,6 +37,8 @@ const WHEEL_LINE_HEIGHT = 16;
 // =============================================================================
 
 class WebPlatformAdapter implements PlatformAdapter {
+    private device_: WebDevice | null = null;
+    device(): WebDevice { return this.device_ ??= new WebDevice(); }
     readonly name = 'web' as const;
     private inputCleanup_: (() => void) | null = null;
     private recorder_: PlatformScreenRecorder | null | undefined;

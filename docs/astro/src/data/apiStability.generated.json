@@ -3,11 +3,24 @@
   "counts": {
     "public": 115,
     "beta": 103,
-    "experimental": 2175,
+    "experimental": 2194,
     "deprecated": 3
   },
-  "total": 2393,
+  "total": 2412,
   "subsystems": [
+    {
+      "id": "mobile-controls",
+      "title": "Mobile controls & device services",
+      "titleZh": "移动控件与设备能力",
+      "tier": "experimental",
+      "why": "software contracts and exports are verified; physical sensor, haptic and permission acceptance is pending across target devices",
+      "whyZh": "软件契约与导出已验证；目标真机的传感器、震动和授权验收仍待完成",
+      "entry": [
+        "Device",
+        "VirtualJoystick",
+        "VirtualButton"
+      ]
+    },
     {
       "id": "ecs",
       "title": "ECS",

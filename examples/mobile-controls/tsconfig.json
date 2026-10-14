@@ -1,0 +1,37 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": false,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "paths": {
+      "esengine": ["./.esengine/sdk/index.d.ts"],
+      "esengine/spine": ["./.esengine/sdk/spine/index.d.ts"],
+      "esengine/tilemap": ["./.esengine/sdk/tilemap/index.d.ts"],
+      "esengine/logic": ["./.esengine/sdk/logic/index.d.ts"],
+      "esengine/debug-channel": ["./.esengine/sdk/debug-channel/index.d.ts"],
+      "esengine/ai": ["./.esengine/sdk/ai/index.d.ts"],
+      "esengine/replication": ["./.esengine/sdk/net/replication/index.d.ts"],
+      "esengine/gameplay": ["./.esengine/sdk/gameplay/index.d.ts"],
+      "esengine/dragonbones": ["./.esengine/sdk/dragonbones/index.d.ts"],
+      "esengine/physics": ["./.esengine/sdk/physics/index.d.ts"],
+      "esengine/physics3d": ["./.esengine/sdk/physics3d/index.d.ts"],
+      "esengine/douyin": ["./.esengine/sdk/douyin/index.d.ts"],
+      "esengine/kuaishou": ["./.esengine/sdk/kuaishou/index.d.ts"],
+      "esengine/bilibili": ["./.esengine/sdk/bilibili/index.d.ts"],
+      "esengine/quickgame": ["./.esengine/sdk/quickgame/index.d.ts"],
+      "esengine/alipay": ["./.esengine/sdk/alipay/index.d.ts"],
+      "esengine/huawei": ["./.esengine/sdk/huawei/index.d.ts"],
+      "estella-plugin-*": ["./.esengine/packages/*"],
+      "esengine/wasm": ["./.esengine/sdk/wasm.d.ts"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules"]
+}

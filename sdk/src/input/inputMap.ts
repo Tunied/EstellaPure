@@ -14,6 +14,7 @@
  */
 import { Schedule, defineSystem, addSystemToSchedule } from '../ecs/system';
 import { Res } from '../ecs/resource';
+import { SystemLabel } from '../ecs/systemLabels';
 import { Input, InputState, GamepadAxis, GamepadButton } from './input';
 import { Storage } from '../util/storage';
 import type { Vec2 } from '../types';
@@ -366,7 +367,7 @@ export function defineInputMap(actions: Record<string, ActionDef>): InputMap {
     // PreUpdate: after gamepad poll (First) + always-current event input, before gameplay (Update).
     addSystemToSchedule(
         Schedule.PreUpdate,
-        defineSystem([Res(Input)], (input) => map.evaluate(input), { name: 'InputMapEval' }),
+        defineSystem([Res(Input)], (input) => map.evaluate(input), { name: 'InputMapEval', runAfter: [SystemLabel.UIInteraction, SystemLabel.VirtualControls] }),
     );
     return map;
 }

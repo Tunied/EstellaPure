@@ -342,7 +342,7 @@ if(ESTELLA_QUICKJS_DIR)
     if(ESTELLA_IOS)
         # Static: the thin Xcode app (native/ios) links this plus the libraries
         # below. -ObjC on the app keeps the Obj-C classes in platform/ios.mm alive.
-        add_library(estella_js_host STATIC ${HOST_SOURCES} host/platform/ios.mm
+        add_library(estella_js_host STATIC ${HOST_SOURCES} host/platform/ios.mm host/platform/ios_device.mm
             host/platform/apple_common.mm)
         # miniaudio's CoreAudio backend uses AVAudioSession (Obj-C), so its TU must
         # be Objective-C++ on Apple; it also forces MA_NO_RUNTIME_LINKING there, so
@@ -355,6 +355,7 @@ if(ESTELLA_QUICKJS_DIR)
             estella_video estella_spine
             estella_dragonbones qjs
             "-framework UIKit" "-framework QuartzCore" "-framework Foundation"
+            "-framework CoreMotion" "-framework CoreHaptics"
             "-framework AVFoundation" "-framework CoreAudio" "-framework AudioToolbox"
             "-framework CoreText" "-framework CoreGraphics")
         # Merge host + engine + deps + Dawn into ONE archive, so the Xcode app is a
@@ -419,7 +420,7 @@ if(ESTELLA_QUICKJS_DIR)
     else()
         # Android: plain C++; miniaudio dlopens AAudio/OpenSL at runtime (no extra
         # link libs). native_audio.cpp's Obj-C paths are __APPLE__-guarded out.
-        add_library(estella_js_host SHARED ${HOST_SOURCES} host/platform/android.cpp)
+        add_library(estella_js_host SHARED ${HOST_SOURCES} host/platform/android.cpp host/platform/android_device.cpp)
         target_link_libraries(estella_js_host esengine estella_physics estella_physics3d
             estella_video estella_spine
             estella_dragonbones qjs native_app_glue android log)

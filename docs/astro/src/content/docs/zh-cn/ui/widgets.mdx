@@ -423,3 +423,30 @@ Slider、Dialog、TextInput 等丢进场景,再在 Details 里编辑。活在组
 - [UI 数据绑定](/docs/zh-cn/ui/data-binding/) —— 信号与控件双向绑定。
 - [UI 交互](/docs/zh-cn/ui/interaction/) —— 焦点、拖放、指针事件。
 - [UI 主题](/docs/zh-cn/ui/theming/) —— token、角色、主题热切换与项目主题。
+
+## VirtualJoystick
+
+虚拟摇杆捕获一根手指，直到松开或取消。`inputId` 对应 InputMap 的 `Virtual`
+绑定。Fixed 模式以控件中心为原点；Follow 模式从捕获的触点起步。检查器可编辑
+半径、径向死区和回弹速度。松开时输入立即归零，手柄随后回到中心。
+
+```ts
+const stick = createVirtualJoystick({ world, parent: canvas, inputId: 'move',
+  mode: VirtualJoystickMode.Fixed, radius: 50, deadZone: 0.15 });
+const actions = defineInputMap({ Move: Axis2D(Virtual('move')) });
+```
+
+编辑器 Create → UI 面板提供同一个生成预制体。Play 中的鼠标拖动和触控使用
+同一套捕获机制。禁用、隐藏、移除、取消或切后台会释放该控件自己的贡献，
+其他控件仍保持输出。可以提供自定义底座和手柄外观。
+
+## VirtualButton
+
+`createVirtualButton({ world, events, parent: canvas, inputId: 'fire', text: 'Fire' })`
+复用普通按钮外观，向 `Virtual('fire')` 输出按住状态。不同按钮、同一按钮上的
+多个触点，以及两帧之间完成的短按都能正常释放。多个控件共享绑定时，移除
+其中一个不会清空其他控件。自定义控件可使用固定 owner 的 `Input.setVirtualSource`，
+并在销毁时移除该 owner。
+
+**Mobile Controls** 示例在场景中放置这两个控件，同时支持键盘、可选倾斜操控和
+命中震动。
