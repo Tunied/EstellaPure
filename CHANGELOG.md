@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Added
 
+- **Transform handles preview the pointer's target before a drag.** Move/scale axes, the center plane and rotation rings use the same hit decision for hovering and pressing. Hover uses the drag highlight and projected resize cursor; it follows camera and selection changes, clears outside the canvas, and yields to navigation, paint, picking and contributed tools. Hover does not edit scene data. Real editor pointer and screenshot acceptance runs in CI.
+
 - **The WeChat starter's publishing profile minifies its game bundle.** The named WeChat profile uses Shipping settings while Web authoring uses Development settings. Both preserve gameplay and host-service behavior. Headless observations record scene-initialization timing separately from actual device cold startup; unchanged-scene bundle comparisons measure the byte savings.
 
 - **The WeChat Mini Game starter combines gameplay and host-service examples.** A CC0 fleet game includes honest login-code/server-exchange status, sharing without false completion rewards, opt-in configured rewarded video and device-local credit restoration. Unreadable or changed saves are preserved. Named Web/WeChat profiles, compressed engine subpackaging, licenses and a creation-to-submission guide are included; real accounts, server authentication and device/platform approval remain separate.

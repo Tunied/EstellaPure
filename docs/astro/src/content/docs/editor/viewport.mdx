@@ -26,9 +26,16 @@ handle:
 | Tool | Shortcut | Gizmo |
 |---|---|---|
 | Select | `Q` | Pick / marquee only, no transform handles. |
-| Move | `W` | Axis arrows (X / Y) plus a center plane for free move. |
-| Rotate | `E` | A rotation ring. |
-| Scale | `R` | Axis boxes plus a uniform-scale center. |
+| Move | `W` | Projected axis arrows plus the center handle for the most visible world plane. Head-on 2D shows X / Y. |
+| Rotate | `E` | Projected axis rings; head-on 2D shows the Z ring. |
+| Scale | `R` | Projected axis boxes plus a center handle that scales the visible plane's two axes. |
+| Rect | `T` | The selected sprite or UI node's own rectangle grips. |
+
+Hovering a transform handle highlights the handle that a press will grab. The
+cursor shows moving, rotation or the projected resize direction. Camera or
+selection changes recompute the target; leaving the canvas clears it. Navigation,
+paint, picking and contributed tools keep their own pointer routing. Hover alone
+does not change transforms or begin an undo transaction.
 
 Dragging a handle transforms the whole selection as one, about a shared pivot, and
 each drag is a single undo step. **Alt-drag** a selection to duplicate it and drag the

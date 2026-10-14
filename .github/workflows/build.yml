@@ -706,6 +706,17 @@ jobs:
         ESTELLA_MCP_EDITOR_VISIBLE: '1'
       run: xvfb-run -a --server-args="-screen 0 1920x1080x24" node scripts/editor-checks/run.mjs --shard ${{ matrix.shard }}/4 || [ $? -eq 2 ]
 
+    - name: Check trusted transform-handle hover and unchanged scene
+      if: matrix.shard == 1
+      run: node tools/verify-gizmo-hover.mjs
+    - name: Upload transform-handle hover evidence
+      if: always() && matrix.shard == 1
+      uses: actions/upload-artifact@v7
+      with:
+        name: gizmo-hover-editor-checks
+        path: output/gizmo-hover-ci/
+        retention-days: 3
+
     # Between the two heavy steps, so the disk each one costs is attributable.
     # The report at the bottom cannot do that, and it is the report that dies
     # with the runner: a full disk takes the log that would name what filled it,
