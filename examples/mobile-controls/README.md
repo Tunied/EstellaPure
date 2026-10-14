@@ -139,6 +139,15 @@ Actual compressed transfer through gameReady must be below 30 MiB and needs
 runtime measurement. The headless report records local ready time and a startup
 heap sample, which do not certify device loading or peak gameplay heap.
 
+The headless check serves the page with the official Test Suite guide's CSP
+response header, in addition to the export's own policy. It records policy
+violations and uses an intentionally blocked external request as a negative
+control. The five gameplay paths must have no unexpected policy violations.
+Before submission, also run the official
+[bundle analyzer](https://developers.google.com/youtube/gaming/playables/samples/bundle_analyzer)
+against the exported directory. Its static checks are separate from the SDK
+Test Suite and physical-device acceptance.
+
 Export with `node pipeline/bin/estella.mjs export examples/mobile-controls
 --profile youtube --out output/youtube-training-web`. The editor also exposes
 YouTube Playables under Web channel settings. The official SDK loads before

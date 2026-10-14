@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'test(youtube): verify hosting CSP and negative control':
+    { note: 'YouTube headless checks enforce the documented hosting policy.' },
   'feat(youtube): validate export bundle constraints':
     { note: 'YouTube exports check stored bundle constraints.' },
   'feat(youtube): connect Playables readiness pause and cloud saves':

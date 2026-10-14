@@ -10,16 +10,27 @@ const files=(under='')=>fs.readdirSync(path.join(root,under),{withFileTypes:true
     if(entry.isDirectory())return files(file);if(!entry.isFile())throw Error('Unsupported entry');return[file];});
 const identities=Object.fromEntries(files().map(file=>[file,sha(path.join(root,file))]));
 const report={headless:true,mode:'local-mock',status:'failed',identities,verifierSha256:sha(new URL(import.meta.url)),cases:[]};
+// Official local response-header override, independent of the game's own meta policy:
+// https://developers.google.com/youtube/gaming/playables/reference/test_suite_guide
+const youtubeCsp="default-src 'none'; script-src 'report-sample' 'self' 'unsafe-eval' 'unsafe-inline' blob: https://www.youtube.com/game_api/v0 https://www.youtube.com/game_api/v0/ https://www.youtube.com/game_api/v1 https://www.youtube.com/game_api/v1/; object-src 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' blob: data:; media-src 'self' blob:; font-src 'self' data: https://fonts.googleapis.com https://fonts.gstatic.com; connect-src 'self' blob: data:; sandbox allow-pointer-lock allow-same-origin allow-scripts; base-uri 'self'; manifest-src 'self'; worker-src 'self' blob:";
+report.responseContentSecurityPolicy=youtubeCsp;
 const mime={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.json':'application/json','.wasm':'application/wasm','.png':'image/png'};
 const server=http.createServer((req,res)=>{try{const name=decodeURIComponent(new URL(req.url,'http://localhost').pathname).slice(1)||'index.html',file=fs.realpathSync(path.resolve(root,name));
-    if(!file.startsWith(root+path.sep)||!fs.statSync(file).isFile())throw Error('Outside export');res.setHeader('Content-Type',mime[path.extname(file)]??'application/octet-stream');res.end(fs.readFileSync(file));}catch{res.writeHead(404);res.end();}});
+    if(!file.startsWith(root+path.sep)||!fs.statSync(file).isFile())throw Error('Outside export');res.setHeader('Content-Type',mime[path.extname(file)]??'application/octet-stream');
+    if(path.extname(file)==='.html')res.setHeader('Content-Security-Policy',youtubeCsp);
+    res.end(fs.readFileSync(file));}catch{res.writeHead(404);res.end();}});
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const origin=`http://127.0.0.1:${server.address().port}`;
 const browser=await chromium.launch({headless:true,args:['--enable-unsafe-swiftshader','--use-angle=swiftshader','--mute-audio']});
 try {
     for(const mode of ['normal','local-noop','sdk-missing','load-failed','paused-boot']) {
         const context=await browser.newContext({viewport:{width:800,height:450}}),page=await context.newPage();
-        const observation={mode,status:'failed',errors:[],unexpectedRequests:[]};report.cases.push(observation);
+        const observation={mode,status:'failed',errors:[],unexpectedRequests:[],cspViolations:[]};report.cases.push(observation);
         page.on('pageerror',error=>observation.errors.push(String(error)));
+        await page.exposeFunction('__reportCsp',violation=>observation.cspViolations.push(violation));
+        await page.addInitScript(()=>{window.__csp=[];window.__cspReports=0;document.addEventListener('securitypolicyviolation',event=>{
+            const violation={directive:event.effectiveDirective,blockedURI:event.blockedURI,disposition:event.disposition};
+            window.__csp.push(violation);void window.__reportCsp(violation).then(()=>{window.__cspReports++;});
+        });});
         await page.addInitScript(()=>{window.__audioContexts=[];const Original=window.AudioContext;if(Original)window.AudioContext=class extends Original{constructor(...args){super(...args);__audioContexts.push(this);}};});
         await context.route('**/*',route=>{
             const url=route.request().url();if(url.startsWith(origin+'/'))return route.continue();
@@ -53,6 +64,16 @@ try {
             await page.waitForFunction(()=>!document.getElementById('es-splash'));
             if(mode!=='sdk-missing') {await page.waitForFunction(()=>__events.includes('ready'));assert(await page.evaluate(()=>__firstLoading));assert.equal(await page.evaluate(()=>__readyLoading),false);
                 observation.performance=await page.evaluate(()=>__readyPerformance);assert(observation.performance.gameReadyMs>0);}
+            if(mode==='normal') {
+                assert.deepEqual(observation.cspViolations,[]);
+                await page.evaluate(()=>fetch('https://csp-negative.invalid/probe').catch(()=>{}));
+                await page.waitForFunction(()=>__csp.some(v=>v.directive==='connect-src'&&v.blockedURI.startsWith('https://csp-negative.invalid')));
+                // Wait for the reporting binding too, so the expected control is not mixed into gameplay evidence.
+                await page.waitForFunction(()=>__cspReports>0);
+                assert.equal(observation.cspViolations.length,1);
+                assert.equal(observation.cspViolations[0].directive,'connect-src');
+                report.cspNegativeControl=observation.cspViolations.pop();
+            }
             const phase=value=>page.waitForFunction(v=>window.__estellaCooked?.probe(['DeviceStatus']).at.DeviceStatus?.text?.startsWith(v),value.toUpperCase());
             const click=async name=>{const box=await page.evaluate(n=>__estellaCooked.probe([n]).at[n],name);assert(box);await page.mouse.click(400+box.x,225-box.y);};
             const hosted=mode!=='local-noop'&&mode!=='sdk-missing';
@@ -99,7 +120,8 @@ try {
                 assert.match(observation.storage,/unavailable/);assert.equal(await page.evaluate(()=>localStorage.getItem('esengine:test')),null);
             }
             const file=mode+'.png';await page.screenshot({path:path.join(out,file)});observation.screenshot={file,sha256:sha(path.join(out,file))};
-            assert.deepEqual(observation.errors,[]);assert.deepEqual(observation.unexpectedRequests,[]);observation.events=await page.evaluate(()=>window.__events??[]);observation.status='passed';
+            assert.deepEqual(observation.errors,[]);assert.deepEqual(observation.unexpectedRequests,[]);assert.deepEqual(observation.cspViolations,[]);
+            observation.events=await page.evaluate(()=>window.__events??[]);observation.status='passed';
         } catch(error){observation.failure=String(error);throw error;}finally{await context.close();}
     }
     assert.deepEqual(Object.fromEntries(files().map(file=>[file,sha(path.join(root,file))])),identities);report.status='checks-passed';

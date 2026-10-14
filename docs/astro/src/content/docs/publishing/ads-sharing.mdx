@@ -361,6 +361,12 @@ warnings. Static initial content is an estimate; actual compressed transfer
 through gameReady must remain below 30 MiB. Verify loading and peak heap on
 target devices and in the official Test Suite.
 
+Headless CI also applies the official guide's CSP response header and detects
+policy violations, with a deliberately blocked external request as a control.
+For independent static validation, run the official
+[bundle analyzer](https://developers.google.com/youtube/gaming/playables/samples/bundle_analyzer).
+This does not replace SDK Test Suite or device certification.
+
 Select **YouTube Playables** in Web packaging or set
 `packaging.platforms.web.channel` to `"youtube"`. The Mobile Controls example
 provides a named `youtube` profile. The official SDK loads before game code;
