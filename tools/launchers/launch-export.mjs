@@ -65,6 +65,7 @@ import { fileURLToPath } from 'node:url';
 import { onRendererConsole } from '../lib/rendererConsole.mjs';
 import { inputScript } from './inputScript.mjs';
 import { frameClockScript } from './frameClock.mjs';
+import { packageFramesScript } from './packageFrames.mjs';
 import { networkProfile } from './networkProfiles.mjs';
 
 // Headless / GPU-less (CI) WebGL2 falls back to SwiftShader; harmless with a GPU.
@@ -327,20 +328,8 @@ const SCENE = flag('scene', '');
 
   // Wait for a real frame rather than a wall-clock guess: the engine paints when
   // its wasm and assets are in, which is exactly the part a package can get wrong.
-  const paint = await win.webContents.executeJavaScript(`
-    new Promise((resolve) => {
-      const deadline = Date.now() + ${TIMEOUT};
-      let frames = 0;
-      const tick = () => {
-        const c = document.querySelector('canvas');
-        if (c && c.width > 0 && c.height > 0) frames++;
-        if (frames >= ${SETTLE}) return resolve({ ok: true, frames });
-        if (Date.now() > deadline) return resolve({ ok: false, frames });
-        requestAnimationFrame(tick);
-      };
-      requestAnimationFrame(tick);
-    })
-  `).catch((e) => { errors.push(String(e)); return { ok: false, frames: -1 }; });
+  const paint = await win.webContents.executeJavaScript(packageFramesScript(SETTLE, TIMEOUT))
+    .catch((e) => { errors.push(String(e)); return {ok: false, frames: -1, phase: 'exception'}; });
   const painted = paint.ok;
 
   // Drive the game, then let it run on.
@@ -499,7 +488,7 @@ const SCENE = flag('scene', '');
     // How far it got, rather than "it did not start": a package drawing one slow
     // frame a second on a software rasteriser reaches neither, and only one of
     // those two sentences sends you looking in the right place.
-    console.log(`    ${paint.frames} of ${SETTLE} settled frames within ${TIMEOUT}ms`);
+    console.log(`    ${paint.frames} of ${SETTLE} settled frames within ${TIMEOUT}ms (phase: ${paint.phase})`);
     const diag = await win.webContents.executeJavaScript(`(() => {
       const c = document.querySelector('canvas');
       return JSON.stringify({ ready: document.readyState, canvas: !!c, w: c ? c.width : 0, h: c ? c.height : 0 });

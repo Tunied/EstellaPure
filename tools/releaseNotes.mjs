@@ -30,6 +30,8 @@ export const NOTES_FLOOR = 'v0.65.0';
 export const NOTED = {
   'test(nav): yield fixed-step capture work to the compositor':
     { internal: 'Headless workshop acceptance yields between fixed simulation batches so software rendering can drain before screenshots, and persists sampled facts before capture failures.' },
+  'fix(test): wait for package boot before settling input':
+    { internal: 'Export acceptance counts settling frames only after the startup overlay releases input and uses a wall-clock watchdog independent of animation frames. Delayed real Web startup demonstrates that early clicks were previously lost.' },
   'fix(nav): apply grid obstacle changes without bake throttling':
     { note: '2D navigation doors close without the mesh bake delay.' },
   'fix(nav): pass occupied intermediate grid waypoints safely':
