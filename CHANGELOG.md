@@ -14,6 +14,8 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+## [0.89.0] - 2026-10-16
+
 ### Fixed
 
 - **Tile collision overlays project only visible local chunks.** The editor culls cached local geometry before placing world points, uses each layer's current rotation, origin offset and depth, and updates moving-layer previews every frame. Chunk and shape bounds retain oversized shapes crossing the viewport. Large-map movement avoids tile readback and complete-map point allocation.
@@ -14491,7 +14493,8 @@ not kept before this file was introduced — see the Git history at
 `github.com/esengine/estella` for the full commit-level record since the first
 commit on 2026-01-25.
 
-[Unreleased]: https://github.com/esengine/estella/compare/v0.88.0...HEAD
+[Unreleased]: https://github.com/esengine/estella/compare/v0.89.0...HEAD
+[0.89.0]: https://github.com/esengine/estella/compare/v0.88.0...v0.89.0
 [0.88.0]: https://github.com/esengine/estella/compare/v0.87.2...v0.88.0
 [0.87.2]: https://github.com/esengine/estella/compare/v0.87.1...v0.87.2
 [0.87.1]: https://github.com/esengine/estella/compare/v0.87.0...v0.87.1
