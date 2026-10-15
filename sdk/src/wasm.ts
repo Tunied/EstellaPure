@@ -685,6 +685,10 @@ export interface ESEngineModule {
     registry_getCameraEntities(registry: CppRegistry): number[];
     getChildEntities(registry: CppRegistry, entity: number): number[];
     registry_getGeneration(registry: CppRegistry, entity: number): number;
+    registry_watchEntityChanges?(registry: CppRegistry): number;
+    registry_unwatchEntityChanges?(registry: CppRegistry, reader: number): void;
+    registry_entityChangeSequence?(registry: CppRegistry): number;
+    registry_readEntityChanges?(registry: CppRegistry, after: number, outputPtr: number, capacity: number): number;
     registry_batchSyncPhysicsTransforms(registry: CppRegistry, bufferPtr: number, count: number, ppu: number): void;
     registry_readWorldPoses2D?(registry: CppRegistry, entitiesPtr: number, count: number, outputPtr: number): number;
 

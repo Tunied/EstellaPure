@@ -27,6 +27,7 @@
 #include "SparseSet.hpp"
 #include "View.hpp"
 #include "ActiveView.hpp"
+#include "EntityChangeJournal.hpp"
 #include "components/Hierarchy.hpp"
 #include "../events/Sink.hpp"
 
@@ -101,6 +102,7 @@ public:
         disabled_[e.index()] = off;
         if (off) ++disabled_count_; else --disabled_count_;
         ++activity_epoch_;
+        recordEntityChange(e, ENTITY_CHANGE_SUBTREE);
         return true;
     }
     bool isEntityEnabled(Entity e) const {
@@ -115,7 +117,22 @@ public:
     }
     bool hasInactiveEntities() const { return disabled_count_ != 0; }
     u32 activityEpoch() const { return activity_epoch_; }
-    void invalidateActivityHierarchy() { if (disabled_count_) ++activity_epoch_; }
+    void invalidateActivityHierarchy(Entity root = INVALID_ENTITY) {
+        if (disabled_count_) ++activity_epoch_;
+        recordEntityChange(root, root == INVALID_ENTITY ? ENTITY_CHANGE_RESET : ENTITY_CHANGE_SUBTREE);
+    }
+
+    u32 watchEntityChanges() { return entity_changes_.watch(); }
+    void unwatchEntityChanges(u32 reader) { entity_changes_.unwatch(reader); }
+    double entityChangeSequence() const { return entity_changes_.sequence(); }
+    i32 readEntityChanges(double after, std::span<EntityChangeRow> output) const {
+        return entity_changes_.read(after, output);
+    }
+    // Raw component producers publish their logical mutation here; merely
+    // borrowing a mutable reference does not announce a write.
+    void recordEntityChange(Entity entity, u32 flags = 0, u32 component = ENTITY_CHANGE_NO_COMPONENT) {
+        entity_changes_.record(entity.id(), flags, component);
+    }
 
     template<class... C> auto activeView() {
         return ActiveView<View<C...>, Registry>(view<C...>(), *this);
@@ -213,6 +230,13 @@ public:
      */
     void destroy(Entity entity) {
         if (!valid(entity)) return;
+
+        if (entity_changes_.readerCount()) {
+            recordEntityChange(entity);
+            if (const auto* children = tryGet<Children>(entity)) {
+                for (const auto child : children->entities) recordEntityChange(child, ENTITY_CHANGE_SUBTREE);
+            }
+        }
 
         const u32 idx = entity.index();
 
@@ -327,7 +351,7 @@ public:
         auto& pool = assurePool<T>();
         auto& result = pool.emplace(entity, std::forward<Args>(args)...);
         component_masks_[entity.index()].set(componentTypeId<T>());
-        if constexpr (std::is_same_v<T, Parent> || std::is_same_v<T, Children>) invalidateActivityHierarchy();
+        recordComponentChange<T>(entity);
         return result;
     }
 
@@ -349,12 +373,12 @@ public:
         if (pool.contains(entity)) {
             auto& comp = pool.get(entity);
             comp = T(std::forward<Args>(args)...);
-            if constexpr (std::is_same_v<T, Parent> || std::is_same_v<T, Children>) invalidateActivityHierarchy();
+            recordComponentChange<T>(entity, ENTITY_CHANGE_REPLACED);
             return comp;
         }
         auto& result = pool.emplace(entity, std::forward<Args>(args)...);
         component_masks_[entity.index()].set(componentTypeId<T>());
-        if constexpr (std::is_same_v<T, Parent> || std::is_same_v<T, Children>) invalidateActivityHierarchy();
+        recordComponentChange<T>(entity);
         return result;
     }
 
@@ -368,9 +392,9 @@ public:
     template<typename T>
     void remove(Entity entity) {
         auto* pool = getPool<T>();
-        if (pool) {
+        if (pool && pool->contains(entity)) {
             pool->remove(entity);
-            if constexpr (std::is_same_v<T, Parent> || std::is_same_v<T, Children>) invalidateActivityHierarchy();
+            recordComponentChange<T>(entity);
             const u32 idx = entity.index();
             if (idx < component_masks_.size()) {
                 component_masks_[idx].clear(componentTypeId<T>());
@@ -439,6 +463,7 @@ public:
         ES_VERIFY_FATAL(valid(entity), invalidEntityMessage("getOrEmplace", entity));
         auto& result = pool.emplace(entity, std::forward<Args>(args)...);
         component_masks_[entity.index()].set(componentTypeId<T>());
+        recordComponentChange<T>(entity);
         return result;
     }
 
@@ -517,6 +542,7 @@ public:
      * @details Resets the registry to its initial empty state.
      */
     void clear() {
+        recordEntityChange(INVALID_ENTITY, ENTITY_CHANGE_RESET);
         for (auto& pool : pools_) {
             if (pool) {
                 pool->clear();
@@ -776,12 +802,14 @@ private:
         entityValid_[index] = true;
         disabled_[index] = 0;
         destruction_pending_[index] = 0;
-        invalidateActivityHierarchy();
+        if (disabled_count_) ++activity_epoch_;
         generations_[index] = (generations_[index] + 1) & Entity::GEN_MASK;
         if (generations_[index] == 0) generations_[index] = 1;
         component_masks_[index].reset();
         ++entity_count_;
-        return Entity::make(index, generations_[index]);
+        const auto entity = Entity::make(index, generations_[index]);
+        recordEntityChange(entity);
+        return entity;
     }
 
     // =========================================================================
@@ -789,6 +817,16 @@ private:
     // =========================================================================
 
     std::vector<u8> entityValid_;
+    EntityChangeJournal entity_changes_;
+
+    template<typename T>
+    void recordComponentChange(Entity entity, u32 flags = 0) {
+        if constexpr (std::is_same_v<T, Parent>) flags |= ENTITY_CHANGE_SUBTREE;
+        if constexpr (std::is_same_v<T, Parent> || std::is_same_v<T, Children>) {
+            if (disabled_count_) ++activity_epoch_;
+        }
+        recordEntityChange(entity, flags, componentTypeId<T>());
+    }
     std::vector<u8> disabled_;
     usize disabled_count_ = 0;
     u32 activity_epoch_ = 1;

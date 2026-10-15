@@ -5,7 +5,7 @@ Symbols: 115 public · 96 beta · 1600 experimental · 3 deprecated
 
 ## ABI_LAYOUT_HASH — const @experimental
 ```
-"0c84aca932384575"
+"4a247e158faf0865"
 ```
 
 ## ANCHOR_AXES — const @experimental

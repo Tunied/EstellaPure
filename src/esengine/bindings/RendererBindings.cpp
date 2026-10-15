@@ -1215,6 +1215,17 @@ u32 registry_getGeneration(ecs::Registry& registry, u32 entity) {
     return Entity::fromRaw(entity).generation();
 }
 
+u32 registry_watchEntityChanges(ecs::Registry& registry) { return registry.watchEntityChanges(); }
+void registry_unwatchEntityChanges(ecs::Registry& registry, u32 reader) { registry.unwatchEntityChanges(reader); }
+double registry_entityChangeSequence(ecs::Registry& registry) { return registry.entityChangeSequence(); }
+int registry_readEntityChanges(ecs::Registry& registry, double after, uintptr_t outputPtr, int capacity) {
+    if (capacity < 0 || capacity > static_cast<int>(ecs::ENTITY_CHANGE_CAPACITY)
+        || outputPtr % alignof(ecs::EntityChangeRow)) return -1;
+    if (capacity == 0) return registry.readEntityChanges(after, {});
+    auto* rows = boundarySpanMut<ecs::EntityChangeRow>(outputPtr, static_cast<u64>(capacity), "registry_readEntityChanges");
+    return rows ? registry.readEntityChanges(after, {rows, static_cast<usize>(capacity)}) : -1;
+}
+
 int registry_readWorldPoses2D(ecs::Registry& registry, uintptr_t entitiesPtr, int count, uintptr_t outputPtr) {
     if (count <= 0 || entitiesPtr % alignof(u32) || outputPtr % alignof(EntityPose2D)) return 0;
     const auto* ids = boundarySpan<u32>(entitiesPtr, static_cast<u64>(count), "registry_readWorldPoses2D.entities");

@@ -319,6 +319,12 @@ emscripten::val registry_getCameraEntities(ecs::Registry& registry);
 emscripten::val getChildEntities(ecs::Registry& registry, u32 entity);
 #endif
 u32 registry_getGeneration(ecs::Registry& registry, u32 entity);
+u32 registry_watchEntityChanges(ecs::Registry& registry);
+void registry_unwatchEntityChanges(ecs::Registry& registry, u32 reader);
+double registry_entityChangeSequence(ecs::Registry& registry);
+// Output contains entity/flags/component-type rows. Returns -1 when the cursor or capacity
+// cannot cover the retained history; the caller must perform a full refresh.
+int registry_readEntityChanges(ecs::Registry& registry, double after, uintptr_t outputPtr, int capacity);
 // Read composed world poses for valid, active entities with a Transform.
 // Output has room for count EntityPose2D rows; returns the number written.
 int registry_readWorldPoses2D(ecs::Registry& registry, uintptr_t entitiesPtr, int count, uintptr_t outputPtr);

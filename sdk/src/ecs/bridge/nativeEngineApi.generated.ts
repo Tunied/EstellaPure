@@ -123,9 +123,13 @@ export interface NativeEngineApi {
     probe_volume_create?(resX: number, resY: number, resZ: number, shPtr: number): number;
     probe_volume_release?(volumeHandle: number): void;
     registry_batchSyncPhysicsTransforms?(registry: unknown, bufferPtr: number, count: number, ppu: number): void;
+    registry_entityChangeSequence?(registry: unknown): number;
     registry_getCanvasEntity?(registry: unknown): number;
     registry_getGeneration?(registry: unknown, entity: number): number;
+    registry_readEntityChanges?(registry: unknown, after: number, outputPtr: number, capacity: number): number;
     registry_readWorldPoses2D?(registry: unknown, entitiesPtr: number, count: number, outputPtr: number): number;
+    registry_unwatchEntityChanges?(registry: unknown, reader: number): void;
+    registry_watchEntityChanges?(registry: unknown): number;
     renderer_begin?(matrixPtr: number, targetHandle: number, clearFlags: number, r: number, g: number, b: number, a: number, clearX: number, clearY: number, clearW: number, clearH: number): void;
     renderer_beginFrame?(elapsedSec: number): void;
     renderer_beginScreenOverlay?(projectionPtr: number, vpX: number, vpY: number, vpW: number, vpH: number): void;
@@ -415,9 +419,13 @@ export function createNativeEngineApi(
     bind('probe_volume_create', 'es_probe_volume_create', false);
     bind('probe_volume_release', 'es_probe_volume_release', false);
     bind('registry_batchSyncPhysicsTransforms', 'es_registry_batchSyncPhysicsTransforms', true);
+    bind('registry_entityChangeSequence', 'es_registry_entityChangeSequence', true);
     bind('registry_getCanvasEntity', 'es_registry_getCanvasEntity', true);
     bind('registry_getGeneration', 'es_registry_getGeneration', true);
+    bind('registry_readEntityChanges', 'es_registry_readEntityChanges', true);
     bind('registry_readWorldPoses2D', 'es_registry_readWorldPoses2D', true);
+    bind('registry_unwatchEntityChanges', 'es_registry_unwatchEntityChanges', true);
+    bind('registry_watchEntityChanges', 'es_registry_watchEntityChanges', true);
     bind('renderer_begin', 'es_renderer_begin', false);
     bind('renderer_beginFrame', 'es_renderer_beginFrame', false);
     bind('renderer_beginScreenOverlay', 'es_renderer_beginScreenOverlay', false);

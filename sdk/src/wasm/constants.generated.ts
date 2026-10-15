@@ -14,6 +14,24 @@
 /** C++ `CHUNK_SIZE` in `src/esengine/tilemap/TilemapSystem.hpp`. */
 export const CHUNK_SIZE = 16;
 
+/** C++ `ENTITY_CHANGE_CAPACITY` in `src/esengine/ecs/EntityChangeJournal.hpp`. */
+export const ENTITY_CHANGE_CAPACITY = 4096;
+
+/** C++ `ENTITY_CHANGE_NO_COMPONENT` in `src/esengine/ecs/EntityChangeJournal.hpp`. */
+export const ENTITY_CHANGE_NO_COMPONENT = 4294967295;
+
+/** C++ `ENTITY_CHANGE_REPLACED` in `src/esengine/ecs/EntityChangeJournal.hpp`. */
+export const ENTITY_CHANGE_REPLACED = 4;
+
+/** C++ `ENTITY_CHANGE_RESET` in `src/esengine/ecs/EntityChangeJournal.hpp`. */
+export const ENTITY_CHANGE_RESET = 2;
+
+/** C++ `ENTITY_CHANGE_SUBTREE` in `src/esengine/ecs/EntityChangeJournal.hpp`. */
+export const ENTITY_CHANGE_SUBTREE = 1;
+
+/** C++ `ENTITY_CHANGE_WORDS` in `src/esengine/ecs/EntityChangeJournal.hpp`. */
+export const ENTITY_CHANGE_WORDS = 3;
+
 /** C++ `ENTITY_POSE_2D_WORDS` in `src/esengine/core/EntityPose2D.hpp`. */
 export const ENTITY_POSE_2D_WORDS = 4;
 

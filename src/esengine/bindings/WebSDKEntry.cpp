@@ -782,6 +782,10 @@ EMSCRIPTEN_BINDINGS(esengine_renderer) {
     emscripten::function("registry_getGeneration", &esengine::registry_getGeneration);
     emscripten::function("registry_batchSyncPhysicsTransforms", &esengine::registry_batchSyncPhysicsTransforms);
     emscripten::function("registry_readWorldPoses2D", &esengine::registry_readWorldPoses2D);
+    emscripten::function("registry_watchEntityChanges", &esengine::registry_watchEntityChanges);
+    emscripten::function("registry_unwatchEntityChanges", &esengine::registry_unwatchEntityChanges);
+    emscripten::function("registry_entityChangeSequence", &esengine::registry_entityChangeSequence);
+    emscripten::function("registry_readEntityChanges", &esengine::registry_readEntityChanges);
 
     emscripten::function("gl_enableErrorCheck", &esengine::gl_enableErrorCheck);
     emscripten::function("gl_checkErrors", &esengine::gl_checkErrors);

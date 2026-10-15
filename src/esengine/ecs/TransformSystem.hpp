@@ -412,7 +412,7 @@ inline bool setParent(Registry& registry, Entity child, Entity newParent) {
         registry.emplace<TransformDirty>(child);
     }
     invalidateTransformComposition();
-    registry.invalidateActivityHierarchy();
+    registry.invalidateActivityHierarchy(child);
     return true;
 }
 
