@@ -13,6 +13,7 @@ import { Text, TextAlign, TextVerticalAlign, type TextData } from '../core/text'
 import { Interactable, UIInteraction, type UIInteractionData } from '../input/interactable';
 import { Focusable, FocusManager, FocusManagerState } from '../input/focusable';
 import type { FocusableData } from '../input/focusable';
+import { isFocusEligible } from '../input/focus-inspection';
 import { UICameraInfo, type UICameraData } from '../core/ui-camera-info';
 import { Transform, type TransformData } from '../../ecs/component';
 import { UIEvents, UIEventQueue, type UIEvent } from '../core/events';
@@ -114,19 +115,38 @@ export class TextInputPlugin implements Plugin {
             const fm = app.getResource(FocusManager) as FocusManagerState | null;
             if (!fm || fm.focusedEntity === null) return null;
             const entity = fm.focusedEntity;
-            if (!world.isEntityActive(entity) || !world.has(entity, TextInput)) return null;
+            if (!world.valid(entity) || !world.has(entity, TextInput)) return null;
             if (world.get(entity, TextInput).readOnly) return null;
-            if (world.has(entity, Interactable) && !world.get(entity, Interactable).enabled) return null;
-            return entity;
+            return isFocusEligible(world, entity) ? entity : null;
         }
 
         function getEditingTextInput(): Entity | null {
             return editingEntity !== null && getFocusedTextInput() === editingEntity ? editingEntity : null;
         }
 
+        function detachEditor(): void {
+            const owner = editingEntity;
+            editingEntity = null;
+            composing = false;
+            if (owner === null) return;
+            if (world.valid(owner) && world.has(owner, TextInput) && world.get(owner, TextInput).focused) {
+                world.update(owner, TextInput, ti => { ti.focused = false; });
+            }
+            editor!.blur();
+        }
+
         const unsubscribe = editor.subscribe((event) => {
             const focused = getEditingTextInput();
-            if (focused === null) return;
+            if (focused === null) {
+                // A hidden field or an opened modal can invalidate the owner
+                // between frames. Retire its preedit even if eligibility returns
+                // before the next focus tick; never detach a newly assigned field.
+                if (editingEntity !== null
+                    && (app.getResource(FocusManager) as FocusManagerState).focusedEntity === editingEntity) {
+                    detachEditor();
+                }
+                return;
+            }
             switch (event.kind) {
                 case 'change':
                     if (!composing && focused !== null) syncFromEditor();
@@ -379,9 +399,7 @@ export class TextInputPlugin implements Plugin {
                         if (world.valid(prevFocusedTextInput) && world.has(prevFocusedTextInput, TextInput)) {
                             world.update(prevFocusedTextInput, TextInput, (ti) => { ti.focused = false; });
                         }
-                        editingEntity = null;
-                        composing = false;
-                        editor.blur();
+                        detachEditor();
                     }
 
                     if (currentFocused !== null) {

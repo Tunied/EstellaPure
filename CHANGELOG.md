@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Ineligible text fields reject late editing callbacks immediately.** Hidden fields and controls outside a newly opened modal cannot commit delayed changes, composition endings or submissions. The rejected session releases its OS editing surface and preedit state, so eligibility returning before another frame reattaches the committed value instead of replaying stale input; fields inside the active dialog remain editable.
+
 - **Keyboard focus observes authored visibility between layout passes.** Focus traversal and single-target checks read current display ancestry, so hiding a tree or opening a previously hidden modal immediately changes eligibility without waiting for the cached layout bit. Per-query ancestry memoization and borrowed component reads share work across controls; hosts without authored UI ancestry retain their existing visibility fallback.
 
 - **Text-input length limits preserve complete supplementary characters.** Oversized host input still uses UTF-16 length limits, but truncation backs off when the boundary would split a valid surrogate pair. The corrected value and selection return to the editing surface together, preventing malformed emoji in committed input while preserving BMP limits and existing cursor semantics.

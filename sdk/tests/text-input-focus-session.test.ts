@@ -7,6 +7,8 @@ import { TextInputPlugin } from '../src/ui/text/text-input-plugin';
 import { TextInput } from '../src/ui/text/text-input';
 import { FocusManager, FocusManagerState } from '../src/ui/input/focusable';
 import { UIEvents, UIEventQueue } from '../src/ui/core/events';
+import { UINode, UIDisplay } from '../src/ui/core/ui-node';
+import { UIDialog } from '../src/ui/behavior/dialog';
 import type { App } from '../src/app/app';
 
 vi.mock('../src/platform/base', async original => ({
@@ -96,4 +98,53 @@ it('releases focus after submission when the callback leaves the session unchang
     expect(fm.focusedEntity).toBe(null);
     expect(app.world.get(first, TextInput).focused).toBe(false);
     expect(document.activeElement).not.toBe(textarea);
+});
+
+it.each(['hidden', 'ancestor', 'modal'] as const)('rejects late editing callbacks after %s and restores the committed value', async mutation => {
+    const { app, first, textarea } = build();
+    const world = app.world, fm = app.getResource(FocusManager);
+    world.insert(first, UINode);
+    const root = world.spawn();
+    world.insert(root, UINode);
+    if (mutation === 'ancestor') world.setParent(first, root);
+    fm.focus(first);
+    await app.tick(1 / 60);
+    const changed = vi.fn(), submitted = vi.fn();
+    app.getResource(UIEvents).on(first, 'change', changed);
+    app.getResource(UIEvents).on(first, 'submit', submitted);
+    textarea.dispatchEvent(new CompositionEvent('compositionstart'));
+    if (mutation === 'modal') world.insert(root, UIDialog);
+    else world.update(mutation === 'hidden' ? first : root, UINode, n => { n.display = UIDisplay.None; });
+    textarea.value = 'late preedit';
+    textarea.dispatchEvent(new CompositionEvent('compositionend'));
+    textarea.dispatchEvent(new Event('input'));
+    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', cancelable: true }));
+    expect(world.get(first, TextInput).value).toBe('first');
+    expect(world.get(first, TextInput).focused).toBe(false);
+    expect(changed).not.toHaveBeenCalled();
+    expect(submitted).not.toHaveBeenCalled();
+    expect(document.activeElement).not.toBe(textarea);
+    // Eligibility returns before another focus tick. A rejected composition
+    // must not leave a composing latch or stale value attached to this field.
+    if (mutation === 'modal') world.remove(root, UIDialog);
+    else world.update(mutation === 'hidden' ? first : root, UINode, n => { n.display = UIDisplay.Flex; });
+    await app.tick(1 / 60);
+    expect(textarea.value).toBe('first');
+    textarea.value = 'resumed';
+    textarea.dispatchEvent(new Event('input'));
+    expect(world.get(first, TextInput).value).toBe('resumed');
+    expect(changed).toHaveBeenCalledOnce();
+});
+
+it('accepts editing inside the active modal subtree', async () => {
+    const { app, first, textarea } = build();
+    const root = app.world.spawn();
+    app.world.insert(root, UINode);
+    app.world.insert(root, UIDialog);
+    app.world.setParent(first, root);
+    app.getResource(FocusManager).focus(first);
+    await app.tick(1 / 60);
+    textarea.value = 'modal text';
+    textarea.dispatchEvent(new Event('input'));
+    expect(app.world.get(first, TextInput).value).toBe('modal text');
 });
