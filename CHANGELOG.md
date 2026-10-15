@@ -14,6 +14,8 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+## [0.89.1] - 2026-10-16
+
 ### Fixed
 
 - **Tile edits preserve unaffected collision chunks and contacts.** Runtime collision reuses native chunk revisions and replaces only changed chunk bodies, retaining other body identities and resting contacts. Frame and fixed-step edits derive before physics, while tile animation advances once per rendered frame. The editor and runtime share owned chunk readback that survives WASM memory growth and releases temporary buffers; older or failed readback falls back to content comparison. Layout, cell dimensions, material and lifetime changes still rebuild the affected geometry.
@@ -21,6 +23,10 @@ published separately; it ships inside the editor.
 - **Moving static collision uses a shared batch pose channel.** The engine exports composed 2D poses for selected active entities and physics applies them in one call, skipping unchanged solver poses. Web modules copy populated rows between their heaps; native hosts use their shared arena. Batch rows share a generated C++ stride, lazy world fields are decomposed before export, temporary buffers are released on failure, and hosts without the new calls keep the scalar path.
 
 - **Static physics synchronization skips unchanged body groups.** Authored Transform writes select individual static bodies, while each immediate parent's composed frame selects only its affected children. Unrelated dynamic or authored motion avoids per-body change checks and pose reads. Reparenting, re-enabling and pixels-per-unit edits refresh the correct bodies. Paused simulations release write history and refresh poses on resume; plugin cleanup releases the reader and frame/despawn observers.
+
+### Known issues
+
+- The Neon Ascension example failed Android and iOS template boot checks in 0.89.0 because the exported package could not load its entry scene. This release does not resolve or claim acceptance for that example on those platforms.
 
 ## [0.89.0] - 2026-10-16
 
@@ -14501,7 +14507,8 @@ not kept before this file was introduced — see the Git history at
 `github.com/esengine/estella` for the full commit-level record since the first
 commit on 2026-01-25.
 
-[Unreleased]: https://github.com/esengine/estella/compare/v0.89.0...HEAD
+[Unreleased]: https://github.com/esengine/estella/compare/v0.89.1...HEAD
+[0.89.1]: https://github.com/esengine/estella/compare/v0.89.0...v0.89.1
 [0.89.0]: https://github.com/esengine/estella/compare/v0.88.0...v0.89.0
 [0.88.0]: https://github.com/esengine/estella/compare/v0.87.2...v0.88.0
 [0.87.2]: https://github.com/esengine/estella/compare/v0.87.1...v0.87.2
