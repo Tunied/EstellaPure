@@ -3247,6 +3247,7 @@ setDepthTest: (enabled: boolean) => void
 setLayer: (layer: number) => void
 texture: (position: Vec2, size: Vec2, textureHandle: number, tint?: Color) => void
 textureRotated: (position: Vec2, size: Vec2, rotation: number, textureHandle: number, tint?: Color) => void
+withDepthState: (state: { test: boolean; write: boolean; }, draw: () => void) => boolean
 ```
 
 ## DrawCallInfo — interface @experimental

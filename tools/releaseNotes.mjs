@@ -32,6 +32,10 @@ export const NOTED = {
     { note: 'Native text measurement wraps without rescanning growing prefixes.' },
   'fix(text): bound native measurement advance history':
     { note: 'Public native text measurement retains a bounded advance cache.' },
+  'feat(viewport): fade occluded transform handles without writing scene depth':
+    { note: 'Spatial transform handles fade behind scene geometry.' },
+  'feat(viewport): add configurable occluded handle fading':
+    { note: 'Spatial transform handles fade behind scene geometry.' },
   'fix(text): isolate font reload ownership and glyph caches':
     { note: 'Font reloads retain independent handles and glyph caches.' },
   'fix(text): encode font paths without identity collisions':

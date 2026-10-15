@@ -29,7 +29,7 @@ vi.mock('../src/render/material', () => {
 });
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { Draw, initDrawAPI, shutdownDrawAPI, endPresentedDraw, BlendMode } from '../src/render/draw';
+import { Draw, initDrawAPI, shutdownDrawAPI, beginPresentedDraw, endPresentedDraw, BlendMode } from '../src/render/draw';
 import { Material, isTextureRef } from '../src/render/material';
 import type { ESEngineModule } from '../src/wasm';
 
@@ -207,6 +207,14 @@ describe('Draw API', () => {
     });
 
     describe('endPresentedDraw', () => {
+        it('starts collection after opening the draw session, with an older-core fallback', () => {
+            const calls: string[] = [];
+            mock.draw_begin.mockImplementation(() => { calls.push('begin'); });
+            Object.assign(mock, { draw_deferBegin: () => { calls.push('defer'); } });
+            beginPresentedDraw(new Float32Array(16), 800, 600);
+            expect(calls).toEqual(['begin', 'defer']);
+        });
+
         it('defers submission to the owning renderer pass', () => {
             endPresentedDraw();
             expect(mock.draw_deferEnd).toHaveBeenCalledOnce();
@@ -429,6 +437,32 @@ describe('Draw API', () => {
         it('setDepthTest should call draw_setDepthTest', () => {
             Draw.setDepthTest(true);
             expect(mock.draw_setDepthTest).toHaveBeenCalledWith(true);
+        });
+
+        it('restores actual native depth state across nested scopes and exceptions', () => {
+            let flags = 3;
+            const states: number[] = [];
+            Object.assign(mock, {
+                draw_getDepthState: () => flags,
+                draw_setDepthState: (v: number) => { flags = v; states.push(v); },
+            });
+            expect(() => Draw.withDepthState({ test: false, write: false }, () => {
+                expect(flags).toBe(0);
+                expect(Draw.withDepthState({ test: true, write: false }, () => {
+                    expect(flags).toBe(1);
+                })).toBe(true);
+                expect(flags).toBe(0);
+                throw new Error('draw failed');
+            })).toThrow('draw failed');
+            expect(flags).toBe(3);
+            expect(states).toEqual([0, 1, 0, 3]);
+        });
+
+        it('lets callers fall back without drawing or changing state on older cores', () => {
+            const draw = vi.fn();
+            expect(Draw.withDepthState({ test: true, write: false }, draw)).toBe(false);
+            expect(draw).not.toHaveBeenCalled();
+            expect(mock.draw_setDepthTest).not.toHaveBeenCalled();
         });
     });
 

@@ -76,6 +76,12 @@ export function shutdownDrawAPI(): void {
     module = null;
 }
 
+/** @internal Collect primitive batches for the owning renderer pass. */
+export function beginPresentedDraw(viewProjection: Float32Array, width: number, height: number): void {
+    Draw.begin(viewProjection, width, height);
+    getModule().draw_deferBegin?.();
+}
+
 /** @internal Close custom overlay collection for the owning renderer pass. */
 export function endPresentedDraw(): void {
     try {
@@ -222,6 +228,10 @@ export interface DrawAPI {
      * @param enabled True to enable depth testing
      */
     setDepthTest(enabled: boolean): void;
+
+    /** Runs synchronous drawing with scoped depth state, restored even on throw.
+     * Returns false without drawing on older cores without scoped depth support. */
+    withDepthState(state: { test: boolean; write: boolean }, draw: () => void): boolean;
 
     /**
      * Draws a custom mesh with a shader.
@@ -438,6 +448,19 @@ export const Draw: DrawAPI = {
 
     setDepthTest(enabled: boolean): void {
         getModule().draw_setDepthTest(enabled);
+    },
+
+    withDepthState(state: { test: boolean; write: boolean }, draw: () => void): boolean {
+        const m = getModule();
+        if (!m.draw_getDepthState || !m.draw_setDepthState) return false;
+        const previous = m.draw_getDepthState();
+        m.draw_setDepthState((state.test ? 1 : 0) | (state.write ? 2 : 0));
+        try {
+            draw();
+        } finally {
+            m.draw_setDepthState(previous);
+        }
+        return true;
     },
 
     drawMesh(geometry: GeometryHandle, shader: ShaderHandle, transform: Float32Array): void {

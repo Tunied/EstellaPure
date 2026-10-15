@@ -569,6 +569,9 @@ EMSCRIPTEN_BINDINGS(esengine_renderer) {
     emscripten::function("draw_getPrimitiveCount", &esengine::draw_getPrimitiveCount);
     emscripten::function("draw_setBlendMode", &esengine::draw_setBlendMode);
     emscripten::function("draw_setDepthTest", &esengine::draw_setDepthTest);
+    emscripten::function("draw_getDepthState", &esengine::draw_getDepthState);
+    emscripten::function("draw_setDepthState", &esengine::draw_setDepthState);
+    emscripten::function("draw_deferBegin", &esengine::draw_deferBegin);
     emscripten::function("draw_mesh", &esengine::draw_mesh);
     emscripten::function("draw_meshWithUniforms", &esengine::draw_meshWithUniforms);
     emscripten::function("draw_meshWithMaterial", &esengine::draw_meshWithMaterial);

@@ -57,6 +57,7 @@ vi.mock('../src/render/draw', () => ({
         end: vi.fn(),
     },
     endPresentedDraw: vi.fn(),
+    beginPresentedDraw: vi.fn(),
     // These cases are about a core that HAS a Draw API; the one that has not is
     // covered where the skip lives (nav-debug-draw).
     isDrawAPIReady: () => true,
@@ -77,7 +78,7 @@ vi.mock('../src/render/customDraw', () => ({
 import { RenderPipeline } from '../src/render/renderPipeline';
 import { Renderer } from '../src/render/renderer';
 import { PostProcess, type PostProcessAPI } from '../src/postprocess';
-import { Draw, endPresentedDraw } from '../src/render/draw';
+import { Draw, beginPresentedDraw, endPresentedDraw } from '../src/render/draw';
 import { defaultScreenOverlay } from '../src/ui/core/screen-overlay';
 import { unregisterDrawCallback } from '../src/render/customDraw';
 const postProcessFixture = PostProcess as unknown as PostProcessAPI;
@@ -202,7 +203,7 @@ describe('RenderPipeline', () => {
     describe('custom draw callbacks', () => {
         it('does not open or close a presented draw when no callbacks', () => {
             pipeline.render({ registry, viewProjection, width: 800, height: 600, elapsed: 0 });
-            expect(Draw.begin).not.toHaveBeenCalled();
+            expect(beginPresentedDraw).not.toHaveBeenCalled();
             expect(endPresentedDraw).not.toHaveBeenCalled();
         });
 
@@ -212,7 +213,7 @@ describe('RenderPipeline', () => {
 
             pipeline.render({ registry, viewProjection, width: 800, height: 600, elapsed: 16 });
 
-            expect(Draw.begin).toHaveBeenCalledWith(viewProjection, 800, 600);
+            expect(beginPresentedDraw).toHaveBeenCalledWith(viewProjection, 800, 600);
             expect(cb).toHaveBeenCalledWith(16, { viewProjection, width: 800, height: 600 });
             expect(endPresentedDraw).toHaveBeenCalled();
         });
@@ -230,7 +231,7 @@ describe('RenderPipeline', () => {
 
         it('calls callbacks in order before closing the presented draw', () => {
             const callOrder: string[] = [];
-            (Draw.begin as ReturnType<typeof vi.fn>).mockImplementation(() => callOrder.push('Draw.begin'));
+            (beginPresentedDraw as ReturnType<typeof vi.fn>).mockImplementation(() => callOrder.push('beginPresentedDraw'));
             (endPresentedDraw as ReturnType<typeof vi.fn>)
                 .mockImplementation(() => callOrder.push('endPresentedDraw'));
             mockCallbacks.set('cb1', { fn: () => callOrder.push('cb1'), scene: '' });
@@ -238,7 +239,7 @@ describe('RenderPipeline', () => {
 
             pipeline.render({ registry, viewProjection, width: 800, height: 600, elapsed: 0 });
 
-            expect(callOrder).toEqual(['Draw.begin', 'cb1', 'cb2', 'endPresentedDraw']);
+            expect(callOrder).toEqual(['beginPresentedDraw', 'cb1', 'cb2', 'endPresentedDraw']);
         });
 
         it('filters callbacks by activeScenes', () => {
@@ -305,7 +306,7 @@ describe('RenderPipeline', () => {
 
             pipeline.renderCamera({ registry, viewProjection, viewportPixels, clearFlags: 3, elapsed: 16 });
 
-            expect(Draw.begin).toHaveBeenCalledWith(viewProjection, 400, 300);
+            expect(beginPresentedDraw).toHaveBeenCalledWith(viewProjection, 400, 300);
             expect(cb).toHaveBeenCalledWith(16, { viewProjection, width: 400, height: 300 });
             expect(endPresentedDraw).toHaveBeenCalled();
         });

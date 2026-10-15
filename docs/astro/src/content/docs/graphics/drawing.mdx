@@ -61,6 +61,7 @@ cleared every frame, so call it each frame you want the shape visible:
 | `drawMesh(geometry, shader, transform)` / `drawMeshWithMaterial(geometry, material, transform?)` | A custom mesh by handle (see the `Geometry` API below). |
 | `setLayer(layer)` / `setDepth(depth)` | Sorting of subsequent commands. |
 | `setBlendMode(mode)` / `setDepthTest(on)` | Blend / depth state for subsequent commands. |
+| `withDepthState({ test, write }, draw)` | Run synchronous drawing with temporary depth testing and writes. Restores the native state even if drawing throws; returns `false` without invoking `draw` on older cores. |
 | `getDrawCallCount()` / `getPrimitiveCount()` | Frame stats. |
 
 ## Vector paths: `Graphics`

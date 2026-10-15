@@ -57,6 +57,7 @@ registerDrawCallback('debug-overlay', (elapsed) => {
 | `drawMesh(geometry, shader, transform)` / `drawMeshWithMaterial(geometry, material, transform?)` | 按句柄绘制自定义网格(见下面的 `Geometry` API)。 |
 | `setLayer(layer)` / `setDepth(depth)` | 后续命令的排序。 |
 | `setBlendMode(mode)` / `setDepthTest(on)` | 后续命令的混合 / 深度状态。 |
+| `withDepthState({ test, write }, draw)` | 为同步绘制临时设置深度测试与写入，异常时也恢复原生状态。旧内核不支持时返回 `false`，不调用 `draw`，由调用方选择回退方式。 |
 | `getDrawCallCount()` / `getPrimitiveCount()` | 本帧统计。 |
 
 ## 矢量路径:`Graphics`

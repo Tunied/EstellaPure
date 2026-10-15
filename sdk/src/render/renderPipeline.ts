@@ -10,7 +10,7 @@ import type { Entity } from '../types';
 import { Renderer } from './renderer';
 import type { PostProcessAPI } from '../postprocess';
 import type { ScreenOverlayData } from '../ui/core/screen-overlay';
-import { Draw, endPresentedDraw, isDrawAPIReady } from './draw';
+import { Draw, beginPresentedDraw, endPresentedDraw, isDrawAPIReady } from './draw';
 import {
     getDrawCallbacks,
     unregisterDrawCallback,
@@ -336,7 +336,7 @@ export class RenderPipeline {
         // and a core with no Draw API has no batch to open — opening one throws
         // the frame away for a callback that would have drawn nothing.
         if (cbs.size > 0 && isDrawAPIReady()) {
-            Draw.begin(viewProjection, viewport.w, viewport.h);
+            beginPresentedDraw(viewProjection, viewport.w, viewport.h);
             const failed: string[] = [];
             for (const [id, entry] of cbs.entries()) {
                 if (entry.scene && this.activeScenes_ && !this.activeScenes_.has(entry.scene)) continue;

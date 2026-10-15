@@ -63,6 +63,11 @@ void draw_deferEnd() {
     ctx().state().immediate_draw_active = false;
 }
 
+void draw_deferBegin() {
+    if (!g_initialized || !g_immediateDraw || !g_immediateDrawActive) return;
+    g_immediateDraw->deferBegin();
+}
+
 void draw_line(f32 fromX, f32 fromY, f32 toX, f32 toY,
                f32 r, f32 g, f32 b, f32 a, f32 thickness) {
     if (!g_immediateDraw || !g_immediateDrawActive) return;
@@ -216,6 +221,17 @@ void draw_setBlendMode(i32 mode) {
 void draw_setDepthTest(bool enabled) {
     if (!g_immediateDraw) return;
     g_immediateDraw->setDepthTest(enabled);
+}
+
+u32 draw_getDepthState() {
+    if (!g_immediateDraw) return 0;
+    return (g_immediateDraw->depthTest() ? 1u : 0u)
+        | (g_immediateDraw->depthWrite() ? 2u : 0u);
+}
+
+void draw_setDepthState(u32 flags) {
+    if (!g_immediateDraw) return;
+    g_immediateDraw->setDepthState((flags & 1u) != 0, (flags & 2u) != 0);
 }
 
 }  // namespace esengine

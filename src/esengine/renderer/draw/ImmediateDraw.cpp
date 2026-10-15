@@ -180,6 +180,10 @@ void ImmediateDraw::begin(const glm::mat4& viewProjection, i32 viewportWidth, i3
     if (glm::length(forward) > 0.0001f) viewForward_ = glm::normalize(forward);
 
     pool_.beginFrame();
+    deferredBatches_.clear();
+    recordedIndices_ = 0;
+    recording_ = false;
+    deferredGeometry_ = false;
     currentTexture_ = white_texture_id_;
     pendingGeometry_ = false;
     primitiveCount_ = 0;
@@ -202,14 +206,27 @@ void ImmediateDraw::setBlendMode(BlendMode mode) {
 }
 
 void ImmediateDraw::setDepthTest(bool enabled) {
-    if (current_desc_.depthTest == enabled) return;
+    setDepthState(enabled, current_desc_.depthWrite);
+}
+
+void ImmediateDraw::setDepthState(bool test, bool write) {
+    if (current_desc_.depthTest == test && current_desc_.depthWrite == write) return;
     if (pendingGeometry_) flush();
-    current_desc_.depthTest = enabled;
+    current_desc_.depthTest = test;
+    current_desc_.depthWrite = write;
     pipeline_ = device_.createPipeline(current_desc_);
 }
 
 void ImmediateDraw::flush() {
     if (!initialized_ || !inFrame_ || !pendingGeometry_) return;
+
+    if (recording_) {
+        const u32 end = pool_.indicesUsed(LayoutId::Batch);
+        deferredBatches_.push_back({pipeline_, currentTexture_, recordedIndices_, end - recordedIndices_});
+        recordedIndices_ = end;
+        pendingGeometry_ = false;
+        return;
+    }
 
     pool_.upload();
 
@@ -227,6 +244,12 @@ void ImmediateDraw::flush() {
 void ImmediateDraw::end() {
     if (!inFrame_) return;
 
+    if (recording_) {
+        deferEnd();
+        flushDeferred();
+        return;
+    }
+
     flush();
     // No state restore needed: the next render phase invalidates the pipeline cache and
     // binds its own pipeline, which sets blend/depth/stencil afresh.
@@ -235,12 +258,29 @@ void ImmediateDraw::end() {
 
 void ImmediateDraw::deferEnd() {
     if (!inFrame_) return;
-    deferredGeometry_ = pendingGeometry_;
+    if (recording_) flush();
+    deferredGeometry_ = pendingGeometry_ || !deferredBatches_.empty();
+    recording_ = false;
     inFrame_ = false;
 }
 
 void ImmediateDraw::flushDeferred() {
     if (!deferredGeometry_) return;
+    if (!deferredBatches_.empty()) {
+        pool_.upload();
+        device_.invalidatePipelineCache();
+        for (const auto& batch : deferredBatches_) {
+            device_.setPipeline(batch.pipeline);
+            device_.bindTexture(0, TextureHandle{batch.texture});
+            pool_.bindLayout(LayoutId::Batch);
+            device_.drawElements(batch.indexCount, GfxDataType::UnsignedInt, batch.firstIndex * sizeof(u32));
+            ++drawCallCount_;
+        }
+        deferredBatches_.clear();
+        pool_.beginFrame();
+        deferredGeometry_ = false;
+        return;
+    }
     inFrame_ = true;
     flush();
     inFrame_ = false;

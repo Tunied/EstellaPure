@@ -186,8 +186,13 @@ public:
     void setBlendMode(BlendMode mode);
     /** Toggles depth testing for subsequent primitives (flushes pending geometry). */
     void setDepthTest(bool enabled);
+    /** Changes depth testing and writes together, flushing the previous batch. */
+    void setDepthState(bool test, bool write);
     BlendMode blendMode() const { return current_desc_.blend; }
     bool depthTest() const { return current_desc_.depthTest; }
+    bool depthWrite() const { return current_desc_.depthWrite; }
+    /** Collects all following primitive batches for the owning scene pass. */
+    void deferBegin() { recording_ = true; }
 
     // =========================================================================
     // Statistics
@@ -224,6 +229,15 @@ private:
     u32 currentTexture_ = 0;
     bool pendingGeometry_ = false;
     bool deferredGeometry_ = false;
+    struct DeferredBatch {
+        PipelineHandle pipeline;
+        u32 texture;
+        u32 firstIndex;
+        u32 indexCount;
+    };
+    std::vector<DeferredBatch> deferredBatches_;
+    u32 recordedIndices_ = 0;
+    bool recording_ = false;
 
     /// Where the camera looks, from the view-projection this frame began with —
     /// what a 3D line is widened across.

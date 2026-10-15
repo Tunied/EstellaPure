@@ -11,6 +11,7 @@
 
 #include "MockGfxDevice.hpp"
 #include "esengine/renderer/draw/BatchBuilder.hpp"
+#include "esengine/renderer/draw/ImmediateDraw.hpp"
 #include "esengine/renderer/draw/DrawList.hpp"
 #include "esengine/renderer/store/MaterialStore.hpp"
 #include "esengine/renderer/rhi/TransientBufferPool.hpp"
@@ -37,6 +38,55 @@
 #include <vector>
 
 using namespace esengine;
+
+TEST_CASE("presented primitives retain depth state and order until the scene pass") {
+    struct Device : MockGfxDevice {
+        std::vector<PipelineDesc> states;
+        std::vector<u32> offsets;
+        void drawElements(u32 count, GfxDataType type, u32 offset) override {
+            MockGfxDevice::drawElements(count, type, offset);
+            states.push_back(lastPipelineDesc);
+            offsets.push_back(offset);
+        }
+    } device;
+    RenderContext context(device);
+    resource::ResourceManager resources;
+    resources.init(device);
+    ImmediateDraw draw(device, context, resources);
+    draw.init();
+    draw.begin(glm::mat4(1.0f), 800, 600);
+    draw.deferBegin();
+    const int uploads = device.updateBufferCalls;
+    const auto line = [&] { draw.line({0, 0}, {10, 0}, {1, 0, 0, 1}, 2); };
+    line();
+    draw.setDepthState(false, false);
+    line();
+    draw.setDepthState(true, false);
+    line();
+    draw.setDepthState(false, true);
+    CHECK(device.drawElementsCalls == 0);
+    CHECK(device.updateBufferCalls == uploads);
+    draw.deferEnd();
+    CHECK(device.drawElementsCalls == 0);
+    draw.flushDeferred();
+    REQUIRE(device.states.size() == 3);
+    CHECK_FALSE(device.states[0].depthTest);
+    CHECK(device.states[0].depthWrite);
+    CHECK_FALSE(device.states[1].depthTest);
+    CHECK_FALSE(device.states[1].depthWrite);
+    CHECK(device.states[2].depthTest);
+    CHECK_FALSE(device.states[2].depthWrite);
+    CHECK((device.offsets == std::vector<u32>{0, 6 * sizeof(u32), 12 * sizeof(u32)}));
+    draw.flushDeferred();
+    CHECK(device.drawElementsCalls == 3);
+    draw.begin(glm::mat4(1.0f), 800, 600);
+    line();
+    draw.end();
+    CHECK(device.drawElementsCalls == 4);
+    CHECK(device.offsets.back() == 0);
+    draw.shutdown();
+    resources.shutdown();
+}
 
 namespace {
 

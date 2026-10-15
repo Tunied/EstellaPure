@@ -488,6 +488,9 @@ export interface ESEngineModule {
     draw_getPrimitiveCount(): number;
     draw_setBlendMode(mode: number): void;
     draw_setDepthTest(enabled: boolean): void;
+    draw_getDepthState?(): number;
+    draw_setDepthState?(flags: number): void;
+    draw_deferBegin?(): void;
     draw_mesh(geometryHandle: number, shaderHandle: number, transformPtr: number): void;
     draw_meshWithUniforms(geometryHandle: number, shaderHandle: number, transformPtr: number,
                           uniformsPtr: number, uniformCount: number): void;

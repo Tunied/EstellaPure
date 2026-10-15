@@ -37,6 +37,9 @@ u32 draw_getDrawCallCount();
 u32 draw_getPrimitiveCount();
 void draw_setBlendMode(i32 mode);
 void draw_setDepthTest(bool enabled);
+u32 draw_getDepthState();
+void draw_setDepthState(u32 flags);
+void draw_deferBegin();
 
 }  // namespace esengine
 

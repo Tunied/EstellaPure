@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Added
 
+- **Spatial transform handles fade behind scene geometry.** A persistent Viewport setting can restore always-visible handles; flat 2D widgets retain their appearance. Scoped immediate-draw depth state disables overlay depth writes and restores the previous state, including when drawing throws. Older cores keep their existing overlay fallback.
+
 - **Spatial rotation adds a view-axis outer ring.** The outer ring remains a screen circle and uses the presented camera axis captured at the press, with absolute twist snapping and the same undo/cancel path. Local inner rings use their rotated world axis; rotation writes, including Alt copies, convert through each target's parent frame. Flat 2D retains its existing Z ring.
 
 ## [0.86.1] - 2026-10-15

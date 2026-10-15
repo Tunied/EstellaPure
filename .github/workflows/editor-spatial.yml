@@ -16,6 +16,14 @@ jobs:
   spatial:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: spatial
+            artifact: gizmo-planes-editor-checks
+          - suite: interaction
+            artifact: gizmo-interaction-editor-checks
     env:
       ESTELLA_WIN_W: '1480'
       ESTELLA_WIN_H: '920'
@@ -49,12 +57,26 @@ jobs:
           cp build/wasm/web/* desktop/public/wasm/
           pnpm --dir desktop exec vite build
       - name: Check trusted spatial gestures and undo
+        if: matrix.suite == 'spatial'
         run: node tools/verify-gizmo-planes.mjs
+      - name: Check handle occlusion against opaque scene depth
+        if: matrix.suite == 'spatial'
+        run: node tools/verify-gizmo-occlusion.mjs
+      - name: Check transform hover without scene changes
+        if: matrix.suite == 'interaction'
+        run: node tools/verify-gizmo-hover.mjs
+      - name: Check origins and universal gestures with undo and cancel
+        if: matrix.suite == 'interaction'
+        run: node tools/verify-gizmo-origins.mjs
       - name: Keep spatial acceptance evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: gizmo-planes-editor-checks
-          path: output/gizmo-planes-ci
+          name: ${{ matrix.artifact }}
+          path: |
+            output/gizmo-planes-ci
+            output/gizmo-occlusion-ci
+            output/gizmo-hover-ci
+            output/gizmo-origins-ci
           if-no-files-found: warn
           retention-days: 3

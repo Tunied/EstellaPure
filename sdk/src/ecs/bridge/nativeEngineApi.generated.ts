@@ -26,8 +26,10 @@ export interface NativeEngineApi {
     draw_begin?(matrixPtr: number, viewportWidth: number, viewportHeight: number): void;
     draw_circle?(centerX: number, centerY: number, radius: number, r: number, g: number, b: number, a: number, filled: boolean, segments: number): void;
     draw_circleOutline?(centerX: number, centerY: number, radius: number, r: number, g: number, b: number, a: number, thickness: number, segments: number): void;
+    draw_deferBegin?(): void;
     draw_deferEnd?(): void;
     draw_end?(): void;
+    draw_getDepthState?(): number;
     draw_getDrawCallCount?(): number;
     draw_getPrimitiveCount?(): number;
     draw_line?(fromX: number, fromY: number, toX: number, toY: number, r: number, g: number, b: number, a: number, thickness: number): void;
@@ -41,6 +43,7 @@ export interface NativeEngineApi {
     draw_rectOutline?(x: number, y: number, width: number, height: number, r: number, g: number, b: number, a: number, thickness: number): void;
     draw_setBlendMode?(mode: number): void;
     draw_setDepth?(depth: number): void;
+    draw_setDepthState?(flags: number): void;
     draw_setDepthTest?(enabled: boolean): void;
     draw_setLayer?(layer: number): void;
     draw_texture?(x: number, y: number, width: number, height: number, textureId: number, r: number, g: number, b: number, a: number): void;
@@ -312,8 +315,10 @@ export function createNativeEngineApi(
     bind('draw_begin', 'es_draw_begin', false);
     bind('draw_circle', 'es_draw_circle', false);
     bind('draw_circleOutline', 'es_draw_circleOutline', false);
+    bind('draw_deferBegin', 'es_draw_deferBegin', false);
     bind('draw_deferEnd', 'es_draw_deferEnd', false);
     bind('draw_end', 'es_draw_end', false);
+    bind('draw_getDepthState', 'es_draw_getDepthState', false);
     bind('draw_getDrawCallCount', 'es_draw_getDrawCallCount', false);
     bind('draw_getPrimitiveCount', 'es_draw_getPrimitiveCount', false);
     bind('draw_line', 'es_draw_line', false);
@@ -327,6 +332,7 @@ export function createNativeEngineApi(
     bind('draw_rectOutline', 'es_draw_rectOutline', false);
     bind('draw_setBlendMode', 'es_draw_setBlendMode', false);
     bind('draw_setDepth', 'es_draw_setDepth', false);
+    bind('draw_setDepthState', 'es_draw_setDepthState', false);
     bind('draw_setDepthTest', 'es_draw_setDepthTest', false);
     bind('draw_setLayer', 'es_draw_setLayer', false);
     bind('draw_texture', 'es_draw_texture', false);
