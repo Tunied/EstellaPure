@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Finished Web audio handles release their runtime references.** Stopped and naturally completed voices drop decoded buffers, sources, pool nodes and contexts after releasing their pool slot. Retaining a finished handle keeps its ID and duration available without pinning PCM; terminal controls remain harmless, while paused voices retain the state needed to resume and natural completion still notifies once.
+
 ## [0.87.0] - 2026-10-15
 
 ### Fixed

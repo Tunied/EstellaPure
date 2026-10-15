@@ -369,6 +369,29 @@ describe('WebAudioBackend', () => {
     });
 
     describe('play', () => {
+        it.each(['stop', 'ended', 'paused-stop'])('terminal %s handles release runtime ownership and preserve scalar metadata', async kind => {
+            const { bufferHandle, mockCtx } = await initAndLoadBuffer(backend);
+            const handle = backend.play(bufferHandle, {});
+            const source = mockCtx.createBufferSource.mock.results.at(-1).value;
+            const ended = source.onended;
+            const onEnd = vi.fn();
+            handle.onEnd = onEnd;
+            if (kind === 'ended') ended();
+            else { if (kind === 'paused-stop') handle.pause(); handle.stop(); }
+            backend.unloadBuffer(bufferHandle);
+            expect(handle.isPlaying).toBe(false);
+            expect(handle.currentTime).toBe(0);
+            expect(handle.duration).toBe(1);
+            expect(source.onended).toBeNull();
+            for (const field of ['buffer_', 'source_', 'context_', 'pool_', 'poolNode_']) {
+                expect((handle as any)[field], field).toBeNull();
+            }
+            expect(() => {handle.pause();handle.resume();handle.stop();handle.setLoop(true);
+                handle.setPlaybackRate(2);handle.setVolume(.4);handle.setPan(.3);}).not.toThrow();
+            ended();
+            expect(onEnd).toHaveBeenCalledTimes(kind === 'ended' ? 1 : 0);
+            expect((backend as any).pool_.activeCount).toBe(0);
+        });
         it.each(['stopped', 'ended'])('a %s handle cannot change gain or pan of a reused pool node', async kind => {
             const { bufferHandle, mockCtx } = await initAndLoadBuffer(backend);
             const old = backend.play(bufferHandle, {});
