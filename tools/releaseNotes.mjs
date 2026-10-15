@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ui): resolve live display ancestry for keyboard focus':
+    { note: 'Keyboard focus observes authored visibility between layout passes.' },
   'fix(ui): preserve surrogate pairs when clamping host input':
     { note: 'Text-input length limits preserve complete supplementary characters.' },
   'fix(ui): bind field rendering to the active editing owner':

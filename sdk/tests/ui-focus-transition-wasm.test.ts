@@ -3,12 +3,12 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App, flushPendingRegistrations } from '../src/app/app';
 import { AppContext, setDefaultContext } from '../src/ecs/context';
-import { Disabled, Parent } from '../src/ecs/component';
+import { Canvas, Disabled, Parent, Transform } from '../src/ecs/component';
 import { setEditorMode, setPlayMode } from '../src/ecs/env';
 import { Input, InputState } from '../src/input/input';
 import { UIEvents, UIEventQueue } from '../src/ui/core/events';
 import { UIDialog } from '../src/ui/behavior/dialog';
-import { UINode } from '../src/ui/core/ui-node';
+import { UINode, UIDisplay } from '../src/ui/core/ui-node';
 import { Focusable, FocusManager } from '../src/ui/input/focusable';
 import { focusPlugin } from '../src/ui/input/focus';
 import { inspectFocusTraversal, isFocusEligible } from '../src/ui/input/focus-inspection';
@@ -79,5 +79,44 @@ describe.skipIf(!HAS_WASM)('focus transitions on real WASM', () => {
         expect(isFocusEligible(app.world, entity)).toBe(true);
         expect(queries.mock.calls.every(([components]) => !components.includes(Focusable))).toBe(true);
         queries.mockRestore();
+    });
+
+    it('rejects a control immediately after its ancestor is hidden, before another layout pass', () => {
+        const root = app.world.spawn(), entity = control(0);
+        app.world.insert(root, Canvas);
+        app.world.insert(root, Transform);
+        app.world.insert(root, UINode);
+        app.world.insert(entity, Transform);
+        app.world.insert(entity, UINode);
+        app.world.setParent(entity, root);
+        engine.uiLayout_update(registry, -400, -300, 400, 300, true);
+        expect(isFocusEligible(app.world, entity)).toBe(true);
+        app.world.update(root, UINode, n => { n.display = UIDisplay.None; });
+        expect(engine.getUINodeHiddenInTree(registry, entity)).toBe(false);
+        expect(isFocusEligible(app.world, entity)).toBe(false);
+        app.world.update(root, UINode, n => { n.display = UIDisplay.Flex; });
+        expect(isFocusEligible(app.world, entity)).toBe(true);
+    });
+
+    it('applies a newly opened modal before its cached hidden bit is refreshed', () => {
+        const root = app.world.spawn(), outside = control(0), dialog = control(1);
+        app.world.insert(root, Canvas);
+        app.world.insert(root, Transform);
+        app.world.insert(root, UINode);
+        for (const entity of [outside, dialog]) {
+            app.world.insert(entity, Transform);
+            app.world.insert(entity, UINode, { display: entity === dialog ? UIDisplay.None : UIDisplay.Flex });
+            app.world.setParent(entity, root);
+        }
+        app.world.insert(dialog, UIDialog);
+        engine.uiLayout_update(registry, -400, -300, 400, 300, true);
+        expect(engine.getUINodeHiddenInTree(registry, dialog)).toBe(true);
+        expect(isFocusEligible(app.world, outside)).toBe(true);
+        app.world.update(dialog, UINode, n => { n.display = UIDisplay.Flex; });
+        expect(engine.getUINodeHiddenInTree(registry, dialog)).toBe(true);
+        expect(isFocusEligible(app.world, outside)).toBe(false);
+        expect(isFocusEligible(app.world, dialog)).toBe(true);
+        app.world.update(dialog, UINode, n => { n.display = UIDisplay.None; });
+        expect(isFocusEligible(app.world, outside)).toBe(true);
     });
 });

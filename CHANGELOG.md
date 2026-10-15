@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Keyboard focus observes authored visibility between layout passes.** Focus traversal and single-target checks read current display ancestry, so hiding a tree or opening a previously hidden modal immediately changes eligibility without waiting for the cached layout bit. Per-query ancestry memoization and borrowed component reads share work across controls; hosts without authored UI ancestry retain their existing visibility fallback.
+
 - **Text-input length limits preserve complete supplementary characters.** Oversized host input still uses UTF-16 length limits, but truncation backs off when the boundary would split a valid surrogate pair. The corrected value and selection return to the editing surface together, preventing malformed emoji in committed input while preserving BMP limits and existing cursor semantics.
 
 - **Text fields read only the editing surface they actually own.** Newly focused fields retain their committed display until attached, and read-only fields never borrow a previous field's transient value. Switching a live field to read-only detaches the OS surface and hides its caret; restoring editability reattaches the committed value without replaying rejected input.

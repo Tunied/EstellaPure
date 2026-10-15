@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { flushPendingRegistrations } from '../src/app/app';
 import { Parent } from '../src/ecs/component';
 import { Input, InputState } from '../src/input/input';
@@ -81,6 +81,7 @@ it('does not trap visible controls behind a dialog hidden by an ancestor', () =>
     harness.module.getUINodeHiddenInTree = (_registry: unknown, entity: Entity) => hidden && entity === dialog;
     expect(inspectFocusTraversal(world).entries.map(e => e.skipped)).toEqual([null, 'hidden']);
     hidden = false;
+    world.update(host, UINode, node => { node.display = UIDisplay.Flex; });
     expect(inspectFocusTraversal(world).entries.map(e => e.skipped)).toEqual(['outside-dialog', null]);
     world.despawn(dialog);
     expect(inspectFocusTraversal(world).entries.find(e => e.entity === outside)?.skipped).toBeNull();
@@ -93,6 +94,9 @@ it('keeps a visible modal active when a second modal is hierarchically hidden', 
         world.insert(entity, UIDialog);
         world.insert(entity, UINode, { display: UIDisplay.Flex });
     }
+    const hiddenParent = world.spawn();
+    world.insert(hiddenParent, UINode, { display: UIDisplay.None });
+    world.setParent(hidden, hiddenParent);
     harness.module.getUINodeHiddenInTree = (_registry: unknown, entity: Entity) => entity === hidden;
     expect(inspectFocusTraversal(world).entries.map(e => [e.entity, e.skipped]))
         .toEqual([[background, 'outside-dialog'], [visible, null], [hidden, 'hidden']]);
@@ -106,7 +110,10 @@ it('restricts nested dialogs to the innermost visible subtree and restores the p
     focusPlugin.build(app);
     flushPendingRegistrations(app);
     const page = control(0), outer = control(1), nested = control(2), confirm = control(3);
-    world.insert(nested, Parent, { entity: outer });
+    const nestedHost = world.spawn();
+    world.insert(nestedHost, UINode);
+    world.insert(nestedHost, Parent, { entity: outer });
+    world.insert(nested, Parent, { entity: nestedHost });
     world.insert(confirm, Parent, { entity: nested });
     for (const root of [outer, nested]) {
         world.insert(root, UIDialog);
@@ -121,10 +128,12 @@ it('restricts nested dialogs to the innermost visible subtree and restores the p
     expect(app.getResource(FocusManager).focusedEntity).toBe(nested);
     input.keysPressed.clear();
     nestedHidden = true;
+    world.update(nestedHost, UINode, node => { node.display = UIDisplay.None; });
     await app.tick(1 / 60);
     expect(app.getResource(FocusManager).focusedEntity).toBeNull();
     expect(inspectFocusTraversal(world).entries.map(e => e.skipped)).toEqual(['outside-dialog', null, 'hidden', 'hidden']);
     nestedHidden = false;
+    world.update(nestedHost, UINode, node => { node.display = UIDisplay.Flex; });
     world.update(nested, UINode, node => { node.display = UIDisplay.None; });
     expect(inspectFocusTraversal(world).entries.find(e => e.entity === outer)?.skipped).toBeNull();
     world.remove(nested, UIDialog);
@@ -142,4 +151,39 @@ it('retains independent dialog branches when one branch contains a nested dialog
         world.insert(root, UINode, { display: UIDisplay.Flex });
     }
     expect(inspectFocusTraversal(world).entries.map(e => e.skipped)).toEqual(['outside-dialog', null, null]);
+});
+
+it('resolves shared display ancestry once per query and observes mutations on the next query', () => {
+    const world = harness.app.world, root = world.spawn();
+    world.insert(root, UINode);
+    const controls = Array.from({ length: 500 }, (_, i) => {
+        const entity = control(i);
+        world.insert(entity, UINode);
+        world.setParent(entity, root);
+        return entity;
+    });
+    let reads = 0;
+    const original = world.resolveGetter.bind(world);
+    const spy = vi.spyOn(world, 'resolveGetter').mockImplementation((component, mode) => {
+        const getter = original(component, mode);
+        return component !== UINode || !getter ? getter : entity => { reads++; return getter(entity); };
+    });
+    try {
+        expect(inspectFocusTraversal(world).entries.every(e => e.skipped === null)).toBe(true);
+        expect(reads).toBe(controls.length + 1);
+        world.update(root, UINode, node => { node.display = UIDisplay.None; });
+        expect(inspectFocusTraversal(world).entries.every(e => e.skipped === 'hidden')).toBe(true);
+        // Hidden ancestry short-circuits leaf display reads.
+        expect(reads).toBe(controls.length + 2);
+    } finally { spy.mockRestore(); }
+});
+
+it('uses authored hidden ancestry even when the host has no resolved-visibility query', () => {
+    const world = harness.app.world, root = world.spawn(), entity = control(0);
+    world.insert(root, UINode, { display: UIDisplay.None });
+    world.setParent(entity, root);
+    delete harness.module.getUINodeHiddenInTree;
+    const result = inspectFocusTraversal(world);
+    expect(result.visibilityResolved).toBe(false);
+    expect(result.entries[0].skipped).toBe('hidden');
 });

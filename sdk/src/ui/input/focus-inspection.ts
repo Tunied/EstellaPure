@@ -7,6 +7,8 @@ import { Focusable } from './focusable';
 import { Interactable } from './interactable';
 import { UIDialog, isDialogOpen } from '../behavior/dialog';
 import { walkParentChain } from '../util/helpers';
+import { Parent } from '../../ecs/component';
+import { UINode, UIDisplay, type UINodeData } from '../core/ui-node';
 
 /** Read-only scene queries needed to inspect focus. @experimental */
 export type FocusInspectionWorld = Pick<World, 'getWasmModule' | 'getCppRegistry' | 'getEntitiesWithComponents' | 'valid' | 'has' | 'get'>;
@@ -30,9 +32,11 @@ function focusContext(world: FocusInspectionWorld) {
     const engine = worldEngineApi(world);
     const registry = world.getCppRegistry();
     const visibilityResolved = !!(registry && engine?.getUINodeHiddenInTree);
+    const hiddenInTree = liveVisibility(world, entity =>
+        visibilityResolved && engine!.getUINodeHiddenInTree!(registry!, entity));
     const roots = new Set(world.getEntitiesWithComponents([UIDialog])
         .filter(entity => isDialogOpen(world, entity)
-            && (!visibilityResolved || !engine!.getUINodeHiddenInTree!(registry!, entity))));
+            && !hiddenInTree(entity)));
     // A nested modal excludes its parent dialog's other controls. Independent
     // dialog branches retain the existing union policy; no stacking order is inferred.
     for (const root of [...roots]) {
@@ -41,15 +45,53 @@ function focusContext(world: FocusInspectionWorld) {
             return false;
         });
     }
-    return { engine, registry, visibilityResolved, roots };
+    return { visibilityResolved, roots, hiddenInTree };
+}
+
+/** Authored display is current even between layout passes. Memoize shared
+ * ancestors only within this read-only query, never across scene mutations. */
+function liveVisibility(world: FocusInspectionWorld, fallback: (entity: Entity) => boolean) {
+    const getter = (world as FocusInspectionWorld & Partial<Pick<World, 'resolveGetter'>>)
+        .resolveGetter?.(UINode) as ((entity: Entity) => UINodeData) | null | undefined;
+    const readNode = getter ?? ((entity: Entity) => world.get(entity, UINode));
+    const memo = new Map<Entity, { hidden: boolean; authored: boolean; pending: boolean }>();
+    const path: Entity[] = [];
+    return (entity: Entity): boolean => {
+        path.length = 0;
+        let current = entity, hidden = false, authored = false;
+        while (world.valid(current)) {
+            const cached = memo.get(current);
+            if (cached) {
+                // Invalid cyclic ancestry cannot receive keyboard input.
+                hidden = cached.pending || cached.hidden;
+                authored = cached.pending || cached.authored;
+                break;
+            }
+            memo.set(current, { hidden: false, authored: false, pending: true });
+            path.push(current);
+            if (!world.has(current, Parent)) break;
+            current = world.get(current, Parent).entity;
+        }
+        for (let i = path.length - 1; i >= 0; i--) {
+            const entry = memo.get(path[i])!;
+            if (world.has(path[i], UINode)) {
+                authored = true;
+                hidden = hidden || readNode(path[i]).display === UIDisplay.None;
+            }
+            entry.hidden = hidden;
+            entry.authored = authored;
+            entry.pending = false;
+        }
+        return authored ? hidden : fallback(entity);
+    };
 }
 
 function skipReason(world: FocusInspectionWorld, entity: Entity,
-    { engine, registry, visibilityResolved, roots }: ReturnType<typeof focusContext>): FocusSkipReason | null {
+    { hiddenInTree, roots }: ReturnType<typeof focusContext>): FocusSkipReason | null {
     let skipped: FocusSkipReason | null = null;
     if (world.has(entity, Interactable) && !world.get(entity, Interactable).enabled) {
         skipped = 'disabled';
-    } else if (visibilityResolved && engine!.getUINodeHiddenInTree!(registry!, entity)) {
+    } else if (hiddenInTree(entity)) {
         skipped = 'hidden';
     } else if (roots.size > 0 && !roots.has(entity)) {
         let inside = false;
