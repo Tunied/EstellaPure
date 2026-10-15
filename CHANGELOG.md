@@ -14,7 +14,13 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Added
+
+- **Neon Ascension adds a night-city grey-box example.** Authored materials and an HDR panorama provide a scene for inspecting environment reflections, emissive bloom and warm/cool light contrast. Known scene limitations are documented with the example.
+
 ### Fixed
+
+- **Moving tile collision previews reuses local geometry.** Layer and parent translations place cached local outlines without scanning tiles or rebuilding collision geometry. Polygons, circles, sensor flags and one-way normals retain their authored shapes, depth-only changes reuse placed coordinates, and earlier preview snapshots remain unchanged. Cell dimensions, collision metadata and tile edits still invalidate the corresponding local geometry.
 
 - **Tile collision edits read only changed native chunks.** Editor collision previews read a bounded coordinate/revision index and copy cells only for changed chunks, retaining independent arrays and geometry for untouched chunks. Edits avoid full-map serialization and decoding; imports, erasure, layer recreation and world changes refresh the correct data. Empty chunks retain only revision metadata. Temporary buffers are freed after each read, invalid output spans are rejected, and unavailable or failed readback falls back to the full-export path. Saved scene formats remain unchanged.
 

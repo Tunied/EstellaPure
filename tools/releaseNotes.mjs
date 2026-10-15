@@ -28,6 +28,12 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(examples): neon-ascension grey-box, a night city to test reflections and bloom':
+    { note: 'Neon Ascension adds a night-city grey-box example.' },
+  'perf(editor): reuse local tile collision geometry while moving layers':
+    { note: 'Moving tile collision previews reuses local geometry.' },
+  'perf(editor): synchronize tile collision placement caching':
+    { internal: 'Pins local tile collision geometry caching and movement regressions, and records the existing upstream night-city example in the changelog.' },
   'perf(editor): read only changed collision chunks':
     { note: 'Tile collision edits read only changed native chunks.' },
   'perf(tilemap): read collision chunks incrementally':
