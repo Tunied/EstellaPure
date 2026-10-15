@@ -91,6 +91,8 @@ export const CENSUS_FLOOR = '0.60.0';
  * that does not exist, and release notes are a different act. Theirs is ungated.
  */
 export const SHIPPED = {
+  'Navigation replacements commit only from the latest request.':
+    { certifies: 'navigation' },
   'Build and reroute deliveries in a textured 2D courtyard.':
     { certifies: 'navigation' },
   'Agent replans share a fair per-frame budget.':

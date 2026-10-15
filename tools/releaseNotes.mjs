@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(test): classify versioned navigation in the release corpus':
+    { internal: 'Connects the finalized navigation replacement feature note to the existing navigation certification capability and its courtyard project; no new acceptance claim is made.' },
   'fix(ui): reset visibility baselines for recreated components':
     { note: 'Recreated UI components start a fresh visibility baseline.' },
   'chore(release): finalize 0.87.0 release notes':
