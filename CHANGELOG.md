@@ -14,6 +14,8 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+## [0.87.0] - 2026-10-15
+
 ### Added
 
 - **Navigation replacements commit only from the latest request.** Versioned surface-update handles reject cancelled and superseded results, retain destinations while the navigation driver waits, and resume after commit or cancellation. Route inspection explains pending updates; the courtyard workshop adds asset-backed terrain reload/cancel controls. Producers still own background computation and I/O cancellation.
@@ -27,10 +29,6 @@ published separately; it ships inside the editor.
 - **Crowd followers honor the configured final arrival radius.** Intermediate waypoint tolerances no longer complete a route before its final goal is within the agent's stop distance. Kinematic followers and character steering retain their intermediate reach behavior; zero arrival radius continues toward the actual endpoint.
 
 - **Finished Web audio handles release their runtime references.** Stopped and naturally completed voices drop decoded buffers, sources, pool nodes and contexts after releasing their pool slot. Retaining a finished handle keeps its ID and duration available without pinning PCM; terminal controls remain harmless, while paused voices retain the state needed to resume and natural completion still notifies once.
-
-## [0.87.0] - 2026-10-15
-
-### Fixed
 
 - **Audio aliases share decoded buffer ownership.** References resolving to one source share pending decoding and PCM accounting while retaining independent asset leases. Releasing one reference leaves other holders playable; source invalidation retires all aliases without unloading a replacement, and trimming frees each physical allocation once.
 

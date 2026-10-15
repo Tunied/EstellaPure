@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'chore(release): finalize 0.87.0 release notes':
+    { internal: 'Consolidates verified changes into the prepared 0.87.0 release section without changing product code or showcase assets.' },
   'test(lifecycle): renew foreground input in suspend comparisons':
     { internal: 'Suspend acceptance releases keyboard intent before hiding and sends a new key press after showing, preserving the engine cancellation contract and comparing actual movement with uninterrupted and held-background controls.' },
   'feat(nav): explain pending navigation surface replacements':
