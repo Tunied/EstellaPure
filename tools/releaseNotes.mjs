@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(nav): diagnose partial routes and reuse disconnected grid topology':
+    { note: 'Navigation queries distinguish complete routes from best-effort paths.' },
   'perf(text): wrap native measurements with ordered advances':
     { note: 'Native text measurement wraps without rescanning growing prefixes.' },
   'fix(text): bound native measurement advance history':

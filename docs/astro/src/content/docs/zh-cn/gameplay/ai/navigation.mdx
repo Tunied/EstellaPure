@@ -196,6 +196,43 @@ app.getResource(NavDebugDraw).enabled = true;
   只有一种意思——**agent 自己不在任何地方**,一个不在可走世界上的点没有任何路线可言。
 </Aside>
 
+### 解释路径结果
+
+需要区分“尽量靠近”与真正到达时，调用 `nav.queryWorldPath(from, to, { radius })`。
+它返回 `{ path, status, reason }`：
+
+| 状态 / 原因 | 含义 |
+|---|---|
+| `complete` / `none` | 到达导航面解析后的目标，包括原有端点吸附。 |
+| `partial` / `disconnected` | 路线止于断开的区域或关闭通道的可达一侧。 |
+| `partial` / `insufficient-clearance` | 点能通过格子，但指定宽度的角色无法通过。 |
+| `unavailable` / `no-surface` | 尚未安装导航面。 |
+| `unavailable` / `start-unavailable` | 找不到可用起点。 |
+| `target-unavailable` | 找不到可用终点；网格仍可能给出靠近它的部分路线。 |
+| `unavailable` / `radius-mismatch` | 角色半径超过导航网格烘焙时的半径。 |
+| `unknown` / `diagnostics-unavailable` | 自定义导航面仅实现了原有路径接口。 |
+
+```typescript
+const result = nav.queryWorldPath(from, target, { radius: 20 });
+if (result.status !== 'complete') console.info(result.reason);
+// result.path 仍可能包含一条有用的靠近路线。
+```
+
+`findWorldPath` 保留原有的尽量靠近行为。诊断查询只描述当前已安装的导航面，不触发重建。
+格子通行状态通过 `setWalkable`、`setObstructed` 和 `clearObstructions` 修改，确保净空和连通性
+缓存一起失效。动态障碍也计入角色宽度所需净空；区域价格变化无需重建连通性。
+
+可复现的 CPU 语料使用无头 Chromium，在 32/64/128 格地图中开关门、放置建筑并同时重算
+64 个代理的路径：
+
+```sh
+node tools/navigation-rebuild-benchmark.mjs output/navigation-current.json
+node tools/navigation-rebuild-benchmark.mjs output/navigation-reference.json --search-reference=48631844c53113825a15493afeb8e6e2b972900c
+```
+
+对照只替换旧寻路实现，两侧均使用当前的动态障碍净空。报告包含源码与 bundle 标识、原始
+构建/查询耗时和帧间隔。该计时不含物理几何收集、避让、渲染及完整游戏帧的其余工作。
+
 ### 移动 agent
 
 加一个 `NavAgent`,然后给它指一个目的地。内置的导航插件会规划路径并每帧沿路径推进 agent——

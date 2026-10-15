@@ -35,6 +35,14 @@ export interface NavQueryOptions {
     radius?: number;
 }
 
+/** Completeness refers to the surface's resolved (possibly snapped) destination. */
+export interface NavPathResult {
+    path: Vec3[] | null;
+    status: 'complete' | 'partial' | 'unavailable' | 'unknown';
+    reason: 'none' | 'no-surface' | 'start-unavailable' | 'target-unavailable'
+        | 'disconnected' | 'insufficient-clearance' | 'radius-mismatch' | 'diagnostics-unavailable';
+}
+
 /**
  * Where a surface hands out its shape, for a drawer to turn into lines. A
  * visitor rather than a returned array because the caller is a per-frame overlay
@@ -68,6 +76,9 @@ export interface NavSurface {
      * route walks over.
      */
     findWorldPath(from: NavPoint, to: NavPoint, opts?: NavQueryOptions): Vec3[] | null;
+
+    /** Optional for custom surfaces; built-ins distinguish partial routes from arrival. */
+    queryWorldPath?(from: NavPoint, to: NavPoint, opts?: NavQueryOptions): NavPathResult;
 
     /**
      * Whether an agent may stand at a world point. Asked of a place the agent has

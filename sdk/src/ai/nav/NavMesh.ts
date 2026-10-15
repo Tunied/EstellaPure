@@ -15,7 +15,7 @@
  */
 
 import type { Vec3 } from '../../types';
-import type { NavPoint, NavQueryOptions, NavSurface, NavSurfaceSink } from './NavSurface';
+import type { NavPoint, NavQueryOptions, NavSurface, NavSurfaceSink, NavPathResult } from './NavSurface';
 import { MinHeap } from './minHeap';
 import { log } from '../../util/logger';
 
@@ -352,6 +352,18 @@ export class NavMesh implements NavSurface {
     }
 
     findWorldPath(from: NavPoint, to: NavPoint, opts?: NavQueryOptions): Vec3[] | null {
+        return this.planWorldPath(from, to, opts).path;
+    }
+
+    /** Refuse an undersized bake explicitly instead of returning an unsafe body route. */
+    queryWorldPath(from: NavPoint, to: NavPoint, opts?: NavQueryOptions): NavPathResult {
+        if ((opts?.radius ?? 0) > this.agentRadius + 1e-3) {
+            return { path: null, status: 'unavailable', reason: 'radius-mismatch' };
+        }
+        return this.planWorldPath(from, to, opts);
+    }
+
+    private planWorldPath(from: NavPoint, to: NavPoint, opts?: NavQueryOptions): NavPathResult {
         const radius = opts?.radius ?? 0;
         if (radius > this.agentRadius + 1e-3) warnRadius(radius, this.agentRadius);
 
@@ -361,12 +373,14 @@ export class NavMesh implements NavSurface {
         // A goal off the mesh is still a direction to walk in. Only an agent that
         // is itself nowhere has no route at all.
         const endPoly = this.findPoly(to, end);
-        if (startPoly < 0) return null;
+        if (startPoly < 0) return { path: null, status: 'unavailable', reason: 'start-unavailable' };
         if (endPoly < 0) { end.x = to.x; end.y = to.y; end.z = to.z ?? 0; }
-        if (startPoly === endPoly) return [start, end];
+        if (startPoly === endPoly) return { path: [start, end], status: 'complete', reason: 'none' };
 
         const polyPath = this.findPolyPath(startPoly, endPoly, start, end);
-        return this.routeThroughLinks(polyPath, start, polyPath.end);
+        return { path: this.routeThroughLinks(polyPath, start, polyPath.end),
+            status: polyPath.reached ? 'complete' : 'partial',
+            reason: polyPath.reached ? 'none' : endPoly < 0 ? 'target-unavailable' : 'disconnected' };
     }
 
     /**
@@ -493,7 +507,7 @@ export class NavMesh implements NavSurface {
         // Shift by one: `links[i]` is now the step from `polys[i]` to `polys[i+1]`.
         links.shift();
         links.push(-1);
-        return { polys, links, end: finish };
+        return { polys, links, end: finish, reached };
     }
 
     /**
@@ -610,6 +624,7 @@ export class NavMesh implements NavSurface {
 /** A route as the search found it: the polygons walked, and for each step the
  *  link that made it, or -1 where the two polygons share an edge. */
 interface PolyPath {
+    reached: boolean;
     polys: number[];
     links: number[];
     /** Where the route finishes, which is the goal only when it was reached. */

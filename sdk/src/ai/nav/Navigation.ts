@@ -12,7 +12,7 @@
 
 import { defineResource } from '../../ecs/resource';
 import type { Vec3 } from '../../types';
-import type { NavPoint, NavQueryOptions, NavSurface } from './NavSurface';
+import type { NavPoint, NavQueryOptions, NavSurface, NavPathResult } from './NavSurface';
 
 export class Navigation {
     /** Where agents may walk, or null until something builds and installs it. */
@@ -32,6 +32,13 @@ export class Navigation {
      */
     findWorldPath(from: NavPoint, to: NavPoint, opts?: NavQueryOptions): Vec3[] | null {
         return this.surface ? this.surface.findWorldPath(from, to, opts) : null;
+    }
+
+    /** Explain a built-in route; custom surfaces without diagnostics report unknown. */
+    queryWorldPath(from: NavPoint, to: NavPoint, opts?: NavQueryOptions): NavPathResult {
+        if (!this.surface) return { path: null, status: 'unavailable', reason: 'no-surface' };
+        if (this.surface.queryWorldPath) return this.surface.queryWorldPath(from, to, opts);
+        return { path: this.surface.findWorldPath(from, to, opts), status: 'unknown', reason: 'diagnostics-unavailable' };
     }
 }
 

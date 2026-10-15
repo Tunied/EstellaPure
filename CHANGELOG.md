@@ -22,6 +22,8 @@ published separately; it ships inside the editor.
 
 ### Added
 
+- **Navigation queries distinguish complete routes from best-effort paths.** `queryWorldPath` reports missing surfaces or endpoints, disconnected regions, grid clearance failures and mesh radius mismatches; custom surfaces without diagnostics report unknown. Grid searches reuse revision-scoped connectivity after a failed search, while walkability and dynamic obstacles invalidate it. Dynamic blockers now contribute to body clearance; the legacy path API keeps returning partial approaches.
+
 - **Spatial transform handles fade behind scene geometry.** A persistent Viewport setting can restore always-visible handles; flat 2D widgets retain their appearance. Scoped immediate-draw depth state disables overlay depth writes and restores the previous state, including when drawing throws. Older cores keep their existing overlay fallback.
 
 - **Spatial rotation adds a view-axis outer ring.** The outer ring remains a screen circle and uses the presented camera axis captured at the press, with absolute twist snapping and the same undo/cancel path. Local inner rings use their rotated world axis; rotation writes, including Alt copies, convert through each target's parent frame. Flat 2D retains its existing Z ring.

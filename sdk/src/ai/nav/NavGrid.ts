@@ -17,8 +17,8 @@
  */
 
 import type { Vec3 } from '../../types';
-import type { NavPoint, NavQueryOptions, NavSurface, NavSurfaceSink } from './NavSurface';
-import { findPath, pathToWorld, shortenPath } from './pathfind';
+import type { NavPoint, NavQueryOptions, NavSurface, NavSurfaceSink, NavPathResult } from './NavSurface';
+import { findPath, pathToWorld, shortenPath, resolveEndpoint } from './pathfind';
 
 /** Integer grid coordinate. Its own type rather than a world vector, so a cell
  *  coordinate cannot be passed where world pixels are expected. */
@@ -67,6 +67,10 @@ export class NavGrid implements NavSurface {
     private obstructed_: Uint8Array | null = null;
     /** What crossing each cell costs, or null while it all costs the same. */
     private cost_: Float32Array | null = null;
+    private topologyRevision_ = 0;
+
+    /** @internal Invalidates derived connectivity after walkability changes. */
+    get topologyRevision(): number { return this.topologyRevision_; }
 
     constructor(opts: NavGridOptions) {
         this.width = opts.width;
@@ -101,7 +105,9 @@ export class NavGrid implements NavSurface {
 
     setWalkable(gx: number, gy: number, walkable: boolean): void {
         if (!this.inBounds(gx, gy)) return;
+        if (this.walkable[gy * this.width + gx] === (walkable ? 1 : 0)) return;
         this.walkable[gy * this.width + gx] = walkable ? 1 : 0;
+        this.topologyRevision_++;
         this.clearance_ = null;
     }
 
@@ -116,7 +122,9 @@ export class NavGrid implements NavSurface {
             if (!obstructed) return;
             this.obstructed_ = new Uint8Array(this.width * this.height);
         }
+        if (this.obstructed_[gy * this.width + gx] === (obstructed ? 1 : 0)) return;
         this.obstructed_[gy * this.width + gx] = obstructed ? 1 : 0;
+        this.topologyRevision_++;
         this.clearance_ = null;
     }
 
@@ -124,6 +132,7 @@ export class NavGrid implements NavSurface {
     clearObstructions(): void {
         if (!this.obstructed_) return;
         this.obstructed_.fill(0);
+        this.topologyRevision_++;
         this.clearance_ = null;
     }
 
@@ -160,7 +169,12 @@ export class NavGrid implements NavSurface {
      */
     clearanceAt(gx: number, gy: number): number {
         if (!this.inBounds(gx, gy)) return 0;
-        if (!this.clearance_) this.clearance_ = buildClearance(this.width, this.height, this.walkable);
+        if (!this.clearance_) {
+            const mask = this.obstructed_
+                ? this.walkable.map((v, i) => this.obstructed_![i] ? 0 : v)
+                : this.walkable;
+            this.clearance_ = buildClearance(this.width, this.height, mask);
+        }
         return this.clearance_[gy * this.width + gx];
     }
 
@@ -214,6 +228,26 @@ export class NavGrid implements NavSurface {
     isNavigable(p: NavPoint): boolean {
         const cell = this.worldToCell(p);
         return this.isWalkable(cell.x, cell.y);
+    }
+
+    /** Diagnose a route without treating a best-effort partial path as arrival. */
+    queryWorldPath(from: NavPoint, to: NavPoint, opts?: NavQueryOptions): NavPathResult {
+        const clearance = Math.max(0, Math.ceil((opts?.radius ?? 0) / this.cellSize));
+        const start = resolveEndpoint(this, this.worldToCell(from), 8, clearance);
+        if (!start) return { path: null, status: 'unavailable', reason: 'start-unavailable' };
+        const target = resolveEndpoint(this, this.worldToCell(to), 8, clearance);
+        if (!target) return { path: null, status: 'unavailable', reason: 'target-unavailable' };
+        const path = this.findWorldPath(from, to, opts);
+        const reaches = (p: Vec3[] | null, cell: Cell | null) => {
+            if (!p?.length || !cell) return false;
+            const end = this.worldToCell(p[p.length - 1]!);
+            return end.x === cell.x && end.y === cell.y;
+        };
+        if (reaches(path, target)) return { path, status: 'complete', reason: 'none' };
+        if (clearance > 0 && reaches(this.findWorldPath(from, to), resolveEndpoint(this, this.worldToCell(to), 8, 0))) {
+            return { path, status: path ? 'partial' : 'unavailable', reason: 'insufficient-clearance' };
+        }
+        return { path, status: path ? 'partial' : 'unavailable', reason: 'disconnected' };
     }
 
     /**

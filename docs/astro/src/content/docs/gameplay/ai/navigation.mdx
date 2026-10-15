@@ -232,6 +232,47 @@ big world.
   world at all.
 </Aside>
 
+### Explaining a route
+
+Use `nav.queryWorldPath(from, to, { radius })` when a best-effort path must be
+distinguished from reaching the destination. It returns `{ path, status, reason }`:
+
+| Status / reason | Meaning |
+|---|---|
+| `complete` / `none` | Reaches the surface's resolved destination, including normal endpoint snapping. |
+| `partial` / `disconnected` | Stops on the reachable side of a disconnected region or closed passage. |
+| `partial` / `insufficient-clearance` | A point can get through the grid, but the requested body cannot. |
+| `unavailable` / `no-surface` | No navigation surface is installed. |
+| `unavailable` / `start-unavailable` | No usable starting point was found. |
+| `target-unavailable` | No usable destination was found; a mesh may still return a partial approach. |
+| `unavailable` / `radius-mismatch` | The requested body is wider than the mesh's baked radius. |
+| `unknown` / `diagnostics-unavailable` | A custom surface implements only the legacy path API. |
+
+```typescript
+const result = nav.queryWorldPath(from, target, { radius: 20 });
+if (result.status !== 'complete') console.info(result.reason);
+// result.path can still describe a useful partial approach.
+```
+
+`findWorldPath` retains its existing best-effort behavior. The diagnostic query
+describes the currently installed surface; it does not start a rebuild. Change
+grid walkability through `setWalkable`, `setObstructed` and `clearObstructions` so
+clearance and cached connectivity are invalidated together. Dynamic blockers
+contribute to body clearance. Area prices remain live without rebuilding connectivity.
+
+The reproducible CPU corpus runs in headless Chromium with door and building
+changes on 32/64/128-cell maps and 64 simultaneous replans:
+
+```sh
+node tools/navigation-rebuild-benchmark.mjs output/navigation-current.json
+node tools/navigation-rebuild-benchmark.mjs output/navigation-reference.json --search-reference=48631844c53113825a15493afeb8e6e2b972900c
+```
+
+The reference substitutes only the previous search; both sides use current
+obstacle clearance. Reports record source and bundle identity, raw rebuild and
+query times, and frame gaps. They measure navigation CPU work, excluding physics
+geometry collection, avoidance, rendering and the rest of the game frame.
+
 ### Moving an agent
 
 Attach a `NavAgent`, then point it at a destination. The built-in nav plugin plans

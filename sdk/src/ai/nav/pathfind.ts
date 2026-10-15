@@ -12,6 +12,7 @@
 
 import type { NavGrid, Cell } from './NavGrid';
 import { MinHeap } from './minHeap';
+import { cachedGridGoal, rememberGridComponents } from './gridConnectivity';
 import type { Vec3 } from '../../types';
 
 export interface PathfindOptions {
@@ -58,8 +59,10 @@ export function findPath(
     const clearance = Math.max(0, opts.clearance ?? 0);
 
     const s = resolveEndpoint(grid, start, snapRadius, clearance);
-    const g = resolveEndpoint(grid, goal, snapRadius, clearance);
+    let g = resolveEndpoint(grid, goal, snapRadius, clearance);
     if (!s || !g) return null;
+    const requestedGoal = g;
+    g = cachedGridGoal(grid, s, g, clearance, (x, y) => heuristic(x, y, requestedGoal.x, requestedGoal.y, diagonal)) ?? g;
 
     const { width, height } = grid;
     const n = width * height;
@@ -115,6 +118,7 @@ export function findPath(
         }
     }
 
+    rememberGridComponents(grid, clearance);
     return reconstruct(cameFrom, nearestIdx, width);
 }
 
@@ -174,7 +178,8 @@ function fits(grid: NavGrid, gx: number, gy: number, clearance: number): boolean
     return clearance <= 0 || grid.clearanceAt(gx, gy) >= clearance;
 }
 
-function resolveEndpoint(grid: NavGrid, c: Cell, snapRadius: number, clearance: number): Cell | null {
+/** @internal Shared endpoint policy for routes and their diagnostics. */
+export function resolveEndpoint(grid: NavGrid, c: Cell, snapRadius: number, clearance: number): Cell | null {
     if (fits(grid, c.x, c.y, clearance)) return c;
     if (snapRadius <= 0) return null;
     // An agent already jammed against a wall must still be given a way out, so

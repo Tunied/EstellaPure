@@ -6,7 +6,7 @@
  */
 
 export type {
-    NavSurface, NavSurfaceSink, NavQueryOptions, NavPoint,
+    NavSurface, NavSurfaceSink, NavQueryOptions, NavPoint, NavPathResult,
 } from './NavSurface';
 export { NavGrid, type NavGridOptions, type Cell } from './NavGrid';
 export { findPath, pathToWorld, type PathfindOptions } from './pathfind';
