@@ -9,7 +9,7 @@ import type { GamepadSnapshot, InputEventCallbacks } from '../platform/types';
 import { inputRouter } from './inputRouter';
 import { cancelPrimaryPointer, takePrimaryPointerCancellation } from './pointerCancellation';
 import { recordTouchEnd } from './touchEdges';
-import { recordActionEdge, discardActionEdges, clearActionEdges } from './actionEdges';
+import { recordActionEdge, discardActionEdges, clearActionEdges, beginFixedActionEdges, endFixedActionEdges, cancelActionEdges } from './actionEdges';
 import type { Vec2 } from '../types';
 
 /**
@@ -390,6 +390,7 @@ export class InputState {
      *  mirrors. Called by App before each FixedUpdate step. */
     beginFixedStep(): void {
         this.fixedContext_ = true;
+        beginFixedActionEdges(this);
     }
 
     /** Leave a fixed step: drop the consumed edges (so a later step this frame
@@ -397,6 +398,7 @@ export class InputState {
      *  on a frame with no fixed step are never cleared here, so they survive to the
      *  next frame's first step instead of being lost. */
     endFixedStep(): void {
+        endFixedActionEdges(this);
         this.keysPressedFixed.clear();
         this.keysReleasedFixed.clear();
         this.mouseButtonsPressedFixed.clear();
@@ -537,6 +539,7 @@ export function inputEventCallbacks(state: InputState): InputEventCallbacks {
             state.touches.clear();
             state.cancelVirtualSources();
             state.clearFrameState();
+            cancelActionEdges(state);
             state.keysPressedFixed.clear();
             state.keysReleasedFixed.clear();
             state.mouseButtonsPressedFixed.clear();

@@ -9,8 +9,8 @@
  * with one or more device-agnostic bindings (keyboard / mouse / gamepad, plus
  * composites), then query them by name. The binding model is plain serializable
  * data (the rebinding + persistence format), and the whole thing rides the
- * existing resource/system model — a `defineInputMap` registers ONE evaluation
- * system that reads the raw `Input` resource each frame (REARCH_INPUT.md §2.2).
+ * existing resource/system model — evaluation reads the raw `Input` resource
+ * independently for render frames and fixed simulation steps.
  */
 import { Schedule, defineSystem, addSystemToSchedule } from '../ecs/system';
 import { Res } from '../ecs/resource';
@@ -134,6 +134,8 @@ const DOWN_THRESHOLD = 0.5;
 
 interface ActionState {
     tapSequence: number;
+    pendingPressed: boolean;
+    pendingReleased: boolean;
     value: number;   // button: [0,1]; axis: [-1,1]; axis2d: magnitude [0,1]
     vec: Vec2;       // axis2d direction; scalar actions put value in x
     down: boolean;
@@ -244,40 +246,64 @@ interface PendingListen {
 
 /**
  * A live set of named actions, as {@link defineInputMap} answers it. Query it by
- * name from a system; the map recomputes itself once per frame, so every read
- * within a frame sees the same values.
+ * name from a system. Every read within a render frame or fixed simulation step
+ * sees the same values; edges reach each cadence independently, once.
  *
  * @public
  */
 export class InputMap {
     private readonly defs_ = new Map<string, ActionDef>();
     private readonly state_ = new Map<string, ActionState>();
+    private readonly fixedState_ = new Map<string, ActionState>();
     private pendingListen_: PendingListen | null = null;
-    private tapOwner_: object | undefined;
+    private tapOwner_: { fixed: boolean; cancellation: number } | undefined;
+    private cancellation_ = 0;
 
     constructor(actions: Record<string, ActionDef>) {
         for (const [name, def] of Object.entries(actions)) {
             this.defs_.set(name, def);
-            this.state_.set(name, { value: 0, vec: { x: 0, y: 0 }, down: false, pressed: false, released: false, tapSequence: 0 });
+            this.state_.set(name, { value: 0, vec: { x: 0, y: 0 }, down: false, pressed: false, released: false, tapSequence: 0, pendingPressed: false, pendingReleased: false });
+            this.fixedState_.set(name, { ...this.state_.get(name)!, vec: { x: 0, y: 0 } });
         }
     }
 
-    /** @internal Recompute every action from the current raw input. Called once per
-     *  frame by the registered evaluation system; complete physical taps survive
-     *  between samples alongside the normal held-state transitions. */
+    /** @internal Recompute the active cadence. Render evaluation also buffers
+     *  edges for the next fixed step; complete physical taps survive between
+     *  samples alongside the normal held-state transitions. */
     evaluate(input: InputState): void {
         const edges = actionEdges(input);
-        const tapOwner = edges?.owner;
+        const tapOwner = edges.owner;
         if (this.tapOwner_ !== tapOwner) {
             this.tapOwner_ = tapOwner;
-            for (const state of this.state_.values()) state.tapSequence = 0;
+            for (const states of [this.state_, this.fixedState_]) {
+                for (const state of states.values()) state.tapSequence = 0;
+            }
+            for (const state of this.fixedState_.values()) state.pendingPressed = state.pendingReleased = false;
         }
-        if (this.pendingListen_) this.scanForRebind_(input);
+        if (this.cancellation_ !== tapOwner.cancellation) {
+            this.cancellation_ = tapOwner.cancellation;
+            for (const state of this.fixedState_.values()) state.pendingPressed = state.pendingReleased = false;
+        }
+        if (tapOwner.fixed) this.evaluateStates_(input, this.fixedState_, false);
+        else {
+            if (this.pendingListen_) this.scanForRebind_(input);
+            this.evaluateStates_(input, this.state_, false);
+            this.evaluateStates_(input, this.fixedState_, true);
+        }
+    }
+
+    private evaluateStates_(input: InputState, states: Map<string, ActionState>, buffer: boolean): void {
+        const edges = actionEdges(input);
         for (const [name, def] of this.defs_) {
-            const st = this.state_.get(name)!;
+            const st = states.get(name)!;
             const prevDown = st.down;
 
-            if (def.type === 'axis2d') {
+            if (buffer) {
+                const sampled = this.state_.get(name)!;
+                st.value = sampled.value;
+                st.vec.x = sampled.vec.x;
+                st.vec.y = sampled.vec.y;
+            } else if (def.type === 'axis2d') {
                 let x = 0, y = 0;
                 for (const b of def.bindings) { const v = evalVec(b, input); x += v.x; y += v.y; }
                 const mag = Math.hypot(x, y);
@@ -302,26 +328,40 @@ export class InputMap {
             st.down = Math.abs(st.value) >= DOWN_THRESHOLD;
             st.pressed = st.down && !prevDown;
             st.released = !st.down && prevDown;
-            if (def.type === 'button' && edges?.events.length) {
+            if (def.type === 'button' && edges.events.length) {
                 const observed = observedButtonEdges(def.bindings, input, edges.events, st.tapSequence, prevDown);
                 st.pressed ||= !!(observed & 1);
                 st.released ||= !!(observed & 2);
             }
             // A held alternative absorbs taps too, so releasing it cannot replay
             // an earlier pulse. Each map owns its watermark independently.
-            st.tapSequence = edges?.sequence ?? 0;
+            st.tapSequence = edges.sequence;
+            if (buffer) {
+                // Constant space per action even if no simulation step runs for
+                // many render frames. Raw frame events can be cleared normally.
+                st.pendingPressed ||= st.pressed;
+                st.pendingReleased ||= st.released;
+            } else if (states === this.fixedState_) {
+                st.pressed ||= st.pendingPressed;
+                st.released ||= st.pendingReleased;
+                st.pendingPressed = st.pendingReleased = false;
+            }
         }
     }
 
+    private readStates_(): Map<string, ActionState> {
+        return this.tapOwner_?.fixed ? this.fixedState_ : this.state_;
+    }
+
     // — Query —
-    down(name: string): boolean { return this.state_.get(name)?.down ?? false; }
-    pressed(name: string): boolean { return this.state_.get(name)?.pressed ?? false; }
-    released(name: string): boolean { return this.state_.get(name)?.released ?? false; }
+    down(name: string): boolean { return this.readStates_().get(name)?.down ?? false; }
+    pressed(name: string): boolean { return this.readStates_().get(name)?.pressed ?? false; }
+    released(name: string): boolean { return this.readStates_().get(name)?.released ?? false; }
     /** Scalar value: button [0,1], axis [-1,1], axis2d the magnitude [0,1]. */
-    value(name: string): number { return this.state_.get(name)?.value ?? 0; }
+    value(name: string): number { return this.readStates_().get(name)?.value ?? 0; }
     /** 2D value (axis2d); scalar actions return {value, 0}. A fresh object each call. */
     axis2d(name: string): Vec2 {
-        const v = this.state_.get(name)?.vec;
+        const v = this.readStates_().get(name)?.vec;
         return v ? { x: v.x, y: v.y } : { x: 0, y: 0 };
     }
     actions(): string[] { return [...this.defs_.keys()]; }
@@ -420,20 +460,21 @@ export class InputMap {
 }
 
 /**
- * Define a named-action input map and register its per-frame evaluation system.
+ * Define a named-action input map and register render/fixed evaluation systems.
  * Returns the live map — import it and query by name from any system.
  *
  * @example
- * export const Game = defineInputMap({
- *   Move: Axis2D(Keys2D('KeyW','KeyS','KeyA','KeyD'), Stick('left')),
- *   Jump: Button(Key('Space'), GpButton(GamepadButton.South)),
- * });
- * // in a system:  if (Game.pressed('Jump')) ...;  const dir = Game.axis2d('Move');
+ * export const Game = defineInputMap({ Jump: Button(Key('Space'), GpButton(GamepadButton.South)) });
+ * // In a system: if (Game.pressed('Jump')) jump();
  *
  * @public
  */
 export function defineInputMap(actions: Record<string, ActionDef>): InputMap {
     const map = new InputMap(actions);
+    addSystemToSchedule(
+        Schedule.FixedPreUpdate,
+        defineSystem([Res(Input)], (input) => map.evaluate(input), { name: 'InputMapFixedEval' }),
+    );
     // PreUpdate: after gamepad poll (First) + always-current event input, before gameplay (Update).
     addSystemToSchedule(
         Schedule.PreUpdate,

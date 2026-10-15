@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Named actions reach fixed simulation steps independently of render frames.** Input maps sample before FixedUpdate instead of exposing the previous render frame's actions. Presses and releases survive frames without a fixed step, reach only the first catch-up step, and remain independently visible to Update. Pending flags use constant space per action, host cancellation drops buffered pulses, and current axis values are sampled for each cadence.
+
 ## [0.87.1] - 2026-10-15
 
 ### Fixed

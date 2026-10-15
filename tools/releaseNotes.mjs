@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(input): sample named actions independently for fixed steps':
+    { note: 'Named actions reach fixed simulation steps independently of render frames.' },
   'test(youtube): acknowledge each hit and retain failure state':
     { internal: 'Headless YouTube acceptance acknowledges each actual training hit and retains live gameplay state and screenshots before closing a failed browser session; missing attacks still fail.' },
   'chore(release): prepare 0.87.1':
