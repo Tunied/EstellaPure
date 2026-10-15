@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'chore(release): prepare 0.87.2':
+    { internal: 'Prepares the patch version and consolidates input cadence, virtual controls, editor list and live tile preview fixes without changing showcase assets.' },
   'test(poki): sample button focus and retain failed gameplay state':
     { internal: 'Poki acceptance holds pointer presses across animation frames, acknowledges each actual hit and preserves failed gameplay state and hashed screenshots. Existing phase and hit deadlines remain enforced; the old CI export fails this stronger focus regression control.' },
   'fix(example): return training keyboard focus when play resumes':
