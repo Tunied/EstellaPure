@@ -30,6 +30,8 @@ export const NOTES_FLOOR = 'v0.65.0';
 export const NOTED = {
   'fix(nav): pass occupied intermediate grid waypoints safely':
     { note: 'Couriers can pass occupied intermediate grid waypoints.' },
+  'test(nav): sample trusted keys before paused frame cleanup':
+    { internal: 'Workshop acceptance steps trusted keyboard input in its event task so paused animation frames cannot erase it before sampling; movement traces retain final agent positions for failure diagnosis.' },
   'test(nav): cover authored workshop obstacle layouts':
     { internal: 'Headless exported-workshop acceptance also loads a scene with authored obstacles enabled and verifies retained state and delivery after reopening.' },
   'fix(audio): release runtime references from finished web voices':

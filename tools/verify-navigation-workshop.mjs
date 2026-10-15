@@ -21,6 +21,23 @@ const server = await serveHost(dir);
 const origin = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch({ headless: true, args: ['--enable-unsafe-swiftshader','--use-angle=swiftshader','--mute-audio'] });
 const records = [], errors = [];
+// Sample trusted key edges before the paused animation loop clears frame input.
+const pressAndStep = async (page, code) => {
+    await page.evaluate(code => {
+        window.__workshopKeyStep = new Promise((resolve, reject) => {
+            const sample = event => {
+                if (event.code !== code) return;
+                window.removeEventListener('keydown', sample);
+                window.__estellaCooked.step(1, 1/60).then(resolve, reject);
+            };
+            window.addEventListener('keydown', sample);
+        });
+    }, code);
+    await page.keyboard.down(code);
+    await page.evaluate(() => window.__workshopKeyStep);
+    await page.keyboard.up(code);
+    await page.evaluate(() => window.__estellaCooked.step(1, 1/60));
+};
 try {
     const page = await browser.newPage({viewport:{width:1024,height:720}});
     page.on('pageerror', error => errors.push(String(error)));
@@ -78,7 +95,7 @@ try {
                 if(distance<8-0.001)overlaps.push({frame:i,name,x:p.x,y:p.y,distance}); }
             if(i%10===0)trail.push(at['Courier 07']);
         }
-        return {trail,positions:host.probe(names).at,overlaps,maxPenetration,contactTolerance:0.001,facts:host.facts()};
+        return {trail,overlaps,maxPenetration,contactTolerance:0.001,facts:host.facts(),positions:host.probe(names).at};
     },{frames,count});
     const trace = await simulate(900,8);
     records.push({name:'warehouse-trace',...trace});
@@ -89,7 +106,7 @@ try {
     await snapshot('storehouse');
     // Paused key input makes the first 24-agent planning tick observable rather
     // than relying on catching a one-frame queue with wall-clock polling.
-    await page.keyboard.down('KeyC'); await step(1); await page.keyboard.up('KeyC'); await step(1);
+    await pressAndStep(page, 'KeyC');
     const queued = await snapshot('crowd-queued');
     assert.equal(queued.couriers,24);
     assert(queued.queuedPlans>=8,'The actual scene did not expose the 16-plan count limit');
@@ -131,9 +148,7 @@ try {
     assert.equal(initial.gateClosed,true,'Authored closed gate was reset at startup');
     assert.equal(initial.warehousePlaced,true,'Authored warehouse was reset at startup');
     assert.equal(initial.arrived,0); assert.equal(initial.leftOfGate,8);
-    await authored.keyboard.down('KeyG');
-    await authored.evaluate(()=>window.__estellaCooked.step(1,1/60));
-    await authored.keyboard.up('KeyG');
+    await pressAndStep(authored, 'KeyG');
     await authored.evaluate(()=>window.__estellaCooked.step(1200,1/60));
     const delivered=await authored.evaluate(()=>window.__estellaCooked.facts());
     assert.equal(delivered.gateClosed,false); assert.equal(delivered.warehousePlaced,true);
