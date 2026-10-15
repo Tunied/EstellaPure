@@ -80,9 +80,9 @@ jobs:
         if: matrix.suite == 'regression'
         working-directory: desktop
         env:
-          ELECTRON_DISABLE_SANDBOX: '1'
           ESTELLA_MCP_EDITOR_VISIBLE: '1'
           OUT: ${{ github.workspace }}/output/gizmo-regression-ci
+          ELECTRON_DISABLE_SANDBOX: '1'
         run: |
           mkdir -p "$OUT"
           xvfb-run -a --server-args="-screen 0 1920x1080x24" node scripts/editor-checks/run.mjs gizmo- | tee "$OUT/checks.log"
