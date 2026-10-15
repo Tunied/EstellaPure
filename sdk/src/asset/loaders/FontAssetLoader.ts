@@ -6,7 +6,7 @@ import { requireResourceManager } from '../../wasm/resourceManager';
 import { getAssetTypeEntry } from '../../assetTypes';
 import { getPlatform } from '../../platform/base';
 import {
-    familyNameFor, projectFontFamily, registerProjectFont, unregisterProjectFont,
+    freshProjectFontFamily, projectFontFamily, registerProjectFontEra, releaseProjectFontEra,
 } from '../../ui/text/font-registry';
 import type { FontHandle } from '../../types';
 
@@ -32,8 +32,8 @@ export class FontAssetLoader implements AssetLoader<FontResult> {
 
     unload(asset: FontResult): void {
         // A project font has no C++ resource — only a registration and a name.
-        if (projectFontFamily(asset.handle) !== null) {
-            unregisterProjectFont(asset.path ?? '');
+        if (asset.family !== undefined || asset.path !== undefined || projectFontFamily(asset.handle) !== null) {
+            releaseProjectFontEra(asset.handle);
             return;
         }
         const rm = requireResourceManager();
@@ -47,10 +47,10 @@ export class FontAssetLoader implements AssetLoader<FontResult> {
      * handle — the family simply will not rasterize, and Text falls back.
      */
     private async loadOutlineFont(path: string, ctx: LoadContext): Promise<FontResult> {
-        const family = familyNameFor(path);
         const bytes = await ctx.loadBinary(ctx.catalog.getBuildPath(path));
+        const family = freshProjectFontFamily(path);
         await getPlatform().registerFont?.(family, bytes);
-        return { handle: registerProjectFont(path, family) as FontHandle, family, path };
+        return { handle: registerProjectFontEra(path, family) as FontHandle, family, path };
     }
 
     private async loadBmfontJson(path: string, ctx: LoadContext): Promise<FontResult> {

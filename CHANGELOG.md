@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Font reloads retain independent handles and glyph caches.** Each loaded revision uses its own platform family and runtime handle, so retiring an older asset cannot unregister its replacement or reuse stale glyph measurements. Failed and late registrations preserve live revisions; repeated outline-font unloads remain harmless. Platform font-face retention is unchanged.
+
 - **Project font identities preserve complete asset paths.** Reversible, CSS-safe UTF-16 encoding replaces the short path hash, separating same-named files, supplementary characters and escape boundaries without retaining a name registry. Loading a second font no longer overwrites another asset's browser family. Internal family strings change; derive them through `familyNameFor` rather than persisting generated names. Asset references and runtime font handles keep their existing interface.
 
 - **Missing-glyph warning history follows the bounded cache.** Diagnostic suppression retires when a family no longer has non-drawable glyphs in the 4096-entry CPU cache, preventing historical font names from accumulating. Cached-character queries keep their existing fast path, partial retirement and nested rasterization preserve reference counts, and cleanup releases the history. Unsupported-character warnings no longer claim the entire font cannot draw.

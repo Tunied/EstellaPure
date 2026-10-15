@@ -30,11 +30,12 @@ import { RuntimeConfig } from '../../defaults';
 const HANDLE_BASE = 0x4000_0000;
 
 let nextHandle = HANDLE_BASE;
+let nextFontLoad = 0;
 
-/** handle → family name. */
-const families = new Map<number, string>();
-/** asset path → handle, so re-loading the same font is idempotent. */
-const byPath = new Map<string, number>();
+/** Runtime handle → owned path and platform family. */
+const families = new Map<number, { path: string; family: string }>();
+/** Asset path → live handles; legacy path registration reuses the first. */
+const byPath = new Map<string, Set<number>>();
 
 /** A CSS-safe, collision-free family name for a font asset path. */
 export function familyNameFor(path: string): string {
@@ -56,26 +57,47 @@ export function familyNameFor(path: string): string {
  * multiple referencing entities share one registration.
  */
 export function registerProjectFont(path: string, family: string): number {
-    const existing = byPath.get(path);
+    const existing = byPath.get(path)?.values().next().value;
     if (existing !== undefined) return existing;
+    return registerProjectFontEra(path, family);
+}
+
+/** @internal A platform registration must not overwrite a still-owned font face. */
+export function freshProjectFontFamily(path: string): string {
+    return `${familyNameFor(path)}-load${(++nextFontLoad).toString(36)}`;
+}
+
+/** @internal Each prepared asset era owns a distinct runtime handle. */
+export function registerProjectFontEra(path: string, family: string): number {
     const handle = nextHandle++;
-    families.set(handle, family);
-    byPath.set(path, handle);
+    families.set(handle, { path, family });
+    let handles = byPath.get(path);
+    if (!handles) byPath.set(path, handles = new Set());
+    handles.add(handle);
     return handle;
 }
 
 /** The family name for a handle, or null when it is not a project font. */
 export function projectFontFamily(handle: number): string | null {
-    return families.get(handle) ?? null;
+    return families.get(handle)?.family ?? null;
+}
+
+/** @internal Release only the registration owned by this font result. */
+export function releaseProjectFontEra(handle: number): void {
+    const record = families.get(handle);
+    if (!record) return;
+    families.delete(handle);
+    const handles = byPath.get(record.path);
+    handles?.delete(handle);
+    if (handles?.size === 0) byPath.delete(record.path);
 }
 
 /** Forget a project font (asset unload). The family stays registered with the
  *  platform — browsers offer no removal that is safe while glyphs may be cached. */
 export function unregisterProjectFont(path: string): void {
-    const handle = byPath.get(path);
-    if (handle === undefined) return;
-    byPath.delete(path);
-    families.delete(handle);
+    const handles = byPath.get(path);
+    if (!handles) return;
+    for (const handle of handles) releaseProjectFontEra(handle);
 }
 
 /**

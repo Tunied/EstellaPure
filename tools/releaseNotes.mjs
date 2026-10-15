@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(text): isolate font reload ownership and glyph caches':
+    { note: 'Font reloads retain independent handles and glyph caches.' },
   'fix(text): encode font paths without identity collisions':
     { note: 'Project font identities preserve complete asset paths.' },
   'fix(text): retire missing-glyph warnings with cached entries':
