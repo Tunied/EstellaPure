@@ -28,6 +28,10 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(editor): project visible tile collision chunks':
+    { note: 'Tile collision overlays project only visible local chunks.' },
+  'perf(editor): synchronize local tile collision frames':
+    { note: 'Tile collision overlays project only visible local chunks.' },
   'fix(tilemap): derive collision from each layer grid':
     { note: 'Tile collision follows painted and imported layer layouts.' },
   'fix(tilemap): share exact staggered and hex grid geometry':

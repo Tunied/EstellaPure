@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Tile collision overlays project only visible local chunks.** The editor culls cached local geometry before placing world points, uses each layer's current rotation, origin offset and depth, and updates moving-layer previews every frame. Chunk and shape bounds retain oversized shapes crossing the viewport. Large-map movement avoids tile readback and complete-map point allocation.
+
 - **Tile collision follows painted and imported layer layouts.** Static boxes, rich shapes and legacy polygon helpers share layout-aware cell placement. Projected box merging preserves the authored union without filling holes. Tiled runtime collision belongs to each derived layer and follows its transform, layout edits and lifetime through the same path as painted layers. Origin-offset edits move existing bodies without re-exporting tiles, and direct Tiled loads retain their grid metadata.
 
 - **Staggered and hexagonal picking follows cell polygons.** Core queries identify the containing diamond or hexagon instead of its rectangular partition, including negative coordinates and either stagger axis/index. Drawing and coordinate queries share native grid geometry, while editor outlines use the same effective hex side limit along the stagger axis. Shared edges resolve to a touching cell; rotation and translation preserve cell ownership. Picking examines at most three neighboring stagger lines without reading tile contents.
