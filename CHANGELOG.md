@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Couriers can pass occupied intermediate grid waypoints.** A parked agent no longer traps a follower at an intermediate cell centre. The follower may join the next route segment only when its full body fits the connection through the static grid; final destinations still use the existing arrival rules.
+
 ## [0.87.0] - 2026-10-15
 
 ### Fixed

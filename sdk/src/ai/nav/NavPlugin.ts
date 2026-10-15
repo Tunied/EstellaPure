@@ -447,6 +447,15 @@ function walkAmongBodies(
     flat: boolean, neighbours: AvoidanceNeighbour[], nav: Navigation,
 ): boolean {
     const pos = tf.position;
+    // Intermediate cell centres may be occupied by a parked body. Join the
+    // following segment only if the whole body fits; never skip the final goal.
+    const waypoint=rt.waypoints[rt.index];
+    if(waypoint && rt.index+1<rt.waypoints.length
+        && neighbours.some(n=>Math.hypot(n.x-waypoint.x,n.z-(flat?waypoint.y:waypoint.z))<agent.radius+n.radius)
+        && nav.surface instanceof NavGrid && nav.surface.isNavigable(pos,{radius:agent.radius})
+        && gridMoveFits(nav,pos,rt.waypoints[rt.index+1]!,agent.radius)) {
+        rt.index++;rt.recoveringStart=false;
+    }
     while (rt.index < rt.waypoints.length) {
         const wp = rt.waypoints[rt.index]!;
         const reach=rt.recoveringStart && rt.index===0 ? 0.1 : Math.max(agent.speed*dt*1.5,WAYPOINT_REACH);

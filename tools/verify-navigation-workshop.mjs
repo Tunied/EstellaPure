@@ -78,7 +78,7 @@ try {
                 if(distance<8-0.001)overlaps.push({frame:i,name,x:p.x,y:p.y,distance}); }
             if(i%10===0)trail.push(at['Courier 07']);
         }
-        return {trail,overlaps,maxPenetration,contactTolerance:0.001,facts:host.facts()};
+        return {trail,positions:host.probe(names).at,overlaps,maxPenetration,contactTolerance:0.001,facts:host.facts()};
     },{frames,count});
     const trace = await simulate(900,8);
     records.push({name:'warehouse-trace',...trace});

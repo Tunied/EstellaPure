@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(nav): pass occupied intermediate grid waypoints safely':
+    { note: 'Couriers can pass occupied intermediate grid waypoints.' },
   'test(nav): cover authored workshop obstacle layouts':
     { internal: 'Headless exported-workshop acceptance also loads a scene with authored obstacles enabled and verifies retained state and delivery after reopening.' },
   'chore(release): classify v0.87 feature verification':
