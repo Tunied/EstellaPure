@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'ci(editor): install workshop acceptance browser':
+    { internal: 'Navigation workshop acceptance installs the Playwright headless browser required by its verifier on clean CI hosts.' },
   'fix(example): honor authored workshop obstacle state':
     { note: 'Build and reroute deliveries in a textured 2D courtyard.' },
   'fix(audio): share decoded ownership across source aliases':

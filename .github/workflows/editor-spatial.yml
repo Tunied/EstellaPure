@@ -66,6 +66,9 @@ jobs:
       - name: Check live agent route inspection
         if: matrix.suite == 'navigation'
         run: node tools/verify-navigation-inspector.mjs
+      - name: Install headless Chromium for the navigation workshop
+        if: matrix.suite == 'navigation'
+        run: pnpm exec playwright install --with-deps chromium
       - name: Check the exported building navigation workshop
         if: matrix.suite == 'navigation'
         run: |
