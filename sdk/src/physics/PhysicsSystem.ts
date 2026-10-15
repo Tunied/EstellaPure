@@ -44,6 +44,7 @@ import {
 } from './PhysicsTypes';
 import { withMalloc } from '../wasm/wasmScratch';
 import { engineApi, type EngineApi } from '../ecs/bridge/engineApi';
+import { StaticBodyPoses2D } from './StaticBodyPoses2D';
 
 /**
  * The engine surface this file drives. `getTransformPtr` is the web module's own
@@ -684,7 +685,7 @@ export function registerPhysics2DSystem(
     app: App,
     module: PhysicsWasmModule,
     config: ResolvedPhysics2DConfig,
-): void {
+): () => void {
     const trackedEntities = new Set<Entity>();
     const trackedJoints = new Set<Entity>();
     const trackedOneWay = new Set<Entity>();
@@ -705,18 +706,13 @@ export function registerPhysics2DSystem(
     const physicsComponents = [RigidBody2D, ...COLLIDER_TYPES, ...JOINT_TYPES, OneWayPlatform2D];
     for (const c of physicsComponents) app.world.enableChangeTracking(c);
     const kinematicEntities = new Set<Entity>();
-    const staticPoses = new Map<Entity, { x: number; y: number; angle: number; parent: Entity | null }>();
-    const staticParentPoses = new Map<Entity, { values: number[]; checked: number; changed: boolean }>();
-    let staticSyncSequence = 0;
-    let lastStaticEpoch = -1;
-    let lastStaticTick = -1;
-    let lastStaticPpu = -1;
+    const staticPoses = new StaticBodyPoses2D(app.world);
     let lastStructuralVersion = -1;
 
     const world = app.world;
     world.enableChangeTracking(Transform);
 
-    world.onDespawn((entity: Entity) => {
+    const offDespawn = world.onDespawn((entity: Entity) => {
         if (trackedJoints.has(entity)) {
             module._physics_destroyJoint(entity);
             trackedJoints.delete(entity);
@@ -867,9 +863,7 @@ export function registerPhysics2DSystem(
                     else kinematicEntities.delete(entity);
                     if (cached.bodyType === BodyType.Static) {
                         const parent = world.has(entity, Parent) ? world.get(entity, Parent).entity : null;
-                        const pose = staticPoses.get(entity);
-                        if (pose) pose.parent = parent;
-                        else staticPoses.set(entity, { x: NaN, y: NaN, angle: NaN, parent });
+                        staticPoses.track(entity, parent);
                         parentedBodies.delete(entity);
                     } else staticPoses.delete(entity);
                     cached.syncedTick = world.getWorldTick();
@@ -912,63 +906,9 @@ export function registerPhysics2DSystem(
 
                 lastEntitySyncTick = world.getWorldTick();
                 lastStructuralVersion = structuralVersion;
-                const staticParents = new Set<Entity>();
-                for (const pose of staticPoses.values()) if (pose.parent !== null) staticParents.add(pose.parent);
-                for (const parent of staticParentPoses.keys()) {
-                    if (!staticParents.has(parent)) staticParentPoses.delete(parent);
-                }
                 } // end if (needReconcile)
 
-                const staticEpoch = world.transformEpoch();
-                if (staticPoses.size > 0 && (needReconcile || staticEpoch < 0
-                    || staticEpoch !== lastStaticEpoch || ppu !== lastStaticPpu)) {
-                    world.ensureTransformsComposed();
-                    const sequence = ++staticSyncSequence;
-                    for (const [entity, pose] of staticPoses) {
-                        if (!cachedProps.get(entity)?.enabled) continue;
-                        const hasParent = pose.parent !== null;
-                        if (!needReconcile && ppu === lastStaticPpu
-                            && !world.isChangedSince(entity, Transform, lastStaticTick)) {
-                            if (pose.parent === null) continue;
-                            let parentPose = staticParentPoses.get(pose.parent);
-                            if (parentPose?.checked !== sequence) {
-                                if (!world.has(pose.parent, Transform)) {
-                                    if (parentPose) {
-                                        parentPose.checked = sequence; parentPose.changed = true;
-                                    } else {
-                                        parentPose = { values: [], checked: sequence, changed: true };
-                                        staticParentPoses.set(pose.parent, parentPose);
-                                    }
-                                } else {
-                                    const tf = world.get(pose.parent, Transform) as TransformData;
-                                    const p = tf.worldPosition, r = tf.worldRotation, s = tf.worldScale;
-                                    const values = [p.x, p.y, p.z, r.x, r.y, r.z, r.w, s.x, s.y, s.z];
-                                    const changed = !parentPose || values.some((value, index) => value !== parentPose!.values[index]);
-                                    if (parentPose) {
-                                        parentPose.values = values; parentPose.checked = sequence; parentPose.changed = changed;
-                                    } else {
-                                        parentPose = { values, checked: sequence, changed };
-                                        staticParentPoses.set(pose.parent, parentPose);
-                                    }
-                                }
-                            }
-                            if (!parentPose.changed) continue;
-                        }
-                        if (!world.isEntityActive(entity)) continue;
-                        const tf = world.get(entity, Transform) as TransformData;
-                        const position = hasParent ? tf.worldPosition : tf.position;
-                        const rotation = hasParent ? tf.worldRotation : tf.rotation;
-                        const x = position.x * invPpu, y = position.y * invPpu;
-                        const angle = quatToAngleZ(rotation);
-                        if (pose.x !== x || pose.y !== y || pose.angle !== angle) {
-                            module._physics_setBodyTransform(entity, x, y, angle);
-                            pose.x = x; pose.y = y; pose.angle = angle;
-                        }
-                    }
-                }
-                lastStaticEpoch = world.transformEpoch();
-                lastStaticTick = world.getWorldTick() - 1;
-                lastStaticPpu = ppu;
+                staticPoses.sync(module, ppu, needReconcile, entity => !!cachedProps.get(entity)?.enabled);
 
                 // Kinematic bodies are driven by their Transform (changed via gameplay,
                 // not tracked as a physics edit) — push every step, even when the
@@ -1043,4 +983,6 @@ export function registerPhysics2DSystem(
         ),
         { runIf: playModeOnly, profileDomain: 'physics' }
     );
+    const offFrameEnd = app.onFrameEnd(() => { if (app.isPaused() || !playModeOnly()) staticPoses.pause(); });
+    return () => { offFrameEnd(); offDespawn(); staticPoses.dispose(); };
 }

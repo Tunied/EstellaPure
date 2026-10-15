@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(physics): synchronize only changed static body groups':
+    { note: 'Static physics synchronization skips unchanged body groups.' },
   'perf(editor): project visible tile collision chunks':
     { note: 'Tile collision overlays project only visible local chunks.' },
   'perf(editor): synchronize local tile collision frames':

@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Static physics synchronization skips unchanged body groups.** Authored Transform writes select individual static bodies, while each immediate parent's composed frame selects only its affected children. Unrelated dynamic or authored motion avoids per-body change checks and pose reads. Reparenting, re-enabling and pixels-per-unit edits refresh the correct bodies. Paused simulations release write history and refresh poses on resume; plugin cleanup releases the reader and frame/despawn observers.
+
 ## [0.89.0] - 2026-10-16
 
 ### Fixed

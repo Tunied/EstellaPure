@@ -115,6 +115,7 @@ interface Physics2DInstance {
     released: boolean;
     module: PhysicsWasmModule | null;
     runtime: Physics2DRuntimeData;
+    disposeSystems: (() => void) | null;
 }
 
 export class Physics2DPlugin implements Plugin {
@@ -134,7 +135,7 @@ export class Physics2DPlugin implements Plugin {
     build(app: App): void {
         this.cleanup(app);
         const runtime = { module: null as PhysicsWasmModule | null, initPromise: null as Promise<void> | null };
-        const instance = { released: false, module: null as PhysicsWasmModule | null, runtime };
+        const instance: Physics2DInstance = { released: false, module: null, runtime, disposeSystems: null };
         this.instances_.set(app, instance);
         this.latestInstance_ = instance;
         const bridge = new PhysicsBridge();
@@ -186,7 +187,7 @@ export class Physics2DPlugin implements Plugin {
                     this.config_.maxLinearSpeed,
                 );
 
-                registerPhysics2DSystem(app, module, this.config_);
+                instance.disposeSystems = registerPhysics2DSystem(app, module, this.config_);
 
                 app.getResource(Physics2DRuntime).module = module;
                 app.insertResource(Physics2D, Physics2DAPI._fromModule(module));
@@ -224,6 +225,8 @@ export class Physics2DPlugin implements Plugin {
         const module = instance.module;
         instance.module = null;
         instance.runtime.module = null;
+        instance.disposeSystems?.();
+        instance.disposeSystems = null;
         module?._physics_shutdown();
     }
 }
