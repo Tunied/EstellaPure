@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'test(physics): keep lifecycle fixtures on the current module contract':
+    { internal: 'Updates lifecycle and shutdown module doubles to provide the new body-local one-way normal entry point while preserving native contract rejection tests.' },
   'test(editor): verify rotated tile layers through play':
     { internal: 'Extends the existing CI tilemap layout check with layer and parent rotation pixels, comparing cached draws with an explicitly rebuilt reference.' },
   'test(editor): synchronize rotated tile play checks':

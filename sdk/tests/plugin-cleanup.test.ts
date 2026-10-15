@@ -75,6 +75,7 @@ describe('Physics2DPlugin.cleanup', () => {
             '_physics_init', '_physics_setWorldConfig', '_physics_step', '_physics_capturePoses',
             '_physics_getInterpolatedCount', '_physics_getInterpolatedTransforms', '_physics_collectEvents',
             '_physics_getDynamicBodyCount', '_physics_getDynamicBodyTransforms', '_physics_setBodyTransform',
+            '_physics_setOneWayPlatformLocal',
         ].map(name => [name, vi.fn(() => 0)])) as unknown as PhysicsWasmModule;
         module._physics_shutdown = shutdown;
         const plugin = new Physics2DPlugin('', {}, async () => module);

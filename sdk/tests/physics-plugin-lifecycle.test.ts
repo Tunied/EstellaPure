@@ -12,6 +12,7 @@ function module() {
         '_physics_capturePoses', '_physics_getInterpolatedCount', '_physics_getInterpolatedTransforms',
         '_physics_collectEvents', '_physics_getDynamicBodyCount', '_physics_getDynamicBodyTransforms',
         '_physics_setBodyTransform',
+        '_physics_setOneWayPlatformLocal',
         '_physics_getCollisionEnterCount', '_physics_getCollisionExitCount', '_physics_getHitEventCount',
         '_physics_getSensorEnterCount', '_physics_getSensorExitCount',
     ].map(name => [name, vi.fn(() => 0)])) as unknown as PhysicsWasmModule;
