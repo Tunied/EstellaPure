@@ -389,42 +389,9 @@ void TilemapSystem::tileToWorld(Entity entity, i32 tx, i32 ty,
     const auto* layer = getLayerData(entity);
     if (!layer) { outX = 0; outY = 0; return; }
 
-    f32 tw = layer->tile_width;
-    f32 th = layer->tile_height;
-
-    switch (layer->grid_type) {
-        case GridType::Isometric:
-            outX = originX + static_cast<f32>(tx - ty) * tw * 0.5f;
-            outY = originY - static_cast<f32>(tx + ty) * th * 0.5f;
-            break;
-        case GridType::StaggeredIsometric:
-        case GridType::Hexagonal: {
-            // Staggered/hex share one layout: the stagger axis advances by
-            // (tile + side)/2 and staggered lines shift half a tile along the
-            // other axis (staggerindex picks odd or even lines). Staggered iso
-            // is exactly hex with side length 0; hex with side 0 falls back to a
-            // regular pointy hex (side = tileHeight/2).
-            bool isHex = layer->grid_type == GridType::Hexagonal;
-            f32 side = isHex ? (layer->hex_side_length > 0.0f ? layer->hex_side_length : th * 0.5f)
-                             : 0.0f;
-            if (layer->hex_stagger_axis_x) {
-                f32 colW = (tw + side) * 0.5f;
-                bool staggered = ((tx & 1) != 0) != layer->hex_stagger_index_even;
-                outX = originX + static_cast<f32>(tx) * colW;
-                outY = originY - static_cast<f32>(ty) * th - (staggered ? th * 0.5f : 0.0f);
-            } else {
-                f32 rowH = (th + side) * 0.5f;
-                bool staggered = ((ty & 1) != 0) != layer->hex_stagger_index_even;
-                outX = originX + static_cast<f32>(tx) * tw + (staggered ? tw * 0.5f : 0.0f);
-                outY = originY - static_cast<f32>(ty) * rowH;
-            }
-            break;
-        }
-        default:
-            outX = originX + static_cast<f32>(tx) * tw;
-            outY = originY - static_cast<f32>(ty) * th;
-            break;
-    }
+    const auto anchor = layer->grid().anchor(tx, ty);
+    outX = originX + anchor.x;
+    outY = originY + anchor.y;
 }
 
 void TilemapSystem::worldToTile(Entity entity, f32 wx, f32 wy,
@@ -433,53 +400,9 @@ void TilemapSystem::worldToTile(Entity entity, f32 wx, f32 wy,
     const auto* layer = getLayerData(entity);
     if (!layer) { outTx = 0; outTy = 0; return; }
 
-    f32 tw = layer->tile_width;
-    f32 th = layer->tile_height;
-    f32 lx = wx - originX;
-    f32 ly = originY - wy;
-
-    switch (layer->grid_type) {
-        case GridType::Isometric: {
-            // Isometric tiles are center-anchored (tileToWorld/renderer place the
-            // center at ((tx-ty)*tw/2, -(tx+ty)*th/2)), so this linear map sends a
-            // tile's diamond to the unit square centered on (tx,ty). Recovering the
-            // containing tile is therefore round-to-nearest, not floor — floor
-            // splits each diamond at its center and mis-attributes the upper half
-            // to the (tx-1,ty-1) neighbor.
-            f32 ftx = lx / tw + ly / th;
-            f32 fty = ly / th - lx / tw;
-            outTx = static_cast<i32>(std::floor(ftx + 0.5f));
-            outTy = static_cast<i32>(std::floor(fty + 0.5f));
-            break;
-        }
-        case GridType::StaggeredIsometric:
-        case GridType::Hexagonal: {
-            // Box-approximate: resolve the stagger line first, then the cell
-            // along it (no exact hex hit-test). Staggered iso is hex with side
-            // length 0; hex with side 0 falls back to a regular pointy hex.
-            bool isHex = layer->grid_type == GridType::Hexagonal;
-            f32 side = isHex ? (layer->hex_side_length > 0.0f ? layer->hex_side_length : th * 0.5f)
-                             : 0.0f;
-            if (layer->hex_stagger_axis_x) {
-                f32 colW = (tw + side) * 0.5f;
-                i32 roughX = static_cast<i32>(std::floor(lx / colW));
-                bool staggered = ((roughX & 1) != 0) != layer->hex_stagger_index_even;
-                outTx = roughX;
-                outTy = static_cast<i32>(std::floor((ly - (staggered ? th * 0.5f : 0.0f)) / th));
-            } else {
-                f32 rowH = (th + side) * 0.5f;
-                i32 roughY = static_cast<i32>(std::floor(ly / rowH));
-                bool staggered = ((roughY & 1) != 0) != layer->hex_stagger_index_even;
-                outTy = roughY;
-                outTx = static_cast<i32>(std::floor((lx - (staggered ? tw * 0.5f : 0.0f)) / tw));
-            }
-            break;
-        }
-        default:
-            outTx = static_cast<i32>(std::floor(lx / tw));
-            outTy = static_cast<i32>(std::floor(ly / th));
-            break;
-    }
+    const auto cell = layer->grid().cellAt(wx - originX, wy - originY);
+    outTx = cell.x;
+    outTy = cell.y;
 }
 
 }  // namespace esengine::tilemap

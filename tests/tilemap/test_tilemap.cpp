@@ -406,6 +406,27 @@ TEST_CASE("tilemap_iso_world_to_tile") {
     }
 }
 
+TEST_CASE("staggered polygon interiors retain their owning cell") {
+    for (const auto type : {GridType::StaggeredIsometric, GridType::Hexagonal}) {
+        for (const bool axisX : {false, true}) for (const bool even : {false, true}) {
+            for (const f32 side : {0.0f, 6.0f, 999.0f}) {
+                TilemapSystem sys;
+                sys.initInfiniteLayer(E(0), 16, 24);
+                sys.setGridType(E(0), type); sys.setHexParams(E(0), side, axisX, even);
+                for (i32 y = -3; y <= 3; ++y) for (i32 x = -3; x <= 3; ++x) {
+                    f32 ax, ay; sys.tileToWorld(E(0), x, y, 21, -35, ax, ay);
+                    for (const glm::vec2 offset : {glm::vec2{0, 0}, {6.8f, 0}, {-6.8f, 0}, {0, 10.2f}, {0, -10.2f}}) {
+                        i32 tx, ty;
+                        sys.worldToTile(E(0), ax + 8 + offset.x, ay - 12 + offset.y, 21, -35, tx, ty);
+                        CAPTURE(x); CAPTURE(y); CAPTURE(axisX); CAPTURE(even); CAPTURE(side);
+                        CHECK(tx == x); CHECK(ty == y);
+                    }
+                }
+            }
+        }
+    }
+}
+
 TEST_CASE("tilemap_animation_revision_separation") {
     // The render cache must distinguish a TABLE change (a tile GAINS an animation
     // → every chunk re-evaluates once, so an all-static chunk can become animated)

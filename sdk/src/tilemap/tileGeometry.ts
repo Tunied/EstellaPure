@@ -2,8 +2,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 /**
  * @file    tileGeometry.ts
- * @brief   Orientation-aware tile-cell geometry — the single TS mirror of the C++
- *          placement math in TilemapRenderPlugin / TilemapSystem.
+ * @brief   Orientation-aware tile-cell geometry mirroring the native TileGrid.
  *
  * The renderer draws each tile as a layer-local axis-aligned tileWidth×tileHeight quad;
  * only its CENTER moves per orientation (orthogonal / isometric / staggered /
@@ -28,7 +27,7 @@ export interface TileGridParams {
     orientation: number;
     tileWidth: number;
     tileHeight: number;
-    /** Hex edge length in px along the stagger axis (0 → tileHeight/2). Hex only. */
+    /** Hex edge along the stagger axis, bounded by that tile dimension (0 → tileHeight/2). */
     hexSideLength?: number;
     /** staggerAxis === X: columns stagger (else rows). Staggered + hex. */
     staggerAxisX?: boolean;
@@ -43,14 +42,13 @@ export interface Vec2Like {
 
 /** The effective hex side length: the authored value, or the regular-hex fallback (th/2). */
 function hexSide(p: TileGridParams): number {
-    return p.hexSideLength && p.hexSideLength > 0 ? p.hexSideLength : p.tileHeight * 0.5;
+    const side = p.hexSideLength && p.hexSideLength > 0 ? p.hexSideLength : p.tileHeight * 0.5;
+    return Math.min(side, p.staggerAxisX ? p.tileWidth : p.tileHeight);
 }
 
 /**
- * The center of cell (tx, ty) in the layer's local space (y-up, layer origin at 0,0).
- * Add the layer entity's world position to get world coords. Mirrors the C++ renderer's
- * `(worldX, worldY)` per-tile center exactly, so a painted map and an imported one place
- * a given cell at the same point.
+ * Cell center in layer-local pixels (y-up, origin at 0,0), matching native TileGrid.
+ * Apply the layer's world rotation and position to obtain world coordinates.
  */
 export function tileCellCenter(p: TileGridParams, tx: number, ty: number): Vec2Like {
     const hw = p.tileWidth * 0.5;
@@ -90,7 +88,7 @@ export function tileCellOutline(p: TileGridParams): Vec2Like[] {
             // Diamond: top, right, bottom, left.
             return [{ x: 0, y: hh }, { x: hw, y: 0 }, { x: 0, y: -hh }, { x: -hw, y: 0 }];
         case TilemapOrientation.Hexagonal: {
-            const s = Math.min(hexSide(p), p.tileHeight, p.tileWidth); // clamp so it stays inside the box
+            const s = hexSide(p);
             const hs = s * 0.5;
             if (p.staggerAxisX) {
                 // Flat-top hex: horizontal flat edges (length s) top and bottom, points left/right.

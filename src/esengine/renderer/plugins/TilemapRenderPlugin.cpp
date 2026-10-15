@@ -34,6 +34,7 @@ void TilemapRenderPlugin::rebuildChunk(
     bool hasAnimations = !layer.tile_animations.empty();
     f32 hw = layer.tile_width * 0.5f;
     f32 hh = layer.tile_height * 0.5f;
+    const auto grid = layer.grid();
 
     for (u32 ly = 0; ly < tilemap::CHUNK_SIZE; ++ly) {
         i32 ty = baseY + static_cast<i32>(ly);
@@ -76,38 +77,8 @@ void TilemapRenderPlugin::rebuildChunk(
             // where the sampler hands back a tile that does exist.
             if (tileCol >= rs.atlasCols || tileRow >= rs.atlasRows) continue;
 
-            f32 worldX, worldY;
-            if (layer.grid_type == tilemap::GridType::Isometric) {
-                worldX = static_cast<f32>(tx - ty) * hw;
-                worldY = -static_cast<f32>(tx + ty) * hh;
-            } else if (layer.grid_type == tilemap::GridType::StaggeredIsometric
-                    || layer.grid_type == tilemap::GridType::Hexagonal) {
-                // Staggered/hex share one layout: the stagger axis advances by
-                // (tile + side)/2, staggered lines shift half a tile along the
-                // other axis — matching Tiled's pixel placement so imported maps
-                // line up 1:1. Staggered iso is exactly hex with side length 0;
-                // hex with side 0 falls back to a regular pointy hex.
-                bool isHex = layer.grid_type == tilemap::GridType::Hexagonal;
-                f32 side = isHex ? (layer.hex_side_length > 0.0f ? layer.hex_side_length
-                                                                 : layer.tile_height * 0.5f)
-                                 : 0.0f;
-                if (layer.hex_stagger_axis_x) {
-                    f32 colW = (layer.tile_width + side) * 0.5f;
-                    bool staggered = ((tx & 1) != 0) != layer.hex_stagger_index_even;
-                    worldX = static_cast<f32>(tx) * colW + hw;
-                    worldY = -static_cast<f32>(ty) * layer.tile_height
-                             - (staggered ? hh : 0.0f) - hh;
-                } else {
-                    f32 rowH = (layer.tile_height + side) * 0.5f;
-                    bool staggered = ((ty & 1) != 0) != layer.hex_stagger_index_even;
-                    worldX = static_cast<f32>(tx) * layer.tile_width
-                             + (staggered ? hw : 0.0f) + hw;
-                    worldY = -static_cast<f32>(ty) * rowH - hh;
-                }
-            } else {
-                worldX = static_cast<f32>(tx) * layer.tile_width + hw;
-                worldY = -static_cast<f32>(ty) * layer.tile_height - hh;
-            }
+            const auto center = grid.center(tx, ty);
+            const f32 worldX = center.x, worldY = center.y;
 
             // Base tile UV rect (GL v increases upward, so vBottom < vTop), with
             // the atlas margin + spacing folded into offset/step so a Tiled tileset

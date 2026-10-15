@@ -28,6 +28,10 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(tilemap): share exact staggered and hex grid geometry':
+    { note: 'Staggered and hexagonal picking follows cell polygons.' },
+  'test(editor): cover staggered polygon picking through transforms':
+    { internal: 'Exercises the real editor cursor-to-cell path over native diamond and hexagonal picking, including parent rotation, negative cells and both stagger axes and indices.' },
   'test(physics): keep lifecycle fixtures on the current module contract':
     { internal: 'Updates lifecycle and shutdown module doubles to provide the new body-local one-way normal entry point while preserving native contract rejection tests.' },
   'test(editor): verify rotated tile layers through play':

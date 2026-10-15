@@ -4,6 +4,7 @@
 
 #include "../core/Types.hpp"
 #include "TilesetTable.hpp"
+#include "TileGrid.hpp"
 
 #include <glm/glm.hpp>
 #include <string>
@@ -26,13 +27,6 @@ ES_CONST(hex)
 static constexpr u16 TILE_FLIP_V  = 0x4000;
 ES_CONST(hex)
 static constexpr u16 TILE_FLIP_D  = 0x8000;
-
-enum class GridType : u8 {
-    Orthogonal = 0,
-    Isometric = 1,
-    StaggeredIsometric = 2,
-    Hexagonal = 3,
-};
 
 struct AnimFrame {
     u16 tile_id;
@@ -144,6 +138,11 @@ public:
         f32 hex_side_length = 0.0f;
         bool hex_stagger_axis_x = false;      ///< true: columns stagger (staggeraxis=x)
         bool hex_stagger_index_even = false;  ///< true: even rows/cols carry the shift
+
+        TileGrid grid() const {
+            return {grid_type, tile_width, tile_height, hex_side_length,
+                hex_stagger_axis_x, hex_stagger_index_even};
+        }
 
         std::unordered_map<ChunkCoord, ChunkData, ChunkCoordHash> chunks;
         bool infinite = false;
