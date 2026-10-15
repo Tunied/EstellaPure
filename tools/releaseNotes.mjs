@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(test): replay settings transactions after confirmed GPU loss':
+    { internal: 'Settings acceptance applies the shared bounded GPU failure policy to whole fresh-profile transactions, preserving each failed attempt and screenshot while refusing retries for ordinary process or settings failures.' },
   'test(nav): yield fixed-step capture work to the compositor':
     { internal: 'Headless workshop acceptance yields between fixed simulation batches so software rendering can drain before screenshots, and persists sampled facts before capture failures.' },
   'test(settings): retain restart diagnostics and focused CI evidence':
