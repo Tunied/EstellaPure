@@ -48,6 +48,7 @@ import { fileURLToPath } from 'node:url';
 import { decodePng, distinctColors } from '../build-tools/utils/png.js';
 import { GOLDEN, launchTimeoutFor } from './goldenProjects.mjs';
 import { worthAnotherLaunch, exitCodeFor, unjudgedReason } from './lib/smokeRetry.mjs';
+import { retainFirstLaunch } from './lib/smokeEvidence.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 /** A prebuilt app's bundle id, unless `--app-id` names another; a packaged
@@ -865,7 +866,7 @@ for (const name of examples) {
         APP_ID = appId;
         r = await verifyApp(driver, app, name, opts, !FRAME_NOT_JUDGED[name]);
         if (worthAnotherLaunch(r)) {
-            const first = r;
+            const first = retainFirstLaunch(r, opts.out, `${driver.name}-${name}`);
             r = await verifyApp(driver, app, name, opts, !FRAME_NOT_JUDGED[name], 2);
             r.firstTry = first;
         }
