@@ -28,6 +28,10 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(tilemap): synchronize collision by changed chunk':
+    { note: 'Tile edits preserve unaffected collision chunks and contacts.' },
+  'refactor(editor): use shared tile collision chunk readback':
+    { note: 'Tile edits preserve unaffected collision chunks and contacts.' },
   'perf(physics): batch composed static body poses across hosts':
     { note: 'Moving static collision uses a shared batch pose channel.' },
   'fix(physics): release static pose history while time is frozen':

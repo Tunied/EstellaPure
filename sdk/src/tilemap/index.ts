@@ -27,6 +27,7 @@ export {
 } from './tileGeometry';
 export { mergeCollisionTiles, type MergedRect } from './collisionMerge';
 export { decodeTilemapChunks, CHUNK_SIZE, type DecodedChunk } from './chunkCodec';
+export { readCollisionChunks, type ChunkReadCore, type CollisionChunkSnapshot } from './nativeCollisionChunks';
 export {
     TILE_ID_MASK, TILE_FLIP_H, TILE_FLIP_V, TILE_FLIP_D, TILE_FLAGS_MASK,
     encodeTile, tileIdOf, tileFlagsOf, orientationPerm,

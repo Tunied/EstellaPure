@@ -121,18 +121,18 @@ describe.skipIf(!HAS_WASM)('tilemap runtimes in independent apps', () => {
         expect(preview.tiles.getTile(preview.entity, 0, 0)).toBe(2);
         preview.tiles.setTile(preview.entity, 0, 0, 1); await preview.app.tick(1 / 60);
         expect(previewCore.tilemap_hasLayer!(preview.entity)).toBe(true);
-        const colliders = (preview.runtime as unknown as { collisionEntities_: Map<number, number[]> })
+        const colliders = (preview.runtime as unknown as { collisionEntities_: Map<number, Set<number>> })
             .collisionEntities_.get(preview.entity);
-        expect(colliders?.length).toBeGreaterThan(0);
+        expect(colliders?.size).toBeGreaterThan(0);
     });
     it('quitting the preview lets the main runtime keep rebuilding collision', async () => {
         const main = await scene(mainCore, 1), preview = await scene(previewCore, 2);
         preview.app.quit();
         main.tiles.setTile(main.entity, 0, 0, 0); await main.app.tick(1 / 60);
         main.tiles.setTile(main.entity, -1, -1, 1); await main.app.tick(1 / 60);
-        const colliders = (main.runtime as unknown as { collisionEntities_: Map<number, number[]> })
+        const colliders = (main.runtime as unknown as { collisionEntities_: Map<number, Set<number>> })
             .collisionEntities_.get(main.entity);
-        expect(colliders?.length).toBeGreaterThan(0);
+        expect(colliders?.size).toBeGreaterThan(0);
         expect(main.tiles.getTile(main.entity, -1, -1)).toBe(1);
         expect(TilemapAPI.getTile(main.entity, -1, -1)).toBe(1);
         expect(isTileSolid(main.entity, -1, -1)).toBe(true);

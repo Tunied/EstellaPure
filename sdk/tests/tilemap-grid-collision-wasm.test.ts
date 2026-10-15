@@ -29,7 +29,7 @@ function scene() {
     return { app, world: app.world, tiles: app.getResource(Tilemaps), runtime: app.getResource(TilemapRuntimeState) };
 }
 function generated(app: App, layer: number) {
-    return (app.getResource(TilemapRuntimeState) as unknown as { collisionEntities_: Map<number, number[]> }).collisionEntities_.get(layer)!;
+    return [...(app.getResource(TilemapRuntimeState) as unknown as { collisionEntities_: Map<number, Set<number>> }).collisionEntities_.get(layer)!];
 }
 describe.skipIf(!HAS_WASM)('projected tile collision ownership', () => {
     beforeAll(async () => { core = await loadWasmModule(); });
@@ -48,7 +48,7 @@ describe.skipIf(!HAS_WASM)('projected tile collision ownership', () => {
         expect(world.get(original[0], Transform).position).toMatchObject({ x: expected.x + 7, y: expected.y - 3 });
         world.update(layer, TilemapLayer, value => { value.orientation = (orientation + 1) % 4; });
         await app.tick(1 / 60);
-        expect(generated(app, layer)).not.toEqual(original); expect(exported).toHaveBeenCalledOnce();
+        expect(generated(app, layer)).not.toEqual(original); expect(exported).not.toHaveBeenCalled();
         expect(world.valid(original[0])).toBe(false);
         const next = tileCellCenter({ orientation: (orientation + 1) % 4, tileWidth: 16, tileHeight: 24, hexSideLength: 6 }, 3, 2);
         expect(world.get(generated(app, layer)[0], Transform).position).toMatchObject({ x: next.x + 7, y: next.y - 3 });

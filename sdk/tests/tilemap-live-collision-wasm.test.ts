@@ -35,7 +35,7 @@ describe.skipIf(!HAS_WASM)('live native tile collision', () => {
         const emptyBlob = tiles.exportChunks(entity);
         tiles.setTile(entity, 0, 0, 1);
         await app.tick(1 / 60);
-        const colliders = () => (app.getResource(TilemapRuntimeState) as unknown as { collisionEntities_: Map<number, import('../src/types').Entity[]> }).collisionEntities_.get(entity)!;
+        const colliders = () => [...((app.getResource(TilemapRuntimeState) as unknown as { collisionEntities_: Map<number, Set<import('../src/types').Entity>> }).collisionEntities_.get(entity) ?? [])];
         return { app, entity, tiles, colliders, emptyBlob };
     }
     it('retains unchanged colliders and removes them after erasing their tile', async () => {
@@ -47,7 +47,7 @@ describe.skipIf(!HAS_WASM)('live native tile collision', () => {
         expect(exports).not.toHaveBeenCalled();
         tiles.setTile(entity, 0, 0, 0); await app.tick(1 / 60);
         expect(colliders()).toHaveLength(0);
-        expect(exports).toHaveBeenCalledTimes(1);
+        expect(exports).not.toHaveBeenCalled();
         for (const id of original) expect(app.world.valid(id)).toBe(false);
         tiles.setTile(entity, -1, -1, 1); await app.tick(1 / 60);
         expect(colliders().length).toBeGreaterThan(0);
