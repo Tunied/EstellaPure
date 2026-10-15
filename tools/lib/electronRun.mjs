@@ -55,6 +55,13 @@ const SCREEN = '-screen 0 1920x1080x24';
 export const NEEDS_XVFB = process.platform === 'linux'
   && !process.env.DISPLAY && !process.env.ESTELLA_NO_XVFB;
 
+/** Keep one display alive for a Node controller and all of its Electron children. */
+export function runWithElectronDisplay(args, options = {}) {
+  return NEEDS_XVFB
+    ? runTool('xvfb-run', ['-a', '--server-args', SCREEN, process.execPath, ...args], options)
+    : runTool(process.execPath, args, options);
+}
+
 /**
  * Run Electron with a script and its arguments, under whatever this host needs.
  *

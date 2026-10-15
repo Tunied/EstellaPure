@@ -48,6 +48,7 @@ jobs:
           const spec = GOLDEN.find(project => project.id === 'audio-demo').settings;
           const run = spawnSync(process.execPath, ['tools/verify-settings.mjs',
             '--dir', 'output/settings-web', '--spec', JSON.stringify(spec),
+            '--present',
             '--log', 'output/settings-restart/process.log'], { stdio: 'inherit' });
           if (run.error) throw run.error;
           process.exit(run.status ?? 1);

@@ -15,6 +15,8 @@ it.each(['pass', 'killed', 'wrong-label', 'gpu-once', 'gpu-then-wrong-label'])('
         name:'fixture-only-launcher',setup(builder){
           builder.onResolve({filter:/electronRun\.mjs$/},()=>({path:'run',namespace:'fixture'}));
           builder.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:`
+            export const NEEDS_XVFB=false;
+            export function runWithElectronDisplay(){throw new Error('Unexpected display launch in fixture');}
             let launch=0; const profiles=new Map();
             export function runElectron(args) {
               const globalStep=launch++, mode=${JSON.stringify(mode)};

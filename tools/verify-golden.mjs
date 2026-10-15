@@ -426,7 +426,8 @@ for (const { id, target } of pairs) {
   if (golden.settings && target === 'web') {
     const settingsLog = path.join(WORK, `${id}-${target}-settings.log`);
     const run = spawnSync(process.execPath, [path.join(ROOT, 'tools/verify-settings.mjs'),
-      '--dir', out, '--spec', JSON.stringify(golden.settings), '--log', settingsLog], { cwd: ROOT, encoding: 'utf8' });
+      '--dir', out, '--spec', JSON.stringify(golden.settings), '--log', settingsLog,
+      ...(process.env.CI ? ['--present'] : [])], { cwd: ROOT, encoding: 'utf8' });
     const ok = run.status === 0;
     results.push({ id, target, stage: 'settings', ok, why: ok ? '' : String(run.stderr || run.stdout || 'settings verifier did not complete')
       + `\nsettings verifier exit=${run.status ?? 'none'}, signal=${run.signal ?? 'none'}; full launch trace: ${settingsLog}` });

@@ -32,6 +32,8 @@ export const NOTED = {
     { note: 'Navigation replacements commit only from the latest request.' },
   'feat(nav): stage cancellable surface replacements and explain pending routes':
     { note: 'Navigation replacements commit only from the latest request.' },
+  'fix(test): present settings frames on one shared virtual display':
+    { internal: 'The shared Electron owner can host a controller and all restart processes on one virtual display. CI presents package windows without taking focus, avoiding hidden-window frame throttling while preserving deadlines and full failure evidence.' },
   'fix(test): replay settings transactions after confirmed GPU loss':
     { internal: 'Settings acceptance applies the shared bounded GPU failure policy to whole fresh-profile transactions, preserving each failed attempt and screenshot while refusing retries for ordinary process or settings failures.' },
   'test(nav): yield fixed-step capture work to the compositor':

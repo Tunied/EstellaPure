@@ -24,6 +24,7 @@
  *     --timeout <ms>     how long to wait for the first frame (default 30000)
  *     --scene <name>     boot this named scene instead of the package's entry
  *     --port <n>         serve on a fixed loopback port for same-origin restart tests
+ *     --present          present without taking focus, for virtual-desktop frame checks
  *     --allow-flat       accept a single-colour frame (a deliberately blank scene)
  *     --input <json>     drive it: {"keys":["ArrowRight"]} or {"pointer":{"x":.5,"y":.5}}
  *     --touch            present as a touch device (maxTouchPoints > 0), so a
@@ -113,6 +114,7 @@ const LOG = flag('log', '');
 const THROTTLE = flag('throttle', '');
 /** Report when the first screen appeared and how its progress moved. */
 const BOOT = has('boot');
+const PRESENT = BOOT || has('present');
 const logRe = LOG ? new RegExp(LOG, 'i') : null;
 
 /**
@@ -271,14 +273,14 @@ const SCENE = flag('scene', '');
   // Before the load, and through Chrome's own emulation rather than a hand-rolled
   // server: the numbers are the vendor's, and a recorder installed here runs in
   // the page's own world ahead of every script the page carries.
-  if (THROTTLE || BOOT) {
+  if (THROTTLE || PRESENT) {
     // A window that has never navigated answers no CDP command — `Page.enable`
     // simply never resolves. One blank document is enough to make it a page.
-    if (BOOT) win.showInactive();
-    await win.loadURL(BOOT
+    if (PRESENT) win.showInactive();
+    await win.loadURL(PRESENT
       ? 'data:text/html,<body style="font:14px system-ui;background:%230e121b;color:white">Estella</body>'
       : 'about:blank');
-    if (BOOT) {
+    if (PRESENT) {
       // Players navigate in an already-presented browser. Settle the virtual
       // desktop compositor before navigation timing starts, not during it.
       await win.webContents.executeJavaScript('new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))');

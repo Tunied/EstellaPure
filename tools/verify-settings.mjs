@@ -4,7 +4,7 @@ import path from 'node:path';
 import net from 'node:net';
 import { appendFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import os from 'node:os';
-import { runElectron } from './lib/electronRun.mjs';
+import { NEEDS_XVFB, runElectron, runWithElectronDisplay } from './lib/electronRun.mjs';
 import { gpuFailed, retryOnDeadGpu } from './lib/deadGpu.mjs';
 import { fileURLToPath } from 'node:url';
 
@@ -14,6 +14,12 @@ const flag = name => { const i = args.indexOf('--' + name); return i < 0 ? undef
 const dir = flag('dir'), specArg = flag('spec');
 if (!dir || !specArg) throw new Error('verify-settings requires --dir and --spec');
 const spec = JSON.parse(specArg);
+if (NEEDS_XVFB) {
+  const run = runWithElectronDisplay([fileURLToPath(import.meta.url), ...args], {cwd: root, stdio: 'inherit'});
+  if (run.error) throw run.error;
+  process.exit(run.status ?? 1);
+}
+const present = args.includes('--present');
 const log = flag('log');
 const record = value => {
   if (!log) return;
@@ -37,11 +43,14 @@ function runAttempt() {
       const restart = i === spec.expected.length;
       const pointer = restart ? spec.unlock : spec.control;
       const screenshot = log ? path.resolve(`${log}.attempt-${attempt}.launch-${i}.png`) : null;
+      const began = performance.now();
       const run = runElectron(['--user-data-dir=' + profile, path.join(root, 'tools/launchers/launch-export.mjs'),
         '--dir', path.resolve(dir), '--port', String(port), '--w', String(spec.w), '--h', String(spec.h),
         '--input', JSON.stringify({ pointer, frames: spec.frames ?? 60 }), '--probe', names.join(','),
+        ...(present ? ['--present'] : []),
         ...(screenshot ? ['--out', screenshot] : [])], { cwd: root, encoding: 'utf8' });
       record({kind: 'launch', attempt, step: i, restart, screenshot, expected: spec.expected[restart ? i - 1 : i],
+        elapsedMs: Math.round(performance.now() - began),
         status: run.status, signal: run.signal ?? null, timedOut: !!run.timedOut,
         error: run.error?.message, stdout: run.stdout ?? '', stderr: run.stderr ?? ''});
       if (run.status !== 0) {
