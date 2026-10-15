@@ -424,10 +424,12 @@ for (const { id, target } of pairs) {
   // the height the game wrote from an analyser bin — silence leaves it on its floor.
   const audio = audioFor(golden);
   if (golden.settings && target === 'web') {
+    const settingsLog = path.join(WORK, `${id}-${target}-settings.log`);
     const run = spawnSync(process.execPath, [path.join(ROOT, 'tools/verify-settings.mjs'),
-      '--dir', out, '--spec', JSON.stringify(golden.settings)], { cwd: ROOT, encoding: 'utf8' });
+      '--dir', out, '--spec', JSON.stringify(golden.settings), '--log', settingsLog], { cwd: ROOT, encoding: 'utf8' });
     const ok = run.status === 0;
-    results.push({ id, target, stage: 'settings', ok, why: ok ? '' : String(run.stderr || run.stdout || 'settings verifier did not complete') });
+    results.push({ id, target, stage: 'settings', ok, why: ok ? '' : String(run.stderr || run.stdout || 'settings verifier did not complete')
+      + `\nsettings verifier exit=${run.status ?? 'none'}, signal=${run.signal ?? 'none'}; full launch trace: ${settingsLog}` });
     console.log(`${ok ? '✓' : '✗'} ${id} ${target} — settings process restart`);
     for (const line of (run.stdout || '').trim().split('\n')) if (line) console.log(`    ${line}`);
     if (!ok) for (const line of (run.stderr || '').trim().split('\n').slice(-8)) if (line) console.log(`    ${line}`);
