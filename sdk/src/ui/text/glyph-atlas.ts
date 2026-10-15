@@ -88,6 +88,13 @@ export interface GlyphAtlasOptions {
 
 const STYLE_COUNT_HINT = 4;  // plain / bold / italic / bold-italic — for key spread only
 
+/** Numeric glyph/style/size suffixes leave the complete family prefix intact. */
+function familyFromKey(key: string): string {
+    let end = key.length;
+    for (let i = 0; i < 3; i++) end = key.lastIndexOf('|', end - 1);
+    return key.slice(0, end);
+}
+
 /** What a page's cell holds: enough to rasterize the glyph again into the same place. */
 interface GlyphPlacement {
     codepoint: number;
@@ -112,6 +119,7 @@ export class GlyphAtlas {
     private generation_ = 0;
     private readonly cache = new Map<string, GlyphEntry>();
     private readonly cpuCache = new Map<string, GlyphEntry | null>();
+    private readonly missingCounts_ = new Map<string, number>();
     private readonly pages: number[] = [];
     private readonly packers: Packer[] = [];
     private readonly placements: GlyphPlacement[][] = [];
@@ -141,6 +149,7 @@ export class GlyphAtlas {
         this.placements.length = 0;
         this.cache.clear();
         this.cpuCache.clear();
+        this.missingCounts_.clear();
         this.mute_.clear();
         this.generation_++;
         const errors: unknown[] = [];
@@ -222,7 +231,7 @@ export class GlyphAtlas {
             : Math.max(1, Math.round(displaySize * this.dpr * this.contentScale_));
     }
 
-    /** Families already reported as producing no glyph — one line each, not one per character. */
+    /** Reported families with non-drawable glyphs still in the bounded CPU cache. */
     private readonly mute_ = new Set<string>();
 
     private key(codepoint: number, fontFamily: string, style: number, pixelSize: number): string {
@@ -247,15 +256,13 @@ export class GlyphAtlas {
 
         const raster = this.rasterizer.rasterize(codepoint, fontFamily, style, pixelSize);
         if (!raster) {
-            // Once per family, because the alternative is what this cost to find:
-            // a rasterizer answering null for every codepoint draws no text and
-            // says nothing, on a screen full of everything else that worked.
+            // Cached non-drawable glyphs own their family's diagnostic suppression.
+            this.cacheCPU(k, null);
             if (!this.mute_.has(fontFamily)) {
                 this.mute_.add(fontFamily);
                 log.warn('text', `no glyph for U+${codepoint.toString(16).toUpperCase()} in `
-                    + `"${fontFamily}" — this family produced none, so its text draws nothing`);
+                    + `"${fontFamily}" — this character has no drawable glyph`);
             }
-            this.cacheCPU(k, null);
             return null;
         }
 
@@ -318,9 +325,27 @@ export class GlyphAtlas {
 
     /** Page-free entries can be recreated without changing any live layout or UV. */
     private cacheCPU(key: string, glyph: GlyphEntry | null): void {
+        const wasMissing = this.cpuCache.get(key) === null;
         this.cpuCache.set(key, glyph);
+        if (glyph === null && !wasMissing) {
+            const family = familyFromKey(key);
+            this.missingCounts_.set(family, (this.missingCounts_.get(family) ?? 0) + 1);
+        } else if (glyph !== null && wasMissing) this.releaseMissing(key);
         if (this.cpuCache.size > 4096) {
-            this.cpuCache.delete(this.cpuCache.keys().next().value!);
+            const retired = this.cpuCache.keys().next().value!;
+            const wasMissing = this.cpuCache.get(retired) === null;
+            this.cpuCache.delete(retired);
+            if (wasMissing) this.releaseMissing(retired);
+        }
+    }
+
+    private releaseMissing(key: string): void {
+        const family = familyFromKey(key);
+        const count = this.missingCounts_.get(family)! - 1;
+        if (count > 0) this.missingCounts_.set(family, count);
+        else {
+            this.missingCounts_.delete(family);
+            this.mute_.delete(family);
         }
     }
 

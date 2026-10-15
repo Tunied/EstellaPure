@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(text): retire missing-glyph warnings with cached entries':
+    { note: 'Missing-glyph warning history follows the bounded cache.' },
   'test(editor): verify projection resets to 2D after gestures':
     { note: 'Automation projection settings persist across editor state changes.' },
   'test(native): retain first launch evidence before retry':

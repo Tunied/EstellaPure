@@ -15,6 +15,7 @@ import {
 } from '../src/ui/text/glyph-atlas';
 
 import { layoutText } from '../src/ui/text/layout';
+import { log } from '../src/util/logger';
 
 const UNKNOWN = 0xffff;
 const SPACE = 32;
@@ -45,6 +46,115 @@ function makeStore() {
 }
 
 describe('REARCH_GUI P1.1c: GlyphAtlas', () => {
+    it('does not double-count a cache slot populated during rasterization', () => {
+        const warning = vi.spyOn(log, 'warn').mockImplementation(() => {});
+        let nested = false;
+        const atlas: GlyphAtlas = new GlyphAtlas({
+            renderSize: 48, spread: 0,
+            rasterize: (cp, family) => {
+                if (!nested) {
+                    nested = true;
+                    atlas.getGlyph(cp, family);
+                    nested = false;
+                }
+                return null;
+            },
+        }, null);
+        const state = atlas as unknown as { mute_: Set<string>; missingCounts_: Map<string, number> };
+        try {
+            for (let i = 0; i < 4097; i++) atlas.getGlyph(65, `nested-${i}`);
+            expect(state.missingCounts_.size).toBe(4096);
+            expect(state.missingCounts_.get('nested-4096')).toBe(1);
+            expect(state.mute_.has('nested-0')).toBe(false);
+        } finally {
+            warning.mockRestore();
+        }
+    });
+
+    it('keeps diagnostics until the last cached missing character of a family retires', () => {
+        const warning = vi.spyOn(log, 'warn').mockImplementation(() => {});
+        const atlas = new GlyphAtlas({ renderSize: 48, spread: 0, rasterize: () => null }, null);
+        const state = atlas as unknown as { mute_: Set<string>; cpuCache: Map<string, unknown>; missingCounts_: Map<string, number> };
+        try {
+            atlas.getGlyph(65, 'same|family|name');
+            atlas.getGlyph(66, 'same|family|name');
+            for (let i = 0; i < 4095; i++) atlas.getGlyph(65, `other-${i}`);
+            expect(state.mute_.has('same|family|name')).toBe(true);
+            expect(state.missingCounts_.get('same|family|name')).toBe(1);
+            atlas.getGlyph(65, 'last-other');
+            expect(state.mute_.has('same|family|name')).toBe(false);
+            const calls = warning.mock.calls.length;
+            atlas.getGlyph(67, 'same|family|name');
+            expect(warning).toHaveBeenCalledTimes(calls + 1);
+            expect(state.cpuCache.size).toBe(4096);
+            expect(state.missingCounts_.size).toBe(4096);
+            atlas.dispose();
+            expect(state.cpuCache.size).toBe(0);
+            expect(state.missingCounts_.size).toBe(0);
+        } finally {
+            warning.mockRestore();
+        }
+    });
+
+    it('does not reorder diagnostic history for repeated cached characters of one family', () => {
+        const warning = vi.spyOn(log, 'warn').mockImplementation(() => {});
+        const atlas = new GlyphAtlas({ renderSize: 48, spread: 0, rasterize: () => null }, null);
+        const state = atlas as unknown as { mute_: Set<string> };
+        try {
+            atlas.getGlyph(UNKNOWN, 'missing');
+            const reorder = vi.spyOn(state.mute_, 'delete');
+            for (let i = 0; i < 10000; i++) atlas.getGlyph(UNKNOWN, 'missing');
+            expect(reorder).not.toHaveBeenCalled();
+            expect(warning).toHaveBeenCalledTimes(1);
+        } finally {
+            warning.mockRestore();
+        }
+    });
+
+    it('reports an unsupported character without claiming the whole font cannot draw', () => {
+        const warning = vi.spyOn(log, 'warn').mockImplementation(() => {});
+        const atlas = new GlyphAtlas(makeRasterizer(), makeStore());
+        try {
+            expect(atlas.getGlyph(65, 'Arial')).not.toBeNull();
+            expect(atlas.getGlyph(UNKNOWN, 'Arial')).toBeNull();
+            expect(warning).toHaveBeenCalledWith('text', expect.stringContaining('this character has no drawable glyph'));
+            expect(atlas.getGlyph(66, 'Arial')).not.toBeNull();
+        } finally {
+            warning.mockRestore();
+        }
+    });
+
+    it('bounds missing-family diagnostics while keeping a cached hot family muted', () => {
+        const warning = vi.spyOn(log, 'warn').mockImplementation(() => {});
+        const rasterizer: GlyphRasterizer = { renderSize: 48, spread: 6, rasterize: () => null };
+        const atlas = new GlyphAtlas(rasterizer, null);
+        const state = atlas as unknown as { mute_: Set<string>; cpuCache: Map<string, unknown> };
+        try {
+            atlas.getGlyph(UNKNOWN, 'hot-family');
+            for (let i = 0; i < 12000; i++) {
+                atlas.getGlyph(UNKNOWN, `missing-family-${i}`);
+                if (i % 16 === 0) atlas.getGlyph(UNKNOWN, 'hot-family');
+            }
+            expect(state.mute_.size).toBeLessThanOrEqual(4096);
+            expect(state.cpuCache.size).toBeLessThanOrEqual(4096);
+            expect(state.mute_.has('hot-family')).toBe(true);
+            expect(state.mute_.has('missing-family-0')).toBe(false);
+            expect(warning).toHaveBeenCalledTimes(12001);
+            atlas.getGlyph(UNKNOWN + 1, 'hot-family');
+            expect(warning).toHaveBeenCalledTimes(12001);
+            atlas.getGlyph(UNKNOWN, 'missing-family-0');
+            expect(warning).toHaveBeenCalledTimes(12002);
+            expect(atlas.pageCount).toBe(0);
+            expect(atlas.generation).toBe(0);
+            atlas.dispose();
+            expect(state.mute_.size).toBe(0);
+            atlas.getGlyph(UNKNOWN, 'hot-family');
+            expect(warning).toHaveBeenCalledTimes(12003);
+        } finally {
+            warning.mockRestore();
+        }
+    });
+
     it('releases every page once, including when one release fails, and clears cached glyphs', () => {
         const rasterizer = makeRasterizer();
         const store = makeStore();
@@ -279,8 +389,8 @@ describe('page-free glyph cache lifetime', () => {
             const calls = rasterizer.rasterize.mock.calls.length;
             atlas.getGlyph(cp, 'Arial', 0, 1);
             expect(rasterizer.rasterize.mock.calls.length).toBe(calls + 1);
-            const entries = Object.values(atlas).filter(v => v instanceof Map)
-                .reduce((total, map) => total + map.size, 0);
+            const glyphCaches = atlas as unknown as { cache: Map<string, unknown>; cpuCache: Map<string, unknown> };
+            const entries = glyphCaches.cache.size + glyphCaches.cpuCache.size;
             expect(entries).toBeLessThanOrEqual(4097);
             expect(atlas.getGlyph(cp, 'Arial', 0, 2)).toBe(hot);
             if (drawable) {
