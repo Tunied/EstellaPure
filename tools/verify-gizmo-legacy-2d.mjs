@@ -6,7 +6,12 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { runElectron } from './lib/electronRun.mjs';
-import { readPNG } from './lib/png.mjs';
+import { compareLegacyGizmoFrames } from './lib/gizmoLegacyCompare.mjs';
+
+if (process.argv[2] === '--compare-only') {
+  console.log(JSON.stringify(compareLegacyGizmoFrames(path.resolve(process.argv[3])), null, 2));
+  process.exit(0);
+}
 
 if (!process.env.CI) throw Error('Editor acceptance runs only in CI; do not launch the local editor.');
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -63,30 +68,7 @@ try {
       fs.writeFileSync(path.join(out, 'observations.json'), JSON.stringify({ baselineRoot, baseline, original, records }, null, 2));
     }
   }
-  const comparisons = [];
-  for (const mode of ['move', 'rotate', 'scale']) {
-    const a = records.find(r => r.label === 'baseline' && r.mode === mode);
-    const b = records.find(r => r.label === 'current' && r.mode === mode);
-    assert.deepEqual(b.pose, a.pose, 'Legacy project transform changed');
-    assert.deepEqual(b.view, a.view, 'Legacy project framing changed');
-    const before = readPNG(fs.readFileSync(path.join(out, 'baseline-' + mode + '.png')));
-    const after = readPNG(fs.readFileSync(path.join(out, 'current-' + mode + '.png')));
-    assert.equal(before.w, after.w); assert.equal(before.h, after.h);
-    let changed = 0, error = 0, pixels = 0;
-    // Frame places the selected pivot at canvas center; cover the complete widget.
-    for (let y = Math.floor(before.h / 2) - 90; y <= Math.floor(before.h / 2) + 90; y++) {
-      for (let x = Math.floor(before.w / 2) - 90; x <= Math.floor(before.w / 2) + 90; x++) {
-        const p = before.px(x, y), q = after.px(x, y);
-        const delta = Math.max(...p.map((v, i) => Math.abs(v - q[i])));
-        if (delta > 8) changed++;
-        error += p.reduce((n, v, i) => n + Math.abs(v - q[i]), 0); pixels++;
-      }
-    }
-    const result = { mode, changedFraction: changed / pixels, meanError: error / (pixels * 3) };
-    comparisons.push(result);
-    assert(result.changedFraction < 0.01 && result.meanError < 1, 'Flat 2D widget differs from pre-RM-117 baseline: ' + JSON.stringify(result));
-  }
-  fs.writeFileSync(path.join(out, 'checks.json'), JSON.stringify({ status: 'checks-passed', baselineRoot, baseline, original, records, comparisons }, null, 2));
+  fs.writeFileSync(path.join(out, 'checks.json'), JSON.stringify(compareLegacyGizmoFrames(out), null, 2));
   console.log('Legacy Hello World: move, rotate and scale widgets match the pre-RM-117 2D editor.');
 } finally {
   if (git(['rev-parse', 'HEAD'], desktop).toString().trim() !== original) build(original);

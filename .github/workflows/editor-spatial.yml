@@ -26,6 +26,8 @@ jobs:
             artifact: gizmo-interaction-editor-checks
           - suite: legacy-2d
             artifact: gizmo-legacy-2d-editor-checks
+          - suite: regression
+            artifact: gizmo-regression-editor-checks
     env:
       ESTELLA_WIN_W: '1480'
       ESTELLA_WIN_H: '920'
@@ -74,6 +76,16 @@ jobs:
       - name: Compare legacy 2D project widgets with their previous editor
         if: matrix.suite == 'legacy-2d'
         run: node tools/verify-gizmo-legacy-2d.mjs
+      - name: Run existing gizmo authoring checks
+        if: matrix.suite == 'regression'
+        working-directory: desktop
+        env:
+          ELECTRON_DISABLE_SANDBOX: '1'
+          ESTELLA_MCP_EDITOR_VISIBLE: '1'
+          OUT: ${{ github.workspace }}/output/gizmo-regression-ci
+        run: |
+          mkdir -p "$OUT"
+          xvfb-run -a --server-args="-screen 0 1920x1080x24" node scripts/editor-checks/run.mjs gizmo- | tee "$OUT/checks.log"
       - name: Keep spatial acceptance evidence
         if: always()
         uses: actions/upload-artifact@v7
@@ -85,5 +97,6 @@ jobs:
             output/gizmo-hover-ci
             output/gizmo-origins-ci
             output/gizmo-legacy-2d-ci
+            output/gizmo-regression-ci
           if-no-files-found: warn
           retention-days: 3
