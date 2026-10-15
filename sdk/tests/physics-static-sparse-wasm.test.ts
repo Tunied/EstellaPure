@@ -3,6 +3,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/app/app';
 import { Transform, Canvas } from '../src/ecs/component';
+import { Time } from '../src/ecs/resource';
 import { Physics2DPlugin } from '../src/physics/Physics2DPlugin';
 import { Physics2DRuntime } from '../src/physics/Physics2DRuntime';
 import { Physics2D } from '../src/physics/Physics2D';
@@ -94,15 +95,19 @@ describe.skipIf(!HAS_WASM || !hasSideModule('physics'))('sparse static physics s
         expect(hit()?.point.x).toBeCloseTo(0, 3); expect(module._physics_getBodyCount()).toBe(count);
     });
 
-    it.each(['host', 'editor'] as const)('releases write history during %s pause and refreshes on resume', async mode => {
+    it.each(['host', 'editor', 'time-scale'] as const)('releases write history during %s pause and refreshes on resume', async mode => {
         const { app, world, bodies, hit, plugin } = await scene();
         expect(world.writeReaderCount(Transform)).toBe(1);
-        if (mode === 'host') app.setPaused(true); else { setEditorMode(true); setPlayMode(false); }
+        if (mode === 'host') app.setPaused(true);
+        else if (mode === 'time-scale') app.getResource(Time).scale = 0;
+        else { setEditorMode(true); setPlayMode(false); }
         await app.tick(1 / 60);
         expect(world.writeReaderCount(Transform)).toBe(0);
         for (let i = 0; i < 50; i++) { world.update(bodies[0], Transform, value => { value.position.x += 1; }); await app.tick(1 / 60); }
         expect(world.bufferedWriteRows(Transform)).toBe(0);
-        if (mode === 'host') app.setPaused(false); else setPlayMode(true);
+        if (mode === 'host') app.setPaused(false);
+        else if (mode === 'time-scale') app.getResource(Time).scale = 1;
+        else setPlayMode(true);
         await app.stepFrames(2, 1 / 60);
         expect(hit()?.point.x).toBeCloseTo(45, 3); expect(world.writeReaderCount(Transform)).toBe(1);
         plugin.cleanup(app);

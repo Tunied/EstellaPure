@@ -983,6 +983,8 @@ export function registerPhysics2DSystem(
         ),
         { runIf: playModeOnly, profileDomain: 'physics' }
     );
-    const offFrameEnd = app.onFrameEnd(() => { if (app.isPaused() || !playModeOnly()) staticPoses.pause(); });
+    const offFrameEnd = app.onFrameEnd(() => {
+        if (app.isPaused() || !playModeOnly() || app.getResource(Time).scale <= 0) staticPoses.pause();
+    });
     return () => { offFrameEnd(); offDespawn(); staticPoses.dispose(); };
 }

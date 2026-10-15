@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(physics): release static pose history while time is frozen':
+    { note: 'Static physics synchronization skips unchanged body groups.' },
   'perf(physics): synchronize only changed static body groups':
     { note: 'Static physics synchronization skips unchanged body groups.' },
   'perf(editor): project visible tile collision chunks':
