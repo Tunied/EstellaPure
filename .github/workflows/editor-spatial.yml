@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       artifact-run:
-        description: Build run with successful Web artifacts from identical runtime sources
+        description: Build run with successful Web artifacts from identical engine and SDK sources
         type: string
         required: true
 
@@ -27,14 +27,14 @@ jobs:
         with:
           ssh-key: ${{ secrets.EDITOR_SSH_KEY }}
       - uses: ./.github/actions/setup
-      - name: Require identical runtime sources and a successful Web build
+      - name: Require identical engine and SDK sources and a successful Web build
         env:
           GH_TOKEN: ${{ github.token }}
           ARTIFACT_RUN: ${{ inputs.artifact-run }}
         run: |
           [[ "$ARTIFACT_RUN" =~ ^[0-9]+$ ]]
           source=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$ARTIFACT_RUN" --jq .head_sha)
-          git diff --exit-code "$source" HEAD -- src sdk native desktop include CMakeLists.txt package.json toolchain.manifest.json build-tools pipeline
+          git diff --exit-code "$source" HEAD -- src sdk native include CMakeLists.txt package.json toolchain.manifest.json build-tools pipeline
           passed=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$ARTIFACT_RUN/jobs?per_page=100" --jq '[.jobs[] | select(.name == "Web (Emscripten)" and .conclusion == "success")] | length')
           test "$passed" -eq 1
           gh run download "$ARTIFACT_RUN" --repo "$GITHUB_REPOSITORY" --name wasm-web --dir build/wasm/web

@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Automation projection settings persist across editor state changes.** Programmatic perspective changes update the same state used by the editor toggle, so choosing a tool or changing display preferences no longer restores the previous projection. Repeating an unchanged setting avoids UI notifications while reapplying it to the engine; scene cameras remain unedited.
+
 ## [0.86.0] - 2026-10-15
 
 ### Fixed

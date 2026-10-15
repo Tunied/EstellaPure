@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(editor): retain programmatic projection across state updates':
+    { note: 'Automation projection settings persist across editor state changes.' },
   'test(viewport): preserve spatial view through tool selection':
     { internal: 'Spatial acceptance uses the actual editor projection command so selecting a tool retains the store-owned view; a focused CI workflow can reuse a proven identical runtime.' },
   'test(viewport): retain spatial drag startup diagnostics':
