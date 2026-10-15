@@ -16,6 +16,7 @@ import { UIControlPointers, type ControlPointer } from '../input/control-pointer
 import { isScreenEntity } from '../util/ui-pick';
 import { walkParentChain } from '../util/helpers';
 import { createLiveVisibilityQuery } from '../util/live-visibility';
+import { createLocalTransformReader } from '../util/local-transform';
 
 export enum VirtualJoystickMode { Fixed = 0, Follow = 1 }
 export interface VirtualJoystickData {
@@ -60,6 +61,7 @@ const NO_HELD_POINTERS: readonly ControlPointer[] = [];
 export function createVirtualControlSystem(world: World, events: UIEventQueue) {
     const states = new Map<Entity, ControlState>();
     const engine = worldEngineApi(world); const registry = world.getCppRegistry();
+    const localTransform = createLocalTransformReader(world);
     let input: InputState | null = null;
     const release = (entity: Entity) => {
         const state = states.get(entity); if (!state) return;
@@ -84,15 +86,19 @@ export function createVirtualControlSystem(world: World, events: UIEventQueue) {
             thumb: { x: 0, y: 0 }, value: { x: 0, y: 0 } }; states.set(entity, state); }
         return state;
     };
-    const point = (entity: Entity, pointer: ControlPointer): Vec2 => {
-        const t = world.get(entity, Transform);
+    const point = (entity: Entity, pointer: ControlPointer): Vec2 | null => {
         const screen = isScreenEntity(world, entity);
-        const x = (screen ? pointer.layoutX : pointer.worldX) - t.worldPosition.x;
-        const y = (screen ? pointer.layoutY : pointer.worldY) - t.worldPosition.y;
+        const px = screen ? pointer.layoutX : pointer.worldX, py = screen ? pointer.layoutY : pointer.worldY;
+        const resolved = localTransform.point(entity, px, py);
+        if (resolved !== undefined) return resolved;
+        const t = world.get(entity, Transform);
+        if (!t.worldScale.x || !t.worldScale.y) return null;
+        const x = px - t.worldPosition.x, y = py - t.worldPosition.y;
         const q = t.worldRotation;
         const angle = Math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z));
-        return { x: (x * Math.cos(angle) + y * Math.sin(angle)) / (t.worldScale.x || 1),
-            y: (-x * Math.sin(angle) + y * Math.cos(angle)) / (t.worldScale.y || 1) };
+        const local = { x: (x * Math.cos(angle) + y * Math.sin(angle)) / t.worldScale.x,
+            y: (-x * Math.sin(angle) + y * Math.cos(angle)) / t.worldScale.y };
+        return Number.isFinite(local.x) && Number.isFinite(local.y) ? local : null;
     };
     const positionChild = (entity: Entity, child: Entity, offset: Vec2) => {
         if (!world.valid(child) || !world.has(child, UINode)) return;
@@ -140,21 +146,24 @@ export function createVirtualControlSystem(world: World, events: UIEventQueue) {
                             const data = world.get(entity, VirtualJoystick);
                             id = data.inputId;
                             let pointer = held.find(p => p.id === state.pointer);
+                            let fresh = false;
                             if (!pointer) {
                                 state.pointer = null;
                                 pointer = held.find(p => p.pressed);
-                                if (pointer) {
-                                    state.pointer = pointer.id;
-                                    state.origin = data.mode === VirtualJoystickMode.Follow ? point(entity, pointer) : { x: 0, y: 0 };
-                                }
+                                fresh = !!pointer;
                             }
-                            if (pointer) {
-                                const local = point(entity, pointer);
+                            const local = pointer ? point(entity, pointer) : null;
+                            if (pointer && local) {
+                                if (fresh) {
+                                    state.pointer = pointer.id;
+                                    state.origin = data.mode === VirtualJoystickMode.Follow ? local : { x: 0, y: 0 };
+                                }
                                 const dx = local.x - state.origin.x, dy = local.y - state.origin.y;
                                 value = joystickAxis(dx, dy, data.radius, data.deadZone);
                                 const ratio = Math.min(1, Math.max(1, data.radius) / (Math.hypot(dx, dy) || 1));
                                 state.thumb = { x: dx * ratio, y: dy * ratio };
                             } else {
+                                state.pointer = null;
                                 const spring = Math.exp(-Math.max(0, data.returnSpeed) * Math.max(0, time.delta));
                                 state.thumb = { x: state.thumb.x * spring, y: state.thumb.y * spring };
                                 if (Math.hypot(state.thumb.x, state.thumb.y) < 0.1 || data.returnSpeed <= 0) {
@@ -180,6 +189,6 @@ export function createVirtualControlSystem(world: World, events: UIEventQueue) {
                     }
                 }
             }, { name: SystemLabel.VirtualControls }),
-        dispose: () => { offDespawn(); for (const entity of states.keys()) release(entity); },
+        dispose: () => { offDespawn(); for (const entity of states.keys()) release(entity); localTransform.dispose(); },
     };
 }

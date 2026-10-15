@@ -44,6 +44,15 @@ function fixture() {
     return { world, input, pointers, events, tick, point, add, remove, dispose: control.dispose };
 }
 describe('virtual control ownership and InputMap', () => {
+    it('releases a collapsed legacy transform without rearming an already held pointer', () => {
+        const f = fixture(); f.add(1, VirtualJoystick); f.point(1, 1, 50, 0, true); f.tick();
+        const transform = f.world.get(1 as Entity, Transform);
+        f.world.insert(1 as Entity, Transform, { ...transform, worldScale: { x: 0, y: 1, z: 1 } });
+        f.point(1, 1, 50, 0); f.tick(); expect(f.input.getVirtual('move')).toEqual({ x: 0, y: 0 });
+        f.world.insert(1 as Entity, Transform, transform); f.tick();
+        expect(f.input.getVirtual('move')).toEqual({ x: 0, y: 0 });
+        f.point(1, 1, 50, 0, true); f.tick(); expect(f.input.getVirtual('move').x).toBe(1); f.dispose();
+    });
     it('does not rescan every pointer for every idle or held control', () => {
         const f = fixture();
         for (let entity = 1; entity <= 100; entity++) f.add(entity, VirtualButton);

@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Virtual joysticks follow the rendered transform through sheared UI hierarchies.** Pointer coordinates use the complete 2D render matrix instead of decomposed rotation and scale, preserving local direction and strength under rotated, nonuniform ancestors and keeping follow-mode origins aligned. Singular or nonfinite transforms release capture until a fresh press. Dragging shares the same inverse-basis reader; its scratch allocation is reused, refreshed after heap growth and freed by its owning core.
+
 - **Virtual controls share each sample's pointer projection.** Stable buttons and joysticks group held pointers and completed taps once instead of cloning and scanning every pointer for every control. A change callback invalidates the grouping before later controls run, preserving capture cancellation and concurrent move/fire behavior.
 
 - **Virtual controls stop when their authored UI is hidden.** Buttons and joysticks read current display ancestry instead of the previous layout's hidden cache. Hiding a captured control releases its source on the next sample and showing it requires a fresh press; new presses on shown controls are accepted before layout catches up. Change callbacks invalidate shared visibility reads before later controls are sampled.

@@ -10,7 +10,7 @@ import { defineSystem, Schedule } from '../../ecs/system';
 import { Res } from '../../ecs/resource';
 import { Input } from '../../input/input';
 import { primaryPointerCancellationVersion } from '../../input/pointerCancellation';
-import { engineApi, type EngineApi } from '../../ecs/bridge/engineApi';
+import { engineApi } from '../../ecs/bridge/engineApi';
 import type { InputState } from '../../input/input';
 import type { Entity } from '../../types';
 import type { World } from '../../ecs/world';
@@ -27,6 +27,7 @@ import type { UICameraData } from '../core/ui-camera-info';
 import { playModeOnly } from '../../ecs/env';
 import { getEntityDepth } from '../util/helpers';
 import { createLiveVisibilityQuery } from '../util/live-visibility';
+import { createLocalTransformReader } from '../util/local-transform';
 import { SystemLabel, PluginName } from '../../ecs/systemLabels';
 import { quaternionToAngle2D } from '../util/math';
 
@@ -111,34 +112,9 @@ export class DragPlugin implements Plugin {
         const events = app.getResource(UIEvents) as UIEventQueue;
         const engine = engineApi(app);
         const registry = world.getCppRegistry();
-        let matrixOwner: EngineApi | null = null;
-        let matrixPointer = 0;
-        let matrixHeap: Float32Array | null = null;
-        const releaseMatrix = (): void => {
-            const pointer = matrixPointer, owner = matrixOwner;
-            matrixPointer = 0;
-            matrixOwner = null;
-            matrixHeap = null;
-            if (pointer) owner?._free?.(pointer);
-        };
-        const readParentDelta = (parent: Entity, dx: number, dy: number): { x: number; y: number } | null | undefined => {
-            const api = engineApi(app), registry = world.getCppRegistry();
-            if (!api?.transform_copyFlatRenderMatrix || !api.HEAPU8 || !api._malloc || !api._free || !registry) return undefined;
-            if (matrixOwner !== api) { releaseMatrix();matrixOwner = api; }
-            if (!matrixPointer) {
-                matrixPointer = api._malloc(64);
-                if (!matrixPointer) throw new Error('Could not allocate drag transform scratch.');
-            }
-            if (!api.transform_copyFlatRenderMatrix(registry, parent, matrixPointer)) return null;
-            const heap = api.HEAPU8;
-            if (matrixHeap?.buffer !== heap.buffer) matrixHeap = new Float32Array(heap.buffer);
-            const at = (heap.byteOffset + matrixPointer) / 4;
-            const a = matrixHeap[at], b = matrixHeap[at + 1], c = matrixHeap[at + 4], d = matrixHeap[at + 5];
-            const det = a * d - b * c;
-            if (!Number.isFinite(det) || det === 0) return null;
-            const x = (d * dx - c * dy) / det, y = (a * dy - b * dx) / det;
-            return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
-        };
+        const localTransform = createLocalTransformReader(world);
+        const releaseMatrix = localTransform.dispose;
+        const readParentDelta = localTransform.vector;
         const eligible = (entity: Entity): boolean => world.valid(entity) && world.isEntityActive(entity)
             && !world.isDestructionPending(entity)
             && world.has(entity, Draggable) && world.get(entity, Draggable).enabled

@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ui): invert rendered transforms for virtual joysticks':
+    { note: 'Virtual joysticks follow the rendered transform through sheared UI hierarchies.' },
   'perf(ui): share virtual control pointer groups per sample':
     { note: 'Virtual controls share each sample\'s pointer projection.' },
   'fix(ui): release hidden virtual controls before layout':
