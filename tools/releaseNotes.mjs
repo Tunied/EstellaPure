@@ -28,6 +28,10 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'test(editor): verify rotated tile layers through play':
+    { internal: 'Extends the existing CI tilemap layout check with layer and parent rotation pixels, comparing cached draws with an explicitly rebuilt reference.' },
+  'test(editor): synchronize rotated tile play checks':
+    { internal: 'Pins the CI-only editor rotation acceptance cases; local verification remains headless and creates no scene or material assets in commits.' },
   'fix(tilemap): align rotated layers and collision normals':
     { note: 'Rotated tile layers share one frame for drawing, picking and collision previews.' },
   'fix(editor): align rotated tile tools and collision previews':
