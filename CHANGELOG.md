@@ -28,6 +28,8 @@ published separately; it ships inside the editor.
 
 ### Added
 
+- **Agent replans share a fair per-frame budget.** Navigation defaults to a FIFO queue with 16 plans and a 2 ms soft planning budget per tick; limits and last-tick counters are exposed on Nav and sampled in the Play inspector. Queued edits coalesce, agents without valid routes pause safely, periodic refreshes keep valid movement, and surface/grid/radius invalidation retires stale routes. Direct queries remain synchronous. A single query may exceed the budget, and spreading work adds route latency.
+
 - **Inspect a live agent's current route on demand.** The Play inspector reports partial routes, disconnected regions, insufficient clearance and baked-radius mismatches, with sampled world endpoints, radius and query cost. It queries only on request, discards results across selection/session changes, and identifies unsupported device sessions or custom implementations explicitly.
 
 - **Navigation queries distinguish complete routes from best-effort paths.** `queryWorldPath` reports missing surfaces or endpoints, disconnected regions, grid clearance failures and mesh radius mismatches; custom surfaces without diagnostics report unknown. Grid searches reuse revision-scoped connectivity after a failed search, while walkability and dynamic obstacles invalidate it. Dynamic blockers now contribute to body clearance; the legacy path API keeps returning partial approaches.

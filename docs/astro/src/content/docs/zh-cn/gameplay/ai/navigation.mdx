@@ -244,6 +244,37 @@ node tools/navigation-rebuild-benchmark.mjs output/navigation-reference.json --s
 
 ### 移动 agent
 
+`NavAgentSystem` 按先进先出顺序，跨帧处理规划请求。默认每帧最多 **16 次查询**，
+规划时间采用 **2 毫秒软预算**。至少允许一次查询；时间只在同步查询之间检查，单次查询
+仍可能超时。这通过增加路线等待时间来分摊峰值，不会消除总工作量。
+直接调用 `findWorldPath` / `queryWorldPath` 仍是同步查询，不经过该队列。
+
+```typescript
+const nav = app.getResource(Nav);
+nav.planningBudgetMs = 2;
+nav.maxPlansPerFrame = 16;
+// 某项限制设为 0，表示关闭该项限制。
+console.info(nav.planningStats); // 上一帧的 completed、pending、elapsedMs
+```
+
+排队期间的目标修改会合并，实际处理时读取最新位置、目标和半径。没有有效路线的代理暂停；
+普通周期刷新排队时继续沿有效缓存路线移动。暂停时角色控制器停止水平操舵，但保留重力速度。
+更换导航表面、修改内置格子拓扑或代理半径后，
+旧路线会失效，包括关闭周期重规划的代理。原地修改自定义表面、区域价格或连接后，
+请调用 `nav.invalidatePaths()`。未改变的表面临时查询失败时，可保留跨连接中的既有路线；
+已失效的路线不会恢复使用。
+
+编辑器的**诊断当前路线**会同时采样上一帧规划完成量、待处理数、耗时和预算。
+这是队列快照，不是手动诊断查询或导航重建的耗时。
+
+```sh
+node tools/navigation-planning-benchmark.mjs output/navigation-planning.json
+```
+
+该无头对照在相同建造地图上比较不限量和默认预算，保留所有 64 条路线、逐帧 CPU 与回调间隔、
+整批等待时间和总 CPU。包含障碍重标记以及零移动速度的内存 World 代理更新，
+不包含实际渲染、物理和应用其余帧工作，峰值降低不能证明完整游戏达到 60 FPS。
+
 加一个 `NavAgent`,然后给它指一个目的地。内置的导航插件会规划路径并每帧沿路径推进 agent——
 你只管设目标。
 

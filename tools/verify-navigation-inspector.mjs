@@ -55,6 +55,7 @@ addPlugin({name:'navigation-inspection-fixture',build(app){
   const result = JSON.parse(line.slice('[eval] '.length));
   const expected = { complete: 'Route reaches the resolved destination', disconnected: 'Start and target are disconnected', 'insufficient-clearance': 'this agent cannot fit', 'no-target': 'No active destination' }[state];
   assert(result.status.includes(expected), JSON.stringify(result));
+  if (state !== 'no-target') assert(result.status.includes('Last planning tick:'), 'Missing live planning queue counters');
   assert(fs.existsSync(path.join(out, state + '.png')), 'Missing editor screenshot');
   records.push(result);
   fs.writeFileSync(path.join(out, 'observations.json'), JSON.stringify({ records }, null, 2));

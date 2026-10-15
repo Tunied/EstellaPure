@@ -34,6 +34,8 @@ jobs:
         run: |
           node tools/navigation-rebuild-benchmark.mjs output/navigation-cpu-ci/reference.json --search-reference="$SEARCH_REFERENCE"
           node tools/navigation-rebuild-benchmark.mjs output/navigation-cpu-ci/current.json
+      - name: Measure agent planning budgets on the same building maps
+        run: node tools/navigation-planning-benchmark.mjs output/navigation-cpu-ci/planning.json
       - uses: actions/upload-artifact@v7
         if: always()
         with:

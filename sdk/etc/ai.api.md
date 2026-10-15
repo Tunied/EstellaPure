@@ -603,6 +603,11 @@ stepHeight: number
 ```
 findWorldPath: (from: NavPoint, to: NavPoint, opts?: NavQueryOptions) => Vec3[] | null
 hasSurface: () => boolean
+invalidatePaths: () => void
+maxPlansPerFrame: number
+pathRevision: number
+planningBudgetMs: number
+planningStats: { completed: number; pending: number; elapsedMs: number; }
 queryWorldPath: (from: NavPoint, to: NavPoint, opts?: NavQueryOptions) => NavPathResult
 setSurface: (surface: NavSurface | null) => void
 surface: NavSurface | null

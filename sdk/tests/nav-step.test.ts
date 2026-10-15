@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Transform } from '../src/ecs/component';
 import type { Entity } from '../src/types';
 import { NavGrid } from '../src/ai/nav/NavGrid';
@@ -311,11 +311,11 @@ describe('an agent with a body', () => {
 
 /**
  * A replan is asked from wherever the agent has got to, and that is not always
- * somewhere the navigable world has an answer for — halfway across a link, or
- * standing where a door has just shut.
+ * somewhere the navigable world has an answer for — halfway across a link.
+ * A replaced surface, however, must not resurrect an invalidated old route.
  */
 describe('a replan that finds nothing', () => {
-    it('leaves the agent walking the route it already had', () => {
+    it('stops instead of reviving a route invalidated by a replacement surface', () => {
         const world = new FakeWorld();
         const entity = world.spawnAgent(0, 0, {
             speed: 100, arriveRadius: 0, repathInterval: 0.1, hasTarget: true, targetX: 80, targetY: 0,
@@ -328,6 +328,20 @@ describe('a replan that finds nothing', () => {
 
         // Nowhere to plan from any more, and the timer is up.
         nav.setSurface(new NavGrid({ width: 10, height: 3, cellSize: 10, walkable: new Uint8Array(30) }));
+        stepNavigation(world, nav, 0.2, runtimes);
+        expect(world.pos(entity).x).toBe(after);
+        expect(world.agent(entity).arrived).toBe(false);
+    });
+
+    it('keeps a route when a transient query fails on the unchanged surface', () => {
+        const world = new FakeWorld();
+        const entity = world.spawnAgent(0, 0, {
+            speed: 100, arriveRadius: 0, repathInterval: 0.1, hasTarget: true, targetX: 80, targetY: 0,
+        });
+        const nav = openNav(), runtimes = new Map<Entity, AgentRuntime>();
+        stepNavigation(world, nav, 0.05, runtimes);
+        const after = world.pos(entity).x;
+        vi.spyOn(nav, 'findWorldPath').mockReturnValue(null);
         stepNavigation(world, nav, 0.2, runtimes);
         expect(world.pos(entity).x).toBeGreaterThan(after);
     });

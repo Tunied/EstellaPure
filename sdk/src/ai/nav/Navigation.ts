@@ -18,6 +18,22 @@ export class Navigation {
     /** Where agents may walk, or null until something builds and installs it. */
     surface: NavSurface | null = null;
 
+    /** Soft planning time budget per NavAgentSystem tick, in ms. At least one
+     * query may run; a synchronous query cannot be interrupted. <=0 disables it. */
+    planningBudgetMs = 2;
+    /** Maximum agent plans per tick; <=0 disables the count limit. */
+    maxPlansPerFrame = 16;
+    /** Last agent-planning tick only; excludes movement, avoidance and baking. */
+    readonly planningStats = { completed: 0, pending: 0, elapsedMs: 0 };
+    private pathRevision_ = 0;
+
+    /** Revision used by agents to retire cached plans after an explicit update. */
+    get pathRevision(): number { return this.pathRevision_; }
+
+    /** Replan agents after editing a custom surface or its links/costs in place.
+     * Built-in grid topology and replacing the surface are detected automatically. */
+    invalidatePaths(): void { this.pathRevision_++; }
+
     setSurface(surface: NavSurface | null): void {
         this.surface = surface;
     }

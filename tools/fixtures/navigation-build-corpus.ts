@@ -10,7 +10,7 @@ const percentile = (a: number[], q: number) => [...a].sort((x, y) => x - y)[Math
 const frame = () => new Promise<number>(resolve => requestAnimationFrame(() => resolve(performance.now())));
 
 /** Deterministic building footprints and a wall with a six-cell door. */
-function obstacles(size: number, closed: boolean, placed: boolean): NavObstacleBox[] {
+export function obstacles(size: number, closed: boolean, placed: boolean): NavObstacleBox[] {
     const span = size * cellSize, mid = span / 2, gap = cellSize * 3;
     const boxes: NavObstacleBox[] = [];
     const add = (x: number, z: number, hx: number, hz: number) => boxes.push({

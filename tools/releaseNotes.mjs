@@ -32,6 +32,10 @@ export const NOTED = {
     { note: 'Text-input length limits preserve complete supplementary characters.' },
   'fix(ui): bind field rendering to the active editing owner':
     { note: 'Text fields read only the editing surface they actually own.' },
+  'feat(nav): budget agent replans fairly across frames':
+    { note: 'Agent replans share a fair per-frame budget.' },
+  'feat(inspector): show sampled navigation planning queues':
+    { note: 'Agent replans share a fair per-frame budget.' },
   'feat(editor): inspect live agent route failures on demand':
     { note: "Inspect a live agent's current route on demand." },
   'feat(inspector): inspect live agent route failures on demand':

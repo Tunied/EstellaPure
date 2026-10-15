@@ -43,6 +43,7 @@ import { NavArea } from './NavArea';
 import { setupNavDebugDraw } from './NavDebugDraw';
 import { advanceAlongPath } from './follow';
 import { avoidVelocity, type AvoidanceNeighbour } from './avoidance';
+import { planNavigation } from './navPlanning';
 
 /** Per-entity runtime path state, owned by the driving system (not serialized). */
 export interface AgentRuntime {
@@ -51,6 +52,7 @@ export interface AgentRuntime {
     plannedX: number;
     plannedY: number;
     plannedZ: number;
+    plannedRadius?: number;
     repathTimer: number;
     reachable: boolean;
     /** What it travelled at last frame, on the two axes it steers on. Everyone
@@ -176,7 +178,7 @@ export function updateLinks(
     if (digest === state.digest && mesh === state.mesh) return;
     state.digest = digest;
     state.mesh = mesh;
-    if (mesh) mesh.connect(links);
+    if (mesh) { mesh.connect(links); nav.invalidatePaths(); }
 }
 
 /** What the obstacles were when the world was last built for them. */
@@ -250,57 +252,34 @@ export function stepNavigation(
     // A flat scene is walked in x/y; ground with height in it, in x/z.
     const flat = Math.abs(nav.surface?.up.z ?? 0) > Math.abs(nav.surface?.up.y ?? 1);
     const entities = world.getEntitiesWithComponents([NavAgent, Transform]);
+    const blocked = planNavigation(world, nav, dt, runtimes, entities);
+    // Agents awaiting a valid route must not retain old steering velocity. Keep
+    // vertical velocity: gravity and the character solver still own that axis.
+    for (const entity of entities) {
+        const active = world.get(entity, NavAgent).hasTarget;
+        if (!blocked.has(entity) && (!active || runtimes.get(entity)?.reachable)) continue;
+        const rt = runtimes.get(entity);
+        if (rt) { rt.velocityA = 0; rt.velocityB = 0; }
+        if (world.has(entity, CharacterController3D)) {
+            const character = world.get(entity, CharacterController3D);
+            if (character.enabled !== false) {
+                character.velocity.x = 0; character.velocity.z = 0;
+                world.set(entity, CharacterController3D, character);
+            }
+        }
+    }
     const crowd = gatherCrowd(world, entities, runtimes, flat);
 
     for (const entity of entities) {
         const agent = world.get(entity, NavAgent);
-        if (!agent.hasTarget) {
-            runtimes.delete(entity);
-            continue;
-        }
+        if (!agent.hasTarget || blocked.has(entity)) continue;
 
         const tf = world.get(entity, Transform);
-        let rt = runtimes.get(entity);
-
-        const targetMoved = !rt || rt.plannedX !== agent.targetX || rt.plannedY !== agent.targetY
-            || rt.plannedZ !== agent.targetZ;
-        const timerElapsed = rt ? (rt.repathTimer -= dt) <= 0 : false;
-        if (!rt || targetMoved || (agent.repathInterval > 0 && timerElapsed)) {
-            const path = nav.findWorldPath(
-                tf.position,
-                { x: agent.targetX, y: agent.targetY, z: agent.targetZ },
-                { radius: agent.radius },
-            );
-            // A plan that cannot be replaced beats no plan: an agent crossing a
-            // link is not standing on the navigable world, so the replan it asks
-            // for there has no answer and dropping the route strands it mid-air.
-            const keep = path === null && rt !== undefined && rt.reachable
-                && rt.index < rt.waypoints.length;
-            if (keep && rt) {
-                rt.plannedX = agent.targetX;
-                rt.plannedY = agent.targetY;
-                rt.plannedZ = agent.targetZ;
-                rt.repathTimer = agent.repathInterval;
-            } else {
-                rt = {
-                    waypoints: path ?? [],
-                    // Skip the start point to avoid stepping back toward it.
-                    index: path && path.length > 1 ? 1 : 0,
-                    plannedX: agent.targetX,
-                    plannedY: agent.targetY,
-                    plannedZ: agent.targetZ,
-                    repathTimer: agent.repathInterval,
-                    reachable: path !== null,
-                    velocityA: rt?.velocityA ?? 0,
-                    velocityB: rt?.velocityB ?? 0,
-                };
-            }
-            runtimes.set(entity, rt);
-        }
+        const rt = runtimes.get(entity);
 
         // Keep an unreachable agent's runtime for throttled retry (next target
         // change or repath timer) rather than churning it every frame.
-        if (!rt.reachable) continue;
+        if (!rt?.reachable) continue;
 
         // A body walks; anything else is moved, and which one an entity is, is
         // what it CARRIES. A character has a solver that collides, steps up and

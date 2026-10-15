@@ -288,6 +288,46 @@ geometry collection, avoidance, rendering and the rest of the game frame.
 
 ### Moving an agent
 
+`NavAgentSystem` serves planning requests in FIFO order across frames. By default
+it allows **16 plans** and a **2 ms soft planning budget** per tick. At least one
+query can run; the time check happens between synchronous queries, so one query
+can exceed the budget. This spreads bursts by adding route latency, rather than
+making the same work free. Direct `findWorldPath` / `queryWorldPath` calls remain
+synchronous and are outside this queue.
+
+```typescript
+const nav = app.getResource(Nav);
+nav.planningBudgetMs = 2;
+nav.maxPlansPerFrame = 16;
+// Set either limit to 0 to disable that limit.
+console.info(nav.planningStats); // completed, pending, elapsedMs from the last tick
+```
+
+Queued requests read the latest position, target and radius when served. Agents
+without a valid route pause; periodic refreshes keep following valid cached routes.
+When paused, character steering stops horizontally while gravity
+remains active. Replacing the surface, editing built-in grid topology, or changing
+an agent's radius retires stale routes, including agents whose periodic replanning
+is disabled. After changing a custom surface or its costs/links in place, call
+`nav.invalidatePaths()`. A transient failed query on an unchanged surface can keep
+an existing route while an agent crosses a link; an invalidated route is discarded.
+
+The editor's **Inspect current route** also samples the last planning tick's
+completed/pending counts, time and configured limits. This is a queue snapshot,
+not the time taken by the manual diagnostic query or by a navigation rebuild.
+
+To compare unlimited planning with the defaults on identical building maps:
+
+```sh
+node tools/navigation-planning-benchmark.mjs output/navigation-planning.json
+```
+
+The headless report keeps all 64 route shapes, per-frame CPU and callback gaps,
+batch completion latency and total CPU. It includes obstacle marking and the
+agent step over an in-memory World with zero movement speed; it excludes actual
+rendering, physics and the rest of an application frame. Lower peak CPU does not
+prove a full game reaches 60 FPS.
+
 Attach a `NavAgent`, then point it at a destination. The built-in nav plugin plans
 the path and steps the agent along it each frame — you just set the goal.
 
