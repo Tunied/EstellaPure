@@ -106,6 +106,7 @@ export class AudioAPI {
     private residentBytes_ = 0;
     private bufferBudgetOverride_: number | null = null;
     private bgmHandle_: AudioHandle | null = null;
+    private bgmRequest_ = 0;
     private bgmVolume_ = 1.0;
     /** Volume ramps in flight, advanced by {@link updateFades} from the frame
      *  loop — NOT by requestAnimationFrame, which is a browser global a device
@@ -416,7 +417,9 @@ export class AudioAPI {
         fadeIn?: number;
         crossFade?: number;
     }): void {
+        const request = ++this.bgmRequest_;
         const play = (buffer: AudioBufferHandle) => {
+            if (this.disposed_ || request !== this.bgmRequest_) return;
             this.cancelFades_();
 
             const targetVolume = config?.volume ?? 1.0;
@@ -458,6 +461,7 @@ export class AudioAPI {
     }
 
     stopAll(): void {
+        this.bgmRequest_++;
         this.cancelFades_();
         if (this.bgmHandle_) {
             this.bgmHandle_.stop();
@@ -466,7 +470,11 @@ export class AudioAPI {
     }
 
     stopBGM(fadeOut?: number): void {
-        if (!this.bgmHandle_) return;
+        this.bgmRequest_++;
+        if (!this.bgmHandle_) {
+            if (!(fadeOut && fadeOut > 0)) this.cancelFades_();
+            return;
+        }
         this.cancelFades_();
         if (fadeOut && fadeOut > 0) {
             const handle = this.bgmHandle_;

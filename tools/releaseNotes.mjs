@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(audio): preserve latest BGM intent across loading':
+    { note: 'BGM playback follows the latest request instead of load completion order.' },
   'fix(audio): reject loads from retired context generations':
     { note: 'Web audio loads cannot cross disposed or replaced contexts.' },
   'fix(audio): retire source records with owned buffers':

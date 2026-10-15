@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **BGM playback follows the latest request instead of load completion order.** New requests and stop commands invalidate older pending starts, including when the replacement is already cached. An immediate stop also ends a track already fading out, while repeated positive fade-out requests preserve the existing ramp. Loaded buffers remain available for later playback.
+
 - **Web audio loads cannot cross disposed or replaced contexts.** Async reads and decodes capture their context generation and validate it before decoding or publishing a buffer. Late work rejects without borrowing a new session's cached handle, replacing its source entry or repopulating disposed storage; current-session loads and same-session source revisions retain their existing behavior.
 
 - **Web audio source records follow live buffer ownership.** URL cache entries and invalidation identities retire after their current buffer and pending loads are released, instead of retaining every historical scene path. Distinct source records preserve overlapping invalidated loads, and unloading an older result leaves the replacement cached; failed loads release their records too.
