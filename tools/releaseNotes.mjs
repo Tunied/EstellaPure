@@ -28,6 +28,10 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(editor): reuse unchanged tile collision preview snapshots':
+    { note: 'Stable tile collision previews reuse their native content and geometry.' },
+  'perf(editor): synchronize tile collision preview snapshots':
+    { internal: 'Pins the editor snapshot cache and its native invalidation regressions; stable preview refreshes skip full-map export and decoding without changing release versions or scene assets.' },
   'chore(release): prepare 0.87.2':
     { internal: 'Prepares the patch version and consolidates input cadence, virtual controls, editor list and live tile preview fixes without changing showcase assets.' },
   'test(poki): sample button focus and retain failed gameplay state':

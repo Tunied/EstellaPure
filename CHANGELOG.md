@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Stable tile collision previews reuse their native content and geometry.** Editor refreshes skip tile export, decoding and plane mapping while the owning world, registry, core, layer generation and edit revision are unchanged. Metadata, cell size and origin changes reuse the encoded content; depth-only changes remap the existing geometry. Edits and undo retain incremental chunk rebuilds, replaced worlds and layers invalidate snapshots, and older cores without version stamps still read their current contents.
+
 ## [0.87.2] - 2026-10-15
 
 ### Fixed
