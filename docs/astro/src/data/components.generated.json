@@ -2537,7 +2537,7 @@
           "key": "repathInterval",
           "type": "number",
           "default": "0.5",
-          "doc": "Replan cadence while moving; 0 = only when the target changes.",
+          "doc": "Periodic replan cadence; 0 disables periodic refresh. Targets, obstacles and blocked-route recovery still replan.",
           "range": "≥ 0"
         },
         {
