@@ -14,9 +14,11 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+## [0.87.1] - 2026-10-15
+
 ### Fixed
 
-- **Button actions retain complete keyboard and mouse taps between samples.** A press and release within one frame produces both action edges once without leaving the action held, and each input map observes its own pulse. Frame cleanup and host cancellation drop pending pulses; a held alternative absorbs them without replay. Button alternatives use the strongest input so weak analog sources cannot combine into a false press or cancel a keyboard binding.
+- **Button actions retain complete keyboard and mouse taps between samples.** A press and release within one frame produces both action edges once without leaving the action held, and each input map observes its own pulse. Ordered edges also retain release/repress cycles between samples while overlapping alternative bindings stay held. Frame cleanup and host cancellation drop pending pulses; a held alternative absorbs them without replay. Button alternatives use the strongest input so weak analog sources cannot combine into a false press or cancel a keyboard binding.
 
 - **Screen-domain queries reject another world's cached entities.** The UI binding checks registry identity and entity validity before using the resolved screen-domain cache, preventing reused IDs from borrowing a previous world's pointer coordinates and excluding despawned nodes before the next layout pass.
 
@@ -14443,7 +14445,8 @@ not kept before this file was introduced — see the Git history at
 `github.com/esengine/estella` for the full commit-level record since the first
 commit on 2026-01-25.
 
-[Unreleased]: https://github.com/esengine/estella/compare/v0.87.0...HEAD
+[Unreleased]: https://github.com/esengine/estella/compare/v0.87.1...HEAD
+[0.87.1]: https://github.com/esengine/estella/compare/v0.87.0...v0.87.1
 [0.87.0]: https://github.com/esengine/estella/compare/v0.86.1...v0.87.0
 [0.86.1]: https://github.com/esengine/estella/compare/v0.86.0...v0.86.1
 [0.86.0]: https://github.com/esengine/estella/compare/v0.85.0...v0.86.0
