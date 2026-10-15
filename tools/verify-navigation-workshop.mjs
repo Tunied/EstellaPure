@@ -109,7 +109,39 @@ try {
     await touch.waitForFunction(()=>window.__estellaCooked.facts().gateClosed===true);
     await touch.screenshot({path:path.join(out,'touch-landscape.png')});
     records.push({name:'touch-landscape',facts:await touch.evaluate(()=>window.__estellaCooked.facts())});
+    // Exercise authored obstacle state without changing the exported files.
+    const authoredScene=JSON.parse(fs.readFileSync(path.join(dir,'assets/scenes/main.esscene'),'utf8'));
+    for(const name of ['Gate','Warehouse']) {
+        const obstacle=authoredScene.entities.find(e=>e.name===name)?.components.find(c=>c.type==='NavObstacle');
+        assert(obstacle,'Missing authored obstacle '+name); obstacle.data.enabled=true;
+    }
+    const authoredBody=JSON.stringify(authoredScene);
+    const authored=await browser.newPage({viewport:{width:1024,height:720}});
+    authored.on('pageerror',error=>errors.push(String(error)));
+    let sceneRequests=0;
+    await authored.route('**/assets/scenes/main.esscene',route=>{
+        sceneRequests++; return route.fulfill({contentType:'application/json',body:authoredBody});
+    });
+    await authored.goto(origin+'/?headless');
+    await authored.waitForFunction(()=>{const f=window.__estellaCooked?.facts();return f?.couriers===8 && f.waiting+f.arrived===8;});
+    await authored.waitForFunction(()=>{const e=document.getElementById('es-splash');return !e||Number(getComputedStyle(e).opacity)===0;});
+    assert(sceneRequests>0,'Authored scene override was not loaded');
+    await authored.evaluate(()=>{window.__estellaCooked.setPaused(true);window.__estellaCooked.step(480,1/60);});
+    const initial=await authored.evaluate(()=>window.__estellaCooked.facts());
+    assert.equal(initial.gateClosed,true,'Authored closed gate was reset at startup');
+    assert.equal(initial.warehousePlaced,true,'Authored warehouse was reset at startup');
+    assert.equal(initial.arrived,0); assert.equal(initial.leftOfGate,8);
+    await authored.keyboard.down('KeyG');
+    await authored.evaluate(()=>window.__estellaCooked.step(1,1/60));
+    await authored.keyboard.up('KeyG');
+    await authored.evaluate(()=>window.__estellaCooked.step(1200,1/60));
+    const delivered=await authored.evaluate(()=>window.__estellaCooked.facts());
+    assert.equal(delivered.gateClosed,false); assert.equal(delivered.warehousePlaced,true);
+    assert.equal(delivered.arrived,8,'Authored obstacle layout did not resume delivery after opening');
+    await authored.screenshot({path:path.join(out,'authored-obstacles.png')});
+    records.push({name:'authored-obstacles',initial,facts:delivered,
+        sceneOverride:{path:'assets/scenes/main.esscene',enabled:['Gate','Warehouse'],sha256:createHash('sha256').update(authoredBody).digest('hex')}});
     assert.equal(errors.length,0,errors.join('\n'));
     fs.writeFileSync(path.join(out,'observations.json'),JSON.stringify({...identity,status:'passed',records,errors},null,2));
-    console.log('Workshop Web export: gate retention/resume, warehouse detour, 24-courier queue and delivery passed.');
+    console.log('Workshop Web export: gate retention/resume, warehouse detour, 24-courier delivery and authored obstacles passed.');
 } finally { await browser.close(); await new Promise(resolve=>server.close(resolve)); }

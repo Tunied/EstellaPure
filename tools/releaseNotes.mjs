@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'test(nav): cover authored workshop obstacle layouts':
+    { internal: 'Headless exported-workshop acceptance also loads a scene with authored obstacles enabled and verifies retained state and delivery after reopening.' },
   'chore(release): classify v0.87 feature verification':
     { internal: 'The shipped capability census maps v0.87 navigation features to the navigation corpus and names focused editor acceptance for viewport and inspector features.' },
   'ci(editor): install workshop acceptance browser':
