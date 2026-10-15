@@ -1,0 +1,2969 @@
+{
+  "version": 4,
+  "name": "Main",
+  "entities": [
+    {
+      "id": 0,
+      "name": "Camera",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -150,
+              "y": 520,
+              "z": 900
+            },
+            "rotation": {
+              "x": 0,
+              "y": -0.08715574274765817,
+              "z": 0,
+              "w": 0.9961946980917455
+            }
+          }
+        },
+        {
+          "type": "Camera",
+          "data": {
+            "projectionType": 0,
+            "fov": 52,
+            "nearPlane": 5,
+            "farPlane": 40000,
+            "isActive": true,
+            "priority": 0,
+            "clearFlags": 1,
+            "backgroundColor": {
+              "r": 0.02,
+              "g": 0.03,
+              "b": 0.05,
+              "a": 1
+            }
+          }
+        },
+        {
+          "type": "PostProcessVolume",
+          "data": {
+            "isGlobal": true,
+            "priority": 0,
+            "weight": 1,
+            "effects": [
+              {
+                "type": "distanceFog",
+                "enabled": true,
+                "uniforms": {
+                  "u_fogNear": 900,
+                  "u_fogFar": 16000,
+                  "u_intensity": 0.55
+                }
+              },
+              {
+                "type": "ssao",
+                "enabled": true,
+                "uniforms": {}
+              },
+              {
+                "type": "bloom",
+                "enabled": true,
+                "uniforms": {
+                  "u_threshold": 0.8,
+                  "u_intensity": 1.6,
+                  "u_radius": 1.4
+                }
+              },
+              {
+                "type": "colorGrade",
+                "enabled": true,
+                "uniforms": {
+                  "u_contrast": 1.12,
+                  "u_saturation": 1.05,
+                  "u_temperature": -0.08
+                }
+              },
+              {
+                "type": "tonemap",
+                "enabled": true,
+                "uniforms": {}
+              },
+              {
+                "type": "vignette",
+                "enabled": true,
+                "uniforms": {
+                  "u_intensity": 0.45,
+                  "u_softness": 0.6
+                }
+              },
+              {
+                "type": "fxaa",
+                "enabled": true,
+                "uniforms": {}
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "name": "Moon",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 1,
+            "color": {
+              "r": 0.45,
+              "g": 0.55,
+              "b": 0.85,
+              "a": 1
+            },
+            "intensity": 0.25,
+            "direction": {
+              "x": -0.4,
+              "y": -0.8
+            },
+            "directionZ": -0.5,
+            "meshShadows": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Ambient",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 2,
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "intensity": 1,
+            "enabled": true,
+            "environment": "assets/env/night.esenv",
+            "drawEnvironment": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Deck",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -300,
+              "y": 190,
+              "z": 300
+            },
+            "scale": {
+              "x": 16,
+              "y": 0.2,
+              "z": 22
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/wetConcrete.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Parapet0",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -80,
+              "y": 250,
+              "z": 650
+            },
+            "scale": {
+              "x": 0.9,
+              "y": 1.2,
+              "z": 2.2
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Parapet1",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -25,
+              "y": 250,
+              "z": 390
+            },
+            "scale": {
+              "x": 0.9,
+              "y": 1.2,
+              "z": 2.2
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Parapet2",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 30,
+              "y": 250,
+              "z": 130
+            },
+            "scale": {
+              "x": 0.9,
+              "y": 1.2,
+              "z": 2.2
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "Parapet3",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 85,
+              "y": 250,
+              "z": -130
+            },
+            "scale": {
+              "x": 0.9,
+              "y": 1.2,
+              "z": 2.2
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "Parapet4",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 140,
+              "y": 250,
+              "z": -390
+            },
+            "scale": {
+              "x": 0.9,
+              "y": 1.2,
+              "z": 2.2
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "Parapet5",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 195,
+              "y": 250,
+              "z": -650
+            },
+            "scale": {
+              "x": 0.9,
+              "y": 1.2,
+              "z": 2.2
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "Parapet6",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 250,
+              "y": 250,
+              "z": -910
+            },
+            "scale": {
+              "x": 0.9,
+              "y": 1.2,
+              "z": 2.2
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "name": "Parapet7",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 305,
+              "y": 250,
+              "z": -1170
+            },
+            "scale": {
+              "x": 0.9,
+              "y": 1.2,
+              "z": 2.2
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "name": "Parapet8",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 360,
+              "y": 250,
+              "z": -1430
+            },
+            "scale": {
+              "x": 0.9,
+              "y": 1.2,
+              "z": 2.2
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "name": "PipeLow",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -1000,
+              "y": 330,
+              "z": 300
+            },
+            "scale": {
+              "x": 0.9,
+              "y": 0.9,
+              "z": 20
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cylinder",
+            "color": {
+              "r": 0.6,
+              "g": 0.55,
+              "b": 0.45,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/wetMetal.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "name": "PipeHigh",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -900,
+              "y": 560,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.6,
+              "y": 0.6,
+              "z": 18
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cylinder",
+            "color": {
+              "r": 0.5,
+              "g": 0.5,
+              "b": 0.5,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/wetMetal.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "name": "MachineBlock",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -950,
+              "y": 400,
+              "z": -250
+            },
+            "scale": {
+              "x": 5,
+              "y": 4.5,
+              "z": 6
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "name": "MachineWindow",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -700,
+              "y": 430,
+              "z": -250
+            },
+            "scale": {
+              "x": 0.1,
+              "y": 1.6,
+              "z": 2.6
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/warmWindow.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "name": "Street",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 1100,
+              "y": -250,
+              "z": -1300
+            },
+            "scale": {
+              "x": 12,
+              "y": 0.2,
+              "z": 36
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/wetConcrete.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "name": "River",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 200,
+              "y": -330,
+              "z": -3000
+            },
+            "scale": {
+              "x": 90,
+              "y": 0.1,
+              "z": 42
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 0.05,
+              "g": 0.08,
+              "b": 0.14,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/water.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "name": "BridgeDeck",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 200,
+              "y": -120,
+              "z": -2500
+            },
+            "scale": {
+              "x": 42,
+              "y": 0.6,
+              "z": 2.6
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "name": "BridgePier0",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -1700,
+              "y": -230,
+              "z": -2500
+            },
+            "scale": {
+              "x": 0.6,
+              "y": 2.3,
+              "z": 1.2
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "name": "BridgePier1",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -1250,
+              "y": -230,
+              "z": -2500
+            },
+            "scale": {
+              "x": 0.6,
+              "y": 2.3,
+              "z": 1.2
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "name": "BridgePier2",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -800,
+              "y": -230,
+              "z": -2500
+            },
+            "scale": {
+              "x": 0.6,
+              "y": 2.3,
+              "z": 1.2
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "name": "BridgePier3",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -350,
+              "y": -230,
+              "z": -2500
+            },
+            "scale": {
+              "x": 0.6,
+              "y": 2.3,
+              "z": 1.2
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "name": "BridgePier4",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 100,
+              "y": -230,
+              "z": -2500
+            },
+            "scale": {
+              "x": 0.6,
+              "y": 2.3,
+              "z": 1.2
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "name": "BridgePier5",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 550,
+              "y": -230,
+              "z": -2500
+            },
+            "scale": {
+              "x": 0.6,
+              "y": 2.3,
+              "z": 1.2
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "name": "BridgePier6",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 1000,
+              "y": -230,
+              "z": -2500
+            },
+            "scale": {
+              "x": 0.6,
+              "y": 2.3,
+              "z": 1.2
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "name": "BridgePier7",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 1450,
+              "y": -230,
+              "z": -2500
+            },
+            "scale": {
+              "x": 0.6,
+              "y": 2.3,
+              "z": 1.2
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 28,
+      "name": "BridgePier8",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 1900,
+              "y": -230,
+              "z": -2500
+            },
+            "scale": {
+              "x": 0.6,
+              "y": 2.3,
+              "z": 1.2
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "name": "RailViaduct",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 350,
+              "y": 70,
+              "z": -1500
+            },
+            "scale": {
+              "x": 32,
+              "y": 0.7,
+              "z": 2
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "name": "ViaductPier0",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -1000,
+              "y": -90,
+              "z": -1500
+            },
+            "scale": {
+              "x": 0.7,
+              "y": 3.4,
+              "z": 0.9
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 31,
+      "name": "ViaductPier1",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -580,
+              "y": -90,
+              "z": -1500
+            },
+            "scale": {
+              "x": 0.7,
+              "y": 3.4,
+              "z": 0.9
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "name": "ViaductPier2",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -160,
+              "y": -90,
+              "z": -1500
+            },
+            "scale": {
+              "x": 0.7,
+              "y": 3.4,
+              "z": 0.9
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 33,
+      "name": "ViaductPier3",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 260,
+              "y": -90,
+              "z": -1500
+            },
+            "scale": {
+              "x": 0.7,
+              "y": 3.4,
+              "z": 0.9
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 34,
+      "name": "ViaductPier4",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 680,
+              "y": -90,
+              "z": -1500
+            },
+            "scale": {
+              "x": 0.7,
+              "y": 3.4,
+              "z": 0.9
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 35,
+      "name": "ViaductPier5",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 1100,
+              "y": -90,
+              "z": -1500
+            },
+            "scale": {
+              "x": 0.7,
+              "y": 3.4,
+              "z": 0.9
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 36,
+      "name": "ViaductPier6",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 1520,
+              "y": -90,
+              "z": -1500
+            },
+            "scale": {
+              "x": 0.7,
+              "y": 3.4,
+              "z": 0.9
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 37,
+      "name": "ViaductPier7",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 1940,
+              "y": -90,
+              "z": -1500
+            },
+            "scale": {
+              "x": 0.7,
+              "y": 3.4,
+              "z": 0.9
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 38,
+      "name": "Train",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 500,
+              "y": 150,
+              "z": -1500
+            },
+            "scale": {
+              "x": 9,
+              "y": 0.8,
+              "z": 0.9
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/train.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 39,
+      "name": "TrainWindows",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 500,
+              "y": 160,
+              "z": -1448
+            },
+            "scale": {
+              "x": 8.8,
+              "y": 0.24,
+              "z": 0.06
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/coolWindow.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 40,
+      "name": "RightBlock0",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 2100,
+              "y": 110,
+              "z": -400
+            },
+            "scale": {
+              "x": 5.6,
+              "y": 7,
+              "z": 4.6
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 41,
+      "name": "RightWindows0",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 1826,
+              "y": 50,
+              "z": -350
+            },
+            "scale": {
+              "x": 0.08,
+              "y": 3.8500000000000005,
+              "z": 3.4
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/warmWindow.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 42,
+      "name": "RightBlock1",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 2160,
+              "y": 240,
+              "z": -920
+            },
+            "scale": {
+              "x": 5.2,
+              "y": 9.6,
+              "z": 4.6
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 43,
+      "name": "RightWindows1",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 1906,
+              "y": 180,
+              "z": -870
+            },
+            "scale": {
+              "x": 0.08,
+              "y": 5.28,
+              "z": 3.4
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/warmWindow.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 44,
+      "name": "RightBlock2",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 2220,
+              "y": 370,
+              "z": -1440
+            },
+            "scale": {
+              "x": 4.8,
+              "y": 12.2,
+              "z": 4.6
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 45,
+      "name": "RightWindows2",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 1986,
+              "y": 310,
+              "z": -1390
+            },
+            "scale": {
+              "x": 0.08,
+              "y": 6.71,
+              "z": 3.4
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/warmWindow.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 46,
+      "name": "RightBlock3",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 2280,
+              "y": 110,
+              "z": -1960
+            },
+            "scale": {
+              "x": 4.4,
+              "y": 7,
+              "z": 4.6
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 47,
+      "name": "RightWindows3",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 2066,
+              "y": 50,
+              "z": -1910
+            },
+            "scale": {
+              "x": 0.08,
+              "y": 3.8500000000000005,
+              "z": 3.4
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/warmWindow.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 48,
+      "name": "RightBlock4",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 2340,
+              "y": 240,
+              "z": -2480
+            },
+            "scale": {
+              "x": 4,
+              "y": 9.6,
+              "z": 4.6
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 49,
+      "name": "RightWindows4",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 2146,
+              "y": 180,
+              "z": -2430
+            },
+            "scale": {
+              "x": 0.08,
+              "y": 5.28,
+              "z": 3.4
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/warmWindow.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 50,
+      "name": "RightBlock5",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 2400,
+              "y": 370,
+              "z": -3000
+            },
+            "scale": {
+              "x": 3.6,
+              "y": 12.2,
+              "z": 4.6
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 51,
+      "name": "RightWindows5",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 2226,
+              "y": 310,
+              "z": -2950
+            },
+            "scale": {
+              "x": 0.08,
+              "y": 6.71,
+              "z": 3.4
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/warmWindow.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 52,
+      "name": "MagentaBannerR",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 1700,
+              "y": 350,
+              "z": -900
+            },
+            "scale": {
+              "x": 0.14,
+              "y": 3.8,
+              "z": 1.2
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/magentaSign.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 53,
+      "name": "TowerL",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 420,
+              "y": 1500,
+              "z": -5200
+            },
+            "scale": {
+              "x": 5.2,
+              "y": 36,
+              "z": 5.2
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 0.8,
+              "g": 0.8,
+              "b": 0.85,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 54,
+      "name": "TowerR",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 1180,
+              "y": 1500,
+              "z": -5200
+            },
+            "scale": {
+              "x": 5.2,
+              "y": 36,
+              "z": 5.2
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 0.8,
+              "g": 0.8,
+              "b": 0.85,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 55,
+      "name": "TowerBaseL",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 420,
+              "y": 100,
+              "z": -5200
+            },
+            "scale": {
+              "x": 8.2,
+              "y": 7,
+              "z": 8.2
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 56,
+      "name": "TowerBaseR",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 1180,
+              "y": 100,
+              "z": -5200
+            },
+            "scale": {
+              "x": 8.2,
+              "y": 7,
+              "z": 8.2
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/darkStone.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 57,
+      "name": "CyanStripL",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 680,
+              "y": 1500,
+              "z": -4930
+            },
+            "scale": {
+              "x": 0.24,
+              "y": 34,
+              "z": 0.14
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/cyanStrip.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 58,
+      "name": "CyanStripR",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 920,
+              "y": 1500,
+              "z": -4930
+            },
+            "scale": {
+              "x": 0.24,
+              "y": 34,
+              "z": 0.14
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/cyanStrip.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 59,
+      "name": "RingBridge",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 800,
+              "y": 3350,
+              "z": -5200
+            },
+            "scale": {
+              "x": 15,
+              "y": 0.7,
+              "z": 1.4
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 0.7,
+              "g": 0.75,
+              "b": 0.8,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/wetMetal.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 60,
+      "name": "Pod",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 800,
+              "y": 2100,
+              "z": -5100
+            },
+            "scale": {
+              "x": 4.4,
+              "y": 0.9,
+              "z": 3
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true,
+            "material": "assets/materials/coolWindow.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 61,
+      "name": "DeckLamp",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -760,
+              "y": 400,
+              "z": -200
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 0,
+            "color": {
+              "r": 1,
+              "g": 0.62,
+              "b": 0.25,
+              "a": 1
+            },
+            "intensity": 0.65,
+            "radius": 900,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 62,
+      "name": "DeckLamp2",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -250,
+              "y": 330,
+              "z": 420
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 0,
+            "color": {
+              "r": 1,
+              "g": 0.62,
+              "b": 0.25,
+              "a": 1
+            },
+            "intensity": 0.45,
+            "radius": 700,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 63,
+      "name": "StreetLamp1",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 1150,
+              "y": -80,
+              "z": -700
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 0,
+            "color": {
+              "r": 1,
+              "g": 0.62,
+              "b": 0.25,
+              "a": 1
+            },
+            "intensity": 0.55,
+            "radius": 900,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 64,
+      "name": "StreetLamp2",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 1150,
+              "y": -80,
+              "z": -1500
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 0,
+            "color": {
+              "r": 1,
+              "g": 0.62,
+              "b": 0.25,
+              "a": 1
+            },
+            "intensity": 0.55,
+            "radius": 900,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 65,
+      "name": "StreetLamp3",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 1150,
+              "y": -80,
+              "z": -2300
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 0,
+            "color": {
+              "r": 1,
+              "g": 0.62,
+              "b": 0.25,
+              "a": 1
+            },
+            "intensity": 0.55,
+            "radius": 900,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 66,
+      "name": "BalconyGlowR",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 1900,
+              "y": 200,
+              "z": -300
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 0,
+            "color": {
+              "r": 1,
+              "g": 0.62,
+              "b": 0.25,
+              "a": 1
+            },
+            "intensity": 0.6,
+            "radius": 1200,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 67,
+      "name": "BalconyGlowR2",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 2300,
+              "y": 400,
+              "z": -1300
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 0,
+            "color": {
+              "r": 1,
+              "g": 0.62,
+              "b": 0.25,
+              "a": 1
+            },
+            "intensity": 0.6,
+            "radius": 1200,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 68,
+      "name": "MagentaFill",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 1550,
+              "y": 360,
+              "z": -800
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 0,
+            "color": {
+              "r": 1,
+              "g": 0.1,
+              "b": 0.65,
+              "a": 1
+            },
+            "intensity": 0.7,
+            "radius": 1100,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 69,
+      "name": "TrainGlow",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 500,
+              "y": 200,
+              "z": -1500
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 0,
+            "color": {
+              "r": 0.55,
+              "g": 0.8,
+              "b": 1,
+              "a": 1
+            },
+            "intensity": 0.45,
+            "radius": 900,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 70,
+      "name": "TowerCyan",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 800,
+              "y": 1200,
+              "z": -4600
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 0,
+            "color": {
+              "r": 0.1,
+              "g": 0.8,
+              "b": 1,
+              "a": 1
+            },
+            "intensity": 1,
+            "radius": 2600,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 71,
+      "name": "TowerBase",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 800,
+              "y": 100,
+              "z": -4300
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 0,
+            "color": {
+              "r": 1,
+              "g": 0.62,
+              "b": 0.25,
+              "a": 1
+            },
+            "intensity": 0.6,
+            "radius": 1800,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 72,
+      "name": "BridgeGlow",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 200,
+              "y": 0,
+              "z": -2300
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 0,
+            "color": {
+              "r": 1,
+              "g": 0.62,
+              "b": 0.25,
+              "a": 1
+            },
+            "intensity": 0.4,
+            "radius": 1400,
+            "enabled": true
+          }
+        }
+      ]
+    }
+  ]
+}
