@@ -7,6 +7,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { runElectron } from './lib/electronRun.mjs';
 import { compareLegacyGizmoFrames } from './lib/gizmoLegacyCompare.mjs';
+import { runTool } from './lib/runTool.mjs';
 
 if (process.argv[2] === '--compare-only') {
   console.log(JSON.stringify(compareLegacyGizmoFrames(path.resolve(process.argv[3])), null, 2));
@@ -38,10 +39,11 @@ const records = [];
 const build = revision => {
   git(['-c', 'core.hooksPath=' + (process.platform === 'win32' ? 'NUL' : '/dev/null'),
     'checkout', '--detach', revision], desktop);
-  const log = execFileSync('pnpm', ['--dir', 'desktop', 'exec', 'vite', 'build'], {
+  const result = runTool('pnpm', ['--dir', 'desktop', 'exec', 'vite', 'build'], {
     cwd: root, encoding: 'utf8', windowsHide: true, maxBuffer: 32 * 1024 * 1024,
   });
-  fs.writeFileSync(path.join(out, revision + '-build.log'), log);
+  fs.writeFileSync(path.join(out, revision + '-build.log'), (result.stdout ?? '') + '\n' + (result.stderr ?? ''));
+  assert.equal(result.status, 0, result.stderr);
 };
 try {
   for (const [label, revision] of [['baseline', baseline], ['current', original]]) {
