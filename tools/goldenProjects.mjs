@@ -91,6 +91,18 @@ export const CENSUS_FLOOR = '0.60.0';
  * that does not exist, and release notes are a different act. Theirs is ungated.
  */
 export const SHIPPED = {
+  'Build and reroute deliveries in a textured 2D courtyard.':
+    { certifies: 'navigation' },
+  'Agent replans share a fair per-frame budget.':
+    { certifies: 'navigation' },
+  'Navigation queries distinguish complete routes from best-effort paths.':
+    { certifies: 'navigation' },
+  "Inspect a live agent's current route on demand.":
+    { notCertifiable: 'Play inspector interaction rather than a packaged game capability; desktop/tests/navigation-diagnostic.test.tsx and play-navigation.test.ts check identity and reply handling, and tools/verify-navigation-inspector.mjs exercises the live editor in CI.' },
+  'Spatial transform handles fade behind scene geometry.':
+    { notCertifiable: 'Editor viewport preference and overlay rendering; desktop/tests/overlay-renderer-seam.test.ts checks scoped depth state and tools/verify-gizmo-occlusion.mjs measures editor pixels in CI.' },
+  'Spatial rotation adds a view-axis outer ring.':
+    { notCertifiable: 'Editor gesture and transform interaction; desktop/tests/gizmo-view-ring.test.ts and transform-tool.test.ts check axes and parent transforms, and tools/verify-gizmo-planes.mjs exercises trusted gestures in CI.' },
   'Spatial transform handles expose all three planes and distinct centers.':
     { notCertifiable: 'Editor interaction rather than a rendered game capability; desktop/tests/gizmo-planes.test.ts checks plane geometry and constraints, and tools/verify-gizmo-planes.mjs exercises editor gestures in CI.' },
   'Universal Transform combines move, rotate and scale handles.':
