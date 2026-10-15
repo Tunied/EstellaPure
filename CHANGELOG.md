@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Recreated UI components start a fresh visibility baseline.** Removing and reinserting a UINode no longer inherits its predecessor's shown/hidden state, including edits between frames or within one frame. Removed nodes leave the visibility cache; opted-in live component identities distinguish replacements without retaining removal history or adding resolved visibility reads on steady frames.
+
 ## [0.87.0] - 2026-10-15
 
 ### Added

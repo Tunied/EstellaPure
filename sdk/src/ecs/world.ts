@@ -1362,6 +1362,17 @@ export class World {
         this.changes_.enableChangeTracking(component);
     }
 
+    /** @internal Opt in to live component identities, independent of frame ticks. */
+    enableIncarnationTracking(component: AnyComponentDef): void {
+        this.changes_.enableIncarnationTracking(component);
+    }
+
+    /** @internal Changes on remove/reinsert, including multiple edits in one tick.
+     * Components present before tracking was enabled share the initial identity 0. */
+    getComponentIncarnation(entity: Entity, component: AnyComponentDef): number {
+        return this.changes_.getComponentIncarnation(entity, component);
+    }
+
     /** @internal What `Added`/`Changed` filters are implemented in terms of. */
     isAddedSince(entity: Entity, component: AnyComponentDef, sinceTick: number): boolean {
         return this.changes_.isAddedSince(entity, component, sinceTick);

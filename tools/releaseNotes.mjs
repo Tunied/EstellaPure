@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ui): reset visibility baselines for recreated components':
+    { note: 'Recreated UI components start a fresh visibility baseline.' },
   'chore(release): finalize 0.87.0 release notes':
     { internal: 'Consolidates verified changes into the prepared 0.87.0 release section without changing product code or showcase assets.' },
   'test(lifecycle): renew foreground input in suspend comparisons':

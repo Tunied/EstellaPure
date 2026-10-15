@@ -107,6 +107,8 @@ class ReaderOwnedJournal {
 export class ChangeTracker {
     private worldTick_ = 0;
     private componentAddedTicks_ = new Map<symbol, Map<Entity, number>>();
+    private componentIncarnations_ = new Map<symbol, Map<Entity, number>>();
+    private nextIncarnation_ = 1;
     private componentChangedTicks_ = new Map<symbol, Map<Entity, number>>();
     private readonly removals_ = new ReaderOwnedJournal();
     /** Membership moves, independent of ordinary change tracking. */
@@ -134,6 +136,16 @@ export class ChangeTracker {
 
     enableChangeTracking(component: AnyComponentDef): void {
         this.trackedComponents_.add(component._id);
+    }
+
+    enableIncarnationTracking(component: AnyComponentDef): void {
+        if (!this.componentIncarnations_.has(component._id)) {
+            this.componentIncarnations_.set(component._id, new Map());
+        }
+    }
+
+    getComponentIncarnation(entity: Entity, component: AnyComponentDef): number {
+        return this.componentIncarnations_.get(component._id)?.get(entity) ?? 0;
     }
 
     isAddedSince(entity: Entity, component: AnyComponentDef, sinceTick: number): boolean {
@@ -260,6 +272,7 @@ export class ChangeTracker {
     }
 
     recordAdded(component: AnyComponentDef, entity: Entity): void {
+        this.componentIncarnations_.get(component._id)?.set(entity, this.nextIncarnation_++);
         // BEFORE the tracking gate: a membership journal is what lets a consumer
         // follow arrivals and departures WITHOUT enrolling the component in
         // ordinary change tracking, and paying that tax on every field write.
@@ -312,6 +325,7 @@ export class ChangeTracker {
      * recorded for one kind and dropped for the other.
      */
     recordRemovedById(componentId: symbol, entity: Entity): void {
+        this.componentIncarnations_.get(componentId)?.delete(entity);
         // Same reason as `recordAdded`: first, and gated on its own readers.
         if (this.topology_.hasReaders(componentId)) {
             this.topology_.record(componentId, entity, this.worldTick_);

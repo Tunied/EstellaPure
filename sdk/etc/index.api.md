@@ -10016,8 +10016,10 @@ tabIndex: number | undefined
 @internal disposeTopologyReader: (component: AnyComponentDef, readerId: number) => void
 @internal disposeWriteReader: (component: AnyComponentDef, readerId: number) => void
 @internal enableChangeTracking: (component: AnyComponentDef) => void
+@internal enableIncarnationTracking: (component: AnyComponentDef) => void
 @internal endIteration: () => void
 @internal ensureTransformsComposed: () => void
+@internal getComponentIncarnation: (entity: Entity, component: AnyComponentDef) => number
 @internal getComponentTypesBatch: (entities: readonly Entity[]) => string[][]
 @internal getCppRegistry: () => CppRegistry | null
 @internal getQueryCacheStats: () => QueryCacheStats

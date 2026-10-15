@@ -49,9 +49,10 @@ export class UIVisibilityPlugin implements Plugin {
         // The layout plugin enables this too; asking again is how this plugin stays
         // correct without depending on it having been built first.
         world.enableChangeTracking(UINode);
+        world.enableIncarnationTracking(UINode);
 
         /** Last known on-screen state, so a change can be told from a steady value. */
-        const seen = new Map<Entity, boolean>();
+        const seen = new Map<Entity, { shown: boolean; incarnation: number }>();
         /** Watermarks for the two O(1) gates; -1 ⇒ the next frame scans regardless. */
         let scannedTick = -1;
         let scannedVersion = -1;
@@ -91,18 +92,31 @@ export class UIVisibilityPlugin implements Plugin {
                 // reason.
                 scannedTick = world.getWorldTick() - 1;
 
-                for (const entity of world.getEntitiesWithComponents([UINode])) {
+                const nodes = world.getEntitiesWithComponents([UINode]);
+                for (const entity of nodes) {
                     const shown = !engine.getUINodeHiddenInTree(registry, entity);
+                    const incarnation = world.getComponentIncarnation(entity, UINode);
                     const before = seen.get(entity);
-                    seen.set(entity, shown);
+                    if (!before || before.incarnation !== incarnation) {
+                        seen.set(entity, { shown, incarnation });
+                        continue;
+                    }
                     // These are CHANGES, so the first look at a node only records it. Not
                     // just to keep a listener that attaches mid-game from being told that
                     // every panel on screen just appeared: a node is created before the
                     // layout pass has taken it into the tree, so its first reading is
                     // "not on screen" — announced, that is a spurious `hidden` on
                     // something that is in the middle of being spawned.
-                    if (before === undefined || before === shown) continue;
+                    if (before.shown === shown) continue;
+                    before.shown = shown;
                     events.emit(entity, shown ? UIEventType.Shown : UIEventType.Hidden);
+                }
+                // All live nodes now have entries. Only a removed component can
+                // make this map larger; ordinary scans need no second traversal.
+                if (seen.size > nodes.length) {
+                    for (const entity of seen.keys()) {
+                        if (!world.has(entity, UINode)) seen.delete(entity);
+                    }
                 }
             },
             { name: 'UIVisibilityEventSystem' },

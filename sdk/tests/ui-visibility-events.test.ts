@@ -197,6 +197,50 @@ describe('UIVisibilityPlugin', () => {
         expect(reads).toBeGreaterThan(settled);
     });
 
+    it.each([false, true])('readded UI starts a new baseline after an observed removal (hidden=%s)', async hidden => {
+        listen();
+        const panel = addNode();
+        resolve(panel, hidden);
+        await tick();
+        app.world.remove(panel, UINode);
+        expect(await tick()).toEqual([]);
+        app.world.insert(panel, UINode, {});
+        resolve(panel, !hidden);
+        expect(await tick()).toEqual([]);
+        resolve(panel, hidden);
+        expect(await tick()).toEqual([`${hidden ? UIEventType.Hidden : UIEventType.Shown}:${panel}`]);
+    });
+
+    it.each([false, true])('readded UI starts a new baseline within one frame (hidden=%s)', async hidden => {
+        listen();
+        const panel = addNode();
+        resolve(panel, hidden);
+        await tick();
+        app.world.remove(panel, UINode);
+        app.world.insert(panel, UINode, {});
+        resolve(panel, !hidden);
+        expect(await tick()).toEqual([]);
+        resolve(panel, hidden);
+        expect(await tick()).toEqual([`${hidden ? UIEventType.Hidden : UIEventType.Shown}:${panel}`]);
+    });
+
+    it('drops removed entries after a scan without repeatedly probing dead nodes', async () => {
+        listen();
+        const nodes = Array.from({ length: 128 }, addNode);
+        await tick();
+        for (const node of nodes) app.world.remove(node, UINode);
+        const has = vi.spyOn(app.world, 'has');
+        expect(await tick()).toEqual([]);
+        expect(has.mock.calls.filter(([, component]) => component === UINode)).toHaveLength(128);
+        has.mockClear();
+        app.world.spawn(); // Another structural change must not revisit dead UI entries.
+        await tick();
+        expect(has.mock.calls.filter(([, component]) => component === UINode)).toHaveLength(0);
+        expect(nodes.every(node => app.world.getComponentIncarnation(node, UINode) === 0)).toBe(true);
+        expect(app.world.removedReaderCount(UINode)).toBe(0);
+        has.mockRestore();
+    });
+
     it('forgets a despawned entity, so a recycled id does not inherit its state', async () => {
         listen();
         const panel = addNode();
