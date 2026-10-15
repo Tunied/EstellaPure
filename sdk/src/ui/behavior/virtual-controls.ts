@@ -55,6 +55,8 @@ interface ControlState {
     thumb: Vec2;
     value: Vec2;
 }
+interface PointerGroup { held: ControlPointer[]; tapped: boolean }
+const NO_HELD_POINTERS: readonly ControlPointer[] = [];
 export function createVirtualControlSystem(world: World, events: UIEventQueue) {
     const states = new Map<Entity, ControlState>();
     const engine = worldEngineApi(world); const registry = world.getCppRegistry();
@@ -108,6 +110,21 @@ export function createVirtualControlSystem(world: World, events: UIEventQueue) {
             (current: InputState, frame: { pointers: Map<number, ControlPointer> }, time: TimeData) => {
                 input = current;
                 let hidden = createLiveVisibilityQuery(world, hiddenFallback);
+                let groups: Map<Entity, PointerGroup> | null = null;
+                const pointersFor = (entity: Entity): PointerGroup | undefined => {
+                    if (!groups) {
+                        groups = new Map();
+                        for (const pointer of frame.pointers.values()) {
+                            const target = pointer.down ? pointer.entity : pointer.pressed ? pointer.pressedEntity : null;
+                            if (target === null) continue;
+                            let group = groups.get(target);
+                            if (!group) { group = { held: [], tapped: false }; groups.set(target, group); }
+                            if (pointer.down) group.held.push(pointer);
+                            else group.tapped = true;
+                        }
+                    }
+                    return groups.get(entity);
+                };
                 for (const entity of states.keys()) if (!world.valid(entity)
                     || (!world.has(entity, VirtualJoystick) && !world.has(entity, VirtualButton))) release(entity);
                 for (const type of [VirtualJoystick, VirtualButton] as const) {
@@ -115,7 +132,8 @@ export function createVirtualControlSystem(world: World, events: UIEventQueue) {
                         if (!world.has(entity, Transform)) { release(entity); continue; }
                         const state = getState(entity);
                         const available = enabled(entity, hidden);
-                        const held = [...frame.pointers.values()].filter(p => available && p.entity === entity && p.down);
+                        const group = available ? pointersFor(entity) : undefined;
+                        const held = group?.held ?? NO_HELD_POINTERS;
                         let value: Vec2 = { x: 0, y: 0 };
                         let id: string;
                         if (type === VirtualJoystick) {
@@ -147,10 +165,9 @@ export function createVirtualControlSystem(world: World, events: UIEventQueue) {
                             positionChild(entity, data.handle, { x: state.origin.x + state.thumb.x, y: state.origin.y + state.thumb.y });
                         } else {
                             const data = world.get(entity, VirtualButton); id = data.inputId;
-                            for (const pointer of [...state.buttons]) if (!held.some(p => p.id === pointer)) state.buttons.delete(pointer);
+                            for (const pointer of state.buttons) if (!held.some(p => p.id === pointer)) state.buttons.delete(pointer);
                             for (const pointer of held) if (pointer.pressed) state.buttons.add(pointer.id);
-                            const tapped = available && [...frame.pointers.values()].some(p => p.pressed
-                                && !p.down && p.pressedEntity === entity);
+                            const tapped = group?.tapped;
                             if (state.buttons.size || tapped) value.x = data.value;
                         }
                         current.setVirtualSource(state.owner, id, value.x, value.y);
@@ -158,6 +175,7 @@ export function createVirtualControlSystem(world: World, events: UIEventQueue) {
                             state.value = value;
                             events.emit(entity, UIEventType.Change, { value: { ...value } });
                             hidden = createLiveVisibilityQuery(world, hiddenFallback);
+                            groups = null;
                         }
                     }
                 }

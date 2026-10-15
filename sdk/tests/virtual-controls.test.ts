@@ -32,7 +32,8 @@ function fixture() {
         world.insert(id as Entity, component, { ...component._default, ...patch });
     };
     const input = new InputState(); const pointers = new Map<number, ControlPointer>();
-    const control = createVirtualControlSystem(world, new UIEventQueue());
+    const events = new UIEventQueue();
+    const control = createVirtualControlSystem(world, events);
     const invoke = control.system._fn as unknown as (input: InputState, frame: { pointers: Map<number, ControlPointer> }, time: { delta: number }) => void;
     const tick = () => invoke(input, { pointers }, { delta: 1 / 60 });
     const point = (id: number, entity: number, x: number, y: number, pressed = false) => {
@@ -40,9 +41,33 @@ function fixture() {
             down: true, pressed, layoutX: x, layoutY: y, worldX: x, worldY: y });
     };
     const remove = (id: number) => { for (const h of removals) h(id as Entity); entities.delete(id); };
-    return { world, input, pointers, tick, point, add, remove, dispose: control.dispose };
+    return { world, input, pointers, events, tick, point, add, remove, dispose: control.dispose };
 }
 describe('virtual control ownership and InputMap', () => {
+    it('does not rescan every pointer for every idle or held control', () => {
+        const f = fixture();
+        for (let entity = 1; entity <= 100; entity++) f.add(entity, VirtualButton);
+        for (let pointer = 1; pointer <= 10; pointer++) f.point(pointer, pointer, 0, 0, true);
+        f.tick();
+        for (const pointer of f.pointers.values()) pointer.pressed = false;
+        const values = f.pointers.values.bind(f.pointers);
+        let visits = 0;
+        f.pointers.values = () => {
+            const iterator = values(), next = iterator.next.bind(iterator);
+            iterator.next = () => { const result = next(); if (!result.done) visits++; return result; };
+            return iterator;
+        };
+        f.tick();
+        expect(visits).toBeLessThanOrEqual(2 * f.pointers.size);
+        expect(f.input.getVirtual('fire').x).toBe(1); f.dispose();
+    });
+    it('refreshes the pointer projection after a change callback cancels another capture', () => {
+        const f = fixture(); f.add(1, VirtualButton); f.add(2, VirtualButton, { inputId: 'second' });
+        f.point(1, 1, 0, 0, true); f.point(2, 2, 0, 0, true);
+        f.events.on(1 as Entity, 'change', () => { f.pointers.delete(2); });
+        f.tick(); expect(f.input.getVirtual('fire').x).toBe(1);
+        expect(f.input.getVirtual('second').x).toBe(0); f.dispose();
+    });
     it('two fingers move and fire at once; cancelling only the button leaves movement held', () => {
         const f = fixture(); f.add(1, VirtualJoystick); f.add(2, VirtualButton);
         const map = new InputMap({ Move: Axis2D(Virtual('move')), Fire: Button(Virtual('fire')) });

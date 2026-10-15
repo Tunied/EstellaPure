@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Virtual controls share each sample's pointer projection.** Stable buttons and joysticks group held pointers and completed taps once instead of cloning and scanning every pointer for every control. A change callback invalidates the grouping before later controls run, preserving capture cancellation and concurrent move/fire behavior.
+
 - **Virtual controls stop when their authored UI is hidden.** Buttons and joysticks read current display ancestry instead of the previous layout's hidden cache. Hiding a captured control releases its source on the next sample and showing it requires a fresh press; new presses on shown controls are accepted before layout catches up. Change callbacks invalidate shared visibility reads before later controls are sampled.
 
 - **Named actions reach fixed simulation steps independently of render frames.** Input maps sample before FixedUpdate instead of exposing the previous render frame's actions. Presses and releases survive frames without a fixed step, reach only the first catch-up step, and remain independently visible to Update. Pending flags use constant space per action, host cancellation drops buffered pulses, and current axis values are sampled for each cadence.

@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(ui): share virtual control pointer groups per sample':
+    { note: 'Virtual controls share each sample\'s pointer projection.' },
   'fix(ui): release hidden virtual controls before layout':
     { note: 'Virtual controls stop when their authored UI is hidden.' },
   'fix(input): sample named actions independently for fixed steps':
