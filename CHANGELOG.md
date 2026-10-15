@@ -20,6 +20,8 @@ published separately; it ships inside the editor.
 
 - **Couriers can pass occupied intermediate grid waypoints.** A parked agent no longer traps a follower at an intermediate cell centre. The follower may join the next route segment only when its full body fits the connection through the static grid; final destinations still use the existing arrival rules.
 
+- **Crowd followers honor the configured final arrival radius.** Intermediate waypoint tolerances no longer complete a route before its final goal is within the agent's stop distance. Kinematic followers and character steering retain their intermediate reach behavior; zero arrival radius continues toward the actual endpoint.
+
 - **Finished Web audio handles release their runtime references.** Stopped and naturally completed voices drop decoded buffers, sources, pool nodes and contexts after releasing their pool slot. Retaining a finished handle keeps its ID and duration available without pinning PCM; terminal controls remain harmless, while paused voices retain the state needed to resume and natural completion still notifies once.
 
 ## [0.87.0] - 2026-10-15
