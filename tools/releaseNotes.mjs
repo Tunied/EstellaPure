@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(example): return training keyboard focus when play resumes':
+    { note: 'Training resumes with gameplay keyboard focus.' },
   'fix(editor): refresh tile collision previews from live metadata':
     { note: 'Tile collision previews follow unsaved tileset edits and undo.' },
   'fix(editor): synchronize live tile collision preview metadata':

@@ -2,7 +2,7 @@ import {
     addStartupSystem, addSystemToSchedule, defineSystem, Schedule, Res, GetWorld,
     Input, InputMap, Axis2D, Button, Keys2D, Key, Virtual, Time, Transform, Sprite,
     UIEvents, Text, Name, UINode, UIPositionType, spawnUIEntity, createButton, px, Device,
-    Ads, type World, type Entity, type DeviceResult,
+    Ads, FocusManager, type World, type Entity, type DeviceResult,
 } from 'esengine';
 import { setupWebTraining } from './pokiTrainingUI';
 import type { TrainingSession } from './pokiTraining';
@@ -30,7 +30,7 @@ const refreshStatus = (world: World): void => {
     if (world.get(status, Text).content !== content) world.insert(status, Text, { ...world.get(status, Text), content });
 };
 
-addStartupSystem(defineSystem([Res(UIEvents), Res(Ads), GetWorld()], (events, ads, world) => {
+addStartupSystem(defineSystem([Res(UIEvents), Res(Ads), Res(FocusManager), GetWorld()], (events, ads, focus, world) => {
     const canvas = world.findEntityByName('Canvas'); if (canvas === null) return;
     spawnUIEntity({ world, parent: canvas,
         node: { position: UIPositionType.Absolute, insetLeft: px(30), insetTop: px(6), width: px(740), height: px(22), pointerEvents: 1 },
@@ -83,7 +83,7 @@ addStartupSystem(defineSystem([Res(UIEvents), Res(Ads), GetWorld()], (events, ad
                 transform.scale = { x: 1, y: 1, z: 1 }; world.insert(entity, Transform, transform);
                 world.insert(entity, Sprite, { ...world.get(entity, Sprite), color: { r: 1, g: 1, b: 1, a: 1 } });
             }
-        }, () => refreshStatus(world));
+        }, () => refreshStatus(world), focus);
         refreshStatus(world);
     }
 }, { name: 'MobileControlsSetup' }));

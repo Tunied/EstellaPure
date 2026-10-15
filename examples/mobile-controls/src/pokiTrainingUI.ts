@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
-import { createButton, spawnUIEntity, Text, Name, UIPositionType, px, Storage, Scores, type AdsAPI } from 'esengine';
+import { createButton, spawnUIEntity, Text, Name, UIPositionType, px, Storage, Scores, type AdsAPI, type FocusManagerState } from 'esengine';
 import { TrainingSession } from './pokiTraining';
 import { TrainingSave } from './trainingSave';
+import { releaseTrainingFocus } from './trainingFocus';
 
 type ButtonOptions = Parameters<typeof createButton>[0];
 interface PokiGameplay { gameplayStart(): void; gameplayStop(): void }
 
 export function setupWebTraining(
     world: ButtonOptions['world'], events: ButtonOptions['events'], parent: NonNullable<ButtonOptions['parent']>,
-    ads: AdsAPI, reset: () => void, refresh: () => void,
+    ads: AdsAPI, reset: () => void, refresh: () => void, focus: FocusManagerState,
 ): TrainingSession | null {
     if (typeof document === 'undefined') return null;
     const channel = document.documentElement?.dataset?.webChannel;
@@ -38,7 +39,8 @@ export function setupWebTraining(
         refresh();
     };
     const session = new TrainingSession(ads, {
-        gameplayStart: () => notify('gameplayStart'), gameplayStop: () => notify('gameplayStop'), reset, changed: update,
+        gameplayStart: () => { releaseTrainingFocus(world, events, focus); notify('gameplayStart'); },
+        gameplayStop: () => notify('gameplayStop'), reset, changed: update,
         rewardGranted: credits => {
             if (!save) return;
             if (channel === 'youtube') {

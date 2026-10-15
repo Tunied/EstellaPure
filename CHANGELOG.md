@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Training resumes with gameplay keyboard focus.** Starting or resuming a round releases the menu control's focus, updates its Focusable state and emits Blur, so Space fires instead of reopening a rewarded break after an ad. Blur callbacks remain effective and menu buttons retain keyboard navigation.
+
 - **Tile collision previews follow unsaved tileset edits and undo.** Editor outline models read the open tileset document and refresh on relevant document edits, undo/redo, disk changes and project switches. Ordinary scene edits and unrelated documents retain the cached model; obsolete requests stop loading later tilesets and cannot publish into the new preview. Closing a document restores the saved asset's collision metadata.
 
 - **Windowed editor lists attach to the scroller that actually mounted.** Resource grids and shared virtual windows subscribe after ancestor refs are available, reattach when their elements change, and retain scroll and size observation through StrictMode cleanup. Large lists keep updating visible rows instead of remaining on the first batch or using a single fallback column.
