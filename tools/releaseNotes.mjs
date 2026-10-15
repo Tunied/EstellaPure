@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(audio): retire source records with owned buffers':
+    { note: 'Web audio source records follow live buffer ownership.' },
   'perf(ui): use generated web pointers for live focus checks':
     { note: 'Web UI getters can reach their generated pointer accessors.' },
   'fix(ui): retire text sessions when focus eligibility changes':

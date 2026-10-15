@@ -211,6 +211,33 @@ describe('WebAudioBackend', () => {
     });
 
     describe('loadBuffer', () => {
+        it.each([false, true])('retires source metadata after buffer release (invalidate=%s)', async invalidate => {
+            await backend.initialize();
+            const ctx = (globalThis as any).__mockAudioContext;
+            ctx.decodeAudioData.mockResolvedValue({ duration: 1, length: 8, numberOfChannels: 1 });
+            for (let i = 0; i < 2000; i++) {
+                const url = `scene-${i}/sound.wav`;
+                const handle = await backend.loadBuffer(url);
+                backend.unloadBuffer(handle);
+                if (invalidate) backend.invalidateSource(url);
+            }
+            const retained = Object.values(backend).filter(value => value instanceof Map)
+                .reduce((count, map) => count + map.size, 0);
+            expect(retained).toBe(0);
+        });
+
+        it('does not retain metadata for failed source loads', async () => {
+            await backend.initialize();
+            const platform = (globalThis as any).__mockPlatform;
+            platform.readFile.mockRejectedValue(new Error('missing file'));
+            for (let i = 0; i < 25; i++) {
+                await expect(backend.loadBuffer(`missing-${i}.wav`)).rejects.toThrow('missing file');
+            }
+            const retained = Object.values(backend).filter(value => value instanceof Map)
+                .reduce((count, map) => count + map.size, 0);
+            expect(retained).toBe(0);
+        });
+
         it.each(['old-first', 'new-first'] as const)('keeps the current URL load when an invalidated read finishes %s', async order => {
             await backend.initialize();
             const ctx = (globalThis as any).__mockAudioContext;
