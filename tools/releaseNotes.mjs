@@ -32,8 +32,14 @@ export const NOTED = {
     { note: 'Navigation replacements commit only from the latest request.' },
   'feat(nav): stage cancellable surface replacements and explain pending routes':
     { note: 'Navigation replacements commit only from the latest request.' },
+  'fix(test): replay settings transactions after confirmed GPU loss':
+    { internal: 'Settings acceptance applies the shared bounded GPU failure policy to whole fresh-profile transactions, preserving each failed attempt and screenshot while refusing retries for ordinary process or settings failures.' },
   'test(nav): yield fixed-step capture work to the compositor':
     { internal: 'Headless workshop acceptance yields between fixed simulation batches so software rendering can drain before screenshots, and persists sampled facts before capture failures.' },
+  'test(settings): retain restart diagnostics and focused CI evidence':
+    { internal: 'Settings acceptance preserves every restart process result and screenshot in existing CI artifacts, reports explicit exit status and signal, and has a focused workflow that verifies matching runtime sources before reusing Web artifacts.' },
+  'fix(test): wait for package boot before settling input':
+    { internal: 'Export acceptance counts settling frames only after the startup overlay releases input and uses a wall-clock watchdog independent of animation frames. Delayed real Web startup demonstrates that early clicks were previously lost.' },
   'fix(nav): apply grid obstacle changes without bake throttling':
     { note: '2D navigation doors close without the mesh bake delay.' },
   'fix(nav): pass occupied intermediate grid waypoints safely':
