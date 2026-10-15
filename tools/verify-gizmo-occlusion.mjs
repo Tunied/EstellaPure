@@ -22,9 +22,9 @@ fs.writeFileSync(path.join(project, 'assets/scenes/main.esscene'), JSON.stringif
     { id: 1, name: 'Pivot inside blocker', parent: null, children: [], visible: true,
       components: [{ type: 'Transform', data: { position: { x: 0, y: 0, z: 0 } } }] },
     { id: 2, name: 'Opaque blocker', parent: null, children: [], visible: true, components: [
-      { type: 'Transform', data: { position: { x: 0, y: 0, z: 0 }, scale: { x: 200, y: 200, z: 200 } } },
+      { type: 'Transform', data: { position: { x: 0, y: 0, z: 0 }, scale: { x: 2, y: 2, z: 2 } } },
       { type: 'MeshRenderer', data: { mesh: 'builtin:cube', lit: false, opaque: true,
-        color: { r: 0.22, g: 0.22, b: 0.22, a: 1 } } },
+        color: { r: 0.4, g: 0.4, b: 0.4, a: 1 } } },
     ] },
   ],
 }));
@@ -55,7 +55,8 @@ try {
         e.surface.select(1);e.runCommand('tool.rotate');await wait(300);
         const g=e.gizmoLayout(),r=document.querySelector('.viewport__stage canvas').getBoundingClientRect();
         if(!g?.spatial)throw Error('Missing spatial handles');
-        return {layout:g,rect:{x:r.x,y:r.y},dpr:window.devicePixelRatio,saved};
+        return {layout:g,rect:{x:r.x,y:r.y},dpr:window.devicePixelRatio,saved,view:e.editorView(),
+          blocker:e.surface.serializeScene().entities.find(v=>v.id===2)};
       })()`,
     } });
     fs.writeFileSync(path.join(out, name + '.log'), run.stdout + '\n' + run.stderr);

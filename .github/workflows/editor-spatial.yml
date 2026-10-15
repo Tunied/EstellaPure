@@ -24,6 +24,8 @@ jobs:
             artifact: gizmo-planes-editor-checks
           - suite: interaction
             artifact: gizmo-interaction-editor-checks
+          - suite: legacy-2d
+            artifact: gizmo-legacy-2d-editor-checks
     env:
       ESTELLA_WIN_W: '1480'
       ESTELLA_WIN_H: '920'
@@ -34,6 +36,7 @@ jobs:
       - uses: ./.github/actions/editor-checkout
         with:
           ssh-key: ${{ secrets.EDITOR_SSH_KEY }}
+          history: full
       - uses: ./.github/actions/setup
       - name: Require identical engine and SDK sources and a successful Web build
         env:
@@ -68,6 +71,9 @@ jobs:
       - name: Check origins and universal gestures with undo and cancel
         if: matrix.suite == 'interaction'
         run: node tools/verify-gizmo-origins.mjs
+      - name: Compare legacy 2D project widgets with their previous editor
+        if: matrix.suite == 'legacy-2d'
+        run: node tools/verify-gizmo-legacy-2d.mjs
       - name: Keep spatial acceptance evidence
         if: always()
         uses: actions/upload-artifact@v7
@@ -78,5 +84,6 @@ jobs:
             output/gizmo-occlusion-ci
             output/gizmo-hover-ci
             output/gizmo-origins-ci
+            output/gizmo-legacy-2d-ci
           if-no-files-found: warn
           retention-days: 3
