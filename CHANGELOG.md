@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **2D navigation doors close without the mesh bake delay.** Grid obstacle marking runs on the next navigation tick even when the previous obstacle update was less than 200 ms ago. Closing and reopening a passage immediately invalidates cached connectivity; polygon mesh baking keeps its existing throttle.
+
 - **Couriers can pass occupied intermediate grid waypoints.** A parked agent no longer traps a follower at an intermediate cell centre. The follower may join the next route segment only when its full body fits the connection through the static grid; final destinations still use the existing arrival rules.
 
 - **Finished Web audio handles release their runtime references.** Stopped and naturally completed voices drop decoded buffers, sources, pool nodes and contexts after releasing their pool slot. Retaining a finished handle keeps its ID and duration available without pinning PCM; terminal controls remain harmless, while paused voices retain the state needed to resume and natural completion still notifies once.

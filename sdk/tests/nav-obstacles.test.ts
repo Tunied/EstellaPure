@@ -148,15 +148,29 @@ describe('updateObstacles', () => {
         expect(grid.isWalkable(4, 4)).toBe(false);
     });
 
-    // A rebuild is the most expensive thing a running game can ask of navigation,
-    // so something that changes every frame must not get one every frame.
-    it('will not rebuild twice inside its own interval', () => {
+    it('will not rebake a mesh twice inside its own interval', () => {
         const nav = new Navigation();
-        nav.setSurface(new NavGrid({ width: 9, height: 9, cellSize: 10 }));
+        nav.setSurface(bake([]));
         const s = state();
         expect(updateObstacles(nav, [blocker()], s, 10_000)).toBe(true);
         expect(updateObstacles(nav, [blocker({ center: { x: 10, y: 0, z: 0 } })], s, 10_050)).toBe(false);
         expect(updateObstacles(nav, [blocker({ center: { x: 10, y: 0, z: 0 } })], s, 10_400)).toBe(true);
+    });
+
+    it('closes and reopens a grid passage without the mesh bake delay', () => {
+        const nav=new Navigation(),grid=new NavGrid({width:11,height:9,cellSize:10});
+        for(let y=0;y<9;y++)if(y!==4)grid.setWalkable(5,y,false);
+        nav.setSurface(grid);const s=state();
+        const from={x:20,y:40},to={x:80,y:40},opts={radius:3};
+        updateObstacles(nav,[],s,10_000);
+        expect(nav.queryWorldPath(from,to,opts).status).toBe('complete');
+        const gate=blocker({center:{x:50,y:40,z:0},halfExtents:{x:4,y:4,z:10}});
+        expect(updateObstacles(nav,[gate],s,10_001)).toBe(true);
+        expect(grid.isNavigable({x:50,y:40},opts)).toBe(false);
+        expect(nav.queryWorldPath(from,to,opts).status).toBe('partial');
+        expect(updateObstacles(nav,[],s,10_002)).toBe(true);
+        expect(grid.isNavigable({x:50,y:40},opts)).toBe(true);
+        expect(nav.queryWorldPath(from,to,opts).status).toBe('complete');
     });
 
     // The obstacles were already standing there; the grid is the new thing.

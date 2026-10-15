@@ -53,7 +53,7 @@ try {
         const box = await page.evaluate(name => window.__estellaCooked.probe([name]).at[name], name);
         assert(box, 'Missing '+name);
         await page.mouse.click(512+box.x,360-box.y);
-        await page.waitForTimeout(350); // The real obstacle-change throttle is 200 ms.
+        await page.waitForTimeout(350); // Run the real UI event and navigation ticks before pausing.
         await paused(true);
     };
     const snapshot = async name => {

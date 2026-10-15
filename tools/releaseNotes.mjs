@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(nav): apply grid obstacle changes without bake throttling':
+    { note: '2D navigation doors close without the mesh bake delay.' },
   'fix(nav): pass occupied intermediate grid waypoints safely':
     { note: 'Couriers can pass occupied intermediate grid waypoints.' },
   'test(nav): sample trusted keys before paused frame cleanup':

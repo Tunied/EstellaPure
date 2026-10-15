@@ -175,8 +175,9 @@ geometry, or what stops blocking without moving:
 Blocking is a **bake input**, not a filter over the answer: an obstacle takes its
 ground away *before* the walkable area is eroded, so routes keep the agent's full
 width clear of it rather than scraping along its face. Changing one — moving it,
-resizing it, switching it on or off — rebuilds the navigable world, at most a few
-times a second.
+resizing it, switching it on or off — rebuilds the mesh at most once per 200 ms.
+The 2D grid marks obstacle changes on the next navigation tick without that bake
+delay, so a newly closed passage is excluded before agents plan or move.
 
 ```typescript
 // A door swinging open, from any system with world access:

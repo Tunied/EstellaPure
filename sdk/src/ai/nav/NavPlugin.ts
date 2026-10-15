@@ -133,7 +133,7 @@ export function bakeVolumes(
  * Take the obstacles as they are now, and say whether the surface had to be
  * rebuilt for them. Blocking is a bake input, not a query filter — one marked
  * after the erosion would leave routes scraping its face — so a door opening is a
- * bake, throttled to one per NAV_REBAKE_MS. `state` is carried across frames.
+ * mesh bake, throttled to one per NAV_REBAKE_MS. Grids mark blockers immediately.
  */
 export function updateObstacles(
     nav: Navigation, obstacles: readonly NavObstacleBox[], state: ObstacleState, now: number,
@@ -145,7 +145,7 @@ export function updateObstacles(
     // however long they have stood still.
     const unmarked = grid !== null && grid !== state.grid;
     if (!changed && !unmarked) return false;
-    if (changed && now - state.at < NAV_REBAKE_MS) {
+    if (changed && !grid && now - state.at < NAV_REBAKE_MS) {
         // Something is still moving. Say so ONCE: an obstacle that never settles
         // rebuilds the world several times a second, which is a scene to fix
         // rather than a cost to absorb.
