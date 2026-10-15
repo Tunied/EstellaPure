@@ -28,6 +28,10 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(editor): read only changed collision chunks':
+    { note: 'Tile collision edits read only changed native chunks.' },
+  'perf(tilemap): read collision chunks incrementally':
+    { note: 'Tile collision edits read only changed native chunks.' },
   'perf(editor): reuse unchanged tile collision preview snapshots':
     { note: 'Stable tile collision previews reuse their native content and geometry.' },
   'perf(editor): synchronize tile collision preview snapshots':

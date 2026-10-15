@@ -616,6 +616,8 @@ export interface ESEngineModule {
     tilemap_hasLayer?(entity: number): boolean;
     tilemap_getEditRevision?(entity: number): number;
     tilemap_getGeneration?(entity: number): number;
+    tilemap_readChunkIndex?(entity: number, rowsPtr: number, capacity: number): number;
+    tilemap_readChunkTiles?(entity: number, chunkX: number, chunkY: number, tilesPtr: number, capacity: number): boolean;
     tilemap_exportChunks?(entity: number): string;
     tilemap_importChunks?(entity: number, encoded: string): boolean;
     renderer_setStage(stage: number): void;

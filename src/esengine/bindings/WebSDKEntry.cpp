@@ -637,6 +637,8 @@ EMSCRIPTEN_BINDINGS(esengine_renderer) {
     emscripten::function("tilemap_hasLayer", &esengine::tilemap_hasLayer);
     emscripten::function("tilemap_getEditRevision", &esengine::tilemap_getEditRevision);
     emscripten::function("tilemap_getGeneration", &esengine::tilemap_getGeneration);
+    emscripten::function("tilemap_readChunkIndex", &esengine::tilemap_readChunkIndex);
+    emscripten::function("tilemap_readChunkTiles", &esengine::tilemap_readChunkTiles);
     emscripten::function("tilemap_setRenderProps", &esengine::tilemap_setRenderProps);
     emscripten::function("tilemap_setTint", &esengine::tilemap_setTint);
     emscripten::function("tilemap_setVisible", &esengine::tilemap_setVisible);

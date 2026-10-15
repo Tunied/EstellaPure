@@ -40,6 +40,10 @@ void tilemap_destroyLayer(u32 entity);
 bool tilemap_hasLayer(u32 entity);
 u32 tilemap_getEditRevision(u32 entity);
 u32 tilemap_getGeneration(u32 entity);
+// Rows are [signed chunk x, signed chunk y, revision], three u32 words each.
+// Returns the required row count without writing when capacity is too small.
+u32 tilemap_readChunkIndex(u32 entity, uintptr_t rowsPtr, u32 capacity);
+bool tilemap_readChunkTiles(u32 entity, i32 chunkX, i32 chunkY, uintptr_t tilesPtr, u32 capacity);
 
 // — Tiles —
 

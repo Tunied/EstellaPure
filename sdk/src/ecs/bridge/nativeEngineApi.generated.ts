@@ -255,6 +255,8 @@ export interface NativeEngineApi {
     tilemap_initInfinite?(entity: number, tileWidth: number, tileHeight: number): void;
     tilemap_initInfiniteLayer?(entity: number, tileWidth: number, tileHeight: number): void;
     tilemap_initLayer?(entity: number, width: number, height: number, tileWidth: number, tileHeight: number): void;
+    tilemap_readChunkIndex?(entity: number, rowsPtr: number, capacity: number): number;
+    tilemap_readChunkTiles?(entity: number, chunkX: number, chunkY: number, tilesPtr: number, capacity: number): boolean;
     tilemap_rotateTile?(entity: number, x: number, y: number, degrees: number): void;
     tilemap_setChunkTiles?(entity: number, chunkX: number, chunkY: number, tilesPtr: number, width: number, height: number): void;
     tilemap_setGridType?(entity: number, type: number): void;
@@ -544,6 +546,8 @@ export function createNativeEngineApi(
     bind('tilemap_initInfinite', 'es_tilemap_initInfinite', false);
     bind('tilemap_initInfiniteLayer', 'es_tilemap_initInfiniteLayer', false);
     bind('tilemap_initLayer', 'es_tilemap_initLayer', false);
+    bind('tilemap_readChunkIndex', 'es_tilemap_readChunkIndex', false);
+    bind('tilemap_readChunkTiles', 'es_tilemap_readChunkTiles', false);
     bind('tilemap_rotateTile', 'es_tilemap_rotateTile', false);
     bind('tilemap_setChunkTiles', 'es_tilemap_setChunkTiles', false);
     bind('tilemap_setGridType', 'es_tilemap_setGridType', false);

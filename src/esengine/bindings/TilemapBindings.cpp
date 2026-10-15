@@ -126,6 +126,34 @@ u32 tilemap_getGeneration(u32 entity) {
     return layer ? layer->generation : 0;
 }
 
+u32 tilemap_readChunkIndex(u32 entity, uintptr_t rowsPtr, u32 capacity) {
+    const auto* layer = getTilemapSystem().getLayerData(Entity::fromRaw(entity));
+    const u32 count = layer ? static_cast<u32>(layer->chunks.size()) : 0;
+    if (count == 0 || capacity < count) return count;
+    auto* out = boundarySpanMut<u8>(rowsPtr, static_cast<u64>(count) * 3 * sizeof(u32), "tilemap_readChunkIndex");
+    if (!out) return 0;
+    for (const auto& [coord, chunk] : layer->chunks) {
+        std::memcpy(out, &coord.x, sizeof(i32));
+        std::memcpy(out + sizeof(u32), &coord.y, sizeof(i32));
+        std::memcpy(out + 2 * sizeof(u32), &chunk.revision, sizeof(u32));
+        out += 3 * sizeof(u32);
+    }
+    return count;
+}
+
+bool tilemap_readChunkTiles(u32 entity, i32 chunkX, i32 chunkY, uintptr_t tilesPtr, u32 capacity) {
+    constexpr u32 cells = tilemap::CHUNK_SIZE * tilemap::CHUNK_SIZE;
+    if (capacity < cells) return false;
+    const auto* layer = getTilemapSystem().getLayerData(Entity::fromRaw(entity));
+    if (!layer) return false;
+    const auto found = layer->chunks.find({chunkX, chunkY});
+    if (found == layer->chunks.end()) return false;
+    auto* out = boundarySpanMut<u8>(tilesPtr, cells * sizeof(u16), "tilemap_readChunkTiles");
+    if (!out) return false;
+    std::memcpy(out, found->second.tiles, cells * sizeof(u16));
+    return true;
+}
+
 void tilemap_setRenderProps(u32 entity, u32 textureHandle, u32 tilesetColumns,
                             f32 uvTileW, f32 uvTileH,
                             i32 sortLayer, f32 depth,
