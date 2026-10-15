@@ -78,6 +78,7 @@ jobs:
         run: node tools/verify-gizmo-legacy-2d.mjs
       - name: Run existing gizmo authoring checks
         if: matrix.suite == 'regression'
+        shell: bash
         working-directory: desktop
         env:
           ESTELLA_MCP_EDITOR_VISIBLE: '1'

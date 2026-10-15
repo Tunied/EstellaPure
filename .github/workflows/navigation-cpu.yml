@@ -20,9 +20,14 @@ jobs:
       - uses: ./.github/actions/setup
       - run: pnpm exec playwright install --with-deps chromium
       - name: Check navigation contracts
+        shell: bash
+        env:
+          SDK_TEST_MODE: no-wasm
+          ESTELLA_NO_EMCC: '1'
         run: |
           mkdir -p output/navigation-cpu-ci
-          pnpm --filter ./sdk exec vitest run nav --maxWorkers=4 --minWorkers=1 | tee output/navigation-cpu-ci/tests.log
+          pnpm --filter ./sdk exec vitest run nav --maxWorkers=4 --minWorkers=1 --reporter=json --outputFile=../output/navigation-cpu-ci/tests.json 2>&1 | tee output/navigation-cpu-ci/tests.log
+          node -e "const r=require('./output/navigation-cpu-ci/tests.json'); if(!r.success || !r.numTotalTests || r.numPendingTests || r.numPassedTests!==r.numTotalTests) process.exit(1); console.log(r.numPassedTests+' navigation tests passed');"
       - name: Measure identical building maps with reference and current searches
         env:
           SEARCH_REFERENCE: ${{ inputs.search-reference }}
