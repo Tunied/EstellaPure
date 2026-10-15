@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Added
+
+- **Spatial rotation adds a view-axis outer ring.** The outer ring remains a screen circle and uses the presented camera axis captured at the press, with absolute twist snapping and the same undo/cancel path. Local inner rings use their rotated world axis; rotation writes, including Alt copies, convert through each target's parent frame. Flat 2D retains its existing Z ring.
+
 ## [0.86.1] - 2026-10-15
 
 ### Fixed

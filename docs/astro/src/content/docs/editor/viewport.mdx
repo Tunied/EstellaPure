@@ -27,7 +27,7 @@ handle:
 |---|---|---|
 | Select | `Q` | Pick / marquee only, no transform handles. |
 | Move | `W` | Projected arrows. Spatial views add XY / YZ / ZX planes and screen-plane movement at the center; head-on 2D keeps X / Y and its center plane. |
-| Rotate | `E` | Projected axis rings; head-on 2D shows the Z ring. |
+| Rotate | `E` | Projected axis rings; spatial views add a circular screen-axis outer ring. Head-on 2D shows the original Z ring. |
 | Scale | `R` | Projected axis boxes. Spatial views add plane handles and XYZ uniform scaling at the center; head-on 2D keeps two-axis center scaling. |
 | Rect | `T` | The selected sprite or UI node's own rectangle grips. |
 | Universal Transform | `Y` | Move arrows and center plane, outer scale boxes and rotation rings together. |
@@ -45,6 +45,13 @@ drag changes only its two named components. Local uses the rotated plane normal.
 The spatial move center follows a plane parallel to the presented camera through
 the selection pivot, captured at the start of the drag. Scale's spatial center
 applies one factor to X, Y and Z. These gestures keep single-step undo and Esc.
+
+The spatial rotation outer ring stays circular on screen. It turns about the
+presented camera's forward axis captured at the press, regardless of Local mode.
+Inner rings use the projected Local or World axis they draw. Rotation writes are
+converted through each target's parent frame, including Alt copies. Outer-ring
+snapping rounds the primary object's signed quaternion twist about the view axis;
+the ring radius and axis remain fixed until the drag ends.
 
 Hovering a transform handle highlights the handle that a press will grab. The
 cursor shows moving, rotation or the projected resize direction. Camera or

@@ -18,13 +18,13 @@ fs.writeFileSync(path.join(project,'src/main.ts'),'export {};');fs.writeFileSync
 const read=`(async()=>{const e=window.__estellaEditor;const snap=()=>{const t=e.surface.serializeScene().entities.find(v=>v.id===1).components.find(c=>c.type==='Transform').data;return {position:t.position??{x:0,y:0,z:0},scale:t.scale??{x:1,y:1,z:1},rotation:t.rotation??{x:0,y:0,z:0,w:1}};};const pose=snap(),layout=e.gizmoLayout();if(!window.__planesRead){window.__planesRead=true;return {pose,layout};}e.surface.undo();const undone=snap();e.surface.setViewPerspective(false);e.surface.setViewOrbit(0,0);e.runCommand('tool.move');await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));return {pose,layout,undone,flatLayout:e.gizmoLayout()};})()`;
 const records=[];
 try{
- for(const axis of ['xy','yz','zx','view','xyz']){
-  const mode=axis==='xyz'?'scale':'move';
-  const point=`(()=>{const g=window.__estellaEditor.gizmoLayout();if(!g?.spatial)throw Error('Missing spatial frame');${axis==='view'||axis==='xyz'?'return g.screen;':`const p=g.planes.find(p=>p.axis==='${axis}');if(!p)throw Error('Missing ${axis} plane');return {x:g.screen.x+p.corners.reduce((n,p)=>n+p.x,0)/4,y:g.screen.y+p.corners.reduce((n,p)=>n+p.y,0)/4};`}})()`;
+ for(const axis of ['xy','yz','zx','view','xyz','rotate-view']){
+  const mode=axis==='xyz'?'scale':axis==='rotate-view'?'rotate':'move';
+  const point=`(()=>{const g=window.__estellaEditor.gizmoLayout();if(!g?.spatial)throw Error('Missing spatial frame');${axis==='rotate-view'?"const r=g.rings.find(r=>r.axis==='view');if(!r)throw Error('Missing view ring');return {x:g.screen.x+r.radius,y:g.screen.y};":axis==='view'||axis==='xyz'?'return g.screen;':`const p=g.planes.find(p=>p.axis==='${axis}');if(!p)throw Error('Missing ${axis} plane');return {x:g.screen.x+p.corners.reduce((n,p)=>n+p.x,0)/4,y:g.screen.y+p.corners.reduce((n,p)=>n+p.y,0)/4};`}})()`;
   const run=runElectron(['.'],{via:'npx',encoding:'utf8',cwd:path.join(root,'desktop'),timeout:180000,env:{
    ESTELLA_SHOT:path.join(out,axis+'.png'),ESTELLA_SHOT_PROJECT:project,ESTELLA_SHOT_SCENE:'assets/scenes/main.esscene',
    ESTELLA_SHOT_EVAL:`(async()=>{const e=window.__estellaEditor;e.runCommand('mode.scene');e.surface.setViewPerspective(true);e.surface.setViewOrbit(45,30);e.surface.select(1);e.frame([1]);await new Promise(r=>setTimeout(r,750));e.runCommand('tool.${mode}');const layout=e.gizmoLayout();if(!layout?.spatial)throw Error('Spatial view was reset before drag: '+JSON.stringify({view:e.editorView(),orbit:e.surface.viewOrbit(),layout}));return {view:e.editorView(),layout};})()`,
-   ESTELLA_SHOT_EDITOR_DRAG:JSON.stringify({selector:'.viewport__stage canvas',point,dx:axis==='xyz'?58:11,dy:axis==='xyz'?0:7,read})}});
+   ESTELLA_SHOT_EDITOR_DRAG:JSON.stringify({selector:'.viewport__stage canvas',point,dx:axis==='rotate-view'?-54:axis==='xyz'?58:11,dy:axis==='rotate-view'?54:axis==='xyz'?0:7,captureAfter:path.join(out,axis+'-spatial.png'),read})}});
   fs.writeFileSync(path.join(out,axis+'.log'),run.stdout+'\n'+run.stderr);
   assert.equal(run.status,0,run.stderr);const line=run.stdout.split('\n').find(l=>l.startsWith('[editorDrag] '));assert(line,'Missing trusted spatial drag: '+axis+'\n'+run.stdout+'\n'+run.stderr);
   const result=JSON.parse(line.slice('[editorDrag] '.length));records.push({axis,...result});
@@ -33,8 +33,14 @@ try{
   assert(result.after.flatLayout,'Missing 2D frame after projection reset');
   assert.equal(result.after.flatLayout.spatial,false,'Tool selection restored the 3D view after switching back to 2D');
   assert.deepEqual(result.after.undone,before,'Single undo did not restore the pose');
-  assert.deepEqual(after.rotation,before.rotation,'Plane drag also rotated the subject');
-  if(axis==='xyz'){
+  if(axis!=='rotate-view')assert.deepEqual(after.rotation,before.rotation,'Plane drag also rotated the subject');
+  if(axis==='rotate-view'){
+   assert.deepEqual(after.position,before.position);assert.deepEqual(after.scale,before.scale);
+   const q=after.rotation,n=result.before.layout.normal;
+   const len=Math.hypot(q.x,q.y,q.z)*Math.hypot(n.x,n.y,n.z);
+   assert(len>1e-6&&Math.abs((q.x*n.x+q.y*n.y+q.z*n.z)/len)>0.9999,'Outer ring did not turn about the presented view axis');
+   assert(Math.abs(2*Math.acos(Math.min(1,Math.abs(q.w)))-Math.PI/2)<0.04,'Outer ring did not turn a quarter circle');
+  }else if(axis==='xyz'){
    assert.deepEqual(after.position,before.position);const s=after.scale;
    assert(s.x>1.8&&s.x<2.2,'Uniform scale missed its center handle');
    assert(Math.abs(s.x-s.y)<1e-6&&Math.abs(s.y-s.z)<1e-6,'Spatial center did not scale XYZ equally');
@@ -50,7 +56,8 @@ try{
    }
   }
   assert(fs.existsSync(path.join(out,axis+'.png')),'Missing restored-pose screenshot');
+  assert(fs.existsSync(path.join(out,axis+'-spatial.png')),'Missing changed spatial-pose screenshot');
  }
  fs.writeFileSync(path.join(out,'checks.json'),JSON.stringify({status:'checks-passed',records},null,2));
- console.log('Spatial gizmos: XY/YZ/ZX, screen movement, XYZ scale and single-step undo pass');
+ console.log('Spatial gizmos: XY/YZ/ZX, screen movement, XYZ scale, view rotation and single-step undo pass');
 }finally{if(!project.startsWith(out+path.sep))throw Error('Unexpected cleanup path');fs.rmSync(project,{recursive:true,force:true,maxRetries:10,retryDelay:50});}

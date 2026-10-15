@@ -56,6 +56,8 @@ export const NOTED = {
     { note: 'Web audio startup failures release pooled nodes and keep resumes retryable.' },
   'fix(tilemap): clip fills and preserve signed coordinate edges':
     { note: 'Tilemap rectangle fills clip safely across integer coordinate bounds.' },
+  'feat(viewport): rotate around the view-axis outer ring':
+    { note: 'Spatial rotation adds a view-axis outer ring.' },
   'fix(animation): keep paused sprite motions out of exit transitions':
     { note: 'Paused sprite motions wait for actual completion before exit transitions.' },
   'feat(viewport): add spatial plane and center handles':
