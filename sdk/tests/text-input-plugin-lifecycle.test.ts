@@ -282,3 +282,22 @@ it('renders a newly focused field from its value until the surface is attached',
     await app.tick(1 / 60);
     expect(app.world.getEntitiesWithComponents([Text]).map(e => app.world.get(e, Text).content)).toEqual(['typed']);
 });
+
+it.each([
+    { value: '🙂', maxLength: 1, expected: '' },
+    { value: 'a🙂b', maxLength: 2, expected: 'a' },
+    { value: 'a🙂b', maxLength: 3, expected: 'a🙂' },
+    { value: '中文', maxLength: 1, expected: '中' },
+    { value: '\ud83dX', maxLength: 1, expected: '\ud83d' },
+])('clamps oversized host input at complete UTF-16 characters: $maxLength of $value', async ({ value, maxLength, expected }) => {
+    const app = build(new TextInputPlugin());
+    const field = app.world.spawn();
+    app.world.insert(field, TextInput, { value: '', maxLength });
+    app.getResource(FocusManager).focus(field);
+    await app.tick(1 / 60);
+    vi.spyOn(surfaces[0], 'read').mockReturnValue({ value, selectionStart: value.length, selectionEnd: value.length, backward: false });
+    for (const listener of surfaces[0].listeners) listener({ kind: 'change' });
+    expect(app.world.get(field, TextInput).value).toBe(expected);
+    expect(app.world.get(field, TextInput).cursorPos).toBe(expected.length);
+    expect(surfaces[0].write).toHaveBeenCalledWith({ value: expected, selectionStart: expected.length, selectionEnd: expected.length, backward: false });
+});

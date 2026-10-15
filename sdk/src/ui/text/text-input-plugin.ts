@@ -193,6 +193,13 @@ export class TextInputPlugin implements Plugin {
             let val = state.value;
             if (ti.maxLength > 0 && val.length > ti.maxLength) {
                 val = val.substring(0, ti.maxLength);
+                // maxLength counts UTF-16 units, but a cut between a surrogate
+                // pair must reject the whole character rather than store half.
+                const tail = val.charCodeAt(val.length - 1);
+                const next = state.value.charCodeAt(val.length);
+                if (tail >= 0xd800 && tail <= 0xdbff && next >= 0xdc00 && next <= 0xdfff) {
+                    val = val.slice(0, -1);
+                }
                 editor!.write({ ...state, value: val, selectionStart: val.length, selectionEnd: val.length });
             }
 

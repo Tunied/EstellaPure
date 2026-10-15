@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ui): preserve surrogate pairs when clamping host input':
+    { note: 'Text-input length limits preserve complete supplementary characters.' },
   'fix(ui): bind field rendering to the active editing owner':
     { note: 'Text fields read only the editing surface they actually own.' },
   'feat(editor): inspect live agent route failures on demand':

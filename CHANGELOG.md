@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Text-input length limits preserve complete supplementary characters.** Oversized host input still uses UTF-16 length limits, but truncation backs off when the boundary would split a valid surrogate pair. The corrected value and selection return to the editing surface together, preventing malformed emoji in committed input while preserving BMP limits and existing cursor semantics.
+
 - **Text fields read only the editing surface they actually own.** Newly focused fields retain their committed display until attached, and read-only fields never borrow a previous field's transient value. Switching a live field to read-only detaches the OS surface and hides its caret; restoring editability reattaches the committed value without replaying rejected input.
 
 - **Grid path searches reuse their working memory.** Repeated queries reuse per-grid score, parent, visitation and heap storage instead of allocating map-sized buffers each time. Search stamps isolate queries, nested searches receive separate storage, exceptions release leases, and returned routes remain caller-owned. Weighted paths, snapping and best-effort endpoints retain their behavior.
