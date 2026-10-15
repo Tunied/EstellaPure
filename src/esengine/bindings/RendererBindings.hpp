@@ -319,6 +319,9 @@ emscripten::val registry_getCameraEntities(ecs::Registry& registry);
 emscripten::val getChildEntities(ecs::Registry& registry, u32 entity);
 #endif
 u32 registry_getGeneration(ecs::Registry& registry, u32 entity);
+// Read composed world poses for valid, active entities with a Transform.
+// Output has room for count EntityPose2D rows; returns the number written.
+int registry_readWorldPoses2D(ecs::Registry& registry, uintptr_t entitiesPtr, int count, uintptr_t outputPtr);
 void registry_batchSyncPhysicsTransforms(ecs::Registry& registry, uintptr_t bufferPtr, int count, float ppu);
 
 }  // namespace esengine

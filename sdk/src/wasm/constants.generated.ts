@@ -14,6 +14,9 @@
 /** C++ `CHUNK_SIZE` in `src/esengine/tilemap/TilemapSystem.hpp`. */
 export const CHUNK_SIZE = 16;
 
+/** C++ `ENTITY_POSE_2D_WORDS` in `src/esengine/core/EntityPose2D.hpp`. */
+export const ENTITY_POSE_2D_WORDS = 4;
+
 /** C++ `kColorLutSize` in `src/esengine/particle/ParticleSystem.hpp`. */
 export const GRADIENT_LUT_SIZE = 32;
 

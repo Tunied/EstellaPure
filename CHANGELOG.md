@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Moving static collision uses a shared batch pose channel.** The engine exports composed 2D poses for selected active entities and physics applies them in one call, skipping unchanged solver poses. Web modules copy populated rows between their heaps; native hosts use their shared arena. Batch rows share a generated C++ stride, lazy world fields are decomposed before export, temporary buffers are released on failure, and hosts without the new calls keep the scalar path.
+
 - **Static physics synchronization skips unchanged body groups.** Authored Transform writes select individual static bodies, while each immediate parent's composed frame selects only its affected children. Unrelated dynamic or authored motion avoids per-body change checks and pose reads. Reparenting, re-enabling and pixels-per-unit edits refresh the correct bodies. Paused simulations release write history and refresh poses on resume; plugin cleanup releases the reader and frame/despawn observers.
 
 ## [0.89.0] - 2026-10-16

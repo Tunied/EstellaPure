@@ -45,6 +45,7 @@ import {
 import { withMalloc } from '../wasm/wasmScratch';
 import { engineApi, type EngineApi } from '../ecs/bridge/engineApi';
 import { StaticBodyPoses2D } from './StaticBodyPoses2D';
+import { ENTITY_POSE_2D_WORDS } from '../wasm/constants.generated';
 
 /**
  * The engine surface this file drives. `getTransformPtr` is the web module's own
@@ -361,7 +362,7 @@ function syncOneWayPlatforms(
 // =============================================================================
 
 
-const PHYSICS_BODY_STRIDE = 4; // u32 entity + 3x f32 (x, y, angle)
+const PHYSICS_BODY_STRIDE = ENTITY_POSE_2D_WORDS;
 const PHYSICS_BODY_BYTES = PHYSICS_BODY_STRIDE * 4;
 
 /**

@@ -5,7 +5,7 @@ Symbols: 115 public · 91 beta · 1581 experimental · 3 deprecated
 
 ## ABI_LAYOUT_HASH — const @experimental
 ```
-"73d45f32834f0b85"
+"0c84aca932384575"
 ```
 
 ## ANCHOR_AXES — const @experimental
@@ -5917,6 +5917,7 @@ _physics_setAwake: (entityId: number, awake: number) => void
 _physics_setBodyEnabled: (entityId: number, enabled: number) => void
 _physics_setBodyTargetTransform: (entityId: number, x: number, y: number, angle: number, dt: number) => void
 _physics_setBodyTransform: (entityId: number, x: number, y: number, angle: number) => void
+_physics_setBodyTransforms: ((bufferPtr: number, count: number, ppu: number) => number) | undefined
 _physics_setDistanceJointLength: (entityId: number, length: number) => void
 _physics_setDistanceJointLimits: (entityId: number, minLength: number, maxLength: number) => void
 _physics_setDistanceJointMaxMotorForce: (entityId: number, force: number) => void

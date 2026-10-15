@@ -2,6 +2,8 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 #include "./PhysicsContext.hpp"
 #include "./PhysicsTaskPool.hpp"
+#include "../../BoundarySpan.hpp"
+#include "../../../core/EntityPose2D.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -259,6 +261,31 @@ void physics_setBodyTransform(uint32_t entityId, float x, float y, float angle) 
     if (!b2Body_IsValid(it->second)) return;
 
     b2Body_SetTransform(it->second, {x, y}, b2MakeRot(angle));
+}
+
+EMSCRIPTEN_KEEPALIVE
+int physics_setBodyTransforms(uintptr_t bufferPtr, int count, float ppu) {
+    using namespace esengine;
+    if (count <= 0 || bufferPtr % alignof(EntityPose2D) || !std::isfinite(ppu) || ppu <= 0) return 0;
+    const auto* rows = boundarySpan<EntityPose2D>(bufferPtr, static_cast<u64>(count), "physics_setBodyTransforms");
+    if (!rows) return 0;
+    const double invPpu = 1.0 / static_cast<double>(ppu);
+    int changed = 0;
+    for (int i = 0; i < count; ++i) {
+        const auto& pose = rows[i];
+        if (!std::isfinite(pose.x) || !std::isfinite(pose.y) || !std::isfinite(pose.angle)) continue;
+        const auto it = g_ctx.entityToBody.find(pose.entity);
+        if (it == g_ctx.entityToBody.end() || !b2Body_IsValid(it->second)) continue;
+        const b2Vec2 next = {static_cast<float>(pose.x * invPpu), static_cast<float>(pose.y * invPpu)};
+        if (!b2IsValidVec2(next)) continue;
+        const b2Rot rotation = b2MakeRot(pose.angle);
+        const b2Vec2 position = b2Body_GetPosition(it->second);
+        const b2Rot current = b2Body_GetRotation(it->second);
+        if (position.x == next.x && position.y == next.y && current.c == rotation.c && current.s == rotation.s) continue;
+        b2Body_SetTransform(it->second, next, rotation);
+        ++changed;
+    }
+    return changed;
 }
 
 // Drive a kinematic body toward a target pose over `dt`, deriving its

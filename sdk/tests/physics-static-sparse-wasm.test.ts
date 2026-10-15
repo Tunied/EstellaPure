@@ -23,6 +23,8 @@ async function scene() {
     app.connectCpp(new engine.Registry(), engine, { ownedRegistry: true });
     const module = await loadSideModule<PhysicsWasmModule>('physics');
     const move = vi.spyOn(module, '_physics_setBodyTransform');
+    vi.spyOn(module, '_physics_setBodyTransforms');
+    const bulk = vi.mocked(module._physics_setBodyTransforms!);
     const plugin = new Physics2DPlugin('', { gravity: { x: 0, y: 0 }, fixedTimestep: 1 / 60 }, async () => module);
     app.addPlugin(plugin);
     await app.getResource(Physics2DRuntime).initPromise;
@@ -35,17 +37,17 @@ async function scene() {
         world.insert(body, BoxCollider2D, { halfExtents: { x: .05, y: .05 }, radius: 0 });
         world.setParent(body, parent);
     }
-    await app.stepFrames(3, 1 / 60); move.mockClear();
+    await app.stepFrames(3, 1 / 60); move.mockClear(); bulk.mockClear();
     const hit = (body = bodies[0], y = 0) => app.getResource(Physics2D).raycast({ x: -50, y }, { x: 1, y: 0 }, 300)
         .find(value => value.entity === body);
-    return { app, world, module, move, plugin, parent, unrelated, bodies, hit };
+    return { app, world, module, move, bulk, plugin, parent, unrelated, bodies, hit };
 }
 
 describe.skipIf(!HAS_WASM || !hasSideModule('physics'))('sparse static physics synchronization', () => {
     beforeAll(async () => { engine = await loadWasmModule(); });
 
     it('ignores unrelated authored motion and reads only the edited static child', async () => {
-        const { app, world, move, unrelated, bodies, hit } = await scene();
+        const { app, world, move, bulk, unrelated, bodies, hit } = await scene();
         const ids = new Set(bodies), get = vi.spyOn(world, 'get'), changed = vi.spyOn(world, 'isChangedSince');
         for (let i = 0; i < 20; i++) {
             world.update(unrelated, Transform, value => { value.position.x++; });
@@ -54,25 +56,29 @@ describe.skipIf(!HAS_WASM || !hasSideModule('physics'))('sparse static physics s
         expect(get.mock.calls.filter(([id, c]) => c === Transform && ids.has(id))).toHaveLength(0);
         expect(changed.mock.calls.filter(([id, c]) => c === Transform && ids.has(id))).toHaveLength(0);
         expect(move).not.toHaveBeenCalled();
+        expect(bulk).not.toHaveBeenCalled();
         world.update(bodies[0], Transform, value => { value.position.x += 7; }); get.mockClear();
         await app.stepFrames(2, 1 / 60);
-        expect(get.mock.calls.filter(([id, c]) => c === Transform && ids.has(id)).map(([id]) => id)).toEqual([bodies[0]]);
-        expect(move).toHaveBeenCalledOnce(); expect(hit()?.point.x).toBeCloseTo(2, 3);
+        expect(get.mock.calls.filter(([id, c]) => c === Transform && ids.has(id))).toHaveLength(0);
+        expect(move).not.toHaveBeenCalled(); expect(bulk).toHaveBeenCalledOnce();
+        expect(bulk.mock.calls[0][1]).toBe(1); expect(bulk.mock.results[0].value).toBe(1);
+        expect(hit()?.point.x).toBeCloseTo(2, 3);
     });
 
     it('observes a native-driven parent while unrelated static groups stay untouched', async () => {
-        const { app, world, parent, bodies, move, hit } = await scene();
+        const { app, world, parent, bodies, move, bulk, hit } = await scene();
         const stableParent = world.spawn(), stableBody = world.spawn();
         world.insert(stableParent, Transform); world.insert(stableBody, Transform, { position: { x: 0, y: 500, z: 0 } });
         world.insert(stableBody, RigidBody2D, { bodyType: BodyType.Static });
         world.insert(stableBody, BoxCollider2D); world.setParent(stableBody, stableParent);
-        await app.stepFrames(2, 1 / 60); move.mockClear();
+        await app.stepFrames(2, 1 / 60); move.mockClear(); bulk.mockClear();
         const get = vi.spyOn(world, 'get');
         // Native/AOT producers invalidate composition without recording a JS write.
         const ptr = engine.getTransformPtr(world.getCppRegistry()!, parent) >> 2;
         engine.HEAPF32[ptr + 1] = 30; world.invalidateTransformComposition();
         await app.stepFrames(2, 1 / 60);
-        expect(move).toHaveBeenCalledTimes(bodies.length);
+        expect(move).not.toHaveBeenCalled(); expect(bulk).toHaveBeenCalledOnce();
+        expect(bulk.mock.results[0].value).toBe(bodies.length);
         expect(hit(bodies[0], 30)?.point.x).toBeCloseTo(-5, 3);
         expect(get.mock.calls.filter(([id, c]) => id === stableBody && c === Transform)).toHaveLength(0);
     });

@@ -74,8 +74,11 @@ describe.skipIf(!HAS_WASM || !hasSideModule('physics'))('static Box2D transform 
         const driver = parented ? world.spawn() : body;
         if (parented) { world.insert(driver, Transform, {}); world.setParent(body, driver); }
         const move = vi.spyOn(module, '_physics_setBodyTransform');
+        vi.spyOn(module, '_physics_setBodyTransforms');
+        const bulk = vi.mocked(module._physics_setBodyTransforms!);
         const create = vi.spyOn(module, '_physics_createBody');
         await app.stepFrames(2, 1 / 30);
+        move.mockClear(); bulk.mockClear();
         const api = app.getResource(Physics2D);
         const hit = () => api.raycast({ x: -50, y: 0 }, { x: 1, y: 0 }, 200).find(value => value.entity === body)!;
         const before = hit().point.x;
@@ -83,15 +86,18 @@ describe.skipIf(!HAS_WASM || !hasSideModule('physics'))('static Box2D transform 
         await app.stepFrames(2, 1 / 30);
         expect(hit().point.x).toBeCloseTo(before + 30, 3);
         expect(create).toHaveBeenCalledTimes(1);
-        expect(move.mock.calls).toHaveLength(1);
-        move.mockClear();
+        expect(move).not.toHaveBeenCalled(); expect(bulk).toHaveBeenCalledOnce();
+        expect(bulk.mock.results[0].value).toBe(1);
+        move.mockClear(); bulk.mockClear();
         await app.stepFrames(20, 1 / 30);
         expect(move).not.toHaveBeenCalled();
+        expect(bulk).not.toHaveBeenCalled();
         expect(module._physics_hasBody(body)).toBe(1);
         world.update(body, Transform, value => { value.position.x += 20; });
         await app.stepFrames(2, 1 / 30);
         expect(hit().point.x).toBeCloseTo(before + 50, 3);
-        expect(move.mock.calls).toHaveLength(1);
+        expect(move).not.toHaveBeenCalled(); expect(bulk).toHaveBeenCalledOnce();
+        expect(bulk.mock.results[0].value).toBe(1);
     });
     it('keeps batched dynamic writeback when static bodies have parents', async () => {
         const app = App.new(); apps.push(app);

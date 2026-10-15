@@ -49,6 +49,8 @@ export interface PhysicsWasmModule {
     _physics_step(dt: number): void;
 
     _physics_setBodyTransform(entityId: number, x: number, y: number, angle: number): void;
+    /** Batch world-pixel poses; returns how many live bodies actually moved. */
+    _physics_setBodyTransforms?(bufferPtr: number, count: number, ppu: number): number;
     _physics_setBodyTargetTransform(entityId: number, x: number, y: number, angle: number, dt: number): void;
     _physics_getDynamicBodyCount(): number;
     _physics_getBodyCount(): number;

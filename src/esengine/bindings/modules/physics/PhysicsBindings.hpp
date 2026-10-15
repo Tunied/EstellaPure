@@ -48,6 +48,8 @@ int physics_hasBody(uint32_t entityId);
 void physics_setBodyEnabled(uint32_t entityId, int enabled);
 void physics_step(float dt);
 void physics_setBodyTransform(uint32_t entityId, float x, float y, float angle);
+// EntityPose2D rows in world pixels, converted with the live pixels-per-unit.
+int physics_setBodyTransforms(uintptr_t bufferPtr, int count, float ppu);
 void physics_setBodyTargetTransform(uint32_t entityId, float x, float y, float angle, float dt);
 int physics_getDynamicBodyCount();
 // Resource-census counters: what physics is still holding, including the static

@@ -686,6 +686,7 @@ export interface ESEngineModule {
     getChildEntities(registry: CppRegistry, entity: number): number[];
     registry_getGeneration(registry: CppRegistry, entity: number): number;
     registry_batchSyncPhysicsTransforms(registry: CppRegistry, bufferPtr: number, count: number, ppu: number): void;
+    registry_readWorldPoses2D?(registry: CppRegistry, entitiesPtr: number, count: number, outputPtr: number): number;
 
     // GL Debug API
     gl_enableErrorCheck(enabled: boolean): void;

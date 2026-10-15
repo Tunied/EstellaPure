@@ -5,6 +5,7 @@ import type { World } from '../ecs/world';
 import type { Entity } from '../types';
 import type { PhysicsWasmModule } from './PhysicsModuleLoader';
 import { quatToAngleZ } from './PhysicsTypes';
+import { batchStaticPoses2D } from './batchStaticPoses2D';
 
 interface StaticPose { x: number; y: number; angle: number; parent: Entity | null }
 
@@ -18,6 +19,7 @@ export class StaticBodyPoses2D {
     private epoch = -1;
     private tick = -1;
     private ppu = -1;
+    private legacyStale = false;
 
     constructor(private readonly world: World) {}
 
@@ -76,27 +78,36 @@ export class StaticBodyPoses2D {
                 } else this.parents.delete(parent);
                 if (!all && changed) changedParents.add(parent);
             }
-            const invPpu = 1 / ppu;
-            const sync = (entity: Entity) => {
-                if (!enabled(entity) || !world.isEntityActive(entity)) return;
-                const pose = this.poses.get(entity)!;
-                const tf = world.get(entity, Transform) as TransformData;
-                const position = pose.parent !== null ? tf.worldPosition : tf.position;
-                const rotation = pose.parent !== null ? tf.worldRotation : tf.rotation;
-                const x = position.x * invPpu, y = position.y * invPpu, angle = quatToAngleZ(rotation);
-                if (pose.x !== x || pose.y !== y || pose.angle !== angle) {
-                    module._physics_setBodyTransform(entity, x, y, angle);
-                    pose.x = x; pose.y = y; pose.angle = angle;
-                }
-            };
-            if (all) for (const entity of this.poses.keys()) sync(entity);
+            const selected: Entity[] = [];
+            if (all) for (const entity of this.poses.keys()) selected.push(entity);
             else {
-                for (const parent of changedParents) for (const entity of this.groups.get(parent)!) sync(entity);
+                for (const parent of changedParents) for (const entity of this.groups.get(parent)!) selected.push(entity);
                 const written = new Set(world.getWrittenEntitiesSince(Transform, this.tick));
                 for (const entity of written) {
                     const pose = this.poses.get(entity);
-                    if (pose && (pose.parent === null || !changedParents.has(pose.parent))) sync(entity);
+                    if (pose && (pose.parent === null || !changedParents.has(pose.parent))) selected.push(entity);
                 }
+            }
+            if (batchStaticPoses2D(world, module, selected, ppu, enabled)) this.legacyStale = true;
+            else {
+                if (this.legacyStale) {
+                    for (const pose of this.poses.values()) pose.x = NaN;
+                    this.legacyStale = false;
+                }
+                const invPpu = 1 / ppu;
+                const sync = (entity: Entity) => {
+                    if (!enabled(entity) || !world.isEntityActive(entity)) return;
+                    const pose = this.poses.get(entity)!;
+                    const tf = world.get(entity, Transform) as TransformData;
+                    const position = pose.parent !== null ? tf.worldPosition : tf.position;
+                    const rotation = pose.parent !== null ? tf.worldRotation : tf.rotation;
+                    const x = position.x * invPpu, y = position.y * invPpu, angle = quatToAngleZ(rotation);
+                    if (pose.x !== x || pose.y !== y || pose.angle !== angle) {
+                        module._physics_setBodyTransform(entity, x, y, angle);
+                        pose.x = x; pose.y = y; pose.angle = angle;
+                    }
+                };
+                for (const entity of selected) sync(entity);
             }
         }
         this.epoch = world.transformEpoch();

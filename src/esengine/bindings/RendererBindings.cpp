@@ -23,6 +23,7 @@
 #include "../ecs/Registry.hpp"
 #include "../ecs/TransformSystem.hpp"
 #include "../core/World.hpp"
+#include "../core/EntityPose2D.hpp"
 #include "../ecs/components/Camera.hpp"
 #include "../ecs/components/Canvas.hpp"
 #include "../ecs/components/Transform.hpp"
@@ -1212,6 +1213,24 @@ emscripten::val getChildEntities(ecs::Registry& registry, u32 entity) {
 
 u32 registry_getGeneration(ecs::Registry& registry, u32 entity) {
     return Entity::fromRaw(entity).generation();
+}
+
+int registry_readWorldPoses2D(ecs::Registry& registry, uintptr_t entitiesPtr, int count, uintptr_t outputPtr) {
+    if (count <= 0 || entitiesPtr % alignof(u32) || outputPtr % alignof(EntityPose2D)) return 0;
+    const auto* ids = boundarySpan<u32>(entitiesPtr, static_cast<u64>(count), "registry_readWorldPoses2D.entities");
+    auto* output = boundarySpanMut<EntityPose2D>(outputPtr, static_cast<u64>(count), "registry_readWorldPoses2D.output");
+    if (!ids || !output) return 0;
+    int written = 0;
+    for (int i = 0; i < count; ++i) {
+        const auto entity = Entity::fromRaw(ids[i]);
+        if (!registry.valid(entity) || !registry.isEntityActive(entity) || !registry.has<ecs::Transform>(entity)) continue;
+        auto& tf = registry.get<ecs::Transform>(entity);
+        tf.ensureDecomposed();
+        const auto& q = tf.worldRotation;
+        const f32 angle = std::atan2(2.0f * (q.w * q.z + q.x * q.y), 1.0f - 2.0f * (q.y * q.y + q.z * q.z));
+        output[written++] = {entity.id(), tf.worldPosition.x, tf.worldPosition.y, angle};
+    }
+    return written;
 }
 
 void registry_batchSyncPhysicsTransforms(ecs::Registry& registry, uintptr_t bufferPtr, int count, float ppu) {

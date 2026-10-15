@@ -125,6 +125,7 @@ export interface NativeEngineApi {
     registry_batchSyncPhysicsTransforms?(registry: unknown, bufferPtr: number, count: number, ppu: number): void;
     registry_getCanvasEntity?(registry: unknown): number;
     registry_getGeneration?(registry: unknown, entity: number): number;
+    registry_readWorldPoses2D?(registry: unknown, entitiesPtr: number, count: number, outputPtr: number): number;
     renderer_begin?(matrixPtr: number, targetHandle: number, clearFlags: number, r: number, g: number, b: number, a: number, clearX: number, clearY: number, clearW: number, clearH: number): void;
     renderer_beginFrame?(elapsedSec: number): void;
     renderer_beginScreenOverlay?(projectionPtr: number, vpX: number, vpY: number, vpW: number, vpH: number): void;
@@ -416,6 +417,7 @@ export function createNativeEngineApi(
     bind('registry_batchSyncPhysicsTransforms', 'es_registry_batchSyncPhysicsTransforms', true);
     bind('registry_getCanvasEntity', 'es_registry_getCanvasEntity', true);
     bind('registry_getGeneration', 'es_registry_getGeneration', true);
+    bind('registry_readWorldPoses2D', 'es_registry_readWorldPoses2D', true);
     bind('renderer_begin', 'es_renderer_begin', false);
     bind('renderer_beginFrame', 'es_renderer_beginFrame', false);
     bind('renderer_beginScreenOverlay', 'es_renderer_beginScreenOverlay', false);

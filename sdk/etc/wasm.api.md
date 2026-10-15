@@ -408,6 +408,7 @@ registry_getCameraEntities: (registry: CppRegistry) => number[]
 registry_getCanvasEntities: ((registry: CppRegistry) => number[]) | undefined
 registry_getCanvasEntity: (registry: CppRegistry) => number
 registry_getGeneration: (registry: CppRegistry, entity: number) => number
+registry_readWorldPoses2D: ((registry: CppRegistry, entitiesPtr: number, count: number, outputPtr: number) => number) | undefined
 renderer_begin: (matrixPtr: number, targetHandle: number, clearFlags: number, r: number, g: number, b: number, a: number, clearX: number, clearY: number, clearW: number, clearH: number) => void
 renderer_beginFrame: (elapsedSec: number) => void
 renderer_beginScreenOverlay: ((projectionPtr: number, vpX: number, vpY: number, vpW: number, vpH: number) => void) | undefined
