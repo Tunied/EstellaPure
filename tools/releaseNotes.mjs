@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'test(nav): yield fixed-step capture work to the compositor':
+    { internal: 'Headless workshop acceptance yields between fixed simulation batches so software rendering can drain before screenshots, and persists sampled facts before capture failures.' },
   'fix(nav): apply grid obstacle changes without bake throttling':
     { note: '2D navigation doors close without the mesh bake delay.' },
   'fix(nav): pass occupied intermediate grid waypoints safely':

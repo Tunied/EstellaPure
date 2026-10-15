@@ -21,6 +21,14 @@ const server = await serveHost(dir);
 const origin = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch({ headless: true, args: ['--enable-unsafe-swiftshader','--use-angle=swiftshader','--mute-audio'] });
 const records = [], errors = [];
+// Yield to the compositor between fixed simulation batches. Software GL must
+// consume its render queue before a screenshot; simulation time stays fixed.
+const advance = async (page, frames) => {
+    for(let done=0;done<frames;done+=30) {
+        await page.evaluate(n=>window.__estellaCooked.step(n,1/60),Math.min(30,frames-done));
+        await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>resolve())));
+    }
+};
 // Sample trusted key edges before the paused animation loop clears frame input.
 const pressAndStep = async (page, code) => {
     await page.evaluate(code => {
@@ -47,7 +55,7 @@ try {
     await page.waitForFunction(()=>{const e=document.getElementById('es-splash');return !e||Number(getComputedStyle(e).opacity)===0;});
     const facts = () => page.evaluate(() => window.__estellaCooked.facts());
     const paused = value => page.evaluate(v => window.__estellaCooked.setPaused(v), value);
-    const step = n => page.evaluate(n => window.__estellaCooked.step(n,1/60), n);
+    const step = n => advance(page,n);
     const click = async name => {
         await paused(false);
         const box = await page.evaluate(name => window.__estellaCooked.probe([name]).at[name], name);
@@ -60,8 +68,8 @@ try {
         const value = await facts();
         const positions=await page.evaluate(n=>window.__estellaCooked.probe(Array.from({length:n},(_,i)=>`Courier ${String(i+1).padStart(2,'0')}`)).at,value.couriers);
         records.push({name,facts:value,positions});
-        await page.screenshot({path:path.join(out,name+'.png')});
         fs.writeFileSync(path.join(out,'observations.json'),JSON.stringify({...identity,records,errors},null,2));
+        await page.screenshot({path:path.join(out,name+'.png')});
         return value;
     };
     await snapshot('courtyard');
@@ -94,6 +102,7 @@ try {
                 // Float32 position tolerance, in world pixels (tile width 32).
                 if(distance<8-0.001)overlaps.push({frame:i,name,x:p.x,y:p.y,distance}); }
             if(i%10===0)trail.push(at['Courier 07']);
+            if(i%30===29)await new Promise(resolve=>requestAnimationFrame(()=>resolve()));
         }
         return {trail,overlaps,maxPenetration,contactTolerance:0.001,facts:host.facts(),positions:host.probe(names).at};
     },{frames,count});
@@ -143,13 +152,14 @@ try {
     await authored.waitForFunction(()=>{const f=window.__estellaCooked?.facts();return f?.couriers===8 && f.waiting+f.arrived===8;});
     await authored.waitForFunction(()=>{const e=document.getElementById('es-splash');return !e||Number(getComputedStyle(e).opacity)===0;});
     assert(sceneRequests>0,'Authored scene override was not loaded');
-    await authored.evaluate(()=>{window.__estellaCooked.setPaused(true);window.__estellaCooked.step(480,1/60);});
+    await authored.evaluate(()=>window.__estellaCooked.setPaused(true));
+    await advance(authored,480);
     const initial=await authored.evaluate(()=>window.__estellaCooked.facts());
     assert.equal(initial.gateClosed,true,'Authored closed gate was reset at startup');
     assert.equal(initial.warehousePlaced,true,'Authored warehouse was reset at startup');
     assert.equal(initial.arrived,0); assert.equal(initial.leftOfGate,8);
     await pressAndStep(authored, 'KeyG');
-    await authored.evaluate(()=>window.__estellaCooked.step(1200,1/60));
+    await advance(authored,1200);
     const delivered=await authored.evaluate(()=>window.__estellaCooked.facts());
     assert.equal(delivered.gateClosed,false); assert.equal(delivered.warehousePlaced,true);
     assert.equal(delivered.arrived,8,'Authored obstacle layout did not resume delivery after opening');
