@@ -47,6 +47,7 @@ const { TextInputPlugin } = await import('../src/ui/text/text-input-plugin');
 const { FocusManager, FocusManagerState } = await import('../src/ui/input/focusable');
 const { UIEvents, UIEventQueue } = await import('../src/ui/core/events');
 const { TextInput } = await import('../src/ui/text/text-input');
+const { Text } = await import('../src/ui/core/text');
 const { defineSystem, Schedule } = await import('../src/ecs/system');
 const { Disabled, Transform } = await import('../src/ecs/component');
 const { UINode } = await import('../src/ui/core/ui-node');
@@ -228,4 +229,56 @@ it('releases each App measurement atlas without disposing the newer field atlas'
     second.quit();
     second.quit();
     expect(measurements[1].dispose).toHaveBeenCalledOnce();
+});
+
+it('renders a focused read-only field from its own value without reading the unattached editor', async () => {
+    dimensions.width.mockReturnValue(160);
+    dimensions.height.mockReturnValue(40);
+    const app = build(new TextInputPlugin());
+    const field = app.world.spawn();
+    app.world.insert(field, Transform, {});
+    app.world.insert(field, UINode, {});
+    app.world.insert(field, TextInput, { value: 'locked value', readOnly: true });
+    app.getResource(FocusManager).focus(field);
+    await app.tick(1 / 60);
+    const texts = app.world.getEntitiesWithComponents([Text]).map(e => app.world.get(e, Text).content);
+    expect(texts).toEqual(['locked value']);
+    expect(surfaces[0].focus).not.toHaveBeenCalled();
+    expect(app.world.get(field, TextInput).focused).toBe(false);
+});
+
+it('detaches the editing surface on a read-only transition and reattaches when editing returns', async () => {
+    const app = build(new TextInputPlugin());
+    const field = app.world.spawn();
+    app.world.insert(field, TextInput, { value: 'original' });
+    app.getResource(FocusManager).focus(field);
+    await app.tick(1 / 60);
+    app.world.update(field, TextInput, ti => { ti.readOnly = true; });
+    for (const listener of surfaces[0].listeners) listener({ kind: 'change' });
+    expect(app.world.get(field, TextInput).value).toBe('original');
+    await app.tick(1 / 60);
+    expect(surfaces[0].blur).toHaveBeenCalledOnce();
+    expect(app.world.get(field, TextInput).focused).toBe(false);
+    expect(app.getResource(FocusManager).focusedEntity).toBe(field);
+    app.world.update(field, TextInput, ti => { ti.readOnly = false; });
+    await app.tick(1 / 60);
+    expect(surfaces[0].focus).toHaveBeenCalledTimes(2);
+    for (const listener of surfaces[0].listeners) listener({ kind: 'change' });
+    expect(app.world.get(field, TextInput).value).toBe('typed');
+});
+
+it('renders a newly focused field from its value until the surface is attached', async () => {
+    dimensions.width.mockReturnValue(160);
+    dimensions.height.mockReturnValue(40);
+    const app = build(new TextInputPlugin());
+    const field = app.world.spawn();
+    app.world.insert(field, Transform, {});
+    app.world.insert(field, UINode, {});
+    app.world.insert(field, TextInput, { value: 'new field' });
+    app.getResource(FocusManager).focus(field);
+    await app.tick(1 / 60);
+    expect(app.world.getEntitiesWithComponents([Text]).map(e => app.world.get(e, Text).content)).toEqual(['new field']);
+    expect(surfaces[0].focus).toHaveBeenCalledOnce();
+    await app.tick(1 / 60);
+    expect(app.world.getEntitiesWithComponents([Text]).map(e => app.world.get(e, Text).content)).toEqual(['typed']);
 });

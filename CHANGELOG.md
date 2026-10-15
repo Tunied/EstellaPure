@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Text fields read only the editing surface they actually own.** Newly focused fields retain their committed display until attached, and read-only fields never borrow a previous field's transient value. Switching a live field to read-only detaches the OS surface and hides its caret; restoring editability reattaches the committed value without replaying rejected input.
+
 - **Grid path searches reuse their working memory.** Repeated queries reuse per-grid score, parent, visitation and heap storage instead of allocating map-sized buffers each time. Search stamps isolate queries, nested searches receive separate storage, exceptions release leases, and returned routes remain caller-owned. Weighted paths, snapping and best-effort endpoints retain their behavior.
 
 - **Native text measurement wraps without rescanning growing prefixes.** The public measurement path appends ordered glyph advances through the shared greedy wrapper, avoiding quadratic cache queries and repeated host rasterization when long text exceeds the bounded working set. Whitespace, supplementary characters and signed spacing keep existing line breaks and metrics; Canvas retains whole-string measurement for non-additive typography.

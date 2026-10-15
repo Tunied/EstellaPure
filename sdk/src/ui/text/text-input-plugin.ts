@@ -115,6 +115,7 @@ export class TextInputPlugin implements Plugin {
             if (!fm || fm.focusedEntity === null) return null;
             const entity = fm.focusedEntity;
             if (!world.isEntityActive(entity) || !world.has(entity, TextInput)) return null;
+            if (world.get(entity, TextInput).readOnly) return null;
             if (world.has(entity, Interactable) && !world.get(entity, Interactable).enabled) return null;
             return entity;
         }
@@ -414,7 +415,7 @@ export class TextInputPlugin implements Plugin {
                 lastTime = now;
                 dt = Math.min(dt, 0.1);
 
-                const focused = getFocusedTextInput();
+                const focused = getEditingTextInput();
                 if (focused !== null) {
                     cursorTimer += dt;
                     if (cursorTimer >= CURSOR_BLINK_INTERVAL) {
@@ -517,7 +518,7 @@ export class TextInputPlugin implements Plugin {
                     syncSelChild(ch.sel, ti, sshow, sx, stop, sw);
                     syncTextChild(ch.text, ti, disp, innerW, scrollX, ao);
                     // The blinking caret hides while a highlight is drawn.
-                    syncCaretChild(ch.caret, ti, caretX, caretTop, ti.focused && cursorVisible && !sshow);
+                    syncCaretChild(ch.caret, ti, caretX, caretTop, editing && ti.focused && cursorVisible && !sshow);
 
                     // Anchor the IME at the caret. Not while composing — moving it
                     // mid-composition would yank an open candidate window.
