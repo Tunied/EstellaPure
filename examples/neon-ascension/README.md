@@ -18,9 +18,8 @@ scene is derived from numbers in the two scripts.
 
 ## Known gaps (measured on 2026-10-15)
 
-- `distanceFog`'s colour cannot be set from a `PostProcessVolume`: the effect
-  definition surfaces floats and textures only, and a colour written there
-  blanks the frame once bloom follows. The fog keeps its bright default.
+- Fog colour is set per volume with `colors: { u_fogColor: {r,g,b,a} }` (added with this
+  example; the editor inspector does not edit colour params yet).
 - The wet floor reflects the baked panorama only, not nearby geometry or the
   river; planar reflection would be an engine addition.
 - At most 16 point lights are drawn per frame.

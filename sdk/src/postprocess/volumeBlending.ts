@@ -21,7 +21,19 @@ export interface BlendedEffect {
     /** Texture params (sampler uniform -> serialized texture ref). Textures don't
      *  interpolate: the last volume in priority order that sets one wins. */
     textures: Map<string, string>;
+    /** Colour params (uniform -> RGBA), blended like the floats are. */
+    colors: Map<string, Rgba>;
 }
+
+export interface Rgba { r: number; g: number; b: number; a: number }
+
+// `from*(1-t)+to*t`, not `from+(to-from)*t`: at t=1 this is exactly `to`.
+const lerpRgba = (from: Rgba, to: Rgba, t: number): Rgba => ({
+    r: from.r * (1 - t) + to.r * t,
+    g: from.g * (1 - t) + to.g * t,
+    b: from.b * (1 - t) + to.b * t,
+    a: from.a * (1 - t) + to.a * t,
+});
 
 /**
  * Signed distance to a box, in three dimensions. `halfD` of **0 is unbounded**
@@ -118,7 +130,16 @@ export function blendVolumeEffects(
                         if (ref) textures.set(key, ref);
                     }
                 }
-                result.set(effect.type, { enabled: true, uniforms, textures });
+                // A colour fades from the effect's declared default, as a float fades
+                // from its neutral: a half-weight volume is half the way to its colour.
+                const colors = new Map<string, Rgba>();
+                if (effect.colors) {
+                    for (const [key, value] of Object.entries(effect.colors)) {
+                        const base = def?.colors?.find((c) => c.name === key)?.defaultValue ?? value;
+                        colors.set(key, lerpRgba(base, value, factor));
+                    }
+                }
+                result.set(effect.type, { enabled: true, uniforms, textures, colors });
             } else {
                 if (effect.textures) {
                     for (const [key, ref] of Object.entries(effect.textures)) {
@@ -128,6 +149,14 @@ export function blendVolumeEffects(
                 for (const [key, value] of Object.entries(effect.uniforms)) {
                     const prev = existing.uniforms.get(key) ?? 0;
                     existing.uniforms.set(key, prev + (value - prev) * factor);
+                }
+                if (effect.colors) {
+                    const def = getEffectDef(effect.type);
+                    for (const [key, value] of Object.entries(effect.colors)) {
+                        const prev = existing.colors.get(key)
+                            ?? def?.colors?.find((c) => c.name === key)?.defaultValue ?? value;
+                        existing.colors.set(key, lerpRgba(prev, value, factor));
+                    }
                 }
             }
         }

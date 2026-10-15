@@ -25,6 +25,13 @@ export interface EffectTextureDef {
     label: string;
 }
 
+/** A colour parameter (fog colour): the vec4 uniform it feeds and its default. */
+export interface EffectColorDef {
+    name: string;
+    label: string;
+    defaultValue: { r: number; g: number; b: number; a: number };
+}
+
 export interface EffectSubPass {
     name: string;
     factory: () => ShaderHandle;
@@ -43,6 +50,8 @@ export interface EffectDef {
     uniforms: EffectUniformDef[];
     /** Texture params, carried on the volume as serialized refs (`textures`). */
     textures?: EffectTextureDef[];
+    /** Colour params, carried on the volume as `colors`. */
+    colors?: EffectColorDef[];
     multiPass?: EffectSubPass[];
 }
 
@@ -204,8 +213,11 @@ registerEffect({
         { name: 'u_fogFar', label: 'Far', min: 0, max: 500, step: 0.5, defaultValue: 60 },
         { name: 'u_intensity', label: 'Intensity', min: 0, max: 1, step: 0.01, defaultValue: 1 },
     ],
-    // u_fogColor keeps its shader default: EffectDef surfaces floats and textures,
-    // and a colour row is an editor surface of its own rather than part of this.
+    // The default is the shader's own `#pragma param u_fogColor` default, so a
+    // volume that never names the colour fogs exactly as it always did.
+    colors: [
+        { name: 'u_fogColor', label: 'Colour', defaultValue: { r: 0.6, g: 0.68, b: 0.78, a: 1 } },
+    ],
 });
 
 registerEffect({

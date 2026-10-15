@@ -424,4 +424,42 @@ describe('volumeBlending', () => {
             expect(blended.get('blur')?.uniforms.get('u_intensity')).toBeCloseTo(2.5, 5);
         });
     });
+
+    describe('colour params', () => {
+        const volume = (colors: Record<string, { r: number; g: number; b: number; a: number }> | undefined) => ({
+            effects: [{ type: 'distanceFog', enabled: true, uniforms: {}, ...(colors ? { colors } : {}) }],
+            isGlobal: true, shape: 'box' as const, size: { x: 5, y: 5 }, priority: 0, weight: 1, blendDistance: 0,
+        });
+        const night = { r: 0.05, g: 0.07, b: 0.1, a: 1 };
+
+        it('carries the volume colour through at full weight', () => {
+            const fog = blendVolumeEffects([{ data: volume({ u_fogColor: night }), factor: 1 }]).get('distanceFog')!;
+            expect(fog.colors.get('u_fogColor')).toEqual(night);
+        });
+
+        it('fades from the effect default, not from black, at partial weight', () => {
+            const fog = blendVolumeEffects([{ data: volume({ u_fogColor: night }), factor: 0.5 }]).get('distanceFog')!;
+            const c = fog.colors.get('u_fogColor')!;
+            expect(c.r).toBeCloseTo((0.6 + 0.05) / 2, 5);
+            expect(c.g).toBeCloseTo((0.68 + 0.07) / 2, 5);
+            expect(c.b).toBeCloseTo((0.78 + 0.1) / 2, 5);
+        });
+
+        it('lets a later volume pull the colour toward its own by its factor', () => {
+            const warm = { r: 1, g: 0.5, b: 0, a: 1 };
+            const later = { ...volume({ u_fogColor: warm }), priority: 1 };
+            const fog = blendVolumeEffects([
+                { data: volume({ u_fogColor: night }), factor: 1 },
+                { data: later, factor: 0.5 },
+            ]).get('distanceFog')!;
+            const c = fog.colors.get('u_fogColor')!;
+            expect(c.r).toBeCloseTo((0.05 + 1) / 2, 5);
+            expect(c.g).toBeCloseTo((0.07 + 0.5) / 2, 5);
+        });
+
+        it('leaves a volume that names no colour with none to apply', () => {
+            const fog = blendVolumeEffects([{ data: volume(undefined), factor: 1 }]).get('distanceFog')!;
+            expect(fog.colors.size).toBe(0);
+        });
+    });
 });

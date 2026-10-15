@@ -97,7 +97,8 @@ add('Camera', [
     isGlobal: true, priority: 0, weight: 1,
     effects: [
       { type: 'distanceFog', enabled: true,
-        uniforms: { u_fogNear: 900, u_fogFar: 16000, u_intensity: 0.55 } },
+        uniforms: { u_fogNear: 900, u_fogFar: 16000, u_intensity: 0.55 },
+        colors: { u_fogColor: rgba(0.035, 0.05, 0.085) } },
       { type: 'ssao', enabled: true, uniforms: {} },
       { type: 'bloom', enabled: true, uniforms: { u_threshold: 0.8, u_intensity: 1.6, u_radius: 1.4 } },
       { type: 'colorGrade', enabled: true, uniforms: { u_contrast: 1.12, u_saturation: 1.05, u_temperature: -0.08 } },

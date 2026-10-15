@@ -1279,6 +1279,9 @@ export interface PostProcessVolumeData {
         uniforms: Record<string, number>;
         /** Texture params (LUTs, masks): sampler uniform -> serialized texture ref. */
         textures?: Record<string, string>;
+        /** Colour params (a fog colour): uniform -> RGBA. Blends like a float does,
+         *  toward the effect's declared default at a volume's soft edge. */
+        colors?: Record<string, { r: number; g: number; b: number; a: number }>;
     }[];
     isGlobal: boolean;
     shape: 'box' | 'sphere';

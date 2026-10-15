@@ -3446,6 +3446,7 @@ v: WorldAxis
 
 ## EffectDef — interface @experimental
 ```
+colors: EffectColorDef[] | undefined
 factory: () => ShaderHandle
 label: string
 multiPass: EffectSubPass[] | undefined
@@ -6422,7 +6423,7 @@ ComponentDef<PostProcessVolumeData>
 ## PostProcessVolumeData — interface @experimental
 ```
 blendDistance: number
-effects: { type: string; enabled: boolean; uniforms: Record<string, number>; textures?: Record<string, string>; }[]
+effects: { type: string; enabled: boolean; uniforms: Record<string, number>; textures?: Record<string, string>; colors?: Record<string, { r: number; g: number; b: number; a: number; }>; }[]
 isGlobal: boolean
 priority: number
 shape: "box" | "sphere"

@@ -7,7 +7,7 @@ import type { Entity } from '../types';
 import { PostProcessVolume, Transform, Camera, type PostProcessVolumeData, type TransformData, type CameraData } from '../ecs/component';
 import { PostProcess, type PostProcessAPI } from './PostProcessAPI';
 import { getEffectDef } from './effects';
-import { blendVolumeEffects, computeVolumeFactor, type ActiveVolume, type VolumeTransform } from './volumeBlending';
+import { blendVolumeEffects, computeVolumeFactor, type ActiveVolume, type BlendedEffect, type VolumeTransform } from './volumeBlending';
 import type { ShaderHandle } from '../render/material';
 import { Material } from '../render/material';
 
@@ -49,7 +49,17 @@ function applyTextures(
     }
 }
 
-type ResolvedEffects = Map<string, { enabled: boolean; uniforms: Map<string, number>; textures: Map<string, string> }>;
+type ResolvedEffects = Map<string, BlendedEffect>;
+
+function applyColors(
+    stack: ReturnType<PostProcessAPI['createStack']>,
+    passName: string,
+    colors: BlendedEffect['colors'],
+): void {
+    for (const [uniformName, c] of colors) {
+        stack.setUniformVec4(passName, uniformName, { x: c.r, y: c.g, z: c.b, w: c.a });
+    }
+}
 
 // Per-stack signature of the last-applied effect set, so an unchanged frame can
 // skip the whole wasm-boundary rebuild. Keyed by the stack object (auto-cleared
@@ -65,6 +75,8 @@ function effectsSignature(effects: ResolvedEffects): string {
         for (const [k, v] of data.uniforms) sig += k + '=' + v + ';';
         sig += '|';
         for (const [k, ref] of data.textures) sig += k + '=' + ref + ';';
+        sig += '|';
+        for (const [k, c] of data.colors) sig += k + '=' + c.r + ',' + c.g + ',' + c.b + ',' + c.a + ';';
         sig += '#';
     }
     return sig;
@@ -114,6 +126,7 @@ function applyBlendedEffects(
                     stack.setUniform(subPass.name, uniformName, uniformValue);
                 }
                 applyTextures(stack, subPass.name, effectData.textures);
+                applyColors(stack, subPass.name, effectData.colors);
             }
         } else {
             const shader = getOrCreateShader(api, effectType, def.factory);
@@ -122,6 +135,7 @@ function applyBlendedEffects(
                 stack.setUniform(effectType, uniformName, uniformValue);
             }
             applyTextures(stack, effectType, effectData.textures);
+            applyColors(stack, effectType, effectData.colors);
         }
     }
 
@@ -163,7 +177,7 @@ export const postProcessVolumeSystem = defineSystem(
 
             const blended = activeVolumes.length > 0
                 ? blendVolumeEffects(activeVolumes)
-                : new Map<string, { enabled: boolean; uniforms: Map<string, number>; textures: Map<string, string> }>();
+                : new Map() as ResolvedEffects;
 
             applyBlendedEffects(api, cameraEntity, blended);
         }

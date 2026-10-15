@@ -57,6 +57,14 @@
                   "u_fogNear": 900,
                   "u_fogFar": 16000,
                   "u_intensity": 0.55
+                },
+                "colors": {
+                  "u_fogColor": {
+                    "r": 0.035,
+                    "g": 0.05,
+                    "b": 0.085,
+                    "a": 1
+                  }
                 }
               },
               {
