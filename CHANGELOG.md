@@ -38,6 +38,8 @@ published separately; it ships inside the editor.
 
 ### Added
 
+- **Build and reroute deliveries in a textured 2D courtyard.** The Citadel Route Workshop includes CC0 pixel art, editable gate/storehouse obstacles, touch buttons and eight/24 couriers. Built-in partial routes retain their destination and resume after reopening; parked-body avoidance can escape stationary solutions. Body-radius occupancy, fractional grid clearance and sampled movement checks stop corner cutting and recover blocked routes. The Web acceptance tool records pointer/touch input, per-frame footprint checks and export identities.
+
 - **Agent replans share a fair per-frame budget.** Navigation defaults to a FIFO queue with 16 plans and a 2 ms soft planning budget per tick; limits and last-tick counters are exposed on Nav and sampled in the Play inspector. Queued edits coalesce, agents without valid routes pause safely, periodic refreshes keep valid movement, and surface/grid/radius invalidation retires stale routes. Direct queries remain synchronous. A single query may exceed the budget, and spreading work adds route latency.
 
 - **Inspect a live agent's current route on demand.** The Play inspector reports partial routes, disconnected regions, insufficient clearance and baked-radius mismatches, with sampled world endpoints, radius and query cost. It queries only on request, discards results across selection/session changes, and identifies unsupported device sessions or custom implementations explicitly.

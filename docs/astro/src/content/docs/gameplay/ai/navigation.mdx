@@ -349,14 +349,52 @@ stopNavAgent(world, entity);
 | `speed` | `120` | Movement speed in world pixels per second. |
 | `radius` | `0` | How wide the body is, in pixels. On a grid, planning routes it around anything it would not fit through; on a mesh this is the volume's `agentRadius` instead. |
 | `arriveRadius` | `6` | Stop distance from the final goal. |
-| `repathInterval` | `0.5` | Seconds between replans while moving; `0` = replan only when the target changes. |
+| `repathInterval` | `0.5` | Seconds between periodic replans; `0` disables periodic refresh. Target/topology changes and blocked-route recovery still replan. |
 | `hasTarget` | `false` | Whether a destination is set (managed for you). |
 | `targetX`, `targetY`, `targetZ` | `0` | Current destination in world pixels. |
 | `arrived` | `false` | Set true the frame the agent reaches its goal. |
 
 `setNavDestination` is safe to call every frame to chase a moving target — the agent
-only replans when the target actually moves or `repathInterval` elapses. Read
+replans for changed targets/topology, stalled-route recovery or an elapsed periodic timer. Read
 `agent.arrived` (or `Perception`) to know when to switch behavior.
+
+For built-in surfaces, reaching the end of a **partial** route keeps `hasTarget`
+true and `arrived` false. The agent waits near the obstacle and can resume when
+the surface changes, even with periodic replanning disabled. Call `stopNavAgent`
+to cancel that intent. Custom surfaces without `queryWorldPath` retain their
+legacy arrival behavior because completeness is unknown.
+
+`surface.isNavigable(point, { radius })` checks whether a body can stand there:
+grids check a disk against tile faces and world bounds; meshes refuse a radius
+larger than the baked radius. Grid planning includes half a tile when converting
+body radius to clearance cells, so a fractional radius cannot squeeze through a
+door narrower than the body. Kinematic grid followers validate sampled movement
+segments and replan from the current position after a blocked or stalled step.
+This is navigation steering, not a substitute for a physics collision solver.
+
+### Building workshop
+
+Open **Citadel Route Workshop** (`examples/navigation-workshop`). It contains
+textured stonework, editable gate/storehouse obstacles and eight authored couriers.
+Use **G** to toggle the gate, **B** to place/remove the storehouse, **C** to dispatch
+eight or 24 couriers and **R** to reset deliveries. The same actions have touch
+buttons. Occupied placement/closure is refused. Close the gate, let the couriers
+approach, then reopen it: they keep their destinations and continue. Add the
+storehouse to see a detour. Select a courier during Play to inspect its route.
+
+The project uses Kenney CC0 textures and original editable workshop SVG graphics;
+`ASSET_LICENSES.md` records their sources. The Web acceptance tool drives actual
+buttons, checks gate retention/resume and 24-agent delivery, and samples circular
+bodies against the storehouse footprint every simulation frame:
+
+```sh
+node pipeline/bin/estella.mjs export examples/navigation-workshop --platform web --out output/navigation-workshop-web
+node tools/verify-navigation-workshop.mjs --dir output/navigation-workshop-web
+```
+
+The report includes raw positions, contact tolerance, export hashes and a smaller
+landscape touch viewport. It is headless browser evidence, not physical-device
+acceptance or a full-game frame-budget claim.
 
 ## Agents with a body
 

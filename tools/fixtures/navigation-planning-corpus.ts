@@ -33,15 +33,16 @@ class World implements NavWorldView {
 class ObservedNavigation extends Navigation {
     readonly shapes: object[] = [];
     readonly queryTimesMs: number[] = [];
-    override findWorldPath(from: NavPoint, to: NavPoint, opts?: NavQueryOptions) {
+    override queryWorldPath(from: NavPoint, to: NavPoint, opts?: NavQueryOptions) {
         const began = performance.now();
-        const path = super.findWorldPath(from, to, opts);
+        const result = super.queryWorldPath(from, to, opts);
+        const path = result.path;
         this.queryTimesMs.push(performance.now() - began);
         // Keep every waypoint, not just the first agent's endpoint. Compare all
         // 64 routes across the two budget settings after each door/building edit.
         this.shapes.push({ from: { ...from }, to: { ...to }, radius: opts?.radius,
             path });
-        return path;
+        return result;
     }
 }
 

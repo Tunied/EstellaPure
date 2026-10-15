@@ -220,19 +220,38 @@ export class NavGrid implements NavSurface {
 
     findWorldPath(from: NavPoint, to: NavPoint, opts?: NavQueryOptions): Vec3[] | null {
         const radius = opts?.radius ?? 0;
-        const clearance = radius > 0 ? Math.ceil(radius / this.cellSize) : 0;
+        const clearance = radius > 0 ? Math.ceil(radius / this.cellSize + 0.5) : 0;
         const cells = findPath(this, this.worldToCell(from), this.worldToCell(to), { clearance });
         return cells ? pathToWorld(this, shortenPath(this, cells, clearance)) : null;
     }
 
-    isNavigable(p: NavPoint): boolean {
+    isNavigable(p: NavPoint, opts?: NavQueryOptions): boolean {
         const cell = this.worldToCell(p);
-        return this.isWalkable(cell.x, cell.y);
+        if (!this.isWalkable(cell.x, cell.y)) return false;
+        const radius = Math.max(0, opts?.radius ?? 0);
+        if (radius === 0) return true;
+        if (!Number.isFinite(radius)) return false;
+        const half = this.cellSize / 2;
+        if (p.x-radius < this.originX-half || p.y-radius < this.originY-half
+            || p.x+radius > this.originX+(this.width-1)*this.cellSize+half
+            || p.y+radius > this.originY+(this.height-1)*this.cellSize+half) return false;
+        const x0=Math.max(0,Math.ceil((p.x-radius-half-this.originX)/this.cellSize));
+        const x1=Math.min(this.width-1,Math.floor((p.x+radius+half-this.originX)/this.cellSize));
+        const y0=Math.max(0,Math.ceil((p.y-radius-half-this.originY)/this.cellSize));
+        const y1=Math.min(this.height-1,Math.floor((p.y+radius+half-this.originY)/this.cellSize));
+        for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++) {
+            if(this.isWalkable(x,y))continue;
+            const dx=Math.max(0,Math.abs(p.x-(this.originX+x*this.cellSize))-half);
+            const dy=Math.max(0,Math.abs(p.y-(this.originY+y*this.cellSize))-half);
+            if(dx*dx+dy*dy < radius*radius-1e-8)return false;
+        }
+        return true;
     }
 
     /** Diagnose a route without treating a best-effort partial path as arrival. */
     queryWorldPath(from: NavPoint, to: NavPoint, opts?: NavQueryOptions): NavPathResult {
-        const clearance = Math.max(0, Math.ceil((opts?.radius ?? 0) / this.cellSize));
+        const radius=opts?.radius??0;
+        const clearance = radius>0 ? Math.ceil(radius/this.cellSize+0.5) : 0;
         const start = resolveEndpoint(this, this.worldToCell(from), 8, clearance);
         if (!start) return { path: null, status: 'unavailable', reason: 'start-unavailable' };
         const target = resolveEndpoint(this, this.worldToCell(to), 8, clearance);

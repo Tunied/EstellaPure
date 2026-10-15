@@ -56,6 +56,8 @@ const WEIGHT_IMPACT = 2.5;
  * again: what parts them is a convention, and the convention is keep right.
  */
 const WEIGHT_SIDE = 0.6;
+/** Rest must not win forever when a collision-free detour is available. */
+const WEIGHT_STOP = 1.5;
 
 /**
  * The velocity to travel at: `desired` if nothing is in the way, otherwise the
@@ -67,33 +69,41 @@ export function avoidVelocity(
     neighbours: readonly AvoidanceNeighbour[],
     opts: AvoidanceOptions,
 ): { x: number; z: number } {
-    if (neighbours.length === 0) return { x: desired.x, z: desired.z };
+    if (opts.maxSpeed <= 0) return { x: 0, z: 0 };
+    const clear = (vx: number, vz: number): boolean => {
+        if (!opts.canStand) return true;
+        for(let i=1;i<=4;i++) if(!opts.canStand(self.x+vx*LOOKAHEAD*i/4,self.z+vz*LOOKAHEAD*i/4))return false;
+        return true;
+    };
+    if (neighbours.length === 0 && clear(desired.x, desired.z)) return { x: desired.x, z: desired.z };
 
-    let bestX = desired.x;
-    let bestZ = desired.z;
+    let bestX = 0;
+    let bestZ = 0;
     let bestPenalty = Infinity;
     const speed = Math.max(opts.maxSpeed, 1e-3);
 
-    for (let ring = 0; ring <= RINGS; ring++) {
-        const count = ring === 0 ? 1 : DIVISIONS;
+    const consider = (cx: number, cz: number): void => {
+        const length = Math.hypot(cx, cz);
+        const scale = length > speed ? speed / length : 1;
+        const vx = cx * scale, vz = cz * scale;
+        if (!clear(vx,vz)) return;
+        const penalty = score(self, desired, vx, vz, neighbours, opts, speed);
+        if (penalty >= bestPenalty) return;
+        bestPenalty = penalty; bestX = vx; bestZ = vz;
+    };
+    consider(desired.x, desired.z);
+    consider(0, 0);
+
+    for (let ring = 1; ring <= RINGS; ring++) {
+        const count = DIVISIONS;
         const spread = (ring / RINGS) * speed;
         for (let i = 0; i < count; i++) {
             const angle = (i / count) * Math.PI * 2;
-            const cx = desired.x + Math.cos(angle) * spread;
-            const cz = desired.z + Math.sin(angle) * spread;
-            const length = Math.hypot(cx, cz);
-            // Nothing is gained by sampling faster than the agent can go.
-            const scale = length > speed ? speed / length : 1;
-            const vx = cx * scale;
-            const vz = cz * scale;
-            if (opts.canStand && !opts.canStand(self.x + vx * LOOKAHEAD, self.z + vz * LOOKAHEAD)) {
-                continue;
-            }
-            const penalty = score(self, desired, vx, vz, neighbours, opts, speed);
-            if (penalty >= bestPenalty) continue;
-            bestPenalty = penalty;
-            bestX = vx;
-            bestZ = vz;
+            const dx = Math.cos(angle) * spread, dz = Math.sin(angle) * spread;
+            consider(desired.x + dx, desired.z + dz);
+            // Desired-centred rings cannot step sideways/back when a parked
+            // body is directly ahead. Sample the velocity disk itself as well.
+            consider(dx, dz);
         }
     }
     return { x: bestX, z: bestZ };
@@ -134,8 +144,10 @@ function score(
     // The nearer the impact, the sharper the cost — a collision a long way off is
     // not worth walking round.
     const impact = 1 / (0.1 + earliest / opts.horizon);
+    const stopping = Math.hypot(desired.x, desired.z) > 1e-6
+        ? WEIGHT_STOP * Math.max(0, 1 - length / speed) : 0;
     return WEIGHT_DESIRED * deviation + WEIGHT_CURRENT * turn + WEIGHT_IMPACT * impact
-        + WEIGHT_SIDE * (side / neighbours.length);
+        + WEIGHT_SIDE * (side / Math.max(1,neighbours.length)) + stopping;
 }
 
 /**

@@ -27,7 +27,8 @@ export interface NavAgentData {
     radius: number;
     /** Stop distance from the final goal, in pixels. */
     arriveRadius: number;
-    /** Replan cadence in seconds while moving; 0 = replan only when the target changes. */
+    /** Periodic replan cadence in seconds; 0 disables periodic refresh.
+     * Target/topology changes and blocked-route recovery still replan. */
     repathInterval: number;
     /** Whether a destination is set. Cleared on arrival or `stopNavAgent`. */
     hasTarget: boolean;
@@ -56,7 +57,7 @@ export const NavAgent = defineComponent<NavAgentData>('NavAgent', {
         arriveRadius: { min: 0, unit: 'px', category: 'Navigation' },
         repathInterval: {
             min: 0, unit: 's', category: 'Navigation',
-            tooltip: 'Replan cadence while moving; 0 = only when the target changes.',
+            tooltip: 'Periodic replan cadence; 0 disables periodic refresh. Targets, obstacles and blocked-route recovery still replan.',
         },
         hasTarget: { category: 'Target' },
         targetX: { unit: 'px', category: 'Target' },

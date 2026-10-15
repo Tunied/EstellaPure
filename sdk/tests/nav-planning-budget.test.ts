@@ -31,7 +31,7 @@ function setup(count: number) {
     const entities = Array.from({ length: count }, () => world.spawn());
     nav.setSurface(new NavGrid({ width: 20, height: 8, cellSize: 10 }));
     nav.planningBudgetMs = 0;
-    const query = vi.spyOn(nav, 'findWorldPath');
+    const query = vi.spyOn(nav, 'queryWorldPath');
     const step = () => stepNavigation(world, nav, 0.01, runtimes);
     return { world, nav, runtimes, entities, query, step };
 }
@@ -55,10 +55,10 @@ describe('agent planning budgets', () => {
         const f = setup(5); f.nav.maxPlansPerFrame = 0; f.nav.planningBudgetMs = 2;
         let clock = 0;
         vi.spyOn(performance, 'now').mockImplementation(() => clock);
-        f.query.mockImplementation((from, to) => { clock += 1.5; return [{ ...from, z: 0 }, { ...to, z: 0 }]; });
+        f.query.mockImplementation((from, to) => { clock += 1.5; return { path: [{ ...from, z: 0 }, { ...to, z: 0 }], status: 'complete', reason: 'none' }; });
         f.step();
         expect(f.nav.planningStats).toEqual({ completed: 2, pending: 3, elapsedMs: 3 });
-        f.query.mockImplementation((from, to) => { clock += 25; return [{ ...from, z: 0 }, { ...to, z: 0 }]; });
+        f.query.mockImplementation((from, to) => { clock += 25; return { path: [{ ...from, z: 0 }, { ...to, z: 0 }], status: 'complete', reason: 'none' }; });
         f.step();
         expect(f.nav.planningStats).toEqual({ completed: 1, pending: 2, elapsedMs: 25 });
     });
@@ -128,12 +128,12 @@ describe('agent planning budgets', () => {
         f.step();
         const before = { ...f.world.get(e, Transform).position };
         f.world.patch(e, NavAgent, { radius: 2 });
-        f.query.mockReturnValueOnce(null);
+        f.query.mockReturnValueOnce({ path: null, status: 'unavailable', reason: 'start-unavailable' });
         f.step();
         expect(f.world.get(e, Transform).position).toEqual(before);
         expect(f.runtimes.get(e)?.reachable).toBe(false);
         f.world.patch(e, NavAgent, { radius: 0 }); f.step();
-        f.query.mockReturnValue(null); f.nav.invalidatePaths(); f.step();
+        f.query.mockReturnValue({ path: null, status: 'unavailable', reason: 'start-unavailable' }); f.nav.invalidatePaths(); f.step();
         expect(f.runtimes.get(e)?.reachable).toBe(false);
     });
 
@@ -144,15 +144,17 @@ describe('agent planning budgets', () => {
         f.world.entities.length = 0; f.step();
         expect(f.runtimes.size).toBe(0);
         f.nav.maxPlansPerFrame = 1; f.nav.planningBudgetMs = 0.001;
+        const direct = vi.spyOn(f.nav, 'findWorldPath');
         for (let i = 0; i < 20; i++) expect(f.nav.findWorldPath({ x: 0, y: 10 }, { x: 80, y: 10 })).not.toBeNull();
-        expect(f.query).toHaveBeenCalledTimes(40);
+        expect(f.query).toHaveBeenCalledTimes(20);
+        expect(direct).toHaveBeenCalledTimes(20);
     });
 
     it('clears failed or cancelled navigation steering, then relinquishes idle characters to other controls', () => {
         const f = setup(1), e = f.entities[0]!;
         f.world.set(e, CharacterController3D, { enabled: true, velocity: { x: 10, y: -30, z: 20 } } as ComponentData<typeof CharacterController3D>);
         f.world.patch(e, NavAgent, { speed: 10 }); f.step();
-        f.query.mockReturnValueOnce(null); f.nav.invalidatePaths(); f.step();
+        f.query.mockReturnValueOnce({ path: null, status: 'unavailable', reason: 'start-unavailable' }); f.nav.invalidatePaths(); f.step();
         expect(f.world.get(e, CharacterController3D).velocity).toEqual({ x: 0, y: -30, z: 0 });
         f.world.patch(e, NavAgent, { hasTarget: false });
         f.world.patch(e, CharacterController3D, { velocity: { x: 8, y: -30, z: 0 } }); f.step();

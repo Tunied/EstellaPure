@@ -53,6 +53,10 @@ export interface AgentRuntime {
     plannedY: number;
     plannedZ: number;
     plannedRadius?: number;
+    partial?: boolean;
+    needsReplan?: boolean;
+    recoveringStart?: boolean;
+    stallTime?: number;
     repathTimer: number;
     reachable: boolean;
     /** What it travelled at last frame, on the two axes it steers on. Everyone
@@ -280,6 +284,7 @@ export function stepNavigation(
         // Keep an unreachable agent's runtime for throttled retry (next target
         // change or repath timer) rather than churning it every frame.
         if (!rt?.reachable) continue;
+        if (rt.partial && rt.index >= rt.waypoints.length) continue;
 
         // A body walks; anything else is moved, and which one an entity is, is
         // what it CARRIES. A character has a solver that collides, steps up and
@@ -294,6 +299,11 @@ export function stepNavigation(
             : walkTransform(world, entity, agent, rt, tf, dt, flat, steering, nav);
 
         if (done) {
+            if (rt.partial) {
+                rt.index = rt.waypoints.length;
+                if (agent.arrived) { agent.arrived = false; world.set(entity, NavAgent, agent); }
+                continue;
+            }
             agent.arrived = true;
             agent.hasTarget = false;
             world.set(entity, NavAgent, agent);
@@ -355,34 +365,45 @@ function neighboursOf(
  */
 function steerTo(
     target: Vec3, at: Vec3, agent: ComponentData<typeof NavAgent>, rt: AgentRuntime,
-    flat: boolean, neighbours: AvoidanceNeighbour[] | null, nav: Navigation,
+    flat: boolean, neighbours: AvoidanceNeighbour[] | null, nav: Navigation, dt: number,
 ): { a: number; b: number } {
     const a = at.x;
     const b = flat ? at.y : at.z;
     const da = target.x - a;
     const db = (flat ? target.y : target.z) - b;
     const length = Math.hypot(da, db);
+    const speed=Math.min(agent.speed,length/Math.max(dt,1e-6));
     const want = {
-        x: length > 0 ? (da / length) * agent.speed : 0,
-        z: length > 0 ? (db / length) * agent.speed : 0,
+        x: length > 0 ? (da / length) * speed : 0,
+        z: length > 0 ? (db / length) * speed : 0,
     };
     if (!neighbours) return { a: want.x, b: want.z };
 
     const surface = nav.surface;
-    const height = at.y;
+    const height = flat ? at.z : at.y;
     const v = avoidVelocity(
         { x: a, z: b, vx: rt.velocityA, vz: rt.velocityB, radius: agent.radius },
         want, neighbours,
         {
             horizon: AVOID_HORIZON,
-            maxSpeed: agent.speed,
+            maxSpeed: speed,
             canStand: surface
                 ? (px, pz) => surface.isNavigable(
-                    flat ? { x: px, y: pz, z: height } : { x: px, y: height, z: pz })
+                    flat ? { x: px, y: pz, z: height } : { x: px, y: height, z: pz }, { radius: agent.radius })
                 : undefined,
         },
     );
     return { a: v.x, b: v.z };
+}
+
+/** Validate actual 2D movement too: a forecast endpoint alone can skip a
+ * corner. Large steps fail closed instead of doing unbounded sampling. */
+function gridMoveFits(nav: Navigation, from: Vec3, to: Vec3, radius: number): boolean {
+    if(radius<=0 || !(nav.surface instanceof NavGrid) || (from.x===to.x && from.y===to.y))return true;
+    const count=Math.max(1,Math.ceil(Math.hypot(to.x-from.x,to.y-from.y)/(nav.surface.cellSize/4)));
+    if(count>512)return false;
+    for(let i=1;i<=count;i++)if(!nav.surface.isNavigable({x:from.x+(to.x-from.x)*i/count,y:from.y+(to.y-from.y)*i/count},{radius}))return false;
+    return true;
 }
 
 /** How far ahead a collision with another body is worth steering round. */
@@ -396,7 +417,9 @@ function walkTransform(
 ): boolean {
     if (neighbours) return walkAmongBodies(world, entity, agent, rt, tf, dt, flat, neighbours, nav);
     const pos = { x: tf.position.x, y: tf.position.y, z: tf.position.z };
-    rt.index = advanceAlongPath(pos, rt.waypoints, rt.index, agent.speed * dt);
+    const index = advanceAlongPath(pos, rt.waypoints, rt.index, agent.speed * dt);
+    if(!gridMoveFits(nav,tf.position,pos,agent.radius)){rt.needsReplan=true;rt.velocityA=0;rt.velocityB=0;return false;}
+    rt.index=index;
     rt.velocityA = 0;
     rt.velocityB = 0;
     tf.position.x = pos.x;
@@ -424,11 +447,12 @@ function walkAmongBodies(
     flat: boolean, neighbours: AvoidanceNeighbour[], nav: Navigation,
 ): boolean {
     const pos = tf.position;
-    const reach = Math.max(agent.speed * dt * 1.5, WAYPOINT_REACH);
     while (rt.index < rt.waypoints.length) {
         const wp = rt.waypoints[rt.index]!;
+        const reach=rt.recoveringStart && rt.index===0 ? 0.1 : Math.max(agent.speed*dt*1.5,WAYPOINT_REACH);
         if (planeDistance(wp, pos, flat) > reach) break;
         rt.index++;
+        rt.recoveringStart=false;
     }
 
     const goal = rt.waypoints[rt.waypoints.length - 1];
@@ -441,7 +465,11 @@ function walkAmongBodies(
         return true;
     }
 
-    const v = steerTo(target, pos, agent, rt, flat, neighbours, nav);
+    const v = steerTo(target, pos, agent, rt, flat, neighbours, nav, dt);
+    const next={x:pos.x+v.a*dt,y:flat?pos.y+v.b*dt:pos.y,z:flat?pos.z:pos.z+v.b*dt};
+    if(!gridMoveFits(nav,pos,next,agent.radius)){rt.needsReplan=true;rt.velocityA=0;rt.velocityB=0;return false;}
+    rt.stallTime=Math.hypot(v.a,v.b)<0.01 && agent.speed>0 ? (rt.stallTime??0)+dt : 0;
+    if(rt.stallTime>0.25 && nav.surface instanceof NavGrid)rt.needsReplan=true;
     rt.velocityA = v.a;
     rt.velocityB = v.b;
     pos.x += v.a * dt;
@@ -499,7 +527,7 @@ function steerCharacter(
         rt.velocityA = 0;
         rt.velocityB = 0;
     } else {
-        const v = steerTo(target, pos, agent, rt, flat, neighbours, nav);
+        const v = steerTo(target, pos, agent, rt, flat, neighbours, nav, dt);
         character.velocity.x = v.a;
         character.velocity.z = v.b;
         rt.velocityA = v.a;

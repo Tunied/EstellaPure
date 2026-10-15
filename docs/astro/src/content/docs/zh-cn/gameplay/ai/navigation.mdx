@@ -296,14 +296,43 @@ stopNavAgent(world, entity);
 | `speed` | `120` | 移动速度(世界像素/秒)。 |
 | `radius` | `0` | 身体有多宽(像素)。在格子上,寻路会绕开它挤不过去的地方;在网格上,这件事由体积的 `agentRadius` 决定。 |
 | `arriveRadius` | `6` | 距最终目标的停止距离。 |
-| `repathInterval` | `0.5` | 移动中两次重规划的间隔秒数;`0` = 只在目标改变时重规划。 |
+| `repathInterval` | `0.5` | 周期重规划间隔；`0` 关闭周期刷新，目标/拓扑变化和受阻恢复仍会重规划。 |
 | `hasTarget` | `false` | 是否已设目的地(自动管理)。 |
 | `targetX`、`targetY`、`targetZ` | `0` | 当前目的地(世界像素)。 |
 | `arrived` | `false` | agent 到达目标的那一帧被置真。 |
 
 `setNavDestination` 每帧调用都安全,可用于追一个移动的目标——只有当目标真的移动、或
-`repathInterval` 到点时,agent 才重新规划。读 `agent.arrived`(或 `Perception`)来判断何时
+`repathInterval` 到点，或拓扑变化/受阻恢复时，agent 才重新规划。读 `agent.arrived`(或 `Perception`)来判断何时
 切换行为。
+
+对内置表面，走到**部分路线**的尽头不会清除目标：`hasTarget` 保持真，`arrived` 为假。
+代理在障碍附近等待；即使关闭周期刷新，表面改变后也能继续前进。调用 `stopNavAgent`
+才取消这个意图。未实现 `queryWorldPath` 的自定义表面无法说明完整性，保留原来的到达行为。
+
+`surface.isNavigable(point, { radius })` 可检查身体是否站得下：格子按圆形身体检查格子边缘与
+地图边界，网格拒绝超出烘焙半径的身体。格子规划把半格宽度计入净空换算，避免小数半径挤过
+比身体更窄的门。运动学格子跟随器会采样实际移动段；受阻或停滞时从当前状态重新规划。
+这是导航操舵，不能代替物理碰撞求解器。
+
+### 建造导航工坊
+
+打开 **Citadel Route Workshop**（`examples/navigation-workshop`）。场景包含带纹理的石砌庭院、
+可编辑的闸门/仓库障碍，以及 8 个场景内代理。**G** 开关门，**B** 放置/移除仓库，
+**C** 切换 8/24 个代理并重新出发，**R** 重置交付；对应按钮也支持触屏。占用中的位置会拒绝
+建造或关门。先关门等代理走近，再开门，观察它们保留目标继续前进；放置仓库后观察绕行。
+运行时选择代理，可在详情中诊断路线。
+
+美术使用 Kenney CC0 纹理及可编辑的原创仓库/闸门 SVG，来源记录在 `ASSET_LICENSES.md`。
+Web 验收工具通过实际按钮检查关门等待、开门续行、24 代理交付，并逐模拟帧检查圆形身体与
+仓库矩形的接触：
+
+```sh
+node pipeline/bin/estella.mjs export examples/navigation-workshop --platform web --out output/navigation-workshop-web
+node tools/verify-navigation-workshop.mjs --dir output/navigation-workshop-web
+```
+
+报告保留原始位置、接触容差、导出文件散列和较小横屏触屏视口截图。这是无头浏览器证据，
+不能代替真机验收或完整游戏的帧预算证明。
 
 ## 有身体的 agent
 

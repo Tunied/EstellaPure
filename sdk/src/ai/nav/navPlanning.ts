@@ -48,8 +48,8 @@ export function planNavigation(
         if (rt) rt.repathTimer -= dt;
         const radiusChanged = rt !== undefined && (rt.plannedRadius ?? 0) !== agent.radius;
         const targetMoved = rt !== undefined && (rt.plannedX !== agent.targetX || rt.plannedY !== agent.targetY || rt.plannedZ !== agent.targetZ);
-        if (changed || radiusChanged) state.invalidated.add(entity);
-        if (!rt || changed || targetMoved || radiusChanged
+        if (changed || radiusChanged || rt?.needsReplan) state.invalidated.add(entity);
+        if (!rt || changed || targetMoved || radiusChanged || rt.needsReplan
             || (agent.repathInterval > 0 && rt.repathTimer <= 0)) state.pending.add(entity);
         // A periodic refresh may keep following its still-valid route. New or
         // invalidated intent must wait instead of moving toward an old target.
@@ -66,8 +66,9 @@ export function planNavigation(
             state.pending.delete(entity);
             const agent = world.get(entity, NavAgent), tf = world.get(entity, Transform);
             let rt = runtimes.get(entity);
-            const path = nav.findWorldPath(tf.position,
+            const result = nav.queryWorldPath(tf.position,
                 { x: agent.targetX, y: agent.targetY, z: agent.targetZ }, { radius: agent.radius });
+            const path = result.path;
             // Preserve a valid route while crossing an off-mesh link, but never
             // resurrect one invalidated by a changed surface or obstacle layout.
             const keep = path === null && !state.invalidated.has(entity) && rt?.reachable
@@ -76,9 +77,12 @@ export function planNavigation(
                 rt.plannedX = agent.targetX; rt.plannedY = agent.targetY; rt.plannedZ = agent.targetZ;
                 rt.plannedRadius = agent.radius; rt.repathTimer = agent.repathInterval;
             } else {
-                rt = { waypoints: path ?? [], index: path && path.length > 1 ? 1 : 0,
+                const recoveringStart=!!rt?.needsReplan && agent.radius>0;
+                rt = { waypoints: path ?? [], index: recoveringStart ? 0 : path && path.length > 1 ? 1 : 0,
                     plannedX: agent.targetX, plannedY: agent.targetY, plannedZ: agent.targetZ,
                     plannedRadius: agent.radius, repathTimer: agent.repathInterval,
+                    partial: result.status === 'partial',
+                    recoveringStart,
                     reachable: path !== null, velocityA: rt?.velocityA ?? 0, velocityB: rt?.velocityB ?? 0 };
             }
             runtimes.set(entity, rt);

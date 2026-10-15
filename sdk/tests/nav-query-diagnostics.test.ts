@@ -53,6 +53,8 @@ describe('route diagnostics', () => {
 
     it('mesh diagnostics retain actual search completeness and reject an undersized bake', () => {
         const mesh = islands(), from = { x: 5, y: 0, z: 5 };
+        expect(mesh.isNavigable(from,{radius:1})).toBe(true);
+        expect(mesh.isNavigable(from,{radius:2})).toBe(false);
         expect(mesh.queryWorldPath(from, { x: 8, y: 0, z: 8 }).status).toBe('complete');
         expect(mesh.queryWorldPath(from, { x: 25, y: 0, z: 5 })).toMatchObject({ status: 'partial', reason: 'disconnected' });
         expect(mesh.queryWorldPath(from, { x: 100, y: 0, z: 5 })).toMatchObject({ status: 'partial', reason: 'target-unavailable' });

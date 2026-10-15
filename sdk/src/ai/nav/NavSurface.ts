@@ -81,11 +81,11 @@ export interface NavSurface {
     queryWorldPath?(from: NavPoint, to: NavPoint, opts?: NavQueryOptions): NavPathResult;
 
     /**
-     * Whether an agent may stand at a world point. Asked of a place the agent has
-     * not been routed to — a step sideways to get round another body — which is
-     * why it is not the same question as "is there a route here".
+     * Whether a body may occupy a world point, including sideways avoidance.
+     * Grids test disk radii against tile faces and bounds; meshes reject bodies
+     * larger than their bake. Custom surfaces may retain point-only checks.
      */
-    isNavigable(p: NavPoint): boolean;
+    isNavigable(p: NavPoint, opts?: NavQueryOptions): boolean;
 
     /** Hand the shape of the walkable world to a drawer. */
     describe(sink: NavSurfaceSink): void;

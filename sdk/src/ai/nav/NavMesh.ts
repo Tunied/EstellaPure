@@ -591,7 +591,8 @@ export class NavMesh implements NavSurface {
         return followGround(out, atPortal, left, right);
     }
 
-    isNavigable(p: NavPoint): boolean {
+    isNavigable(p: NavPoint, opts?: NavQueryOptions): boolean {
+        if ((opts?.radius ?? 0) > this.agentRadius + 1e-3) return false;
         return this.findPoly(p) >= 0;
     }
 

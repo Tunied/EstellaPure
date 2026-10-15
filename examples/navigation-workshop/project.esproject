@@ -1,0 +1,9 @@
+{
+  "formatVersion": "1",
+  "name": "Citadel Route Workshop",
+  "description": "Open gates, place a storehouse and route a crowd through a stone courtyard.",
+  "tag": "AI",
+  "defaultScene": "assets/scenes/main.esscene",
+  "designResolution": { "width": 1024, "height": 720 },
+  "spineVersion": "none"
+}

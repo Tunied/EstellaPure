@@ -1,0 +1,115 @@
+// SPDX-License-Identifier: Apache-2.0
+import fs from 'node:fs';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { chromium } from 'playwright';
+import { serveHost } from './lib/staticServer.mjs';
+const flag = name => { const at = process.argv.indexOf(name); return at < 0 ? undefined : process.argv[at+1]; };
+const dir = path.resolve(flag('--dir') ?? 'output/navigation-workshop-web');
+const out = path.resolve(flag('--out') ?? 'output/navigation-workshop-check');
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const files = (under, prefix='') => fs.readdirSync(under,{withFileTypes:true}).flatMap(e=>e.isDirectory()
+    ? files(path.join(under,e.name),prefix+e.name+'/') : [prefix+e.name]);
+const identity={source:execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8',windowsHide:true}).trim(),
+    sourceDirtyFiles:execFileSync('git',['status','--porcelain=1','--untracked-files=all','--','sdk/src/ai/nav','examples/navigation-workshop','tools/verify-navigation-workshop.mjs'],{cwd:root,encoding:'utf8',windowsHide:true}).split('\n').filter(Boolean),
+    exportHashes:Object.fromEntries(files(dir).map(file=>[file,createHash('sha256').update(fs.readFileSync(path.join(dir,file))).digest('hex')]))};
+fs.mkdirSync(out, { recursive: true });
+const server = await serveHost(dir);
+const origin = `http://127.0.0.1:${server.address().port}`;
+const browser = await chromium.launch({ headless: true, args: ['--enable-unsafe-swiftshader','--use-angle=swiftshader','--mute-audio'] });
+const records = [], errors = [];
+try {
+    const page = await browser.newPage({viewport:{width:1024,height:720}});
+    page.on('pageerror', error => errors.push(String(error)));
+    page.on('console', message => fs.appendFileSync(path.join(out,'console.log'),message.type()+': '+message.text()+'\n'));
+    await page.goto(origin+'/?headless');
+    await page.waitForFunction(() => {const f=window.__estellaCooked?.facts();return f?.couriers===8 && f.waiting+f.arrived===8;}, {}, {timeout:30000});
+    await page.waitForFunction(()=>{const e=document.getElementById('es-splash');return !e||Number(getComputedStyle(e).opacity)===0;});
+    const facts = () => page.evaluate(() => window.__estellaCooked.facts());
+    const paused = value => page.evaluate(v => window.__estellaCooked.setPaused(v), value);
+    const step = n => page.evaluate(n => window.__estellaCooked.step(n,1/60), n);
+    const click = async name => {
+        await paused(false);
+        const box = await page.evaluate(name => window.__estellaCooked.probe([name]).at[name], name);
+        assert(box, 'Missing '+name);
+        await page.mouse.click(512+box.x,360-box.y);
+        await page.waitForTimeout(350); // The real obstacle-change throttle is 200 ms.
+        await paused(true);
+    };
+    const snapshot = async name => {
+        const value = await facts();
+        const positions=await page.evaluate(n=>window.__estellaCooked.probe(Array.from({length:n},(_,i)=>`Courier ${String(i+1).padStart(2,'0')}`)).at,value.couriers);
+        records.push({name,facts:value,positions});
+        await page.screenshot({path:path.join(out,name+'.png')});
+        fs.writeFileSync(path.join(out,'observations.json'),JSON.stringify({...identity,records,errors},null,2));
+        return value;
+    };
+    await snapshot('courtyard');
+    await click('GateButton');
+    assert.equal((await facts()).gateClosed,true,'Gate did not close through its UI button');
+    await step(480);
+    const closed = await snapshot('gate-closed');
+    assert.equal(closed.arrived,0,'A partial approach was reported as arrival');
+    assert.equal(closed.leftOfGate,8,'A courier crossed the closed gate');
+    await click('GateButton');
+    assert.equal((await facts()).gateClosed,false);
+    await click('GateButton');
+    assert.equal((await facts()).gateClosed,false,'Gate closed onto a courier occupying its approach');
+    assert((await page.evaluate(()=>window.__estellaCooked.probe(['WorkshopStatus']).at.WorkshopStatus.text)).includes('Gate occupied'));
+    await step(900);
+    const reopened = await snapshot('gate-reopened');
+    assert.equal(reopened.arrived,8,'Waiting couriers did not resume their retained destinations');
+    await click('BuildButton');
+    assert.equal((await facts()).warehousePlaced,true);
+    await click('ResetButton');
+    const simulate = (frames,count) => page.evaluate(async ({frames,count}) => {
+        const host = window.__estellaCooked, names = Array.from({length:count},(_,i)=>`Courier ${String(i+1).padStart(2,'0')}`);
+        const trail = [], overlaps = []; let maxPenetration = 0;
+        for(let i=0;i<frames;i++) {
+            await host.step(1,1/60);
+            const at = host.probe(names).at;
+            for(const name of names) { const p=at[name]; if(!p)continue;
+                const distance=Math.hypot(Math.max(0,Math.abs(p.x+160)-46),Math.max(0,Math.abs(p.y)-46));
+                maxPenetration=Math.max(maxPenetration,8-distance);
+                // Float32 position tolerance, in world pixels (tile width 32).
+                if(distance<8-0.001)overlaps.push({frame:i,name,x:p.x,y:p.y,distance}); }
+            if(i%10===0)trail.push(at['Courier 07']);
+        }
+        return {trail,overlaps,maxPenetration,contactTolerance:0.001,facts:host.facts()};
+    },{frames,count});
+    const trace = await simulate(900,8);
+    records.push({name:'warehouse-trace',...trace});
+    fs.writeFileSync(path.join(out,'observations.json'),JSON.stringify({...identity,records,errors},null,2));
+    assert.equal(trace.overlaps.length,0,'Courier body entered the placed warehouse');
+    assert(trace.trail.some(p=>p && p.x>-214 && p.x<-106 && Math.abs(p.y)>=54),'No observed detour around the storehouse');
+    assert.equal(trace.facts.arrived,8,'Storehouse detour did not finish');
+    await snapshot('storehouse');
+    // Paused key input makes the first 24-agent planning tick observable rather
+    // than relying on catching a one-frame queue with wall-clock polling.
+    await page.keyboard.down('KeyC'); await step(1); await page.keyboard.up('KeyC'); await step(1);
+    const queued = await snapshot('crowd-queued');
+    assert.equal(queued.couriers,24);
+    assert(queued.queuedPlans>=8,'The actual scene did not expose the 16-plan count limit');
+    const crowdTrace=await simulate(1800,24);
+    records.push({name:'crowd-trace',...crowdTrace});
+    fs.writeFileSync(path.join(out,'observations.json'),JSON.stringify({...identity,records,errors},null,2));
+    assert.equal(crowdTrace.overlaps.length,0,'Crowded courier body entered the warehouse beyond contact skin');
+    const crowd = await snapshot('crowd-delivered');
+    assert.equal(crowd.arrived,24,'Crowded delivery did not complete');
+    const touch=await browser.newPage({viewport:{width:768,height:540},hasTouch:true,isMobile:true});
+    touch.on('pageerror',error=>errors.push(String(error)));
+    await touch.goto(origin+'/?headless');
+    await touch.waitForFunction(()=>window.__estellaCooked?.facts().waiting===8);
+    await touch.waitForFunction(()=>{const e=document.getElementById('es-splash');return !e||Number(getComputedStyle(e).opacity)===0;});
+    const box=await touch.evaluate(()=>window.__estellaCooked.probe(['GateButton']).at.GateButton);
+    await touch.touchscreen.tap(384+box.x*.75,270-box.y*.75);
+    await touch.waitForFunction(()=>window.__estellaCooked.facts().gateClosed===true);
+    await touch.screenshot({path:path.join(out,'touch-landscape.png')});
+    records.push({name:'touch-landscape',facts:await touch.evaluate(()=>window.__estellaCooked.facts())});
+    assert.equal(errors.length,0,errors.join('\n'));
+    fs.writeFileSync(path.join(out,'observations.json'),JSON.stringify({...identity,status:'passed',records,errors},null,2));
+    console.log('Workshop Web export: gate retention/resume, warehouse detour, 24-courier queue and delivery passed.');
+} finally { await browser.close(); await new Promise(resolve=>server.close(resolve)); }

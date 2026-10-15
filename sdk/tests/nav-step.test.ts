@@ -157,6 +157,14 @@ describe('stepNavigation', () => {
         for (let i = 0; i < 20; i++) stepNavigation(world, nav, 0.1, runtimes);
         expect(world.pos(e).x).toBeGreaterThan(30);
         expect(world.pos(e).x).toBeLessThan(50); // the wall stands at x = 50
+        expect(world.agent(e)).toMatchObject({ arrived: false, hasTarget: true });
+        const writes=vi.spyOn(world,'set');
+        stepNavigation(world,nav,0.1,runtimes);
+        expect(writes).not.toHaveBeenCalled();
+        grid.setWalkable(5, 0, true);
+        for (let i = 0; i < 20; i++) stepNavigation(world, nav, 0.1, runtimes);
+        expect(world.pos(e).x).toBeGreaterThan(80);
+        expect(world.agent(e)).toMatchObject({ arrived: true, hasTarget: false });
     });
 
     it('replans when the target moves', () => {
@@ -341,7 +349,7 @@ describe('a replan that finds nothing', () => {
         const nav = openNav(), runtimes = new Map<Entity, AgentRuntime>();
         stepNavigation(world, nav, 0.05, runtimes);
         const after = world.pos(entity).x;
-        vi.spyOn(nav, 'findWorldPath').mockReturnValue(null);
+        vi.spyOn(nav, 'queryWorldPath').mockReturnValue({ path: null, status: 'unavailable', reason: 'start-unavailable' });
         stepNavigation(world, nav, 0.2, runtimes);
         expect(world.pos(entity).x).toBeGreaterThan(after);
     });

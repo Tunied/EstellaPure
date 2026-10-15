@@ -66,6 +66,11 @@ jobs:
       - name: Check live agent route inspection
         if: matrix.suite == 'navigation'
         run: node tools/verify-navigation-inspector.mjs
+      - name: Check the exported building navigation workshop
+        if: matrix.suite == 'navigation'
+        run: |
+          node pipeline/bin/estella.mjs export examples/navigation-workshop --platform web --out output/navigation-workshop-web
+          node tools/verify-navigation-workshop.mjs --dir output/navigation-workshop-web --out output/navigation-workshop-ci
       - name: Check trusted spatial gestures and undo
         if: matrix.suite == 'spatial'
         run: node tools/verify-gizmo-planes.mjs
@@ -105,5 +110,6 @@ jobs:
             output/gizmo-legacy-2d-ci
             output/gizmo-regression-ci
             output/navigation-inspector-ci
+            output/navigation-workshop-ci
           if-no-files-found: warn
           retention-days: 3

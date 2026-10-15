@@ -38,6 +38,8 @@ export const NOTED = {
     { note: 'Ineligible text fields reject late editing callbacks immediately.' },
   'fix(ui): resolve live display ancestry for keyboard focus':
     { note: 'Keyboard focus observes authored visibility between layout passes.' },
+  'feat(nav): add the courtyard building navigation workshop':
+    { note: 'Build and reroute deliveries in a textured 2D courtyard.' },
   'fix(ui): preserve surrogate pairs when clamping host input':
     { note: 'Text-input length limits preserve complete supplementary characters.' },
   'fix(ui): bind field rendering to the active editing owner':
