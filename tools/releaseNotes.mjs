@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(audio): stop all owned voices and pending starts':
+    { note: 'Stop All stops every owned audio voice and pending start.' },
   'fix(audio): preserve latest BGM intent across loading':
     { note: 'BGM playback follows the latest request instead of load completion order.' },
   'fix(audio): reject loads from retired context generations':

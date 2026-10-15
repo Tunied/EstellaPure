@@ -107,6 +107,7 @@ export class AudioAPI {
     private bufferBudgetOverride_: number | null = null;
     private bgmHandle_: AudioHandle | null = null;
     private bgmRequest_ = 0;
+    private playbackEpoch_ = 0;
     private bgmVolume_ = 1.0;
     /** Volume ramps in flight, advanced by {@link updateFades} from the frame
      *  loop — NOT by requestAnimationFrame, which is a browser global a device
@@ -370,12 +371,13 @@ export class AudioAPI {
      */
     async playTrack(url: string, config: PlayConfig = {}): Promise<AudioHandle | null> {
         if (this.disposed_) return null;
+        const epoch = this.playbackEpoch_;
         try {
             await this.ensureBuffer_(url, () => this.backend_.loadBuffer(url));
         } catch {
             return null;
         }
-        if (this.disposed_) return null;
+        if (this.disposed_ || epoch !== this.playbackEpoch_) return null;
         const buffer = this.lookupBuffer_(url);
         if (!buffer) return null;
         if (config.bus) this.ensureBus(config.bus);
@@ -388,6 +390,7 @@ export class AudioAPI {
         pan?: number;
         priority?: number;
     }): AudioHandle {
+        const epoch = this.playbackEpoch_;
         const playConfig = {
             bus: 'sfx',
             volume: config?.volume,
@@ -399,7 +402,7 @@ export class AudioAPI {
         if (!buffer) {
             const pending = this.createDeferredHandle_();
             this.preload(url).then(() => {
-                if (this.disposed_) return;
+                if (this.disposed_ || epoch !== this.playbackEpoch_) return;
                 const buf = this.lookupBuffer_(url);
                 if (buf) {
                     pending.resolve(this.playVoice_(buf, playConfig));
@@ -462,10 +465,19 @@ export class AudioAPI {
 
     stopAll(): void {
         this.bgmRequest_++;
-        this.cancelFades_();
-        if (this.bgmHandle_) {
-            this.bgmHandle_.stop();
-            this.bgmHandle_ = null;
+        this.playbackEpoch_++;
+        const voices = this.softVoices_;
+        this.softVoices_ = [];
+        this.bgmHandle_ = null;
+        this.fades_.length = 0;
+        this.fadingOut_.clear();
+        const stopped = new Set<AudioHandle>();
+        for (const voice of voices) {
+            voice.paused = false;
+            if (!stopped.has(voice.handle)) {
+                stopped.add(voice.handle);
+                voice.handle.stop();
+            }
         }
     }
 
@@ -633,6 +645,7 @@ export class AudioAPI {
     get maxVoices(): number { return this.maxVoices_; }
 
     private playVoice_(buffer: AudioBufferHandle, config: PlayConfig): AudioHandle {
+        if (this.disposed_) return silentHandle();
         const bus = config.bus ?? 'sfx';
         const base = config.volume ?? 1;
         const priority = config.priority ?? 0;
@@ -782,16 +795,10 @@ export class AudioAPI {
 
     dispose(): void {
         this.disposed_ = true;
-        this.cancelFades_();
-        if (this.bgmHandle_) {
-            this.bgmHandle_.stop();
-            this.bgmHandle_ = null;
-        }
         // Scripted effects and AudioSource voices also belong to this device.
         // Closing a Web Audio context alone leaves their handles marked playing,
         // and a different backend may require explicit stops before disposal.
-        for (const voice of this.softVoices_) voice.handle.stop();
-        this.softVoices_ = [];
+        this.stopAll();
         for (const entry of this.bufferCache_.values()) {
             this.backend_?.unloadBuffer(entry.handle);
         }

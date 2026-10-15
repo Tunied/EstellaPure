@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Stop All stops every owned audio voice and pending start.** Scripted effects, explicit tracks, paused voices and outgoing music fades are stopped once, and stopped handles cannot resume outside the voice registry. Pending effects and tracks requested before Stop All cannot start on load completion; cached buffers and the device remain reusable, and disposal uses the same shutdown path.
+
 - **BGM playback follows the latest request instead of load completion order.** New requests and stop commands invalidate older pending starts, including when the replacement is already cached. An immediate stop also ends a track already fading out, while repeated positive fade-out requests preserve the existing ramp. Loaded buffers remain available for later playback.
 
 - **Web audio loads cannot cross disposed or replaced contexts.** Async reads and decodes capture their context generation and validate it before decoding or publishing a buffer. Late work rejects without borrowing a new session's cached handle, replacing its source entry or repopulating disposed storage; current-session loads and same-session source revisions retain their existing behavior.

@@ -74,3 +74,43 @@ it.each([false, true])('an immediate stop ends outgoing BGM while repeated fade 
     expect(handle.isPlaying).toBe(false);
     expect(handle.stop).toHaveBeenCalledOnce();
 });
+
+it('stopAll stops every owned voice, retires paused handles and keeps the device reusable', async () => {
+    const { audio, backend } = create();
+    await audio.preloadFromData('ready.wav', new ArrayBuffer(8));
+    const effect = audio.playSFX('ready.wav');
+    effect.pause();
+    audio.playBuffer({ id: 2, duration: 1 }, { bus: 'voice' });
+    audio.playBGM('ready.wav');
+    audio.playBGM('ready.wav', { crossFade: 1 });
+    const handles = backend.play.mock.results.map(result => result.value);
+    audio.stopAll();
+    expect(handles.every(handle => !handle.isPlaying)).toBe(true);
+    for (const handle of handles) expect(handle.stop).toHaveBeenCalledOnce();
+    effect.resume();
+    expect(handles[0].resume).not.toHaveBeenCalled();
+    expect(backend.dispose).not.toHaveBeenCalled();
+    expect(audio.getBufferHandle('ready.wav')).toBeDefined();
+    expect(audio.playSFX('ready.wav').isPlaying).toBe(true);
+});
+
+it('stopAll cancels pending effect and track starts while retaining their loaded buffers', async () => {
+    const { audio, backend } = create();
+    const effect = audio.playSFX('effect.wav');
+    const track = audio.playTrack('track.wav');
+    audio.stopAll();
+    await finish(audio, 'effect.wav', 1);
+    await finish(audio, 'track.wav', 2);
+    expect(await track).toBeNull();
+    effect.resume();
+    expect(backend.play).not.toHaveBeenCalled();
+    expect(audio.getBufferStats().bufferCount).toBe(2);
+    expect(audio.playSFX('effect.wav').isPlaying).toBe(true);
+});
+
+it('does not send a new buffer voice to a disposed device', () => {
+    const { audio, backend } = create();
+    audio.dispose();
+    expect(audio.playBuffer({ id: 1, duration: 1 }).isPlaying).toBe(false);
+    expect(backend.play).not.toHaveBeenCalled();
+});
