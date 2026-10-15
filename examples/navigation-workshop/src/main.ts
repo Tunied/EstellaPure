@@ -1,6 +1,6 @@
 import {
     addPlugin, defineSystem, Schedule, Res, GetWorld, Input, UIEvents, Playthrough,
-    Transform, Sprite, Text, Name, spawnUIEntity, createButton, UIPositionType, px,
+    Transform, Sprite, Text, Name, spawnUIEntity, createButton, UIPositionType, px, quaternionToAngle2D,
     type World, type Entity,
 } from 'esengine';
 import { Nav, NavAgent, NavObstacle, NavGrid, setNavDestination } from 'esengine/ai';
@@ -17,6 +17,21 @@ addPlugin({ name: 'navigation-workshop', build(app) {
         world.insert(entity, NavObstacle, { ...world.get(entity, NavObstacle), enabled });
         world.insert(entity, Sprite, { ...world.get(entity, Sprite), enabled });
     };
+    const syncObstacle = (world: World, name: string): boolean => {
+        const entity=world.findEntityByName(name);if(entity===null)return false;
+        const enabled=world.get(entity,NavObstacle).enabled,sprite=world.get(entity,Sprite);
+        if(sprite.enabled!==enabled)world.insert(entity,Sprite,{...sprite,enabled});
+        return enabled;
+    };
+    const occupied = (world: World, name: string): boolean => {
+        const entity=world.findEntityByName(name);if(entity===null)return true;
+        const pose=world.get(entity,Transform),origin={...pose.position},half={...world.get(entity,NavObstacle).halfExtents};
+        const angle=quaternionToAngle2D(pose.rotation.z,pose.rotation.w),cos=Math.cos(angle),sin=Math.sin(angle);
+        return agents.some(e=>{const p=world.get(e,Transform).position,a=world.get(e,NavAgent);
+            const margin=a.radius+a.speed*.25+4;
+            const dx=p.x-origin.x,dy=p.y-origin.y;
+            return Math.abs(dx*cos+dy*sin)<half.x+margin&&Math.abs(-dx*sin+dy*cos)<half.y+margin;});
+    };
     const dispatch = (world: World) => {
         agents.forEach((entity, i) => {
             const transform = world.get(entity, Transform); transform.position = start(i); world.insert(entity, Transform, transform);
@@ -26,14 +41,16 @@ addPlugin({ name: 'navigation-workshop', build(app) {
     };
     const gate = (world: World) => {
         // Do not close on top of a courier; blocked actors must not be teleported.
-        if (!facts.gateClosed && agents.some(e => { const p = world.get(e, Transform).position; return Math.abs(p.x) < 52 && Math.abs(p.y) < 68; })) {
+        facts.gateClosed=syncObstacle(world,'Gate');
+        if (!facts.gateClosed && occupied(world,'Gate')) {
             notice = 'Gate occupied. Let the courier clear the opening, then close it.'; return;
         }
         facts.gateClosed = !facts.gateClosed; obstacle(world, 'Gate', facts.gateClosed);
         notice = facts.gateClosed ? 'Gate closed. Couriers keep their destination and wait on this side.' : 'Gate open. Waiting couriers resume without another destination command.';
     };
     const build = (world: World) => {
-        if (!facts.warehousePlaced && agents.some(e => { const p = world.get(e, Transform).position; return Math.abs(p.x+160) < 78 && Math.abs(p.y) < 78; })) {
+        facts.warehousePlaced=syncObstacle(world,'Warehouse');
+        if (!facts.warehousePlaced && occupied(world,'Warehouse')) {
             notice = 'Storehouse plot occupied. Reset the delivery or let the courier pass.'; return;
         }
         facts.warehousePlaced = !facts.warehousePlaced; obstacle(world, 'Warehouse', facts.warehousePlaced);
@@ -59,6 +76,8 @@ addPlugin({ name: 'navigation-workshop', build(app) {
         for (let y=0;y<13;y++) for(let x=0;x<23;x++) if(x===0||x===22||y===0||y===12||(x===11&&(y<5||y>7))) grid.setWalkable(x,y,false);
         nav.setSurface(grid);
         agents = Array.from({length:8},(_,i)=>world.findEntityByName(`Courier ${String(i+1).padStart(2,'0')}`)).filter((e):e is Entity=>e!==null);
+        facts.couriers=agents.length;
+        facts.gateClosed=syncObstacle(world,'Gate');facts.warehousePlaced=syncObstacle(world,'Warehouse');
         const canvas = world.findEntityByName('Canvas'); if(canvas===null)return;
         const label = (name:string,content:string,left:number,top:number,width:number,size:number,color={r:.7,g:.77,b:.8,a:1}) => {
             const e=spawnUIEntity({world,parent:canvas,node:{position:UIPositionType.Absolute,insetLeft:px(left),insetTop:px(top),width:px(width),height:px(name==='WorkshopStatus'?44:size*1.8),pointerEvents:1},
@@ -79,6 +98,7 @@ addPlugin({ name: 'navigation-workshop', build(app) {
         label('WorkshopHelp','Gate and storehouse are editable NavObstacle entities. Select a courier during Play to inspect its route.',120,682,800,11);
     },{name:'WorkshopSetup'}));
     app.addSystem(defineSystem([Res(Nav),Res(Input),GetWorld()],(nav,input,world)=>{
+        facts.gateClosed=syncObstacle(world,'Gate');facts.warehousePlaced=syncObstacle(world,'Warehouse');
         if(input.isKeyPressed('KeyG'))gate(world);
         if(input.isKeyPressed('KeyB'))build(world);
         if(input.isKeyPressed('KeyC'))crowd(world);

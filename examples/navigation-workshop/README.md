@@ -15,7 +15,9 @@ The buttons support pointer/touch input; the keys are desktop shortcuts. The
 status shows completed deliveries and plans waiting in the engine's fair queue.
 In the editor, select a courier during Play and use **Inspect current route**.
 
-`Gate` and `Warehouse` are scene-authored `NavObstacle` entities. The floor and
+`Gate` and `Warehouse` are scene-authored `NavObstacle` entities. Their
+visuals follow their authored `enabled` fields, including edits during
+Play; placement guards read the current extents and courier radii/speeds. The floor and
 stonework are grouped in the Outliner; the eight starting couriers are ordinary
 scene entities with `NavAgent`. Extra crowd members are spawned at runtime.
 The script installs a 23×13 grid; obstacle marking and replanning belong to the
