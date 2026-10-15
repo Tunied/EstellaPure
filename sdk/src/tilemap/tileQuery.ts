@@ -109,7 +109,7 @@ export function isTileSolid(layer: Entity | number, x: number, y: number): boole
 /**
  * {@link tileCollisionAt} addressed in WORLD pixels — converts through the
  * layer's own grid (`worldToTile`, honoring the layer origin at (originX,
- * originY), typically its Transform position).
+ * originY), typically its Transform position, and optional world Z rotation in radians).
  */
 export function tileCollisionAtWorld(
     layer: Entity | number,
@@ -117,7 +117,8 @@ export function tileCollisionAtWorld(
     worldY: number,
     originX = 0,
     originY = 0,
+    rotation = 0,
 ): ResolvedTileCollision | null {
-    const t = TilemapAPI.worldToTile(layer as Entity, worldX, worldY, originX, originY);
+    const t = TilemapAPI.worldToTile(layer as Entity, worldX, worldY, originX, originY, rotation);
     return tileCollisionAt(layer, Math.floor(t.x), Math.floor(t.y));
 }

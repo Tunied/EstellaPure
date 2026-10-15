@@ -42,10 +42,14 @@ struct PhysicsContext {
     };
     std::unordered_map<uint32_t, PausedMotion> pausedMotion;
 
-    // One-way (one-sided) platforms: entity -> solid-side normal in physics space
-    // (normalized). Read by the pre-solve callback to cancel contacts that approach
+    // One-way platforms: entity -> normalized solid-side normal and coordinate frame.
+    // Read by the pre-solve callback to cancel contacts that approach
     // from the pass-through side. Empty map = zero pre-solve overhead.
-    std::unordered_map<uint32_t, b2Vec2> oneWayNormals;
+    struct OneWayNormal {
+        b2Vec2 normal;
+        bool localSpace = false;
+    };
+    std::unordered_map<uint32_t, OneWayNormal> oneWayNormals;
 
     // Interactive drag: a single kinematic "mouse body" + motor joint pulling one
     // target body toward the cursor (Box2D v3 has no dedicated mouse joint).

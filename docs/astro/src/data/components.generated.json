@@ -2776,6 +2776,11 @@
           "default": "(0, 1)"
         },
         {
+          "key": "localSpace",
+          "type": "boolean",
+          "default": "false"
+        },
+        {
           "key": "enabled",
           "type": "boolean",
           "default": "true"

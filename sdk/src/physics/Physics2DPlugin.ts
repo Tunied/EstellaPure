@@ -93,6 +93,7 @@ const REQUIRED_EXPORTS = [
     '_physics_capturePoses', '_physics_getInterpolatedCount', '_physics_getInterpolatedTransforms',
     '_physics_collectEvents', '_physics_getDynamicBodyCount', '_physics_getDynamicBodyTransforms',
     '_physics_setBodyTransform',
+    '_physics_setOneWayPlatformLocal',
 ] as const;
 
 function assertModuleContract(module: PhysicsWasmModule): void {

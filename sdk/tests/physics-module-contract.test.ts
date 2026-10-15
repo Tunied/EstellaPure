@@ -35,6 +35,7 @@ const EVERY_EXPORT = [
     '_physics_capturePoses', '_physics_getInterpolatedCount', '_physics_getInterpolatedTransforms',
     '_physics_collectEvents', '_physics_getDynamicBodyCount', '_physics_getDynamicBodyTransforms',
     '_physics_setBodyTransform',
+    '_physics_setOneWayPlatformLocal',
 ];
 
 const moduleWith = (names: readonly string[]): Record<string, unknown> =>
@@ -44,6 +45,15 @@ const moduleWith = (names: readonly string[]): Record<string, unknown> =>
 const settle = () => new Promise((r) => { setTimeout(r, 0); });
 
 describe('the physics plugin against a stale wasm', () => {
+    it('refuses a module that cannot keep generated tile normals in the body frame', async () => {
+        const stale = moduleWith(EVERY_EXPORT.filter(n => n !== '_physics_setOneWayPlatformLocal'));
+        const app = fakeApp();
+        new Physics2DPlugin('', {}, async () => stale as never).build(app);
+        await settle();
+        expect(app.errors).toHaveLength(1);
+        expect(app.errors[0]).toContain('_physics_setOneWayPlatformLocal');
+        expect(stale._physics_init).not.toHaveBeenCalled();
+    });
     it('refuses a module missing the frame loop it will call, and names what is missing', async () => {
         const stale = moduleWith(EVERY_EXPORT.filter((n) => !n.includes('Interpolated') && n !== '_physics_capturePoses'));
         const app = fakeApp();

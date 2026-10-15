@@ -27,6 +27,7 @@ describe('OneWayPlatform2D component', () => {
         const d = OneWayPlatform2D._default as OneWayPlatform2DData;
         expect(d.normal).toEqual({ x: 0, y: 1 });
         expect(d.enabled).toBe(true);
+        expect(d.localSpace).toBe(false);
     });
 });
 

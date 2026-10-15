@@ -5929,6 +5929,7 @@ _physics_setMotorJointMaxVelocityForce: (entityId: number, force: number) => voi
 _physics_setMotorJointMaxVelocityTorque: (entityId: number, torque: number) => void
 _physics_setMouseTarget: (targetX: number, targetY: number) => void
 _physics_setOneWayPlatform: (entityId: number, nx: number, ny: number, enable: number) => void
+_physics_setOneWayPlatformLocal: (entityId: number, nx: number, ny: number, enable: number) => void
 _physics_setPrismaticJointLimits: (entityId: number, lower: number, upper: number) => void
 _physics_setPrismaticJointMaxMotorForce: (entityId: number, force: number) => void
 _physics_setPrismaticJointMotorSpeed: (entityId: number, speed: number) => void

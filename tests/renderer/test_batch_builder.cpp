@@ -21,6 +21,8 @@
 #include "esengine/renderer/plugins/UIElementPlugin.hpp"
 #include "esengine/renderer/plugins/TextPlugin.hpp"
 #include "esengine/renderer/plugins/SpritePlugin.hpp"
+#include "esengine/renderer/plugins/TilemapRenderPlugin.hpp"
+#include "esengine/ecs/components/TilemapLayer.hpp"
 #include "esengine/ecs/components/Sprite.hpp"
 #include "esengine/ecs/components/BitmapText.hpp"
 #include "esengine/ecs/components/UINode.hpp"
@@ -144,6 +146,62 @@ TEST_CASE("pool reports each stream's vertex stride (single source for baseVerte
     CHECK(h.pool.vertexStride(LayoutId::Batch) == sizeof(BatchVertex));
     CHECK(h.pool.vertexStride(LayoutId::Shape) == sizeof(TestShapeVertex));
     CHECK(h.pool.vertexStride(LayoutId::ParticleInstance) == sizeof(TestParticleInstance));
+}
+
+TEST_CASE("tilemaps: rotation places cached quads and inverts distant chunk culling") {
+    for (auto grid : {tilemap::GridType::Orthogonal, tilemap::GridType::Isometric,
+                      tilemap::GridType::StaggeredIsometric, tilemap::GridType::Hexagonal}) {
+        for (bool infinite : {false, true}) for (bool lazy : {false, true}) {
+            Harness h;
+            RenderContext context(h.device);
+            resource::ResourceManager resources;
+            resources.init(h.device);
+            const u8 pixels[16 * 24 * 4] = {};
+            const auto texture = resources.createTexture(resource::ResourceContent::Retained,
+                16, 24, pixels, TextureFormat::RGBA8);
+            ecs::Registry registry;
+            const auto entity = registry.create();
+            auto& transform = registry.emplace<ecs::Transform>(entity);
+            auto& component = registry.emplace<ecs::TilemapLayer>(entity);
+            component.tileset = texture; component.tilesetColumns = 1;
+            component.cellSize = {16, 24}; component.originOffset = {3, -2};
+            tilemap::TilemapSystem system;
+            if (infinite) system.initInfiniteLayer(entity, 16, 24);
+            else system.initLayer(entity, 96, 16, 16, 24);
+            system.setGridType(entity, grid); system.setHexParams(entity, 6, true, false);
+            const i32 tx = infinite ? -33 : 64, ty = 2;
+            system.setTile(entity, tx, ty, 1);
+            f32 lx = 0, ly = 0;
+            system.tileToWorld(entity, tx, ty, 0, 0, lx, ly);
+            if (grid != tilemap::GridType::Isometric) { lx += 8; ly -= 12; }
+            const glm::vec3 localCenter{lx + 3, ly - 2, 0}, origin{20, 30, 0};
+            Frustum frustum;
+            RenderFrameContext frameContext{context, resources};
+            RenderCollectContext collect{registry, frustum, h.clips, h.pool, h.list, frameContext, {}};
+            TilemapRenderPlugin plugin; plugin.setTilemapSystem(&system); plugin.init(frameContext);
+            const auto revision = system.getLayerData(entity)->edit_revision;
+            for (f32 angle : {0.0f, .37f, glm::half_pi<f32>(), glm::pi<f32>(), -glm::half_pi<f32>()}) {
+                const auto rotation = glm::angleAxis(angle, glm::vec3{0, 0, 1});
+                transform.worldPosition = origin; transform.worldRotation = rotation;
+                transform.cachedMatrix_ = glm::translate(glm::mat4{1}, origin) * glm::mat4_cast(rotation);
+                transform.decomposed_ = !lazy;
+                const auto center = origin + rotation * localCenter;
+                const auto projection = glm::ortho(center.x - 4, center.x + 4, center.y - 4, center.y + 4);
+                frustum.extractFromMatrix(projection); collect.camera = computeCameraView(projection);
+                h.pool.beginFrame(); h.list.clear(); plugin.collect(collect);
+                REQUIRE(h.pool.vertexBytesUsed(LayoutId::Batch) == 4 * sizeof(BatchVertex));
+                const auto* vertices = reinterpret_cast<const BatchVertex*>(h.pool.vertexData(LayoutId::Batch));
+                const glm::vec3 offsets[] = {{-8, -12, 0}, {8, -12, 0}, {8, 12, 0}, {-8, 12, 0}};
+                for (u32 i = 0; i < 4; ++i) {
+                    const auto expected = origin + rotation * (localCenter + offsets[i]);
+                    CHECK(std::abs(vertices[i].position.x - expected.x) < .002f);
+                    CHECK(std::abs(vertices[i].position.y - expected.y) < .002f);
+                }
+                CHECK(system.getLayerData(entity)->edit_revision == revision);
+            }
+            resources.shutdown();
+        }
+    }
 }
 
 TEST_CASE("appendQuad: Batch command with baseVertex-offset indices and one texture slot") {

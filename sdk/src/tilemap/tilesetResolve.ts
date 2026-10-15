@@ -51,7 +51,7 @@ export interface ResolvedTileCollision {
         | { type: 'box' }
         | { type: 'polygon'; points: [number, number][] }
         | { type: 'circle'; cx: number; cy: number; r: number };
-    /** Solid-side normal (world y-up; {0,1} = solid-top) of a one-way platform, if any. */
+    /** Solid-side normal in the layer's y-up frame; {0,1} = solid-top before layer rotation. */
     oneWay?: { nx: number; ny: number };
     sensor?: boolean;
     density?: number;

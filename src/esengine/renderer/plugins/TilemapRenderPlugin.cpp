@@ -253,14 +253,18 @@ void TilemapRenderPlugin::collect(RenderCollectContext& collect_ctx) {
         }
         if (!anySlotValid) continue;
 
-        f32 originX = 0, originY = 0;
+        f32 originX = 0, originY = 0, angle = 0;
         Entity transformEntity = (layer.origin_entity != INVALID_ENTITY)
             ? layer.origin_entity : entity;
         if (auto* transform = registry.tryGet<ecs::Transform>(transformEntity)) {
             transform->ensureDecomposed();   // lazily derived; see Transform.hpp
             originX = transform->worldPosition.x;
             originY = transform->worldPosition.y;
+            const auto& q = transform->worldRotation;
+            angle = std::atan2(2.0f * (q.w * q.z + q.x * q.y),
+                               1.0f - 2.0f * (q.y * q.y + q.z * q.z));
         }
+        const f32 cosAngle = std::cos(angle), sinAngle = std::sin(angle);
 
         glm::vec4 finalColor(tint.r, tint.g, tint.b, tint.a * opacity);
         u32 packedColor = packColor(finalColor);
@@ -285,10 +289,19 @@ void TilemapRenderPlugin::collect(RenderCollectContext& collect_ctx) {
         // tile whose center is off-screen while its body still overlaps.
         i32 chunkSize = static_cast<i32>(tilemap::CHUNK_SIZE);
         i32 cornerTx[4], cornerTy[4];
-        tilemap_system_->worldToTile(entity, cam.left,  cam.top,    adjOriginX, adjOriginY, cornerTx[0], cornerTy[0]);
-        tilemap_system_->worldToTile(entity, cam.right, cam.top,    adjOriginX, adjOriginY, cornerTx[1], cornerTy[1]);
-        tilemap_system_->worldToTile(entity, cam.left,  cam.bottom, adjOriginX, adjOriginY, cornerTx[2], cornerTy[2]);
-        tilemap_system_->worldToTile(entity, cam.right, cam.bottom, adjOriginX, adjOriginY, cornerTx[3], cornerTy[3]);
+        const auto cornerToTile = [&](f32 x, f32 y, i32& tx, i32& ty) {
+            if (angle == 0) {
+                tilemap_system_->worldToTile(entity, x, y, adjOriginX, adjOriginY, tx, ty);
+            } else {
+                const f32 dx = x - originX - parallaxOffsetX, dy = y - originY - parallaxOffsetY;
+                tilemap_system_->worldToTile(entity, dx * cosAngle + dy * sinAngle,
+                    -dx * sinAngle + dy * cosAngle, originOffset.x, originOffset.y, tx, ty);
+            }
+        };
+        cornerToTile(cam.left, cam.top, cornerTx[0], cornerTy[0]);
+        cornerToTile(cam.right, cam.top, cornerTx[1], cornerTy[1]);
+        cornerToTile(cam.left, cam.bottom, cornerTx[2], cornerTy[2]);
+        cornerToTile(cam.right, cam.bottom, cornerTx[3], cornerTy[3]);
         i32 minTx = cornerTx[0], maxTx = cornerTx[0];
         i32 minTy = cornerTy[0], maxTy = cornerTy[0];
         for (int i = 1; i < 4; ++i) {
@@ -362,8 +375,12 @@ void TilemapRenderPlugin::collect(RenderCollectContext& collect_ctx) {
                     if (mesh.indices.empty()) continue;
                     u32 baseVertex = static_cast<u32>(slotVertices[si].size());
                     for (const BatchVertex& v : mesh.vertices) {
+                        const f32 lx = v.position.x + originOffset.x, ly = v.position.y + originOffset.y;
                         slotVertices[si].push_back({
-                            { v.position.x + adjOriginX, v.position.y + adjOriginY, depth },
+                            angle == 0
+                                ? glm::vec3{v.position.x + adjOriginX, v.position.y + adjOriginY, depth}
+                                : glm::vec3{originX + parallaxOffsetX + lx * cosAngle - ly * sinAngle,
+                                            originY + parallaxOffsetY + lx * sinAngle + ly * cosAngle, depth},
                             packedColor, v.texCoord });
                     }
                     for (u32 idx : mesh.indices) {

@@ -29,11 +29,9 @@ export type TileCollisionShape =
     | { type: 'circle'; cx: number; cy: number; r: number };
 
 /**
- * A tile's collision = a {@link TileCollisionShape} plus optional cross-cutting modifiers.
- * Every modifier is optional and omitted when at its engine default, so existing
- * `.estileset` files (plain `{type:'box'}` / `{type:'polygon'}`) round-trip byte-for-byte.
- * `oneWay` is the solid-side normal in physics/world convention (y-up; `{0,1}` = solid-top,
- * jump-through floor); flip flags reorient it at placement. Absence of `collision` = none.
+ * Modifiers at their defaults are omitted, preserving existing `.estileset` round-trips.
+ * `oneWay` uses the layer's y-up frame (`{0,1}` = solid-top, pass-through below);
+ * cell flips and layer rotation reorient it. Absent `collision` means no collider.
  */
 export type TilesetCollision = TileCollisionShape & {
     /** One-way (jump-through) platform: contacts from behind this normal pass through. */

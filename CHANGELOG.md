@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Rotated tile layers share one frame for drawing, picking and collision previews.** World Z rotation, including parent rotation, applies to tile vertices, visible chunk selection, editor grids, brush ghosts and world-to-tile queries. Collision previews rotate cached local geometry and keep large shapes visible when their bounds overlap the viewport. Generated tile one-way platforms rotate their solid side with the physics body; ordinary one-way platforms retain world-space normals unless `localSpace` is enabled. Static-parent rotation needs no repeated normal submissions, and rebuilt shapes restore their pre-solve behavior.
+
 ## [0.88.0] - 2026-10-15
 
 ### Added

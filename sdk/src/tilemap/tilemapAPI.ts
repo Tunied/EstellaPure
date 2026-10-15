@@ -292,20 +292,27 @@ function tilemapAPI(moduleOf: () => TilemapModule | null) {
         moduleOf()?.tilemap_setHexParams(entity, sideLength, staggerAxisX ? 1 : 0, staggerIndexEven ? 1 : 0);
     },
 
+    /** Grid anchor in world pixels; rotation is the layer's world Z angle in radians. */
     tileToWorld(entity: number, tx: number, ty: number,
-                originX: number, originY: number): { x: number; y: number } {
+                originX: number, originY: number, rotation = 0): { x: number; y: number } {
         if (!moduleOf()) return { x: 0, y: 0 };
         const m0 = moduleOf()!;
-        const ptr = m0.tilemap_tileToWorld(entity, tx, ty, originX, originY);
+        const ptr = m0.tilemap_tileToWorld(entity, tx, ty, rotation === 0 ? originX : 0, rotation === 0 ? originY : 0);
         const floats = new Float32Array(m0.HEAPU8.buffer, ptr, 2);
-        return { x: floats[0], y: floats[1] };
+        if (rotation === 0) return { x: floats[0], y: floats[1] };
+        const c = Math.cos(rotation), s = Math.sin(rotation);
+        return { x: originX + c * floats[0] - s * floats[1], y: originY + s * floats[0] + c * floats[1] };
     },
 
+    /** Invert the layer origin and world Z rotation before reading its grid. */
     worldToTile(entity: number, wx: number, wy: number,
-                originX: number, originY: number): { x: number; y: number } {
+                originX: number, originY: number, rotation = 0): { x: number; y: number } {
         if (!moduleOf()) return { x: 0, y: 0 };
         const m0 = moduleOf()!;
-        const ptr = m0.tilemap_worldToTile(entity, wx, wy, originX, originY);
+        const dx = wx - originX, dy = wy - originY, c = Math.cos(rotation), s = Math.sin(rotation);
+        const ptr = rotation === 0
+            ? m0.tilemap_worldToTile(entity, wx, wy, originX, originY)
+            : m0.tilemap_worldToTile(entity, dx * c + dy * s, -dx * s + dy * c, 0, 0);
         const floats = new Float32Array(m0.HEAPU8.buffer, ptr, 2);
         return { x: floats[0], y: floats[1] };
     },

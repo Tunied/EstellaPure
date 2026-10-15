@@ -5,10 +5,10 @@
  * @brief   Orientation-aware tile-cell geometry — the single TS mirror of the C++
  *          placement math in TilemapRenderPlugin / TilemapSystem.
  *
- * The renderer always draws a tile as an axis-aligned tileWidth×tileHeight quad;
+ * The renderer draws each tile as a layer-local axis-aligned tileWidth×tileHeight quad;
  * only its CENTER moves per orientation (orthogonal / isometric / staggered /
  * hexagonal). {@link tileCellCenter} reproduces that center (layer-local, y-up —
- * the caller adds the layer's world origin), so the editor brush ghost lands
+ * the caller applies the layer's world Z rotation and origin), so the editor brush ghost lands
  * exactly where the runtime will draw the tile.
  *
  * The CELL itself is a rect (orthogonal), a diamond (isometric / staggered), or a

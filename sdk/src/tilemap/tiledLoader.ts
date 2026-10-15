@@ -1054,7 +1054,7 @@ export function generateChunkPolygonCollision(
     return entities;
 }
 
-/** A one-way solid-side normal (world y-up; {0,1} = solid-top), reoriented by cell flips
+/** A one-way solid-side normal (layer y-up; {0,1} = solid-top), reoriented by cell flips
  *  so a flipped platform's solid side follows the render. Shared with the editor overlay,
  *  so a flipped one-way tile's arrow matches the side a body actually lands on at Play. */
 export function oneWayNormalWorld(nx: number, ny: number, fH: boolean, fV: boolean, fD: boolean): { x: number; y: number } {
@@ -1122,6 +1122,7 @@ function spawnTileShape(
     if (rc.oneWay) {
         world.insert(entity, OneWayPlatform2D, {
             normal: oneWayNormalWorld(rc.oneWay.nx, rc.oneWay.ny, f.flipH, f.flipV, f.flipD),
+            localSpace: true,
         });
     }
     return entity;

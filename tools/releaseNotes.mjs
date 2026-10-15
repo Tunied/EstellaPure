@@ -28,6 +28,10 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(tilemap): align rotated layers and collision normals':
+    { note: 'Rotated tile layers share one frame for drawing, picking and collision previews.' },
+  'fix(editor): align rotated tile tools and collision previews':
+    { note: 'Rotated tile layers share one frame for drawing, picking and collision previews.' },
   'chore(release): classify 0.88.0 feature coverage':
     { internal: 'Registers the new release features in the certification census and records the missing packaged-pixel coverage for volume color overrides without claiming acceptance.' },
   'chore(release): prepare 0.88.0':

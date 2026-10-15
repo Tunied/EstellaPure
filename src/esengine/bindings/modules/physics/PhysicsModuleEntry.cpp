@@ -35,13 +35,19 @@ static bool preSolveOneWayPlatform(b2ShapeId shapeIdA, b2ShapeId shapeIdB,
     auto itA = g_ctx.oneWayNormals.find(entityFromShape(shapeIdA));
     if (itA != g_ctx.oneWayNormals.end()) {
         // Platform = A; direction toward the other shape (B) is +normal.
-        float d = normal.x * itA->second.x + normal.y * itA->second.y;
+        const b2Vec2 solid = itA->second.localSpace
+            ? b2RotateVector(b2Body_GetRotation(b2Shape_GetBody(shapeIdA)), itA->second.normal)
+            : itA->second.normal;
+        float d = normal.x * solid.x + normal.y * solid.y;
         if (d <= ONE_WAY_ALIGN_THRESHOLD) return false;
     }
     auto itB = g_ctx.oneWayNormals.find(entityFromShape(shapeIdB));
     if (itB != g_ctx.oneWayNormals.end()) {
         // Platform = B; direction toward the other shape (A) is -normal.
-        float d = normal.x * itB->second.x + normal.y * itB->second.y;
+        const b2Vec2 solid = itB->second.localSpace
+            ? b2RotateVector(b2Body_GetRotation(b2Shape_GetBody(shapeIdB)), itB->second.normal)
+            : itB->second.normal;
+        float d = normal.x * solid.x + normal.y * solid.y;
         if (d >= -ONE_WAY_ALIGN_THRESHOLD) return false;
     }
     return true;
@@ -104,9 +110,10 @@ EMSCRIPTEN_KEEPALIVE
 void physics_setOneWayPlatform(uint32_t entityId, float nx, float ny, int enable) {
     if (enable != 0) {
         float len = sqrtf(nx * nx + ny * ny);
-        g_ctx.oneWayNormals[entityId] = (len > 0.0f)
+        const b2Vec2 normal = (len > 0.0f)
             ? b2Vec2{nx / len, ny / len}
             : b2Vec2{0.0f, 1.0f};
+        g_ctx.oneWayNormals[entityId] = {normal, false};
     } else {
         g_ctx.oneWayNormals.erase(entityId);
     }
@@ -119,6 +126,12 @@ void physics_setOneWayPlatform(uint32_t entityId, float nx, float ny, int enable
             }
         }
     }
+}
+
+EMSCRIPTEN_KEEPALIVE
+void physics_setOneWayPlatformLocal(uint32_t entityId, float nx, float ny, int enable) {
+    physics_setOneWayPlatform(entityId, nx, ny, enable);
+    if (enable != 0) g_ctx.oneWayNormals.at(entityId).localSpace = true;
 }
 
 // Body Management

@@ -41,6 +41,7 @@ void physics_init(float gx, float gy, float timestep, int substeps, float contac
 void physics_setWorldConfig(int enableSleep, int enableContinuous, float restitutionThreshold, float maxLinearSpeed);
 void physics_shutdown();
 void physics_setOneWayPlatform(uint32_t entityId, float nx, float ny, int enable);
+void physics_setOneWayPlatformLocal(uint32_t entityId, float nx, float ny, int enable);
 void physics_createBody(uint32_t entityId, int bodyType, float x, float y, float angle, float gravityScale, float linearDamping, float angularDamping, int fixedRotation, int bullet);
 void physics_destroyBody(uint32_t entityId);
 int physics_hasBody(uint32_t entityId);

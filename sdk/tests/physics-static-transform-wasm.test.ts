@@ -6,16 +6,61 @@ import { Transform } from '../src/ecs/component';
 import { Physics2DPlugin } from '../src/physics/Physics2DPlugin';
 import { Physics2DRuntime } from '../src/physics/Physics2DRuntime';
 import { Physics2D } from '../src/physics/Physics2D';
-import { RigidBody2D, BoxCollider2D, BodyType } from '../src/physics/PhysicsComponents';
+import { RigidBody2D, BoxCollider2D, BodyType, OneWayPlatform2D } from '../src/physics/PhysicsComponents';
 import type { PhysicsWasmModule } from '../src/physics/PhysicsModuleLoader';
 import type { ESEngineModule } from '../src/wasm';
 import { HAS_WASM, hasSideModule, loadSideModule, loadWasmModule } from './helpers/loadWasm';
+import { generateChunkTileShapes } from '../src/tilemap/tiledLoader';
+import { buildCollisionPaletteModel } from '../src/tilemap/collisionPalette';
+import { CHUNK_SIZE } from '../src/tilemap/chunkCodec';
 
 let engine: ESEngineModule;
 const apps: App[] = [];
 afterEach(() => { for (const app of apps.splice(0)) app.quit(); vi.restoreAllMocks(); });
 describe.skipIf(!HAS_WASM || !hasSideModule('physics'))('static Box2D transform projection', () => {
     beforeAll(async () => { engine = await loadWasmModule(); });
+    it('rotates local one-way normals with a static parent without normal resubmission', async () => {
+        const app = App.new(); apps.push(app);
+        app.connectCpp(new engine.Registry(), engine, { ownedRegistry: true });
+        const module = await loadSideModule<PhysicsWasmModule>('physics');
+        app.addPlugin(new Physics2DPlugin('', { gravity: { x: 0, y: 0 } }, async () => module));
+        await app.getResource(Physics2DRuntime).initPromise;
+        const world = app.world, parent = world.spawn();
+        world.insert(parent, Transform);
+        const tiles = new Uint16Array(CHUNK_SIZE * CHUNK_SIZE); tiles[0] = 8;
+        const [platform] = generateChunkTileShapes(world, [{ x: 0, y: 0, tiles }],
+            buildCollisionPaletteModel().tileShapes, 400, 40, 0, 0, 100);
+        expect(world.get(platform, OneWayPlatform2D).localSpace).toBe(true);
+        world.setParent(platform, parent);
+        const local = vi.spyOn(module, '_physics_setOneWayPlatformLocal');
+        await app.stepFrames(3, 1 / 60);
+        expect(local).toHaveBeenCalledTimes(1);
+        world.update(parent, Transform, value => {
+            value.rotation = { x: 0, y: 0, z: Math.SQRT1_2, w: Math.SQRT1_2 };
+            value.position = { x: -20, y: -200, z: 0 };
+        });
+        await app.stepFrames(3, 1 / 60);
+        expect(local).toHaveBeenCalledTimes(1);
+        const actor = world.spawn();
+        world.insert(actor, Transform, { position: { x: -300, y: 0, z: 0 } });
+        world.insert(actor, RigidBody2D, { bodyType: BodyType.Dynamic });
+        world.insert(actor, BoxCollider2D, { halfExtents: { x: .2, y: .2 } });
+        await app.stepFrames(3, 1 / 60);
+        module._physics_setLinearVelocity(actor, 3, 0);
+        const writes = local.mock.calls.length;
+        await app.stepFrames(120, 1 / 60);
+        const x = world.get(actor, Transform).worldPosition.x;
+        expect(x).toBeGreaterThan(-70);
+        expect(x).toBeLessThan(-20);
+        expect(local).toHaveBeenCalledTimes(writes);
+        world.update(platform, BoxCollider2D, value => { value.halfExtents.y = .3; });
+        await app.stepFrames(3, 1 / 60);
+        expect(local.mock.calls.length).toBeGreaterThan(writes);
+        const clear = vi.spyOn(module, '_physics_setOneWayPlatform');
+        world.remove(platform, OneWayPlatform2D);
+        await app.stepFrames(3, 1 / 60);
+        expect(clear).toHaveBeenCalledWith(platform, 0, 0, 0);
+    });
     it.each([false, true])('moves a static body in place without repeated writes (parented=%s)', async parented => {
         const app = App.new(); apps.push(app);
         app.connectCpp(new engine.Registry(), engine, { ownedRegistry: true });

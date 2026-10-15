@@ -339,7 +339,11 @@ function syncOneWayPlatforms(
     for (const entity of world.getEntitiesWithComponents([OneWayPlatform2D, RigidBody2D])) {
         if (!trackedEntities.has(entity)) continue;
         const ow = world.get(entity, OneWayPlatform2D) as OneWayPlatform2DData;
-        module._physics_setOneWayPlatform(entity, ow.normal.x, ow.normal.y, ow.enabled ? 1 : 0);
+        if (ow.localSpace) {
+            module._physics_setOneWayPlatformLocal(entity, ow.normal.x, ow.normal.y, ow.enabled ? 1 : 0);
+        } else {
+            module._physics_setOneWayPlatform(entity, ow.normal.x, ow.normal.y, ow.enabled ? 1 : 0);
+        }
         trackedOneWay.add(entity);
         seen.add(entity);
     }

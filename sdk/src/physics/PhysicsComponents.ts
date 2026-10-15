@@ -239,10 +239,11 @@ export function activeCollider<C extends AnyComponentDef>(
 // =============================================================================
 
 export interface OneWayPlatform2DData {
-    // Solid-side normal in world/physics space. Contacts are cancelled unless the
-    // other body approaches from this side. Default {0,1} = solid top (land on top,
-    // jump up through it).
+    // Contacts survive only on this solid side; {0,1} is solid-top, pass-through below.
+    // World/physics coordinates by default, body coordinates when localSpace is true.
     normal: Vec2;
+    /** Rotate the normal with the physics body, including its parent's world rotation. */
+    localSpace?: boolean;
     enabled: boolean;
 }
 
@@ -251,6 +252,7 @@ export interface OneWayPlatform2DData {
 // shapes and feeds the normal to the one-way pre-solve callback.
 export const OneWayPlatform2D = defineComponent<OneWayPlatform2DData>('OneWayPlatform2D', {
     normal: { x: 0, y: 1 },
+    localSpace: false,
     enabled: true,
 });
 

@@ -60,6 +60,38 @@ check('above body does not sink through', aPos && aPos.y > 0.2, `y=${aPos?.y.toF
 check('below body passes up through', belowMaxY > 1.5, `maxY=${belowMaxY.toFixed(3)} (want >1.5)`);
 check('below body lands on top after passing', bPos && Math.abs(bPos.y - 0.4) < 0.2, `y=${bPos?.y.toFixed(3)} (want ≈0.4)`);
 
+// The normal is bound before rotating the body, without another normal write.
+for (const angle of [Math.PI / 2, -Math.PI / 2, Math.PI, 0.37]) {
+    for (const approach of [1, -1]) {
+        m._physics_shutdown();
+        m._physics_init(0, 0, 1 / 60, 4, 30, 10, 3);
+        const nx = -Math.sin(angle), ny = Math.cos(angle);
+        body(1, STATIC, 0, 0); box(1, 2, 0.2);
+        m._physics_setOneWayPlatformLocal(1, 0, 1, 1);
+        m._physics_setBodyTransform(1, 0, 0, angle);
+        body(2, DYNAMIC, nx * 3 * approach, ny * 3 * approach);
+        box(2, 0.2, 0.2);
+        m._physics_setLinearVelocity(2, -nx * 3 * approach, -ny * 3 * approach);
+        step(120);
+        const p = bodyPos(2);
+        const distance = p ? p.x * nx + p.y * ny : NaN;
+        check(`rotated local one-way ${angle.toFixed(2)} side ${approach}`,
+            approach === 1 ? distance > 0.2 && distance < 0.7 : distance > 2,
+            `solid-side distance=${distance.toFixed(3)}`);
+    }
+}
+// The existing setter still binds a world-space normal on a rotated body.
+m._physics_shutdown();
+m._physics_init(0, 0, 1 / 60, 4, 30, 10, 3);
+body(1, STATIC, 0, 0); box(1, 2, 0.2);
+m._physics_setOneWayPlatformLocal(1, 0, 1, 1);
+m._physics_setOneWayPlatform(1, 0, 1, 1);
+m._physics_setBodyTransform(1, 0, 0, Math.PI / 2);
+body(2, DYNAMIC, -3, 0); box(2, 0.2, 0.2);
+m._physics_setLinearVelocity(2, 3, 0);
+step(120);
+check('world normal replaces local mode and keeps world orientation', bodyPos(2)?.x > 2);
+
 // ── 2) Motor joint (conveyor / driven motion) ───────────────────────────────
 m._physics_shutdown();
 m._physics_init(0, 0, 1 / 60, 4, 30, 10, 3); // no gravity isolates the motor

@@ -98,6 +98,7 @@ export interface PhysicsWasmModule {
         fixedRotation: number, bullet: number): void;
 
     _physics_setOneWayPlatform(entityId: number, nx: number, ny: number, enable: number): void;
+    _physics_setOneWayPlatformLocal(entityId: number, nx: number, ny: number, enable: number): void;
 
     _physics_createRevoluteJoint(entityIdA: number, entityIdB: number,
         anchorAx: number, anchorAy: number, anchorBx: number, anchorBy: number,

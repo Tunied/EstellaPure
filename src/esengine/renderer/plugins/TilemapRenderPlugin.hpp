@@ -25,11 +25,8 @@ public:
     const char* collectScope() const override { return "render.collect.tilemap"; }
 
 private:
-    // Per-tileset-slot geometry for one chunk. A multi-tileset layer splits a
-    // chunk's tiles across slots (one texture each) so each becomes its own batch.
-    // Vertices are layer-local and untinted: origin, parallax offset and tint are
-    // applied when merging into the frame's batch, so moving, tinting or
-    // parallax-scrolling a layer never invalidates the cache.
+    // One batch per tileset slot. Vertices stay layer-local and untinted;
+    // rotation, origin, parallax and tint apply at frame merge without cache rebuilds.
     struct SlotMesh {
         std::vector<BatchVertex> vertices;
         std::vector<u32> indices;
