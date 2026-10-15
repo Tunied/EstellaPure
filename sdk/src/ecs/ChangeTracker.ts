@@ -152,12 +152,23 @@ class ReaderOwnedJournal {
     }
 }
 
+interface ChangeStamp { tick: number; sequence: number; }
+type ChangeRow = number | ChangeStamp;
+
+interface ComponentSequences {
+    readonly rows: Map<Entity, ChangeRow>;
+    latest: number;
+}
+
 export class ChangeTracker {
     private worldTick_ = 0;
-    private componentAddedTicks_ = new Map<symbol, Map<Entity, number>>();
+    private componentAddedTicks_ = new Map<symbol, Map<Entity, ChangeRow>>();
     private componentIncarnations_ = new Map<symbol, Map<Entity, number>>();
     private nextIncarnation_ = 1;
-    private componentChangedTicks_ = new Map<symbol, Map<Entity, number>>();
+    private componentChangedTicks_ = new Map<symbol, Map<Entity, ChangeRow>>();
+    private componentAddedSequences_ = new Map<symbol, ComponentSequences>();
+    private componentChangedSequences_ = new Map<symbol, ComponentSequences>();
+    private changeSequence_ = 0;
     private readonly removals_ = new ReaderOwnedJournal(true);
     /** Membership moves, independent of ordinary change tracking. */
     private readonly topology_ = new ReaderOwnedJournal();
@@ -186,6 +197,42 @@ export class ChangeTracker {
         this.trackedComponents_.add(component._id);
     }
 
+    enableChangeSequenceTracking(component: AnyComponentDef, added: boolean): void {
+        const sequences = added ? this.componentAddedSequences_ : this.componentChangedSequences_;
+        if (sequences.has(component._id)) return;
+        this.enableChangeTracking(component);
+        const ticks = added ? this.componentAddedTicks_ : this.componentChangedTicks_;
+        let rows = ticks.get(component._id);
+        if (!rows) { rows = new Map(); ticks.set(component._id, rows); }
+        const state: ComponentSequences = { rows, latest: -1 };
+        sequences.set(component._id, state);
+        // Share the tick map: opted-in rows gain a mutable stamp once, instead
+        // of maintaining another entity index or allocating on each write.
+        if (rows.size) {
+            const sequence = ++this.changeSequence_;
+            state.latest = sequence;
+            for (const [entity, tick] of rows) rows.set(entity, { tick: tick as number, sequence });
+        }
+    }
+
+    getChangeSequence(): number { return this.changeSequence_; }
+
+    isAddedAfterSequence(entity: Entity, component: AnyComponentDef, after: number): boolean {
+        return ((this.componentAddedSequences_.get(component._id)?.rows.get(entity) as ChangeStamp | undefined)?.sequence ?? -1) > after;
+    }
+
+    isChangedAfterSequence(entity: Entity, component: AnyComponentDef, after: number): boolean {
+        return ((this.componentChangedSequences_.get(component._id)?.rows.get(entity) as ChangeStamp | undefined)?.sequence ?? -1) > after;
+    }
+
+    anyAddedAfterSequence(component: AnyComponentDef, after: number): boolean {
+        return (this.componentAddedSequences_.get(component._id)?.latest ?? -1) > after;
+    }
+
+    anyChangedAfterSequence(component: AnyComponentDef, after: number): boolean {
+        return (this.componentChangedSequences_.get(component._id)?.latest ?? -1) > after;
+    }
+
     enableIncarnationTracking(component: AnyComponentDef): void {
         if (!this.componentIncarnations_.has(component._id)) {
             this.componentIncarnations_.set(component._id, new Map());
@@ -199,15 +246,15 @@ export class ChangeTracker {
     isAddedSince(entity: Entity, component: AnyComponentDef, sinceTick: number): boolean {
         const map = this.componentAddedTicks_.get(component._id);
         if (!map) return false;
-        const tick = map.get(entity);
-        return tick !== undefined && tick > sinceTick;
+        const row = map.get(entity);
+        return row !== undefined && (typeof row === 'number' ? row : row.tick) > sinceTick;
     }
 
     isChangedSince(entity: Entity, component: AnyComponentDef, sinceTick: number): boolean {
         const map = this.componentChangedTicks_.get(component._id);
         if (!map) return false;
-        const tick = map.get(entity);
-        return tick !== undefined && tick > sinceTick;
+        const row = map.get(entity);
+        return row !== undefined && (typeof row === 'number' ? row : row.tick) > sinceTick;
     }
 
     /** True if ANY entity changed `component` after `sinceTick`. O(1) — reads the
@@ -343,6 +390,11 @@ export class ChangeTracker {
             this.topology_.record(component._id, entity, this.worldTick_);
         }
         if (!this.trackedComponents_.has(component._id)) return;
+        const sequences = this.componentAddedSequences_.get(component._id);
+        if (sequences) {
+            this.recordSequence_(sequences, entity);
+            return;
+        }
         let map = this.componentAddedTicks_.get(component._id);
         if (!map) {
             map = new Map();
@@ -368,6 +420,12 @@ export class ChangeTracker {
             this.writes_.record(component._id, entity, this.worldTick_);
         }
         if (!this.trackedComponents_.has(component._id)) return;
+        const sequences = this.componentChangedSequences_.get(component._id);
+        if (sequences) {
+            this.recordSequence_(sequences, entity);
+            this.componentLastChangedTick_.set(component._id, this.worldTick_);
+            return;
+        }
         let map = this.componentChangedTicks_.get(component._id);
         if (!map) {
             map = new Map();
@@ -375,6 +433,14 @@ export class ChangeTracker {
         }
         map.set(entity, this.worldTick_);
         this.componentLastChangedTick_.set(component._id, this.worldTick_);
+    }
+
+    private recordSequence_(state: ComponentSequences, entity: Entity): void {
+        const sequence = ++this.changeSequence_;
+        state.latest = sequence;
+        const row = state.rows.get(entity) as ChangeStamp | undefined;
+        if (row) { row.tick = this.worldTick_; row.sequence = sequence; }
+        else state.rows.set(entity, { tick: this.worldTick_, sequence });
     }
 
     recordRemoved(component: AnyComponentDef, entity: Entity): void {
@@ -417,18 +483,22 @@ export class ChangeTracker {
      * only while a `Removed` reader holds the component, and are pruned to the
      * lowest claim whenever one advances or goes away.
      */
-    sizes(): { tracked: number; addedRows: number; changedRows: number; removedRows: number } {
-        const rowsIn = (maps: Map<symbol, Map<Entity, number>>): number => {
+    sizes(): { tracked: number; addedRows: number; changedRows: number; removedRows: number; sequenceRows: number } {
+        const rowsIn = (maps: Map<symbol, Map<Entity, ChangeRow>>): number => {
             let n = 0;
             for (const m of maps.values()) n += m.size;
             return n;
         };
         const removedRows = this.removals_.totalRows();
+        let sequenceRows = 0;
+        for (const state of this.componentAddedSequences_.values()) sequenceRows += state.rows.size;
+        for (const state of this.componentChangedSequences_.values()) sequenceRows += state.rows.size;
         return {
             tracked: this.trackedComponents_.size,
             addedRows: rowsIn(this.componentAddedTicks_),
             changedRows: rowsIn(this.componentChangedTicks_),
             removedRows,
+            sequenceRows,
         };
     }
 }

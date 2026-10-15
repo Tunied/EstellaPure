@@ -404,6 +404,7 @@ export class SystemRunner {
     private readonly eventRegistry_: EventRegistry | null;
     private readonly argsCache_ = new Map<symbol, unknown[]>();
     private readonly systemTicks_ = new Map<symbol, number>();
+    private readonly systemChangeSequences_ = new Map<symbol, number>();
     private readonly queryCache_ = new Map<symbol, QueryInstance<any>[]>();
     private readonly removedCache_ = new Map<symbol, RemovedQueryInstance<any>[]>();
     private currentLastRunTick_ = -1;
@@ -461,6 +462,7 @@ export class SystemRunner {
     evict(systemId: symbol): void {
         this.argsCache_.delete(systemId);
         this.systemTicks_.delete(systemId);
+        this.systemChangeSequences_.delete(systemId);
         this.queryCache_.delete(systemId);
         // Dropping the reference is not releasing the claim: a reader nothing
         // can reach still pins its component's removal history forever.
@@ -472,6 +474,7 @@ export class SystemRunner {
     reset(): void {
         this.argsCache_.clear();
         this.systemTicks_.clear();
+        this.systemChangeSequences_.clear();
         this.queryCache_.clear();
         for (const removeds of this.removedCache_.values()) {
             for (const removed of removeds) removed.dispose();
@@ -491,6 +494,7 @@ export class SystemRunner {
         }
 
         this.currentLastRunTick_ = this.systemTicks_.get(system._id) ?? -1;
+        const lastChangeSequence = this.systemChangeSequences_.get(system._id) ?? -1;
 
         // Published only once every param resolved. Building a system's first set
         // of query instances can throw — an unregistered component reaches
@@ -513,11 +517,13 @@ export class SystemRunner {
             if (param._type === 'query') {
                 if (firstRun) {
                     const inst = new QueryInstance(this.world_, param, this.currentLastRunTick_);
+                    inst.resetChangeSequence(lastChangeSequence);
                     queries.push(inst);
                     args[i] = inst;
                 } else {
                     const inst = queries[qi];
                     inst.resetTick(this.currentLastRunTick_);
+                    inst.resetChangeSequence(lastChangeSequence);
                     args[i] = inst;
                 }
                 qi++;
@@ -586,6 +592,7 @@ export class SystemRunner {
             this.timings_.set(name, (this.timings_.get(name) ?? 0) + (performance.now() - t0));
         }
         this.systemTicks_.set(system._id, this.world_.getWorldTick());
+        this.systemChangeSequences_.set(system._id, this.world_.getChangeSequence());
         return true;
     }
 
@@ -614,6 +621,9 @@ export class SystemRunner {
             removed.releaseThrough(ranAt);
         }
         this.systemTicks_.set(system._id, ranAt);
+        // Closing at completion consumes this run's own writebacks too. Writes
+        // after completion remain distinct even within the same world tick.
+        this.systemChangeSequences_.set(system._id, this.world_.getChangeSequence());
     }
 
     private harvestQueryCost_(system: SystemDef): void {

@@ -40,6 +40,7 @@ function createMockWorld() {
         suspendIteration: vi.fn(() => 0),
         resumeIteration: vi.fn(),
         getWorldTick: vi.fn(() => worldTick.value),
+        getChangeSequence: vi.fn(() => 0),
         isAddedSince: vi.fn(() => false),
         isChangedSince: vi.fn(() => false),
         getRemovedEntitiesSince: vi.fn(() => []),

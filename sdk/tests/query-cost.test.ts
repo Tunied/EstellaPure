@@ -52,13 +52,17 @@ describe('per-system query cost', () => {
         }, { name: 'Reactor' }));
 
         await app.tick(1 / 60);
+        const entity = app.world.getEntitiesWithComponents([Position])[0];
+        app.world.update(entity, Position, position => { position.x++; });
         await app.tick(1 / 60);
         const cost = costOf(app, 'Reactor')!;
 
-        // The filter is doing its job and the walk is still the whole set — the
-        // finding a Changed() query exists to make visible.
+        // One changed row still requires checking the matching entity set.
         expect(cost.scanned).toBe(30);
-        expect(cost.filtered).toBe(30);
+        expect(cost.filtered).toBe(29);
+        await app.tick(1 / 60);
+        // A closed change window performs no candidate scan at all.
+        expect(costOf(app, 'Reactor')).toEqual({ calls: 1, scanned: 0, filtered: 0 });
     });
 
     it('shows nothing discarded when the changes are real', async () => {

@@ -255,7 +255,7 @@ describe('the scheduler and its compiled twin', () => {
                 w.runner.useAot(runtime);
             }
             for (let f = 0; f < 4; f++) {
-                w.world.advanceTick();
+                if (f === 0) w.world.advanceTick();
                 w.runner.run(w.system);
                 w.runner.run(watcher);
             }
@@ -266,6 +266,8 @@ describe('the scheduler and its compiled twin', () => {
         const compiled = await build(true);
         seen.push(...compiled);
         expect(interpreted.some((n) => n > 0), 'the watcher never saw a change either way')
+            .toBe(true);
+        expect(interpreted.slice(1).every(n => n > 0), 'later writes in the same tick were missed')
             .toBe(true);
         expect(compiled).toEqual(interpreted);
     });

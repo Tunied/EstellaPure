@@ -1362,6 +1362,34 @@ export class World {
         this.changes_.enableChangeTracking(component);
     }
 
+    /** @internal Opt a system query into precise change boundaries, separately from tick sampling. */
+    enableChangeSequenceTracking(component: AnyComponentDef, added: boolean): void {
+        this.changes_.enableChangeSequenceTracking(component, added);
+    }
+
+    /** @internal Latest opted-in component mutation sequence. */
+    getChangeSequence(): number { return this.changes_.getChangeSequence(); }
+
+    /** @internal Live additions after a completed system boundary. */
+    isAddedAfterSequence(entity: Entity, component: AnyComponentDef, after: number): boolean {
+        return this.changes_.isAddedAfterSequence(entity, component, after);
+    }
+
+    /** @internal Live changes after a completed system boundary. */
+    isChangedAfterSequence(entity: Entity, component: AnyComponentDef, after: number): boolean {
+        return this.changes_.isChangedAfterSequence(entity, component, after);
+    }
+
+    /** @internal O(1) empty-window checks before enumerating system query candidates. */
+    anyAddedAfterSequence(component: AnyComponentDef, after: number): boolean {
+        return this.changes_.anyAddedAfterSequence(component, after);
+    }
+
+    /** @internal O(1) empty-window checks before enumerating system query candidates. */
+    anyChangedAfterSequence(component: AnyComponentDef, after: number): boolean {
+        return this.changes_.anyChangedAfterSequence(component, after);
+    }
+
     /** @internal Opt in to live component identities, independent of frame ticks. */
     enableIncarnationTracking(component: AnyComponentDef): void {
         this.changes_.enableIncarnationTracking(component);

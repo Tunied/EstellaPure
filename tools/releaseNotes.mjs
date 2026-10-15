@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ecs): track system change queries across same-frame writes':
+    { note: 'System change queries see additions and writes after earlier runs in the same frame.' },
   'fix(ecs): retain same-frame removals with sequence cursors':
     { note: 'Removal queries retain events across system runs in the same frame.' },
   'fix(test): classify versioned navigation in the release corpus':

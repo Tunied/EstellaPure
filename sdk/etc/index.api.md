@@ -6795,6 +6795,7 @@ scanned: number
 
 ## QueryInstance — class @public
 ```
+@internal resetChangeSequence: (sequence: number) => void
 @internal resetTick: (tick: number) => void
 @internal takeCost: () => QueryCost
 [Symbol.iterator]: () => Iterator<QueryResult<C>>
@@ -10003,6 +10004,8 @@ tabIndex: number | undefined
 @internal advanceTick: () => void
 @internal advanceTopologyReader: (component: AnyComponentDef, readerId: number, lastRunTick: number) => void
 @internal advanceWriteReader: (component: AnyComponentDef, readerId: number, lastRunTick: number) => void
+@internal anyAddedAfterSequence: (component: AnyComponentDef, after: number) => boolean
+@internal anyChangedAfterSequence: (component: AnyComponentDef, after: number) => boolean
 @internal anyChangedSince: (component: AnyComponentDef, sinceTick: number) => boolean
 @internal applyEntityOrder: (entities: readonly Entity[]) => void
 @internal beginIteration: () => void
@@ -10016,10 +10019,12 @@ tabIndex: number | undefined
 @internal disposeRemovedReader: (component: AnyComponentDef, readerId: number) => void
 @internal disposeTopologyReader: (component: AnyComponentDef, readerId: number) => void
 @internal disposeWriteReader: (component: AnyComponentDef, readerId: number) => void
+@internal enableChangeSequenceTracking: (component: AnyComponentDef, added: boolean) => void
 @internal enableChangeTracking: (component: AnyComponentDef) => void
 @internal enableIncarnationTracking: (component: AnyComponentDef) => void
 @internal endIteration: () => void
 @internal ensureTransformsComposed: () => void
+@internal getChangeSequence: () => number
 @internal getComponentIncarnation: (entity: Entity, component: AnyComponentDef) => number
 @internal getComponentTypesBatch: (entities: readonly Entity[]) => string[][]
 @internal getCppRegistry: () => CppRegistry | null
@@ -10036,8 +10041,10 @@ tabIndex: number | undefined
 @internal hasCpp: boolean
 @internal hasPortableScriptAssetRefs: (component: AnyComponentDef) => boolean
 @internal invalidateTransformComposition: () => void
+@internal isAddedAfterSequence: (entity: Entity, component: AnyComponentDef, after: number) => boolean
 @internal isAddedSince: (entity: Entity, component: AnyComponentDef, sinceTick: number) => boolean
 @internal isChangeTracked: (component: AnyComponentDef) => boolean
+@internal isChangedAfterSequence: (entity: Entity, component: AnyComponentDef, after: number) => boolean
 @internal isChangedSince: (entity: Entity, component: AnyComponentDef, sinceTick: number) => boolean
 @internal isDestructionPending: (entity: Entity) => boolean
 @internal isIterating: () => boolean

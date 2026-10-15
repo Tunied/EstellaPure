@@ -10,6 +10,8 @@ import { AnyComponentDef, ComponentData, isBuiltinComponent } from './component'
 import type { World, QueryFilter } from './world';
 import { computeQueryCacheKey, queryDepIds } from './world';
 
+const NO_CHANGE_CANDIDATES: readonly Entity[] = [];
+
 // =============================================================================
 // Mutable Component Wrapper
 // =============================================================================
@@ -404,6 +406,7 @@ export class QueryInstance<C extends readonly QueryArg[]> implements Iterable<Qu
     // precomputed like cacheKey_ so per-call query iteration allocates no array.
     private readonly depIds_: symbol[];
     private lastRunTick_: number;
+    private lastChangeSequence_: number | null = null;
     private calls_ = 0;
     private scanned_ = 0;
     private filtered_ = 0;
@@ -465,12 +468,36 @@ export class QueryInstance<C extends readonly QueryArg[]> implements Iterable<Qu
         this.lastRunTick_ = tick;
     }
 
+    /** @internal System-owned queries use completed runs, not coarse frame ticks. */
+    resetChangeSequence(sequence: number): void {
+        if (!this.hasChangeFilters_()) return;
+        if (this.lastChangeSequence_ === null) {
+            for (const f of this.descriptor_._addedFilters) this.world_.enableChangeSequenceTracking(f.component, true);
+            for (const f of this.descriptor_._changedFilters) this.world_.enableChangeSequenceTracking(f.component, false);
+        }
+        this.lastChangeSequence_ = sequence;
+    }
+
     /**
-     * The entity set before change filters — what the query cache can answer on
-     * its own. Every caller that asks "which entities match" goes through here,
-     * so none of them can disagree about the cache key or the dep set.
+     * Every result reader uses this candidate set. A closed change window is
+     * empty in O(1); otherwise the structural query cache supplies the entities
+     * before their individual change filters are applied.
      */
     private candidates_(): readonly Entity[] {
+        if (this.lastChangeSequence_ !== null) {
+            const after = this.lastChangeSequence_;
+            let unchanged = false;
+            for (const f of this.descriptor_._addedFilters) {
+                if (!this.world_.anyAddedAfterSequence(f.component, after)) { unchanged = true; break; }
+            }
+            if (!unchanged) for (const f of this.descriptor_._changedFilters) {
+                if (!this.world_.anyChangedAfterSequence(f.component, after)) { unchanged = true; break; }
+            }
+            if (unchanged) {
+                if (this.world_.queryCostEnabled) this.calls_++;
+                return NO_CHANGE_CANDIDATES;
+            }
+        }
         const entities = this.world_.queryEntities(
             this.allRequired_,
             this.descriptor_._with,
@@ -507,11 +534,16 @@ export class QueryInstance<C extends readonly QueryArg[]> implements Iterable<Qu
         const { _addedFilters, _changedFilters } = this.descriptor_;
         if (_addedFilters.length === 0 && _changedFilters.length === 0) return true;
         const tick = this.lastRunTick_;
+        const sequence = this.lastChangeSequence_;
         for (const f of _addedFilters) {
-            if (!this.world_.isAddedSince(entity, f.component, tick)) return this.rejected_();
+            const added = sequence === null ? this.world_.isAddedSince(entity, f.component, tick)
+                : this.world_.isAddedAfterSequence(entity, f.component, sequence);
+            if (!added) return this.rejected_();
         }
         for (const f of _changedFilters) {
-            if (!this.world_.isChangedSince(entity, f.component, tick)) return this.rejected_();
+            const changed = sequence === null ? this.world_.isChangedSince(entity, f.component, tick)
+                : this.world_.isChangedAfterSequence(entity, f.component, sequence);
+            if (!changed) return this.rejected_();
         }
         return true;
     }
