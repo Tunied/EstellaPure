@@ -16,6 +16,10 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Windowed editor lists attach to the scroller that actually mounted.** Resource grids and shared virtual windows subscribe after ancestor refs are available, reattach when their elements change, and retain scroll and size observation through StrictMode cleanup. Large lists keep updating visible rows instead of remaining on the first batch or using a single fallback column.
+
+- **Editor row reveals finish after real grid measurements arrive.** Explicit navigation follows measured row height, viewport height and column changes instead of stopping at an estimated offset. New user input cancels that follow-up, so later layout changes do not pull the user back; a new navigation request can reveal the row again.
+
 - **Virtual joysticks follow the rendered transform through sheared UI hierarchies.** Pointer coordinates use the complete 2D render matrix instead of decomposed rotation and scale, preserving local direction and strength under rotated, nonuniform ancestors and keeping follow-mode origins aligned. Singular or nonfinite transforms release capture until a fresh press. Dragging shares the same inverse-basis reader; its scratch allocation is reused, refreshed after heap growth and freed by its owning core.
 
 - **Virtual controls share each sample's pointer projection.** Stable buttons and joysticks group held pointers and completed taps once instead of cloning and scanning every pointer for every control. A change callback invalidates the grouping before later controls run, preserving capture cancellation and concurrent move/fire behavior.

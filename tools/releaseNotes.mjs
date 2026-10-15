@@ -28,6 +28,12 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(editor): attach virtual windows after ancestor refs mount':
+    { note: 'Windowed editor lists attach to the scroller that actually mounted.' },
+  'fix(editor): finish virtual row reveals after measurement':
+    { note: 'Editor row reveals finish after real grid measurements arrive.' },
+  'fix(editor): synchronize windowed list attachment and navigation':
+    { internal: 'Pins the editor commits that restore virtual-list attachment and measured row navigation, with matching release notes.' },
   'fix(ui): invert rendered transforms for virtual joysticks':
     { note: 'Virtual joysticks follow the rendered transform through sheared UI hierarchies.' },
   'perf(ui): share virtual control pointer groups per sample':
