@@ -176,6 +176,39 @@ pointLight('TowerCyan', [TX, 1200, TZ + 600], rgba(0.1, 0.8, 1.0), 1.0, 2600);
 pointLight('TowerBase', [TX, 100, TZ + 900], sodium, 0.6, 1800);
 pointLight('BridgeGlow', [200, 0, -2300], sodium, 0.4, 1400);
 
+// ---- weather: rain streaks and vent steam, all particles on the one soft sprite ----
+const SOFT = '@uuid:6d3f8a52-1b7e-4c0a-9e41-5a2c7b90d4e1';
+const emitter = (name, p, data) => add(name, [
+  transform(p),
+  { type: 'ParticleEmitter', data: {
+    looping: true, playOnStart: true, enabled: true, simulationSpace: 0,
+    texture: SOFT, ...data,
+  } },
+]);
+const rain = (name, p, extent, o) => emitter(name, p, {
+  shape: 2, shapeSize: { x: extent[0], y: 1, z: extent[1] },
+  speedMin: 0, speedMax: 0, gravity: { x: 120, y: -2600, z: 0 },
+  startColor: rgba(0.72, 0.84, 1, o.alpha), endColor: rgba(0.72, 0.84, 1, o.alpha * 0.3),
+  startSizeMin: o.size, startSizeMax: o.size, endSizeMin: o.size, endSizeMax: o.size,
+  trailEnabled: true, trailWidth: o.size * 0.8, trailPoints: 6, trailMinDistance: 14,
+  blendMode: 1, rate: o.rate, maxParticles: o.max, lifetimeMin: o.life, lifetimeMax: o.life,
+});
+// Kept clear of the camera (z 900): a drop that passes close is a bar across the frame.
+rain('RainNear', [150, 1500, -650], [2600, 1000], { alpha: 0.38, size: 3, rate: 1500, max: 2000, life: 1.15 });
+rain('RainFar', [700, 2600, -3200], [7000, 5200], { alpha: 0.2, size: 6, rate: 1500, max: 2800, life: 1.7 });
+
+const vent = (name, p) => emitter(name, p, {
+  shape: 3, shapeRadius: 22, shapeAngle: 16,
+  speedMin: 70, speedMax: 150, gravity: { x: 25, y: 35, z: 0 }, damping: 0.4,
+  noiseStrength: 70, noiseFrequency: 0.0025, noiseScrollSpeed: 0.2, noiseOctaves: 2,
+  startColor: rgba(0.78, 0.82, 0.92, 0.13), endColor: rgba(0.55, 0.62, 0.8, 0),
+  startSizeMin: 90, startSizeMax: 130, endSizeMin: 320, endSizeMax: 460,
+  blendMode: 0, rate: 45, maxParticles: 320, lifetimeMin: 3.5, lifetimeMax: 5,
+});
+vent('SteamDeck', [-560, 215, 150]);
+vent('SteamStreet', [1450, -235, -700]);
+vent('SteamRight', [1950, -225, -1000]);
+
 const scene = { version: 4, name: 'Main', entities };
 writeFileSync(path.join(SCENES, 'main.esscene'), JSON.stringify(scene, null, 2));
 writeFileSync(path.join(ROOT, 'project.esproject'), JSON.stringify({

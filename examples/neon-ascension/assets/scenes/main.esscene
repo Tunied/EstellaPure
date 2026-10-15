@@ -2972,6 +2972,335 @@
           }
         }
       ]
+    },
+    {
+      "id": 73,
+      "name": "RainNear",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 150,
+              "y": 1500,
+              "z": -650
+            }
+          }
+        },
+        {
+          "type": "ParticleEmitter",
+          "data": {
+            "looping": true,
+            "playOnStart": true,
+            "enabled": true,
+            "simulationSpace": 0,
+            "texture": "@uuid:6d3f8a52-1b7e-4c0a-9e41-5a2c7b90d4e1",
+            "shape": 2,
+            "shapeSize": {
+              "x": 2600,
+              "y": 1,
+              "z": 1000
+            },
+            "speedMin": 0,
+            "speedMax": 0,
+            "gravity": {
+              "x": 120,
+              "y": -2600,
+              "z": 0
+            },
+            "startColor": {
+              "r": 0.72,
+              "g": 0.84,
+              "b": 1,
+              "a": 0.38
+            },
+            "endColor": {
+              "r": 0.72,
+              "g": 0.84,
+              "b": 1,
+              "a": 0.11399999999999999
+            },
+            "startSizeMin": 3,
+            "startSizeMax": 3,
+            "endSizeMin": 3,
+            "endSizeMax": 3,
+            "trailEnabled": true,
+            "trailWidth": 2.4000000000000004,
+            "trailPoints": 6,
+            "trailMinDistance": 14,
+            "blendMode": 1,
+            "rate": 1500,
+            "maxParticles": 2000,
+            "lifetimeMin": 1.15,
+            "lifetimeMax": 1.15
+          }
+        }
+      ]
+    },
+    {
+      "id": 74,
+      "name": "RainFar",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 700,
+              "y": 2600,
+              "z": -3200
+            }
+          }
+        },
+        {
+          "type": "ParticleEmitter",
+          "data": {
+            "looping": true,
+            "playOnStart": true,
+            "enabled": true,
+            "simulationSpace": 0,
+            "texture": "@uuid:6d3f8a52-1b7e-4c0a-9e41-5a2c7b90d4e1",
+            "shape": 2,
+            "shapeSize": {
+              "x": 7000,
+              "y": 1,
+              "z": 5200
+            },
+            "speedMin": 0,
+            "speedMax": 0,
+            "gravity": {
+              "x": 120,
+              "y": -2600,
+              "z": 0
+            },
+            "startColor": {
+              "r": 0.72,
+              "g": 0.84,
+              "b": 1,
+              "a": 0.2
+            },
+            "endColor": {
+              "r": 0.72,
+              "g": 0.84,
+              "b": 1,
+              "a": 0.06
+            },
+            "startSizeMin": 6,
+            "startSizeMax": 6,
+            "endSizeMin": 6,
+            "endSizeMax": 6,
+            "trailEnabled": true,
+            "trailWidth": 4.800000000000001,
+            "trailPoints": 6,
+            "trailMinDistance": 14,
+            "blendMode": 1,
+            "rate": 1500,
+            "maxParticles": 2800,
+            "lifetimeMin": 1.7,
+            "lifetimeMax": 1.7
+          }
+        }
+      ]
+    },
+    {
+      "id": 75,
+      "name": "SteamDeck",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -560,
+              "y": 215,
+              "z": 150
+            }
+          }
+        },
+        {
+          "type": "ParticleEmitter",
+          "data": {
+            "looping": true,
+            "playOnStart": true,
+            "enabled": true,
+            "simulationSpace": 0,
+            "texture": "@uuid:6d3f8a52-1b7e-4c0a-9e41-5a2c7b90d4e1",
+            "shape": 3,
+            "shapeRadius": 22,
+            "shapeAngle": 16,
+            "speedMin": 70,
+            "speedMax": 150,
+            "gravity": {
+              "x": 25,
+              "y": 35,
+              "z": 0
+            },
+            "damping": 0.4,
+            "noiseStrength": 70,
+            "noiseFrequency": 0.0025,
+            "noiseScrollSpeed": 0.2,
+            "noiseOctaves": 2,
+            "startColor": {
+              "r": 0.78,
+              "g": 0.82,
+              "b": 0.92,
+              "a": 0.13
+            },
+            "endColor": {
+              "r": 0.55,
+              "g": 0.62,
+              "b": 0.8,
+              "a": 0
+            },
+            "startSizeMin": 90,
+            "startSizeMax": 130,
+            "endSizeMin": 320,
+            "endSizeMax": 460,
+            "blendMode": 0,
+            "rate": 45,
+            "maxParticles": 320,
+            "lifetimeMin": 3.5,
+            "lifetimeMax": 5
+          }
+        }
+      ]
+    },
+    {
+      "id": 76,
+      "name": "SteamStreet",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 1450,
+              "y": -235,
+              "z": -700
+            }
+          }
+        },
+        {
+          "type": "ParticleEmitter",
+          "data": {
+            "looping": true,
+            "playOnStart": true,
+            "enabled": true,
+            "simulationSpace": 0,
+            "texture": "@uuid:6d3f8a52-1b7e-4c0a-9e41-5a2c7b90d4e1",
+            "shape": 3,
+            "shapeRadius": 22,
+            "shapeAngle": 16,
+            "speedMin": 70,
+            "speedMax": 150,
+            "gravity": {
+              "x": 25,
+              "y": 35,
+              "z": 0
+            },
+            "damping": 0.4,
+            "noiseStrength": 70,
+            "noiseFrequency": 0.0025,
+            "noiseScrollSpeed": 0.2,
+            "noiseOctaves": 2,
+            "startColor": {
+              "r": 0.78,
+              "g": 0.82,
+              "b": 0.92,
+              "a": 0.13
+            },
+            "endColor": {
+              "r": 0.55,
+              "g": 0.62,
+              "b": 0.8,
+              "a": 0
+            },
+            "startSizeMin": 90,
+            "startSizeMax": 130,
+            "endSizeMin": 320,
+            "endSizeMax": 460,
+            "blendMode": 0,
+            "rate": 45,
+            "maxParticles": 320,
+            "lifetimeMin": 3.5,
+            "lifetimeMax": 5
+          }
+        }
+      ]
+    },
+    {
+      "id": 77,
+      "name": "SteamRight",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 1950,
+              "y": -225,
+              "z": -1000
+            }
+          }
+        },
+        {
+          "type": "ParticleEmitter",
+          "data": {
+            "looping": true,
+            "playOnStart": true,
+            "enabled": true,
+            "simulationSpace": 0,
+            "texture": "@uuid:6d3f8a52-1b7e-4c0a-9e41-5a2c7b90d4e1",
+            "shape": 3,
+            "shapeRadius": 22,
+            "shapeAngle": 16,
+            "speedMin": 70,
+            "speedMax": 150,
+            "gravity": {
+              "x": 25,
+              "y": 35,
+              "z": 0
+            },
+            "damping": 0.4,
+            "noiseStrength": 70,
+            "noiseFrequency": 0.0025,
+            "noiseScrollSpeed": 0.2,
+            "noiseOctaves": 2,
+            "startColor": {
+              "r": 0.78,
+              "g": 0.82,
+              "b": 0.92,
+              "a": 0.13
+            },
+            "endColor": {
+              "r": 0.55,
+              "g": 0.62,
+              "b": 0.8,
+              "a": 0
+            },
+            "startSizeMin": 90,
+            "startSizeMax": 130,
+            "endSizeMin": 320,
+            "endSizeMax": 460,
+            "blendMode": 0,
+            "rate": 45,
+            "maxParticles": 320,
+            "lifetimeMin": 3.5,
+            "lifetimeMax": 5
+          }
+        }
+      ]
     }
   ]
 }
