@@ -24,6 +24,8 @@ published separately; it ships inside the editor.
 
 ### Added
 
+- **Inspect a live agent's current route on demand.** The Play inspector reports partial routes, disconnected regions, insufficient clearance and baked-radius mismatches, with sampled world endpoints, radius and query cost. It queries only on request, discards results across selection/session changes, and identifies unsupported device sessions or custom implementations explicitly.
+
 - **Navigation queries distinguish complete routes from best-effort paths.** `queryWorldPath` reports missing surfaces or endpoints, disconnected regions, grid clearance failures and mesh radius mismatches; custom surfaces without diagnostics report unknown. Grid searches reuse revision-scoped connectivity after a failed search, while walkability and dynamic obstacles invalidate it. Dynamic blockers now contribute to body clearance; the legacy path API keeps returning partial approaches.
 
 - **Spatial transform handles fade behind scene geometry.** A persistent Viewport setting can restore always-visible handles; flat 2D widgets retain their appearance. Scoped immediate-draw depth state disables overlay depth writes and restores the previous state, including when drawing throws. Older cores keep their existing overlay fallback.

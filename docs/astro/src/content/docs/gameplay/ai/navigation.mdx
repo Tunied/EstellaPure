@@ -264,6 +264,15 @@ Repeated grid queries reuse working memory. Returned routes remain independent,
 so callers may retain or edit them without changing a later search. Route costs,
 endpoint snapping and best-effort partial paths retain their existing behavior.
 
+In the editor, select a `NavAgent` during **Play** and expand its component in
+Details. **Inspect current route** queries once from its current world position
+to its stored target with the agent's radius. It shows the reason, sampled world
+endpoints, waypoint count and query time. Results are snapshots; click again after
+changing doors, obstacles or targets. No search runs during recurring inspector
+refreshes. This requires a ready local Play session; connected device inspection
+does not yet support this query. It describes the installed surface, not pending
+rebuilds or the agent's cached movement route.
+
 The reproducible CPU corpus runs in headless Chromium with door and building
 changes on 32/64/128-cell maps and 64 simultaneous replans:
 

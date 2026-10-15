@@ -28,6 +28,12 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(editor): inspect live agent route failures on demand':
+    { note: "Inspect a live agent's current route on demand." },
+  'feat(inspector): inspect live agent route failures on demand':
+    { note: "Inspect a live agent's current route on demand." },
+  'fix(inspector): use shared controls for navigation diagnostics':
+    { note: "Inspect a live agent's current route on demand." },
   'perf(nav): reuse grid search workspaces across queries':
     { note: 'Grid path searches reuse their working memory.' },
   'feat(nav): diagnose partial routes and reuse disconnected grid topology':

@@ -28,6 +28,8 @@ jobs:
             artifact: gizmo-legacy-2d-editor-checks
           - suite: regression
             artifact: gizmo-regression-editor-checks
+          - suite: navigation
+            artifact: navigation-inspector-editor-checks
     env:
       ESTELLA_WIN_W: '1480'
       ESTELLA_WIN_H: '920'
@@ -61,6 +63,9 @@ jobs:
           mkdir -p desktop/public/wasm
           cp build/wasm/web/* desktop/public/wasm/
           pnpm --dir desktop exec vite build
+      - name: Check live agent route inspection
+        if: matrix.suite == 'navigation'
+        run: node tools/verify-navigation-inspector.mjs
       - name: Check trusted spatial gestures and undo
         if: matrix.suite == 'spatial'
         run: node tools/verify-gizmo-planes.mjs
@@ -99,5 +104,6 @@ jobs:
             output/gizmo-origins-ci
             output/gizmo-legacy-2d-ci
             output/gizmo-regression-ci
+            output/navigation-inspector-ci
           if-no-files-found: warn
           retention-days: 3
