@@ -132,6 +132,13 @@ public:
      */
     const std::unordered_set<u32>& screenDomain() const { return screen_domain_; }
 
+    bool isScreenDomain(const Registry& registry, u32 entity) const {
+        // Resolved entries belong to the registry that last completed layout.
+        return lastRegistryId_ == registry.instanceId()
+            && registry.valid(Entity::fromRaw(entity))
+            && screen_domain_.count(entity) != 0;
+    }
+
 private:
     struct InheritedState {
         bool hidden = false;

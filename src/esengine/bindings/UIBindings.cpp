@@ -104,9 +104,8 @@ u32 ui_getCullBit(ecs::Registry& registry, u32 entity) {
 }
 
 bool ui_isScreenDomain(ecs::Registry& registry, u32 entity) {
-    (void)registry;
     auto* ui = ctx().tryGet<ecs::UISystem>();
-    return ui && ui->screenDomain().count(entity) != 0;
+    return ui && ui->isScreenDomain(registry, entity);
 }
 
 // UINode (CSS box) computed size — its internal computed_size_ is not

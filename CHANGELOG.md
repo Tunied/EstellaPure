@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Screen-domain queries reject another world's cached entities.** The UI binding checks registry identity and entity validity before using the resolved screen-domain cache, preventing reused IDs from borrowing a previous world's pointer coordinates and excluding despawned nodes before the next layout pass.
+
 - **Authored UI hiding cancels dragging before another layout pass.** Hiding a dragged node or its ancestor stops capture and emits one drag-end event immediately on the next sample, including visibility changes inside drag callbacks. Stale hover cannot start a hidden control, and showing it again does not resume an old capture. Dragging and keyboard focus share the same live visibility rules.
 
 - **Dense change queries bind their live sequence index once.** Added and Changed filters reuse component-specific matchers during entity iteration, avoiding repeated world and component lookups while retaining precise system boundaries, stable-frame skipping and visibility of later component replacements.

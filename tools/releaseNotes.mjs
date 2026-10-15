@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ui): scope screen-domain lookup to its registry':
+    { note: 'Screen-domain queries reject another world\'s cached entities.' },
   'fix(ui): cancel drag captures from authored visibility changes':
     { note: 'Authored UI hiding cancels dragging before another layout pass.' },
   'fix(test): present golden browser packages on a shared display':
