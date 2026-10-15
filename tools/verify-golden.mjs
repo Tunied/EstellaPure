@@ -29,7 +29,7 @@ import { atTier, sharesOf, projectDir, parityFor, interactFor, audioFor, suspend
 import { frameDistance, frameCellMax, readPNG } from './frameCompare.mjs';
 import { suspendDrive } from './lib/suspendDrive.mjs';
 import { retryOnDeadGpu, deadGpuVerdict, launchNeverHappenedVerdict, failureLines } from './lib/deadGpu.mjs';
-import { runElectron, ensureElectronBinary } from './lib/electronRun.mjs';
+import { NEEDS_XVFB, runWithElectronDisplay, runElectron, ensureElectronBinary } from './lib/electronRun.mjs';
 import { requireCurrentEngine } from './lib/engineBuild.mjs';
 
 const argv = process.argv.slice(2);
@@ -103,6 +103,11 @@ const shard = /^\d+\/\d+$/.test(shardArg)
 if (shardArg && (!shard || shard.index < 0 || shard.index >= shard.of)) {
   console.error(`golden: a shard is i/n with 1 <= i <= n, e.g. 2/4 — got "${shardArg}"`);
   process.exit(2);
+}
+if (NEEDS_XVFB) {
+  const run = runWithElectronDisplay([fileURLToPath(import.meta.url), ...argv], { cwd: ROOT, stdio: 'inherit' });
+  if (run.error) throw run.error;
+  process.exit(run.status ?? 1);
 }
 const projects = shard ? sharesOf(tiered, shard.of, OWNED)[shard.index] : tiered;
 if (shard) {
@@ -310,7 +315,11 @@ function launchPackage(id, target, args) {
     () => {
       // Opening a PACKAGE needs no editor — the launchers are engine-side, so a
       // checkout without one can still judge what it shipped.
-      const r = runElectron([LAUNCHER(target), ...patient], { encoding: 'utf8', cwd: ROOT });
+      const launchArgs = [LAUNCHER(target), ...patient];
+      // Present CI's browser packages on the owned virtual display so Chromium
+      // does not throttle their requestAnimationFrame callbacks as hidden pages.
+      if (process.env.CI && !MINIGAME.has(target) && !launchArgs.includes('--present')) launchArgs.push('--present');
+      const r = runElectron(launchArgs, { encoding: 'utf8', cwd: ROOT });
       // The launcher prints a ✓/✗ line once it has looked at the frame; that
       // line existing is what says a measurement happened.
       const verdictLine = (r.stdout || '').split('\n').find((l) => l.startsWith('✓') || l.startsWith('✗'));
