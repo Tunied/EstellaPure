@@ -26,6 +26,7 @@ import { uiPointerFor } from '../util/ui-pick';
 import type { UICameraData } from '../core/ui-camera-info';
 import { playModeOnly } from '../../ecs/env';
 import { getEntityDepth } from '../util/helpers';
+import { createLiveVisibilityQuery } from '../util/live-visibility';
 import { SystemLabel, PluginName } from '../../ecs/systemLabels';
 import { quaternionToAngle2D } from '../util/math';
 
@@ -138,12 +139,15 @@ export class DragPlugin implements Plugin {
             const x = (d * dx - c * dy) / det, y = (a * dy - b * dx) / det;
             return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
         };
-        const eligible = (entity: Entity): boolean => world.isEntityActive(entity)
+        const eligible = (entity: Entity): boolean => world.valid(entity) && world.isEntityActive(entity)
             && !world.isDestructionPending(entity)
             && world.has(entity, Draggable) && world.get(entity, Draggable).enabled
             && world.has(entity, Transform)
             && (!world.has(entity, Interactable) || world.get(entity, Interactable).enabled)
-            && (!world.has(entity, UINode) || !engine?.getUINodeHiddenInTree?.(registry!, entity));
+            // Fresh per check: drag callbacks may hide an ancestor before the
+            // next layout pass, invalidating an earlier visibility snapshot.
+            && !createLiveVisibilityQuery(world, target => !!(world.has(target, UINode)
+                && engine?.getUINodeHiddenInTree?.(registry!, target)))(entity);
 
         let pendingEntity: Entity | null = null;
         let pendingStartWorld = { x: 0, y: 0 };
@@ -190,9 +194,8 @@ export class DragPlugin implements Plugin {
                     let bestDepth = -1;
 
                     for (const entity of draggableEntities) {
-                        if (!eligible(entity)) continue;
                         const interaction = world.get(entity, UIInteraction) as UIInteractionData;
-                        if (interaction.hovered) {
+                        if (interaction.hovered && eligible(entity)) {
                             let layer = 0;
                             if (world.has(entity, Sprite)) {
                                 layer = (world.get(entity, Sprite) as SpriteData).layer;

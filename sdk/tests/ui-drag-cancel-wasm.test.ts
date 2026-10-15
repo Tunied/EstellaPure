@@ -29,6 +29,7 @@ describe.skipIf(!HAS_WASM)('drag cancellation on real WASM', () => {
         dragPlugin = new DragPlugin();dragPlugin.build(app); flushPendingRegistrations(app);
         entity = app.world.spawn(); app.world.insert(entity, Transform); app.world.insert(entity, Draggable);
         app.world.insert(entity, UIInteraction, { hovered: true });
+        engine.uiLayout_update(registry, -50, -50, 50, 50, true);
     });
     afterEach(() => { dragPlugin.cleanup(app);app.quit({ keepRenderer: true }); registry.delete(); });
     async function step(x: number) {
@@ -107,5 +108,60 @@ describe.skipIf(!HAS_WASM)('drag cancellation on real WASM', () => {
         await step(100);
         expect(app.world.get(entity, DragState).isDragging).toBe(false);
         expect(app.world.get(entity, Transform).position.x).toBe(resolved);
+    });
+    it.each(['self', 'ancestor'] as const)('cancels authored %s hiding before layout resolves it', async kind => {
+        await drag();
+        expect(app.world.get(entity, DragState).isDragging).toBe(true);
+        const root = kind === 'self' ? entity : app.world.spawn();
+        app.world.insert(root, Canvas);
+        if (root !== entity) {
+            app.world.insert(root, Transform);
+            app.world.setParent(entity, root);
+        }
+        app.world.insert(root, UINode);
+        app.world.insert(entity, UINode);
+        engine.uiLayout_update(registry, -50, -50, 50, 50, true);
+        engine.transform_update(registry);
+        expect(engine.getUINodeHiddenInTree!(registry, entity)).toBe(false);
+        const before = app.world.get(entity, UINode).insetLeft.value;
+        expect(app.world.get(entity, DragState).isDragging).toBe(true);
+        app.getResource(UIEvents).drain();
+        app.world.update(root, UINode, node => { node.display = 1; });
+        expect(engine.getUINodeHiddenInTree!(registry, entity)).toBe(false);
+        await step(100);
+        expect(app.world.get(entity, DragState).isDragging).toBe(false);
+        expect(app.world.get(entity, UINode).insetLeft.value).toBe(before);
+        expect(app.getResource(UIEvents).drain().filter(event => event.type === 'drag_end')).toHaveLength(1);
+    });
+    it('rejects a stale hover when authored visibility is already hidden', async () => {
+        app.world.insert(entity, UINode, { display: 1 });
+        expect(engine.getUINodeHiddenInTree!(registry, entity)).toBe(false);
+        await drag();
+        expect(app.world.has(entity, DragState)).toBe(false);
+        expect(app.world.get(entity, Transform).position.x).toBe(0);
+        expect(app.getResource(UIEvents).drain()).toEqual([]);
+    });
+    it('ends a drag hidden by its start callback before applying a move', async () => {
+        app.getResource(UIEvents).on(entity, 'drag_start', () => {
+            app.world.insert(entity, UINode, { display: 1 });
+        });
+        await drag();
+        expect(app.world.get(entity, DragState).isDragging).toBe(false);
+        expect(app.world.get(entity, DragState).totalDeltaWorld.x).toBe(0);
+        expect(app.getResource(UIEvents).drain().map(event => event.type)).toEqual(['drag_start', 'drag_end']);
+    });
+    it('ends a drag hidden by its move callback and does not resume when shown', async () => {
+        app.getResource(UIEvents).on(entity, 'drag_move', () => {
+            app.world.insert(entity, UINode, { display: 1 });
+        });
+        await drag();
+        expect(app.world.get(entity, DragState).isDragging).toBe(false);
+        const before = app.world.get(entity, UINode).insetLeft.value;
+        expect(app.getResource(UIEvents).drain().map(event => event.type)).toEqual(['drag_start', 'drag_move', 'drag_end']);
+        app.world.update(entity, UINode, node => { node.display = 0; });
+        await step(100);
+        expect(app.world.get(entity, DragState).isDragging).toBe(false);
+        expect(app.world.get(entity, UINode).insetLeft.value).toBe(before);
+        expect(app.getResource(UIEvents).drain()).toEqual([]);
     });
 });

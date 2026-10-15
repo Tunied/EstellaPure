@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ui): cancel drag captures from authored visibility changes':
+    { note: 'Authored UI hiding cancels dragging before another layout pass.' },
   'fix(test): present golden browser packages on a shared display':
     { internal: 'CI presents ordinary Web and playable packages without taking focus and owns one virtual display for the controller and workers, preventing hidden-page frame throttling while preserving settle deadlines, per-worker timeout shares, minigame launch paths and failure verdicts.' },
   'perf(ecs): bind live change matchers before entity iteration':

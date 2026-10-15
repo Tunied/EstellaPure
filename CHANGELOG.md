@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Authored UI hiding cancels dragging before another layout pass.** Hiding a dragged node or its ancestor stops capture and emits one drag-end event immediately on the next sample, including visibility changes inside drag callbacks. Stale hover cannot start a hidden control, and showing it again does not resume an old capture. Dragging and keyboard focus share the same live visibility rules.
+
 - **Dense change queries bind their live sequence index once.** Added and Changed filters reuse component-specific matchers during entity iteration, avoiding repeated world and component lookups while retaining precise system boundaries, stable-frame skipping and visibility of later component replacements.
 
 - **System change queries see additions and writes after earlier runs in the same frame.** Added and Changed filters use completed-system mutation sequences while explicit tick-based query instances keep their existing windows. Systems consume their own writebacks without retriggering themselves; compiled writers and asynchronous reads share the same boundaries. Stable queries skip candidate enumeration, and live sequence stamps reuse tick records and disappear with removed components.
