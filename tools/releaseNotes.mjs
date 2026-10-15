@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'test(lifecycle): renew foreground input in suspend comparisons':
+    { internal: 'Suspend acceptance releases keyboard intent before hiding and sends a new key press after showing, preserving the engine cancellation contract and comparing actual movement with uninterrupted and held-background controls.' },
   'feat(nav): explain pending navigation surface replacements':
     { note: 'Navigation replacements commit only from the latest request.' },
   'feat(nav): stage cancellable surface replacements and explain pending routes':

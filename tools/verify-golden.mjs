@@ -27,6 +27,7 @@ import { mkdirSync, rmSync, readFileSync, existsSync, writeFileSync } from 'node
 import path from 'node:path';
 import { atTier, sharesOf, projectDir, parityFor, interactFor, audioFor, suspendFor, safeAreaFor, atlasFor, subpackageFor, firstScreenFor, packagePixels, launchTimeoutFor, ROOT } from './goldenProjects.mjs';
 import { frameDistance, frameCellMax, readPNG } from './frameCompare.mjs';
+import { suspendDrive } from './lib/suspendDrive.mjs';
 import { retryOnDeadGpu, deadGpuVerdict, launchNeverHappenedVerdict, failureLines } from './lib/deadGpu.mjs';
 import { runElectron, ensureElectronBinary } from './lib/electronRun.mjs';
 import { requireCurrentEngine } from './lib/engineBuild.mjs';
@@ -686,12 +687,12 @@ for (const { id, target } of pairs) {
   void allAnswered;
 
   // Backgrounded, the world stops; brought back, it carries on. Three runs of
-  // the same drive, read as how far the same entity got.
+  // the same drive, with a new foreground key press after input cancellation.
   const suspend = suspendFor(golden);
   if (suspend) {
     const where = (hidden) => probePositions(target, out, editor.w, editor.h, [suspend.entity], [
       ...(timeoutMs ? ['--timeout', String(timeoutMs)] : []),
-      '--input', JSON.stringify({ keys: suspend.keys, frames: suspend.frames, hidden }),
+      '--input', JSON.stringify(suspendDrive(suspend, hidden[0] ?? null)),
     ])?.[suspend.entity]?.x ?? null;
 
     const never = where([]);
