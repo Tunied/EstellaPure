@@ -106,6 +106,8 @@ export class AudioAPI {
     private residentBytes_ = 0;
     private bufferBudgetOverride_: number | null = null;
     private bgmHandle_: AudioHandle | null = null;
+    private bgmRequest_ = 0;
+    private playbackEpoch_ = 0;
     private bgmVolume_ = 1.0;
     /** Volume ramps in flight, advanced by {@link updateFades} from the frame
      *  loop — NOT by requestAnimationFrame, which is a browser global a device
@@ -369,12 +371,13 @@ export class AudioAPI {
      */
     async playTrack(url: string, config: PlayConfig = {}): Promise<AudioHandle | null> {
         if (this.disposed_) return null;
+        const epoch = this.playbackEpoch_;
         try {
             await this.ensureBuffer_(url, () => this.backend_.loadBuffer(url));
         } catch {
             return null;
         }
-        if (this.disposed_) return null;
+        if (this.disposed_ || epoch !== this.playbackEpoch_) return null;
         const buffer = this.lookupBuffer_(url);
         if (!buffer) return null;
         if (config.bus) this.ensureBus(config.bus);
@@ -387,6 +390,7 @@ export class AudioAPI {
         pan?: number;
         priority?: number;
     }): AudioHandle {
+        const epoch = this.playbackEpoch_;
         const playConfig = {
             bus: 'sfx',
             volume: config?.volume,
@@ -396,12 +400,12 @@ export class AudioAPI {
         };
         const buffer = this.lookupBuffer_(url);
         if (!buffer) {
-            const pending = this.createDeferredHandle_();
+            const pending = this.createDeferredHandle_(playConfig.volume ?? 1);
             this.preload(url).then(() => {
-                if (this.disposed_) return;
+                if (this.disposed_ || epoch !== this.playbackEpoch_ || pending.cancelled) return;
                 const buf = this.lookupBuffer_(url);
                 if (buf) {
-                    pending.resolve(this.playVoice_(buf, playConfig));
+                    pending.resolve(overrides => this.playVoice_(buf, { ...playConfig, ...overrides }));
                 }
             }).catch(err => {
                 log.warn('audio', `Failed to preload audio: ${url}`, err);
@@ -416,7 +420,9 @@ export class AudioAPI {
         fadeIn?: number;
         crossFade?: number;
     }): void {
+        const request = ++this.bgmRequest_;
         const play = (buffer: AudioBufferHandle) => {
+            if (this.disposed_ || request !== this.bgmRequest_) return;
             this.cancelFades_();
 
             const targetVolume = config?.volume ?? 1.0;
@@ -458,15 +464,29 @@ export class AudioAPI {
     }
 
     stopAll(): void {
-        this.cancelFades_();
-        if (this.bgmHandle_) {
-            this.bgmHandle_.stop();
-            this.bgmHandle_ = null;
+        this.bgmRequest_++;
+        this.playbackEpoch_++;
+        const voices = this.softVoices_;
+        this.softVoices_ = [];
+        this.bgmHandle_ = null;
+        this.fades_.length = 0;
+        this.fadingOut_.clear();
+        const stopped = new Set<AudioHandle>();
+        for (const voice of voices) {
+            voice.paused = false;
+            if (!stopped.has(voice.handle)) {
+                stopped.add(voice.handle);
+                voice.handle.stop();
+            }
         }
     }
 
     stopBGM(fadeOut?: number): void {
-        if (!this.bgmHandle_) return;
+        this.bgmRequest_++;
+        if (!this.bgmHandle_) {
+            if (!(fadeOut && fadeOut > 0)) this.cancelFades_();
+            return;
+        }
         this.cancelFades_();
         if (fadeOut && fadeOut > 0) {
             const handle = this.bgmHandle_;
@@ -625,6 +645,7 @@ export class AudioAPI {
     get maxVoices(): number { return this.maxVoices_; }
 
     private playVoice_(buffer: AudioBufferHandle, config: PlayConfig): AudioHandle {
+        if (this.disposed_) return silentHandle();
         const bus = config.bus ?? 'sfx';
         const base = config.volume ?? 1;
         const priority = config.priority ?? 0;
@@ -774,16 +795,10 @@ export class AudioAPI {
 
     dispose(): void {
         this.disposed_ = true;
-        this.cancelFades_();
-        if (this.bgmHandle_) {
-            this.bgmHandle_.stop();
-            this.bgmHandle_ = null;
-        }
         // Scripted effects and AudioSource voices also belong to this device.
         // Closing a Web Audio context alone leaves their handles marked playing,
         // and a different backend may require explicit stops before disposal.
-        for (const voice of this.softVoices_) voice.handle.stop();
-        this.softVoices_ = [];
+        this.stopAll();
         for (const entry of this.bufferCache_.values()) {
             this.backend_?.unloadBuffer(entry.handle);
         }
@@ -855,23 +870,45 @@ export class AudioAPI {
         this.fades_.push({ voice, from: voice.fade, to: 0, duration, elapsed: 0, stopAtEnd: true });
     }
 
-    private createDeferredHandle_(): AudioHandle & { resolve(real: AudioHandle): void } {
+    private createDeferredHandle_(baseVolume: number): AudioHandle & {
+        readonly cancelled: boolean;
+        resolve(start: (overrides: PlayConfig) => AudioHandle): void;
+    } {
         let real: AudioHandle | null = null;
-        const handle: AudioHandle & { resolve(r: AudioHandle): void } = {
-            id: -1,
-            stop() { real?.stop(); },
-            pause() { real?.pause(); },
-            resume() { real?.resume(); },
-            setVolume(v: number) { real?.setVolume(v); },
-            setPan(p: number) { real?.setPan(p); },
-            setLoop(l: boolean) { real?.setLoop(l); },
-            setPlaybackRate(r: number) { real?.setPlaybackRate(r); },
+        let stopped = false, paused = false, endAssigned = false;
+        let ended: (() => void) | undefined;
+        const overrides: PlayConfig = {};
+        return {
+            get id() { return real?.id ?? -1; },
+            get cancelled() { return stopped; },
+            stop() { if (!stopped) { stopped = true; real?.stop(); } },
+            pause() { if (!stopped) { paused = true; real?.pause(); } },
+            resume() { if (!stopped) { paused = false; real?.resume(); } },
+            setVolume(v) { if (!stopped) { overrides.volume = v; real?.setVolume(v); } },
+            setPan(p) { if (!stopped) { overrides.pan = p; real?.setPan(p); } },
+            setLoop(l) { if (!stopped) { overrides.loop = l; real?.setLoop(l); } },
+            setPlaybackRate(r) { if (!stopped) { overrides.playbackRate = r; real?.setPlaybackRate(r); } },
             get isPlaying() { return real?.isPlaying ?? false; },
             get currentTime() { return real?.currentTime ?? 0; },
             get duration() { return real?.duration ?? 0; },
-            resolve(r: AudioHandle) { real = r; },
+            get onEnd() { return real ? real.onEnd : ended; },
+            set onEnd(callback) {
+                ended = callback;
+                endAssigned = true;
+                if (real) real.onEnd = callback;
+            },
+            resolve(start) {
+                if (stopped || real) return;
+                const next = start(paused ? { ...overrides, volume: 0 } : overrides);
+                if (stopped) { next.stop(); return; }
+                real = next;
+                if (endAssigned) real.onEnd = ended;
+                if (paused) {
+                    real.pause();
+                    real.setVolume(overrides.volume ?? baseVolume);
+                }
+            },
         };
-        return handle;
     }
 }
 

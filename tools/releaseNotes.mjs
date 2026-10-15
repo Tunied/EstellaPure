@@ -30,6 +30,12 @@ export const NOTES_FLOOR = 'v0.65.0';
 export const NOTED = {
   'fix(example): honor authored workshop obstacle state':
     { note: 'Build and reroute deliveries in a textured 2D courtyard.' },
+  'fix(audio): preserve controls on loading effect handles':
+    { note: 'Loading sound-effect handles preserve playback controls.' },
+  'fix(audio): stop all owned voices and pending starts':
+    { note: 'Stop All stops every owned audio voice and pending start.' },
+  'fix(audio): preserve latest BGM intent across loading':
+    { note: 'BGM playback follows the latest request instead of load completion order.' },
   'fix(audio): reject loads from retired context generations':
     { note: 'Web audio loads cannot cross disposed or replaced contexts.' },
   'fix(audio): retire source records with owned buffers':
