@@ -32,6 +32,8 @@ export const NOTED = {
     { note: 'Couriers can pass occupied intermediate grid waypoints.' },
   'test(nav): cover authored workshop obstacle layouts':
     { internal: 'Headless exported-workshop acceptance also loads a scene with authored obstacles enabled and verifies retained state and delivery after reopening.' },
+  'fix(audio): release runtime references from finished web voices':
+    { note: 'Finished Web audio handles release their runtime references.' },
   'chore(release): classify v0.87 feature verification':
     { internal: 'The shipped capability census maps v0.87 navigation features to the navigation corpus and names focused editor acceptance for viewport and inspector features.' },
   'ci(editor): install workshop acceptance browser':

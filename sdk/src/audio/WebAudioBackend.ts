@@ -10,11 +10,12 @@ class WebAudioHandle implements AudioHandle {
     readonly id: number;
     onEnd?: () => void;
 
-    private buffer_: AudioBuffer;
-    private source_: AudioBufferSourceNode;
-    private poolNode_: PooledAudioNode;
-    private pool_: AudioPool;
-    private context_: AudioContext;
+    /** Runtime references exist until Stop or natural completion; Pause retains them. */
+    private buffer_: AudioBuffer | null;
+    private source_: AudioBufferSourceNode | null;
+    private poolNode_: PooledAudioNode | null;
+    private pool_: AudioPool | null;
+    private context_: AudioContext | null;
     private playing_ = true;
     private stopped_ = false;
     private pausedAt_ = 0;
@@ -22,6 +23,7 @@ class WebAudioHandle implements AudioHandle {
     private startOffset_: number;
     private playbackRate_: number;
     private loop_: boolean;
+    private readonly duration_: number;
 
     constructor(
         id: number,
@@ -35,6 +37,7 @@ class WebAudioHandle implements AudioHandle {
         this.id = id;
         this.source_ = source;
         this.buffer_ = buffer;
+        this.duration_ = buffer.duration;
         this.poolNode_ = poolNode;
         this.pool_ = pool;
         this.context_ = context;
@@ -49,9 +52,7 @@ class WebAudioHandle implements AudioHandle {
     private bindOnEnded_(source: AudioBufferSourceNode): void {
         source.onended = () => {
             if (!this.stopped_ && this.playing_ && source === this.source_ && !this.loop_) {
-                this.playing_ = false;
-                this.stopped_ = true;
-                this.pool_.release(this.poolNode_);
+                this.release_();
                 this.onEnd?.();
             }
         };
@@ -59,37 +60,46 @@ class WebAudioHandle implements AudioHandle {
 
     stop(): void {
         if (this.stopped_) return;
+        this.release_();
+    }
+
+    private release_(): void {
         this.stopped_ = true;
         this.playing_ = false;
-        this.source_.onended = null;
-        this.pool_.release(this.poolNode_);
+        if (this.source_) this.source_.onended = null;
+        this.pool_!.release(this.poolNode_!);
+        this.buffer_ = null;
+        this.source_ = null;
+        this.poolNode_ = null;
+        this.pool_ = null;
+        this.context_ = null;
     }
 
     pause(): void {
         if (!this.playing_ || this.stopped_) return;
         this.playing_ = false;
-        const elapsed = (this.context_.currentTime - this.startedAt_) * this.playbackRate_;
+        const elapsed = (this.context_!.currentTime - this.startedAt_) * this.playbackRate_;
         this.pausedAt_ = this.startOffset_ + elapsed;
-        if (this.loop_ && this.buffer_.duration > 0) {
-            this.pausedAt_ = this.pausedAt_ % this.buffer_.duration;
+        if (this.loop_ && this.buffer_!.duration > 0) {
+            this.pausedAt_ = this.pausedAt_ % this.buffer_!.duration;
         }
-        this.source_.onended = null;
-        try { this.source_.stop(); } catch (_) { /* already stopped */ }
-        this.source_.disconnect();
+        this.source_!.onended = null;
+        try { this.source_!.stop(); } catch (_) { /* already stopped */ }
+        this.source_!.disconnect();
     }
 
     resume(): void {
         if (this.playing_ || this.stopped_) return;
 
-        const source = this.context_.createBufferSource();
+        const source = this.context_!.createBufferSource();
         let startedAt: number;
         try {
             source.buffer = this.buffer_;
             source.loop = this.loop_;
             source.playbackRate.value = this.playbackRate_;
-            source.connect(this.poolNode_.gain);
+            source.connect(this.poolNode_!.gain);
             this.bindOnEnded_(source);
-            startedAt = this.context_.currentTime;
+            startedAt = this.context_!.currentTime;
             source.start(0, this.pausedAt_);
         } catch (error) {
             source.onended = null;
@@ -99,7 +109,7 @@ class WebAudioHandle implements AudioHandle {
         }
 
         this.source_ = source;
-        this.poolNode_.source = source;
+        this.poolNode_!.source = source;
         this.startOffset_ = this.pausedAt_;
         this.startedAt_ = startedAt;
 
@@ -108,24 +118,26 @@ class WebAudioHandle implements AudioHandle {
 
     setVolume(volume: number): void {
         if (this.stopped_) return;
-        this.poolNode_.gain.gain.value = volume;
+        this.poolNode_!.gain.gain.value = volume;
     }
 
     setPan(pan: number): void {
         if (this.stopped_) return;
-        this.poolNode_.panner.pan.value = pan;
+        this.poolNode_!.panner.pan.value = pan;
     }
 
     setLoop(loop: boolean): void {
+        if (this.stopped_) return;
         this.loop_ = loop;
-        this.source_.loop = loop;
+        this.source_!.loop = loop;
     }
 
     setPlaybackRate(rate: number): void {
+        if (this.stopped_) return;
         if (this.playing_) {
-            const now = this.context_.currentTime;
+            const now = this.context_!.currentTime;
             const position = this.startOffset_ + (now - this.startedAt_) * this.playbackRate_;
-            this.source_.playbackRate.value = rate;
+            this.source_!.playbackRate.value = rate;
             this.startOffset_ = position;
             this.startedAt_ = now;
         }
@@ -139,12 +151,12 @@ class WebAudioHandle implements AudioHandle {
     get currentTime(): number {
         if (this.stopped_) return 0;
         if (!this.playing_) return this.pausedAt_;
-        const elapsed = (this.context_.currentTime - this.startedAt_) * this.playbackRate_;
+        const elapsed = (this.context_!.currentTime - this.startedAt_) * this.playbackRate_;
         return this.startOffset_ + elapsed;
     }
 
     get duration(): number {
-        return this.buffer_.duration;
+        return this.duration_;
     }
 }
 
