@@ -15,6 +15,7 @@ import { Interactable } from '../input/interactable';
 import { UIControlPointers, type ControlPointer } from '../input/control-pointers';
 import { isScreenEntity } from '../util/ui-pick';
 import { walkParentChain } from '../util/helpers';
+import { createLiveVisibilityQuery } from '../util/live-visibility';
 
 export enum VirtualJoystickMode { Fixed = 0, Follow = 1 }
 export interface VirtualJoystickData {
@@ -63,10 +64,11 @@ export function createVirtualControlSystem(world: World, events: UIEventQueue) {
         input?.removeVirtualSource(state.owner); states.delete(entity);
     };
     const offDespawn = world.onDespawn(release);
-    const enabled = (entity: Entity) => {
+    const hiddenFallback = (entity: Entity) => !!engine?.getUINodeHiddenInTree?.(registry!, entity);
+    const enabled = (entity: Entity, hidden: (entity: Entity) => boolean) => {
         if (!world.valid(entity) || !world.isEntityActive(entity) || world.isDestructionPending(entity)
             || (world.has(entity, Interactable) && !world.get(entity, Interactable).enabled)
-            || engine?.getUINodeHiddenInTree?.(registry!, entity)) return false;
+            || hidden(entity)) return false;
         let blocked = world.has(entity, UINode) && world.get(entity, UINode).pointerEvents === UIPointerEvents.None;
         walkParentChain(world, entity, parent => {
             if (world.has(parent, UINode) && world.get(parent, UINode).pointerEvents === UIPointerEvents.None) blocked = true;
@@ -105,13 +107,14 @@ export function createVirtualControlSystem(world: World, events: UIEventQueue) {
         system: defineSystem([Res(Input), Res(UIControlPointers), Res(Time)],
             (current: InputState, frame: { pointers: Map<number, ControlPointer> }, time: TimeData) => {
                 input = current;
+                let hidden = createLiveVisibilityQuery(world, hiddenFallback);
                 for (const entity of states.keys()) if (!world.valid(entity)
                     || (!world.has(entity, VirtualJoystick) && !world.has(entity, VirtualButton))) release(entity);
                 for (const type of [VirtualJoystick, VirtualButton] as const) {
                     for (const entity of world.getEntitiesWithComponents([type])) {
                         if (!world.has(entity, Transform)) { release(entity); continue; }
                         const state = getState(entity);
-                        const available = enabled(entity);
+                        const available = enabled(entity, hidden);
                         const held = [...frame.pointers.values()].filter(p => available && p.entity === entity && p.down);
                         let value: Vec2 = { x: 0, y: 0 };
                         let id: string;
@@ -154,6 +157,7 @@ export function createVirtualControlSystem(world: World, events: UIEventQueue) {
                         if (value.x !== state.value.x || value.y !== state.value.y) {
                             state.value = value;
                             events.emit(entity, UIEventType.Change, { value: { ...value } });
+                            hidden = createLiveVisibilityQuery(world, hiddenFallback);
                         }
                     }
                 }

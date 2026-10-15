@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ui): release hidden virtual controls before layout':
+    { note: 'Virtual controls stop when their authored UI is hidden.' },
   'fix(input): sample named actions independently for fixed steps':
     { note: 'Named actions reach fixed simulation steps independently of render frames.' },
   'test(youtube): acknowledge each hit and retain failure state':
