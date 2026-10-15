@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Public native text measurement retains a bounded advance cache.** Historical font revisions, sizes and missing-glyph estimates retire from a 4096-entry working set. A second-chance clock keeps recently queried advances reusable without reinserting Map entries on every character; failed host measurements leave retained entries intact. Widths, wrapping and the Canvas measurement path retain their existing behavior.
+
 ### Added
 
 - **Spatial rotation adds a view-axis outer ring.** The outer ring remains a screen circle and uses the presented camera axis captured at the press, with absolute twist snapping and the same undo/cancel path. Local inner rings use their rotated world axis; rotation writes, including Alt copies, convert through each target's parent frame. Flat 2D retains its existing Z ring.

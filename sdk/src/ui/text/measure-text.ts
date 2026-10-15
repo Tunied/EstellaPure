@@ -47,23 +47,48 @@ type Measurer = (s: string) => number;
 let ctx_: CanvasRenderingContext2D | null | undefined;
 
 /** Pen advances from the platform's own glyph source, by
- *  `family|style|size|codepoint`. A device rasterizes each glyph once here, as
- *  the draw atlas does for the sizes it draws at. */
-const advances_ = new Map<string, number>();
+ *  `family|style|size|codepoint`. Retain a bounded working set so historical
+ *  font revisions and sizes do not accumulate across long-running sessions. */
+const advances_ = new Map<string, { advance: number; used: boolean }>();
+const ADVANCE_CACHE_LIMIT = 4096;
+const advanceSlots_: string[] = [];
+let advanceHand_ = 0;
 
 function platformAdvance(
     codepoint: number, family: string, style: number, fontSize: number,
 ): number {
     const key = `${family}|${style}|${fontSize}|${codepoint}`;
     const hit = advances_.get(key);
-    if (hit !== undefined) return hit;
+    if (hit !== undefined) {
+        hit.used = true;
+        return hit.advance;
+    }
     // Plain coverage at the display size: the advance is all this wants, and a
     // bitmap glyph is a fraction of the work an SDF one costs to produce.
     const glyph = platformRasterizeGlyph({
         codepoint, fontFamily: family, style, pixelSize: fontSize, sdf: false, padding: 0,
     });
     const advance = glyph ? glyph.advance : fontSize * 0.6;
-    advances_.set(key, advance);
+    if (advanceSlots_.length < ADVANCE_CACHE_LIMIT) {
+        advanceSlots_.push(key);
+    } else {
+        // Second-chance clock: hits only set a bit, avoiding Map reinsertion on
+        // every character. The next insertion retires an unused slot; a used
+        // slot gets one more traversal before it can be replaced.
+        for (;;) {
+            const oldKey = advanceSlots_[advanceHand_];
+            const old = advances_.get(oldKey)!;
+            if (!old.used) {
+                advances_.delete(oldKey);
+                advanceSlots_[advanceHand_] = key;
+                advanceHand_ = (advanceHand_ + 1) % ADVANCE_CACHE_LIMIT;
+                break;
+            }
+            old.used = false;
+            advanceHand_ = (advanceHand_ + 1) % ADVANCE_CACHE_LIMIT;
+        }
+    }
+    advances_.set(key, { advance, used: false });
     return advance;
 }
 
