@@ -15,7 +15,7 @@ fs.writeFileSync(path.join(project,'assets/scenes/main.esscene'),JSON.stringify(
  {type:'Transform',data:{position:{x:0,y:0,z:0}}},{type:'Sprite',data:{size:{x:60,y:60},color:{r:1,g:0,b:1,a:1}}}
 ]}]}));
 fs.writeFileSync(path.join(project,'src/main.ts'),'export {};');fs.writeFileSync(path.join(project,'src/components.ts'),'export {};');
-const read=`(()=>{const e=window.__estellaEditor;const snap=()=>{const t=e.surface.serializeScene().entities.find(v=>v.id===1).components.find(c=>c.type==='Transform').data;return {position:t.position??{x:0,y:0,z:0},scale:t.scale??{x:1,y:1,z:1},rotation:t.rotation??{x:0,y:0,z:0,w:1}};};const pose=snap(),layout=e.gizmoLayout();if(!window.__planesRead){window.__planesRead=true;return {pose,layout};}e.surface.undo();return {pose,layout,undone:snap()};})()`;
+const read=`(async()=>{const e=window.__estellaEditor;const snap=()=>{const t=e.surface.serializeScene().entities.find(v=>v.id===1).components.find(c=>c.type==='Transform').data;return {position:t.position??{x:0,y:0,z:0},scale:t.scale??{x:1,y:1,z:1},rotation:t.rotation??{x:0,y:0,z:0,w:1}};};const pose=snap(),layout=e.gizmoLayout();if(!window.__planesRead){window.__planesRead=true;return {pose,layout};}e.surface.undo();const undone=snap();e.surface.setViewPerspective(false);e.surface.setViewOrbit(0,0);e.runCommand('tool.move');await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));return {pose,layout,undone,flatLayout:e.gizmoLayout()};})()`;
 const records=[];
 try{
  for(const axis of ['xy','yz','zx','view','xyz']){
@@ -30,6 +30,8 @@ try{
   const result=JSON.parse(line.slice('[editorDrag] '.length));records.push({axis,...result});
   fs.writeFileSync(path.join(out,'observations.json'),JSON.stringify({status:'checking',records},null,2));
   const before=result.before.pose,after=result.after.pose;
+  assert(result.after.flatLayout,'Missing 2D frame after projection reset');
+  assert.equal(result.after.flatLayout.spatial,false,'Tool selection restored the 3D view after switching back to 2D');
   assert.deepEqual(result.after.undone,before,'Single undo did not restore the pose');
   assert.deepEqual(after.rotation,before.rotation,'Plane drag also rotated the subject');
   if(axis==='xyz'){

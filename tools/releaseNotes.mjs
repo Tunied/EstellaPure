@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'test(editor): verify projection resets to 2D after gestures':
+    { note: 'Automation projection settings persist across editor state changes.' },
   'test(native): retain first launch evidence before retry':
     { internal: 'Native smoke retains the rejected launch screenshot, boot log and verdict before retry output reuses the normal filenames; startup verdicts and retry policy are unchanged.' },
   'test(editor): preserve authored camera during projection changes':
