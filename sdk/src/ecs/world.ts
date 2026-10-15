@@ -1370,6 +1370,11 @@ export class World {
     /** @internal Latest opted-in component mutation sequence. */
     getChangeSequence(): number { return this.changes_.getChangeSequence(); }
 
+    /** @internal Bind a live sequence index once for a system query's entity loop. */
+    resolveChangeSequenceMatcher(component: AnyComponentDef, added: boolean): (entity: Entity, after: number) => boolean {
+        return this.changes_.resolveChangeSequenceMatcher(component, added);
+    }
+
     /** @internal Live additions after a completed system boundary. */
     isAddedAfterSequence(entity: Entity, component: AnyComponentDef, after: number): boolean {
         return this.changes_.isAddedAfterSequence(entity, component, after);

@@ -217,6 +217,12 @@ export class ChangeTracker {
 
     getChangeSequence(): number { return this.changeSequence_; }
 
+    resolveChangeSequenceMatcher(component: AnyComponentDef, added: boolean): (entity: Entity, after: number) => boolean {
+        this.enableChangeSequenceTracking(component, added);
+        const rows = (added ? this.componentAddedSequences_ : this.componentChangedSequences_).get(component._id)!.rows;
+        return (entity, after) => ((rows.get(entity) as ChangeStamp | undefined)?.sequence ?? -1) > after;
+    }
+
     isAddedAfterSequence(entity: Entity, component: AnyComponentDef, after: number): boolean {
         return ((this.componentAddedSequences_.get(component._id)?.rows.get(entity) as ChangeStamp | undefined)?.sequence ?? -1) > after;
     }

@@ -60,6 +60,7 @@ function createMockWorld() {
         getWorldTick: vi.fn(() => worldTick.value),
         getChangeSequence: vi.fn(() => 0),
         enableChangeSequenceTracking: vi.fn(),
+        resolveChangeSequenceMatcher: vi.fn(() => () => false),
         isAddedAfterSequence: vi.fn(() => false),
         isChangedAfterSequence: vi.fn(() => false),
         anyAddedAfterSequence: vi.fn(() => false),

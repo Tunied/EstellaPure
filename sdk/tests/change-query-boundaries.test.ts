@@ -195,4 +195,23 @@ describe('system change query boundaries', () => {
         runner.run(reader);
         expect(counts).toEqual([0, 1, 0, 1]);
     });
+    it.each([Added, Changed])('keeps a bound %s index live after its last component is removed', filter => {
+        const batches: Entity[][] = [];
+        const reader = defineSystem([Query(filter(Marker))], query => {
+            const batch: Entity[] = [];
+            query.forEach(entity => batch.push(entity));
+            batches.push(batch);
+        });
+        runner.run(reader);
+        const entity = world.spawn();
+        world.insert(entity, Marker);
+        runner.run(reader);
+        world.remove(entity, Marker);
+        runner.run(reader);
+        expect(world.getStorageSizes().changes.sequenceRows).toBe(0);
+        world.insert(entity, Marker);
+        runner.run(reader);
+        runner.run(reader);
+        expect(batches).toEqual([[], [entity], [], [entity], []]);
+    });
 });

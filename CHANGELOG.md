@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Dense change queries bind their live sequence index once.** Added and Changed filters reuse component-specific matchers during entity iteration, avoiding repeated world and component lookups while retaining precise system boundaries, stable-frame skipping and visibility of later component replacements.
+
 - **System change queries see additions and writes after earlier runs in the same frame.** Added and Changed filters use completed-system mutation sequences while explicit tick-based query instances keep their existing windows. Systems consume their own writebacks without retriggering themselves; compiled writers and asynchronous reads share the same boundaries. Stable queries skip candidate enumeration, and live sequence stamps reuse tick records and disappear with removed components.
 
 - **Removal queries retain events across system runs in the same frame.** Removed component events use reader-owned sequence cursors, so removals after a system runs or after its last read remain available on its next run. Fresh readers start from registration, paused and async readers keep their claims, and fast readers skip retained history rather than repeatedly scanning a paused reader's backlog; explicit tick-based samplers keep their existing windows.

@@ -407,6 +407,7 @@ export class QueryInstance<C extends readonly QueryArg[]> implements Iterable<Qu
     private readonly depIds_: symbol[];
     private lastRunTick_: number;
     private lastChangeSequence_: number | null = null;
+    private sequenceMatchers_: Array<(entity: Entity, after: number) => boolean> | null = null;
     private calls_ = 0;
     private scanned_ = 0;
     private filtered_ = 0;
@@ -472,8 +473,13 @@ export class QueryInstance<C extends readonly QueryArg[]> implements Iterable<Qu
     resetChangeSequence(sequence: number): void {
         if (!this.hasChangeFilters_()) return;
         if (this.lastChangeSequence_ === null) {
-            for (const f of this.descriptor_._addedFilters) this.world_.enableChangeSequenceTracking(f.component, true);
-            for (const f of this.descriptor_._changedFilters) this.world_.enableChangeSequenceTracking(f.component, false);
+            this.sequenceMatchers_ = [];
+            for (const f of this.descriptor_._addedFilters) {
+                this.sequenceMatchers_.push(this.world_.resolveChangeSequenceMatcher(f.component, true));
+            }
+            for (const f of this.descriptor_._changedFilters) {
+                this.sequenceMatchers_.push(this.world_.resolveChangeSequenceMatcher(f.component, false));
+            }
         }
         this.lastChangeSequence_ = sequence;
     }
@@ -535,14 +541,18 @@ export class QueryInstance<C extends readonly QueryArg[]> implements Iterable<Qu
         if (_addedFilters.length === 0 && _changedFilters.length === 0) return true;
         const tick = this.lastRunTick_;
         const sequence = this.lastChangeSequence_;
+        if (sequence !== null) {
+            for (const matches of this.sequenceMatchers_!) {
+                if (!matches(entity, sequence)) return this.rejected_();
+            }
+            return true;
+        }
         for (const f of _addedFilters) {
-            const added = sequence === null ? this.world_.isAddedSince(entity, f.component, tick)
-                : this.world_.isAddedAfterSequence(entity, f.component, sequence);
+            const added = this.world_.isAddedSince(entity, f.component, tick);
             if (!added) return this.rejected_();
         }
         for (const f of _changedFilters) {
-            const changed = sequence === null ? this.world_.isChangedSince(entity, f.component, tick)
-                : this.world_.isChangedAfterSequence(entity, f.component, sequence);
+            const changed = this.world_.isChangedSince(entity, f.component, tick);
             if (!changed) return this.rejected_();
         }
         return true;
