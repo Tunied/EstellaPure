@@ -28,6 +28,12 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'chore(release): prepare 0.88.0':
+    { internal: 'Prepares the release version and consolidates verified tile preview caching, post-process color blending and example changes without modifying showcase assets.' },
+  'feat(examples): neon-ascension rain streaks and vent steam':
+    { note: 'Neon Ascension adds a night-city grey-box example.' },
+  'feat(postprocess): a volume can name an effect\'s colour params, so fog takes a night colour':
+    { note: 'Post-process volumes blend effect colors.' },
   'feat(examples): neon-ascension grey-box, a night city to test reflections and bloom':
     { note: 'Neon Ascension adds a night-city grey-box example.' },
   'perf(editor): reuse local tile collision geometry while moving layers':

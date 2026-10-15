@@ -14,9 +14,13 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+## [0.88.0] - 2026-10-15
+
 ### Added
 
-- **Neon Ascension adds a night-city grey-box example.** Authored materials and an HDR panorama provide a scene for inspecting environment reflections, emissive bloom and warm/cool light contrast. Known scene limitations are documented with the example.
+- **Post-process volumes blend effect colors.** Volumes can override named RGBA parameters, blend from effect defaults by weight and priority, and apply colors to the rendered effect stack. Stable effect signatures include colors so unchanged frames keep the existing stack.
+
+- **Neon Ascension adds a night-city grey-box example.** Authored materials and an HDR panorama provide a scene for inspecting environment reflections, emissive bloom and warm/cool light contrast. Rain streaks and vent steam add animated scene content. Known scene limitations are documented with the example.
 
 ### Fixed
 
@@ -14477,7 +14481,8 @@ not kept before this file was introduced — see the Git history at
 `github.com/esengine/estella` for the full commit-level record since the first
 commit on 2026-01-25.
 
-[Unreleased]: https://github.com/esengine/estella/compare/v0.87.2...HEAD
+[Unreleased]: https://github.com/esengine/estella/compare/v0.88.0...HEAD
+[0.88.0]: https://github.com/esengine/estella/compare/v0.87.2...v0.88.0
 [0.87.2]: https://github.com/esengine/estella/compare/v0.87.1...v0.87.2
 [0.87.1]: https://github.com/esengine/estella/compare/v0.87.0...v0.87.1
 [0.87.0]: https://github.com/esengine/estella/compare/v0.86.1...v0.87.0
