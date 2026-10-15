@@ -74,6 +74,123 @@ describe('AudioAPI buffer residency', () => {
         audio.setBufferBudget(1000);
     });
 
+    function sharedSource() {
+        let loaded = false;
+        const handle: AudioBufferHandle = { id: 77, duration: 1, bytes: 100 };
+        backend.loadBuffer = vi.fn(async () => { loaded = true; return handle; });
+        backend.unloadBuffer = vi.fn(() => { loaded = false; });
+        const play = backend.play;
+        backend.play = vi.fn((buffer, config) => {
+            if (!loaded) throw new Error('Shared buffer already unloaded');
+            return play(buffer, config);
+        });
+        audio.setRefResolver(() => 'physical/shared.wav');
+        audio.setBufferBudget(0);
+        return handle;
+    }
+
+    it('keeps a shared physical buffer alive until both authored references release it', async () => {
+        sharedSource();
+        await audio.preload('alias-a'); audio.retainBuffer('alias-a');
+        await audio.preload('alias-b'); audio.retainBuffer('alias-b');
+        audio.releaseBuffer('alias-a');
+        expect(() => audio.playSFX('alias-b')).not.toThrow();
+        expect(backend.unloadBuffer).not.toHaveBeenCalled();
+        audio.releaseBuffer('alias-a'); // already released; cannot spend B's hold
+        expect(backend.unloadBuffer).not.toHaveBeenCalled();
+        audio.releaseBuffer('alias-b');
+        expect(backend.unloadBuffer).toHaveBeenCalledOnce();
+    });
+
+    it('counts shared decoded bytes once while keeping each authored hold separate', async () => {
+        sharedSource();
+        await audio.preload('alias-a'); audio.retainBuffer('alias-a');
+        await audio.preload('alias-b'); audio.retainBuffer('alias-b');
+        expect(audio.getBufferStats().bufferBytes).toBe(100);
+        audio.releaseBuffer('alias-a');
+        expect(audio.getBufferStats().bufferBytes).toBe(100);
+        audio.releaseBuffer('alias-b');
+        expect(audio.getBufferStats().bufferBytes).toBe(0);
+    });
+
+    it('invalidates every cached alias of the changed physical source', async () => {
+        sharedSource();
+        await audio.preload('alias-a'); audio.retainBuffer('alias-a');
+        await audio.preload('alias-b'); audio.retainBuffer('alias-b');
+        expect(audio.invalidateBuffer('alias-a')).toBe(true);
+        expect(audio.getBufferHandle('alias-a')).toBeUndefined();
+        expect(audio.getBufferHandle('alias-b')).toBeUndefined();
+        expect(backend.unloadBuffer).toHaveBeenCalledOnce();
+    });
+
+    it('trims shared warm entries with one physical unload and one freed-buffer count', async () => {
+        sharedSource();
+        audio.setBufferBudget(1000);
+        await audio.preload('alias-a');
+        await audio.preload('alias-b');
+        expect(audio.getBufferStats()).toMatchObject({ bufferCount: 2, bufferBytes: 100, evictableCount: 2 });
+        expect(audio.trimBufferCache()).toBe(1);
+        expect(backend.unloadBuffer).toHaveBeenCalledOnce();
+        expect(audio.getBufferStats()).toMatchObject({ bufferCount: 0, bufferBytes: 0, evictableCount: 0 });
+    });
+
+    it('coalesces concurrent aliases and retires their invalidated result once', async () => {
+        audio.setRefResolver(() => 'shared.wav');
+        const finish: Array<(buffer: AudioBufferHandle) => void> = [];
+        backend.loadBufferFromData = vi.fn(() => new Promise<AudioBufferHandle>(resolve => { finish.push(resolve); }));
+        const a = audio.preloadFromData('a', new ArrayBuffer(8));
+        const b = audio.preloadFromData('b', new ArrayBuffer(8));
+        expect(backend.loadBufferFromData).toHaveBeenCalledOnce();
+        expect(audio.invalidateBuffer('a')).toBe(true);
+        const current = audio.preloadFromData('b', new ArrayBuffer(16));
+        expect(backend.loadBufferFromData).toHaveBeenCalledTimes(2);
+        finish[1]({ id: 2, duration: 2, bytes: 200 });
+        await current;
+        finish[0]({ id: 1, duration: 1, bytes: 100 });
+        await Promise.all([a, b]);
+        expect(backend.unloaded).toEqual([1]);
+        expect(audio.getBufferHandle('a')).toBeUndefined();
+        expect(audio.getBufferHandle('b')?.id).toBe(2);
+        expect(audio.getBufferStats().bufferBytes).toBe(200);
+        audio.dispose();
+        expect(backend.unloaded).toEqual([1, 2]);
+    });
+
+    it('allows a shared source to retry after all concurrent aliases fail', async () => {
+        audio.setRefResolver(() => 'shared.wav');
+        let fail!: (reason: Error) => void;
+        backend.loadBuffer = vi.fn(() => new Promise<AudioBufferHandle>((_resolve, reject) => { fail = reject; }));
+        const a = audio.preload('a'), b = audio.preload('b');
+        const done = Promise.allSettled([a, b]);
+        fail(new Error('decode failed'));
+        expect((await done).every(result => result.status === 'rejected')).toBe(true);
+        expect(backend.loadBuffer).toHaveBeenCalledOnce();
+        backend.loadBuffer = vi.fn(async () => ({ id: 2, duration: 2, bytes: 200 }));
+        await audio.preload('a');
+        expect(backend.loadBuffer).toHaveBeenCalledOnce();
+        expect(audio.getBufferHandle('a')?.id).toBe(2);
+        expect(audio.trimBufferCache()).toBe(1);
+    });
+
+    it('invalidates the source captured by a pending load when the resolver changes', async () => {
+        let source = 'old.wav';
+        audio.setRefResolver(() => source);
+        const finish: Array<(buffer: AudioBufferHandle) => void> = [];
+        backend.loadBuffer = vi.fn(() => new Promise<AudioBufferHandle>(resolve => { finish.push(resolve); }));
+        backend.invalidateSource = vi.fn();
+        const old = audio.preload('key');
+        source = 'new.wav';
+        audio.invalidateBuffer('key');
+        expect(backend.invalidateSource).toHaveBeenCalledWith('old.wav');
+        const current = audio.preload('key');
+        finish[1]({ id: 2, duration: 2, bytes: 200 });
+        await current;
+        finish[0]({ id: 1, duration: 1, bytes: 100 });
+        await old;
+        expect(backend.unloaded).toEqual([1]);
+        expect(audio.getBufferHandle('key')?.id).toBe(2);
+    });
+
     it.each([0, 1000])('releasing an old asset lease cannot release the replacement clip, budget=%i', async budget => {
         audio.setBufferBudget(budget);
         const assets = Assets.create({

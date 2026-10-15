@@ -18,23 +18,37 @@ export function setAudioHostSuspended(audio: AudioAPI, owner: object, suspended:
 }
 
 /**
- * One decoded buffer's residency record. Mirrors the texture pool's
+ * One authored reference's residency record. Mirrors the texture pool's
  * three-state lifecycle: held (refCount > 0, pinned by Assets) →
  * evictable (refCount 0, warm cache bounded by the byte budget) →
  * evicted (backend buffer freed; a future load re-fetches).
  */
 interface BufferEntry {
     handle: AudioBufferHandle;
-    /** Decoded bytes; 0 = untracked (streaming backends), never budgeted. */
-    bytes: number;
+    source: SharedAudioBuffer;
     /** Assets-held references. Direct play/preload entries stay at 0. */
     refCount: number;
 }
 
+interface SharedAudioBuffer {
+    url: string;
+    loading: Promise<AudioBufferHandle>;
+    handle?: AudioBufferHandle;
+    aliases: Set<string>;
+    requests: Set<string>;
+    charged: boolean;
+}
+
+interface PendingAudioBuffer {
+    promise: Promise<void>;
+    source: SharedAudioBuffer;
+}
+
 /** Buffer residency counters. See {@link AudioAPI.getBufferStats}. */
 export interface AudioBufferStats {
+    /** Authored cache entries; aliases can share one decoded allocation. */
     bufferCount: number;
-    /** Decoded bytes resident (held + evictable entries). */
+    /** Unique decoded bytes resident (held + evictable entries). */
     bufferBytes: number;
     /** The effective byte budget (0 = warm cache off). */
     bufferBudget: number;
@@ -100,7 +114,8 @@ export class AudioAPI {
     private readonly backend_: PlatformAudioBackend;
     private readonly mixer_: AudioMixer | null;
     private readonly bufferCache_ = new Map<string, BufferEntry>();
-    private readonly loadingBuffers_ = new Map<string, Promise<void>>();
+    private readonly loadingBuffers_ = new Map<string, PendingAudioBuffer>();
+    private readonly bufferSources_ = new Map<string, SharedAudioBuffer>();
     /** refCount==0 urls in eviction order (oldest first); access re-appends. */
     private readonly evictOrder_ = new Set<string>();
     private residentBytes_ = 0;
@@ -208,28 +223,35 @@ export class AudioAPI {
     /** End cached and pending loads for changed source bytes. Playing sources
      *  keep their decoded data; later loads fetch fresh. Returns whether a load ended. */
     invalidateBuffer(url: string): boolean {
-        const pending = this.loadingBuffers_.delete(url);
         const entry = this.bufferCache_.get(url);
-        if (!pending && !entry) return false;
-        this.backend_.invalidateSource?.(this.resolveUrl_(url));
-        if (!entry) return pending;
-        this.freeBuffer_(url, entry);
+        let source = entry?.source ?? this.loadingBuffers_.get(url)?.source;
+        if (!source) {
+            try { source = this.bufferSources_.get(this.resolveUrl_(url)); } catch { return false; }
+        }
+        if (!source) return false;
+        this.backend_.invalidateSource?.(source.url);
+        if (this.bufferSources_.get(source.url) === source) this.bufferSources_.delete(source.url);
+        for (const alias of source.requests) {
+            if (this.loadingBuffers_.get(alias)?.source === source) this.loadingBuffers_.delete(alias);
+        }
+        for (const alias of [...source.aliases]) {
+            const cached = this.bufferCache_.get(alias);
+            if (cached?.source === source) this.freeBuffer_(alias, cached);
+        }
+        this.releaseSource_(source);
         return true;
     }
 
     /**
      * Free every evictable warm-cache buffer now (memory pressure). Held
      * buffers and the budget are untouched; the cache refills as buffers are
-     * released afterwards. Returns the number of buffers freed.
+     * released afterwards. Returns the number of unique decoded buffers freed.
      */
     trimBufferCache(): number {
         let freed = 0;
         for (const url of [...this.evictOrder_]) {
             const entry = this.bufferCache_.get(url);
-            if (entry) {
-                this.freeBuffer_(url, entry);
-                freed++;
-            }
+            if (entry && this.freeBuffer_(url, entry)) freed++;
         }
         return freed;
     }
@@ -249,11 +271,15 @@ export class AudioAPI {
      *  eviction pool — mirroring the C++ pool's add(), where a just-created
      *  resource can't be the one evicted to make room for itself (a caller
      *  about to pin or play it would find it already gone). */
-    private insertEntry_(url: string, handle: AudioBufferHandle): void {
-        const entry: BufferEntry = { handle, bytes: handle.bytes ?? 0, refCount: 0 };
+    private insertEntry_(url: string, handle: AudioBufferHandle, source: SharedAudioBuffer): void {
+        const entry: BufferEntry = { handle, source, refCount: 0 };
         this.bufferCache_.set(url, entry);
-        this.residentBytes_ += entry.bytes;
-        this.enforceBudget_();
+        source.aliases.add(url);
+        if (!source.charged) {
+            source.charged = true;
+            this.residentBytes_ += handle.bytes ?? 0;
+            this.enforceBudget_();
+        }
         this.evictOrder_.add(url);
     }
 
@@ -268,11 +294,26 @@ export class AudioAPI {
         return entry.handle;
     }
 
-    private freeBuffer_(url: string, entry: BufferEntry): void {
-        this.backend_.unloadBuffer(entry.handle);
+    private freeBuffer_(url: string, entry: BufferEntry): boolean {
+        if (this.bufferCache_.get(url) !== entry) return false;
         this.bufferCache_.delete(url);
         this.evictOrder_.delete(url);
-        this.residentBytes_ -= entry.bytes;
+        const source = entry.source;
+        source.aliases.delete(url);
+        if (source.aliases.size === 0 && source.charged) {
+            source.charged = false;
+            this.residentBytes_ -= entry.handle.bytes ?? 0;
+        }
+        return this.releaseSource_(source);
+    }
+
+    private releaseSource_(source: SharedAudioBuffer): boolean {
+        if (source.aliases.size || source.requests.size) return false;
+        if (this.bufferSources_.get(source.url) === source) this.bufferSources_.delete(source.url);
+        const handle = source.handle;
+        source.handle = undefined;
+        if (handle) this.backend_.unloadBuffer(handle);
+        return !!handle;
     }
 
     /** Evict oldest warm-cache entries until resident bytes fit the budget.
@@ -310,42 +351,64 @@ export class AudioAPI {
         return `${this.baseUrl}/${url}`;
     }
 
-    /** Load `url`'s buffer into the residency cache unless already there. The
-     *  double `has()` check absorbs a concurrent load racing to insert first. */
-    private async ensureBuffer_(url: string, load: () => Promise<AudioBufferHandle>): Promise<void> {
+    /** Coalesce authored requests through their captured physical source. */
+    private async ensureBuffer_(
+        url: string, load: (source: string) => Promise<AudioBufferHandle>, sourceUrl?: string,
+    ): Promise<void> {
         if (this.disposed_) return;
         if (this.bufferCache_.has(url)) return;
         // De-dupe concurrent loads of the same url — without this, two preloads
         // (esp. the loadBufferFromData path, which has no backend-side dedup)
         // both decode and orphan one AudioBuffer.
         const inFlight = this.loadingBuffers_.get(url);
-        if (inFlight) return inFlight;
-        let promise!: Promise<void>;
-        promise = (async () => {
-            const buffer = await load();
-            if (this.disposed_ || this.loadingBuffers_.get(url) !== promise) {
-                this.backend_.unloadBuffer(buffer);
-                return;
-            }
-            if (!this.bufferCache_.has(url)) this.insertEntry_(url, buffer);
-        })();
-        this.loadingBuffers_.set(url, promise);
-        try {
-            await promise;
-        } finally {
-            if (this.loadingBuffers_.get(url) === promise) this.loadingBuffers_.delete(url);
+        if (inFlight) return inFlight.promise;
+        const resolved = sourceUrl ?? this.resolveUrl_(url);
+        let source = this.bufferSources_.get(resolved);
+        let start: (() => void) | undefined;
+        if (!source) {
+            let accept!: (buffer: AudioBufferHandle) => void, reject!: (error: unknown) => void;
+            source = {
+                url: resolved, aliases: new Set(), requests: new Set(), charged: false,
+                loading: new Promise<AudioBufferHandle>((resolve, fail) => { accept = resolve; reject = fail; }),
+            };
+            const owned = source;
+            this.bufferSources_.set(resolved, owned);
+            start = () => {
+                try {
+                    void Promise.resolve(load(resolved)).then(buffer => { owned.handle = buffer; accept(buffer); }, reject);
+                } catch (error) { reject(error); }
+            };
         }
+        const shared = source;
+        shared.requests.add(url);
+        let receipt!: PendingAudioBuffer;
+        const promise = (async () => {
+            try {
+                const buffer = await shared.loading;
+                if (this.disposed_ || this.loadingBuffers_.get(url) !== receipt) return;
+                if (!this.bufferCache_.has(url)) this.insertEntry_(url, buffer, shared);
+            } finally {
+                if (this.loadingBuffers_.get(url) === receipt) this.loadingBuffers_.delete(url);
+                shared.requests.delete(url);
+                this.releaseSource_(shared);
+            }
+        })();
+        receipt = { promise, source: shared };
+        this.loadingBuffers_.set(url, receipt);
+        // Install both ownership records before a backend can reenter the API.
+        start?.();
+        await promise;
     }
 
     async preload(url: string): Promise<void> {
-        if (this.bufferCache_.has(url)) return;
+        if (this.disposed_ || this.bufferCache_.has(url)) return;
         if (this.assetResolver_) {
             const data = this.assetResolver_(url);
             if (data) {
                 return this.preloadFromData(url, data);
             }
         }
-        await this.ensureBuffer_(url, () => this.backend_.loadBuffer(this.resolveUrl_(url)));
+        await this.ensureBuffer_(url, source => this.backend_.loadBuffer(source));
     }
 
     async preloadAll(urls: string[]): Promise<void> {
@@ -359,7 +422,7 @@ export class AudioAPI {
      * for a `url`-delivery backend is the only thing it plays.
      */
     async preloadFromData(url: string, data: ArrayBuffer): Promise<void> {
-        await this.ensureBuffer_(url, () => this.backend_.loadBufferFromData(this.resolveUrl_(url), data));
+        await this.ensureBuffer_(url, source => this.backend_.loadBufferFromData(source, data));
     }
 
     /**
@@ -373,7 +436,7 @@ export class AudioAPI {
         if (this.disposed_) return null;
         const epoch = this.playbackEpoch_;
         try {
-            await this.ensureBuffer_(url, () => this.backend_.loadBuffer(url));
+            await this.ensureBuffer_(url, source => this.backend_.loadBuffer(source), url);
         } catch {
             return null;
         }
@@ -799,10 +862,9 @@ export class AudioAPI {
         // Closing a Web Audio context alone leaves their handles marked playing,
         // and a different backend may require explicit stops before disposal.
         this.stopAll();
-        for (const entry of this.bufferCache_.values()) {
-            this.backend_?.unloadBuffer(entry.handle);
-        }
-        this.bufferCache_.clear();
+        this.loadingBuffers_.clear();
+        for (const [url, entry] of this.bufferCache_) this.freeBuffer_(url, entry);
+        this.bufferSources_.clear();
         this.evictOrder_.clear();
         this.residentBytes_ = 0;
         this.backend_?.dispose();

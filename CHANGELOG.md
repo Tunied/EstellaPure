@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Audio aliases share decoded buffer ownership.** References resolving to one source share pending decoding and PCM accounting while retaining independent asset leases. Releasing one reference leaves other holders playable; source invalidation retires all aliases without unloading a replacement, and trimming frees each physical allocation once.
+
 - **Loading sound-effect handles preserve playback controls.** Stopping before load completion prevents voice allocation and cannot be undone by Resume. Volume, pan, loop and playback rate apply to the initial backend play; queued Pause starts muted before pausing and restores the intended bus-adjusted gain. Resolved handles expose the real voice ID and forward completion callbacks, while later controls keep delegating normally.
 
 - **Stop All stops every owned audio voice and pending start.** Scripted effects, explicit tracks, paused voices and outgoing music fades are stopped once, and stopped handles cannot resume outside the voice registry. Pending effects and tracks requested before Stop All cannot start on load completion; cached buffers and the device remain reusable, and disposal uses the same shutdown path.

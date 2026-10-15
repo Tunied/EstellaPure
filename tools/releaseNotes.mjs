@@ -30,6 +30,8 @@ export const NOTES_FLOOR = 'v0.65.0';
 export const NOTED = {
   'fix(example): honor authored workshop obstacle state':
     { note: 'Build and reroute deliveries in a textured 2D courtyard.' },
+  'fix(audio): share decoded ownership across source aliases':
+    { note: 'Audio aliases share decoded buffer ownership.' },
   'fix(audio): preserve controls on loading effect handles':
     { note: 'Loading sound-effect handles preserve playback controls.' },
   'fix(audio): stop all owned voices and pending starts':
