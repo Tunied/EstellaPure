@@ -28,6 +28,10 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'test(youtube): acknowledge each hit and retain failure state':
+    { internal: 'Headless YouTube acceptance acknowledges each actual training hit and retains live gameplay state and screenshots before closing a failed browser session; missing attacks still fail.' },
+  'chore(release): prepare 0.87.1':
+    { internal: 'Prepares the patch version and consolidates verified input, UI and change-query fixes in the release notes without changing showcase assets.' },
   'fix(input): preserve complete button taps between samples':
     { note: 'Button actions retain complete keyboard and mouse taps between samples.' },
   'fix(ui): scope screen-domain lookup to its registry':

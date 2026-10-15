@@ -100,7 +100,10 @@ try {
                 }
                 const current=await page.evaluate(()=>__estellaCooked.probe(['Player','Target']).at),horizontal=current.Target.x>current.Player.x?'KeyD':'KeyA';
                 await page.keyboard.down(horizontal);await page.waitForFunction(()=>{const p=__estellaCooked.probe(['Player','Target']).at;return Math.hypot(p.Player.x-p.Target.x,p.Player.y-p.Target.y)<60;});await page.keyboard.up(horizontal);
-                for(let hit=0;hit<3;hit++){await page.keyboard.press('Space',{delay:80});await page.waitForTimeout(80);}
+                for(let hit=0;hit<3;hit++){
+                    await page.keyboard.press('Space',{delay:80});
+                    await page.waitForFunction(expected=>__estellaCooked.probe(['DeviceStatus']).at.DeviceStatus.text.includes(`Round: ${expected} / 3 hits`),hit+1);
+                }
                 await phase('finished');await click('TrainingScore');
                 if(mode!=='load-failed') {
                     await page.waitForFunction(()=>__scores.length===1);
@@ -122,7 +125,18 @@ try {
             const file=mode+'.png';await page.screenshot({path:path.join(out,file)});observation.screenshot={file,sha256:sha(path.join(out,file))};
             assert.deepEqual(observation.errors,[]);assert.deepEqual(observation.unexpectedRequests,[]);assert.deepEqual(observation.cspViolations,[]);
             observation.events=await page.evaluate(()=>window.__events??[]);observation.status='passed';
-        } catch(error){observation.failure=String(error);throw error;}finally{await context.close();}
+        } catch(error){
+            observation.failure=String(error);
+            observation.snapshot=await page.evaluate(()=>({
+                probe:window.__estellaCooked?.probe(['DeviceStatus','Player','Target']),
+                events:window.__events,scores:window.__scores,visibility:document.visibilityState,
+            })).catch(snapshotError=>({unavailable:String(snapshotError)}));
+            const file=mode+'-failed.png';
+            await page.screenshot({path:path.join(out,file),timeout:5000}).then(()=>{
+                observation.screenshot={file,sha256:sha(path.join(out,file))};
+            }).catch(captureError=>{observation.screenshotError=String(captureError);});
+            throw error;
+        }finally{await context.close();}
     }
     assert.deepEqual(Object.fromEntries(files().map(file=>[file,sha(path.join(root,file))])),identities);report.status='checks-passed';
 } finally {fs.writeFileSync(path.join(out,'runtime-check.json'),JSON.stringify(report,null,2));await browser.close();await new Promise(resolve=>server.close(resolve));}
