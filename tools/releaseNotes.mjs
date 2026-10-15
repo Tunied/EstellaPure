@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'test(editor): preserve authored camera during projection changes':
+    { note: 'Automation projection settings persist across editor state changes.' },
   'fix(editor): retain programmatic projection across state updates':
     { note: 'Automation projection settings persist across editor state changes.' },
   'test(viewport): preserve spatial view through tool selection':
