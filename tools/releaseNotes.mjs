@@ -28,6 +28,10 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(editor): refresh tile collision previews from live metadata':
+    { note: 'Tile collision previews follow unsaved tileset edits and undo.' },
+  'fix(editor): synchronize live tile collision preview metadata':
+    { internal: 'Pins the editor live-metadata preview fix and its verification coverage, without changing scene assets or release versions.' },
   'fix(editor): attach virtual windows after ancestor refs mount':
     { note: 'Windowed editor lists attach to the scroller that actually mounted.' },
   'fix(editor): finish virtual row reveals after measurement':

@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Tile collision previews follow unsaved tileset edits and undo.** Editor outline models read the open tileset document and refresh on relevant document edits, undo/redo, disk changes and project switches. Ordinary scene edits and unrelated documents retain the cached model; obsolete requests stop loading later tilesets and cannot publish into the new preview. Closing a document restores the saved asset's collision metadata.
+
 - **Windowed editor lists attach to the scroller that actually mounted.** Resource grids and shared virtual windows subscribe after ancestor refs are available, reattach when their elements change, and retain scroll and size observation through StrictMode cleanup. Large lists keep updating visible rows instead of remaining on the first batch or using a single fallback column.
 
 - **Editor row reveals finish after real grid measurements arrive.** Explicit navigation follows measured row height, viewport height and column changes instead of stopping at an estimated offset. New user input cancels that follow-up, so later layout changes do not pull the user back; a new navigation request can reveal the row again.
