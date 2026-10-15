@@ -9,7 +9,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const out = path.join(root, 'output/navigation-inspector-ci');
 fs.mkdirSync(out, { recursive: true });
 const records = [];
-for (const state of ['complete', 'disconnected', 'insufficient-clearance', 'no-target']) {
+for (const state of ['complete', 'disconnected', 'insufficient-clearance', 'no-target', 'building']) {
   const project = fs.mkdtempSync(path.join(out, 'project-'));
   fs.mkdirSync(path.join(project, 'assets/scenes'), { recursive: true });
   fs.mkdirSync(path.join(project, 'src'));
@@ -27,7 +27,7 @@ import { Nav, Navigation, NavGrid } from 'esengine/ai';
 addPlugin({name:'navigation-inspection-fixture',build(app){
   const nav=new Navigation(),grid=new NavGrid({width:11,height:9,cellSize:1});
   ${state === 'disconnected' || state === 'insufficient-clearance' ? `for(let y=0;y<9;y++) if(${state === 'insufficient-clearance' ? 'y!==4' : 'true'}) grid.setWalkable(5,y,false);` : ''}
-  nav.setSurface(grid);app.insertResource(Nav,nav);
+  nav.setSurface(grid);${state === 'building' ? 'nav.beginSurfaceUpdate();' : ''}app.insertResource(Nav,nav);
 }});`);
   const script = `(async()=>{
     const e=window.__estellaEditor;
@@ -53,11 +53,11 @@ addPlugin({name:'navigation-inspection-fixture',build(app){
   const line = run.stdout.split('\n').find(line => line.startsWith('[eval] '));
   assert(line, 'Missing inspector observation');
   const result = JSON.parse(line.slice('[eval] '.length));
-  const expected = { complete: 'Route reaches the resolved destination', disconnected: 'Start and target are disconnected', 'insufficient-clearance': 'this agent cannot fit', 'no-target': 'No active destination' }[state];
+  const expected = { complete: 'Route reaches the resolved destination', disconnected: 'Start and target are disconnected', 'insufficient-clearance': 'this agent cannot fit', 'no-target': 'No active destination', building: 'Navigation is updating' }[state];
   assert(result.status.includes(expected), JSON.stringify(result));
   if (state !== 'no-target') assert(result.status.includes('Last planning tick:'), 'Missing live planning queue counters');
   assert(fs.existsSync(path.join(out, state + '.png')), 'Missing editor screenshot');
   records.push(result);
   fs.writeFileSync(path.join(out, 'observations.json'), JSON.stringify({ records }, null, 2));
 }
-console.log('Navigation inspector: 4 live Play scenarios passed.');
+console.log('Navigation inspector: 5 live Play scenarios passed.');

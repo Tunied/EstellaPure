@@ -13,6 +13,17 @@ const uuid = name => {
     const h = createHash('sha256').update('estella.navigation-workshop.' + name).digest('hex');
     return `${h.slice(0,8)}-${h.slice(8,12)}-4${h.slice(13,16)}-a${h.slice(17,20)}-${h.slice(20,32)}`;
 };
+fs.mkdirSync(path.join(project,'assets/navigation'),{recursive:true});
+const walkable=Array.from({length:23*13},(_,i)=>{
+    const x=i%23,y=Math.floor(i/23);
+    return x===0||x===22||y===0||y===12||(x===11&&(y<5||y>7))?0:1;
+});
+fs.writeFileSync(path.join(project,'assets/navigation/courtyard.json'),JSON.stringify({
+    width:23,height:13,cellSize:32,origin:{x:-352,y:-192},walkable,
+},null,2)+'\n');
+fs.writeFileSync(path.join(project,'assets/navigation/courtyard.json.meta'),JSON.stringify({
+    uuid:uuid('terrain-layout'),version:'2.0',type:'json',importer:{},
+},null,2)+'\n');
 const meta = name => fs.writeFileSync(path.join(textures, name + '.png.meta'), JSON.stringify({
     uuid: uuid(name), version: '2.0', type: 'texture', importer: {
         maxSize: 2048, filterMode: 'nearest', wrapMode: 'clamp', premultiplyAlpha: false,

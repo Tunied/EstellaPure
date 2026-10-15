@@ -53,6 +53,41 @@ cell it touches fits the body, and a diagonal needs both of its shared orthogona
 — so a smoothed route is exactly as legal as the staircase it replaced, and the
 same shape of route a mesh gives.
 
+### Replacing a surface after asynchronous work
+
+`nav.beginSurfaceUpdate()` returns a versioned `NavSurfaceUpdate`. Build a
+replacement separately, then call `update.commit(surface)`. Only the latest
+pending request can commit; a superseded, cancelled or completed handle returns
+`false`. `nav.setSurface(...)` and assigning `nav.surface` also cancel a pending
+request. `update.cancel()` keeps the previous surface and resumes its routes.
+
+While `nav.surfaceUpdatePending` is true, the navigation driver retains agent
+destinations and stops its steering. Character gravity remains active. Resource
+queries return no route, and `queryWorldPath` reports `unavailable / building`;
+the editor's route inspector displays the pending update. Planning counters
+include agents waiting for this replacement.
+
+```typescript
+import { Navigation, NavGrid, type NavGridOptions } from 'esengine/ai';
+
+async function replaceTerrain(nav: Navigation, load: () => Promise<NavGridOptions>) {
+  const update = nav.beginSurfaceUpdate();
+  try {
+    const data = await load();
+    if (update.pending) update.commit(new NavGrid(data));
+  } finally {
+    update.cancel(); // Also releases a failed request; harmless after commit.
+  }
+}
+```
+
+Cancel on owner teardown as well. Cancellation revokes the right to commit; the
+producer owns aborting its I/O or worker. This protocol schedules no background
+worker and does not make synchronous mesh baking asynchronous. Do not mutate the
+live surface while staging a replacement: cancellation cannot roll back those
+mutations. The courtyard workshop provides terrain reload/cancel controls using
+an actual JSON asset and releases its asset lease on every outcome.
+
 ### A mesh for a 3D scene
 
 A 3D scene has geometry rather than a tile mask, so its surface is **baked** from

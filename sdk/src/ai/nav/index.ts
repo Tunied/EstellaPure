@@ -16,7 +16,7 @@ export {
     collectNavGeometry, navGeometryReady,
     type NavGeometry, type CollectNavGeometryOptions,
 } from './navGeometry';
-export { Navigation, Nav } from './Navigation';
+export { Navigation, Nav, type NavSurfaceUpdate } from './Navigation';
 export { NavAgent, type NavAgentData, setNavDestination, stopNavAgent } from './NavAgent';
 export { NavVolume, type NavVolumeData } from './NavVolume';
 export { NavObstacle, type NavObstacleData } from './NavObstacle';

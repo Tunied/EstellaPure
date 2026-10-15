@@ -77,6 +77,31 @@ function openNav(width = 10, height = 3, cellSize = 10): Navigation {
 }
 
 describe('stepNavigation', () => {
+    it.each(['cancel','commit'])('holds destinations during a surface update and resumes after %s', finish => {
+        const world=new FakeWorld(),nav=openNav(40,9,10),runtimes=new Map<Entity,AgentRuntime>();
+        const e=world.spawnAgent(20,40,{speed:60,radius:3,arriveRadius:2,repathInterval:0,
+            hasTarget:true,targetX:300,targetY:40});
+        stepNavigation(world,nav,1/60,runtimes);
+        const before=world.pos(e),update=nav.beginSurfaceUpdate();
+        for(let i=0;i<120;i++)stepNavigation(world,nav,1/60,runtimes);
+        expect(world.pos(e)).toEqual(before);expect(world.agent(e)).toMatchObject({hasTarget:true,arrived:false});
+        expect(nav.planningStats).toEqual({completed:0,pending:1,elapsedMs:0});
+        if(finish==='commit')update.commit(new NavGrid({width:40,height:9,cellSize:10}));else update.cancel();
+        for(let i=0;i<360;i++)stepNavigation(world,nav,1/60,runtimes);
+        expect(world.agent(e).arrived).toBe(true);
+    });
+
+    it('clears pending-update character steering while preserving gravity and inactive bodies',()=>{
+        const world=new FakeWorld(),nav=openNav(),runtimes=new Map<Entity,AgentRuntime>();
+        const e=world.spawnAgent(20,0,{hasTarget:true,targetX:70});
+        world.giveCharacter(e,{velocity:{x:100,y:-320,z:50}});
+        const idle=world.spawnAgent(30,0,{hasTarget:false});
+        world.giveCharacter(idle,{velocity:{x:20,y:-30,z:40}});
+        nav.beginSurfaceUpdate();stepNavigation(world,nav,1/60,runtimes);
+        expect(world.character(e).velocity).toEqual({x:0,y:-320,z:0});
+        expect(world.character(idle).velocity).toEqual({x:20,y:-30,z:40});
+    });
+
     it.each([0, .5, 3, 5])('crowd followers honor a final arrival radius of %s', arriveRadius => {
         const world = new FakeWorld();
         const e = world.spawnAgent(20, 150, {speed:78, radius:8, arriveRadius,

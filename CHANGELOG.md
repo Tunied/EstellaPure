@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Added
+
+- **Navigation replacements commit only from the latest request.** Versioned surface-update handles reject cancelled and superseded results, retain destinations while the navigation driver waits, and resume after commit or cancellation. Route inspection explains pending updates; the courtyard workshop adds asset-backed terrain reload/cancel controls. Producers still own background computation and I/O cancellation.
+
 ### Fixed
 
 - **2D navigation doors close without the mesh bake delay.** Grid obstacle marking runs on the next navigation tick even when the previous obstacle update was less than 200 ms ago. Closing and reopening a passage immediately invalidates cached connectivity; polygon mesh baking keeps its existing throttle.

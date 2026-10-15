@@ -28,6 +28,10 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(nav): explain pending navigation surface replacements':
+    { note: 'Navigation replacements commit only from the latest request.' },
+  'feat(nav): stage cancellable surface replacements and explain pending routes':
+    { note: 'Navigation replacements commit only from the latest request.' },
   'test(nav): yield fixed-step capture work to the compositor':
     { internal: 'Headless workshop acceptance yields between fixed simulation batches so software rendering can drain before screenshots, and persists sampled facts before capture failures.' },
   'fix(nav): apply grid obstacle changes without bake throttling':

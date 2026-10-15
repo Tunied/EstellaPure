@@ -49,6 +49,36 @@ export const setupNav = defineSystem([Res(Nav)], (nav) => {
 两侧的正交格都通——所以拉直后的路线和它替换掉的那条阶梯一样合法,并且和网格给出的是同一
 种形状的路线。
 
+### 异步工作完成后替换导航表面
+
+`nav.beginSurfaceUpdate()` 返回带版本号的 `NavSurfaceUpdate`。单独构建替换表面后调用
+`update.commit(surface)`;只有最新且仍待提交的请求能成功。过期、已取消或已完成的句柄
+返回 `false`。`nav.setSurface(...)` 和赋值 `nav.surface` 也会取消待提交请求。
+`update.cancel()` 保留旧表面并恢复原有路线。
+
+`nav.surfaceUpdatePending` 为真时,导航驱动保留代理目标并停止自己的转向;角色重力仍生效。
+资源查询暂不返回路线,`queryWorldPath` 报告 `unavailable / building`,编辑器路线诊断显示
+导航正在更新。规划计数也包含等待替换表面的代理。
+
+```typescript
+import { Navigation, NavGrid, type NavGridOptions } from 'esengine/ai';
+
+async function replaceTerrain(nav: Navigation, load: () => Promise<NavGridOptions>) {
+  const update = nav.beginSurfaceUpdate();
+  try {
+    const data = await load();
+    if (update.pending) update.commit(new NavGrid(data));
+  } finally {
+    update.cancel(); // 失败时释放请求;已提交后再取消不会改变结果。
+  }
+}
+```
+
+请求所属对象销毁时也应取消。取消撤销提交资格,底层 I/O 或 worker 由构建器负责停止。
+这套协议不启动后台线程,也不会把同步 mesh 烘焙变成异步。准备替换结果时不要修改正在
+使用的表面;取消无法回滚这些修改。庭院工坊使用实际 JSON 资产演示重载/取消,并在成功、
+失败、过期或取消后释放对应的资产引用。
+
 ### 3D 场景的网格
 
 3D 场景有的是几何而不是瓦片掩码,所以它的 surface 是从**它本来就在碰撞的那些刚体**上

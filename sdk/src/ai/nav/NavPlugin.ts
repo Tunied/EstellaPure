@@ -256,21 +256,22 @@ export function stepNavigation(
     // A flat scene is walked in x/y; ground with height in it, in x/z.
     const flat = Math.abs(nav.surface?.up.z ?? 0) > Math.abs(nav.surface?.up.y ?? 1);
     const entities = world.getEntitiesWithComponents([NavAgent, Transform]);
+    if (nav.surfaceUpdatePending) {
+        nav.planningStats.completed = 0; nav.planningStats.elapsedMs = 0; nav.planningStats.pending = 0;
+        for (const entity of entities) {
+            if (!world.get(entity, NavAgent).hasTarget) continue;
+            nav.planningStats.pending++;
+            clearNavigationVelocity(world, entity, runtimes);
+        }
+        return;
+    }
     const blocked = planNavigation(world, nav, dt, runtimes, entities);
     // Agents awaiting a valid route must not retain old steering velocity. Keep
     // vertical velocity: gravity and the character solver still own that axis.
     for (const entity of entities) {
         const active = world.get(entity, NavAgent).hasTarget;
         if (!blocked.has(entity) && (!active || runtimes.get(entity)?.reachable)) continue;
-        const rt = runtimes.get(entity);
-        if (rt) { rt.velocityA = 0; rt.velocityB = 0; }
-        if (world.has(entity, CharacterController3D)) {
-            const character = world.get(entity, CharacterController3D);
-            if (character.enabled !== false) {
-                character.velocity.x = 0; character.velocity.z = 0;
-                world.set(entity, CharacterController3D, character);
-            }
-        }
+        clearNavigationVelocity(world, entity, runtimes);
     }
     const crowd = gatherCrowd(world, entities, runtimes, flat);
 
@@ -310,6 +311,17 @@ export function stepNavigation(
             runtimes.delete(entity);
         }
     }
+}
+
+/** Stop only navigation's steering axes; gravity and inactive bodies keep theirs. */
+function clearNavigationVelocity(world: NavWorldView, entity: Entity, runtimes: Map<Entity, AgentRuntime>): void {
+    const rt = runtimes.get(entity);
+    if (rt) { rt.velocityA = 0; rt.velocityB = 0; }
+    if (!world.has(entity, CharacterController3D)) return;
+    const character = world.get(entity, CharacterController3D);
+    if (character.enabled === false) return;
+    character.velocity.x = 0; character.velocity.z = 0;
+    world.set(entity, CharacterController3D, character);
 }
 
 /**

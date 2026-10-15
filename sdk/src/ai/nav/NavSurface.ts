@@ -39,7 +39,7 @@ export interface NavQueryOptions {
 export interface NavPathResult {
     path: Vec3[] | null;
     status: 'complete' | 'partial' | 'unavailable' | 'unknown';
-    reason: 'none' | 'no-surface' | 'start-unavailable' | 'target-unavailable'
+    reason: 'none' | 'no-surface' | 'building' | 'start-unavailable' | 'target-unavailable'
         | 'disconnected' | 'insufficient-clearance' | 'radius-mismatch' | 'diagnostics-unavailable';
 }
 
