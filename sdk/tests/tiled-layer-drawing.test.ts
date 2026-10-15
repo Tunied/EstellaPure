@@ -69,6 +69,7 @@ describe('a Tiled layer draws the way Tiled says', () => {
     it('hands the layer component all of it', async () => {
         const [, water] = await loadedLayers();
         expect(tiledLayerComponent(water, 16, 12, 1)).toEqual({
+            orientation: 0, hexSideLength: 0, staggerAxis: 0, staggerIndex: 0,
             cellSize: { x: 16, y: 12 },
             renderLayer: 1,
             visible: false,

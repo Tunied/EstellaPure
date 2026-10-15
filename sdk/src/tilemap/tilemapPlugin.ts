@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import type { App, Plugin } from '../app/app';
-import { engineApi } from '../ecs/bridge/engineApi';
+import { engineApi, worldEngineApi } from '../ecs/bridge/engineApi';
 import { Transform, TilemapLayer, Sprite, Canvas, RuntimeOnly, Marker, type TilemapLayerData } from '../ecs/component';
 import { Schedule } from '../ecs/system';
 import { defineResource } from '../ecs/resource';
@@ -15,8 +15,8 @@ import { isCollisionPaletteRef, buildCollisionPaletteModel, parseCollisionMateri
 import { _bindTileCollisionLookup, type LayerCollisionTable } from './tileQuery';
 import type { ResolvedTileCollision } from './tilesetResolve';
 import {
-    generateLayerCollision, generateLayerTileShapes, generateChunkCollision, generateChunkTileShapes,
-    spawnObjectRegion, isCollisionObjectGroup, decodeTiledGid, tiledLayerComponent,
+    generateChunkCollision, generateChunkTileShapes,
+    spawnObjectRegion, isCollisionObjectGroup, decodeTiledGid, tiledLayerComponent, tiledGridLayout,
 } from './tiledLoader';
 import { decodeTilemapChunks } from './chunkCodec';
 import { Assets, type AssetsData } from '../asset/AssetPlugin';
@@ -27,17 +27,13 @@ import { playModeOnly } from '../ecs/env';
 import { log } from '../util/logger';
 import type { Entity } from '../types';
 import type { World } from '../ecs/world';
+import { usesStagger } from './tileGeometry';
 
-const GRID_TYPE_MAP: Record<string, number> = {
-    orthogonal: 0,
-    isometric: 1,
-    staggered: 2,
-    hexagonal: 3,
-};
-const GRID_STAGGERED = 2;
-const GRID_HEXAGONAL = 3;
 
 interface CollisionInputs {
+    gridKey: string;
+    originX: number;
+    originY: number;
     generation: number;
     revision: number;
     width: number;
@@ -70,6 +66,7 @@ export class TilemapRuntime {
     private animatedLayers_ = new Set<number>();
     /** Tilemap(source) entity → the RuntimeOnly child layer entities derived from its `.tmj`. */
     private sourceLayerEntities_ = new Map<number, Entity[]>();
+    private derivedLayers_ = new Set<number>();
     /** Tilemap(source) entity → the cached source OBJECT its children were derived
      *  from. Identity is the change detector: a `source` field edit resolves to a
      *  different object, a hot reload re-registers a fresh one, an invalidation
@@ -270,6 +267,7 @@ export class TilemapRuntime {
                         // and a wrong one after id reuse) and leaks its query table.
                         animatedLayers.delete(entity);
                         this.queryTableCache_.delete(entity);
+                        this.derivedLayers_.delete(entity);
                         const colliders = collisionEntities.get(entity);
                         if (colliders) {
                             for (const e of colliders) world.despawn(e);
@@ -293,7 +291,7 @@ export class TilemapRuntime {
 
                     const refs = tilesetRefs.get(entity);
                     // A layer needs either a copied texture (legacy) or .estileset ref(s).
-                    if (!layerData.tileset && (!refs || refs.length === 0)) {
+                    if (!this.derivedLayers_.has(entity) && !layerData.tileset && (!refs || refs.length === 0)) {
                         for (const collider of collisionEntities.get(entity) ?? []) world.despawn(collider);
                         collisionEntities.delete(entity);
                         collisionInputs.delete(entity);
@@ -403,49 +401,7 @@ export class TilemapRuntime {
                         }
                     }
 
-                    // Rebuild native collision when its content or geometry changes;
-                    // merge solid boxes and preserve individual rich shapes.
-                    const collIds = nativeCollisionIds.get(entity);
-                    const tileShapes = nativeTileShapes.get(entity);
-                    const hasBox = collIds != null && collIds.length > 0;
-                    const hasShapes = tileShapes != null && tileShapes.size > 0;
-                    const revision = playMode && (hasBox || hasShapes)
-                        ? engine.tilemap_getEditRevision?.(entity) ?? 0
-                        : 0;
-                    const generation = playMode && (hasBox || hasShapes)
-                        ? engine.tilemap_getGeneration?.(entity) ?? 0
-                        : 0;
-                    const previous = collisionInputs.get(entity);
-                    const changed = !previous || previous.generation !== generation || previous.revision !== revision
-                        || previous.width !== layerData.cellSize.x || previous.height !== layerData.cellSize.y
-                        || previous.pixelsPerUnit !== pixelsPerUnit
-                        || previous.ids !== collIds || previous.shapes !== tileShapes;
-                    if (playMode && collisionEntities.has(entity) && (changed || (!hasBox && !hasShapes))) {
-                        for (const collider of collisionEntities.get(entity)!) world.despawn(collider);
-                        collisionEntities.delete(entity);
-                        collisionInputs.delete(entity);
-                    }
-                    if (playMode && (hasBox || hasShapes) && !collisionEntities.has(entity)) {
-                        const chunks = decodeTilemapChunks(TilemapAPI.exportChunks(entity));
-                        const spawned: Entity[] = [];
-                        if (hasBox) {
-                            spawned.push(...generateChunkCollision(
-                                world, chunks, new Set(collIds),
-                                layerData.cellSize.x, layerData.cellSize.y, 0, 0, pixelsPerUnit,
-                            ));
-                        }
-                        if (hasShapes) {
-                            spawned.push(...generateChunkTileShapes(
-                                world, chunks, tileShapes,
-                                layerData.cellSize.x, layerData.cellSize.y, 0, 0, pixelsPerUnit,
-                            ));
-                        }
-                        this.attachCollision_(world, entity, spawned);
-                        collisionEntities.set(entity, spawned);
-                        collisionInputs.set(entity, { generation, revision, width: layerData.cellSize.x,
-                            height: layerData.cellSize.y, pixelsPerUnit,
-                            ids: collIds, shapes: tileShapes });
-                    }
+                    this.syncLayerCollision_(world, entity, layerData, pixelsPerUnit, playMode);
                 }
 
                 const tilemapEntities = world.getEntitiesWithComponents(
@@ -471,7 +427,7 @@ export class TilemapRuntime {
 
                     if (!sourceLayerEntities.has(entity)) {
                         const children: Entity[] = [];
-                        const gridType = GRID_TYPE_MAP[cached.orientation ?? 'orthogonal'] ?? 0;
+                        const layout = tiledGridLayout(cached), gridType = layout.orientation;
 
                         for (let i = 0; i < cached.layers.length; i++) {
                             const layer = cached.layers[i];
@@ -484,7 +440,7 @@ export class TilemapRuntime {
                             const child = world.spawn(layer.name || `TiledLayer_${i}`);
                             world.insert(child, Transform, { position: { x: 0, y: 0, z: 0 } });
                             world.insert(child, TilemapLayer,
-                                tiledLayerComponent(layer, cached.tileWidth, cached.tileHeight, i));
+                                tiledLayerComponent(layer, cached.tileWidth, cached.tileHeight, i, layout));
                             world.insert(child, RuntimeOnly, {});
                             world.setParent(child, entity);
 
@@ -513,7 +469,7 @@ export class TilemapRuntime {
                             }
                             // Staggered + hexagonal both read the stagger axis/index (the
                             // half-cell shift). Staggered iso ignores the side length.
-                            if (gridType === GRID_STAGGERED || gridType === GRID_HEXAGONAL) {
+                            if (usesStagger(gridType)) {
                                 TilemapAPI.setHexParams(
                                     child, cached.hexSideLength ?? 0,
                                     cached.staggerAxis === 'x', cached.staggerIndex === 'even',
@@ -572,6 +528,11 @@ export class TilemapRuntime {
 
                             children.push(child);
                             initializedLayers.add(child);
+                            this.derivedLayers_.add(child);
+                            appliedCellSize.set(child, { x: cached.tileWidth, y: cached.tileHeight });
+                            if (cached.collisionTileIds?.length) nativeCollisionIds.set(child, cached.collisionTileIds);
+                            if (cached.tileShapes?.size) nativeTileShapes.set(child, cached.tileShapes);
+                            this.syncLayerCollision_(world, child, world.get(child, TilemapLayer), pixelsPerUnit, playMode);
                         }
 
                         // Tile (GID) objects — a positioned tile rendered as a Sprite,
@@ -666,61 +627,7 @@ export class TilemapRuntime {
                         this.sourceDerivedFrom_.set(entity, cached);
                     }
 
-                    // Object-group colliders (solid + sensor) are derived as RuntimeOnly region
-                    // entities above (edit+play, gizmo-visible); only TILE collision spawns
-                    // here, play-mode only.
-                    const hasTileCollision = !!(cached.collisionTileIds && cached.collisionTileIds.length > 0);
-                    const hasTileShapes = !!(cached.tileShapes && cached.tileShapes.size > 0);
-                    if (
-                        playMode
-                        && !collisionEntities.has(entity)
-                        && (hasTileCollision || hasTileShapes)
-                    ) {
-                        const spawned: Entity[] = [];
-                        if (hasTileCollision || hasTileShapes) {
-                            const ids = new Set(cached.collisionTileIds);
-                            for (const layer of cached.layers) {
-                                if (layer.infinite) {
-                                    // Infinite Tiled layers are re-chunked to CHUNK_SIZE at
-                                    // parse, so they ride the SAME chunk generators the
-                                    // painted path uses.
-                                    if (layer.chunks.length === 0) continue;
-                                    if (hasTileCollision) {
-                                        spawned.push(...generateChunkCollision(
-                                            world, layer.chunks, ids,
-                                            cached.tileWidth, cached.tileHeight, 0, 0, pixelsPerUnit,
-                                        ));
-                                    }
-                                    if (hasTileShapes) {
-                                        spawned.push(...generateChunkTileShapes(
-                                            world, layer.chunks, cached.tileShapes!,
-                                            cached.tileWidth, cached.tileHeight, 0, 0, pixelsPerUnit,
-                                        ));
-                                    }
-                                    continue;
-                                }
-                                if (layer.tiles.length === 0) continue;
-                                if (hasTileCollision) {
-                                    spawned.push(...generateLayerCollision(
-                                        world, layer.tiles, layer.width, layer.height,
-                                        cached.tileWidth, cached.tileHeight, ids, 0, 0, pixelsPerUnit,
-                                    ));
-                                }
-                                // Rich Tiled tile-collision (shapes / one-way / sensor /
-                                // material) spawns through the same per-tile core as the
-                                // painted `.estileset` path.
-                                if (hasTileShapes) {
-                                    spawned.push(...generateLayerTileShapes(
-                                        world, layer.tiles, layer.width, layer.height,
-                                        cached.tileShapes!, cached.tileWidth, cached.tileHeight,
-                                        0, 0, pixelsPerUnit,
-                                    ));
-                                }
-                            }
-                        }
-                        this.attachCollision_(world, entity, spawned);
-                        collisionEntities.set(entity, spawned);
-                    }
+
                 }
 
                 for (const entity of [...sourceLayerEntities.keys()]) {
@@ -747,6 +654,51 @@ export class TilemapRuntime {
         }
     }
 
+    private syncLayerCollision_(world: World, entity: Entity, layer: TilemapLayerData, ppu: number, playMode: boolean): void {
+        if (!playMode || !this.toolkit_) return;
+        const ids = this.nativeCollisionIds_.get(entity), shapes = this.nativeTileShapes_.get(entity);
+        const hasBoxes = !!ids?.length, hasShapes = !!shapes?.size;
+        const current = this.collisionEntities_.get(entity);
+        if (!hasBoxes && !hasShapes) {
+            for (const collider of current ?? []) if (world.valid(collider)) world.despawn(collider);
+            this.collisionEntities_.delete(entity); this.collisionInputs_.delete(entity);
+            return;
+        }
+        const engine = worldEngineApi(world), tiles = this.toolkit_;
+        if (!engine) return;
+        const generation = engine.tilemap_getGeneration?.(entity) ?? 0;
+        const revision = engine.tilemap_getEditRevision?.(entity) ?? 0;
+        const gridKey = `${layer.orientation ?? 0}|${layer.hexSideLength ?? 0}|${layer.staggerAxis ?? 0}|${layer.staggerIndex ?? 0}`;
+        const originX = layer.originOffset?.x ?? 0, originY = layer.originOffset?.y ?? 0;
+        const previous = this.collisionInputs_.get(entity);
+        const changed = !previous || previous.generation !== generation || previous.revision !== revision
+            || previous.gridKey !== gridKey || previous.width !== layer.cellSize.x || previous.height !== layer.cellSize.y
+            || previous.pixelsPerUnit !== ppu || previous.ids !== ids || previous.shapes !== shapes;
+        if (current && changed) {
+            for (const collider of current) if (world.valid(collider)) world.despawn(collider);
+            this.collisionEntities_.delete(entity); this.collisionInputs_.delete(entity);
+        } else if (current && previous && (previous.originX !== originX || previous.originY !== originY)) {
+            const dx = originX - previous.originX, dy = originY - previous.originY;
+            for (const collider of current) world.update(collider, Transform, value => {
+                value.position.x += dx; value.position.y += dy;
+            });
+            previous.originX = originX; previous.originY = originY;
+        }
+        if (this.collisionEntities_.has(entity)) return;
+        const layout = { orientation: layer.orientation ?? 0, hexSideLength: layer.hexSideLength ?? 0,
+            staggerAxisX: layer.staggerAxis === 1, staggerIndexEven: layer.staggerIndex === 1 };
+        const chunks = decodeTilemapChunks(tiles.exportChunks(entity));
+        const spawned: Entity[] = [];
+        if (hasBoxes) spawned.push(...generateChunkCollision(world, chunks, new Set(ids), layer.cellSize.x, layer.cellSize.y,
+            originX, originY, ppu, layout));
+        if (hasShapes) spawned.push(...generateChunkTileShapes(world, chunks, shapes!, layer.cellSize.x, layer.cellSize.y,
+            originX, originY, ppu, layout));
+        this.attachCollision_(world, entity, spawned);
+        this.collisionEntities_.set(entity, spawned);
+        this.collisionInputs_.set(entity, { generation, revision, gridKey, originX, originY,
+            width: layer.cellSize.x, height: layer.cellSize.y, pixelsPerUnit: ppu, ids, shapes });
+    }
+
     /** Drop ONE tilemap entity's derived artifacts (child layer entities +
      *  play-mode colliders + bookkeeping) so the sync can re-derive — or not,
      *  if its source is gone. Fires when the Tilemap component disappears AND
@@ -762,18 +714,16 @@ export class TilemapRuntime {
             }
             this.animatedLayers_.delete(child);
             this.derivedQueryTables_.delete(child);
+            this.derivedLayers_.delete(child);
+            this.nativeCollisionIds_.delete(child); this.nativeTileShapes_.delete(child);
+            this.collisionEntities_.delete(child); this.collisionInputs_.delete(child);
+            this.appliedCellSize_.delete(child); this.appliedGrid_.delete(child);
             // An owner despawn cascades to its children; only a component
             // removal leaves them alive to clean up here.
             if (world.valid(child)) world.despawn(child);
         }
         this.sourceLayerEntities_.delete(entity);
         this.sourceDerivedFrom_.delete(entity);
-
-        const colliders = this.collisionEntities_.get(entity);
-        if (colliders) {
-            for (const e of colliders) if (world.valid(e)) world.despawn(e);
-            this.collisionEntities_.delete(entity);
-        }
     }
 
     /**
@@ -795,6 +745,7 @@ export class TilemapRuntime {
         this.appliedGrid_.clear();
         this.animatedLayers_.clear();
         this.sourceLayerEntities_.clear();
+        this.derivedLayers_.clear();
         this.sourceDerivedFrom_.clear();
         // Collider entities die with the world on reset/teardown; just drop our bookkeeping.
         this.collisionEntities_.clear();

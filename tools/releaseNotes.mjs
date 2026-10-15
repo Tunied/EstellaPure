@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(tilemap): derive collision from each layer grid':
+    { note: 'Tile collision follows painted and imported layer layouts.' },
   'fix(tilemap): share exact staggered and hex grid geometry':
     { note: 'Staggered and hexagonal picking follows cell polygons.' },
   'test(editor): cover staggered polygon picking through transforms':

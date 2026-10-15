@@ -40,7 +40,8 @@ function uploadTiledLayerTiles(entity: Entity, layer: TiledLayerData): void {
 import { RigidBody2D, BoxCollider2D, CircleCollider2D, PolygonCollider2D, ChainCollider2D, OneWayPlatform2D, BodyType } from '../physics/PhysicsComponents';
 import type { Collider2DShape } from '../physics/ColliderShape2D';
 import type { ResolvedTileCollision } from './tilesetResolve';
-import { mergeCollisionTiles } from './collisionMerge';
+import { collisionBoxes, collisionGrid } from './collisionBoxes';
+import { tileCellCenter, TilemapOrientation, type TileGridLayout, type TileGridParams } from './tileGeometry';
 import { CHUNK_SIZE } from './chunkCodec';
 import { tileIdOf, tileFlagsOf } from './tileBits';
 import { log } from '../util/logger';
@@ -154,6 +155,16 @@ export interface TiledMapData {
     tileShapes: Map<number, ResolvedTileCollision>;
     tileAnimations: Map<number, TiledAnimFrame[]>;
     tileProperties: Map<number, Map<string, string>>;
+}
+
+export function tiledGridLayout(map: {
+    orientation?: string; hexSideLength?: number; staggerAxis?: string; staggerIndex?: string;
+}): TileGridLayout {
+    const orientations: Record<string, number> = { orthogonal: TilemapOrientation.Orthogonal,
+        isometric: TilemapOrientation.Isometric, staggered: TilemapOrientation.Staggered, hexagonal: TilemapOrientation.Hexagonal };
+    return { orientation: orientations[map.orientation ?? 'orthogonal'] ?? 0,
+        hexSideLength: map.hexSideLength ?? 0, staggerAxisX: map.staggerAxis === 'x',
+        staggerIndexEven: map.staggerIndex === 'even' };
 }
 
 const TILED_FLIP_H = 0x80000000;
@@ -844,12 +855,8 @@ export function loadTiledCollisionObjects(
 }
 
 /**
- * @brief Greedy-merge a tile grid's collidable cells into static box colliders.
- *
- * Grid-agnostic core shared by the Tiled-import (`generateTileCollision`) and the runtime
- * asset (`TilemapSyncSystem`) paths. Row 0 (top of the grid) maps to the highest world-Y
- * and rows descend (y-down), matching the renderer; each merged rect becomes one static
- * `BoxCollider2D` body placed relative to (originX, originY) — the tilemap entity's origin.
+ * Static boxes in layer pixels, relative to the supplied origin; extents use physics units.
+ * Layout defaults to orthogonal. Merging preserves the union of projected tile boxes.
  */
 export function generateLayerCollision(
     world: World,
@@ -862,31 +869,15 @@ export function generateLayerCollision(
     originX: number,
     originY: number,
     pixelsPerUnit: number = 1,
+    layout?: TileGridLayout,
 ): Entity[] {
-    const merged = mergeCollisionTiles(tiles, gridWidth, gridHeight, collisionIds);
-    const entities: Entity[] = [];
 
-    for (const rect of merged) {
-        const mergedW = rect.width * tileW;
-        const mergedH = rect.height * tileH;
-        // y-DOWN, matching the renderer (`worldY = origin - row*tileH - hh`,
-        // TilemapRenderPlugin.cpp) and generateChunkCollision — so colliders land
-        // exactly on the visible tiles. (Was y-up/flipped, which put them a full
-        // map-height off; never caught because no example ran tilemap physics in play.)
-        const worldX = originX + rect.col * tileW + mergedW * 0.5;
-        const worldY = originY - rect.row * tileH - mergedH * 0.5;
-
+    const grid = collisionGrid(tileW, tileH, layout), entities: Entity[] = [];
+    for (const box of collisionBoxes(tiles, gridWidth, gridHeight, collisionIds, grid)) {
         const entity = world.spawn();
-        world.insert(entity, Transform, {
-            position: { x: worldX, y: worldY, z: 0 },
-        });
+        world.insert(entity, Transform, { position: { x: originX + box.center.x, y: originY + box.center.y, z: 0 } });
         world.insert(entity, RigidBody2D, { bodyType: BodyType.Static });
-        // Position is in pixels (physics scales it by pixelsPerUnit); halfExtents are
-        // PHYSICS units (metres), so divide the pixel size — otherwise a tile collider
-        // is pixelsPerUnit× too big (the default 100 → 100× oversized).
-        world.insert(entity, BoxCollider2D, {
-            halfExtents: { x: mergedW * 0.5 / pixelsPerUnit, y: mergedH * 0.5 / pixelsPerUnit },
-        });
+        world.insert(entity, BoxCollider2D, { halfExtents: { x: box.halfExtents.x / pixelsPerUnit, y: box.halfExtents.y / pixelsPerUnit } });
         entities.push(entity);
     }
     return entities;
@@ -904,18 +895,13 @@ export function generateTileCollision(
         world, layer.tiles, layer.width, layer.height,
         mapData.tileWidth, mapData.tileHeight, collisionIds,
         originX, originY,
+        1, tiledGridLayout(mapData),
     );
 }
 
 /**
- * @brief Build static box colliders for an INFINITE (chunked) tilemap layer from its
- *        collidable tiles — the native scene-`TilemapLayer` path.
- *
- * Each chunk's collidable tiles are greedy-merged independently (no cross-chunk merge); a
- * merged rect (x0,y0)-(x1,y1) maps to a world AABB by the SAME orthogonal convention
- * `worldToTile` uses (tile tx covers world-x [origin.x+tx·tw, origin.x+(tx+1)·tw); world-y
- * grows downward as ty rises), so colliders line up exactly with what the painter placed.
- * (Isometric/staggered collision is not derived here.)
+ * Static boxes from native chunks, with layout-aware placement and exact per-chunk merging.
+ * Positions use layer pixels; extents are divided by pixelsPerUnit for physics.
  */
 export function generateChunkCollision(
     world: World,
@@ -926,30 +912,17 @@ export function generateChunkCollision(
     originX: number,
     originY: number,
     pixelsPerUnit: number = 1,
+    layout?: TileGridLayout,
 ): Entity[] {
-    const entities: Entity[] = [];
+
+    const grid = collisionGrid(tileW, tileH, layout), entities: Entity[] = [];
     for (const chunk of chunks) {
-        const merged = mergeCollisionTiles(chunk.tiles, CHUNK_SIZE, CHUNK_SIZE, collisionIds);
-        const baseX = chunk.x * CHUNK_SIZE;
-        const baseY = chunk.y * CHUNK_SIZE;
-        for (const rect of merged) {
-            const x0 = baseX + rect.col;
-            const y0 = baseY + rect.row;
-            const x1 = x0 + rect.width - 1;
-            const y1 = y0 + rect.height - 1;
+        const boxes = collisionBoxes(chunk.tiles, CHUNK_SIZE, CHUNK_SIZE, collisionIds, grid, chunk.x * CHUNK_SIZE, chunk.y * CHUNK_SIZE);
+        for (const box of boxes) {
             const entity = world.spawn();
-            world.insert(entity, Transform, {
-                position: {
-                    x: originX + ((x0 + x1 + 1) / 2) * tileW,
-                    y: originY - ((y0 + y1 + 1) / 2) * tileH,
-                    z: 0,
-                },
-            });
+            world.insert(entity, Transform, { position: { x: originX + box.center.x, y: originY + box.center.y, z: 0 } });
             world.insert(entity, RigidBody2D, { bodyType: BodyType.Static });
-            // halfExtents in physics units (metres); divide the pixel size by ppu.
-            world.insert(entity, BoxCollider2D, {
-                halfExtents: { x: rect.width * tileW * 0.5 / pixelsPerUnit, y: rect.height * tileH * 0.5 / pixelsPerUnit },
-            });
+            world.insert(entity, BoxCollider2D, { halfExtents: { x: box.halfExtents.x / pixelsPerUnit, y: box.halfExtents.y / pixelsPerUnit } });
             entities.push(entity);
         }
     }
@@ -1023,35 +996,12 @@ export function generateChunkPolygonCollision(
     originX: number,
     originY: number,
     pixelsPerUnit: number = 1,
+    layout?: TileGridLayout,
 ): Entity[] {
-    const entities: Entity[] = [];
-    if (polygonShapes.size === 0) return entities;
-    for (const chunk of chunks) {
-        const baseX = chunk.x * CHUNK_SIZE;
-        const baseY = chunk.y * CHUNK_SIZE;
-        for (let i = 0; i < chunk.tiles.length; i++) {
-            const raw = chunk.tiles[i];
-            const id = tileIdOf(raw);
-            const shape = polygonShapes.get(id);
-            if (!shape) continue;
-            const gx = baseX + (i % CHUNK_SIZE);
-            const gy = baseY + Math.floor(i / CHUNK_SIZE);
-            const f = tileFlagsOf(raw);
-            const entity = world.spawn();
-            world.insert(entity, Transform, {
-                position: { x: originX + (gx + 0.5) * tileW, y: originY - (gy + 0.5) * tileH, z: 0 },
-            });
-            world.insert(entity, RigidBody2D, { bodyType: BodyType.Static });
-            // PolygonCollider2D vertices are physics units (uploaded unscaled, like
-            // BoxCollider2D.halfExtents) — divide the pixel-space outline by ppu.
-            world.insert(entity, PolygonCollider2D, {
-                vertices: polygonLocalVerts(shape, tileW, tileH, f.flipH, f.flipV, f.flipD)
-                    .map((v) => ({ x: v.x / pixelsPerUnit, y: v.y / pixelsPerUnit })),
-            });
-            entities.push(entity);
-        }
-    }
-    return entities;
+
+    const shapes = new Map<number, ResolvedTileCollision>();
+    for (const [id, points] of polygonShapes) shapes.set(id, { shape: { type: "polygon", points: Array.from(points) } });
+    return generateChunkTileShapes(world, chunks, shapes, tileW, tileH, originX, originY, pixelsPerUnit, layout);
 }
 
 /** A one-way solid-side normal (layer y-up; {0,1} = solid-top), reoriented by cell flips
@@ -1082,11 +1032,13 @@ function spawnTileShape(
     originX: number,
     originY: number,
     ppu: number,
+    grid: TileGridParams,
 ): Entity {
     const f = tileFlagsOf(raw);
+    const center = tileCellCenter(grid, gx, gy);
     const entity = world.spawn();
     world.insert(entity, Transform, {
-        position: { x: originX + (gx + 0.5) * tileW, y: originY - (gy + 0.5) * tileH, z: 0 },
+        position: { x: originX + center.x, y: originY + center.y, z: 0 },
     });
     world.insert(entity, RigidBody2D, { bodyType: BodyType.Static });
 
@@ -1144,10 +1096,12 @@ export function generateChunkTileShapes(
     originX: number,
     originY: number,
     pixelsPerUnit: number = 1,
+    layout?: TileGridLayout,
 ): Entity[] {
     const entities: Entity[] = [];
     if (tileShapes.size === 0) return entities;
     const ppu = pixelsPerUnit || 1;
+    const grid = collisionGrid(tileW, tileH, layout);
     for (const chunk of chunks) {
         const baseX = chunk.x * CHUNK_SIZE;
         const baseY = chunk.y * CHUNK_SIZE;
@@ -1157,7 +1111,7 @@ export function generateChunkTileShapes(
             if (!rc) continue;
             const gx = baseX + (i % CHUNK_SIZE);
             const gy = baseY + Math.floor(i / CHUNK_SIZE);
-            entities.push(spawnTileShape(world, rc, raw, gx, gy, tileW, tileH, originX, originY, ppu));
+            entities.push(spawnTileShape(world, rc, raw, gx, gy, tileW, tileH, originX, originY, ppu, grid));
         }
     }
     return entities;
@@ -1179,10 +1133,12 @@ export function generateLayerTileShapes(
     originX: number,
     originY: number,
     pixelsPerUnit: number = 1,
+    layout?: TileGridLayout,
 ): Entity[] {
     const entities: Entity[] = [];
     if (tileShapes.size === 0) return entities;
     const ppu = pixelsPerUnit || 1;
+    const grid = collisionGrid(tileW, tileH, layout);
     const count = Math.min(tiles.length, gridWidth * gridHeight);
     for (let i = 0; i < count; i++) {
         const raw = tiles[i];
@@ -1190,7 +1146,7 @@ export function generateLayerTileShapes(
         if (!rc) continue;
         entities.push(spawnTileShape(
             world, rc, raw, i % gridWidth, Math.floor(i / gridWidth),
-            tileW, tileH, originX, originY, ppu,
+            tileW, tileH, originX, originY, ppu, grid,
         ));
     }
     return entities;
@@ -1199,8 +1155,12 @@ export function generateLayerTileShapes(
 /** The TilemapLayer a Tiled layer becomes: its lattice, and what Tiled says about drawing it. */
 export function tiledLayerComponent(
     layer: TiledLayerData, tileWidth: number, tileHeight: number, renderLayer: number,
-): Pick<TilemapLayerData, 'cellSize' | 'renderLayer' | 'visible' | 'opacity' | 'tintColor' | 'parallaxFactor'> {
+    layout?: TileGridLayout,
+): Pick<TilemapLayerData, 'cellSize' | 'renderLayer' | 'visible' | 'opacity' | 'tintColor' | 'parallaxFactor'
+    | 'orientation' | 'hexSideLength' | 'staggerAxis' | 'staggerIndex'> {
     return {
+        orientation: layout?.orientation ?? 0, hexSideLength: layout?.hexSideLength ?? 0,
+        staggerAxis: layout?.staggerAxisX ? 1 : 0, staggerIndex: layout?.staggerIndexEven ? 1 : 0,
         cellSize: { x: tileWidth, y: tileHeight },
         renderLayer,
         visible: layer.visible,
@@ -1218,6 +1178,7 @@ export function loadTiledMap(
 ): Entity[] {
     const entities: Entity[] = [];
     const firstTileset = mapData.tilesets[0];
+    const layout = tiledGridLayout(mapData);
 
     let layerIndex = 0;
     for (const layer of mapData.layers) {
@@ -1232,13 +1193,15 @@ export function loadTiledMap(
         const columns = firstTileset?.columns ?? 1;
 
         world.insert(entity, TilemapLayer, {
-            ...tiledLayerComponent(layer, mapData.tileWidth, mapData.tileHeight, layerIndex),
+            ...tiledLayerComponent(layer, mapData.tileWidth, mapData.tileHeight, layerIndex, layout),
             tileset: textureHandle,
             tilesetColumns: columns,
         });
 
         TilemapAPI.initInfiniteLayer(entity, mapData.tileWidth, mapData.tileHeight);
         TilemapAPI.setOriginEntity(entity, entity);
+        TilemapAPI.setGridType(entity, layout.orientation);
+        TilemapAPI.setHexParams(entity, layout.hexSideLength ?? 0, !!layout.staggerAxisX, !!layout.staggerIndexEven);
         uploadTiledLayerTiles(entity, layer);
 
         entities.push(entity);
@@ -1262,7 +1225,7 @@ export function loadTiledMap(
             entities.push(...(layer.infinite
                 ? generateChunkCollision(
                     world, layer.chunks, tileCollisionIds,
-                    mapData.tileWidth, mapData.tileHeight, 0, 0)
+                    mapData.tileWidth, mapData.tileHeight, 0, 0, 1, layout)
                 : generateTileCollision(world, layer, mapData, tileCollisionIds, 0, 0)));
         }
     }
@@ -1272,10 +1235,10 @@ export function loadTiledMap(
             entities.push(...(layer.infinite
                 ? generateChunkTileShapes(
                     world, layer.chunks, mapData.tileShapes,
-                    mapData.tileWidth, mapData.tileHeight, 0, 0)
+                    mapData.tileWidth, mapData.tileHeight, 0, 0, 1, layout)
                 : generateLayerTileShapes(
                     world, layer.tiles, layer.width, layer.height, mapData.tileShapes,
-                    mapData.tileWidth, mapData.tileHeight, 0, 0)));
+                    mapData.tileWidth, mapData.tileHeight, 0, 0, 1, layout)));
         }
     }
 

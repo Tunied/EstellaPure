@@ -18,7 +18,8 @@ import type { Vec2 } from '../types';
 import type { DecodedChunk } from './chunkCodec';
 import { CHUNK_SIZE } from './chunkCodec';
 import { tileIdOf, tileFlagsOf } from './tileBits';
-import { mergeCollisionTiles } from './collisionMerge';
+import { collisionBoxes, collisionGrid } from './collisionBoxes';
+import { tileCellCenter, type TileGridLayout } from './tileGeometry';
 import { tileColliderShape, oneWayNormalWorld } from './tiledLoader';
 import { collider2DOutline, shapeCenter } from '../physics/ColliderShape2D';
 import type { Collider2DShape } from '../physics/ColliderShape2D';
@@ -58,6 +59,7 @@ export function tileCollisionOutlines(
     tileH: number,
     originX: number,
     originY: number,
+    layout?: TileGridLayout,
 ): TileCollisionPiece[] {
     const pieces: TileCollisionPiece[] = [];
     const boxIds = new Set(model.collidableTileIds);
@@ -65,6 +67,7 @@ export function tileCollisionOutlines(
     const hasBoxes = boxIds.size > 0;
     const hasShapes = shapes.size > 0;
     if (!hasBoxes && !hasShapes) return pieces;
+    const grid = collisionGrid(tileW, tileH, layout);
 
     for (const chunk of chunks) {
         const baseX = chunk.x * CHUNK_SIZE;
@@ -73,16 +76,11 @@ export function tileCollisionOutlines(
         // Plain solid boxes: greedy-merge per chunk (matching generateChunkCollision), one
         // outline per merged rectangle — so a solid platform reads as a few big rects.
         if (hasBoxes) {
-            for (const rect of mergeCollisionTiles(chunk.tiles, CHUNK_SIZE, CHUNK_SIZE, boxIds)) {
-                const x0 = baseX + rect.col;
-                const y0 = baseY + rect.row;
-                const x1 = x0 + rect.width - 1;
-                const y1 = y0 + rect.height - 1;
-                const cx = originX + ((x0 + x1 + 1) / 2) * tileW;
-                const cy = originY - ((y0 + y1 + 1) / 2) * tileH;
+            for (const box of collisionBoxes(chunk.tiles, CHUNK_SIZE, CHUNK_SIZE, boxIds, grid, baseX, baseY)) {
+                const cx = originX + box.center.x, cy = originY + box.center.y;
                 const shape: Collider2DShape = {
                     kind: 'box',
-                    halfExtents: { x: rect.width * tileW * 0.5, y: rect.height * tileH * 0.5 },
+                    halfExtents: box.halfExtents,
                     offset: { x: 0, y: 0 },
                 };
                 const o = outlineAt(shape, { x: cx, y: cy });
@@ -99,7 +97,8 @@ export function tileCollisionOutlines(
                 if (!rc) continue;
                 const gx = baseX + (i % CHUNK_SIZE);
                 const gy = baseY + Math.floor(i / CHUNK_SIZE);
-                const cellCenter = { x: originX + (gx + 0.5) * tileW, y: originY - (gy + 0.5) * tileH };
+                const local = tileCellCenter(grid, gx, gy);
+                const cellCenter = { x: originX + local.x, y: originY + local.y };
                 const f = tileFlagsOf(raw);
                 const shape = tileColliderShape(rc, tileW, tileH, f.flipH, f.flipV, f.flipD);
                 const o = outlineAt(shape, cellCenter);

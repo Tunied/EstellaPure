@@ -23,7 +23,7 @@ export {
 } from './collisionPalette';
 export {
     tileCellCenter, tileCellOutline, isNonOrthogonal, usesStagger, isHexOrientation, TilemapOrientation, TilemapStaggerAxis, TilemapStaggerIndex,
-    type TileGridParams, type Vec2Like,
+    type TileGridParams, type TileGridLayout, type Vec2Like,
 } from './tileGeometry';
 export { mergeCollisionTiles, type MergedRect } from './collisionMerge';
 export { decodeTilemapChunks, CHUNK_SIZE, type DecodedChunk } from './chunkCodec';

@@ -40,6 +40,9 @@ export interface Vec2Like {
     y: number;
 }
 
+/** Layout without cell dimensions, for consumers that already receive tile width/height. */
+export type TileGridLayout = Omit<TileGridParams, 'tileWidth' | 'tileHeight'>;
+
 /** The effective hex side length: the authored value, or the regular-hex fallback (th/2). */
 function hexSide(p: TileGridParams): number {
     const side = p.hexSideLength && p.hexSideLength > 0 ? p.hexSideLength : p.tileHeight * 0.5;
