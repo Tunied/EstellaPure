@@ -40,15 +40,13 @@
 using namespace esengine;
 
 TEST_CASE("presented primitives retain depth state and order until the scene pass") {
-    struct Device : MockGfxDevice {
-        std::vector<PipelineDesc> states;
-        std::vector<u32> offsets;
-        void drawElements(u32 count, GfxDataType type, u32 offset) override {
-            MockGfxDevice::drawElements(count, type, offset);
-            states.push_back(lastPipelineDesc);
-            offsets.push_back(offset);
-        }
-    } device;
+    MockGfxDevice device;
+    std::vector<PipelineDesc> states;
+    std::vector<u32> offsets;
+    device.observeDrawElements = [&](const PipelineDesc& state, u32 offset) {
+        states.push_back(state);
+        offsets.push_back(offset);
+    };
     RenderContext context(device);
     resource::ResourceManager resources;
     resources.init(device);
@@ -69,21 +67,21 @@ TEST_CASE("presented primitives retain depth state and order until the scene pas
     draw.deferEnd();
     CHECK(device.drawElementsCalls == 0);
     draw.flushDeferred();
-    REQUIRE(device.states.size() == 3);
-    CHECK_FALSE(device.states[0].depthTest);
-    CHECK(device.states[0].depthWrite);
-    CHECK_FALSE(device.states[1].depthTest);
-    CHECK_FALSE(device.states[1].depthWrite);
-    CHECK(device.states[2].depthTest);
-    CHECK_FALSE(device.states[2].depthWrite);
-    CHECK((device.offsets == std::vector<u32>{0, 6 * sizeof(u32), 12 * sizeof(u32)}));
+    REQUIRE(states.size() == 3);
+    CHECK_FALSE(states[0].depthTest);
+    CHECK(states[0].depthWrite);
+    CHECK_FALSE(states[1].depthTest);
+    CHECK_FALSE(states[1].depthWrite);
+    CHECK(states[2].depthTest);
+    CHECK_FALSE(states[2].depthWrite);
+    CHECK((offsets == std::vector<u32>{0, 6 * sizeof(u32), 12 * sizeof(u32)}));
     draw.flushDeferred();
     CHECK(device.drawElementsCalls == 3);
     draw.begin(glm::mat4(1.0f), 800, 600);
     line();
     draw.end();
     CHECK(device.drawElementsCalls == 4);
-    CHECK(device.offsets.back() == 0);
+    CHECK(offsets.back() == 0);
     draw.shutdown();
     resources.shutdown();
 }

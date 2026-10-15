@@ -4,6 +4,7 @@
 // is a no-op stub. Implementing the full GfxDevice contract here also proves the
 // interface stays self-consistent as it evolves.
 #pragma once
+#include <functional>
 
 #include "esengine/renderer/rhi/GfxDevice.hpp"
 
@@ -71,6 +72,7 @@ struct MockGfxDevice final : GfxDevice {
     int setIndexBufferCalls = 0;
     int setPipelineCalls = 0;
     int drawElementsCalls = 0;
+    std::function<void(const PipelineDesc&, u32)> observeDrawElements;
     int drawElementsInstancedCalls = 0;
     // How many times the frame was declared over. A backend that borrows the
     // swapchain image gives it back here, so a frame that says so twice releases
@@ -168,6 +170,7 @@ struct MockGfxDevice final : GfxDevice {
 
     void drawElements(u32 indexCount, GfxDataType, u32 byteOffset) override {
         ++drawElementsCalls;
+        if (observeDrawElements) observeDrawElements(lastPipelineDesc, byteOffset);
         lastDrawIndexCount = indexCount;
         lastDrawIndexByteOffset = byteOffset;
     }
