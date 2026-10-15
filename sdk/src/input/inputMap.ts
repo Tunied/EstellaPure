@@ -18,6 +18,7 @@ import { SystemLabel } from '../ecs/systemLabels';
 import { Input, InputState, GamepadAxis, GamepadButton } from './input';
 import { Storage } from '../util/storage';
 import type { Vec2 } from '../types';
+import { actionEdges, type ActionEdge } from './actionEdges';
 
 // =============================================================================
 // Binding model (plain, serializable — also the rebind / persistence format)
@@ -109,8 +110,10 @@ export const Stick = (stick: 'left' | 'right', pad?: number): Binding => ({ kind
 export const Virtual = (id: string): Binding => ({ kind: 'virtual', id });
 
 // — Action constructors —
-/** A digital action, read with `pressed`/`down`/`released`. An analog source
- *  counts as down past half its range.
+/** A digital action, read with `pressed`/`down`/`released`. Alternatives use the
+ *  strongest value; an analog source counts as down past half its range.
+ *  A complete keyboard/mouse tap between samples sets both edge flags while
+ *  leaving `down` false and the sampled value at zero.
  *  @public */
 export const Button = (...bindings: Binding[]): ActionDef => ({ type: 'button', bindings });
 /** A signed 1D action in [-1, 1], read with `value`.
@@ -130,11 +133,57 @@ const DOWN_THRESHOLD = 0.5;
 
 
 interface ActionState {
+    tapSequence: number;
     value: number;   // button: [0,1]; axis: [-1,1]; axis2d: magnitude [0,1]
     vec: Vec2;       // axis2d direction; scalar actions put value in x
     down: boolean;
     pressed: boolean;
     released: boolean;
+}
+
+function observedButtonEdges(bindings: Binding[], input: InputState,
+    events: readonly ActionEdge[], after: number, previouslyDown: boolean): number {
+    let relevant: ActionEdge[] | undefined;
+    for (const event of events) {
+        if (event.sequence <= after) continue;
+        if (bindings.some(binding => event.source === 'mouse'
+            ? binding.kind === 'mouse' && binding.button === event.code
+            : binding.kind === 'key' && binding.code === event.code
+                || binding.kind === 'keys1d' && (binding.neg === event.code || binding.pos === event.code))) {
+            (relevant ??= []).push(event);
+        }
+    }
+    if (!relevant) return 0;
+    const digital = new Map<string | number, boolean>();
+    let other = 0;
+    for (const binding of bindings) {
+        if (binding.kind === 'key') digital.set(binding.code, input.isKeyDown(binding.code));
+        else if (binding.kind === 'mouse') digital.set(binding.button, input.isMouseButtonDown(binding.button));
+        else if (binding.kind === 'keys1d') {
+            digital.set(binding.neg, input.isKeyDown(binding.neg));
+            digital.set(binding.pos, input.isKeyDown(binding.pos));
+        } else other = Math.max(other, evalScalar(binding, input));
+    }
+    for (let i = relevant.length - 1; i >= 0; i--) digital.set(relevant[i].code, !relevant[i].down);
+    const down = (): boolean => {
+        let value = other;
+        for (const binding of bindings) {
+            if (binding.kind === 'key') value = Math.max(value, digital.get(binding.code) ? 1 : 0);
+            else if (binding.kind === 'mouse') value = Math.max(value, digital.get(binding.button) ? 1 : 0);
+            else if (binding.kind === 'keys1d') value = Math.max(value,
+                Number(digital.get(binding.pos)) - Number(digital.get(binding.neg)));
+        }
+        return value >= DOWN_THRESHOLD;
+    };
+    let held = down(), flags = 0;
+    for (const event of relevant) {
+        digital.set(event.code, event.down);
+        const next = down();
+        if (held && !next && (previouslyDown || (flags & 1))) flags |= 2;
+        if (!held && next && (!previouslyDown || (flags & 2))) flags |= 1;
+        held = next;
+    }
+    return flags;
 }
 
 function evalScalar(b: Binding, input: InputState): number {
@@ -204,17 +253,25 @@ export class InputMap {
     private readonly defs_ = new Map<string, ActionDef>();
     private readonly state_ = new Map<string, ActionState>();
     private pendingListen_: PendingListen | null = null;
+    private tapOwner_: object | undefined;
 
     constructor(actions: Record<string, ActionDef>) {
         for (const [name, def] of Object.entries(actions)) {
             this.defs_.set(name, def);
-            this.state_.set(name, { value: 0, vec: { x: 0, y: 0 }, down: false, pressed: false, released: false });
+            this.state_.set(name, { value: 0, vec: { x: 0, y: 0 }, down: false, pressed: false, released: false, tapSequence: 0 });
         }
     }
 
     /** @internal Recompute every action from the current raw input. Called once per
-     *  frame by the registered evaluation system; edges diff against last frame. */
+     *  frame by the registered evaluation system; complete physical taps survive
+     *  between samples alongside the normal held-state transitions. */
     evaluate(input: InputState): void {
+        const edges = actionEdges(input);
+        const tapOwner = edges?.owner;
+        if (this.tapOwner_ !== tapOwner) {
+            this.tapOwner_ = tapOwner;
+            for (const state of this.state_.values()) state.tapSequence = 0;
+        }
         if (this.pendingListen_) this.scanForRebind_(input);
         for (const [name, def] of this.defs_) {
             const st = this.state_.get(name)!;
@@ -230,7 +287,12 @@ export class InputMap {
                 st.value = Math.min(1, mag);
             } else {
                 let v = 0;
-                for (const b of def.bindings) v += evalScalar(b, input);
+                for (const b of def.bindings) {
+                    const value = evalScalar(b, input);
+                    if (def.type === 'button') {
+                        v = Math.max(v, value);
+                    } else v += value;
+                }
                 v = def.type === 'button' ? clamp(v, 0, 1) : clamp(v, -1, 1);
                 st.value = v;
                 st.vec.x = v;
@@ -240,6 +302,14 @@ export class InputMap {
             st.down = Math.abs(st.value) >= DOWN_THRESHOLD;
             st.pressed = st.down && !prevDown;
             st.released = !st.down && prevDown;
+            if (def.type === 'button' && edges?.events.length) {
+                const observed = observedButtonEdges(def.bindings, input, edges.events, st.tapSequence, prevDown);
+                st.pressed ||= !!(observed & 1);
+                st.released ||= !!(observed & 2);
+            }
+            // A held alternative absorbs taps too, so releasing it cannot replay
+            // an earlier pulse. Each map owns its watermark independently.
+            st.tapSequence = edges?.sequence ?? 0;
         }
     }
 

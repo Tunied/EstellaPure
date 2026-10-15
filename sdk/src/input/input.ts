@@ -9,6 +9,7 @@ import type { GamepadSnapshot, InputEventCallbacks } from '../platform/types';
 import { inputRouter } from './inputRouter';
 import { cancelPrimaryPointer, takePrimaryPointerCancellation } from './pointerCancellation';
 import { recordTouchEnd } from './touchEdges';
+import { recordActionEdge, discardActionEdges, clearActionEdges } from './actionEdges';
 import type { Vec2 } from '../types';
 
 /**
@@ -150,6 +151,7 @@ export class InputState {
     noteKeyDown(code: string): void {
         recordTabModifiers(this, code);
         if (!this.keysDown.has(code)) {
+            recordActionEdge(this, 'key', code, true);
             this.keysPressed.add(code);
             this.keysPressedFixed.add(code);
         }
@@ -157,12 +159,14 @@ export class InputState {
     }
 
     noteKeyUp(code: string): void {
+        if (this.keysDown.has(code)) recordActionEdge(this, 'key', code, false);
         this.keysDown.delete(code);
         this.keysReleased.add(code);
         this.keysReleasedFixed.add(code);
     }
 
     noteMouseDown(button: number): void {
+        if (!this.mouseButtons.has(button)) recordActionEdge(this, 'mouse', button, true);
         if (button === 0) takePrimaryPointerCancellation(this);
         this.mouseButtons.add(button);
         this.mouseButtonsPressed.add(button);
@@ -170,6 +174,7 @@ export class InputState {
     }
 
     noteMouseUp(button: number): void {
+        if (this.mouseButtons.has(button)) recordActionEdge(this, 'mouse', button, false);
         this.mouseButtons.delete(button);
         this.mouseButtonsReleased.add(button);
         this.mouseButtonsReleasedFixed.add(button);
@@ -369,6 +374,7 @@ export class InputState {
     }
 
     clearFrameState(): void {
+        clearActionEdges(this);
         this.keysPressed.clear();
         clearTabModifiers(this);
         this.keysReleased.clear();
@@ -450,7 +456,10 @@ export function inputEventCallbacks(state: InputState): InputEventCallbacks {
         },
         onKeyUp(code) {
             if (executionOwners.has(state)) return;
-            if (inputRouter.dispatchKeyUp(code)) state.keysDown.delete(code);
+            if (inputRouter.dispatchKeyUp(code)) {
+                state.keysDown.delete(code);
+                discardActionEdges(state, 'key', code);
+            }
             else if (state.keysDown.has(code)) state.noteKeyUp(code);
         },
         onPointerMove(x, y) {
@@ -474,6 +483,7 @@ export function inputEventCallbacks(state: InputState): InputEventCallbacks {
             if (executionOwners.has(state)) return;
             if (inputRouter.dispatchPointerUp(button)) {
                 state.mouseButtons.delete(button);
+                discardActionEdges(state, 'mouse', button);
                 if (button === 0) cancelPrimaryPointer(state);
             }
             else if (state.mouseButtons.has(button)) state.noteMouseUp(button);
@@ -511,6 +521,7 @@ export function inputEventCallbacks(state: InputState): InputEventCallbacks {
             state.touchesStarted.delete(id);
             state.touchesEnded.delete(id);
             if (primary === true || (primary === undefined && state.touches.size === 0)) {
+                discardActionEdges(state, 'mouse', 0);
                 state.mouseButtons.delete(0);
                 state.mouseButtonsPressed.delete(0);
                 state.mouseButtonsReleased.delete(0);

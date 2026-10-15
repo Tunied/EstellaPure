@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Button actions retain complete keyboard and mouse taps between samples.** A press and release within one frame produces both action edges once without leaving the action held, and each input map observes its own pulse. Frame cleanup and host cancellation drop pending pulses; a held alternative absorbs them without replay. Button alternatives use the strongest input so weak analog sources cannot combine into a false press or cancel a keyboard binding.
+
 - **Screen-domain queries reject another world's cached entities.** The UI binding checks registry identity and entity validity before using the resolved screen-domain cache, preventing reused IDs from borrowing a previous world's pointer coordinates and excluding despawned nodes before the next layout pass.
 
 - **Authored UI hiding cancels dragging before another layout pass.** Hiding a dragged node or its ancestor stops capture and emits one drag-end event immediately on the next sample, including visibility changes inside drag callbacks. Stale hover cannot start a hidden control, and showing it again does not resume an old capture. Dragging and keyboard focus share the same live visibility rules.
