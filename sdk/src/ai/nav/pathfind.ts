@@ -11,7 +11,7 @@
  */
 
 import type { NavGrid, Cell } from './NavGrid';
-import { MinHeap } from './minHeap';
+import { leaseGridSearch, releaseGridSearch, type GridSearchScratch } from './gridSearchScratch';
 import { cachedGridGoal, rememberGridComponents } from './gridConnectivity';
 import type { Vec3 } from '../../types';
 
@@ -64,29 +64,38 @@ export function findPath(
     const requestedGoal = g;
     g = cachedGridGoal(grid, s, g, clearance, (x, y) => heuristic(x, y, requestedGoal.x, requestedGoal.y, diagonal)) ?? g;
 
-    const { width, height } = grid;
-    const n = width * height;
+    if (s.x === g.x && s.y === g.y) return [{ x: s.x, y: s.y }];
+
+    const state = leaseGridSearch(grid);
+    try {
+        return searchGridPath(grid, s, g, clearance, diagonal, state);
+    } finally {
+        releaseGridSearch(state);
+    }
+}
+
+function searchGridPath(
+    grid: NavGrid, s: Cell, g: Cell, clearance: number, diagonal: boolean, state: GridSearchScratch,
+): Cell[] {
+    const { width } = grid;
     const startIdx = s.y * width + s.x;
     const goalIdx = g.y * width + g.x;
-    if (startIdx === goalIdx) return [{ x: s.x, y: s.y }];
-
-    const gScore = new Float64Array(n).fill(Infinity);
-    const cameFrom = new Int32Array(n).fill(-1);
-    const closed = new Uint8Array(n);
+    const { gScore, cameFrom, closed, seen, heap, epoch } = state;
     gScore[startIdx] = 0;
+    cameFrom[startIdx] = -1;
+    seen[startIdx] = epoch;
 
     // The nearest the search ever got, in case it never gets there.
     let nearestIdx = startIdx;
     let nearestScore = heuristic(s.x, s.y, g.x, g.y, diagonal);
 
-    const heap = new MinHeap(n);
     heap.push(startIdx, nearestScore);
 
     while (heap.size > 0) {
         const current = heap.pop();
         if (current === goalIdx) return reconstruct(cameFrom, current, width);
-        if (closed[current]) continue;
-        closed[current] = 1;
+        if (closed[current] === epoch) continue;
+        closed[current] = epoch;
 
         const cx = current % width;
         const cy = (current - cx) / width;
@@ -101,11 +110,12 @@ export function findPath(
             if (i >= 4 && (!fits(grid, cx + dx, cy, clearance) || !fits(grid, cx, cy + dy, clearance))) continue;
 
             const nIdx = ny * width + nx;
-            if (closed[nIdx]) continue;
+            if (closed[nIdx] === epoch) continue;
 
             const step = (i < 4 ? 1 : SQRT2) * grid.costAt(nx, ny);
             const tentative = baseG + step;
-            if (tentative < gScore[nIdx]) {
+            if (tentative < (seen[nIdx] === epoch ? gScore[nIdx]! : Infinity)) {
+                seen[nIdx] = epoch;
                 gScore[nIdx] = tentative;
                 cameFrom[nIdx] = current;
                 const toGoal = heuristic(nx, ny, g.x, g.y, diagonal);

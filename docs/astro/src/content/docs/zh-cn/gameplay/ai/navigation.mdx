@@ -222,6 +222,9 @@ if (result.status !== 'complete') console.info(result.reason);
 格子通行状态通过 `setWalkable`、`setObstructed` 和 `clearObstructions` 修改，确保净空和连通性
 缓存一起失效。动态障碍也计入角色宽度所需净空；区域价格变化无需重建连通性。
 
+重复格子查询会复用工作内存；返回的路线仍各自独立，可保留或修改，不会影响后续查询。
+路线代价、端点吸附和尽量靠近的部分路径行为保持一致。
+
 可复现的 CPU 语料使用无头 Chromium，在 32/64/128 格地图中开关门、放置建筑并同时重算
 64 个代理的路径：
 

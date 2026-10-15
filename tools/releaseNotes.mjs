@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(nav): reuse grid search workspaces across queries':
+    { note: 'Grid path searches reuse their working memory.' },
   'feat(nav): diagnose partial routes and reuse disconnected grid topology':
     { note: 'Navigation queries distinguish complete routes from best-effort paths.' },
   'perf(text): wrap native measurements with ordered advances':

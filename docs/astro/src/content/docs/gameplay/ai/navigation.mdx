@@ -260,6 +260,10 @@ grid walkability through `setWalkable`, `setObstructed` and `clearObstructions` 
 clearance and cached connectivity are invalidated together. Dynamic blockers
 contribute to body clearance. Area prices remain live without rebuilding connectivity.
 
+Repeated grid queries reuse working memory. Returned routes remain independent,
+so callers may retain or edit them without changing a later search. Route costs,
+endpoint snapping and best-effort partial paths retain their existing behavior.
+
 The reproducible CPU corpus runs in headless Chromium with door and building
 changes on 32/64/128-cell maps and 64 simultaneous replans:
 
