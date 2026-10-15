@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(text): wrap native measurements with ordered advances':
+    { note: 'Native text measurement wraps without rescanning growing prefixes.' },
   'fix(text): bound native measurement advance history':
     { note: 'Public native text measurement retains a bounded advance cache.' },
   'fix(text): isolate font reload ownership and glyph caches':

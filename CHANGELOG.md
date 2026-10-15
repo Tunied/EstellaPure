@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Native text measurement wraps without rescanning growing prefixes.** The public measurement path appends ordered glyph advances through the shared greedy wrapper, avoiding quadratic cache queries and repeated host rasterization when long text exceeds the bounded working set. Whitespace, supplementary characters and signed spacing keep existing line breaks and metrics; Canvas retains whole-string measurement for non-additive typography.
+
 - **Public native text measurement retains a bounded advance cache.** Historical font revisions, sizes and missing-glyph estimates retire from a 4096-entry working set. A second-chance clock keeps recently queried advances reusable without reinserting Map entries on every character; failed host measurements leave retained entries intact. Widths, wrapping and the Canvas measurement path retain their existing behavior.
 
 ### Added

@@ -81,3 +81,42 @@ it('keeps retained measurements available after a host rasterization error', asy
     expect(measure('replacement')).toBe(10);
     expect(host.rasterize).toHaveBeenCalledTimes(calls + 1);
 });
+
+it('wraps a long distinct-character token without repeatedly evicting and rasterizing its prefixes', async () => {
+    const { measureText } = await import('../src/ui/text/measure-text');
+    host.rasterize.mockReturnValue({ advance: 1 });
+    const value = Array.from({ length: 4100 }, (_, i) => String.fromCodePoint(0x4e00 + i)).join('');
+    const metrics = measureText(value, { fontSize: 20, maxWidth: 4099 });
+    expect(metrics).toEqual({ width: 4099, lineCount: 2, height: 48 });
+    expect(host.rasterize.mock.calls.length).toBeLessThanOrEqual(value.length * 3);
+}, 10000);
+
+it('preserves greedy wrap metrics with whitespace, supplementary characters and signed spacing', async () => {
+    const { measureText } = await import('../src/ui/text/measure-text');
+    const { wrapByMeasure } = await import('../src/ui/text/layout');
+    for (const value of ['', 'hello world', '   a  b   ', 'longwordwithoutspaces', '中文🙂 words', 'a\tb\nc', '🙂🙂🙂']) {
+        for (const letterSpacing of [-12, -1, 0, 0.25]) {
+            const measure = (text: string): number => {
+                let width = 0;
+                for (const ch of text) width += 10 + ch.codePointAt(0)! % 3 + letterSpacing;
+                return width;
+            };
+            for (const maxWidth of [1, 12, 27, 100]) {
+                const lines = value.split('\n').flatMap(line => wrapByMeasure(line, measure, maxWidth));
+                expect(measureText(value, { fontSize: 20, letterSpacing, maxWidth })).toEqual({
+                    width: Math.max(0, ...lines.map(measure)),
+                    lineCount: lines.length,
+                    height: lines.length * 24,
+                });
+            }
+        }
+    }
+});
+
+it('continues measuring whole Canvas strings when advances are not additive', async () => {
+    const context = { font: '', measureText: (text: string) => ({ width: text === 'AV' ? 12 : text.length * 8 }) };
+    vi.stubGlobal('document', { createElement: () => ({ getContext: () => context }) });
+    const { measureText } = await import('../src/ui/text/measure-text');
+    expect(measureText('AV AV', { fontSize: 20, maxWidth: 12 })).toEqual({ width: 12, lineCount: 2, height: 48 });
+    expect(host.rasterize).not.toHaveBeenCalled();
+});

@@ -42,7 +42,10 @@ export interface TextMetrics {
     height: number;
 }
 
-type Measurer = (s: string) => number;
+type Measurer = {
+    (s: string): number;
+    append?: (width: number, suffix: string) => number;
+};
 
 let ctx_: CanvasRenderingContext2D | null | undefined;
 
@@ -111,11 +114,13 @@ function measurer(opts: MeasureTextOptions): Measurer {
     }
     if (platformHasGlyphRasterizer()) {
         const style = (opts.bold ? FONT_STYLE_BOLD : 0) | (opts.italic ? FONT_STYLE_ITALIC : 0);
-        return (s) => {
-            let width = 0;
-            for (const ch of s) width += platformAdvance(ch.codePointAt(0)!, family, style, opts.fontSize) + spacing;
+        const append = (width: number, suffix: string): number => {
+            for (const ch of suffix) width += platformAdvance(ch.codePointAt(0)!, family, style, opts.fontSize) + spacing;
             return width;
         };
+        const measure: Measurer = s => append(0, s);
+        measure.append = append;
+        return measure;
     }
     // Headless fallback: a wide-ish average so wraps don't under-count.
     const avg = opts.fontSize * 0.6 + spacing;
@@ -132,7 +137,7 @@ export function measureText(text: string, opts: MeasureTextOptions): TextMetrics
     const wrap = opts.maxWidth && opts.maxWidth > 0;
     const lines: string[] = [];
     for (const para of text.split('\n')) {
-        if (wrap) lines.push(...wrapByMeasure(para, measure, opts.maxWidth!));
+        if (wrap) lines.push(...wrapByMeasure(para, measure, opts.maxWidth!, measure.append));
         else lines.push(para);
     }
     let width = 0;

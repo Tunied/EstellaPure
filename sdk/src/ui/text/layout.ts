@@ -268,8 +268,11 @@ export function measurePrefixWidths(
  * atlas-backed {@link wrapLine} and the Canvas2D-backed `measureText` both call
  * it, so measured heights match rendered wraps.
  */
-export function wrapByMeasure(text: string, measure: (s: string) => number, maxWidth: number): string[] {
-    return wrapMeasured(text, measure, maxWidth);
+export function wrapByMeasure(
+    text: string, measure: (s: string) => number, maxWidth: number,
+    appendWidth?: (width: number, suffix: string) => number,
+): string[] {
+    return wrapMeasured(text, measure, maxWidth, appendWidth);
 }
 
 function wrapMeasured(
