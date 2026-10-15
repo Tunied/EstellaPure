@@ -67,6 +67,10 @@ function createMockWorld() {
         // nothing would let a change to that order pass unnoticed here.
         registerRemovedReader: vi.fn(() => 1),
         advanceRemovedReader: vi.fn(),
+        registerRemovedCursorReader: vi.fn(() => 1),
+        getRemovalSequence: vi.fn(() => 0),
+        getRemovedEntitiesForReader: vi.fn(() => []),
+        advanceRemovedCursorReader: vi.fn(),
         disposeRemovedReader: vi.fn(),
         resolveGetter: vi.fn(() => null),
     };

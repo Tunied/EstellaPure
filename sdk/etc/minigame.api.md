@@ -7164,7 +7164,7 @@ send: (data: string | ArrayBuffer) => void
 ```
 @internal activateRetention: () => void
 @internal dispose: () => void
-@internal releaseThrough: (lastRunTick: number) => void
+@internal releaseThrough: (_lastRunTick: number) => void
 @internal resetTick: (tick: number) => void
 [Symbol.iterator]: () => Iterator<Entity>
 isEmpty: () => boolean
@@ -10292,6 +10292,7 @@ tabIndex: number | undefined
 ```
 @internal addressOfComponent: (component: AnyComponentDef, entity: Entity) => number | undefined
 @internal addressResolver: (component: AnyComponentDef) => (entity: Entity) => number | undefined
+@internal advanceRemovedCursorReader: (component: AnyComponentDef, readerId: number, through: number) => void
 @internal advanceRemovedReader: (component: AnyComponentDef, readerId: number, lastRunTick: number) => void
 @internal advanceTick: () => void
 @internal advanceTopologyReader: (component: AnyComponentDef, readerId: number, lastRunTick: number) => void
@@ -10317,6 +10318,8 @@ tabIndex: number | undefined
 @internal getComponentTypesBatch: (entities: readonly Entity[]) => string[][]
 @internal getCppRegistry: () => CppRegistry | null
 @internal getQueryCacheStats: () => QueryCacheStats
+@internal getRemovalSequence: () => number
+@internal getRemovedEntitiesForReader: (component: AnyComponentDef, readerId: number) => Entity[]
 @internal getRemovedEntitiesSince: (component: AnyComponentDef, sinceTick: number) => Entity[]
 @internal getStorageSizes: () => { entities: number; indexSlots: number; spawnCallbacks: number; despawnCallbacks: number; names: ReturnType<NameIndex["sizes"]>; scripts: ReturnType<ScriptStorage["sizes"]>; changes: ReturnType<ChangeTracker["sizes"]>; queryCacheEntries: number; }
 @internal getTopologyChangedEntitiesSince: (component: AnyComponentDef, sinceTick: number) => Entity[]
@@ -10338,6 +10341,7 @@ tabIndex: number | undefined
 @internal queries_: QueryCache
 @internal queryCostEnabled: boolean
 @internal queryEntities: (components: AnyComponentDef[], withFilters?: AnyComponentDef[], withoutFilters?: AnyComponentDef[], precomputedKey?: string, filter?: QueryFilter, precomputedDepIds?: symbol[]) => readonly Entity[]
+@internal registerRemovedCursorReader: (component: AnyComponentDef) => number
 @internal registerRemovedReader: (component: AnyComponentDef) => number
 @internal registerRemovedReaderFrom: (component: AnyComponentDef, retainFromTick: number) => number
 @internal registerTopologyReaderFrom: (component: AnyComponentDef, retainFromTick: number) => number

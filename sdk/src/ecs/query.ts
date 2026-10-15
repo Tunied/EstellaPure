@@ -815,6 +815,7 @@ export class RemovedQueryInstance<T extends AnyComponentDef> implements Iterable
     private readonly component_: T;
     private lastRunTick_: number;
     private readerId_: number | null = null;
+    private readThrough_ = 0;
 
     /** Constructing one has NO side effect on the world: a runner that builds
      *  several params and throws on a later one would otherwise leave a claim
@@ -829,18 +830,19 @@ export class RemovedQueryInstance<T extends AnyComponentDef> implements Iterable
     activateRetention(): void {
         if (this.readerId_ !== null) return;
         this.world_.enableChangeTracking(this.component_);
-        this.readerId_ = this.world_.registerRemovedReader(this.component_);
+        this.readerId_ = this.world_.registerRemovedCursorReader(this.component_);
+        this.readThrough_ = this.world_.getRemovalSequence();
     }
 
     /**
-     * @internal This run is over, so rows up to `lastRunTick` will never be
-     * asked for again. NOT `resetTick`: a system may await mid-body, and a claim
-     * released before the body read would let another reader's prune take rows
-     * this one is still owed.
+     * @internal This run is over, so release the sequence it observed. A later
+     * removal in the same frame is still owed. NOT `resetTick`: a system may
+     * await mid-body, and an early release would let another reader's prune
+     * take rows this one is still owed.
      */
-    releaseThrough(lastRunTick: number): void {
+    releaseThrough(_lastRunTick: number): void {
         if (this.readerId_ === null) return;
-        this.world_.advanceRemovedReader(this.component_, this.readerId_, lastRunTick);
+        this.world_.advanceRemovedCursorReader(this.component_, this.readerId_, this.readThrough_);
     }
 
     /** @internal Give up the claim — the runner evicted or reset this system. */
@@ -853,17 +855,24 @@ export class RemovedQueryInstance<T extends AnyComponentDef> implements Iterable
     /** @internal Update lastRunTick for reuse across system runs */
     resetTick(tick: number): void {
         this.lastRunTick_ = tick;
+        this.readThrough_ = this.world_.getRemovalSequence();
+    }
+
+    private read_(): Entity[] {
+        if (this.readerId_ === null) return this.world_.getRemovedEntitiesSince(this.component_, this.lastRunTick_);
+        this.readThrough_ = this.world_.getRemovalSequence();
+        return this.world_.getRemovedEntitiesForReader(this.component_, this.readerId_);
     }
 
     *[Symbol.iterator](): Iterator<Entity> {
-        yield* this.world_.getRemovedEntitiesSince(this.component_, this.lastRunTick_);
+        yield* this.read_();
     }
 
     isEmpty(): boolean {
-        return this.world_.getRemovedEntitiesSince(this.component_, this.lastRunTick_).length === 0;
+        return this.read_().length === 0;
     }
 
     toArray(): Entity[] {
-        return this.world_.getRemovedEntitiesSince(this.component_, this.lastRunTick_);
+        return this.read_();
     }
 }

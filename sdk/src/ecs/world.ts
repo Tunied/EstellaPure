@@ -1393,9 +1393,27 @@ export class World {
         return this.changes_.getRemovedEntitiesSince(component, sinceTick);
     }
 
-    /** @internal A `Removed` reader's claim on history, from now on. */
+    /** @internal A tick-based removal lease for samples after the current tick. */
     registerRemovedReader(component: AnyComponentDef): number {
         return this.changes_.registerRemovedReader(component);
+    }
+
+    /** @internal A removal lease starting at the current event sequence. */
+    registerRemovedCursorReader(component: AnyComponentDef): number {
+        return this.changes_.registerRemovedCursorReader(component);
+    }
+
+    /** @internal Latest removal sequence, independent of frame ticks. */
+    getRemovalSequence(): number { return this.changes_.getRemovalSequence(); }
+
+    /** @internal Unacknowledged removals belonging to this cursor reader. */
+    getRemovedEntitiesForReader(component: AnyComponentDef, readerId: number): Entity[] {
+        return this.changes_.getRemovedEntitiesForReader(component, readerId);
+    }
+
+    /** @internal Release only events this run observed, preserving later removals. */
+    advanceRemovedCursorReader(component: AnyComponentDef, readerId: number, through: number): void {
+        this.changes_.advanceRemovedCursorReader(component, readerId, through);
     }
 
     /** @internal A claim from an explicit tick, for a reader that reads with an

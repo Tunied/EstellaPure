@@ -19,11 +19,15 @@ import { AnyComponentDef } from './component';
  * — so a holder that can go idle advances anyway.
  */
 class ReaderOwnedJournal {
-    private rows_ = new Map<symbol, Array<{ entity: Entity; tick: number }>>();
+    private rows_ = new Map<symbol, Array<{ entity: Entity; tick: number; sequence?: number }>>();
     private readers_ = new Map<symbol, Map<number, number>>();
+    private cursorReaders_ = new Map<symbol, Map<number, number>>();
+    private sequence_ = 0;
+
+    constructor(private readonly sequenced_ = false) {}
 
     hasReaders(componentId: symbol): boolean {
-        return this.readers_.has(componentId);
+        return this.readers_.has(componentId) || this.cursorReaders_.has(componentId);
     }
 
     record(componentId: symbol, entity: Entity, tick: number): void {
@@ -32,7 +36,43 @@ class ReaderOwnedJournal {
             buffer = [];
             this.rows_.set(componentId, buffer);
         }
-        buffer.push({ entity, tick });
+        buffer.push(this.sequenced_ ? { entity, tick, sequence: ++this.sequence_ } : { entity, tick });
+    }
+
+    sequence(): number { return this.sequence_; }
+
+    registerCursor(componentId: symbol, readerId: number): void {
+        let readers = this.cursorReaders_.get(componentId);
+        if (!readers) {
+            readers = new Map();
+            this.cursorReaders_.set(componentId, readers);
+        }
+        readers.set(readerId, this.sequence_);
+    }
+
+    sinceCursor(componentId: symbol, readerId: number): Entity[] {
+        const after = this.cursorReaders_.get(componentId)?.get(readerId);
+        if (after === undefined) return [];
+        const rows = this.rows_.get(componentId);
+        if (!rows) return [];
+        // A parked reader may retain a large prefix. An up-to-date reader
+        // should search past it rather than revisit every retained event.
+        let lo = 0, hi = rows.length;
+        while (lo < hi) {
+            const mid = (lo + hi) >>> 1;
+            if (rows[mid].sequence! <= after) lo = mid + 1;
+            else hi = mid;
+        }
+        const out: Entity[] = [];
+        for (let i = lo; i < rows.length; i++) out.push(rows[i].entity);
+        return out;
+    }
+
+    advanceCursor(componentId: symbol, readerId: number, through: number): void {
+        const readers = this.cursorReaders_.get(componentId);
+        if (!readers?.has(readerId)) return;
+        readers.set(readerId, through);
+        this.prune_(componentId);
     }
 
     /** How many rows are buffered, at any tick. An UPPER bound on what `since`
@@ -69,13 +109,14 @@ class ReaderOwnedJournal {
 
     dispose(componentId: symbol, readerId: number): void {
         const readers = this.readers_.get(componentId);
-        if (!readers) return;
-        readers.delete(readerId);
+        readers?.delete(readerId);
+        this.cursorReaders_.get(componentId)?.delete(readerId);
         this.prune_(componentId);
     }
 
     readerCount(componentId: symbol): number {
-        return this.readers_.get(componentId)?.size ?? 0;
+        return (this.readers_.get(componentId)?.size ?? 0)
+            + (this.cursorReaders_.get(componentId)?.size ?? 0);
     }
 
     totalRows(): number {
@@ -86,21 +127,28 @@ class ReaderOwnedJournal {
 
     private prune_(componentId: symbol): void {
         const readers = this.readers_.get(componentId);
-        if (!readers || readers.size === 0) {
-            this.readers_.delete(componentId);
+        const cursors = this.cursorReaders_.get(componentId);
+        if (!readers?.size) this.readers_.delete(componentId);
+        if (!cursors?.size) this.cursorReaders_.delete(componentId);
+        if (!readers?.size && !cursors?.size) {
             this.rows_.delete(componentId);
             return;
         }
         const buffer = this.rows_.get(componentId);
         if (!buffer) return;
         let safe = Infinity;
-        for (const from of readers.values()) if (from < safe) safe = from;
-        let writeIdx = 0;
-        for (let i = 0; i < buffer.length; i++) {
-            if (buffer[i].tick >= safe) buffer[writeIdx++] = buffer[i];
+        for (const from of readers?.values() ?? []) if (from < safe) safe = from;
+        let safeSequence = Infinity;
+        for (const through of cursors?.values() ?? []) {
+            if (through < safeSequence) safeSequence = through;
         }
-        buffer.length = writeIdx;
-        if (writeIdx === 0) this.rows_.delete(componentId);
+        // Both ticks and sequences are monotonic. A held prefix cannot expire
+        // behind its first live row; do not copy it on every fast-reader run.
+        let expired = 0;
+        while (expired < buffer.length && buffer[expired].tick < safe
+            && (buffer[expired].sequence ?? -Infinity) <= safeSequence) expired++;
+        if (expired === buffer.length) this.rows_.delete(componentId);
+        else if (expired > 0) buffer.splice(0, expired);
     }
 }
 
@@ -110,7 +158,7 @@ export class ChangeTracker {
     private componentIncarnations_ = new Map<symbol, Map<Entity, number>>();
     private nextIncarnation_ = 1;
     private componentChangedTicks_ = new Map<symbol, Map<Entity, number>>();
-    private readonly removals_ = new ReaderOwnedJournal();
+    private readonly removals_ = new ReaderOwnedJournal(true);
     /** Membership moves, independent of ordinary change tracking. */
     private readonly topology_ = new ReaderOwnedJournal();
     /**
@@ -230,12 +278,27 @@ export class ChangeTracker {
     }
 
     /**
-     * Take out a claim on `component`'s removal history. History begins HERE:
-     * a new reader does not inherit rows another reader happened to leave, so
-     * ownership is never ambiguous.
+     * A tick-based claim for windows after the current tick. System queries
+     * use a cursor instead, distinguishing events within the same tick.
      */
     registerRemovedReader(component: AnyComponentDef): number {
         return this.registerRemovedReaderFrom(component, this.worldTick_ + 1);
+    }
+
+    registerRemovedCursorReader(component: AnyComponentDef): number {
+        const id = this.nextReaderId_++;
+        this.removals_.registerCursor(component._id, id);
+        return id;
+    }
+
+    getRemovalSequence(): number { return this.removals_.sequence(); }
+
+    getRemovedEntitiesForReader(component: AnyComponentDef, readerId: number): Entity[] {
+        return this.removals_.sinceCursor(component._id, readerId);
+    }
+
+    advanceRemovedCursorReader(component: AnyComponentDef, readerId: number, through: number): void {
+        this.removals_.advanceCursor(component._id, readerId, through);
     }
 
     /**
@@ -252,7 +315,7 @@ export class ChangeTracker {
 
     /**
      * This reader has finished a run whose window ended at `lastRunTick`, so it
-     * will never ask for a row at or before it again. `Removed` reads
+     * will never ask for a row at or before it again. Tick-based samplers read
      * `tick > lastRunTick`, which is why the claim is the tick after.
      */
     advanceRemovedReader(component: AnyComponentDef, readerId: number, lastRunTick: number): void {

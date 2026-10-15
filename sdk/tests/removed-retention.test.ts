@@ -82,8 +82,7 @@ describe('removal history retention', () => {
         await app.tick(1 / 60);
         arm(false);
 
-        // A tick of its own: a removal recorded at the tick a reader last ran is
-        // outside its next window (`tick > lastRunTick`) and owed to nobody.
+        // The fast reader advances while the slow reader retains its claim.
         await app.tick(1 / 60);
         const e = world.spawn();
         world.insert(e, Bullet, { n: 1 });
@@ -156,9 +155,7 @@ describe('removal history retention', () => {
         let other: number | null = null;
         let victim: Entity | null = null;
 
-        // Removed IN-FRAME: the window is `tick > lastRunTick`, so a removal
-        // between two frames carries the tick the reader just ran at and is
-        // outside the next window by construction.
+        // Produce before the async reader, whose claim must survive its await.
         app.addSystemToSchedule(Schedule.Update, defineSystem(
             [], () => {
                 if (!armed || victim === null) return;
@@ -241,7 +238,7 @@ describe('removal history retention', () => {
         world.advanceTick();
         const T = world.getWorldTick();
 
-        // A `Removed()` system reader, and a sampler that reads `tick > T - 1`.
+        // A tick-based reader, and a sampler that reads `tick > T - 1`.
         const perSystem = world.registerRemovedReader(Bullet);
         world.registerRemovedReaderFrom(Bullet, T);
 
