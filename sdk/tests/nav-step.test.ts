@@ -77,6 +77,38 @@ function openNav(width = 10, height = 3, cellSize = 10): Navigation {
 }
 
 describe('stepNavigation', () => {
+    it.each([0, .5, 3, 5])('crowd followers honor a final arrival radius of %s', arriveRadius => {
+        const world = new FakeWorld();
+        const e = world.spawnAgent(20, 150, {speed:78, radius:8, arriveRadius,
+            repathInterval:0, hasTarget:true, targetX:270, targetY:150});
+        world.spawnAgent(245, 190, {speed:0, radius:8});
+        const nav = openNav(32, 32, 10), runtimes = new Map<Entity, AgentRuntime>();
+        for (let frame=0;frame<600 && !world.agent(e).arrived;frame++) {
+            stepNavigation(world, nav, 1/60, runtimes);
+        }
+        expect(world.agent(e).arrived).toBe(true);
+        const p=world.pos(e);
+        expect(Math.hypot(p.x-270,p.y-150)).toBeLessThanOrEqual(arriveRadius+1e-6);
+    });
+    it('zero-radius arrival tolerates only native coordinate rounding', () => {
+        const world=new FakeWorld(), nav=openNav(32,32,10);
+        const target={x:270.123456,y:150.123456,z:0};
+        const e=world.spawnAgent(20,150,{speed:78,radius:8,arriveRadius:0,repathInterval:0,
+            hasTarget:true,targetX:target.x,targetY:target.y});
+        world.spawnAgent(245,190,{speed:0,radius:8});
+        vi.spyOn(nav,'queryWorldPath').mockReturnValue({path:[{x:20,y:150,z:0},target],status:'complete',reason:'none'});
+        const set=world.set.bind(world);
+        world.set=(entity,component,data)=>{
+            if(component===Transform){const tf=data as {position:{x:number;y:number;z:number}};
+                tf.position.x=Math.fround(tf.position.x);tf.position.y=Math.fround(tf.position.y);}
+            set(entity,component,data);
+        };
+        const runtimes=new Map<Entity,AgentRuntime>();
+        for(let frame=0;frame<600&&!world.agent(e).arrived;frame++)stepNavigation(world,nav,1/60,runtimes);
+        expect(world.agent(e).arrived).toBe(true);
+        expect(world.pos(e)).toEqual({x:Math.fround(target.x),y:Math.fround(target.y)});
+    });
+
     it('walks an agent to its target on an open grid and marks arrival', () => {
         const nav = openNav();
         const world = new FakeWorld();
@@ -295,6 +327,15 @@ describe('an agent with a body', () => {
         world.character(entity).velocity.y = -320;
         stepNavigation(world, nav, 1 / 60, new Map());
         expect(world.character(entity).velocity.y).toBe(-320);
+    });
+
+    it.each([0, 2])('keeps steering a character outside its final radius of %s', arriveRadius => {
+        const {world, nav, entity} = walker();
+        const agent=world.agent(entity); agent.arriveRadius=arriveRadius;
+        world.place(entity,73,0);
+        stepNavigation(world,nav,1/60,new Map());
+        expect(world.agent(entity).arrived).toBe(false);
+        expect(world.character(entity).velocity.x).toBeGreaterThan(0);
     });
 
     it('stops the body when it arrives', () => {

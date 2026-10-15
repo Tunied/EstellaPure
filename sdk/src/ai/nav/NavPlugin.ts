@@ -458,8 +458,12 @@ function walkAmongBodies(
     }
     while (rt.index < rt.waypoints.length) {
         const wp = rt.waypoints[rt.index]!;
-        const reach=rt.recoveringStart && rt.index===0 ? 0.1 : Math.max(agent.speed*dt*1.5,WAYPOINT_REACH);
-        if (planeDistance(wp, pos, flat) > reach) break;
+        const final = rt.index === rt.waypoints.length - 1;
+        const reach = final
+            ? Math.max(0, agent.arriveRadius)
+            : rt.recoveringStart && rt.index === 0 ? 0.1 : Math.max(agent.speed * dt * 1.5, WAYPOINT_REACH);
+        if (planeDistance(wp, pos, flat) > reach
+            && !(final && agent.arriveRadius <= 0 && sameGroundPoint(wp, pos, flat))) break;
         rt.index++;
         rt.recoveringStart=false;
     }
@@ -501,6 +505,12 @@ function planeDistance(a: Vec3, b: Vec3, flat: boolean): number {
     return Math.hypot(a.x - b.x, (flat ? a.y : a.z) - (flat ? b.y : b.z));
 }
 
+/** A native Transform stores Float32 coordinates, including at a zero-radius goal. */
+function sameGroundPoint(a: Vec3, b: Vec3, flat: boolean): boolean {
+    return Math.fround(a.x) === Math.fround(b.x)
+        && Math.fround(flat ? a.y : a.z) === Math.fround(flat ? b.y : b.z);
+}
+
 /**
  * Point a character controller at the next waypoint and let its own solver move
  * it. Only the horizontal axes are written — the vertical one is the world's, and
@@ -520,7 +530,9 @@ function steerCharacter(
     const reach = Math.max(agent.speed * dt * 1.5, WAYPOINT_REACH);
     while (rt.index < rt.waypoints.length) {
         const wp = rt.waypoints[rt.index]!;
-        if (Math.hypot(wp.x - pos.x, wp.z - pos.z) > reach) break;
+        const tolerance = rt.index === rt.waypoints.length - 1 ? Math.max(0, agent.arriveRadius) : reach;
+        if (Math.hypot(wp.x - pos.x, wp.z - pos.z) > tolerance
+            && !(rt.index === rt.waypoints.length - 1 && agent.arriveRadius <= 0 && sameGroundPoint(wp, pos, false))) break;
         rt.index++;
     }
 
