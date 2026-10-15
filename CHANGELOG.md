@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Web audio loads cannot cross disposed or replaced contexts.** Async reads and decodes capture their context generation and validate it before decoding or publishing a buffer. Late work rejects without borrowing a new session's cached handle, replacing its source entry or repopulating disposed storage; current-session loads and same-session source revisions retain their existing behavior.
+
 - **Web audio source records follow live buffer ownership.** URL cache entries and invalidation identities retire after their current buffer and pending loads are released, instead of retaining every historical scene path. Distinct source records preserve overlapping invalidated loads, and unloading an older result leaves the replacement cached; failed loads release their records too.
 
 - **Web UI getters can reach their generated pointer accessors.** The optional UINode pointer export avoids full component object marshaling for pre-resolved readers, with existing generated layout assertions and fresh pointer resolution after pool growth. Live focus queries use compact per-query visibility flags and pre-resolved parent reads to reduce transient work; older cores retain the getter fallback.

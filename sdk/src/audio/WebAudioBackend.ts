@@ -293,9 +293,11 @@ export class WebAudioBackend implements PlatformAudioBackend {
     }
 
     private async loadSource_(url: string, read: () => Promise<ArrayBuffer>): Promise<AudioBufferHandle> {
-        if (!this.context_) {
+        const context = this.context_;
+        if (!context) {
             throw new Error('AudioContext not initialized');
         }
+        const generation = this.contextGeneration_;
         const cached = this.cachedBuffer_(url);
         if (cached) return cached;
         let source = this.sources_.get(url);
@@ -305,7 +307,9 @@ export class WebAudioBackend implements PlatformAudioBackend {
         }
         source.pending++;
         try {
-            return await this.decodeBuffer_(url, await read(), source);
+            const data = await read();
+            this.assertLoadContext_(context, generation);
+            return await this.decodeBuffer_(url, data, source, context, generation);
         } finally {
             source.pending--;
             if (this.sources_.get(url) === source && source.pending === 0 && source.bufferId === undefined) {
@@ -314,10 +318,16 @@ export class WebAudioBackend implements PlatformAudioBackend {
         }
     }
 
-    private async decodeBuffer_(url: string, data: ArrayBuffer, source: SourceRecord): Promise<AudioBufferHandle> {
-        if (!this.context_) {
-            throw new Error('AudioContext not initialized');
+    private assertLoadContext_(context: AudioContext, generation: number): void {
+        if (this.context_ !== context || this.contextGeneration_ !== generation) {
+            throw new Error('AudioContext changed while loading audio');
         }
+    }
+
+    private async decodeBuffer_(
+        url: string, data: ArrayBuffer, source: SourceRecord,
+        context: AudioContext, generation: number,
+    ): Promise<AudioBufferHandle> {
         if (this.sources_.get(url) === source) {
             const cached = this.cachedBuffer_(url);
             if (cached) return cached;
@@ -325,10 +335,12 @@ export class WebAudioBackend implements PlatformAudioBackend {
 
         let audioBuffer: AudioBuffer;
         try {
-            audioBuffer = await this.context_.decodeAudioData(data);
+            audioBuffer = await context.decodeAudioData(data);
         } catch (err) {
+            this.assertLoadContext_(context, generation);
             throw new Error(`Failed to decode audio ${url}: ${(err as Error).message}`);
         }
+        this.assertLoadContext_(context, generation);
 
         const id = ++this.nextBufferId_;
         this.buffers_.set(id, { buffer: audioBuffer, url });

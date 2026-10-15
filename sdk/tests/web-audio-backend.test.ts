@@ -211,6 +211,51 @@ describe('WebAudioBackend', () => {
     });
 
     describe('loadBuffer', () => {
+        it.each(['read', 'decode'] as const)('rejects an old %s after the AudioContext is replaced', async stage => {
+            await backend.initialize();
+            const ctx = (globalThis as any).__mockAudioContext;
+            const platform = (globalThis as any).__mockPlatform;
+            let finish!: (value: unknown) => void;
+            if (stage === 'read') platform.readFile.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+            else ctx.decodeAudioData.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+            const pending = stage === 'read'
+                ? backend.loadBuffer('restart.wav')
+                : backend.loadBufferFromData('restart.wav', new ArrayBuffer(8));
+            await vi.waitFor(() => expect(finish).toBeTypeOf('function'));
+            backend.dispose();
+            // This mock deliberately reuses the context object. A session
+            // generation, rather than object identity alone, must reject it.
+            await backend.initialize();
+            ctx.decodeAudioData.mockResolvedValue({ duration: 2, length: 16, numberOfChannels: 1 });
+            const current = await backend.loadBufferFromData('restart.wav', new ArrayBuffer(16));
+            const calls = ctx.decodeAudioData.mock.calls.length;
+            const rejection = expect(pending).rejects.toThrow('AudioContext changed');
+            finish(stage === 'read' ? new ArrayBuffer(8) : { duration: 1, length: 8, numberOfChannels: 1 });
+            await rejection;
+            expect(ctx.decodeAudioData).toHaveBeenCalledTimes(calls);
+            expect((await backend.loadBuffer('restart.wav')).id).toBe(current.id);
+            backend.unloadBuffer(current);
+            const retained = Object.values(backend).filter(value => value instanceof Map)
+                .reduce((count, map) => count + map.size, 0);
+            expect(retained).toBe(0);
+        });
+
+        it('does not republish a decoded buffer after disposal without reinitialization', async () => {
+            await backend.initialize();
+            const ctx = (globalThis as any).__mockAudioContext;
+            let finish!: (value: unknown) => void;
+            ctx.decodeAudioData.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+            const pending = backend.loadBufferFromData('disposed.wav', new ArrayBuffer(8));
+            await vi.waitFor(() => expect(finish).toBeTypeOf('function'));
+            backend.dispose();
+            const rejection = expect(pending).rejects.toThrow('AudioContext changed');
+            finish({ duration: 1, length: 8, numberOfChannels: 1 });
+            await rejection;
+            const retained = Object.values(backend).filter(value => value instanceof Map)
+                .reduce((count, map) => count + map.size, 0);
+            expect(retained).toBe(0);
+        });
+
         it.each([false, true])('retires source metadata after buffer release (invalidate=%s)', async invalidate => {
             await backend.initialize();
             const ctx = (globalThis as any).__mockAudioContext;
