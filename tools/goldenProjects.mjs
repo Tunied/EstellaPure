@@ -91,6 +91,10 @@ export const CENSUS_FLOOR = '0.60.0';
  * that does not exist, and release notes are a different act. Theirs is ungated.
  */
 export const SHIPPED = {
+  'Post-process volumes blend effect colors.':
+    { certifies: 'postprocess-color' },
+  'Neon Ascension adds a night-city grey-box example.':
+    { notCertifiable: 'Adds example scene content using existing material, environment and particle features; check-examples validates its sources. The example has not earned packaged-frame certification.' },
   'Navigation replacements commit only from the latest request.':
     { certifies: 'navigation' },
   'Build and reroute deliveries in a textured 2D courtyard.':
@@ -617,6 +621,7 @@ export const CAPABILITIES = [
   'lighting-2d',
   'sprite-sorting', 'sprite-mask', 'ui-widgets', 'velocity-motion',
   'ssao', 'navigation-3d', 'root-motion', 'animation-events', 'shader-readiness',
+  'postprocess-color',
   'animation-layers', 'animation-ik', 'morph-target',
   'animation-blend', 'animation-blend-2d', 'animation-retarget',
   'tilemap', 'tile-collision',
@@ -712,6 +717,7 @@ export const EVIDENCE = {
   'light-probe': /\bLightProbeVolume\b/,
   // The post effect a scene turns on, not the pass that implements it.
   ssao: /"type":\s*"ssao"/,
+  'postprocess-color': /"colors"\s*:\s*\{\s*"u[A-Za-z0-9_]+"\s*:/,
   'navigation-3d': /\b(NavVolume|NavLink|NavAgent3D)\b/,
   'root-motion': /\brootMotion\b/,
   // The MASK, not the layer list: a controller can carry an empty `layers` and
@@ -765,7 +771,9 @@ export const EVIDENCE = {
  * the hole is visible in the gate's output instead of being mistaken for
  * coverage — the same bargain check-project-settings strikes.
  */
-export const KNOWN_GAPS = {};
+export const KNOWN_GAPS = {
+  'postprocess-color': 'Volume RGBA blending has SDK regression coverage in volumeBlending.test.ts, but no golden project yet verifies named color overrides through packaged pixels. Neon Ascension authors the parameters and remains an uncertified example.',
+};
 
 /**
  * The corpus. `certifies` is the claim, `targets` the packages that must build

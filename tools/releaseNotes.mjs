@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'chore(release): classify 0.88.0 feature coverage':
+    { internal: 'Registers the new release features in the certification census and records the missing packaged-pixel coverage for volume color overrides without claiming acceptance.' },
   'chore(release): prepare 0.88.0':
     { internal: 'Prepares the release version and consolidates verified tile preview caching, post-process color blending and example changes without modifying showcase assets.' },
   'feat(examples): neon-ascension rain streaks and vent steam':
