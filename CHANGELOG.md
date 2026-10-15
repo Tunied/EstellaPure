@@ -14,6 +14,8 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+## [0.86.1] - 2026-10-15
+
 ### Fixed
 
 - **Font reloads retain independent handles and glyph caches.** Each loaded revision uses its own platform family and runtime handle, so retiring an older asset cannot unregister its replacement or reuse stale glyph measurements. Failed and late registrations preserve live revisions; repeated outline-font unloads remain harmless. Platform font-face retention is unchanged.
@@ -14367,7 +14369,8 @@ not kept before this file was introduced — see the Git history at
 `github.com/esengine/estella` for the full commit-level record since the first
 commit on 2026-01-25.
 
-[Unreleased]: https://github.com/esengine/estella/compare/v0.86.0...HEAD
+[Unreleased]: https://github.com/esengine/estella/compare/v0.86.1...HEAD
+[0.86.1]: https://github.com/esengine/estella/compare/v0.86.0...v0.86.1
 [0.86.0]: https://github.com/esengine/estella/compare/v0.85.0...v0.86.0
 [0.85.0]: https://github.com/esengine/estella/compare/v0.84.0...v0.85.0
 [0.84.0]: https://github.com/esengine/estella/compare/v0.83.0...v0.84.0
