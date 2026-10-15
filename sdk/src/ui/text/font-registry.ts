@@ -40,10 +40,14 @@ const byPath = new Map<string, number>();
 export function familyNameFor(path: string): string {
     const stem = (path.split('/').pop() ?? path).replace(/\.[^.]+$/, '');
     const safe = stem.replace(/[^A-Za-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'font';
-    // The path suffix keeps two same-named fonts in different folders apart —
-    // a family name is a global key in every platform's text stack.
-    const tag = Math.abs([...path].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 0)).toString(36);
-    return `es-${safe}-${tag}`;
+    // ASCII uses two hex digits; other UTF-16 units use a distinct marker plus
+    // four digits. The reversible suffix preserves paths without a shared registry.
+    let tag = '';
+    for (let i = 0; i < path.length; i++) {
+        const code = path.charCodeAt(i);
+        tag += code < 128 ? code.toString(16).padStart(2, '0') : `z${code.toString(16).padStart(4, '0')}`;
+    }
+    return `es-${safe}-${tag || '0'}`;
 }
 
 /**

@@ -13,6 +13,32 @@ import {
 beforeEach(() => resetProjectFonts());
 
 describe('familyNameFor', () => {
+    it('keeps every UTF-16 unit distinct even under CSS case-insensitive matching', () => {
+        const names = new Set<string>();
+        for (let code = 0; code <= 0xffff; code++) {
+            names.add(familyNameFor(`assets/${String.fromCharCode(code)}/Body.ttf`).toLowerCase());
+        }
+        expect(names.size).toBe(65536);
+    });
+
+    it.each([
+        ['assets/Aa/Body.ttf', 'assets/BB/Body.ttf'],
+        ['assets/🙂/Body.ttf', 'assets/🙃/Body.ttf'],
+        ['assets/AA/Body.ttf', 'assets/B!/Body.ttf'],
+    ])('separates colliding path identities %s and %s', (a, b) => {
+        expect(familyNameFor(a)).not.toBe(familyNameFor(b));
+    });
+
+    it('preserves UTF-16 identity and ASCII escape boundaries without a registry', () => {
+        const paths = ['', '\u0000', 'assets/z0080/Body.ttf', 'assets/\u0080/Body.ttf',
+            `assets/${String.fromCharCode(0xd800)}/Body.ttf`, `assets/${String.fromCharCode(0xd801)}/Body.ttf`];
+        const names = paths.map(familyNameFor);
+        expect(new Set(names).size).toBe(paths.length);
+        for (const name of names) expect(name).toMatch(/^es-[A-Za-z0-9_-]+$/);
+        resetProjectFonts();
+        expect(paths.map(familyNameFor)).toEqual(names);
+    });
+
     it('derives a CSS-safe family from the file stem', () => {
         expect(familyNameFor('assets/fonts/PassionOne-Regular.ttf')).toMatch(/^es-PassionOne-Regular-[0-9a-z]+$/);
     });

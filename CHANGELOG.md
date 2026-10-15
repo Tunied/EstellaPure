@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Project font identities preserve complete asset paths.** Reversible, CSS-safe UTF-16 encoding replaces the short path hash, separating same-named files, supplementary characters and escape boundaries without retaining a name registry. Loading a second font no longer overwrites another asset's browser family. Internal family strings change; derive them through `familyNameFor` rather than persisting generated names. Asset references and runtime font handles keep their existing interface.
+
 - **Missing-glyph warning history follows the bounded cache.** Diagnostic suppression retires when a family no longer has non-drawable glyphs in the 4096-entry CPU cache, preventing historical font names from accumulating. Cached-character queries keep their existing fast path, partial retirement and nested rasterization preserve reference counts, and cleanup releases the history. Unsupported-character warnings no longer claim the entire font cannot draw.
 
 - **Automation projection settings persist across editor state changes.** Programmatic perspective changes update the same state used by the editor toggle, so choosing a tool or changing display preferences no longer restores the previous projection. Repeating an unchanged setting avoids UI notifications while reapplying it to the engine; scene cameras remain unedited.
