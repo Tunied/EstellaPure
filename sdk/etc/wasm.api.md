@@ -340,6 +340,7 @@ getUINodeAlphaInTree: ((registry: CppRegistry, entity: number) => number) | unde
 getUINodeComputedHeight: ((registry: CppRegistry, entity: number) => number) | undefined
 getUINodeComputedWidth: ((registry: CppRegistry, entity: number) => number) | undefined
 getUINodeHiddenInTree: ((registry: CppRegistry, entity: number) => boolean) | undefined
+getUINodePtr: ((registry: CppRegistry, entity: number) => number) | undefined
 getVelocityPtr: (registry: CppRegistry, entity: number) => number
 gl_checkErrors: (context: string) => number
 gl_enableErrorCheck: (enabled: boolean) => void

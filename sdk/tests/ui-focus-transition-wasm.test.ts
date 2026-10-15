@@ -92,7 +92,7 @@ describe.skipIf(!HAS_WASM)('focus transitions on real WASM', () => {
         engine.uiLayout_update(registry, -400, -300, 400, 300, true);
         expect(isFocusEligible(app.world, entity)).toBe(true);
         app.world.update(root, UINode, n => { n.display = UIDisplay.None; });
-        expect(engine.getUINodeHiddenInTree(registry, entity)).toBe(false);
+        expect(engine.getUINodeHiddenInTree!(registry, entity)).toBe(false);
         expect(isFocusEligible(app.world, entity)).toBe(false);
         app.world.update(root, UINode, n => { n.display = UIDisplay.Flex; });
         expect(isFocusEligible(app.world, entity)).toBe(true);
@@ -110,13 +110,31 @@ describe.skipIf(!HAS_WASM)('focus transitions on real WASM', () => {
         }
         app.world.insert(dialog, UIDialog);
         engine.uiLayout_update(registry, -400, -300, 400, 300, true);
-        expect(engine.getUINodeHiddenInTree(registry, dialog)).toBe(true);
+        expect(engine.getUINodeHiddenInTree!(registry, dialog)).toBe(true);
         expect(isFocusEligible(app.world, outside)).toBe(true);
         app.world.update(dialog, UINode, n => { n.display = UIDisplay.Flex; });
-        expect(engine.getUINodeHiddenInTree(registry, dialog)).toBe(true);
+        expect(engine.getUINodeHiddenInTree!(registry, dialog)).toBe(true);
         expect(isFocusEligible(app.world, outside)).toBe(false);
         expect(isFocusEligible(app.world, dialog)).toBe(true);
         app.world.update(dialog, UINode, n => { n.display = UIDisplay.None; });
         expect(isFocusEligible(app.world, outside)).toBe(true);
+    });
+
+    it('reads UI data through the generated pointer accessor after pool growth', () => {
+        expect(typeof engine.getUINodePtr).toBe('function');
+        const entity = control(0);
+        app.world.insert(entity, UINode, { display: UIDisplay.None, opacity: 0.375 });
+        const get = app.world.resolveGetter(UINode)!;
+        const legacy = vi.spyOn(registry, 'getUINode');
+        try {
+            expect(get(entity)).toMatchObject({ display: UIDisplay.None, opacity: 0.375 });
+            for (let i = 0; i < 5000; i++) app.world.insert(app.world.spawn(), UINode);
+            app.world.update(entity, UINode, node => { node.display = UIDisplay.Flex; });
+            legacy.mockClear();
+            expect(get(entity)).toMatchObject({ display: UIDisplay.Flex, opacity: 0.375 });
+            expect(legacy).not.toHaveBeenCalled();
+        } finally { legacy.mockRestore(); }
+        const absent = app.world.spawn();
+        expect(engine.getUINodePtr!(registry, absent)).toBe(0);
     });
 });

@@ -797,6 +797,8 @@ export interface ESEngineModule {
     // Pointer-based component access
     getTransformPtr(registry: CppRegistry, entity: number): number;
     getSpritePtr(registry: CppRegistry, entity: number): number;
+    /** Optional fast access; older Web cores retain the component-getter fallback. */
+    getUINodePtr?(registry: CppRegistry, entity: number): number;
     getVelocityPtr(registry: CppRegistry, entity: number): number;
     getCameraPtr(registry: CppRegistry, entity: number): number;
     getRigidBody2DPtr(registry: CppRegistry, entity: number): number;

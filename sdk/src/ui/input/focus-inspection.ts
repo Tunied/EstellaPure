@@ -51,38 +51,38 @@ function focusContext(world: FocusInspectionWorld) {
 /** Authored display is current even between layout passes. Memoize shared
  * ancestors only within this read-only query, never across scene mutations. */
 function liveVisibility(world: FocusInspectionWorld, fallback: (entity: Entity) => boolean) {
-    const getter = (world as FocusInspectionWorld & Partial<Pick<World, 'resolveGetter'>>)
-        .resolveGetter?.(UINode) as ((entity: Entity) => UINodeData) | null | undefined;
+    const fastWorld = world as FocusInspectionWorld & Partial<Pick<World, 'resolveGetter'>>;
+    const getter = fastWorld.resolveGetter?.(UINode) as ((entity: Entity) => UINodeData) | null | undefined;
     const readNode = getter ?? ((entity: Entity) => world.get(entity, UINode));
-    const memo = new Map<Entity, { hidden: boolean; authored: boolean; pending: boolean }>();
+    const parentGetter = fastWorld.resolveGetter?.(Parent) as ((entity: Entity) => { entity: Entity }) | null | undefined;
+    const readParent = parentGetter ?? ((entity: Entity) => world.get(entity, Parent));
+    const HIDDEN = 1, AUTHORED = 2, PENDING = 4;
+    const memo = new Map<Entity, number>();
     const path: Entity[] = [];
     return (entity: Entity): boolean => {
         path.length = 0;
-        let current = entity, hidden = false, authored = false;
-        while (world.valid(current)) {
+        let current = entity, flags = 0;
+        for (;;) {
             const cached = memo.get(current);
-            if (cached) {
+            if (cached !== undefined) {
                 // Invalid cyclic ancestry cannot receive keyboard input.
-                hidden = cached.pending || cached.hidden;
-                authored = cached.pending || cached.authored;
+                flags = cached === PENDING ? HIDDEN | AUTHORED : cached;
                 break;
             }
-            memo.set(current, { hidden: false, authored: false, pending: true });
+            if (!world.valid(current)) break;
+            memo.set(current, PENDING);
             path.push(current);
             if (!world.has(current, Parent)) break;
-            current = world.get(current, Parent).entity;
+            current = readParent(current).entity;
         }
         for (let i = path.length - 1; i >= 0; i--) {
-            const entry = memo.get(path[i])!;
             if (world.has(path[i], UINode)) {
-                authored = true;
-                hidden = hidden || readNode(path[i]).display === UIDisplay.None;
+                flags |= AUTHORED;
+                if (!(flags & HIDDEN) && readNode(path[i]).display === UIDisplay.None) flags |= HIDDEN;
             }
-            entry.hidden = hidden;
-            entry.authored = authored;
-            entry.pending = false;
+            memo.set(path[i], flags);
         }
-        return authored ? hidden : fallback(entity);
+        return flags & AUTHORED ? !!(flags & HIDDEN) : fallback(entity);
     };
 }
 

@@ -398,6 +398,12 @@ int getSpritePtr(ecs::Registry& r, u32 e) {
     return static_cast<int>(reinterpret_cast<uintptr_t>(s));
 }
 
+int getUINodePtr(ecs::Registry& r, u32 e) {
+    auto* node = r.tryGet<ecs::UINode>(Entity::fromRaw(e));
+    if (!node) return 0;
+    return static_cast<int>(reinterpret_cast<uintptr_t>(node));
+}
+
 int getVelocityPtr(ecs::Registry& r, u32 e) {
     auto* v = r.tryGet<ecs::Velocity>(Entity::fromRaw(e));
     if (!v) return 0;
@@ -434,6 +440,7 @@ EMSCRIPTEN_BINDINGS(esengine_ptr_access) {
     emscripten::function("getTransformPtr", &esengine::getTransformPtr);
     emscripten::function("registryLayoutEpoch", &esengine::registryLayoutEpoch);
     emscripten::function("getSpritePtr", &esengine::getSpritePtr);
+    emscripten::function("getUINodePtr", &esengine::getUINodePtr);
     emscripten::function("getVelocityPtr", &esengine::getVelocityPtr);
     emscripten::function("getCameraPtr", &esengine::getCameraPtr);
     emscripten::function("getRigidBody2DPtr", &esengine::getRigidBody2DPtr);

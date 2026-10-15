@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(ui): use generated web pointers for live focus checks':
+    { note: 'Web UI getters can reach their generated pointer accessors.' },
   'fix(ui): retire text sessions when focus eligibility changes':
     { note: 'Ineligible text fields reject late editing callbacks immediately.' },
   'fix(ui): resolve live display ancestry for keyboard focus':
