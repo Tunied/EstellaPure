@@ -98,7 +98,10 @@ try {
                     const box = await page.evaluate(n => window.__estellaCooked.probe([n]).at[n], name);
                     assert(box, `Missing button ${name}`);
                     const scale = Math.min(surface.width / 800, surface.height / 450);
-                    await page.mouse.click(surface.width / 2 + box.x * scale, surface.height / 2 - box.y * scale);
+                    await page.mouse.move(surface.width / 2 + box.x * scale, surface.height / 2 - box.y * scale);
+                    await page.mouse.down();
+                    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+                    await page.mouse.up();
                     await page.waitForTimeout(100);
                 };
                 const phase = expected => page.waitForFunction(prefix => window.__estellaCooked.probe(['DeviceStatus']).at.DeviceStatus.text.startsWith(prefix), expected.toUpperCase(), { timeout: 5000 });
@@ -172,7 +175,10 @@ try {
                         await page.keyboard.down(horizontal);
                         await page.waitForFunction(() => { const p=__estellaCooked.probe(['Player','Target']).at;return Math.hypot(p.Player.x-p.Target.x,p.Player.y-p.Target.y)<60; }, {}, { timeout: 6000 });
                         await page.keyboard.up(horizontal);
-                        for (let hit=0;hit<3;hit++) { await page.keyboard.press('Space', { delay: 80 }); await page.waitForTimeout(80); }
+                        for (let hit=0;hit<3;hit++) {
+                            await page.keyboard.press('Space', { delay: 80 });
+                            await page.waitForFunction(expected => __estellaCooked.probe(['DeviceStatus']).at.DeviceStatus.text.includes(`Round: ${expected} / 3 hits`), hit + 1, { timeout: 5000 });
+                        }
                         expected.push('stop'); await phase('finished'); await trace(); assert.match(await status(page), /Round: 3 \/ 3 hits/);
                         await snapshot('finished');
                         await click('TrainingReward'); expected.push('rewarded'); await phase('ad'); await trace();
@@ -204,7 +210,13 @@ try {
                     events: window.__events ?? [], audioStates: (window.__audioContexts ?? []).map(c => c.state),
                     audioOperations: window.__audioOperations ?? [],
                     status: window.__estellaCooked?.probe(['DeviceStatus']).at.DeviceStatus?.text,
-                }));
+                    probe: window.__estellaCooked?.probe(['DeviceStatus', 'Player', 'Target']),
+                    visibility: document.visibilityState,
+                })).catch(diagnosticError => ({ unavailable: String(diagnosticError) }));
+                const file = `${mode}-${viewport.width}x${viewport.height}-failed.png`;
+                await page.screenshot({ path: path.join(out, file), timeout: 5000 }).then(() => {
+                    observation.screenshots.push({ file, sha256: sha(path.join(out, file)) });
+                }).catch(captureError => { observation.captureError = String(captureError); });
                 throw error;
             }
             finally { await context.close(); }
