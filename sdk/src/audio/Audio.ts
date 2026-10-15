@@ -400,12 +400,12 @@ export class AudioAPI {
         };
         const buffer = this.lookupBuffer_(url);
         if (!buffer) {
-            const pending = this.createDeferredHandle_();
+            const pending = this.createDeferredHandle_(playConfig.volume ?? 1);
             this.preload(url).then(() => {
-                if (this.disposed_ || epoch !== this.playbackEpoch_) return;
+                if (this.disposed_ || epoch !== this.playbackEpoch_ || pending.cancelled) return;
                 const buf = this.lookupBuffer_(url);
                 if (buf) {
-                    pending.resolve(this.playVoice_(buf, playConfig));
+                    pending.resolve(overrides => this.playVoice_(buf, { ...playConfig, ...overrides }));
                 }
             }).catch(err => {
                 log.warn('audio', `Failed to preload audio: ${url}`, err);
@@ -870,23 +870,45 @@ export class AudioAPI {
         this.fades_.push({ voice, from: voice.fade, to: 0, duration, elapsed: 0, stopAtEnd: true });
     }
 
-    private createDeferredHandle_(): AudioHandle & { resolve(real: AudioHandle): void } {
+    private createDeferredHandle_(baseVolume: number): AudioHandle & {
+        readonly cancelled: boolean;
+        resolve(start: (overrides: PlayConfig) => AudioHandle): void;
+    } {
         let real: AudioHandle | null = null;
-        const handle: AudioHandle & { resolve(r: AudioHandle): void } = {
-            id: -1,
-            stop() { real?.stop(); },
-            pause() { real?.pause(); },
-            resume() { real?.resume(); },
-            setVolume(v: number) { real?.setVolume(v); },
-            setPan(p: number) { real?.setPan(p); },
-            setLoop(l: boolean) { real?.setLoop(l); },
-            setPlaybackRate(r: number) { real?.setPlaybackRate(r); },
+        let stopped = false, paused = false, endAssigned = false;
+        let ended: (() => void) | undefined;
+        const overrides: PlayConfig = {};
+        return {
+            get id() { return real?.id ?? -1; },
+            get cancelled() { return stopped; },
+            stop() { if (!stopped) { stopped = true; real?.stop(); } },
+            pause() { if (!stopped) { paused = true; real?.pause(); } },
+            resume() { if (!stopped) { paused = false; real?.resume(); } },
+            setVolume(v) { if (!stopped) { overrides.volume = v; real?.setVolume(v); } },
+            setPan(p) { if (!stopped) { overrides.pan = p; real?.setPan(p); } },
+            setLoop(l) { if (!stopped) { overrides.loop = l; real?.setLoop(l); } },
+            setPlaybackRate(r) { if (!stopped) { overrides.playbackRate = r; real?.setPlaybackRate(r); } },
             get isPlaying() { return real?.isPlaying ?? false; },
             get currentTime() { return real?.currentTime ?? 0; },
             get duration() { return real?.duration ?? 0; },
-            resolve(r: AudioHandle) { real = r; },
+            get onEnd() { return real ? real.onEnd : ended; },
+            set onEnd(callback) {
+                ended = callback;
+                endAssigned = true;
+                if (real) real.onEnd = callback;
+            },
+            resolve(start) {
+                if (stopped || real) return;
+                const next = start(paused ? { ...overrides, volume: 0 } : overrides);
+                if (stopped) { next.stop(); return; }
+                real = next;
+                if (endAssigned) real.onEnd = ended;
+                if (paused) {
+                    real.pause();
+                    real.setVolume(overrides.volume ?? baseVolume);
+                }
+            },
         };
-        return handle;
     }
 }
 

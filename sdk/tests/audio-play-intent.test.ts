@@ -114,3 +114,52 @@ it('does not send a new buffer voice to a disposed device', () => {
     expect(audio.playBuffer({ id: 1, duration: 1 }).isPlaying).toBe(false);
     expect(backend.play).not.toHaveBeenCalled();
 });
+
+it('stopping a loading effect prevents backend allocation and later resume', async () => {
+    const { audio, backend } = create();
+    const handle = audio.playSFX('loading.wav');
+    handle.stop();
+    handle.resume();
+    await finish(audio, 'loading.wav', 1);
+    expect(backend.play).not.toHaveBeenCalled();
+    expect(handle.isPlaying).toBe(false);
+});
+
+it('applies deferred controls at startup and exposes the resolved identity and completion callback', async () => {
+    const { audio, backend } = create(), ended = vi.fn();
+    const handle = audio.playSFX('loading.wav', { volume: 0.9, pitch: 1.1 });
+    handle.setVolume(0.2);
+    handle.setPan(-0.5);
+    handle.setLoop(true);
+    handle.setPlaybackRate(0.8);
+    handle.onEnd = ended;
+    await finish(audio, 'loading.wav', 1);
+    const raw = backend.play.mock.results[0].value;
+    expect(backend.play).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ volume: 0.2, pan: -0.5, loop: true, playbackRate: 0.8 }));
+    expect(handle.id).toBe(raw.id);
+    raw.onEnd?.();
+    expect(ended).toHaveBeenCalledOnce();
+    expect(handle.onEnd).toBe(ended);
+    handle.setVolume(0.4);
+    expect(raw.setVolume).toHaveBeenLastCalledWith(0.4);
+});
+
+it.each([false, true])('remembers pending pause/resume intent (resume before loading=%s)', async resumeBefore => {
+    const { audio, backend } = create();
+    audio.setSFXVolume(0.5);
+    const handle = audio.playSFX('loading.wav', { volume: 0.8 });
+    handle.pause();
+    if (resumeBefore) handle.resume();
+    await finish(audio, 'loading.wav', 1);
+    const raw = backend.play.mock.results[0].value;
+    expect(handle.isPlaying).toBe(resumeBefore);
+    if (!resumeBefore) {
+        expect(backend.play.mock.calls[0][1].volume).toBe(0);
+        expect(raw.setVolume).toHaveBeenLastCalledWith(0.4);
+        handle.resume();
+        expect(handle.isPlaying).toBe(true);
+    } else {
+        expect(backend.play.mock.calls[0][1].volume).toBe(0.4);
+        expect(raw.pause).not.toHaveBeenCalled();
+    }
+});

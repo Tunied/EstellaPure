@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Loading sound-effect handles preserve playback controls.** Stopping before load completion prevents voice allocation and cannot be undone by Resume. Volume, pan, loop and playback rate apply to the initial backend play; queued Pause starts muted before pausing and restores the intended bus-adjusted gain. Resolved handles expose the real voice ID and forward completion callbacks, while later controls keep delegating normally.
+
 - **Stop All stops every owned audio voice and pending start.** Scripted effects, explicit tracks, paused voices and outgoing music fades are stopped once, and stopped handles cannot resume outside the voice registry. Pending effects and tracks requested before Stop All cannot start on load completion; cached buffers and the device remain reusable, and disposal uses the same shutdown path.
 
 - **BGM playback follows the latest request instead of load completion order.** New requests and stop commands invalidate older pending starts, including when the replacement is already cached. An immediate stop also ends a track already fading out, while repeated positive fade-out requests preserve the existing ramp. Loaded buffers remain available for later playback.
