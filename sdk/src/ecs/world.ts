@@ -162,6 +162,7 @@ export class World {
     private inactive_: { set: Set<Entity> } | null = null;
     private inactiveVersion_ = -1;
     private coreActivityEpoch_ = -1;
+    private readonly coreDisconnect_ = new Set<() => void>();
     private entities_ = new Map<Entity, number>();
     private indexGeneration_ = new Map<number, number>();  // index -> current generation (for isStale detection)
     private iterationDepth_ = 0;
@@ -189,6 +190,7 @@ export class World {
         module?: ESEngineModule,
         options?: BridgeConnectOptions,
     ): void {
+        if (this.getCppRegistry()) this.notifyCoreDisconnect_();
         this.addressOf_.clear();
         this.builtin_.connect(cppRegistry, module, options);
         for (const e of this.scripts_.getStorageById(Disabled._id)?.keys() ?? []) cppRegistry.setEntityEnabled?.(e, false);
@@ -198,6 +200,7 @@ export class World {
 
     /** @internal */
     disconnectCpp(): void {
+        this.notifyCoreDisconnect_();
         this.addressOf_.clear();
         this.builtin_.disconnect();
         this.coreActivityEpoch_ = -1;
@@ -212,6 +215,30 @@ export class World {
     /** @internal */
     getCppRegistry(): CppRegistry | null {
         return this.builtin_.getCppRegistry();
+    }
+
+    /** @internal Release native leases before the owning core is disconnected. */
+    onCoreDisconnect(dispose: () => void): () => void {
+        this.coreDisconnect_.add(dispose);
+        return () => { this.coreDisconnect_.delete(dispose); };
+    }
+
+    private notifyCoreDisconnect_(): void {
+        for (const dispose of [...this.coreDisconnect_]) {
+            try { dispose(); } catch (error) { log.warn('world', 'Core disconnect callback error', error); }
+        }
+    }
+
+    /** @internal Refresh membership mirrors after an observed native mutation. */
+    refreshBuiltinMembership(entity: Entity, component: AnyComponentDef): void {
+        if (!isBuiltinComponent(component)) return;
+        const set = this.builtin_.getEntitySet(component._cppName);
+        const present = this.builtin_.getBuiltinMethods(component._cppName).has(entity);
+        if (set && set.has(entity) !== present) {
+            if (present) set.add(entity); else set.delete(entity);
+            this.queries_.markStructuralChange();
+        }
+        this.queries_.markComponentDirty(component._id);
     }
 
     /** @internal */
@@ -473,6 +500,7 @@ export class World {
         indexSlots: number;
         spawnCallbacks: number;
         despawnCallbacks: number;
+        coreDisconnectCallbacks: number;
         names: ReturnType<NameIndex['sizes']>;
         scripts: ReturnType<ScriptStorage['sizes']>;
         changes: ReturnType<ChangeTracker['sizes']>;
@@ -483,6 +511,7 @@ export class World {
             indexSlots: this.indexGeneration_.size,
             spawnCallbacks: this.spawnCallbacks_.length,
             despawnCallbacks: this.despawnCallbacks_.length,
+            coreDisconnectCallbacks: this.coreDisconnect_.size,
             names: this.names_.sizes(),
             scripts: this.scripts_.sizes(),
             changes: this.changes_.sizes(),
@@ -1474,6 +1503,29 @@ export class World {
      *  lost it — independent of ordinary change tracking. */
     registerTopologyReaderFrom(component: AnyComponentDef, retainFromTick: number): number {
         return this.changes_.registerTopologyReaderFrom(component, retainFromTick);
+    }
+
+    /** @internal A mutation cursor distinguishes writes within one world tick. */
+    registerMutationCursor(component: AnyComponentDef, kind: 'write' | 'topology'): number {
+        return this.changes_.registerMutationCursor(component, kind);
+    }
+
+    /** @internal Current boundary to acknowledge after a successful read. */
+    mutationSequence(kind: 'write' | 'topology'): number { return this.changes_.mutationSequence(kind); }
+
+    /** @internal Unacknowledged component mutations for this reader. */
+    mutationsForCursor(component: AnyComponentDef, kind: 'write' | 'topology', reader: number): Entity[] {
+        return this.changes_.mutationsForCursor(component, kind, reader);
+    }
+
+    /** @internal Preserve mutations that arrived after the read's boundary. */
+    advanceMutationCursor(component: AnyComponentDef, kind: 'write' | 'topology', reader: number, through: number): void {
+        this.changes_.advanceMutationCursor(component, kind, reader, through);
+    }
+
+    /** @internal Release this reader's history claim. */
+    disposeMutationCursor(component: AnyComponentDef, kind: 'write' | 'topology', reader: number): void {
+        this.changes_.disposeMutationCursor(component, kind, reader);
     }
 
     /** @internal Entities worth re-reading because their membership moved. */

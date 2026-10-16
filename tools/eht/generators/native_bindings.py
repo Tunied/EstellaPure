@@ -273,7 +273,21 @@ class NativeBindingsGenerator:
             '    return JS_NewStringLen(ctx, names.data(), names.size());',
             '}', '',
         ])
+        lines.extend([
+            'static JSValue es_componentTypeId(JSContext* ctx, JSValueConst, int argc, JSValueConst* argv) {',
+            '    if (argc < 1) return JS_NewInt32(ctx, -1);',
+            '    const char* raw = JS_ToCString(ctx, argv[0]);',
+            '    if (!raw) return JS_EXCEPTION;',
+            '    const std::string name(raw);',
+            '    JS_FreeCString(ctx, raw);',
+        ])
+        for comp in components:
+            full = f'{comp.namespace}::{comp.name}' if comp.namespace else comp.name
+            lines.append(f'    if (name == "{comp.name}") return JS_NewInt64(ctx, esengine::componentTypeId<{full}>());')
+        lines.extend(['    return JS_NewInt32(ctx, -1);', '}', ''])
         lines.append('void esn_register(JSContext* ctx, JSValue global) {')
+        lines.append('    JS_SetPropertyStr(ctx, global, "es_componentTypeId", '
+                     'JS_NewCFunction(ctx, es_componentTypeId, "es_componentTypeId", 1));')
         lines.append('    JS_SetPropertyStr(ctx, global, "es_getBuiltinComponentNames", '
                      'JS_NewCFunction(ctx, es_getBuiltinComponentNames, "es_getBuiltinComponentNames", 1));')
         for comp in components:

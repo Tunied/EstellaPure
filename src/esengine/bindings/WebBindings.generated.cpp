@@ -2130,6 +2130,57 @@ EMSCRIPTEN_BINDINGS(esengine_registry) {
             return names;
         }))
 
+        .function("componentTypeId", optional_override([](Registry&, const std::string& name) {
+            if (name == "BitmapText") return static_cast<int>(componentTypeId<esengine::ecs::BitmapText>());
+            if (name == "BoxCollider2D") return static_cast<int>(componentTypeId<esengine::ecs::BoxCollider2D>());
+            if (name == "BoxCollider3D") return static_cast<int>(componentTypeId<esengine::ecs::BoxCollider3D>());
+            if (name == "Camera") return static_cast<int>(componentTypeId<esengine::ecs::Camera>());
+            if (name == "Canvas") return static_cast<int>(componentTypeId<esengine::ecs::Canvas>());
+            if (name == "CapsuleCollider2D") return static_cast<int>(componentTypeId<esengine::ecs::CapsuleCollider2D>());
+            if (name == "CapsuleCollider3D") return static_cast<int>(componentTypeId<esengine::ecs::CapsuleCollider3D>());
+            if (name == "CharacterController3D") return static_cast<int>(componentTypeId<esengine::ecs::CharacterController3D>());
+            if (name == "Children") return static_cast<int>(componentTypeId<esengine::ecs::Children>());
+            if (name == "CircleCollider2D") return static_cast<int>(componentTypeId<esengine::ecs::CircleCollider2D>());
+            if (name == "ConvexCollider3D") return static_cast<int>(componentTypeId<esengine::ecs::ConvexCollider3D>());
+            if (name == "Draggable") return static_cast<int>(componentTypeId<esengine::ecs::Draggable>());
+            if (name == "DragonBonesAnimation") return static_cast<int>(componentTypeId<esengine::ecs::DragonBonesAnimation>());
+            if (name == "FlexContainer") return static_cast<int>(componentTypeId<esengine::ecs::FlexContainer>());
+            if (name == "Interactable") return static_cast<int>(componentTypeId<esengine::ecs::Interactable>());
+            if (name == "LODGroup") return static_cast<int>(componentTypeId<esengine::ecs::LODGroup>());
+            if (name == "Light") return static_cast<int>(componentTypeId<esengine::ecs::Light>());
+            if (name == "LightProbeVolume") return static_cast<int>(componentTypeId<esengine::ecs::LightProbeVolume>());
+            if (name == "MeshCollider3D") return static_cast<int>(componentTypeId<esengine::ecs::MeshCollider3D>());
+            if (name == "MeshLightmap") return static_cast<int>(componentTypeId<esengine::ecs::MeshLightmap>());
+            if (name == "MeshMorph") return static_cast<int>(componentTypeId<esengine::ecs::MeshMorph>());
+            if (name == "MeshRenderer") return static_cast<int>(componentTypeId<esengine::ecs::MeshRenderer>());
+            if (name == "MeshSkin") return static_cast<int>(componentTypeId<esengine::ecs::MeshSkin>());
+            if (name == "Occluder") return static_cast<int>(componentTypeId<esengine::ecs::Occluder>());
+            if (name == "Parent") return static_cast<int>(componentTypeId<esengine::ecs::Parent>());
+            if (name == "ParticleEmitter") return static_cast<int>(componentTypeId<esengine::ecs::ParticleEmitter>());
+            if (name == "ParticleForceField") return static_cast<int>(componentTypeId<esengine::ecs::ParticleForceField>());
+            if (name == "ReflectionProbe") return static_cast<int>(componentTypeId<esengine::ecs::ReflectionProbe>());
+            if (name == "RigidBody2D") return static_cast<int>(componentTypeId<esengine::ecs::RigidBody2D>());
+            if (name == "RigidBody3D") return static_cast<int>(componentTypeId<esengine::ecs::RigidBody3D>());
+            if (name == "SegmentCollider2D") return static_cast<int>(componentTypeId<esengine::ecs::SegmentCollider2D>());
+            if (name == "ShadowCaster2D") return static_cast<int>(componentTypeId<esengine::ecs::ShadowCaster2D>());
+            if (name == "ShapeRenderer") return static_cast<int>(componentTypeId<esengine::ecs::ShapeRenderer>());
+            if (name == "SortingGroup") return static_cast<int>(componentTypeId<esengine::ecs::SortingGroup>());
+            if (name == "SphereCollider3D") return static_cast<int>(componentTypeId<esengine::ecs::SphereCollider3D>());
+            if (name == "SpineAnimation") return static_cast<int>(componentTypeId<esengine::ecs::SpineAnimation>());
+            if (name == "Sprite") return static_cast<int>(componentTypeId<esengine::ecs::Sprite>());
+            if (name == "SpriteMask") return static_cast<int>(componentTypeId<esengine::ecs::SpriteMask>());
+            if (name == "TilemapLayer") return static_cast<int>(componentTypeId<esengine::ecs::TilemapLayer>());
+            if (name == "TrailRenderer") return static_cast<int>(componentTypeId<esengine::ecs::TrailRenderer>());
+            if (name == "Transform") return static_cast<int>(componentTypeId<esengine::ecs::Transform>());
+            if (name == "UIInteraction") return static_cast<int>(componentTypeId<esengine::ecs::UIInteraction>());
+            if (name == "UIMask") return static_cast<int>(componentTypeId<esengine::ecs::UIMask>());
+            if (name == "UINode") return static_cast<int>(componentTypeId<esengine::ecs::UINode>());
+            if (name == "UIScroll") return static_cast<int>(componentTypeId<esengine::ecs::UIScroll>());
+            if (name == "UIVisual") return static_cast<int>(componentTypeId<esengine::ecs::UIVisual>());
+            if (name == "Velocity") return static_cast<int>(componentTypeId<esengine::ecs::Velocity>());
+            return -1;
+        }))
+
         // BitmapText
         .function("hasBitmapText", optional_override([](Registry& r, u32 e) {
             return r.has<esengine::ecs::BitmapText>(static_cast<Entity>(e));

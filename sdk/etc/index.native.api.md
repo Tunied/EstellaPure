@@ -10215,6 +10215,7 @@ tabIndex: number | undefined
 ```
 @internal addressOfComponent: (component: AnyComponentDef, entity: Entity) => number | undefined
 @internal addressResolver: (component: AnyComponentDef) => (entity: Entity) => number | undefined
+@internal advanceMutationCursor: (component: AnyComponentDef, kind: "write" | "topology", reader: number, through: number) => void
 @internal advanceRemovedCursorReader: (component: AnyComponentDef, readerId: number, through: number) => void
 @internal advanceRemovedReader: (component: AnyComponentDef, readerId: number, lastRunTick: number) => void
 @internal advanceTick: () => void
@@ -10232,6 +10233,7 @@ tabIndex: number | undefined
 @internal compositionChanges: () => CompositionDelta | null
 @internal connectCpp: (cppRegistry: CppRegistry, module?: ESEngineModule, options?: BridgeConnectOptions) => void
 @internal disconnectCpp: () => void
+@internal disposeMutationCursor: (component: AnyComponentDef, kind: "write" | "topology", reader: number) => void
 @internal disposeRemovedReader: (component: AnyComponentDef, readerId: number) => void
 @internal disposeTopologyReader: (component: AnyComponentDef, readerId: number) => void
 @internal disposeWriteReader: (component: AnyComponentDef, readerId: number) => void
@@ -10248,7 +10250,7 @@ tabIndex: number | undefined
 @internal getRemovalSequence: () => number
 @internal getRemovedEntitiesForReader: (component: AnyComponentDef, readerId: number) => Entity[]
 @internal getRemovedEntitiesSince: (component: AnyComponentDef, sinceTick: number) => Entity[]
-@internal getStorageSizes: () => { entities: number; indexSlots: number; spawnCallbacks: number; despawnCallbacks: number; names: ReturnType<NameIndex["sizes"]>; scripts: ReturnType<ScriptStorage["sizes"]>; changes: ReturnType<ChangeTracker["sizes"]>; queryCacheEntries: number; }
+@internal getStorageSizes: () => { entities: number; indexSlots: number; spawnCallbacks: number; despawnCallbacks: number; coreDisconnectCallbacks: number; names: ReturnType<NameIndex["sizes"]>; scripts: ReturnType<ScriptStorage["sizes"]>; changes: ReturnType<ChangeTracker["sizes"]>; queryCacheEntries: number; }
 @internal getTopologyChangedEntitiesSince: (component: AnyComponentDef, sinceTick: number) => Entity[]
 @internal getWasmModule: () => ESEngineModule | null
 @internal getWorldTick: () => number
@@ -10266,10 +10268,15 @@ tabIndex: number | undefined
 @internal isIterating: () => boolean
 @internal layoutEpoch: () => number | null
 @internal markChanged: (entity: Entity, component: AnyComponentDef) => void
+@internal mutationSequence: (kind: "write" | "topology") => number
+@internal mutationsForCursor: (component: AnyComponentDef, kind: "write" | "topology", reader: number) => Entity[]
+@internal onCoreDisconnect: (dispose: () => void) => () => void
 @internal openSpeculation: (log: { record(world: World, entity: Entity, component: AnyComponentDef): void; }) => void
 @internal queries_: QueryCache
 @internal queryCostEnabled: boolean
 @internal queryEntities: (components: AnyComponentDef[], withFilters?: AnyComponentDef[], withoutFilters?: AnyComponentDef[], precomputedKey?: string, filter?: QueryFilter, precomputedDepIds?: symbol[]) => readonly Entity[]
+@internal refreshBuiltinMembership: (entity: Entity, component: AnyComponentDef) => void
+@internal registerMutationCursor: (component: AnyComponentDef, kind: "write" | "topology") => number
 @internal registerRemovedCursorReader: (component: AnyComponentDef) => number
 @internal registerRemovedReader: (component: AnyComponentDef) => number
 @internal registerRemovedReaderFrom: (component: AnyComponentDef, retainFromTick: number) => number

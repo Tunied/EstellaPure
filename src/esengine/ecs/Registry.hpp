@@ -125,6 +125,7 @@ public:
     u32 watchEntityChanges() { return entity_changes_.watch(); }
     void unwatchEntityChanges(u32 reader) { entity_changes_.unwatch(reader); }
     double entityChangeSequence() const { return entity_changes_.sequence(); }
+    double entityChangeResetEpoch() const { return entity_changes_.resetEpoch(); }
     i32 readEntityChanges(double after, std::span<EntityChangeRow> output) const {
         return entity_changes_.read(after, output);
     }

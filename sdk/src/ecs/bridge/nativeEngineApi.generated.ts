@@ -123,6 +123,7 @@ export interface NativeEngineApi {
     probe_volume_create?(resX: number, resY: number, resZ: number, shPtr: number): number;
     probe_volume_release?(volumeHandle: number): void;
     registry_batchSyncPhysicsTransforms?(registry: unknown, bufferPtr: number, count: number, ppu: number): void;
+    registry_entityChangeResetEpoch?(registry: unknown): number;
     registry_entityChangeSequence?(registry: unknown): number;
     registry_getCanvasEntity?(registry: unknown): number;
     registry_getGeneration?(registry: unknown, entity: number): number;
@@ -419,6 +420,7 @@ export function createNativeEngineApi(
     bind('probe_volume_create', 'es_probe_volume_create', false);
     bind('probe_volume_release', 'es_probe_volume_release', false);
     bind('registry_batchSyncPhysicsTransforms', 'es_registry_batchSyncPhysicsTransforms', true);
+    bind('registry_entityChangeResetEpoch', 'es_registry_entityChangeResetEpoch', true);
     bind('registry_entityChangeSequence', 'es_registry_entityChangeSequence', true);
     bind('registry_getCanvasEntity', 'es_registry_getCanvasEntity', true);
     bind('registry_getGeneration', 'es_registry_getGeneration', true);

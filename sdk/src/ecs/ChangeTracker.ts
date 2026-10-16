@@ -171,14 +171,14 @@ export class ChangeTracker {
     private changeSequence_ = 0;
     private readonly removals_ = new ReaderOwnedJournal(true);
     /** Membership moves, independent of ordinary change tracking. */
-    private readonly topology_ = new ReaderOwnedJournal();
+    private readonly topology_ = new ReaderOwnedJournal(true);
     /**
      * Components WRITTEN, for a consumer that needs to enumerate them sparsely.
      * `isChangedSince` answers about one entity at a time; finding which entities
      * changed through it means walking the per-entity map, which is the O(E) a
      * candidate consumer is trying to avoid.
      */
-    private readonly writes_ = new ReaderOwnedJournal();
+    private readonly writes_ = new ReaderOwnedJournal(true);
     private trackedComponents_ = new Set<symbol>();
     // The most recent worldTick at which ANY entity changed each component — an
     // O(1) "did anything change since tick T" gate (vs scanning the per-entity map).
@@ -280,6 +280,30 @@ export class ChangeTracker {
      */
     getTopologyChangedEntitiesSince(component: AnyComponentDef, sinceTick: number): Entity[] {
         return this.topology_.since(component._id, sinceTick);
+    }
+
+    registerMutationCursor(component: AnyComponentDef, kind: 'write' | 'topology'): number {
+        const id = this.nextReaderId_++;
+        this.mutationJournal_(kind).registerCursor(component._id, id);
+        return id;
+    }
+
+    mutationSequence(kind: 'write' | 'topology'): number { return this.mutationJournal_(kind).sequence(); }
+
+    mutationsForCursor(component: AnyComponentDef, kind: 'write' | 'topology', reader: number): Entity[] {
+        return this.mutationJournal_(kind).sinceCursor(component._id, reader);
+    }
+
+    advanceMutationCursor(component: AnyComponentDef, kind: 'write' | 'topology', reader: number, through: number): void {
+        this.mutationJournal_(kind).advanceCursor(component._id, reader, through);
+    }
+
+    disposeMutationCursor(component: AnyComponentDef, kind: 'write' | 'topology', reader: number): void {
+        this.mutationJournal_(kind).dispose(component._id, reader);
+    }
+
+    private mutationJournal_(kind: 'write' | 'topology'): ReaderOwnedJournal {
+        return kind === 'write' ? this.writes_ : this.topology_;
     }
 
     registerTopologyReaderFrom(component: AnyComponentDef, retainFromTick: number): number {

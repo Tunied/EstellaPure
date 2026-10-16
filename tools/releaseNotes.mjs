@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'refactor(ecs): unify SDK and native mutation cursors':
+    { internal: 'Provides same-tick SDK mutation cursors, generated host component IDs, native reset epochs and owned core-disconnect leases for shared sparse runtime synchronization.' },
   'refactor(ecs): expose bounded native entity change history':
     { internal: 'Adds opt-in native entity and component mutation history as infrastructure for sparse synchronization, with independent cursors, bounded storage, hierarchy roots and overflow/reset signals; no user-facing synchronization policy changes in this commit.' },
   'perf(tilemap): synchronize collision by changed chunk':

@@ -785,6 +785,7 @@ EMSCRIPTEN_BINDINGS(esengine_renderer) {
     emscripten::function("registry_watchEntityChanges", &esengine::registry_watchEntityChanges);
     emscripten::function("registry_unwatchEntityChanges", &esengine::registry_unwatchEntityChanges);
     emscripten::function("registry_entityChangeSequence", &esengine::registry_entityChangeSequence);
+    emscripten::function("registry_entityChangeResetEpoch", &esengine::registry_entityChangeResetEpoch);
     emscripten::function("registry_readEntityChanges", &esengine::registry_readEntityChanges);
 
     emscripten::function("gl_enableErrorCheck", &esengine::gl_enableErrorCheck);

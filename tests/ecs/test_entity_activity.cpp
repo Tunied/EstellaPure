@@ -94,9 +94,12 @@ TEST_CASE("entity change history is bounded and owned by independent readers") {
     EntityChangeJournal journal;
     journal.record(1);
     CHECK(journal.retainedRows() == 0);
+    journal.record(1, ENTITY_CHANGE_RESET);
+    CHECK(journal.resetEpoch() == 1);
     std::array<EntityChangeRow, ENTITY_CHANGE_CAPACITY> rows{};
     CHECK(journal.read(0, rows) == -1);
     const auto first = journal.watch();
+    CHECK(journal.resetEpoch() == 1);
     journal.record(10);
     const auto second = journal.watch();
     const auto cursor = journal.sequence();
@@ -166,6 +169,7 @@ TEST_CASE("registry history covers component lifetime and explicit native writes
     CHECK(rows[5].component == componentTypeId<JournalPosition>());
     const auto cursor = registry.entityChangeSequence();
     registry.clear();
+    CHECK(registry.entityChangeResetEpoch() == 1);
     REQUIRE(registry.readEntityChanges(cursor, rows) == 1);
     CHECK(rows[0].flags == ENTITY_CHANGE_RESET);
     registry.unwatchEntityChanges(reader);

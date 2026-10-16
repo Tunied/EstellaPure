@@ -48,10 +48,12 @@ public:
         if (readers_.empty()) std::vector<EntityChangeRow>().swap(rows_);
     }
     double sequence() const { return static_cast<double>(sequence_); }
+    double resetEpoch() const { return reset_epoch_ == MAX_SEQUENCE ? -1 : static_cast<double>(reset_epoch_); }
     usize readerCount() const { return readers_.size(); }
     usize retainedRows() const { return rows_.empty() ? 0 : std::min<u64>(sequence_, ENTITY_CHANGE_CAPACITY); }
 
     void record(u32 entity, u32 flags = 0, u32 component = ENTITY_CHANGE_NO_COMPONENT) {
+        if ((flags & ENTITY_CHANGE_RESET) && reset_epoch_ < MAX_SEQUENCE) ++reset_epoch_;
         if (readers_.empty()) return;
         // Saturation preserves the JS number contract by requiring a rescan.
         if (sequence_ == MAX_SEQUENCE) { exhausted_ = true; return; }
@@ -74,6 +76,7 @@ private:
     std::vector<EntityChangeRow> rows_;
     std::unordered_set<u32> readers_;
     u64 sequence_ = 0;
+    u64 reset_epoch_ = 0;
     u32 next_reader_ = 0;
     bool exhausted_ = false;
 };

@@ -939,6 +939,8 @@ export interface Registry {
     entityCount(): number;
     /** All generated builtin names, separated by |; absent on older cores. */
     getBuiltinComponentNames?(entity: Entity): string;
+    /** Host-local component ID; -1 for an unknown name. */
+    componentTypeId?(name: string): number;
 
     hasBitmapText(entity: Entity): boolean;
     getBitmapText(entity: Entity): BitmapText;

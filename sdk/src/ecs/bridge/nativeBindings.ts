@@ -222,6 +222,7 @@ export function hasRendererBindings(
 /** Optional bulk inspection; older hosts retain individual component checks. */
 export const INSPECTION_BINDINGS = {
     getBuiltinComponentNames: 'es_getBuiltinComponentNames',
+    componentTypeId: 'es_componentTypeId',
 } as const;
 
 /**

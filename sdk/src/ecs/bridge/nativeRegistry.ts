@@ -89,7 +89,7 @@ export function createNativeRegistry(
 ): CppRegistry {
     const reg: Record<string, unknown> = {};
     for (const [method, binding] of Object.entries(INSPECTION_BINDINGS)) {
-        if (typeof scope[binding] === 'function') reg[method] = (entity: Entity) => hostCall(scope, binding, [entity]);
+        if (typeof scope[binding] === 'function') reg[method] = (...args: unknown[]) => hostCall(scope, binding, args);
     }
     for (const [method, binding] of Object.entries(ACTIVITY_BINDINGS)) {
         if (typeof scope[binding] === 'function') reg[method] = (...args: unknown[]) => hostCall(scope, binding, args);

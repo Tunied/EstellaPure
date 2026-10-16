@@ -390,6 +390,11 @@ class EmbindGenerator:
             full = f'{comp.namespace}::{comp.name}' if comp.namespace else comp.name
             lines.append(f'            if (r.has<{full}>(entity)) {{ if (!names.empty()) names += "|"; names += "{comp.name}"; }}')
         lines.extend(['            return names;', '        }))', ''])
+        lines.append('        .function("componentTypeId", optional_override([](Registry&, const std::string& name) {')
+        for comp in self.components:
+            full = f'{comp.namespace}::{comp.name}' if comp.namespace else comp.name
+            lines.append(f'            if (name == "{comp.name}") return static_cast<int>(componentTypeId<{full}>());')
+        lines.extend(['            return -1;', '        }))', ''])
 
         for comp in self.components:
             full = f'{comp.namespace}::{comp.name}' if comp.namespace else comp.name
