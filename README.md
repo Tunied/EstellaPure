@@ -4,7 +4,7 @@
 
 # Estella
 
-**A fast 2D/3D game engine powered by WebAssembly and ECS**
+**A fast 2D and 3D game engine powered by WebAssembly and ECS**
 
 [![CI](https://github.com/esengine/estella/actions/workflows/build.yml/badge.svg)](https://github.com/esengine/estella/actions/workflows/build.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
@@ -21,7 +21,7 @@
 
 ## What is Estella?
 
-Estella is a **2D/3D game engine** with a TypeScript SDK driven by a high-performance **C++** core — as WebAssembly on the web, and compiled ahead of time on native platforms. It outputs games that run in **web browsers**, on the **desktop**, in **WeChat MiniGames**, as single-file **playable ads**, and as native **Android / iOS** apps. A visual editor is available as a separate, free download.
+Estella is a **2D and 3D game engine** — sprites, tilemaps and UI as much as lit, shadowed, physically simulated 3D worlds — with a TypeScript SDK driven by a high-performance **C++** core — as WebAssembly on the web, and compiled ahead of time on native platforms. It outputs games that run in **web browsers**, on the **desktop**, in **WeChat MiniGames**, as single-file **playable ads**, and as native **Android / iOS** apps. A visual editor is available as a separate, free download.
 
 <div align="center">
   <img src="docs/assets/editor-hero-c5bfd2f3.png" alt="An action-RPG scene open in the Estella editor" width="900" />
@@ -31,12 +31,13 @@ Estella is a **2D/3D game engine** with a TypeScript SDK driven by a high-perfor
 
 ## Why Estella?
 
+- **2D and 3D, one engine** — Sprites, tilemaps, UI and Spine alongside PBR-lit models, shadows, baked lighting and 3D physics, in the same scene, editor and export pipeline
 - **Fast** — C++ rendering pipeline compiled to WebAssembly, not interpreted JS
 - **Type-safe** — First-class TypeScript SDK with `defineSystem`, `defineComponent`, and `Query`
 - **Data-oriented** — Entity-Component-System architecture for scalable game logic
 - **Visual editor** — Scene hierarchy, inspector, asset browser — no JSON editing
 - **Cross-platform** — One codebase, deploy to web, desktop, WeChat MiniGames, playable ads, and native mobile
-- **Spine & Physics** — Built-in Spine animation and physics support
+- **Animation & Physics** — Built-in Spine animation, skeletal animation, and 2D and 3D physics
 - **Agent-native** — The editor is an MCP server and ships an agent of its own; both drive the same tools its UI does
 
 ## Features
@@ -45,7 +46,9 @@ Estella is a **2D/3D game engine** with a TypeScript SDK driven by a high-perfor
 |---------|-------------|
 | **Visual Editor** | Scene editor with hierarchy, inspector, and asset management |
 | **ECS Architecture** | Compose entities from reusable components, drive behavior with systems |
-| **WebGL / WebGPU Rendering** | Sprites, cameras, Spine animations, custom shaders — all in WebAssembly |
+| **2D** | Sprites, tilemaps, UI, text, Spine and DragonBones animation, 2D physics, particles, lighting |
+| **3D** | glTF / FBX import, PBR materials, directional / point / spot lights with shadows, HDRI environments, baked lightmaps and light probes, reflection probes, decals, 3D physics, skeletal animation, navigation, post-processing, streamed large worlds |
+| **WebGL / WebGPU Rendering** | One renderer for 2D and 3D, custom shaders — all in WebAssembly |
 | **TypeScript SDK** | Type-safe API: `defineSystem`, `defineComponent`, `Query`, `Commands` |
 | **Cross-Platform** | One project → web, desktop, WeChat MiniGames, playable ads, and native Android / iOS |
 | **Native mobile** | A real arm64 app rendering through an embedded Dawn (Metal / Vulkan) — not a WebView |
