@@ -45,6 +45,46 @@ const play = defineSystem([Res(Audio)], (audio) => {
 current track, optionally cross-fading. Both auto-preload an uncached clip and play
 it once ready.
 
+## Sound event definitions (beta)
+
+A `.esaudioevent` is a versioned JSON asset containing `clips` with audio references
+and relative `weight` values. Load it with `assets.load<SoundEventAsset>('sound-event', ref)`;
+the loader validates the document without decoding every candidate. Candidate UUID
+references participate in export dependencies, including slots whose weight is zero.
+
+```typescript
+import { parseSoundEvent, SoundEventSelector } from 'esengine';
+
+const event = parseSoundEvent({
+  version: 1,
+  mode: 'no-repeat',
+  clips: [{ clip: 'assets/step-a.wav', weight: 1 }, { clip: 'assets/step-b.wav', weight: 3 }],
+  volume: [0.8, 1],
+  playbackRate: [0.9, 1.1],
+});
+const selector = new SoundEventSelector(event, 42);
+const result = selector.next();
+if (result.selection) {
+  const { clip, volume, playbackRate } = result.selection;
+  audio.playSFX(clip, { volume, pitch: playbackRate });
+}
+```
+
+`random` uses relative weights; `sequence` cycles enabled slots in authored order;
+`no-repeat` excludes the previous audio identity when another positive-weight clip
+exists. Duplicate identities combine weights in random modes and report their first
+slot. Zero-weight slots are disabled in every mode. An empty or entirely disabled
+pool returns `empty` or `zero-weight` without a selection; one enabled clip may repeat.
+
+The seed controls clip and parameter choices independently of the playback backend.
+Changing parameter ranges preserves clip order. Playback rate changes pitch **and
+duration**. It does not preserve duration while shifting pitch.
+
+The selector only chooses clips and parameters. The document also stores bus,
+priority, spatial attenuation, `maxInstances` and cooldown settings; the caller
+must apply these while controlling playback. Event-level playback management,
+the dedicated editor, and component/visual-script integration remain in RM-066.
+
 ## `Audio` API reference
 
 | Method | Description |

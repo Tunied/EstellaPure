@@ -40,6 +40,40 @@ const play = defineSystem([Res(Audio)], (audio) => {
 `playSFX` 触发一次性播放并返回一个句柄;`playBGM` 循环并替换当前曲目,可选交叉淡入。两者都会
 自动预加载未缓存的片段并在就绪后播放。
 
+## 音效事件定义（beta）
+
+`.esaudioevent` 是带有 `version: 1` 的 JSON 资源，`clips` 保存音频引用和相对 `weight`。
+使用 `assets.load<SoundEventAsset>('sound-event', ref)` 加载并校验定义，不会解码所有候选声音。
+候选的 UUID 引用会进入导出依赖，权重为零的槽位也保留依赖。
+
+```typescript
+import { parseSoundEvent, SoundEventSelector } from 'esengine';
+
+const event = parseSoundEvent({
+  version: 1,
+  mode: 'no-repeat',
+  clips: [{ clip: 'assets/step-a.wav', weight: 1 }, { clip: 'assets/step-b.wav', weight: 3 }],
+  volume: [0.8, 1],
+  playbackRate: [0.9, 1.1],
+});
+const selector = new SoundEventSelector(event, 42);
+const result = selector.next();
+if (result.selection) {
+  const { clip, volume, playbackRate } = result.selection;
+  audio.playSFX(clip, { volume, pitch: playbackRate });
+}
+```
+
+`random` 按权重选择，`sequence` 按作者排列的顺序循环启用槽位，`no-repeat` 在存在其他正权重声音时排除上次的音频标识。
+随机模式会合并相同音频标识的权重并返回其首个槽位。所有模式均跳过零权重槽位；空池和全零权重池分别返回
+`empty`、`zero-weight` 原因。只有一个启用声音时允许重复。
+
+固定种子可重现片段及参数选择，不承诺后端采样同步；修改参数范围不会改变片段顺序。
+播放速率同时影响音高和时长，不是保时长变调。
+
+选择器只负责选择片段和参数。定义也保存总线、优先级、空间衰减、事件并发上限和冷却设置，调用者负责在播放时应用。
+事件级播放管理、专用制作界面、组件和可视化脚本接入仍在 RM-066 中继续实施。
+
 ## `Audio` API 参考
 
 | 方法 | 说明 |

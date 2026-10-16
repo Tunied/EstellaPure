@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Added
+
+- **Sound event definitions share deterministic selection.** Beta `.esaudioevent` assets validate weighted clip slots, sequential and no-repeat selection, volume/rate ranges and event playback settings. The shared selector uses independent seeded streams for clip and parameter choices, combines duplicate audio identities, and reports empty or disabled pools. Definitions load through Assets without decoding every candidate; export dependency scanning retains all candidates and UUID references survive file moves. This provides the resource and selection layer for RM-066; automatic event playback limits, dedicated authoring, component and visual-script integration remain in progress.
+
 ### Fixed
 
 - **Mixer bus edits retain the project's voice budget.** Adding, changing or removing a bus preserves the other audio settings, including an explicit unlimited voice count, instead of silently restoring the runtime default limit.

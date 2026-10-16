@@ -51,6 +51,7 @@ import { preparePrefabFromSource, type PreparedPrefab } from '../prefab/prepared
 import type { PrefabOverride } from '../prefab';
 import { LocaleAssetLoader } from './loaders/LocaleAssetLoader';
 import { JsonAssetLoader } from './loaders/JsonAssetLoader';
+import { SoundEventAssetLoader } from './loaders/SoundEventAssetLoader';
 import { getComponentDefaults } from '../ecs/component';
 import { getComponentAssetFieldDescriptors } from '../scene/scene';
 import { discoverSceneAssets } from './discoverAssets';
@@ -2606,6 +2607,7 @@ export class Assets {
         this.register(new AvatarAssetLoader());
         this.register(new LocaleAssetLoader());
         this.register(new JsonAssetLoader());
+        this.register(new SoundEventAssetLoader());
         // …and whatever an optional subsystem brought with it. A loader names
         // its subsystem's parser, so one the core constructs is one every
         // package carries.

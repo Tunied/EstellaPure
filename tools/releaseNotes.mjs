@@ -28,6 +28,10 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(audio): add deterministic sound event definitions':
+    { note: 'Sound event definitions share deterministic selection.' },
+  'feat(editor): recognize sound event definitions':
+    { note: 'Sound event definitions share deterministic selection.' },
   'fix(editor): retain audio settings when editing mixer buses':
     { note: "Mixer bus edits retain the project's voice budget." },
   'fix(physics): preserve unchanged joint projections':

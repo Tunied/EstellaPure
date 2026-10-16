@@ -77,6 +77,7 @@ const ASSET_TYPE_REGISTRY: readonly AssetTypeEntry[] = [
     // @uuid (transitive dep).
     { extensions: ['estileset'], contentType: 'json', editorType: 'tileset', addressableType: 'json', wechatPackInclude: true, hasTransitiveDeps: true },
     { extensions: ['estimeline'], contentType: 'json', editorType: 'timeline', addressableType: 'json', wechatPackInclude: true, hasTransitiveDeps: true },
+    { extensions: ['esaudioevent'], contentType: 'json', editorType: 'json', addressableType: 'json', wechatPackInclude: true, hasTransitiveDeps: true },
     // Locale string table (LocaleAssetLoader → Localization.addCatalog) — one locale per file.
     { extensions: ['eslocale'], contentType: 'json', editorType: 'json', addressableType: 'json', wechatPackInclude: true, hasTransitiveDeps: false },
     // State machine (registerFsm / FsmAssetLoader) — data-driven FSM definition.
