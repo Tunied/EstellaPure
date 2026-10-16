@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 
+#include <cmath>
 #include "RendererBindings.hpp"
 #include "TestProbeBindings.hpp"
 
@@ -1037,6 +1038,19 @@ void renderer_setQualityBudgets(u32 atlasSize, u32 cellSize, u32 cascades, u32 p
 
 void renderer_setDepthLayers(u32 mask) {
     if (auto* frame = g_renderFrame) frame->setDepthLayers(mask);
+}
+
+void renderer_setViewLighting(u32 mode, f32 rotationDegrees, f32 keyIntensity, f32 fillIntensity,
+                              f32 skyIntensity, bool showSky) {
+    if (!g_renderFrame) return;
+    RenderFrame::ViewLighting lighting;
+    lighting.studio = mode == 1;
+    lighting.rotation = std::isfinite(rotationDegrees) ? rotationDegrees : 0.0f;
+    lighting.keyIntensity = std::isfinite(keyIntensity) ? std::max(keyIntensity, 0.0f) : 0.0f;
+    lighting.fillIntensity = std::isfinite(fillIntensity) ? std::max(fillIntensity, 0.0f) : 0.0f;
+    lighting.skyIntensity = std::isfinite(skyIntensity) ? std::max(skyIntensity, 0.0f) : 0.0f;
+    lighting.showSky = showSky;
+    g_renderFrame->setViewLighting(lighting);
 }
 
 void renderer_setShadowDistance(f32 distance) {

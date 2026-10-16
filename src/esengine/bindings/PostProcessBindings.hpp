@@ -52,6 +52,8 @@ bool postprocess_isInitialized();
 void postprocess_setBypass(bool bypass);
 /** The curve the chain applies on the way out: 0 = none, 1 = ACES filmic. */
 void postprocess_setOutputTransform(u32 transform);
+/** The editor view's exposure in stops (EV); 0 is exact identity. View state, never saved. */
+void postprocess_setViewExposure(f32 ev);
 void postprocess_clearPasses();
 void postprocess_setOutputViewport(u32 x, u32 y, u32 w, u32 h);
 /** Say the frame needs a present even when the two rects look alike; see

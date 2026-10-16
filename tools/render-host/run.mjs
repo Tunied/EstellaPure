@@ -30,6 +30,7 @@
  *   ESTELLA_VERIFY_ANIMATOR  drive an animator to a point in time (JSON)
  *   ESTELLA_VERIFY_PICK      hit-test a viewport point, asserting the entity (JSON)
  *   ESTELLA_VERIFY_ORBIT     turn the editor eye before capture ("yaw,pitch" degrees)
+ *   ESTELLA_VERIFY_STUDIO    the editor view's studio lighting and exposure (JSON: see the block)
  *   ESTELLA_VERIFY_COUNTERS  engine counters the drawn frame must report (JSON)
  *   ESTELLA_VERIFY_COUNTERS_MAX  counters the frame must stay UNDER — a budget (JSON)
  *   ESTELLA_VERIFY_FRAME_DEBUG  capture the frame and replay it (the frame debugger)
@@ -215,14 +216,17 @@ function finish(result, server) {
   // A frame of one colour reads as a bare clear. Where one colour IS the answer, a
   // count of that colour is what proves something drew it.
   const uniformByDesign = Boolean(process.env.ESTELLA_VERIFY_UNIFORM) && result.count?.ok === true;
-  const renderedOk = (result.capture?.rendered ?? false) || uniformByDesign;
+  // The studio gate's own last frame is the scene's, which for the scene with no light is
+  // black on purpose; what proves a frame was drawn there is the studio frame it measured.
+  const studioDrew = result.studio?.ok === true && (result.studio.S?.litShare ?? 0) > 0;
+  const renderedOk = (result.capture?.rendered ?? false) || uniformByDesign || studioDrew;
   // A scene that could not load an asset it names draws a frame nobody declared, so
   // its pixels answer a different question — say which asset instead.
   const assetsOk = (result.missingAssets?.length ?? 0) === 0;
   const ok = result.ok && renderedOk && assetsOk && (result.expect?.ok ?? true) && (result.twins?.ok ?? true) && (result.count?.ok ?? true) &&
     (result.seam?.ok ?? true) && (result.nineSlice?.ok ?? true) &&
     (result.resize?.ok ?? true) && (result.preview?.ok ?? true) &&
-    (result.meshPreview?.ok ?? true) && (result.grid?.ok ?? true) &&
+    (result.meshPreview?.ok ?? true) && (result.grid?.ok ?? true) && (result.studio?.ok ?? true) &&
     (result.draws?.ok ?? true) && (result.counters?.ok ?? true) && (result.frameDebug?.ok ?? true) && (result.edge?.ok ?? true) && (result.cutoutEdge?.ok ?? true) && (result.minified?.ok ?? true) &&
     (result.roundtrip?.ok ?? true) && deviceLossOk && meshOk && pickOk;
   const why = assetsOk ? '' : `: could not load ${result.missingAssets.join(', ')}`;
@@ -1052,7 +1056,82 @@ app.whenReady().then(async () => {
       `);
       if (respaced != null) grid = { ...grid, respacedPixels: respaced, ok: grid.ok && respaced > 300 };
     }
-    finish({ ok: true, entityCount, missingAssets, drawCalls, draws, counters, frameDebug, edge, cutoutEdge, minified, profile, capture, expect, twins, nineSlice, count, seam, resize, preview, meshPreview, grid, deviceLoss, roundtrip, meshResident, meshAsset, meshMaterial, meshPrefab, setField, animator, pick, cameraTarget }, server);
+    // ESTELLA_VERIFY_STUDIO = { studio?: {...lighting}, dark?, exposure?, scene? }: the editor
+    // view's own lighting, the one thing that is NOT the scene. Four frames through the
+    // same eye — scene A, studio S, scene A' (switched back), and A under exposure — and
+    // the claims are about their relations:
+    //   dark: false -> S differs from A and the scene was already lit (the studio replaces it);
+    //   dark: true  -> A is unreadable (almost no lit pixels) and S is readable: a lit share and
+    //                  a spread of tones, because a flat blob is not a model;
+    //   A' == A byte for byte, whatever the studio did in between;
+    //   exposure: EV   -> mean display luma of A under EV scales by 2^EV (gamma frame), and
+    //                  resetting returns A exactly.
+    let studio = null;
+    if (process.env.ESTELLA_VERIFY_STUDIO) {
+      const spec = JSON.parse(process.env.ESTELLA_VERIFY_STUDIO);
+      const api = (call) => exec(`(async () => { const api = window.__estellaHeadless.api; ${call}; await api.step(2, 1 / 60); })()`);
+      const stats = (name) => readFrame(`
+        window.__studio = window.__studio || {};
+        window.__studio[${JSON.stringify(name)}] = px.slice();
+        const lum = (i) => 0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2];
+        const dec = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+        const l = []; let lit = 0, sum = 0, lin = 0;
+        for (let i = 0; i < px.length; i += 4) { const v = lum(i); l.push(v); sum += v; if (v > 30) lit++; lin += 0.2126 * dec(px[i]) + 0.7152 * dec(px[i + 1]) + 0.0722 * dec(px[i + 2]); }
+        const n = l.length;
+        // The spread of tones among the pixels that carry any: a model reads by its shading.
+        const on = l.filter((v) => v > 30).sort((a, b) => a - b);
+        const spread = on.length ? on[Math.floor(on.length * 0.95)] - on[Math.floor(on.length * 0.05)] : 0;
+        return { litShare: lit / n, mean: sum / n, meanLinear: lin / n, spread };
+      `);
+      const diff = (a, b) => readFrame(`
+        const A = window.__studio[${JSON.stringify(a)}], B = window.__studio[${JSON.stringify(b)}];
+        let max = 0, differing = 0;
+        for (let i = 0; i < A.length; i++) { const d = Math.abs(A[i] - B[i]); if (d > max) max = d; if (d > 0) differing++; }
+        return { max, differing };
+      `);
+      await api('api.setViewLighting()');
+      const A = await stats('A');
+      let S = null, back = null, dStudio = null;
+      if (spec.studio) {
+        await api(`api.setViewLighting(${JSON.stringify({ mode: 'studio', ...spec.studio })})`);
+        S = await stats('S');
+        dStudio = await diff('A', 'S');
+        await api('api.setViewLighting()');
+        await stats('A2');
+        back = await diff('A', 'A2');
+      }
+      // Seeing the sky and being lit by it are separate: showSky draws the scene's environment
+      // behind the studio-lit model ('adds'), and a scene with none has nothing to draw ('noop').
+      let sky = null;
+      if (spec.sky) {
+        await api(`api.setViewLighting(${JSON.stringify({ mode: 'studio', ...spec.studio, showSky: true })})`);
+        await stats('SS');
+        const d = await diff('S', 'SS');
+        await api('api.setViewLighting()');
+        await stats('A4');
+        const reset = await diff('A', 'A4');
+        sky = { differing: d.differing, resetMax: reset.max,
+          ok: reset.max === 0 && (spec.sky === 'adds' ? d.differing > 2000 : d.differing === 0) };
+      }
+      let exp = null;
+      if (spec.exposure !== undefined) {
+        await api(`api.setViewLighting(${JSON.stringify({ mode: 'scene', exposure: spec.exposure })})`);
+        const E = await stats('E');
+        await api('api.setViewLighting()');
+        await stats('A3');
+        const reset = await diff('A', 'A3');
+        const want = Math.pow(2, spec.exposure);
+        // In a linear frame the exposure is a scale of radiance, so it is measured there.
+        const ratio = spec.linear ? E.meanLinear / A.meanLinear : E.mean / A.mean;
+        exp = { ev: spec.exposure, ratio, want, resetMax: reset.max,
+          ok: Math.abs(ratio - want) <= (spec.tol ?? 0.08) * want && reset.max === 0 };
+      }
+      const darkOk = spec.dark === undefined ? true
+        : spec.dark ? (A.litShare < 0.02 && S && S.litShare > 0.08 && S.spread > 40)
+          : (S && dStudio.differing > 200);
+      studio = { A, S, dStudio, back, sky, exp, ok: Boolean(darkOk) && (!spec.studio || back.max === 0) && (!sky || sky.ok) && (!exp || exp.ok) };
+    }
+    finish({ ok: true, studio, entityCount, missingAssets, drawCalls, draws, counters, frameDebug, edge, cutoutEdge, minified, profile, capture, expect, twins, nineSlice, count, seam, resize, preview, meshPreview, grid, deviceLoss, roundtrip, meshResident, meshAsset, meshMaterial, meshPrefab, setField, animator, pick, cameraTarget }, server);
   } catch (e) {
     finish({ ok: false, error: String((e && e.stack) || e) }, server);
   }

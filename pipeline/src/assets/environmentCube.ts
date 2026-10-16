@@ -14,6 +14,7 @@
  * fixed per face with `rotate` and `flip`, never by editing the images.
  */
 import type { Panorama } from './environmentImport';
+import { SRGB_TO_LINEAR } from './ldrPanorama';
 
 export const CUBE_FACE_NAMES = ['px', 'nx', 'py', 'ny', 'pz', 'nz'] as const;
 export type CubeFaceName = typeof CUBE_FACE_NAMES[number];
@@ -74,15 +75,6 @@ export function validateCubeFaces(faces: CubeFaceSet): void {
         }
     }
 }
-
-const SRGB_TO_LINEAR = (() => {
-    const lut = new Float32Array(256);
-    for (let i = 0; i < 256; i++) {
-        const c = i / 255;
-        lut[i] = c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-    }
-    return lut;
-})();
 
 /** A direction → the face it leaves through and where on it, in [0, 1]² of the face as
  *  seen from inside, before any rotate or flip. */
@@ -171,6 +163,12 @@ export interface CubeSourceDocument {
     /** How the images are encoded. PNG and JPEG are sRGB, the default. */
     colorSpace?: 'srgb' | 'linear';
     faces: Partial<Record<CubeFaceName, { file: string; rotate?: 0 | 90 | 180 | 270; flip?: boolean }>>;
+    /**
+     * Instead of six faces, one equirectangular picture (PNG or JPEG). The source is then a
+     * low-dynamic-range panorama: it needs a colour space chosen, and it is not a recovered
+     * HDR — nothing in it is brighter than white. `faces` is empty beside it.
+     */
+    panorama?: { file: string };
 }
 
 /** Read a `.escube` document, refusing what it cannot mean. A face left out is allowed here:
@@ -186,11 +184,22 @@ export function parseCubeSource(raw: unknown): CubeSourceDocument {
     if (doc.colorSpace !== undefined && doc.colorSpace !== 'srgb' && doc.colorSpace !== 'linear') {
         throw new CubeImportError(`colorSpace must be "srgb" or "linear", not ${JSON.stringify(doc.colorSpace)}`);
     }
-    if (typeof doc.faces !== 'object' || doc.faces === null || Array.isArray(doc.faces)) {
+    let panorama: { file: string } | undefined;
+    if (doc.panorama !== undefined) {
+        const p = doc.panorama as Record<string, unknown> | null;
+        if (typeof p !== 'object' || p === null || typeof p.file !== 'string' || p.file === '') {
+            throw new CubeImportError('a panorama image needs the "file" it reads');
+        }
+        if (doc.faces !== undefined && (typeof doc.faces !== 'object' || doc.faces === null
+            || Array.isArray(doc.faces) || Object.keys(doc.faces).length > 0)) {
+            throw new CubeImportError('a source is six faces or one panorama image, not both');
+        }
+        panorama = { file: p.file };
+    } else if (typeof doc.faces !== 'object' || doc.faces === null || Array.isArray(doc.faces)) {
         throw new CubeImportError('a cube source names its images under "faces"');
     }
     const faces: CubeSourceDocument['faces'] = {};
-    for (const [key, value] of Object.entries(doc.faces as Record<string, unknown>)) {
+    for (const [key, value] of Object.entries(panorama ? {} : doc.faces as Record<string, unknown>)) {
         const name = (CUBE_FACE_NAMES as readonly string[]).includes(key) ? key as CubeFaceName : null;
         if (!name) {
             throw new CubeImportError(`"${key}" is not a face; the faces are ${CUBE_FACE_NAMES.join(', ')}`);
@@ -208,5 +217,6 @@ export function parseCubeSource(raw: unknown): CubeSourceDocument {
         faces[name] = { file: f.file, ...(f.rotate !== undefined ? { rotate: f.rotate } : {}),
                         ...(f.flip !== undefined ? { flip: f.flip } : {}) };
     }
-    return { version: CUBE_SOURCE_VERSION, ...(doc.colorSpace ? { colorSpace: doc.colorSpace } : {}), faces };
+    return { version: CUBE_SOURCE_VERSION, ...(doc.colorSpace ? { colorSpace: doc.colorSpace } : {}), faces,
+             ...(panorama ? { panorama } : {}) };
 }

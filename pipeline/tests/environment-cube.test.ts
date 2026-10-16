@@ -200,3 +200,19 @@ describe('a cube source document', () => {
         expect(refused('nope').message).toMatch(/JSON object/);
     });
 });
+
+describe('a panorama image as the source instead of six faces', () => {
+    it('reads one picture, with no faces beside it', () => {
+        expect(parseCubeSource({ version: 1, colorSpace: 'linear', panorama: { file: 'sky/day.png' } })).toEqual({
+            version: 1, colorSpace: 'linear', faces: {}, panorama: { file: 'sky/day.png' },
+        });
+        expect(parseCubeSource({ version: 1, faces: {}, panorama: { file: 'a.jpg' } }).panorama).toEqual({ file: 'a.jpg' });
+    });
+
+    it('refuses faces and a picture together, and a picture with no file', () => {
+        expect(() => parseCubeSource({ version: 1, faces: { px: { file: 'a.png' } }, panorama: { file: 'b.png' } }))
+            .toThrow(/six faces or one panorama/);
+        expect(() => parseCubeSource({ version: 1, panorama: {} })).toThrow(/needs the "file"/);
+        expect(() => parseCubeSource({ version: 1, panorama: { file: '' } })).toThrow(/needs the "file"/);
+    });
+});
