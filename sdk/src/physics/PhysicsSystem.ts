@@ -205,7 +205,7 @@ function createPendingJoints(
     world: App['world'],
     module: PhysicsWasmModule,
     trackedEntities: Set<Entity>,
-    trackedJoints: Set<Entity>,
+    trackedJoints: Map<Entity, string>,
     invPpu: number,
 ): void {
     const jointEntities = world.getEntitiesWithComponents([HingeJoint2D, RigidBody2D]);
@@ -224,7 +224,7 @@ function createPendingJoints(
             joint.enableLimit ? 1 : 0, joint.lowerAngle, joint.upperAngle,
             joint.collideConnected ? 1 : 0,
         );
-        trackedJoints.add(entity);
+        if (module._physics_hasJoint(entity)) trackedJoints.set(entity, jointState(world, entity, invPpu)!);
     }
 
     for (const entity of world.getEntitiesWithComponents([DistanceJoint2D, RigidBody2D])) {
@@ -244,7 +244,7 @@ function createPendingJoints(
             j.enableMotor ? 1 : 0, j.maxMotorForce, j.motorSpeed,
             j.collideConnected ? 1 : 0,
         );
-        trackedJoints.add(entity);
+        if (module._physics_hasJoint(entity)) trackedJoints.set(entity, jointState(world, entity, invPpu)!);
     }
 
     for (const entity of world.getEntitiesWithComponents([SliderJoint2D, RigidBody2D])) {
@@ -264,7 +264,7 @@ function createPendingJoints(
             j.enableMotor ? 1 : 0, j.maxMotorForce, j.motorSpeed,
             j.collideConnected ? 1 : 0,
         );
-        trackedJoints.add(entity);
+        if (module._physics_hasJoint(entity)) trackedJoints.set(entity, jointState(world, entity, invPpu)!);
     }
 
     for (const entity of world.getEntitiesWithComponents([FixedJoint2D, RigidBody2D])) {
@@ -282,7 +282,7 @@ function createPendingJoints(
             j.linearDampingRatio, j.angularDampingRatio,
             j.collideConnected ? 1 : 0,
         );
-        trackedJoints.add(entity);
+        if (module._physics_hasJoint(entity)) trackedJoints.set(entity, jointState(world, entity, invPpu)!);
     }
 
     for (const entity of world.getEntitiesWithComponents([WheelJoint2D, RigidBody2D])) {
@@ -302,7 +302,7 @@ function createPendingJoints(
             j.enableMotor ? 1 : 0, j.maxMotorTorque, j.motorSpeed,
             j.collideConnected ? 1 : 0,
         );
-        trackedJoints.add(entity);
+        if (module._physics_hasJoint(entity)) trackedJoints.set(entity, jointState(world, entity, invPpu)!);
     }
 
     for (const entity of world.getEntitiesWithComponents([MotorJoint2D, RigidBody2D])) {
@@ -320,7 +320,7 @@ function createPendingJoints(
             j.angularHertz, j.angularDampingRatio, j.maxSpringTorque,
             j.collideConnected ? 1 : 0,
         );
-        trackedJoints.add(entity);
+        if (module._physics_hasJoint(entity)) trackedJoints.set(entity, jointState(world, entity, invPpu)!);
     }
 }
 
@@ -628,6 +628,14 @@ const COLLIDER_TYPES = [
 
 const JOINT_TYPES = [HingeJoint2D, DistanceJoint2D, SliderJoint2D, FixedJoint2D, WheelJoint2D, MotorJoint2D] as const;
 
+function jointState(world: App['world'], entity: Entity, invPpu: number): string | null {
+    for (let i = 0; i < JOINT_TYPES.length; ++i) {
+        const component = JOINT_TYPES[i];
+        if (world.has(entity, component)) return JSON.stringify([i, invPpu, world.get(entity, component)]);
+    }
+    return null;
+}
+
 /** Bitmask of which collider components an entity currently has. @internal */
 export function colliderSignature(world: App['world'], entity: Entity): number {
     let sig = 0;
@@ -691,7 +699,7 @@ export function registerPhysics2DSystem(
     config: ResolvedPhysics2DConfig,
 ): () => void {
     const trackedEntities = new Set<Entity>();
-    const trackedJoints = new Set<Entity>();
+    const trackedJoints = new Map<Entity, string>();
     const trackedOneWay = new Set<Entity>();
     const parentedBodies = new Set<Entity>();
     const cachedProps = new Map<Entity, CachedBodyProps>();
@@ -708,6 +716,8 @@ export function registerPhysics2DSystem(
         if (state && --state.references === 0) colliderStates.delete(value);
     };
     let lastEntitySyncTick = -1;
+    let lastJointInvPpu = NaN;
+    let lastJointWriteRevisions: number[] = [];
     // Events accumulated across this frame's fixed steps; published once per frame.
     const events: EventAccum = {
         collisionEnters: [], collisionExits: [], collisionHits: [], sensorEnters: [], sensorExits: [],
@@ -766,6 +776,7 @@ export function registerPhysics2DSystem(
                 // value captured when the wasm module first loaded.
                 const ppu = readPixelsPerUnit(app);
                 const invPpu = 1 / ppu;
+                const jointScaleChanged = invPpu !== lastJointInvPpu;
                 // Keep the query API's default scale in sync with the live Canvas,
                 // so raycast/overlap that omit `ppu` aren't silently scaled to 100.
                 if (app.hasResource(Physics2D)) app.getResource(Physics2D).setPixelsPerUnit(ppu);
@@ -773,6 +784,10 @@ export function registerPhysics2DSystem(
                 // component stamps retain the full-scan fallback for older hosts.
                 const structuralVersion = world.getWorldVersion();
                 const mutationBatch = mutations.read();
+                const jointWriteRevisions = mutationBatch ? null
+                    : JOINT_TYPES.map(component => world.mutationRevision(component, 'write'));
+                const jointWritesChanged = !!jointWriteRevisions
+                    && jointWriteRevisions.some((revision, i) => revision !== lastJointWriteRevisions[i]);
                 let needReconcile = structuralVersion !== lastStructuralVersion;
                 if (mutationBatch) needReconcile = mutationBatch.full || mutationBatch.entities.size > 0;
                 else if (!needReconcile) {
@@ -783,10 +798,11 @@ export function registerPhysics2DSystem(
                         }
                     }
                 }
+                needReconcile ||= jointScaleChanged || jointWritesChanged;
                 if (mutationBatch) {
                     for (const entity of mutationBatch.changed.get(Transform) ?? []) staticPoses.invalidate(entity);
                     if (mutationBatch.reset) {
-                        for (const entity of trackedJoints) module._physics_destroyJoint(entity);
+                        for (const entity of trackedJoints.keys()) module._physics_destroyJoint(entity);
                         trackedJoints.clear();
                         for (const entity of trackedOneWay) module._physics_setOneWayPlatform(entity, 0, 0, 0);
                         trackedOneWay.clear();
@@ -927,12 +943,14 @@ export function registerPhysics2DSystem(
                 }
 
                 // ── Joint reconcile ─────────────────────────────────────────
-                // Destroy joints whose definition changed or whose component was
-                // removed; createPendingJoints re-adds present+enabled ones.
-                for (const entity of [...trackedJoints]) {
-                    if (!trackedEntities.has(entity) || mutationBatch?.full
-                        || JOINT_TYPES.some(component => mutationBatch?.changed.get(component)?.has(entity))
-                        || jointChangedOrGone(world, entity, lastEntitySyncTick)
+                // Definition snapshots preserve solver state across full refreshes
+                // and identical writes. Missing solver joints must be recreated.
+                for (const [entity, state] of trackedJoints) {
+                    const changed = jointScaleChanged || (mutationBatch ? mutationBatch.full
+                        || JOINT_TYPES.some(component => mutationBatch.changed.get(component)?.has(entity))
+                        : jointWritesChanged || jointChangedOrGone(world, entity, lastEntitySyncTick));
+                    if (!trackedEntities.has(entity) || !module._physics_hasJoint(entity)
+                        || (changed && jointState(world, entity, invPpu) !== state)
                         || jointPartnerGone(world, entity, trackedEntities)) {
                         module._physics_destroyJoint(entity);
                         trackedJoints.delete(entity);
@@ -942,6 +960,8 @@ export function registerPhysics2DSystem(
                 syncOneWayPlatforms(world, module, trackedEntities, trackedOneWay, mutationBatch?.entities);
 
                 lastEntitySyncTick = world.getWorldTick();
+                lastJointInvPpu = invPpu;
+                if (jointWriteRevisions) lastJointWriteRevisions = jointWriteRevisions;
                 lastStructuralVersion = structuralVersion;
                 } // end if (needReconcile)
 
@@ -1017,6 +1037,6 @@ export function registerPhysics2DSystem(
     });
     return () => {
         offFrameEnd(); offDespawn(); staticPoses.dispose(); mutations.dispose();
-        colliderStates.clear(); cachedProps.clear();
+        colliderStates.clear(); cachedProps.clear(); trackedJoints.clear();
     };
 }

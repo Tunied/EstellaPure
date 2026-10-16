@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(physics): preserve unchanged joint projections':
+    { note: 'Unchanged 2D joints retain their solver state.' },
   'fix(ecs): scope native mutations to world ownership':
     { note: 'Physics reconciliation follows component mutation cursors.' },
   'perf(physics): reuse mutation checkpoints after pause':

@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Unchanged 2D joints retain their solver state.** Paused collision edits, full mutation-history refreshes and identical joint writes preserve existing constraints instead of destroying and recreating them. Missing solver joints recover on reconciliation, changes to the live Canvas scale rebuild joint dimensions, and older cores observe joint writes after a previous physics run in the same tick. All six joint types retain their enabled and partner-lifetime behavior.
+
 ## [0.89.2] - 2026-10-16
 
 ### Fixed
