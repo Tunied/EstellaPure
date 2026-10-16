@@ -28,6 +28,10 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(audio): connect sound event sources and graph triggers':
+    { note: 'Sound event sources share code and graph triggers.' },
+  'feat(editor): integrate sound event source references':
+    { note: 'Sound event sources share code and graph triggers.' },
   'refactor(audio): expose shared playback ownership':
     { internal: 'Provides canonical voice-state lookup, stop generations and complete cleanup for leased consumers without adding another global voice pool.' },
   'feat(audio): manage sound event playback lifetimes':

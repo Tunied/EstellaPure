@@ -122,7 +122,7 @@ const DISPOSITION = {
 
   // — owed: a creator-facing component nothing in the shipped corpus authors.
   //   Each reason names where the coverage belongs. —
-
+  SoundEventSource: ['owed', 'RM-066: author footsteps, button variants and rate-limited collisions in an audio-demo scene, then verify the exported build; component/graph and cook fixtures do not replace the complete example'],
 };
 
 const snapshot = JSON.parse(readFileSync(SNAPSHOT, 'utf8'));
