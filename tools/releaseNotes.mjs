@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(editor): the content browser list tints its type column by asset type':
+    { note: 'Content Browser tiles and the Details header are redrawn.' },
   'feat(editor): content browser tiles and the inspector header follow the new design':
     { note: 'Content Browser tiles and the Details header are redrawn.' },
   'fix(editor): animated sprites play in the viewport whether or not they are selected':
