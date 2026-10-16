@@ -556,7 +556,28 @@ export function separateSun(env: Panorama): EnvironmentSun | null {
     };
 }
 
-/** Everything a `.hdr` becomes, less the reference the caller has to resolve. */
+/** What an import measured about itself — the numbers an author weighs quality against. */
+export interface EnvironmentImportReport {
+    sourceWidth: number;
+    sourceHeight: number;
+    /** Mip 0's face edge, in texels, and how many mips follow it. */
+    faceSize: number;
+    mipCount: number;
+    /** The sky texture's size; 0 when none was written. */
+    skyWidth: number;
+    skyHeight: number;
+    atlasBytes: number;
+    skyBytes: number;
+    /** The radiance the RGBM encoding tops out at. */
+    maxRange: number;
+    /** The share of source texels with a channel above {@link maxRange}: what the sky and the
+     *  reflections clip, which a diffuse term (summed from the unclipped source) does not. */
+    clippedFraction: number;
+    /** The brightest channel in the source, so a clip can be told apart from a dim exposure. */
+    peak: number;
+}
+
+/** Everything a panorama becomes, less the reference the caller has to resolve. */
 export interface ImportedEnvironment {
     /** `<stem>_env.png` — the octahedral atlas. */
     atlasName: string;
@@ -568,37 +589,91 @@ export interface ImportedEnvironment {
     document: EnvironmentAssetData;
     /** What the source says that this import had to reinterpret. */
     warnings: string[];
+    report: EnvironmentImportReport;
+}
+
+/** Named quality settings: what an author picks between import time and image bytes. */
+export const ENV_QUALITY_PRESETS = {
+    low: { faceSize: 64, skyWidth: 1024 },
+    standard: { faceSize: ENV_FACE_SIZE, skyWidth: ENV_SKY_MAX_WIDTH },
+    high: { faceSize: 256, skyWidth: 4096 },
+} as const;
+export type EnvironmentQuality = keyof typeof ENV_QUALITY_PRESETS;
+
+/** The most an import is allowed to ask for: past these the memory and time are not a
+ *  quality setting but a way to run out of both. */
+export const ENV_MAX_FACE_SIZE = 1024;
+export const ENV_MAX_SKY_WIDTH = 8192;
+
+export interface EnvironmentImportOptions {
+    faceSize?: number;
+    mipCount?: number;
+    skyWidth?: number;
+    /** A named preset; an explicit `faceSize` or `skyWidth` wins over it. */
+    quality?: EnvironmentQuality;
+}
+
+/** Turn a Radiance panorama into the assets a scene can reference. */
+export function importEnvironment(bytes: Uint8Array, stem: string,
+                                  options: EnvironmentImportOptions = {}): ImportedEnvironment {
+    return importEnvironmentFromPanorama(decodeRadianceHdr(bytes), stem, options);
 }
 
 /**
- * Turn a Radiance panorama into the assets a scene can reference.
+ * Turn a panorama in linear light into the assets a scene can reference.
  *
  * @param faceSize Mip 0's face size; smaller is faster and is what tests use.
  * @param skyWidth The sky texture's widest edge; 0 writes none.
  */
-export function importEnvironment(bytes: Uint8Array, stem: string,
-                                  options: { faceSize?: number; mipCount?: number; skyWidth?: number } = {}):
-                                  ImportedEnvironment {
-    const faceSize = options.faceSize ?? ENV_FACE_SIZE;
-    const mipCount = mipCountFor(faceSize, options.mipCount ?? ENV_MIP_COUNT);
-    const panorama = decodeRadianceHdr(bytes);
+export function importEnvironmentFromPanorama(panorama: Panorama, stem: string,
+                                              options: EnvironmentImportOptions = {}): ImportedEnvironment {
+    const preset = ENV_QUALITY_PRESETS[options.quality ?? 'standard'];
     const warnings: string[] = [];
+    let faceSize = options.faceSize ?? preset.faceSize;
+    if (faceSize > ENV_MAX_FACE_SIZE) {
+        warnings.push(`faceSize ${faceSize} is past the ${ENV_MAX_FACE_SIZE} an import allows; it was imported at ${ENV_MAX_FACE_SIZE}`);
+        faceSize = ENV_MAX_FACE_SIZE;
+    }
+    let skyWidth = options.skyWidth ?? preset.skyWidth;
+    if (skyWidth > ENV_MAX_SKY_WIDTH) {
+        warnings.push(`skyWidth ${skyWidth} is past the ${ENV_MAX_SKY_WIDTH} an import allows; it was imported at ${ENV_MAX_SKY_WIDTH}`);
+        skyWidth = ENV_MAX_SKY_WIDTH;
+    }
+    const mipCount = mipCountFor(faceSize, options.mipCount ?? ENV_MIP_COUNT);
     // Equirectangular is 2:1 by construction. Another ratio still bakes, but the
     // sphere it wraps onto is not the one the file draws — said, not guessed at.
     if (Math.abs(panorama.width - panorama.height * 2) > 1) {
         warnings.push(`the panorama is ${panorama.width}x${panorama.height}, not the 2:1 an`
             + ' equirectangular projection is; it was wrapped as if it were');
     }
+    let clipped = 0, peak = 0;
+    for (let i = 0; i < panorama.rgb.length; i += 3) {
+        const m = Math.max(panorama.rgb[i]!, panorama.rgb[i + 1]!, panorama.rgb[i + 2]!);
+        if (m > peak) peak = m;
+        if (m > ENV_MAX_RANGE) clipped++;
+    }
+    const clippedFraction = clipped / Math.max(1, panorama.rgb.length / 3);
+    if (clipped > 0) {
+        warnings.push(`${(clippedFraction * 100).toFixed(2)}% of the source is brighter than the ${ENV_MAX_RANGE}`
+            + ` the sky and reflections store (peak ${peak.toFixed(1)}); those texels clip there, and the diffuse light does not`);
+    }
     const irradiance = projectIrradianceSH(panorama);
     const sun = separateSun(panorama);
     const atlas = prefilterOctahedral(panorama, faceSize, mipCount, ENV_MAX_RANGE);
-    const skyWidth = options.skyWidth ?? ENV_SKY_MAX_WIDTH;
     const sky = skyWidth > 0 ? encodeSkyPanorama(panorama, skyWidth, ENV_MAX_RANGE) : null;
+    const atlasBytes = encodeRgbaPng(atlas.width, atlas.height, atlas.rgba);
+    const skyBytes = sky ? encodeRgbaPng(sky.width, sky.height, sky.rgba) : null;
     return {
         atlasName: `${stem}_env.png`,
-        atlasBytes: encodeRgbaPng(atlas.width, atlas.height, atlas.rgba),
-        sky: sky ? { name: `${stem}_sky.png`, bytes: encodeRgbaPng(sky.width, sky.height, sky.rgba) } : null,
+        atlasBytes,
+        sky: sky && skyBytes ? { name: `${stem}_sky.png`, bytes: skyBytes } : null,
         warnings,
+        report: {
+            sourceWidth: panorama.width, sourceHeight: panorama.height, faceSize, mipCount,
+            skyWidth: sky?.width ?? 0, skyHeight: sky?.height ?? 0,
+            atlasBytes: atlasBytes.length, skyBytes: skyBytes?.length ?? 0,
+            maxRange: ENV_MAX_RANGE, clippedFraction, peak,
+        },
         document: {
             version: ENVIRONMENT_FORMAT_VERSION,
             irradiance: Array.from(irradiance),
