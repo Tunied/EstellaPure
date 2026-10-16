@@ -71,8 +71,36 @@ if (result.selection) {
 固定种子可重现片段及参数选择，不承诺后端采样同步；修改参数范围不会改变片段顺序。
 播放速率同时影响音高和时长，不是保时长变调。
 
-选择器只负责选择片段和参数。定义也保存总线、优先级、空间衰减、事件并发上限和冷却设置，调用者负责在播放时应用。
-事件级播放管理、专用制作界面、组件和可视化脚本接入仍在 RM-066 中继续实施。
+选择器只负责选择片段和参数。使用托管播放资源，可以同时应用事件设置并管理加载和声音生命周期。
+
+### 托管事件播放
+
+```typescript
+import { SoundEvents } from 'esengine';
+
+const events = app.getResource(SoundEvents);
+const emitter = await events.load('assets/steps.esaudioevent', { owner: entity, seed: 42 });
+const voice = emitter?.trigger(); // 空间事件也可传入世界坐标。
+if (voice) {
+  await voice.ready;
+  console.log(voice.status, voice.reason, voice.selection);
+}
+```
+
+重复触发时保留发射器。它持有事件定义租约及独立选择序列，固定种子重现该发射器的序列。
+同一资源的发射器共享事件并发与冷却，热更新前后的定义也共享名额。先检查事件准入，再加载选中的音频，
+最后由现有 Audio 声音池应用全局优先级和声音上限。加载中和暂停的请求均占名额。
+冷却从准入时开始，后续加载失败或全局池拒绝也不撤销冷却；停止不重置冷却。Audio 插件按模拟时间推进事件时钟。
+
+`ready` 在加载完成或取消时返回状态；`reason` 区分事件上限、冷却、空池、全零权重、全局上限、缺少位置和加载失败。
+加载错误包含事件路径及选中的槽位。加载期间也可修改音量/速率、暂停或停止。
+自然结束、停止、全局 `Audio.stopAll()`、对象销毁和 App 清理均归还音频租约。
+没有 owner 的发射器由调用者显式 `emitter.dispose()`；绑定对象的发射器在注册表断开时也会释放。
+`events.getStats()` 记录准入、实际声音创建、结束、停止和拒绝数量，不保留触发历史。
+
+空间事件复用 AudioSource 的衰减和声像计算，owner 需有世界变换，或在 `trigger()` 传入位置。
+没有监听器时以原点为监听位置。小游戏宿主不支持立体声声像时会报告该限制，但仍应用软件距离衰减。
+专用事件制作界面、组件和可视化脚本接入继续在 RM-066 中实施。
 
 ## `Audio` API 参考
 

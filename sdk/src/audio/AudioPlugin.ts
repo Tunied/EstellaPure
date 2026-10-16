@@ -13,6 +13,9 @@ import { calculateAttenuation, calculatePanning, spatialDistance, type SpatialAu
 import type { AudioHandle } from './PlatformAudioBackend';
 import { isEditor, isPlayMode } from '../ecs/env';
 import { log } from '../util/logger';
+import { Assets } from '../asset/AssetPlugin';
+import { SoundEvents, SoundEventPlayback } from './SoundEventPlayback';
+import { disposeAll } from '../util/disposeAll';
 
 /**
  * Where a transform IS, which for a parented entity is not where it says it is:
@@ -43,6 +46,8 @@ interface AudioPluginState {
     activeSourceHandles: Map<number, ActiveVoice>;
     playedEntities: Set<number>;
     audio: AudioAPI;
+    events: SoundEventPlayback;
+    offCoreDisconnect: () => void;
     released: boolean;
     offMemoryWarning: () => void;
     offAudioMute: () => void;
@@ -79,6 +84,12 @@ export class AudioPlugin implements Plugin {
         const mixer = backend.mixer;
         const audio = new AudioAPI(backend, mixer);
         app.insertResource(Audio, audio);
+        const events = new SoundEventPlayback(audio,
+            () => app.hasResource(Assets) ? app.getResource(Assets) : null,
+            owner => app.world.valid(owner) && (app.world.getCppRegistry()?.valid(owner) ?? true),
+            owner => app.world.has(owner, WorldTransform) ? worldPositionOf(app.world.get(owner, WorldTransform)) : null);
+        app.insertResource(SoundEvents, events);
+        const offCoreDisconnect = app.world.onCoreDisconnect(() => events.resetOwners());
         const muteOwner = {};
         const offAudioMute = (isPlatformInitialized()
             ? getPlatform().onAudioMute?.(muted => setAudioHostSuspended(audio, muteOwner, muted))
@@ -104,13 +115,10 @@ export class AudioPlugin implements Plugin {
 
         const offDespawn = app.world.onDespawn((entity: Entity) => {
             const voice = activeSourceHandles.get(entity);
-            if (voice) {
-                voice.handle.stop();
-                activeSourceHandles.delete(entity);
-            }
-            playedEntities.delete(entity);
+            activeSourceHandles.delete(entity); playedEntities.delete(entity);
+            disposeAll([() => events.stopOwner(entity), () => voice?.handle.stop()], action => action());
         });
-        const state = { activeSourceHandles, playedEntities, audio, offMemoryWarning, offAudioMute, offExecution, offDespawn, released: false };
+        const state = { activeSourceHandles, playedEntities, audio, events, offCoreDisconnect, offMemoryWarning, offAudioMute, offExecution, offDespawn, released: false };
         this.states_.set(app, state);
         this.latestState_ = state;
         const stopVoice = (id: number): void => {
@@ -166,6 +174,7 @@ export class AudioPlugin implements Plugin {
                             break;
                         }
                     }
+                    events.update(time.delta, listenerAt, listenerRight);
 
                     const sources = world.getEntitiesWithComponents([AudioSource]);
                     liveEntities.clear();
@@ -316,9 +325,10 @@ export class AudioPlugin implements Plugin {
     }
 
     private stopSources_(state: AudioPluginState): void {
-        for (const voice of state.activeSourceHandles.values()) voice.handle.stop();
+        const voices = [...state.activeSourceHandles.values()];
         state.activeSourceHandles.clear();
         state.playedEntities.clear();
+        disposeAll(voices, voice => voice.handle.stop());
     }
 
     stopAllSources(): void {
@@ -331,12 +341,8 @@ export class AudioPlugin implements Plugin {
         state.released = true;
         if (app) this.states_.delete(app);
         if (state === this.latestState_) this.latestState_ = null;
-        state.offAudioMute();
-        state.offExecution();
-        state.offMemoryWarning();
-        state.offDespawn();
-        this.stopSources_(state);
-        state.audio.dispose();
+        disposeAll([state.offAudioMute, state.offExecution, state.offMemoryWarning, state.offDespawn, state.offCoreDisconnect,
+            () => state.events.dispose(), () => this.stopSources_(state), () => state.audio.dispose()], action => action());
     }
 }
 
