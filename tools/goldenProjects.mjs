@@ -92,6 +92,24 @@ export const CENSUS_FLOOR = '0.60.0';
  * that does not exist, and release notes are a different act. Theirs is ungated.
  */
 export const SHIPPED = {
+  "Audio demo exercises authored sound events.":
+    { notCertifiable: "the example's sources are validated by check-examples; no packaged-frame act can decide which clip a seeded selection picked" },
+  "The Lighting panel names the scene's environment and binds it.":
+    { notCertifiable: "an editor authoring surface; the editor suite owns it" },
+  "Saved environment looks.":
+    { notCertifiable: "an editor authoring surface that writes environment assets; the editor suite owns it" },
+  "The Lighting panel explains the selected object's light.":
+    { notCertifiable: "an editor explanation surface over the shared light rule; the editor suite owns it" },
+  "An environment can be made from six images.":
+    { notCertifiable: "an importer writing an environment asset, covered by the pipeline and editor suites; no golden project carries an .escube yet" },
+  "OpenEXR panoramas import as environments.":
+    { notCertifiable: "an importer, covered by the pipeline and editor suites; no golden project carries an .exr yet" },
+  "A low-dynamic-range panorama picture can be the source.":
+    { notCertifiable: "an importer, covered by the editor suite; no golden project carries a panorama picture yet" },
+  "An environment import reports what it clipped":
+    { notCertifiable: "an import report shown in the editor, covered by the editor suite; no packaged game can read it" },
+  "The viewport can light the scene with a studio preview":
+    { notCertifiable: "an editor viewport preview that never reaches a build; the editor suite owns it" },
   'Sound events have a dedicated authoring panel.':
     { notCertifiable: 'editor authoring surface, driven by the sound-event-authoring editor check; no packaged game can tell how a definition was authored' },
   'Sound event sources share code and graph triggers.':

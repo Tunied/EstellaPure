@@ -14,6 +14,8 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+## [0.91.0] - 2026-10-16
+
 ### Added
 
 - **Audio demo exercises authored sound events.** Three weighted no-repeat footsteps, two sequential button variants and rate-limited collision bursts reuse the existing percussion clips. Source buttons expose seeded selection parameters and shared playback/rejection counts; normal exports retain all definitions and candidate dependencies, with an eight-voice project budget.
@@ -14574,7 +14576,8 @@ not kept before this file was introduced — see the Git history at
 `github.com/esengine/estella` for the full commit-level record since the first
 commit on 2026-01-25.
 
-[Unreleased]: https://github.com/esengine/estella/compare/v0.90.0...HEAD
+[Unreleased]: https://github.com/esengine/estella/compare/v0.91.0...HEAD
+[0.91.0]: https://github.com/esengine/estella/compare/v0.90.0...v0.91.0
 [0.90.0]: https://github.com/esengine/estella/compare/v0.89.2...v0.90.0
 [0.89.2]: https://github.com/esengine/estella/compare/v0.89.1...v0.89.2
 [0.89.1]: https://github.com/esengine/estella/compare/v0.89.0...v0.89.1
