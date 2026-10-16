@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Changed
+
+- **The interface font is a setting.** Choose Rounded (the default, which prefers HarmonyOS Sans SC or MiSans for Chinese text when installed), Sans, Serif, or the name of any font installed on the computer, under Settings › Editor › General › Appearance.
+
 ## [0.91.0] - 2026-10-16
 
 ### Added
