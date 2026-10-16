@@ -28,6 +28,12 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(editor): reuse bounded audio waveform peaks':
+    { note: 'Sound events have a dedicated authoring panel.' },
+  'feat(editor): author and preview sound event variants':
+    { note: 'Sound events have a dedicated authoring panel.' },
+  'feat(editor): integrate sound event authoring':
+    { note: 'Sound events have a dedicated authoring panel.' },
   'feat(audio): connect sound event sources and graph triggers':
     { note: 'Sound event sources share code and graph triggers.' },
   'feat(editor): integrate sound event source references':

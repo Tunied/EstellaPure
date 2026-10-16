@@ -119,7 +119,34 @@ Spatial events reuse AudioSource attenuation and panning; provide an owner with 
 world transform or a position to `trigger()`. Without a listener the origin is used.
 Mini-game hosts without stereo panning report that limitation while retaining
 software distance attenuation. See [Sound event source](#sound-event-source) for component
-and graph triggers. Dedicated event authoring and continuous preview remain in RM-066.
+and graph triggers.
+
+### Authoring sound events
+
+Choose **New → Create Sound Event** in the Content Browser, or select audio assets
+and use **Create Sound Event** in their context menu. Double-click a `.esaudioevent`
+to open its dedicated editor. Dropping audio into an empty event panel creates an
+event beside the first clip; dropping into an open event appends variants.
+
+Use the audio picker to add or replace clips. Drag rows or use the arrow buttons
+to reorder them; delete removes the slot, retaining its audio file. Weight `0`
+disables a slot. Selection mode, volume/rate ranges, bus, priority, concurrency,
+cooldown and optional spatial settings share the runtime's validated format.
+Edits participate in Undo/Redo, dirty-tab indicators, Save, autosave snapshots
+and external-file reload handling. Invalid files leave the current document intact.
+
+**Trigger** samples another variation; **Continuous** plays successive variations
+after completion while observing event cooldown and voice budgets. The preview
+uses the existing audio mixer and global pool, displays the last selected slot,
+clip, sampled volume and rate, and follows that voice with the shared waveform.
+Spatial preview places the source at the listener; test distance attenuation in
+the scene. The preview seed belongs to the editor, not the asset. Stopping or
+editing resets its stream; configure `SoundEventSource.seed` for runtime playback.
+
+Changing the definition, closing the panel, replacing the project or global Stop
+All cancels preview work. Waveform reuse keeps up to 64 peak arrays (about 200 KiB),
+without caching PCM in that cache. Disk changes and project replacement invalidate
+the peaks. Preview software checks do not replace device/output acceptance.
 
 ## `Audio` API reference
 

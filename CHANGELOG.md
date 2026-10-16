@@ -16,13 +16,17 @@ published separately; it ships inside the editor.
 
 ### Added
 
-- **Sound event sources share code and graph triggers.** SoundEventSource references the same validated event assets as SoundEvents; script graphs, FSM hooks and BT actions expose trigger/stop verbs. Same-frame triggers retain their order, cold definitions retain at most 256 intents per source, and source lifetime checks cancel stale definitions and clips after edits, removal, disable, Stop All or teardown. Scene preload, inspector pickers, UUID projection and export dependencies use the shared asset metadata. Dedicated event authoring and continuous preview remain in progress.
+- **Sound events have a dedicated authoring panel.** Create from audio selections or the Content Browser, drag in variants, reorder and edit weights/ranges with shared undo, save, reload and workspace handling. Continuous preview uses the runtime event manager and existing mixer/voice pool, showing the sampled clip and parameters alongside the shared waveform. A bounded peak cache avoids repeated waveform decoding and invalidates on disk/project changes.
+
+- **Sound event sources share code and graph triggers.** SoundEventSource references the same validated event assets as SoundEvents; script graphs, FSM hooks and BT actions expose trigger/stop verbs. Same-frame triggers retain their order, cold definitions retain at most 256 intents per source, and source lifetime checks cancel stale definitions and clips after edits, removal, disable, Stop All or teardown. Scene preload, inspector pickers, UUID projection and export dependencies use the shared asset metadata.
 
 - **Sound event playback owns pending and paused voices.** The per-App SoundEvents resource loads owned emitters, shares event concurrency and cooldown before clip IO, and routes selected clips through the existing Audio priority pool. Natural completion, Stop All, owner despawn, registry disconnect and App cleanup release receipts and cancel late starts. Requests expose selected parameters, lifecycle and rejection reasons; spatial events reuse source attenuation/panning. Pending admissions avoid rescanning the loading queue, and unchanged gains skip backend writes.
 
 - **Sound event definitions share deterministic selection.** Beta `.esaudioevent` assets validate weighted clip slots, sequential and no-repeat selection, volume/rate ranges and event playback settings. The shared selector uses independent seeded streams for clip and parameter choices, combines duplicate audio identities, and reports empty or disabled pools. Definitions load through Assets without decoding every candidate; export dependency scanning retains all candidates and UUID references survive file moves.
 
 ### Fixed
+
+- **Asset documents retain edits made during a save.** A completed JSON write only marks the document clean if its asset and path still match the written snapshot. Pending file opens are also invalidated when the project changes.
 
 - **Mixer bus edits retain the project's voice budget.** Adding, changing or removing a bus preserves the other audio settings, including an explicit unlimited voice count, instead of silently restoring the runtime default limit.
 
