@@ -12,6 +12,10 @@ source orbiting the listener.
 | `1` `2` `3` `4` / click a pad  | Kick / Snare / Hi-Hat / Clap             |
 | **Beat** button                | Toggle the looping beat (music bus)      |
 | **Master / Music / SFX**       | Click to cycle that bus's volume         |
+| `5` / **Footsteps**            | Three weighted variants, no immediate repeat |
+| `6` / **Button variants**      | Alternate two variants in sequence       |
+| Hold `7` / **Collision burst** | Eight attempts per frame / sixteen per click |
+| `0`                           | Stop the three event sources; restart their seeds on the next trigger |
 | *(nothing)*                    | The orbiting dot pans and swells on its own |
 
 ## What it shows
@@ -31,6 +35,27 @@ source orbiting the listener.
   moves between your ears as it swings by.
 
 ## How it works
+
+The three `SoundEventSource` buttons reference ordinary `.esaudioevent` files.
+They reuse the existing percussion WAVs as stand-ins for footsteps, button and
+collision sounds; no additional recordings are needed. Open those definitions
+in the editor's Sound Event panel to change weights, order and variation ranges.
+Playback rate changes pitch **and duration**.
+
+Footsteps use three weighted clips without immediate repeats; the button cycles
+two clips; collisions have a two-instance cap and an 80 ms cooldown. Each source
+has a fixed seed. `0` stops these sources, and the next trigger restarts their
+selection streams. The project also limits the shared audio pool to eight voices,
+including the original drums, beat and spatial hum. Event admission happens
+before clip loading, followed by the existing global priority/voice budget.
+
+The live readout uses `SoundEvents.getStats()` for actual played, rejected,
+active and pending counts. Attempts are not assumed to be audible plays.
+Holding `7` requests eight collision sounds per simulation frame (about 480/s
+at 60 fps); the cooldown rejects most before clip I/O. This deliberately varies
+with frame rate. The example keeps only counters and the latest result, not an
+ever-growing history. Export through the normal project build command: all three
+definitions and all their candidate clips follow the scene's UUID references.
 
 The visualizer is fed by a new SDK method, `audio.getSpectrum(out)`, which fills
 a `Uint8Array` with the master output's frequency magnitudes (0-255 per bin).
@@ -53,6 +78,7 @@ assets/
   scenes/main.esscene    # camera (+ AudioListener), pads, buttons, bars,
                          #   and the spatial hum source
   audio/*.wav            # kick / snare / hi-hat / clap, plus the looping hum
+  audio/*.esaudioevent   # footsteps / button / collision rules (existing clips)
 src/
   main.ts                # registers the systems
   config.ts              # pad samples, volume steps, spectrum bins
@@ -60,6 +86,7 @@ src/
   systems/
     preload.ts           # warm the buffer cache at startup
     sfx.ts               # pads → playSFX with pitch/pan variation
+    events.ts            # source triggers, collision stress and live admission counts
     beat.ts              # toggle the looping music-bus beat
     volume.ts            # cycle per-bus volume, update labels
     visualizer.ts        # real spectrum → bar heights (audio.getSpectrum)

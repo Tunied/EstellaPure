@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "clips": [
+    {
+      "clip": "@uuid:a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+      "weight": 3
+    },
+    {
+      "clip": "@uuid:d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f80",
+      "weight": 2
+    },
+    {
+      "clip": "@uuid:c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f",
+      "weight": 1
+    }
+  ],
+  "mode": "no-repeat",
+  "volume": [
+    0.45,
+    0.75
+  ],
+  "playbackRate": [
+    0.85,
+    1.15
+  ],
+  "bus": "sfx",
+  "priority": 2,
+  "maxInstances": 4,
+  "cooldown": 0.06
+}

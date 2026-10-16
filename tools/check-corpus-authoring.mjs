@@ -64,6 +64,7 @@ const NOT_INSTANCE_FORMATS = {
   '.esanimator': 'an animator graph: states and transitions over clips',
   '.estimeline': 'a timeline: tracks over time, addressed to entities the scene owns',
   '.esanim': 'a clip: curves over time',
+  '.esaudioevent': 'an audio event definition; source instances belong to scenes',
   '.esavatar': 'how one rig spells the joints another rig\'s clips name',
   '.esmaterial': 'a material: shader + uniform values',
   '.esshader': 'shader source',
@@ -122,7 +123,6 @@ const DISPOSITION = {
 
   // — owed: a creator-facing component nothing in the shipped corpus authors.
   //   Each reason names where the coverage belongs. —
-  SoundEventSource: ['owed', 'RM-066: author footsteps, button variants and rate-limited collisions in an audio-demo scene, then verify the exported build; component/graph and cook fixtures do not replace the complete example'],
 };
 
 const snapshot = JSON.parse(readFileSync(SNAPSHOT, 'utf8'));

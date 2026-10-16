@@ -3,6 +3,9 @@ import { defineComponent, defineTag } from 'esengine';
 // A drum pad. `index` selects its sample; `cooldown` debounces retriggers.
 export const Pad = defineComponent('Pad', { index: 0, cooldown: 0 });
 
+export const EventPad = defineComponent('EventPad', { index: 0 });
+export const EventStatusLabel = defineTag('EventStatusLabel');
+
 // The looping-beat toggle button, and its live On/Off label.
 export const BeatToggle = defineTag('BeatToggle');
 export const BeatLabel = defineTag('BeatLabel');

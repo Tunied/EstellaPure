@@ -10,10 +10,12 @@ import { beatSystem } from './systems/beat';
 import { orbitSystem } from './systems/orbit';
 import { volumeSystem, restoreVolumeSystem } from './systems/volume';
 import { visualizerSystem } from './systems/visualizer';
+import { eventSystem } from './systems/events';
 
 addStartupSystem(preloadSystem);
 addStartupSystem(restoreVolumeSystem);
 addSystemToSchedule(Schedule.Update, sfxSystem);
+addSystemToSchedule(Schedule.Update, eventSystem);
 addSystemToSchedule(Schedule.Update, beatSystem);
 addSystemToSchedule(Schedule.Update, orbitSystem);
 addSystemToSchedule(Schedule.Update, volumeSystem);

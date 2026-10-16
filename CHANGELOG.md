@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Added
+
+- **Audio demo exercises authored sound events.** Three weighted no-repeat footsteps, two sequential button variants and rate-limited collision bursts reuse the existing percussion clips. Source buttons expose seeded selection parameters and shared playback/rejection counts; normal exports retain all definitions and candidate dependencies, with an eight-voice project budget.
+
 ## [0.90.0] - 2026-10-15
 
 ### Added

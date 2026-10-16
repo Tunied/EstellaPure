@@ -28,6 +28,12 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(editor): integrate Play realm network permissions for issue #97':
+    { note: 'Editor Play can connect to game servers.' },
+  'fix(editor): allow game networking in the Play realm':
+    { note: 'Editor Play can connect to game servers.' },
+  'feat(examples): exercise sound event sources in audio demo':
+    { note: 'Audio demo exercises authored sound events.' },
   'perf(editor): reuse bounded audio waveform peaks':
     { note: 'Sound events have a dedicated authoring panel.' },
   'feat(editor): author and preview sound event variants':
