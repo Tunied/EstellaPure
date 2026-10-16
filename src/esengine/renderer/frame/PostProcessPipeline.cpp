@@ -21,7 +21,6 @@
 #include "../../resource/ShaderParser.hpp"
 #include "../../core/Log.hpp"
 #include <algorithm>
-#include <cmath>
 #include <cstring>
 
 #include "../rhi/GfxEnums.hpp"
@@ -84,11 +83,6 @@ resource::ShaderHandle PostProcessPipeline::compileBlit(const std::vector<std::s
         resource::ShaderParser::assembleStage(parsed, resource::ShaderStage::Fragment, "", features, target),
         /*rewriteLoose=*/false,
         resourceManager_.preferredShaderLanguage());
-}
-
-void PostProcessPipeline::setViewExposure(f32 ev) {
-    view_exposure_ = std::isfinite(ev) ? std::clamp(ev, -10.0f, 10.0f) : 0.0f;
-    context_.setViewExposure(view_exposure_);
 }
 
 /**

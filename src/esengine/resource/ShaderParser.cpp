@@ -1793,7 +1793,7 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
     headerLines += countNewlines(kFrameHeader);
 
     // Engine-owned frame block, injected into every stage (identical in both, so the
-    // program links). u_time = (elapsed s, delta s, view exposure EV, 0); u_viewport = canvas
+    // program links). u_time = (elapsed s, delta s, 0, 0); u_viewport = canvas
     // (w, h, 1/w, 1/h) in pixels; binding 3 (Shader::compile).
     static const char* kTimeHeader =
         "layout(std140) uniform TimeConstants { highp vec4 u_time; highp vec4 u_viewport; };\n";

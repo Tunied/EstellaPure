@@ -26,13 +26,6 @@ void renderer_init(u32 width, u32 height);
 void renderer_resize(u32 width, u32 height);
 void renderer_setQualityBudgets(u32 atlasSize, u32 cellSize, u32 cascades, u32 particleLimit);
 void renderer_setShadowDistance(f32 distance);
-/**
- * The editor view's lighting. mode 0 = the scene's own lights (the default, and the
- * only one a packaged build ever has); 1 = studio: a neutral sky, a key and a fill, in
- * their place. View state — nothing here is saved with a scene.
- */
-void renderer_setViewLighting(u32 mode, f32 rotationDegrees, f32 keyIntensity, f32 fillIntensity,
-                              f32 skyIntensity, bool showSky);
 void renderer_beginFrame(f32 elapsedSec);
 void renderer_begin(uintptr_t matrixPtr, u32 targetHandle, i32 clearFlags,
                     f32 r, f32 g, f32 b, f32 a,

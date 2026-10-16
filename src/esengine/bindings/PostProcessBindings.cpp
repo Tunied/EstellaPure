@@ -172,10 +172,6 @@ void postprocess_setOutputTransform(u32 transform) {
                                                             : OutputTransform::None);
 }
 
-void postprocess_setViewExposure(f32 ev) {
-    if (g_postProcessPipeline) g_postProcessPipeline->setViewExposure(ev);
-}
-
 void postprocess_clearPasses() {
     if (g_postProcessPipeline) {
         g_postProcessPipeline->clearPasses();

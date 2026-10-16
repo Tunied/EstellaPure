@@ -398,7 +398,6 @@ postprocess_setScreenUniformFloat: (passName: string, uniform: string, value: nu
 postprocess_setScreenUniformVec4: (passName: string, uniform: string, x: number, y: number, z: number, w: number) => void
 postprocess_setUniformFloat: (passName: string, uniform: string, value: number) => void
 postprocess_setUniformVec4: (passName: string, uniform: string, x: number, y: number, z: number, w: number) => void
-postprocess_setViewExposure: ((ev: number) => void) | undefined
 postprocess_shutdown: () => void
 probe_volume_create: ((resX: number, resY: number, resZ: number, shPtr: number) => number) | undefined
 probe_volume_release: ((volumeHandle: number) => void) | undefined
@@ -490,7 +489,6 @@ renderer_setShadowDistance: ((distance: number) => void) | undefined
 renderer_setStage: (stage: number) => void
 renderer_setTextureParams: (textureId: number, minFilter: number, magFilter: number, wrapS: number, wrapT: number) => void
 renderer_setViewId: ((view: number) => void) | undefined
-renderer_setViewLighting: ((mode: number, rotationDegrees: number, keyIntensity: number, fillIntensity: number, skyIntensity: number, showSky: boolean) => void) | undefined
 renderer_setViewport: (x: number, y: number, w: number, h: number) => void
 renderer_setYSortLayers: ((mask: number) => void) | undefined
 renderer_shadowStatus: ((entity: number, outPtr: number) => number) | undefined

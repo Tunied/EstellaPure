@@ -11,9 +11,6 @@ out vec4 fragColor;
 
 void main() {
     vec4 c = texture(u_texture, v_texCoord);
-    // The editor view's exposure (u_time.z, stops): zero outside the editor, where
-    // exp2(0) = 1 leaves every pixel as it was. Before the curve, like any exposure.
-    c = vec4(c.rgb * exp2(u_time.z), c.a);
 #ifdef ES_TONEMAP
     // The output transform: scene radiance can exceed 1.0 on an HDR target,
     // and this is the one place a chain maps it down. Before the OETF, which
@@ -33,7 +30,6 @@ void main() {
 #pragma fragment wgsl
 @fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
     var c = textureSampleLevel(t0, s0, v.v_texCoord, 0.0);
-    c = vec4f(c.rgb * exp2(tc.u_time.z), c.a);
 #ifdef ES_TONEMAP
     c = vec4f(acesFilmic(c.rgb), c.a);
 #endif

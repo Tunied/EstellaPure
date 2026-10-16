@@ -611,7 +611,6 @@ EMSCRIPTEN_BINDINGS(esengine_renderer) {
     emscripten::function("postprocess_isInitialized", &esengine::postprocess_isInitialized);
     emscripten::function("postprocess_setBypass", &esengine::postprocess_setBypass);
     emscripten::function("postprocess_setOutputTransform", &esengine::postprocess_setOutputTransform);
-    emscripten::function("postprocess_setViewExposure", &esengine::postprocess_setViewExposure);
     emscripten::function("postprocess_clearPasses", &esengine::postprocess_clearPasses);
     emscripten::function("postprocess_setOutputViewport", &esengine::postprocess_setOutputViewport);
     emscripten::function("postprocess_setPresentRequired", &esengine::postprocess_setPresentRequired);
@@ -767,7 +766,6 @@ EMSCRIPTEN_BINDINGS(esengine_renderer) {
     emscripten::function("renderer_setDepthLayers", &esengine::renderer_setDepthLayers);
     emscripten::function("renderer_setQualityBudgets", &esengine::renderer_setQualityBudgets);
     emscripten::function("renderer_setShadowDistance", &esengine::renderer_setShadowDistance);
-    emscripten::function("renderer_setViewLighting", &esengine::renderer_setViewLighting);
     emscripten::function("renderer_setCullingMask", &esengine::renderer_setCullingMask);
     emscripten::function("renderer_setViewId", &esengine::renderer_setViewId);
     emscripten::function("renderer_lodInspect", &esengine::renderer_lodInspect);

@@ -539,7 +539,6 @@ export interface ESEngineModule {
     /** The curve the chain applies on the way out: 0 = none, 1 = ACES filmic.
      *  Absent on an engine built before the output transform existed. */
     postprocess_setOutputTransform?(transform: number): void;
-    postprocess_setViewExposure?(ev: number): void;
     postprocess_clearPasses(): void;
     postprocess_setOutputViewport(x: number, y: number, w: number, h: number): void;
     /** Say a present is needed when the rects cannot: see PostProcessPipeline. */
@@ -667,7 +666,6 @@ export interface ESEngineModule {
     renderer_setQualityBudgets?(atlasSize: number, cellSize: number,
         cascades: number, particleLimit: number): void;
     renderer_setShadowDistance?(distance: number): void;
-    renderer_setViewLighting?(mode: number, rotationDegrees: number, keyIntensity: number, fillIntensity: number, skyIntensity: number, showSky: boolean): void;
     renderer_setCullingMask?(mask: number): void;
     renderer_setViewId?(view: number): void;
     renderer_lodInspect?(view: number, entity: number, outPtr: number): number;

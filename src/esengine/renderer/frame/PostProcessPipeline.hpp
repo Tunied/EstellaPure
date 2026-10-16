@@ -220,7 +220,6 @@ public:
         // to drawing straight at the surface rather than to a black frame.
         return initialized_ && ((!bypass_ && !passes_.empty()) || linear_output_
                                 || output_transform_ != OutputTransform::None
-                                || view_exposure_ != 0.0f
                                 || presentScales() || present_required_);
     }
 
@@ -307,9 +306,6 @@ public:
      *          than a pass of its own.
      */
     void setOutputTransform(OutputTransform transform) { output_transform_ = transform; }
-    /// The editor view's exposure in stops, applied by the blit. Engages the blit when
-    /// non-zero, since only the blit carries it; the value rides the frame's time block.
-    void setViewExposure(f32 ev);
     OutputTransform outputTransform() const { return output_transform_; }
 
     /**
@@ -440,7 +436,6 @@ private:
     u32 scene_samples_ = 1;
     void applySampleRequest();
     OutputTransform output_transform_ = OutputTransform::None;
-    f32 view_exposure_ = 0.0f;
     /// The graph resource the scene is drawn into, live between begin() and end().
     rg::ResourceId sceneResource_ = rg::kNoResource;
     TextureHandle sceneTexture_ = TextureHandle::Invalid;

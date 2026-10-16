@@ -46,8 +46,6 @@ export { CameraCommit, onCameraCommitChanged, cameraCommitChanged,
          type CameraCommitData, type CameraCommitListener } from './camera/CameraCommit';
 export { EditorView, DEFAULT_EDITOR_VIEW, editorViewHalfHeight, editorViewHalfExtent, editorViewWorldPerPixel, setEditorViewHalfHeight, editorViewIsOrbited, editorViewAxes, editorViewAxisAngles, editorViewBasis, editorViewEye, editorViewStandoff, editorViewClipFar, editorViewClipNear, editorViewWorkPlane, editorViewGridPlane, screenWorkAxes, worldAxisVector, moveEditorViewFocus, editorViewBoxExtent } from './camera/EditorView';
 export type { EditorViewData, ScreenAxis, EditorViewBasis, EditorWorkPlane, WorldAxis } from './camera/EditorView';
-export { EditorViewLighting, DEFAULT_EDITOR_VIEW_LIGHTING, EDITOR_EXPOSURE_RANGE, editorViewLightingIsOverriding, resetEditorViewLighting, editorViewLightingArgs, studioPreviewReport } from './camera/EditorViewLighting';
-export type { EditorViewLightingData, EditorLightingMode, StudioPreviewReport, SkyUnavailable, SceneDark } from './camera/EditorViewLighting';
 export { ScreenScaling, DEFAULT_SCREEN_SCALING, SCREEN_FIT_OFF } from './camera/ScreenScaling';
 export type { ScreenScalingData } from './camera/ScreenScaling';
 export { EditorGrid, DEFAULT_EDITOR_GRID } from './camera/EditorGrid';

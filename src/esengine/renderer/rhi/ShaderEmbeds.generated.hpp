@@ -251,9 +251,6 @@ out vec4 fragColor;
 
 void main() {
     vec4 c = texture(u_texture, v_texCoord);
-
-
-    c = vec4(c.rgb * exp2(u_time.z), c.a);
 #ifdef ES_TONEMAP
 
 
@@ -273,7 +270,6 @@ void main() {
 #pragma fragment wgsl
 @fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
     var c = textureSampleLevel(t0, s0, v.v_texCoord, 0.0);
-    c = vec4f(c.rgb * exp2(tc.u_time.z), c.a);
 #ifdef ES_TONEMAP
     c = vec4f(acesFilmic(c.rgb), c.a);
 #endif

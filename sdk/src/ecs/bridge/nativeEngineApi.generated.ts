@@ -119,7 +119,6 @@ export interface NativeEngineApi {
     postprocess_setScreenUniformVec4?(passName: string, uniform: string, x: number, y: number, z: number, w: number): void;
     postprocess_setUniformFloat?(passName: string, uniform: string, value: number): void;
     postprocess_setUniformVec4?(passName: string, uniform: string, x: number, y: number, z: number, w: number): void;
-    postprocess_setViewExposure?(ev: number): void;
     postprocess_shutdown?(): void;
     probe_volume_create?(resX: number, resY: number, resZ: number, shPtr: number): number;
     probe_volume_release?(volumeHandle: number): void;
@@ -203,7 +202,6 @@ export interface NativeEngineApi {
     renderer_setStage?(stage: number): void;
     renderer_setTextureParams?(textureId: number, minFilter: number, magFilter: number, wrapS: number, wrapT: number): void;
     renderer_setViewId?(view: number): void;
-    renderer_setViewLighting?(mode: number, rotationDegrees: number, keyIntensity: number, fillIntensity: number, skyIntensity: number, showSky: boolean): void;
     renderer_setViewport?(x: number, y: number, w: number, h: number): void;
     renderer_setYSortLayers?(mask: number): void;
     renderer_shadowStatus?(entity: number, outPtr: number): number;
@@ -419,7 +417,6 @@ export function createNativeEngineApi(
     bind('postprocess_setScreenUniformVec4', 'es_postprocess_setScreenUniformVec4', false);
     bind('postprocess_setUniformFloat', 'es_postprocess_setUniformFloat', false);
     bind('postprocess_setUniformVec4', 'es_postprocess_setUniformVec4', false);
-    bind('postprocess_setViewExposure', 'es_postprocess_setViewExposure', false);
     bind('postprocess_shutdown', 'es_postprocess_shutdown', false);
     bind('probe_volume_create', 'es_probe_volume_create', false);
     bind('probe_volume_release', 'es_probe_volume_release', false);
@@ -503,7 +500,6 @@ export function createNativeEngineApi(
     bind('renderer_setStage', 'es_renderer_setStage', false);
     bind('renderer_setTextureParams', 'es_renderer_setTextureParams', false);
     bind('renderer_setViewId', 'es_renderer_setViewId', false);
-    bind('renderer_setViewLighting', 'es_renderer_setViewLighting', false);
     bind('renderer_setViewport', 'es_renderer_setViewport', false);
     bind('renderer_setYSortLayers', 'es_renderer_setYSortLayers', false);
     bind('renderer_shadowStatus', 'es_renderer_shadowStatus', false);

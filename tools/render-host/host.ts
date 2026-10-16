@@ -22,7 +22,7 @@ import {
     getComponent, DeviceStatus, getDeviceStatus, getDeviceLostReport, recoverDevice,
     getContextLossGuardInfo, decodeImagePixels, captureFramePixels, captureFrame, replayDraw, BatchBreak,
     RenderTexture, Camera, Sprite,
-    EditorViewLighting, EditorView, EditorGrid, installEditorGrid, editorViewHalfHeight, setEditorViewHalfHeight,
+    EditorView, EditorGrid, installEditorGrid, editorViewHalfHeight, setEditorViewHalfHeight,
     ProfileRecorder, AnimatorController, Timeline, onDeviceRestored, Schedule, defineSystem,
     textureImportSettingsFrom,
 } from 'esengine';
@@ -670,18 +670,6 @@ const api = {
         const seen = editorViewHalfHeight(view);
         view.perspective = on;
         setEditorViewHalfHeight(view, seen);
-    },
-
-    /** The editor view's own lighting and exposure — view state, never part of the
-     *  scene. Pass nothing to return to the game's own settings. The eye the frame
-     *  is drawn through has to be the editor's, so this wakes it if it is asleep. */
-    setViewLighting(spec?: Record<string, unknown>): void {
-        if (!app) throw new Error('set_view_lighting before boot');
-        const view = app.getResource(EditorView);
-        if (!view.active) { seedEditorViewFromScene(); view.active = true; }
-        const lighting = app.getResource(EditorViewLighting);
-        if (!spec) { lighting.mode = 'scene'; lighting.exposure = 0; return; }
-        Object.assign(lighting, spec);
     },
 
     /** The reference grid. Enabling seeds and activates the eye it draws through,
