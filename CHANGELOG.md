@@ -18,6 +18,8 @@ published separately; it ships inside the editor.
 
 - **The interface font is a setting.** Choose Rounded (the default, which prefers HarmonyOS Sans SC or MiSans for Chinese text when installed), Sans, Serif, or the name of any font installed on the computer, under Settings › Editor › General › Appearance.
 
+- **The editor has a new set of design tokens and a tidier main window.** Surfaces step further apart, text is one size larger, corners are rounder and the title bar, tabs and property rows are taller. The viewport's readout now carries the selection's position and rotation, so the status bar loses its cursor and selection items and keeps the session's state, the frame's cost and the engine.
+
 ## [0.91.0] - 2026-10-16
 
 ### Added

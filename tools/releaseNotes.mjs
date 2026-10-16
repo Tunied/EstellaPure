@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(editor): design tokens v2 and a tidier main interface — selection readout in the viewport, a shorter status bar':
+    { note: 'The editor has a new set of design tokens and a tidier main window.' },
   'feat(editor): the interface font is a setting — rounded by default, sans, serif, or any installed family':
     { note: 'The interface font is a setting.' },
   'feat(editor): the outliner shows lock and visibility in labelled columns, and the Details header keeps help and menu in view':
