@@ -175,6 +175,14 @@ public:
     void setFrameTime(f32 elapsedSec, u32 viewportW, u32 viewportH);
 
     /**
+     * @brief The editor view's exposure, in stops, carried to the output blit in
+     *        u_time.z. VIEW state: zero (the default, and every packaged build) is
+     *        exp2(0) = 1, an exact no-op.
+     */
+    void setViewExposure(f32 ev) { viewExposure_ = ev; }
+    f32 viewExposure() const { return viewExposure_; }
+
+    /**
      * @brief The engine-side material registry (handle -> resolved render state).
      * @details Written by the SDK material binding (defineMaterial) and read by the render
      *          collect path to resolve a component's material handle into shader + pipeline
@@ -241,6 +249,7 @@ public:
 
 private:
     f32 lastElapsed_ = 0.0f;
+    f32 viewExposure_ = 0.0f;
     MaterialStore materials_;
     LightStore lights_;
     ProbeStore probes_;

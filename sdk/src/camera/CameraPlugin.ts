@@ -22,6 +22,7 @@ import { ScreenOverlay } from '../ui/core/screen-overlay';
 import { ProjectionType, SceneOwner, ClearFlags } from '../ecs/component';
 import { canvasRootEntities } from '../ui/core/canvas-roots';
 import { uiLayoutRect, computeEffectiveOrthoSize, EDITOR_VIEW_ENTITY, type CanvasScale } from './uiLayoutRect';
+import { EditorViewLighting, DEFAULT_EDITOR_VIEW_LIGHTING, pushEditorViewLighting } from './EditorViewLighting';
 import { EditorView, DEFAULT_EDITOR_VIEW, editorViewStandoff, editorViewClipFar, editorViewClipNear, type EditorViewData } from './EditorView';
 import { ScreenScaling, DEFAULT_SCREEN_SCALING, SCREEN_FIT_OFF } from './ScreenScaling';
 import { planPresent, viewportPixels, RenderResolution } from './presentPlan';
@@ -782,6 +783,9 @@ export function cameraPlugin(
             // The editor view is inactive by default — shipped games never touch
             // it; the editor activates it in edit mode (see desktop EngineHost).
             app.insertResource(EditorView, { ...DEFAULT_EDITOR_VIEW });
+            // Its lighting is the view's too: untouched, the scene renders by its own.
+            app.insertResource(EditorViewLighting, { ...DEFAULT_EDITOR_VIEW_LIGHTING });
+            let lastViewLighting = '';
             // The camera director: by default it just tracks the active camera;
             // games call setViewTarget(app, entity, {time, curve}) to blend, or
             // shakeCamera(app, {...}) to shake. Fresh state (own arrays) per App.
@@ -845,6 +849,12 @@ export function cameraPlugin(
                     // Transforms resolve BEFORE any camera is read — a view is built
                     // from Transform.worldPosition, and a pass behind the read hands
                     // back the previous frame's placement. beginFrame clears the memo.
+                    // The editor view's lighting reaches the engine only while that view is
+                    // the one drawing; play mode and shipped games push the neutral state.
+                    lastViewLighting = pushEditorViewLighting(
+                        module, app.getResource(EditorViewLighting),
+                        app.hasResource(EditorView) && app.getResource(EditorView).active,
+                        lastViewLighting);
                     pipeline.beginFrame(elapsed);
                     app.measureFrameScope('render.updateTransforms', () =>
                         Renderer.updateTransforms({ _cpp: cppRegistry }));

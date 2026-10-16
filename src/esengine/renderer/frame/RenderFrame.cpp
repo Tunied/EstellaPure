@@ -1236,6 +1236,12 @@ void RenderFrame::collectLights(ecs::Registry& registry) {
     environment_texture_id_ = 0;
     sky_texture_id_ = 0;
     draw_sky_ = false;
+    scene_sky_available_ = false;
+
+    if (view_lighting_.studio) {
+        collectStudioLights(registry);
+        return;
+    }
 
     // The frame's environment is decided before any light is: a directional light
     // following its sun needs it, and whether one does decides which irradiance
@@ -1413,6 +1419,82 @@ void RenderFrame::collectLights(ecs::Registry& registry) {
 
     // Last, because which lights the mask can carry is a question about the array the
     // loop above just filled.
+    collectShadow2D(registry);
+    collectShape2D(registry);
+}
+
+/// The studio rig. A sky that is light from above and less from below, so a surface
+/// reads by its facing even before a light touches it; the radiance is a + b*y, whose
+/// cosine-convolved nine coefficients (already over pi, like an imported environment's)
+/// are a/Y00 for the constant term and (2/3)*b/Y1 for the y one.
+static void neutralSkyIrradiance(std::array<glm::vec3, 9>& sh) {
+    constexpr f32 a = 0.45f;
+    constexpr f32 b = 0.15f;
+    sh.fill(glm::vec3(0.0f));
+    sh[0] = glm::vec3(a / 0.282095f);
+    sh[1] = glm::vec3((2.0f / 3.0f) * b / 0.488603f);
+}
+
+void RenderFrame::collectStudioLights(ecs::Registry& registry) {
+    LightStore& lights = context_.lights();
+    const ViewLighting& view = view_lighting_;
+
+    // The scene's own environment, found by the same rule the scene frame uses, only
+    // to be LOOKED AT: it never lights anything here.
+    auto lightView = registry.activeView<ecs::Light>();
+    for (auto entity : lightView) {
+        const auto& light = lightView.get(entity);
+        if (!light.enabled || light.intensity <= 0.0f) continue;
+        if (static_cast<ecs::LightType>(light.type) != ecs::LightType::Ambient) continue;
+        if (!light.environment.isValid()) continue;
+        const Environment* environment = resource_manager_.getEnvironment(light.environment);
+        if (!environment) continue;
+        u32 textureId = 0;
+        if (environment->hasSpecular()) {
+            if (Texture* atlas = resource_manager_.getTexture(environment->specular)) {
+                textureId = atlas->getId();
+            }
+        }
+        u32 panorama = 0;
+        if (environment->sky.isValid()) {
+            if (Texture* sky = resource_manager_.getTexture(environment->sky)) panorama = sky->getId();
+        }
+        scene_sky_available_ = textureId != 0 || panorama != 0;
+        if (view.showSky && scene_sky_available_) {
+            environment_texture_id_ = textureId;
+            sky_texture_id_ = panorama;
+            draw_sky_ = true;
+        }
+        break;
+    }
+
+    std::array<glm::vec3, 9> sh;
+    neutralSkyIrradiance(sh);
+    // params.x = 0: no specular atlas, so the sky is a diffuse term only.
+    lights.setEnvironment(sh.data(), glm::vec4(0.0f, 1.0f, 0.0f, 0.0f),
+                          glm::vec3(std::max(view.skyIntensity, 0.0f)), 0.0f);
+
+    auto rig = [&](f32 azimuthDeg, f32 elevationDeg, f32 intensity) {
+        if (intensity <= 0.0f) return;
+        const f32 az = glm::radians(azimuthDeg + view.rotation);
+        const f32 el = glm::radians(elevationDeg);
+        // Toward the light; a directional light's aim is the way it travels.
+        const glm::vec3 toLight(std::sin(az) * std::cos(el), std::sin(el), std::cos(az) * std::cos(el));
+        const glm::vec3 aim = -toLight;
+        GpuLight gpu;
+        gpu.color = glm::vec4(1.0f, 1.0f, 1.0f, intensity);
+        gpu.posDir = glm::vec4(aim.x, aim.y, 1.0f, aim.z);
+        lights.addLight(gpu);
+        ++light_cap_.accepted;
+    };
+    light_cap_.limit = MAX_LIGHTS;
+    // Key from the upper left of a viewer standing on +z; the fill low on the far side.
+    rig(-35.0f, 40.0f, view.keyIntensity);
+    rig(145.0f, 15.0f, view.fillIntensity);
+    light_cap_.requested = light_cap_.accepted;
+
+    // Last, as in the scene path: the masks are a question about the array just filled,
+    // and with none of the scene's lights in it they come back empty rather than stale.
     collectShadow2D(registry);
     collectShape2D(registry);
 }

@@ -336,6 +336,33 @@ public:
     const LightCapReport& lightCap() const { return light_cap_; }
 
     /**
+     * @brief The editor view's own lighting, in place of the scene's.
+     *
+     * @details VIEW state, not scene state: nothing here is a component, nothing is
+     *          saved, and a host that never calls the setter (every packaged build)
+     *          lights the scene by its own lights exactly as before. In studio mode
+     *          the frame ignores the scene's lights and lights with a neutral sky,
+     *          a key and a fill, so a model the scene left dark can be read. The
+     *          scene's environment may still be drawn as the BACKGROUND (`showSky`):
+     *          seeing the sky and being lit by it are separate questions.
+     */
+    struct ViewLighting {
+        bool studio = false;
+        /// Degrees about +Y that the key and fill turn together.
+        f32 rotation = 0.0f;
+        f32 keyIntensity = 0.8f;
+        f32 fillIntensity = 0.3f;
+        /// Scales the neutral sky's light; the scene's own Ambient is not consulted.
+        f32 skyIntensity = 1.0f;
+        /// Draw the scene's environment as the background while studio-lit.
+        bool showSky = false;
+    };
+    void setViewLighting(const ViewLighting& lighting) { view_lighting_ = lighting; }
+    const ViewLighting& viewLighting() const { return view_lighting_; }
+    /// Whether the frame found a scene environment it could draw as the background.
+    bool sceneSkyAvailable() const { return scene_sky_available_; }
+
+    /**
      * @brief Switch the frame to linear-light rendering (project colorSpace).
      * @details Sets the global ES_LINEAR shader input, linearizes CPU-side
      *          authored colors (lights, clears), and forces the post-process
@@ -604,6 +631,8 @@ private:
     /// (point/directional into the light array, ambient summed). Run each frame in collectAll;
     /// flush() uploads + binds the result so Lit material shaders read it.
     void collectLights(ecs::Registry& registry);
+    /// collectLights' studio branch: the view's neutral light in place of the scene's.
+    void collectStudioLights(ecs::Registry& registry);
 
     /** @brief Gathers the frame's LightProbeVolume components into the ProbeStore. */
     void collectProbes(ecs::Registry& registry);
@@ -882,6 +911,8 @@ private:
     f32 shadow_distance_ = 0.0f;
     ShadowPlanReport shadow_plan_;
     LightCapReport light_cap_;
+    ViewLighting view_lighting_;
+    bool scene_sky_available_ = false;
     /// The map's colour texture, handed to every mesh that receives it. 0 = none this frame.
     u32 shadow_texture_id_ = 0;
     /// The frame environment's reflection atlas, on the same terms. 0 = none this frame.
