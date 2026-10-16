@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(editor): retry the template directory removal in the APK test, as the others do':
+    { internal: 'A test cleanup now retries a directory removal on Windows; no creator project is affected.' },
   'feat(editor): a settings window of ten pages, one line a row, advanced settings folded':
     { note: 'The settings window is ten pages, not sixteen.' },
   'fix(editor): use the shared Button, Segmented and grid tokens in the lighting controls':
