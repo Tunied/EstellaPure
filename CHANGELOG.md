@@ -18,6 +18,8 @@ published separately; it ships inside the editor.
 
 - **The interface font is a setting.** Choose Rounded (the default, which prefers HarmonyOS Sans SC or MiSans for Chinese text when installed), Sans, Serif, or the name of any font installed on the computer, under Settings › Editor › General › Appearance.
 
+- **Details and segmented switches get the finer finish.** The prefab bar and the stale-override warning are flat tinted banners, a component's heads-up and action button match them, Add Component is a tinted button in the header, component glyphs carry a hue by kind, value wells use the smaller mono size, and a selected segment of any switch is a raised neutral instead of an accent fill.
+
 - **Details is redrawn in a flatter style.** Components are separated by a hairline rather than a dark band, the axis letters of a vector are coloured text rather than filled blocks, property rows keep a fixed label column, and a choice of two or three options is a segmented switch rather than a dropdown.
 
 - **Details fields fit better.** A gradient, curve, property map, effect list or set of weights takes the row's full width with its label above it; a four-value field (a rectangle, the four sides) is laid out two by two; and a curve key's interpolation is a themed dropdown instead of the system's.

@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  "feat(editor): Details banners, add button, segmented switches and component icons follow the board's finish":
+    { note: 'Details and segmented switches get the finer finish.' },
   "feat(editor): Details takes the board's style — flat sections, coloured axis letters, segmented switches for short choices":
     { note: 'Details is redrawn in a flatter style.' },
   "feat(editor): wide Details values take the row's width, rects and sides sit two by two, and a curve key's interpolation uses the themed select":
