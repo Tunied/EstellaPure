@@ -28,6 +28,8 @@ export class ComponentMutationReader {
     private lease: number | null = null;
     private cursor = 0;
     private first = true;
+    private bindingReset = false;
+    private disposed = false;
     private resetEpoch: number | null = null;
     private lastRegistry: CppRegistry | null = null;
     private readonly nativeTypes = new Map<number, AnyComponentDef>();
@@ -42,11 +44,14 @@ export class ComponentMutationReader {
         this.values = new Set([...components, ...subtree]);
         this.members = new Set([...this.values, ...topologyOnly]);
         this.offDisconnect = world.onCoreDisconnect(() => {
-            try { this.pause(); } finally { this.lastRegistry = null; this.resetEpoch = null; }
+            try { this.pause(); } finally {
+                this.bindingReset = true; this.lastRegistry = null; this.resetEpoch = null;
+            }
         });
     }
 
     private open(): boolean {
+        if (this.disposed) return false;
         if (this.lease !== null) return true;
         const api = worldEngineApi(this.world), registry = this.world.getCppRegistry();
         if (!registry?.componentTypeId || !api?.registry_watchEntityChanges || !api.registry_unwatchEntityChanges
@@ -90,7 +95,7 @@ export class ComponentMutationReader {
         for (const [component, reader] of this.topology) {
             for (const entity of world.mutationsForCursor(component, 'topology', reader)) note(component, entity, true);
         }
-        let reset = resetEpoch < 0 || resetEpoch !== this.resetEpoch;
+        let reset = this.bindingReset || resetEpoch < 0 || resetEpoch !== this.resetEpoch;
         let full = this.first || reset;
         if (nativeSequence !== this.cursor) {
             withMalloc({ _malloc: api._malloc!.bind(api), _free: api._free!.bind(api) },
@@ -137,6 +142,7 @@ export class ComponentMutationReader {
 
     commit(batch: ComponentMutationBatch): void {
         this.cursor = batch.nativeSequence; this.first = false;
+        this.bindingReset = false;
         this.resetEpoch = batch.resetEpoch;
         for (const [component, reader] of this.writes) this.world.advanceMutationCursor(component, 'write', reader, batch.writeSequence);
         for (const [component, reader] of this.topology) this.world.advanceMutationCursor(component, 'topology', reader, batch.topologySequence);
@@ -154,6 +160,7 @@ export class ComponentMutationReader {
     }
 
     dispose(): void {
+        this.disposed = true;
         try { this.pause(); } finally { this.lastRegistry = null; this.offDisconnect(); }
     }
 }

@@ -2,6 +2,8 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/app/app';
+import { World } from '../src/ecs/world';
+import { ComponentMutationReader } from '../src/ecs/ComponentMutationReader';
 import { Transform, Disabled } from '../src/ecs/component';
 import { Time } from '../src/ecs/resource';
 import { Schedule, defineSystem } from '../src/ecs/system';
@@ -164,5 +166,27 @@ describe.skipIf(!HAS_WASM || !hasSideModule('physics'))('component-driven physic
         expect(world.getStorageSizes().coreDisconnectCallbacks).toBe(0);
         expect(world.writeReaderCount(Transform)).toBe(0);
         expect(unwatch).toHaveBeenCalledOnce();
+    });
+
+    it('invalidates projections after a core switch and cannot reopen a disposed reader', () => {
+        const world = new World(), first = new core.Registry(), second = new core.Registry();
+        world.connectCpp(first, core);
+        const entity = world.spawn(); world.insert(entity, Transform);
+        expect(second.create()).toBe(entity);
+        second.addTransform(entity, first.getTransform(entity));
+        const reader = new ComponentMutationReader(world, [Transform], [], []);
+        try {
+            reader.commit(reader.read()!);
+            world.connectCpp(second, core);
+            expect(core.registry_readEntityChanges!(first, 0, 0, 0)).toBe(-1);
+            const current = reader.read()!;
+            expect(current.full).toBe(true); expect(current.reset).toBe(true);
+            reader.commit(current); reader.dispose();
+            expect(reader.read()).toBeNull();
+            expect(world.writeReaderCount(Transform)).toBe(0);
+            expect(core.registry_readEntityChanges!(second, 0, 0, 0)).toBe(-1);
+        } finally {
+            reader.dispose(); world.disconnectCpp(); first.delete(); second.delete();
+        }
     });
 });

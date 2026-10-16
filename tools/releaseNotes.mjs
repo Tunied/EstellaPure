@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ecs): invalidate projections when the core changes':
+    { note: 'Physics reconciliation follows component mutation cursors.' },
   'perf(physics): reconcile only changed body definitions':
     { note: 'Physics reconciliation follows component mutation cursors.' },
   'refactor(ecs): unify SDK and native mutation cursors':
