@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  "feat(editor): wide Details values take the row's width, rects and sides sit two by two, and a curve key's interpolation uses the themed select":
+    { note: 'Details fields fit better.' },
   'feat(editor): design tokens v2 and a tidier main interface — selection readout in the viewport, a shorter status bar':
     { note: 'The editor has a new set of design tokens and a tidier main window.' },
   'feat(editor): the interface font is a setting — rounded by default, sans, serif, or any installed family':
