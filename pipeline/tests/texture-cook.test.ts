@@ -11,6 +11,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { cookTexture, loadTextureEncoder } from '../src/assets/textureCook';
 import { cookAssets } from '../src/assets/cookAssets';
+import { readKtx2Layout } from '../src/assets/ktx2Mips';
 import { noisePng, solidPng } from './fixtures/solidPng.mjs';
 
 describe('a texture compressed for the editor', () => {
@@ -122,4 +123,28 @@ describe('a texture compressed for the editor', () => {
       rmSync(r, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     }
   }, 60_000);
+});
+
+describe('a UASTC texture the cook ships', () => {
+  it('is zstd-supercompressed, smaller than plain UASTC, and decodes to the same pixels', async () => {
+    const r = mkdtempSync(path.join(tmpdir(), 'estella-texcook-zstd-'));
+    try {
+      const png = solidPng(128, 128, [200, 90, 40, 255]);
+      const encoder = await loadTextureEncoder();
+      const cooked = await cookTexture({
+        root: r, path: 't/flat.png', data: new Uint8Array(png), ext: '.png', importer: { compress: 'on' },
+        encoder, compressTextures: true, atlasTextures: false, drawnIn3D: false,
+      });
+      expect(cooked.ext).toBe('.ktx2');
+      const layout = readKtx2Layout(cooked.data)!;
+      const plain = await encoder.module.encodeToKtx2({ type: encoder.module.ImageType.PNG, data: new Uint8Array(png) },
+        { mode: 'uastc', srgb: layout.srgb });
+      expect(layout.scheme).toBe(2);
+      expect(cooked.data.length).toBeLessThan(plain.length);
+      const [a, b] = await Promise.all([encoder.module.transcodeKtx2ToRgba(cooked.data), encoder.module.transcodeKtx2ToRgba(plain)]);
+      expect(Buffer.from(a.pixels).equals(Buffer.from(b.pixels))).toBe(true);
+    } finally {
+      rmSync(r, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+    }
+  });
 });
