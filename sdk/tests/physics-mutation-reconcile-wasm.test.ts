@@ -237,4 +237,17 @@ describe.skipIf(!HAS_WASM || !hasSideModule('physics'))('component-driven physic
         expect(world.has(bodies[0], RigidBody2D)).toBe(false);
         expect(hit()).toBeUndefined();
     });
+
+    it('follows a native ancestor without adding it to World-owned component queries', async () => {
+        const { app, world, registry, root, bodies, hit } = await scene();
+        const nativeParent = registry.create();
+        registry.addTransform(nativeParent, registry.getTransform(root));
+        registry.setParent(bodies[0], nativeParent); await app.tick(1 / 60);
+        expect(world.valid(nativeParent)).toBe(false);
+        expect(world.getEntitiesWithComponents([Transform])).not.toContain(nativeParent);
+        registry.setEntityEnabled!(nativeParent, false); await app.tick(1 / 60);
+        expect(hit()).toBeUndefined();
+        registry.setEntityEnabled!(nativeParent, true); await app.tick(1 / 60);
+        expect(hit()).toBeCloseTo(-5, 3);
+    });
 });

@@ -231,7 +231,7 @@ export class World {
 
     /** @internal Refresh membership mirrors after an observed native mutation. */
     refreshBuiltinMembership(entity: Entity, component: AnyComponentDef): void {
-        if (!isBuiltinComponent(component)) return;
+        if (!isBuiltinComponent(component) || !this.valid(entity)) return;
         const set = this.builtin_.getEntitySet(component._cppName);
         const present = this.builtin_.getBuiltinMethods(component._cppName).has(entity);
         if (set && set.has(entity) !== present) {

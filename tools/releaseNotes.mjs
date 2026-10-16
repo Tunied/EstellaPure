@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(ecs): scope native mutations to world ownership':
+    { note: 'Physics reconciliation follows component mutation cursors.' },
   'perf(physics): reuse mutation checkpoints after pause':
     { note: 'Physics reconciliation follows component mutation cursors.' },
   'fix(ecs): invalidate projections when the core changes':

@@ -149,7 +149,7 @@ export class ComponentMutationReader {
             const pending = [...roots], visited = new Set<Entity>();
             while (pending.length) {
                 const entity = pending.pop()!;
-                if (visited.has(entity) || !world.valid(entity)) continue;
+                if (visited.has(entity) || !world.valid(entity) && !registry.valid(entity)) continue;
                 visited.add(entity); entities.add(entity);
                 if (hasChildren?.(entity)) for (const child of world.get(entity, Children).entities) pending.push(child);
             }
