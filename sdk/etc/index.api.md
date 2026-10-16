@@ -1104,6 +1104,9 @@ ResourceDef<AudioAPI>
 
 ## AudioAPI — class @experimental
 ```
+@internal getVoiceState: (handle: AudioHandle) => "playing" | "paused" | "ended" | "stopped" | "untracked"
+@internal onPlaybackStop: (callback: (generation: number) => void) => () => void
+@internal playbackGeneration: number
 baseUrl: string
 bufferBudget: number
 delivery: AudioDelivery

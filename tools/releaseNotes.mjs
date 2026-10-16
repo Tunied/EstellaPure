@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'refactor(audio): expose shared playback ownership':
+    { internal: 'Provides canonical voice-state lookup, stop generations and complete cleanup for leased consumers without adding another global voice pool.' },
   'feat(audio): add deterministic sound event definitions':
     { note: 'Sound event definitions share deterministic selection.' },
   'feat(editor): recognize sound event definitions':

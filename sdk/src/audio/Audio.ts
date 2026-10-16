@@ -6,6 +6,7 @@ import type { BusEffectDef } from './BusEffects';
 import { defineResource } from '../ecs/resource';
 import { RuntimeConfig } from '../defaults';
 import { log } from '../util/logger';
+import { disposeAll } from '../util/disposeAll';
 
 const hostSuspensions = new WeakMap<AudioAPI, { owners: Set<object>; sync(): void }>();
 
@@ -87,6 +88,7 @@ interface SoftVoice {
     handle: AudioHandle;
     publicHandle?: AudioHandle;
     paused: boolean;
+    retired?: boolean;
     bus: string;
     base: number;
     fade: number;
@@ -111,6 +113,8 @@ interface Fade {
 }
 
 export class AudioAPI {
+    private readonly voiceStates_ = new WeakMap<AudioHandle, SoftVoice>();
+    private readonly playbackStops_ = new Set<(generation: number) => void>();
     private readonly backend_: PlatformAudioBackend;
     private readonly mixer_: AudioMixer | null;
     private readonly bufferCache_ = new Map<string, BufferEntry>();
@@ -528,20 +532,40 @@ export class AudioAPI {
 
     stopAll(): void {
         this.bgmRequest_++;
-        this.playbackEpoch_++;
+        const generation = ++this.playbackEpoch_;
         const voices = this.softVoices_;
         this.softVoices_ = [];
         this.bgmHandle_ = null;
         this.fades_.length = 0;
         this.fadingOut_.clear();
         const stopped = new Set<AudioHandle>();
+        const actions: Array<() => void> = [];
         for (const voice of voices) {
-            voice.paused = false;
+            voice.paused = false; voice.retired = true;
             if (!stopped.has(voice.handle)) {
                 stopped.add(voice.handle);
-                voice.handle.stop();
+                actions.push(() => voice.handle.stop());
             }
         }
+        for (const callback of this.playbackStops_) actions.push(() => callback(generation));
+        disposeAll(actions, action => action());
+    }
+
+    /** @internal Generation boundary for pending playback intents. */
+    get playbackGeneration(): number { return this.playbackEpoch_; }
+
+    /** @internal Terminal and paused ownership comes from the global voice pool. */
+    getVoiceState(handle: AudioHandle): 'playing' | 'paused' | 'ended' | 'stopped' | 'untracked' {
+        const voice = this.voiceStates_.get(handle);
+        if (!voice) return 'untracked';
+        if (voice.retired) return 'stopped';
+        return voice.paused ? 'paused' : voice.handle.isPlaying ? 'playing' : 'ended';
+    }
+
+    /** @internal Stop pending consumers after every old backend voice was stopped. */
+    onPlaybackStop(callback: (generation: number) => void): () => void {
+        this.playbackStops_.add(callback);
+        return () => { this.playbackStops_.delete(callback); };
     }
 
     stopBGM(fadeOut?: number): void {
@@ -718,7 +742,7 @@ export class AudioAPI {
         const api = this;
         const managed: AudioHandle = {
             get id() { return handle.id; },
-            stop() { voice.paused = false; handle.stop(); },
+            stop() { if (!voice.retired) { voice.retired = true; voice.paused = false; handle.stop(); } },
             pause() {
                 if (!handle.isPlaying) return;
                 handle.pause();
@@ -743,6 +767,7 @@ export class AudioAPI {
             set onEnd(callback) { handle.onEnd = callback; },
         };
         voice.publicHandle = managed;
+        this.voiceStates_.set(managed, voice);
         this.softVoices_.push(voice);
         return managed;
     }
@@ -768,6 +793,7 @@ export class AudioAPI {
         }
         if (!weakest || weakest.priority > priority) return false;
         weakest.paused = false;
+        weakest.retired = true;
         weakest.handle.stop();
         this.softVoices_ = this.softVoices_.filter((v) => v !== weakest);
         return true;
@@ -861,13 +887,11 @@ export class AudioAPI {
         // Scripted effects and AudioSource voices also belong to this device.
         // Closing a Web Audio context alone leaves their handles marked playing,
         // and a different backend may require explicit stops before disposal.
-        this.stopAll();
-        this.loadingBuffers_.clear();
-        for (const [url, entry] of this.bufferCache_) this.freeBuffer_(url, entry);
-        this.bufferSources_.clear();
-        this.evictOrder_.clear();
-        this.residentBytes_ = 0;
-        this.backend_?.dispose();
+        disposeAll([() => this.stopAll(), () => this.playbackStops_.clear(), () => {
+            this.loadingBuffers_.clear();
+            try { disposeAll([...this.bufferCache_], ([url, entry]) => { this.freeBuffer_(url, entry); }); }
+            finally { this.bufferCache_.clear(); this.bufferSources_.clear(); this.evictOrder_.clear(); this.residentBytes_ = 0; }
+        }, () => this.backend_?.dispose()], action => action());
     }
 
     /**
