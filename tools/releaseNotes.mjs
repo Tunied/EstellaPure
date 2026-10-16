@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(editor): the outliner has one Add menu and a live pill, and the launcher keeps New project in one place':
+    { note: 'The Outliner and the launcher lose their duplicate controls.' },
   'feat(editor): every document editor wears one header — file name, a stat, Save, tools on a second row':
     { note: 'Every document editor and every Details view has one header.' },
   'feat(editor): one inspector header for entities, assets, folders and the live game':
