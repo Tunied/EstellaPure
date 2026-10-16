@@ -58,6 +58,22 @@ export interface AudioListenerData {
     enabled: boolean;
 }
 
+/** An entity-owned event definition; all voices share the Audio voice budget. @beta */
+export interface SoundEventSourceData {
+    event: string;
+    seed: number;
+    playOnAwake: boolean;
+    enabled: boolean;
+}
+
+/** Trigger with triggerSoundEventSource or the soundEvent.trigger graph action. @beta */
+export const SoundEventSource = defineComponent<SoundEventSourceData>('SoundEventSource', {
+    event: '', seed: 0, playOnAwake: false, enabled: true,
+}, {
+    assetFields: [{ field: 'event', type: 'sound-event' }],
+    fields: { seed: { tooltip: 'Fixed 32-bit seed for this source selection stream.' } },
+});
+
 export const AudioListener = defineComponent<AudioListenerData>('AudioListener', {
     enabled: true,
 });

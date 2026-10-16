@@ -91,6 +91,7 @@ export const EXT_TO_TYPE = Object.freeze({
     '.esanimator': 'animatorcontroller',
     '.esavatar': 'avatar',
     '.eslocale': 'locale',
+    '.esaudioevent': 'sound-event',
     '.inputmap': 'inputmap',
     // Fonts
     '.fnt': 'bitmapFont',

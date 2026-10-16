@@ -28,12 +28,28 @@ vi.mock('../src/platform/base', async original => ({
 const { App } = await import('../src/app/app');
 const { AudioPlugin } = await import('../src/audio/AudioPlugin');
 const { Audio } = await import('../src/audio/Audio');
-const { AudioSource } = await import('../src/audio/AudioComponents');
+const { AudioSource, SoundEventSource } = await import('../src/audio/AudioComponents');
+const { triggerSoundEventSource } = await import('../src/audio/SoundEventSource');
 const { SoundEvents } = await import('../src/audio/SoundEventPlayback');
 const { Assets } = await import('../src/asset/AssetPlugin');
 const { parseSoundEvent } = await import('../src/audio/SoundEvent');
 const apps: ReturnType<typeof App.new>[] = [];
 function build(plugin: InstanceType<typeof AudioPlugin>) { const app=App.new(); apps.push(app); app.addPlugin(plugin); return app; }
+
+it('drives awake event sources and cancels queued definitions on disconnect and cleanup', async () => {
+    const app = build(new AudioPlugin()), owner = app.world.spawn(), release = vi.fn();
+    const lease = { key: 'steps', generation: 1, value: parseSoundEvent({ version: 1, clips: [] }), release, retain: () => null };
+    let resolve!: (value: typeof lease) => void;
+    const acquire = vi.fn().mockResolvedValueOnce(lease).mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+    app.insertResource(Assets, { acquireTyped: acquire } as unknown as import('../src/asset/Assets').Assets);
+    app.world.insert(owner, SoundEventSource, { event: 'steps.esaudioevent', playOnAwake: true });
+    await app.tick(1 / 60); await app.tick(1 / 60);
+    expect(acquire).toHaveBeenCalledOnce(); expect(app.getResource(SoundEvents).getStats().rejected).toBe(1);
+    app.world.disconnectCpp(); expect(release).toHaveBeenCalledOnce();
+    const pending = triggerSoundEventSource(app.world, owner); app.quit();
+    expect(await pending).toBeNull(); resolve(lease); await new Promise(done => setTimeout(done, 0));
+    expect(release).toHaveBeenCalledTimes(2); expect(await triggerSoundEventSource(app.world, owner)).toBeNull();
+});
 afterEach(() => { for(const app of apps.splice(0)) app.quit(); backends.length=0; listeners.clear(); muteListeners.clear(); hostMuted=false; });
 it('host mute overrides game resume and preserves explicit suspension after host unmute', () => {
     hostMuted = true;

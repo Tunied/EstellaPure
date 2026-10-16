@@ -4034,6 +4034,36 @@
       ]
     },
     {
+      "name": "SoundEventSource",
+      "source": "ts",
+      "fields": [
+        {
+          "key": "event",
+          "type": "Asset<sound-event>",
+          "default": "none"
+        },
+        {
+          "key": "seed",
+          "type": "number",
+          "default": "0",
+          "doc": "Fixed 32-bit seed for this source selection stream."
+        },
+        {
+          "key": "playOnAwake",
+          "type": "boolean",
+          "default": "false"
+        },
+        {
+          "key": "enabled",
+          "type": "boolean",
+          "default": "true"
+        }
+      ],
+      "animatable": [
+        "seed"
+      ]
+    },
+    {
       "name": "SphereCollider3D",
       "source": "cpp",
       "fields": [

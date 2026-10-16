@@ -1559,6 +1559,7 @@ export class Assets {
         // types) would strip the alias and leave play-realm lookups keyless.
         const animClipPaths = discovered.rawByType.get('anim-clip') ?? new Set<string>();
         const audioPaths = discovered.byType.get('audio') ?? new Set<string>();
+        const soundEventPaths = discovered.byType.get('sound-event') ?? new Set<string>();
         const tilemapPaths = discovered.byType.get('tilemap') ?? new Set<string>();
         const tilesetPaths = discovered.byType.get('tileset') ?? new Set<string>();
         const timelinePaths = discovered.byType.get('timeline') ?? new Set<string>();
@@ -1686,6 +1687,7 @@ export class Assets {
         pushAcquire(tilesetPaths, p => this.acquireTypedLease_('tileset', p), 'tileset');
         pushAcquire(timelinePaths, p => this.acquireTypedLease_('timeline', p), 'timeline');
         pushAcquire(audioPaths, p => this.acquireTypedLease_('audio', p), 'audio');
+        pushAcquire(soundEventPaths, p => this.acquireTypedLease_('sound-event', p), 'sound-event');
         // FSM/BT loaders register the parsed definition into the shared AI store
         // under the asset path, so a StateMachineAgent/BehaviorTreeAgent whose
         // fsm/bt is that path resolves once the scene finishes preloading.

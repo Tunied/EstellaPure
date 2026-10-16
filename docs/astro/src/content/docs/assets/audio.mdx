@@ -118,8 +118,8 @@ started, ended, stopped and rejected counts without storing trigger history.
 Spatial events reuse AudioSource attenuation and panning; provide an owner with a
 world transform or a position to `trigger()`. Without a listener the origin is used.
 Mini-game hosts without stereo panning report that limitation while retaining
-software distance attenuation. The dedicated event editor and component/visual-script
-integration remain in RM-066.
+software distance attenuation. See [Sound event source](#sound-event-source) for component
+and graph triggers. Dedicated event authoring and continuous preview remain in RM-066.
 
 ## `Audio` API reference
 
@@ -380,6 +380,44 @@ const gain = calculateAttenuation(250, {
 });                                                  // 0.4 — refDistance / distance
 const pan = calculatePanning(600, 0, 0, 0, 1000);    // 0.6 — to the right
 ```
+
+### Sound event source
+
+Add `SoundEventSource` to an entity and pick its `.esaudioevent` resource. Scene
+preloading acquires the definition without decoding all its candidates. The
+component's `seed` (default `0`) fixes its choice stream; `playOnAwake` plays once
+per enabled component lifetime. Changing the event or seed creates a new stream.
+
+```typescript
+import { SoundEventSource, triggerSoundEventSource, stopSoundEventSource } from 'esengine';
+
+app.world.insert(entity, SoundEventSource, { event: 'assets/steps.esaudioevent', seed: 42 });
+const voice = await triggerSoundEventSource(app.world, entity);
+if (voice) {
+  await voice.ready;
+  console.log(voice.status, voice.reason, voice.selection);
+}
+stopSoundEventSource(app.world, entity);
+```
+
+Use `soundEvent.trigger` / `soundEvent.stop` in script graphs, FSM hooks or BT
+actions to reach the same source. Each trigger is independent, including multiple
+triggers in one frame. Graph actions continue immediately while loading proceeds.
+They do not wait for clip completion.
+
+Cold definitions queue at most 256 intents per source, in FIFO order. Excess
+intents, unavailable/disabled sources, failed definitions and cancelled intents
+resolve to `null`. A returned handle reports clip loading and event/global voice
+rejections separately. Event cooldown begins when the loaded definition admits
+an intent, so several cold intents may share an admission time.
+
+Stopping cancels this source's queue and voices; other emitters on the entity
+remain owned by their callers. A later trigger restarts this source's seeded
+stream. Disable, removal, event/seed changes, inactive hierarchy, despawn and
+registry disconnect invalidate its old lifetime. These checks also run after
+asynchronous loads, preventing a late clip from playing before the next frame.
+Global `Audio.stopAll()` cancels pending source intents while preserving prepared
+definitions. Local source stop does not replay `playOnAwake` on the next frame.
 
 ## Best practices
 

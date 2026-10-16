@@ -100,7 +100,7 @@ if (voice) {
 
 空间事件复用 AudioSource 的衰减和声像计算，owner 需有世界变换，或在 `trigger()` 传入位置。
 没有监听器时以原点为监听位置。小游戏宿主不支持立体声声像时会报告该限制，但仍应用软件距离衰减。
-专用事件制作界面、组件和可视化脚本接入继续在 RM-066 中实施。
+组件与图动作见[音效事件源](#音效事件源)。专用事件制作界面和连续试听继续在 RM-066 中实施。
 
 ## `Audio` API 参考
 
@@ -347,6 +347,37 @@ const gain = calculateAttenuation(250, {
 });                                                  // 0.4 — refDistance / distance
 const pan = calculatePanning(600, 0, 0, 0, 1000);    // 0.6 — to the right
 ```
+
+### 音效事件源
+
+为实体添加 `SoundEventSource`，选择 `.esaudioevent` 资源。场景预加载只持有定义，
+不会解码全部候选。`seed` 默认 `0`，固定此源的选择流；`playOnAwake` 在每个启用的
+组件生命周期播放一次。修改事件或种子会建立新的选择流。
+
+```typescript
+import { SoundEventSource, triggerSoundEventSource, stopSoundEventSource } from 'esengine';
+
+app.world.insert(entity, SoundEventSource, { event: 'assets/steps.esaudioevent', seed: 42 });
+const voice = await triggerSoundEventSource(app.world, entity);
+if (voice) {
+  await voice.ready;
+  console.log(voice.status, voice.reason, voice.selection);
+}
+stopSoundEventSource(app.world, entity);
+```
+
+可视化脚本、FSM 钩子和 BT 动作使用 `soundEvent.trigger` / `soundEvent.stop`，
+与代码触发同一个组件。同一帧多次触发各自保留；图动作立即继续，不等待加载或播放完成。
+
+冷定义按顺序最多保留每个源 256 次触发。超额、源不可用或禁用、定义加载失败、取消的请求
+返回 `null`；返回的句柄再提供片段加载状态及事件/全局声音预算拒绝原因。冷却从定义加载
+完成后的准入开始，因此多次冷触发可能共享同一个准入时刻。
+
+停止仅取消此组件的队列和声音，不影响调用者在同一实体上创建的其他发射器。之后再触发
+会从固定种子的起点开始。禁用、移除、修改事件或种子、层级失活、销毁、注册表断开都会
+使旧生命周期失效；异步加载完成时再次检查，防止下一帧更新前出现迟到播放。
+全局 `Audio.stopAll()` 取消待播意图并保留准备好的定义。局部停止不会在下一帧重新触发
+`playOnAwake`。
 
 ## 最佳实践
 

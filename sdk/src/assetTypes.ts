@@ -9,7 +9,7 @@ export type AddressableAssetType =
 export type EditorAssetType =
     | 'texture' | 'material' | 'shader' | 'spine-atlas' | 'spine-skeleton'
     | 'dragonbones-atlas' | 'dragonbones-skeleton'
-    | 'bitmap-font' | 'font' | 'prefab' | 'json' | 'audio' | 'video' | 'scene' | 'anim-clip'
+    | 'bitmap-font' | 'font' | 'prefab' | 'json' | 'audio' | 'sound-event' | 'video' | 'scene' | 'anim-clip'
     | 'tilemap' | 'tileset' | 'timeline' | 'mesh'
     | 'unknown';
 
@@ -77,7 +77,7 @@ const ASSET_TYPE_REGISTRY: readonly AssetTypeEntry[] = [
     // @uuid (transitive dep).
     { extensions: ['estileset'], contentType: 'json', editorType: 'tileset', addressableType: 'json', wechatPackInclude: true, hasTransitiveDeps: true },
     { extensions: ['estimeline'], contentType: 'json', editorType: 'timeline', addressableType: 'json', wechatPackInclude: true, hasTransitiveDeps: true },
-    { extensions: ['esaudioevent'], contentType: 'json', editorType: 'json', addressableType: 'json', wechatPackInclude: true, hasTransitiveDeps: true },
+    { extensions: ['esaudioevent'], contentType: 'json', editorType: 'sound-event', addressableType: 'json', wechatPackInclude: true, hasTransitiveDeps: true },
     // Locale string table (LocaleAssetLoader → Localization.addCatalog) — one locale per file.
     { extensions: ['eslocale'], contentType: 'json', editorType: 'json', addressableType: 'json', wechatPackInclude: true, hasTransitiveDeps: false },
     // State machine (registerFsm / FsmAssetLoader) — data-driven FSM definition.

@@ -178,6 +178,7 @@ export const COMPONENT_DOCS: Record<string, ComponentDoc> = {
   EventBinding: { category: 'gameplay', summary: 'Wires an event on this entity to named actions — gameplay authored in the inspector, with no script.', doc: 'scripting/events', anchor: 'the-data', anchorZh: '数据本身' },
   AudioSource: { category: 'gameplay', summary: 'Declarative playback attached to an entity, attenuated by distance when spatial.', doc: 'assets/audio', anchor: 'declarative-playback--audiosource', anchorZh: '声明式播放--audiosource' },
   AudioListener: { category: 'gameplay', summary: 'The ear spatial audio is mixed relative to — usually the camera or the player.', doc: 'assets/audio', anchor: 'spatial-audio', anchorZh: '空间音频' },
+  SoundEventSource: { category: 'gameplay', summary: 'An entity-owned sound event with reproducible variation and shared voice limits.', doc: 'assets/audio', anchor: 'sound-event-source', anchorZh: '音效事件源' },
   Replicated: { category: 'gameplay', summary: 'Marks an entity the server replicates to every client.', doc: 'scripting/networking', anchor: 'state-replication--multiplayer-entities', anchorZh: '状态复制多人实体同步' },
   NetGhost: { category: 'gameplay', summary: 'Tag: this entity is a client-side proxy of one the server owns.', doc: 'scripting/networking', anchor: 'state-replication--multiplayer-entities', anchorZh: '状态复制多人实体同步' },
 };

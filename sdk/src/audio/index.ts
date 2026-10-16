@@ -18,7 +18,8 @@ export {
 } from './AudioProjectConfig';
 export { AudioPool, type PooledAudioNode } from './AudioPool';
 export { AudioPlugin, audioPlugin, type AudioPluginConfig } from './AudioPlugin';
-export { AudioSource, AudioListener, type AudioSourceData, type AudioListenerData } from './AudioComponents';
+export { AudioSource, AudioListener, SoundEventSource, type AudioSourceData, type AudioListenerData, type SoundEventSourceData } from './AudioComponents';
+export { triggerSoundEventSource, stopSoundEventSource } from './SoundEventSource';
 export { AttenuationModel, calculateAttenuation, calculatePanning, spatialDistance, type SpatialAudioConfig } from './SpatialAudio';
 export { WebAudioBackend } from './WebAudioBackend';
 export { MiniGameAudioBackend } from './MiniGameAudioBackend';

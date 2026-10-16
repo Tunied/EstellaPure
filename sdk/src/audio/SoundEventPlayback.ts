@@ -53,6 +53,7 @@ interface SharedEvent { key: string; references: number; nextAllowed: number; ac
 interface Emitter {
     ref: string; owner?: Entity; disposed: boolean; shared: SharedEvent; asset: SoundEventAsset;
     selector: SoundEventSelector; lease: AssetLease<SoundEventAsset>; resources: Resources; requests: Set<Request>;
+    alive?: () => boolean;
 }
 interface Request {
     emitter: Emitter; generation: number; status: SoundEventStatus; reason: SoundEventRejection | null; error: string | null;
@@ -94,9 +95,10 @@ export class SoundEventPlayback {
         });
     }
 
-    /** Loading a definition is preparation, not a play intent; Audio.stopAll does not unload emitters. */
-    async load(ref: string, options: { owner?: Entity; seed?: number } = {}): Promise<SoundEventEmitter | null> {
-        if (this.disposed || (options.owner !== undefined && !this.ownerAlive(options.owner))) return null;
+    /** Loading a definition is preparation, not a play intent; Audio.stopAll does not unload emitters.
+     * `alive` is a pure lifetime predicate checked after asynchronous loads and on updates/triggers. */
+    async load(ref: string, options: { owner?: Entity; seed?: number; alive?: () => boolean } = {}): Promise<SoundEventEmitter | null> {
+        if (this.disposed || options.alive?.() === false || (options.owner !== undefined && !this.ownerAlive(options.owner))) return null;
         const resources = this.resources();
         if (!resources) throw new Error(`${ref}: no Assets resource for sound events`);
         const pending: PendingDefinition = { owner: options.owner, cancelled: false };
@@ -105,20 +107,20 @@ export class SoundEventPlayback {
         let lease: AssetLease<SoundEventAsset> | undefined;
         try {
             lease = await resources.acquireTyped<SoundEventAsset>('sound-event', ref);
-            if (this.disposed || pending.cancelled || resources !== this.resources()
+            if (this.disposed || pending.cancelled || options.alive?.() === false || resources !== this.resources()
                 || (pending.owner !== undefined && !this.ownerAlive(pending.owner))) { lease.release(); return null; }
             const asset = parseSoundEvent(lease.value);
             const selector = new SoundEventSelector(asset, options.seed ?? (Math.random() * 4294967296) >>> 0);
             let shared = this.events.get(lease.key);
             if (!shared) { shared = { key: lease.key, references: 0, nextAllowed: 0, active: new Set(), running: new Set() }; this.events.set(lease.key, shared); }
-            const emitter: Emitter = { ref, owner: options.owner, disposed: false, shared, asset, selector, lease, resources, requests: new Set() };
+            const emitter: Emitter = { ref, owner: options.owner, alive: options.alive, disposed: false, shared, asset, selector, lease, resources, requests: new Set() };
             shared.references++; this.emitters.add(emitter);
             if (emitter.owner !== undefined) this.addOwner(this.owners, emitter.owner, emitter);
             return { ref, get disposed() { return emitter.disposed; }, trigger: position => this.trigger(emitter, position),
                 dispose: () => this.releaseEmitter(emitter) };
         } catch (error) {
             lease?.release();
-            if (this.disposed || pending.cancelled || resources !== this.resources()
+            if (this.disposed || pending.cancelled || options.alive?.() === false || resources !== this.resources()
                 || (pending.owner !== undefined && !this.ownerAlive(pending.owner))) return null;
             throw error;
         } finally {
@@ -135,7 +137,7 @@ export class SoundEventPlayback {
         if (right) this.right = { ...right };
         for (const emitter of [...this.emitters]) {
             if (emitter.resources !== this.resources()) { this.releaseEmitter(emitter); continue; }
-            if (emitter.owner !== undefined && !this.ownerAlive(emitter.owner)) { this.releaseEmitter(emitter); continue; }
+            if (!this.alive(emitter)) { this.releaseEmitter(emitter); continue; }
             for (const request of [...emitter.requests]) { this.refresh(request); this.applySpatial(request); }
         }
     }
@@ -241,7 +243,7 @@ export class SoundEventPlayback {
         };
         const refresh = () => this.refresh(request);
         if (this.disposed || emitter.disposed || emitter.resources !== this.resources()) this.reject(request, 'disposed');
-        else if (emitter.owner !== undefined && !this.ownerAlive(emitter.owner)) this.reject(request, 'owner-gone');
+        else if (!this.alive(emitter)) this.reject(request, 'owner-gone');
         else if (emitter.asset.spatial && !this.position(request)) this.reject(request, 'missing-position');
         else {
             // Pending requests already own counted slots; only started voices can have retired externally.
@@ -260,6 +262,10 @@ export class SoundEventPlayback {
             }
         }
         return handle;
+    }
+
+    private alive(emitter: Emitter): boolean {
+        return emitter.alive?.() !== false && (emitter.owner === undefined || this.ownerAlive(emitter.owner));
     }
 
     private position(request: Request): Vec3 | null {
@@ -284,7 +290,7 @@ export class SoundEventPlayback {
             if (!this.live(request)) { lease.release(); return; }
             request.lease = lease;
             if (this.disposed || emitter.disposed || emitter.resources !== this.resources()) { this.finish(request, 'stopped', false); return; }
-            if (emitter.owner !== undefined && !this.ownerAlive(emitter.owner)) { this.reject(request, 'owner-gone'); return; }
+            if (!this.alive(emitter)) { this.reject(request, 'owner-gone'); return; }
             if (emitter.asset.spatial && !this.position(request)) { this.reject(request, 'missing-position'); return; }
             const buffer = this.audio.getBufferHandle(lease.value.bufferId);
             if (!buffer) throw new Error('selected audio buffer is unavailable');

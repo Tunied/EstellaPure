@@ -10,14 +10,15 @@
  * of game action names; a name already present in the registry is never
  * overwritten, so game code wins regardless of registration order. Everything
  * here speaks through components — the same channel game code and the editor
- * use — never through resources.
+ * use. Event-source verbs dispatch intents through their component adapter.
  */
 
 import { aiRegistry, type AiContext } from './fsm/AiContext';
 import type { AiAction, AiActionInput, AiCondition, AiParamDef, AiParamValue, AiTouches } from './fsm/registry';
 import { TimelinePlayer } from '../timeline/TimelinePlayerComponent';
 import { SpriteAnimator } from '../animation/SpriteAnimator';
-import { AudioSource } from '../audio/AudioComponents';
+import { AudioSource, SoundEventSource } from '../audio/AudioComponents';
+import { triggerSoundEventSource, stopSoundEventSource } from '../audio/SoundEventSource';
 import { setEntityProperty } from '../ecs/propertyPath';
 import type { AnyComponentDef, ComponentData } from '../ecs/component';
 import type { Entity } from '../types';
@@ -25,6 +26,7 @@ import type { Entity } from '../types';
 const TIMELINE: AiTouches = { reads: [TimelinePlayer._name], writes: [TimelinePlayer._name] };
 const SPRITE_ANIM: AiTouches = { reads: [SpriteAnimator._name], writes: [SpriteAnimator._name] };
 const AUDIO: AiTouches = { reads: [AudioSource._name], writes: [AudioSource._name] };
+const SOUND_EVENT: AiTouches = { reads: [SoundEventSource._name] };
 /** The one parameter the play verbs take: which clip, empty for the current one. */
 const CLIP_PARAM: readonly AiParamDef[] = [{ name: 'clip', type: 'string', tooltip: 'Leave empty to replay the current one' }];
 
@@ -133,6 +135,9 @@ export function ensureBuiltinAiRegistrations(): void {
         source.playing = false;
         ctx.set(AudioSource, source);
     }, AUDIO);
+
+    action('soundEvent.trigger', ctx => { void triggerSoundEventSource(ctx.world, ctx.entity); }, SOUND_EVENT);
+    action('soundEvent.stop', ctx => { stopSoundEventSource(ctx.world, ctx.entity); }, SOUND_EVENT);
 
     // Latched only when a non-looping clip ends — the same shape as
     // `timeline.finished`, so `onEnter: audio.play` plus an `audio.finished`

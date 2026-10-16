@@ -10,6 +10,15 @@ import { SoundEventPlayback } from '../src/audio/SoundEventPlayback';
 import { MiniGameAudioBackend } from '../src/audio/MiniGameAudioBackend';
 import type { MiniGameGlobal, MiniGameInnerAudioContext } from '../src/platform/minigame/api';
 import type { Entity } from '../src/types';
+import { World } from '../src/ecs/world';
+import { SoundEventSource } from '../src/audio/AudioComponents';
+import { SoundEventSourceController, triggerSoundEventSource, stopSoundEventSource } from '../src/audio/SoundEventSource';
+import { aiRegistry, noInput } from '../src/ai/fsm/AiContext';
+import { ensureBuiltinAiRegistrations } from '../src/ai/builtins';
+import { Blackboard } from '../src/ai/fsm/Blackboard';
+import { compileScriptGraph, createScriptRunState, stepScriptGraph } from '../src/logic/ScriptGraphRunner';
+import { scriptCatalog } from '../src/logic/nodes';
+import { SCRIPT_GRAPH_VERSION } from '../src/logic/types';
 
 const cleanup: Array<() => void> = [];
 afterEach(() => { for (const close of cleanup.splice(0)) close(); vi.restoreAllMocks(); });
@@ -47,6 +56,138 @@ function fixture(extra: Record<string, unknown> = {}, actualBackend?: PlatformAu
     return { events, audio, backend, voices, resources, alive, positions, fetchText, fetchBinary,
         setDocument: (next: typeof document) => { document = next; } };
 }
+
+function sourceFixture(extra: Record<string, unknown> = {}) {
+    const f = fixture(extra), world = new World(), entity = world.spawn();
+    f.alive.add(entity); world.insert(entity, SoundEventSource, { event: 'steps.esaudioevent', seed: 9 });
+    const controller = new SoundEventSourceController(world, f.events, f.audio);
+    cleanup.unshift(() => controller.dispose());
+    return { ...f, world, entity, controller, trigger: () => triggerSoundEventSource(world, entity) };
+}
+
+describe('component-owned event intents', () => {
+    it('keeps same-frame cold triggers in FIFO order with one definition load', async () => {
+        const { trigger, fetchText, backend } = sourceFixture();
+        const handles = (await Promise.all([trigger(), trigger(), trigger()]))!;
+        expect(handles.map(handle => handle?.selection?.clip)).toEqual(['a.wav', 'b.wav', 'a.wav']);
+        await Promise.all(handles.map(handle => handle?.ready));
+        expect(fetchText).toHaveBeenCalledOnce(); expect(backend.play).toHaveBeenCalledTimes(3);
+    });
+
+    it('bounds cold intent storage and applies event limits only through shared playback', async () => {
+        const { trigger, fetchText, events, backend } = sourceFixture({ maxInstances: 1 });
+        const text = deferred<string>(); fetchText.mockReturnValue(text.promise);
+        const pending = Array.from({ length: 256 }, trigger);
+        expect(await trigger()).toBeNull();
+        text.resolve(JSON.stringify({ version: 1, clips: [{ clip: 'a.wav' }], maxInstances: 1 }));
+        const handles = await Promise.all(pending); await handles[0]!.ready;
+        expect(handles.filter(handle => handle?.reason === 'event-limit')).toHaveLength(255);
+        expect(events.getStats()).toMatchObject({ active: 1, admitted: 1, rejected: 255 });
+        expect(backend.play).toHaveBeenCalledOnce();
+    });
+
+    it.each(['stop', 'global-stop', 'remove', 'disable', 'replace', 'reinsert', 'dispose'])(
+        'cancels a cold definition on %s and resolves every waiter', async mode => {
+            const { world, entity, trigger, fetchText, backend, controller, audio, events } = sourceFixture();
+            const text = deferred<string>(); fetchText.mockReturnValueOnce(text.promise);
+            const pending = [trigger(), trigger()];
+            if (mode === 'stop') stopSoundEventSource(world, entity);
+            if (mode === 'global-stop') audio.stopAll();
+            if (mode === 'remove') world.remove(entity, SoundEventSource);
+            if (mode === 'disable') world.update(entity, SoundEventSource, data => { data.enabled = false; });
+            if (mode === 'replace') world.update(entity, SoundEventSource, data => { data.event = 'other.esaudioevent'; });
+            if (mode === 'reinsert') { world.remove(entity, SoundEventSource); world.insert(entity, SoundEventSource, { event: 'steps.esaudioevent' }); }
+            if (mode === 'dispose') controller.dispose();
+            controller.update();
+            expect(await Promise.all(pending)).toEqual([null, null]);
+            text.resolve(JSON.stringify({ version: 1, clips: [{ clip: 'a.wav' }] }));
+            await new Promise(done => setTimeout(done, 0));
+            expect(backend.play).not.toHaveBeenCalled(); expect(events.getStats().pendingDefinitions).toBe(0);
+            expect(events.getStats().active).toBe(0);
+        });
+
+    it('does not start a late clip after same-frame component removal, even before update', async () => {
+        const { world, entity, trigger, fetchBinary, backend, audio } = sourceFixture();
+        const clip = deferred<ArrayBuffer>(); fetchBinary.mockReturnValueOnce(clip.promise);
+        const handle = (await trigger())!;
+        world.remove(entity, SoundEventSource);
+        clip.resolve(new ArrayBuffer(4));
+        expect(await handle.ready).toBe('rejected'); expect(handle.reason).toBe('owner-gone');
+        expect(backend.play).not.toHaveBeenCalled(); expect(audio.getBufferStats().bufferCount).toBe(0);
+    });
+
+    it('keeps new-generation cold triggers created by a reentrant Stop All observer', async () => {
+        const f = sourceFixture(); f.controller.dispose();
+        let next!: Promise<import('../src/audio/SoundEventPlayback').SoundEventHandle | null>;
+        const off = f.audio.onPlaybackStop(() => { next = f.trigger(); });
+        const controller = new SoundEventSourceController(f.world, f.events, f.audio);
+        cleanup.unshift(() => { off(); controller.dispose(); });
+        const text = deferred<string>(); f.fetchText.mockReturnValueOnce(text.promise);
+        const previous = f.trigger(); f.audio.stopAll(); expect(await previous).toBeNull();
+        text.resolve(JSON.stringify({ version: 1, clips: [{ clip: 'a.wav' }] }));
+        expect(await (await next)!.ready).toBe('playing'); expect(f.backend.play).toHaveBeenCalledOnce();
+    });
+
+    it('cancels definitions made stale before the next controller update', async () => {
+        const { trigger, fetchText, world, entity, backend, events } = sourceFixture();
+        const text = deferred<string>(); fetchText.mockReturnValueOnce(text.promise);
+        const pending = trigger(); world.remove(entity, SoundEventSource);
+        text.resolve(JSON.stringify({ version: 1, clips: [{ clip: 'a.wav' }] }));
+        expect(await pending).toBeNull(); expect(backend.play).not.toHaveBeenCalled();
+        expect(events.getStats()).toMatchObject({ emitters: 0, pendingDefinitions: 0 });
+    });
+
+    it('stops only source-owned emitters and can trigger again without replaying awake', async () => {
+        const { entity, world, trigger, events, controller, backend } = sourceFixture();
+        world.update(entity, SoundEventSource, data => { data.playOnAwake = true; });
+        const independent = (await events.load('steps.esaudioevent', { owner: entity }))!;
+        const other = independent.trigger(); await other.ready;
+        const owned = (await trigger())!; await owned.ready;
+        stopSoundEventSource(world, entity); controller.update();
+        expect(owned.status).toBe('stopped'); expect(other.status).toBe('playing');
+        expect(backend.play).toHaveBeenCalledTimes(2);
+        const next = (await trigger())!; expect(await next.ready).toBe('playing');
+        expect(next.selection?.clip).toBe('a.wav');
+    });
+
+    it('plays awake once per incarnation and invalidates an old loading clip after seed changes', async () => {
+        const { world, entity, controller, backend, fetchBinary } = sourceFixture();
+        world.update(entity, SoundEventSource, data => { data.playOnAwake = true; });
+        controller.update(); await new Promise(done => setTimeout(done, 0));
+        controller.update(); expect(backend.play).toHaveBeenCalledOnce();
+        world.remove(entity, SoundEventSource);
+        world.insert(entity, SoundEventSource, { event: 'steps.esaudioevent', seed: 9, playOnAwake: true });
+        const clip = deferred<ArrayBuffer>(); fetchBinary.mockReturnValue(clip.promise);
+        controller.update(); await new Promise(done => setTimeout(done, 0));
+        world.update(entity, SoundEventSource, data => { data.seed = 10; });
+        clip.resolve(new ArrayBuffer(4)); await new Promise(done => setTimeout(done, 0));
+        expect(backend.play).toHaveBeenCalledOnce();
+        controller.update(); await new Promise(done => setTimeout(done, 0));
+        expect(backend.play).toHaveBeenCalledTimes(2);
+    });
+
+    it('uses the same entry through graph/FSM actions and preserves other worlds on disposal', async () => {
+        const a = sourceFixture(), b = sourceFixture();
+        ensureBuiltinAiRegistrations();
+        const ctx = { world: a.world, entity: a.entity, dt: 1 / 60, input: noInput(), blackboard: new Blackboard(),
+            commands: {} as never, has: (c: typeof SoundEventSource) => a.world.has(a.entity, c),
+            get: (c: typeof SoundEventSource) => a.world.get(a.entity, c), set: () => {} };
+        const compiled = compileScriptGraph({ version: SCRIPT_GRAPH_VERSION,
+            nodes: [{ id: 'start', kind: 'event.start' }, { id: 'a', kind: 'call', ref: 'soundEvent.trigger' },
+                { id: 'b', kind: 'call', ref: 'soundEvent.trigger' }],
+            edges: [{ id: 'one', from: 'start', fromPort: 'then', to: 'a', toPort: '' },
+                { id: 'two', from: 'a', fromPort: 'then', to: 'b', toPort: '' }],
+        }, scriptCatalog(aiRegistry));
+        expect(compiled.problems).toEqual([]);
+        stepScriptGraph(compiled, createScriptRunState(compiled), { ctx: ctx as never,
+            bb: ctx.blackboard, registry: aiRegistry, dt: ctx.dt });
+        await new Promise(done => setTimeout(done, 0)); expect(a.backend.play).toHaveBeenCalledTimes(2);
+        aiRegistry.getAction('soundEvent.stop')!(ctx as never, ctx.blackboard);
+        expect(a.events.getStats().active).toBe(0);
+        a.controller.dispose(); expect(await a.trigger()).toBeNull();
+        expect(await (await b.trigger())!.ready).toBe('playing');
+    });
+});
 
 describe('event admission and owned playback', () => {
     it('loads definitions without fetching clips and releases its definition on emitter disposal', async () => {

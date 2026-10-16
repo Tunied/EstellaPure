@@ -16,6 +16,7 @@ import { log } from '../util/logger';
 import { Assets } from '../asset/AssetPlugin';
 import { SoundEvents, SoundEventPlayback } from './SoundEventPlayback';
 import { disposeAll } from '../util/disposeAll';
+import { SoundEventSourceController } from './SoundEventSource';
 
 /**
  * Where a transform IS, which for a parented entity is not where it says it is:
@@ -47,6 +48,7 @@ interface AudioPluginState {
     playedEntities: Set<number>;
     audio: AudioAPI;
     events: SoundEventPlayback;
+    eventSources: SoundEventSourceController;
     offCoreDisconnect: () => void;
     released: boolean;
     offMemoryWarning: () => void;
@@ -89,7 +91,10 @@ export class AudioPlugin implements Plugin {
             owner => app.world.valid(owner) && (app.world.getCppRegistry()?.valid(owner) ?? true),
             owner => app.world.has(owner, WorldTransform) ? worldPositionOf(app.world.get(owner, WorldTransform)) : null);
         app.insertResource(SoundEvents, events);
-        const offCoreDisconnect = app.world.onCoreDisconnect(() => events.resetOwners());
+        const eventSources = new SoundEventSourceController(app.world, events, audio);
+        const offCoreDisconnect = app.world.onCoreDisconnect(() => {
+            disposeAll([() => eventSources.reset(), () => events.resetOwners()], action => action());
+        });
         const muteOwner = {};
         const offAudioMute = (isPlatformInitialized()
             ? getPlatform().onAudioMute?.(muted => setAudioHostSuspended(audio, muteOwner, muted))
@@ -116,9 +121,9 @@ export class AudioPlugin implements Plugin {
         const offDespawn = app.world.onDespawn((entity: Entity) => {
             const voice = activeSourceHandles.get(entity);
             activeSourceHandles.delete(entity); playedEntities.delete(entity);
-            disposeAll([() => events.stopOwner(entity), () => voice?.handle.stop()], action => action());
+            disposeAll([() => eventSources.remove(entity), () => events.stopOwner(entity), () => voice?.handle.stop()], action => action());
         });
-        const state = { activeSourceHandles, playedEntities, audio, events, offCoreDisconnect, offMemoryWarning, offAudioMute, offExecution, offDespawn, released: false };
+        const state = { activeSourceHandles, playedEntities, audio, events, eventSources, offCoreDisconnect, offMemoryWarning, offAudioMute, offExecution, offDespawn, released: false };
         this.states_.set(app, state);
         this.latestState_ = state;
         const stopVoice = (id: number): void => {
@@ -143,6 +148,7 @@ export class AudioPlugin implements Plugin {
                     const playMode = !isEditor() || isPlayMode();
 
                     if (!playMode) {
+                        eventSources.reset();
                         if (wasPlayMode) {
                             spatialListenerWarned = false;
                             wasPlayMode = false;
@@ -175,6 +181,7 @@ export class AudioPlugin implements Plugin {
                         }
                     }
                     events.update(time.delta, listenerAt, listenerRight);
+                    eventSources.update();
 
                     const sources = world.getEntitiesWithComponents([AudioSource]);
                     liveEntities.clear();
@@ -342,7 +349,7 @@ export class AudioPlugin implements Plugin {
         if (app) this.states_.delete(app);
         if (state === this.latestState_) this.latestState_ = null;
         disposeAll([state.offAudioMute, state.offExecution, state.offMemoryWarning, state.offDespawn, state.offCoreDisconnect,
-            () => state.events.dispose(), () => this.stopSources_(state), () => state.audio.dispose()], action => action());
+            () => state.eventSources.dispose(), () => state.events.dispose(), () => this.stopSources_(state), () => state.audio.dispose()], action => action());
     }
 }
 
