@@ -18,6 +18,24 @@ published separately; it ships inside the editor.
 
 - **Audio demo exercises authored sound events.** Three weighted no-repeat footsteps, two sequential button variants and rate-limited collision bursts reuse the existing percussion clips. Source buttons expose seeded selection parameters and shared playback/rejection counts; normal exports retain all definitions and candidate dependencies, with an eight-voice project budget.
 
+- **The Lighting panel names the scene's environment and binds it.** An Environment section shows the Ambient light the frame takes its sky and image-based light from, binds its `.esenv` with the usual asset picker, adds an environment light when the scene has none, and says why a sky is missing: no Ambient light, none naming an environment, an asset the project no longer holds, a light that is hidden, switched off or at intensity 0, a sky not drawn, or a later light that loses to an earlier one. Lights are never deleted or overwritten to settle it. It draws the environment as a panorama with a matte and a mirror sphere, turned the way the frame and the bake turn it.
+- **Saved environment looks.** `environmentPresets` in the project file keeps an environment asset, whether it is drawn as the sky, its rotation and its intensity under a name. Applying one lists the fields it changes first, writes them as one undo step, and refuses a look whose asset has gone, naming the path. Saved from the panel or edited in Settings, Rendering.
+- **The Lighting panel explains the selected object's light.** Baked atlas, probe volume (named), the frame's lamps, or only the environment; and why a part is missing: never baked, a moving object outside every probe volume, no probe volume in the scene, or not a surface a bake reads.
+- **An environment can be made from six images.** A `.escube` names one PNG or JPEG per face, each turned or mirrored on its own, read as a viewer inside the box sees it. The inspector assigns the images, marks the face an import cannot read, and draws the resulting panorama to check seams and turns by. New Cube Environment creates one; a missing, non-square or mismatched face is named and a black face is never filled in.
+- **OpenEXR panoramas import as environments.** Scanline lat-long files in NONE, RLE, ZIPS, ZIP or PXR24, half or float. PIZ, B44, DWA, HTJ2K, tiled, deep, multi-part and cube-map files are refused by name with what to save instead.
+- **A low-dynamic-range panorama picture can be the source.** One lat-long PNG or JPEG in a `.escube`, with its colour space chosen, imported with a note that an 8-bit picture holds no light brighter than white.
+- **An environment import reports what it clipped, and the sky has a width setting.** Every import measures its sizes, bytes and the share of the source brighter than the 8 the sky and reflections store, and warns when some is. Sky Width joins Reflection Size in the import settings, Reflection Size gains 512 px, and sizes past what an import allows are limited with a warning.
+- **The viewport can light the scene with a studio preview, and expose it.** A neutral sky, a key and a fill replace the scene's lights in the editor view only, with a preview exposure in stops; none of it is a scene entity, is saved, or reaches a packaged build, and one click returns to the game's own lighting.
+
+### Changed
+
+- **One rule picks the environment light.** The frame, the bake in the editor and the command-line bake each chose their own; the two bakes took the first light naming an environment whether or not it was enabled, hidden or lit. They now take what the frame takes, so a scene whose first environment light is switched off bakes against the next one.
+- **UASTC textures ship under zstd.** Cooked and cached UASTC textures are supercompressed: 59% fewer bytes over a sample of 24 ORCA Bistro textures, 47% over 256-pixel crops of them, with identical decoded pixels. Existing cook caches are encoded again once.
+
+### Fixed
+
+- **The Neon Ascension example exports and boots.** Its scene and materials had no `.meta` files, so a packaged build could not find the scene.
+
 ## [0.90.0] - 2026-10-15
 
 ### Added

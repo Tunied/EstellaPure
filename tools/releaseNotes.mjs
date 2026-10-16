@@ -28,6 +28,32 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(render): editor-view studio preview lighting and preview exposure':
+    { note: 'The viewport can light the scene with a studio preview, and expose it.' },
+  'feat(editor): studio preview lighting and preview exposure for the viewport':
+    { note: 'The viewport can light the scene with a studio preview, and expose it.' },
+  'feat(environment): read OpenEXR panoramas, and low-dynamic-range pictures as a source':
+    { note: 'OpenEXR panoramas import as environments.' },
+  'feat(editor): OpenEXR and low-dynamic-range panorama pictures as environment sources':
+    { note: 'A low-dynamic-range panorama picture can be the source.' },
+  'feat(environment): environment presets in the project file, and the sky and spheres of an environment':
+    { note: 'Saved environment looks.' },
+  'feat(environment): one rule for the scene\'s environment light, six-image sources, and an import report':
+    { note: 'One rule picks the environment light.' },
+  'feat(environment): six cube faces import as an environment, and an import reports what it clipped':
+    { note: 'An environment import reports what it clipped, and the sky has a width setting.' },
+  'perf(assets): UASTC textures ship under zstd supercompression':
+    { note: 'UASTC textures ship under zstd.' },
+  'fix(ci): index neon-ascension assets and classify sound event releases':
+    { note: 'The Neon Ascension example exports and boots.' },
+  'feat(editor): assign six images to an environment\'s faces, and create one from the Content Browser':
+    { note: 'An environment can be made from six images.' },
+  'feat(editor): bind, preview and preset an environment from the Lighting panel':
+    { note: 'The Lighting panel names the scene\'s environment and binds it.' },
+  'feat(editor): an environment section, per-object lighting source, and six-image panorama sources':
+    { note: 'The Lighting panel explains the selected object\'s light.' },
+  'fix(editor-checks): settle the sound event create write before editing':
+    { internal: 'An editor check waited on a file watcher event it started itself; no creator project is affected.' },
   'fix(editor): integrate Play realm network permissions for issue #97':
     { note: 'Editor Play can connect to game servers.' },
   'fix(editor): allow game networking in the Play realm':
