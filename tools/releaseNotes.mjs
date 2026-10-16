@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(editor): a settings window of ten pages, one line a row, advanced settings folded':
+    { note: 'The settings window is ten pages, not sixteen.' },
   'fix(editor): use the shared Button, Segmented and grid tokens in the lighting controls':
     { internal: 'The lighting controls moved onto the shared Button and Segmented components and the spacing and colour tokens; their behaviour and appearance are those of the notes they belong to.' },
   'perf(android): a package carries the phone ABI, and the template strips libc++':
