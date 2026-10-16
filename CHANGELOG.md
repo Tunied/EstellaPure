@@ -38,6 +38,7 @@ published separately; it ships inside the editor.
 - **The Outliner and the launcher lose their duplicate controls.** The Outliner's folder and entity buttons are one Add menu, the live-world banner is a pill on the source row, the column header row appears only when extra columns are on, and the columns are chosen from the sort menu. The launcher's New project button is on the Recent page beside the search, rather than in the top bar, the rail and the page.
 - **Content Browser tiles and the Details header are redrawn.** A tile is a card with the type code and colour on its thumbnail, status chips for the startup scene, export exclusion and delivery mode at the top right, a check mark when selected, a checkerboard under images and their pixel size beneath; delivery badges show on the folder tree. The Details header carries the kind's icon, an editable name, one quiet line of facts, and the Add Component button.
 - **Docked panels are rounded cards.** Panels sit apart on the window colour with rounded tabs, and the viewport's line of tool hints, which showed all the time, is now off until you turn it on in the View menu.
+- **The Outliner and Details match their new design.** The Outliner opens with labelled Lock and Visibility columns, always visible, and the Type column is off until you turn it on from the sort menu; a component's help and menu buttons stay in view, and a modified property is marked with a dot.
 
 ### Fixed
 

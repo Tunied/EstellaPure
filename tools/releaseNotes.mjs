@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(editor): the outliner shows lock and visibility in labelled columns, and the Details header keeps help and menu in view':
+    { note: 'The Outliner and Details match their new design.' },
   'feat(editor): docked panels are rounded cards with rounded tabs, and the viewport hint line is off by default':
     { note: 'Docked panels are rounded cards.' },
   'feat(editor): the content browser list tints its type column by asset type':
