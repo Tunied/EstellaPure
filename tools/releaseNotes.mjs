@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(editor): content browser tiles and the inspector header follow the new design':
+    { note: 'Content Browser tiles and the Details header are redrawn.' },
   'fix(editor): animated sprites play in the viewport whether or not they are selected':
     { note: 'Animated sprites play in the viewport whether or not they are selected.' },
   "fix(editor): the outliner's Add label stays on one line, and the content browser keeps its breadcrumbs when the bar is crowded":
