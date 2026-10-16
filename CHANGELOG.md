@@ -40,6 +40,7 @@ published separately; it ships inside the editor.
 ### Fixed
 
 - **The Neon Ascension example exports and boots.** Its scene and materials had no `.meta` files, so a packaged build could not find the scene.
+- **Animated sprites play in the viewport whether or not they are selected.**
 
 ## [0.90.0] - 2026-10-15
 

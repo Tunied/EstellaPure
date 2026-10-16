@@ -28,6 +28,12 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(editor): animated sprites play in the viewport whether or not they are selected':
+    { note: 'Animated sprites play in the viewport whether or not they are selected.' },
+  "fix(editor): the outliner's Add label stays on one line, and the content browser keeps its breadcrumbs when the bar is crowded":
+    { internal: 'Corrects layout of controls added earlier in the same unreleased work.' },
+  'fix(editor): the title row no longer hides menus under open drawers, and the content browser bar fits a narrow dock':
+    { internal: 'Corrects layout of controls added earlier in the same unreleased work.' },
   'feat(editor): the outliner has one Add menu and a live pill, and the launcher keeps New project in one place':
     { note: 'The Outliner and the launcher lose their duplicate controls.' },
   'feat(editor): every document editor wears one header — file name, a stat, Save, tools on a second row':
