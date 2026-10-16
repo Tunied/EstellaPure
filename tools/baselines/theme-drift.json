@@ -79,7 +79,7 @@
     "layout/MenuBar.tsx": 1,
     "layout/StatusBar.tsx": 4,
     "layout/SubsystemIndicator.tsx": 1,
-    "layout/Toolbar.tsx": 6,
+    "layout/Transport.tsx": 6,
     "layout/WindowControls.tsx": 3,
     "panels/ContentBrowser.tsx": 5,
     "panels/ControllersPanel.tsx": 2,
