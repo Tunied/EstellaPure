@@ -28,6 +28,10 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(editor): every document editor wears one header — file name, a stat, Save, tools on a second row':
+    { note: 'Every document editor has one header.' },
+  'feat(editor): one inspector header for entities, assets, folders and the live game':
+    { note: 'The Details panel has one header for every view.' },
   'feat(editor): one title row, a Panels flyout, a Show menu, a quieter content browser and status bar':
     { note: "The editor's chrome is tidier." },
   'fix(editor): retry the template directory removal in the APK test, as the others do':
