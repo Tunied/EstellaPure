@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":
+    { note: 'Asset inspectors are redrawn.' },
   "feat(editor): Details banners, add button, segmented switches and component icons follow the board's finish":
     { note: 'Details and segmented switches get the finer finish.' },
   "feat(editor): Details takes the board's style — flat sections, coloured axis letters, segmented switches for short choices":

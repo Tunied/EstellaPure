@@ -18,6 +18,8 @@ published separately; it ships inside the editor.
 
 - **The interface font is a setting.** Choose Rounded (the default, which prefers HarmonyOS Sans SC or MiSans for Chinese text when installed), Sans, Serif, or the name of any font installed on the computer, under Settings › Editor › General › Appearance.
 
+- **Asset inspectors are redrawn.** The preview is a rounded card, the facts about a file are ruled key-value rows, the open and copy-path actions are tinted buttons, the header carries the asset kind's icon in its colour, and a texture's border values read as chips. A property's label column is wider, and a segmented switch whose options are long now clips them instead of overflowing.
+
 - **Details and segmented switches get the finer finish.** The prefab bar and the stale-override warning are flat tinted banners, a component's heads-up and action button match them, Add Component is a tinted button in the header, component glyphs carry a hue by kind, value wells use the smaller mono size, and a selected segment of any switch is a raised neutral instead of an accent fill.
 
 - **Details is redrawn in a flatter style.** Components are separated by a hairline rather than a dark band, the axis letters of a vector are coloured text rather than filled blocks, property rows keep a fixed label column, and a choice of two or three options is a segmented switch rather than a dropdown.
