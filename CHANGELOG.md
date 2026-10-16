@@ -37,6 +37,7 @@ published separately; it ships inside the editor.
 - **Every document editor and every Details view has one header.** The Flipbook, Tileset, Animator, state machine, behaviour tree, script graph, material graph, sound event and Sequencer editors show the file's name, a stat and Save on a first row, with their tools on a second; the Details panel's entity, asset, folder and live-game views share one header, and Save looks the same wherever a thing saves.
 - **The Outliner and the launcher lose their duplicate controls.** The Outliner's folder and entity buttons are one Add menu, the live-world banner is a pill on the source row, the column header row appears only when extra columns are on, and the columns are chosen from the sort menu. The launcher's New project button is on the Recent page beside the search, rather than in the top bar, the rail and the page.
 - **Content Browser tiles and the Details header are redrawn.** A tile is a card with the type code and colour on its thumbnail, status chips for the startup scene, export exclusion and delivery mode at the top right, a check mark when selected, a checkerboard under images and their pixel size beneath; delivery badges show on the folder tree. The Details header carries the kind's icon, an editable name, one quiet line of facts, and the Add Component button.
+- **Docked panels are rounded cards.** Panels sit apart on the window colour with rounded tabs, and the viewport's line of tool hints, which showed all the time, is now off until you turn it on in the View menu.
 
 ### Fixed
 
