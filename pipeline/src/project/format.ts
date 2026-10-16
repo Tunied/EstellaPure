@@ -89,6 +89,22 @@ export interface ScreenPreset {
 }
 
 /**
+ * A saved environment look: the asset an Ambient light names and how it is shown.
+ * Applying one writes these fields to a light the author picked, after showing which
+ * of them change; the preset never reaches into the scene by itself.
+ */
+export interface EnvironmentPreset {
+  /** What the author calls it, and what identifies it among the project's presets. */
+  name: string;
+  /** The `.esenv`, by project path or `@uuid:`. */
+  environment: string;
+  drawEnvironment: boolean;
+  /** Degrees about +Y. */
+  rotation: number;
+  intensity: number;
+}
+
+/**
  * Script entry points. Splitting declaration from
  * startup is what lets the editor extract a component schema WITHOUT executing
  * project startup: schema extraction imports ONLY `register`, the play-realm
@@ -484,6 +500,8 @@ export interface ProjectManifest {
   designResolution?: DesignResolution;
   /** Extra screens the target-screen dropdown offers, beside the built-in devices. */
   screenPresets?: ScreenPreset[];
+  /** Environment looks the Lighting panel can apply to an Ambient light. */
+  environmentPresets?: EnvironmentPreset[];
   /** Spine runtime the project needs ('none' | '2.1' | '3.8' | '4.1' | '4.2' | '4.3' …). */
   spineVersion?: string;
   /** Per-path overrides of {@link DEFAULT_LAYOUT}. */
@@ -687,6 +705,25 @@ export function parseManifest(raw: unknown): ProjectManifest {
       return [out];
     });
     if (presets.length > 0) manifest.screenPresets = presets;
+  }
+  if (Array.isArray(o.environmentPresets)) {
+    // Dropped rather than failing the load, like the screens above, and a repeated
+    // name keeps its first entry: a name that means two looks applies neither reliably.
+    const seen = new Set<string>();
+    const presets = (o.environmentPresets as unknown[]).flatMap((raw) => {
+      const p = raw as Partial<EnvironmentPreset> | null;
+      if (!p || typeof p.name !== 'string' || p.name.trim() === '' || seen.has(p.name)) return [];
+      if (typeof p.environment !== 'string' || p.environment === '') return [];
+      seen.add(p.name);
+      return [{
+        name: p.name,
+        environment: p.environment,
+        drawEnvironment: p.drawEnvironment === true,
+        rotation: typeof p.rotation === 'number' && Number.isFinite(p.rotation) ? p.rotation : 0,
+        intensity: typeof p.intensity === 'number' && Number.isFinite(p.intensity) ? p.intensity : 1,
+      }];
+    });
+    if (presets.length > 0) manifest.environmentPresets = presets;
   }
   if (o.layout && typeof o.layout === 'object') {
     manifest.layout = o.layout as Partial<ProjectLayout>;
