@@ -12,12 +12,14 @@ import { ENTITY_CHANGE_CAPACITY, ENTITY_CHANGE_WORDS, ENTITY_CHANGE_SUBTREE,
 export interface ComponentMutationBatch {
     readonly full: boolean;
     readonly reset: boolean;
+    readonly refreshPoses: boolean;
     readonly entities: Set<Entity>;
     readonly changed: Map<AnyComponentDef, Set<Entity>>;
     readonly nativeSequence: number;
     readonly resetEpoch: number;
     readonly writeSequence: number;
     readonly topologySequence: number;
+    readonly checkpoint: readonly number[];
 }
 
 /** Projects SDK and native mutation cursors onto World-owned entities. Readers
@@ -30,6 +32,7 @@ export class ComponentMutationReader {
     private first = true;
     private bindingReset = false;
     private disposed = false;
+    private checkpoint: readonly number[] | null = null;
     private resetEpoch: number | null = null;
     private lastRegistry: CppRegistry | null = null;
     private readonly nativeTypes = new Map<number, AnyComponentDef>();
@@ -55,7 +58,8 @@ export class ComponentMutationReader {
         if (this.lease !== null) return true;
         const api = worldEngineApi(this.world), registry = this.world.getCppRegistry();
         if (!registry?.componentTypeId || !api?.registry_watchEntityChanges || !api.registry_unwatchEntityChanges
-            || !api.registry_entityChangeSequence || !api.registry_entityChangeResetEpoch || !api.registry_readEntityChanges
+            || !api.registry_entityChangeSequence || !api.registry_entityChangeResetEpoch || !api.registry_componentMutationRevision
+            || !api.registry_readEntityChanges
             || !api._malloc || !api._free || !api.HEAPU32) return false;
         for (const component of this.members) {
             if (!isBuiltinComponent(component)) continue;
@@ -79,6 +83,12 @@ export class ComponentMutationReader {
         const world = this.world, api = this.api!, registry = this.registry!;
         const nativeSequence = api.registry_entityChangeSequence!(registry);
         const resetEpoch = api.registry_entityChangeResetEpoch!(registry);
+        const checkpoint = [api.registry_componentMutationRevision!(registry, ENTITY_CHANGE_NO_COMPONENT, false)];
+        for (const component of this.values) checkpoint.push(world.mutationRevision(component, 'write'));
+        for (const component of this.members) checkpoint.push(world.mutationRevision(component, 'topology'));
+        for (const [id, component] of this.nativeTypes) {
+            checkpoint.push(api.registry_componentMutationRevision!(registry, id, !this.values.has(component)));
+        }
         const writeSequence = world.mutationSequence('write'), topologySequence = world.mutationSequence('topology');
         const entities = new Set<Entity>(), roots = new Set<Entity>();
         const changed = new Map<AnyComponentDef, Set<Entity>>();
@@ -96,21 +106,31 @@ export class ComponentMutationReader {
             for (const entity of world.mutationsForCursor(component, 'topology', reader)) note(component, entity, true);
         }
         let reset = this.bindingReset || resetEpoch < 0 || resetEpoch !== this.resetEpoch;
-        let full = this.first || reset;
-        if (nativeSequence !== this.cursor) {
+        const unchanged = this.checkpoint !== null && checkpoint.every((value, index) => value >= 0 && value === this.checkpoint![index]);
+        let full = reset || this.first && !unchanged;
+        let refreshPoses = false;
+        if (nativeSequence !== this.cursor && !(this.first && unchanged && !reset)) {
             withMalloc({ _malloc: api._malloc!.bind(api), _free: api._free!.bind(api) },
                 ENTITY_CHANGE_CAPACITY * ENTITY_CHANGE_WORDS * 4, ptr => {
-                    if (!ptr) { full = true; return; }
+                    if (!ptr) { full ||= !unchanged; refreshPoses = true; return; }
                     const count = api.registry_readEntityChanges!(registry, this.cursor, ptr, ENTITY_CHANGE_CAPACITY);
-                    if (count < 0) { full = true; return; }
+                    if (count < 0) { full ||= !unchanged; refreshPoses = true; return; }
                     if (!Number.isInteger(count) || count > ENTITY_CHANGE_CAPACITY) throw new Error('Invalid native mutation batch length');
                     const heap = api.HEAPU32!;
                     for (let i = 0; i < count; ++i) {
                         const at = (ptr >>> 2) + i * ENTITY_CHANGE_WORDS;
                         const entity = heap[at] as Entity, flags = heap[at + 1], type = heap[at + 2];
-                        if (flags & ENTITY_CHANGE_RESET) { full = true; reset = true; continue; }
+                        if (flags & ENTITY_CHANGE_RESET) { full = true; refreshPoses = true; continue; }
                         if (flags & ENTITY_CHANGE_SUBTREE) roots.add(entity);
-                        if (type === ENTITY_CHANGE_NO_COMPONENT) entities.add(entity);
+                        if (type === ENTITY_CHANGE_NO_COMPONENT) {
+                            entities.add(entity);
+                            if (!(flags & ENTITY_CHANGE_SUBTREE)) {
+                                for (const component of this.nativeTypes.values()) {
+                                    note(component, entity, true);
+                                    world.refreshBuiltinMembership(entity, component);
+                                }
+                            }
+                        }
                         const component = this.nativeTypes.get(type);
                         if (!component) continue;
                         const membership = !(flags & ENTITY_CHANGE_REPLACED);
@@ -134,16 +154,15 @@ export class ComponentMutationReader {
                 if (hasChildren?.(entity)) for (const child of world.get(entity, Children).entities) pending.push(child);
             }
         }
-        if (roots.size) world.invalidateTransformComposition();
-        // Native Transform replacement is a value write, independent of body membership.
-        if (changed.has(Transform)) world.invalidateTransformComposition();
-        return { full, reset, entities, changed, nativeSequence, resetEpoch, writeSequence, topologySequence };
+        if (full || refreshPoses || roots.size || changed.has(Transform)) world.invalidateTransformComposition();
+        return { full, reset, refreshPoses, entities, changed, nativeSequence, resetEpoch, writeSequence, topologySequence, checkpoint };
     }
 
     commit(batch: ComponentMutationBatch): void {
         this.cursor = batch.nativeSequence; this.first = false;
         this.bindingReset = false;
         this.resetEpoch = batch.resetEpoch;
+        this.checkpoint = batch.checkpoint;
         for (const [component, reader] of this.writes) this.world.advanceMutationCursor(component, 'write', reader, batch.writeSequence);
         for (const [component, reader] of this.topology) this.world.advanceMutationCursor(component, 'topology', reader, batch.topologySequence);
     }

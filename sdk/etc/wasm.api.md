@@ -405,6 +405,7 @@ provideReplacementDevice: (() => boolean) | undefined
 recoverDevice: (() => boolean) | undefined
 registryLayoutEpoch: (registry: CppRegistry) => number
 registry_batchSyncPhysicsTransforms: (registry: CppRegistry, bufferPtr: number, count: number, ppu: number) => void
+registry_componentMutationRevision: ((registry: CppRegistry, component: number, topology: boolean) => number) | undefined
 registry_entityChangeResetEpoch: ((registry: CppRegistry) => number) | undefined
 registry_entityChangeSequence: ((registry: CppRegistry) => number) | undefined
 registry_getCameraEntities: (registry: CppRegistry) => number[]

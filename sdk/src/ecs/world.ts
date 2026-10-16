@@ -1513,6 +1513,11 @@ export class World {
     /** @internal Current boundary to acknowledge after a successful read. */
     mutationSequence(kind: 'write' | 'topology'): number { return this.changes_.mutationSequence(kind); }
 
+    /** @internal Component stamps survive released mutation-history readers. */
+    mutationRevision(component: AnyComponentDef, kind: 'write' | 'topology'): number {
+        return this.changes_.mutationRevision(component, kind);
+    }
+
     /** @internal Unacknowledged component mutations for this reader. */
     mutationsForCursor(component: AnyComponentDef, kind: 'write' | 'topology', reader: number): Entity[] {
         return this.changes_.mutationsForCursor(component, kind, reader);

@@ -125,7 +125,12 @@ public:
     u32 watchEntityChanges() { return entity_changes_.watch(); }
     void unwatchEntityChanges(u32 reader) { entity_changes_.unwatch(reader); }
     double entityChangeSequence() const { return entity_changes_.sequence(); }
-    double entityChangeResetEpoch() const { return entity_changes_.resetEpoch(); }
+    double entityChangeResetEpoch() const {
+        return entity_reset_epoch_ == RESET_EPOCH_LIMIT ? -1 : static_cast<double>(entity_reset_epoch_);
+    }
+    double componentMutationRevision(u32 component, bool topology) const {
+        return entity_changes_.componentRevision(component, topology);
+    }
     i32 readEntityChanges(double after, std::span<EntityChangeRow> output) const {
         return entity_changes_.read(after, output);
     }
@@ -543,6 +548,7 @@ public:
      * @details Resets the registry to its initial empty state.
      */
     void clear() {
+        if (entity_reset_epoch_ < RESET_EPOCH_LIMIT) ++entity_reset_epoch_;
         recordEntityChange(INVALID_ENTITY, ENTITY_CHANGE_RESET);
         for (auto& pool : pools_) {
             if (pool) {
@@ -819,6 +825,8 @@ private:
 
     std::vector<u8> entityValid_;
     EntityChangeJournal entity_changes_;
+    static constexpr u64 RESET_EPOCH_LIMIT = (u64{1} << 53) - 1;
+    u64 entity_reset_epoch_ = 0;
 
     template<typename T>
     void recordComponentChange(Entity entity, u32 flags = 0) {

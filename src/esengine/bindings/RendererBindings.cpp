@@ -1219,6 +1219,9 @@ u32 registry_watchEntityChanges(ecs::Registry& registry) { return registry.watch
 void registry_unwatchEntityChanges(ecs::Registry& registry, u32 reader) { registry.unwatchEntityChanges(reader); }
 double registry_entityChangeSequence(ecs::Registry& registry) { return registry.entityChangeSequence(); }
 double registry_entityChangeResetEpoch(ecs::Registry& registry) { return registry.entityChangeResetEpoch(); }
+double registry_componentMutationRevision(ecs::Registry& registry, u32 component, bool topology) {
+    return registry.componentMutationRevision(component, topology);
+}
 int registry_readEntityChanges(ecs::Registry& registry, double after, uintptr_t outputPtr, int capacity) {
     if (capacity < 0 || capacity > static_cast<int>(ecs::ENTITY_CHANGE_CAPACITY)
         || outputPtr % alignof(ecs::EntityChangeRow)) return -1;

@@ -189,4 +189,52 @@ describe.skipIf(!HAS_WASM || !hasSideModule('physics'))('component-driven physic
             reader.dispose(); world.disconnectCpp(); first.delete(); second.delete();
         }
     });
+
+    it('resumes without reading body definitions after unrelated paused native churn', async () => {
+        const { app, registry, unrelated, bodyReads, clear } = await scene();
+        const lease = core.registry_watchEntityChanges!(registry);
+        try {
+            app.getResource(Time).scale = 0; await app.tick(1 / 60);
+            for (let i = 0; i <= ENTITY_CHANGE_CAPACITY; ++i) {
+                registry.addVelocity(unrelated, { linear: { x: i, y: 0, z: 0 }, angular: { x: 0, y: 0, z: 0 } });
+            }
+            app.getResource(Time).scale = 1; await app.tick(1 / 60);
+            expect(bodyReads()).toEqual([]); expect(clear).not.toHaveBeenCalled();
+        } finally { core.registry_unwatchEntityChanges!(registry, lease); }
+    });
+
+    it('retains a same-tick edit made after the last physics sample across pause', async () => {
+        const { app, world, bodies, clear, hit } = await scene();
+        let once = true;
+        app.addSystemToSchedule(Schedule.FixedPreUpdate, defineSystem([], () => {
+            if (once) world.update(bodies[0], BoxCollider2D, value => { value.halfExtents.x = .06; });
+        }, { name: 'EditBeforePhysicsSample' }));
+        app.addSystemToSchedule(Schedule.FixedPostUpdate, defineSystem([], () => {
+            if (!once) return; once = false;
+            world.update(bodies[0], BoxCollider2D, value => { value.halfExtents.x = .11; });
+            app.getResource(Time).scale = 0;
+        }, { name: 'EditAndPauseAfterPhysics' }));
+        await app.tick(1 / 60);
+        expect(clear).toHaveBeenCalledOnce(); expect(hit()).toBeCloseTo(-6, 3);
+        app.getResource(Time).scale = 1; await app.tick(1 / 60);
+        expect(clear).toHaveBeenCalledTimes(2); expect(hit()).toBeCloseTo(-11, 3);
+    });
+
+    it('refreshes poses after unrelated native overflow without reading body definitions', async () => {
+        const { app, registry, unrelated, bodies, bodyReads, hit } = await scene();
+        for (let i = 0; i <= ENTITY_CHANGE_CAPACITY; ++i) {
+            registry.addVelocity(unrelated, { linear: { x: i, y: 0, z: 0 }, angular: { x: 0, y: 0, z: 0 } });
+        }
+        const transform = registry.getTransform(bodies[0]); transform.position.x = 20;
+        registry.addTransform(bodies[0], transform); await app.tick(1 / 60);
+        expect(bodyReads()).toEqual([]); expect(hit()).toBeCloseTo(15, 3);
+    });
+
+    it('removes a solver body after its owned native entity is destroyed', async () => {
+        const { app, world, registry, module, bodies, hit } = await scene();
+        registry.destroy(bodies[0]); await app.tick(1 / 60);
+        expect(module._physics_getBodyCount()).toBe(255);
+        expect(world.has(bodies[0], RigidBody2D)).toBe(false);
+        expect(hit()).toBeUndefined();
+    });
 });

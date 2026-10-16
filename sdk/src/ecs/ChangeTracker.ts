@@ -169,6 +169,8 @@ export class ChangeTracker {
     private componentAddedSequences_ = new Map<symbol, ComponentSequences>();
     private componentChangedSequences_ = new Map<symbol, ComponentSequences>();
     private changeSequence_ = 0;
+    private revision_ = 0;
+    private readonly revisions_ = new Map<symbol, [number, number]>();
     private readonly removals_ = new ReaderOwnedJournal(true);
     /** Membership moves, independent of ordinary change tracking. */
     private readonly topology_ = new ReaderOwnedJournal(true);
@@ -306,6 +308,17 @@ export class ChangeTracker {
         return kind === 'write' ? this.writes_ : this.topology_;
     }
 
+    mutationRevision(component: AnyComponentDef, kind: 'write' | 'topology'): number {
+        let revisions = this.revisions_.get(component._id);
+        if (!revisions) { revisions = [0, 0]; this.revisions_.set(component._id, revisions); }
+        return revisions[kind === 'write' ? 0 : 1];
+    }
+
+    private recordRevision_(componentId: symbol, topology: boolean): void {
+        const revisions = this.revisions_.get(componentId);
+        if (revisions) revisions[topology ? 1 : 0] = ++this.revision_;
+    }
+
     registerTopologyReaderFrom(component: AnyComponentDef, retainFromTick: number): number {
         const id = this.nextReaderId_++;
         this.topology_.register(component._id, id, retainFromTick);
@@ -412,6 +425,7 @@ export class ChangeTracker {
     }
 
     recordAdded(component: AnyComponentDef, entity: Entity): void {
+        this.recordRevision_(component._id, true);
         this.componentIncarnations_.get(component._id)?.set(entity, this.nextIncarnation_++);
         // BEFORE the tracking gate: a membership journal is what lets a consumer
         // follow arrivals and departures WITHOUT enrolling the component in
@@ -443,6 +457,7 @@ export class ChangeTracker {
     }
 
     recordChanged(component: AnyComponentDef, entity: Entity): void {
+        this.recordRevision_(component._id, false);
         // Before the tracking gate, like the other two journals: a consumer that
         // enumerates writes should not have to enrol the component in `Changed`
         // tracking, whose per-entity map it cannot enumerate cheaply anyway.
@@ -484,6 +499,7 @@ export class ChangeTracker {
      * recorded for one kind and dropped for the other.
      */
     recordRemovedById(componentId: symbol, entity: Entity): void {
+        this.recordRevision_(componentId, true);
         this.componentIncarnations_.get(componentId)?.delete(entity);
         // Same reason as `recordAdded`: first, and gated on its own readers.
         if (this.topology_.hasReaders(componentId)) {

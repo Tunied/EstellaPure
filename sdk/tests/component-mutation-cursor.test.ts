@@ -75,3 +75,18 @@ it('continues disconnect cleanup when another native observer fails', () => {
     first(); second();
     expect(world.getStorageSizes().coreDisconnectCallbacks).toBe(0);
 });
+
+it('keeps component stamps without retaining write or topology history', () => {
+    const world = new World(), component = defineComponent('MutationStamp', { value: 0 });
+    expect(world.mutationRevision(component, 'write')).toBe(0);
+    expect(world.mutationRevision(component, 'topology')).toBe(0);
+    const entity = world.spawn(); world.insert(entity, component);
+    const write = world.mutationRevision(component, 'write'), topology = world.mutationRevision(component, 'topology');
+    world.update(entity, component, value => { value.value++; });
+    expect(world.mutationRevision(component, 'write')).toBeGreaterThan(write);
+    expect(world.mutationRevision(component, 'topology')).toBe(topology);
+    world.remove(entity, component);
+    expect(world.mutationRevision(component, 'topology')).toBeGreaterThan(topology);
+    expect(world.bufferedWriteRows(component)).toBe(0);
+    expect(world.writeReaderCount(component)).toBe(0); expect(world.topologyReaderCount(component)).toBe(0);
+});

@@ -4,6 +4,7 @@
 #include "../core/Types.hpp"
 #include "../core/Reflection.hpp"
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <span>
 #include <unordered_set>
@@ -29,8 +30,9 @@ struct EntityChangeRow { u32 entity; u32 flags; u32 component; };
 static_assert(sizeof(EntityChangeRow) == ENTITY_CHANGE_WORDS * sizeof(u32));
 
 /** Independent cursors share bounded history. Exhausted or invalid cursors must
- * rescan; reading never consumes another observer's rows. No readers means no
- * retained storage or writes. Raw component references require an explicit record. */
+ * rescan; reading never consumes another observer's rows. History exists only
+ * while observed; component stamps persist across unobserved periods. Raw
+ * component references require an explicit record. */
 class EntityChangeJournal {
 public:
     u32 watch() {
@@ -49,10 +51,20 @@ public:
     }
     double sequence() const { return static_cast<double>(sequence_); }
     double resetEpoch() const { return reset_epoch_ == MAX_SEQUENCE ? -1 : static_cast<double>(reset_epoch_); }
+    double componentRevision(u32 component, bool topology) const {
+        const auto value = component == ENTITY_CHANGE_NO_COMPONENT ? entity_revisions_[topology ? 1 : 0]
+            : component < revisions_.size() ? revisions_[component][topology ? 1 : 0] : 0;
+        return value == MAX_SEQUENCE ? -1 : static_cast<double>(value);
+    }
     usize readerCount() const { return readers_.size(); }
     usize retainedRows() const { return rows_.empty() ? 0 : std::min<u64>(sequence_, ENTITY_CHANGE_CAPACITY); }
 
     void record(u32 entity, u32 flags = 0, u32 component = ENTITY_CHANGE_NO_COMPONENT) {
+        if (revision_ < MAX_SEQUENCE) ++revision_;
+        if (component != ENTITY_CHANGE_NO_COMPONENT && component >= revisions_.size()) revisions_.resize(component + 1);
+        auto& revisions = component == ENTITY_CHANGE_NO_COMPONENT ? entity_revisions_ : revisions_[component];
+        revisions[0] = revision_;
+        if (!(flags & ENTITY_CHANGE_REPLACED)) revisions[1] = revision_;
         if ((flags & ENTITY_CHANGE_RESET) && reset_epoch_ < MAX_SEQUENCE) ++reset_epoch_;
         if (readers_.empty()) return;
         // Saturation preserves the JS number contract by requiring a rescan.
@@ -77,6 +89,9 @@ private:
     std::unordered_set<u32> readers_;
     u64 sequence_ = 0;
     u64 reset_epoch_ = 0;
+    u64 revision_ = 0;
+    std::vector<std::array<u64, 2>> revisions_;
+    std::array<u64, 2> entity_revisions_{};
     u32 next_reader_ = 0;
     bool exhausted_ = false;
 };

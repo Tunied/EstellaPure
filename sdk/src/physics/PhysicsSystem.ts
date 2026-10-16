@@ -945,7 +945,8 @@ export function registerPhysics2DSystem(
                 lastStructuralVersion = structuralVersion;
                 } // end if (needReconcile)
 
-                staticPoses.sync(module, ppu, mutationBatch?.full ?? needReconcile, entity => !!cachedProps.get(entity)?.enabled);
+                staticPoses.sync(module, ppu, mutationBatch ? mutationBatch.full || mutationBatch.refreshPoses : needReconcile,
+                    entity => !!cachedProps.get(entity)?.enabled);
 
                 // Kinematic bodies are driven by their Transform (changed via gameplay,
                 // not tracked as a physics edit) — push every step, even when the

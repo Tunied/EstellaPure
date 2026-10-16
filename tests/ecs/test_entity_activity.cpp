@@ -142,6 +142,21 @@ TEST_CASE("entity change overflow and invalid cursors refuse partial histories")
     CHECK(journal.read(journal.sequence(), {}) == 0);
 }
 
+TEST_CASE("component revisions survive without retaining native mutation rows") {
+    EntityChangeJournal journal;
+    journal.record(1, 0, 5);
+    const auto initial = journal.componentRevision(5, false), membership = journal.componentRevision(5, true);
+    CHECK(initial > 0); CHECK(membership > 0);
+    journal.record(1, ENTITY_CHANGE_REPLACED, 5);
+    CHECK(journal.componentRevision(5, false) > initial);
+    CHECK(journal.componentRevision(5, true) == membership);
+    CHECK(journal.componentRevision(6, false) == 0);
+    CHECK(journal.retainedRows() == 0);
+    const auto reader = journal.watch(); journal.unwatch(reader);
+    CHECK(journal.componentRevision(5, false) > initial);
+    CHECK(journal.retainedRows() == 0);
+}
+
 TEST_CASE("registry history covers component lifetime and explicit native writes") {
     using namespace esengine::ecs;
     Registry registry;
@@ -168,9 +183,11 @@ TEST_CASE("registry history covers component lifetime and explicit native writes
     CHECK(rows[3].component == componentTypeId<Sample>());
     CHECK(rows[5].component == componentTypeId<JournalPosition>());
     const auto cursor = registry.entityChangeSequence();
+    registry.invalidateActivityHierarchy();
+    CHECK(registry.entityChangeResetEpoch() == 0);
     registry.clear();
     CHECK(registry.entityChangeResetEpoch() == 1);
-    REQUIRE(registry.readEntityChanges(cursor, rows) == 1);
+    REQUIRE(registry.readEntityChanges(cursor, rows) == 2);
     CHECK(rows[0].flags == ENTITY_CHANGE_RESET);
     registry.unwatchEntityChanges(reader);
 }

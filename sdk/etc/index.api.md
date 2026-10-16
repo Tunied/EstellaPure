@@ -10055,6 +10055,7 @@ tabIndex: number | undefined
 @internal isIterating: () => boolean
 @internal layoutEpoch: () => number | null
 @internal markChanged: (entity: Entity, component: AnyComponentDef) => void
+@internal mutationRevision: (component: AnyComponentDef, kind: "write" | "topology") => number
 @internal mutationSequence: (kind: "write" | "topology") => number
 @internal mutationsForCursor: (component: AnyComponentDef, kind: "write" | "topology", reader: number) => Entity[]
 @internal onCoreDisconnect: (dispose: () => void) => () => void
