@@ -17,9 +17,9 @@ export class StaticBodyPoses2D {
     private parents = new Map<Entity, number[]>();
     private reader: number | null = null;
     private epoch = -1;
-    private tick = -1;
     private ppu = -1;
     private legacyStale = false;
+    private readonly dirty = new Set<Entity>();
 
     constructor(private readonly world: World) {}
 
@@ -37,7 +37,10 @@ export class StaticBodyPoses2D {
         const previous = this.poses.get(entity);
         if (previous?.parent === parent) return;
         this.set(entity, previous ? { ...previous, parent } : { x: NaN, y: NaN, angle: NaN, parent });
+        this.invalidate(entity);
     }
+
+    invalidate(entity: Entity): void { if (this.poses.has(entity)) this.dirty.add(entity); }
 
     delete(entity: Entity): void {
         const parent = this.poses.get(entity)?.parent;
@@ -47,11 +50,12 @@ export class StaticBodyPoses2D {
             if (!group?.size) { this.groups.delete(parent); this.parents.delete(parent); }
         }
         this.poses.delete(entity);
+        this.dirty.delete(entity);
     }
 
     /** A stopped simulation owes a full pose refresh, but retains no write history. */
     pause(): void {
-        if (this.reader !== null) this.world.disposeWriteReader(Transform, this.reader);
+        if (this.reader !== null) this.world.disposeMutationCursor(Transform, 'write', this.reader);
         this.reader = null;
         this.epoch = -1;
     }
@@ -60,9 +64,10 @@ export class StaticBodyPoses2D {
         const world = this.world;
         if (!this.poses.size) { this.pause(); return; }
         const first = this.reader === null;
-        if (first) this.reader = world.registerWriteReaderFrom(Transform, world.getWorldTick());
+        if (first) this.reader = world.registerMutationCursor(Transform, 'write');
+        const through = world.mutationSequence('write');
         const epoch = world.transformEpoch();
-        if (first || reconcile || epoch < 0 || epoch !== this.epoch || ppu !== this.ppu) {
+        if (first || reconcile || this.dirty.size || epoch < 0 || epoch !== this.epoch || ppu !== this.ppu) {
             world.ensureTransformsComposed();
             const all = first || reconcile || epoch < 0 || ppu !== this.ppu;
             const changedParents = new Set<Entity>();
@@ -78,17 +83,18 @@ export class StaticBodyPoses2D {
                 } else this.parents.delete(parent);
                 if (!all && changed) changedParents.add(parent);
             }
-            const selected: Entity[] = [];
-            if (all) for (const entity of this.poses.keys()) selected.push(entity);
+            const selected = new Set<Entity>();
+            if (all) for (const entity of this.poses.keys()) selected.add(entity);
             else {
-                for (const parent of changedParents) for (const entity of this.groups.get(parent)!) selected.push(entity);
-                const written = new Set(world.getWrittenEntitiesSince(Transform, this.tick));
+                for (const parent of changedParents) for (const entity of this.groups.get(parent)!) selected.add(entity);
+                for (const entity of this.dirty) selected.add(entity);
+                const written = new Set(world.mutationsForCursor(Transform, 'write', this.reader!));
                 for (const entity of written) {
                     const pose = this.poses.get(entity);
-                    if (pose && (pose.parent === null || !changedParents.has(pose.parent))) selected.push(entity);
+                    if (pose && (pose.parent === null || !changedParents.has(pose.parent))) selected.add(entity);
                 }
             }
-            if (batchStaticPoses2D(world, module, selected, ppu, enabled)) this.legacyStale = true;
+            if (batchStaticPoses2D(world, module, [...selected], ppu, enabled)) this.legacyStale = true;
             else {
                 if (this.legacyStale) {
                     for (const pose of this.poses.values()) pose.x = NaN;
@@ -111,9 +117,9 @@ export class StaticBodyPoses2D {
             }
         }
         this.epoch = world.transformEpoch();
-        this.tick = world.getWorldTick() - 1;
+        this.dirty.clear();
         this.ppu = ppu;
-        world.advanceWriteReader(Transform, this.reader!, this.tick);
+        world.advanceMutationCursor(Transform, 'write', this.reader!, through);
     }
 
     dispose(): void {

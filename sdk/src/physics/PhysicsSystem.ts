@@ -13,7 +13,7 @@
 import type { App } from '../app/app';
 import type { Entity } from '../types';
 import type { TransformData, ParentData, CanvasData } from '../ecs/component';
-import { Transform, Parent, Canvas } from '../ecs/component';
+import { Transform, Parent, Children, Disabled, Canvas } from '../ecs/component';
 import { Res, Time, type TimeData } from '../ecs/resource';
 import { Schedule, defineSystem } from '../ecs/system';
 import { playModeOnly } from '../ecs/env';
@@ -45,6 +45,7 @@ import {
 import { withMalloc } from '../wasm/wasmScratch';
 import { engineApi, type EngineApi } from '../ecs/bridge/engineApi';
 import { StaticBodyPoses2D } from './StaticBodyPoses2D';
+import { ComponentMutationReader } from '../ecs/ComponentMutationReader';
 import { ENTITY_POSE_2D_WORDS } from '../wasm/constants.generated';
 
 /**
@@ -336,10 +337,14 @@ function syncOneWayPlatforms(
     module: PhysicsWasmModule,
     trackedEntities: Set<Entity>,
     trackedOneWay: Set<Entity>,
+    candidates?: Iterable<Entity>,
 ): void {
-    const seen = new Set<Entity>();
-    for (const entity of world.getEntitiesWithComponents([OneWayPlatform2D, RigidBody2D])) {
-        if (!trackedEntities.has(entity)) continue;
+    const selected = candidates ?? new Set([...world.getEntitiesWithComponents([OneWayPlatform2D, RigidBody2D]), ...trackedOneWay]);
+    for (const entity of selected) {
+        if (!trackedEntities.has(entity) || !world.isEntityActive(entity) || !world.has(entity, OneWayPlatform2D)) {
+            if (trackedOneWay.delete(entity)) module._physics_setOneWayPlatform(entity, 0, 0, 0);
+            continue;
+        }
         const ow = world.get(entity, OneWayPlatform2D) as OneWayPlatform2DData;
         if (ow.localSpace) {
             module._physics_setOneWayPlatformLocal(entity, ow.normal.x, ow.normal.y, ow.enabled ? 1 : 0);
@@ -347,13 +352,6 @@ function syncOneWayPlatforms(
             module._physics_setOneWayPlatform(entity, ow.normal.x, ow.normal.y, ow.enabled ? 1 : 0);
         }
         trackedOneWay.add(entity);
-        seen.add(entity);
-    }
-    for (const entity of [...trackedOneWay]) {
-        if (!seen.has(entity)) {
-            module._physics_setOneWayPlatform(entity, 0, 0, 0);
-            trackedOneWay.delete(entity);
-        }
     }
 }
 
@@ -616,6 +614,7 @@ interface CachedBodyProps {
     enabled: boolean;
     /** Bitmask of present collider components — drives shape rebuild on change. */
     colliderSig: number;
+    colliderState: string;
     /** Last sync of this body; inactive entities retain edits until reactivation. */
     syncedTick: number;
 }
@@ -636,6 +635,10 @@ export function colliderSignature(world: App['world'], entity: Entity): number {
         if (world.has(entity, COLLIDER_TYPES[i])) sig |= 1 << i;
     }
     return sig;
+}
+
+function colliderState(world: App['world'], entity: Entity): string {
+    return JSON.stringify(COLLIDER_TYPES.map(component => activeCollider(world, entity, component)));
 }
 
 /** True if any present collider component changed since `sinceTick`. @internal */
@@ -692,6 +695,18 @@ export function registerPhysics2DSystem(
     const trackedOneWay = new Set<Entity>();
     const parentedBodies = new Set<Entity>();
     const cachedProps = new Map<Entity, CachedBodyProps>();
+    // Equal authored shapes share one snapshot; unchanged full refreshes retain contacts.
+    const colliderStates = new Map<string, { value: string; references: number }>();
+    const retainState = (value: string): string => {
+        let state = colliderStates.get(value);
+        if (!state) { state = { value, references: 0 }; colliderStates.set(value, state); }
+        state.references++;
+        return state.value;
+    };
+    const releaseState = (value: string) => {
+        const state = colliderStates.get(value);
+        if (state && --state.references === 0) colliderStates.delete(value);
+    };
     let lastEntitySyncTick = -1;
     // Events accumulated across this frame's fixed steps; published once per frame.
     const events: EventAccum = {
@@ -699,11 +714,8 @@ export function registerPhysics2DSystem(
     };
     const fixedDt = config.fixedTimestep;
 
-    // Change-driven reconcile: track physics components so a value edit is an O(1)
-    // signal, letting the per-step reconcile skip the full entity scan in steady
-    // state (no structural change + no physics-component edit). Kinematic bodies
-    // are driven by their Transform, so they're tracked separately and pushed every
-    // step regardless of whether the reconcile ran.
+    // Mutation cursors select authoring edits. Change stamps gate full scans on
+    // older hosts. Kinematic targets remain driven every fixed step.
     const physicsComponents = [RigidBody2D, ...COLLIDER_TYPES, ...JOINT_TYPES, OneWayPlatform2D];
     for (const c of physicsComponents) app.world.enableChangeTracking(c);
     const kinematicEntities = new Set<Entity>();
@@ -712,6 +724,14 @@ export function registerPhysics2DSystem(
 
     const world = app.world;
     world.enableChangeTracking(Transform);
+    const mutations = new ComponentMutationReader(world, physicsComponents, [Transform, Children], [Parent, Disabled]);
+
+    const destroyBody = (entity: Entity) => {
+        if (!trackedEntities.delete(entity)) return;
+        module._physics_destroyBody(entity);
+        releaseState(cachedProps.get(entity)!.colliderState);
+        cachedProps.delete(entity); parentedBodies.delete(entity); kinematicEntities.delete(entity); staticPoses.delete(entity);
+    };
 
     const offDespawn = world.onDespawn((entity: Entity) => {
         if (trackedJoints.has(entity)) {
@@ -723,12 +743,7 @@ export function registerPhysics2DSystem(
             trackedOneWay.delete(entity);
         }
         if (trackedEntities.has(entity)) {
-            module._physics_destroyBody(entity);
-            trackedEntities.delete(entity);
-            cachedProps.delete(entity);
-            parentedBodies.delete(entity);
-            kinematicEntities.delete(entity);
-            staticPoses.delete(entity);
+            destroyBody(entity);
             // The module's pose snapshots need no cleanup: destroying the body drops
             // it from the dynamic set the next capture rebuilds from, and the lerp is
             // driven by the current snapshot, so a stale `prev` entry is never read.
@@ -754,13 +769,13 @@ export function registerPhysics2DSystem(
                 // Keep the query API's default scale in sync with the live Canvas,
                 // so raycast/overlap that omit `ppu` aren't silently scaled to 100.
                 if (app.hasResource(Physics2D)) app.getResource(Physics2D).setPixelsPerUnit(ppu);
-                // Steady-state fast path: skip the full entity reconcile unless
-                // something structural changed (spawn/despawn/add-remove component →
-                // structuralVersion) OR a physics component was edited (O(1) gate).
-                // Otherwise the bodies are simulated by Box2D + read back in bulk.
+                // Native and SDK mutations share the sparse path; structural and
+                // component stamps retain the full-scan fallback for older hosts.
                 const structuralVersion = world.getWorldVersion();
+                const mutationBatch = mutations.read();
                 let needReconcile = structuralVersion !== lastStructuralVersion;
-                if (!needReconcile) {
+                if (mutationBatch) needReconcile = mutationBatch.full || mutationBatch.entities.size > 0;
+                else if (!needReconcile) {
                     for (let i = 0; i < physicsComponents.length; i++) {
                         if (world.anyChangedSince(physicsComponents[i], lastEntitySyncTick)) {
                             needReconcile = true;
@@ -768,9 +783,19 @@ export function registerPhysics2DSystem(
                         }
                     }
                 }
+                if (mutationBatch) {
+                    for (const entity of mutationBatch.changed.get(Transform) ?? []) staticPoses.invalidate(entity);
+                    if (mutationBatch.reset) {
+                        for (const entity of trackedJoints) module._physics_destroyJoint(entity);
+                        trackedJoints.clear();
+                        for (const entity of trackedOneWay) module._physics_setOneWayPlatform(entity, 0, 0, 0);
+                        trackedOneWay.clear();
+                        for (const entity of trackedEntities) destroyBody(entity);
+                    }
+                }
                 if (needReconcile) {
                 world.ensureTransformsComposed();
-                const entities = world.getEntitiesWithComponents([RigidBody2D, Transform]);
+                const entities = mutationBatch?.entities ?? world.getEntitiesWithComponents([RigidBody2D, Transform]);
                 const currentEntities = new Set<Entity>();
 
                 // ── Unified body + collider reconcile ───────────────────────
@@ -779,6 +804,8 @@ export function registerPhysics2DSystem(
                 // (enable/disable, props, shapes) with minimal in-place ops that
                 // preserve simulation state — never destroy-and-rebuild.
                 for (const entity of entities) {
+                    if (mutationBatch && (!world.valid(entity) || !world.has(entity, RigidBody2D)
+                        || !world.has(entity, Transform) || !world.isEntityActive(entity))) continue;
                     currentEntities.add(entity);
                     const rb = world.get(entity, RigidBody2D) as RigidBody2DData;
 
@@ -808,6 +835,7 @@ export function registerPhysics2DSystem(
                             bullet: rb.bullet,
                             enabled: true,
                             colliderSig: colliderSignature(world, entity),
+                            colliderState: retainState(colliderState(world, entity)),
                             syncedTick: world.getWorldTick(),
                         });
                         if (rb.bodyType === BodyType.Kinematic) kinematicEntities.add(entity);
@@ -819,21 +847,22 @@ export function registerPhysics2DSystem(
                     }
 
                     const cached = cachedProps.get(entity)!;
+                    const reenabled = rb.enabled && !cached.enabled;
 
                     // 1. enabled toggle — in place (keeps shapes/velocity/joints).
                     if (rb.enabled !== cached.enabled) {
                         module._physics_setBodyEnabled(entity, rb.enabled ? 1 : 0);
                         cached.enabled = rb.enabled;
+                        if (rb.enabled) staticPoses.invalidate(entity);
                     }
 
                     // 2. body properties.
-                    if (world.isChangedSince(entity, RigidBody2D, cached.syncedTick) &&
-                        (cached.bodyType !== rb.bodyType ||
+                    if (cached.bodyType !== rb.bodyType ||
                          cached.gravityScale !== rb.gravityScale ||
                          cached.linearDamping !== rb.linearDamping ||
                          cached.angularDamping !== rb.angularDamping ||
                          cached.fixedRotation !== rb.fixedRotation ||
-                         cached.bullet !== rb.bullet)) {
+                         cached.bullet !== rb.bullet) {
                         module._physics_updateBodyProperties(
                             entity, rb.bodyType,
                             rb.gravityScale, rb.linearDamping, rb.angularDamping,
@@ -851,9 +880,15 @@ export function registerPhysics2DSystem(
                     //    or any collider's fields change (body + velocity preserved).
                     const sig = colliderSignature(world, entity);
                     if (sig !== cached.colliderSig ||
-                        collidersChangedSince(world, entity, cached.syncedTick)) {
-                        module._physics_clearShapes(entity);
-                        addShapeForEntity(world, module, entity, config.collisionLayerMasks);
+                        (mutationBatch ? reenabled || mutationBatch.full || COLLIDER_TYPES.some(component => mutationBatch.changed.get(component)?.has(entity))
+                            : collidersChangedSince(world, entity, cached.syncedTick))) {
+                        const state = colliderState(world, entity);
+                        if (state !== cached.colliderState) {
+                            module._physics_clearShapes(entity);
+                            addShapeForEntity(world, module, entity, config.collisionLayerMasks);
+                            releaseState(cached.colliderState);
+                            cached.colliderState = retainState(state);
+                        }
                         cached.colliderSig = sig;
                     }
 
@@ -866,14 +901,18 @@ export function registerPhysics2DSystem(
                         const parent = world.has(entity, Parent) ? world.get(entity, Parent).entity : null;
                         staticPoses.track(entity, parent);
                         parentedBodies.delete(entity);
-                    } else staticPoses.delete(entity);
+                    } else {
+                        staticPoses.delete(entity);
+                        if (world.has(entity, Parent)) parentedBodies.add(entity); else parentedBodies.delete(entity);
+                    }
                     cached.syncedTick = world.getWorldTick();
                 }
 
                 // Activity filtering removes descendants from the query too.
                 // Freeze those bodies in place so reactivation keeps velocity,
                 // shapes and joints; only component removal destroys the body.
-                for (const entity of trackedEntities) {
+                for (const entity of mutationBatch?.entities ?? trackedEntities) {
+                    if (!trackedEntities.has(entity)) continue;
                     if (!currentEntities.has(entity)) {
                         if (world.has(entity, RigidBody2D) && world.has(entity, Transform)) {
                             const cached = cachedProps.get(entity)!;
@@ -883,12 +922,7 @@ export function registerPhysics2DSystem(
                             }
                             continue;
                         }
-                        module._physics_destroyBody(entity);
-                        trackedEntities.delete(entity);
-                        cachedProps.delete(entity);
-                        parentedBodies.delete(entity);
-                        kinematicEntities.delete(entity);
-                        staticPoses.delete(entity);
+                        destroyBody(entity);
                     }
                 }
 
@@ -896,20 +930,22 @@ export function registerPhysics2DSystem(
                 // Destroy joints whose definition changed or whose component was
                 // removed; createPendingJoints re-adds present+enabled ones.
                 for (const entity of [...trackedJoints]) {
-                    if (jointChangedOrGone(world, entity, lastEntitySyncTick)
+                    if (!trackedEntities.has(entity) || mutationBatch?.full
+                        || JOINT_TYPES.some(component => mutationBatch?.changed.get(component)?.has(entity))
+                        || jointChangedOrGone(world, entity, lastEntitySyncTick)
                         || jointPartnerGone(world, entity, trackedEntities)) {
                         module._physics_destroyJoint(entity);
                         trackedJoints.delete(entity);
                     }
                 }
                 createPendingJoints(world, module, trackedEntities, trackedJoints, invPpu);
-                syncOneWayPlatforms(world, module, trackedEntities, trackedOneWay);
+                syncOneWayPlatforms(world, module, trackedEntities, trackedOneWay, mutationBatch?.entities);
 
                 lastEntitySyncTick = world.getWorldTick();
                 lastStructuralVersion = structuralVersion;
                 } // end if (needReconcile)
 
-                staticPoses.sync(module, ppu, needReconcile, entity => !!cachedProps.get(entity)?.enabled);
+                staticPoses.sync(module, ppu, mutationBatch?.full ?? needReconcile, entity => !!cachedProps.get(entity)?.enabled);
 
                 // Kinematic bodies are driven by their Transform (changed via gameplay,
                 // not tracked as a physics edit) — push every step, even when the
@@ -917,6 +953,7 @@ export function registerPhysics2DSystem(
                 // fixed step so Box2D derives their velocity from the delta: that
                 // velocity is what carries/pushes resting dynamic bodies (a plain
                 // teleport reports zero velocity, so platforms wouldn't move riders).
+                if (kinematicEntities.size) world.ensureTransformsComposed();
                 for (const entity of kinematicEntities) {
                     if (!cachedProps.get(entity)?.enabled) continue;
                     const wt = world.get(entity, Transform) as TransformData;
@@ -935,20 +972,8 @@ export function registerPhysics2DSystem(
                 collectEvents(module, ppu, events);
                 module._physics_capturePoses();
 
-                // Membership decides batch-vs-parented writeback; a runtime
-                // reparent of a live body would otherwise stay on the batch path
-                // and get its world pose written as a local one. Only gaining or
-                // losing a Parent changes the answer, and that is a structural
-                // edit, so this rides the reconcile gate rather than walking
-                // every body every step.
-                if (needReconcile) {
-                    for (const entity of trackedEntities) {
-                        if (cachedProps.get(entity)?.bodyType !== BodyType.Static && world.has(entity, Parent)) {
-                            parentedBodies.add(entity);
-                        }
-                        else parentedBodies.delete(entity);
-                    }
-                }
+                // Acknowledge the sampled boundaries; later same-frame writes remain pending.
+                if (mutationBatch) mutations.commit(mutationBatch);
             },
             { name: 'PhysicsStepSystem' }
         ),
@@ -985,7 +1010,12 @@ export function registerPhysics2DSystem(
         { runIf: playModeOnly, profileDomain: 'physics' }
     );
     const offFrameEnd = app.onFrameEnd(() => {
-        if (app.isPaused() || !playModeOnly() || app.getResource(Time).scale <= 0) staticPoses.pause();
+        if (app.isPaused() || !playModeOnly() || app.getResource(Time).scale <= 0) {
+            staticPoses.pause(); mutations.pause();
+        }
     });
-    return () => { offFrameEnd(); offDespawn(); staticPoses.dispose(); };
+    return () => {
+        offFrameEnd(); offDespawn(); staticPoses.dispose(); mutations.dispose();
+        colliderStates.clear(); cachedProps.clear();
+    };
 }

@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Physics reconciliation follows component mutation cursors.** Body, collider and activity edits reconcile affected World-owned entities, including native hierarchy changes and edits between fixed steps in one frame. Paused and disconnected consumers release their readers. Full refreshes compare shared collision-definition snapshots to retain unchanged shapes and contacts; native reset epochs distinguish registry resets from history overflow so overflow recovery preserves solver velocity. Static poses and one-way platform updates follow affected entities, while older cores retain the full-reconcile path.
+
 ## [0.89.1] - 2026-10-16
 
 ### Fixed
