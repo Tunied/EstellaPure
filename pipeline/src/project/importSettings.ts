@@ -213,9 +213,19 @@ const MODEL: ImporterFieldSpec[] = [
 const PANORAMA: ImporterFieldSpec[] = [
   {
     key: 'faceSize', label: 'Reflection Size', type: 'enum', default: 128, category: 'Import',
-    options: [32, 64, 128, 256].map((n) => ({ label: `${n} px`, value: n })),
+    options: [32, 64, 128, 256, 512].map((n) => ({ label: `${n} px`, value: n })),
     tooltip: 'Edge length of the sharpest prefiltered reflection. Larger keeps a mirror '
-      + 'crisper and costs baking time; the diffuse half is nine numbers either way.',
+      + 'crisper and costs baking time and image bytes; the diffuse half is nine numbers either way.',
+  },
+  {
+    key: 'skyWidth', label: 'Sky Width', type: 'enum', default: 2048, category: 'Import',
+    options: [
+      { label: 'No sky image', value: 0 },
+      ...[1024, 2048, 4096].map((n) => ({ label: `${n} px`, value: n })),
+    ],
+    tooltip: 'Width of the panorama the sky is drawn from, kept at the resolution of the source up '
+      + 'to this. Fine detail — stars, thin lines — needs more; a sky behind a dark scene needs '
+      + 'less. The reflections are sized apart, by Reflection Size.',
   },
 ];
 

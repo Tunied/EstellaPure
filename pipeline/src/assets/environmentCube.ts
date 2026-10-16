@@ -156,3 +156,57 @@ export function cubeFacesToPanorama(faces: CubeFaceSet, colorSpace: 'srgb' | 'li
     }
     return { width, height, rgb };
 }
+
+/** The version of the `.escube` document. */
+export const CUBE_SOURCE_VERSION = 1;
+
+/**
+ * An environment's source made of six images — the `.escube` file, a sibling of `.hdr` as a
+ * source: importing it produces the same `.esenv`, atlas and sky. The images are named, not
+ * embedded, so replacing one is a re-import, and what the author chose about each face
+ * (its turn, its mirroring) is part of the source rather than of a dialog's memory.
+ */
+export interface CubeSourceDocument {
+    version: typeof CUBE_SOURCE_VERSION;
+    /** How the images are encoded. PNG and JPEG are sRGB, the default. */
+    colorSpace?: 'srgb' | 'linear';
+    faces: Partial<Record<CubeFaceName, { file: string; rotate?: 0 | 90 | 180 | 270; flip?: boolean }>>;
+}
+
+/** Read a `.escube` document, refusing what it cannot mean. A face left out is allowed here:
+ *  an unfinished set is a document, and the import names what is missing. */
+export function parseCubeSource(raw: unknown): CubeSourceDocument {
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+        throw new CubeImportError('a cube source is a JSON object');
+    }
+    const doc = raw as Record<string, unknown>;
+    if (doc.version !== CUBE_SOURCE_VERSION) {
+        throw new CubeImportError(`cube source version ${String(doc.version)} is not the ${CUBE_SOURCE_VERSION} this editor reads`);
+    }
+    if (doc.colorSpace !== undefined && doc.colorSpace !== 'srgb' && doc.colorSpace !== 'linear') {
+        throw new CubeImportError(`colorSpace must be "srgb" or "linear", not ${JSON.stringify(doc.colorSpace)}`);
+    }
+    if (typeof doc.faces !== 'object' || doc.faces === null || Array.isArray(doc.faces)) {
+        throw new CubeImportError('a cube source names its images under "faces"');
+    }
+    const faces: CubeSourceDocument['faces'] = {};
+    for (const [key, value] of Object.entries(doc.faces as Record<string, unknown>)) {
+        const name = (CUBE_FACE_NAMES as readonly string[]).includes(key) ? key as CubeFaceName : null;
+        if (!name) {
+            throw new CubeImportError(`"${key}" is not a face; the faces are ${CUBE_FACE_NAMES.join(', ')}`);
+        }
+        const f = value as Record<string, unknown> | null;
+        if (typeof f !== 'object' || f === null || typeof f.file !== 'string' || f.file === '') {
+            throw new CubeImportError(`face ${CUBE_FACE_LABELS[name]} needs the "file" it reads`, name);
+        }
+        if (f.rotate !== undefined && f.rotate !== 0 && f.rotate !== 90 && f.rotate !== 180 && f.rotate !== 270) {
+            throw new CubeImportError(`face ${CUBE_FACE_LABELS[name]}: rotate is 0, 90, 180 or 270, not ${JSON.stringify(f.rotate)}`, name);
+        }
+        if (f.flip !== undefined && typeof f.flip !== 'boolean') {
+            throw new CubeImportError(`face ${CUBE_FACE_LABELS[name]}: flip is true or false`, name);
+        }
+        faces[name] = { file: f.file, ...(f.rotate !== undefined ? { rotate: f.rotate } : {}),
+                        ...(f.flip !== undefined ? { flip: f.flip } : {}) };
+    }
+    return { version: CUBE_SOURCE_VERSION, ...(doc.colorSpace ? { colorSpace: doc.colorSpace } : {}), faces };
+}

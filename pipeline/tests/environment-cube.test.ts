@@ -6,11 +6,11 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-    cubeFacesToPanorama, validateCubeFaces, CubeImportError, CUBE_FACE_NAMES,
+    cubeFacesToPanorama, validateCubeFaces, parseCubeSource, CubeImportError, CUBE_FACE_NAMES,
     type CubeFace, type CubeFaceSet, type CubeFaceName,
 } from '../src/assets/environmentCube';
 import {
-    samplePanorama, importEnvironmentFromPanorama, ENV_MAX_FACE_SIZE, ENV_QUALITY_PRESETS, type Panorama,
+    samplePanorama, importEnvironmentFromPanorama, ENV_MAX_FACE_SIZE, type Panorama,
 } from '../src/assets/environmentImport';
 
 const N = 32;
@@ -164,16 +164,39 @@ describe('an imported panorama reports what it cost and what it clipped', () => 
         expect(r.report.skyBytes).toBe(0);
     });
 
-    it('takes a named quality and lets an explicit size win', () => {
-        const low = importEnvironmentFromPanorama(flat(0.5), 'q', { quality: 'low', skyWidth: 64 });
-        expect(low.report.faceSize).toBe(ENV_QUALITY_PRESETS.low.faceSize);
-        const own = importEnvironmentFromPanorama(flat(0.5), 'q', { quality: 'low', faceSize: 32, skyWidth: 64 });
-        expect(own.report.faceSize).toBe(32);
-    });
-
     it('refuses to be asked for more than an import allows, and says so', () => {
         const r = importEnvironmentFromPanorama(flat(0.5), 'huge', { faceSize: ENV_MAX_FACE_SIZE * 4, mipCount: 1, skyWidth: 0 });
         expect(r.report.faceSize).toBe(ENV_MAX_FACE_SIZE);
         expect(r.warnings.join(' ')).toMatch(/past the 1024/);
     }, 120000);
+});
+
+describe('a cube source document', () => {
+    const good = (): Record<string, unknown> => ({
+        version: 1, colorSpace: 'linear',
+        faces: { px: { file: 'sky/px.png', rotate: 90, flip: true }, nx: { file: 'sky/nx.png' } },
+    });
+    const refused = (raw: unknown): CubeImportError => {
+        try { parseCubeSource(raw); } catch (e) { return e as CubeImportError; }
+        throw new Error('expected the document to be refused');
+    };
+
+    it('reads the faces, their turns and the colour space, and allows an unfinished set', () => {
+        const doc = parseCubeSource(good());
+        expect(doc.colorSpace).toBe('linear');
+        expect(doc.faces.px).toEqual({ file: 'sky/px.png', rotate: 90, flip: true });
+        expect(doc.faces.nx).toEqual({ file: 'sky/nx.png' });
+        expect(doc.faces.pz).toBeUndefined();
+    });
+
+    it('refuses a document it cannot mean, naming the face where there is one', () => {
+        expect(refused({ version: 2, faces: {} }).message).toMatch(/version 2/);
+        expect(refused({ version: 1, faces: [] }).message).toMatch(/under "faces"/);
+        expect(refused({ version: 1, colorSpace: 'p3', faces: {} }).message).toMatch(/colorSpace/);
+        expect(refused({ version: 1, faces: { up: { file: 'a.png' } } }).message).toMatch(/"up" is not a face/);
+        expect(refused({ version: 1, faces: { py: { file: '' } } }).face).toBe('py');
+        expect(refused({ version: 1, faces: { ny: { file: 'a.png', rotate: 45 } } }).face).toBe('ny');
+        expect(refused({ version: 1, faces: { nz: { file: 'a.png', flip: 'yes' } } }).face).toBe('nz');
+        expect(refused('nope').message).toMatch(/JSON object/);
+    });
 });

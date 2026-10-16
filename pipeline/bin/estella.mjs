@@ -246,8 +246,8 @@ async function bakeScene(baker, meta, sceneFile, check) {
   const volumes = [];
   const reflectionProbes = [];
   const ambient = [0, 0, 0];
-  // The sky a capture sees and the format its atlas adopts. Read from the FIRST
-  // ambient light naming one, which is the frame's environment too.
+  // The sky a capture sees and the format its atlas adopts: the frame's environment,
+  // which `sceneEnvironment` answers for every door that needs it (see below).
   let environment = null;
   const readEnvironment = (ref) => {
     const file = resolveRef(ref);
@@ -322,11 +322,6 @@ async function bakeScene(baker, meta, sceneFile, check) {
                               center: [p.x, p.y, p.z] });
     }
     if (light) {
-      if (!environment && typeof light.data?.environment === 'string'
-          && light.data.environment !== '') {
-        environment = readEnvironment(light.data.environment);
-        if (environment) environment.rotation = light.data.environmentRotation ?? 0;
-      }
       const p = bakeWorldVec(tf.position, BAKE_ZERO);
       const made = baker.bakeLightOf(light.data, [p.x, p.y, p.z],
                                      bakeWorldVec(tf.rotation, BAKE_IDENTITY_Q), linearColor);
@@ -337,6 +332,17 @@ async function bakeScene(baker, meta, sceneFile, check) {
         ambient[2] += made.ambient[2];
       }
     }
+  }
+
+  // The same rule the frame and the editor's collector apply, read once from the
+  // document rather than re-derived per light.
+  const chosen = baker.sceneEnvironment(baker.sceneAmbientLights(scene.entities ?? [], (ref) => {
+    const file = resolveRef(ref);
+    return !!file && existsSync(file);
+  })).effective;
+  if (chosen?.environment) {
+    environment = readEnvironment(chosen.environment);
+    if (environment) environment.rotation = chosen.rotation;
   }
 
   const fingerprint = baker.bakeFingerprint({

@@ -68,8 +68,11 @@ export const EXT_TO_TYPE = Object.freeze({
     '.glb': 'model',
     '.fbx': 'model',
     // The same shape for lighting: a `.hdr` panorama is import-only and produces
-    // the `.esenv` + atlas a scene references.
+    // the `.esenv` + atlas a scene references. So is a `.escube`, which names six
+    // images instead of holding one — the same type, because it is imported the same
+    // way and answers to the same settings.
     '.hdr': 'panorama',
+    '.escube': 'panorama',
     // And for 2D art: a layered document produces one image per layer plus the
     // prefab that stacks them, and those are what a scene references.
     '.psd': 'layered',

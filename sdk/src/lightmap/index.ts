@@ -14,6 +14,8 @@ export { bakeFingerprint, type BakeInputs } from './fingerprint';
 export { BakedLighting, type BakedLightingData } from './components';
 export { bakeLightOf, bakeLightForward, type AuthoredLight, type BakeLightContribution }
     from './lights';
+export { sceneAmbientLights, sceneEnvironment, carriesEnvironment, type SceneAmbientLight, type AmbientSkip,
+         type EnvironmentLightEntity } from './environmentLight';
 export { BAKE_DEFAULTS } from './bake';
 export { shBasis, convolveCosine, evalIrradianceSH, SH_BASIS_SCALE, SH_COSINE_BAND } from './sh';
 export { panoramaDirection, panoramaUV } from './panorama';

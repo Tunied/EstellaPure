@@ -592,14 +592,6 @@ export interface ImportedEnvironment {
     report: EnvironmentImportReport;
 }
 
-/** Named quality settings: what an author picks between import time and image bytes. */
-export const ENV_QUALITY_PRESETS = {
-    low: { faceSize: 64, skyWidth: 1024 },
-    standard: { faceSize: ENV_FACE_SIZE, skyWidth: ENV_SKY_MAX_WIDTH },
-    high: { faceSize: 256, skyWidth: 4096 },
-} as const;
-export type EnvironmentQuality = keyof typeof ENV_QUALITY_PRESETS;
-
 /** The most an import is allowed to ask for: past these the memory and time are not a
  *  quality setting but a way to run out of both. */
 export const ENV_MAX_FACE_SIZE = 1024;
@@ -609,8 +601,6 @@ export interface EnvironmentImportOptions {
     faceSize?: number;
     mipCount?: number;
     skyWidth?: number;
-    /** A named preset; an explicit `faceSize` or `skyWidth` wins over it. */
-    quality?: EnvironmentQuality;
 }
 
 /** Turn a Radiance panorama into the assets a scene can reference. */
@@ -627,14 +617,13 @@ export function importEnvironment(bytes: Uint8Array, stem: string,
  */
 export function importEnvironmentFromPanorama(panorama: Panorama, stem: string,
                                               options: EnvironmentImportOptions = {}): ImportedEnvironment {
-    const preset = ENV_QUALITY_PRESETS[options.quality ?? 'standard'];
     const warnings: string[] = [];
-    let faceSize = options.faceSize ?? preset.faceSize;
+    let faceSize = options.faceSize ?? ENV_FACE_SIZE;
     if (faceSize > ENV_MAX_FACE_SIZE) {
         warnings.push(`faceSize ${faceSize} is past the ${ENV_MAX_FACE_SIZE} an import allows; it was imported at ${ENV_MAX_FACE_SIZE}`);
         faceSize = ENV_MAX_FACE_SIZE;
     }
-    let skyWidth = options.skyWidth ?? preset.skyWidth;
+    let skyWidth = options.skyWidth ?? ENV_SKY_MAX_WIDTH;
     if (skyWidth > ENV_MAX_SKY_WIDTH) {
         warnings.push(`skyWidth ${skyWidth} is past the ${ENV_MAX_SKY_WIDTH} an import allows; it was imported at ${ENV_MAX_SKY_WIDTH}`);
         skyWidth = ENV_MAX_SKY_WIDTH;

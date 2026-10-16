@@ -175,6 +175,8 @@ export {
 export {
     BakedLighting, type BakedLightingData, bakeFingerprint, type BakeInputs,
     bakeLightOf, bakeLightForward, type AuthoredLight, type BakeLightContribution,
+    sceneAmbientLights, sceneEnvironment, carriesEnvironment, type SceneAmbientLight, type AmbientSkip,
+    type EnvironmentLightEntity,
 } from './lightmap';
 /**
  * A decal's geometry: the surface under a projector, cut to its box. Ordinary

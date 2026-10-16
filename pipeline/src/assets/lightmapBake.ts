@@ -26,6 +26,7 @@ import { bakeSceneReflections, bakeSky, irradianceSky, type BakeEnvironment,
 // them through the one module it loads. composeTRS especially: a second
 // implementation would put the two doors a rounding error apart.
 export { bakeHoldsStill, bakeFingerprint, bakeLightOf, composeTRS, BAKE_DEFAULTS,
+         sceneAmbientLights, sceneEnvironment,
          type BakeMobility, type BakeInputs } from 'esengine';
 
 /** One placed object, as the editor's world describes it. */
