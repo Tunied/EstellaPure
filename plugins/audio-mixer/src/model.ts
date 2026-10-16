@@ -45,7 +45,7 @@ export function patchBus(
   } else {
     buses.push({ name, ...patch });
   }
-  return { buses };
+  return { ...config, buses };
 }
 
 /** A name no strip has yet, for the Add button. */

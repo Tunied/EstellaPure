@@ -35,6 +35,16 @@ describe('the strips a project shows', () => {
 });
 
 describe('editing one bus', () => {
+  it.each([0, 4, 128])('preserves the voice budget %i through add, edit and removal', maxVoices => {
+    const initial = { maxVoices };
+    const added = patchBus(initial, 'ambience', { volume: 0.25 });
+    const edited = patchBus(added, 'ambience', { muted: true });
+    const removed = patchBus(edited, 'ambience', null);
+    expect([added.maxVoices, edited.maxVoices, removed.maxVoices]).toEqual([maxVoices, maxVoices, maxVoices]);
+    expect(removed.buses).toEqual([]);
+    expect(initial).toEqual({ maxVoices });
+  });
+
   it('declares a built-in the first time it is touched', () => {
     // Nothing was written down before: the volume came from the engine.
     expect(patchBus({}, 'sfx', { volume: 0.5 })).toEqual({ buses: [{ name: 'sfx', volume: 0.5 }] });

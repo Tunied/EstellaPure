@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(editor): retain audio settings when editing mixer buses':
+    { note: "Mixer bus edits retain the project's voice budget." },
   'fix(physics): preserve unchanged joint projections':
     { note: 'Unchanged 2D joints retain their solver state.' },
   'fix(ecs): scope native mutations to world ownership':
