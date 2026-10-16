@@ -84,6 +84,7 @@
     "panels/ContentBrowser.tsx": 5,
     "panels/ControllersPanel.tsx": 2,
     "panels/Details.tsx": 23,
+    "panels/InputMapEditor.tsx": 1,
     "panels/FlipbookEditor.tsx": 2,
     "panels/HealthPanel.tsx": 1,
     "panels/HistoryPanel.tsx": 5,

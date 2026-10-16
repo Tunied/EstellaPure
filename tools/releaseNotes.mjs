@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(editor): the input map editor captures the next key, shows key caps and flags inputs shared between actions':
+    { note: 'The input map editor captures keys.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":

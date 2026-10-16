@@ -16,6 +16,7 @@ published separately; it ships inside the editor.
 
 ### Changed
 
+- **The input map editor captures keys.** Press "Capture" and the next key, mouse button or gamepad press becomes a binding; click a key cap to rebind it, and a key that another action also uses is flagged on the row.
 - **The interface font is a setting.** Choose Rounded (the default, which prefers HarmonyOS Sans SC or MiSans for Chinese text when installed), Sans, Serif, or the name of any font installed on the computer, under Settings › Editor › General › Appearance.
 
 - **An asset's header names its kind and size.** The line under the name reads, for example, "Texture · 18 KB" in your language rather than the internal type name, and a segmented switch is used only when its words fit side by side, otherwise the choice stays a dropdown.
