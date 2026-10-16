@@ -14,6 +14,8 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+## [0.90.0] - 2026-10-15
+
 ### Added
 
 - **Sound events have a dedicated authoring panel.** Create from audio selections or the Content Browser, drag in variants, reorder and edit weights/ranges with shared undo, save, reload and workspace handling. Continuous preview uses the runtime event manager and existing mixer/voice pool, showing the sampled clip and parameters alongside the shared waveform. A bounded peak cache avoids repeated waveform decoding and invalidates on disk/project changes.
@@ -26,11 +28,17 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Editor Play can connect to game servers.** The Play realm permits HTTP(S) requests and WS(S) sockets through the same SDK Web platform adapter used by exported games. This fixes `createSocket` failing against the local server in the multiplayer-arena example (#97), while preserving script restrictions and editor isolation. A headless Chromium regression checks cross-origin requests, text and binary socket round trips, and normal connection shutdown.
+
 - **Asset documents retain edits made during a save.** A completed JSON write only marks the document clean if its asset and path still match the written snapshot. Pending file opens are also invalidated when the project changes.
 
 - **Mixer bus edits retain the project's voice budget.** Adding, changing or removing a bus preserves the other audio settings, including an explicit unlimited voice count, instead of silently restoring the runtime default limit.
 
 - **Unchanged 2D joints retain their solver state.** Paused collision edits, full mutation-history refreshes and identical joint writes preserve existing constraints instead of destroying and recreating them. Missing solver joints recover on reconciliation, changes to the live Canvas scale rebuild joint dimensions, and older cores observe joint writes after a previous physics run in the same tick. All six joint types retain their enabled and partner-lifetime behavior.
+
+### Known issues
+
+- The Neon Ascension example failed Android and iOS template boot checks in 0.89.0 and iOS template checks in 0.89.1 because the exported package could not load its entry scene. This release does not resolve or claim device acceptance for that example on those platforms.
 
 ## [0.89.2] - 2026-10-16
 
@@ -14535,7 +14543,8 @@ not kept before this file was introduced — see the Git history at
 `github.com/esengine/estella` for the full commit-level record since the first
 commit on 2026-01-25.
 
-[Unreleased]: https://github.com/esengine/estella/compare/v0.89.2...HEAD
+[Unreleased]: https://github.com/esengine/estella/compare/v0.90.0...HEAD
+[0.90.0]: https://github.com/esengine/estella/compare/v0.89.2...v0.90.0
 [0.89.2]: https://github.com/esengine/estella/compare/v0.89.1...v0.89.2
 [0.89.1]: https://github.com/esengine/estella/compare/v0.89.0...v0.89.1
 [0.89.0]: https://github.com/esengine/estella/compare/v0.88.0...v0.89.0
