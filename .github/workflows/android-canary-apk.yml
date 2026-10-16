@@ -124,7 +124,7 @@ jobs:
             [ -z "$name" ] && continue
             echo "::group::packaging $name"
             node pipeline/bin/estella.mjs export "examples/$name" \
-              --platform android --template template \
+              --platform android --template template --emulator-abi \
               --out "build/pkg/$name" --json "build/pkg/$name.json"
             APK=$(node -e "process.stdout.write(require('./build/pkg/$name.json').apkFile || '')")
             if [ -z "$APK" ]; then

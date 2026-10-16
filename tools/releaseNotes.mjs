@@ -28,6 +28,10 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'perf(android): a package carries the phone ABI, and the template strips libc++':
+    { note: 'An Android package carries the phone ABI only.' },
+  'feat(editor): include the emulator ABI as an Android packaging setting':
+    { note: 'An Android package carries the phone ABI only.' },
   'feat(render): editor-view studio preview lighting and preview exposure':
     { note: 'The viewport can light the scene with a studio preview, and expose it.' },
   'feat(editor): studio preview lighting and preview exposure for the viewport':

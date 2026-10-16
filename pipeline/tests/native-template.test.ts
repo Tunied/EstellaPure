@@ -366,6 +366,17 @@ describe('what a PUBLISHED template must carry', () => {
       .toEqual(expect.arrayContaining(['lib/x86_64/libestella_js_host.so']));
   });
 
+  it('strips every native library of the template, libc++ included', async () => {
+    // The NDK's own libc++_shared carries 7.5 MB of debug info per ABI, which was 8 of its
+    // 9.2 MB in a shipped APK.
+    const { templateLayout } = await import('../../build-tools/utils/nativeTemplate.js');
+    const libs = templateLayout('android').filter((e: { rel: string }) => e.rel.startsWith('lib/'));
+    expect(libs.length).toBeGreaterThan(0);
+    for (const e of libs as { rel: string; strip?: boolean }[]) {
+      expect(e.strip, `${e.rel} ships with its debug info`).toBe(true);
+    }
+  });
+
   it('counts a directory entry as held when something inside it is', () => {
     // A zip stores files, never the folder — so `java` is present because
     // `java/com/...` is, and absent when nothing under it shipped.

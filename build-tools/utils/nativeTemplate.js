@@ -111,6 +111,13 @@ export function isTemplatePlatform(platform) {
 export const ANDROID_ABIS = ['arm64-v8a', 'x86_64'];
 
 /**
+ * The ABIs a phone can run. A package carries only these unless it is asked for the
+ * emulator's too: x86_64 is the other half of the engine's size, and no player's device
+ * can use it.
+ */
+export const ANDROID_DEVICE_ABIS = ['arm64-v8a'];
+
+/**
  * What a template holds, per platform.
  *
  * `from` resolves the file in a BUILD TREE (the emitter's input); `rel` is where
@@ -202,7 +209,9 @@ export function templateLayout(platform, options = {}) {
                 from: (ctx) => ctx.dawnLibrary?.(abi),
             },
             {
-                rel: `lib/${abi}/libc++_shared.so`, abi, optional: n > 0, releaseRequired: true,
+                // Stripped like the two above: the NDK's own copy carries 7.5 MB of debug
+                // info per ABI, which is 8 of the 9.2 MB it weighs.
+                rel: `lib/${abi}/libc++_shared.so`, strip: true, abi, optional: n > 0, releaseRequired: true,
                 from: (ctx) => ctx.libcxxShared?.(abi),
             },
         ]);
@@ -280,6 +289,27 @@ export function androidTemplateSources(dir) {
 
 export function templateAbis(dir) {
     return ANDROID_ABIS.filter((abi) => existsSync(path.join(dir, 'lib', abi, 'libestella_js_host.so')));
+}
+
+/**
+ * The ABIs one package carries: the template's device ABIs, and the emulator's as well
+ * when `emulator` asks. Empty when the template has none of what was asked for, which the
+ * assembler reports by name rather than writing an app that installs on nothing.
+ *
+ * @param {string} dir An installed android template.
+ * @param {{emulator?: boolean}} [options]
+ */
+export function packageAbis(dir, options = {}) {
+    return templateAbis(dir).filter((abi) => options.emulator || ANDROID_DEVICE_ABIS.includes(abi));
+}
+
+/** The message for a template that has nothing to package under the ABI choice made. */
+export function noPackageAbisMessage(dir, options = {}) {
+    const has = templateAbis(dir);
+    if (has.length === 0) return 'The runtime template carries no native libraries.';
+    return `The runtime template carries only ${has.join(', ')}, and ${options.emulator ? 'none of it' : 'no device ABI'} `
+        + 'can be packaged. Install a template that includes arm64-v8a'
+        + `${options.emulator ? '' : ', or ask for the emulator ABI (emulatorAbi / --emulator-abi) to package an emulator-only template'}.`;
 }
 
 /** What a template is missing, if anything — the one readiness test. */

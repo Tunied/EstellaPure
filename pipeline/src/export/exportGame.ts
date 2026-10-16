@@ -537,6 +537,8 @@ export interface ExportGameOptions {
   androidVersionCode?: number;
   /** Android: also write the Google Play upload format (.aab) beside the .apk. */
   androidAppBundle?: boolean;
+  /** Android: also carry the emulator's x86_64 libraries. Absent ⇒ phone ABIs only. */
+  androidEmulatorAbi?: boolean;
   /** A project-supplied mini-game export profile (`.esengine/platforms/<id>.mjs`),
    *  for a platform the editor does not ship. Present ⇒ the mini-game pipeline
    *  runs with it, whatever `platform` says. Loaded by the main process, which is
@@ -1331,7 +1333,10 @@ async function produceExport(opts: ExportGameOptions): Promise<ExportGameResult>
           warnings.push('This shipping APK is signed with the development key, which Google Play refuses: '
             + 'set a release key under Project Settings → Android → Signing.');
         }
-        const assembly = { templateDir: template, contentDir: absOut, app: appConfig, key, icon };
+        const assembly = {
+          templateDir: template, contentDir: absOut, app: appConfig, key, icon,
+          emulatorAbi: opts.androidEmulatorAbi === true,
+        };
         apkFile = path.join(absOut, apkFileName(appConfig.id));
         await writeFile(apkFile, assembleApk(assembly));
         if (opts.androidAppBundle) {

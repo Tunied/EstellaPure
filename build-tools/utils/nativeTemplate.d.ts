@@ -48,6 +48,8 @@ export const TEMPLATE_FORMAT: number;
 export const TEMPLATE_MANIFEST: string;
 export const BYTECODE_FILE: string;
 export const ANDROID_ABIS: readonly string[];
+/** The ABIs a phone can run; a package carries only these unless asked for the emulator's. */
+export const ANDROID_DEVICE_ABIS: readonly string[];
 
 export function templateId(platform: TemplatePlatform): TemplatePlatform;
 
@@ -56,6 +58,10 @@ export function templateId(platform: TemplatePlatform): TemplatePlatform;
 export const TEMPLATE_PLATFORMS: readonly TemplatePlatform[];
 export function isTemplatePlatform(platform: unknown): platform is TemplatePlatform;
 export function templateAbis(dir: string): string[];
+/** The ABIs one package carries: the device ABIs, and the emulator's when `emulator` is set. */
+export function packageAbis(dir: string, options?: { emulator?: boolean }): string[];
+/** Why a template has nothing to package under the ABI choice made. */
+export function noPackageAbisMessage(dir: string, options?: { emulator?: boolean }): string;
 export interface TemplateEntry {
     /** Path inside the template. */
     rel: string;

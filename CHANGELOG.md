@@ -31,6 +31,7 @@ published separately; it ships inside the editor.
 
 - **One rule picks the environment light.** The frame, the bake in the editor and the command-line bake each chose their own; the two bakes took the first light naming an environment whether or not it was enabled, hidden or lit. They now take what the frame takes, so a scene whose first environment light is switched off bakes against the next one.
 - **UASTC textures ship under zstd.** Cooked and cached UASTC textures are supercompressed: 59% fewer bytes over a sample of 24 ORCA Bistro textures, 47% over 256-pixel crops of them, with identical decoded pixels. Existing cook caches are encoded again once.
+- **An Android package carries the phone ABI only.** An empty APK was 75.9 MB, half of it the emulator's x86_64 libraries no phone can run. Packages now carry `arm64-v8a`; tick *Include the emulator (x86_64)* in the Android settings, or pass `--emulator-abi`, for a build to install in an emulator. The same choice applies to the App Bundle. The template's `libc++_shared.so` is stripped like the other two libraries (9.2 MB to 1.3 MB per ABI) from the next published template; an empty arm64 package measured 38.3 MB with the current one.
 
 ### Fixed
 

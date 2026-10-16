@@ -55,8 +55,13 @@ where Xcode does the assembling.
 |---|---|---|
 | Minimum OS | **Android 10** (API 29) | **iOS 17.0** |
 | Declared target | API 33 | — |
-| CPU | `arm64-v8a` (every real device) + `x86_64` (the emulator) | arm64 device + simulator slice |
+| CPU | `arm64-v8a` (every real device); `x86_64` (the emulator) only when asked | arm64 device + simulator slice |
 | GPU | **Vulkan 1.0.3 required** — declared `required="true"`, so a device without it does not see the app on Play | Metal |
+
+An Android package carries the phone ABI only, which is about half of what it used to
+weigh. To try a build in an emulator, tick *Include the emulator (x86_64)* in the Android
+section (or pass `--emulator-abi` on the command line) and install that one; leave it off
+for anything you ship.
 
 Android's floor is 29 because the engine's font path calls `AFontMatcher_create`,
 which is API 29 — below that there is nothing to fall back to. It was **declared** as

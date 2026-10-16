@@ -21,7 +21,7 @@ import { existsSync, readFileSync, readdirSync } from 'fs';
 import { makeZip, zipLayout } from './zip.js';
 import { compileManifest } from './androidBinaryXml.js';
 import { appResources } from './androidResources.js';
-import { DEFAULT_ICON, templateAbis } from './nativeTemplate.js';
+import { DEFAULT_ICON, packageAbis, noPackageAbisMessage } from './nativeTemplate.js';
 import { fillTemplate, androidManifestValues } from './nativeApp.js';
 
 /** The boundary a mapped `.so` must start on — a 16 KiB page, which every
@@ -152,10 +152,10 @@ export function assembleApk(options) {
             ...androidManifestValues(app, { hasCode: hasDex }),
         }), resources.references);
 
-    // Every architecture the template carries, so one package installs on a phone
-    // and in an emulator alike — the device picks the one it can run.
-    const abis = templateAbis(templateDir);
-    if (abis.length === 0) throw new Error('The runtime template carries no native libraries.');
+    // The architectures a phone runs, and the emulator's too only when asked: the emulator
+    // ABI is half of the package and no player's device can use it.
+    const abis = packageAbis(templateDir, { emulator: options.emulatorAbi });
+    if (abis.length === 0) throw new Error(noPackageAbisMessage(templateDir, { emulator: options.emulatorAbi }));
     const templateAssets = path.join(templateDir, 'assets');
 
     const entries = [

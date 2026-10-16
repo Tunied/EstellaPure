@@ -102,6 +102,7 @@ export async function projectExportOptions(
     ...(platform === 'wechat' && plat?.wechat?.emscriptenGLX ? { miniGameGlx: true } : {}),
     androidVersionCode: plat?.android?.versionCode,
     androidAppBundle: plat?.android?.appBundle,
+    androidEmulatorAbi: plat?.android?.emulatorAbi,
     androidOutput: plat?.android?.output,
     ...(platform === 'android' && plat?.android?.releaseKey
       ? { androidKey: () => androidReleaseKey(root, plat.android!.releaseKey!, secrets.androidKeyPassphrase) }

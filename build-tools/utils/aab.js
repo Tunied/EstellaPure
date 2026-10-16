@@ -23,7 +23,7 @@ import { packageEntries } from './apk.js';
 import { message, bytesField } from './protobuf.js';
 import { compileProtoManifest } from './androidProtoXml.js';
 import { appResources } from './androidResources.js';
-import { DEFAULT_ICON, templateAbis } from './nativeTemplate.js';
+import { DEFAULT_ICON, packageAbis, noPackageAbisMessage } from './nativeTemplate.js';
 import { jarSignatureFiles } from './jarSign.js';
 import { fillTemplate, androidManifestValues } from './nativeApp.js';
 
@@ -57,10 +57,10 @@ export function assembleAab(options) {
             ...androidManifestValues(app, { hasCode: hasDex }),
         }), resources.references);
 
-    // Every architecture: Play splits the bundle per device, which is what the
-    // format is for.
-    const abis = templateAbis(templateDir);
-    if (abis.length === 0) throw new Error('The runtime template carries no native libraries.');
+    // Play splits the bundle per device, so this is about what is uploaded, not what a player
+    // downloads: the same device ABIs as the APK, and the emulator's only when asked.
+    const abis = packageAbis(templateDir, { emulator: options.emulatorAbi });
+    if (abis.length === 0) throw new Error(noPackageAbisMessage(templateDir, { emulator: options.emulatorAbi }));
     const templateAssets = path.join(templateDir, 'assets');
 
     const entries = [

@@ -304,6 +304,13 @@ export interface AndroidPackaging {
    */
   appBundle?: boolean;
   /**
+   * Also carry the emulator's x86_64 libraries in the package.
+   *
+   * Off by default: they are about half of an empty package and no player's phone can
+   * run them. Turn it on for a build you will install in an emulator.
+   */
+  emulatorAbi?: boolean;
+  /**
    * The release identity a shipping build is signed with: two PEM paths, relative
    * to the project or absolute. Keep the files out of the project's repository;
    * a passphrase never lives here (the editor's keychain, or
@@ -1025,6 +1032,7 @@ export function parseManifest(raw: unknown): ProjectManifest {
         }
         if (an.output === 'package' || an.output === 'project') a.output = an.output;
         if (typeof an.appBundle === 'boolean') a.appBundle = an.appBundle;
+        if (typeof an.emulatorAbi === 'boolean') a.emulatorAbi = an.emulatorAbi;
         const key = an.releaseKey as Record<string, unknown> | undefined;
         if (key && typeof key.privateKey === 'string' && typeof key.certificate === 'string') {
           a.releaseKey = { privateKey: key.privateKey, certificate: key.certificate };

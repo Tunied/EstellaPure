@@ -745,6 +745,8 @@ function packageExample(driver, name, opts) {
         path.join(ROOT, 'examples', name),
         '--platform', driver.name,
         '--template', opts.template,
+        // The matrix installs on an x86_64 emulator, which a package built for phones omits.
+        ...(driver.name === 'android' ? ['--emulator-abi'] : []),
         '--out', path.join(work, 'dist'),
         '--json', report,
     ]);

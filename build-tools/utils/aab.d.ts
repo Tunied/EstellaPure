@@ -14,6 +14,8 @@ export function assembleAab(options: {
     contentDir: string;
     app: ApkAppIdentity;
     key: SigningKey;
+    /** Also carry the emulator's x86_64 libraries. Default: phone ABIs only. */
+    emulatorAbi?: boolean;
 }): Buffer;
 
 export function aabFileName(appId: string): string;

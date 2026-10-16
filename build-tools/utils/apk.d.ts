@@ -23,6 +23,8 @@ export function assembleApk(options: {
     key: SigningKey;
     /** The launcher icon; the template's default when absent. */
     icon?: Buffer;
+    /** Also carry the emulator's x86_64 libraries. Default: phone ABIs only. */
+    emulatorAbi?: boolean;
 }): Buffer;
 
 export function signApkV2(zip: Buffer, key: SigningKey): Buffer;

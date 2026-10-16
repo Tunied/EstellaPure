@@ -33,6 +33,8 @@ const USAGE = `usage: node pipeline/bin/estella.mjs export <projectDir> [options
   --scripts <path>    scripts entry, project-relative (default: the project's scripts.main)
   --template <dir>    android/ios/desktop: the runtime template to wrap, else the installed one
   --output project    android: emit a Gradle project instead of an apk
+  --emulator-abi      android: also carry the emulator's x86_64 libraries (about half of an empty
+                      package; phones do not run them, so the default leaves them out)
   --json <file>       also write the result here, for a caller that reads it back
   --enforce-budget    fail (exit 1) when the package is over a size limit
   --minify            minify the bundled scripts, as a shipping build (or profile) does
@@ -69,7 +71,7 @@ The panorama itself is not shipped — a light references the \`.esenv\`.`;
 
 /** Options take a value; these do not — without the distinction a trailing flag
  *  swallows nothing, ends the loop, and a CI job silently gets no gate. */
-const FLAGS = new Set(['enforce-budget', 'minify', 'no-aot']);
+const FLAGS = new Set(['enforce-budget', 'minify', 'no-aot', 'emulator-abi']);
 
 function parseArgs(argv) {
   const [command, projectDir, ...rest] = argv;
@@ -945,6 +947,7 @@ try {
     } : {}),
     iosSources: platform === 'ios' && templateDir ? iosTemplateSources(templateDir) : null,
     ...(opts.output === 'project' ? { androidOutput: 'project' } : {}),
+    ...(opts['emulator-abi'] ? { androidEmulatorAbi: true } : {}),
     ...(opts.minify ? { minify: true } : {}),
     ...(opts['debug-channel'] ? { debugChannel: { url: opts['debug-channel'] } } : {}),
     // `dev` is what the AOT step calls "do not compile" — the editor's preview

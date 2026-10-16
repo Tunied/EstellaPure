@@ -76,6 +76,13 @@ describe('parseManifest — packaging', () => {
     expect(bad.packaging?.platforms?.android).toBeUndefined();
   });
 
+  it('keeps whether an Android package carries the emulator ABI, and reads only a boolean', () => {
+    const on = parseManifest({ name: 'X', packaging: { platforms: { android: { emulatorAbi: true } } } });
+    expect(on.packaging?.platforms?.android).toEqual({ emulatorAbi: true });
+    const bad = parseManifest({ name: 'X', packaging: { platforms: { android: { emulatorAbi: 'yes' } } } });
+    expect(bad.packaging?.platforms?.android).toBeUndefined();
+  });
+
   it('parses excludeScenes, dropping non-string / empty entries', () => {
     const m = parseManifest({
       name: 'X',
