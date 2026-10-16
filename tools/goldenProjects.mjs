@@ -76,6 +76,7 @@ export const NOT_EVIDENCE_FORMATS = {
   '.skel': 'a Spine skeleton, written by Spine',
   '.mp4': 'video content',
   '.wav': 'audio content',
+  '.esaudioevent': 'a sound event definition; the SDK sound-event suites read it, no golden project carries one yet',
 };
 
 /**
@@ -91,6 +92,14 @@ export const CENSUS_FLOOR = '0.60.0';
  * that does not exist, and release notes are a different act. Theirs is ungated.
  */
 export const SHIPPED = {
+  'Sound events have a dedicated authoring panel.':
+    { notCertifiable: 'editor authoring surface, driven by the sound-event-authoring editor check; no packaged game can tell how a definition was authored' },
+  'Sound event sources share code and graph triggers.':
+    { notCertifiable: 'trigger wiring is covered by the SDK sound-event suites; no golden project carries an .esaudioevent yet' },
+  'Sound event playback owns pending and paused voices.':
+    { notCertifiable: 'voice lifetime bookkeeping, covered by sdk/tests/sound-event-playback.test.ts; the packaged audio-demo cannot observe pending voices' },
+  'Sound event definitions share deterministic selection.':
+    { notCertifiable: 'seeded variant selection, covered by sdk/tests/sound-event.test.ts; no golden project carries an .esaudioevent yet' },
   'Post-process volumes blend effect colors.':
     { certifies: 'postprocess-color' },
   'Neon Ascension adds a night-city grey-box example.':
