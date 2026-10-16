@@ -18,6 +18,8 @@ published separately; it ships inside the editor.
 
 - **The interface font is a setting.** Choose Rounded (the default, which prefers HarmonyOS Sans SC or MiSans for Chinese text when installed), Sans, Serif, or the name of any font installed on the computer, under Settings › Editor › General › Appearance.
 
+- **Details is redrawn in a flatter style.** Components are separated by a hairline rather than a dark band, the axis letters of a vector are coloured text rather than filled blocks, property rows keep a fixed label column, and a choice of two or three options is a segmented switch rather than a dropdown.
+
 - **Details fields fit better.** A gradient, curve, property map, effect list or set of weights takes the row's full width with its label above it; a four-value field (a rectangle, the four sides) is laid out two by two; and a curve key's interpolation is a themed dropdown instead of the system's.
 
 - **The editor has a new set of design tokens and a tidier main window.** Surfaces step further apart, text is one size larger, corners are rounder and the title bar, tabs and property rows are taller. The viewport's readout now carries the selection's position and rotation, so the status bar loses its cursor and selection items and keeps the session's state, the frame's cost and the engine.
