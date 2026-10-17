@@ -16,6 +16,7 @@ published separately; it ships inside the editor.
 
 ### Changed
 
+- **Outliner selection is quieter.** A selected row is a soft tint instead of a solid block, and rows selected together join into one rounded block.
 - **The input map editor captures keys.** Press "Capture" and the next key, mouse button or gamepad press becomes a binding; click a key cap to rebind it, and a key that another action also uses is flagged on the row.
 - **The interface font is a setting.** Choose Rounded (the default, which prefers HarmonyOS Sans SC or MiSans for Chinese text when installed), Sans, Serif, or the name of any font installed on the computer, under Settings › Editor › General › Appearance.
 

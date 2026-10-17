@@ -38,6 +38,8 @@ export const NOTED = {
     { internal: 'Undoes an outliner restyle that left the design board.' },
   'feat(editor): the outliner follows the board — 26px rows, a 40px header with a tinted Add, and rounded inset rows':
     { internal: 'Restores the outliner to its design board; the earlier restyle was reverted.' },
+  'feat(editor): selected outliner rows are a soft tint, and a run of them reads as one rounded block':
+    { note: 'Outliner selection is quieter.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":
