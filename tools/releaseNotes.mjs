@@ -42,6 +42,8 @@ export const NOTED = {
     { note: 'Outliner selection is quieter.' },
   'feat(editor): a texture is set up by what it is for, and its preview shows one thing at a time':
     { internal: 'Reverted before release: purposes were not how Unity or Unreal present a texture.' },
+  "feat(assets): a texture's importer carries a Mip Maps switch that the loader and the cook honour":
+    { note: 'Textures can turn mip maps off' },
   'feat(editor): a texture has a Mip Maps switch honoured by the editor, the cook and the build, and a preview that zooms':
     { note: 'Textures can turn mip maps off, and the preview zooms.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
