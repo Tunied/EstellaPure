@@ -303,7 +303,6 @@ const colourLiteralsByFile = () => {
  */
 const NOT_TYPE = {
   'launcher.css': {
-    '.proj-card__glyph': 'a project\'s initial standing in for its thumbnail, sized to the card',
   },
   'viewport.css': {
     '.vp-axes .va-end text': 'an axis letter inside its 84px gizmo knob, sized to the circle',
@@ -551,7 +550,6 @@ const ICON_BUTTONS_KEPT = {
   'tp-tsx': "the close segment of a tileset tab",
   'ctrl-chip-x': "a chip's remove, in the chip's own colour, shown on hover",
   'proj-card__remove': 'a remove badge placed over a project card',
-  'proj-row__remove': 'a remove badge placed over a project row',
   'ag-att-x': 'a remove badge placed over an attachment thumbnail',
   'lc-field__browse': "the browse end of a path field, part of the field's well",
   'build__scene-start': 'marks the start scene; its state is its fill',
