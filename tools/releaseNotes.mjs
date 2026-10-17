@@ -76,6 +76,8 @@ export const NOTED = {
     { note: 'Run after a failed start.' },
   "fix(launcher): a project row shows the project's own thumbnail when it has one":
     { internal: 'Completes the launcher table noted above.' },
+  "fix(editor): vector fields stay on one row beside a scrollbar, a live entity's name is plain text, the scene tab shows when the game runs, and the status bar's log is warnings and errors only":
+    { note: 'Running-game polish.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":
