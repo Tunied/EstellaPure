@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(editor): a string table imports and exports as an Excel or CSV sheet, merged by key, with the problems checked before it leaves':
+    { note: 'Strings go to and from Excel.' },
   'feat(editor): the input map editor captures the next key, shows key caps and flags inputs shared between actions':
     { note: 'The input map editor captures keys.' },
   'feat(editor): an input shared between actions is a quiet note beside the key, not a warning':

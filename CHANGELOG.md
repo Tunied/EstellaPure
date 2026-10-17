@@ -16,6 +16,7 @@ published separately; it ships inside the editor.
 
 ### Changed
 
+- **Strings go to and from Excel.** The string table editor exports every language as one .xlsx or .csv sheet (a column per language) and imports one back, merging by key: it lists the new keys, changed translations, skipped columns and conflicts before anything is written, never clears a translation with an empty cell, and leaves plural entries alone. Before exporting it reports missing keys, untranslated strings, mismatched {placeholders} and plural forms a language needs.
 - **Toasts show their kind.** Information, success, warning and error toasts carry an icon in their own colour, and warnings in the Agent, Project Health and Plugins panels are tinted blocks rather than side-striped cards.
 - **A string table editor.** Opening an .eslocale shows every language side by side, one row per key, with untranslated cells marked, a filter, and add and remove for keys; edits save to each language's file at once.
 - **The utility panels share one look.** Filter chips and buttons are quiet instead of outlined, the Lighting and Project Health panels use ruled sections without side stripes, and the Scatter brush panel is a proper form.
