@@ -32,6 +32,8 @@ export const NOTED = {
     { note: 'The input map editor captures keys.' },
   'feat(editor): an input shared between actions is a quiet note beside the key, not a warning':
     { internal: 'Restyles a note the input map editor already shows.' },
+  'feat(editor): the outliner selects with a soft tint, draws indent guides, tints icons by kind and shows lock and visibility only when they matter':
+    { internal: 'Reverted before release.' },
   'Revert "feat(editor): the outliner selects with a soft tint, draws indent guides, tints icons by kind and shows lock and visibility only when they matter"':
     { internal: 'Undoes an outliner restyle that left the design board.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
