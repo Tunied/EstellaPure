@@ -52,6 +52,8 @@ export const NOTED = {
     { note: 'The utility panels share one look.' },
   'feat(editor): a string table editor shows every language side by side with the untranslated cells marked':
     { note: 'A string table editor.' },
+  'feat(editor): toasts name their kind with an icon, and warnings and notices are tinted blocks instead of side-striped cards':
+    { note: 'Toasts show their kind.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":

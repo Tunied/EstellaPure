@@ -16,6 +16,7 @@ published separately; it ships inside the editor.
 
 ### Changed
 
+- **Toasts show their kind.** Information, success, warning and error toasts carry an icon in their own colour, and warnings in the Agent, Project Health and Plugins panels are tinted blocks rather than side-striped cards.
 - **A string table editor.** Opening an .eslocale shows every language side by side, one row per key, with untranslated cells marked, a filter, and add and remove for keys; edits save to each language's file at once.
 - **The utility panels share one look.** Filter chips and buttons are quiet instead of outlined, the Lighting and Project Health panels use ruled sections without side stripes, and the Scatter brush panel is a proper form.
 - **Textures can turn mip maps off, and the preview zooms.** A texture's import settings have a Mip Maps switch (on by default; turn it off for pixel art and UI drawn at their own size), honoured in the editor, the cook and the shipped build. The preview scrolls to zoom and drags to pan, and shows the image, its 9-slice or its sprite sheet one at a time.
