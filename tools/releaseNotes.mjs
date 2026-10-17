@@ -94,6 +94,8 @@ export const NOTED = {
     { note: 'Collision layers are easier to paint.' },
   "fix(editor): the tile palette, layer menu and tileset inspector take the board's surfaces, selection frame, switches and slider":
     { note: 'The tile editor matches its design.' },
+  'feat(editor): the sprite animation editor merges playback and timeline with an event track, and the animator controller gets state cards, parallel wires and a sectioned inspector':
+    { note: 'The 2D animation editors are redrawn.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":
