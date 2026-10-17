@@ -728,7 +728,7 @@ export interface ESEngineModule {
     renderer_getSnapshotSize(): number;
     renderer_getSnapshotWidth(): number;
     renderer_getSnapshotHeight(): number;
-    renderer_renderMaterialPreview(materialId: number, w: number, h: number): void;
+    renderer_renderMaterialPreview(materialId: number, w: number, h: number, meshId: number, textureId: number): void;
     /** A skeletal preview, owned by its handle: every call names one, so two of
      *  them cannot reach each other and there is no "current" preview. */
     renderer_createSkeletalPreview(w: number, h: number): number;

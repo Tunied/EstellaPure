@@ -718,7 +718,7 @@ void RenderFrame::renderSurface(ecs::Registry& registry, const glm::mat4& viewPr
     if (!device_.isDeviceUsable()) return;
 
     if (surface.target == 0) {
-        surface.target = target_manager_.create(w, h, /*depth=*/false, /*linearFilter=*/false);
+        surface.target = target_manager_.create(w, h, /*depth=*/true, /*linearFilter=*/false);
     } else if (auto* existing = target_manager_.get(surface.target);
                existing && (existing->getWidth() != w || existing->getHeight() != h)) {
         existing->resize(w, h);
@@ -727,6 +727,8 @@ void RenderFrame::renderSurface(ecs::Registry& registry, const glm::mat4& viewPr
     if (!rt) return;
 
     RenderPassDesc previewPass{rt->getFramebuffer(), /*clearColor=*/true};
+    previewPass.clearDepth = true;  // a mesh drawn here needs its near faces to win
+    previewPass.clearStencil = true;
     previewPass.clearColorValue[3] = 0.0f;  // transparent black
     device_.beginRenderPass(previewPass);
     device_.setViewport(0, 0, w, h);

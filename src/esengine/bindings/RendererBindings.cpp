@@ -1520,21 +1520,61 @@ void renderer_destroySkeletalPreview(u32 preview) {
     if (g_renderFrame) g_renderFrame->destroySkeletalPreview(preview);
 }
 
-void renderer_renderMaterialPreview(u32 materialId, i32 w, i32 h) {
+void renderer_renderMaterialPreview(u32 materialId, i32 w, i32 h, u32 meshId, u32 textureId) {
     if (!g_renderFrame || w <= 0 || h <= 0) return;
 
-    // A throwaway one-sprite scene: a 2×2 quad filling the ortho [-1,1] with the material, lit by
-    // one white directional light so Lit materials preview lit (Unlit ignores it).
     ecs::Registry reg;
+    auto light = reg.create();
+    reg.emplace<ecs::Transform>(light);
+    reg.emplace<ecs::Light>(light).type = static_cast<i32>(ecs::LightType::Directional);
+    // A shape of the caller's choosing: the material on a mesh, seen off-axis and framed to the
+    // mesh's own bounds (a ball seen from one side is a disc), lit by one directional light.
+    auto* rm = meshId != 0 ? ctx().tryGet<resource::ResourceManager>() : nullptr;
+    const Mesh* res = rm ? rm->getMesh(resource::MeshHandle{meshId}) : nullptr;
+    if (res) {
+        auto entity = reg.create();
+        reg.emplace<ecs::Transform>(entity);
+        auto& mesh = reg.emplace<ecs::MeshRenderer>(entity);
+        mesh.mesh = resource::MeshHandle{meshId};
+        mesh.material = materialId;
+        mesh.lit = true;
+        mesh.opaque = true;
+        // By id, not through a reference held across the emplace above: it can have moved.
+        reg.get<ecs::Transform>(light).position = glm::vec3(0.0f, 0.0f, 1.0f);
+
+        if (g_transformSystem) {
+            esengine::World world{reg, ctx().services(), 0.0f};
+            g_transformSystem->update(world);
+        }
+
+        const glm::vec3 centre = (res->localMin + res->localMax) * 0.5f;
+        const f32 radius = std::max(glm::length(res->localMax - res->localMin) * 0.5f, 1e-4f);
+        const glm::vec3 eye = centre + glm::normalize(glm::vec3(0.6f, 0.45f, 1.0f)) * (radius * 4.0f);
+        const glm::mat4 view = glm::lookAt(eye, centre, glm::vec3(0.0f, 1.0f, 0.0f));
+        f32 half = 1e-4f;
+        for (i32 corner = 0; corner < 8; ++corner) {
+            const glm::vec3 world{
+                (corner & 1) ? res->localMax.x : res->localMin.x,
+                (corner & 2) ? res->localMax.y : res->localMin.y,
+                (corner & 4) ? res->localMax.z : res->localMin.z,
+            };
+            const glm::vec3 v = glm::vec3(view * glm::vec4(world, 1.0f));
+            half = std::max({half, std::abs(v.x), std::abs(v.y)});
+        }
+        half *= 1.08f;
+        const glm::mat4 proj = math::ortho(-half, half, -half, half, 0.01f, radius * 8.0f);
+        g_renderFrame->renderToTarget(reg, proj * view, static_cast<u32>(w), static_cast<u32>(h));
+        return;
+    }
+
+    // Otherwise a 2×2 quad filling the ortho [-1,1] with the material — a sprite, so a sprite shader
+    // gets the picture it samples (`textureId`, 0 = none).
     auto quad = reg.create();
     reg.emplace<ecs::Transform>(quad);
     auto& sprite = reg.emplace<ecs::Sprite>(quad);
     sprite.material = materialId;
     sprite.size = glm::vec2(2.0f, 2.0f);
-
-    auto light = reg.create();
-    reg.emplace<ecs::Transform>(light);
-    reg.emplace<ecs::Light>(light).type = static_cast<i32>(ecs::LightType::Directional);
+    if (textureId != 0) sprite.texture = resource::TextureHandle{textureId};
 
     if (g_transformSystem) {
         esengine::World world{reg, ctx().services(), 0.0f};

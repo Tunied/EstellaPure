@@ -309,7 +309,7 @@ u32 renderer_getSkeletalPreviewWidth(u32 preview);
 u32 renderer_getSkeletalPreviewHeight(u32 preview);
 void renderer_destroySkeletalPreview(u32 preview);
 
-void renderer_renderMaterialPreview(u32 materialId, i32 w, i32 h);
+void renderer_renderMaterialPreview(u32 materialId, i32 w, i32 h, u32 meshId, u32 textureId);
 void renderer_renderMeshPreview(u32 meshId, i32 w, i32 h);
 i32 renderer_pollPreviewReadback();
 uintptr_t renderer_getPreviewPtr();

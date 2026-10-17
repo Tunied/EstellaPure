@@ -96,6 +96,8 @@ export const NOTED = {
     { note: 'The tile editor matches its design.' },
   'feat(editor): the sprite animation editor merges playback and timeline with an event track, and the animator controller gets state cards, parallel wires and a sectioned inspector':
     { note: 'The 2D animation editors are redrawn.' },
+  "feat(editor): a material's preview is a real sphere, cube or plane with a background and sample image, and its header, shader section and thumbnails follow":
+    { note: "A material's preview is a real shape." },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":

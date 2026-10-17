@@ -187,7 +187,7 @@ export interface NativeEngineApi {
     renderer_pollSnapshotReadback?(): number;
     renderer_programEpoch?(): number;
     renderer_releaseTarget?(handle: number): void;
-    renderer_renderMaterialPreview?(materialId: number, w: number, h: number): void;
+    renderer_renderMaterialPreview?(materialId: number, w: number, h: number, meshId: number, textureId: number): void;
     renderer_renderMeshPreview?(meshId: number, w: number, h: number): void;
     renderer_renderSkeletalPreview?(preview: number, viewProjectionPtr: number): number;
     renderer_replayToDrawCall?(drawCallIndex: number): void;

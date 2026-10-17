@@ -638,14 +638,13 @@ export const Material = {
     },
 
     /**
-     * Render a material to an offscreen @p w×@p h target and resolve with its pixels (a
-     * "material ball" thumbnail). Reuses the real viewport render path — a unit quad lit by one
-     * directional light — so the preview matches how the material looks in-scene. The readback
-     * rides the engine's async seam: immediate on GL, resolved when the staging-buffer map
-     * lands on WebGPU — one awaited call either way. Null if the engine isn't ready or the
-     * readback fails.
+     * Render a material offscreen at @p w×@p h and resolve with its pixels, through the real
+     * viewport path, lit by one directional light. `shape.mesh` (a loaded mesh handle) draws it on
+     * that geometry, seen off-axis and framed; without, a sprite shader samples `shape.texture` on
+     * a flat quad. Null if the engine isn't ready or the readback fails.
      */
-    async renderPreview(material: MaterialHandle, w: number, h: number): Promise<ImageData | null> {
+    async renderPreview(material: MaterialHandle, w: number, h: number,
+                        shape: { mesh?: number; texture?: number } = {}): Promise<ImageData | null> {
         const connected = module;
         const m = previewCore(connected);
         const data = materials.get(material);
@@ -664,7 +663,7 @@ export const Material = {
                     }
                     handle = materials.get(handle)?.parent;
                 }
-                return m.renderer_renderMaterialPreview(material, w, h);
+                return m.renderer_renderMaterialPreview(material, w, h, shape.mesh ?? 0, shape.texture ?? 0);
             });
         } finally { releaseTextures(held); }
     },
