@@ -92,6 +92,8 @@ export const NOTED = {
     { note: 'Tilemap editing is redrawn around the viewport.' },
   'feat(editor): collision layers line up with the art, show each kind plainly, pick brushes by digit, and tilemap layers get their own icons':
     { note: 'Collision layers are easier to paint.' },
+  "fix(editor): the tile palette, layer menu and tileset inspector take the board's surfaces, selection frame, switches and slider":
+    { note: 'The tile editor matches its design.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":
