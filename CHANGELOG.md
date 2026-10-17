@@ -16,7 +16,6 @@ published separately; it ships inside the editor.
 
 ### Changed
 
-- **A quieter outliner.** The selected row is a soft tint with an accent edge instead of a solid fill, nested rows get indent guides, icons are tinted by kind, lock and visibility show only on hover or when set, and a footer counts the entities and the selection.
 - **The input map editor captures keys.** Press "Capture" and the next key, mouse button or gamepad press becomes a binding; click a key cap to rebind it, and a key that another action also uses is flagged on the row.
 - **The interface font is a setting.** Choose Rounded (the default, which prefers HarmonyOS Sans SC or MiSans for Chinese text when installed), Sans, Serif, or the name of any font installed on the computer, under Settings › Editor › General › Appearance.
 
