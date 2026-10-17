@@ -106,4 +106,10 @@ describe('indexTextureImportSettings', () => {
         expect(empty('x')).toBeUndefined();
         expect(empty('a.png')).toBeUndefined();
     });
+
+    it('reads whether a texture generates mip maps, and says nothing when the block does not', () => {
+        expect(textureImportSettingsFrom({ mipmaps: false })?.mipmaps).toBe(false);
+        expect(textureImportSettingsFrom({ mipmaps: true })?.mipmaps).toBe(true);
+        expect(textureImportSettingsFrom({ filterMode: 'nearest' })?.mipmaps).toBeUndefined();
+    });
 });

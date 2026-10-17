@@ -80,6 +80,12 @@ const TEXTURE: ImporterFieldSpec[] = [
       + '(good for photographic / low-frequency art). Only used when Compress is on.',
   },
   {
+    key: 'mipmaps', label: 'Mip Maps', type: 'bool', default: true, category: 'Texture',
+    tooltip: 'Keep a chain of half-size copies so a texture drawn small samples a filtered image '
+      + 'instead of shimmering. Costs a third more memory. Turn off for pixel art and UI that '
+      + 'is always drawn at its own size.',
+  },
+  {
     key: 'filterMode', label: 'Filter', type: 'select', default: 'linear', category: 'Texture',
     selectOptions: ['nearest', 'linear'],
     tooltip: 'Texture sampling filter. Nearest keeps pixels crisp; Linear smooths.',
@@ -317,7 +323,7 @@ export function textureCompression(stored: unknown): TextureCompression {
 }
 
 export function readTextureCookSettings(importer: Record<string, unknown> | undefined, platform?: string): {
-  compress: TextureCompression; format: 'uastc' | 'etc1s'; maxSize: number; srgb: boolean; mipCoverage: number;
+  compress: TextureCompression; format: 'uastc' | 'etc1s'; maxSize: number; srgb: boolean; mipCoverage: number; mipmaps: boolean;
 } {
   const compress = importer?.compress;
   const mipCoverage = importer?.mipCoverage;
@@ -330,6 +336,7 @@ export function readTextureCookSettings(importer: Record<string, unknown> | unde
     maxSize: typeof maxSize === 'number' && maxSize > 0 ? maxSize : 2048,
     srgb: typeof srgb === 'boolean' ? srgb : true,
     mipCoverage: typeof mipCoverage === 'number' && mipCoverage > 0 && mipCoverage < 1 ? mipCoverage : 0,
+    mipmaps: importer?.mipmaps !== false,
   };
   const overrides = importer?.overrides as Record<string, TexturePlatformOverride> | undefined;
   const ov = platform ? overrides?.[platform] : undefined;

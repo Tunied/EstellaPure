@@ -16,7 +16,7 @@ published separately; it ships inside the editor.
 
 ### Changed
 
-- **Textures are set up by purpose.** Pick Pixel art, UI & icons, or Photo & background in a texture's inspector and the filter and compression follow; the preview shows the image, its 9-slice, or its sprite sheet one at a time.
+- **Textures can turn mip maps off, and the preview zooms.** A texture's import settings have a Mip Maps switch (on by default; turn it off for pixel art and UI drawn at their own size), honoured in the editor, the cook and the shipped build. The preview scrolls to zoom and drags to pan, and shows the image, its 9-slice or its sprite sheet one at a time.
 - **Outliner selection is quieter.** A selected row is a soft tint instead of a solid block, and rows selected together join into one rounded block.
 - **The input map editor captures keys.** Press "Capture" and the next key, mouse button or gamepad press becomes a binding; click a key cap to rebind it, and a key that another action also uses is flagged on the row.
 - **The interface font is a setting.** Choose Rounded (the default, which prefers HarmonyOS Sans SC or MiSans for Chinese text when installed), Sans, Serif, or the name of any font installed on the computer, under Settings › Editor › General › Appearance.

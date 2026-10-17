@@ -175,20 +175,21 @@ export async function cookTexture(input: TextureCookInput): Promise<TextureCookO
     const enc = textureEnc!;
     const mode = cook.selected;
     const source = data;
-    const coverage = mode === 'uastc' ? tex.mipCoverage : 0;
+    const coverage = mode === 'uastc' && tex.mipmaps ? tex.mipCoverage : 0;
+    const mips = tex.mipmaps ? {} : { mipmaps: false };
     // UASTC levels ship under zstd — the bytes a project's textures cost to move and to store.
     // ETC1S already carries its own supercompression. Part of the key, so an entry cooked
     // before this existed is re-encoded rather than reused.
     const supercompress = mode === 'uastc';
     const key = [source, JSON.stringify({ mode, srgb: tex.srgb, maxSize: tex.maxSize, scaled: scaled ? [size!.width, size!.height] : null,
-      ...(coverage ? { mipCoverage: coverage } : {}), ...(supercompress ? { supercompress } : {}) }), input.encoder!.id];
+      ...(coverage ? { mipCoverage: coverage } : {}), ...(supercompress ? { supercompress } : {}), ...mips }), input.encoder!.id];
     const produce = (): Promise<Uint8Array> => {
       const image = scaled ? scaledImage() : null;
       return coverage
         ? encodeCoverageChain(enc, image ?? decodePngImage(path, source), tex.srgb, coverage)
         : image
-          ? enc.encodeToKtx2({ type: enc.ImageType.RGBA, data: image.rgba, width: image.width, height: image.height }, { mode, srgb: tex.srgb, supercompress })
-          : enc.encodeToKtx2({ type: enc.ImageType.PNG, data: source }, { mode, srgb: tex.srgb, supercompress });
+          ? enc.encodeToKtx2({ type: enc.ImageType.RGBA, data: image.rgba, width: image.width, height: image.height }, { mode, srgb: tex.srgb, supercompress, ...mips })
+          : enc.encodeToKtx2({ type: enc.ImageType.PNG, data: source }, { mode, srgb: tex.srgb, supercompress, ...mips });
     };
     const file = cookCacheFile(root, key);
     const encoded = input.cachedOnly ? await cookCacheHitAt(file) : (await cookCachedAt(file, produce)).bytes;

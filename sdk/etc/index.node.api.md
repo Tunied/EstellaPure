@@ -5630,6 +5630,7 @@ entity: number
 ## ParsedTextureImportSettings — interface @experimental
 ```
 filter: "linear" | "nearest" | undefined
+mipmaps: boolean | undefined
 sliceBorder: { left: number; right: number; top: number; bottom: number; } | undefined
 srgb: boolean | undefined
 wrap: "repeat" | "clamp" | "mirror" | undefined

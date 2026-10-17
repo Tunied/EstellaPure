@@ -16,6 +16,7 @@ export interface ParsedTextureImportSettings {
     filter?: 'linear' | 'nearest';
     wrap?: 'repeat' | 'clamp' | 'mirror';
     srgb?: boolean;
+    mipmaps?: boolean;
     sliceBorder?: { left: number; right: number; top: number; bottom: number };
 }
 
@@ -44,9 +45,10 @@ export function textureImportSettingsFrom(
         ? importer.wrapMode
         : undefined;
     const srgb = typeof importer.sRGB === 'boolean' ? importer.sRGB : undefined;
+    const mipmaps = typeof importer.mipmaps === 'boolean' ? importer.mipmaps : undefined;
     const sliceBorder = readSliceBorder(importer.sliceBorder);
-    return filter || wrap || srgb !== undefined || sliceBorder
-        ? { filter, wrap, srgb, sliceBorder }
+    return filter || wrap || srgb !== undefined || mipmaps !== undefined || sliceBorder
+        ? { filter, wrap, srgb, mipmaps, sliceBorder }
         : undefined;
 }
 
