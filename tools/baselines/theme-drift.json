@@ -99,7 +99,7 @@
     "panels/Sequencer.tsx": 7,
     "panels/SpineDiagnosticsSection.tsx": 1,
     "panels/SpinePreviewPane.tsx": 1,
-    "panels/TilemapPainter.tsx": 10,
+    "panels/TilemapPainter.tsx": 11,
     "panels/TilesetEditor.tsx": 19,
     "panels/UIWidgetsPanel.tsx": 1,
     "panels/Viewport.tsx": 3,
