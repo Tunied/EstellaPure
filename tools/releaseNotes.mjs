@@ -104,6 +104,8 @@ export const NOTED = {
     { note: 'Gizmos are redrawn.' },
   'feat(editor): a decal projector shows its box, a probe volume its probe grid, a LOD group the level it is showing, and the Gizmo menu sets the handle size':
     { note: 'Gizmos are redrawn.' },
+  'feat(editor): a selected UI node shows its margin, padding, pinned insets and a flex container's axis and gaps':
+    { note: 'Gizmos are redrawn.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":
