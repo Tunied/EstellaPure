@@ -72,6 +72,8 @@ export const NOTED = {
     { internal: 'Keeps the icon ramp to its existing sizes.' },
   'feat(editor): the status bar reads frame rate, entities, video memory and backend as one quiet line':
     { internal: 'Restyles the status readouts; the same figures, one line.' },
+  'fix(editor): after a failed start the run button is the ordinary Run again, not a red one that looks like Stop':
+    { note: 'Run after a failed start.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":

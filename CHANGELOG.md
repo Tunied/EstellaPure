@@ -16,6 +16,7 @@ published separately; it ships inside the editor.
 
 ### Changed
 
+- **Run after a failed start.** When a Play session fails to start, the run button goes back to the ordinary Run instead of staying red like Stop, so retrying is obvious; the failure is still shown in the status bar and a notice.
 - **The main window names the scene.** The viewport tab carries the scene's name and an unsaved mark, the outliner opens with a scene row (name, unsaved mark, entity count, a menu to save or locate it), an entity's header has an enable box, and the status bar shows whether the scene is saved and the newest log line.
 - **Strings go to and from Excel.** The string table editor exports every language as one .xlsx or .csv sheet (a column per language) and imports one back, merging by key: it lists the new keys, changed translations, skipped columns and conflicts before anything is written, never clears a translation with an empty cell, and leaves plural entries alone. Before exporting it reports missing keys, untranslated strings, mismatched {placeholders} and plural forms a language needs.
 - **A tidier launcher.** Recent projects are a table with name, path, last opened and build, sortable, with a row menu to show the project in its folder, copy its path or remove it; templates are icon tiles and an empty list says what to do.
