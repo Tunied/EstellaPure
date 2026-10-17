@@ -16,6 +16,7 @@ published separately; it ships inside the editor.
 
 ### Changed
 
+- **Tabs with icons, and a calmer Content Browser.** Every dock tab carries its panel's icon; the Content Browser toolbar puts New and Import first and the search, filter, sort and view switch last, a filter shows as removable chips, and asset items lose their type pills and colour lines for a small corner icon, a two-line name and a ring when selected.
 - **The viewport's minimap is gone.** The scene overview in the bottom-right corner and its View menu entry are removed; the camera preview, which shows when a camera is selected, is the only overlay left there.
 - **A project can no longer open with no panels.** A saved layout made only of empty groups is ignored on restore and is never saved, so the editor falls back to the default layout instead of showing blank docks.
 - **Running-game polish.** The viewport tab shows a green or amber play mark while the game runs or is paused, the status bar's log line shows only warnings and errors, and a vector field (Position, Rotation, Scale) no longer wraps to two rows when the inspector has a scrollbar.
