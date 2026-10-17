@@ -80,6 +80,8 @@ export const NOTED = {
     { note: 'Running-game polish.' },
   'fix(editor): a saved layout of empty groups is not restored or saved, so a project can no longer open with no panels':
     { note: 'A project can no longer open with no panels.' },
+  "feat(editor): the viewport's scene minimap is removed; the camera preview is the only corner overlay":
+    { note: "The viewport's minimap is gone." },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":
