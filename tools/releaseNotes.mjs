@@ -56,6 +56,8 @@ export const NOTED = {
     { note: 'Toasts show their kind.' },
   'feat(editor): the Build dialog reads like the settings window, and an empty panel scrolls instead of clipping':
     { internal: 'Restyles the Build dialog and fixes empty-state clipping in short docks.' },
+  'feat(editor): the Agent decision passages and setting status lines drop their side stripes':
+    { internal: 'Restyles two stripes; the tone stays on the icon.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":
