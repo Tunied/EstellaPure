@@ -77,7 +77,7 @@
     "layout/ActivityBar.tsx": 1,
     "layout/DockLayout.tsx": 3,
     "layout/MenuBar.tsx": 1,
-    "layout/StatusBar.tsx": 4,
+    "layout/StatusBar.tsx": 6,
     "layout/SubsystemIndicator.tsx": 1,
     "layout/Transport.tsx": 6,
     "layout/WindowControls.tsx": 3,
