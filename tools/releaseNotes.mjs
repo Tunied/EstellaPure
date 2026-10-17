@@ -68,6 +68,8 @@ export const NOTED = {
     { note: 'The main window names the scene.' },
   'feat(editor): the scene tab carries an icon and the entity name is a visible field':
     { internal: 'Finishes the scene identity restyle noted above.' },
+  'fix(editor): the scene tab icon uses an existing icon size':
+    { internal: 'Keeps the icon ramp to its existing sizes.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":
