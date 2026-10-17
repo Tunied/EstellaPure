@@ -74,6 +74,8 @@ export const NOTED = {
     { internal: 'Restyles the status readouts; the same figures, one line.' },
   'fix(editor): after a failed start the run button is the ordinary Run again, not a red one that looks like Stop':
     { note: 'Run after a failed start.' },
+  "fix(launcher): a project row shows the project's own thumbnail when it has one":
+    { internal: 'Completes the launcher table noted above.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":
