@@ -32,6 +32,8 @@ export const NOTED = {
     { note: 'The input map editor captures keys.' },
   'feat(editor): an input shared between actions is a quiet note beside the key, not a warning':
     { internal: 'Restyles a note the input map editor already shows.' },
+  'feat(editor): the outliner selects with a soft tint, draws indent guides, tints icons by kind and shows lock and visibility only when they matter':
+    { note: 'A quieter outliner.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":
