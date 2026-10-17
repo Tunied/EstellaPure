@@ -84,6 +84,8 @@ export const NOTED = {
     { note: "The viewport's minimap is gone." },
   'feat(editor): every dock tab carries its panel icon, and the Content Browser has a regrouped toolbar, filter chips and plainer asset items':
     { note: 'Tabs with icons, and a calmer Content Browser.' },
+  'feat(editor): dock tabs and groups get a context menu, floating panels are themed cards, and a popped-out window uses its tab strip as the title bar':
+    { note: 'Floating panels and pop-out windows are designed.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":
