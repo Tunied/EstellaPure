@@ -46,6 +46,8 @@ export const NOTED = {
     { note: 'Textures can turn mip maps off' },
   'feat(editor): a texture has a Mip Maps switch honoured by the editor, the cook and the build, and a preview that zooms':
     { note: 'Textures can turn mip maps off, and the preview zooms.' },
+  'feat(editor): the Events and Controllers strips are sections like the components around them':
+    { internal: 'Restyles two inspector strips to the component section look.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":
