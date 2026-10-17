@@ -50,6 +50,8 @@ export const NOTED = {
     { internal: 'Restyles two inspector strips to the component section look.' },
   'feat(editor): the utility panels share one look — quiet chips and buttons, ruled sections, and a Scatter panel that is a form':
     { note: 'The utility panels share one look.' },
+  'feat(editor): a string table editor shows every language side by side with the untranslated cells marked':
+    { note: 'A string table editor.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":
