@@ -100,6 +100,8 @@ export const NOTED = {
     { note: "A material's preview is a real shape." },
   'feat(editor): transform handles show what a drag will move, with a readout, wedge and start ghost, and the entity under the cursor is outlined':
     { note: 'Gizmos are redrawn.' },
+  'feat(editor): a selected mesh shows its bounds with sizes, optional wireframe and normals and its triangle count, and a skinned mesh shows its skeleton':
+    { note: 'Gizmos are redrawn.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":
