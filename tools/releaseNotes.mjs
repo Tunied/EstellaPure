@@ -40,6 +40,8 @@ export const NOTED = {
     { internal: 'Restores the outliner to its design board; the earlier restyle was reverted.' },
   'feat(editor): selected outliner rows are a soft tint, and a run of them reads as one rounded block':
     { note: 'Outliner selection is quieter.' },
+  'feat(editor): a texture is set up by what it is for, and its preview shows one thing at a time':
+    { note: 'Textures are set up by purpose.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":
