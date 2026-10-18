@@ -124,6 +124,8 @@ export const NOTED = {
     { note: 'Gizmos are redrawn.' },
   "feat(editor): a selected Spine or DragonBones entity shows its bones over the artwork, read from the runtime's posed skeleton":
     { note: 'Gizmos are redrawn.' },
+  'feat(editor): a selected tilemap layer shows how many tiles it holds and the cell area they cover, and outlines that area on a square grid':
+    { note: 'Gizmos are redrawn.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":
