@@ -1093,6 +1093,15 @@ void renderer_setLodPreview(u32 view, u32 entity, i32 level) {
     g_renderFrame->setLodPreview(view, Entity::fromRaw(entity), held);
 }
 
+void renderer_setViewShading(u32 view, i32 mode) {
+    if (!g_renderFrame) return;
+    // An unknown mode is the authored look, not a crash: a newer editor may ask for
+    // a mode this engine does not have.
+    const ShadingMode known = (mode > 0 && mode < static_cast<i32>(kShadingModeCount))
+        ? static_cast<ShadingMode>(mode) : ShadingMode::Shaded;
+    g_renderFrame->setViewShading(view, known);
+}
+
 i32 renderer_lightStatus(u32 entity, uintptr_t outPtr) {
     auto* out = boundarySpanMut<f32>(outPtr, 9, "renderer_lightStatus.out");
     if (!out) return 0;

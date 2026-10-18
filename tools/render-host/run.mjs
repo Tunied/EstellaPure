@@ -31,6 +31,7 @@
  *   ESTELLA_VERIFY_PICK      hit-test a viewport point, asserting the entity (JSON)
  *   ESTELLA_VERIFY_ORBIT     turn the editor eye before capture ("yaw,pitch" degrees)
  *   ESTELLA_VERIFY_STUDIO    the editor view's studio lighting and exposure (JSON: see the block)
+ *   ESTELLA_VERIFY_SHADING   the editor view's clay and albedo shading (any non-empty value; see the block)
  *   ESTELLA_VERIFY_COUNTERS  engine counters the drawn frame must report (JSON)
  *   ESTELLA_VERIFY_COUNTERS_MAX  counters the frame must stay UNDER — a budget (JSON)
  *   ESTELLA_VERIFY_FRAME_DEBUG  capture the frame and replay it (the frame debugger)
@@ -219,14 +220,15 @@ function finish(result, server) {
   // The studio gate's own last frame is the scene's, which for the scene with no light is
   // black on purpose; what proves a frame was drawn there is the studio frame it measured.
   const studioDrew = result.studio?.ok === true && (result.studio.S?.litShare ?? 0) > 0;
-  const renderedOk = (result.capture?.rendered ?? false) || uniformByDesign || studioDrew;
+  const shadingDrew = result.shading?.ok === true && (result.shading.C?.litShare ?? 0) > 0;
+  const renderedOk = (result.capture?.rendered ?? false) || uniformByDesign || studioDrew || shadingDrew;
   // A scene that could not load an asset it names draws a frame nobody declared, so
   // its pixels answer a different question — say which asset instead.
   const assetsOk = (result.missingAssets?.length ?? 0) === 0;
   const ok = result.ok && renderedOk && assetsOk && (result.expect?.ok ?? true) && (result.twins?.ok ?? true) && (result.count?.ok ?? true) &&
     (result.seam?.ok ?? true) && (result.nineSlice?.ok ?? true) &&
     (result.resize?.ok ?? true) && (result.preview?.ok ?? true) &&
-    (result.meshPreview?.ok ?? true) && (result.grid?.ok ?? true) && (result.studio?.ok ?? true) &&
+    (result.meshPreview?.ok ?? true) && (result.grid?.ok ?? true) && (result.studio?.ok ?? true) && (result.shading?.ok ?? true) &&
     (result.draws?.ok ?? true) && (result.counters?.ok ?? true) && (result.frameDebug?.ok ?? true) && (result.edge?.ok ?? true) && (result.cutoutEdge?.ok ?? true) && (result.minified?.ok ?? true) &&
     (result.roundtrip?.ok ?? true) && deviceLossOk && meshOk && pickOk;
   const why = assetsOk ? '' : `: could not load ${result.missingAssets.join(', ')}`;
@@ -1131,7 +1133,48 @@ app.whenReady().then(async () => {
           : (S && dStudio.differing > 200);
       studio = { A, S, dStudio, back, sky, exp, ok: Boolean(darkOk) && (!spec.studio || back.max === 0) && (!sky || sky.ok) && (!exp || exp.ok) };
     }
-    finish({ ok: true, studio, entityCount, missingAssets, drawCalls, draws, counters, frameDebug, edge, cutoutEdge, minified, profile, capture, expect, twins, nineSlice, count, seam, resize, preview, meshPreview, grid, deviceLoss, roundtrip, meshResident, meshAsset, meshMaterial, meshPrefab, setField, animator, pick, cameraTarget }, server);
+    // ESTELLA_VERIFY_SHADING: authored A, clay C, albedo L, authored again A2, through one eye.
+    // Clay has no chroma but a spread of tones (it is lit); albedo keeps colour and is flatter;
+    // A2 == A byte for byte, so leaving a mode leaves nothing behind.
+    let shading = null;
+    if (process.env.ESTELLA_VERIFY_SHADING) {
+      const api = (call) => exec(`(async () => { const api = window.__estellaHeadless.api; ${call}; await api.step(2, 1 / 60); })()`);
+      const stats = (name) => readFrame(`
+        window.__shade = window.__shade || {};
+        window.__shade[${JSON.stringify(name)}] = px.slice();
+        const lum = (i) => 0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2];
+        const tones = []; let chroma = 0;
+        for (let i = 0; i < px.length; i += 4) {
+          if (lum(i) <= 30) continue;
+          tones.push(lum(i));
+          chroma += Math.max(px[i], px[i + 1], px[i + 2]) - Math.min(px[i], px[i + 1], px[i + 2]);
+        }
+        tones.sort((a, b) => a - b);
+        const n = tones.length;
+        return { litShare: n / (px.length / 4), chroma: n ? chroma / n : 0, spread: n ? tones[Math.floor(n * 0.95)] - tones[Math.floor(n * 0.05)] : 0 };
+      `);
+      const diff = (a, b) => readFrame(`
+        const A = window.__shade[${JSON.stringify(a)}], B = window.__shade[${JSON.stringify(b)}];
+        let max = 0, differing = 0;
+        for (let i = 0; i < A.length; i++) { const d = Math.abs(A[i] - B[i]); if (d > max) max = d; if (d > 0) differing++; }
+        return { max, differing };
+      `);
+      await api(`api.setViewShading('shaded')`);
+      const A = await stats('A');
+      await api(`api.setViewShading('clay')`);
+      const C = await stats('C');
+      await api(`api.setViewShading('albedo')`);
+      const L = await stats('L');
+      const dClay = await diff('A', 'C');
+      const dAlbedo = await diff('A', 'L');
+      await api(`api.setViewShading('shaded')`);
+      await stats('A2');
+      const back = await diff('A', 'A2');
+      shading = { A, C, L, dClay, dAlbedo, back,
+        ok: A.chroma > 12 && C.chroma < 6 && C.litShare > 0.05 && C.spread > 20 && dClay.differing > 500
+          && L.chroma > 12 && L.spread < A.spread && dAlbedo.differing > 200 && back.max === 0 };
+    }
+    finish({ ok: true, studio, shading, entityCount, missingAssets, drawCalls, draws, counters, frameDebug, edge, cutoutEdge, minified, profile, capture, expect, twins, nineSlice, count, seam, resize, preview, meshPreview, grid, deviceLoss, roundtrip, meshResident, meshAsset, meshMaterial, meshPrefab, setField, animator, pick, cameraTarget }, server);
   } catch (e) {
     finish({ ok: false, error: String((e && e.stack) || e) }, server);
   }

@@ -328,6 +328,14 @@ target_include_directories(test_lod_selection PRIVATE
 )
 add_test(NAME test_lod_selection COMMAND test_lod_selection)
 
+# How a view shades its meshes: Shaded unless it asked, and no entry left once it goes back.
+add_executable(test_view_shading renderer/test_view_shading.cpp)
+target_include_directories(test_view_shading PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/third_party/glm
+)
+add_test(NAME test_view_shading COMMAND test_view_shading)
+
 # Which volume holds a point, and what it says there. Header-only, so it runs
 # without a device — the pixel gates say a draw came out the wrong colour, this
 # says whether the read left the box, took the wrong volume, or accepted a grid

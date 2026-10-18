@@ -319,6 +319,18 @@ public:
     usize lodPreviewCount() const { return lod_view_state_.previewCount(); }
 
     /**
+     * @brief Shade @p view's meshes as @p mode says instead of as authored.
+     *
+     * @details View state, like a LOD preview: what the scene IS is the same
+     *          everywhere, and what a creator wants to look at is decided by the
+     *          window they are looking through.
+     */
+    void setViewShading(u32 view, ShadingMode mode) { view_shading_.set(view, mode); }
+
+    /** @brief The mode @p view asked for; Shaded when it never did. */
+    ShadingMode viewShading(u32 view) const { return view_shading_.get(view); }
+
+    /**
      * @brief What each caster asked the shadow atlas for last frame, and what it got.
      *
      * @details The answer to "why does this object have no shadow", which the engine
@@ -561,6 +573,7 @@ private:
 
     u32 view_id_ = 0;
     lod::LodViewState lod_view_state_;
+    ViewShading view_shading_;
     lod::SelectionCounts lod_counts_;
 
     std::unordered_map<SkeletalPreviewId, Unique<SkeletalPreview>> skeletal_previews_;

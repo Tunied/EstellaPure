@@ -205,6 +205,8 @@ export const RENDERER_OPTIONAL_BINDINGS = {
      *  no editor, and the game it does run is unaffected either way. */
     lodInspect: 'es_renderer_lodInspect',
     setLodPreview: 'es_renderer_setLodPreview',
+    /** How a view shades its meshes — clay, albedo or as authored. An editor's view mode. */
+    setViewShading: 'es_renderer_setViewShading',
     /** Which lights the cap turned away — an editor's question, like the two above. */
     lightStatus: 'es_renderer_lightStatus',
     shadowStatus: 'es_renderer_shadowStatus',

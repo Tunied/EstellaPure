@@ -48,6 +48,8 @@ export { EditorView, DEFAULT_EDITOR_VIEW, editorViewHalfHeight, editorViewHalfEx
 export type { EditorViewData, ScreenAxis, EditorViewBasis, EditorWorkPlane, WorldAxis } from './camera/EditorView';
 export { EditorViewLighting, DEFAULT_EDITOR_VIEW_LIGHTING, EDITOR_EXPOSURE_RANGE, editorViewLightingIsOverriding, resetEditorViewLighting, editorViewLightingArgs, studioPreviewReport } from './camera/EditorViewLighting';
 export type { EditorViewLightingData, EditorLightingMode, StudioPreviewReport, SkyUnavailable, SceneDark } from './camera/EditorViewLighting';
+export { EditorViewShading, DEFAULT_EDITOR_VIEW_SHADING, editorViewShadingMode } from './camera/EditorViewShading';
+export type { EditorViewShadingData } from './camera/EditorViewShading';
 export { ScreenScaling, DEFAULT_SCREEN_SCALING, SCREEN_FIT_OFF } from './camera/ScreenScaling';
 export type { ScreenScalingData } from './camera/ScreenScaling';
 export { EditorGrid, DEFAULT_EDITOR_GRID } from './camera/EditorGrid';
@@ -175,6 +177,7 @@ export {
     type RenderTargetHandle,
     type RenderStats,
     type LodDecision,
+    type ViewShading,
     type LightStatus,
     type ShadowStatus,
 } from './render/renderer';

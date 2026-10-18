@@ -261,6 +261,25 @@ u32 meshVariant(bool normals, bool lit, bool normalMapped, bool skinned, bool de
  *          so the caller does not resolve it twice. A second copy of these facts
  *          drifts the day the key gains another.
  */
+/**
+ * @brief What a mesh is drawn as when its view overrides the look: the authored
+ *        material, normal map and (for clay) texture and colour are set aside, and
+ *        the plain description left drives the same draw path as any other mesh.
+ * @details One place, so a mode cannot be half-applied: the variant, the draw key and
+ *          the instance record all read the SAME overridden description.
+ */
+void applyShading(ecs::MeshRenderer& mesh, ShadingMode mode) {
+    mesh.material = 0;
+    mesh.normalMap = {};
+    if (mode == ShadingMode::Clay) {
+        mesh.texture = {};
+        mesh.color = glm::vec4(0.74f, 0.74f, 0.76f, 1.0f);
+        mesh.lit = true;
+    } else {
+        mesh.lit = false;
+    }
+}
+
 struct MeshDrawKeys {
     u32 variant = 0;
     u32 normalTextureId = 0;
@@ -475,6 +494,9 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
     const bool shadowDepth = ctx.purpose == RenderPurpose::ShadowDepth;
 
     u32 litProgram = 0;
+    // The mesh as this view's mode describes it; one object reused across the walk.
+    const ShadingMode shading = shadowDepth ? ShadingMode::Shaded : collect_ctx.shading;
+    ecs::MeshRenderer shaded;
 
     // Accumulated, not scoped per mesh: a ScopeTimer pair per phase per entity
     // puts its own cost inside the number it reports. One clock read per
@@ -492,7 +514,14 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
 
     for (auto entity : meshView) {
         ++walked;
-        const auto& mesh = meshView.get<ecs::MeshRenderer>(entity);
+        const auto& authored = meshView.get<ecs::MeshRenderer>(entity);
+        const ecs::MeshRenderer* described = &authored;
+        if (shading != ShadingMode::Shaded) {
+            shaded = authored;
+            applyShading(shaded, shading);
+            described = &shaded;
+        }
+        const auto& mesh = *described;
         // Empty indices no longer mean "nothing to draw": a resident mesh keeps
         // its geometry on the GPU and its inline payload deliberately empty.
         if (!mesh.enabled || (mesh.indices.empty() && !mesh.mesh.isValid())) continue;

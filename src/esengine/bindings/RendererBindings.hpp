@@ -229,6 +229,13 @@ i32 renderer_lodInspect(u32 view, u32 entity, uintptr_t outPtr);
 void renderer_setLodPreview(u32 view, u32 entity, i32 level);
 
 /**
+ * @brief Shade a view's meshes as authored (0), as neutral clay (1) or as flat albedo (2).
+ * @details View state, like the LOD preview beside it: the same scene drawn through
+ *          another view keeps its own look. Out-of-range modes mean authored.
+ */
+void renderer_setViewShading(u32 view, i32 mode);
+
+/**
  * @brief What the light cap did to @p entity last frame, into nine floats at
  *        @p outPtr: accepted, refusal, limit, requested, refusedCount, then whether
  *        a light cast the environment's sun and the aim it took.

@@ -8,6 +8,7 @@
 #include "./frame/OcclusionView.hpp"
 #include "./lod/LodSelection.hpp"
 #include "./lod/LodViewState.hpp"
+#include "./frame/ViewShading.hpp"
 #include "./frame/FrameConstants.hpp"
 #include "./draw/RenderItem.hpp"
 #include "./draw/DrawCommand.hpp"
@@ -320,6 +321,13 @@ struct RenderCollectContext {
         lod::SelectionCounts* counts = nullptr;
     };
     LodView lod;
+
+    /**
+     * @brief How the meshes of THIS collect are shaded. Shaded unless the view asked
+     *        for another mode; a collect that is not a camera's (the shadow map) leaves
+     *        it alone, because a depth write has no colour to override.
+     */
+    ShadingMode shading = ShadingMode::Shaded;
 };
 
 /** @brief Decomposes @p transform and returns its world position shifted toward the

@@ -183,6 +183,10 @@ export function createNativeRendererBackend(
                 (fn as (v: number, e: number, l: number) => void)(view >>> 0, entity >>> 0, level ?? -1);
             }
         },
+        setViewShading: (view, mode): void => {
+            const fn = scope[RENDERER_OPTIONAL_BINDINGS.setViewShading];
+            if (typeof fn === 'function') (fn as (v: number, m: number) => void)(view >>> 0, mode);
+        },
         getStats: (): RenderStats => {
             const read = (name: string): number => {
                 const fn = scope[name];
