@@ -62,6 +62,10 @@ const NUMERIC = /^(number|Vec2|Vec3|Vec4)$/;
 const DISPOSITION = {
   // A region of world nothing renders — the viewport has to outline it.
   'BoxCollider2D.halfExtents': 'extent',
+  'Hunter.attackRange': 'extent',
+  'Perceiver.range': 'extent',
+  'ThirdPersonCamera.distance': 'extent',
+  'ThirdPersonCamera.obstructionRadius': 'extent',
   'BoxCollider2D.radius': 'extent',
   'BoxCollider3D.halfExtents': 'extent',
   'CapsuleCollider2D.radius': 'extent',
@@ -145,14 +149,6 @@ const DISPOSITION = {
   'LODGroup.lod2Size': ['not-world', 'a fraction of SCREEN height — a property of the view, not of the entity'],
   'LODGroup.lod3Size': ['not-world', 'a fraction of SCREEN height — a property of the view, not of the entity'],
   'LODGroup.cullSize': ['not-world', 'a fraction of SCREEN height — a property of the view, not of the entity'],
-
-  // Each of these IS a region of world and nothing draws it. An entry leaves this
-  // block by being drawn, never by being explained; adding one is a visible diff,
-  // which is the only ratchet there is.
-  'Hunter.attackRange': ['owed', 'the reach it closes to before swinging — MeleeAttack.radius is drawn, this twin is not'],
-  'Perceiver.range': ['owed', 'how far it can see; the cone it sees through is not drawn either'],
-  'ThirdPersonCamera.distance': ['owed', 'the boom length — where the camera actually ends up'],
-  'ThirdPersonCamera.obstructionRadius': ['owed', 'the probe swept along the boom'],
 };
 
 const components = JSON.parse(readFileSync(SNAPSHOT, 'utf8')).components;
