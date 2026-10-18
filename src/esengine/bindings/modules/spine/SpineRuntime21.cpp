@@ -457,6 +457,36 @@ bool boneRotation(const Instance* instance, const char* bone, float* degrees) {
     return true;
 }
 
+int boneCount(const Instance* instance) {
+    return instance ? instance->skeleton->bonesCount : 0;
+}
+
+const char* boneName(const Instance* instance, int index) {
+    if (!instance || index < 0 || index >= instance->skeleton->bonesCount) return nullptr;
+    return instance->skeleton->bones[index]->data->name;
+}
+
+int boneParent(const Instance* instance, int index) {
+    if (!instance || index < 0 || index >= instance->skeleton->bonesCount) return -1;
+    const spBone* parent = instance->skeleton->bones[index]->parent;
+    if (!parent) return -1;
+    // 2.1 bones carry no index of their own: the parent is found by where it sits.
+    for (int i = 0; i < index; ++i) {
+        if (instance->skeleton->bones[i] == parent) return i;
+    }
+    return -1;
+}
+
+bool bonePose(const Instance* instance, int index, float* x, float* y, float* degrees, float* length) {
+    if (!instance || index < 0 || index >= instance->skeleton->bonesCount) return false;
+    spBone* b = instance->skeleton->bones[index];
+    *x = b->worldX;
+    *y = b->worldY;
+    *degrees = b->worldRotation;
+    *length = b->data->length;
+    return true;
+}
+
 void bounds(const Instance* instance, float* x, float* y, float* width, float* height) {
     *x = *y = *width = *height = 0.0f;
     if (!instance) return;

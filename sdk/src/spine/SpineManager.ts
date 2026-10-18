@@ -9,6 +9,7 @@ import type { SpineModuleFactory } from './SpineModuleLoader';
 import { SpineRuntime } from './SpineRuntime';
 import type { SpineEraBinding } from './prepareSpine';
 import type { SpineClipBudget } from './spineMetrics';
+import type { SkeletalBoneTree } from '../skeletal/types';
 import { spineSceneDiagnostics } from './spineSceneDiagnostics';
 import type { SpineSceneDiagnostics, SpinePreviewInstance } from './spineSceneDiagnostics';
 import type { SpineCullingEnvelope } from './spineBounds';
@@ -236,6 +237,11 @@ export class SpineManager {
 
     getSkins(entity: Entity): string[] {
         return this.runtimeOf_(entity)?.getSkins(entity) ?? [];
+    }
+
+    /** The posed bones of this entity's skeleton and how it places them; null if not loaded. @experimental */
+    boneTree(entity: Entity): SkeletalBoneTree | null {
+        return this.runtimeOf_(entity)?.boneTree(entity) ?? null;
     }
 
     setDefaultMix(entity: Entity, duration: number): void {

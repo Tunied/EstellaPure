@@ -35,6 +35,7 @@
 #include "./SpineBindings.hpp"
 #include "./SpineRuntime.hpp"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <iterator>
@@ -319,6 +320,41 @@ int spine_getBonePosition(int instanceId, const char* bone,
                                    reinterpret_cast<float*>(outYPtr))
                ? 1
                : 0;
+}
+
+/** The bone names, in the skeleton's own order — a parent before each of its children. */
+EMSCRIPTEN_KEEPALIVE
+const char* spine_getBones(int instanceId) {
+    auto* instance = g_ctx.instanceOf(instanceId);
+    if (!instance) return publish("[]");
+    return g_ctx.strings.publishArray(es::spine::boneCount(instance),
+                                      [instance](int i) { return es::spine::boneName(instance, i); });
+}
+
+/**
+ * Every bone's parent index and pose in one call: 5 floats a bone — parent (-1 for a root),
+ * x, y, degrees, length — into `outPtr`, at most `capacity` bones. Returns how many it wrote.
+ * One crossing for the whole tree, because an overlay asks every frame.
+ */
+EMSCRIPTEN_KEEPALIVE
+int spine_getBonePoses(int instanceId, uintptr_t outPtr, int capacity) {
+    auto* instance = g_ctx.instanceOf(instanceId);
+    if (!instance) return 0;
+    float* out = reinterpret_cast<float*>(outPtr);
+    const int n = std::min(es::spine::boneCount(instance), capacity);
+    int written = 0;
+    for (int i = 0; i < n; ++i) {
+        float x = 0, y = 0, degrees = 0, length = 0;
+        if (!es::spine::bonePose(instance, i, &x, &y, &degrees, &length)) continue;
+        float* at = out + written * 5;
+        at[0] = static_cast<float>(es::spine::boneParent(instance, i));
+        at[1] = x;
+        at[2] = y;
+        at[3] = degrees;
+        at[4] = length;
+        ++written;
+    }
+    return written;
 }
 
 EMSCRIPTEN_KEEPALIVE

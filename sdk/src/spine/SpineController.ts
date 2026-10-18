@@ -10,6 +10,7 @@ import type { SpineWasmModule, SpineWrappedAPI } from './SpineModuleLoader';
 import { SpineModuleBridge } from './SpineBridge';
 import { log } from '../util/logger';
 import { withMalloc, withScratch } from '../wasm/wasmScratch';
+import type { SkeletalBone } from '../skeletal/types';
 import { forEachMeshBatch, type MeshBatchVisitor } from '../skeletal/meshBatches';
 import type { SpineClipBudget, SkeletalProbe } from './spineMetrics';
 import type { SpineAABB } from './spineBounds';
@@ -202,6 +203,37 @@ export class SpineModuleController {
 
     getBoneRotation(instanceId: number, boneName: string): number {
         return this.api_.getBoneRotation(instanceId, boneName);
+    }
+
+    /**
+     * The skeleton as a tree in the pose the instance is in: each bone's name, parent
+     * (-1 for a root), where it starts, the way it points in degrees and how long it is,
+     * in skeleton space. Null from a module built before the call existed. @experimental
+     */
+    getBoneTree(instanceId: number): SkeletalBone[] | null {
+        const api = this.api_;
+        if (!api.getBones || !api.getBonePoses) return null;
+        let names: string[];
+        try {
+            names = JSON.parse(api.getBones(instanceId));
+        } catch (e) {
+            log.warn('spine', 'Failed to parse bones JSON', e);
+            return null;
+        }
+        if (names.length === 0) return [];
+        return withMalloc(this.raw_, names.length * 5 * 4, (ptr) => {
+            const n = api.getBonePoses!(instanceId, ptr, names.length);
+            const heap = this.raw_.HEAPF32;
+            const out: SkeletalBone[] = [];
+            for (let i = 0; i < n; i++) {
+                const at = (ptr >> 2) + i * 5;
+                out.push({
+                    name: names[i]!, parent: heap[at]! | 0,
+                    x: heap[at + 1]!, y: heap[at + 2]!, degrees: heap[at + 3]!, length: heap[at + 4]!,
+                });
+            }
+            return out;
+        });
     }
 
     /**

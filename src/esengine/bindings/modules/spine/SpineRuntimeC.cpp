@@ -476,6 +476,31 @@ bool boneRotation(const Instance* instance, const char* bone, float* degrees) {
     return true;
 }
 
+int boneCount(const Instance* instance) {
+    return instance ? instance->skeleton->bonesCount : 0;
+}
+
+const char* boneName(const Instance* instance, int index) {
+    if (!instance || index < 0 || index >= instance->skeleton->bonesCount) return nullptr;
+    return instance->skeleton->bones[index]->data->name;
+}
+
+int boneParent(const Instance* instance, int index) {
+    if (!instance || index < 0 || index >= instance->skeleton->bonesCount) return -1;
+    const spBone* parent = instance->skeleton->bones[index]->parent;
+    return parent ? parent->data->index : -1;
+}
+
+bool bonePose(const Instance* instance, int index, float* x, float* y, float* degrees, float* length) {
+    if (!instance || index < 0 || index >= instance->skeleton->bonesCount) return false;
+    spBone* b = instance->skeleton->bones[index];
+    *x = b->worldX;
+    *y = b->worldY;
+    *degrees = spBone_getWorldRotationX(b);
+    *length = b->data->length;
+    return true;
+}
+
 bool skeletonBounds(const Skeleton* skeleton, float* x, float* y, float* width, float* height) {
     if (!skeleton || !skeleton->data) return false;
     *x = skeleton->data->x;

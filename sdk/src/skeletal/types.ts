@@ -18,6 +18,31 @@
  */
 import type { MeshBatchVisitor } from './meshBatches';
 
+/** One bone of a posed skeleton, in the skeleton's own space. */
+export interface SkeletalBone {
+    name: string;
+    /** Index of the parent in the same list; -1 for a root. */
+    parent: number;
+    /** Where the bone starts. */
+    x: number;
+    y: number;
+    /** The way it points. */
+    degrees: number;
+    length: number;
+}
+
+/**
+ * A skeleton's bones as drawn this frame, and how its entity places them: the
+ * scale and flips the draw applies, which a point in skeleton space has to as
+ * well to land where the artwork is.
+ */
+export interface SkeletalBoneTree {
+    bones: SkeletalBone[];
+    scale: number;
+    flipX: boolean;
+    flipY: boolean;
+}
+
 export interface SkeletalBounds {
     x: number;
     y: number;

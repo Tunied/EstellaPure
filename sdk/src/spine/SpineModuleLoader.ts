@@ -31,6 +31,8 @@ export interface SpineWasmModule {
     _spine_getSkins(instanceId: number): number;
     _spine_getBonePosition(instanceId: number, bone: number, outXPtr: number, outYPtr: number): number;
     _spine_getBoneRotation(instanceId: number, bone: number): number;
+    _spine_getBones?(instanceId: number): number;
+    _spine_getBonePoses?(instanceId: number, outPtr: number, capacity: number): number;
     _spine_getBounds(instanceId: number, outXPtr: number, outYPtr: number, outWPtr: number, outHPtr: number): void;
     _spine_getSkeletonBounds(skeletonHandle: number, outXPtr: number, outYPtr: number, outWPtr: number, outHPtr: number): number;
 
@@ -117,6 +119,10 @@ export interface SpineWrappedAPI {
     getSkins(instanceId: number): string;
     getBonePosition(instanceId: number, bone: string, outXPtr: number, outYPtr: number): boolean;
     getBoneRotation(instanceId: number, bone: string): number;
+    /** Bone names in skeleton order, a parent before its children; absent on a module built before the call existed. */
+    getBones?(instanceId: number): string;
+    /** Five floats a bone — parent index (-1 for a root), x, y, degrees, length — into `outPtr`; returns the count written. */
+    getBonePoses?(instanceId: number, outPtr: number, capacity: number): number;
     getBounds(instanceId: number, outXPtr: number, outYPtr: number, outWPtr: number, outHPtr: number): void;
     /** The skeleton's authored extent — answerable without an instance or a pose. */
     getSkeletonBounds(skeletonHandle: number, outXPtr: number, outYPtr: number, outWPtr: number, outHPtr: number): number;
@@ -195,6 +201,12 @@ export function wrapSpineModule(raw: SpineWasmModule): SpineWrappedAPI {
         getSkins: cw('spine_getSkins', 'string', ['number']) as SpineWrappedAPI['getSkins'],
         getBonePosition: cw('spine_getBonePosition', 'number', ['number', 'string', 'number', 'number']) as SpineWrappedAPI['getBonePosition'],
         getBoneRotation: cw('spine_getBoneRotation', 'number', ['number', 'string']) as SpineWrappedAPI['getBoneRotation'],
+        getBones: typeof (raw as unknown as Record<string, unknown>)._spine_getBones === 'function'
+            ? cw('spine_getBones', 'string', ['number']) as SpineWrappedAPI['getBones']
+            : undefined,
+        getBonePoses: typeof (raw as unknown as Record<string, unknown>)._spine_getBonePoses === 'function'
+            ? cw('spine_getBonePoses', 'number', ['number', 'number', 'number']) as SpineWrappedAPI['getBonePoses']
+            : undefined,
         getBounds: cw('spine_getBounds', null, ['number', 'number', 'number', 'number', 'number']) as SpineWrappedAPI['getBounds'],
         getSkeletonBounds: cw('spine_getSkeletonBounds', 'number', ['number', 'number', 'number', 'number', 'number']) as SpineWrappedAPI['getSkeletonBounds'],
         getMeshBatchColorPremultiplied: typeof (raw as unknown as Record<string, unknown>)._spine_getMeshBatchColorPremultiplied === 'function'

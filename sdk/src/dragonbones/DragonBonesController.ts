@@ -16,7 +16,7 @@
  *          skeleton.
  */
 import { forEachMeshBatch, type MeshBatchVisitor } from '../skeletal/meshBatches';
-import type { SkeletalBounds, SkeletalController } from '../skeletal/types';
+import type { SkeletalBone, SkeletalBounds, SkeletalController } from '../skeletal/types';
 import type { DragonBonesWasmModule, DragonBonesWrappedAPI } from './DragonBonesModuleLoader';
 import { withMalloc } from '../wasm/wasmScratch';
 import { encodeUtf8 } from '../util/utf8';
@@ -133,6 +133,31 @@ export class DragonBonesModuleController implements SkeletalController {
 
     getAnimations(instanceId: number): string[] {
         return parseNames(this.api_.getAnimations(instanceId));
+    }
+
+    /**
+     * The armature's bones as posed now, in the y-up space the geometry is in: name, parent
+     * (-1 for a root), start, the way each points in degrees, and length. Null from a module
+     * built before the call existed. @experimental
+     */
+    getBoneTree(instanceId: number): SkeletalBone[] | null {
+        const api = this.api_;
+        if (!api.getBones || !api.getBonePoses) return null;
+        const names = parseNames(api.getBones(instanceId));
+        if (names.length === 0) return [];
+        return withMalloc(this.raw_, names.length * 5 * 4, (ptr) => {
+            const n = api.getBonePoses!(instanceId, ptr, names.length);
+            const heap = this.raw_.HEAPF32;
+            const out: SkeletalBone[] = [];
+            for (let i = 0; i < n; i++) {
+                const at = (ptr >> 2) + i * 5;
+                out.push({
+                    name: names[i]!, parent: heap[at]! | 0,
+                    x: heap[at + 1]!, y: heap[at + 2]!, degrees: heap[at + 3]!, length: heap[at + 4]!,
+                });
+            }
+            return out;
+        });
     }
 
     // — Geometry ————————————————————————————————————————————————————————————

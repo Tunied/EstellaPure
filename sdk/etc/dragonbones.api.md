@@ -37,6 +37,7 @@ skeletonScale: number | undefined
 ```
 @internal discardUnboundSkeleton: (assetKey: string) => void
 addEntity: (entity: Entity, skeletonHandle: number, options: DragonBonesEntityOptions) => boolean
+boneTree: (entity: Entity) => SkeletalBoneTree | null
 boundEntities: () => Iterable<Entity>
 controller: DragonBonesModuleController
 dispose: () => void
@@ -69,6 +70,7 @@ forEachMeshBatch: (instanceId: number, cb: MeshBatchVisitor) => void
 getAnimations: (instanceId: number) => string[]
 getArmatures: (handle: number) => string[]
 getAtlasImageName: (handle: number) => string
+getBoneTree: (instanceId: number) => SkeletalBone[] | null
 getBounds: (instanceId: number) => SkeletalBounds
 getLastError: () => string
 loadSkeleton: (skeletonData: Uint8Array | string, atlasJson: string) => number
@@ -119,6 +121,8 @@ fadeInAnimation: (instanceId: number, name: string, fadeSeconds: number, playTim
 getAnimations: (instanceId: number) => string
 getArmatures: (handle: number) => string
 getAtlasImageName: (handle: number) => string
+getBonePoses: ((instanceId: number, outPtr: number, capacity: number) => number) | undefined
+getBones: ((instanceId: number) => string) | undefined
 getBounds: (instanceId: number, xPtr: number, yPtr: number, wPtr: number, hPtr: number) => void
 getLastError: () => string
 getMeshBatchCount: (instanceId: number) => number

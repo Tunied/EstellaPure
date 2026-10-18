@@ -42,6 +42,10 @@ export interface DragonBonesWrappedAPI {
         verticesPtr: number, indicesPtr: number, textureIdPtr: number, blendModePtr: number,
     ): void;
     getBounds(instanceId: number, xPtr: number, yPtr: number, wPtr: number, hPtr: number): void;
+    /** Bone names in armature order; absent on a module built before the call existed. */
+    getBones?(instanceId: number): string;
+    /** Five floats a bone — parent index (-1 for a root), x, y, degrees, length — into `outPtr`; returns the count. */
+    getBonePoses?(instanceId: number, outPtr: number, capacity: number): number;
     runtimeVersion(): number;
 }
 
@@ -77,6 +81,8 @@ export function wrapDragonBonesModule(raw: DragonBonesWasmModule): DragonBonesWr
         getMeshBatchIndexCount: w('getMeshBatchIndexCount', N, [N, N]),
         getMeshBatchData: w('getMeshBatchData', null, [N, N, N, N, N, N]),
         getBounds: w('getBounds', null, [N, N, N, N, N]),
+        getBones: (raw as unknown as Record<string, unknown>)._db_getBones ? w('getBones', S, [N]) : undefined,
+        getBonePoses: (raw as unknown as Record<string, unknown>)._db_getBonePoses ? w('getBonePoses', N, [N, N, N]) : undefined,
         runtimeVersion: w('runtimeVersion', N, []),
     };
 }

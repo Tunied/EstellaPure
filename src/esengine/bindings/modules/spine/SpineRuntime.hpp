@@ -236,6 +236,21 @@ const char* skinName(const Instance* instance, int index);
 
 bool bonePosition(const Instance* instance, const char* bone, float* x, float* y);
 bool boneRotation(const Instance* instance, const char* bone, float* degrees);
+
+/**
+ * The skeleton as a tree: how many bones, each one's name, and which one is its parent
+ * (-1 for a root). Indices are the skeleton's own order, which puts a parent before every
+ * child, so a caller may walk it once without recursion.
+ */
+int boneCount(const Instance* instance);
+const char* boneName(const Instance* instance, int index);
+int boneParent(const Instance* instance, int index);
+
+/**
+ * One bone as drawn this frame: where it starts (skeleton space), the direction it points
+ * in degrees, and how long it is. The applied pose, so constraints are in it.
+ */
+bool bonePose(const Instance* instance, int index, float* x, float* y, float* degrees, float* length);
 void bounds(const Instance* instance, float* x, float* y, float* width, float* height);
 
 /**

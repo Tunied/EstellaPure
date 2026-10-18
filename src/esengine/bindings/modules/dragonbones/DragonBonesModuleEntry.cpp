@@ -37,6 +37,7 @@
 #define EMSCRIPTEN_KEEPALIVE
 #endif
 
+#include <algorithm>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -297,6 +298,49 @@ const char* db_getAnimations(int instanceId) {
     const auto& names = armature->getAnimation()->getAnimationNames();
     return g_ctx.strings.publishArray(static_cast<int>(names.size()),
                                       [&names](int i) { return names[static_cast<std::size_t>(i)].c_str(); });
+}
+
+/** The bone names, in the armature's own order — a parent before each of its children. */
+EMSCRIPTEN_KEEPALIVE
+const char* db_getBones(int instanceId) {
+    auto* armature = g_ctx.armatureOf(instanceId);
+    if (!armature) return g_ctx.strings.publish("[]");
+    const auto& bones = armature->getBones();
+    return g_ctx.strings.publishArray(static_cast<int>(bones.size()),
+                                      [&bones](int i) { return bones[static_cast<std::size_t>(i)]->getName().c_str(); });
+}
+
+/**
+ * Every bone's parent index and pose in one call: 5 floats a bone — parent (-1 for a root),
+ * x, y, degrees, length — into `outPtr`, at most `capacity` bones; returns how many it wrote.
+ * Posed in the y-UP space the geometry leaves the runtime in (see EsArmatureProxy), so the
+ * skeleton drawn over the artwork lands on it.
+ */
+EMSCRIPTEN_KEEPALIVE
+int db_getBonePoses(int instanceId, uintptr_t outPtr, int capacity) {
+    auto* armature = g_ctx.armatureOf(instanceId);
+    if (!armature) return 0;
+    const auto& bones = armature->getBones();
+    float* out = reinterpret_cast<float*>(outPtr);
+    const int n = std::min(static_cast<int>(bones.size()), capacity);
+    for (int i = 0; i < n; ++i) {
+        dragonBones::Bone* bone = bones[static_cast<std::size_t>(i)];
+        bone->updateGlobalTransform();
+        int parent = -1;
+        if (const dragonBones::Bone* p = bone->getParent()) {
+            for (int j = 0; j < i; ++j) {
+                if (bones[static_cast<std::size_t>(j)] == p) { parent = j; break; }
+            }
+        }
+        constexpr float kRadToDeg = 57.29577951308232f;
+        float* at = out + i * 5;
+        at[0] = static_cast<float>(parent);
+        at[1] = bone->global.x;
+        at[2] = -bone->global.y;
+        at[3] = -bone->global.rotation * kRadToDeg;
+        at[4] = bone->getBoneData()->length;
+    }
+    return n;
 }
 
 // =============================================================================

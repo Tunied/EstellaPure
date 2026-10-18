@@ -6,6 +6,7 @@ export { SpineManager } from './SpineManager';
 export type { SpineVersion } from './SpineManager';
 export { SpineRuntime } from './SpineRuntime';
 export { SpineModuleController } from './SpineController';
+export type { SkeletalBone, SkeletalBoneTree } from '../skeletal/types';
 export type { ConstraintList, TransformMixData, PathMixData } from './SpineController';
 export type { SpineModuleFactory } from './SpineModuleLoader';
 export { wrapSpineModule } from './SpineModuleLoader';

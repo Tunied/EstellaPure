@@ -47,6 +47,10 @@ const char* spine_getAnimations(int instanceId);
 const char* spine_getSkins(int instanceId);
 int spine_getBonePosition(int instanceId, const char* bone, uintptr_t outXPtr, uintptr_t outYPtr);
 float spine_getBoneRotation(int instanceId, const char* bone);
+/** The bone names in skeleton order, a parent before its children. */
+const char* spine_getBones(int instanceId);
+/** @heapreturn outPtr: five floats a bone — parent index (-1 for a root), x, y, degrees, length; returns the count */
+int spine_getBonePoses(int instanceId, uintptr_t outPtr, int capacity);
 void spine_getBounds(int instanceId, uintptr_t outXPtr, uintptr_t outYPtr, uintptr_t outWPtr, uintptr_t outHPtr);
 int spine_getMeshBatchCount(int instanceId);
 int spine_getMeshBatchColorPremultiplied(int instanceId, int batchIndex);

@@ -27,6 +27,7 @@ import type { SpineVersion } from '../sideModules/registry';
 import { log } from '../util/logger';
 import { submitEntityMeshes, type SkeletalMaterialOf } from '../skeletal/submitMeshes';
 import type { SpineClipBudget } from './spineMetrics';
+import type { SkeletalBoneTree } from '../skeletal/types';
 import { mayDeferWorldPose, scanObservedBounds } from './spineBounds';
 import type { SpineBoundsSource } from './spineBounds';
 import type { SpineCullingEnvelope } from './spineBounds';
@@ -240,6 +241,18 @@ export class SpineRuntime {
         const info = this.entities_.get(entity);
         if (!info) return [];
         return this.controller_.getSkins(info.instanceId);
+    }
+
+    /**
+     * The skeleton's bones as drawn this frame, with how the entity places them: the
+     * skeleton's own scale and flips, which the draw applies and a point in skeleton
+     * space has to as well. Null when nothing is loaded or the module predates the call.
+     */
+    boneTree(entity: Entity): SkeletalBoneTree | null {
+        const info = this.entities_.get(entity);
+        if (!info) return null;
+        const bones = this.controller_.getBoneTree(info.instanceId);
+        return bones ? { bones, scale: info.skeletonScale, flipX: info.flipX, flipY: info.flipY } : null;
     }
 
     // NOTE: mix durations live on the skeleton's AnimationStateData (C++ takes a

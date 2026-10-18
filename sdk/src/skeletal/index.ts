@@ -2,6 +2,6 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 export { forEachMeshBatch } from './meshBatches';
 export type { MeshBatchSource, MeshBatchVisitor, SkeletalHeap } from './meshBatches';
-export type { SkeletalBounds, SkeletalController } from './types';
+export type { SkeletalBone, SkeletalBoneTree, SkeletalBounds, SkeletalController } from './types';
 export { SkeletalEnableMirror } from './enableSync';
 export type { SkeletalEnableTarget, SkeletalEnableWorld } from './enableSync';

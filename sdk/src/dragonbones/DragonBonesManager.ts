@@ -17,7 +17,7 @@
  */
 import type { Entity } from '../types';
 import { submitEntityMeshes, type SkeletalMaterialOf, type SkeletalSubmitCore } from '../skeletal/submitMeshes';
-import type { SkeletalBounds } from '../skeletal/types';
+import type { SkeletalBoneTree, SkeletalBounds } from '../skeletal/types';
 import { DragonBonesModuleController } from './DragonBonesController';
 import { log } from '../util/logger';
 import { releaseAtlasOwner, releaseAllAtlasOwners } from './atlasOwnership';
@@ -226,6 +226,14 @@ export class DragonBonesManager {
     getAnimations(entity: Entity): string[] {
         const info = this.entities_.get(entity);
         return info ? this.controller_.getAnimations(info.instanceId) : [];
+    }
+
+    /** The posed bones of this entity's armature and how it places them; null if not loaded. @experimental */
+    boneTree(entity: Entity): SkeletalBoneTree | null {
+        const info = this.entities_.get(entity);
+        if (!info) return null;
+        const bones = this.controller_.getBoneTree(info.instanceId);
+        return bones ? { bones, scale: info.skeletonScale, flipX: info.flipX, flipY: info.flipY } : null;
     }
 
     getBounds(entity: Entity): SkeletalBounds | null {

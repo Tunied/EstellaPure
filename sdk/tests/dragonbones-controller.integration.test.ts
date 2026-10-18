@@ -42,6 +42,32 @@ describe.skipIf(!HAS_ASSETS)('DragonBonesModuleController', () => {
         controller.unloadSkeleton(fromText);
     });
 
+    it('lays the armature out as a tree of bones, in the same y-up space as its geometry', () => {
+        const handle = load();
+        controller.setAtlasTexture(handle, 42);
+        const instance = controller.createInstance(handle, 'Dragon');
+        controller.play(instance, 'stand');
+        controller.update(instance, 1 / 60);
+        const bones = controller.getBoneTree(instance);
+        expect(bones).not.toBeNull();
+        const authored = (JSON.parse(readFileSync(SKE, 'utf8')).armature[0].bone as Array<{ name: string; parent?: string; length?: number }>);
+        expect(bones!.map((b) => b.name).sort()).toEqual(authored.map((b) => b.name).sort());
+        // A parent always comes before its children, so a caller can walk the list once.
+        bones!.forEach((b, i) => {
+            expect(b.parent).toBeLessThan(i);
+            expect(bones![b.parent === -1 ? i : b.parent]!.name).toBe(b.parent === -1 ? b.name : authored.find((a) => a.name === b.name)!.parent);
+        });
+        // The bones sit on the artwork: the middle of the bone set is inside the geometry's own bounds.
+        const box = controller.getBounds(instance);
+        const mean = bones!.reduce((a, b) => ({ x: a.x + b.x / bones!.length, y: a.y + b.y / bones!.length }), { x: 0, y: 0 });
+        expect(mean.x).toBeGreaterThan(box.x);
+        expect(mean.x).toBeLessThan(box.x + box.width);
+        expect(mean.y).toBeGreaterThan(box.y);
+        expect(mean.y).toBeLessThan(box.y + box.height);
+        controller.destroyInstance(instance);
+        controller.unloadSkeleton(handle);
+    });
+
     it('reports a failure instead of a handle', () => {
         const handle = controller.loadSkeleton(new Uint8Array([1, 2, 3]), 'not json');
         expect(handle).toBeLessThan(0);

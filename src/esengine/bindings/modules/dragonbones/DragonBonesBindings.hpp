@@ -50,6 +50,10 @@ void db_setTimeScale(int instanceId, float scale);
 void db_setColor(int instanceId, float r, float g, float b, float a);
 void db_update(int instanceId, float dt);
 const char* db_getAnimations(int instanceId);
+/** The bone names in armature order, a parent before its children. */
+const char* db_getBones(int instanceId);
+/** @heapreturn outPtr: five floats a bone — parent index (-1 for a root), x, y, degrees, length; returns the count */
+int db_getBonePoses(int instanceId, uintptr_t outPtr, int capacity);
 
 // — Geometry readback ——————————————————————————————————————————————————————
 int db_getMeshBatchCount(int instanceId);
