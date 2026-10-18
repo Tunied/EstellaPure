@@ -22,6 +22,10 @@ import { RENAMED_DOMAINS } from './shaderReflect';
 
 export type GraphNodeType =
   | 'output' // the root: its `color` input becomes fragColor
+  | 'subgraph' // another graph used as one node (inlined before compile)
+  | 'subInput' // inside a subgraph: one of its inputs, read by the nodes that use it
+  | 'subOutput' // inside a subgraph: its result
+  | 'literal' // a constant the compiler makes when a subgraph input is left unconnected
   | 'uv' // v_texCoord
   | 'vertexColor' // v_color (the sprite's per-instance tint)
   | 'time' // u_time.x — the injected engine frame clock (seconds)
@@ -52,6 +56,8 @@ export interface MaterialGraphNode {
 }
 
 export interface MaterialGraph {
+  /** `'subgraph'` for a `.esmatsub` — a graph meant to be used as a node, ending in a `subOutput`. */
+  kind?: 'subgraph';
   name?: string;
   /** Material domain (Unlit default; Lit etc. flow through unchanged, under its current name). */
   domain?: string;
@@ -104,7 +110,9 @@ interface Emitted {
  * either backend. Throws on a missing node/input, a cycle, an unknown node type, or an
  * output root that isn't an `output` node.
  */
-export function compileMaterialGraph(graph: MaterialGraph): string {
+export function compileMaterialGraph(source: MaterialGraph, resolve?: SubgraphResolver): string {
+  const graph = resolve ? flattenSubgraphs(source, resolve) : source;
+  if (graph.nodes.some((n) => n.type === 'subgraph')) throw new Error('material graph: a subgraph node needs a resolver to compile');
   const nodes = new Map(graph.nodes.map((n) => [n.id, n] as const));
   const memo = new Map<string, Emitted>();
   const visiting = new Set<string>();
@@ -255,6 +263,24 @@ export function compileMaterialGraph(graph: MaterialGraph): string {
           `fract(${uv.wexpr} + tc.u_time.x * vec2f(${sx}, ${sy}))`);
         break;
       }
+      case 'literal': {
+        const v = typeof n.params?.value === 'number' && Number.isFinite(n.params.value) ? n.params.value : 0;
+        const ty = (['float', 'vec2', 'vec3', 'vec4'] as const).find((t) => t === n.params?.type) ?? 'float';
+        const f = v.toFixed(4);
+        out = ty === 'float'
+          ? { expr: f, wexpr: f, type: 'float' }
+          : { expr: `${ty}(${f})`, wexpr: `${WGSL_TYPE[ty]}(${f})`, type: ty };
+        break;
+      }
+      case 'subInput': {
+        // Only reached compiling a subgraph on its own (validation): it reads as its default.
+        const inp = subgraphInputs({ nodes: [n], output: n.id })[0]!;
+        const f = inp.default.toFixed(4);
+        out = inp.type === 'float'
+          ? { expr: f, wexpr: f, type: 'float' }
+          : { expr: `${inp.type}(${f})`, wexpr: `${WGSL_TYPE[inp.type]}(${f})`, type: inp.type };
+        break;
+      }
       case 'output': {
         const c = input('color');
         out = { expr: toVec4(c.expr, c.type), wexpr: toVec4W(c.wexpr, c.type), type: 'vec4' };
@@ -360,6 +386,11 @@ export interface NodeSpec {
 }
 
 export const NODE_SPECS: Record<GraphNodeType, NodeSpec> = {
+  // The ports of these three come from the subgraph a node names, so their specs are placeholders.
+  subgraph: { label: 'Subgraph', inputs: [], output: 'float', params: [], addable: false },
+  subInput: { label: 'Subgraph Input', inputs: [], output: 'float', params: [], addable: false },
+  subOutput: { label: 'Subgraph Output', inputs: [{ name: 'value', type: 'float' }], output: null, params: [], addable: false },
+  literal: { label: 'Literal', inputs: [], output: 'float', params: [], addable: false },
   output: { label: 'Output', inputs: [{ name: 'color', type: 'vec4' }], output: null, params: [], addable: false },
   uv: { label: 'UV', inputs: [], output: 'vec2', params: [], addable: true },
   vertexColor: { label: 'Vertex Color', inputs: [], output: 'vec4', params: [], addable: true },
@@ -434,6 +465,124 @@ export function moveNode(g: MaterialGraph, id: string, x: number, y: number): Ma
   return next;
 }
 
+// =============================================================================
+// Subgraphs: a graph used as one node, inlined before compile
+// =============================================================================
+
+/** How a graph finds a subgraph it names: by the `ref` its `subgraph` node carries. Null = not found. */
+export type SubgraphResolver = (ref: string) => MaterialGraph | null;
+
+/** One input a subgraph takes, read from its `subInput` nodes — what a node using it shows as ports. */
+export interface SubgraphInput {
+  /** The node id inside the subgraph, and the slot name on a `subgraph` node that uses it. */
+  name: string;
+  type: GraphType;
+  /** What an unconnected input reads as, unless the using node overrides it with `params["in_<name>"]`. */
+  default: number;
+}
+
+const MAX_SUBGRAPH_DEPTH = 8;
+
+/** The inputs a subgraph exposes, in the order its nodes list them. */
+export function subgraphInputs(sub: MaterialGraph): SubgraphInput[] {
+  const out: SubgraphInput[] = [];
+  for (const n of sub.nodes) {
+    if (n.type !== 'subInput') continue;
+    const name = typeof n.params?.name === 'string' && n.params.name ? n.params.name : n.id;
+    const type = (['float', 'vec2', 'vec3', 'vec4'] as const).find((t) => t === n.params?.type) ?? 'float';
+    out.push({ name, type, default: typeof n.params?.default === 'number' ? n.params.default : 0 });
+  }
+  return out;
+}
+
+/** The `ref`s a graph names, directly (not through the subgraphs those name). */
+export function subgraphRefs(graph: MaterialGraph): string[] {
+  return [...new Set(graph.nodes.filter((n) => n.type === 'subgraph').map((n) => String(n.params?.ref ?? '')).filter(Boolean))];
+}
+
+/**
+ * Replace every `subgraph` node with the nodes of the graph it names, so the compiler only ever sees
+ * plain nodes. An unconnected input becomes a literal (the subgraph's default, or the using node's
+ * `in_<name>`); a connected one is the wire itself. Ids and explicit param names are prefixed with the
+ * using node's id, so one subgraph used twice makes two independent copies — not one shared param.
+ * Throws on a missing subgraph, a subgraph that contains itself, or nesting past 8 levels.
+ */
+export function flattenSubgraphs(graph: MaterialGraph, resolve: SubgraphResolver, stack: readonly string[] = []): MaterialGraph {
+  if (!graph.nodes.some((n) => n.type === 'subgraph')) return graph;
+  const nodes: MaterialGraphNode[] = [];
+  const alias = new Map<string, string>();
+  for (const n of graph.nodes) {
+    if (n.type !== 'subgraph') {
+      nodes.push({ ...n, inputs: n.inputs ? { ...n.inputs } : undefined });
+      continue;
+    }
+    const ref = typeof n.params?.ref === 'string' ? n.params.ref : '';
+    if (!ref) throw new Error(`material graph: subgraph node "${n.id}" names no subgraph`);
+    if (stack.includes(ref)) throw new Error(`material graph: subgraph "${ref}" contains itself`);
+    if (stack.length >= MAX_SUBGRAPH_DEPTH) throw new Error(`material graph: subgraphs nested deeper than ${MAX_SUBGRAPH_DEPTH}`);
+    const sub = resolve(ref);
+    if (!sub) throw new Error(`material graph: subgraph "${ref}" (node "${n.id}") not found`);
+    const flat = flattenSubgraphs(sub, resolve, [...stack, ref]);
+    const pre = (id: string): string => `${n.id}__${id}`;
+    for (const sn of flat.nodes) {
+      if (sn.type === 'subInput') {
+        const inp = subgraphInputs({ ...flat, nodes: [sn] })[0]!;
+        const src = n.inputs?.[inp.name];
+        if (src) alias.set(pre(sn.id), src);
+        else {
+          const over = n.params?.[`in_${inp.name}`];
+          nodes.push({ id: pre(sn.id), type: 'literal', params: { value: typeof over === 'number' ? over : inp.default, type: inp.type } });
+        }
+      } else if (sn.type === 'subOutput') {
+        const value = sn.inputs?.value;
+        if (!value) throw new Error(`material graph: subgraph "${ref}" has no value connected to its output`);
+        alias.set(n.id, pre(value));
+      } else {
+        const params = sn.params ? { ...sn.params } : undefined;
+        if (params && typeof params.name === 'string' && params.name) params.name = `${n.id}_${params.name}`;
+        const inputs = sn.inputs ? Object.fromEntries(Object.entries(sn.inputs).map(([k, v]) => [k, pre(v)])) : undefined;
+        nodes.push({ ...sn, id: pre(sn.id), params, inputs });
+      }
+    }
+  }
+  const settle = (id: string): string => {
+    for (let i = 0; i < 64 && alias.has(id); i++) id = alias.get(id)!;
+    return id;
+  };
+  for (const n of nodes) {
+    if (!n.inputs) continue;
+    for (const [k, v] of Object.entries(n.inputs)) n.inputs[k] = settle(v);
+  }
+  // A subgraph used inside another is expanded in the recursive call, so none remain here.
+  return flattenSubgraphs({ ...graph, output: settle(graph.output), nodes }, resolve, stack);
+}
+
+/** A starter subgraph: one input, passed straight through. */
+export function newMaterialSubgraph(): MaterialGraph {
+  return {
+    kind: 'subgraph',
+    name: 'Subgraph',
+    output: 'out',
+    nodes: [
+      { id: 'in1', type: 'subInput', x: 60, y: 80, params: { name: 'value', type: 'float', default: 0 } },
+      { id: 'out', type: 'subOutput', x: 360, y: 80, inputs: { value: 'in1' } },
+    ],
+  };
+}
+
+/** Whether @p sub compiles when used — checked by wrapping its output in a throwaway material output. */
+export function validateSubgraph(sub: MaterialGraph, resolve: SubgraphResolver): void {
+  const probe: MaterialGraph = {
+    name: 'probe', output: 'probe_out',
+    nodes: [...sub.nodes.map((n) => ({ ...n })), { id: 'probe_out', type: 'output', inputs: { color: sub.output } }],
+  };
+  // The subOutput is a pass-through of its `value`; point the probe at that value directly.
+  const so = sub.nodes.find((n) => n.id === sub.output && n.type === 'subOutput');
+  if (!so) throw new Error('material graph: a subgraph\'s `output` must reference a "subOutput" node');
+  probe.nodes[probe.nodes.length - 1]!.inputs = { color: so.inputs?.value ?? '' };
+  compileMaterialGraph(probe, resolve);
+}
+
 /** Whether a path from @p fromId back to @p toId exists (so connecting them would loop). */
 function reaches(g: MaterialGraph, fromId: string, toId: string): boolean {
   const byId = new Map(g.nodes.map((n) => [n.id, n] as const));
@@ -458,7 +607,8 @@ function reaches(g: MaterialGraph, fromId: string, toId: string): boolean {
 export function connect(g: MaterialGraph, fromId: string, toId: string, toSlot: string): MaterialGraph {
   if (fromId === toId) return g;
   const to = g.nodes.find((n) => n.id === toId);
-  if (!to || !NODE_SPECS[to.type].inputs.some((p) => p.name === toSlot)) return g;
+  // A subgraph node's slots are the inputs of the graph it names — checked when it compiles.
+  if (!to || (to.type !== 'subgraph' && !NODE_SPECS[to.type].inputs.some((p) => p.name === toSlot))) return g;
   if (reaches(g, fromId, toId)) return g; // the source already depends on the target → cycle
   const next = clone(g);
   const n = next.nodes.find((m) => m.id === toId)!;

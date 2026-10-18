@@ -148,6 +148,8 @@ export const NOTED = {
     { note: 'The Agent panel is redrawn.' },
   'feat(editor): the Plugins panel shows id conflicts, filters by phase, previews what disabling removes and drops the built-ins trust withdrawal':
     { note: 'The Plugins panel shows conflicts and what disabling removes.' },
+  'feat(render): material subgraphs — a graph used as one node of another, inlined at compile time':
+    { note: 'Material graphs can use other graphs as nodes.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":

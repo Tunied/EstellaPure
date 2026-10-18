@@ -61,6 +61,8 @@ export const EXT_TO_TYPE = Object.freeze({
     // only be made by the Content Browser's own button) and a graph written by
     // any other hand is never adopted by the scan, which types orphans by name.
     '.esmatgraph': 'materialgraph',
+    // A material graph used as a node of another; inlined at compile time, never shipped itself.
+    '.esmatsub': 'materialgraph',
     // Import-only sources: importing one writes .esmesh (+ images + a prefab)
     // beside it, and THOSE are what a scene references. Typed apart from the
     // products for that reason — the engine loads no model format.
