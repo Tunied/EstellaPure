@@ -4241,6 +4241,8 @@ PlatformImage | PlatformCanvas | ImageBitmap
   | 'subgraph' // another graph used as one node (inlined before compile)
   | 'subInput' // inside a subgraph: one of its inputs, read by the nodes that use it
   | 'subOutput' // inside a subgraph: its result
+  | 'normalMap' // sample a tangent-space normal map (read as data, unpacked like the standard material)
+  | 'channel' // one component (r/g/b/a) of a value, as a scalar
   | 'literal' // a constant the compiler makes when a subgraph input is left unconnected
   | 'uv' // v_texCoord
   | 'vertexColor' // v_color (the sprite's per-instance tint)
@@ -5721,7 +5723,7 @@ send: (data: string | ArrayBuffer) => void
 ## NodeParamSpec — interface @beta
 ```
 key: string
-kind: "texture" | "float" | "color"
+kind: "texture" | "bool" | "float" | "channel" | "color"
 label: string
 ```
 

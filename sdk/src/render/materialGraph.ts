@@ -25,6 +25,8 @@ export type GraphNodeType =
   | 'subgraph' // another graph used as one node (inlined before compile)
   | 'subInput' // inside a subgraph: one of its inputs, read by the nodes that use it
   | 'subOutput' // inside a subgraph: its result
+  | 'normalMap' // sample a tangent-space normal map (read as data, unpacked like the standard material)
+  | 'channel' // one component (r/g/b/a) of a value, as a scalar
   | 'literal' // a constant the compiler makes when a subgraph input is left unconnected
   | 'uv' // v_texCoord
   | 'vertexColor' // v_color (the sprite's per-instance tint)
@@ -190,7 +192,8 @@ export function compileMaterialGraph(source: MaterialGraph, resolve?: SubgraphRe
       case 'textureSample': {
         const name = paramName(n);
         const def = typeof n.params?.default === 'string' ? n.params.default : 'white';
-        params.push(`#pragma param ${name} texture default(${def})`);
+        // A map that holds numbers (metal / rough / occlusion) must not be decoded as a colour.
+        params.push(`#pragma param ${name} texture default(${def})${n.params?.data === true ? ' texel(data)' : ''}`);
         const uv = n.inputs?.uv ? input('uv') : { expr: 'v_texCoord', wexpr: 'v.v_texCoord', type: 'vec2' as GraphType };
         out = line('vec4',
           `texture(${name}, ${uv.expr})`,
@@ -263,6 +266,23 @@ export function compileMaterialGraph(source: MaterialGraph, resolve?: SubgraphRe
           `fract(${uv.wexpr} + tc.u_time.x * vec2f(${sx}, ${sy}))`);
         break;
       }
+      case 'normalMap': {
+        const name = paramName(n);
+        params.push(`#pragma param ${name} texture default(flatnormal) texel(data)`);
+        const uv = n.inputs?.uv ? input('uv') : { expr: 'v_texCoord', wexpr: 'v.v_texCoord', type: 'vec2' as GraphType };
+        out = line('vec3', `sampleNormal(${name}, ${uv.expr})`, `sampleNormal(${name}, ${name}_s, ${uv.wexpr})`);
+        break;
+      }
+      case 'channel': {
+        const a = input('v');
+        const ch = (['r', 'g', 'b', 'a'] as const).find((c) => c === n.params?.channel) ?? 'r';
+        const idx = 'rgba'.indexOf(ch);
+        if (a.type === 'float') { out = a; break; }
+        // A vec2 has no b / a, and a vec3 has no a: say so rather than emit a swizzle neither language accepts.
+        if (idx >= TYPE_RANK[a.type]) throw new Error(`material graph: node "${id}" takes .${ch} of a ${a.type}`);
+        out = line('float', `${a.expr}.${ch}`, `${a.wexpr}.${ch}`);
+        break;
+      }
       case 'literal': {
         const v = typeof n.params?.value === 'number' && Number.isFinite(n.params.value) ? n.params.value : 0;
         const ty = (['float', 'vec2', 'vec3', 'vec4'] as const).find((t) => t === n.params?.type) ?? 'float';
@@ -301,8 +321,71 @@ export function compileMaterialGraph(source: MaterialGraph, resolve?: SubgraphRe
   }
   const result = emit(graph.output);
 
+
+  // Standard-material surface: the `output` node's PBR ports (or a literal typed on one) turn this
+  // graph into the Lit mesh shading the built-in `Model` shader uses — the same normal unpack, the
+  // same metal-in-B / rough-in-G packing, occlusion on the ambient term only, emission after light.
+  const outNode = nodes.get(graph.output)!;
+  const PBR_SLOTS = ['normal', 'metallic', 'roughness', 'occlusion', 'emission'] as const;
+  const hasLiteral = (slot: string): boolean => typeof outNode.params?.[`lit_${slot}`] === 'number';
+  const pbr = PBR_SLOTS.some((s) => outNode.inputs?.[s] || hasLiteral(s));
+
+  // The scalar / vec3 an optional port or its typed literal says; null when neither is there.
+  const scalarOf = (slot: string, fallback: number): Emitted => {
+    const src = outNode.inputs?.[slot];
+    if (src) {
+      const e = emit(src);
+      return e.type === 'float' ? e : { expr: `${e.expr}.x`, wexpr: `${e.wexpr}.x`, type: 'float' };
+    }
+    const v = typeof outNode.params?.[`lit_${slot}`] === 'number' ? (outNode.params![`lit_${slot}`] as number) : fallback;
+    return { expr: v.toFixed(4), wexpr: v.toFixed(4), type: 'float' };
+  };
+  const alphaE = scalarOf('alpha', 1);
+  let surface: { glsl: string; wgsl: string } | null = null;
+  if (pbr) {
+    const base = emit(outNode.inputs!.color!);
+    const baseGl = `${toVec4(base.expr, base.type)}.rgb`;
+    const baseWg = `${toVec4W(base.wexpr, base.type)}.rgb`;
+    const nrm = outNode.inputs?.normal ? emit(outNode.inputs.normal) : null;
+    const nrmGl = nrm ? (nrm.type === 'vec3' ? nrm.expr : `${toVec4(nrm.expr, nrm.type)}.xyz`) : null;
+    const nrmWg = nrm ? (nrm.type === 'vec3' ? nrm.wexpr : `${toVec4W(nrm.wexpr, nrm.type)}.xyz`) : null;
+    const metal = scalarOf('metallic', 0);
+    const rough = scalarOf('roughness', 1);
+    const occ = scalarOf('occlusion', 1);
+    let emisGl = 'vec3(0.0)';
+    let emisWg = 'vec3f(0.0)';
+    if (outNode.inputs?.emission) {
+      const e = emit(outNode.inputs.emission);
+      emisGl = `${toVec4(e.expr, e.type)}.rgb`;
+      emisWg = `${toVec4W(e.wexpr, e.type)}.rgb`;
+    }
+    surface = {
+      glsl: `#ifdef MESH_NORMALS
+    highp vec3 sN = normalize(v_worldNormal);
+${nrmGl ? `    sN = perturbNormal(sN, v_worldXYZ, v_texCoord, ${nrmGl});\n` : ''}    if (!gl_FrontFacing) sN = -sN;
+    highp vec3 sP = v_worldXYZ;
+#else
+    vec3 sN = ${nrmGl ?? 'vec3(0.0, 0.0, 1.0)'};
+    highp vec3 sP = vec3(v_worldPos, 0.0);
+#endif
+    vec3 lit = applyLightingPBR(${baseGl}, sN, sP, viewDirection(sP), ${metal.expr}, ${rough.expr}, 1.0, ${occ.expr});
+    fragColor = vec4(lit + ${emisGl}, ${alphaE.expr});`,
+      wgsl: `#ifdef MESH_NORMALS
+    var sN = normalize(v.v_worldNormal);
+${nrmWg ? `    sN = perturbNormal(sN, v.v_worldXYZ, v.v_texCoord, ${nrmWg});\n` : ''}    if (!front) { sN = -sN; }
+    let sP = v.v_worldXYZ;
+#else
+    let sN = ${nrmWg ?? 'vec3f(0.0, 0.0, 1.0)'};
+    let sP = vec3f(v.v_worldPos, 0.0);
+#endif
+    let lit = applyLightingPBR(${baseWg}, sN, sP, viewDirection(sP), ${metal.wexpr}, ${rough.wexpr}, 1.0, ${occ.wexpr});
+    return vec4f(lit + ${emisWg}, ${alphaE.wexpr});`,
+    };
+  }
+  const alphaOnly = !pbr && outNode.inputs?.alpha ? alphaE : null;
+
   const name = graph.name ?? 'Graph';
-  const domain = RENAMED_DOMAINS[graph.domain ?? ''] ?? graph.domain ?? 'Unlit';
+  const domain = pbr ? 'Lit' : (RENAMED_DOMAINS[graph.domain ?? ''] ?? graph.domain ?? 'Unlit');
   const paramBlock = params.length ? params.join('\n') + '\n' : '';
   const helperBlock = helpers.size ? [...helpers].join('\n') + '\n\n' : '';
   const whelperBlock = whelpers.size ? [...whelpers].join('\n') + '\n\n' : '';
@@ -320,19 +403,28 @@ precision mediump float;
 
 in vec4 v_color;
 in vec2 v_texCoord;
-
+${pbr ? `in highp vec2 v_worldPos;
+#ifdef MESH_NORMALS
+in highp vec3 v_worldNormal;
+in highp vec3 v_worldXYZ;
+#endif
+` : ''}
 ${helperBlock}out vec4 fragColor;
 
 void main() {
 ${bodyBlock}
-    fragColor = ${result.expr};
+${surface ? surface.glsl : `    fragColor = ${alphaOnly ? `vec4((${result.expr}).rgb, ${alphaOnly.expr})` : result.expr};`}
 }
 #pragma end
 
 #pragma fragment wgsl
-${whelperBlock}@fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
-${wbodyBlock}
-    return ${result.wexpr};
+${whelperBlock}@fragment fn fs_main(v : VSOut${pbr ? ', @builtin(front_facing) front : bool' : ''}) -> @location(0) vec4f {
+${pbr ? `    g_probeSlot = v.v_probeSlot;
+#ifdef MESH_LIGHTMAP
+    g_lightmap = v.v_lightmap;
+#endif
+` : ''}${wbodyBlock}
+${surface ? surface.wgsl : `    return ${alphaOnly ? `vec4f((${result.wexpr}).rgb, ${alphaOnly.wexpr})` : result.wexpr};`}
 }
 #pragma end
 `;
@@ -370,7 +462,7 @@ export interface NodePort {
 export interface NodeParamSpec {
   key: string;
   label: string;
-  kind: 'color' | 'float' | 'texture';
+  kind: 'color' | 'float' | 'texture' | 'bool' | 'channel';
 }
 
 /** Static schema for a node type — the single source the palette, ports, and node inspector
@@ -391,14 +483,23 @@ export const NODE_SPECS: Record<GraphNodeType, NodeSpec> = {
   subInput: { label: 'Subgraph Input', inputs: [], output: 'float', params: [], addable: false },
   subOutput: { label: 'Subgraph Output', inputs: [{ name: 'value', type: 'float' }], output: null, params: [], addable: false },
   literal: { label: 'Literal', inputs: [], output: 'float', params: [], addable: false },
-  output: { label: 'Output', inputs: [{ name: 'color', type: 'vec4' }], output: null, params: [], addable: false },
+  output: {
+    label: 'Output',
+    inputs: [
+      { name: 'color', type: 'vec4' }, { name: 'normal', type: 'vec3' }, { name: 'metallic', type: 'float' }, { name: 'roughness', type: 'float' },
+      { name: 'occlusion', type: 'float' }, { name: 'emission', type: 'vec3' }, { name: 'alpha', type: 'float' },
+    ],
+    output: null, params: [], addable: false,
+  },
+  normalMap: { label: 'Normal Map', inputs: [{ name: 'uv', type: 'vec2' }], output: 'vec3', params: [{ key: 'name', label: 'Param', kind: 'texture' }], addable: true },
+  channel: { label: 'Channel', inputs: [{ name: 'v', type: 'vec4' }], output: 'float', params: [{ key: 'channel', label: 'Channel', kind: 'channel' }], addable: true },
   uv: { label: 'UV', inputs: [], output: 'vec2', params: [], addable: true },
   vertexColor: { label: 'Vertex Color', inputs: [], output: 'vec4', params: [], addable: true },
   time: { label: 'Time', inputs: [], output: 'float', params: [], addable: true },
   screenUV: { label: 'Screen UV', inputs: [], output: 'vec2', params: [], addable: true },
   constFloat: { label: 'Float', inputs: [], output: 'float', params: [{ key: 'value', label: 'Value', kind: 'float' }], addable: true },
   constColor: { label: 'Color', inputs: [], output: 'vec4', params: [{ key: 'value', label: 'Color', kind: 'color' }], addable: true },
-  textureSample: { label: 'Texture', inputs: [{ name: 'uv', type: 'vec2' }], output: 'vec4', params: [{ key: 'name', label: 'Param', kind: 'texture' }], addable: true },
+  textureSample: { label: 'Texture', inputs: [{ name: 'uv', type: 'vec2' }], output: 'vec4', params: [{ key: 'name', label: 'Param', kind: 'texture' }, { key: 'data', label: 'Data', kind: 'bool' }], addable: true },
   multiply: { label: 'Multiply', inputs: [{ name: 'a', type: 'vec4' }, { name: 'b', type: 'vec4' }], output: 'vec4', params: [], addable: true },
   add: { label: 'Add', inputs: [{ name: 'a', type: 'vec4' }, { name: 'b', type: 'vec4' }], output: 'vec4', params: [], addable: true },
   lerp: { label: 'Lerp', inputs: [{ name: 'a', type: 'vec4' }, { name: 'b', type: 'vec4' }, { name: 't', type: 'float' }], output: 'vec4', params: [], addable: true },
@@ -439,6 +540,8 @@ function defaultParams(type: GraphNodeType, id: string): Record<string, unknown>
     case 'constFloat': return { name: `u_${id}`, value: 1 };
     case 'constColor': return { name: `u_${id}`, value: [1, 1, 1, 1] };
     case 'textureSample': return { name: `u_${id}`, default: 'white' };
+    case 'normalMap': return { name: `u_${id}` };
+    case 'channel': return { channel: 'r' };
     case 'smoothstep': return { edge0: 0, edge1: 1 };
     case 'noise': return { scale: 12 };
     case 'panner': return { speedX: 0.1, speedY: 0 };

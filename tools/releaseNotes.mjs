@@ -150,6 +150,8 @@ export const NOTED = {
     { note: 'The Plugins panel shows conflicts and what disabling removes.' },
   'feat(render): material subgraphs — a graph used as one node of another, inlined at compile time':
     { note: 'Material graphs can use other graphs as nodes.' },
+  'feat(render): material graphs gain the standard material surface — normal, metallic, roughness, occlusion, emission and alpha ports':
+    { note: 'Material graphs can output a standard PBR surface.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":
