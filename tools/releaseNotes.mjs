@@ -142,6 +142,8 @@ export const NOTED = {
     { note: 'The UI Widgets palette is a searchable, grouped list.' },
   "feat(editor): the UI debugger's views share one layout, with tables for text and focus order and the event path drawn as a chain":
     { note: 'The UI debugger is redrawn.' },
+  'feat(editor): Project Health filters by severity, groups its findings, and lists the checks that could not run':
+    { note: 'The Project Health panel is redrawn.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":
