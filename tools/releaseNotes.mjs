@@ -130,6 +130,8 @@ export const NOTED = {
     { note: 'The profiler and the frame debugger are redrawn.' },
   "feat(editor): the sequencer's keys take the shape of their interpolation and its tracks show their value, and the sound event editor shows each variant's waveform and share and draws its attenuation":
     { note: 'The sequencer and the sound event editor are redrawn.' },
+  'feat(editor): script, material and behavior-tree graphs share one node look, and a script graph keeps its variables in a searchable panel beside the canvas':
+    { note: 'The script, material and behavior-tree graph editors are redrawn.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":
