@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import { describe, it, expect } from 'vitest';
 import {
-  compileMaterialGraph, extractSubgraph, flattenSubgraphs, subgraphInputs, subgraphRefs, validateSubgraph, newMaterialSubgraph, connect,
+  compileMaterialGraph, extractSubgraph, subgraphOutputType, flattenSubgraphs, subgraphInputs, subgraphRefs, validateSubgraph, newMaterialSubgraph, connect,
   type MaterialGraph, type SubgraphResolver,
 } from '../src/render/materialGraph';
 
@@ -145,5 +145,17 @@ describe('extracting a subgraph', () => {
     g.nodes.push({ id: 'dead', type: 'sin', inputs: { x: 'a' } });
     expect(() => extractSubgraph(g, ['dead'], 'x')).toThrow(/nothing outside reads/);
     expect(() => extractSubgraph(base(), ['m', 'out'], 'x')).toThrow(/output node/);
+  });
+});
+
+describe('what a subgraph hands back', () => {
+  it('is the type of its result, so a wire from it is coloured for what it carries', () => {
+    const tint: MaterialGraph = { kind: 'subgraph', name: 'T', output: 'out', nodes: [
+      { id: 'c', type: 'constColor', params: { name: 'u_c', value: [1, 1, 1, 1] } },
+      { id: 'out', type: 'subOutput', inputs: { value: 'c' } },
+    ] };
+    expect(subgraphOutputType(tint)).toBe('vec4');
+    expect(subgraphOutputType(wind)).toBe('float');
+    expect(subgraphOutputType(newMaterialSubgraph())).toBe('float');
   });
 });

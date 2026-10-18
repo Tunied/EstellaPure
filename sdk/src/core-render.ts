@@ -125,6 +125,7 @@ export {
     flattenSubgraphs,
     subgraphInputs,
     extractSubgraph,
+    subgraphOutputType,
     subgraphRefs,
     validateSubgraph,
     addNode,

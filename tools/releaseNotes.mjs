@@ -156,6 +156,8 @@ export const NOTED = {
     { note: 'Material graphs can bend a mesh and its shadow.' },
   'feat(render): material graph switches for variants, a live preview in the graph editor, and extracting a selection into a subgraph':
     { note: 'Material graphs have switches, a live preview and extract-to-subgraph.' },
+  'fix(editor): a subgraph node wires in the type it returns, a multi-selection drags as one, and depth-only mesh programs stop warning about a texture they lack':
+    { note: 'Material graph editor polish.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":

@@ -418,7 +418,8 @@ u32 MeshPlugin::meshProgram(RenderFrameContext& ctx, u32 variant) {
         if (!shader || !shader->isValid()) return 0;
         if (shader->language() == GfxShaderLanguage::GLSL_ES300) {
             shader->bind();
-            shader->setUniform("u_texture", 0);
+            // A depth-only variant has no colour texture to seed.
+            if (shader->hasUniform("u_texture")) shader->setUniform("u_texture", 0);
             // Slot 1 is where a draw's own second texture is bound (see pushBatchDraw).
             if (normalMapped) shader->setUniform("u_normalMap", 1);
             shader->unbind();

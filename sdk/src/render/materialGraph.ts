@@ -749,6 +749,32 @@ function outputTypeOf(n: MaterialGraphNode): GraphType {
   return NODE_SPECS[n.type]?.output ?? 'float';
 }
 
+/**
+ * The type a subgraph hands back, worked out from its nodes without compiling — what the editor
+ * colours the using node's wire with. Falls back to float for anything it cannot tell.
+ */
+export function subgraphOutputType(sub: MaterialGraph): GraphType {
+  const byId = new Map(sub.nodes.map((n) => [n.id, n]));
+  const seen = new Set<string>();
+  const typeOf = (id: string): GraphType => {
+    const n = byId.get(id);
+    if (!n || seen.has(id)) return 'float';
+    seen.add(id);
+    try {
+      const inp = (slot: string): GraphType => (n.inputs?.[slot] ? typeOf(n.inputs[slot]!) : 'float');
+      switch (n.type) {
+        case 'subOutput': return inp('value');
+        case 'multiply': case 'add': return widen(inp('a'), inp('b'));
+        case 'oneMinus': case 'saturate': return inp('x');
+        case 'switch': { const a = inp('on'); return a === inp('off') ? a : 'vec4'; }
+        case 'subgraph': return 'float';
+        default: return outputTypeOf(n);
+      }
+    } finally { seen.delete(id); }
+  };
+  return typeOf(sub.output);
+}
+
 export interface ExtractedSubgraph {
   /** The new `.esmatsub`: the selection, with a `subInput` for each wire that came in from outside. */
   sub: MaterialGraph;
