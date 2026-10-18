@@ -4244,6 +4244,7 @@ PlatformImage | PlatformCanvas | ImageBitmap
   | 'normalMap' // sample a tangent-space normal map (read as data, unpacked like the standard material)
   | 'channel' // one component (r/g/b/a) of a value, as a scalar
   | 'literal' // a constant the compiler makes when a subgraph input is left unconnected
+  | 'uvTransform' // uv × tiling + offset
   | 'switch' // a compile-time variant: one of two values, chosen by a #pragma switch the material turns on or off
   | 'uv' // v_texCoord
   | 'vertexColor' // v_color (the sprite's per-instance tint)

@@ -28,6 +28,7 @@ export type GraphNodeType =
   | 'normalMap' // sample a tangent-space normal map (read as data, unpacked like the standard material)
   | 'channel' // one component (r/g/b/a) of a value, as a scalar
   | 'literal' // a constant the compiler makes when a subgraph input is left unconnected
+  | 'uvTransform' // uv × tiling + offset
   | 'switch' // a compile-time variant: one of two values, chosen by a #pragma switch the material turns on or off
   | 'uv' // v_texCoord
   | 'vertexColor' // v_color (the sprite's per-instance tint)
@@ -297,6 +298,13 @@ export function compileMaterialGraph(source: MaterialGraph, resolve?: SubgraphRe
         out = line('float', `${a.expr}.${ch}`, `${a.wexpr}.${ch}`);
         break;
       }
+      case 'uvTransform': {
+        const uv = n.inputs?.uv ? input('uv') : fragUv();
+        const tx = numParam(n, 'tileX', 1), ty = numParam(n, 'tileY', 1);
+        const ox = numParam(n, 'offsetX', 0), oy = numParam(n, 'offsetY', 0);
+        out = line('vec2', `${uv.expr} * vec2(${tx}, ${ty}) + vec2(${ox}, ${oy})`, `${uv.wexpr} * vec2f(${tx}, ${ty}) + vec2f(${ox}, ${oy})`);
+        break;
+      }
       case 'switch': {
         // Which value the material gets is decided when its shader is compiled, so the other side costs
         // nothing at run time: both languages' #ifdef is resolved before the stage is assembled.
@@ -548,6 +556,7 @@ export const NODE_SPECS: Record<GraphNodeType, NodeSpec> = {
   subgraph: { label: 'Subgraph', inputs: [], output: 'float', params: [], addable: false },
   subInput: { label: 'Subgraph Input', inputs: [], output: 'float', params: [], addable: false },
   subOutput: { label: 'Subgraph Output', inputs: [{ name: 'value', type: 'float' }], output: null, params: [], addable: false },
+  uvTransform: { label: 'Tiling & Offset', inputs: [{ name: 'uv', type: 'vec2' }], output: 'vec2', params: [{ key: 'tileX', label: 'Tiling X', kind: 'float' }, { key: 'tileY', label: 'Tiling Y', kind: 'float' }, { key: 'offsetX', label: 'Offset X', kind: 'float' }, { key: 'offsetY', label: 'Offset Y', kind: 'float' }], addable: true },
   switch: { label: 'Switch', inputs: [{ name: 'on', type: 'vec4' }, { name: 'off', type: 'vec4' }], output: 'vec4', params: [{ key: 'feature', label: 'Switch', kind: 'text' }, { key: 'default', label: 'Default on', kind: 'bool' }], addable: true },
   literal: { label: 'Literal', inputs: [], output: 'float', params: [], addable: false },
   output: {
@@ -610,6 +619,7 @@ function defaultParams(type: GraphNodeType, id: string): Record<string, unknown>
     case 'textureSample': return { name: `u_${id}`, default: 'white' };
     case 'normalMap': return { name: `u_${id}` };
     case 'channel': return { channel: 'r' };
+    case 'uvTransform': return { tileX: 1, tileY: 1, offsetX: 0, offsetY: 0 };
     case 'switch': return { feature: `ES_${id.toUpperCase()}`, default: false };
     case 'smoothstep': return { edge0: 0, edge1: 1 };
     case 'noise': return { scale: 12 };

@@ -181,3 +181,16 @@ describe('static switch', () => {
     expect(() => compileMaterialGraph(g('fancy'))).toThrow(/needs a name in capitals/);
   });
 });
+
+describe('tiling and offset', () => {
+  it('scales then shifts the UV', () => {
+    const g: MaterialGraph = { name: 'T', output: 'out', nodes: [
+      { id: 't', type: 'uvTransform', params: { tileX: 4, tileY: 2, offsetX: 0.5 } },
+      { id: 'tex', type: 'textureSample', params: { name: 'u_a', default: 'white' }, inputs: { uv: 't' } },
+      { id: 'out', type: 'output', inputs: { color: 'tex' } },
+    ] };
+    const src = compileMaterialGraph(g);
+    expect(src).toContain('v_texCoord * vec2(4.0000, 2.0000) + vec2(0.5000, 0.0000)');
+    expect(src).toContain('v.v_texCoord * vec2f(4.0000, 2.0000) + vec2f(0.5000, 0.0000)');
+  });
+});
