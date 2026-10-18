@@ -110,6 +110,8 @@ export const NOTED = {
     { note: 'Gizmos are redrawn.' },
   'feat(editor): a selected mesh is outlined along its own silhouette instead of a box':
     { note: 'Gizmos are redrawn.' },
+  "feat(editor): the Show menu draws wireframe on every mesh, a chosen bone's skin weights as coloured dots, and convex colliders are listed with the other 3D colliders":
+    { note: 'Gizmos are redrawn.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":
