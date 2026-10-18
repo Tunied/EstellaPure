@@ -126,6 +126,8 @@ export const NOTED = {
     { note: 'Gizmos are redrawn.' },
   'feat(editor): a selected tilemap layer shows how many tiles it holds and the cell area they cover, and outlines that area on a square grid':
     { note: 'Gizmos are redrawn.' },
+  'feat(editor): the profiler is a module rail beside a timeline of CPU busy time and a cost table, and the frame debugger names its columns, passes and break reasons':
+    { note: 'The profiler and the frame debugger are redrawn.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":
