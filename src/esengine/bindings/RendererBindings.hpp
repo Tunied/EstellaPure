@@ -243,6 +243,13 @@ void renderer_setViewShading(u32 view, i32 mode);
 void renderer_setMeshEdgeBuffers(bool enabled);
 
 /**
+ * @brief Colour one skinned entity in a view by how much a joint moves each vertex.
+ * @details @p joint indexes the mesh's own bind matrices, the order its Joints channel uses; a
+ *          negative joint goes back to no entity. A view that is not the editor's never asks.
+ */
+void renderer_setViewSkinWeights(u32 view, u32 entity, i32 joint);
+
+/**
  * @brief What the light cap did to @p entity last frame, into nine floats at
  *        @p outPtr: accepted, refusal, limit, requested, refusedCount, then whether
  *        a light cast the environment's sun and the aim it took.

@@ -33,6 +33,17 @@ enum class ShadingMode : u8 {
 inline constexpr u8 kShadingModeCount = 4;
 
 /**
+ * @brief The one skinned entity a view colours by a joint's weights, and which joint.
+ * @details Not a ShadingMode: it picks out ONE draw among many, and everything else keeps the
+ *          view's shading. A view with none stands for "the weights of nothing".
+ */
+struct WeightTarget {
+    Entity entity = INVALID_ENTITY;
+    u32 joint = 0;
+    bool active() const { return entity != INVALID_ENTITY; }
+};
+
+/**
  * @brief The mode each view asked for. A view that never asked is Shaded, which is
  *        why a frame with nothing set costs a hash lookup per collect and nothing else.
  */
@@ -49,10 +60,22 @@ public:
     }
 
     /// Views holding a non-default mode, for a criterion that checks nothing leaked.
-    usize count() const { return modes_.size(); }
+    usize count() const { return modes_.size() + weights_.size(); }
+
+    /// Colour @p entity in @p view by how much @p joint moves each vertex; an invalid entity stops.
+    void setWeights(u32 view, Entity entity, u32 joint) {
+        if (entity == INVALID_ENTITY) weights_.erase(view);
+        else weights_[view] = {entity, joint};
+    }
+
+    WeightTarget weights(u32 view) const {
+        const auto it = weights_.find(view);
+        return it == weights_.end() ? WeightTarget{} : it->second;
+    }
 
 private:
     std::unordered_map<u32, ShadingMode> modes_;
+    std::unordered_map<u32, WeightTarget> weights_;
 };
 
 }  // namespace esengine

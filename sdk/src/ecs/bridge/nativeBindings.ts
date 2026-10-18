@@ -209,6 +209,8 @@ export const RENDERER_OPTIONAL_BINDINGS = {
     setViewShading: 'es_renderer_setViewShading',
     /** Edge buffers for meshes realized from now on — a wireframe view's geometry. */
     setMeshEdgeBuffers: 'es_renderer_setMeshEdgeBuffers',
+    /** Colour one skinned entity by a joint's weights — an editor's view of a rig. */
+    setViewSkinWeights: 'es_renderer_setViewSkinWeights',
     /** Which lights the cap turned away — an editor's question, like the two above. */
     lightStatus: 'es_renderer_lightStatus',
     shadowStatus: 'es_renderer_shadowStatus',

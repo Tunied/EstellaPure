@@ -493,6 +493,7 @@ renderer_setTextureParams: (textureId: number, minFilter: number, magFilter: num
 renderer_setViewId: ((view: number) => void) | undefined
 renderer_setViewLighting: ((mode: number, rotationDegrees: number, keyIntensity: number, fillIntensity: number, skyIntensity: number, showSky: boolean) => void) | undefined
 renderer_setViewShading: ((view: number, mode: number) => void) | undefined
+renderer_setViewSkinWeights: ((view: number, entity: number, joint: number) => void) | undefined
 renderer_setViewport: (x: number, y: number, w: number, h: number) => void
 renderer_setYSortLayers: ((mask: number) => void) | undefined
 renderer_shadowStatus: ((entity: number, outPtr: number) => number) | undefined

@@ -695,6 +695,14 @@ const api = {
         app.getResource(EditorViewShading).mode = mode;
     },
 
+    /** Colour one skinned scene entity by how much a joint moves its vertices (null stops). */
+    setSkinWeights(id: number | null, joint = 0): void {
+        if (!app) throw new Error('set_skin_weights before boot');
+        const view = app.getResource(EditorView);
+        if (!view.active) { seedEditorViewFromScene(); view.active = true; }
+        app.getResource(EditorViewShading).weights = id === null ? null : { entity: requireEntity(id) as number, joint };
+    },
+
     /** The reference grid. Enabling seeds and activates the eye it draws through,
      *  because this host boots with that eye inactive. */
     setGrid(enabled: boolean, spacing?: number): void {

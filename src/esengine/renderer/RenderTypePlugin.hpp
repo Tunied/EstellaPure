@@ -328,6 +328,9 @@ struct RenderCollectContext {
      *        it alone, because a depth write has no colour to override.
      */
     ShadingMode shading = ShadingMode::Shaded;
+
+    /** @brief The one skinned draw this view colours by a joint's weights, if any. */
+    WeightTarget weights;
 };
 
 /** @brief Decomposes @p transform and returns its world position shifted toward the

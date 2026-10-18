@@ -202,6 +202,7 @@ export interface NativeEngineApi {
     renderer_setShadowDistance?(distance: number): void;
     renderer_setMeshEdgeBuffers?(enabled: boolean): void;
     renderer_setViewShading?(view: number, mode: number): void;
+    renderer_setViewSkinWeights?(view: number, entity: number, joint: number): void;
     renderer_setStage?(stage: number): void;
     renderer_setTextureParams?(textureId: number, minFilter: number, magFilter: number, wrapS: number, wrapT: number): void;
     renderer_setViewId?(view: number): void;
@@ -504,6 +505,7 @@ export function createNativeEngineApi(
     bind('renderer_setShadowDistance', 'es_renderer_setShadowDistance', false);
     bind('renderer_setMeshEdgeBuffers', 'es_renderer_setMeshEdgeBuffers', false);
     bind('renderer_setViewShading', 'es_renderer_setViewShading', false);
+    bind('renderer_setViewSkinWeights', 'es_renderer_setViewSkinWeights', false);
     bind('renderer_setStage', 'es_renderer_setStage', false);
     bind('renderer_setTextureParams', 'es_renderer_setTextureParams', false);
     bind('renderer_setViewId', 'es_renderer_setViewId', false);

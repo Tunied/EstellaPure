@@ -77,6 +77,7 @@ export interface RendererBackend {
     setLodPreview(view: number, entity: number, level: number | null): void;
     setViewShading(view: number, mode: number): void;
     setMeshEdgeBuffers(enabled: boolean): void;
+    setViewSkinWeights(view: number, entity: number, joint: number): void;
     lightStatus(entity: number): LightStatus | null;
     shadowStatus(entity: number): ShadowStatus | null;
     getStats(): RenderStats;
@@ -263,6 +264,7 @@ function wasmBackend(m: ESEngineModule): RendererBackend {
             m.renderer_setLodPreview?.(view >>> 0, entity >>> 0, level ?? -1),
         setViewShading: (view, mode) => m.renderer_setViewShading?.(view >>> 0, mode),
         setMeshEdgeBuffers: (enabled) => m.renderer_setMeshEdgeBuffers?.(enabled),
+        setViewSkinWeights: (view, entity, joint) => m.renderer_setViewSkinWeights?.(view >>> 0, entity >>> 0, joint),
         shadowStatus: (entity) => {
             if (!m.renderer_shadowStatus || !lightStatusPtr) return null;
             if (!m.renderer_shadowStatus(entity >>> 0, lightStatusPtr)) return null;
@@ -711,6 +713,18 @@ export const Renderer = {
      */
     setMeshEdgeBuffers(enabled: boolean): void {
         backend?.setMeshEdgeBuffers(enabled);
+    },
+
+    /**
+     * Colour one skinned entity in `view` by how much a joint moves each of its vertices;
+     * `null` stops. @experimental
+     *
+     * `joint` is an index into the mesh's own bind matrices, the order its joint channel
+     * uses. View state like the shading beside it: the same entity drawn through another
+     * view keeps its look.
+     */
+    setViewSkinWeights(view: number, entity: number | null, joint = 0): void {
+        backend?.setViewSkinWeights(view, entity ?? 0, entity === null ? -1 : joint);
     },
 
     /**

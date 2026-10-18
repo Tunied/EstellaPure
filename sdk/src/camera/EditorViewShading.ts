@@ -16,9 +16,11 @@ import { EDITOR_VIEW_ENTITY } from './uiLayoutRect';
 
 export interface EditorViewShadingData {
     mode: ViewShading;
+    /** The one skinned entity to colour by a joint's weights, and the joint (an index into its bind matrices). */
+    weights: { entity: number; joint: number } | null;
 }
 
-export const DEFAULT_EDITOR_VIEW_SHADING: EditorViewShadingData = { mode: 'shaded' };
+export const DEFAULT_EDITOR_VIEW_SHADING: EditorViewShadingData = { mode: 'shaded', weights: null };
 
 export const EditorViewShading = defineResource<EditorViewShadingData>(
     { ...DEFAULT_EDITOR_VIEW_SHADING }, 'EditorViewShading');
@@ -32,6 +34,19 @@ export function editorViewShadingMode(data: EditorViewShadingData, viewActive: b
  * Pushes the view's shading to the engine, once per change. Returns the mode it last
  * pushed, so a caller skips the crossing while nothing moved.
  */
+export function editorViewWeightsKey(data: EditorViewShadingData, viewActive: boolean): string {
+    return viewActive && data.weights ? `${data.weights.entity}:${data.weights.joint}` : '';
+}
+
+/** Pushes the skin-weight target to the engine, once per change; returns the key it pushed. */
+export function pushEditorViewWeights(data: EditorViewShadingData, viewActive: boolean, lastKey: string): string {
+    const key = editorViewWeightsKey(data, viewActive);
+    if (key === lastKey) return lastKey;
+    const target = viewActive ? data.weights : null;
+    Renderer.setViewSkinWeights(EDITOR_VIEW_ENTITY >>> 0, target ? target.entity : null, target?.joint ?? 0);
+    return key;
+}
+
 export function pushEditorViewShading(
     data: EditorViewShadingData,
     viewActive: boolean,

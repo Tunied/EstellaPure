@@ -92,6 +92,9 @@ export const SCENES = [
   // The editor eye's clay and albedo modes: clay drops everyone's colours and keeps the light,
   // albedo keeps the colours and drops the light, and leaving either restores the authored frame.
   { id: "view-shading", tier: "pr", webgpu: true, env: {"ESTELLA_VERIFY_SCENE": "/scenes/view-shading.esscene", "ESTELLA_VERIFY_W": "256", "ESTELLA_VERIFY_H": "256", "ESTELLA_VERIFY_STEPS": "3", "ESTELLA_VERIFY_SHADING": "1"} },
+  // A skinned surface coloured by one joint's weights: each of the two joints of the rig colours its own
+  // half, the hot end of the ramp is on screen, and leaving the view returns the authored frame.
+  { id: "view-skin-weights", tier: "pr", webgpu: true, env: {"ESTELLA_VERIFY_SCENE": "/scenes/mesh-skin.esscene", "ESTELLA_VERIFY_W": "256", "ESTELLA_VERIFY_H": "256", "ESTELLA_VERIFY_STEPS": "2", "ESTELLA_VERIFY_SKIN_WEIGHTS": "{\"id\":3,\"joints\":[0,1]}"} },
   { id: "studio-exposure", tier: "pr", webgpu: true, env: {"ESTELLA_VERIFY_SCENE": "/scenes/mesh-builtin.esscene", "ESTELLA_VERIFY_W": "256", "ESTELLA_VERIFY_H": "256", "ESTELLA_VERIFY_STEPS": "3", "ESTELLA_VERIFY_STUDIO": "{\"exposure\":-1}"} },
   { id: "studio-exposure-linear", tier: "pr", webgpu: true, env: {"ESTELLA_VERIFY_COLORSPACE": "linear", "ESTELLA_VERIFY_SCENE": "/scenes/mesh-builtin.esscene", "ESTELLA_VERIFY_W": "256", "ESTELLA_VERIFY_H": "256", "ESTELLA_VERIFY_STEPS": "3", "ESTELLA_VERIFY_STUDIO": "{\"exposure\":-1,\"linear\":true}"} },
   { id: "frame-debugger-2d", tier: "pr", webgpu: true, env: { ESTELLA_VERIFY_SCENE: "/scenes/sprite-rendering.esscene", ESTELLA_VERIFY_MANIFEST: "/scenes/sprite-rendering.textures.json", ESTELLA_VERIFY_W: "256", ESTELLA_VERIFY_H: "256", ESTELLA_VERIFY_STEPS: "2", ESTELLA_VERIFY_FRAME_DEBUG: "1" } },

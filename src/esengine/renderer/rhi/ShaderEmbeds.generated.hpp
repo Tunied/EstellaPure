@@ -408,6 +408,13 @@ inline constexpr const char* MESH = R"esshader(#pragma shader "Mesh"
 
 
 
+#pragma feature WEIGHT_HEAT
+
+
+
+
+
+
 #pragma vertex
 layout(location = 0) in vec3 a_position;
 layout(location = 1) in vec4 a_color;
@@ -518,6 +525,15 @@ void main() {
     gl_Position = u_projection * world;
     v_texCoord = a_texCoord;
     v_color = a_color * esInstanceTint();
+#if defined(WEIGHT_HEAT) && defined(SKINNED)
+    {
+        uint chosen = uint(esInstanceTint().x);
+        vec4 own = vec4(equal(a_joints, uvec4(chosen)));
+        float heat = dot(own, a_weights);
+
+        v_color = vec4(heat < 0.01 ? vec3(0.1) : mix(vec3(0.2, 0.4, 1.0), vec3(1.0, 0.25, 0.2), clamp(heat, 0.0, 1.0)), 1.0);
+    }
+#endif
 #ifdef MESH_LIGHTMAP
     highp vec4 lmRect = esInstanceLightmapRect();
     v_lightmap = vec3(a_texCoord1 * lmRect.xy + lmRect.zw,
@@ -693,6 +709,17 @@ struct VSOut {
     out.pos = frame.projection * world;
     out.v_texCoord = v.a_texCoord;
     out.v_color = v.a_color * esInstanceTint();
+#ifdef WEIGHT_HEAT
+#ifdef SKINNED
+    {
+        let chosen = u32(esInstanceTint().x);
+        let own = vec4f(v.a_joints == vec4u(chosen));
+        let heat = dot(own, v.a_weights);
+        out.v_color = vec4f(select(mix(vec3f(0.2, 0.4, 1.0), vec3f(1.0, 0.25, 0.2), clamp(heat, 0.0, 1.0)),
+                                   vec3f(0.1), heat < 0.01), 1.0);
+    }
+#endif
+#endif
 #ifdef MESH_LIGHTMAP
     let lmRect = esInstanceLightmapRect();
     out.v_lightmap = vec3f(v.a_texCoord1 * lmRect.xy + lmRect.zw,

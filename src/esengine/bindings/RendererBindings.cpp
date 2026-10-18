@@ -1102,6 +1102,12 @@ void renderer_setViewShading(u32 view, i32 mode) {
     g_renderFrame->setViewShading(view, known);
 }
 
+void renderer_setViewSkinWeights(u32 view, u32 entity, i32 joint) {
+    if (!g_renderFrame) return;
+    g_renderFrame->setViewSkinWeights(view, joint < 0 ? INVALID_ENTITY : Entity::fromRaw(entity),
+                                      joint < 0 ? 0u : static_cast<u32>(joint));
+}
+
 void renderer_setMeshEdgeBuffers(bool enabled) {
     if (auto* resources = ctx().tryGet<resource::ResourceManager>()) resources->setMeshEdgeBuffers(enabled);
 }

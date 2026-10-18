@@ -45,7 +45,7 @@ describe('the camera a frame was drawn with', () => {
             setStage: () => {}, setViewport: () => {},
             setYSortLayers: () => {}, setDepthLayers: () => {}, setCullingMask: () => {},
             setViewId: () => {},
-            lodInspect: () => null, setLodPreview: () => {}, setViewShading: () => {}, setMeshEdgeBuffers: () => {}, lightStatus: () => null, shadowStatus: () => null,
+            lodInspect: () => null, setLodPreview: () => {}, setViewShading: () => {}, setMeshEdgeBuffers: () => {}, setViewSkinWeights: () => {}, lightStatus: () => null, shadowStatus: () => null,
             getStats: () => ({ drawCalls: 0, triangles: 0, sprites: 0, text: 0, skeletal: 0, meshes: 0, culled: 0 }),
         };
     }

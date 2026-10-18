@@ -23,7 +23,7 @@ import { ProjectionType, SceneOwner, ClearFlags } from '../ecs/component';
 import { canvasRootEntities } from '../ui/core/canvas-roots';
 import { uiLayoutRect, computeEffectiveOrthoSize, EDITOR_VIEW_ENTITY, type CanvasScale } from './uiLayoutRect';
 import { EditorViewLighting, DEFAULT_EDITOR_VIEW_LIGHTING, pushEditorViewLighting } from './EditorViewLighting';
-import { EditorViewShading, DEFAULT_EDITOR_VIEW_SHADING, pushEditorViewShading } from './EditorViewShading';
+import { EditorViewShading, DEFAULT_EDITOR_VIEW_SHADING, pushEditorViewShading, pushEditorViewWeights } from './EditorViewShading';
 import type { ViewShading } from '../render/renderer';
 import { EditorView, DEFAULT_EDITOR_VIEW, editorViewStandoff, editorViewClipFar, editorViewClipNear, type EditorViewData } from './EditorView';
 import { ScreenScaling, DEFAULT_SCREEN_SCALING, SCREEN_FIT_OFF } from './ScreenScaling';
@@ -791,6 +791,7 @@ export function cameraPlugin(
             // And its shading: clay or albedo for the eye alone, shaded for everything else.
             app.insertResource(EditorViewShading, { ...DEFAULT_EDITOR_VIEW_SHADING });
             let lastViewShading: ViewShading | null = null;
+            let lastViewWeights = '';
             // The camera director: by default it just tracks the active camera;
             // games call setViewTarget(app, entity, {time, curve}) to blend, or
             // shakeCamera(app, {...}) to shake. Fresh state (own arrays) per App.
@@ -864,6 +865,10 @@ export function cameraPlugin(
                         app.getResource(EditorViewShading),
                         app.hasResource(EditorView) && app.getResource(EditorView).active,
                         lastViewShading);
+                    lastViewWeights = pushEditorViewWeights(
+                        app.getResource(EditorViewShading),
+                        app.hasResource(EditorView) && app.getResource(EditorView).active,
+                        lastViewWeights);
                     pipeline.beginFrame(elapsed);
                     app.measureFrameScope('render.updateTransforms', () =>
                         Renderer.updateTransforms({ _cpp: cppRegistry }));

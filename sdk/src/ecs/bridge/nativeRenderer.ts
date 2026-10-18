@@ -191,6 +191,10 @@ export function createNativeRendererBackend(
             const fn = scope[RENDERER_OPTIONAL_BINDINGS.setMeshEdgeBuffers];
             if (typeof fn === 'function') (fn as (e: boolean) => void)(enabled);
         },
+        setViewSkinWeights: (view, entity, joint): void => {
+            const fn = scope[RENDERER_OPTIONAL_BINDINGS.setViewSkinWeights];
+            if (typeof fn === 'function') (fn as (v: number, e: number, j: number) => void)(view >>> 0, entity >>> 0, joint);
+        },
         getStats: (): RenderStats => {
             const read = (name: string): number => {
                 const fn = scope[name];

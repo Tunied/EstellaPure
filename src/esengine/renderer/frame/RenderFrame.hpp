@@ -327,6 +327,12 @@ public:
      */
     void setViewShading(u32 view, ShadingMode mode) { view_shading_.set(view, mode); }
 
+    /**
+     * @brief Colour @p entity in @p view by how much @p joint moves each of its vertices.
+     * @details View state like the shading beside it; an invalid entity goes back to none.
+     */
+    void setViewSkinWeights(u32 view, Entity entity, u32 joint) { view_shading_.setWeights(view, entity, joint); }
+
     /** @brief The mode @p view asked for; Shaded when it never did. */
     ShadingMode viewShading(u32 view) const { return view_shading_.get(view); }
 

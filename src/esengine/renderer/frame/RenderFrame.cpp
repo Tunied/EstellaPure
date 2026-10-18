@@ -2138,6 +2138,7 @@ void RenderFrame::collectAll(ecs::Registry& registry) {
     collectCtx.screen_ui = screen_domain_;
     collectCtx.lod = {view_id_, &lod_view_state_, &lod_counts_};
     collectCtx.shading = view_shading_.get(view_id_);
+    collectCtx.weights = view_shading_.weights(view_id_);
     // Only the camera collect. The shadow collect above builds its own context and
     // leaves this null: what a player cannot see still casts, and a caster dropped
     // because the camera cannot see IT takes its shadow off the ground with it.

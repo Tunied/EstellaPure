@@ -39,6 +39,13 @@
 // land where its skinned self lands, and one copy of that is one that cannot drift.
 #pragma feature SHADOW_DEPTH
 
+// A skinned surface coloured by how much ONE joint moves each vertex: the weight a rig is
+// painted with, read off the surface instead of a table. The joint is the record's tint x
+// (a diagnostic draw has no tint to carry), the colour goes out through the same varying the
+// fragment already multiplies a white texture by — so the fragment stage is untouched, and
+// the two twins differ only in the lines below that say it.
+#pragma feature WEIGHT_HEAT
+
 // GPU-resident geometry. Slot 0 is the mesh's own vertices, which are LOCAL
 // space and are never rewritten; slot 1 is the per-object record the frame
 // streams, so the same mesh drawn twice costs one more transform rather than
@@ -154,6 +161,15 @@ void main() {
     gl_Position = u_projection * world;
     v_texCoord = a_texCoord;
     v_color = a_color * esInstanceTint();
+#if defined(WEIGHT_HEAT) && defined(SKINNED)
+    {
+        uint chosen = uint(esInstanceTint().x);
+        vec4 own = vec4(equal(a_joints, uvec4(chosen)));
+        float heat = dot(own, a_weights);
+        // Nothing the joint moves stays a quiet grey, so the part that matters is the part that shows.
+        v_color = vec4(heat < 0.01 ? vec3(0.1) : mix(vec3(0.2, 0.4, 1.0), vec3(1.0, 0.25, 0.2), clamp(heat, 0.0, 1.0)), 1.0);
+    }
+#endif
 #ifdef MESH_LIGHTMAP
     highp vec4 lmRect = esInstanceLightmapRect();
     v_lightmap = vec3(a_texCoord1 * lmRect.xy + lmRect.zw,
@@ -329,6 +345,17 @@ struct VSOut {
     out.pos = frame.projection * world;
     out.v_texCoord = v.a_texCoord;
     out.v_color = v.a_color * esInstanceTint();
+#ifdef WEIGHT_HEAT
+#ifdef SKINNED
+    {
+        let chosen = u32(esInstanceTint().x);
+        let own = vec4f(v.a_joints == vec4u(chosen));
+        let heat = dot(own, v.a_weights);
+        out.v_color = vec4f(select(mix(vec3f(0.2, 0.4, 1.0), vec3f(1.0, 0.25, 0.2), clamp(heat, 0.0, 1.0)),
+                                   vec3f(0.1), heat < 0.01), 1.0);
+    }
+#endif
+#endif
 #ifdef MESH_LIGHTMAP
     let lmRect = esInstanceLightmapRect();
     out.v_lightmap = vec3f(v.a_texCoord1 * lmRect.xy + lmRect.zw,

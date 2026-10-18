@@ -32,6 +32,7 @@
  *   ESTELLA_VERIFY_ORBIT     turn the editor eye before capture ("yaw,pitch" degrees)
  *   ESTELLA_VERIFY_STUDIO    the editor view's studio lighting and exposure (JSON: see the block)
  *   ESTELLA_VERIFY_SHADING   the editor view's clay and albedo shading (any non-empty value; see the block)
+ *   ESTELLA_VERIFY_SKIN_WEIGHTS  colour a skinned entity by joint weights (JSON {id, joints}; see the block)
  *   ESTELLA_VERIFY_COUNTERS  engine counters the drawn frame must report (JSON)
  *   ESTELLA_VERIFY_COUNTERS_MAX  counters the frame must stay UNDER — a budget (JSON)
  *   ESTELLA_VERIFY_FRAME_DEBUG  capture the frame and replay it (the frame debugger)
@@ -221,14 +222,15 @@ function finish(result, server) {
   // black on purpose; what proves a frame was drawn there is the studio frame it measured.
   const studioDrew = result.studio?.ok === true && (result.studio.S?.litShare ?? 0) > 0;
   const shadingDrew = result.shading?.ok === true && (result.shading.C?.litShare ?? 0) > 0;
-  const renderedOk = (result.capture?.rendered ?? false) || uniformByDesign || studioDrew || shadingDrew;
+  const weightsDrew = result.skinWeights?.ok === true;
+  const renderedOk = (result.capture?.rendered ?? false) || uniformByDesign || studioDrew || shadingDrew || weightsDrew;
   // A scene that could not load an asset it names draws a frame nobody declared, so
   // its pixels answer a different question — say which asset instead.
   const assetsOk = (result.missingAssets?.length ?? 0) === 0;
   const ok = result.ok && renderedOk && assetsOk && (result.expect?.ok ?? true) && (result.twins?.ok ?? true) && (result.count?.ok ?? true) &&
     (result.seam?.ok ?? true) && (result.nineSlice?.ok ?? true) &&
     (result.resize?.ok ?? true) && (result.preview?.ok ?? true) &&
-    (result.meshPreview?.ok ?? true) && (result.grid?.ok ?? true) && (result.studio?.ok ?? true) && (result.shading?.ok ?? true) &&
+    (result.meshPreview?.ok ?? true) && (result.grid?.ok ?? true) && (result.studio?.ok ?? true) && (result.shading?.ok ?? true) && (result.skinWeights?.ok ?? true) &&
     (result.draws?.ok ?? true) && (result.counters?.ok ?? true) && (result.frameDebug?.ok ?? true) && (result.edge?.ok ?? true) && (result.cutoutEdge?.ok ?? true) && (result.minified?.ok ?? true) &&
     (result.roundtrip?.ok ?? true) && deviceLossOk && meshOk && pickOk;
   const why = assetsOk ? '' : `: could not load ${result.missingAssets.join(', ')}`;
@@ -1178,7 +1180,41 @@ app.whenReady().then(async () => {
           && L.chroma > 12 && L.spread < A.spread && dAlbedo.differing > 200
           && W.chroma < 6 && W.litShare > 0.003 && W.litShare < 0.2 && dWire.differing > 500 && back.max === 0 };
     }
-    finish({ ok: true, studio, shading, entityCount, missingAssets, drawCalls, draws, counters, frameDebug, edge, cutoutEdge, minified, profile, capture, expect, twins, nineSlice, count, seam, resize, preview, meshPreview, grid, deviceLoss, roundtrip, meshResident, meshAsset, meshMaterial, meshPrefab, setField, animator, pick, cameraTarget }, server);
+    // ESTELLA_VERIFY_SKIN_WEIGHTS = {id, joints:[a, b]}: authored A, the entity coloured by joint a,
+    // by joint b, authored again. Each joint moves a different part, so the two heat frames differ
+    // from each other and from A, each carries the hot end of the ramp, and A2 == A byte for byte.
+    let skinWeights = null;
+    if (process.env.ESTELLA_VERIFY_SKIN_WEIGHTS) {
+      const spec = JSON.parse(process.env.ESTELLA_VERIFY_SKIN_WEIGHTS);
+      const api = (call) => exec(`(async () => { const api = window.__estellaHeadless.api; ${call}; await api.step(2, 1 / 60); })()`);
+      const grab = (name) => readFrame(`
+        window.__heat = window.__heat || {};
+        window.__heat[${JSON.stringify(name)}] = px.slice();
+        let hot = 0;
+        for (let i = 0; i < px.length; i += 4) if (px[i] > 200 && px[i + 1] < 110 && px[i + 2] < 110) hot++;
+        return { hot };
+      `);
+      const diff = (a, b) => readFrame(`
+        const A = window.__heat[${JSON.stringify(a)}], B = window.__heat[${JSON.stringify(b)}];
+        let differing = 0, max = 0;
+        for (let i = 0; i < A.length; i++) { const d = Math.abs(A[i] - B[i]); if (d > max) max = d; if (d > 0) differing++; }
+        return { max, differing };
+      `);
+      await api('api.setSkinWeights(null)');
+      await grab('A');
+      await api(`api.setSkinWeights(${spec.id}, ${spec.joints[0]})`);
+      const H0 = await grab('H0');
+      await api(`api.setSkinWeights(${spec.id}, ${spec.joints[1]})`);
+      const H1 = await grab('H1');
+      const dA = await diff('A', 'H0');
+      const dJoints = await diff('H0', 'H1');
+      await api('api.setSkinWeights(null)');
+      await grab('A2');
+      const back = await diff('A', 'A2');
+      skinWeights = { H0, H1, dA, dJoints, back,
+        ok: H0.hot > 20 && H1.hot > 20 && dA.differing > 300 && dJoints.differing > 300 && back.max === 0 };
+    }
+    finish({ ok: true, studio, shading, skinWeights, entityCount, missingAssets, drawCalls, draws, counters, frameDebug, edge, cutoutEdge, minified, profile, capture, expect, twins, nineSlice, count, seam, resize, preview, meshPreview, grid, deviceLoss, roundtrip, meshResident, meshAsset, meshMaterial, meshPrefab, setField, animator, pick, cameraTarget }, server);
   } catch (e) {
     finish({ ok: false, error: String((e && e.stack) || e) }, server);
   }

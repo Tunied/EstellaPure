@@ -247,10 +247,10 @@ void reportLodAuthoring(const LodLevels& levels, bool& warned) {
 }
 
 u32 meshVariant(bool normals, bool lit, bool normalMapped, bool skinned, bool depthOnly,
-                bool envMapped, bool lightmapped) {
+                bool envMapped, bool lightmapped, bool weightHeat = false) {
     return (normals ? 1u : 0u) | (lit ? 2u : 0u) | (normalMapped ? 4u : 0u)
          | (skinned ? 8u : 0u) | (depthOnly ? 16u : 0u) | (envMapped ? 32u : 0u)
-         | (lightmapped ? 64u : 0u);
+         | (lightmapped ? 64u : 0u) | (weightHeat ? 128u : 0u);
 }
 
 /**
@@ -299,13 +299,16 @@ struct MeshDrawKeys {
     u32 normalTextureId = 0;
 };
 
-u32 meshVariantFrom(const MeshProgramFacts& facts, bool envMapped, bool shadowDepth) {
+u32 meshVariantFrom(const MeshProgramFacts& facts, bool envMapped, bool shadowDepth, bool weightHeat = false) {
     // `lightmapped` survives the shadow pass, unlike the three describing
     // shading: it declares two vertex attributes, and a layout may not carry one
     // the program ignores. The depth fragment simply never reads the atlas.
-    return meshVariant(facts.hasNormals, facts.lit && !shadowDepth,
-                       facts.normalTextureId != 0 && !shadowDepth, facts.skinned, shadowDepth,
-                       envMapped, facts.lightmapped);
+    // Weights are read off the surface of a skinned draw and nothing else's: the colour is
+    // the shade, so it asks for no light, no normal map and no depth pass of its own.
+    const bool heat = weightHeat && facts.skinned && !shadowDepth;
+    return meshVariant(facts.hasNormals, facts.lit && !shadowDepth && !heat,
+                       facts.normalTextureId != 0 && !shadowDepth && !heat, facts.skinned, shadowDepth,
+                       envMapped, facts.lightmapped, heat);
 }
 
 /** @brief The facts a LIVE entity answers with: its components and its mesh. */
@@ -329,10 +332,10 @@ MeshProgramFacts meshFactsFromEntity(RenderFrameContext& ctx, ecs::Registry& reg
 
 MeshDrawKeys meshDrawFor(RenderFrameContext& ctx, ecs::Registry& registry, Entity entity,
                          const ecs::MeshRenderer& mesh, const Mesh* resident, bool shadowDepth,
-                         bool& warnedBones) {
+                         bool& warnedBones, bool weightHeat = false) {
     const MeshProgramFacts facts =
         meshFactsFromEntity(ctx, registry, entity, mesh, resident, warnedBones);
-    return { meshVariantFrom(facts, ctx.environment_texture_id != 0, shadowDepth),
+    return { meshVariantFrom(facts, ctx.environment_texture_id != 0, shadowDepth, weightHeat),
              facts.normalTextureId };
 }
 }  // namespace
@@ -369,7 +372,7 @@ u32 MeshPlugin::meshProgram(RenderFrameContext& ctx, u32 variant) {
     const bool normals = (variant & 1u) != 0, lit = (variant & 2u) != 0;
     const bool normalMapped = (variant & 4u) != 0, skinned = (variant & 8u) != 0;
     const bool depthOnly = (variant & 16u) != 0, envMapped = (variant & 32u) != 0;
-    const bool lightmapped = (variant & 64u) != 0;
+    const bool lightmapped = (variant & 64u) != 0, weightHeat = (variant & 128u) != 0;
     if (mesh_compiled_[variant]) return mesh_programs_[variant];
     mesh_compiled_[variant] = true;
     // Counted because the cost of this function is entirely the times it does
@@ -385,6 +388,7 @@ u32 MeshPlugin::meshProgram(RenderFrameContext& ctx, u32 variant) {
     if (normalMapped) features.emplace_back("NORMAL_MAP");
     if (skinned) features.emplace_back("SKINNED");
     if (lightmapped) features.emplace_back("MESH_LIGHTMAP");
+    if (weightHeat) features.emplace_back("WEIGHT_HEAT");
     if (depthOnly) features.emplace_back("SHADOW_DEPTH");
     // Resident geometry owns its texture slots, so it is the vertex source that can
     // carry a shadow map and a reflection — the batch stream's are a per-vertex
@@ -530,7 +534,14 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
         ++walked;
         const auto& authored = meshView.get<ecs::MeshRenderer>(entity);
         const ecs::MeshRenderer* described = &authored;
-        if (shading != ShadingMode::Shaded) {
+        const bool heated = !shadowDepth && collect_ctx.weights.entity == entity;
+        if (heated) {
+            shaded = authored;
+            applyShading(shaded, ShadingMode::Albedo);
+            shaded.texture = {};
+            shaded.color = glm::vec4(static_cast<f32>(collect_ctx.weights.joint), 0.0f, 0.0f, 1.0f);
+            described = &shaded;
+        } else if (shading != ShadingMode::Shaded) {
             shaded = authored;
             applyShading(shaded, shading);
             described = &shaded;
@@ -633,7 +644,7 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
             }
         }
         const MeshDrawKeys keys =
-            meshDrawFor(ctx, registry, entity, mesh, resident, shadowDepth, warned_bones_);
+            meshDrawFor(ctx, registry, entity, mesh, resident, shadowDepth, warned_bones_, heated);
         const u32 normalTextureId = keys.normalTextureId;
 
         BatchDrawKey key{

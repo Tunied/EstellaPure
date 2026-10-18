@@ -139,7 +139,7 @@ static constexpr u32 MORPH_MAX_TEXELS = MORPH_TEXTURE_WIDTH * MORPH_TEXTURE_WIDT
 /// Programs the resident-mesh shader has: one per combination of {normals, lit,
 /// normal-mapped, skinned, depth-only, env-mapped, lightmapped}. Seven bits, not
 /// one: the geometry, the draw, the frame and the pass each answer a different.
-static constexpr u32 MESH_VARIANTS = 128;
+static constexpr u32 MESH_VARIANTS = 256;
 /**
  * @brief What a mesh vertex channel MEANS, and the attribute location it binds to.
  * @details One vocabulary for the file format, the layout and the shaders: a
