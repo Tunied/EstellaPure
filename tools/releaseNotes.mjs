@@ -120,6 +120,8 @@ export const NOTED = {
     { note: 'Gizmos are redrawn.' },
   "feat(editor): a hunter's attack range, a perceiver's sight cone and a third-person camera's boom and probe are drawn in the viewport":
     { note: 'Gizmos are redrawn.' },
+  'feat(editor): a UI element with a 9-slice visual drags its own border on the picture, unless its texture already carries one':
+    { note: 'Gizmos are redrawn.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":
