@@ -141,7 +141,7 @@ const NAMES_THE_SAME_THING = [
   ['.play-ov', "the play-mode inspection overlay's gizmo arms, drawn over the running game"],
   ['.ts-p', 'the tileset collision-polygon editor, a canvas of its own'],
   ['.ax.', "an Inspector vec field's axis letters: the legend for the gizmo's arms"],
-  ['.world__cell-state', "the World panel's residency legend for what the viewport draws"],
+  ['.world__', "the World panel's residency colours — its key, a cell's dot and state word — for what the viewport draws"],
   ['components/GizmoReadout.tsx', 'the drag readout carries the dot of the gizmo axis it reports'],
   ['panels/SequencerCurve.tsx', 'a curve channel IS the axis channel, so it takes the axis colour'],
 ];
