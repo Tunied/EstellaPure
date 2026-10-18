@@ -91,6 +91,11 @@ struct MaterialUniformLayout {
     /// The param whose value above zero makes output alpha coverage (see
     /// ParsedShader::coverageParam); empty when the shader declares none.
     std::string coverageParam;
+    /// What the shader's vertex hook can move a vertex by (ParsedShader::vertexBounds), and whether it
+    /// has a hook at all — culling grows a mesh's box by the first, and the shadow pass builds a
+    /// program of its own for the second.
+    float vertexBounds = 0.0f;
+    bool vertexHook = false;
     std::vector<MaterialParamSlot> params;
     std::vector<MaterialTextureSlot> textures;
 
@@ -184,6 +189,28 @@ public:
     u32 meshProgram(u32 materialId, resource::ResourceManager& resources,
                     bool withNormals = false, bool skinned = false,
                     bool envMapped = false, bool lightmapped = false) const;
+
+    /// How far @p materialId's vertex hook can move a vertex from the mesh's own bounds, in the
+    /// mesh's local units; 0 for a material without one.
+    float vertexBounds(u32 materialId) const {
+        const MaterialRecord* m = find(materialId);
+        const MaterialUniformLayout* layout = m ? layoutFor(m->shaderRef) : nullptr;
+        return layout ? layout->vertexBounds : 0.0f;
+    }
+
+    /// Whether @p materialId bends its vertices (so its shadow has to bend too).
+    bool hasVertexHook(u32 materialId) const {
+        const MaterialRecord* m = find(materialId);
+        const MaterialUniformLayout* layout = m ? layoutFor(m->shaderRef) : nullptr;
+        return layout && layout->vertexHook;
+    }
+
+    /// The program that draws @p materialId's CASTER into a shadow map: the engine's depth shader for
+    /// resident meshes with the material's vertex hook and params grafted on, so a bent mesh casts the
+    /// shadow of the bent shape. 0 when the source was never kept or the variant fails — the caller
+    /// then casts the unbent shape, which is the old behaviour.
+    u32 shadowProgram(u32 materialId, resource::ResourceManager& resources,
+                      bool withNormals, bool skinned) const;
 
     /// The program that draws @p materialId on PARTICLE geometry — the instanced
     /// quad an emitter streams. Same source, same author's fragment, a different

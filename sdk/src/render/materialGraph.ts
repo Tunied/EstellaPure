@@ -116,13 +116,22 @@ export function compileMaterialGraph(source: MaterialGraph, resolve?: SubgraphRe
   const graph = resolve ? flattenSubgraphs(source, resolve) : source;
   if (graph.nodes.some((n) => n.type === 'subgraph')) throw new Error('material graph: a subgraph node needs a resolver to compile');
   const nodes = new Map(graph.nodes.map((n) => [n.id, n] as const));
-  const memo = new Map<string, Emitted>();
-  const visiting = new Set<string>();
+  let memo = new Map<string, Emitted>();
+  let visiting = new Set<string>();
   const params: string[] = [];
-  const helpers = new Set<string>();
-  const whelpers = new Set<string>();
-  const body: string[] = [];
-  const wbody: string[] = [];
+  let helpers = new Set<string>();
+  let whelpers = new Set<string>();
+  let body: string[] = [];
+  let wbody: string[] = [];
+  // The vertex offset is compiled in a second pass over the same nodes, into its own body, where the
+  // fragment's inputs (the interpolated UV, a texture sample, the screen) do not exist.
+  let vertexMode = false;
+  const fragUv = (): Emitted => (vertexMode
+    ? { expr: 'uv', wexpr: 'uv', type: 'vec2' }
+    : { expr: 'v_texCoord', wexpr: 'v.v_texCoord', type: 'vec2' });
+  const needsFragment = (n: MaterialGraphNode, what: string): void => {
+    if (vertexMode) throw new Error(`material graph: node "${n.id}" (${n.type}) ${what}, which the vertex offset cannot`);
+  };
   let tmp = 0;
 
   const numParam = (n: MaterialGraphNode, key: string, fallback: number): string => {
@@ -159,15 +168,17 @@ export function compileMaterialGraph(source: MaterialGraph, resolve?: SubgraphRe
     let out: Emitted;
     switch (n.type) {
       case 'uv':
-        out = { expr: 'v_texCoord', wexpr: 'v.v_texCoord', type: 'vec2' };
+        out = fragUv();
         break;
       case 'vertexColor':
+        needsFragment(n, 'reads the vertex colour');
         out = { expr: 'v_color', wexpr: 'v.v_color', type: 'vec4' };
         break;
       case 'time':
         out = { expr: 'u_time.x', wexpr: 'tc.u_time.x', type: 'float' };
         break;
       case 'screenUV': {
+        needsFragment(n, 'reads the screen position');
         // 0..1, y-up on both backends: gl_FragCoord has a bottom-left origin,
         // the WGSL position builtin a top-left one — flip y before normalizing.
         out = line('vec2',
@@ -178,23 +189,24 @@ export function compileMaterialGraph(source: MaterialGraph, resolve?: SubgraphRe
       case 'constFloat': {
         const name = paramName(n);
         const v = typeof n.params?.value === 'number' ? n.params.value : 0;
-        params.push(`#pragma param ${name} float default(${v})`);
+        if (!params.includes(`#pragma param ${name} float default(${v})`)) params.push(`#pragma param ${name} float default(${v})`);
         out = { expr: name, wexpr: `mc.${name}`, type: 'float' };
         break;
       }
       case 'constColor': {
         const name = paramName(n);
         const c = Array.isArray(n.params?.value) ? (n.params!.value as number[]) : [1, 1, 1, 1];
-        params.push(`#pragma param ${name} color default(${c.slice(0, 4).join(',')})`);
+        if (!params.includes(`#pragma param ${name} color default(${c.slice(0, 4).join(',')})`)) params.push(`#pragma param ${name} color default(${c.slice(0, 4).join(',')})`);
         out = { expr: name, wexpr: `mc.${name}`, type: 'vec4' };
         break;
       }
       case 'textureSample': {
+        needsFragment(n, 'samples a texture');
         const name = paramName(n);
         const def = typeof n.params?.default === 'string' ? n.params.default : 'white';
         // A map that holds numbers (metal / rough / occlusion) must not be decoded as a colour.
         params.push(`#pragma param ${name} texture default(${def})${n.params?.data === true ? ' texel(data)' : ''}`);
-        const uv = n.inputs?.uv ? input('uv') : { expr: 'v_texCoord', wexpr: 'v.v_texCoord', type: 'vec2' as GraphType };
+        const uv = n.inputs?.uv ? input('uv') : fragUv();
         out = line('vec4',
           `texture(${name}, ${uv.expr})`,
           `textureSampleLevel(${name}, ${name}_s, ${uv.wexpr}, 0.0)`);
@@ -250,7 +262,7 @@ export function compileMaterialGraph(source: MaterialGraph, resolve?: SubgraphRe
       case 'noise': {
         helpers.add(NOISE_HELPER);
         whelpers.add(NOISE_HELPER_WGSL);
-        const uv = n.inputs?.uv ? input('uv') : { expr: 'v_texCoord', wexpr: 'v.v_texCoord', type: 'vec2' as GraphType };
+        const uv = n.inputs?.uv ? input('uv') : fragUv();
         const scale = numParam(n, 'scale', 12);
         out = line('float',
           `noise2d(${uv.expr} * ${scale})`,
@@ -258,7 +270,7 @@ export function compileMaterialGraph(source: MaterialGraph, resolve?: SubgraphRe
         break;
       }
       case 'panner': {
-        const uv = n.inputs?.uv ? input('uv') : { expr: 'v_texCoord', wexpr: 'v.v_texCoord', type: 'vec2' as GraphType };
+        const uv = n.inputs?.uv ? input('uv') : fragUv();
         const sx = numParam(n, 'speedX', 0.1);
         const sy = numParam(n, 'speedY', 0);
         out = line('vec2',
@@ -267,6 +279,7 @@ export function compileMaterialGraph(source: MaterialGraph, resolve?: SubgraphRe
         break;
       }
       case 'normalMap': {
+        needsFragment(n, 'samples a texture');
         const name = paramName(n);
         params.push(`#pragma param ${name} texture default(flatnormal) texel(data)`);
         const uv = n.inputs?.uv ? input('uv') : { expr: 'v_texCoord', wexpr: 'v.v_texCoord', type: 'vec2' as GraphType };
@@ -384,6 +397,37 @@ ${nrmWg ? `    sN = perturbNormal(sN, v.v_worldXYZ, v.v_texCoord, ${nrmWg});\n` 
   }
   const alphaOnly = !pbr && outNode.inputs?.alpha ? alphaE : null;
 
+  // The vertex offset: its own DAG, compiled into `esMaterialVertex`, which the engine's mesh vertex stage
+  // calls on each local-space vertex. A float moves the vertex along its normal; a vec2 / vec3 / vec4 is
+  // a displacement (vec2 in x and y).
+  let vertexHook = '';
+  let wgslVertexHook = '';
+  let vertexBounds = 0;
+  const offsetSrc = outNode.inputs?.vertexOffset;
+  if (offsetSrc) {
+    const fragMemo = { memo, visiting, helpers, whelpers, body, wbody };
+    memo = new Map(); visiting = new Set(); helpers = new Set(); whelpers = new Set(); body = []; wbody = [];
+    vertexMode = true;
+    const o = emit(offsetSrc);
+    const disp = o.type === 'float' ? { gl: `localNormal * ${o.expr}`, wg: `(*localNormal) * ${o.wexpr}` }
+      : o.type === 'vec2' ? { gl: `vec3(${o.expr}, 0.0)`, wg: `vec3f(${o.wexpr}, 0.0)` }
+      : o.type === 'vec3' ? { gl: o.expr, wg: o.wexpr }
+      : { gl: `${o.expr}.xyz`, wg: `${o.wexpr}.xyz` };
+    const indent = (lines: string[]): string => lines.map((l) => '    ' + l).join('\n');
+    vertexHook = `${helpers.size ? [...helpers].join('\n') + '\n' : ''}void esMaterialVertex(inout vec3 local, inout vec3 localNormal, in vec2 uv) {
+${indent(body)}
+    local += ${disp.gl};
+}`;
+    wgslVertexHook = `${whelpers.size ? [...whelpers].join('\n') + '\n' : ''}fn esMaterialVertex(local : ptr<function, vec3f>, localNormal : ptr<function, vec3f>, uv : vec2f) {
+${indent(wbody)}
+    *local = *local + ${disp.wg};
+}`;
+    ({ memo, visiting, helpers, whelpers, body, wbody } = fragMemo);
+    vertexMode = false;
+    const b = outNode.params?.lit_vertexBounds;
+    vertexBounds = typeof b === 'number' && Number.isFinite(b) && b > 0 ? b : 0;
+  }
+
   const name = graph.name ?? 'Graph';
   const domain = pbr ? 'Lit' : (RENAMED_DOMAINS[graph.domain ?? ''] ?? graph.domain ?? 'Unlit');
   const paramBlock = params.length ? params.join('\n') + '\n' : '';
@@ -397,7 +441,7 @@ ${nrmWg ? `    sN = perturbNormal(sN, v.v_worldXYZ, v.v_texCoord, ${nrmWg});\n` 
   return `#pragma shader "${name}"
 #pragma version 300 es
 #pragma domain ${domain}
-${paramBlock}
+${paramBlock}${vertexHook ? `${vertexBounds > 0 ? `#pragma vertexbounds ${vertexBounds}\n` : ''}\n#pragma vertexoffset\n${vertexHook}\n#pragma end\n\n#pragma vertexoffset wgsl\n${wgslVertexHook}\n#pragma end\n` : ''}
 #pragma fragment
 precision mediump float;
 
@@ -488,6 +532,7 @@ export const NODE_SPECS: Record<GraphNodeType, NodeSpec> = {
     inputs: [
       { name: 'color', type: 'vec4' }, { name: 'normal', type: 'vec3' }, { name: 'metallic', type: 'float' }, { name: 'roughness', type: 'float' },
       { name: 'occlusion', type: 'float' }, { name: 'emission', type: 'vec3' }, { name: 'alpha', type: 'float' },
+      { name: 'vertexOffset', type: 'vec3' },
     ],
     output: null, params: [], addable: false,
   },

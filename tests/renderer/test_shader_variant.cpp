@@ -541,6 +541,106 @@ static void testSystemValuesTrailAttributes() {
     CHECK(canonicalTrails, "the canonical material vertex names no system value before its attributes");
 }
 
+// A material's own vertex hook: the canonical MESH vertex stage calls it on the local-space
+// vertex (after the morph, before the pose); a material without one assembles as it always has.
+static const char* HOOKED_LIT = R"(#pragma shader "Hooked"
+#pragma version 300 es
+#pragma domain Lit
+#pragma param u_bend float default(0.5)
+#pragma vertexbounds 12.5
+
+#pragma vertexoffset
+void esMaterialVertex(inout vec3 local, inout vec3 localNormal, in vec2 uv) {
+    local.x += sin(u_time.x) * u_bend;
+}
+#pragma end
+
+#pragma vertexoffset wgsl
+fn esMaterialVertex(local : ptr<function, vec3f>, localNormal : ptr<function, vec3f>, uv : vec2f) {
+    (*local).x = (*local).x + sin(tc.u_time.x) * mc.u_bend;
+}
+#pragma end
+
+#pragma fragment
+precision mediump float;
+in vec4 v_color;
+in highp vec2 v_worldPos;
+out vec4 fragColor;
+void main() { fragColor = v_color; }
+#pragma end
+
+#pragma fragment wgsl
+@fragment fn fs_main(v : VSOut) -> @location(0) vec4f { return v.v_color; }
+#pragma end
+)";
+
+static void testVertexHook() {
+    ParsedShader p = ShaderParser::parse(HOOKED_LIT);
+    CHECK(p.valid, "a shader with a vertex hook parses");
+    CHECK(p.vertexHook.find("esMaterialVertex") != std::string::npos, "the GLSL hook is captured");
+    CHECK(p.wgslVertexHook.find("esMaterialVertex") != std::string::npos, "the WGSL hook is captured");
+    CHECK(p.vertexBounds > 12.4f && p.vertexBounds < 12.6f, "#pragma vertexbounds is captured");
+    CHECK(p.vertexIsCanonical, "a hooked shader still takes the engine's vertex stage");
+
+    const std::string vs = ShaderParser::assembleStage(p, ShaderStage::Vertex, "", {"MESH", "MESH_NORMALS"});
+    CHECK(vs.find("void esMaterialVertex(") != std::string::npos, "GLSL: the hook is defined in the vertex stage");
+    CHECK(vs.find("esMaterialVertex(local, localNormal, a_texCoord);") != std::string::npos, "GLSL: the hook is called");
+    CHECK(vs.find("applyMorph(local, localNormal);") < vs.find("esMaterialVertex(local, localNormal, a_texCoord);"),
+          "GLSL: the hook runs after the morph target");
+    CHECK(vs.find("esMaterialVertex(local, localNormal, a_texCoord);") < vs.find("vec4 world = esInstanceModel()"),
+          "GLSL: the hook runs before the vertex is placed in the world");
+    CHECK(vs.find("uniform MaterialConstants") != std::string::npos, "GLSL: the hook can read the material's params");
+
+    const std::string ws = ShaderParser::assembleStage(p, ShaderStage::Vertex, "", {"MESH", "MESH_NORMALS"}, ShaderTargetLanguage::WGSL);
+    CHECK(ws.find("fn esMaterialVertex(") != std::string::npos, "WGSL: the hook is defined in the vertex stage");
+    CHECK(ws.find("esMaterialVertex(&local, &localNormal, v.a_texCoord);") != std::string::npos, "WGSL: the hook is called");
+    CHECK(ws.find("var<uniform> mc : MaterialConstants") != std::string::npos, "WGSL: the hook can read the material's params");
+
+    // The hook is for resident meshes. Without MESH the call is compiled out, 2D batches draw as before.
+    const std::string batch = ShaderParser::assembleStage(p, ShaderStage::Vertex, "", {});
+    CHECK(batch.find("#define MESH") == std::string::npos
+              && batch.find("#ifdef MESH\nvoid esMaterialVertex(") != std::string::npos
+              && batch.find("#ifdef MESH\n    vec3 local = a_position;") != std::string::npos,
+          "GLSL: the hook and its call sit under MESH, so a 2D batch variant compiles them out");
+
+    // A shader with no hook assembles with no trace of one.
+    ParsedShader plain = ShaderParser::parse(FRAG_ONLY_LIT);
+    const std::string pv = ShaderParser::assembleStage(plain, ShaderStage::Vertex, "", {"MESH"});
+    CHECK(pv.find("esMaterialVertex") == std::string::npos && pv.find("@@") == std::string::npos,
+          "a shader without a hook has no hook, and no leftover placeholder");
+    CHECK(plain.vertexBounds == 0.0f, "no bounds expansion without a hook");
+}
+
+// The shadow program a bent material gets: the engine's mesh depth shader with the material's hook and
+// params grafted on, so the caster bends where the lit surface does.
+static void testShadowGraft() {
+    ParsedShader material = ShaderParser::parse(HOOKED_LIT);
+    ParsedShader depth = ShaderParser::parse(esengine::ShaderEmbeds::MESH);
+    CHECK(material.valid && depth.valid, "the material and the mesh depth shader both parse");
+    depth.properties = material.properties;
+    depth.materialBlockSize = material.materialBlockSize;
+    depth.vertexHook = material.vertexHook;
+    depth.wgslVertexHook = material.wgslVertexHook;
+    const std::vector<std::string> features{"MESH_NORMALS", "SHADOW_DEPTH", "ES_MATERIAL_VERTEX"};
+
+    const std::string vs = ShaderParser::assembleStage(depth, ShaderStage::Vertex, "", features);
+    CHECK(vs.find("void esMaterialVertex(") != std::string::npos, "depth GLSL: the material's hook is defined");
+    CHECK(vs.find("esMaterialVertex(local, localNormal, a_texCoord);") != std::string::npos, "depth GLSL: the hook is called");
+    CHECK(vs.find("@@ES_VERTEX_HOOK@@") == std::string::npos, "depth GLSL: the marker is replaced");
+    CHECK(vs.find("uniform MaterialConstants") != std::string::npos, "depth GLSL: the material's block is declared for the hook");
+
+    const std::string ws = ShaderParser::assembleStage(depth, ShaderStage::Vertex, "", features, ShaderTargetLanguage::WGSL);
+    CHECK(ws.find("fn esMaterialVertex(") != std::string::npos, "depth WGSL: the material's hook is defined");
+    CHECK(ws.find("esMaterialVertex(&local, &localNormal, v.a_texCoord);") != std::string::npos, "depth WGSL: the hook is called");
+    CHECK(ws.find("var<uniform> mc : MaterialConstants") != std::string::npos, "depth WGSL: the material's block is declared");
+
+    // Without the feature the stock depth shader is untouched, hook or no hook.
+    ParsedShader stock = ShaderParser::parse(esengine::ShaderEmbeds::MESH);
+    const std::string plain = ShaderParser::assembleStage(stock, ShaderStage::Vertex, "", {"SHADOW_DEPTH"});
+    CHECK(plain.find("esMaterialVertex(local") == std::string::npos || plain.find("#ifdef ES_MATERIAL_VERTEX") != std::string::npos,
+          "the stock depth shader's call sits under ES_MATERIAL_VERTEX");
+}
+
 int main() {
     ParsedShader p = ShaderParser::parse(SRC);
     CHECK(p.valid, "shader parses");
@@ -563,6 +663,8 @@ int main() {
     testHandWrittenFrameBlock();
     testWGSLEmission();
     testSystemValuesTrailAttributes();
+    testVertexHook();
+    testShadowGraft();
 
     if (g_failures == 0) {
         std::printf("\nALL SHADER-VARIANT TESTS PASSED\n");

@@ -76,3 +76,77 @@ describe('standard-material surface', () => {
     expect(() => compileMaterialGraph(g)).toThrow(/takes \.b of a vec2/);
   });
 });
+
+describe('vertex offset', () => {
+  const wind = (extra: Partial<MaterialGraph['nodes'][number]> = {}): MaterialGraph => ({
+    name: 'Wind', output: 'out',
+    nodes: [
+      { id: 'c', type: 'constColor', params: { name: 'u_c', value: [1, 1, 1, 1] } },
+      { id: 'time', type: 'time' },
+      { id: 'amt', type: 'constFloat', params: { name: 'u_bend', value: 0.5 } },
+      { id: 's', type: 'sin', inputs: { x: 'time' } },
+      { id: 'm', type: 'multiply', inputs: { a: 's', b: 'amt' } },
+      { id: 'out', type: 'output', inputs: { color: 'c', vertexOffset: 'm' }, ...extra },
+    ],
+  });
+
+  it('compiles the offset into a hook in both languages, ahead of the fragment', () => {
+    const src = compileMaterialGraph(wind());
+    expect(src).toContain('#pragma vertexoffset\n');
+    expect(src).toContain('#pragma vertexoffset wgsl\n');
+    expect(src).toContain('void esMaterialVertex(inout vec3 local, inout vec3 localNormal, in vec2 uv) {');
+    expect(src).toContain('fn esMaterialVertex(local : ptr<function, vec3f>, localNormal : ptr<function, vec3f>, uv : vec2f) {');
+    expect(src.indexOf('#pragma vertexoffset')).toBeLessThan(src.indexOf('#pragma fragment'));
+  });
+
+  it('moves a scalar along the normal, and a vec2 / vec3 as a displacement', () => {
+    const along = compileMaterialGraph(wind());
+    expect(along).toContain('local += localNormal * n');
+    expect(along).toContain('*local = *local + (*localNormal) * n');
+    const g = wind();
+    g.nodes.push({ id: 'uv', type: 'uv' });
+    g.nodes.find((n) => n.id === 'out')!.inputs!.vertexOffset = 'uv';
+    expect(compileMaterialGraph(g)).toContain('local += vec3(uv, 0.0);');
+  });
+
+  it('shares the material\'s params with the fragment, declaring each once', () => {
+    const src = compileMaterialGraph(wind());
+    expect(src.match(/#pragma param u_bend/g)).toHaveLength(1);
+    expect(src).toContain('u_bend');
+    expect(src).toContain('mc.u_bend');
+    expect(src).toContain('u_time.x');
+  });
+
+  it('writes the bounds expansion only when one is typed', () => {
+    expect(compileMaterialGraph(wind())).not.toContain('#pragma vertexbounds');
+    expect(compileMaterialGraph(wind({ params: { lit_vertexBounds: 12.5 } }))).toContain('#pragma vertexbounds 12.5\n');
+  });
+
+  it('leaves a graph with no offset exactly as before', () => {
+    const g = wind();
+    delete g.nodes.find((n) => n.id === 'out')!.inputs!.vertexOffset;
+    const src = compileMaterialGraph(g);
+    expect(src).not.toContain('vertexoffset');
+    expect(src).not.toContain('esMaterialVertex');
+  });
+
+  it('refuses what only a fragment has: a texture, the screen, the vertex colour', () => {
+    for (const bad of [
+      { id: 'x', type: 'textureSample' as const, params: { name: 'u_t', default: 'white' } },
+      { id: 'x', type: 'screenUV' as const },
+      { id: 'x', type: 'vertexColor' as const },
+    ]) {
+      const g = wind();
+      g.nodes.push(bad);
+      g.nodes.find((n) => n.id === 'out')!.inputs!.vertexOffset = 'x';
+      expect(() => compileMaterialGraph(g)).toThrow(/vertex offset cannot/);
+    }
+  });
+
+  it('lets the fragment keep sampling textures while the vertex pass runs', () => {
+    const g = wind();
+    g.nodes.push({ id: 'tex', type: 'textureSample', params: { name: 'u_albedo', default: 'white' } });
+    g.nodes.find((n) => n.id === 'out')!.inputs!.color = 'tex';
+    expect(compileMaterialGraph(g)).toContain('texture(u_albedo, v_texCoord)');
+  });
+});

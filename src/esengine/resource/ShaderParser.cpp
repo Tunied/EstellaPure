@@ -184,6 +184,14 @@ bool expandIncludes(const std::string& source,
     return true;
 }
 
+// Swap a placeholder that a canonical stage's literal text carries for the material's hook (or
+// nothing, which is what keeps a stage without one byte-for-byte what it was).
+void fillHook(std::string& src, const std::string& token, const std::string& text) {
+    for (usize at = src.find(token); at != std::string::npos; at = src.find(token, at + text.size())) {
+        src.replace(at, token.size(), text);
+    }
+}
+
 // The WGSL varying interface of the canonical 2D vertex stage. Injected into
 // BOTH canonical stages (vertex emits it, fragment consumes it), so
 // fragment-only twins write `fs_main(v : VSOut)` against an engine-owned
@@ -223,7 +231,7 @@ std::string wgslCanonicalVSOut(bool lit) {
 // WGSL twin of canonicalVertexStage: same attribute locations, GLSL names
 // kept behind struct fields (a_position -> v.a_position) so the two stages diff
 // cleanly. FrameConstants arrives with the injected headers.
-std::string canonicalVertexStageWGSL(bool lit) {
+std::string canonicalVertexStageWGSL(bool lit, const std::string& hook = {}) {
     std::string src = wgslCanonicalVSOut(lit);
     src +=
         "\n"
@@ -276,6 +284,8 @@ std::string canonicalVertexStageWGSL(bool lit) {
         "#endif\n"
         "};\n"
         "\n"
+        "\n"
+        "@@WGSL_HOOK@@"
         "@vertex fn vs_main(v : VSIn, @builtin(instance_index) instanceId : u32) -> VSOut {\n"
         "    var out : VSOut;\n"
         "    g_instanceId = i32(instanceId);\n"
@@ -296,6 +306,7 @@ std::string canonicalVertexStageWGSL(bool lit) {
         "            localNormal = localNormal + morph.shape[i].y * morphDelta(at + 1.0);\n"
         "        }\n"
         "    }\n"
+        "@@WGSL_CALL@@"
         "#endif\n"
         // A particle faces the viewer wherever it is seen from; head-on and
         // orthographic the axes come out (1,0,0) and (0,1,0), the flat quad a 2D
@@ -359,6 +370,10 @@ std::string canonicalVertexStageWGSL(bool lit) {
     src +=
         "    return out;\n"
         "}\n";
+    fillHook(src, "@@WGSL_HOOK@@", hook.empty() ? std::string() :
+        "#ifdef MESH\n" + hook + "\n#endif\n");
+    fillHook(src, "@@WGSL_CALL@@", hook.empty() ? std::string() :
+        "    esMaterialVertex(&local, &localNormal, v.a_texCoord);\n");
     return src;
 }
 
@@ -412,7 +427,7 @@ std::string canonicalPPVertexStage() {
 // Canonical 2D vertex stage for fragment-only .esshaders, in its three VERTEX
 // SOURCES: batch (already world space), resident mesh (local + a per-object
 // transform), skinned (posed by bones). One material serves all three.
-std::string canonicalVertexStage(bool lit) {
+std::string canonicalVertexStage(bool lit, const std::string& hook = {}) {
     std::string src =
         // A particle's quad corner is the vertex; where that corner lands is on the
         // instance. The layout differs from every other source, so it replaces the
@@ -488,6 +503,7 @@ std::string canonicalVertexStage(bool lit) {
     }
     src +=
         "\n"
+        "@@GLSL_HOOK@@"
         "void main() {\n"
         "#ifdef MESH\n"
         "    vec3 local = a_position;\n"
@@ -498,6 +514,7 @@ std::string canonicalVertexStage(bool lit) {
         "#endif\n"
         // Before the pose: a target was authored against the mesh at rest.
         "    applyMorph(local, localNormal);\n"
+        "@@GLSL_CALL@@"
         "#endif\n"
         // A particle faces the viewer wherever it is seen from; head-on and
         // orthographic the axes come out (1,0,0) and (0,1,0), the flat quad a 2D
@@ -558,6 +575,10 @@ std::string canonicalVertexStage(bool lit) {
         src += "    v_probeSlot = float(ES_INSTANCE_ID);\n";
     }
     src += "}\n";
+    fillHook(src, "@@GLSL_HOOK@@", hook.empty() ? std::string() :
+        "#ifdef MESH\n" + hook + "\n#endif\n");
+    fillHook(src, "@@GLSL_CALL@@", hook.empty() ? std::string() :
+        "    esMaterialVertex(local, localNormal, a_texCoord);\n");
     return src;
 }
 
@@ -584,7 +605,8 @@ enum class ParseState {
     Properties,
     Vertex,
     Fragment,
-    Variant
+    Variant,
+    VertexHook
 };
 
 // =============================================================================
@@ -669,6 +691,32 @@ ParsedShader ShaderParser::parse(const std::string& source, const ShaderIncludeR
 
         if (directive == "coverage") {
             result.coverageParam = argument;
+            continue;
+        }
+
+        if (directive == "vertexbounds") {
+            // How far the vertex hook may move a vertex, in the mesh's local units.
+            result.vertexBounds = std::strtof(argument.c_str(), nullptr);
+            if (!(result.vertexBounds >= 0.0f)) result.vertexBounds = 0.0f;
+            continue;
+        }
+
+        if (directive == "vertexoffset") {
+            if (state != ParseState::Global) {
+                result.errorMessage = "Unexpected #pragma vertexoffset at line " + std::to_string(lineNumber);
+                return result;
+            }
+            if (!argument.empty() && argument != "wgsl") {
+                result.errorMessage = "Unknown vertexoffset language '" + argument + "' at line " +
+                                      std::to_string(lineNumber) + " (expected no tag for GLSL, or 'wgsl')";
+                return result;
+            }
+            state = ParseState::VertexHook;
+            currentSectionIsWGSL = !argument.empty();
+            currentSectionIsFullWGSL = false;
+            currentSection.str("");
+            currentSection.clear();
+            currentSectionMap.clear();
             continue;
         }
 
@@ -764,6 +812,11 @@ ParsedShader ShaderParser::parse(const std::string& source, const ShaderIncludeR
                     currentSectionIsFullWGSL = false;
                     break;
                 }
+                case ParseState::VertexHook:
+                    (currentSectionIsWGSL ? result.wgslVertexHook : result.vertexHook) = currentSection.str();
+                    currentSectionMap.clear();
+                    currentSectionIsWGSL = false;
+                    break;
                 case ParseState::Variant:
                     result.variants[currentVariantName] = currentSection.str();
                     currentVariantName.clear();
@@ -796,6 +849,7 @@ ParsedShader ShaderParser::parse(const std::string& source, const ShaderIncludeR
 
             case ParseState::Vertex:
             case ParseState::Fragment:
+            case ParseState::VertexHook:
             case ParseState::Variant: {
                 currentSection << line << "\n";
                 const SourceLine src = (lineNumber >= 1 && lineNumber <= result.expandedLineMap.size())
@@ -816,7 +870,7 @@ ParsedShader ShaderParser::parse(const std::string& source, const ShaderIncludeR
         // Fragment-only authoring: 2D domains get the canonical batch-space
         // pass-through, PostProcess the canonical fullscreen pass-through.
         if (result.domain == "Unlit" || result.domain == "Lit") {
-            result.stages[ShaderStage::Vertex] = canonicalVertexStage(result.domain == "Lit");
+            result.stages[ShaderStage::Vertex] = canonicalVertexStage(result.domain == "Lit", result.vertexHook);
             result.vertexIsCanonical = true;
         } else if (result.domain == "PostProcess") {
             result.stages[ShaderStage::Vertex] = canonicalPPVertexStage();
@@ -837,7 +891,7 @@ ParsedShader ShaderParser::parse(const std::string& source, const ShaderIncludeR
     if (result.wgslStages.count(ShaderStage::Fragment) != 0 &&
         result.wgslStages.count(ShaderStage::Vertex) == 0) {
         if (result.domain == "Unlit" || result.domain == "Lit") {
-            result.wgslStages[ShaderStage::Vertex] = canonicalVertexStageWGSL(result.domain == "Lit");
+            result.wgslStages[ShaderStage::Vertex] = canonicalVertexStageWGSL(result.domain == "Lit", result.wgslVertexHook);
             result.wgslVertexIsCanonical = true;
         } else if (result.domain == "PostProcess") {
             result.wgslStages[ShaderStage::Vertex] = canonicalPPVertexStageWGSL();
@@ -1689,7 +1743,11 @@ ShaderParser::AssembledStage assembleWGSLStage(const ParsedShader& parsed,
     inject(wgslReachedTextureDecls(assembled.str() + bodyIt->second,
                                    parsed.domain == "PostProcess"));
 
-    assembled << bodyIt->second;
+    std::string bodyText = bodyIt->second;
+    if (stage == ShaderStage::Vertex && !parsed.wgslVertexHook.empty()) {
+        fillHook(bodyText, "@@ES_VERTEX_HOOK@@", parsed.wgslVertexHook);
+    }
+    assembled << bodyText;
 
     result.source = preprocessConditionals(assembled.str(), features);
     result.headerLineCount = headerLines;
@@ -2451,7 +2509,13 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
         headerLines += countNewlines(parsed.sharedCode);
     }
 
-    assembled << blankUniformBlock(stageIt->second, "FrameConstants");
+    // A shader that writes its own vertex stage can take a material's hook too: it says where with a marker,
+    // and the material that borrows the stage supplies the text (see MaterialStore::shadowProgram).
+    std::string bodyText = stageIt->second;
+    if (stage == ShaderStage::Vertex && !parsed.vertexHook.empty()) {
+        fillHook(bodyText, "@@ES_VERTEX_HOOK@@", parsed.vertexHook);
+    }
+    assembled << blankUniformBlock(bodyText, "FrameConstants");
     if (stage == ShaderStage::Vertex && stageIt->second.find("esInstance") != std::string::npos) {
         assembled << instanceRecordGLSLBodies();
     }

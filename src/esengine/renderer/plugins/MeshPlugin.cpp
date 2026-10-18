@@ -599,10 +599,14 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
         // Reused by the draw key below: two lookups is how the two come to differ.
         const MaterialRecord* material = (mesh.material != 0 && ctx.materials)
             ? ctx.materials->find(mesh.material) : nullptr;
+        // A material that bends its vertices can put them outside the mesh's own box; culling the
+        // box would drop a bent mesh that is still on screen, so it grows by what the material says.
+        const f32 bend = material ? ctx.materials->vertexBounds(mesh.material) : 0.0f;
         const bool depthTested = material ? material->depthTest : mesh.opaque;
 
         glm::vec3 aabbCenter(0.0f), halfExtents(0.0f);
-        orientedWorldAabb(position, rotation, scale, localMin, localMax, aabbCenter, halfExtents);
+        orientedWorldAabb(position, rotation, scale, localMin - glm::vec3(bend), localMax + glm::vec3(bend),
+                          aabbCenter, halfExtents);
         // The collect's own predicate, not a frustum test of this plugin's: it
         // answers "outside the view" AND "behind something solid", and a mesh is
         // what both were built for.
@@ -809,6 +813,16 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
                     }
                 }
                 key.shaderId = materialProgram != 0 ? materialProgram : residentShader;
+                // A caster whose material bends it casts the bent shape: the depth program gets the
+                // material's hook, and the draw keeps the material so its params are bound.
+                if (shadowDepth && material && ctx.materials && ctx.materials->hasVertexHook(mesh.material)) {
+                    const u32 bentDepth = ctx.materials->shadowProgram(mesh.material, ctx.resources,
+                                                                       resident->hasNormals, skinned);
+                    if (bentDepth != 0) {
+                        key.shaderId = bentDepth;
+                        key.materialId = mesh.material;
+                    }
+                }
                 key.layoutId = LayoutId::MeshInstance;
                 key.instanceCount = 1;
                 key.instanceStride = MESH_INSTANCE_STRIDE;

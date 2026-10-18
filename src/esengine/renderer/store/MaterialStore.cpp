@@ -14,6 +14,7 @@
 #include "../../resource/ShaderParser.hpp"
 #include "../rhi/Shader.hpp"
 #include "../../core/Log.hpp"
+#include "../rhi/ShaderEmbeds.generated.hpp"
 
 namespace esengine {
 
@@ -86,6 +87,61 @@ u32 MaterialStore::meshProgram(u32 materialId, resource::ResourceManager& resour
     // positional light is read from where it is rather than from the plane.
     features.push_back("ES_SURFACE_3D");
     return variantProgram(materialId, resources, shape, features, "resident geometry");
+}
+
+u32 MaterialStore::shadowProgram(u32 materialId, resource::ResourceManager& resources,
+                                  bool withNormals, bool skinned) const {
+    const MaterialRecord* rec = find(materialId);
+    if (!rec || !rec->shaderRef.isValid()) return 0;
+    const u64 shape = (1ull << 37) | (withNormals ? (1ull << 32) : 0ull) | (skinned ? (1ull << 33) : 0ull);
+    auto& variants = mesh_programs_[rec->shaderRef.id()];
+    auto cached = variants.find(shape);
+    if (cached != variants.end()) {
+        const Shader* shader = resources.getShader(cached->second);
+        return shader ? shader->getProgramId() : 0;
+    }
+    auto src = sources_.find(rec->shaderRef.id());
+    if (src == sources_.end()) {
+        variants[shape] = {};
+        return 0;
+    }
+
+    // The engine's mesh depth shader, handed the material's hook and the block it reads. The
+    // material's own fragment is not used: a shadow map wants depth, not colour.
+    const resource::ParsedShader material = resource::ShaderParser::parse(src->second.source);
+    resource::ParsedShader depth = resource::ShaderParser::parse(ShaderEmbeds::MESH);
+    if (!material.valid || !depth.valid || material.vertexHook.empty()) {
+        variants[shape] = {};
+        return 0;
+    }
+    depth.properties = material.properties;
+    depth.materialBlockSize = material.materialBlockSize;
+    depth.vertexHook = material.vertexHook;
+    depth.wgslVertexHook = material.wgslVertexHook;
+
+    std::vector<std::string> features;
+    if (withNormals) features.emplace_back("MESH_NORMALS");
+    if (skinned) features.emplace_back("SKINNED");
+    features.emplace_back("SHADOW_DEPTH");
+    features.emplace_back("ES_MATERIAL_VERTEX");
+    const auto target = resources.preferredShaderTarget();
+    const std::string vert = resource::ShaderParser::assembleStage(depth, resource::ShaderStage::Vertex, "", features, target);
+    const std::string frag = resource::ShaderParser::assembleStage(depth, resource::ShaderStage::Fragment, "", features, target);
+    if (vert.empty() || frag.empty()) {
+        ES_LOG_WARN("MaterialStore: no shadow program for material {} (stage assembly failed)", materialId);
+        variants[shape] = {};
+        return 0;
+    }
+    resource::ShaderHandle handle = resources.createShaderWithBindings(vert, frag, {}, resources.preferredShaderLanguage());
+    Shader* shader = resources.getShader(handle);
+    if (!shader || !shader->isValid()) {
+        resources.releaseShader(handle);
+        variants[shape] = {};
+        return 0;
+    }
+    const u32 program = shader->getProgramId();
+    variants[shape] = handle;
+    return program;
 }
 
 u32 MaterialStore::particleProgram(u32 materialId, resource::ResourceManager& resources) const {

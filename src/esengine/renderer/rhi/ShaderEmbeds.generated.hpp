@@ -502,6 +502,13 @@ out highp vec3 v_worldPos;
 out highp vec4 v_shadowClip;
 #endif
 
+
+
+
+#ifdef ES_MATERIAL_VERTEX
+@@ES_VERTEX_HOOK@@
+#endif
+
 void main() {
     vec3 local = a_position;
 #ifdef MESH_NORMALS
@@ -510,6 +517,9 @@ void main() {
     vec3 localNormal = vec3(0.0, 0.0, 1.0);
 #endif
     applyMorph(local, localNormal);
+#ifdef ES_MATERIAL_VERTEX
+    esMaterialVertex(local, localNormal, a_texCoord);
+#endif
 #ifdef SKINNED
 
 
@@ -674,6 +684,10 @@ struct VSOut {
     @location(6) @interpolate(flat) v_probeSlot : f32,
 };
 
+#ifdef ES_MATERIAL_VERTEX
+@@ES_VERTEX_HOOK@@
+#endif
+
 @vertex fn vs_main(v : VSIn, @builtin(instance_index) inst : u32) -> VSOut {
     g_instanceId = i32(inst);
     var local = v.a_position;
@@ -693,6 +707,9 @@ struct VSOut {
             localNormal = localNormal + morph.shape[i].y * morphDelta(at + 1.0);
         }
     }
+#ifdef ES_MATERIAL_VERTEX
+    esMaterialVertex(&local, &localNormal, v.a_texCoord);
+#endif
 #ifdef SKINNED
 
 

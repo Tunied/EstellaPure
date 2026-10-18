@@ -152,6 +152,8 @@ export const NOTED = {
     { note: 'Material graphs can use other graphs as nodes.' },
   'feat(render): material graphs gain the standard material surface — normal, metallic, roughness, occlusion, emission and alpha ports':
     { note: 'Material graphs can output a standard PBR surface.' },
+  'feat(render): material graphs gain a vertex offset output that bends the mesh and the shadow it casts':
+    { note: 'Material graphs can bend a mesh and its shadow.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":

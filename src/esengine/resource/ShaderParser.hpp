@@ -152,6 +152,16 @@ struct ParsedShader {
     /// output alpha is coverage (a cutout sharpened to one texel), so an opaque draw
     /// may turn it into multisample coverage instead of a hard edge.
     std::string coverageParam;
+    /// `#pragma vertexoffset`: the body of `esMaterialVertex(inout local, inout localNormal, uv)`,
+    /// run on a resident mesh's local-space vertex before it is posed and placed. It is the
+    /// material's own, so the canonical mesh vertex stage calls it and a material without one
+    /// assembles exactly as before. The WGSL twin takes pointers instead of `inout`.
+    std::string vertexHook;
+    std::string wgslVertexHook;
+    /// `#pragma vertexbounds <units>`: how far the hook can move a vertex from the mesh's own
+    /// bounds, in the mesh's local units — what culling must grow its box by so a bent mesh is not
+    /// dropped while still visible. Zero when the material has no hook.
+    float vertexBounds = 0.0f;
     /// std140 byte size of the generated MaterialConstants block (16-aligned), 0 if no
     /// non-texture params. The render path sizes the per-material UBO to this.
     u32 materialBlockSize = 0;
