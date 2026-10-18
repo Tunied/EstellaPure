@@ -236,6 +236,13 @@ void renderer_setLodPreview(u32 view, u32 entity, i32 level);
 void renderer_setViewShading(u32 view, i32 mode);
 
 /**
+ * @brief Give meshes realized from now on an edge buffer, for a wireframe view.
+ * @details A second index buffer per mesh, so off unless an editor asks, and asked BEFORE
+ *          the assets load: a mesh realized earlier has none and is drawn filled instead.
+ */
+void renderer_setMeshEdgeBuffers(bool enabled);
+
+/**
  * @brief What the light cap did to @p entity last frame, into nine floats at
  *        @p outPtr: accepted, refusal, limit, requested, refusedCount, then whether
  *        a light cast the environment's sun and the aim it took.

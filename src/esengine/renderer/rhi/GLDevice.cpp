@@ -985,6 +985,7 @@ void GLDevice::backendSetPipeline(u32 id, const PipelineDesc& desc) {
     }
 
     current_pipeline_id_ = id;
+    current_topology_ = desc.topology;
     current_stencil_mode_ = desc.stencil;
     current_layout_ = static_cast<u32>(desc.vertexLayout);
 }
@@ -1039,23 +1040,28 @@ void GLDevice::backendInvalidatePipelineCache() {
 // Draw Calls
 // =============================================================================
 
+/** The mode the bound pipeline's topology means. */
+u32 GLDevice::glPrimitiveMode() const {
+    return current_topology_ == GfxTopology::Lines ? GL_LINES : GL_TRIANGLES;
+}
+
 void GLDevice::drawElements(u32 indexCount, GfxDataType indexType, u32 byteOffset) {
     if (!isDeviceUsable()) return;
     prepareVertexState();
-    glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indexCount), toGLDataType(indexType),
+    glDrawElements(glPrimitiveMode(), static_cast<GLsizei>(indexCount), toGLDataType(indexType),
                    reinterpret_cast<const void*>(static_cast<uintptr_t>(byteOffset)));
 }
 
 void GLDevice::drawArrays(u32 first, u32 vertexCount) {
     if (!isDeviceUsable()) return;
     prepareVertexState();
-    glDrawArrays(GL_TRIANGLES, static_cast<GLint>(first), static_cast<GLsizei>(vertexCount));
+    glDrawArrays(glPrimitiveMode(), static_cast<GLint>(first), static_cast<GLsizei>(vertexCount));
 }
 
 void GLDevice::drawElementsInstanced(u32 indexCount, GfxDataType indexType, u32 byteOffset, u32 instanceCount) {
     if (!isDeviceUsable()) return;
     prepareVertexState();
-    glDrawElementsInstanced(GL_TRIANGLES, static_cast<GLsizei>(indexCount), toGLDataType(indexType),
+    glDrawElementsInstanced(glPrimitiveMode(), static_cast<GLsizei>(indexCount), toGLDataType(indexType),
                             reinterpret_cast<const void*>(static_cast<uintptr_t>(byteOffset)),
                             static_cast<GLsizei>(instanceCount));
 }

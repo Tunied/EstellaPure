@@ -53,7 +53,8 @@ bool joinBatchIndexRanges(TransientBufferPool& pool, DrawCommand& head, DrawComm
             && cmd.vertex_byte_offset <= vertexBytes
             && cmd.vertex_count <= (vertexBytes - cmd.vertex_byte_offset) / stride;
     };
-    if (!owned(head) || !owned(next) || head.depth_bias != next.depth_bias) return false;
+    if (!owned(head) || !owned(next) || head.depth_bias != next.depth_bias
+        || head.topology != next.topology) return false;
     u32 at;
     if (head.index_offset + head.index_count != used) {
         if (!pool.copyIndexRange(LayoutId::Batch, head.index_offset, head.index_count, at)) return false;
@@ -392,6 +393,7 @@ void DrawList::execute(GfxDevice& device, TransientBufferPool& buffers,
         desc.cullEnabled = cmd.cull != 0;
         desc.cullFront = cmd.cull == 2;
         desc.depthBias = cmd.depth_bias;
+        desc.topology = cmd.topology;
         desc.alphaToCoverage = !desc.blendEnabled && materials.alphaIsCoverage(cmd.material_id);
 
         if (lastHandle == PipelineHandle::Invalid || !(desc == lastDesc)) {

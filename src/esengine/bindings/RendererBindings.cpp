@@ -1102,6 +1102,10 @@ void renderer_setViewShading(u32 view, i32 mode) {
     g_renderFrame->setViewShading(view, known);
 }
 
+void renderer_setMeshEdgeBuffers(bool enabled) {
+    if (auto* resources = ctx().tryGet<resource::ResourceManager>()) resources->setMeshEdgeBuffers(enabled);
+}
+
 i32 renderer_lightStatus(u32 entity, uintptr_t outPtr) {
     auto* out = boundarySpanMut<f32>(outPtr, 9, "renderer_lightStatus.out");
     if (!out) return 0;

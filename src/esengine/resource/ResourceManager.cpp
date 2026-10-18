@@ -13,6 +13,7 @@
 
 #include "../core/Half.hpp"
 #include "ResourceManager.hpp"
+#include "MeshEdges.hpp"
 #include "ShaderParser.hpp"
 #include "../text/BitmapFont.hpp"
 #include "../core/Log.hpp"
@@ -32,7 +33,8 @@ namespace {
 bool meshOwed(const Mesh& mesh, const std::vector<GfxOwedContent>& owed) {
     for (const GfxOwedContent& entry : owed) {
         if (entry.kind == GfxOwedContent::Kind::Buffer
-            && (entry.id == static_cast<u32>(mesh.vertexBuffer) || entry.id == static_cast<u32>(mesh.indexBuffer))) {
+            && (entry.id == static_cast<u32>(mesh.vertexBuffer) || entry.id == static_cast<u32>(mesh.indexBuffer)
+                || (mesh.hasEdges() && entry.id == static_cast<u32>(mesh.edgeIndexBuffer)))) {
             return true;
         }
         if (entry.kind == GfxOwedContent::Kind::Texture && entry.id == static_cast<u32>(mesh.morphTexture)) {
@@ -589,6 +591,7 @@ bool ResourceManager::realizeMesh(Mesh& mesh, ConstSpan<u8> vertexBytes, ConstSp
     // realization it still had.
     const VertexBufferHandle previousVertices = mesh.vertices;
     const IndexBufferHandle previousIndices = mesh.indices;
+    const IndexBufferHandle previousEdges = mesh.edges;
 
     // A replayable mesh is refilled by its source; one built in this process has
     // no other copy, so the device keeps it.
@@ -611,10 +614,30 @@ bool ResourceManager::realizeMesh(Mesh& mesh, ConstSpan<u8> vertexBytes, ConstSp
         return false;
     }
 
+    // The edges follow the triangles' own content policy, and a failure to make them
+    // costs the wireframe view, never the mesh.
+    IndexBufferHandle edgeHandle;
+    u32 edgeCount = 0;
+    if (meshEdges_) {
+        const std::vector<u32> lines = distinctMeshEdges(indices);
+        edgeHandle = createIndexBuffer(content, ConstSpan<u32>(lines));
+        const IndexBuffer* eb = getIndexBuffer(edgeHandle);
+        if (eb && eb->handle() != BufferHandle::Invalid) {
+            edgeCount = static_cast<u32>(lines.size());
+        } else {
+            releaseIndexBuffer(edgeHandle);
+            edgeHandle = IndexBufferHandle();
+        }
+    }
+
     releaseVertexBuffer(previousVertices);
     releaseIndexBuffer(previousIndices);
+    releaseIndexBuffer(previousEdges);
     device_->deleteVertexLayout(mesh.layout);
 
+    mesh.edges = edgeHandle;
+    mesh.edgeIndexBuffer = edgeCount > 0 ? getIndexBuffer(edgeHandle)->handle() : BufferHandle::Invalid;
+    mesh.edgeIndexCount = edgeCount;
     mesh.vertices = vertices;
     mesh.indices = indices_handle;
     mesh.vertexBuffer = vb->handle();
@@ -779,6 +802,7 @@ void ResourceManager::releaseMesh(MeshHandle handle) {
     if (device_) device_->deleteVertexLayout(mesh->layout);
     releaseVertexBuffer(mesh->vertices);
     releaseIndexBuffer(mesh->indices);
+    releaseIndexBuffer(mesh->edges);
     // The delta texture IS the mesh's own — nothing shares it, unlike the layout.
     if (mesh->morphTexture != esengine::TextureHandle::Invalid && device_) {
         device_->deleteTexture(mesh->morphTexture);

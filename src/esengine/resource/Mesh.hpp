@@ -61,6 +61,19 @@ public:
 
     u32 indexCount = 0;
 
+    /**
+     * The mesh's own edges as line-list indices into the same vertices, one pair per
+     * distinct edge. Derived from `indices` when the mesh is realized, and only while
+     * the manager is asked for diagnostic geometry (an editor's wireframe view): a
+     * shipped game spends nothing on it. Invalid otherwise.
+     */
+    resource::IndexBufferHandle edges;
+    BufferHandle edgeIndexBuffer = BufferHandle::Invalid;
+    u32 edgeIndexCount = 0;
+
+    /** Whether the edges can be drawn. */
+    bool hasEdges() const { return edgeIndexBuffer != BufferHandle::Invalid && edgeIndexCount > 0; }
+
     /** Set at mint by the producer that created this mesh; never inferred later.
      *  Defaulted to the answer that promises nothing, so a mesh reaching the pool
      *  without one is never mistaken for recoverable. */

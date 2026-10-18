@@ -510,6 +510,15 @@ public:
                            const glm::vec3& localMin, const glm::vec3& localMax,
                            ConstSpan<f32> inverseBind = {}, const MeshMorphSource& morph = {});
 
+    /**
+     * @brief Whether meshes realized FROM NOW ON also get an edge buffer.
+     * @details Diagnostic geometry for a wireframe view, off by default because it is a
+     *          second index buffer per mesh. Set before the assets load: a mesh realized
+     *          earlier has no edges, and a view that wants them draws it filled.
+     */
+    void setMeshEdgeBuffers(bool enabled) { meshEdges_ = enabled; }
+    bool meshEdgeBuffers() const { return meshEdges_; }
+
     /** @brief The mesh a handle names, or null. */
     Mesh* getMesh(MeshHandle handle);
     const Mesh* getMesh(MeshHandle handle) const;
@@ -710,6 +719,7 @@ private:
     ResourcePool<Texture> textures_;
     ResourcePool<VertexBuffer> vertexBuffers_;
     ResourcePool<IndexBuffer> indexBuffers_;
+    bool meshEdges_ = false;
     ResourcePool<Mesh> meshes_;
     ResourcePool<Environment> environments_;
     ResourcePool<ProbeVolume> probeVolumes_;

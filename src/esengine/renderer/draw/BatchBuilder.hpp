@@ -116,6 +116,7 @@ struct BatchDrawKey {
     bool depthWrite = true;
     u8 cull = 0;  ///< CullMode: 0 = none, 1 = back, 2 = front.
     i16 depthBias = 0;  ///< Depth-buffer units toward the eye. @see PipelineDesc.
+    GfxTopology topology = GfxTopology::Triangles;  ///< How the indices assemble. @see PipelineDesc.
     // The transient stream this draw's geometry lives in. Only the Batch stream carries
     // a per-vertex texIndex, so only it participates in the multi-texture merge.
     LayoutId layoutId = LayoutId::Batch;

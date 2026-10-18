@@ -187,6 +187,10 @@ export function createNativeRendererBackend(
             const fn = scope[RENDERER_OPTIONAL_BINDINGS.setViewShading];
             if (typeof fn === 'function') (fn as (v: number, m: number) => void)(view >>> 0, mode);
         },
+        setMeshEdgeBuffers: (enabled): void => {
+            const fn = scope[RENDERER_OPTIONAL_BINDINGS.setMeshEdgeBuffers];
+            if (typeof fn === 'function') (fn as (e: boolean) => void)(enabled);
+        },
         getStats: (): RenderStats => {
             const read = (name: string): number => {
                 const fn = scope[name];

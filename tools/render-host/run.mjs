@@ -1133,9 +1133,9 @@ app.whenReady().then(async () => {
           : (S && dStudio.differing > 200);
       studio = { A, S, dStudio, back, sky, exp, ok: Boolean(darkOk) && (!spec.studio || back.max === 0) && (!sky || sky.ok) && (!exp || exp.ok) };
     }
-    // ESTELLA_VERIFY_SHADING: authored A, clay C, albedo L, authored again A2, through one eye.
+    // ESTELLA_VERIFY_SHADING: authored A, clay C, albedo L, wireframe W, authored again A2.
     // Clay has no chroma but a spread of tones (it is lit); albedo keeps colour and is flatter;
-    // A2 == A byte for byte, so leaving a mode leaves nothing behind.
+    // wireframe is neutral lines on a dark surface; A2 == A byte for byte afterwards.
     let shading = null;
     if (process.env.ESTELLA_VERIFY_SHADING) {
       const api = (call) => exec(`(async () => { const api = window.__estellaHeadless.api; ${call}; await api.step(2, 1 / 60); })()`);
@@ -1165,14 +1165,18 @@ app.whenReady().then(async () => {
       const C = await stats('C');
       await api(`api.setViewShading('albedo')`);
       const L = await stats('L');
+      await api(`api.setViewShading('wireframe')`);
+      const W = await stats('W');
       const dClay = await diff('A', 'C');
       const dAlbedo = await diff('A', 'L');
+      const dWire = await diff('A', 'W');
       await api(`api.setViewShading('shaded')`);
       await stats('A2');
       const back = await diff('A', 'A2');
-      shading = { A, C, L, dClay, dAlbedo, back,
+      shading = { A, C, L, W, dClay, dAlbedo, dWire, back,
         ok: A.chroma > 12 && C.chroma < 6 && C.litShare > 0.05 && C.spread > 20 && dClay.differing > 500
-          && L.chroma > 12 && L.spread < A.spread && dAlbedo.differing > 200 && back.max === 0 };
+          && L.chroma > 12 && L.spread < A.spread && dAlbedo.differing > 200
+          && W.chroma < 6 && W.litShare > 0.003 && W.litShare < 0.2 && dWire.differing > 500 && back.max === 0 };
     }
     finish({ ok: true, studio, shading, entityCount, missingAssets, drawCalls, draws, counters, frameDebug, edge, cutoutEdge, minified, profile, capture, expect, twins, nineSlice, count, seam, resize, preview, meshPreview, grid, deviceLoss, roundtrip, meshResident, meshAsset, meshMaterial, meshPrefab, setField, animator, pick, cameraTarget }, server);
   } catch (e) {

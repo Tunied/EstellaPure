@@ -336,6 +336,15 @@ target_include_directories(test_view_shading PRIVATE
 )
 add_test(NAME test_view_shading COMMAND test_view_shading)
 
+# The edges a wireframe draws, from a triangle list. Header-only, so no device: a pixel gate says
+# the lines came out wrong, this says whether an edge was doubled, dropped or split by a seam.
+add_executable(test_mesh_edges resource/test_mesh_edges.cpp)
+target_include_directories(test_mesh_edges PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/third_party/glm
+)
+add_test(NAME test_mesh_edges COMMAND test_mesh_edges)
+
 # Which volume holds a point, and what it says there. Header-only, so it runs
 # without a device — the pixel gates say a draw came out the wrong colour, this
 # says whether the read left the box, took the wrong volume, or accepted a grid

@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 /**
  * @file    ViewShading.hpp
- * @brief   How a view shades the meshes it draws: as authored, as plain clay, or flat albedo.
+ * @brief   How a view shades the meshes it draws: as authored, clay, flat albedo, or wireframe.
  */
 #pragma once
 
@@ -26,9 +26,11 @@ enum class ShadingMode : u8 {
     Clay = 1,
     /// Base colour and texture with no light and no material: what was painted.
     Albedo = 2,
+    /// A dark surface with every triangle edge drawn on it, hidden edges hidden.
+    Wireframe = 3,
 };
 
-inline constexpr u8 kShadingModeCount = 3;
+inline constexpr u8 kShadingModeCount = 4;
 
 /**
  * @brief The mode each view asked for. A view that never asked is Shaded, which is

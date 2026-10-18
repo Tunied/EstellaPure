@@ -114,6 +114,8 @@ export const NOTED = {
     { note: 'Gizmos are redrawn.' },
   "feat(render): a view can shade its meshes as clay or albedo, and the viewport's Show menu offers both":
     { note: 'Gizmos are redrawn.' },
+  'feat(render): a view can draw meshes as a wireframe, with hidden edges hidden, through a line topology in the pipeline and an edge buffer on each mesh':
+    { note: 'Gizmos are redrawn.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":

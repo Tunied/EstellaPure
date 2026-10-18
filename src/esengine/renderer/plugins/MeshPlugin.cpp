@@ -261,6 +261,14 @@ u32 meshVariant(bool normals, bool lit, bool normalMapped, bool skinned, bool de
  *          so the caller does not resolve it twice. A second copy of these facts
  *          drifts the day the key gains another.
  */
+/// The surface of a wireframe view and the ink of its edges. Neutral, so a wireframe says
+/// nothing about anyone's colours.
+constexpr glm::vec4 kWireFill{0.075f, 0.075f, 0.08f, 1.0f};
+constexpr glm::vec4 kWireInk{0.9f, 0.9f, 0.9f, 1.0f};
+/// How far behind the edges the surface is pushed, in depth units (positive is away). Level with
+/// them it would win every pixel and the wireframe would be a handful of dashes.
+constexpr i16 kWireFillBias = 4;
+
 /**
  * @brief What a mesh is drawn as when its view overrides the look: the authored
  *        material, normal map and (for clay) texture and colour are set aside, and
@@ -271,7 +279,13 @@ u32 meshVariant(bool normals, bool lit, bool normalMapped, bool skinned, bool de
 void applyShading(ecs::MeshRenderer& mesh, ShadingMode mode) {
     mesh.material = 0;
     mesh.normalMap = {};
-    if (mode == ShadingMode::Clay) {
+    if (mode == ShadingMode::Wireframe) {
+        // The surface the edges stand on: dark, unlit, opaque so it hides what is behind it.
+        mesh.texture = {};
+        mesh.color = kWireFill;
+        mesh.lit = false;
+        mesh.opaque = true;
+    } else if (mode == ShadingMode::Clay) {
         mesh.texture = {};
         mesh.color = glm::vec4(0.74f, 0.74f, 0.76f, 1.0f);
         mesh.lit = true;
@@ -790,7 +804,30 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
                 key.vertexBuffer = resident->vertexBuffer;
                 key.indexBuffer = resident->indexBuffer;
                 key.vertexLayout = resident->layout;
+                const bool wire = shading == ShadingMode::Wireframe;
+                if (wire) key.depthBias = kWireFillBias;
                 pushBatchDraw(draw_list, clips, instOffset, 0, 0, resident->indexCount, key);
+                // The edges, as a second draw of the same instance with its own ink: same
+                // vertices, the mesh's line list, tested against the surface just drawn.
+                if (wire && resident->hasEdges()) {
+                    const u32 edgeOffset = buffers.allocVertices(LayoutId::MeshInstance,
+                                                                 MESH_INSTANCE_STRIDE);
+                    auto* records = buffers.vertexData(LayoutId::MeshInstance);
+                    std::memcpy(records + edgeOffset, records + instOffset, MESH_INSTANCE_STRIDE);
+                    std::memcpy(records + edgeOffset + MESH_INSTANCE_TEXEL_TINT * 16, &kWireInk, 16);
+                    BatchDrawKey edges = key;
+                    edges.indexBuffer = resident->edgeIndexBuffer;
+                    edges.topology = GfxTopology::Lines;
+                    edges.depthBias = 0;
+                    edges.depthTest = true;
+                    edges.depthWrite = false;
+                    // Blended at full alpha: what puts it in the stage AFTER the surface it
+                    // is drawn on (a depth layer derives the stage from the blend, and an
+                    // opaque line would sort among the surfaces and write depth).
+                    edges.blend = BlendMode::Normal;
+                    edges.stage = RenderStage::Transparent;
+                    pushBatchDraw(draw_list, clips, edgeOffset, 0, 0, resident->edgeIndexCount, edges);
+                }
             }
             continue;
         }

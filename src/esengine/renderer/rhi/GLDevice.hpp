@@ -131,6 +131,8 @@ protected:
 
     void backendDeleteVertexLayout(u32 id) override;
     void backendSetPipeline(u32 id, const PipelineDesc& desc) override;
+    /** The GL primitive mode of the bound pipeline's topology. */
+    u32 glPrimitiveMode() const;
     void backendInvalidatePipelineCache() override;
 
     bool backendCreateFramebuffer(u32 id, const FramebufferDesc& desc) override;
@@ -210,6 +212,7 @@ private:
     void bindUniformSlot(u32 slot, u32 name);
 
     u32 current_pipeline_id_ = 0;
+    GfxTopology current_topology_ = GfxTopology::Triangles;
     GfxStencilMode current_stencil_mode_ = GfxStencilMode::Off;
     // Redundant-state caches: a pipeline switch sharing the program or blend func
     // skips the FFI-crossing GL call. 0xFF is an out-of-range BlendMode, so the

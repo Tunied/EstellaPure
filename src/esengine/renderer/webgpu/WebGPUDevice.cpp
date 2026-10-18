@@ -1307,7 +1307,8 @@ WGPURenderPipeline WebGPUDevice::ensurePipeline(u32 id) {
     pd.vertex.entryPoint = sv("vs_main");
     pd.vertex.bufferCount = slotCount;
     pd.vertex.buffers = slots;
-    pd.primitive.topology = WGPUPrimitiveTopology_TriangleList;
+    pd.primitive.topology = desc.topology == GfxTopology::Lines ? WGPUPrimitiveTopology_LineList
+                                                                : WGPUPrimitiveTopology_TriangleList;
     pd.primitive.frontFace = WGPUFrontFace_CCW;
     pd.primitive.cullMode = toWGPUCullMode(desc.cullEnabled, desc.cullFront);
     // The pass's count, which WebGPU validates against the attachment: a pipeline

@@ -148,6 +148,8 @@ async function boot(): Promise<void> {
         wasmBaseUrl: '/wasm',
     });
     app.enableStats();
+    // The editor's engine asks for edge buffers before its assets load; so does this host.
+    module.renderer_setMeshEdgeBuffers?.(true);
     if (runtimeTextures) {
         app.getResource(Assets).getTextureLoader().setPixelDecoder(async (path) => {
             const res = await fetch(path);

@@ -200,6 +200,7 @@ export interface NativeEngineApi {
     renderer_setLodPreview?(view: number, entity: number, level: number): void;
     renderer_setQualityBudgets?(atlasSize: number, cellSize: number, cascades: number, particleLimit: number): void;
     renderer_setShadowDistance?(distance: number): void;
+    renderer_setMeshEdgeBuffers?(enabled: boolean): void;
     renderer_setViewShading?(view: number, mode: number): void;
     renderer_setStage?(stage: number): void;
     renderer_setTextureParams?(textureId: number, minFilter: number, magFilter: number, wrapS: number, wrapT: number): void;
@@ -501,6 +502,7 @@ export function createNativeEngineApi(
     bind('renderer_setLodPreview', 'es_renderer_setLodPreview', false);
     bind('renderer_setQualityBudgets', 'es_renderer_setQualityBudgets', false);
     bind('renderer_setShadowDistance', 'es_renderer_setShadowDistance', false);
+    bind('renderer_setMeshEdgeBuffers', 'es_renderer_setMeshEdgeBuffers', false);
     bind('renderer_setViewShading', 'es_renderer_setViewShading', false);
     bind('renderer_setStage', 'es_renderer_setStage', false);
     bind('renderer_setTextureParams', 'es_renderer_setTextureParams', false);

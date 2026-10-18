@@ -127,6 +127,7 @@ void pushBatchDraw(DrawList& drawList, const ClipState& clips,
     cmd.depth_write = depthWrite;
     cmd.cull = key.cull;
     cmd.depth_bias = key.depthBias;
+    cmd.topology = key.topology;
     // The Batch stream always samples a texture (white fallback at minimum); other
     // streams bind one only when the draw actually has one (the shape stream is
     // textureless, so execute() must not touch sampler units for it).

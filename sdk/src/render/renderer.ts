@@ -76,6 +76,7 @@ export interface RendererBackend {
     lodInspect(view: number, entity: number): LodDecision | null;
     setLodPreview(view: number, entity: number, level: number | null): void;
     setViewShading(view: number, mode: number): void;
+    setMeshEdgeBuffers(enabled: boolean): void;
     lightStatus(entity: number): LightStatus | null;
     shadowStatus(entity: number): ShadowStatus | null;
     getStats(): RenderStats;
@@ -137,9 +138,9 @@ export interface LightStatus {
  * beside this one would be free to disagree with the picture on screen.
  */
 /** How a view shades its meshes. @experimental */
-export type ViewShading = 'shaded' | 'clay' | 'albedo';
+export type ViewShading = 'shaded' | 'clay' | 'albedo' | 'wireframe';
 
-const VIEW_SHADING_CODE: Record<ViewShading, number> = { shaded: 0, clay: 1, albedo: 2 };
+const VIEW_SHADING_CODE: Record<ViewShading, number> = { shaded: 0, clay: 1, albedo: 2, wireframe: 3 };
 
 export interface LodDecision {
     /** The level drawn, or `null` when the object was small enough to be culled. */
@@ -261,6 +262,7 @@ function wasmBackend(m: ESEngineModule): RendererBackend {
         setLodPreview: (view, entity, level) =>
             m.renderer_setLodPreview?.(view >>> 0, entity >>> 0, level ?? -1),
         setViewShading: (view, mode) => m.renderer_setViewShading?.(view >>> 0, mode),
+        setMeshEdgeBuffers: (enabled) => m.renderer_setMeshEdgeBuffers?.(enabled),
         shadowStatus: (entity) => {
             if (!m.renderer_shadowStatus || !lightStatusPtr) return null;
             if (!m.renderer_shadowStatus(entity >>> 0, lightStatusPtr)) return null;
@@ -694,11 +696,21 @@ export const Renderer = {
      * Shade `view`'s meshes as `mode` says instead of as authored. @experimental
      *
      * View state, like a LOD preview. Clay is one neutral lit surface, albedo the base
-     * colour with no light and no material; a shadow map is unaffected and a host that
-     * predates the mode ignores the call.
+     * colour with no light, wireframe a dark surface with its edges; a shadow map is
+     * unaffected and a host that predates the mode ignores the call.
      */
     setViewShading(view: number, mode: ViewShading): void {
         backend?.setViewShading(view, VIEW_SHADING_CODE[mode]);
+    },
+
+    /**
+     * Give meshes loaded from now on an edge buffer, which a wireframe view draws. @experimental
+     *
+     * A second index buffer per mesh, so off unless an editor asks, and asked before the
+     * assets load: a mesh realized earlier has none and is drawn as a plain surface.
+     */
+    setMeshEdgeBuffers(enabled: boolean): void {
+        backend?.setMeshEdgeBuffers(enabled);
     },
 
     /**

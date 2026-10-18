@@ -46,6 +46,15 @@ inline bool writesStencil(GfxStencilMode mode) {
 }
 
 /**
+ * @brief How a pipeline's indices assemble into primitives. Baked into the pipeline, as WebGPU
+ *        bakes it, so a draw call never states it: whoever binds a pipeline has said it.
+ */
+enum class GfxTopology : u8 {
+    Triangles,  ///< Every three indices a triangle: all geometry the engine draws.
+    Lines,      ///< Every two indices a line segment: a mesh's edges, for a diagnostic view.
+};
+
+/**
  * @brief Immutable description of a draw pipeline. Equality keys the pipeline cache, so
  *        two draws with the same description share one PipelineHandle.
  */
@@ -66,6 +75,7 @@ struct PipelineDesc {
     /// Output alpha becomes multisample coverage (a cutout's feathered edge). Only
     /// meaningful on an opaque draw into a multisampled target; ignored elsewhere.
     bool alphaToCoverage = false;
+    GfxTopology topology = GfxTopology::Triangles;
 
     bool operator==(const PipelineDesc&) const = default;
 };

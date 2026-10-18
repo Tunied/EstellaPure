@@ -21,9 +21,9 @@ int main() {
     CHECK(shading.count() == 0, "an untouched store holds nothing");
 
     shading.set(7, ShadingMode::Clay);
-    shading.set(9, ShadingMode::Albedo);
+    shading.set(9, ShadingMode::Wireframe);
     CHECK(shading.get(7) == ShadingMode::Clay, "a view keeps the mode it asked for");
-    CHECK(shading.get(9) == ShadingMode::Albedo, "and another view keeps its own");
+    CHECK(shading.get(9) == ShadingMode::Wireframe, "and another view keeps its own");
     CHECK(shading.get(8) == ShadingMode::Shaded, "a third is unaffected by either");
     CHECK(shading.count() == 2, "two views hold a mode");
 
@@ -31,7 +31,7 @@ int main() {
     CHECK(shading.get(7) == ShadingMode::Shaded, "asking for the authored look goes back to it");
     CHECK(shading.count() == 1, "and leaves no entry behind, so nothing leaks over a session");
 
-    CHECK(kShadingModeCount == 3, "the modes the bindings accept are the ones the enum declares");
+    CHECK(static_cast<u8>(ShadingMode::Wireframe) + 1 == kShadingModeCount, "the modes the bindings accept are the ones the enum declares");
 
     if (g_failures) {
         std::printf("%d failure(s)\n", g_failures);
