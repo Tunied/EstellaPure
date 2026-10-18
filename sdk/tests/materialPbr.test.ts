@@ -150,3 +150,34 @@ describe('vertex offset', () => {
     expect(compileMaterialGraph(g)).toContain('texture(u_albedo, v_texCoord)');
   });
 });
+
+describe('static switch', () => {
+  const g = (feature = 'ES_FANCY', extra: Record<string, unknown> = {}): MaterialGraph => ({
+    name: 'Var', output: 'out',
+    nodes: [
+      { id: 'a', type: 'constColor', params: { name: 'u_a', value: [1, 0, 0, 1] } },
+      { id: 'b', type: 'constColor', params: { name: 'u_b', value: [0, 0, 1, 1] } },
+      { id: 'sw', type: 'switch', params: { feature, ...extra }, inputs: { on: 'a', off: 'b' } },
+      { id: 'out', type: 'output', inputs: { color: 'sw' } },
+    ],
+  });
+
+  it('declares the switch and picks a side with #ifdef in both languages', () => {
+    const src = compileMaterialGraph(g());
+    expect(src).toContain('#pragma switch ES_FANCY\n');
+    expect(src.match(/#ifdef ES_FANCY/g)).toHaveLength(2);
+    expect(src).toMatch(/n\d = u_a;/);
+    expect(src).toMatch(/n\d = mc\.u_b;/);
+  });
+
+  it('can start on, and declares a shared switch once', () => {
+    expect(compileMaterialGraph(g('ES_FANCY', { default: true }))).toContain('#pragma switch ES_FANCY default(on)');
+    const twin = g();
+    twin.nodes.push({ id: 'sw2', type: 'switch', params: { feature: 'ES_FANCY' }, inputs: { on: 'a', off: 'b' } });
+    expect(compileMaterialGraph(twin).match(/#pragma switch ES_FANCY/g)).toHaveLength(1);
+  });
+
+  it('refuses a name a #define cannot be', () => {
+    expect(() => compileMaterialGraph(g('fancy'))).toThrow(/needs a name in capitals/);
+  });
+});

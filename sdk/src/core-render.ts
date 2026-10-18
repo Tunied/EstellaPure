@@ -124,6 +124,7 @@ export {
     newMaterialSubgraph,
     flattenSubgraphs,
     subgraphInputs,
+    extractSubgraph,
     subgraphRefs,
     validateSubgraph,
     addNode,

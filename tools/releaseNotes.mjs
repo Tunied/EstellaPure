@@ -154,6 +154,8 @@ export const NOTED = {
     { note: 'Material graphs can output a standard PBR surface.' },
   'feat(render): material graphs gain a vertex offset output that bends the mesh and the shadow it casts':
     { note: 'Material graphs can bend a mesh and its shadow.' },
+  'feat(render): material graph switches for variants, a live preview in the graph editor, and extracting a selection into a subgraph':
+    { note: 'Material graphs have switches, a live preview and extract-to-subgraph.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":

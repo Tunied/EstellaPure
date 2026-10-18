@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import { describe, it, expect } from 'vitest';
 import {
-  compileMaterialGraph, flattenSubgraphs, subgraphInputs, subgraphRefs, validateSubgraph, newMaterialSubgraph, connect,
+  compileMaterialGraph, extractSubgraph, flattenSubgraphs, subgraphInputs, subgraphRefs, validateSubgraph, newMaterialSubgraph, connect,
   type MaterialGraph, type SubgraphResolver,
 } from '../src/render/materialGraph';
 
@@ -101,5 +101,49 @@ describe('subgraphs', () => {
     expect(subgraphRefs(user())).toEqual(['wind.esmatsub']);
     const g = connect(user(), 't', 'w', 'strength');
     expect(g.nodes.find((n) => n.id === 'w')!.inputs).toEqual({ time: 't', strength: 't' });
+  });
+});
+
+describe('extracting a subgraph', () => {
+  const base = (): MaterialGraph => ({
+    name: 'G', output: 'out',
+    nodes: [
+      { id: 'a', type: 'constColor', x: 0, y: 0, params: { name: 'u_a', value: [1, 0, 0, 1] } },
+      { id: 'uv', type: 'uv', x: 0, y: 100 },
+      { id: 'n', type: 'noise', x: 200, y: 100, params: { scale: 8 }, inputs: { uv: 'uv' } },
+      { id: 'm', type: 'multiply', x: 400, y: 60, inputs: { a: 'a', b: 'n' } },
+      { id: 'out', type: 'output', x: 600, y: 60, inputs: { color: 'm' } },
+    ],
+  });
+
+  it('makes an input of each wire from outside and a node of the whole selection', () => {
+    const { sub, graph, nodeId } = extractSubgraph(base(), ['n', 'm'], 'noisy.esmatsub', 'Noisy');
+    expect(sub.kind).toBe('subgraph');
+    expect(subgraphInputs(sub).map((i) => [i.name, i.type])).toEqual([['uv', 'vec2'], ['a', 'vec4']]);
+    expect(graph.nodes.map((n) => n.id).sort()).toEqual(['a', 'out', nodeId, 'uv'].sort());
+    const used = graph.nodes.find((n) => n.id === nodeId)!;
+    expect(used.params?.ref).toBe('noisy.esmatsub');
+    expect(used.inputs).toEqual({ uv: 'uv', a: 'a' });
+    expect(graph.nodes.find((n) => n.id === 'out')!.inputs!.color).toBe(nodeId);
+  });
+
+  it('leaves a graph that compiles, to the same shader apart from the param it renamed', () => {
+    const g = base();
+    const { sub, graph } = extractSubgraph(g, ['n', 'm'], 'noisy.esmatsub');
+    const resolve: SubgraphResolver = (r) => (r === 'noisy.esmatsub' ? sub : null);
+    validateSubgraph(sub, resolve);
+    const before = compileMaterialGraph(g);
+    const after = compileMaterialGraph(graph, resolve);
+    expect(after).toContain('noise2d(');
+    expect(after.match(/#pragma param/g)).toEqual(before.match(/#pragma param/g));
+  });
+
+  it('refuses a selection with two results, none, or the output', () => {
+    expect(() => extractSubgraph(base(), ['n', 'a'], 'x')).toThrow(/2 results/);
+    expect(() => extractSubgraph(base(), ['uv', 'n', 'm', 'a'], 'x')).not.toThrow();
+    const g = base();
+    g.nodes.push({ id: 'dead', type: 'sin', inputs: { x: 'a' } });
+    expect(() => extractSubgraph(g, ['dead'], 'x')).toThrow(/nothing outside reads/);
+    expect(() => extractSubgraph(base(), ['m', 'out'], 'x')).toThrow(/output node/);
   });
 });

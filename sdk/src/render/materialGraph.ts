@@ -28,6 +28,7 @@ export type GraphNodeType =
   | 'normalMap' // sample a tangent-space normal map (read as data, unpacked like the standard material)
   | 'channel' // one component (r/g/b/a) of a value, as a scalar
   | 'literal' // a constant the compiler makes when a subgraph input is left unconnected
+  | 'switch' // a compile-time variant: one of two values, chosen by a #pragma switch the material turns on or off
   | 'uv' // v_texCoord
   | 'vertexColor' // v_color (the sprite's per-instance tint)
   | 'time' // u_time.x — the injected engine frame clock (seconds)
@@ -296,6 +297,27 @@ export function compileMaterialGraph(source: MaterialGraph, resolve?: SubgraphRe
         out = line('float', `${a.expr}.${ch}`, `${a.wexpr}.${ch}`);
         break;
       }
+      case 'switch': {
+        // Which value the material gets is decided when its shader is compiled, so the other side costs
+        // nothing at run time: both languages' #ifdef is resolved before the stage is assembled.
+        const feature = typeof n.params?.feature === 'string' ? n.params.feature : '';
+        if (!/^[A-Z][A-Z0-9_]*$/.test(feature)) throw new Error(`material graph: node "${id}" (switch) needs a name in capitals, digits and underscores, got "${feature}"`);
+        const on = input('on');
+        const off = input('off');
+        const same = on.type === off.type;
+        const type: GraphType = same ? on.type : 'vec4';
+        const gOn = same ? on.expr : toVec4(on.expr, on.type);
+        const gOff = same ? off.expr : toVec4(off.expr, off.type);
+        const wOn = same ? on.wexpr : toVec4W(on.wexpr, on.type);
+        const wOff = same ? off.wexpr : toVec4W(off.wexpr, off.type);
+        const decl = `#pragma switch ${feature}${n.params?.default === true ? ' default(on)' : ''}`;
+        if (!params.includes(decl)) params.push(decl);
+        const t = `n${tmp++}`;
+        body.push(`${type} ${t};`, `#ifdef ${feature}`, `${t} = ${gOn};`, '#else', `${t} = ${gOff};`, '#endif');
+        wbody.push(`var ${t} : ${WGSL_TYPE[type]};`, `#ifdef ${feature}`, `${t} = ${wOn};`, '#else', `${t} = ${wOff};`, '#endif');
+        out = { expr: t, wexpr: t, type };
+        break;
+      }
       case 'literal': {
         const v = typeof n.params?.value === 'number' && Number.isFinite(n.params.value) ? n.params.value : 0;
         const ty = (['float', 'vec2', 'vec3', 'vec4'] as const).find((t) => t === n.params?.type) ?? 'float';
@@ -506,7 +528,7 @@ export interface NodePort {
 export interface NodeParamSpec {
   key: string;
   label: string;
-  kind: 'color' | 'float' | 'texture' | 'bool' | 'channel';
+  kind: 'color' | 'float' | 'texture' | 'bool' | 'channel' | 'text';
 }
 
 /** Static schema for a node type — the single source the palette, ports, and node inspector
@@ -526,6 +548,7 @@ export const NODE_SPECS: Record<GraphNodeType, NodeSpec> = {
   subgraph: { label: 'Subgraph', inputs: [], output: 'float', params: [], addable: false },
   subInput: { label: 'Subgraph Input', inputs: [], output: 'float', params: [], addable: false },
   subOutput: { label: 'Subgraph Output', inputs: [{ name: 'value', type: 'float' }], output: null, params: [], addable: false },
+  switch: { label: 'Switch', inputs: [{ name: 'on', type: 'vec4' }, { name: 'off', type: 'vec4' }], output: 'vec4', params: [{ key: 'feature', label: 'Switch', kind: 'text' }, { key: 'default', label: 'Default on', kind: 'bool' }], addable: true },
   literal: { label: 'Literal', inputs: [], output: 'float', params: [], addable: false },
   output: {
     label: 'Output',
@@ -587,6 +610,7 @@ function defaultParams(type: GraphNodeType, id: string): Record<string, unknown>
     case 'textureSample': return { name: `u_${id}`, default: 'white' };
     case 'normalMap': return { name: `u_${id}` };
     case 'channel': return { channel: 'r' };
+    case 'switch': return { feature: `ES_${id.toUpperCase()}`, default: false };
     case 'smoothstep': return { edge0: 0, edge1: 1 };
     case 'noise': return { scale: 12 };
     case 'panner': return { speedX: 0.1, speedY: 0 };
@@ -716,6 +740,107 @@ export function newMaterialSubgraph(): MaterialGraph {
       { id: 'out', type: 'subOutput', x: 360, y: 80, inputs: { value: 'in1' } },
     ],
   };
+}
+
+/** What a node hands to those that read it, as far as the editor can tell without opening a subgraph. */
+function outputTypeOf(n: MaterialGraphNode): GraphType {
+  if (n.type === 'literal') return (['float', 'vec2', 'vec3', 'vec4'] as const).find((t) => t === n.params?.type) ?? 'float';
+  if (n.type === 'subInput') return subgraphInputs({ nodes: [n], output: n.id })[0]!.type;
+  return NODE_SPECS[n.type]?.output ?? 'float';
+}
+
+export interface ExtractedSubgraph {
+  /** The new `.esmatsub`: the selection, with a `subInput` for each wire that came in from outside. */
+  sub: MaterialGraph;
+  /** The graph with the selection replaced by one `subgraph` node naming @p ref. */
+  graph: MaterialGraph;
+  /** The id of that node. */
+  nodeId: string;
+}
+
+/**
+ * Turn the nodes @p ids into a subgraph, and put one node using it in their place.
+ *
+ * Every wire from outside into the selection becomes an input (one per source node, named after the
+ * slot it fed), and the one selected node that something outside reads becomes the result. Throws if
+ * there is not exactly one such node — a subgraph has one result — or if the selection holds the
+ * output. A node's own param names carry over unchanged; the subgraph node prefixes them, so a
+ * material that set `u_tint` now finds it as `<node>_u_tint`.
+ */
+export function extractSubgraph(g: MaterialGraph, ids: readonly string[], ref: string, name = 'Subgraph'): ExtractedSubgraph {
+  const chosen = new Set(ids);
+  const picked = g.nodes.filter((n) => chosen.has(n.id));
+  if (picked.length === 0) throw new Error('material graph: nothing selected to extract');
+  if (picked.some((n) => n.type === 'output' || n.type === 'subOutput')) throw new Error('material graph: the output node cannot be moved into a subgraph');
+  if (g.kind === 'subgraph' && picked.some((n) => n.type === 'subInput')) throw new Error('material graph: a subgraph input cannot be moved into another subgraph');
+
+  // The selected nodes something outside reads: the result, and anything else is an error.
+  const readFromOutside = new Set<string>();
+  for (const n of g.nodes) {
+    if (chosen.has(n.id)) continue;
+    for (const src of Object.values(n.inputs ?? {})) if (chosen.has(src)) readFromOutside.add(src);
+  }
+  if (readFromOutside.size !== 1) {
+    throw new Error(readFromOutside.size === 0
+      ? 'material graph: nothing outside reads the selection, so it has no result'
+      : `material graph: the selection has ${readFromOutside.size} results (${[...readFromOutside].join(', ')}); a subgraph has one`);
+  }
+  const result = [...readFromOutside][0]!;
+
+  const byId = new Map(g.nodes.map((n) => [n.id, n]));
+  const subNodes: MaterialGraphNode[] = [];
+  const inputOf = new Map<string, string>(); // outside source id → the subInput that stands for it
+  const taken = new Set<string>();
+  const inputs: Record<string, string> = {};   // the subgraph node's slot → outside source id
+  let k = 0;
+  for (const n of picked) {
+    const rewired: Record<string, string> = {};
+    for (const [slot, src] of Object.entries(n.inputs ?? {})) {
+      if (chosen.has(src)) { rewired[slot] = src; continue; }
+      let inId = inputOf.get(src);
+      if (!inId) {
+        inId = `in${++k}`;
+        inputOf.set(src, inId);
+        let nm = slot;
+        for (let i = 2; taken.has(nm); i++) nm = `${slot}${i}`;
+        taken.add(nm);
+        const source = byId.get(src);
+        subNodes.push({ id: inId, type: 'subInput', params: { name: nm, type: source ? outputTypeOf(source) : 'float', default: 0 } });
+        inputs[nm] = src;
+      }
+      rewired[slot] = inId;
+    }
+    subNodes.push({ ...n, inputs: Object.keys(rewired).length ? rewired : undefined, params: n.params ? { ...n.params } : undefined });
+  }
+  const resultId = result === 'result' ? 'sub_result' : 'result';
+  subNodes.push({ id: resultId, type: 'subOutput', inputs: { value: result } });
+
+  // Lay the new graph out from the selection's own corner, inputs to the left of what they feed.
+  const placed = picked.filter((n) => typeof n.x === 'number' && typeof n.y === 'number');
+  const left = placed.length ? Math.min(...placed.map((n) => n.x!)) : 0;
+  const top = placed.length ? Math.min(...placed.map((n) => n.y!)) : 0;
+  const right = placed.length ? Math.max(...placed.map((n) => n.x!)) : 0;
+  for (const n of subNodes) {
+    if (typeof n.x === 'number') n.x = n.x - left + 260;
+    if (typeof n.y === 'number') n.y = n.y - top + 40;
+  }
+  let row = 0;
+  for (const n of subNodes) if (n.type === 'subInput') { n.x = 40; n.y = 40 + 110 * row++; }
+  const out = subNodes.find((n) => n.id === resultId)!;
+  out.x = right - left + 260 + 340;
+  out.y = 40;
+
+  const sub: MaterialGraph = { kind: 'subgraph', name, output: resultId, nodes: subNodes };
+
+  const used = new Set(g.nodes.map((n) => n.id));
+  let nodeId = 'subgraph1';
+  for (let i = 2; used.has(nodeId); i++) nodeId = `subgraph${i}`;
+  const rest: MaterialGraphNode[] = g.nodes.filter((n) => !chosen.has(n.id)).map((n) => ({
+    ...n,
+    inputs: n.inputs ? Object.fromEntries(Object.entries(n.inputs).map(([slot, src]) => [slot, src === result ? nodeId : src])) : undefined,
+  }));
+  rest.push({ id: nodeId, type: 'subgraph', x: placed.length ? right : undefined, y: placed.length ? top : undefined, params: { ref }, inputs: Object.keys(inputs).length ? inputs : undefined });
+  return { sub, graph: { ...g, nodes: rest }, nodeId };
 }
 
 /** Whether @p sub compiles when used — checked by wrapping its output in a throwaway material output. */
