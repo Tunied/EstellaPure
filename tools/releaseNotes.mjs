@@ -138,6 +138,8 @@ export const NOTED = {
     { note: 'The Spine preview, running-game inspection and the Game panel states are redrawn.' },
   'feat(editor): the World panel is a table of cells with the runtime totals on its toolbar, and picking a cell frames it in the viewport':
     { note: 'The World panel is a table of cells beside the Content Browser.' },
+  'feat(editor): the UI Widgets palette is a searchable list in groups':
+    { note: 'The UI Widgets palette is a searchable, grouped list.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
     { note: "An asset's header names its kind and size." },
   "feat(editor): asset inspectors take the board's finish — a card preview, ruled key-value rows, tinted actions, a kind icon in the header":
