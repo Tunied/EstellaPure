@@ -69,8 +69,8 @@ cd desktop && npm run dev
 
 ### Windows WASM optimizer workers
 
-The build tools default to `BINARYEN_CORES=4` on Windows to avoid crashes in the
-bundled Binaryen optimizer's default all-CPU worker pool. Release optimization
+The build tools default to `BINARYEN_CORES=1` on Windows to avoid crashes in the
+bundled Binaryen optimizer's multi-worker execution. Release optimization
 flags, including `-O3`, remain unchanged. Explicit `BINARYEN_CORES` values take
 precedence; other platforms keep Binaryen's default behavior.
 
@@ -78,7 +78,7 @@ When invoking Emscripten or CMake directly outside the build tools, set the same
 environment variable in PowerShell before building:
 
 ```powershell
-$env:BINARYEN_CORES = '4'
+$env:BINARYEN_CORES = '1'
 ```
 
 ### Branch Naming

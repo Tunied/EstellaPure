@@ -107,7 +107,7 @@ let emsdkActivated = false;
 export function withBinaryenWorkers(env, platform = process.platform) {
     const result = { ...env };
     if (platform === 'win32' && result.BINARYEN_CORES === undefined) {
-        result.BINARYEN_CORES = '4';
+        result.BINARYEN_CORES = '1';
     }
     return result;
 }
