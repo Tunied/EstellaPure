@@ -187,7 +187,7 @@ describe.skipIf(!HAS_WASM)('TreeView / ColorPicker on real WASM', () => {
         const color=handle.getColor();app.world.update(data.hex,TextInput,text=>{text.value='#xx';});events.emit(data.hex,'change');await tick();expect(handle.getColor()).toEqual(color);
     });
     it('HEX remains independently bindable when a project omits numeric channels',async()=>{
-        const handle=picker();app.world.update(handle.entity,UIColorPicker,data=>{data.fields=[];});await tick();
+        const handle=picker();app.world.update(handle.entity,UIColorPicker,draft=>{draft.fields=[];});await tick();
         const data=app.world.get(handle.entity,UIColorPicker);
         app.world.update(data.hex,TextInput,text=>{text.value='#aabbcc';});events.emit(data.hex,'change');await tick();
         expect(col.toHex(handle.getColor())).toBe('#aabbcc');expect(app.world.get(data.hex,TextInput).value).toBe('#aabbccff');

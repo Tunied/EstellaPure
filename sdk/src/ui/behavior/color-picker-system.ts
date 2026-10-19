@@ -204,10 +204,10 @@ export function installColorPickers(app: App): () => void {
             color = normalizePickerColor(color, data.alphaEnabled); state.color = { ...color }; state.alpha = color.a;
             state.editingHSV = false;
             if (!col.equals(data.color, color)) { world.insert(root, UIColorPicker, { ...data, color }); data = world.get(root, UIColorPicker); }
-            if (child(root, data.hue, UISlider) && world.get(data.hue, UISlider).value !== state.hsv.h) world.update(data.hue, UISlider, slider => { slider.value = state!.hsv.h; });
-            if (child(root, data.alpha, UISlider) && world.get(data.alpha, UISlider).value !== color.a) world.update(data.alpha, UISlider, slider => { slider.value = color.a; });
+            if (child(root, data.hue, UISlider) && world.get(data.hue, UISlider).value !== state.hsv.h) world.update(data.hue, UISlider, draft => { draft.value = state!.hsv.h; });
+            if (child(root, data.alpha, UISlider) && world.get(data.alpha, UISlider).value !== color.a) world.update(data.alpha, UISlider, draft => { draft.value = color.a; });
             const alphaDisplay = data.alphaEnabled ? UIDisplay.Flex : UIDisplay.None;
-            if (child(root, data.alpha, UINode) && world.get(data.alpha, UINode).display !== alphaDisplay) world.update(data.alpha, UINode, node => { node.display = alphaDisplay; });
+            if (child(root, data.alpha, UINode) && world.get(data.alpha, UINode).display !== alphaDisplay) world.update(data.alpha, UINode, draft => { draft.display = alphaDisplay; });
             if (owner && !state.plane) {
                 const pixels = new Uint8Array(64 * 64 * 4); paintPlane(pixels, state.hsv.h);
                 // Canvas content means its owner repaints after loss, without
@@ -266,7 +266,7 @@ export function installColorPickers(app: App): () => void {
                 state.history = history; state.swatchOff.forEach(off => off()); state.swatchOff = [];
                 state.swatches.forEach(e => { if (world.valid(e)) world.despawn(e); }); state.swatches = [];
                 const colors = data.history.slice(0, Math.max(0, Math.min(32, Math.floor(data.historyLimit) || 0)));
-                if (child(root, data.rememberButton, UINode)) world.update(data.rememberButton, UINode, node => { node.display = data.rememberColors ? UIDisplay.Flex : UIDisplay.None; });
+                if (child(root, data.rememberButton, UINode)) world.update(data.rememberButton, UINode, draft => { draft.display = data.rememberColors ? UIDisplay.Flex : UIDisplay.None; });
                 if (child(root, data.historyRoot, UINode) && data.rememberColors) colors.forEach((value, index) => {
                     const swatch = spawnUIEntity({ world, parent: data.historyRoot,
                         node: { position: 1, width: px(22), height: px(22), insetLeft: px((index % 8) * 29), insetTop: px(Math.floor(index / 8) * 29) }, visual: { color: normalizePickerColor(value) } });

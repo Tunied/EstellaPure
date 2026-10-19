@@ -28,6 +28,7 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'refactor(ui): distinguish mutation drafts from borrowed reads': { internal: 'Names observed World.update drafts distinctly from borrowed snapshots; runtime behavior and public APIs are unchanged.' },
   'feat: add reusable TreeView and ColorPicker UI controls': { note: 'Reusable UI trees and color pickers.' },
   'fix(ui): align tree labels with hierarchy indentation': { note: 'Reusable UI trees and color pickers.' },
   'fix(ui): keep tree selection when toggling disclosure': { note: 'Reusable UI trees and color pickers.' },
