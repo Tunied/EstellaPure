@@ -19,6 +19,72 @@ shipping to WeChat, you want [WeChat MiniGame](/docs/publishing/wechat/) instead
   beyond WeChat are brought up against real devices.
 </Aside>
 
+## SUD OpenPaaS development export
+
+Estella ships an opt-in OpenPaaS preset for **2D and 3D** through the existing
+project platform mechanism. Copy `pipeline/platforms/openpaas.mjs` into your
+project as `.esengine/platforms/openpaas.mjs`. No custom editor layout is required.
+Review and trust that project profile through the normal project-code flow when
+using the editor.
+
+From an Estella source checkout, build the compatibility mini-game runtime and
+export the project:
+
+```sh
+node build-tools/cli.js build -t quickgame --no-sync
+node pipeline/bin/estella.mjs export <project> --platform openpaas --out output/my-sud-game
+```
+
+The preset selects the CommonJS compatibility runtime (without WASM SIMD or
+BigInt i64 at the JS boundary). It uses the shared cook, SDK and renderer, with
+`sud` canvas, input, lifecycle and audio; XHR, native WebSocket and localStorage
+are bridged to the same platform interfaces. WASM loads through
+`WebAssembly.instantiateFromFile`, with package-relative paths normalized. The
+loader accepts an instance without a compiled `module`, as documented for iOS.
+
+In **PinK → Project → Third-party generated**, choose the exported directory
+containing `main.js`, `game-bundle.js` and `wasm/`. Select your platform game ID,
+configure orientation and version to match the project, then build and upload.
+PinK produces the `.sp` package; Estella does not upload or submit it for review.
+Open the development version in OpenPaaS and scan its package QR code with
+**Hello PinK**. The supplied Unity and Laya guides use this same third-party
+directory workflow; their engine-specific converters are not required here.
+
+<Aside type="caution">
+  **Development integration, device acceptance pending.** The headless contract
+  host renders real exported 2D and 3D packages, but does not reproduce SUD's
+  native renderer, audio or iOS WASM implementation. Validate both dimensions on
+  Android and iOS, including input, suspend/resume, rotation, audio, resource
+  loading and any physics/animation/AOT modules your project uses. The official
+  WASM documentation marks imported Table/Global objects unsupported on iOS;
+  accepting an absent `module` alone does not resolve those restrictions.
+</Aside>
+
+This preset uses WebGL2. WebGPU, EmscriptenGLX, login, ads and payment are not
+enabled. Assets are carried in the main directory; platform subpackage splitting
+and Brotli WASM loading are not enabled. Streaming-world exports remain subject
+to the existing mini-game restriction. PinK build success, upload, review and
+real-device acceptance must be recorded separately from Estella export success.
+The compatibility build supplies the core engine. Physics, Spine and other
+optional WASM modules need matching artifacts in the selected `wasmDir`; export
+fails if content requires one that is absent. Those modules have not been
+certified on OpenPaaS by this integration.
+
+Run the reproducible local contract check without opening an editor:
+
+```sh
+node tools/tests/openpaas-runtime.e2e.mjs --wasm build/wasm/quickgame --out output/openpaas-runtime
+```
+
+It writes 2D/3D frames and a report explicitly marking device acceptance pending.
+Android Hello PinK exposes vConsole; the supplied guide also names device logs
+under `/storage/emulated/0/Android/data/global.sud.hellopink/files/SUD/SUDLogs/SUDGI/`.
+The guide states that iOS has no vConsole.
+
+References: [engine adaptation](https://developer.sud.tech/openpaas/minigame/guide/game-engine/engine-adaptation.html),
+[adapter](https://developer.sud.tech/openpaas/minigame/guide/runtime/adapter.html),
+[WASM API](https://developer.sud.tech/openpaas/minigame/client-api/web-assembly-apis/webAssemblyApis.html).
+
 ## What a vendor costs
 
 A profile is **three facts and, at most, one method**:

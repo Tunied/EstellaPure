@@ -118,6 +118,10 @@ export const MODULES = {
         disposition: 'forbidden-native-script',
         why: "Huawei's quick-game profile — it names a host global (`qg`) that a native build does not have",
     },
+    'esengine/openpaas': {
+        disposition: 'forbidden-native-script',
+        why: "OpenPaaS's platform profile requires the sud host and is unavailable in a native build",
+    },
 };
 
 /** The `exports` subpath ("." / "./physics3d") a specifier corresponds to. */

@@ -27,7 +27,7 @@ import path from 'node:path';
  * ship can still be exported by handing {@link exportMiniGame} a profile.
  * Mirrors the SDK's `MiniGameVendor` (sdk/src/platform/minigame/api.ts).
  */
-export type MiniGameVendor = 'wechat' | 'douyin' | 'kuaishou' | 'bilibili' | 'quickgame' | 'alipay' | 'huawei' | (string & {});
+export type MiniGameVendor = 'wechat' | 'douyin' | 'kuaishou' | 'bilibili' | 'quickgame' | 'alipay' | 'huawei' | 'openpaas' | (string & {});
 
 /** Vendor-neutral facts the pipeline computes, handed to the config emitter. */
 export interface MiniGameConfigContext {
@@ -181,6 +181,8 @@ if (__task && __task.onProgressUpdate) {
 export interface MiniGameExportProfile {
     /** Vendor identity — the export result's `platform` + diagnostics. */
     readonly id: MiniGameVendor;
+    /** Root script the vendor runs; most hosts use game.js, OpenPaaS uses main.js. */
+    readonly entryFile?: string;
     /** SDK dist entry the bundle aliases `esengine` to (index.wechat.js). */
     readonly sdkEntryFile: string;
     /**
@@ -287,6 +289,42 @@ export interface MiniGameExportProfile {
     /** Emit the MiniGame entry the host runs (game.js). */
     emitEntry(ctx: MiniGameEntryContext): string;
 }
+
+/** SUD's third-party-generated directory, consumed by PinK to build the .sp.
+ * Account, game ID, version and orientation are configured in PinK, not in a
+ * fabricated WeChat project.config.json. No upload or review is performed here.
+ */
+export const openpaasExportProfile: MiniGameExportProfile = {
+    id: 'openpaas',
+    entryFile: 'main.js',
+    sdkEntryFile: 'index.minigame.js',
+    runtimeInit: 'initMiniGameRuntime',
+    runtimeProfileHost: 'openpaasPlatformProfile',
+    engineGlueCandidates: MINIGAME_ENGINE_GLUE,
+    esTarget: 'es2016',
+    wasmBuildHint: 'quickgame',
+    hostGlobal: 'sud',
+    sideModuleBuildTargets: {},
+    nativeSuffixes: new Set(['.js', '.json']),
+    packerSuffixes: null,
+    wasmBrotli: false,
+    // A plain third-party directory carries assets in its main package. PinK's
+    // subpackage manifest format has not been supplied, so do not invent one.
+    subpackageDir: '',
+    emitConfigFiles(ctx) {
+        if (ctx.subPackages.length || ctx.hasOpenData) {
+            throw new Error('OpenPaaS third-party export does not yet support subpackages or an open-data context');
+        }
+        return [{ file: 'OPENPAAS.txt', content:
+            `Estella / SUD OpenPaaS development package\n`
+            + `Project: ${ctx.title}\nOrientation: ${ctx.orientation}\n`
+            + 'In PinK select Project > Third-party generated and choose this directory.\n'
+            + 'Select your platform game ID and configure orientation and version in PinK.\n'
+            + 'Build and upload, then scan the development version QR code using Hello PinK.\n'
+            + 'Android and iOS device acceptance is pending; export success is not platform acceptance.\n' }];
+    },
+    emitEntry: defaultMiniGameEntry,
+};
 
 // =============================================================================
 // WeChat profile

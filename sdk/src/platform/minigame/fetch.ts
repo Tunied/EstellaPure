@@ -90,7 +90,7 @@ export function polyfillFetch(g: MiniGameGlobal): void {
                 ok: response.ok,
                 status: response.status,
                 statusText: response.statusText,
-                headers: new Headers(response.headers),
+                headers: responseHeaders(response.headers),
                 json: () => response.json(),
                 text: () => response.text(),
                 arrayBuffer: () => response.arrayBuffer(),
@@ -106,5 +106,26 @@ export function polyfillFetch(g: MiniGameGlobal): void {
                 url,
             } as unknown as Response;
         };
+    }
+}
+
+/** Mini-game hosts may provide XHR without the browser's Fetch/Headers classes. */
+function responseHeaders(values: Record<string, string>): Headers | MiniGameResponseHeaders {
+    if (typeof Headers !== 'undefined') return new Headers(values);
+    return new MiniGameResponseHeaders(values);
+}
+
+/** Read-only response header view, like a network Response's immutable headers. */
+class MiniGameResponseHeaders {
+    private readonly values_: Map<string, string>;
+    constructor(values: Record<string, string>) { this.values_ = new Map(Object.entries(values)); }
+    get(name: string): string | null { return this.values_.get(name.toLowerCase()) ?? null; }
+    has(name: string): boolean { return this.values_.has(name.toLowerCase()); }
+    entries(): IterableIterator<[string, string]> { return this.values_.entries(); }
+    keys(): IterableIterator<string> { return this.values_.keys(); }
+    values(): IterableIterator<string> { return this.values_.values(); }
+    [Symbol.iterator](): IterableIterator<[string, string]> { return this.entries(); }
+    forEach(callback: (value: string, key: string, headers: MiniGameResponseHeaders) => void, thisArg?: unknown): void {
+        this.values_.forEach((value, key) => callback.call(thisArg, value, key, this));
     }
 }

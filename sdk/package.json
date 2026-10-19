@@ -120,6 +120,10 @@
     "./huawei": {
       "import": "./dist/huawei/index.js",
       "types": "./dist/huawei/index.d.ts"
+    },
+    "./openpaas": {
+      "import": "./dist/openpaas/index.js",
+      "types": "./dist/openpaas/index.d.ts"
     }
   },
   "files": [

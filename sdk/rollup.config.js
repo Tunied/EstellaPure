@@ -22,6 +22,7 @@ export default [
             'quickgame/index': 'src/platform/quickgame/index.ts',
             'alipay/index': 'src/platform/alipay/index.ts',
             'huawei/index': 'src/platform/huawei/index.ts',
+            'openpaas/index': 'src/openpaas/index.ts',
             'spine/index': 'src/spine/index.ts',
             'tilemap/index': 'src/tilemap/index.ts',
             'logic/index': 'src/logic/index.ts',

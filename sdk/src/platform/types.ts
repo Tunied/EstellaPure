@@ -40,7 +40,8 @@ export interface PlatformRequestOptions {
 
 export interface WasmInstantiateResult {
     instance: WebAssembly.Instance;
-    module: WebAssembly.Module;
+    /** Some file-based mini-game loaders (OpenPaaS on iOS) return only an instance. */
+    module?: WebAssembly.Module;
 }
 
 // =============================================================================

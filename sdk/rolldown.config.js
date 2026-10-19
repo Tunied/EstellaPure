@@ -108,6 +108,7 @@ export default defineConfig([
             'quickgame/index': 'src/platform/quickgame/index.ts',
             'alipay/index': 'src/platform/alipay/index.ts',
             'huawei/index': 'src/platform/huawei/index.ts',
+            'openpaas/index': 'src/openpaas/index.ts',
             'wasm': 'src/wasm.ts',
         },
         // Only the node entry reaches these; a browser entry that did would fail

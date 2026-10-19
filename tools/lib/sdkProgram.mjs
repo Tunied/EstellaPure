@@ -67,6 +67,7 @@ export const ENTRIES = {
     'wasm': 'src/wasm.ts',
     'wechat': 'src/index.wechat.ts',
     'minigame': 'src/index.minigame.ts',
+    'openpaas': 'src/openpaas/index.ts',
 };
 
 /**

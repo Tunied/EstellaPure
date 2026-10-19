@@ -25,7 +25,7 @@ import { existsSync } from 'node:fs';
 import { readdir, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { defaultMiniGameEntry } from './miniGameExportProfile';
+import { defaultMiniGameEntry, openpaasExportProfile } from './miniGameExportProfile';
 import {
   BUILTIN_PLAYABLE_PROFILES, builtinPlayableProfile, genericPlayableProfile, isPlayableZipFileName,
   type PlayableAdProfile,
@@ -206,6 +206,10 @@ export type ProjectPlatformKind = 'minigame' | 'playable';
 /** The shape a `.esengine/platforms/<id>.mjs` default-exports. */
 export interface ProjectPlatformModule extends Partial<MiniGameExportProfile>, Partial<PlayableAdProfile> {
   id: string;
+  /** A shipped packaging/runtime profile, opt-in through the existing project platform seam. */
+  preset?: 'openpaas';
+  /** Family engine variant to use unless wasmDir overrides it. */
+  engineBuild?: 'minigame' | 'quickgame';
   /** Shown in the platform list (the project names its own platforms). */
   label: string;
   kind?: ProjectPlatformKind;
@@ -528,7 +532,15 @@ async function importPlatformModule(
       }
       return { mod: candidate };
     }
-    if (typeof candidate.emitConfigFiles !== 'function') return { error: 'profile has no `emitConfigFiles(ctx)`' };
+    if (candidate.preset !== undefined && candidate.preset !== 'openpaas') return { error: 'unknown mini-game profile preset' };
+    if (candidate.engineBuild !== undefined && !['minigame', 'quickgame'].includes(candidate.engineBuild)) {
+      return { error: 'engineBuild must be minigame or quickgame' };
+    }
+    if (candidate.entryFile !== undefined && (typeof candidate.entryFile !== 'string'
+        || !/^[A-Za-z0-9_-][A-Za-z0-9_.-]*\.js$/.test(candidate.entryFile))) {
+      return { error: 'entryFile must be a root-level JavaScript filename' };
+    }
+    if (!candidate.preset && typeof candidate.emitConfigFiles !== 'function') return { error: 'profile has no `emitConfigFiles(ctx)`' };
     return { mod: candidate };
   } catch (err) {
     return { error: err instanceof Error ? err.message : String(err) };
@@ -561,10 +573,13 @@ export async function loadProjectPlatform(root: string, id: string, dirs: Platfo
     const runtimeProfileModule = mod.runtimeProfile
       ? (path.isAbsolute(mod.runtimeProfile) ? mod.runtimeProfile : path.join(root, mod.runtimeProfile))
       : undefined;
-    const profile = { ...MINIGAME_PROFILE_DEFAULTS, ...mod, runtimeProfileModule } as MiniGameExportProfile;
+    const preset = mod.preset === 'openpaas' ? openpaasExportProfile : {};
+    const profile = { ...MINIGAME_PROFILE_DEFAULTS, ...preset, ...mod, runtimeProfileModule,
+      ...(runtimeProfileModule ? { runtimeProfileHost: undefined } : {}),
+    } as MiniGameExportProfile;
     const wasmDir = mod.wasmDir
       ? (path.isAbsolute(mod.wasmDir) ? mod.wasmDir : path.join(root, mod.wasmDir))
-      : dirs.minigame;
+      : dirs[mod.engineBuild ?? (mod.preset === 'openpaas' ? 'quickgame' : 'minigame')];
     return { profile, wasmDir, defaultOut: mod.defaultOut ?? `dist-${id}` };
   }
   return null;
@@ -710,7 +725,7 @@ export async function listPlatforms(
     if (mod.kind === 'playable') continue;
     const wasmDir = mod.wasmDir
       ? (path.isAbsolute(mod.wasmDir) ? mod.wasmDir : path.join(root, mod.wasmDir))
-      : dirs.minigame;
+      : dirs[mod.engineBuild ?? (mod.preset === 'openpaas' ? 'quickgame' : 'minigame')];
     // A runtime half that points nowhere is caught here rather than on a device:
     // the export would bundle fine and then fail to resolve the import.
     if (mod.runtimeProfile) {

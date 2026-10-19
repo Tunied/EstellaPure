@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Added
 
+- **SUD OpenPaaS development export.** An opt-in project platform preset exports a `main.js` directory for PinK's third-party builder. Its SDK profile bridges `sud`, package-file WASM loading, XHR, WebSocket and localStorage through the shared 2D/3D mini-game runtime. Headless checks exercise real exported 2D and 3D frames, including a WASM result without `module`; PinK packaging and Android/iOS acceptance remain pending. Login, ads, payment, WebGPU and EmscriptenGLX are not enabled by this initial integration.
+
 - **Plugin filesystem operations.** Editor plugins can read and write binary assets directly, list directories, inspect files, create folders, rename and delete in their own directory or the capability-gated project scope. Moves preserve asset UUID sidecars, deletion uses the OS trash, and project edits join the existing file journal. User-installed plugins outside the project are supported; generated plugin data no longer repeatedly reloads its producer. Addresses [#99](https://github.com/esengine/estella/issues/99).
 
 - **One-click LAN device preview.** Scan Preview beside Play prepares the current scene for a phone browser, with a QR popover, tokenized local-network address, connected devices and advanced scene/interface settings. Scene and asset saves publish complete preview builds; compatible script changes retain the world through existing hot-swap APIs, with explicit reload reasons otherwise. Closing the project or stopping invalidates the session. The same Web runtime serves 2D and 3D; native/minigame device acceptance remains separate.
