@@ -14,6 +14,7 @@ export function attachTooltip(world: World, target: Entity, options: Partial<UIT
     world.insert(target, UITooltip, { ...structuredClone(UITooltip._default), ...options });
 }
 
+/** Creation options for a tooltip example target. @beta */
 export interface TooltipOptions {
     world: World;
     parent?: Entity;
@@ -21,6 +22,7 @@ export interface TooltipOptions {
     content?: string;
     settings?: Partial<UITooltipData>;
 }
+/** A tooltip target with explicit lifetime. @beta */
 export interface TooltipHandle {
     readonly entity: Entity;
     dispose(): void;

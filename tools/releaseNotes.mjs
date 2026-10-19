@@ -30,6 +30,7 @@ export const NOTES_FLOOR = 'v0.65.0';
 export const NOTED = {
   'feat: add TabView and Tooltip UI controls': { note: 'UI tabs and tooltips.' },
   'fix(ui): use hover state and sustained captures for tooltips': { note: 'UI tabs and tooltips.' },
+  'fix(ui): render tooltips in the screen paint order': { note: 'UI tabs and tooltips.' },
   'feat(editor): add TabView and Tooltip authoring and previews': { note: 'UI tabs and tooltips.' },
   'fix(editor): keep advanced joint property searches scoped to matching fields': { note: '3D swing/twist and six-axis joints.' },
   'feat: add SwingTwist and SixDOF 3D joints': { note: '3D swing/twist and six-axis joints.' },

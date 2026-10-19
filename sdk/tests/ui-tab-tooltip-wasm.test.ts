@@ -3,7 +3,7 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/app/app';
 import { AppContext, setDefaultContext } from '../src/ecs/context';
-import { Canvas, Disabled, Name, Transform, registerComponent } from '../src/ecs/component';
+import { Canvas, Disabled, Name, Parent, Transform, registerComponent } from '../src/ecs/component';
 import { Schedule } from '../src/ecs/system';
 import { setEditorMode, setPlayMode } from '../src/ecs/env';
 import { Input, InputState } from '../src/input/input';
@@ -107,6 +107,12 @@ describe.skipIf(!HAS_WASM)('TabView and Tooltip on real WASM', () => {
         expect(app.world.get(e, UIInteraction).hovered).toBe(true);
         expect(app.getResource(UIControlPointers).pointers.get(MOUSE_POINTER)?.entity).toBeNull();
         expect(bubbles()).toHaveLength(1);
+        await tick();
+        const label = bubbles()[0], panel = app.world.get(label, Parent).entity, canvas = app.world.get(panel, Parent).entity;
+        for (const entity of [canvas, panel, label]) {
+            expect(engine.getUINodeComputedWidth!(registry, entity)).toBeGreaterThan(0);
+            expect(engine.getUINodeComputedHeight!(registry, entity)).toBeGreaterThan(0);
+        }
     });
     it('real touch capture persists after the one-frame pressedEntity edge', async () => {
         const { e, x, y } = realPointerTarget(), input = app.getResource(Input);

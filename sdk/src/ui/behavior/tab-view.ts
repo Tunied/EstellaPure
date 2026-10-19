@@ -15,7 +15,7 @@ import { moveUIFocus } from '../input/focus-transition';
 import { setUIVisible } from '../core/compose';
 import { Text } from '../core/text';
 
-/** Ordered, parallel entity lists use the same prefab remapping as MeshSkin.joints. */
+/** Ordered, parallel entity lists use the same prefab remapping as MeshSkin.joints. @beta */
 export interface UITabViewData {
     selectedIndex: number;
     tabs: Entity[];

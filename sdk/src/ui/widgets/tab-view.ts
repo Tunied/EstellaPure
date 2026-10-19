@@ -13,6 +13,7 @@ import { UIEventType, type UIEventQueue } from '../core/events';
 import { UINode, UIDisplay } from '../core/ui-node';
 import { Name } from '../../ecs/component';
 
+/** Creation options for a composed tab view. @beta */
 export interface TabViewOptions {
     world: World;
     events: UIEventQueue;
@@ -23,6 +24,7 @@ export interface TabViewOptions {
     tabHeight?: number;
     onChange?: (index: number, page: Entity) => void;
 }
+/** A composed view and its editable children. @beta */
 export interface TabViewHandle {
     readonly entity: Entity;
     readonly tabs: readonly Entity[];

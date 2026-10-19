@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
-import { Canvas, SortingGroup, Transform, Parent, defineComponent } from '../../ecs/component';
+import { Canvas, Transform, Parent, defineComponent } from '../../ecs/component';
 import { defineSystem } from '../../ecs/system';
 import { Res, Time, type TimeData } from '../../ecs/resource';
 import { Input, type InputState } from '../../input/input';
@@ -27,6 +27,7 @@ import { themeColors } from '../theme/tokens';
 import { markThemed } from '../theme/theme-style';
 import { measureText } from '../text/measure-text';
 
+/** Trigger and layout settings for an engine UI tooltip. @beta */
 export interface UITooltipData {
     content: string;
     stylePrefab: string;
@@ -205,7 +206,6 @@ export function createTooltipSystem(world: World, prefabHost?: TooltipPrefabHost
                 const canvasData = structuredClone(world.has(ancestor, Canvas) ? world.get(ancestor, Canvas) : Canvas._default);
                 // The screen domain is shared; this late root is only a non-interactive paint layer.
                 world.insert(canvas, Canvas, canvasData);
-                world.insert(canvas, SortingGroup, { layer: canvasData.layer, order: 1_000_000, enabled: true });
                 s.overlay = canvas;
                 if (d.stylePrefab && prefabHost) {
                     const token = {}; s.pending = token;
