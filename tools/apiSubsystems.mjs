@@ -30,6 +30,7 @@ export const INFRASTRUCTURE = {
     diagnostics: 'the engine reporting on itself — a census and a stats overlay, read by tooling',
     document: 'document-model diagnostics shared with the editor, not part of a game',
     platform: 'the PlatformAdapter implementations; a game meets these through the subsystems above',
+    openpaas: 'the SUD runtime-profile entry used by the exported boot script; game systems use the shared subsystems',
     runtime: 'how an exported project boots — the loader and app factory the pipeline emits',
     sideModules: 'fetching and caching the optional wasm modules the subsystems above sit on',
     util: 'small shared helpers with no subsystem of their own',

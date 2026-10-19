@@ -3371,6 +3371,85 @@
       "tag": true
     },
     {
+      "name": "PlanarReflection",
+      "source": "cpp",
+      "fields": [
+        {
+          "key": "axis",
+          "type": "enum",
+          "default": "Y",
+          "doc": "Local normal axis, transformed with the entity. Y for a floor, Z for a mirror.",
+          "values": [
+            "X",
+            "Y",
+            "Z"
+          ]
+        },
+        {
+          "key": "clipOffset",
+          "type": "number",
+          "default": "0.02",
+          "doc": "Clip offset in world units; excludes geometry behind the reflecting plane.",
+          "range": "≥ 0, step 0.005"
+        },
+        {
+          "key": "cullingMask",
+          "type": "number",
+          "default": "4294967295",
+          "doc": "Sorting-layer bits captured by the reflection. The receiving surface and screen UI are excluded."
+        },
+        {
+          "key": "quality",
+          "type": "enum",
+          "default": "Project",
+          "values": [
+            "Project",
+            "Custom"
+          ]
+        },
+        {
+          "key": "resolutionScale",
+          "type": "number",
+          "default": "0.5",
+          "range": "0.125–1, step 0.125"
+        },
+        {
+          "key": "maxSize",
+          "type": "number",
+          "default": "1024",
+          "range": "64–4096, step 64"
+        },
+        {
+          "key": "update",
+          "type": "enum",
+          "default": "EveryFrame",
+          "doc": "Only the reflection capture; never limits the main scene frame rate.",
+          "values": [
+            "EveryFrame",
+            "FixedRate",
+            "OnDemand"
+          ]
+        },
+        {
+          "key": "updatesPerSecond",
+          "type": "number",
+          "default": "30",
+          "range": "1–120"
+        },
+        {
+          "key": "revision",
+          "type": "number",
+          "default": "0",
+          "advanced": true
+        },
+        {
+          "key": "enabled",
+          "type": "boolean",
+          "default": "true"
+        }
+      ]
+    },
+    {
       "name": "PointJoint3D",
       "source": "ts",
       "fields": [
