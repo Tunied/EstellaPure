@@ -204,7 +204,7 @@ export class RenderPipeline {
         this.runPreFlushCallbacks(registry, viewProjection);
         Renderer.flush();
 
-        this.executeDrawCallbacks(viewProjection, viewport, _elapsed);
+        this.executeDrawCallbacks(viewProjection, viewport, _elapsed, registry._cpp);
     }
 
     render(params: RenderParams): void {
@@ -330,7 +330,7 @@ export class RenderPipeline {
         }
     }
 
-    private executeDrawCallbacks(viewProjection: Float32Array, viewport: Viewport, elapsed: number): void {
+    private executeDrawCallbacks(viewProjection: Float32Array, viewport: Viewport, elapsed: number, registry: CppRegistry): void {
         const cbs = getDrawCallbacks();
         // Plugins register overlays at build time whether one is ever turned on,
         // and a core with no Draw API has no batch to open — opening one throws
@@ -339,6 +339,7 @@ export class RenderPipeline {
             beginPresentedDraw(viewProjection, viewport.w, viewport.h);
             const failed: string[] = [];
             for (const [id, entry] of cbs.entries()) {
+                if (entry.registry !== undefined && entry.registry !== registry) continue;
                 if (entry.scene && this.activeScenes_ && !this.activeScenes_.has(entry.scene)) continue;
                 try {
                     entry.fn(elapsed, {

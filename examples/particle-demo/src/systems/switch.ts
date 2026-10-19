@@ -19,6 +19,10 @@ export const switchSystem = defineSystem(
         Commands(),
     ],
     (input, events: UIEventQueue, prevs, nexts, holders, emitters, titles, cmds) => {
+        let texture = 0;
+        let hasHolder = false;
+        for (const [, sprite] of holders) { texture = sprite.texture; hasHolder = true; }
+        if (!hasHolder) return;
         let dir = 0;
         if (input.isKeyPressed('ArrowRight') || input.isKeyPressed('Space')) dir = 1;
         else if (input.isKeyPressed('ArrowLeft')) dir = -1;
@@ -31,8 +35,6 @@ export const switchSystem = defineSystem(
         state.current = (state.current + dir + SHOWCASE_COUNT) % SHOWCASE_COUNT;
         for (const [entity] of emitters) cmds.despawn(entity);
 
-        let texture = 0;
-        for (const [, sprite] of holders) texture = sprite.texture;
         spawnShowcase(cmds, state.current, texture);
         for (const [, text] of titles) text.content = SHOWCASES[state.current].name;
     },

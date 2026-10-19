@@ -171,6 +171,27 @@ export enum MaskMode {
 }
 
 /**
+ * The engine's `ParticleCollisionFallback`, generated from the C++ enum.
+ *
+ * @beta
+ */
+export enum ParticleCollisionFallback {
+    Floor = 0,
+    Skip = 1,
+}
+
+/**
+ * The engine's `ParticleCollisionMode`, generated from the C++ enum.
+ *
+ * @beta
+ */
+export enum ParticleCollisionMode {
+    Floor = 0,
+    Physics2D = 1,
+    Physics3D = 2,
+}
+
+/**
  * The engine's `ParticleEasing`, generated from the C++ enum.
  *
  * @beta
@@ -244,6 +265,7 @@ export enum SpriteMaskInteraction {
 export enum SubEmitterTrigger {
     Death = 0,
     Birth = 1,
+    Collision = 2,
 }
 
 export enum TextAlign {
@@ -691,6 +713,13 @@ export interface ParticleEmitter {
     trailMinDistance: number;
     collisionEnabled: boolean;
     collisionFloor: number;
+    collisionMode: number;
+    collisionMask: number;
+    collisionQueryBudget: number;
+    collisionMaxDistance: number;
+    collisionFallback: number;
+    collisionEvents: boolean;
+    collisionEventBudget: number;
     collisionBounce: number;
     collisionFriction: number;
     collisionLifetimeLoss: number;

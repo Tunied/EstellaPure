@@ -21,3 +21,8 @@ export const ShowcaseEmitter = defineTag('ShowcaseEmitter');
 export const Burst = defineComponent('Burst', {
     age: 0,
 });
+
+export const CollisionCounter = defineComponent('CollisionCounter', {
+    mode: 1,
+    total: 0,
+});

@@ -7,7 +7,7 @@
 import type { AssetFieldType } from '../scene/scene';
 import type { FieldMeta } from './component';
 import type { Color, Entity, Quat, Vec2, Vec3, Vec4 } from '../types';
-import type { AlignContent, AlignItems, AlignSelf, BodyType, CanvasScaleMode, ClearFlags, Dimension, EmitterShape, FlexDirection, FlexWrap, ForceFieldType, JustifyContent, LightType, MaskMode, Padding, ParticleEasing, ProjectionType, ScrollMovement, ShapeType, SimulationSpace, SpriteDrawMode, SpriteMaskInteraction, SubEmitterTrigger, TextAlign, TilemapOrientation, TilemapStaggerAxis, TilemapStaggerIndex, UIDisplay, UIFillMethod, UIFillOrigin, UIPointerEvents, UIPositionType, UIVisualFit, UIVisualType } from '../wasm/wasm.generated';
+import type { AlignContent, AlignItems, AlignSelf, BodyType, CanvasScaleMode, ClearFlags, Dimension, EmitterShape, FlexDirection, FlexWrap, ForceFieldType, JustifyContent, LightType, MaskMode, Padding, ParticleCollisionFallback, ParticleCollisionMode, ParticleEasing, ProjectionType, ScrollMovement, ShapeType, SimulationSpace, SpriteDrawMode, SpriteMaskInteraction, SubEmitterTrigger, TextAlign, TilemapOrientation, TilemapStaggerAxis, TilemapStaggerIndex, UIDisplay, UIFillMethod, UIFillOrigin, UIPointerEvents, UIPositionType, UIVisualFit, UIVisualType } from '../wasm/wasm.generated';
 
 /**
  * Single-source-of-truth hash of the C++/TS boundary ABI (component
@@ -15,7 +15,7 @@ import type { AlignContent, AlignItems, AlignSelf, BodyType, CanvasScaleMode, Cl
  * getAbiLayoutHash(); BuiltinBridge.connect() compares them and refuses to
  * run on mismatch, because mismatched offsets read the wrong heap bytes.
  */
-export const ABI_LAYOUT_HASH = '4a247e158faf0865';
+export const ABI_LAYOUT_HASH = '2f29375a9e0f797d';
 
 /**
  * One asset-valued field of a component: which field, and what kind of
@@ -694,6 +694,13 @@ export const COMPONENT_META: Record<string, ComponentMetaEntry> = {
             trailMinDistance: 6,
             collisionEnabled: false,
             collisionFloor: 0,
+            collisionMode: 0,
+            collisionMask: 65535,
+            collisionQueryBudget: 128,
+            collisionMaxDistance: 0,
+            collisionFallback: 0,
+            collisionEvents: false,
+            collisionEventBudget: 32,
             collisionBounce: 0.5,
             collisionFriction: 0.1,
             collisionLifetimeLoss: 0,
@@ -748,7 +755,7 @@ export const COMPONENT_META: Record<string, ComponentMetaEntry> = {
             layer: { step: 1, category: "Rendering", enumSource: "sortingLayers" },
             material: { category: "Rendering" },
             simulationSpace: { enum: [{ label: 'World', value: 0 }, { label: 'Local', value: 1 }], category: "Rendering" },
-            subEmitterTrigger: { enum: [{ label: 'Death', value: 0 }, { label: 'Birth', value: 1 }], category: "SubEmitter" },
+            subEmitterTrigger: { enum: [{ label: 'Death', value: 0 }, { label: 'Birth', value: 1 }, { label: 'Collision', value: 2 }], category: "SubEmitter" },
             subEmitterChance: { min: 0, max: 1, category: "SubEmitter" },
             subEmitterInheritVelocity: { min: 0, max: 1, category: "SubEmitter" },
             subEmitter: { category: "SubEmitter" },
@@ -758,6 +765,13 @@ export const COMPONENT_META: Record<string, ComponentMetaEntry> = {
             trailMinDistance: { min: 0, category: "Trail", shownWhen: { field: "trailEnabled", values: [1] } },
             collisionEnabled: { category: "Collision" },
             collisionFloor: { category: "Collision", shownWhen: { field: "collisionEnabled", values: [1] } },
+            collisionMode: { enum: [{ label: 'Floor', value: 0 }, { label: 'Physics2D', value: 1 }, { label: 'Physics3D', value: 2 }], category: "Collision", shownWhen: { field: "collisionEnabled", values: [1] } },
+            collisionMask: { min: 0, max: 65535, step: 1, category: "Collision", bitmask: { source: "collisionLayers" }, shownWhen: { field: "collisionEnabled", values: [1] } },
+            collisionQueryBudget: { min: 0, max: 4096, step: 1, category: "Collision", shownWhen: { field: "collisionEnabled", values: [1] } },
+            collisionMaxDistance: { min: 0, category: "Collision", shownWhen: { field: "collisionEnabled", values: [1] } },
+            collisionFallback: { enum: [{ label: 'Floor', value: 0 }, { label: 'Skip', value: 1 }], category: "Collision", shownWhen: { field: "collisionEnabled", values: [1] } },
+            collisionEvents: { category: "Collision", shownWhen: { field: "collisionEnabled", values: [1] } },
+            collisionEventBudget: { min: 0, max: 1024, step: 1, category: "Collision", shownWhen: { field: "collisionEnabled", values: [1] } },
             collisionBounce: { min: 0, max: 1, category: "Collision", shownWhen: { field: "collisionEnabled", values: [1] } },
             collisionFriction: { min: 0, max: 1, category: "Collision", shownWhen: { field: "collisionEnabled", values: [1] } },
             collisionLifetimeLoss: { min: 0, max: 1, category: "Collision", shownWhen: { field: "collisionEnabled", values: [1] } },
@@ -1583,6 +1597,13 @@ export interface ParticleEmitterData {
     trailMinDistance: number;
     collisionEnabled: boolean;
     collisionFloor: number;
+    collisionMode: ParticleCollisionMode;
+    collisionMask: number;
+    collisionQueryBudget: number;
+    collisionMaxDistance: number;
+    collisionFallback: ParticleCollisionFallback;
+    collisionEvents: boolean;
+    collisionEventBudget: number;
     collisionBounce: number;
     collisionFriction: number;
     collisionLifetimeLoss: number;

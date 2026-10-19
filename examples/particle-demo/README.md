@@ -51,6 +51,13 @@ into glows.
 
 ## Files
 
+Open `assets/scenes/scene-collisions.esscene` for side-by-side 2D and 3D physics
+queries. Sparks bounce off thin walls and trigger impact sub-emitters; text
+counters consume `ParticleCollisionEvent` through the standard event reader.
+Both emitters have a 128-query / 32-event frame cap and an explicit floor
+fallback. The 2D collider dimensions are metres; 3D colliders use world units.
+The default gallery scene and its controls remain available.
+
 ```
 assets/
   scenes/main.esscene     # camera, backdrop, UI (title + Prev/Next), TexHolder

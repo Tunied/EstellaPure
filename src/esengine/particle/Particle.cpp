@@ -20,6 +20,8 @@ Particle* ParticlePool::allocate() {
     free_list_.pop_back();
     particles_[index] = Particle{};
     particles_[index].alive = true;
+    if (++next_generation_ == 0) ++next_generation_;
+    particles_[index].generation = next_generation_;
     alive_count_++;
     return &particles_[index];
 }

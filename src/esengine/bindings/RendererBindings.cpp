@@ -706,7 +706,22 @@ void renderer_submitAll(ecs::Registry& registry, i32 vpX, i32 vpY, i32 vpW, i32 
 #ifdef ES_ENABLE_PARTICLES
 void particle_update(ecs::Registry& registry, f32 dt) {
     if (!g_particleSystem) return;
+    ensureTransformsUpdated(registry);
     g_particleSystem->update(registry, dt);
+}
+
+u32 particle_collisionQueryCount() { return g_particleSystem ? static_cast<u32>(g_particleSystem->collisionQueries().size()) : 0; }
+uintptr_t particle_collisionQueries() { return g_particleSystem ? reinterpret_cast<uintptr_t>(g_particleSystem->collisionQueries().data()) : 0; }
+u32 particle_collisionEventCount() { return g_particleSystem ? static_cast<u32>(g_particleSystem->collisionEvents().size()) : 0; }
+uintptr_t particle_collisionEvents() { return g_particleSystem ? reinterpret_cast<uintptr_t>(g_particleSystem->collisionEvents().data()) : 0; }
+u32 particle_collisionStatsCount() { return g_particleSystem ? static_cast<u32>(g_particleSystem->collisionStats().size()) : 0; }
+uintptr_t particle_collisionStats() { return g_particleSystem ? reinterpret_cast<uintptr_t>(g_particleSystem->collisionStats().data()) : 0; }
+void particle_collisionSetBudget(u32 queries, u32 events, bool debug) { if (g_particleSystem) g_particleSystem->setCollisionBudget(queries,events,debug); }
+void particle_collisionResolve(ecs::Registry& registry, uintptr_t ptr, u32 count) {
+    if (!g_particleSystem) return;
+    const u32 expected = static_cast<u32>(g_particleSystem->collisionQueries().size());
+    const auto* replies = count == expected && count <= 65536 ? boundarySpan<particle::CollisionReply>(ptr,count,"particle_collisionResolve") : nullptr;
+    g_particleSystem->resolveCollisions(registry,replies,replies ? count : 0);
 }
 
 // The entity crosses the wasm boundary as a raw u32 (Embind has no registered

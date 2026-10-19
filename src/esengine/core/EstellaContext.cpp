@@ -64,6 +64,19 @@ void EstellaContext::registerLogicSystems() {
     // shutdown()+init() cycle clears services_ and re-registers. UISystem is the
     // membership sentinel for the whole logic-system set.
     if (services_.getService<ecs::UISystem>()) return;
+    // Before the systems that draw from it: a consumer takes its stream at
+    // registration, so the seed has to be the engine's before anyone asks.
+    auto randomSource = makeUnique<RandomSource>();
+    // A seed the SDK set before this context existed (see setPendingRandomSeed).
+    if (u32 pending = 0; takePendingRandomSeed(pending)) randomSource->reseed(pending);
+    services_.registerOwned<RandomSource>(std::move(randomSource));
+#ifdef ES_ENABLE_PARTICLES
+    services_.registerOwned<particle::ParticleSystem>(makeUnique<particle::ParticleSystem>());
+    services_.getService<particle::ParticleSystem>()->reseedFrom(*services_.getService<RandomSource>());
+#endif
+    services_.registerOwned<trail::TrailSystem>(makeUnique<trail::TrailSystem>());
+
+
     services_.registerOwned<ecs::TransformSystem>(makeUnique<ecs::TransformSystem>());
     services_.registerOwned<ecs::UISystem>(makeUnique<ecs::UISystem>());
     services_.registerOwned<animation::TweenSystem>(makeUnique<animation::TweenSystem>());
@@ -156,18 +169,6 @@ void EstellaContext::initSubsystems(Unique<GfxDevice> gfxDevice) {
     // them for the headless/first-use path. Idempotent, so this is a no-op when
     // they are already present.
     registerLogicSystems();
-
-    // Before the systems that draw from it: a consumer takes its stream at
-    // registration, so the seed has to be the engine's before anyone asks.
-    auto randomSource = makeUnique<RandomSource>();
-    // A seed the SDK set before this context existed (see setPendingRandomSeed).
-    if (u32 pending = 0; takePendingRandomSeed(pending)) randomSource->reseed(pending);
-    services_.registerOwned<RandomSource>(std::move(randomSource));
-#ifdef ES_ENABLE_PARTICLES
-    services_.registerOwned<particle::ParticleSystem>(makeUnique<particle::ParticleSystem>());
-    services_.getService<particle::ParticleSystem>()->reseedFrom(*services_.getService<RandomSource>());
-#endif
-    services_.registerOwned<trail::TrailSystem>(makeUnique<trail::TrailSystem>());
 
     auto* rm = services_.getService<resource::ResourceManager>();
     auto* rc = services_.getService<RenderContext>();

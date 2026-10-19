@@ -4,6 +4,8 @@ import type { CppRegistry } from '../wasm';
 import type { EngineApi } from '../ecs/bridge/engineApi';
 import type { Entity } from '../types';
 import { defineResource } from '../ecs/resource';
+import { ParticleCollisionBridge, type ParticleQueryResolver } from './ParticleCollisionBridge';
+import type { ParticleCollisionBudget, ParticleCollisionEventPayload, ParticleCollisionStats } from './collision';
 
 /**
  * Per-app particle API. Wraps the C++ registry-scoped particle system
@@ -16,17 +18,38 @@ import { defineResource } from '../ecs/resource';
 export class ParticleAPI {
     private readonly module_: NonNullable<EngineApi>;
     private readonly registry_: CppRegistry;
+    private readonly collisions_: ParticleCollisionBridge;
 
     /** @param module whichever engine core is present — the wasm module on the web,
      *  the native host's bindings on a device (see ecs/engineApi.ts). */
-    constructor(module: NonNullable<EngineApi>, registry: CppRegistry) {
+    constructor(module: NonNullable<EngineApi>, registry: CppRegistry, resolve?: ParticleQueryResolver) {
         this.module_ = module;
         this.registry_ = registry;
+        this.collisions_ = new ParticleCollisionBridge(module,registry,resolve);
     }
 
     update(dt: number): void {
-        this.module_.particle_update?.(this.registry_, dt);
+        this.collisions_.update(dt);
     }
+
+    /** Contacts published by the last completed update, in project world units. */
+    get collisionEvents(): readonly ParticleCollisionEventPayload[] { return this.collisions_.events; }
+    /** Per-emitter counters from the last update, including fallback reasons. */
+    get collisionStats(): readonly ParticleCollisionStats[] { return this.collisions_.stats; }
+    /** Provider errors are visible alongside the unavailable/fallback counters. */
+    get collisionError(): string | null { return this.collisions_.error; }
+    /** Global App caps, independent of each emitter's smaller limits. */
+    setCollisionBudget(budget: Partial<ParticleCollisionBudget>): void {
+        for (const key of ['queries','events'] as const) {
+            const value=budget[key];
+            if (value!==undefined) this.collisions_.budget[key]=Number.isFinite(value)?Math.max(0,Math.min(key==='queries'?65536:16384,Math.floor(value))):0;
+        }
+    }
+    /** Draw bounded hit normals without enabling gameplay collision events. */
+    get debugNormals(): boolean { return this.collisions_.debug; }
+    set debugNormals(enabled: boolean) { this.collisions_.debug=enabled; }
+    /** @internal */
+    get collisionContacts(): readonly ParticleCollisionEventPayload[] { return this.collisions_.contacts; }
 
     play(entity: Entity): void {
         this.module_.particle_play?.(this.registry_, entity as number);

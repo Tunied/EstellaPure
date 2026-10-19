@@ -28,6 +28,10 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix: serialize binaryen optimization on windows': { internal: 'Uses one optimizer worker after wider builds reproduced heap corruption with four; release optimization flags stay unchanged.' },
+  'feat: add budgeted 2d and 3d particle scene collisions': { note: 'Budgeted particle scene collisions.' },
+  'feat(editor): add particle collision authoring and diagnostics': { note: 'Budgeted particle scene collisions.' },
+  'fix: bound binaryen workers on windows': { internal: 'Bounds Windows build-time optimizer workers without changing shipped optimization flags or runtime behavior.' },
   'fix(editor): align tree and color inspectors with shared Details controls': { note: 'Reusable UI trees and color pickers.' },
   'fix(editor): adopt consistent tree and color Details': { note: 'Reusable UI trees and color pickers.' },
   'refactor(ui): distinguish mutation drafts from borrowed reads': { internal: 'Names observed World.update drafts distinctly from borrowed snapshots; runtime behavior and public APIs are unchanged.' },

@@ -16,10 +16,16 @@ export interface DrawFrameInfo {
 
 export type DrawCallback = (elapsed: number, frame: DrawFrameInfo) => void;
 
-const callbacks = new Map<string, { fn: DrawCallback; scene: string }>();
+type DrawEntry = { fn: DrawCallback; scene: string; registry?: unknown };
+const callbacks = new Map<string, DrawEntry>();
 
 export function registerDrawCallback(id: string, fn: DrawCallback, scene?: string): void {
     callbacks.set(id, { fn, scene: scene ?? '' });
+}
+
+/** An engine-owned overlay belongs to one world's render passes. @internal */
+export function registerScopedDrawCallback(id: string, registry: unknown, fn: DrawCallback): void {
+    callbacks.set(id,{fn,scene:'',registry});
 }
 
 export function unregisterDrawCallback(id: string): void {
@@ -38,7 +44,7 @@ export function clearSceneDrawCallbacks(sceneName: string): void {
     }
 }
 
-export function getDrawCallbacks(): ReadonlyMap<string, { fn: DrawCallback; scene: string }> {
+export function getDrawCallbacks(): ReadonlyMap<string, DrawEntry> {
     return callbacks;
 }
 

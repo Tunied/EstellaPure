@@ -25,6 +25,8 @@ struct Particle {
     glm::vec4 end_color{1.0f, 1.0f, 1.0f, 0.0f};
     u16 sprite_frame = 0;
     bool alive = false;
+    u32 generation = 0;
+    u32 subEmitterDepth = 0;
 };
 
 class ParticlePool {
@@ -51,6 +53,7 @@ private:
     std::vector<u32> free_list_;
     u32 capacity_;
     u32 alive_count_ = 0;
+    u32 next_generation_ = 0;
 };
 
 }  // namespace esengine::particle

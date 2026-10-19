@@ -462,6 +462,31 @@ const control = defineSystem([Res(Particle)], (particles) => {
   用 `reset` + `play` 重新触发(比如可复用的受击火花)——比每次都生成新实体更省。
 </Aside>
 
+## 场景碰撞
+
+启用碰撞后可选 `ParticleCollisionMode.Floor`、`Physics2D` 或 `Physics3D`。
+场景模式复用现有物理插件，查询粒子本帧移动线段，支持高速粒子越过薄墙的情况。
+这是点粒子查询，不模拟有体积的刚体粒子，也不使用深度缓冲碰撞。
+粒子位置、命中点与事件速度统一使用项目世界单位，物理适配器负责已有的单位换算。
+
+`collisionQueryBudget` 限制单发射器每次更新的查询量。App 总预算默认为 4096 次查询、
+1024 条通知，可用 `app.getResource(Particle).setCollisionBudget({ queries: 2048, events: 256 })`
+调整。预算不足时在发射器与存活粒子间轮换采样。`collisionMaxDistance` 按最近活动相机裁剪；
+0 或没有活动相机时不裁剪。离屏粒子在预算内仍执行碰撞。
+
+`ParticleCollisionFallback.Floor` / `Skip` 决定物理不可用、预算耗尽、距离裁剪时的降级方式。
+正常查询未命中不触发降级。`collisionMask` 按物理层过滤，0 表示不选择任何层。
+
+启用 `collisionEvents` 后，下一帧可通过标准 `EventReader(ParticleCollisionEvent)` 读取
+发射器、粒子池槽位、命中实体、查询模式、世界命中点、法线与入射速度。地面命中的实体为
+`INVALID_ENTITY`。`subEmitterTrigger: SubEmitterTrigger.Collision` 复用子发射器的爆发设置，
+支持局部坐标子发射器；拒绝自身触发，继承链最多八层。
+
+`collisionEventBudget` 和 App 事件预算共同约束碰撞通知、诊断接触记录与碰撞子爆发。
+`collisionStats` 提供最近一次更新的查询、命中、预算跳过、距离裁剪、不可用、降级和事件超限计数。
+Details 支持查看计数与临时碰撞法线，法线开关不写入场景。
+`particle-demo/assets/scenes/scene-collisions.esscene` 示例包含 2D / 3D 墙面、撞击爆发与项目事件计数。
+
 ## 性能与最佳实践
 
 - **控制 `maxParticles`。** 它是固定池;按最坏情况定大小,别更高。多个小发射器比一个巨大的

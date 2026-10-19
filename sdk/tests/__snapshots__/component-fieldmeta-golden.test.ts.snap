@@ -584,6 +584,46 @@ exports[`builtin FieldMeta (RC9-1 equivalence gate) > matches the golden snapsho
     "collisionEnabled": {
       "category": "Collision",
     },
+    "collisionEventBudget": {
+      "category": "Collision",
+      "max": 1024,
+      "min": 0,
+      "shownWhen": {
+        "field": "collisionEnabled",
+        "values": [
+          1,
+        ],
+      },
+      "step": 1,
+    },
+    "collisionEvents": {
+      "category": "Collision",
+      "shownWhen": {
+        "field": "collisionEnabled",
+        "values": [
+          1,
+        ],
+      },
+    },
+    "collisionFallback": {
+      "category": "Collision",
+      "enum": [
+        {
+          "label": "Floor",
+          "value": 0,
+        },
+        {
+          "label": "Skip",
+          "value": 1,
+        },
+      ],
+      "shownWhen": {
+        "field": "collisionEnabled",
+        "values": [
+          1,
+        ],
+      },
+    },
     "collisionFloor": {
       "category": "Collision",
       "shownWhen": {
@@ -614,6 +654,66 @@ exports[`builtin FieldMeta (RC9-1 equivalence gate) > matches the golden snapsho
           1,
         ],
       },
+    },
+    "collisionMask": {
+      "bitmask": {
+        "source": "collisionLayers",
+      },
+      "category": "Collision",
+      "max": 65535,
+      "min": 0,
+      "shownWhen": {
+        "field": "collisionEnabled",
+        "values": [
+          1,
+        ],
+      },
+      "step": 1,
+    },
+    "collisionMaxDistance": {
+      "category": "Collision",
+      "min": 0,
+      "shownWhen": {
+        "field": "collisionEnabled",
+        "values": [
+          1,
+        ],
+      },
+    },
+    "collisionMode": {
+      "category": "Collision",
+      "enum": [
+        {
+          "label": "Floor",
+          "value": 0,
+        },
+        {
+          "label": "Physics2D",
+          "value": 1,
+        },
+        {
+          "label": "Physics3D",
+          "value": 2,
+        },
+      ],
+      "shownWhen": {
+        "field": "collisionEnabled",
+        "values": [
+          1,
+        ],
+      },
+    },
+    "collisionQueryBudget": {
+      "category": "Collision",
+      "max": 4096,
+      "min": 0,
+      "shownWhen": {
+        "field": "collisionEnabled",
+        "values": [
+          1,
+        ],
+      },
+      "step": 1,
     },
     "colorEasing": {
       "category": "Color",
@@ -874,6 +974,10 @@ exports[`builtin FieldMeta (RC9-1 equivalence gate) > matches the golden snapsho
         {
           "label": "Birth",
           "value": 1,
+        },
+        {
+          "label": "Collision",
+          "value": 2,
         },
       ],
     },

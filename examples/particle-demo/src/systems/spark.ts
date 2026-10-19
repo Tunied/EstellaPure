@@ -13,7 +13,9 @@ export const sparkSystem = defineSystem(
     (input, camera: UICameraData, holders, cmds) => {
         if (!camera.valid || !input.isMouseButtonPressed(0) || input.isPointerOverUI()) return;
         let texture = 0;
-        for (const [, sprite] of holders) texture = sprite.texture;
+        let hasHolder = false;
+        for (const [, sprite] of holders) { texture = sprite.texture; hasHolder = true; }
+        if (!hasHolder) return;
         cmds.spawn()
             .insert(Transform, { position: { x: camera.worldMouseX, y: camera.worldMouseY, z: 0 } })
             .insert(ParticleEmitter, { ...BURST, texture })

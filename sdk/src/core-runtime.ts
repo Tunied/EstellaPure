@@ -154,6 +154,8 @@ export {
     SimulationSpace,
     SubEmitterTrigger,
     ParticleEasing,
+    ParticleCollisionMode,
+    ParticleCollisionFallback,
     type ParticleEmitterData,
     ParticleForceField,
     ForceFieldType,

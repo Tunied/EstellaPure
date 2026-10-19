@@ -16,8 +16,10 @@ import { setupSystem } from './systems/setup';
 import { switchSystem } from './systems/switch';
 import { sparkSystem } from './systems/spark';
 import { cleanupSystem } from './systems/cleanup';
+import { collisionSystem } from './systems/collision';
 
 addStartupSystem(setupSystem);
 addSystemToSchedule(Schedule.Update, switchSystem);
 addSystemToSchedule(Schedule.Update, sparkSystem);
 addSystemToSchedule(Schedule.Update, cleanupSystem);
+addSystemToSchedule(Schedule.Update, collisionSystem);

@@ -747,6 +747,10 @@ export {
     ParticleAPI,
     ParticlePlugin,
     particlePlugin,
+    ParticleCollisionEvent,
+    type ParticleCollisionEventPayload,
+    type ParticleCollisionStats,
+    type ParticleCollisionBudget,
 } from './particle';
 
 // =============================================================================

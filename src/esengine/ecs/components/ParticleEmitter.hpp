@@ -39,12 +39,25 @@ enum class SimulationSpace : i32 {
 };
 
 // When a sub-emitter fires the referenced child emitter's burst: as each parent
-// particle is born, or as it dies. (Collision joins this list once particle
-// collision lands.)
+// particle is born, dies, or collides. Serialized values remain stable.
 ES_ENUM(stability=beta)
 enum class SubEmitterTrigger : i32 {
     Death = 0,
     Birth = 1,
+    Collision = 2,
+};
+
+ES_ENUM(stability=beta)
+enum class ParticleCollisionMode : i32 {
+    Floor = 0,
+    Physics2D = 1,
+    Physics3D = 2,
+};
+
+ES_ENUM(stability=beta)
+enum class ParticleCollisionFallback : i32 {
+    Floor = 0,
+    Skip = 1,
 };
 
 ES_COMPONENT(renderable=enabled, stability=beta)
@@ -243,15 +256,37 @@ struct ParticleEmitter {
     ES_PROPERTY(min=0, category=Trail, shown_when=trailEnabled:true)
     f32 trailMinDistance{6.0f};
 
-    // Collision (Phase 1: a horizontal floor plane) — world-space particles that fall
-    // below `collisionFloor` (world Y) bounce off it. Self-contained CPU collision, no
-    // physics dependency: rain splashing on the ground, sparks skittering on a floor,
-    // snow settling. Off by default.
+    // Collision is opt-in. Floor remains the default for existing scenes; optional
+    // 2D/3D adapters query the swept segment in project world units.
     ES_PROPERTY(category=Collision)
     bool collisionEnabled{false};
 
     ES_PROPERTY(category=Collision, shown_when=collisionEnabled:true)
     f32 collisionFloor{0.0f};
+
+    // Scene queries use the same response/events as the legacy plane. Results are
+    // exchanged as a bounded batch, so the core depends on no physics backend.
+    ES_PROPERTY(enum=ParticleCollisionMode, category=Collision, shown_when=collisionEnabled:true)
+    i32 collisionMode{static_cast<i32>(ParticleCollisionMode::Floor)};
+
+    ES_PROPERTY(bitmask_source=collisionLayers, min=0, max=65535, step=1, category=Collision, shown_when=collisionEnabled:true)
+    u32 collisionMask{65535};
+
+    ES_PROPERTY(min=0, max=4096, step=1, category=Collision, shown_when=collisionEnabled:true)
+    i32 collisionQueryBudget{128};
+
+    // World units from the nearest active camera; 0 means no distance culling.
+    ES_PROPERTY(min=0, category=Collision, shown_when=collisionEnabled:true)
+    f32 collisionMaxDistance{0.0f};
+
+    ES_PROPERTY(enum=ParticleCollisionFallback, category=Collision, shown_when=collisionEnabled:true)
+    i32 collisionFallback{static_cast<i32>(ParticleCollisionFallback::Floor)};
+
+    ES_PROPERTY(category=Collision, shown_when=collisionEnabled:true)
+    bool collisionEvents{false};
+
+    ES_PROPERTY(min=0, max=1024, step=1, category=Collision, shown_when=collisionEnabled:true)
+    i32 collisionEventBudget{32};
 
     // Restitution: 0 = particles stop dead on the floor, 1 = a full elastic bounce.
     ES_PROPERTY(min=0, max=1, category=Collision, shown_when=collisionEnabled:true)

@@ -8,6 +8,7 @@
 #include <cmath>
 
 #include "../core/RandomSource.hpp"
+#include "../ecs/components/Camera.hpp"
 
 namespace esengine::particle {
 
@@ -19,6 +20,17 @@ void ParticleSystem::reseedFrom(const esengine::RandomSource& source) {
 }
 
 void ParticleSystem::update(ecs::Registry& registry, f32 dt) {
+    collision_queries_.clear(); collision_pending_.clear(); collision_events_.clear();
+    collision_stats_.clear(); collision_cameras_.clear();
+    event_attempts_ = 0; collision_child_bursts_ = 0;
+    if (!std::isfinite(dt) || dt < 0) return;
+    auto cameras = registry.activeView<ecs::Camera, ecs::Transform>();
+    for (auto entity : cameras) {
+        if (!cameras.get<ecs::Camera>(entity).isActive) continue;
+        auto& transform = cameras.get<ecs::Transform>(entity);
+        transform.ensureDecomposed();
+        collision_cameras_.push_back(transform.worldPosition);
+    }
     if (!destroyConn_.isConnected()) {
         destroyConn_ = registry.onDestroy([this](Entity entity) {
             states_.erase(entity);
@@ -52,6 +64,20 @@ void ParticleSystem::update(ecs::Registry& registry, f32 dt) {
     }
 
     auto view = registry.activeView<ecs::Transform, ecs::ParticleEmitter>();
+    // Share the App cap across active scene emitters. Rotate remainder slots so
+    // a budget smaller than the emitter count never permanently starves a tail.
+    collision_quotas_.clear();
+    std::vector<Entity> sceneEmitters;
+    for (auto entity : view) {
+        const auto& e = view.get<ecs::ParticleEmitter>(entity);
+        if (e.enabled && e.collisionEnabled && e.collisionMode != 0) sceneEmitters.push_back(entity);
+    }
+    const u32 n = static_cast<u32>(sceneEmitters.size());
+    for (u32 i = 0; i < n; ++i) {
+        const u32 rank = (i + n - collision_frame_ % n) % n;
+        collision_quotas_[sceneEmitters[i]] = query_budget_ / n + (rank < query_budget_ % n ? 1u : 0u);
+    }
+    ++collision_frame_;
     for (auto entity : view) {
         const auto& emitter = view.get<ecs::ParticleEmitter>(entity);
         const auto& transform = view.get<ecs::Transform>(entity);
@@ -130,6 +156,13 @@ void ParticleSystem::update(ecs::Registry& registry, f32 dt) {
         bool isWorldSpace = emitter.simulationSpace ==
                             static_cast<i32>(ecs::SimulationSpace::World);
 
+        collision_emitter_ = entity;
+        collision_stats_index_ = collision_stats_.size();
+        if (emitter.collisionEnabled) {
+            CollisionStats stats; stats.emitter = entity.raw;
+            stats.mode = static_cast<u32>(emitter.collisionMode);
+            collision_stats_.push_back(stats);
+        }
         auto lutIt = colorLuts_.find(entity);
         auto sizeIt = sizeLuts_.find(entity);
         auto speedIt = speedLuts_.find(entity);
@@ -139,9 +172,14 @@ void ParticleSystem::update(ecs::Registry& registry, f32 dt) {
                         speedIt != speedLuts_.end() ? &speedIt->second : nullptr,
                         frame, isWorldSpace);
 
+        if (state.pool.capacity() > 0) {
+            const u32 step = std::max(1u, std::min(static_cast<u32>(std::clamp(emitter.collisionQueryBudget, 0, 4096)), collision_quotas_[entity]));
+            state.collisionCursor = (state.collisionCursor + step) % std::max(1u,state.pool.aliveCount());
+        }
+
         // Fire the child sub-emitter's burst at every birth/death queued this frame.
         if (emitter.subEmitter != 0 && !subemit_requests_.empty()) {
-            drainSubEmitters(registry, Entity::fromRaw(emitter.subEmitter),
+            drainSubEmitters(registry, entity, Entity::fromRaw(emitter.subEmitter),
                              emitter.subEmitterInheritVelocity, emitter.subEmitterChance);
         }
     }
@@ -255,7 +293,8 @@ void ParticleSystem::emitParticles(const ecs::ParticleEmitter& emitter,
 
 void ParticleSystem::emitInto(const ecs::ParticleEmitter& emitter, EmitterState& state,
                               const EmitterFrame& frame, bool isWorldSpace,
-                              glm::vec3 velocityBias, u32 count, bool allowBirthTrigger) {
+                              glm::vec3 velocityBias, u32 count, bool allowBirthTrigger, u32 depth,
+                              const EmitterFrame* storageFrame) {
     // Record each spawned particle for a Birth-triggered sub-emitter (in world
     // space, since a sub-burst is a world event).
     bool recordBirth = allowBirthTrigger &&
@@ -309,17 +348,23 @@ void ParticleSystem::emitInto(const ecs::ParticleEmitter& emitter, EmitterState&
         p->velocity = dir * speed + velocityBias;
 
         p->sprite_frame = 0;
+        p->subEmitterDepth = depth;
 
         if (recordBirth) {
             glm::vec3 worldPos = isWorldSpace ? p->position
                                               : frame.position + frame.rotation * p->position;
             glm::vec3 worldVel = isWorldSpace ? p->velocity : frame.rotation * p->velocity;
-            subemit_requests_.push_back({worldPos, worldVel});
+            subemit_requests_.push_back({worldPos, worldVel, p->subEmitterDepth});
+        }
+        if (storageFrame) {
+            const auto inverseRotation = glm::inverse(storageFrame->rotation);
+            p->position = inverseRotation * (p->position - storageFrame->position);
+            p->velocity = inverseRotation * p->velocity;
         }
     }
 }
 
-void ParticleSystem::drainSubEmitters(ecs::Registry& registry, Entity child,
+void ParticleSystem::drainSubEmitters(ecs::Registry& registry, Entity parent, Entity child,
                                       f32 inheritVelocity, f32 chance) {
     // Take ownership of the queue up front: emitInto below spawns into the child
     // with allowBirthTrigger=false, so it never re-enters this buffer, but swapping
@@ -327,7 +372,7 @@ void ParticleSystem::drainSubEmitters(ecs::Registry& registry, Entity child,
     std::vector<SubEmitRequest> requests;
     requests.swap(subemit_requests_);
 
-    if (!registry.valid(child) || !registry.has<ecs::ParticleEmitter>(child)) {
+    if (child == parent || !registry.valid(child) || !registry.has<ecs::ParticleEmitter>(child)) {
         return;  // a deleted/retargeted child just drops its bursts
     }
     const auto& childEmitter = registry.get<ecs::ParticleEmitter>(child);
@@ -341,11 +386,19 @@ void ParticleSystem::drainSubEmitters(ecs::Registry& registry, Entity child,
         it = insertIt;
     }
     EmitterState& childState = it->second;
+    EmitterFrame storageFrame;
+    const bool local = childEmitter.simulationSpace == static_cast<i32>(ecs::SimulationSpace::Local);
+    if (local && registry.has<ecs::Transform>(child)) {
+        const auto& transform = registry.get<ecs::Transform>(child);
+        storageFrame = {transform.worldPosition, transform.worldRotation, transform.worldScale};
+    }
 
     // The child's burstCount sizes each sub-burst (fall back to 1 so a misconfigured
     // template still shows something).
     u32 count = childEmitter.burstCount > 0 ? static_cast<u32>(childEmitter.burstCount) : 1;
+    count = std::min(count, childState.pool.capacity());
     for (const auto& req : requests) {
+        if (req.depth >= 8) continue;
         if (chance < 1.0f && randomRange(0.0f, 1.0f) >= chance) {
             continue;
         }
@@ -354,7 +407,8 @@ void ParticleSystem::drainSubEmitters(ecs::Registry& registry, Entity child,
         // no orientation to inherit.
         emitInto(childEmitter, childState, EmitterFrame{req.position, glm::quat(1, 0, 0, 0),
                                                         glm::vec3(1.0f)}, /*isWorldSpace=*/true,
-                 req.velocity * inheritVelocity, count, /*allowBirthTrigger=*/false);
+                 req.velocity * inheritVelocity, count, /*allowBirthTrigger=*/false, req.depth + 1,
+                 local ? &storageFrame : nullptr);
     }
 }
 
@@ -441,9 +495,10 @@ void ParticleSystem::updateParticles(const ecs::ParticleEmitter& emitter,
     int trailKeep = std::clamp(emitter.trailPoints, 2, kMaxTrailPoints);
     f32 trailMinDistSq = emitter.trailMinDistance * emitter.trailMinDistance;
 
-    bool collisionOn = emitter.collisionEnabled && isWorldSpace;
+    bool collisionOn = emitter.collisionEnabled;
 
     dead_particle_indices_.clear();
+    state.collisionOrdinal = 0;
 
     state.pool.forEachAlive([&](Particle& p) {
         p.age += dt;
@@ -453,7 +508,7 @@ void ParticleSystem::updateParticles(const ecs::ParticleEmitter& emitter,
                 glm::vec3 worldPos = isWorldSpace ? p.position
                                                   : frame.position + frame.rotation * p.position;
                 glm::vec3 worldVel = isWorldSpace ? p.velocity : frame.rotation * p.velocity;
-                subemit_requests_.push_back({worldPos, worldVel});
+                subemit_requests_.push_back({worldPos, worldVel, p.subEmitterDepth});
             }
             u32 idx = static_cast<u32>(&p - &state.pool.particles()[0]);
             dead_particle_indices_.push_back(idx);
@@ -472,6 +527,7 @@ void ParticleSystem::updateParticles(const ecs::ParticleEmitter& emitter,
         // Applied to the STEP, not to velocity, so speed-over-life cannot become
         // a second force system: gravity, damping and noise still accumulate into
         // velocity exactly as before.
+        const glm::vec3 collisionFrom = p.position;
         p.position += p.velocity * (speedLut ? sampleSizeLut(*speedLut, t) : 1.0f) * dt;
 
         if (noiseOn) {
@@ -483,16 +539,11 @@ void ParticleSystem::updateParticles(const ecs::ParticleEmitter& emitter,
             p.position += glm::vec3(flow, 0.0f) * emitter.noiseStrength * dt;
         }
 
-        // Floor collision: a particle that has fallen through the floor plane while
-        // moving down is snapped back and bounced, losing tangential speed to friction
-        // and (optionally) some life. Done before the trail records so the streak
-        // follows the bounce.
-        if (collisionOn && p.position.y < emitter.collisionFloor && p.velocity.y < 0.0f) {
-            p.position.y = emitter.collisionFloor;
-            p.velocity.y = -p.velocity.y * emitter.collisionBounce;
-            p.velocity.x *= (1.0f - emitter.collisionFriction);
-            if (emitter.collisionLifetimeLoss > 0.0f) {
-                p.age += emitter.collisionLifetimeLoss * p.lifetime;
+        if (collisionOn) {
+            collisionStep(emitter, state, p, collisionFrom, frame, isWorldSpace);
+            if (p.age >= p.lifetime) {
+                dead_particle_indices_.push_back(static_cast<u32>(&p - state.pool.particles().data()));
+                return;
             }
         }
 
@@ -566,4 +617,132 @@ f32 ParticleSystem::randomRange(f32 min, f32 max) {
 // An aim in the emitter's own plane: an angle names a direction there, and the
 // emitter's rotation is what turns the plane. Aiming out of it is the emitter's
 // job to be turned, not this one's to invent a second angle nobody authored.
+
+namespace {
+bool finitePoint(glm::vec3 p) { return std::isfinite(p.x) && std::isfinite(p.y) && std::isfinite(p.z); }
+f32 unitValue(f32 x) { return std::isfinite(x) ? std::clamp(x, 0.0f, 1.0f) : 0.0f; }
+}
+
+void ParticleSystem::collisionStep(const ecs::ParticleEmitter& emitter, EmitterState& state,
+                                   Particle& p, glm::vec3 from, const EmitterFrame& frame, bool world) {
+    const u32 ordinal = state.collisionOrdinal++;
+    if (emitter.collisionMode == 0) { floorCollision(emitter, state, p, frame, world); return; }
+    auto& stats = collision_stats_[collision_stats_index_];
+    auto fallback = [&] {
+        if (emitter.collisionFallback == 0) { ++stats.fallbacks; floorCollision(emitter, state, p, frame, world); }
+    };
+    if (emitter.collisionMode != 1 && emitter.collisionMode != 2) { ++stats.unavailable; fallback(); return; }
+    const glm::vec3 start = world ? from : frame.position + frame.rotation * from;
+    const glm::vec3 end = world ? p.position : frame.position + frame.rotation * p.position;
+    glm::vec3 delta = end - start;
+    if (emitter.collisionMode == 1) delta.z = 0; // 2D queries never invent depth.
+    if ((emitter.collisionMask & 0xffffu) == 0) return;
+    if (!finitePoint(start) || !finitePoint(end) || !std::isfinite(glm::dot(delta,delta)) || glm::dot(delta, delta) < 1e-12f) return;
+    if (std::isfinite(emitter.collisionMaxDistance) && emitter.collisionMaxDistance > 0 && !collision_cameras_.empty()) {
+        const f32 maxSq = emitter.collisionMaxDistance * emitter.collisionMaxDistance;
+        bool near = false;
+        for (auto camera : collision_cameras_) {
+            const auto offset = end - camera;
+            if (glm::dot(offset, offset) <= maxSq) { near = true; break; }
+        }
+        if (!near) { ++stats.distanceSkipped; fallback(); return; }
+    }
+    const u32 slot = static_cast<u32>(&p - state.pool.particles().data());
+    const u32 limit = std::min(static_cast<u32>(std::clamp(emitter.collisionQueryBudget, 0, 4096)), collision_quotas_[collision_emitter_]);
+    const u32 alive = std::max(1u,state.pool.aliveCount());
+    const u32 rank = (ordinal + alive - state.collisionCursor % alive) % alive;
+    if (rank >= limit || stats.queries >= limit || collision_queries_.size() >= query_budget_) {
+        ++stats.budgetSkipped; fallback(); return;
+    }
+    collision_queries_.push_back({collision_emitter_.raw, slot, static_cast<u32>(emitter.collisionMode),
+                                 emitter.collisionMask & 0xffffu, start.x,start.y,start.z,delta.x,delta.y,delta.z});
+    collision_pending_.push_back({collision_emitter_, p.generation, frame, world, collision_stats_index_});
+    ++stats.queries;
+}
+
+void ParticleSystem::floorCollision(const ecs::ParticleEmitter& emitter, EmitterState& state,
+                                    Particle& p, const EmitterFrame& frame, bool world) {
+    const glm::vec3 point = world ? p.position : frame.position + frame.rotation * p.position;
+    const glm::vec3 velocity = world ? p.velocity : frame.rotation * p.velocity;
+    if (std::isfinite(emitter.collisionFloor) && point.y < emitter.collisionFloor && velocity.y < 0) {
+        collide(emitter, state, p, {point.x,emitter.collisionFloor,point.z}, {0,1,0}, 0xffffffffu, frame, world);
+    }
+}
+
+void ParticleSystem::collide(const ecs::ParticleEmitter& emitter, EmitterState& state, Particle& p,
+                             glm::vec3 point, glm::vec3 normal, u32 body, const EmitterFrame& frame, bool world) {
+    auto& stats = collision_stats_[collision_stats_index_];
+    const u32 slot = static_cast<u32>(&p - state.pool.particles().data());
+    glm::vec3 velocity = world ? p.velocity : frame.rotation * p.velocity;
+    const glm::vec3 incoming = velocity;
+    const f32 approach = glm::dot(velocity, normal);
+    if (approach < 0) {
+        velocity = (velocity - normal * approach) * (1 - unitValue(emitter.collisionFriction))
+                    - normal * approach * unitValue(emitter.collisionBounce);
+    }
+    p.position = world ? point : glm::inverse(frame.rotation) * (point - frame.position);
+    p.velocity = world ? velocity : glm::inverse(frame.rotation) * velocity;
+    p.age += unitValue(emitter.collisionLifetimeLoss) * p.lifetime;
+    ++stats.hits;
+    const bool child = emitter.subEmitter != 0 && emitter.subEmitterTrigger == static_cast<i32>(ecs::SubEmitterTrigger::Collision);
+    if (emitter.collisionEvents || child || collision_debug_) {
+        const u32 perEmitter = static_cast<u32>(std::clamp(emitter.collisionEventBudget, 0, 1024));
+        if (stats.events < perEmitter && event_attempts_ < event_budget_) {
+            ++stats.events; ++event_attempts_;
+            if (emitter.collisionEvents || collision_debug_) collision_events_.push_back({collision_emitter_.raw,slot,body,stats.mode,
+                point.x,point.y,point.z,normal.x,normal.y,normal.z,incoming.x,incoming.y,incoming.z,emitter.collisionEvents ? 1u : 0u});
+            if (child && p.subEmitterDepth < 8 && collision_child_bursts_ < event_budget_) {
+                subemit_requests_.push_back({point,velocity,p.subEmitterDepth}); ++collision_child_bursts_;
+            }
+        } else ++stats.eventDropped;
+    }
+    if (p.age >= p.lifetime && emitter.subEmitter != 0 && emitter.subEmitterTrigger == static_cast<i32>(ecs::SubEmitterTrigger::Death))
+        subemit_requests_.push_back({point,velocity,p.subEmitterDepth});
+}
+
+void ParticleSystem::resolveCollisions(ecs::Registry& registry, const CollisionReply* replies, u32 count) {
+    // Consume once. A stale/repeated reply cannot bounce a particle twice.
+    for (std::size_t i = 0; i < collision_queries_.size(); ++i) {
+        const auto& query = collision_queries_[i]; const auto& pending = collision_pending_[i];
+        if (!registry.valid(pending.emitter) || !registry.has<ecs::ParticleEmitter>(pending.emitter)) continue;
+        auto stateIt = states_.find(pending.emitter);
+        if (stateIt == states_.end() || query.slot >= stateIt->second.pool.capacity()) continue;
+        auto& state = stateIt->second; auto& p = state.pool.particles()[query.slot];
+        if (!p.alive || p.generation != pending.generation) continue;
+        const auto& emitter = registry.get<ecs::ParticleEmitter>(pending.emitter);
+        if (!emitter.enabled || !emitter.collisionEnabled) continue;
+        collision_emitter_ = pending.emitter; collision_stats_index_ = pending.stats;
+        auto& stats = collision_stats_[pending.stats];
+        const CollisionReply reply = replies && i < count ? replies[i] : CollisionReply{2,0,0,0,0,0,0,0};
+        if (reply.status == 1) {
+            glm::vec3 normal(reply.nx,reply.ny,reply.nz), point(reply.x,reply.y,reply.z);
+            if (query.mode == 1) { normal.z = 0; point.z = pending.world ? p.position.z : (pending.frame.position + pending.frame.rotation * p.position).z; }
+            const f32 normSq = glm::dot(normal,normal);
+            const glm::vec3 from(query.ox,query.oy,query.oz), delta(query.dx,query.dy,query.dz);
+            // A provider must report a finite point on this segment; invalid replies
+            // are unavailable queries (same explicit fallback), never teleports.
+            const f32 deltaSq = glm::dot(delta,delta);
+            const f32 fraction = glm::dot(point - from,delta) / deltaSq;
+            glm::vec3 offset = point - (from + delta * fraction);
+            if (query.mode == 1) offset.z = 0;
+            if (finitePoint(normal) && finitePoint(point) && std::isfinite(normSq) && normSq > 1e-12f &&
+                fraction >= -1e-4f && fraction <= 1.0001f && glm::dot(offset,offset) <= std::max(1e-6f,deltaSq*1e-6f)) {
+                normal /= std::sqrt(normSq);
+                if (glm::dot(delta,normal) > 0) normal = -normal;
+                collide(emitter,state,p,point + normal * 1e-4f,normal,reply.body,pending.frame,pending.world);
+            } else { ++stats.unavailable; if (emitter.collisionFallback == 0) { ++stats.fallbacks; floorCollision(emitter,state,p,pending.frame,pending.world); } }
+        } else if (reply.status != 0) {
+            ++stats.unavailable;
+            if (emitter.collisionFallback == 0) { ++stats.fallbacks; floorCollision(emitter,state,p,pending.frame,pending.world); }
+        }
+        if (query.slot < state.trail_count.size() && state.trail_count[query.slot] > 0) {
+            const auto last = static_cast<std::size_t>(query.slot)*kMaxTrailPoints + state.trail_count[query.slot]-1;
+            state.trail_pos[last] = p.position;
+        }
+        if (p.age >= p.lifetime) state.pool.deallocateByIndex(query.slot);
+        if (!subemit_requests_.empty()) drainSubEmitters(registry,pending.emitter,Entity::fromRaw(emitter.subEmitter),emitter.subEmitterInheritVelocity,emitter.subEmitterChance);
+    }
+    collision_queries_.clear(); collision_pending_.clear();
+}
+
 }  // namespace esengine::particle

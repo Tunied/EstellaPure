@@ -724,6 +724,14 @@ EMSCRIPTEN_BINDINGS(esengine_renderer) {
     emscripten::function("renderer_submitAll", &esengine::renderer_submitAll);
 #ifdef ES_ENABLE_PARTICLES
     emscripten::function("particle_update", &esengine::particle_update);
+    emscripten::function("particle_collisionQueryCount", &esengine::particle_collisionQueryCount);
+    emscripten::function("particle_collisionQueries", &esengine::particle_collisionQueries);
+    emscripten::function("particle_collisionEventCount", &esengine::particle_collisionEventCount);
+    emscripten::function("particle_collisionEvents", &esengine::particle_collisionEvents);
+    emscripten::function("particle_collisionStatsCount", &esengine::particle_collisionStatsCount);
+    emscripten::function("particle_collisionStats", &esengine::particle_collisionStats);
+    emscripten::function("particle_collisionResolve", &esengine::particle_collisionResolve);
+    emscripten::function("particle_collisionSetBudget", &esengine::particle_collisionSetBudget);
     emscripten::function("particle_play", &esengine::particle_play);
     emscripten::function("particle_stop", &esengine::particle_stop);
     emscripten::function("particle_reset", &esengine::particle_reset);

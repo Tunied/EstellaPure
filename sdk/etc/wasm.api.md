@@ -362,6 +362,14 @@ mesh_createFromChannels: ((channelsPtr: number, channelCount: number, vertexStri
 mesh_release: ((meshHandle: number) => void) | undefined
 mesh_rematerializeFromChannels: ((targetHandle: number, channelsPtr: number, channelCount: number, vertexStride: number, vertexPtr: number, vertexBytes: number, indexPtr: number, indexCount: number, minX: number, minY: number, minZ: number, maxX: number, maxY: number, maxZ: number, bindPtr: number, bindFloats: number, morphPtr: number, morphFloats: number, morphTargets: number, morphNormals: number) => number) | undefined
 notifyDeviceLost: ((reason: number, message: string) => void) | undefined
+particle_collisionEventCount: (() => number) | undefined
+particle_collisionEvents: (() => number) | undefined
+particle_collisionQueries: (() => number) | undefined
+particle_collisionQueryCount: (() => number) | undefined
+particle_collisionResolve: ((registry: CppRegistry, ptr: number, count: number) => void) | undefined
+particle_collisionSetBudget: ((queries: number, events: number, debug: boolean) => void) | undefined
+particle_collisionStats: (() => number) | undefined
+particle_collisionStatsCount: (() => number) | undefined
 particle_getAliveCount: ((entity: number) => number) | undefined
 particle_play: ((registry: CppRegistry, entity: number) => void) | undefined
 particle_reset: ((registry: CppRegistry, entity: number) => void) | undefined

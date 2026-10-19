@@ -1,0 +1,523 @@
+{
+  "version": 4,
+  "name": "Scene Collisions",
+  "entities": [
+    {
+      "id": 0,
+      "name": "Camera",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 1000
+            }
+          }
+        },
+        {
+          "type": "Camera",
+          "data": {
+            "projectionType": 1,
+            "orthoSize": 360,
+            "isActive": true,
+            "priority": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "name": "Sparks2D",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -420,
+              "y": 80,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "ParticleEmitter",
+          "data": {
+            "texture": "@uuid:24cb4e0f-7c75-4df4-9a4d-58480ee405c0",
+            "shape": 0,
+            "angleSpreadMin": -6,
+            "angleSpreadMax": 6,
+            "rate": 50,
+            "maxParticles": 256,
+            "lifetimeMin": 2,
+            "lifetimeMax": 2,
+            "speedMin": 330,
+            "speedMax": 360,
+            "gravity": {
+              "x": 0,
+              "y": -40,
+              "z": 0
+            },
+            "startSizeMin": 7,
+            "startSizeMax": 10,
+            "endSizeMin": 2,
+            "endSizeMax": 3,
+            "endColor": {
+              "r": 1,
+              "g": 0.3,
+              "b": 0.1,
+              "a": 0
+            },
+            "collisionEnabled": true,
+            "collisionQueryBudget": 128,
+            "collisionMask": 65535,
+            "collisionFallback": 0,
+            "collisionFloor": -200,
+            "collisionBounce": 0.65,
+            "collisionFriction": 0.15,
+            "collisionEvents": true,
+            "collisionEventBudget": 32,
+            "subEmitterTrigger": 2,
+            "subEmitterInheritVelocity": 0.15,
+            "subEmitterChance": 1,
+            "collisionMode": 1,
+            "subEmitter": 3,
+            "startColor": {
+              "r": 1,
+              "g": 0.65,
+              "b": 0.18,
+              "a": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Wall2D",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -120,
+              "y": 0,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "RigidBody2D",
+          "data": {
+            "bodyType": 0
+          }
+        },
+        {
+          "type": "BoxCollider2D",
+          "data": {
+            "halfExtents": {
+              "x": 0.05,
+              "y": 1.8
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 10,
+              "y": 360
+            },
+            "color": {
+              "r": 0.25,
+              "g": 0.31,
+              "b": 0.4,
+              "a": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Impact2D",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "ParticleEmitter",
+          "data": {
+            "texture": "@uuid:24cb4e0f-7c75-4df4-9a4d-58480ee405c0",
+            "playOnStart": false,
+            "shape": 0,
+            "rate": 0,
+            "burstCount": 5,
+            "maxParticles": 256,
+            "lifetimeMin": 0.18,
+            "lifetimeMax": 0.35,
+            "speedMin": 35,
+            "speedMax": 80,
+            "gravity": {
+              "x": 0,
+              "y": -80,
+              "z": 0
+            },
+            "startSizeMin": 6,
+            "startSizeMax": 9,
+            "endSizeMin": 0,
+            "endSizeMax": 1,
+            "startColor": {
+              "r": 1,
+              "g": 0.65,
+              "b": 0.18,
+              "a": 1
+            },
+            "endColor": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "2D Physics",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -420,
+              "y": 250,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Text",
+          "data": {
+            "content": "2D Physics",
+            "fontSize": 26,
+            "color": {
+              "r": 1,
+              "g": 0.65,
+              "b": 0.18,
+              "a": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "CollisionCounter2D",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -420,
+              "y": -260,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Text",
+          "data": {
+            "content": "Waiting for contacts",
+            "fontSize": 18,
+            "color": {
+              "r": 0.75,
+              "g": 0.82,
+              "b": 0.9,
+              "a": 1
+            }
+          }
+        },
+        {
+          "type": "CollisionCounter",
+          "data": {
+            "mode": 1,
+            "total": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Sparks3D",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 80,
+              "y": 80,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "ParticleEmitter",
+          "data": {
+            "texture": "@uuid:24cb4e0f-7c75-4df4-9a4d-58480ee405c0",
+            "shape": 0,
+            "angleSpreadMin": -6,
+            "angleSpreadMax": 6,
+            "rate": 50,
+            "maxParticles": 256,
+            "lifetimeMin": 2,
+            "lifetimeMax": 2,
+            "speedMin": 330,
+            "speedMax": 360,
+            "gravity": {
+              "x": 0,
+              "y": -40,
+              "z": 0
+            },
+            "startSizeMin": 7,
+            "startSizeMax": 10,
+            "endSizeMin": 2,
+            "endSizeMax": 3,
+            "endColor": {
+              "r": 1,
+              "g": 0.3,
+              "b": 0.1,
+              "a": 0
+            },
+            "collisionEnabled": true,
+            "collisionQueryBudget": 128,
+            "collisionMask": 65535,
+            "collisionFallback": 0,
+            "collisionFloor": -200,
+            "collisionBounce": 0.65,
+            "collisionFriction": 0.15,
+            "collisionEvents": true,
+            "collisionEventBudget": 32,
+            "subEmitterTrigger": 2,
+            "subEmitterInheritVelocity": 0.15,
+            "subEmitterChance": 1,
+            "collisionMode": 2,
+            "subEmitter": 6,
+            "startColor": {
+              "r": 0.2,
+              "g": 0.75,
+              "b": 1,
+              "a": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Wall3D",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 380,
+              "y": 0,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "RigidBody3D",
+          "data": {
+            "bodyType": 0
+          }
+        },
+        {
+          "type": "BoxCollider3D",
+          "data": {
+            "halfExtents": {
+              "x": 5,
+              "y": 180,
+              "z": 80
+            }
+          }
+        },
+        {
+          "type": "Sprite",
+          "data": {
+            "size": {
+              "x": 10,
+              "y": 360
+            },
+            "color": {
+              "r": 0.25,
+              "g": 0.31,
+              "b": 0.4,
+              "a": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Impact3D",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "ParticleEmitter",
+          "data": {
+            "texture": "@uuid:24cb4e0f-7c75-4df4-9a4d-58480ee405c0",
+            "playOnStart": false,
+            "shape": 0,
+            "rate": 0,
+            "burstCount": 5,
+            "maxParticles": 256,
+            "lifetimeMin": 0.18,
+            "lifetimeMax": 0.35,
+            "speedMin": 35,
+            "speedMax": 80,
+            "gravity": {
+              "x": 0,
+              "y": -80,
+              "z": 0
+            },
+            "startSizeMin": 6,
+            "startSizeMax": 9,
+            "endSizeMin": 0,
+            "endSizeMax": 1,
+            "startColor": {
+              "r": 0.2,
+              "g": 0.75,
+              "b": 1,
+              "a": 1
+            },
+            "endColor": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "3D Physics",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 80,
+              "y": 250,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Text",
+          "data": {
+            "content": "3D Physics",
+            "fontSize": 26,
+            "color": {
+              "r": 0.2,
+              "g": 0.75,
+              "b": 1,
+              "a": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "CollisionCounter3D",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 80,
+              "y": -260,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Text",
+          "data": {
+            "content": "Waiting for contacts",
+            "fontSize": 18,
+            "color": {
+              "r": 0.75,
+              "g": 0.82,
+              "b": 0.9,
+              "a": 1
+            }
+          }
+        },
+        {
+          "type": "CollisionCounter",
+          "data": {
+            "mode": 2,
+            "total": 0
+          }
+        }
+      ]
+    }
+  ]
+}

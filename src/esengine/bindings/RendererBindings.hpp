@@ -143,6 +143,17 @@ void renderer_setEntityDrawOrder(ecs::Registry& registry, uintptr_t entitiesPtr,
 void renderer_submitAll(ecs::Registry& registry, i32 vpX, i32 vpY, i32 vpW, i32 vpH);
 #ifdef ES_ENABLE_PARTICLES
 void particle_update(ecs::Registry& registry, f32 dt);
+u32 particle_collisionQueryCount();
+// @heapreturn esengine::particle_collisionQueryCount() * 40
+uintptr_t particle_collisionQueries();
+u32 particle_collisionEventCount();
+// @heapreturn esengine::particle_collisionEventCount() * 56
+uintptr_t particle_collisionEvents();
+u32 particle_collisionStatsCount();
+// @heapreturn esengine::particle_collisionStatsCount() * 40
+uintptr_t particle_collisionStats();
+void particle_collisionResolve(ecs::Registry& registry, uintptr_t ptr, u32 count);
+void particle_collisionSetBudget(u32 queries, u32 events, bool debug);
 void particle_play(ecs::Registry& registry, u32 entity);
 void particle_stop(ecs::Registry& registry, u32 entity);
 void particle_reset(ecs::Registry& registry, u32 entity);

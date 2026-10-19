@@ -9,8 +9,16 @@ import type { CppRegistry } from '../wasm';
 import { engineApi } from '../ecs/bridge/engineApi';
 import { registerSceneComponentCodec } from '../scene/scene';
 import { Particle, ParticleAPI } from './ParticleAPI';
+import { particleQueryResolver } from './ParticleCollisionBridge';
+import { ParticleCollisionEvent, type ParticleCollisionEventPayload } from './collision';
+import { EventWriter, type EventWriterInstance } from '../ecs/event';
+import { Draw } from '../render/draw';
+import { registerScopedDrawCallback, unregisterDrawCallback } from '../render/customDraw';
+
 import { bakeGradient, type Gradient } from './gradient';
 import { bakeCurve, type Curve } from './curve';
+
+let overlayId = 0;
 
 export class ParticlePlugin implements Plugin {
     name = 'particle';
@@ -19,6 +27,7 @@ export class ParticlePlugin implements Plugin {
     private readonly gradients_ = new Map<number, Gradient>();
     /** Entity → authored size-over-life curve (out-of-band; baked to the C++ LUT). */
     private readonly sizeCurves_ = new Map<number, Curve>();
+    private overlay_: string | null = null;
     private offDespawn_: (() => void) | null = null;
 
     build(app: App): void {
@@ -28,8 +37,17 @@ export class ParticlePlugin implements Plugin {
         // the resource, and every call through it no-ops.
         const engine = engineApi(app) ?? {};
         const registry = app.world.getCppRegistry() as CppRegistry;
-        const api = new ParticleAPI(engine, registry);
+        const api = new ParticleAPI(engine, registry, particleQueryResolver(app));
         app.insertResource(Particle, api);
+        this.overlay_ = `particle-collision:${++overlayId}`;
+        registerScopedDrawCallback(this.overlay_,registry,()=>{
+            if (!api.debugNormals) return;
+            for (const hit of api.collisionContacts) {
+                Draw.line3D({x:hit.x,y:hit.y,z:hit.z},
+                    {x:hit.x+hit.normalX*20,y:hit.y+hit.normalY*20,z:hit.z+hit.normalZ*20},
+                    {r:.2,g:.9,b:.7,a:1},1);
+            }
+        });
 
         // The color gradient is authored as stops in the component data but isn't a
         // C++ field — carry it out-of-band and bake it into the sim's LUT on load.
@@ -66,15 +84,18 @@ export class ParticlePlugin implements Plugin {
         // play mode / standalone runtime (matches animation/physics/timeline).
         // The FX edit-preview flag is the one authoring exception (env.ts).
         app.addSystemToSchedule(Schedule.Update, defineSystem(
-            [Res(Time), Res(Particle)],
-            (time: TimeData, particle: ParticleAPI) => {
+            [Res(Time), Res(Particle), EventWriter(ParticleCollisionEvent)],
+            (time: TimeData, particle: ParticleAPI, events: EventWriterInstance<ParticleCollisionEventPayload>) => {
                 particle.update(time.delta);
+                for (const hit of particle.collisionEvents) events.send(hit);
             },
             { name: 'ParticleSystem' }
         ), { runIf: fxPreviewOrPlayMode });
     }
 
     cleanup(): void {
+        if (this.overlay_) unregisterDrawCallback(this.overlay_);
+        this.overlay_ = null;
         this.offDespawn_?.();
         this.offDespawn_ = null;
         this.gradients_.clear();

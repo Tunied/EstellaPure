@@ -501,6 +501,40 @@ const control = defineSystem([Res(Particle)], (particles) => {
   spawning a new entity each time.
 </Aside>
 
+## Scene collisions
+
+Enable collision and choose `ParticleCollisionMode.Floor`, `Physics2D` or
+`Physics3D`. Scene modes cast each particle's movement segment through the
+existing physics plugin, including fast motion across thin walls. These are
+point queries, not rigid particle volumes or depth-buffer collision. Particle
+positions, hit points and event velocities use project world units; physics
+adapters perform their existing unit conversion.
+
+`collisionQueryBudget` caps queries per emitter per update. The shared App cap
+defaults to 4,096 queries and 1,024 notifications; change it through
+`app.getResource(Particle).setCollisionBudget({ queries: 2048, events: 256 })`.
+Partial budgets rotate between emitters and live particles. `collisionMaxDistance`
+measures distance from the nearest active camera; zero or no active camera
+disables distance culling. Offscreen particles still collide within the budget.
+
+Choose `ParticleCollisionFallback.Floor` or `Skip` for unavailable physics,
+exhausted budgets and distance culling. An ordinary query miss never invokes
+fallback. `collisionMask` filters physics layers; zero selects none.
+
+Set `collisionEvents: true` and read `EventReader(ParticleCollisionEvent)` in a
+system on the next frame. Each payload contains emitter, pool slot, hit body,
+mode, world point, normal and incoming velocity. Floor hits use `INVALID_ENTITY`
+as their body. The `subEmitterTrigger: SubEmitterTrigger.Collision` option reuses
+the child's burst settings; local-space children are supported. Self triggers
+are rejected and inherited chains stop at depth eight.
+
+`collisionEventBudget` and the App event cap bound collision notifications,
+diagnostic contacts and collision sub-bursts. `collisionStats` exposes the latest
+queries, hits, skipped work, unavailable queries, fallbacks and dropped events.
+The Details panel shows these counters and transient hit normals. Normal display
+is not saved to the scene. The sample `particle-demo/assets/scenes/scene-collisions.esscene`
+demonstrates 2D and 3D walls, impact bursts and project-owned event counters.
+
 ## Performance & best practices
 
 - **Budget `maxParticles`.** It's a fixed pool; size it to the worst case, not

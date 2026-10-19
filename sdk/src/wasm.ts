@@ -592,6 +592,14 @@ export interface ESEngineModule {
     renderer_endScreenOverlay?(targetHandle: number): void;
     renderer_submitAll(registry: CppRegistry, vpX: number, vpY: number, vpW: number, vpH: number): void;
     particle_update?(registry: CppRegistry, dt: number): void;
+    particle_collisionQueryCount?(): number;
+    particle_collisionQueries?(): number;
+    particle_collisionEventCount?(): number;
+    particle_collisionEvents?(): number;
+    particle_collisionStatsCount?(): number;
+    particle_collisionStats?(): number;
+    particle_collisionResolve?(registry: CppRegistry, ptr: number, count: number): void;
+    particle_collisionSetBudget?(queries: number, events: number, debug: boolean): void;
     particle_play?(registry: CppRegistry, entity: number): void;
     particle_stop?(registry: CppRegistry, entity: number): void;
     particle_reset?(registry: CppRegistry, entity: number): void;

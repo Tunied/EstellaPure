@@ -201,6 +201,15 @@ EMSCRIPTEN_BINDINGS(esengine_enums) {
         .value("Scissor", esengine::ecs::MaskMode::Scissor)
         .value("Stencil", esengine::ecs::MaskMode::Stencil);
 
+    enum_<esengine::ecs::ParticleCollisionFallback>("ParticleCollisionFallback")
+        .value("Floor", esengine::ecs::ParticleCollisionFallback::Floor)
+        .value("Skip", esengine::ecs::ParticleCollisionFallback::Skip);
+
+    enum_<esengine::ecs::ParticleCollisionMode>("ParticleCollisionMode")
+        .value("Floor", esengine::ecs::ParticleCollisionMode::Floor)
+        .value("Physics2D", esengine::ecs::ParticleCollisionMode::Physics2D)
+        .value("Physics3D", esengine::ecs::ParticleCollisionMode::Physics3D);
+
     enum_<esengine::ecs::ParticleEasing>("ParticleEasing")
         .value("Linear", esengine::ecs::ParticleEasing::Linear)
         .value("EaseIn", esengine::ecs::ParticleEasing::EaseIn)
@@ -237,7 +246,8 @@ EMSCRIPTEN_BINDINGS(esengine_enums) {
 
     enum_<esengine::ecs::SubEmitterTrigger>("SubEmitterTrigger")
         .value("Death", esengine::ecs::SubEmitterTrigger::Death)
-        .value("Birth", esengine::ecs::SubEmitterTrigger::Birth);
+        .value("Birth", esengine::ecs::SubEmitterTrigger::Birth)
+        .value("Collision", esengine::ecs::SubEmitterTrigger::Collision);
 
     enum_<esengine::ecs::TextAlign>("TextAlign")
         .value("Left", esengine::ecs::TextAlign::Left)
@@ -885,6 +895,13 @@ struct ParticleEmitterJS {
     f32 trailMinDistance;
     bool collisionEnabled;
     f32 collisionFloor;
+    i32 collisionMode;
+    u32 collisionMask;
+    i32 collisionQueryBudget;
+    f32 collisionMaxDistance;
+    i32 collisionFallback;
+    bool collisionEvents;
+    i32 collisionEventBudget;
     f32 collisionBounce;
     f32 collisionFriction;
     f32 collisionLifetimeLoss;
@@ -946,6 +963,13 @@ void particleemitterApplyJS(esengine::ecs::ParticleEmitter& c, const ParticleEmi
     c.trailMinDistance = js.trailMinDistance;
     c.collisionEnabled = js.collisionEnabled;
     c.collisionFloor = js.collisionFloor;
+    c.collisionMode = js.collisionMode;
+    c.collisionMask = js.collisionMask;
+    c.collisionQueryBudget = js.collisionQueryBudget;
+    c.collisionMaxDistance = js.collisionMaxDistance;
+    c.collisionFallback = js.collisionFallback;
+    c.collisionEvents = js.collisionEvents;
+    c.collisionEventBudget = js.collisionEventBudget;
     c.collisionBounce = js.collisionBounce;
     c.collisionFriction = js.collisionFriction;
     c.collisionLifetimeLoss = js.collisionLifetimeLoss;
@@ -1014,6 +1038,13 @@ ParticleEmitterJS particleemitterToJS(const esengine::ecs::ParticleEmitter& c) {
     js.trailMinDistance = c.trailMinDistance;
     js.collisionEnabled = c.collisionEnabled;
     js.collisionFloor = c.collisionFloor;
+    js.collisionMode = c.collisionMode;
+    js.collisionMask = c.collisionMask;
+    js.collisionQueryBudget = c.collisionQueryBudget;
+    js.collisionMaxDistance = c.collisionMaxDistance;
+    js.collisionFallback = c.collisionFallback;
+    js.collisionEvents = c.collisionEvents;
+    js.collisionEventBudget = c.collisionEventBudget;
     js.collisionBounce = c.collisionBounce;
     js.collisionFriction = c.collisionFriction;
     js.collisionLifetimeLoss = c.collisionLifetimeLoss;
@@ -1830,6 +1861,13 @@ EMSCRIPTEN_BINDINGS(esengine_components) {
         .field("trailMinDistance", &ParticleEmitterJS::trailMinDistance)
         .field("collisionEnabled", &ParticleEmitterJS::collisionEnabled)
         .field("collisionFloor", &ParticleEmitterJS::collisionFloor)
+        .field("collisionMode", &ParticleEmitterJS::collisionMode)
+        .field("collisionMask", &ParticleEmitterJS::collisionMask)
+        .field("collisionQueryBudget", &ParticleEmitterJS::collisionQueryBudget)
+        .field("collisionMaxDistance", &ParticleEmitterJS::collisionMaxDistance)
+        .field("collisionFallback", &ParticleEmitterJS::collisionFallback)
+        .field("collisionEvents", &ParticleEmitterJS::collisionEvents)
+        .field("collisionEventBudget", &ParticleEmitterJS::collisionEventBudget)
         .field("collisionBounce", &ParticleEmitterJS::collisionBounce)
         .field("collisionFriction", &ParticleEmitterJS::collisionFriction)
         .field("collisionLifetimeLoss", &ParticleEmitterJS::collisionLifetimeLoss);
@@ -3549,9 +3587,16 @@ static_assert(offsetof(esengine::ecs::ParticleEmitter, trailPoints) == 240, "ABI
 static_assert(offsetof(esengine::ecs::ParticleEmitter, trailMinDistance) == 244, "ABI offset drift: esengine::ecs::ParticleEmitter.trailMinDistance (EHT expected 244)");
 static_assert(offsetof(esengine::ecs::ParticleEmitter, collisionEnabled) == 248, "ABI offset drift: esengine::ecs::ParticleEmitter.collisionEnabled (EHT expected 248)");
 static_assert(offsetof(esengine::ecs::ParticleEmitter, collisionFloor) == 252, "ABI offset drift: esengine::ecs::ParticleEmitter.collisionFloor (EHT expected 252)");
-static_assert(offsetof(esengine::ecs::ParticleEmitter, collisionBounce) == 256, "ABI offset drift: esengine::ecs::ParticleEmitter.collisionBounce (EHT expected 256)");
-static_assert(offsetof(esengine::ecs::ParticleEmitter, collisionFriction) == 260, "ABI offset drift: esengine::ecs::ParticleEmitter.collisionFriction (EHT expected 260)");
-static_assert(offsetof(esengine::ecs::ParticleEmitter, collisionLifetimeLoss) == 264, "ABI offset drift: esengine::ecs::ParticleEmitter.collisionLifetimeLoss (EHT expected 264)");
+static_assert(offsetof(esengine::ecs::ParticleEmitter, collisionMode) == 256, "ABI offset drift: esengine::ecs::ParticleEmitter.collisionMode (EHT expected 256)");
+static_assert(offsetof(esengine::ecs::ParticleEmitter, collisionMask) == 260, "ABI offset drift: esengine::ecs::ParticleEmitter.collisionMask (EHT expected 260)");
+static_assert(offsetof(esengine::ecs::ParticleEmitter, collisionQueryBudget) == 264, "ABI offset drift: esengine::ecs::ParticleEmitter.collisionQueryBudget (EHT expected 264)");
+static_assert(offsetof(esengine::ecs::ParticleEmitter, collisionMaxDistance) == 268, "ABI offset drift: esengine::ecs::ParticleEmitter.collisionMaxDistance (EHT expected 268)");
+static_assert(offsetof(esengine::ecs::ParticleEmitter, collisionFallback) == 272, "ABI offset drift: esengine::ecs::ParticleEmitter.collisionFallback (EHT expected 272)");
+static_assert(offsetof(esengine::ecs::ParticleEmitter, collisionEvents) == 276, "ABI offset drift: esengine::ecs::ParticleEmitter.collisionEvents (EHT expected 276)");
+static_assert(offsetof(esengine::ecs::ParticleEmitter, collisionEventBudget) == 280, "ABI offset drift: esengine::ecs::ParticleEmitter.collisionEventBudget (EHT expected 280)");
+static_assert(offsetof(esengine::ecs::ParticleEmitter, collisionBounce) == 284, "ABI offset drift: esengine::ecs::ParticleEmitter.collisionBounce (EHT expected 284)");
+static_assert(offsetof(esengine::ecs::ParticleEmitter, collisionFriction) == 288, "ABI offset drift: esengine::ecs::ParticleEmitter.collisionFriction (EHT expected 288)");
+static_assert(offsetof(esengine::ecs::ParticleEmitter, collisionLifetimeLoss) == 292, "ABI offset drift: esengine::ecs::ParticleEmitter.collisionLifetimeLoss (EHT expected 292)");
 static_assert(offsetof(esengine::ecs::ParticleForceField, type) == 0, "ABI offset drift: esengine::ecs::ParticleForceField.type (EHT expected 0)");
 static_assert(offsetof(esengine::ecs::ParticleForceField, strength) == 4, "ABI offset drift: esengine::ecs::ParticleForceField.strength (EHT expected 4)");
 static_assert(offsetof(esengine::ecs::ParticleForceField, radius) == 8, "ABI offset drift: esengine::ecs::ParticleForceField.radius (EHT expected 8)");
@@ -3725,7 +3770,7 @@ static_assert(offsetof(esengine::ecs::Velocity, angular) == 12, "ABI offset drif
 // ABI Hash -- runtime handshake against the SDK bundle
 // =============================================================================
 
-static const char* kEsAbiLayoutHash = "4a247e158faf0865";
+static const char* kEsAbiLayoutHash = "2f29375a9e0f797d";
 
 std::string esengineGetAbiLayoutHash() {
     return std::string(kEsAbiLayoutHash);

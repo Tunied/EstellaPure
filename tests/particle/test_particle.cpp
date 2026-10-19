@@ -1432,3 +1432,136 @@ TEST_CASE("shape_cone_direction_within_angle") {
     });
     CHECK(allWithinCone);
 }
+
+// Scene collision is a synchronous two-stage batch: the physics adapters do not
+// own integration, responses, event limits or particle lifetime.
+static Entity makeSceneCollisionEmitter(ecs::Registry& registry, ParticleSystem& system, i32 mode=2, i32 capacity=4) {
+    Entity e=registry.create(); registry.emplace<ecs::Transform>(e);
+    auto& emitter=registry.emplace<ecs::ParticleEmitter>(e);
+    emitter.rate=0;emitter.burstCount=0;emitter.maxParticles=capacity;
+    emitter.gravity=glm::vec3(0);emitter.collisionEnabled=true;emitter.collisionMode=mode;
+    emitter.collisionFallback=1;emitter.collisionBounce=.5f;emitter.collisionFriction=.25f;
+    emitter.collisionEvents=true;emitter.collisionFloor=-1;
+    system.update(registry,0);
+    system.getState(e)->collisionCursor=0;
+    return e;
+}
+static Particle* movingParticle(ParticleSystem& system, Entity e, glm::vec3 position={0,0,0}, glm::vec3 velocity={10,2,4}) {
+    auto* p=system.getState(e)->pool.allocate();p->lifetime=10;p->position=position;p->velocity=velocity;return p;
+}
+TEST_CASE("particle_scene_segment_response_and_integer_entity_event") {
+    ecs::Registry registry;ParticleSystem system;Entity e=makeSceneCollisionEmitter(registry,system);
+    auto* p=movingParticle(system,e);system.update(registry,.5f);
+    REQUIRE_EQ(system.collisionQueries().size(),1u);
+    CHECK_EQ(system.collisionQueries()[0].dx,5);CHECK_EQ(system.collisionQueries()[0].dz,2);
+    const CollisionReply hit{1,0xf1234567u,2,.4f,.8f,-1,0,0};system.resolveCollisions(registry,&hit,1);
+    CHECK(p->position.x==doctest::Approx(1.9999f));CHECK(p->velocity.x==doctest::Approx(-5));
+    CHECK(p->velocity.y==doctest::Approx(1.5f));CHECK(p->velocity.z==doctest::Approx(3));
+    REQUIRE_EQ(system.collisionEvents().size(),1u);CHECK_EQ(system.collisionEvents()[0].body,0xf1234567u);
+    CHECK_EQ(system.collisionEvents()[0].vx,10);CHECK_EQ(system.collisionStats()[0].hits,1u);
+    system.resolveCollisions(registry,&hit,1);CHECK_EQ(system.collisionEvents().size(),1u);
+}
+TEST_CASE("particle_scene_miss_is_not_unavailable_or_floor_fallback") {
+    ecs::Registry registry;ParticleSystem system;Entity e=makeSceneCollisionEmitter(registry,system);
+    registry.get<ecs::ParticleEmitter>(e).collisionFallback=0;
+    auto* p=movingParticle(system,e,{0,0,0},{0,-10,0});system.update(registry,.5f);
+    const CollisionReply miss{0,0,0,0,0,0,0,0};system.resolveCollisions(registry,&miss,1);
+    CHECK_EQ(p->position.y,-5);CHECK_EQ(system.collisionStats()[0].fallbacks,0u);CHECK_EQ(system.collisionStats()[0].unavailable,0u);
+}
+TEST_CASE("particle_scene_missing_provider_uses_explicit_floor_fallback") {
+    ecs::Registry registry;ParticleSystem system;Entity e=makeSceneCollisionEmitter(registry,system);
+    registry.get<ecs::ParticleEmitter>(e).collisionFallback=0;
+    auto* p=movingParticle(system,e,{0,0,0},{0,-10,0});system.update(registry,.5f);system.resolveCollisions(registry,nullptr,0);
+    CHECK_EQ(p->position.y,-1);CHECK_EQ(p->velocity.y,5);CHECK_EQ(system.collisionStats()[0].unavailable,1u);CHECK_EQ(system.collisionStats()[0].fallbacks,1u);
+}
+TEST_CASE("particle_scene_budget_and_nearest_camera_distance_are_bounded") {
+    ecs::Registry registry;ParticleSystem system;Entity e=makeSceneCollisionEmitter(registry,system);
+    auto& emitter=registry.get<ecs::ParticleEmitter>(e);emitter.collisionQueryBudget=0;
+    movingParticle(system,e);system.update(registry,.1f);
+    CHECK(system.collisionQueries().empty());CHECK_EQ(system.collisionStats()[0].budgetSkipped,1u);
+    emitter.collisionQueryBudget=128;emitter.collisionMaxDistance=1;
+    const auto camera=registry.create();registry.emplace<ecs::Camera>(camera).isActive=true;registry.emplace<ecs::Transform>(camera);
+    system.getState(e)->pool.particles()[0].position={100,100,0};system.update(registry,.1f);
+    CHECK(system.collisionQueries().empty());CHECK_EQ(system.collisionStats()[0].distanceSkipped,1u);
+}
+TEST_CASE("particle_scene_global_cap_rotates_between_emitters") {
+    ecs::Registry registry;ParticleSystem system;
+    Entity a=makeSceneCollisionEmitter(registry,system,2,1),b=makeSceneCollisionEmitter(registry,system,2,1);
+    movingParticle(system,a);movingParticle(system,b);system.setCollisionBudget(1,32);
+    system.update(registry,.1f);REQUIRE_EQ(system.collisionQueries().size(),1u);const auto first=system.collisionQueries()[0].emitter;
+    system.resolveCollisions(registry,nullptr,0);system.update(registry,.1f);REQUIRE_EQ(system.collisionQueries().size(),1u);
+    CHECK_NE(system.collisionQueries()[0].emitter,first);
+}
+TEST_CASE("particle_scene_partial_budget_rotates_pool_slots") {
+    ecs::Registry registry;ParticleSystem system;Entity e=makeSceneCollisionEmitter(registry,system,2,2);
+    registry.get<ecs::ParticleEmitter>(e).collisionQueryBudget=1;
+    movingParticle(system,e);movingParticle(system,e);system.update(registry,.1f);
+    REQUIRE_EQ(system.collisionQueries().size(),1u);const auto first=system.collisionQueries()[0].slot;
+    system.resolveCollisions(registry,nullptr,0);system.update(registry,.1f);REQUIRE_EQ(system.collisionQueries().size(),1u);
+    CHECK_NE(system.collisionQueries()[0].slot,first);
+}
+TEST_CASE("particle_scene_2d_retains_particle_depth_and_local_rotation") {
+    ecs::Registry registry;ParticleSystem system;Entity e=makeSceneCollisionEmitter(registry,system,1);
+    auto* p=movingParticle(system,e,{0,0,17},{10,0,5});system.update(registry,.5f);
+    REQUIRE_EQ(system.collisionQueries().size(),1u);CHECK_EQ(system.collisionQueries()[0].dz,0);
+    const CollisionReply hit{1,5,2,0,0,-1,0,0};system.resolveCollisions(registry,&hit,1);
+    CHECK_EQ(p->position.z,19.5f);
+    registry.get<ecs::ParticleEmitter>(e).collisionMode=2;
+    registry.get<ecs::ParticleEmitter>(e).simulationSpace=static_cast<i32>(ecs::SimulationSpace::Local);
+    auto& transform=registry.get<ecs::Transform>(e);transform.worldPosition={10,0,0};
+    transform.worldRotation=glm::angleAxis(glm::radians(90.0f),glm::vec3(0,0,1));
+    p->position={0,0,0};p->velocity={10,0,0};system.getState(e)->collisionCursor=0;system.update(registry,.5f);
+    REQUIRE_EQ(system.collisionQueries().size(),1u);CHECK(system.collisionQueries()[0].dy==doctest::Approx(5));
+    const CollisionReply localHit{1,5,10,2,0,0,-1,0};system.resolveCollisions(registry,&localHit,1);
+    CHECK(p->position.x==doctest::Approx(1.9999f));CHECK(p->velocity.x==doctest::Approx(-5));
+}
+TEST_CASE("particle_scene_event_budget_lifetime_and_self_child_are_bounded") {
+    ecs::Registry registry;ParticleSystem system;Entity e=makeSceneCollisionEmitter(registry,system,2,2);
+    auto& emitter=registry.get<ecs::ParticleEmitter>(e);emitter.collisionEventBudget=1;emitter.collisionLifetimeLoss=1;
+    emitter.subEmitter=e.raw;emitter.subEmitterTrigger=static_cast<i32>(ecs::SubEmitterTrigger::Collision);
+    movingParticle(system,e);movingParticle(system,e);system.update(registry,.5f);
+    const CollisionReply hits[2]={{1,5,2,.4f,.8f,-1,0,0},{1,5,2,.4f,.8f,-1,0,0}};system.resolveCollisions(registry,hits,2);
+    CHECK_EQ(system.collisionEvents().size(),1u);CHECK_EQ(system.collisionStats()[0].eventDropped,1u);CHECK_EQ(system.aliveCount(e),0u);
+}
+TEST_CASE("particle_scene_stale_slot_and_invalid_hit_never_teleport") {
+    ecs::Registry registry;ParticleSystem system;Entity e=makeSceneCollisionEmitter(registry,system);
+    movingParticle(system,e);system.update(registry,.5f);system.reset(e);
+    auto* p=movingParticle(system,e,{99,0,0});const CollisionReply hit{1,5,2,.4f,.8f,-1,0,0};system.resolveCollisions(registry,&hit,1);
+    CHECK_EQ(p->position.x,99);CHECK(system.collisionEvents().empty());
+    p->position={0,0,0};system.getState(e)->collisionCursor=0;system.update(registry,.5f);
+    const CollisionReply invalid{1,5,1000,1000,1000,0,0,0};system.resolveCollisions(registry,&invalid,1);
+    CHECK_EQ(p->position.x,5);CHECK_EQ(system.collisionStats()[0].unavailable,1u);
+}
+TEST_CASE("particle_scene_debug_contacts_do_not_publish_gameplay_events") {
+    ecs::Registry registry;ParticleSystem system;Entity e=makeSceneCollisionEmitter(registry,system);
+    registry.get<ecs::ParticleEmitter>(e).collisionEvents=false;system.setCollisionBudget(4096,1024,true);
+    movingParticle(system,e);system.update(registry,.5f);const CollisionReply hit{1,5,2,.4f,.8f,-1,0,0};system.resolveCollisions(registry,&hit,1);
+    REQUIRE_EQ(system.collisionEvents().size(),1u);CHECK_EQ(system.collisionEvents()[0].publish,0u);
+}
+TEST_CASE("particle_collision_child_uses_its_local_storage_frame") {
+    ecs::Registry registry; ParticleSystem system;
+    const Entity parent = makeSceneCollisionEmitter(registry, system);
+    const Entity child = registry.create();
+    auto& transform = registry.emplace<ecs::Transform>(child);
+    transform.worldPosition = {100,20,0};
+    transform.worldRotation = glm::angleAxis(glm::radians(90.0f), glm::vec3(0,0,1));
+    auto& emitter = registry.emplace<ecs::ParticleEmitter>(child);
+    emitter.simulationSpace = static_cast<i32>(ecs::SimulationSpace::Local);
+    emitter.rate = 0; emitter.burstCount = 1; emitter.maxParticles = 4;
+    emitter.shape = 0; emitter.speedMin = emitter.speedMax = 0;
+    auto& source = registry.get<ecs::ParticleEmitter>(parent);
+    source.subEmitter = child.raw;
+    source.subEmitterTrigger = static_cast<i32>(ecs::SubEmitterTrigger::Collision);
+    source.subEmitterInheritVelocity = .5f;
+    movingParticle(system, parent); system.update(registry,.5f); system.reset(child);
+    const CollisionReply hit{1,5,2,.4f,.8f,-1,0,0};
+    system.resolveCollisions(registry,&hit,1);
+    REQUIRE_EQ(system.aliveCount(child),1u);
+    const auto& spawned = system.getState(child)->pool.particles()[0];
+    const auto position = transform.worldPosition + transform.worldRotation * spawned.position;
+    const auto velocity = transform.worldRotation * spawned.velocity;
+    CHECK(position.x == doctest::Approx(1.9999f));
+    CHECK(position.y == doctest::Approx(.4f).epsilon(.0001f));
+    CHECK(velocity.x == doctest::Approx(-2.5f));
+    CHECK_EQ(spawned.subEmitterDepth,1u);
+}

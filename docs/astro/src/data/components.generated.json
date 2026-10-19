@@ -3093,7 +3093,8 @@
           "default": "Death",
           "values": [
             "Death",
-            "Birth"
+            "Birth",
+            "Collision"
           ]
         },
         {
@@ -3145,6 +3146,54 @@
           "key": "collisionFloor",
           "type": "number",
           "default": "0"
+        },
+        {
+          "key": "collisionMode",
+          "type": "enum",
+          "default": "Floor",
+          "values": [
+            "Floor",
+            "Physics2D",
+            "Physics3D"
+          ]
+        },
+        {
+          "key": "collisionMask",
+          "type": "number",
+          "default": "65535",
+          "range": "0–65535, step 1"
+        },
+        {
+          "key": "collisionQueryBudget",
+          "type": "number",
+          "default": "128",
+          "range": "0–4096, step 1"
+        },
+        {
+          "key": "collisionMaxDistance",
+          "type": "number",
+          "default": "0",
+          "range": "≥ 0"
+        },
+        {
+          "key": "collisionFallback",
+          "type": "enum",
+          "default": "Floor",
+          "values": [
+            "Floor",
+            "Skip"
+          ]
+        },
+        {
+          "key": "collisionEvents",
+          "type": "boolean",
+          "default": "false"
+        },
+        {
+          "key": "collisionEventBudget",
+          "type": "number",
+          "default": "32",
+          "range": "0–1024, step 1"
         },
         {
           "key": "collisionBounce",
