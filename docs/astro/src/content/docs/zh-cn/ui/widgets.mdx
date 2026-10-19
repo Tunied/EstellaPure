@@ -450,3 +450,55 @@ const actions = defineInputMap({ Move: Axis2D(Virtual('move')) });
 
 **Mobile Controls** 示例在场景中放置这两个控件，同时支持键盘、可选倾斜操控和
 命中震动。
+
+## TabView
+
+从 UI Widgets 放入 **TabView** 后，可继续用普通 UI 工具编辑 Toggle 页签和内容页。
+Inspector 将每个页签与内容页配对，支持绑定排序、初始页面、允许全部关闭、键盘方向、
+循环导航和聚焦自动选中。「编辑器预览」只改变临时显示，不会修改保存的初始页面。
+绑定对象必须是当前视图内不重复的子实体；嵌套 ToggleGroup 的页签由其自身管理。
+
+运行时 `UITabView.selectedIndex` 表示当前选择；允许全部关闭时 `-1` 表示无选择。
+它复用 `UIToggleGroup`，通过 `UINode.display` 控制整个内容子树，并发送
+`change` 事件 `{ index, page }`。方向键遵循横向/纵向设置，Home/End 到达首尾可用页签，
+自动跳过禁用或隐藏的页签。关闭聚焦自动选中后，用 Enter/Space 激活聚焦的页签。
+
+```ts
+import { createTabView, px } from 'esengine';
+const settings = createTabView({ world, events, parent: canvas,
+  node: { width: px(420), height: px(240) },
+  labels: ['画面', '声音', '操作'],
+});
+// 将普通 UI 实体放到 settings.pages[1] 下即可编辑声音面板。
+settings.select(1);
+```
+
+场景、Prefab 实例化和复制会重映射 `tabs` / `pages` 实体数组。
+`labels` 提供页签直接 Text 子节点的文字。删除当前选择的目标后会选择其他有效绑定；
+移除绑定会恢复该内容页原本的 display。
+
+## Tooltip
+
+为现有控件添加 `UITooltip`，或从 UI Widgets 放入 Tooltip 示例目标。
+鼠标和触控触发需要目标具有 `Interactable`，键盘提示需要 `Focusable`。
+浮层使用引擎内 UI，不获取焦点、不拦截输入；离开目标、松手、取消触控、删除目标
+或隐藏页面时会关闭。触控移动超过 8 个屏幕像素会取消长按，不影响原本拖动操作。
+
+```ts
+import { attachTooltip } from 'esengine';
+attachTooltip(world, musicVolume, {
+  content: '调整背景音乐音量。',
+  hoverDelay: 0.5, longPressDelay: 0.6,
+  side: 0, gap: 8, maxWidth: 240, avoidEdges: true,
+});
+```
+
+`side` 的 0/1/2/3 对应下/上/左/右。定位会先尝试优先方向和相反方向，再限制在屏幕安全区内。
+`maxWidth` 是布局像素单位的最大文本宽度。`stylePrefab` 留空时使用项目的实时 UI 主题；
+自定义 `.esprefab` 需要 UINode 根节点和 Text 子节点，保留其中的颜色和字体样式，
+浮层行为负责位置、文字和内边距。样式通过普通 Prefab 资源加载流程加载，需要 `PrefabsPlugin`。
+目标消失后，即使异步加载刚好完成也不会重新弹出提示。「编辑器预览」跳过等待时间，
+不会改变保存的延迟和触发设置。
+
+可在 **UI Controls** 示例中打开 `assets/scenes/tabs-tooltips.esscene` 查看场景内直接编辑的
+页签和带提示的音量滑条。TreeView 和 ColorPicker 将在后续阶段补充。

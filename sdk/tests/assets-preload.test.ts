@@ -11,6 +11,9 @@ import { Assets } from '../src/asset/Assets';
 import { Catalog, type CatalogData } from '../src/asset/Catalog';
 import type { Backend } from '../src/asset/Backend';
 import type { AssetLoader } from '../src/asset/AssetLoader';
+import { registerComponent } from '../src/ecs/component';
+import { UITooltip } from '../src/ui/behavior/tooltip';
+import type { SceneData } from '../src/scene/scene';
 
 vi.mock('../src/wasm/resourceManager', () => ({
     requireResourceManager: () => ({
@@ -116,6 +119,21 @@ describe('Assets.preload', () => {
         // The eventual real load is a pure cache hit — the loader doesn't re-run.
         await assets.load('custom', 'data/level.custom');
         expect(customLoads.filter(p => p === 'data/level.custom')).toHaveLength(1);
+    });
+
+    it('preloads a tooltip style prefab through component metadata and owns its lease', async () => {
+        registerComponent('UITooltip', UITooltip);
+        const unload = vi.fn();
+        assets.register({ type: 'prefab', extensions: ['.esprefab'], load: async () => ({ data: {} }), unload });
+        const scene: SceneData = { version: '1.0', name: 'Hints', entities: [
+            { id: 1, name: 'Volume', parent: null, children: [], components: [
+                { type: 'UITooltip', data: { stylePrefab: 'ui/Tip.esprefab' } },
+            ] },
+        ] };
+        const result = await assets.preloadSceneAssets(scene);
+        expect(result.missing).toEqual([]);
+        expect(result.acquisitions?.some(a => a.type === 'prefab' && a.path === 'ui/Tip.esprefab')).toBe(true);
+        result.scope.releaseAll(); expect(unload).toHaveBeenCalledTimes(1);
     });
 
     it('reports refs whose type cannot be determined without rejecting', async () => {

@@ -17,6 +17,8 @@ import { inspectFocusTraversal, isFocusEligible } from './focus-inspection';
 import { playModeOnly } from '../../ecs/env';
 import { UIEvents, UIEventQueue, UIEventType } from '../core/events';
 import { PluginName } from '../../ecs/systemLabels';
+import { moveUIFocus } from './focus-transition';
+import { UITabView, tabViewBindings } from '../behavior/tab-view';
 
 export class FocusPlugin implements Plugin {
     name = PluginName.Focus;
@@ -39,6 +41,15 @@ export class FocusPlugin implements Plugin {
         this.keyDefaults_.get(app)?.();
         this.keyDefaults_.set(app, setKeyDefaultPolicy(app.getResource(Input), code => {
             if (!playModeOnly() || app.isPaused()) return false;
+            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(code)) {
+                return world.getEntitiesWithComponents([UITabView]).some(root => {
+                    const d = world.get(root, UITabView);
+                    return (code === 'Home' || code === 'End' || (d.vertical
+                        ? code === 'ArrowUp' || code === 'ArrowDown' : code === 'ArrowLeft' || code === 'ArrowRight'))
+                        && tabViewBindings(world, root, d).some(i => d.tabs[i] === focusManager.focusedEntity
+                            && isFocusEligible(world, d.tabs[i]));
+                });
+            }
             if (code !== 'Tab' && code !== 'Enter' && code !== 'Space') return false;
             if (code === 'Tab') return inspectFocusTraversal(world).entries.some(entry => entry.skipped === null);
             const focused = focusManager.focusedEntity;
@@ -117,24 +128,7 @@ export class FocusPlugin implements Plugin {
                 }
 
                 function setFocus(entity: Entity, visible: boolean): void {
-                    if (!isFocusEligible(world, entity)) return;
-                    const prev = focusManager.focusedEntity;
-                    // Re-focusing what is already focused still updates HOW: tabbing
-                    // to a control you had clicked must start drawing the highlight.
-                    if (prev === entity) {
-                        focusManager.focusVisible = visible;
-                        return;
-                    }
-
-                    clearFocus();
-                    // A blur handler can remove the target, open a modal, or redirect focus.
-                    if (focusManager.focusedEntity !== null || !isFocusEligible(world, entity)) return;
-                    focusManager.focus(entity, visible);
-                    const f = world.get(entity, Focusable) as FocusableData;
-                    f.isFocused = true;
-                    world.set(entity, Focusable, f);
-                    events.emit(entity, UIEventType.Focus);
-                    if (focusManager.focusedEntity === entity && !isFocusEligible(world, entity)) clearFocus();
+                    moveUIFocus(world, events, focusManager, entity, visible);
                 }
 
                 function clearFocus(): void {

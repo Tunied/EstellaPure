@@ -1571,6 +1571,7 @@ export class Assets {
         const meshPaths = discovered.byType.get('mesh') ?? new Set<string>();
         const environmentPaths = discovered.byType.get('environment') ?? new Set<string>();
         const probeVolumePaths = discovered.byType.get('probeVolume') ?? new Set<string>();
+        const prefabPaths = discovered.byType.get('prefab') ?? new Set<string>();
         const spinePairs = discovered.spines;
 
         const textureHandles = new Map<string, number>();
@@ -1696,6 +1697,7 @@ export class Assets {
         pushAcquire(graphPaths, p => this.acquireTypedLease_('scriptgraph', p), 'scriptgraph');
         pushAcquire(animatorPaths, p => this.acquireTypedLease_('animatorcontroller', p), 'animatorcontroller');
         pushAcquire(avatarPaths, p => this.acquireTypedLease_('avatar', p), 'avatar');
+        pushAcquire(prefabPaths, p => this.acquireTypedLease_('prefab', p), 'prefab');
 
         const totalCount = tasks.length;
         onProgress?.(0, totalCount);

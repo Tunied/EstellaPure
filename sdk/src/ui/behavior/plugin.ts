@@ -31,6 +31,9 @@ import { UIDropdown, createDropdownSystem } from './dropdown';
 import { createScrollbarSystem } from './scrollbar';
 import { registerComponent } from '../../ecs/component';
 import { VirtualJoystick, VirtualButton, createVirtualControlSystem } from './virtual-controls';
+import { UITabView, createTabViewSystem } from './tab-view';
+import { UITooltip, createTooltipSystem } from './tooltip';
+import type { PrefabServer } from '../../prefab/prefabServer';
 
 /** Screen-px slop before a press becomes a scroll drag (matches Draggable). */
 const SCROLL_DRAG_THRESHOLD_PX = 5;
@@ -147,6 +150,18 @@ export class UIBehaviorPlugin implements Plugin {
             createToggleSystem(world, events),
             { runIf: playModeOnly },
         );
+
+        registerComponent('UITabView', UITabView);
+        registerComponent('UITooltip', UITooltip);
+        app.addSystemToSchedule(Schedule.Update, createTabViewSystem(world, events), { runIf: playModeOnly });
+        const tooltips = createTooltipSystem(world, { instantiate: (ref, parent) => {
+            const prefabs = app.getResourceByName('Prefabs') as PrefabServer | undefined;
+            if (!prefabs) return Promise.reject(new Error('Tooltip style prefabs require PrefabsPlugin'));
+            return prefabs.instantiate(ref, { parent, scene: false });
+        } }, playModeOnly);
+        const offTooltipExecution = app.onExecutionChange(held => { if (held) tooltips.reset(); });
+        this.controlCleanup_.set(app, () => { virtualControls.dispose(); offTooltipExecution(); tooltips.dispose(); });
+        app.addSystemToSchedule(Schedule.Update, tooltips.system);
 
         registerComponent('UIDropdown', UIDropdown);
         app.addSystemToSchedule(

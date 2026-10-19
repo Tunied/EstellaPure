@@ -113,6 +113,8 @@ export const COMPONENT_DOCS: Record<string, ComponentDoc> = {
   UISlider: { category: 'ui', summary: 'A draggable value along a range, with an optional step.', doc: 'ui/widgets', anchor: 'slider', anchorZh: 'slider-滑块' },
   UIToggle: { category: 'ui', summary: 'A two-state widget — checkbox or switch — and its group membership.', doc: 'ui/widgets', anchor: 'toggle', anchorZh: 'toggle-开关' },
   UIToggleGroup: { category: 'ui', summary: 'Makes the toggles beneath it exclusive — a radio group or tab bar. Put it on their common ancestor.', doc: 'ui/widgets', anchor: 'toggle', anchorZh: 'toggle-开关' },
+  UITabView: { category: 'ui', summary: 'Connects an ordered ToggleGroup to content pages, with keyboard navigation.', doc: 'ui/widgets', anchor: 'tabview', anchorZh: 'tabview' },
+  UITooltip: { category: 'ui', summary: 'A themed engine tooltip with hover, focus, long press and screen-edge placement.', doc: 'ui/widgets', anchor: 'tooltip', anchorZh: 'tooltip' },
 
   // ── Physics ────────────────────────────────────────────────────────────────
   RigidBody2D: { category: 'physics', summary: 'Puts the entity under the flat solver: static, kinematic or dynamic, with damping, gravity scale and sleep.', doc: 'gameplay/physics', anchor: 'rigidbody2d', anchorZh: 'rigidbody2d' },

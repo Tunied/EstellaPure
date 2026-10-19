@@ -54,6 +54,10 @@ export {
     // The value too, not just the union type: the editor's event picker and
     // authored data both need the canonical type strings.
     UIEventType,
+    UITabView, type UITabViewData, createTabView, type TabViewOptions, type TabViewHandle,
+    UITooltip, type UITooltipData, attachTooltip, createTooltip,
+    type TooltipOptions, type TooltipHandle,
+    applyTabViewSelection, previewTooltip,
     UICameraInfo,
     ScreenOverlay, type ScreenOverlayData,
     screenToUiLayout, uiLayoutToScreen, isScreenEntity,

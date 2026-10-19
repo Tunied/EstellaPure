@@ -503,3 +503,63 @@ control's removal clearing the others. Use an explicit stable owner with
 
 The **Mobile Controls** example authors both controls in its scene and combines
 them with keyboard bindings, optional tilt, and hit vibration.
+
+## TabView
+
+Drop **TabView** from UI Widgets, then edit its ordinary Toggle children and content
+pages. The Inspector pairs each tab with a page, keeps their order when moving a
+binding, and exposes the initial page, all-off policy, keyboard direction, looping
+and selection-on-focus. Editor Preview changes only the temporary projection;
+saving preserves the initial page. Bind distinct descendants of the view. A nested
+ToggleGroup owns its own toggles.
+
+At runtime `UITabView.selectedIndex` is the current selection (`-1` means none when
+`allowSwitchOff` is enabled). It uses `UIToggleGroup`, shows one content subtree via
+`UINode.display`, and emits `change` with `{ index, page }`. Arrows follow the authored
+direction, Home/End reach the first/last eligible tab, and disabled/hidden tabs are
+skipped. With select-on-focus off, Enter/Space activates the focused tab.
+
+```ts
+import { createTabView, px } from 'esengine';
+const settings = createTabView({ world, events, parent: canvas,
+  node: { width: px(420), height: px(240) },
+  labels: ['Graphics', 'Audio', 'Controls'],
+});
+// Put ordinary UI entities under settings.pages[1] to author the Audio panel.
+settings.select(1);
+```
+
+The `tabs` and `pages` entity lists are remapped when a scene/prefab is instantiated
+or copied. `labels` provides captions for the tab's direct Text child. Deleting a
+selected target chooses another valid binding; removing a binding restores that
+page's original display value.
+
+## Tooltip
+
+Attach `UITooltip` to a control, or drop the Tooltip example target from UI Widgets.
+Pointer triggers need an `Interactable` target; keyboard hints use `Focusable`.
+The popup is engine UI and never takes focus or blocks pointer input. It disappears
+on leave, release, cancellation, target removal or a hidden page. Moving a touch
+more than eight screen pixels cancels its long press without consuming the drag.
+
+```ts
+import { attachTooltip } from 'esengine';
+attachTooltip(world, musicVolume, {
+  content: 'Adjust background music volume.',
+  hoverDelay: 0.5, longPressDelay: 0.6,
+  side: 0, gap: 8, maxWidth: 240, avoidEdges: true,
+});
+```
+
+`side` is Bottom (0), Top (1), Left (2) or Right (3). Placement prefers that side,
+tries the opposite, then clamps inside the screen safe area. `maxWidth` is text
+width in layout pixels. The empty `stylePrefab` uses the project's live UI theme;
+a custom `.esprefab` needs a UINode root and a Text child. Its colors and font style
+are retained while the behavior owns popup placement, text and padding. Custom
+styles use the normal prefab asset loader and require `PrefabsPlugin`. A pending
+load cannot reopen a hint after its target has disappeared. Editor Preview bypasses
+the delay without changing the saved trigger settings.
+
+Open `assets/scenes/tabs-tooltips.esscene` in the **UI Controls** example for authored
+tabs and a volume slider with a tooltip. TreeView and ColorPicker are separate,
+later additions.

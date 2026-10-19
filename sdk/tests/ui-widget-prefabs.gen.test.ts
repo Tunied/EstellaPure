@@ -28,6 +28,10 @@ import { Interactable } from '../src/ui/input/interactable';
 import { themeColors } from '../src/ui/theme/tokens';
 import { markThemed } from '../src/ui/theme/theme-style';
 import { px } from '../src/ui/core/dimension';
+import { UITabView } from '../src/ui/behavior/tab-view';
+import { UITooltip } from '../src/ui/behavior/tooltip';
+import { createTabView } from '../src/ui/widgets/tab-view';
+import { createTooltip } from '../src/ui/widgets/tooltip';
 
 const OUT_DIR = resolve(__dirname, '../src/ui/widgets/prefabs');
 /** Rewriting identical bytes still moves the mtime, and these are SOURCES: every
@@ -70,6 +74,21 @@ afterAll(() => {
 });
 
 describe('UI widget prefab codegen', () => {
+    it('TabView: ordered tab and page references survive prefab capture', () => {
+        registerComponent('UITabView', UITabView);
+        registerComponent('UIToggle', UIToggle);
+        const p = generate('TabView', world => createTabView({ world, events: noEvents, labels: ['Graphics', 'Audio', 'Controls'] }).entity);
+        const d = entityById(p, p.rootEntityId).components.find(c => c.type === 'UITabView')!.data;
+        for (const ref of [...d.tabs as string[], ...d.pages as string[]]) expect(entityById(p, ref)).toBeDefined();
+        expect(d.tabs).toHaveLength(3);
+        expect(d.pages).toHaveLength(3);
+    });
+    it('Tooltip: persists target configuration, never a transient popup', () => {
+        registerComponent('UITooltip', UITooltip);
+        const p = generate('Tooltip', world => createTooltip({ world }).entity);
+        expect(p.entities).toHaveLength(1);
+        expect(typesOf(p, p.rootEntityId)).toContain('UITooltip');
+    });
     it('VirtualJoystick: captures base/handle entity references for scene authoring', () => {
         registerComponent('VirtualJoystick', VirtualJoystick);
         const p = generate('VirtualJoystick', world => createVirtualJoystick({ world }).entity as number);

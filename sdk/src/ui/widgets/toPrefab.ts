@@ -77,6 +77,8 @@ class RecordingWorld {
 /** Name a captured entity for the outliner: root → widget name; a text node → Label. */
 function entityName(ent: RecEntity, rootId: number, widgetName: string): string {
     if (ent.id === rootId) return widgetName;
+    const named = ent.components.find(c => c.type === 'Name')?.data.value;
+    if (typeof named === 'string' && named) return named;
     return ent.components.some((c) => c.type === 'Text') ? 'Label' : 'Node';
 }
 
@@ -106,7 +108,7 @@ export function widgetToPrefab(build: (world: World) => Entity, name: string): P
             name: entityName(e, root, name),
             parent: e.parent,
             children: e.children.filter((c) => subtree.has(c)),
-            components: e.components,
+            components: e.components.filter(c => c.type !== 'Name'),
             visible: true,
         };
     });

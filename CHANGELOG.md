@@ -16,6 +16,7 @@ published separately; it ships inside the editor.
 
 ### Added
 
+- **UI tabs and tooltips.** TabView connects ordinary Toggles to content pages, with ordered entity bindings, keyboard navigation and an editor preview that leaves the saved initial page untouched. Tooltip adds delayed hover, keyboard-focus and touch-long-press hints, screen-edge placement and project theme or prefab styling. Both are available in the UI Widgets palette. TreeView and ColorPicker remain later RM-107 work.
 - **3D swing/twist and six-axis joints.** SwingTwistJoint3D adds an elliptical swing cone and twist limits; SixDOFJoint3D locks, limits or frees each translation/rotation axis. Both support live velocity motors. The existing Details controls expose degree-based authoring, and selected viewport gizmos show limits. The 3D Physics example includes a shoulder and carriage with reversible motors. Partial property searches keep only matching generic fields. Headless solver checks do not replace target-device acceptance.
 
 ## [0.92.0] - 2026-10-18

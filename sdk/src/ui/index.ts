@@ -141,6 +141,14 @@ export {
     type UIToggleData,
     type UIToggleGroupData,
 } from './behavior/toggle';
+export { UITabView, createTabViewSystem, applyTabViewSelection, tabViewBindings } from './behavior/tab-view';
+export type { UITabViewData } from './behavior/tab-view';
+export { UITooltip, createTooltipSystem, placeTooltip, previewTooltip } from './behavior/tooltip';
+export type { UITooltipData, TooltipPrefabHost } from './behavior/tooltip';
+export { createTabView } from './widgets/tab-view';
+export type { TabViewOptions, TabViewHandle } from './widgets/tab-view';
+export { attachTooltip, createTooltip } from './widgets/tooltip';
+export type { TooltipOptions, TooltipHandle } from './widgets/tooltip';
 
 export {
     UIDropdown,

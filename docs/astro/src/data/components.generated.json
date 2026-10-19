@@ -5828,6 +5828,56 @@
       ]
     },
     {
+      "name": "UITabView",
+      "source": "ts",
+      "fields": [
+        {
+          "key": "selectedIndex",
+          "type": "number",
+          "default": "0",
+          "range": "≥ -1, step 1"
+        },
+        {
+          "key": "tabs",
+          "type": "Entity",
+          "default": ""
+        },
+        {
+          "key": "pages",
+          "type": "Entity",
+          "default": ""
+        },
+        {
+          "key": "labels",
+          "type": "array",
+          "default": "empty"
+        },
+        {
+          "key": "allowSwitchOff",
+          "type": "boolean",
+          "default": "false"
+        },
+        {
+          "key": "vertical",
+          "type": "boolean",
+          "default": "false"
+        },
+        {
+          "key": "loopNavigation",
+          "type": "boolean",
+          "default": "true"
+        },
+        {
+          "key": "selectOnFocus",
+          "type": "boolean",
+          "default": "true"
+        }
+      ],
+      "animatable": [
+        "selectedIndex"
+      ]
+    },
+    {
       "name": "UIToggle",
       "source": "ts",
       "fields": [
@@ -5856,6 +5906,84 @@
           "default": "false",
           "doc": "Let a click turn the selected toggle off, leaving none selected."
         }
+      ]
+    },
+    {
+      "name": "UITooltip",
+      "source": "ts",
+      "fields": [
+        {
+          "key": "content",
+          "type": "string",
+          "default": "\"Tooltip\""
+        },
+        {
+          "key": "stylePrefab",
+          "type": "Asset<prefab>",
+          "default": "none"
+        },
+        {
+          "key": "hover",
+          "type": "boolean",
+          "default": "true"
+        },
+        {
+          "key": "focus",
+          "type": "boolean",
+          "default": "true"
+        },
+        {
+          "key": "longPress",
+          "type": "boolean",
+          "default": "true"
+        },
+        {
+          "key": "hoverDelay",
+          "type": "number",
+          "default": "0.5",
+          "range": "≥ 0"
+        },
+        {
+          "key": "longPressDelay",
+          "type": "number",
+          "default": "0.6",
+          "range": "≥ 0"
+        },
+        {
+          "key": "side",
+          "type": "enum",
+          "default": "Bottom",
+          "values": [
+            "Bottom",
+            "Top",
+            "Left",
+            "Right"
+          ]
+        },
+        {
+          "key": "gap",
+          "type": "number",
+          "default": "8",
+          "range": "≥ 0"
+        },
+        {
+          "key": "avoidEdges",
+          "type": "boolean",
+          "default": "true"
+        },
+        {
+          "key": "maxWidth",
+          "type": "number",
+          "default": "240",
+          "range": "≥ 24"
+        }
+      ],
+      "animatable": [
+        "hoverDelay",
+        "longPressDelay",
+        "side",
+        "gap",
+        "maxWidth"
       ]
     },
     {
