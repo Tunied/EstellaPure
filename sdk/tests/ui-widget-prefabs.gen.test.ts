@@ -32,6 +32,11 @@ import { UITabView } from '../src/ui/behavior/tab-view';
 import { UITooltip } from '../src/ui/behavior/tooltip';
 import { createTabView } from '../src/ui/widgets/tab-view';
 import { createTooltip } from '../src/ui/widgets/tooltip';
+import { UITreeView } from '../src/ui/behavior/tree-view';
+import { UIColorPicker } from '../src/ui/behavior/color-picker';
+import { createTreeView } from '../src/ui/widgets/tree-view';
+import { createColorPicker } from '../src/ui/widgets/color-picker';
+import { TextInput } from '../src/ui/text/text-input';
 
 const OUT_DIR = resolve(__dirname, '../src/ui/widgets/prefabs');
 /** Rewriting identical bytes still moves the mtime, and these are SOURCES: every
@@ -74,6 +79,20 @@ afterAll(() => {
 });
 
 describe('UI widget prefab codegen', () => {
+    it('TreeView: authored data is optional; runtime rows are never captured', () => {
+        registerComponent('UITreeView', UITreeView);
+        const p = generate('TreeView', world => createTreeView({ world, events: noEvents }).entity);
+        expect(p.entities).toHaveLength(1);
+        expect(typesOf(p, p.rootEntityId)).toContain('UITreeView');
+    });
+    it('ColorPicker: composes standard inputs and remaps every child reference', () => {
+        for (const component of [UIColorPicker, UISlider, TextInput]) registerComponent(component._name, component);
+        const p = generate('ColorPicker', world => createColorPicker({ world, events: noEvents }).entity);
+        const data = entityById(p, p.rootEntityId).components.find(c => c.type === 'UIColorPicker')!.data;
+        for (const ref of [data.sv, data.alphaRamp, data.cursor, data.hue, data.alpha,
+            data.hex, data.historyRoot, data.rememberButton, data.preview, ...data.fields as string[]]) expect(entityById(p, ref as string)).toBeDefined();
+        expect(p.entities.filter(e => e.components.some(c => c.type === 'TextInput'))).toHaveLength(5);
+    });
     it('TabView: ordered tab and page references survive prefab capture', () => {
         registerComponent('UITabView', UITabView);
         registerComponent('UIToggle', UIToggle);

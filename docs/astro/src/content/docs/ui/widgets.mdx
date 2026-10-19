@@ -561,5 +561,97 @@ load cannot reopen a hint after its target has disappeared. Editor Preview bypas
 the delay without changing the saved trigger settings.
 
 Open `assets/scenes/tabs-tooltips.esscene` in the **UI Controls** example for authored
-tabs and a volume slider with a tooltip. TreeView and ColorPicker are separate,
-later additions.
+tabs and a volume slider with a tooltip.
+
+
+## TreeView
+
+Drop **Tree View** from UI Widgets. The Inspector configures selection (None,
+Single, Multiple), row height, indentation, drag grips, row prefab and empty-state
+prefab. Its sample-data preview is temporary: save and undo still use project
+content. A row prefab supplies a UINode subtree with a Text label; it is a display
+view, while the wrapper owns selection and disclosure input. Runtime styles use
+the regular Prefabs service. For interactive custom rows, provide a factory
+`item` template and optionally `dragHandle` instead.
+
+A tree does not require scene entities. Adapt arbitrary application records with
+`getRoots`, `getChildren`, `getId`, `getLabel`, optional `isSelectable` and optional
+`subscribe`. IDs must be unique strings or finite numbers, stable through
+reordering. Cycles and duplicate IDs are rejected. Traversal is iterative; only
+visible rows plus the ListView recycle buffer become UI entities.
+
+```ts
+import { setTreeViewData } from 'esengine';
+const detach = setTreeViewData(world, treeEntity, {
+  getRoots: () => project.folders,
+  getChildren: folder => folder.entries,
+  getId: folder => folder.key,
+  getLabel: folder => folder.title,
+  subscribe: changed => project.onFoldersChanged(changed),
+}, {
+  canDrop: request => project.canMove(request.source.id, request.target.id),
+  onDrop: request => project.move(request.source.id, request.target.id, request.position),
+});
+// detach() restores the previous adapter. The project emits its normal data
+// notification after a move; the widget does not mutate project records.
+```
+
+`createTreeView` also accepts that adapter, or an optional authored `nodes` tree
+of `{ id, label, children?, selectable? }`. Its handle exposes the model after
+runtime adoption, `refresh()`, `reveal(id)` and `dispose()`. Scene-placed trees use
+`setTreeViewData` to receive runtime data. Mutable sources notify via `subscribe`;
+the factory handle's `refresh()` is available for sources without notifications.
+
+Disclosure controls expand/collapse; row clicks select. Ctrl/Command-click
+supports multiple selection. Arrows navigate and expand/collapse, Home/End reach
+the first/last selectable visible row, and Enter/Space activates the current row.
+The tree occupies one Tab stop. `change` carries `{ ids }`. Collapse retains
+selection by ID. A dedicated grip handles mouse/touch reordering while the row
+body retains normal drag scrolling. Drop placement is `before`, `inside` or
+`after`; self/descendant drops are rejected, and `drop_request` only describes an
+intent. Your host validates and applies it. Appearance uses live project theme
+roles or your own row views.
+
+## ColorPicker
+
+Drop **Color Picker** from UI Widgets. Its ordinary child controls can be edited
+and saved as a project prefab. The Inspector configures the initial color, alpha,
+HSV/RGB numeric format and recent-color capacity. Preview visibility does not
+change scene opacity in the saved model.
+
+```ts
+import { createColorPicker } from 'esengine';
+const picker = createColorPicker({ world, events, parent: canvas,
+  color: { r: 0.2, g: 0.6, b: 0.9, a: 1 },
+  onChange: color => project.setAccent(color),
+  onHistoryChange: colors => project.savePalette(colors),
+});
+picker.setColor(project.accent);
+```
+
+`UIColorPicker.color` is the canonical `{ r, g, b, a }` shape, with 0..1 channels.
+`change` carries `{ color }`; `history_change` carries `{ colors }`. The picker
+never selects a Sprite or Material target itself and does not perform an implicit
+sRGB/linear conversion. Bind the value through the target's normal color API.
+`col.fromHsv` / `col.toHsv` share color math with editor fields; hue uses degrees,
+saturation/value use 0..1. Hue is retained while editing gray or black.
+
+The saturation/value plane supports pointer capture and arrow keys (Shift makes
+larger steps). Hue and alpha reuse UISlider keyboard/input behavior; numeric and
+HEX fields reuse TextInput. HEX accepts the engine's short or full RGB/RGBA
+notation. Invalid partial text remains editable and normalizes on blur. Disabling
+alpha forces an opaque value. Recent colors are local to each picker; persistence
+is explicitly supplied by the host. The history area is an ordinary editable UI
+container: size it to accommodate the desired palette capacity.
+
+The composed `uiPlugin` installs both widgets for scene/prefab instances and
+factory-created controls. Their views use the existing UI renderer. The picker
+shares three tiny retained gradient/checker textures per app. Each picker owns a
+64×64 SV image following the same color contract as sprites. Only hue changes
+update its pixels; saturation/value/alpha edits reuse it. The existing content
+provider restores the latest image after device loss without changing its handle.
+
+Open **UI Controls** → `assets/scenes/trees-colors.esscene`: one tree switches
+between scene, asset and quest records, and one picker drives an actual 2D Sprite
+and 3D MeshRenderer color through project code. Target-device acceptance remains
+separate from local WASM checks and CI screenshots.

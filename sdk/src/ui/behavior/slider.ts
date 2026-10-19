@@ -30,6 +30,7 @@ import { Interactable, type InteractableData } from '../input/interactable';
 import { Focusable, type FocusableData } from '../input/focusable';
 import { UIEventType, type UIEventQueue } from '../core/events';
 import { EntityStateMap } from '../util/helpers';
+import { UIConsumesDrag } from '../input/drag-consumption';
 
 export interface UISliderData {
     min: number;
@@ -98,6 +99,7 @@ export function createSliderSystem(world: World, events: UIEventQueue): SystemDe
                 || !world.has(active, Transform) || !input.isMouseButtonDown(0))) active = null;
             for (const e of world.getEntitiesWithComponents([UISlider])) {
                 if (!world.valid(e) || !world.has(e, UISlider)) continue;
+                if (!world.has(e, UIConsumesDrag)) world.insert(e, UIConsumesDrag);
                 const d = world.get(e, UISlider) as UISliderData;
                 let next = d.value;
 

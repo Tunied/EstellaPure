@@ -101,6 +101,7 @@ export const COMPONENT_DOCS: Record<string, ComponentDoc> = {
   TextInput: { category: 'ui', summary: 'An editable text field with a caret, selection and IME support.', doc: 'ui/widgets', anchor: 'text-input', anchorZh: '文本输入' },
   Draggable: { category: 'ui', summary: 'Lets the pointer drag a UI node, optionally constrained to an axis.', doc: 'ui/interaction', anchor: 'drag--drop', anchorZh: '拖放' },
   DragState: { category: 'ui', summary: 'Transient per-frame geometry of a drag in progress; the drag system rebuilds it, scene saves omit it.', doc: 'ui/interaction', anchor: 'drag--drop', anchorZh: '拖放' },
+  UIConsumesDrag: { category: 'ui', summary: 'Transient input ownership for drag controls: enclosing lists keep wheel input but do not start a competing drag scroll.', doc: 'ui/widgets', anchor: 'treeview', anchorZh: 'treeview' },
   Focusable: { category: 'ui', summary: 'Puts a widget in the keyboard focus order.', doc: 'ui/interaction', anchor: 'focus--keyboard', anchorZh: '焦点与键盘' },
   SafeArea: { category: 'ui', summary: 'Insets an absolute UI node clear of notches and rounded corners.', doc: 'core-concepts/screen', anchor: 'safe-areas-notches--rounded-corners', anchorZh: '安全区刘海与圆角' },
   ThemeStyle: { category: 'ui', summary: "Records which theme role an entity's colours came from, so a live theme swap can repaint it.", doc: 'ui/theming', anchor: 'how-widgets-consume-tokens', anchorZh: '控件如何消费令牌' },
@@ -115,6 +116,8 @@ export const COMPONENT_DOCS: Record<string, ComponentDoc> = {
   UIToggleGroup: { category: 'ui', summary: 'Makes the toggles beneath it exclusive — a radio group or tab bar. Put it on their common ancestor.', doc: 'ui/widgets', anchor: 'toggle', anchorZh: 'toggle-开关' },
   UITabView: { category: 'ui', summary: 'Connects an ordered ToggleGroup to content pages, with keyboard navigation.', doc: 'ui/widgets', anchor: 'tabview', anchorZh: 'tabview' },
   UITooltip: { category: 'ui', summary: 'A themed engine tooltip with hover, focus, long press and screen-edge placement.', doc: 'ui/widgets', anchor: 'tooltip', anchorZh: 'tooltip' },
+  UITreeView: { category: 'ui', summary: 'Adapts project hierarchy data to a virtualized tree with stable IDs and host-owned drop requests.', doc: 'ui/widgets', anchor: 'treeview', anchorZh: 'treeview' },
+  UIColorPicker: { category: 'ui', summary: 'HSV/RGB/HEX and alpha editing with canonical RGBA events for UI, sprites and materials.', doc: 'ui/widgets', anchor: 'colorpicker', anchorZh: 'colorpicker' },
 
   // ── Physics ────────────────────────────────────────────────────────────────
   RigidBody2D: { category: 'physics', summary: 'Puts the entity under the flat solver: static, kinematic or dynamic, with damping, gravity scale and sleep.', doc: 'gameplay/physics', anchor: 'rigidbody2d', anchorZh: 'rigidbody2d' },

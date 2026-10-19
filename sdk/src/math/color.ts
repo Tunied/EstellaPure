@@ -24,6 +24,28 @@ export const col = {
     },
     clone(c: Color): Color { return { r: c.r, g: c.g, b: c.b, a: c.a }; },
 
+    /** HSV uses degrees for hue and 0..1 for saturation/value/alpha. @beta */
+    fromHsv(h: number, s: number, v: number, a = 1): Color {
+        const hue = Number.isFinite(h) ? ((h % 360) + 360) % 360 : 0;
+        const saturation = Number.isFinite(s) ? scalar.clamp01(s) : 0;
+        const value = Number.isFinite(v) ? scalar.clamp01(v) : 0;
+        const c = value * saturation, x = c * (1 - Math.abs((hue / 60) % 2 - 1)), m = value - c;
+        const rgb = hue < 60 ? [c, x, 0] : hue < 120 ? [x, c, 0] : hue < 180 ? [0, c, x]
+            : hue < 240 ? [0, x, c] : hue < 300 ? [x, 0, c] : [c, 0, x];
+        return { r: rgb[0] + m, g: rgb[1] + m, b: rgb[2] + m,
+            a: Number.isFinite(a) ? scalar.clamp01(a) : 1 };
+    },
+
+    /** Preserve a caller's hue at zero saturation/value; no color-space conversion. @beta */
+    toHsv(color: Color, fallbackHue = 0): { h: number; s: number; v: number } {
+        const channel = (v: number): number => Number.isFinite(v) ? scalar.clamp01(v) : 0;
+        const r = channel(color.r), g = channel(color.g), b = channel(color.b);
+        const max = Math.max(r, g, b), delta = max - Math.min(r, g, b);
+        const h = delta === 0 ? fallbackHue : 60 * (max === r ? (g - b) / delta
+            : max === g ? (b - r) / delta + 2 : (r - g) / delta + 4);
+        return { h: Number.isFinite(h) ? ((h % 360) + 360) % 360 : 0, s: max ? delta / max : 0, v: max };
+    },
+
     /** Per-channel linear interpolate a→b by t (t not clamped). */
     lerp(a: Color, b: Color, t: number): Color {
         return {

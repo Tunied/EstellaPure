@@ -5,6 +5,8 @@ import { addStartupSystem, addSystemToSchedule, Schedule } from 'esengine';
 
 import { wireSystem } from './systems/wire';
 import { controlsSystem } from './systems/controls';
+import { collectionsSystem } from './systems/collections';
 
 addSystemToSchedule(Schedule.Update, wireSystem);
 addSystemToSchedule(Schedule.Update, controlsSystem);
+addSystemToSchedule(Schedule.Update, collectionsSystem);

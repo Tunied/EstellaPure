@@ -29,6 +29,9 @@ import { focusPlugin } from './input/focus';
 import { textInputPlugin } from './text/text-input-plugin';
 import { uiRenderOrderPlugin } from './render/render-order';
 import { uiVisibilityPlugin } from './core/visibility';
+import { UICollections } from './collection/collection-host';
+import { installTreeViews } from './widgets/tree-view';
+import { installColorPickers } from './behavior/color-picker-system';
 
 import type { UIEventQueue } from './core/events';
 import type { ListView } from './collection/list-view';
@@ -55,16 +58,21 @@ const SUB_PLUGINS: Plugin[] = [
 
 export class UIPlugin implements Plugin {
     name = 'ui';
+    private readonly widgetCleanups_ = new WeakMap<App, () => void>();
 
     build(app: App): void {
         for (const plugin of SUB_PLUGINS) {
             plugin.build(app);
         }
+        const offTree = installTreeViews(app, app.getResource(UICollections));
+        const offColor = installColorPickers(app);
+        this.widgetCleanups_.set(app, () => { offTree(); offColor(); });
     }
 
     // App.quit only reaches *installed* plugins — the composed sub-plugins'
     // cleanups are unreachable unless forwarded here.
     cleanup(app?: App): void {
+        if (app) { this.widgetCleanups_.get(app)?.(); this.widgetCleanups_.delete(app); }
         for (let i = SUB_PLUGINS.length - 1; i >= 0; i--) {
             SUB_PLUGINS[i].cleanup?.(app);
         }

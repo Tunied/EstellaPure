@@ -143,6 +143,16 @@ export {
 } from './behavior/toggle';
 export { UITabView, createTabViewSystem, applyTabViewSelection, tabViewBindings } from './behavior/tab-view';
 export type { UITabViewData } from './behavior/tab-view';
+export { UITreeView } from './behavior/tree-view';
+export type { UITreeViewData, TreeViewNode } from './behavior/tree-view';
+export { UIColorPicker } from './behavior/color-picker';
+export type { UIColorPickerData } from './behavior/color-picker';
+export { TreeViewModel } from './collection/tree-data-source';
+export type { TreeDataSource, TreeItemId, TreeRow, TreeDropRequest } from './collection/tree-data-source';
+export { createTreeView, setTreeViewData } from './widgets/tree-view';
+export type { TreeViewOptions, TreeViewHandle } from './widgets/tree-view';
+export { createColorPicker } from './widgets/color-picker';
+export type { ColorPickerOptions, ColorPickerHandle } from './widgets/color-picker';
 export { UITooltip, createTooltipSystem, placeTooltip, previewTooltip } from './behavior/tooltip';
 export type { UITooltipData, TooltipPrefabHost } from './behavior/tooltip';
 export { createTabView } from './widgets/tab-view';

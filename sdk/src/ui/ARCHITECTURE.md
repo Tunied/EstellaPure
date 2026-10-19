@@ -81,6 +81,26 @@ Rules:
 
 ## Conventions
 
+Collection widgets accept project data through adapters with stable application
+IDs. They must not require ECS entities, scene paths, inventory item types or
+other gameplay schemas. `TreeViewModel` projects hierarchy data into the existing
+`DataSource` / `ListView` virtualization path. Selection and expansion belong to
+the control; drop validation and domain mutations belong to the host.
+
+`UICollections` captures the collection registries of its app. Widget adoption is
+installed by the composed UI plugin after those registries exist; the behavior
+layer does not import widget factories. Runtime row wrappers and prefab views
+remain ordinary ECS UI entities. Removing a widget releases its registrations,
+subscriptions and pending views.
+
+Color editing uses the canonical `Color` shape and shared `col` HSV helpers. HSV
+is an editing coordinate system, not a new color-space convention. UI, sprite
+and material consumers bind through the same RGBA change event; the picker does
+not mutate targets or write global history storage. Pointer capture, focus,
+text editing, theme roles and rendering use the existing pipeline. A control
+that consumes its drag blocks an enclosing collection's drag scroll while
+leaving wheel input available.
+
 - **File names are `kebab-case`** (`ui-camera-info.ts`, not `UICameraInfo.ts`).
   Exported *symbols* keep their natural casing (`UICameraInfo`, `createButton`).
 - **A concept's component and its plugin are co-located** in one file when small

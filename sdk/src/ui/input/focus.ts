@@ -19,6 +19,9 @@ import { UIEvents, UIEventQueue, UIEventType } from '../core/events';
 import { PluginName } from '../../ecs/systemLabels';
 import { moveUIFocus } from './focus-transition';
 import { UITabView, tabViewBindings } from '../behavior/tab-view';
+import { UITreeView } from '../behavior/tree-view';
+import { UIColorPicker } from '../behavior/color-picker';
+import { UISlider } from '../behavior/slider';
 
 export class FocusPlugin implements Plugin {
     name = PluginName.Focus;
@@ -42,6 +45,10 @@ export class FocusPlugin implements Plugin {
         this.keyDefaults_.set(app, setKeyDefaultPolicy(app.getResource(Input), code => {
             if (!playModeOnly() || app.isPaused()) return false;
             if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(code)) {
+                const focused = focusManager.focusedEntity;
+                if (focused !== null && isFocusEligible(world, focused)
+                    && (world.has(focused, UITreeView) || world.has(focused, UISlider)
+                        || (code.startsWith('Arrow') && world.getEntitiesWithComponents([UIColorPicker]).some(root => world.get(root, UIColorPicker).sv === focused)))) return true;
                 return world.getEntitiesWithComponents([UITabView]).some(root => {
                     const d = world.get(root, UITabView);
                     return (code === 'Home' || code === 'End' || (d.vertical

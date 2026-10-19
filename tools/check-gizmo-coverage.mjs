@@ -144,6 +144,7 @@ const DISPOSITION = {
   'Canvas.matchWidthOrHeight': ['not-world', 'a 0..1 blend between two fits, not a length'],
   'UIDropdown.optionHeight': ['not-world', 'a row height inside a laid-out box, resolved by layout rather than placed'],
   'UITooltip.maxWidth': ['not-world', 'the maximum text wrap width in layout pixels of a transient screen popup'],
+  'UITreeView.rowHeight': ['not-world', 'virtualized row height in local layout pixels'],
   'VirtualJoystick.radius': ['not-world', 'control travel in local UI layout pixels; the authored base and handle draw the control'],
   'SpriteMask.rangeEndOrder': ['not-world', 'the last draw ORDER a mask reaches, not a distance it reaches over'],
   'LODGroup.lod1Size': ['not-world', 'a fraction of SCREEN height — a property of the view, not of the entity'],

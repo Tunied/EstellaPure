@@ -501,4 +501,77 @@ attachTooltip(world, musicVolume, {
 不会改变保存的延迟和触发设置。
 
 可在 **UI Controls** 示例中打开 `assets/scenes/tabs-tooltips.esscene` 查看场景内直接编辑的
-页签和带提示的音量滑条。TreeView 和 ColorPicker 将在后续阶段补充。
+页签和带提示的音量滑条。
+
+
+## TreeView
+
+从 **UI 控件** 放置树形列表。Inspector 可配置选择模式（无 / 单选 / 多选）、
+行高、层级缩进、拖放握柄、行预制体和空状态预制体。示例数据预览不进入场景文件
+或撤销历史。行预制体使用普通 UINode 子树和 Text 标签，选择与展开由行容器处理；
+自定义交互行可通过 `item` 模板和 `dragHandle` 工厂接口实现。
+
+树不要求节点对应场景实体。通过 `TreeDataSource<T>` 的 `getRoots`、`getChildren`、
+`getId`、`getLabel` 接入任意业务记录，可选 `isSelectable` 和变更订阅 `subscribe`。
+ID 必须是唯一字符串或有限数值，重排后仍保持稳定。重复 ID 和循环引用会被拒绝。
+遍历使用迭代算法；可见行和回收缓冲区复用已有 ListView 虚拟化。
+
+```ts
+import { setTreeViewData } from 'esengine';
+const detach = setTreeViewData(world, treeEntity, {
+  getRoots: () => project.folders,
+  getChildren: folder => folder.entries,
+  getId: folder => folder.key,
+  getLabel: folder => folder.title,
+  subscribe: changed => project.onFoldersChanged(changed),
+}, {
+  canDrop: request => project.canMove(request.source.id, request.target.id),
+  onDrop: request => project.move(request.source.id, request.target.id, request.position),
+});
+```
+
+场景中放置的控件通过 `setTreeViewData` 绑定数据；返回的清理函数恢复此前的数据适配器。
+`createTreeView` 也接受同一数据源，或可选的 `{ id, label, children?, selectable? }`
+节点数据。工厂句柄在运行时接入后提供 model，并支持 `refresh()`、`reveal(id)` 和清理。
+可变数据源应通过 `subscribe` 通知变化；没有订阅的工厂数据源可主动 `refresh()`。
+
+展开按钮负责展开 / 折叠，点击行负责选择。Ctrl / Command 支持多选。方向键导航和展开，
+Home / End 到达首尾可选行，Enter / Space 激活当前行。整棵树占一个 Tab 焦点位置。
+`change` 事件携带 `{ ids }`，折叠不丢失稳定 ID 选择。独立握柄支持鼠标和触屏拖放，
+行主体仍可拖动滚动。落点为 `before` / `inside` / `after`；自身和后代落点会被拒绝。
+`drop_request` 是请求，由项目校验并修改业务数据，控件不会擅自修改项目模型。
+
+## ColorPicker
+
+从 **UI 控件** 放置取色器。Inspector 可配置初始颜色、Alpha、HSV / RGB 数值格式
+和历史色容量。外观由普通子控件组成，可编辑并保存为项目 Prefab。
+编辑器预览显隐不会改变场景模型保存的透明度。
+
+```ts
+import { createColorPicker } from 'esengine';
+const picker = createColorPicker({ world, events, parent: canvas,
+  color: { r: 0.2, g: 0.6, b: 0.9, a: 1 },
+  onChange: color => project.setAccent(color),
+  onHistoryChange: colors => project.savePalette(colors),
+});
+```
+
+`UIColorPicker.color` 使用引擎统一的 `{ r, g, b, a }`，通道范围 0..1。
+`change` 携带 `{ color }`，`history_change` 携带 `{ colors }`。目标绑定、业务修改和
+历史色持久化由项目控制；控件不内置 Sprite / Material 引用，也不隐式转换线性 / sRGB。
+`col.fromHsv` 与 `col.toHsv` 供运行时和编辑器共享：色相为角度，饱和度 / 明度为 0..1。
+灰色或黑色编辑过程会保留色相。
+
+SV 平面支持指针捕获和方向键，Shift 增大步长。Hue / Alpha 复用 UISlider，数值和 HEX
+复用 TextInput。HEX 支持引擎的短格式和完整 RGB / RGBA 格式；无效输入可继续编辑，
+失焦后恢复规范值。禁用 Alpha 会强制不透明。历史色按控件隔离；历史色容器也是普通
+可编辑 UI，容量较大时应为其安排足够空间。
+
+统一的 `uiPlugin` 为场景、Prefab 和工厂创建的控件安装同一套行为。渲染沿用已有 UI
+路径；每个应用共享三张小型渐变 / 棋盘纹理。每个取色器持有一张 64×64 SV 图像，
+颜色语义与 Sprite 一致，仅色相变化时更新像素。饱和度、明度和 Alpha 编辑复用图像；
+设备丢失后通过已有内容提供者恢复最新像素，纹理句柄保持稳定。
+
+在 **UI Controls** 示例中打开 `assets/scenes/trees-colors.esscene`：同一个树切换场景、
+资源、任务记录，同一个取色器通过项目代码驱动真实的 2D Sprite 和 3D MeshRenderer
+颜色。本地 WASM 检查与 CI 截图不代替目标设备验收。

@@ -16,6 +16,7 @@ import { ScrollContainer } from '../src/ui/collection/scroll-container';
 import type { CppRegistry, ESEngineModule } from '../src/wasm';
 import type { Entity } from '../src/types';
 import { HAS_WASM, loadWasmModule } from './helpers/loadWasm';
+import { UIConsumesDrag } from '../src/ui/input/drag-consumption';
 
 describe.skipIf(!HAS_WASM)('scroll motion ownership on real WASM', () => {
     let engine: ESEngineModule, registry: CppRegistry, app: App, plugin: UIBehaviorPlugin;
@@ -43,6 +44,20 @@ describe.skipIf(!HAS_WASM)('scroll motion ownership on real WASM', () => {
     async function drag() {
         input.noteMouseDown(0); await step(0); await step(40); await step(80);
     }
+    it('a child control consumes drag without preventing the parent wheel scroll', async () => {
+        const scroll = container(); plugin.attachScrollContainer(entity, scroll);
+        const child = app.world.spawn(); app.world.setParent(child, entity);
+        app.world.insert(child, UIInteraction, { hovered: true }); app.world.insert(child, UIConsumesDrag);
+        await drag(); expect(scroll.getOffset().y).toBe(0);
+        input.scrollDeltaY = 30; await step(80); expect(scroll.getOffset().y).toBe(30);
+    });
+    it('drag consumption on an ancestor protects a nested hit as well', async () => {
+        const scroll = container(); plugin.attachScrollContainer(entity, scroll);
+        const control = app.world.spawn(), leaf = app.world.spawn();
+        app.world.setParent(control, entity); app.world.setParent(leaf, control);
+        app.world.insert(control, UIConsumesDrag); app.world.insert(leaf, UIInteraction, { hovered: true });
+        await drag(); expect(scroll.getOffset().y).toBe(0);
+    });
     it('does not dirty native thumb geometry after fractional lengths settle', async () => {
         const scroll = new ScrollContainer({ viewportSize: { x: 100, y: 100 },
             contentSize: { x: 300, y: 300 }, direction: 'both' });

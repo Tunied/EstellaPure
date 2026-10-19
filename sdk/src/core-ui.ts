@@ -55,6 +55,10 @@ export {
     // authored data both need the canonical type strings.
     UIEventType,
     UITabView, type UITabViewData, createTabView, type TabViewOptions, type TabViewHandle,
+    UITreeView, type UITreeViewData, type TreeViewNode, TreeViewModel,
+    type TreeDataSource, type TreeItemId, type TreeRow, type TreeDropRequest,
+    createTreeView, setTreeViewData, type TreeViewOptions, type TreeViewHandle,
+    UIColorPicker, type UIColorPickerData, createColorPicker, type ColorPickerOptions, type ColorPickerHandle,
     UITooltip, type UITooltipData, attachTooltip, createTooltip,
     type TooltipOptions, type TooltipHandle,
     applyTabViewSelection, previewTooltip,

@@ -16,6 +16,8 @@ import { ScreenOverlay, type ScreenOverlayData } from '../core/screen-overlay';
 import { uiPointerFor } from '../util/ui-pick';
 import { PluginName, SystemLabel } from '../../ecs/systemLabels';
 import { ListView, ListViewRegistry } from '../collection/list-view';
+import { UICollections } from '../collection/collection-host';
+import { UIConsumesDrag } from '../input/drag-consumption';
 import { ScrollContainer, ScrollContainerRegistry } from '../collection/scroll-container';
 import { createScrollAdoptSystem } from './scroll';
 import { engineApi } from '../../ecs/bridge/engineApi';
@@ -112,6 +114,11 @@ export class UIBehaviorPlugin implements Plugin {
 
         const scrollContainers = new ScrollContainerRegistry();
         this.scrollContainers_ = scrollContainers;
+        app.insertResource(UICollections, {
+            registerListView: list => listViews.add(list), unregisterListView: list => listViews.remove(list),
+            attachScrollContainer: (entity, container) => scrollContainers.attach(entity, container),
+            detachScrollContainer: entity => scrollContainers.detach(entity),
+        });
         app.world.onDespawn((entity) => scrollContainers.detach(entity));
 
         const world = app.world;
@@ -222,6 +229,7 @@ export class UIBehaviorPlugin implements Plugin {
                 }
             }
             if (hovered === null) return null;
+            if (dragOnly && world.has(hovered, UIConsumesDrag)) return null;
             const eligible = (e: Entity): boolean => {
                 const c = scrollContainers.get(e);
                 return !!c && scrollAvailable(e) && (!dragOnly || c.getDragScroll());
@@ -229,6 +237,7 @@ export class UIBehaviorPlugin implements Plugin {
             if (eligible(hovered)) return hovered;
             let found: Entity | null = null;
             walkParentChain(world, hovered, (ancestor) => {
+                if (dragOnly && world.has(ancestor, UIConsumesDrag)) return true;
                 if (eligible(ancestor)) {
                     found = ancestor;
                     return true;

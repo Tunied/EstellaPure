@@ -17,7 +17,7 @@
 import type { Entity, Vec2 } from '../../types';
 import type { World } from '../../ecs/world';
 
-import { UINode, UIPositionType, type UINodeData } from '../core/ui-node';
+import { UINode, UIDisplay, UIPositionType, type UINodeData } from '../core/ui-node';
 import { px, auto } from '../core/dimension';
 import { UIMask, MaskMode } from '../core/ui-mask';
 
@@ -267,7 +267,7 @@ export function createListView<T>(opts: CreateListViewOptions<T>): ListViewHandl
     const viewport = spawnUIEntity({
         world,
         parent: opts.parent,
-        node: { width: px(viewportSize.x), height: px(viewportSize.y), ...opts.node },
+        node: { width: opts.node?.fill ? auto() : px(viewportSize.x), height: opts.node?.fill ? auto() : px(viewportSize.y), ...opts.node },
         visual: opts.background ?? { color: { r: 0, g: 0, b: 0, a: 0 } },
     });
     world.insert(viewport, UIMask, { enabled: true, mode: MaskMode.Scissor });
@@ -317,7 +317,15 @@ export function createListView<T>(opts: CreateListViewOptions<T>): ListViewHandl
         templates,
         recycleBuffer: opts.recycleBuffer,
         placeItem: (w, e, rect) => placeByInset(w, e, rect),
-        setVisible: (w, e, v) => setUIVisible(w, e, v),
+        setVisible: (w, e, visible) => {
+            // Recycled rows include text, nested controls and style prefabs.
+            // Hide the subtree, rather than only its background quad.
+            if (w.valid(e) && w.has(e, UINode)) {
+                const node = w.get(e, UINode), display = visible ? UIDisplay.Flex : UIDisplay.None;
+                if (node.display !== display) w.insert(e, UINode, { ...node, display });
+            }
+            setUIVisible(w, e, visible);
+        },
         onItemBound: opts.onItemBound,
     }, viewport, scroll, crossLayout);
     host.registerListView(view as ListView<unknown>);

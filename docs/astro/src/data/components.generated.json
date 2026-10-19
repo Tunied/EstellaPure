@@ -5468,6 +5468,121 @@
       ]
     },
     {
+      "name": "UIColorPicker",
+      "source": "ts",
+      "fields": [
+        {
+          "key": "color",
+          "type": "Color",
+          "default": "#3790e0"
+        },
+        {
+          "key": "alphaEnabled",
+          "type": "boolean",
+          "default": "true"
+        },
+        {
+          "key": "format",
+          "type": "enum",
+          "default": "HSV + HEX",
+          "values": [
+            "HSV + HEX",
+            "RGB + HEX"
+          ]
+        },
+        {
+          "key": "rememberColors",
+          "type": "boolean",
+          "default": "true"
+        },
+        {
+          "key": "historyLimit",
+          "type": "number",
+          "default": "8",
+          "range": "0–32, step 1"
+        },
+        {
+          "key": "history",
+          "type": "array",
+          "default": "empty"
+        },
+        {
+          "key": "sv",
+          "type": "Entity",
+          "default": "none"
+        },
+        {
+          "key": "alphaRamp",
+          "type": "Entity",
+          "default": "none"
+        },
+        {
+          "key": "cursor",
+          "type": "Entity",
+          "default": "none"
+        },
+        {
+          "key": "hue",
+          "type": "Entity",
+          "default": "none"
+        },
+        {
+          "key": "alpha",
+          "type": "Entity",
+          "default": "none"
+        },
+        {
+          "key": "fields",
+          "type": "Entity",
+          "default": ""
+        },
+        {
+          "key": "hex",
+          "type": "Entity",
+          "default": "none"
+        },
+        {
+          "key": "historyRoot",
+          "type": "Entity",
+          "default": "none"
+        },
+        {
+          "key": "rememberButton",
+          "type": "Entity",
+          "default": "none"
+        },
+        {
+          "key": "preview",
+          "type": "Entity",
+          "default": "none"
+        }
+      ],
+      "animatable": [
+        "color.r",
+        "color.g",
+        "color.b",
+        "color.a",
+        "format",
+        "historyLimit",
+        "sv",
+        "alphaRamp",
+        "cursor",
+        "hue",
+        "alpha",
+        "hex",
+        "historyRoot",
+        "rememberButton",
+        "preview"
+      ]
+    },
+    {
+      "name": "UIConsumesDrag",
+      "source": "ts",
+      "fields": [],
+      "tag": true,
+      "transient": true
+    },
+    {
       "name": "UIController",
       "source": "ts",
       "fields": [
@@ -5984,6 +6099,69 @@
         "side",
         "gap",
         "maxWidth"
+      ]
+    },
+    {
+      "name": "UITreeView",
+      "source": "ts",
+      "fields": [
+        {
+          "key": "nodes",
+          "type": "array",
+          "default": "empty"
+        },
+        {
+          "key": "expandedIds",
+          "type": "array",
+          "default": "empty"
+        },
+        {
+          "key": "selectedIds",
+          "type": "array",
+          "default": "empty"
+        },
+        {
+          "key": "selectionMode",
+          "type": "enum",
+          "default": "Single",
+          "values": [
+            "None",
+            "Single",
+            "Multiple"
+          ]
+        },
+        {
+          "key": "rowHeight",
+          "type": "number",
+          "default": "32",
+          "range": "≥ 12, step 1"
+        },
+        {
+          "key": "indent",
+          "type": "number",
+          "default": "20",
+          "range": "≥ 0, step 1"
+        },
+        {
+          "key": "dragEnabled",
+          "type": "boolean",
+          "default": "false"
+        },
+        {
+          "key": "rowPrefab",
+          "type": "Asset<prefab>",
+          "default": "none"
+        },
+        {
+          "key": "emptyPrefab",
+          "type": "Asset<prefab>",
+          "default": "none"
+        }
+      ],
+      "animatable": [
+        "selectionMode",
+        "rowHeight",
+        "indent"
       ]
     },
     {
