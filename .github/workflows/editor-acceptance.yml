@@ -1,0 +1,64 @@
+name: Focused editor acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      engine_run:
+        description: Engine Build run carrying the wasm-web artifact
+        required: true
+        type: string
+      checks:
+        description: Space-separated editor authoring check names
+        required: true
+        default: design-frame
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ESTELLA_WIN_W: '1480'
+      ESTELLA_WIN_H: '920'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/editor-checkout
+        with:
+          ssh-key: ${{ secrets.EDITOR_SSH_KEY }}
+      - uses: ./.github/actions/setup
+      - name: Download the engine to exercise
+        uses: actions/download-artifact@v8
+        with:
+          name: wasm-web
+          path: build/wasm/web/
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ inputs.engine_run }}
+      - name: Build the SDK and editor
+        shell: bash
+        run: |
+          pnpm --filter ./sdk build
+          mkdir -p desktop/public/wasm output/editor-acceptance
+          cp build/wasm/web/* desktop/public/wasm/
+          pnpm --filter @estella/editor exec vite build
+      - name: Run selected acceptance checks
+        working-directory: desktop
+        shell: bash
+        env:
+          CHECK_NAMES: ${{ inputs.checks }}
+          OUT: ${{ github.workspace }}/output/editor-acceptance
+          ELECTRON_DISABLE_SANDBOX: '1'
+          ESTELLA_MCP_EDITOR_VISIBLE: '1'
+        run: |
+          read -r -a names <<< "$CHECK_NAMES"
+          xvfb-run -a --server-args="-screen 0 1920x1080x24" node scripts/editor-checks/run.mjs "${names[@]}"
+      - name: Keep the actual frames
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: editor-acceptance-frames
+          path: output/editor-acceptance/
+          retention-days: 7
