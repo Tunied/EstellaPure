@@ -331,6 +331,39 @@ ctx.assets.registerImporter({
 抛异常（或 reject）会把这次失败记在你的插件名下（输出日志里），其余导入器照常运行。
 同一个文件不会被同时导入两次，所以一次耗时较久的导入不会被它自己写出的文件重新触发。
 
+### 二进制资产与文件操作
+
+`ctx.fs` 默认操作插件自己的目录，也支持位于项目外的用户插件。项目版本的方法需要
+声明 `fs:project`，操作当前项目。路径相对于对应根目录；`..` 越界和指向根目录外的
+软链接都会被拒绝。
+
+| 操作 | 插件自己的目录 | 当前项目 |
+| --- | --- | --- |
+| UTF-8 文本 | `read`、`write` | `readProject`、`writeProject` |
+| 二进制 `Uint8Array` | `readBytes`、`writeBytes` | `readProjectBytes`、`writeProjectBytes` |
+| 列目录 | `readDir` | `readProjectDir` |
+| 大小、修改时间、目录标志 | `stat` | `statProject` |
+| 创建目录 | `mkdir` | `mkdirProject` |
+| 移动 / 重命名 | `rename` | `renameProject` |
+| 移到系统回收站 | `delete` | `deleteProject` |
+
+```typescript
+const blob = await new Promise<Blob>((resolve, reject) =>
+  canvas.toBlob(value => value ? resolve(value) : reject(new Error('PNG encoding failed')), 'image/png'));
+await ctx.fs.writeProjectBytes('assets/generated/atlas.png', new Uint8Array(await blob.arrayBuffer()));
+await ctx.project.refreshAssets();
+```
+
+落盘的是真正的 PNG 字节，无需 data URL、base64 文本或额外的 Node 解码脚本。
+二进制写入会创建父目录，完整写好后再替换目标。重命名会保留 `.meta` 和 UUID，目标文件
+或孤立的目标 `.meta` 已存在时会拒绝覆盖。删除会把文件及其 sidecar 移到系统回收站。
+项目修改接入已有 Agent 文件撤回日志；项目外的插件本地文件不计入项目撤回。目录列表包含
+点文件和 metadata，不经过 Content Browser 的显示过滤。`mkdir` 遇到已存在目录会拒绝；
+其他读写失败也以 Promise rejection 返回。插件上下文释放或切换项目后，旧上下文不能继续写入。
+
+写到插件目录中的生成文件不会反复重载插件；实际构建依赖中的源码、导入的 JSON 和
+`plugin.json` 修改后仍然正常热重载。
+
 ### 借一个工具给 Agent
 
 内置 Agent 的全部词汇就是工具目录。**插件加了能力却没加工具,等于只给人加了、没给 Agent 加**——所以如果你的插件能烘焙遮蔽,就把它教给 Agent:

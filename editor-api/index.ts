@@ -522,15 +522,34 @@ export interface EditorProjectApi {
   setFeature(name: string, value: unknown): Promise<void>;
 }
 
+export interface PluginDirEntry { name: string; isDir: boolean }
+export interface PluginFileStat { size: number; mtimeMs: number; isDir: boolean }
 /** Files a plugin may read/write. Paths are relative to the plugin's own folder
  *  unless the plugin declared the `fs:project` capability and uses `project*`. */
 export interface PluginFs {
   read(relPath: string): Promise<string>;
   write(relPath: string, contents: string): Promise<void>;
+  readBytes(relPath: string): Promise<Uint8Array>;
+  writeBytes(relPath: string, bytes: Uint8Array): Promise<void>;
+  readDir(relPath: string): Promise<PluginDirEntry[]>;
+  stat(relPath: string): Promise<PluginFileStat>;
+  /** Moves to the OS trash, including an asset's .meta sidecar. */
+  delete(relPath: string): Promise<void>;
+  /** Moves without overwriting the destination; asset identity is preserved. */
+  rename(relPath: string, newRelPath: string): Promise<void>;
+  mkdir(relPath: string): Promise<void>;
   /** Requires the `fs:project` capability; paths are project-relative. */
   readProject(relPath: string): Promise<string>;
   /** Requires the `fs:project` capability; paths are project-relative. */
   writeProject(relPath: string, contents: string): Promise<void>;
+  /** The following methods also require fs:project. */
+  readProjectBytes(relPath: string): Promise<Uint8Array>;
+  writeProjectBytes(relPath: string, bytes: Uint8Array): Promise<void>;
+  readProjectDir(relPath: string): Promise<PluginDirEntry[]>;
+  statProject(relPath: string): Promise<PluginFileStat>;
+  deleteProject(relPath: string): Promise<void>;
+  renameProject(relPath: string, newRelPath: string): Promise<void>;
+  mkdirProject(relPath: string): Promise<void>;
 }
 
 /**

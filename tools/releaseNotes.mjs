@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(editor): complete scoped plugin filesystem operations': { note: 'Plugin filesystem operations.' },
+  'feat: add binary and asset-safe plugin filesystem APIs': { note: 'Plugin filesystem operations.' },
   'fix(editor): reuse mesh selection geometry and index multi-inspection': { note: 'Faster 3D multi-selection.' },
   'fix: restore gizmo hover CI and optimize 3d multi-selection': { note: 'Faster 3D multi-selection.' },
   'feat: add shared web runtime support for LAN device preview': { note: 'One-click LAN device preview.' },

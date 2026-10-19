@@ -70,7 +70,6 @@ jobs:
       - name: Verify trusted transform-handle hover
         if: always() && inputs.gizmo_hover && steps.build_editor.conclusion == 'success'
         env:
-          ELECTRON_DISABLE_SANDBOX: '1'
           ESTELLA_MCP_EDITOR_VISIBLE: '1'
         run: node tools/verify-gizmo-hover.mjs
       - name: Keep trusted hover evidence

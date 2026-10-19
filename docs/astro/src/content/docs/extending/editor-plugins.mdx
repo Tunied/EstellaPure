@@ -358,6 +358,41 @@ Throwing (or rejecting) reports the failure against your plugin in the Output Lo
 and leaves the other importers running. A file is never imported twice at once, so
 an import that takes a while cannot be re-entered by the writes it is making.
 
+### Binary assets and filesystem operations
+
+`ctx.fs` works in the plugin's own directory, including user-installed plugins outside
+the project. The `*Project` methods work in the open project and require `fs:project`.
+All paths are relative to the corresponding root; traversal and escaping symlinks are rejected.
+
+| Operation | Plugin directory | Project directory |
+| --- | --- | --- |
+| UTF-8 text | `read`, `write` | `readProject`, `writeProject` |
+| Binary `Uint8Array` | `readBytes`, `writeBytes` | `readProjectBytes`, `writeProjectBytes` |
+| Directory entries | `readDir` | `readProjectDir` |
+| Size, modified time, directory flag | `stat` | `statProject` |
+| Create directory | `mkdir` | `mkdirProject` |
+| Move / rename | `rename` | `renameProject` |
+| Move to OS trash | `delete` | `deleteProject` |
+
+```typescript
+const blob = await new Promise<Blob>((resolve, reject) =>
+  canvas.toBlob(value => value ? resolve(value) : reject(new Error('PNG encoding failed')), 'image/png'));
+await ctx.fs.writeProjectBytes('assets/generated/atlas.png', new Uint8Array(await blob.arrayBuffer()));
+await ctx.project.refreshAssets();
+```
+
+The file contains actual PNG bytes: no data URL, base64 text or external decoder is needed.
+Binary writes create parent directories and publish a complete file. Rename preserves the
+`.meta` sidecar and UUID and refuses existing targets, including orphaned metadata. Delete
+moves the item and its sidecar to the OS trash. Project mutations participate in the existing
+agent file journal; plugin-local files outside the project do not. Directory reads include
+dotfiles and metadata, rather than the Content Browser's filtered view. `mkdir` refuses an
+existing directory; other I/O failures reject normally. A disposed context or a context
+belonging to an old project cannot continue writing through this API.
+
+Generated files in a plugin directory do not reload the plugin unless they are actual
+bundle inputs. Editing an imported source, imported JSON or `plugin.json` still reloads it.
+
 ### Lending the agent a tool
 
 The built-in agent's entire vocabulary is the tool catalog. A plugin that adds a
