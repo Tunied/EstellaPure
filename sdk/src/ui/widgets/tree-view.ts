@@ -234,9 +234,11 @@ export function installTreeViews(app: App, host: ListViewHost): () => void {
                             markThemed(w, label, { text: 'text' }); markThemed(w, arrow, { text: 'text' });
                             makeWidgetInteractable(w, arrow, { focusable: false });
                             targets.set(arrow, rowEntity);
-                            unsubs.push(events.on(arrow, UIEventType.Click, () => {
+                            unsubs.push(events.on(arrow, UIEventType.Click, event => {
+                                event.stopPropagation();
                                 if (!playing() || !available(root)) return;
                                 const id = rowIds.get(rowEntity); if (id === undefined) return;
+                                live.get(root)!.activeId = id;
                                 model.toggle(id); moveUIFocus(world, events, app.getResource(FocusManager), root, false);
                                 writeState(root, live.get(root)!);
                             }));

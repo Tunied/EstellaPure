@@ -121,6 +121,12 @@ describe.skipIf(!HAS_WASM)('TreeView / ColorPicker on real WASM', () => {
         input.mouseX=at.x+400;input.mouseY=300-at.y;input.noteMouseDown(0);await tick();input.clearFrameState();
         input.mouseButtons.delete(0);input.mouseButtonsReleased.add(0);await tick();
         expect(handle.getModel()!.selectedIds).toEqual(['a']);expect(app.getResource(FocusManager).focusedEntity).toBe(handle.entity);
+        input.clearFrameState();
+        const disclosure=app.world.getEntitiesWithComponents([Name]).find(e=>app.world.get(e,Name).value==='TreeDisclosure:root')!;
+        const arrowAt=app.world.get(disclosure,Transform).worldPosition;
+        input.mouseX=arrowAt.x+400;input.mouseY=300-arrowAt.y;input.noteMouseDown(0);await tick();input.clearFrameState();
+        input.mouseButtons.delete(0);input.mouseButtonsReleased.add(0);await tick();
+        expect(handle.getModel()!.getCount()).toBe(1);expect(handle.getModel()!.selectedIds).toEqual(['a']);
     });
     it('stable controls avoid rewriting unchanged visual geometry',async()=>{
         tree();picker();for(let i=0;i<4;i++)await tick();const insert=vi.spyOn(app.world,'insert');
