@@ -228,7 +228,7 @@ export function installTreeViews(app: App, host: ListViewHost): () => void {
                         makeWidgetInteractable(w, rowEntity, { focusable: false });
                         targets.set(rowEntity, rowEntity);
                         if (!item) {
-                            const label = spawnUIEntity({ world: w, parent: rowEntity, node: { fill: true, insetLeft: px(28), insetRight: px(data.dragEnabled ? 28 : 4) }, text: { content: '', fontSize: 14, color: themeColors().text, verticalAlign: TextVerticalAlign.Middle, wordWrap: false, overflow: TextOverflow.Ellipsis } });
+                            const label = spawnUIEntity({ world: w, parent: rowEntity, node: { fill: true, insetLeft: px(28), insetRight: px(data.dragEnabled ? 28 : 4) }, text: { content: '', fontSize: 14, color: themeColors().text, align: TextAlign.Left, verticalAlign: TextVerticalAlign.Middle, wordWrap: false, overflow: TextOverflow.Ellipsis } });
                             const arrow = spawnUIEntity({ world: w, parent: rowEntity, node: { position: 1, width: px(24), height: px(height), insetLeft: px(0), insetTop: px(0) }, text: { content: '', fontSize: 14, color: themeColors().text, align: TextAlign.Center, verticalAlign: TextVerticalAlign.Middle } });
                             labels.set(rowEntity, label); arrows.set(rowEntity, arrow);
                             markThemed(w, label, { text: 'text' }); markThemed(w, arrow, { text: 'text' });

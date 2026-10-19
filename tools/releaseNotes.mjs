@@ -29,6 +29,7 @@ export const NOTES_FLOOR = 'v0.65.0';
  */
 export const NOTED = {
   'feat: add reusable TreeView and ColorPicker UI controls': { note: 'Reusable UI trees and color pickers.' },
+  'fix(ui): align tree labels with hierarchy indentation': { note: 'Reusable UI trees and color pickers.' },
   'feat(editor): add TreeView and ColorPicker authoring': { note: 'Reusable UI trees and color pickers.' },
   'feat: add TabView and Tooltip UI controls': { note: 'UI tabs and tooltips.' },
   'fix(ui): use hover state and sustained captures for tooltips': { note: 'UI tabs and tooltips.' },
