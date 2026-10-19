@@ -56,7 +56,6 @@ const OWED = {
         'SceneManagerState is called by no golden project',
     ],
     prefab: [
-        'Prefabs is named by no SDK test',
         'SpawnOverride is named by no SDK test',
         'PrefabServer is called by no golden project',
     ],
