@@ -3,11 +3,11 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/app/app';
 import { AppContext, setDefaultContext } from '../src/ecs/context';
-import { Canvas, Disabled, Name, registerComponent } from '../src/ecs/component';
+import { Canvas, Disabled, Name, Transform, registerComponent } from '../src/ecs/component';
 import { Schedule } from '../src/ecs/system';
 import { setEditorMode, setPlayMode } from '../src/ecs/env';
 import { Input, InputState } from '../src/input/input';
-import { UIEventQueue } from '../src/ui/core/events';
+import { UIEventQueue, UIEvents } from '../src/ui/core/events';
 import { UITabView, createTabViewSystem } from '../src/ui/behavior/tab-view';
 import { UIToggle, UIToggleGroup, createToggleSystem } from '../src/ui/behavior/toggle';
 import { UITooltip, createTooltipSystem, placeTooltip } from '../src/ui/behavior/tooltip';
@@ -21,7 +21,8 @@ import { UIVisual } from '../src/ui/core/ui-visual';
 import { FocusManager, FocusManagerState, Focusable } from '../src/ui/input/focusable';
 import { UIControlPointers, type ControlPointer } from '../src/ui/input/control-pointers';
 import { MOUSE_POINTER } from '../src/ui/input/pointerBook';
-import { Interactable } from '../src/ui/input/interactable';
+import { Interactable, UIInteraction } from '../src/ui/input/interactable';
+import { UIInteractionPlugin } from '../src/ui/input/interaction';
 import { ScreenLayout, screenLayoutRect, screenProjection } from '../src/ui/core/screen-layout';
 import { ScreenOverlay, defaultScreenOverlay } from '../src/ui/core/screen-overlay';
 import { UICameraInfo } from '../src/ui/core/ui-camera-info';
@@ -52,11 +53,13 @@ describe('tooltip placement', () => {
 describe.skipIf(!HAS_WASM)('TabView and Tooltip on real WASM', () => {
     let engine: ESEngineModule, registry: CppRegistry, app: App, events: UIEventQueue;
     let tooltips: ReturnType<typeof createTooltipSystem>;
+    let interaction: UIInteractionPlugin | undefined;
     beforeAll(async () => { engine = await loadWasmModule(); });
     beforeEach(() => {
         setDefaultContext(new AppContext()); setEditorMode(false); setPlayMode(false);
         registry = new engine.Registry(); app = App.new(); app.connectCpp(registry, engine);
         events = new UIEventQueue();
+        app.insertResource(UIEvents, events);
         for (const c of [UITabView, UIToggle, UIToggleGroup, Focusable, ThemeStyle, UIController, UIGear, Text, Name]) registerComponent(c._name, c);
         app.insertResource(Input, new InputState()); app.insertResource(FocusManager, new FocusManagerState());
         const layout = screenLayoutRect(null, 800, 600);
@@ -69,11 +72,12 @@ describe.skipIf(!HAS_WASM)('TabView and Tooltip on real WASM', () => {
         tooltips = createTooltipSystem(app.world);
         app.addSystemToSchedule(Schedule.Update, tooltips.system);
     });
-    afterEach(() => { tooltips.dispose(); app.quit({ keepRenderer: true }); registry.delete(); });
+    afterEach(() => { interaction?.cleanup(app); interaction = undefined; tooltips.dispose(); app.quit({ keepRenderer: true }); registry.delete(); });
     const tick = async (delta = 0.1) => {
         engine.uiLayout_update(registry, -400, -300, 400, 300, true); engine.transform_update(registry);
         await app.tick(delta);
         app.getResource(Input).keysPressed.clear();
+        for (const p of app.getResource(UIControlPointers).pointers.values()) p.pressedEntity = null;
     };
     const view = () => createTabView({ world: app.world, events, labels: ['Graphics', 'Audio', 'Controls'] });
     const displays = (v: ReturnType<typeof view>) => v.pages.map(e => app.world.get(e, UINode).display);
@@ -83,11 +87,43 @@ describe.skipIf(!HAS_WASM)('TabView and Tooltip on real WASM', () => {
         return createTooltip({ world: app.world, parent: root, content: 'Volume controls the music.' }).entity;
     };
     const pointer = (entity: number, id = MOUSE_POINTER, down = false) => {
-        const p: ControlPointer = { id, down, pressed: down, entity, pressedEntity: down ? entity : null,
+        app.world.insert(entity, UIInteraction, { hovered: true, pressed: down, justPressed: down });
+        const p: ControlPointer = { id, down, pressed: down, entity: down ? entity : null, pressedEntity: down ? entity : null,
             layoutX: 0, layoutY: 0, worldX: 0, worldY: 0 };
         app.getResource(UIControlPointers).pointers.set(id, p); return p;
     };
     const bubbles = () => app.world.getEntitiesWithComponents([Text]).filter(e => app.world.get(e, Text).content === 'Volume controls the music.');
+    const realPointerTarget = () => {
+        interaction = new UIInteractionPlugin(); interaction.build(app);
+        const e = target();
+        engine.uiLayout_update(registry, -400, -300, 400, 300, true); engine.transform_update(registry);
+        const at = app.world.get(e, Transform).worldPosition;
+        return { e, x: at.x + 400, y: 300 - at.y };
+    };
+    it('real hit testing supplies hover after the capture has been released', async () => {
+        const { e, x, y } = realPointerTarget(), input = app.getResource(Input);
+        input.mouseX = x; input.mouseY = y;
+        await tick(0.2); await tick(0.2); await tick(0.2);
+        expect(app.world.get(e, UIInteraction).hovered).toBe(true);
+        expect(app.getResource(UIControlPointers).pointers.get(MOUSE_POINTER)?.entity).toBeNull();
+        expect(bubbles()).toHaveLength(1);
+    });
+    it('real touch capture persists after the one-frame pressedEntity edge', async () => {
+        const { e, x, y } = realPointerTarget(), input = app.getResource(Input);
+        const point = { id: 7, x, y }; input.touches.set(7, point); input.touchesStarted.set(7, point);
+        await tick(0.3); input.touchesStarted.clear(); await tick(0.3);
+        const p = app.getResource(UIControlPointers).pointers.get(7)!;
+        expect(p.entity).toBe(e); expect(p.pressedEntity).toBeNull(); expect(bubbles()).toHaveLength(1);
+    });
+    it('a lifted touch cannot reopen a hint through its stale synthesized mouse', async () => {
+        const { x, y } = realPointerTarget(), input = app.getResource(Input);
+        input.mouseX = x; input.mouseY = y;
+        const point = { id: 7, x, y }; input.touches.set(7, point); input.touchesStarted.set(7, point);
+        await tick(0.3); input.touchesStarted.clear(); await tick(0.3); expect(bubbles()).toHaveLength(1);
+        input.touches.delete(7); input.touchesEnded.set(7, point); await tick(); input.touchesEnded.clear();
+        for (let i = 0; i < 7; i++) await tick(); expect(bubbles()).toHaveLength(0);
+        input.mouseX += 1; for (let i = 0; i < 6; i++) await tick(); expect(bubbles()).toHaveLength(1);
+    });
     it('click and programmatic selection keep ToggleGroup and page visibility in agreement', async () => {
         const v = view(); await tick(); events.emit(v.tabs[1], 'click'); await tick();
         expect(displays(v)).toEqual([1, 0, 1]); expect(app.world.get(v.entity, UITabView).selectedIndex).toBe(1);
@@ -144,7 +180,7 @@ describe.skipIf(!HAS_WASM)('TabView and Tooltip on real WASM', () => {
         const canvas = app.world.getEntitiesWithComponents([Canvas]).at(-1)!;
         expect(app.world.get(canvas, UINode).pointerEvents).toBe(UIPointerEvents.None);
         expect(app.world.has(bubbles()[0], Focusable)).toBe(false); expect(app.world.has(bubbles()[0], Interactable)).toBe(false);
-        p.entity = null; await tick(); expect(bubbles()).toHaveLength(0);
+        p.entity = null; app.world.update(e, UIInteraction, d => { d.hovered = false; }); await tick(); expect(bubbles()).toHaveLength(0);
     });
     it('keyboard focus shows immediately and hides when a page closes', async () => {
         const e = target(); app.getResource(FocusManager).focus(e, true); await tick(); expect(bubbles()).toHaveLength(1);
@@ -156,7 +192,7 @@ describe.skipIf(!HAS_WASM)('TabView and Tooltip on real WASM', () => {
         if (kind === 'cancel') cancelPrimaryPointer(app.getResource(Input));
         if (kind === 'release') p.down = false;
         await tick(0.3); await tick(0.3); expect(bubbles()).toHaveLength(0);
-        expect(p.pressedEntity).toBe(e);
+        expect(p.entity).toBe(e);
     });
     it('stationary long press uses its delay and releases its popup on lift', async () => {
         const e = target(), p = pointer(e, 7, true); await tick(0.3); await tick(0.3); expect(bubbles()).toHaveLength(1);

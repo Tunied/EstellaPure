@@ -6,7 +6,9 @@ export interface ControlPointer {
     id: number;
     down: boolean;
     pressed: boolean;
+    /** Captured control while held; null on a released/hover-only pointer. */
     entity: Entity | null;
+    /** Press edge target, only populated in the frame the capture starts. */
     pressedEntity: Entity | null;
     layoutX: number;
     layoutY: number;

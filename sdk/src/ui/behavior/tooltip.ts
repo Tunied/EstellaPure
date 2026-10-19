@@ -19,7 +19,7 @@ import { UICameraInfo, type UICameraData } from '../core/ui-camera-info';
 import { UIControlPointers, type ControlPointer } from '../input/control-pointers';
 import { MOUSE_POINTER } from '../input/pointerBook';
 import { Focusable, type FocusManagerState, FocusManager } from '../input/focusable';
-import { Interactable } from '../input/interactable';
+import { Interactable, UIInteraction } from '../input/interactable';
 import { createLiveVisibilityQuery } from '../util/live-visibility';
 import { isFocusEligible } from '../input/focus-inspection';
 import { isScreenEntity, uiWorldToScreen, screenToUiLayout } from '../util/ui-pick';
@@ -104,6 +104,7 @@ export function previewTooltip(world: World, target: Entity): () => void {
 export function createTooltipSystem(world: World, prefabHost?: TooltipPrefabHost, isPlaying = () => true) {
     const states = new Map<Entity, TooltipState>();
     let disposed = false, owner: EngineApi | null = null, matrixPtr = 0, cancellation = -1;
+    let touchBlocksHover = false, touchMouseX = 0, touchMouseY = 0;
     const close = (s: TooltipState) => {
         s.pending = undefined;
         if (s.overlay !== undefined && world.valid(s.overlay)) world.despawn(s.overlay);
@@ -150,6 +151,14 @@ export function createTooltipSystem(world: World, prefabHost?: TooltipPrefabHost
         const version = primaryPointerCancellationVersion(input);
         const cancelled = cancellation !== -1 && version !== cancellation;
         cancellation = version;
+        const mousePointer = pointers.pointers.get(MOUSE_POINTER);
+        if (input.touches.size || input.touchesEnded.size || [...pointers.pointers.values()].some(p => p.id !== MOUSE_POINTER && p.down)) {
+            touchBlocksHover = true; touchMouseX = input.mouseX; touchMouseY = input.mouseY;
+        } else if (input.mouseX !== touchMouseX || input.mouseY !== touchMouseY || mousePointer?.pressed) {
+            // The host may leave its synthesized mouse over the lifted finger.
+            // Resume hover only on fresh mouse activity, never from that stale position.
+            touchBlocksHover = false;
+        }
         const hidden = createLiveVisibilityQuery(world, () => false);
         const live = new Set(world.getEntitiesWithComponents([UITooltip, UINode]));
         for (const [e, s] of states) if (!live.has(e)) { close(s); states.delete(e); }
@@ -160,8 +169,9 @@ export function createTooltipSystem(world: World, prefabHost?: TooltipPrefabHost
             const preview = !isPlaying() && !!previews.get(world)?.has(e);
             const available = layout.valid && overlay.active && !hidden(e) && world.isEntityActive(e)
                 && !world.isDestructionPending(e) && (!world.has(e, Interactable) || world.get(e, Interactable).enabled);
-            const touch = [...pointers.pointers.values()].find(p => p.id !== MOUSE_POINTER && p.down && p.pressedEntity === e);
+            const touch = [...pointers.pointers.values()].find(p => p.id !== MOUSE_POINTER && p.down && p.entity === e);
             const mouse = pointers.pointers.get(MOUSE_POINTER);
+            const hovered = world.has(e, UIInteraction) && world.get(e, UIInteraction).hovered;
             let trigger: TooltipState['trigger'] = null;
             if (cancelled && touch) { s.moved = true; s.pointer = touch.id; }
             if (available && d.content && preview) trigger = 'focus';
@@ -173,7 +183,7 @@ export function createTooltipSystem(world: World, prefabHost?: TooltipPrefabHost
                     if (Math.hypot(touch.layoutX - s.startX, touch.layoutY - s.startY) * layout.scale > 8) s.moved = true;
                     if (!s.moved && touch.entity === e) trigger = 'touch';
                 } else if (d.focus && focus.isVisiblyFocused(e) && isFocusEligible(world, e)) trigger = 'focus';
-                else if (d.hover && mouse?.entity === e && !mouse.down && input.touches.size === 0) trigger = 'hover';
+                else if (d.hover && hovered && mouse?.down === false && !touchBlocksHover) trigger = 'hover';
             }
             if (!touch) { s.pointer = -2; s.moved = false; }
             if (trigger !== s.trigger) { close(s); s.elapsed = 0; s.trigger = trigger; }
