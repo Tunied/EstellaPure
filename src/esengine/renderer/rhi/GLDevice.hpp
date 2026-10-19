@@ -132,7 +132,7 @@ protected:
     void backendDeleteVertexLayout(u32 id) override;
     void backendSetPipeline(u32 id, const PipelineDesc& desc) override;
     /** The GL primitive mode of the bound pipeline's topology. */
-    u32 glPrimitiveMode() const;
+    u32 primitiveMode() const;
     void backendInvalidatePipelineCache() override;
 
     bool backendCreateFramebuffer(u32 id, const FramebufferDesc& desc) override;

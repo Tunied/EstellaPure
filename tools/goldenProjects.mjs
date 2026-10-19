@@ -92,6 +92,24 @@ export const CENSUS_FLOOR = '0.60.0';
  * that does not exist, and release notes are a different act. Theirs is ungated.
  */
 export const SHIPPED = {
+  "Material graphs have a Tiling & Offset node.": { notCertifiable: "Material graph authoring and compilation are covered by the pipeline tests, editor authoring checks and mat-graph pixel fixture; no golden project carries a material graph asset." },
+  "Material graph editor polish.": { notCertifiable: "Material graph authoring and compilation are covered by the pipeline tests, editor authoring checks and mat-graph pixel fixture; no golden project carries a material graph asset." },
+  "Material graphs have switches, a live preview and extract-to-subgraph.": { notCertifiable: "Material graph authoring and compilation are covered by the pipeline tests, editor authoring checks and mat-graph pixel fixture; no golden project carries a material graph asset." },
+  "Material graphs can bend a mesh and its shadow.": { notCertifiable: "Material graph authoring and compilation are covered by the pipeline tests, editor authoring checks and mat-graph pixel fixture; no golden project carries a material graph asset." },
+  "Material graphs can output a standard PBR surface.": { notCertifiable: "Material graph authoring and compilation are covered by the pipeline tests, editor authoring checks and mat-graph pixel fixture; no golden project carries a material graph asset." },
+  "Material graphs can use other graphs as nodes.": { notCertifiable: "Material graph authoring and compilation are covered by the pipeline tests, editor authoring checks and mat-graph pixel fixture; no golden project carries a material graph asset." },
+  "The Plugins panel shows conflicts and what disabling removes.": { notCertifiable: "Editor presentation and authoring changes are covered by the editor tests and authoring checks; a packaged game cannot observe the editor interface." },
+  "The Agent panel is redrawn.": { notCertifiable: "Editor presentation and authoring changes are covered by the editor tests and authoring checks; a packaged game cannot observe the editor interface." },
+  "The Project Health panel is redrawn.": { notCertifiable: "Editor presentation and authoring changes are covered by the editor tests and authoring checks; a packaged game cannot observe the editor interface." },
+  "The UI debugger is redrawn.": { notCertifiable: "Editor presentation and authoring changes are covered by the editor tests and authoring checks; a packaged game cannot observe the editor interface." },
+  "The UI Widgets palette is a searchable, grouped list.": { notCertifiable: "Editor presentation and authoring changes are covered by the editor tests and authoring checks; a packaged game cannot observe the editor interface." },
+  "The World panel is a table of cells beside the Content Browser.": { notCertifiable: "Editor presentation and authoring changes are covered by the editor tests and authoring checks; a packaged game cannot observe the editor interface." },
+  "The Spine preview, running-game inspection and the Game panel states are redrawn.": { notCertifiable: "Editor presentation and authoring changes are covered by the editor tests and authoring checks; a packaged game cannot observe the editor interface." },
+  "The lighting, history, scatter, plugins and string table panels are redrawn.": { notCertifiable: "Editor presentation and authoring changes are covered by the editor tests and authoring checks; a packaged game cannot observe the editor interface." },
+  "The script, material and behavior-tree graph editors are redrawn.": { notCertifiable: "Editor presentation and authoring changes are covered by the editor tests and authoring checks; a packaged game cannot observe the editor interface." },
+  "The sequencer and the sound event editor are redrawn.": { notCertifiable: "Editor presentation and authoring changes are covered by the editor tests and authoring checks; a packaged game cannot observe the editor interface." },
+  "The profiler and the frame debugger are redrawn.": { notCertifiable: "Editor presentation and authoring changes are covered by the editor tests and authoring checks; a packaged game cannot observe the editor interface." },
+  "Editor polish and plugin compatibility.": { notCertifiable: "Editor panel layout and example plugin compatibility are covered by editor tests and check-examples; a packaged game loads no editor plugin." },
   "Audio demo exercises authored sound events.":
     { notCertifiable: "the example's sources are validated by check-examples; no packaged-frame act can decide which clip a seeded selection picked" },
   "The Lighting panel names the scene's environment and binds it.":

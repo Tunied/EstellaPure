@@ -28,6 +28,17 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  "fix(examples): the Scene Report plugin example claims editors from 0.33 on instead of only 0.33.x, so it loads": {"note":"Editor polish and plugin compatibility."},
+  "fix(editor): the UI debugger's focus summary keeps its spacing": {"note":"Editor polish and plugin compatibility."},
+  "fix(editor): a controller binding in the Controllers panel is two lines, so a long field name is read whole": {"note":"Editor polish and plugin compatibility."},
+  "fix(editor): warnings in the World, Plugins, Inspector and Build panels are plain lines rather than tinted cards": {"note":"Editor polish and plugin compatibility."},
+  "fix(editor): the lighting panel's warnings are a line with an amber dot, not a card": {"note":"Editor polish and plugin compatibility."},
+  "fix(editor): the lighting panel's bake counts say less so the pinned footer stays short": {"note":"Editor polish and plugin compatibility."},
+  "feat(editor): the material graph editor shows the Tiling & Offset node": {"note":"Material graphs have a Tiling & Offset node."},
+  "fix(editor): a subgraph node wires in the type it returns and a multi-selection drags as one": {"note":"Material graph editor polish."},
+  "feat(editor): the material graph editor previews the graph live, has a Switch node and extracts a selection into a subgraph": {"note":"Material graphs have switches, a live preview and extract-to-subgraph."},
+  "feat(editor): the material graph output node shows the vertex offset port and its bounds field": {"note":"Material graphs can bend a mesh and its shadow."},
+  "fix(editor): the collision layer's material fields take the board's heading, flat inputs and hint": {"note":"Editor polish and plugin compatibility."},
   'feat(editor): a string table imports and exports as an Excel or CSV sheet, merged by key, with the problems checked before it leaves':
     { note: 'Strings go to and from Excel.' },
   'feat(editor): the input map editor captures the next key, shows key caps and flags inputs shared between actions':
