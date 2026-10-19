@@ -32,12 +32,6 @@
             "orthoSize": 6,
             "isActive": true,
             "clearFlags": 3,
-            "backgroundColor": {
-              "r": 0.02,
-              "g": 0.02,
-              "b": 0.02,
-              "a": 1
-            },
             "fov": 50,
             "nearPlane": 0.1,
             "farPlane": 100
@@ -102,7 +96,7 @@
           "data": {
             "position": {
               "x": -1.3,
-              "y": 1.0,
+              "y": 1,
               "z": 0
             },
             "scale": {
