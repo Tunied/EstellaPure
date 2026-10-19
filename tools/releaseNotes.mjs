@@ -28,6 +28,7 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(editor): keep advanced joint property searches scoped to matching fields': { note: '3D swing/twist and six-axis joints.' },
   'feat: add SwingTwist and SixDOF 3D joints': { note: '3D swing/twist and six-axis joints.' },
   'feat: add advanced 3D joint inspector and limit gizmos': { note: '3D swing/twist and six-axis joints.' },
   "fix(examples): the Scene Report plugin example claims editors from 0.33 on instead of only 0.33.x, so it loads": {"note":"Editor polish and plugin compatibility."},
