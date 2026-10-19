@@ -28,6 +28,9 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'feat(openpaas): build and verify native SUD test packages': { note: 'SUD OpenPaaS development export.' },
+  'fix(openpaas): align directory manifest with official web2sp': { note: 'SUD OpenPaaS development export.' },
+  'feat(openpaas): integrate SUD runtime and PinK directory export': { note: 'SUD OpenPaaS development export.' },
   'feat(editor): complete scoped plugin filesystem operations': { note: 'Plugin filesystem operations.' },
   'feat: add binary and asset-safe plugin filesystem APIs': { note: 'Plugin filesystem operations.' },
   'fix(editor): reuse mesh selection geometry and index multi-inspection': { note: 'Faster 3D multi-selection.' },
