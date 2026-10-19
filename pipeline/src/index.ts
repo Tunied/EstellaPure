@@ -35,6 +35,7 @@ export * from './export/exportProgress';
 export * from './export/platformCatalog';
 export * from './export/projectModules';
 export * from './export/miniGameExportProfile';
+export * from './export/openpaasPackage';
 export * from './export/playableAdProfile';
 export * from './export/orientationHtml';
 export * from './export/nativeTemplates';

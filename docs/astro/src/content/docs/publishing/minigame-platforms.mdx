@@ -45,7 +45,8 @@ loader accepts an instance without a compiled `module`, as documented for iOS.
 In **PinK → Project → Third-party generated**, choose the exported directory
 containing `main.js`, `game-bundle.js` and `wasm/`. Select your platform game ID,
 configure orientation and version to match the project, then build and upload.
-PinK produces the `.sp` package; Estella does not upload or submit it for review.
+PinK can produce the `.sp` package; Estella can also invoke its official packer
+directly using the CLI below. Users handle upload, review and publishing.
 Open the development version in OpenPaaS and scan its package QR code with
 **Hello PinK**. The supplied Unity and Laya guides use this same third-party
 directory workflow; their engine-specific converters are not required here.
@@ -54,8 +55,48 @@ The official [web2sp 1.0.0 archive](https://download.sudden.ltd/assets/openpaas/
 has been inspected and exercised. It detects Laya HTML, copies the Web directory,
 emits `main.js` and `laya_adapter.js`, and creates an empty `manifest.json` when
 none exists. It does not contain a binary `.sp` packer. Estella emits its own
-runtime entry and the same initial manifest directly. A final `.sp` still needs
-the platform packer; uploading, review and publishing remain user-managed.
+runtime entry and the same initial manifest directly. Final `.sp` generation uses
+the official packer bundled with PinK; uploading, review and publishing remain user-managed.
+
+### Generate a `.sp` through Estella
+
+PinK 0.0.1.39 bundles the independently callable `sud-package-sign-tool`.
+After installing or extracting the official PinK package, its Windows path is
+`resources/app/extensions/sud-pink-debug/tools/package-sign/win/sud-package-sign-tool.exe`;
+macOS uses `tools/package-sign/mac/sud-package-sign-tool` under that extension.
+Estella does not redistribute this third-party executable. Configure its local
+path without launching the PinK UI.
+
+Keep signing and encryption keys outside the exported directory. The Ed25519
+private key may use raw, hex, base64 or PKCS8 encoding; the AES-128 key file must
+contain 32 hex characters. Paths in this local JSON resolve relative to the config:
+
+```json
+{
+  "mode": "development",
+  "toolPath": "<PinK>/resources/app/extensions/sud-pink-debug/tools/package-sign/win/sud-package-sign-tool.exe",
+  "gameId": "estella-local-test",
+  "version": "0.1.0",
+  "privateKeyPath": "development-private.pem",
+  "encryptionKeyPath": "development-encryption.hex",
+  "orientation": "landscape"
+}
+```
+
+```sh
+node pipeline/bin/estella.mjs package-openpaas output/my-sud-game --config <local.json> --out output/my-sud-game.sp
+```
+
+Estella prepares the manifest in temporary staging, invokes the official tool
+for Deflate compression, AES-128-CTR encryption and Ed25519 signing, then verifies
+all package files. Only a verified result replaces the output; the source export
+remains untouched. Output and key files must be outside the input directory.
+
+`development` means independent test keys, **not an authorized OpenPaaS game or
+proof that Hello PinK accepts the package**. For an existing platform game, use
+`platform` mode with the registered `publicKeyHash`, `contextFile`,
+`contextSignatureFile` and `contextPublicKeyPath`. The context signature and
+public-key hash are checked before packaging. Platform acceptance stays pending.
 
 <Aside type="caution">
   **Development integration, device acceptance pending.** The headless contract
@@ -82,6 +123,17 @@ Run the reproducible local contract check without opening an editor:
 ```sh
 node tools/tests/openpaas-runtime.e2e.mjs --wasm build/wasm/quickgame --out output/openpaas-runtime
 ```
+
+To check the complete package chain with real authored examples:
+
+```sh
+node tools/tests/openpaas-runtime.e2e.mjs --packer <official-tool-path> --project-2d examples/sprite-rendering --project-3d examples/device-quality --out output/openpaas-package-check
+```
+
+This generates temporary test keys, exports both examples, creates encrypted and
+signed `.sp` files, verifies and decrypts every file, compares payload hashes,
+then renders the recovered games in the headless contract host. Temporary keys
+are removed afterwards. Reports and frames do not constitute SUD device acceptance.
 
 It writes 2D/3D frames and a report explicitly marking device acceptance pending.
 Android Hello PinK exposes vConsole; the supplied guide also names device logs

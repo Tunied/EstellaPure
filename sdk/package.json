@@ -29,6 +29,7 @@
     "./dist/quickgame/index.js",
     "./dist/alipay/index.js",
     "./dist/huawei/index.js",
+    "./dist/openpaas/index.js",
     "./dist/index.wechat.cjs.js"
   ],
   "main": "./dist/index.js",

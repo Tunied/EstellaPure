@@ -54,8 +54,9 @@ describe('OpenPaaS third-party directory export', () => {
         expect(result.errors).toEqual([]); expect(result.ok).toBe(true);
         expect(result.platform).toBe('openpaas');
         const entry = readFileSync(path.join(out, 'main.js'), 'utf8');
-        expect(entry).toContain("require('./wasm/esengine.wxgame.js')");
-        expect(entry).toContain("require('./game-bundle.js')");
+        expect(entry).toContain("__load('./wasm/esengine.wxgame.js')");
+        expect(entry).toContain("__load('./game-bundle.js')");
+        expect(entry).toContain('globalThis.module = current');
         expect(entry).not.toContain('loadSubpackage');
         expect(existsSync(path.join(out, 'game.js'))).toBe(false);
         expect(existsSync(path.join(out, 'project.config.json'))).toBe(false);

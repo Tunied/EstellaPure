@@ -18,6 +18,7 @@ const USAGE = `usage: node pipeline/bin/estella.mjs export <projectDir> [options
                                      [--specular-map color|orm] [--lightmap-uv]
        node pipeline/bin/estella.mjs import-hdr <file.hdr> [outDir] [--face-size <n>]
        node pipeline/bin/estella.mjs bake-scene <scene.esscene> [--check]
+       node pipeline/bin/estella.mjs package-openpaas <exportDir> --config <local.json> --out <game.sp>
 
   --platform <id>     a built-in (web, desktop, wechat, douyin, kuaishou, bilibili, playable, android, ios)
                       or a platform the project defines in .esengine/platforms/ (default web)
@@ -85,6 +86,14 @@ function parseArgs(argv) {
       process.exit(2);
     }
     return { command, source: path.resolve(projectDir), check: rest.includes('--check') };
+  }
+  if (command === 'package-openpaas') {
+    const config = rest.indexOf('--config'), out = rest.indexOf('--out');
+    if (!projectDir || config < 0 || !rest[config + 1] || out < 0 || !rest[out + 1]) {
+      console.error('package-openpaas requires an exported directory, --config <local.json> and --out <game.sp>');
+      process.exit(2);
+    }
+    return { command, source: path.resolve(projectDir), config: path.resolve(rest[config + 1]), out: path.resolve(rest[out + 1]) };
   }
   if (command === 'import-model' || command === 'import-gltf' || command === 'import-hdr') {
     if (!projectDir) {
@@ -677,6 +686,18 @@ function engineRuntimeDir(platform) {
 }
 
 const opts = parseArgs(process.argv.slice(2));
+
+if (opts.command === 'package-openpaas') {
+  const { mod, cleanup } = await loadPipeline(path.join(PIPELINE, 'src/export/openpaasPackage.ts'), 'openpaasPackage.mjs');
+  try {
+    console.log(JSON.stringify(await mod.packageOpenPaaS(opts.source, opts.out, opts.config), null, 2));
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 1;
+  } finally { cleanup(); }
+  // No export, login or upload follows packaging.
+  process.exit(process.exitCode ?? 0);
+}
 
 // `import-gltf` is the name this command shipped under; it reads any of the
 // model sources now, and the old spelling keeps working.

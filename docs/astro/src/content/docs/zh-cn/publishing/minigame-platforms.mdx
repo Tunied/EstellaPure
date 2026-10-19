@@ -38,14 +38,51 @@ iOS 仅返回 instance、没有编译后 module 的结果。
 
 打开 **PinK → 项目 → 第三方生成**，选择导出的目录，其中包含 `main.js`、
 `game-bundle.js` 和 `wasm/`。选择平台游戏 ID，按项目设置核对横竖屏和版本，
-然后构建、上传。`.sp` 由 PinK 生成，Estella 不会自动上传或提交审核。
+然后构建，再由用户自行上传。也可以使用下面的命令行流程，直接通过 Estella 生成 `.sp`。
 在 OpenPaaS 的开发版本详情中，用 **Hello PinK** 扫描包链接二维码调试。
 提供的 Unity / Laya 指南采用的也是这个第三方目录流程；这里不需要安装它们各自的转换插件。
 
 已下载、检查并实际运行官方 [web2sp 1.0.0](https://download.sudden.ltd/assets/openpaas/guide/attachment/web2sp-1.0.0.tgz)：
 它识别 Laya HTML，复制 Web 目录，生成 `main.js`、`laya_adapter.js`，并在缺失时创建
 内容为 `{}` 的 `manifest.json`。工具没有二进制 `.sp` 封装实现。Estella 直接生成自己的
-运行入口及相同的初始 manifest；最终 `.sp` 仍需平台封装工具，上传、审核和发布由用户处理。
+运行入口及相同的初始 manifest。最终封装使用 PinK 提供的官方工具，上传、审核和发布由用户处理。
+
+### 在 Estella 中生成 `.sp`
+
+已验证 PinK 0.0.1.39 内置的 `sud-package-sign-tool`，可通过命令行调用，无需启动 PinK 界面。
+从官方安装包安装或解包后，Windows 工具位于
+`resources/app/extensions/sud-pink-debug/tools/package-sign/win/sud-package-sign-tool.exe`；
+macOS 对应目录是 `tools/package-sign/mac/sud-package-sign-tool`。
+Estella 不分发该第三方二进制，需要在本地配置中指定它的路径。
+
+先在导出目录之外准备 Ed25519 私钥文件和 AES-128 加密密钥文件，再创建本地配置。
+私钥支持官方工具的 raw / hex / base64 / PKCS8 格式；加密密钥文件内容是 32 个十六进制字符。
+配置文件中的路径相对于配置文件解析：
+
+```json
+{
+  "mode": "development",
+  "toolPath": "<PinK目录>/resources/app/extensions/sud-pink-debug/tools/package-sign/win/sud-package-sign-tool.exe",
+  "gameId": "estella-local-test",
+  "version": "0.1.0",
+  "privateKeyPath": "development-private.pem",
+  "encryptionKeyPath": "development-encryption.hex",
+  "orientation": "landscape"
+}
+```
+
+```sh
+node pipeline/bin/estella.mjs package-openpaas output/my-sud-game --config <本地配置.json> --out output/my-sud-game.sp
+```
+
+这一步会在临时目录补齐游戏 manifest，调用官方工具进行 Deflate 压缩、AES-128-CTR 加密、
+Ed25519 签名，然后对全文件执行官方校验。成功后才替换目标 `.sp`，不修改原导出目录。
+输出不能放入输入目录，私钥与加密密钥也不能位于输入目录中。
+
+`development` 表示独立测试密钥，**不表示获得 OpenPaaS 游戏授权，也不保证 Hello PinK 接受该包**。
+已有平台配置时使用 `platform` 模式，并提供注册的 `publicKeyHash`、`contextFile`、
+`contextSignatureFile`、`contextPublicKeyPath`；Estella 会先验签上下文并检查公钥哈希。
+平台的上传、审核、发布及真机验收仍由用户执行。
 
 <Aside type="caution">
   **当前为开发接入，真机验收待完成。** 无窗口契约宿主已能加载真实引擎和导出的
@@ -66,6 +103,15 @@ iOS 仅返回 instance、没有编译后 module 的结果。
 ```sh
 node tools/tests/openpaas-runtime.e2e.mjs --wasm build/wasm/quickgame --out output/openpaas-runtime
 ```
+
+还可以用官方工具验证完整链路；测试密钥临时生成并在结束后清理：
+
+```sh
+node tools/tests/openpaas-runtime.e2e.mjs --packer <官方打包工具路径> --project-2d examples/sprite-rendering --project-3d examples/device-quality --out output/openpaas-package-check
+```
+
+该检查会导出真实 2D / 3D 样例、生成加密签名 `.sp`、校验全部文件、解密还原，
+逐文件比较资源哈希，再在无窗口契约宿主中渲染还原后的项目。报告和截图不等于 SUD 真机验收。
 
 结果包含 2D / 3D 截图及报告，并明确标记真机验收待完成。
 提供的文档说明 Android Hello PinK 可以打开 vConsole，也可以通过设备日志目录

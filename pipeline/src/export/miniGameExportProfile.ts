@@ -116,9 +116,8 @@ export interface MiniGameEntryContext {
 
 /**
  * The generated mini-game entry: require the engine glue + each side module,
- * then boot the bundle. Pure CommonJS with no vendor API in it — every host
- * loads JS the same way — so this is the family default, and a profile only
- * overrides it for an unusual loader.
+ * then boot the bundle. CommonJS is the family default; profiles with a
+ * global-script loader provide an explicit export bridge.
  */
 export function defaultMiniGameEntry(ctx: MiniGameEntryContext, load = 'require'): string {
     const requires = ctx.sideModules
@@ -175,6 +174,36 @@ if (__task && __task.onProgressUpdate) {
     __say('Fetching the engine ' + Math.round(p.progress || 0) + '%');
   });
 }
+
+`;
+}
+
+/** For script loaders that execute JS but do not promise CommonJS return
+ * values. SUD's client-api/require.html resolves paths from the game entry.
+ * All emitted requires are package-root paths; exports are captured explicitly.
+ * A genuine CommonJS loader can still return its own module exports.
+ */
+export function scriptMiniGameEntry(ctx: MiniGameEntryContext): string {
+    return `(function () {
+const __load = function (file) {
+  const hadModule = Object.prototype.hasOwnProperty.call(globalThis, 'module');
+  const hadExports = Object.prototype.hasOwnProperty.call(globalThis, 'exports');
+  const previousModule = globalThis.module;
+  const previousExports = globalThis.exports;
+  const initial = {};
+  const current = { exports: initial };
+  globalThis.module = current;
+  globalThis.exports = initial;
+  try {
+    const returned = require(file);
+    return current.exports !== initial || Object.keys(initial).length ? current.exports : returned;
+  } finally {
+    if (hadModule) globalThis.module = previousModule; else delete globalThis.module;
+    if (hadExports) globalThis.exports = previousExports; else delete globalThis.exports;
+  }
+};
+${defaultMiniGameEntry(ctx, '__load')}
+})();
 `;
 }
 
@@ -291,8 +320,8 @@ export interface MiniGameExportProfile {
 }
 
 /** SUD's third-party-generated directory, consumed by PinK to build the .sp.
- * Account, game ID, version and orientation are configured in PinK, not in a
- * fabricated WeChat project.config.json. No upload or review is performed here.
+ * Game ID, version and orientation are configured at package time through
+ * PinK or package-openpaas. No upload or review is performed here.
  */
 export const openpaasExportProfile: MiniGameExportProfile = {
     id: 'openpaas',
@@ -301,12 +330,21 @@ export const openpaasExportProfile: MiniGameExportProfile = {
     runtimeInit: 'initMiniGameRuntime',
     runtimeProfileHost: 'openpaasPlatformProfile',
     engineGlueCandidates: MINIGAME_ENGINE_GLUE,
+    // Assumed conservative syntax floor, not a certified SUD engine version:
+    // guide/runtime/js-supports.html requires cross-runtime down-leveling.
+    // A wrong floor fails compilation on the device; device acceptance is pending.
     esTarget: 'es2016',
     wasmBuildHint: 'quickgame',
     hostGlobal: 'sud',
     sideModuleBuildTargets: {},
+    // Official web2sp emits JS + JSON. No include-suffix config is documented;
+    // this set only classifies generated scripts/config for the shared cook.
     nativeSuffixes: new Set(['.js', '.json']),
+    // No published upload whitelist: preserve staged filenames. The official
+    // packer takes a directory; platform upload acceptance remains unverified.
     packerSuffixes: null,
+    // The documented instantiateFromFile path names .wasm, not .wasm.br.
+    // Brotli loading is not claimed until the native loader is verified.
     wasmBrotli: false,
     // A plain third-party directory carries assets in its main package. PinK's
     // subpackage manifest format has not been supplied, so do not invent one.
@@ -320,12 +358,13 @@ export const openpaasExportProfile: MiniGameExportProfile = {
         return [{ file: 'manifest.json', content: '{}\n' }, { file: 'OPENPAAS.txt', content:
             `Estella / SUD OpenPaaS development package\n`
             + `Project: ${ctx.title}\nOrientation: ${ctx.orientation}\n`
-            + 'In PinK select Project > Third-party generated and choose this directory.\n'
+            + 'CLI: estella.mjs package-openpaas <directory> --config <local.json> --out <game.sp>.\n'
+            + 'Or in PinK select Project > Third-party generated and choose this directory.\n'
             + 'Select your platform game ID and configure orientation and version in PinK.\n'
             + 'Build and upload, then scan the development version QR code using Hello PinK.\n'
             + 'Android and iOS device acceptance is pending; export success is not platform acceptance.\n' }];
     },
-    emitEntry: defaultMiniGameEntry,
+    emitEntry: scriptMiniGameEntry,
 };
 
 // =============================================================================
