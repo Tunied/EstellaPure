@@ -59,6 +59,7 @@ describe('OpenPaaS third-party directory export', () => {
         expect(entry).not.toContain('loadSubpackage');
         expect(existsSync(path.join(out, 'game.js'))).toBe(false);
         expect(existsSync(path.join(out, 'project.config.json'))).toBe(false);
+        expect(JSON.parse(readFileSync(path.join(out, 'manifest.json'), 'utf8'))).toEqual({});
         expect(existsSync(path.join(out, 'wasm/esengine.wxgame.wasm'))).toBe(true);
         expect(existsSync(path.join(out, 'wasm/esengine.wxgame.wasm.br'))).toBe(false);
         expect(readFileSync(path.join(out, 'scenes/2d.json'), 'utf8')).toContain('Sprite');

@@ -315,7 +315,9 @@ export const openpaasExportProfile: MiniGameExportProfile = {
         if (ctx.subPackages.length || ctx.hasOpenData) {
             throw new Error('OpenPaaS third-party export does not yet support subpackages or an open-data context');
         }
-        return [{ file: 'OPENPAAS.txt', content:
+        // Official web2sp 1.0.0 emits an empty manifest for a new SUD project.
+        // Platform/game fields are supplied later by the package builder.
+        return [{ file: 'manifest.json', content: '{}\n' }, { file: 'OPENPAAS.txt', content:
             `Estella / SUD OpenPaaS development package\n`
             + `Project: ${ctx.title}\nOrientation: ${ctx.orientation}\n`
             + 'In PinK select Project > Third-party generated and choose this directory.\n'

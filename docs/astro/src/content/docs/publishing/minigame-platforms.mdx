@@ -50,6 +50,13 @@ Open the development version in OpenPaaS and scan its package QR code with
 **Hello PinK**. The supplied Unity and Laya guides use this same third-party
 directory workflow; their engine-specific converters are not required here.
 
+The official [web2sp 1.0.0 archive](https://download.sudden.ltd/assets/openpaas/guide/attachment/web2sp-1.0.0.tgz)
+has been inspected and exercised. It detects Laya HTML, copies the Web directory,
+emits `main.js` and `laya_adapter.js`, and creates an empty `manifest.json` when
+none exists. It does not contain a binary `.sp` packer. Estella emits its own
+runtime entry and the same initial manifest directly. A final `.sp` still needs
+the platform packer; uploading, review and publishing remain user-managed.
+
 <Aside type="caution">
   **Development integration, device acceptance pending.** The headless contract
   host renders real exported 2D and 3D packages, but does not reproduce SUD's

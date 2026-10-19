@@ -17,6 +17,7 @@ published separately; it ships inside the editor.
 ### Added
 
 - **SUD OpenPaaS development export.** An opt-in project platform preset exports a `main.js` directory for PinK's third-party builder. Its SDK profile bridges `sud`, package-file WASM loading, XHR, WebSocket and localStorage through the shared 2D/3D mini-game runtime. Headless checks exercise real exported 2D and 3D frames, including a WASM result without `module`; PinK packaging and Android/iOS acceptance remain pending. Login, ads, payment, WebGPU and EmscriptenGLX are not enabled by this initial integration.
+  The directory includes the initial `manifest.json` emitted by the official web2sp converter. That converter produces a SUD project directory, not a binary `.sp` file; final package generation remains separate from directory export.
 
 - **Plugin filesystem operations.** Editor plugins can read and write binary assets directly, list directories, inspect files, create folders, rename and delete in their own directory or the capability-gated project scope. Moves preserve asset UUID sidecars, deletion uses the OS trash, and project edits join the existing file journal. User-installed plugins outside the project are supported; generated plugin data no longer repeatedly reloads its producer. Addresses [#99](https://github.com/esengine/estella/issues/99).
 

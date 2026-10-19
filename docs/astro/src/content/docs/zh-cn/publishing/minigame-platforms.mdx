@@ -42,6 +42,11 @@ iOS 仅返回 instance、没有编译后 module 的结果。
 在 OpenPaaS 的开发版本详情中，用 **Hello PinK** 扫描包链接二维码调试。
 提供的 Unity / Laya 指南采用的也是这个第三方目录流程；这里不需要安装它们各自的转换插件。
 
+已下载、检查并实际运行官方 [web2sp 1.0.0](https://download.sudden.ltd/assets/openpaas/guide/attachment/web2sp-1.0.0.tgz)：
+它识别 Laya HTML，复制 Web 目录，生成 `main.js`、`laya_adapter.js`，并在缺失时创建
+内容为 `{}` 的 `manifest.json`。工具没有二进制 `.sp` 封装实现。Estella 直接生成自己的
+运行入口及相同的初始 manifest；最终 `.sp` 仍需平台封装工具，上传、审核和发布由用户处理。
+
 <Aside type="caution">
   **当前为开发接入，真机验收待完成。** 无窗口契约宿主已能加载真实引擎和导出的
   2D / 3D 场景，但无法复现 SUD 原生渲染、音频和 iOS WASM 实现。
