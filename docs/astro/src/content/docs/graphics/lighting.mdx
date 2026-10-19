@@ -455,6 +455,58 @@ WeChat, playable — boot the same pipeline. Code-first projects pass it at app 
 const app = createWebApp(module, { colorSpace: 'linear' });
 ```
 
+## Dynamic planar reflections
+
+Add `PlanarReflection` to a flat entity with a resident `MeshRenderer` mesh and a
+lit/PBR material. Its world origin and selected local axis define the reflecting
+plane. The current camera is mirrored across that plane; geometry on its opposite
+side, the receiving entity, and screen-space UI are excluded from the capture.
+Water, mirrors and polished floors use the same capture; this is not a water simulation.
+
+```typescript
+import { PlanarReflection, ReflectionAxis, ReflectionQuality,
+  ReflectionUpdate, refreshPlanarReflection, planarReflectionStatus } from 'esengine';
+
+world.insert(surface, PlanarReflection, {
+  axis: ReflectionAxis.Y,
+  quality: ReflectionQuality.Custom,
+  resolutionScale: 0.5,
+  maxSize: 1024,
+  update: ReflectionUpdate.EveryFrame,
+});
+// For OnDemand, request a refresh after changing the reflected scene:
+refreshPlanarReflection(app, surface);
+const capture = planarReflectionStatus(app, surface, cameraEntity);
+```
+
+The existing material controls tint, metallic response, Fresnel and roughness.
+The captured radiance replaces the environment's specular input for this draw;
+it is not added over an already reflected sky. The roughness filter is a small
+spatial approximation, not a prefiltered GGX convolution. An unlit material does
+not sample PBR reflections. Use an actual flat mesh, rather than a thick box, so
+the reflecting geometry agrees with its plane.
+
+One visible surface is captured per view, selected by stable entity ID. Additional
+surfaces report `budget-excluded`. Each camera owns a separate capture; inactive
+views release their targets, resizing refreshes them, and a device rebuild forces
+a recapture. Captures run without post-processing, host draw callbacks or recursion.
+World-space 2D light masks are not regenerated for the reflected camera.
+
+Project quality defaults are ¼ / 512, ½ / 1024 and 1× / 2048 for low, medium and
+high, all updating every frame. Override `planarReflectionScale`,
+`planarReflectionMaxSize`, and `planarReflectionUpdatesPerSecond` in a quality
+profile; zero updates-per-second means every frame. Custom fixed-rate and on-demand
+updates affect only the capture, never the main scene's frame rate.
+
+Details exposes capture settings, quality overrides, a transient plane preview and
+live capture size/draw/resource diagnostics. View 0 is the manual/editor view;
+runtime diagnostics use the camera's runtime entity ID.
+
+Open `examples/planar-reflection`: Space toggles capture, 1/2/3 selects project
+quality, and a moving object demonstrates dynamic reflection. WebGL2/WebGPU
+headless checks cover geometry placement, clipping, layers and update policies;
+physical mobile-device frame-time acceptance remains pending.
+
 ## In the editor
 
 ![A 2D light in the editor viewport — its reach and the shadows its casters throw](@/assets/guides/en/lighting.png)

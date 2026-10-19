@@ -28,6 +28,7 @@
 #include "../ecs/components/Occluder.hpp"
 #include "../ecs/components/ParticleEmitter.hpp"
 #include "../ecs/components/ParticleForceField.hpp"
+#include "../ecs/components/PlanarReflection.hpp"
 #include "../ecs/components/ReflectionProbe.hpp"
 #include "../ecs/components/RigidBody2D.hpp"
 #include "../ecs/components/RigidBody3D.hpp"
@@ -219,6 +220,20 @@ EMSCRIPTEN_BINDINGS(esengine_enums) {
     enum_<esengine::ecs::ProjectionType>("ProjectionType")
         .value("Perspective", esengine::ecs::ProjectionType::Perspective)
         .value("Orthographic", esengine::ecs::ProjectionType::Orthographic);
+
+    enum_<esengine::ecs::ReflectionAxis>("ReflectionAxis")
+        .value("X", esengine::ecs::ReflectionAxis::X)
+        .value("Y", esengine::ecs::ReflectionAxis::Y)
+        .value("Z", esengine::ecs::ReflectionAxis::Z);
+
+    enum_<esengine::ecs::ReflectionQuality>("ReflectionQuality")
+        .value("Project", esengine::ecs::ReflectionQuality::Project)
+        .value("Custom", esengine::ecs::ReflectionQuality::Custom);
+
+    enum_<esengine::ecs::ReflectionUpdate>("ReflectionUpdate")
+        .value("EveryFrame", esengine::ecs::ReflectionUpdate::EveryFrame)
+        .value("FixedRate", esengine::ecs::ReflectionUpdate::FixedRate)
+        .value("OnDemand", esengine::ecs::ReflectionUpdate::OnDemand);
 
     enum_<esengine::ecs::ScrollMovement>("ScrollMovement")
         .value("Clamped", esengine::ecs::ScrollMovement::Clamped)
@@ -1051,6 +1066,53 @@ ParticleEmitterJS particleemitterToJS(const esengine::ecs::ParticleEmitter& c) {
     return js;
 }
 
+struct PlanarReflectionJS {
+    i32 axis;
+    f32 clipOffset;
+    u32 cullingMask;
+    i32 quality;
+    f32 resolutionScale;
+    u32 maxSize;
+    i32 update;
+    f32 updatesPerSecond;
+    u32 revision;
+    bool enabled;
+};
+
+void planarreflectionApplyJS(esengine::ecs::PlanarReflection& c, const PlanarReflectionJS& js) {
+    c.axis = static_cast<ReflectionAxis>(js.axis);
+    c.clipOffset = js.clipOffset;
+    c.cullingMask = js.cullingMask;
+    c.quality = static_cast<ReflectionQuality>(js.quality);
+    c.resolutionScale = js.resolutionScale;
+    c.maxSize = js.maxSize;
+    c.update = static_cast<ReflectionUpdate>(js.update);
+    c.updatesPerSecond = js.updatesPerSecond;
+    c.revision = js.revision;
+    c.enabled = js.enabled;
+}
+
+esengine::ecs::PlanarReflection planarreflectionFromJS(const PlanarReflectionJS& js) {
+    esengine::ecs::PlanarReflection c;
+    planarreflectionApplyJS(c, js);
+    return c;
+}
+
+PlanarReflectionJS planarreflectionToJS(const esengine::ecs::PlanarReflection& c) {
+    PlanarReflectionJS js;
+    js.axis = static_cast<i32>(c.axis);
+    js.clipOffset = c.clipOffset;
+    js.cullingMask = c.cullingMask;
+    js.quality = static_cast<i32>(c.quality);
+    js.resolutionScale = c.resolutionScale;
+    js.maxSize = c.maxSize;
+    js.update = static_cast<i32>(c.update);
+    js.updatesPerSecond = c.updatesPerSecond;
+    js.revision = c.revision;
+    js.enabled = c.enabled;
+    return js;
+}
+
 struct ReflectionProbeJS {
     u32 reflection;
     glm::vec3 halfExtents;
@@ -1880,6 +1942,18 @@ EMSCRIPTEN_BINDINGS(esengine_components) {
         .field("falloff", &esengine::ecs::ParticleForceField::falloff)
         .field("enabled", &esengine::ecs::ParticleForceField::enabled);
 
+    value_object<PlanarReflectionJS>("PlanarReflection")
+        .field("axis", &PlanarReflectionJS::axis)
+        .field("clipOffset", &PlanarReflectionJS::clipOffset)
+        .field("cullingMask", &PlanarReflectionJS::cullingMask)
+        .field("quality", &PlanarReflectionJS::quality)
+        .field("resolutionScale", &PlanarReflectionJS::resolutionScale)
+        .field("maxSize", &PlanarReflectionJS::maxSize)
+        .field("update", &PlanarReflectionJS::update)
+        .field("updatesPerSecond", &PlanarReflectionJS::updatesPerSecond)
+        .field("revision", &PlanarReflectionJS::revision)
+        .field("enabled", &PlanarReflectionJS::enabled);
+
     value_object<ReflectionProbeJS>("ReflectionProbe")
         .field("reflection", &ReflectionProbeJS::reflection)
         .field("halfExtents", &ReflectionProbeJS::halfExtents)
@@ -2145,6 +2219,7 @@ EMSCRIPTEN_BINDINGS(esengine_registry) {
             if (r.has<esengine::ecs::Parent>(entity)) { if (!names.empty()) names += "|"; names += "Parent"; }
             if (r.has<esengine::ecs::ParticleEmitter>(entity)) { if (!names.empty()) names += "|"; names += "ParticleEmitter"; }
             if (r.has<esengine::ecs::ParticleForceField>(entity)) { if (!names.empty()) names += "|"; names += "ParticleForceField"; }
+            if (r.has<esengine::ecs::PlanarReflection>(entity)) { if (!names.empty()) names += "|"; names += "PlanarReflection"; }
             if (r.has<esengine::ecs::ReflectionProbe>(entity)) { if (!names.empty()) names += "|"; names += "ReflectionProbe"; }
             if (r.has<esengine::ecs::RigidBody2D>(entity)) { if (!names.empty()) names += "|"; names += "RigidBody2D"; }
             if (r.has<esengine::ecs::RigidBody3D>(entity)) { if (!names.empty()) names += "|"; names += "RigidBody3D"; }
@@ -2196,6 +2271,7 @@ EMSCRIPTEN_BINDINGS(esengine_registry) {
             if (name == "Parent") return static_cast<int>(componentTypeId<esengine::ecs::Parent>());
             if (name == "ParticleEmitter") return static_cast<int>(componentTypeId<esengine::ecs::ParticleEmitter>());
             if (name == "ParticleForceField") return static_cast<int>(componentTypeId<esengine::ecs::ParticleForceField>());
+            if (name == "PlanarReflection") return static_cast<int>(componentTypeId<esengine::ecs::PlanarReflection>());
             if (name == "ReflectionProbe") return static_cast<int>(componentTypeId<esengine::ecs::ReflectionProbe>());
             if (name == "RigidBody2D") return static_cast<int>(componentTypeId<esengine::ecs::RigidBody2D>());
             if (name == "RigidBody3D") return static_cast<int>(componentTypeId<esengine::ecs::RigidBody3D>());
@@ -2828,6 +2904,30 @@ EMSCRIPTEN_BINDINGS(esengine_registry) {
             r.remove<esengine::ecs::ParticleForceField>(entity);
         }))
 
+        // PlanarReflection
+        .function("hasPlanarReflection", optional_override([](Registry& r, u32 e) {
+            return r.has<esengine::ecs::PlanarReflection>(static_cast<Entity>(e));
+        }))
+        .function("getPlanarReflection", optional_override([](Registry& r, u32 e) {
+            auto entity = static_cast<Entity>(e);
+            if (!r.valid(entity) || !r.has<esengine::ecs::PlanarReflection>(entity)) return PlanarReflectionJS{};
+            return planarreflectionToJS(r.get<esengine::ecs::PlanarReflection>(entity));
+        }))
+        .function("addPlanarReflection", optional_override([](Registry& r, u32 e, const PlanarReflectionJS& js) {
+            auto entity = static_cast<Entity>(e);
+            if (!r.valid(entity)) return;
+            if (auto* existing = r.tryGet<esengine::ecs::PlanarReflection>(entity)) {
+                planarreflectionApplyJS(*existing, js);
+                return;
+            }
+            r.emplaceOrReplace<esengine::ecs::PlanarReflection>(entity, planarreflectionFromJS(js));
+        }))
+        .function("removePlanarReflection", optional_override([](Registry& r, u32 e) {
+            auto entity = static_cast<Entity>(e);
+            if (!r.valid(entity) || !r.has<esengine::ecs::PlanarReflection>(entity)) return;
+            r.remove<esengine::ecs::PlanarReflection>(entity);
+        }))
+
         // ReflectionProbe
         .function("hasReflectionProbe", optional_override([](Registry& r, u32 e) {
             return r.has<esengine::ecs::ReflectionProbe>(static_cast<Entity>(e));
@@ -3331,6 +3431,7 @@ emscripten::val esengineGetBuiltinComponentNames() {
     arr.set(i++, val(std::string("Parent")));
     arr.set(i++, val(std::string("ParticleEmitter")));
     arr.set(i++, val(std::string("ParticleForceField")));
+    arr.set(i++, val(std::string("PlanarReflection")));
     arr.set(i++, val(std::string("ReflectionProbe")));
     arr.set(i++, val(std::string("RigidBody2D")));
     arr.set(i++, val(std::string("RigidBody3D")));
@@ -3603,6 +3704,16 @@ static_assert(offsetof(esengine::ecs::ParticleForceField, radius) == 8, "ABI off
 static_assert(offsetof(esengine::ecs::ParticleForceField, direction) == 12, "ABI offset drift: esengine::ecs::ParticleForceField.direction (EHT expected 12)");
 static_assert(offsetof(esengine::ecs::ParticleForceField, falloff) == 24, "ABI offset drift: esengine::ecs::ParticleForceField.falloff (EHT expected 24)");
 static_assert(offsetof(esengine::ecs::ParticleForceField, enabled) == 25, "ABI offset drift: esengine::ecs::ParticleForceField.enabled (EHT expected 25)");
+static_assert(offsetof(esengine::ecs::PlanarReflection, axis) == 0, "ABI offset drift: esengine::ecs::PlanarReflection.axis (EHT expected 0)");
+static_assert(offsetof(esengine::ecs::PlanarReflection, clipOffset) == 4, "ABI offset drift: esengine::ecs::PlanarReflection.clipOffset (EHT expected 4)");
+static_assert(offsetof(esengine::ecs::PlanarReflection, cullingMask) == 8, "ABI offset drift: esengine::ecs::PlanarReflection.cullingMask (EHT expected 8)");
+static_assert(offsetof(esengine::ecs::PlanarReflection, quality) == 12, "ABI offset drift: esengine::ecs::PlanarReflection.quality (EHT expected 12)");
+static_assert(offsetof(esengine::ecs::PlanarReflection, resolutionScale) == 16, "ABI offset drift: esengine::ecs::PlanarReflection.resolutionScale (EHT expected 16)");
+static_assert(offsetof(esengine::ecs::PlanarReflection, maxSize) == 20, "ABI offset drift: esengine::ecs::PlanarReflection.maxSize (EHT expected 20)");
+static_assert(offsetof(esengine::ecs::PlanarReflection, update) == 24, "ABI offset drift: esengine::ecs::PlanarReflection.update (EHT expected 24)");
+static_assert(offsetof(esengine::ecs::PlanarReflection, updatesPerSecond) == 28, "ABI offset drift: esengine::ecs::PlanarReflection.updatesPerSecond (EHT expected 28)");
+static_assert(offsetof(esengine::ecs::PlanarReflection, revision) == 32, "ABI offset drift: esengine::ecs::PlanarReflection.revision (EHT expected 32)");
+static_assert(offsetof(esengine::ecs::PlanarReflection, enabled) == 36, "ABI offset drift: esengine::ecs::PlanarReflection.enabled (EHT expected 36)");
 static_assert(offsetof(esengine::ecs::ReflectionProbe, reflection) == 0, "ABI offset drift: esengine::ecs::ReflectionProbe.reflection (EHT expected 0)");
 static_assert(offsetof(esengine::ecs::ReflectionProbe, halfExtents) == 4, "ABI offset drift: esengine::ecs::ReflectionProbe.halfExtents (EHT expected 4)");
 static_assert(offsetof(esengine::ecs::ReflectionProbe, slot) == 16, "ABI offset drift: esengine::ecs::ReflectionProbe.slot (EHT expected 16)");
@@ -3770,7 +3881,7 @@ static_assert(offsetof(esengine::ecs::Velocity, angular) == 12, "ABI offset drif
 // ABI Hash -- runtime handshake against the SDK bundle
 // =============================================================================
 
-static const char* kEsAbiLayoutHash = "2f29375a9e0f797d";
+static const char* kEsAbiLayoutHash = "2f5ac38ffa80eb57";
 
 std::string esengineGetAbiLayoutHash() {
     return std::string(kEsAbiLayoutHash);

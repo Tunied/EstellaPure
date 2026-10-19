@@ -169,6 +169,7 @@ export interface NativeEngineApi {
     renderer_getEstimatedGpuBytes?(): number;
     renderer_getGpuTimeMs?(): number;
     renderer_getMeshes?(): number;
+    renderer_getPlanarReflectionStatus?(view: number, entity: number): string;
     renderer_getPreviewHeight?(): number;
     renderer_getPreviewSize?(): number;
     renderer_getPreviewWidth?(): number;
@@ -207,6 +208,7 @@ export interface NativeEngineApi {
     renderer_setEntityDrawOrder?(registry: unknown, entitiesPtr: number, count: number): void;
     renderer_setLodPreview?(view: number, entity: number, level: number): void;
     renderer_setMeshEdgeBuffers?(enabled: boolean): void;
+    renderer_setPlanarReflectionQuality?(scale: number, maxSize: number, updatesPerSecond: number): void;
     renderer_setQualityBudgets?(atlasSize: number, cellSize: number, cascades: number, particleLimit: number): void;
     renderer_setShadowDistance?(distance: number): void;
     renderer_setStage?(stage: number): void;
@@ -480,6 +482,7 @@ export function createNativeEngineApi(
     bind('renderer_getEstimatedGpuBytes', 'es_renderer_getEstimatedGpuBytes', false);
     bind('renderer_getGpuTimeMs', 'es_renderer_getGpuTimeMs', false);
     bind('renderer_getMeshes', 'es_renderer_getMeshes', false);
+    bind('renderer_getPlanarReflectionStatus', 'es_renderer_getPlanarReflectionStatus', false);
     bind('renderer_getPreviewHeight', 'es_renderer_getPreviewHeight', false);
     bind('renderer_getPreviewSize', 'es_renderer_getPreviewSize', false);
     bind('renderer_getPreviewWidth', 'es_renderer_getPreviewWidth', false);
@@ -518,6 +521,7 @@ export function createNativeEngineApi(
     bind('renderer_setEntityDrawOrder', 'es_renderer_setEntityDrawOrder', true);
     bind('renderer_setLodPreview', 'es_renderer_setLodPreview', false);
     bind('renderer_setMeshEdgeBuffers', 'es_renderer_setMeshEdgeBuffers', false);
+    bind('renderer_setPlanarReflectionQuality', 'es_renderer_setPlanarReflectionQuality', false);
     bind('renderer_setQualityBudgets', 'es_renderer_setQualityBudgets', false);
     bind('renderer_setShadowDistance', 'es_renderer_setShadowDistance', false);
     bind('renderer_setStage', 'es_renderer_setStage', false);

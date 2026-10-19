@@ -213,6 +213,23 @@ export enum ProjectionType {
     Orthographic = 1,
 }
 
+export enum ReflectionAxis {
+    X = 0,
+    Y = 1,
+    Z = 2,
+}
+
+export enum ReflectionQuality {
+    Project = 0,
+    Custom = 1,
+}
+
+export enum ReflectionUpdate {
+    EveryFrame = 0,
+    FixedRate = 1,
+    OnDemand = 2,
+}
+
 export enum ScrollMovement {
     Clamped = 0,
     Elastic = 1,
@@ -734,6 +751,19 @@ export interface ParticleForceField {
     enabled: boolean;
 }
 
+export interface PlanarReflection {
+    axis: number;
+    clipOffset: number;
+    cullingMask: number;
+    quality: number;
+    resolutionScale: number;
+    maxSize: number;
+    update: number;
+    updatesPerSecond: number;
+    revision: number;
+    enabled: boolean;
+}
+
 export interface ReflectionProbe {
     reflection: number;
     halfExtents: Vec3;
@@ -1079,6 +1109,10 @@ export interface Registry {
     getParticleForceField(entity: Entity): ParticleForceField;
     addParticleForceField(entity: Entity, component: ParticleForceField): void;
     removeParticleForceField(entity: Entity): void;
+    hasPlanarReflection(entity: Entity): boolean;
+    getPlanarReflection(entity: Entity): PlanarReflection;
+    addPlanarReflection(entity: Entity, component: PlanarReflection): void;
+    removePlanarReflection(entity: Entity): void;
     hasReflectionProbe(entity: Entity): boolean;
     getReflectionProbe(entity: Entity): ReflectionProbe;
     addReflectionProbe(entity: Entity, component: ReflectionProbe): void;
@@ -1205,6 +1239,7 @@ export interface ESEngineModule {
     Parent: new () => Parent;
     ParticleEmitter: new () => ParticleEmitter;
     ParticleForceField: new () => ParticleForceField;
+    PlanarReflection: new () => PlanarReflection;
     ReflectionProbe: new () => ReflectionProbe;
     RigidBody2D: new () => RigidBody2D;
     RigidBody3D: new () => RigidBody3D;

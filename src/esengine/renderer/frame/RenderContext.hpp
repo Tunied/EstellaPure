@@ -233,11 +233,12 @@ private:
     PerDrawBlocks morphBlocks_;
     PerDrawBlocks probeBlocks_;
     PerDrawBlocks instanceBlocks_;
+    PerDrawBlocks planarBlocks_;
 
 public:
     /** @brief The blocks the draw loop rewrites before each draw. */
     PerDrawBlockSet perDrawBlocks() {
-        return {&skinBlocks_, &morphBlocks_, &probeBlocks_, &instanceBlocks_};
+        return {&skinBlocks_, &morphBlocks_, &probeBlocks_, &instanceBlocks_, &planarBlocks_};
     }
     /** @brief Hand every one of them back at the top of a frame. */
     void beginPerDrawBlocks() {
@@ -245,6 +246,7 @@ public:
         morphBlocks_.beginFrame();
         probeBlocks_.beginFrame();
         instanceBlocks_.beginFrame();
+        planarBlocks_.beginFrame();
     }
 
 private:

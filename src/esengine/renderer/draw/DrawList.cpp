@@ -73,6 +73,7 @@ void DrawList::clear() {
     skin_matrices_.clear();
     morph_shapes_.clear();
     probes_.clear();
+    planar_.clear();
     probe_slots_.clear();
     run_entities_.clear();
     run_first_.clear();
@@ -303,6 +304,9 @@ void DrawList::stageBlocks(const PerDrawBlockSet& blocks) {
         const auto& cmd = commands_[i];
         StagedBlocks& staged = staged_[i];
 
+        if (blocks.planar && cmd.planar_index > 0) {
+            staged.planar = blocks.planar->stage(&planar_[cmd.planar_index - 1], sizeof(PlanarConstants));
+        }
         // The pose, for a draw that has one — in a range of this draw's own. A
         // block shared between two draws of one pass is read by both with what
         // the last wrote, which is a room of characters in one pose.
@@ -346,7 +350,7 @@ void DrawList::stageBlocks(const PerDrawBlockSet& blocks) {
             staged.instance = blocks.instance->stage(&at, sizeof(at));
         }
     }
-    for (PerDrawBlocks* pool : {blocks.skin, blocks.morph, blocks.probe, blocks.instance}) {
+    for (PerDrawBlocks* pool : {blocks.skin, blocks.morph, blocks.probe, blocks.instance, blocks.planar}) {
         if (pool) pool->upload();
     }
 }
@@ -417,6 +421,8 @@ void DrawList::execute(GfxDevice& device, TransientBufferPool& buffers,
         if (blocks.probe) {
             blocks.probe->bind(PROBE_CONSTANTS_BINDING, staged.probe);
         }
+
+        if (blocks.planar) blocks.planar->bind(PLANAR_CONSTANTS_BINDING, staged.planar);
 
         // Dynamic per-draw state (sorted+merged draws already group these coarsely).
         if (cmd.state_flags & CMD_STATE_SCISSOR) {

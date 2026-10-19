@@ -12,10 +12,10 @@ vi.mock('../src/platform', () => ({
     platformOnAppHide: () => () => {}, platformOnAppShow: () => () => {},
 }));
 vi.mock('../src/ecs/bridge/engineApi', () => ({
-    engineApi: () => ({ renderer_setQualityBudgets: vi.fn(), renderer_setShadowDistance: distanceBudget }),
+    engineApi: () => ({ renderer_setQualityBudgets: vi.fn(), renderer_setShadowDistance: distanceBudget, renderer_setPlanarReflectionQuality: reflectionBudget }),
 }));
 
-const { distanceBudget } = vi.hoisted(() => ({ distanceBudget: vi.fn() }));
+const { distanceBudget, reflectionBudget } = vi.hoisted(() => ({ distanceBudget: vi.fn(), reflectionBudget: vi.fn() }));
 
 describe('quality runtime device selection', () => {
     it('applies the tier shadow range and restores camera coverage when disabled', () => {
@@ -25,10 +25,12 @@ describe('quality runtime device selection', () => {
             pipeline: { setQuality: (_: unknown, callback: () => void) => { apply = callback; } },
             addPlugin: vi.fn(), onFrameEnd: () => () => {},
         } as unknown as App;
-        installQuality(app, { mode: 'high', profiles: { high: { shadowDistance: 60 } } }, 4);
+        installQuality(app, { mode: 'high', profiles: { high: { shadowDistance: 60, planarReflectionScale: 0.75, planarReflectionMaxSize: 1536 } } }, 4);
+        expect(reflectionBudget).toHaveBeenLastCalledWith(0.75,1536,0);
         expect(distanceBudget).toHaveBeenLastCalledWith(60);
         controller!.setMode('off'); apply!();
         expect(distanceBudget).toHaveBeenLastCalledWith(0);
+        expect(reflectionBudget).toHaveBeenLastCalledWith(0.5,1024,0);
     });
     it('uses this app’s actual renderer identity when a GPU rule matches', () => {
         const insertResource = vi.fn();

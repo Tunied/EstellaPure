@@ -1,0 +1,19 @@
+{
+  "formatVersion": "1",
+  "name": "Planar Reflection",
+  "version": "0.1.0",
+  "defaultScene": "assets/scenes/main.esscene",
+  "designResolution": {
+    "width": 960,
+    "height": 640
+  },
+  "features": {
+    "rendering": {
+      "colorSpace": "linear",
+      "outputTransform": "aces",
+      "quality": {
+        "mode": "medium"
+      }
+    }
+  }
+}

@@ -1056,6 +1056,114 @@ exports[`builtin FieldMeta (RC9-1 equivalence gate) > matches the golden snapsho
       ],
     },
   },
+  "PlanarReflection": {
+    "axis": {
+      "category": "Capture",
+      "enum": [
+        {
+          "label": "X",
+          "value": 0,
+        },
+        {
+          "label": "Y",
+          "value": 1,
+        },
+        {
+          "label": "Z",
+          "value": 2,
+        },
+      ],
+      "tooltip": "Local normal axis, transformed with the entity. Y for a floor, Z for a mirror.",
+    },
+    "clipOffset": {
+      "category": "Capture",
+      "min": 0,
+      "step": 0.005,
+      "tooltip": "Clip offset in world units; excludes geometry behind the reflecting plane.",
+    },
+    "cullingMask": {
+      "bitmask": {
+        "source": "sortingLayers",
+      },
+      "category": "Capture",
+      "tooltip": "Sorting-layer bits captured by the reflection. The receiving surface and screen UI are excluded.",
+    },
+    "maxSize": {
+      "category": "Quality",
+      "max": 4096,
+      "min": 64,
+      "shownWhen": {
+        "field": "quality",
+        "values": [
+          1,
+        ],
+      },
+      "step": 64,
+    },
+    "quality": {
+      "category": "Quality",
+      "enum": [
+        {
+          "label": "Project",
+          "value": 0,
+        },
+        {
+          "label": "Custom",
+          "value": 1,
+        },
+      ],
+    },
+    "resolutionScale": {
+      "category": "Quality",
+      "max": 1,
+      "min": 0.125,
+      "shownWhen": {
+        "field": "quality",
+        "values": [
+          1,
+        ],
+      },
+      "step": 0.125,
+    },
+    "revision": {
+      "advanced": true,
+    },
+    "update": {
+      "category": "Quality",
+      "enum": [
+        {
+          "label": "EveryFrame",
+          "value": 0,
+        },
+        {
+          "label": "FixedRate",
+          "value": 1,
+        },
+        {
+          "label": "OnDemand",
+          "value": 2,
+        },
+      ],
+      "shownWhen": {
+        "field": "quality",
+        "values": [
+          1,
+        ],
+      },
+      "tooltip": "Only the reflection capture; never limits the main scene frame rate.",
+    },
+    "updatesPerSecond": {
+      "category": "Quality",
+      "max": 120,
+      "min": 1,
+      "shownWhen": {
+        "field": "update",
+        "values": [
+          1,
+        ],
+      },
+    },
+  },
   "PostProcessVolume": {
     "effects": {
       "effectStack": true,

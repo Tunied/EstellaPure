@@ -169,6 +169,7 @@ struct PerDrawBlockSet {
     PerDrawBlocks* morph = nullptr;
     PerDrawBlocks* probe = nullptr;
     PerDrawBlocks* instance = nullptr;
+    PerDrawBlocks* planar = nullptr;
 };
 
 }  // namespace esengine

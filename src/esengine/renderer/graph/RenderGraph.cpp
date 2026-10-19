@@ -53,15 +53,16 @@ ResourceId RenderGraph::importTexture(TextureHandle texture, u32 width, u32 heig
     return static_cast<ResourceId>(resources_.size() - 1);
 }
 
-ResourceId RenderGraph::importTarget(FramebufferHandle target, u32 width, u32 height) {
+ResourceId RenderGraph::importTarget(FramebufferHandle target, u32 width, u32 height, bool output) {
     Resource res;
     res.kind = Kind::ImportedTarget;
     res.target = target;
     res.width = width;
     res.height = height;
     resources_.push_back(res);
-    finalTarget_ = static_cast<ResourceId>(resources_.size() - 1);
-    return finalTarget_;
+    const ResourceId id = static_cast<ResourceId>(resources_.size() - 1);
+    if (output) finalTarget_ = id;
+    return id;
 }
 
 ResourceId RenderGraph::createTarget(const TargetDesc& desc) {

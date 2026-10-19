@@ -7,7 +7,7 @@
 import type { AssetFieldType } from '../scene/scene';
 import type { FieldMeta } from './component';
 import type { Color, Entity, Quat, Vec2, Vec3, Vec4 } from '../types';
-import type { AlignContent, AlignItems, AlignSelf, BodyType, CanvasScaleMode, ClearFlags, Dimension, EmitterShape, FlexDirection, FlexWrap, ForceFieldType, JustifyContent, LightType, MaskMode, Padding, ParticleCollisionFallback, ParticleCollisionMode, ParticleEasing, ProjectionType, ScrollMovement, ShapeType, SimulationSpace, SpriteDrawMode, SpriteMaskInteraction, SubEmitterTrigger, TextAlign, TilemapOrientation, TilemapStaggerAxis, TilemapStaggerIndex, UIDisplay, UIFillMethod, UIFillOrigin, UIPointerEvents, UIPositionType, UIVisualFit, UIVisualType } from '../wasm/wasm.generated';
+import type { AlignContent, AlignItems, AlignSelf, BodyType, CanvasScaleMode, ClearFlags, Dimension, EmitterShape, FlexDirection, FlexWrap, ForceFieldType, JustifyContent, LightType, MaskMode, Padding, ParticleCollisionFallback, ParticleCollisionMode, ParticleEasing, ProjectionType, ReflectionAxis, ReflectionQuality, ReflectionUpdate, ScrollMovement, ShapeType, SimulationSpace, SpriteDrawMode, SpriteMaskInteraction, SubEmitterTrigger, TextAlign, TilemapOrientation, TilemapStaggerAxis, TilemapStaggerIndex, UIDisplay, UIFillMethod, UIFillOrigin, UIPointerEvents, UIPositionType, UIVisualFit, UIVisualType } from '../wasm/wasm.generated';
 
 /**
  * Single-source-of-truth hash of the C++/TS boundary ABI (component
@@ -15,7 +15,7 @@ import type { AlignContent, AlignItems, AlignSelf, BodyType, CanvasScaleMode, Cl
  * getAbiLayoutHash(); BuiltinBridge.connect() compares them and refuses to
  * run on mismatch, because mismatched offsets read the wrong heap bytes.
  */
-export const ABI_LAYOUT_HASH = '2f29375a9e0f797d';
+export const ABI_LAYOUT_HASH = '2f5ac38ffa80eb57';
 
 /**
  * One asset-valued field of a component: which field, and what kind of
@@ -796,6 +796,35 @@ export const COMPONENT_META: Record<string, ComponentMetaEntry> = {
             radius: { min: 0, category: "Field" },
             direction: { category: "Field" },
             falloff: { category: "Field" },
+        },
+    },
+    PlanarReflection: {
+        defaults: {
+            axis: 1,
+            clipOffset: 0.02,
+            cullingMask: 4294967295,
+            quality: 0,
+            resolutionScale: 0.5,
+            maxSize: 1024,
+            update: 0,
+            updatesPerSecond: 30,
+            revision: 0,
+            enabled: true,
+        },
+        assetFields: [],
+        entityFields: [],
+        colorFields: [],
+        animatableFields: [],
+        fields: {
+            axis: { enum: [{ label: 'X', value: 0 }, { label: 'Y', value: 1 }, { label: 'Z', value: 2 }], tooltip: "Local normal axis, transformed with the entity. Y for a floor, Z for a mirror.", category: "Capture" },
+            clipOffset: { min: 0, step: 0.005, tooltip: "Clip offset in world units; excludes geometry behind the reflecting plane.", category: "Capture" },
+            cullingMask: { tooltip: "Sorting-layer bits captured by the reflection. The receiving surface and screen UI are excluded.", category: "Capture", bitmask: { source: "sortingLayers" } },
+            quality: { enum: [{ label: 'Project', value: 0 }, { label: 'Custom', value: 1 }], category: "Quality" },
+            resolutionScale: { min: 0.125, max: 1, step: 0.125, category: "Quality", shownWhen: { field: "quality", values: [1] } },
+            maxSize: { min: 64, max: 4096, step: 64, category: "Quality", shownWhen: { field: "quality", values: [1] } },
+            update: { enum: [{ label: 'EveryFrame', value: 0 }, { label: 'FixedRate', value: 1 }, { label: 'OnDemand', value: 2 }], tooltip: "Only the reflection capture; never limits the main scene frame rate.", category: "Quality", shownWhen: { field: "quality", values: [1] } },
+            updatesPerSecond: { min: 1, max: 120, category: "Quality", shownWhen: { field: "update", values: [1] } },
+            revision: { advanced: true },
         },
     },
     ReflectionProbe: {
@@ -1615,6 +1644,25 @@ export interface ParticleForceFieldData {
     radius: number;
     direction: Vec3;
     falloff: boolean;
+    enabled: boolean;
+}
+
+/**
+ * The fields of the engine's `PlanarReflection` component, generated from
+ * the C++ struct so the two shapes cannot drift.
+ *
+ * @experimental
+ */
+export interface PlanarReflectionData {
+    axis: ReflectionAxis;
+    clipOffset: number;
+    cullingMask: number;
+    quality: ReflectionQuality;
+    resolutionScale: number;
+    maxSize: number;
+    update: ReflectionUpdate;
+    updatesPerSecond: number;
+    revision: number;
     enabled: boolean;
 }
 

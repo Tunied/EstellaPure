@@ -119,6 +119,7 @@ void pushBatchDraw(DrawList& drawList, const ClipState& clips,
     cmd.skin_count = key.skinCount;
     cmd.morph_index = key.morphIndex;
     cmd.probe_index = key.probeIndex;
+    cmd.planar_index = key.planarIndex;
     cmd.shader_id = key.shaderId;
     cmd.blend_mode = key.blend;
     cmd.layout_id = key.layoutId;

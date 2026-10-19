@@ -30,6 +30,7 @@ const BLOCKS = {
     FrameConstants: 'src/esengine/renderer/frame/FrameConstants.hpp',
     TimeConstants: 'src/esengine/renderer/frame/FrameConstants.hpp',
     LightConstants: 'src/esengine/renderer/store/LightConstants.hpp',
+    PlanarConstants: 'src/esengine/renderer/store/PlanarConstants.hpp',
 };
 
 const parser = readFileSync(path.join(ROOT, PARSER), 'utf8');
@@ -88,6 +89,8 @@ const ALIASES = {
     // The block holds view * projection; the shaders have called it u_projection
     // since before there was a view, and `.esshader` is a format users write.
     'FrameConstants.viewProjection': 'projection',
+    'PlanarConstants.projection': 'planarProjection',
+    'PlanarConstants.params': 'planarParams',
 };
 
 /**

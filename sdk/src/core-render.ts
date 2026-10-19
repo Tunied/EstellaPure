@@ -16,6 +16,7 @@
 // =============================================================================
 
 export { Filters } from './render/filters';
+export { planarReflectionStatus, refreshPlanarReflection, type PlanarReflectionStatus } from './render/planarReflection';
 
 export { LIGHT_FORWARD, lightAimRotation, lightAimOf } from './render/lightAim';
 

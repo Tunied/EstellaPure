@@ -592,7 +592,7 @@ void renderer_beginFrame(f32 elapsedSec) {
         rc->setFrameTime(elapsedSec, g_viewportWidth, g_viewportHeight);
     }
     // The frame's own opening, which begin() is not: it runs once per camera.
-    if (g_renderFrame) g_renderFrame->beginFrame();
+    if (g_renderFrame) { g_renderFrame->setPlanarTime(elapsedSec); g_renderFrame->beginFrame(); }
 }
 
 // The pass's load-op rides begin: clearFlags bit0 = color, bit1 = depth; the color
@@ -1066,6 +1066,14 @@ void renderer_setViewLighting(u32 mode, f32 rotationDegrees, f32 keyIntensity, f
     lighting.skyIntensity = std::isfinite(skyIntensity) ? std::max(skyIntensity, 0.0f) : 0.0f;
     lighting.showSky = showSky;
     g_renderFrame->setViewLighting(lighting);
+}
+
+void renderer_setPlanarReflectionQuality(f32 scale, u32 maxSize, f32 updatesPerSecond) {
+    if (g_renderFrame) g_renderFrame->setPlanarQuality(scale, maxSize, updatesPerSecond);
+}
+
+std::string renderer_getPlanarReflectionStatus(u32 view, u32 entity) {
+    return g_renderFrame ? g_renderFrame->planarStatus(view, entity) : "{\"state\":\"unavailable\"}";
 }
 
 void renderer_setShadowDistance(f32 distance) {

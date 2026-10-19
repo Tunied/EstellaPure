@@ -163,6 +163,7 @@ void RenderFrame::init(u32 width, u32 height) {
 
     pool_.init();
     shadow_pool_.init();
+    planar_pool_.init();
     batch_shader_id_ = initBatchShader();
 
     RenderFrameContext initCtx{
@@ -187,6 +188,8 @@ void RenderFrame::shutdown() {
     plugins_.clear();
     pool_.shutdown();
     shadow_pool_.shutdown();
+    planar_pool_.shutdown();
+    releasePlanarCaptures();
     releaseShadowFrameUbos();
     releaseShadow2DResources();
     releaseShape2DResources();
@@ -263,6 +266,13 @@ void RenderFrame::releaseFrameTargets() {
 }
 
 void RenderFrame::beginFrame() {
+    ++planar_frame_;
+    for (auto it = planar_captures_.begin(); it != planar_captures_.end();) {
+        if (it->second.lastSeen + 1 < planar_frame_) {
+            if (it->second.frameUbo != BufferHandle::Invalid) device_.deleteBuffer(it->second.frameUbo);
+            it = planar_captures_.erase(it);
+        } else ++it;
+    }
     // Here and not at end(), which runs once per CAMERA: every camera plans and
     // renders its own maps, and the pool hands the same physical atlas to each in
     // turn. Then one tick of the clock, by the frame that owns the pool.
@@ -384,6 +394,7 @@ void RenderFrame::openPass(const PassClear& clear, RenderTargetManager::Handle t
     pass.clearColorValue[1] = clearRgb.g;
     pass.clearColorValue[2] = clearRgb.b;
     pass.clearColorValue[3] = clear.colorValue.a;
+    scene_clear_ = glm::make_vec4(pass.clearColorValue);
     pass.clearX = clear.x;
     pass.clearY = clear.y;
     pass.clearW = clear.w;
@@ -594,6 +605,7 @@ void RenderFrame::end() {
         if (shadow_2d_resource_ != rg::kNoResource) {
             scene.dependencies.push_back(shadow_2d_resource_);
         }
+        if (planar_resource_ != rg::kNoResource) scene.dependencies.push_back(planar_resource_);
         scene.execute = [this](const rg::PassContext&) {
             drawScene();
             if (presented_overlay_draw_) presented_overlay_draw_->flushDeferred();
@@ -2127,6 +2139,7 @@ void RenderFrame::collectAll(ecs::Registry& registry) {
     { ES_PROFILE_SCOPE("render.collect.shadowDeclare"); declareShadowPass(registry); }
     { ES_PROFILE_SCOPE("render.collect.shadow2dDeclare"); declareShadow2DPass(); }
     { ES_PROFILE_SCOPE("render.collect.shape2dDeclare"); declareShape2DPass(); }
+    { ES_PROFILE_SCOPE("render.collect.planar"); declarePlanarReflection(registry); }
 
     auto ctx = makeContext();
 

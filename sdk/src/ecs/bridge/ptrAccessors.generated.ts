@@ -1421,6 +1421,66 @@ export function createParticleForceFieldData(): ParticleForceFieldPtrData {
     };
 }
 
+export interface PlanarReflectionPtrData {
+    axis: number;
+    clipOffset: number;
+    cullingMask: number;
+    quality: number;
+    resolutionScale: number;
+    maxSize: number;
+    update: number;
+    updatesPerSecond: number;
+    revision: number;
+    enabled: boolean;
+}
+
+export function fillPlanarReflection(
+    f32: Float32Array, u32: Uint32Array, u8: Uint8Array,
+    ptr: number, out: PlanarReflectionPtrData,
+): void {
+    out.axis = u8[ptr];
+    out.clipOffset = f32[(ptr + 4) >> 2];
+    out.cullingMask = u32[(ptr + 8) >> 2];
+    out.quality = u8[ptr + 12];
+    out.resolutionScale = f32[(ptr + 16) >> 2];
+    out.maxSize = u32[(ptr + 20) >> 2];
+    out.update = u8[ptr + 24];
+    out.updatesPerSecond = f32[(ptr + 28) >> 2];
+    out.revision = u32[(ptr + 32) >> 2];
+    out.enabled = u8[ptr + 36] !== 0;
+}
+
+export function writePlanarReflection(
+    f32: Float32Array, u32: Uint32Array, u8: Uint8Array,
+    ptr: number, data: PlanarReflectionPtrData,
+): void {
+    u8[ptr] = data.axis;
+    f32[(ptr + 4) >> 2] = data.clipOffset;
+    u32[(ptr + 8) >> 2] = data.cullingMask;
+    u8[ptr + 12] = data.quality;
+    f32[(ptr + 16) >> 2] = data.resolutionScale;
+    u32[(ptr + 20) >> 2] = data.maxSize;
+    u8[ptr + 24] = data.update;
+    f32[(ptr + 28) >> 2] = data.updatesPerSecond;
+    u32[(ptr + 32) >> 2] = data.revision;
+    u8[ptr + 36] = data.enabled ? 1 : 0;
+}
+
+export function createPlanarReflectionData(): PlanarReflectionPtrData {
+    return {
+        axis: 0,
+        clipOffset: 0,
+        cullingMask: 0,
+        quality: 0,
+        resolutionScale: 0,
+        maxSize: 0,
+        update: 0,
+        updatesPerSecond: 0,
+        revision: 0,
+        enabled: false,
+    };
+}
+
 export interface ReflectionProbePtrData {
     reflection: number;
     halfExtents: Vec3;
@@ -2495,6 +2555,7 @@ export const PTR_ACCESSORS: Record<string, PtrAccessor<any>> = {
     Occluder: { fill: fillOccluder, write: writeOccluder, create: createOccluderData },
     ParticleEmitter: { fill: fillParticleEmitter, write: writeParticleEmitter, create: createParticleEmitterData },
     ParticleForceField: { fill: fillParticleForceField, write: writeParticleForceField, create: createParticleForceFieldData },
+    PlanarReflection: { fill: fillPlanarReflection, write: writePlanarReflection, create: createPlanarReflectionData },
     ReflectionProbe: { fill: fillReflectionProbe, write: writeReflectionProbe, create: createReflectionProbeData },
     RigidBody2D: { fill: fillRigidBody2D, write: writeRigidBody2D, create: createRigidBody2DData },
     RigidBody3D: { fill: fillRigidBody3D, write: writeRigidBody3D, create: createRigidBody3DData },

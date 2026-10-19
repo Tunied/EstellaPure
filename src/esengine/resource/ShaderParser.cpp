@@ -1107,6 +1107,8 @@ struct LightConstants {
 @group(0) @binding(2) var<uniform> lc : LightConstants;
 struct ProbeConstants { u_probeIrradiance : array<vec4f, 1000>, u_probeTail : vec4f };
 @group(0) @binding(7) var<uniform> pc : ProbeConstants;
+struct PlanarConstants { planarProjection : mat4x4f, planarParams : vec4f };
+@group(0) @binding(9) var<uniform> planar : PlanarConstants;
 // Which run of that block this fragment's instance reads. WGSL has no module
 // varying, so the entry point hands it over — the GLSL twin reads the varying
 // straight, which is the one place the two stages differ in shape.
@@ -1449,6 +1451,22 @@ fn reflectionDirection(R : vec3f, P : vec3f, column : f32) -> vec3f {
     return (P + R * t) - (lo + hi) * 0.5;
 }
 fn envRadiance(R : vec3f, roughness : f32, column : f32, P : vec3f) -> vec3f {
+#ifdef ES_ENV_MAP
+    if (planar.planarParams.x > 0.5) {
+        let clip = planar.planarProjection * vec4f(P, 1.0);
+        if (clip.w <= 0.0) { return vec3f(0.0); }
+        let uv = clip.xy / clip.w * vec2f(0.5, 0.5 * planar.planarParams.y) + vec2f(0.5);
+        if (any(uv < vec2f(0.0)) || any(uv > vec2f(1.0))) { return vec3f(0.0); }
+        // A small spatial filter, not prefiltered GGX: preserves material roughness
+        // without allocating a second blur chain or claiming an exact BRDF convolution.
+        let r = max(planar.planarParams.zw, vec2f(roughness * roughness * 0.015));
+        return (textureSampleLevel(t3, s3, uv, 0.0).rgb * 4.0
+            + textureSampleLevel(t3, s3, clamp(uv + vec2f(r.x, 0.0), vec2f(0.0), vec2f(1.0)), 0.0).rgb
+            + textureSampleLevel(t3, s3, clamp(uv - vec2f(r.x, 0.0), vec2f(0.0), vec2f(1.0)), 0.0).rgb
+            + textureSampleLevel(t3, s3, clamp(uv + vec2f(0.0, r.y), vec2f(0.0), vec2f(1.0)), 0.0).rgb
+            + textureSampleLevel(t3, s3, clamp(uv - vec2f(0.0, r.y), vec2f(0.0), vec2f(1.0)), 0.0).rgb) * 0.125;
+    }
+#endif
     if (lc.u_envParams.x < 0.5) { return lc.u_ambient.rgb; }
     let dir = reflectionDirection(R, P, column);
     let lod = clamp(roughness, 0.0, 1.0) * lc.u_envParams.z;
@@ -1942,6 +1960,9 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "    highp vec4 u_probeIrradiance[10 * 100];\n"
             "    highp vec4 u_probeTail;\n"      // see PROBE_BLOCK_BYTES
             "};\n"
+            "layout(std140) uniform PlanarConstants {\n"
+            "    highp mat4 u_planarProjection; highp vec4 u_planarParams;\n"
+            "};\n"
             "flat in highp float v_probeSlot;\n"
             // The shadow map rides the draw's third texture slot, behind the feature the
             // MESH vertex sources set: the batch stream owns 0..7 as a per-vertex merge
@@ -2320,6 +2341,20 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             // this is the flat ambient term, the same way the diffuse half is.
             "highp vec3 envRadiance(in highp vec3 R, in highp float roughness,\n"
             "                       in highp float column, in highp vec3 P) {\n"
+            "#ifdef ES_ENV_MAP\n"
+            "    if (u_planarParams.x > 0.5) {\n"
+            "        highp vec4 clip = u_planarProjection * vec4(P, 1.0);\n"
+            "        if (clip.w <= 0.0) return vec3(0.0);\n"
+            "        highp vec2 uv = clip.xy / clip.w * vec2(0.5, 0.5 * u_planarParams.y) + 0.5;\n"
+            "        if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) return vec3(0.0);\n"
+            "        highp vec2 r = max(u_planarParams.zw, vec2(roughness * roughness * 0.015));\n"
+            "        return (textureLod(u_envMap, uv, 0.0).rgb * 4.0\n"
+            "            + textureLod(u_envMap, clamp(uv + vec2(r.x, 0.0), 0.0, 1.0), 0.0).rgb\n"
+            "            + textureLod(u_envMap, clamp(uv - vec2(r.x, 0.0), 0.0, 1.0), 0.0).rgb\n"
+            "            + textureLod(u_envMap, clamp(uv + vec2(0.0, r.y), 0.0, 1.0), 0.0).rgb\n"
+            "            + textureLod(u_envMap, clamp(uv - vec2(0.0, r.y), 0.0, 1.0), 0.0).rgb) * 0.125;\n"
+            "    }\n"
+            "#endif\n"
             "    if (u_envParams.x < 0.5) return u_ambient.rgb;\n"
             "    highp vec3 dir = reflectionDirection(R, P, column);\n"
             "    highp float lod = clamp(roughness, 0.0, 1.0) * u_envParams.z;\n"

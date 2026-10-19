@@ -22,6 +22,7 @@ import {
     getComponent, DeviceStatus, getDeviceStatus, getDeviceLostReport, recoverDevice,
     getContextLossGuardInfo, decodeImagePixels, captureFramePixels, captureFrame, replayDraw, BatchBreak,
     RenderTexture, Camera, Sprite,
+    planarReflectionStatus,
     EditorViewLighting, EditorViewShading, EditorView, EditorGrid, installEditorGrid, editorViewHalfHeight, setEditorViewHalfHeight,
     ProfileRecorder, AnimatorController, Timeline, onDeviceRestored, Schedule, defineSystem,
     textureImportSettingsFrom,
@@ -416,6 +417,10 @@ function skeletalSource(toUrl: (ref: string) => string, label: string): RuntimeA
 
 const api = {
     loadScene,
+    planarReflectionStatus(id: number, cameraId?: number) {
+        if (!app) throw new Error('planarReflectionStatus before boot');
+        return planarReflectionStatus(app, requireEntity(id), cameraId === undefined ? 0 : requireEntity(cameraId));
+    },
 
     resizeViewport(w: number, h: number): void {
         if (!canvas) throw new Error('resizeViewport before boot');

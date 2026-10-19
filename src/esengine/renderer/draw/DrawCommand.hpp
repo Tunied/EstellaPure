@@ -3,6 +3,7 @@
 #pragma once
 
 #include "../store/ProbeConstants.hpp"
+#include "../store/PlanarConstants.hpp"
 #include "../../core/Types.hpp"
 #include "../frame/RenderStage.hpp"
 #include "./RenderItem.hpp"
@@ -165,6 +166,7 @@ struct DrawCommand {
     // frame's pool, so 0 means no volume holds it and the frame's environment
     // answers instead.
     u32 probe_index = 0;
+    u32 planar_index = 0;
     // Where this draw's instances start in the frame's probe texture. A merged
     // run reads slot `probe_base + gl_InstanceID`, which is why the merge
     // records every instance's probe in draw order rather than dropping it.
@@ -344,6 +346,7 @@ struct DrawCommand {
         if (!hasPersistentGeometry() || !next.hasPersistentGeometry()) return false;
         if (instance_stride == 0 || instance_stride != next.instance_stride) return false;
         if (skin_count != 0 || next.skin_count != 0) return false;
+        if (planar_index != next.planar_index) return false;
         // Same reason: one draw can only be in one shape.
         if (morph_index != 0 || next.morph_index != 0) return false;
         // Indirect light is NOT in this list: it is per instance, so two draws
@@ -367,6 +370,7 @@ struct DrawCommand {
     }
 
     BatchBreak mergeBlocker(const DrawCommand& next) const {
+        if (planar_index != next.planar_index) return BatchBreak::Material;
         // UI mask vertices are replayed to restore their parent's stencil.
         // Changing sampler indices while merging the entering draw would also
         // change its later replay, so both must keep the same binding plan.
@@ -437,6 +441,7 @@ struct DrawCommand {
     }
 
     bool canMergeWith(const DrawCommand& next) const {
+        if (planar_index != next.planar_index) return false;
         return mergeBlocker(next) == BatchBreak::None;
     }
 };

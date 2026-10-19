@@ -380,6 +380,21 @@ export const PTR_LAYOUTS: Record<string, PtrLayout> = {
             { name: 'enabled', type: 'bool', offset: 25 },
         ],
     },
+    PlanarReflection: {
+        ptrFn: 'getPlanarReflectionPtr',
+        fields: [
+            { name: 'axis', type: 'u8', offset: 0 },
+            { name: 'clipOffset', type: 'f32', offset: 4 },
+            { name: 'cullingMask', type: 'u32', offset: 8 },
+            { name: 'quality', type: 'u8', offset: 12 },
+            { name: 'resolutionScale', type: 'f32', offset: 16 },
+            { name: 'maxSize', type: 'u32', offset: 20 },
+            { name: 'update', type: 'u8', offset: 24 },
+            { name: 'updatesPerSecond', type: 'f32', offset: 28 },
+            { name: 'revision', type: 'u32', offset: 32 },
+            { name: 'enabled', type: 'bool', offset: 36 },
+        ],
+    },
     ReflectionProbe: {
         ptrFn: 'getReflectionProbePtr',
         fields: [

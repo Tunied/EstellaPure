@@ -6,6 +6,8 @@
 #include "../draw/RenderItem.hpp"
 #include "../rhi/RenderTarget.hpp"
 #include "./RenderContext.hpp"
+#include "./PlanarReflectionCamera.hpp"
+#include "../store/PlanarConstants.hpp"
 #include "../store/LightConstants.hpp"
 #include "../store/ShadowAtlas.hpp"
 #include "../store/ShadowPlan.hpp"
@@ -107,6 +109,12 @@ public:
     void resize(u32 width, u32 height);
     void setShadowBudget(u32 atlasSize, u32 cellSize, u32 cascades);
     void setShadowDistance(f32 distance);
+    void setPlanarQuality(f32 scale, u32 maxSize, f32 updatesPerSecond);
+    u32 planarTextureFor(Entity entity) const {
+        return entity == planar_receiver_ ? planar_texture_ : 0;
+    }
+    const PlanarConstants& planarConstants() const { return planar_constants_; }
+    std::string planarStatus(u32 view, u32 entity) const;
 
     /** Geometry collected for this camera and drawn after its scene. */
     void setPresentedOverlayDraw(ImmediateDraw* draw) { presented_overlay_draw_ = draw; }
@@ -131,6 +139,7 @@ public:
      *          (@ref applySceneDepthNeed), once, for every camera in the frame.
      */
     void beginFrame();
+    void setPlanarTime(f32 seconds) { planar_elapsed_ = seconds; }
 
     /**
      * @brief Closes the FRAME, once, after every camera and every overlay.
@@ -664,6 +673,36 @@ private:
 
     /** @brief Gathers the scene's reflection probes and binds the atlas they name. */
     void collectReflections(ecs::Registry& registry);
+    void declarePlanarReflection(ecs::Registry& registry);
+    void executePlanarReflection(ecs::Registry& registry, u32 view);
+    struct PlanarCapture {
+        Unique<Framebuffer> target;
+        BufferHandle frameUbo = BufferHandle::Invalid;
+        Entity receiver = INVALID_ENTITY;
+        PlanarReflectionCamera camera;
+        u64 lastSeen = 0;
+        u64 generation = 0;
+        u32 revision = 0;
+        u32 mask = 0xFFFFFFFFu;
+        f32 lastTime = -1.0f;
+        u32 draws = 0;
+        u32 rejected = 0;
+        bool valid = false;
+    };
+    std::unordered_map<u32, PlanarCapture> planar_captures_;
+    TransientBufferPool planar_pool_{device_};
+    DrawList planar_list_;
+    u64 planar_frame_ = 0;
+    f32 planar_elapsed_ = 0;
+    f32 planar_scale_ = 0.5f;
+    u32 planar_max_size_ = 1024;
+    f32 planar_rate_ = 0;
+    Entity planar_receiver_ = INVALID_ENTITY;
+    u32 planar_texture_ = 0;
+    PlanarConstants planar_constants_;
+    glm::vec4 scene_clear_{0.0f, 0.0f, 0.0f, 1.0f};
+    rg::ResourceId planar_resource_ = rg::kNoResource;
+    void releasePlanarCaptures();
 
     /// Makes this ambient light the frame's environment, when it names one that is
     /// loaded; `scale` (colour times intensity) is folded into the coefficients.

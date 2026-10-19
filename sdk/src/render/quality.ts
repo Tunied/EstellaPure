@@ -20,6 +20,10 @@ export interface QualityProfile {
     shadowCascades: number;
     shadowDistance: number;
     particleLimit: number;
+    planarReflectionScale: number;
+    planarReflectionMaxSize: number;
+    /** Zero means every frame; this never caps the main scene. */
+    planarReflectionUpdatesPerSecond: number;
     postProcess: boolean;
     ssao: boolean;
 }
@@ -46,16 +50,19 @@ const PROFILES: Record<QualityLevel, QualityProfile> = {
     low: {
         renderScale: 0.75, minRenderScale: 0.5, msaaSamples: 1,
         shadowAtlasSize: 1024, shadowCellSize: 256, shadowCascades: 2,
+        planarReflectionScale: 0.25, planarReflectionMaxSize: 512, planarReflectionUpdatesPerSecond: 0,
         shadowDistance: 0, particleLimit: 1000, postProcess: true, ssao: false,
     },
     medium: {
         renderScale: 1, minRenderScale: 0.65, msaaSamples: 2,
         shadowAtlasSize: 2048, shadowCellSize: 512, shadowCascades: 3,
+        planarReflectionScale: 0.5, planarReflectionMaxSize: 1024, planarReflectionUpdatesPerSecond: 0,
         shadowDistance: 0, particleLimit: 5000, postProcess: true, ssao: true,
     },
     high: {
         renderScale: 1, minRenderScale: 0.75, msaaSamples: 4,
         shadowAtlasSize: 2048, shadowCellSize: 512, shadowCascades: 4,
+        planarReflectionScale: 1, planarReflectionMaxSize: 2048, planarReflectionUpdatesPerSecond: 0,
         shadowDistance: 0, particleLimit: 20000, postProcess: true, ssao: true,
     },
 };
@@ -124,6 +131,9 @@ function resolveProfile(level: QualityLevel, value: unknown): QualityProfile {
         shadowCascades: Math.round(finite(r.shadowCascades, base.shadowCascades, 1, 4)),
         shadowDistance: finite(r.shadowDistance, base.shadowDistance, 0, 10000000),
         particleLimit: Math.round(finite(r.particleLimit, base.particleLimit, 0, 1000000)),
+        planarReflectionScale: finite(r.planarReflectionScale, base.planarReflectionScale, 0.125, 1),
+        planarReflectionMaxSize: Math.round(finite(r.planarReflectionMaxSize, base.planarReflectionMaxSize, 64, 4096)),
+        planarReflectionUpdatesPerSecond: finite(r.planarReflectionUpdatesPerSecond, base.planarReflectionUpdatesPerSecond, 0, 120),
         postProcess: typeof r.postProcess === 'boolean' ? r.postProcess : base.postProcess,
         ssao: typeof r.ssao === 'boolean' ? r.ssao : base.ssao,
     };

@@ -354,6 +354,9 @@ export const SCENES = [
   // surface reflects +Z, which is the image centre — green there, and the whole
   // sphere averaged at the rough end. One flat term would draw them alike.
 
+  // Dynamic captures keep source geometry and the clipped reflection visible together.
+  {"id": "planar-reflection", "tier": "pr", "webgpu": true, "env": {"ESTELLA_VERIFY_SCENE": "/scenes/planar-reflection.esscene", "ESTELLA_VERIFY_W": "512", "ESTELLA_VERIFY_H": "512", "ESTELLA_VERIFY_STEPS": "3", "ESTELLA_VERIFY_EXPECT": "[{\"x\": 0.390625, \"y\": 0.41015625, \"rgb\": [255, 0, 0], \"tol\": 25}, {\"x\": 0.390625, \"y\": 0.56640625, \"rgb\": [255, 0, 0], \"tol\": 25}, {\"x\": 0.60546875, \"y\": 0.5234375, \"rgb\": [0, 255, 0], \"tol\": 25}]", "ESTELLA_VERIFY_COUNTERS": "{\"render.planar.draws\": 1}"}},
+  {"id": "planar-reflection-off", "tier": "pr", "webgpu": true, "env": {"ESTELLA_VERIFY_SCENE": "/scenes/planar-reflection.esscene", "ESTELLA_VERIFY_W": "512", "ESTELLA_VERIFY_H": "512", "ESTELLA_VERIFY_STEPS": "3", "ESTELLA_VERIFY_EXPECT": "[{\"x\": 0.390625, \"y\": 0.41015625, \"rgb\": [255, 0, 0], \"tol\": 25}, {\"x\": 0.390625, \"y\": 0.56640625, \"rgb\": [0, 0, 0], \"tol\": 15}]", "ESTELLA_VERIFY_SET_FIELD": "{\"entity\": 2, \"component\": \"PlanarReflection\", \"key\": \"enabled\", \"value\": false, \"steps\": 3}"}},
   // TWO mirrors under one sky, one inside a ReflectionProbe: the baked column is
   // red and the sky green, so the picture says which answer each surface took.
   // One atlas serves both — a reflection is a number per instance, not a bind.

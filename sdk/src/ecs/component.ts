@@ -17,7 +17,7 @@ export type { AssetFieldMeta, SkeletalFieldMeta };
 import type {
     TransformData, SpriteData, ShapeRendererData, LightData, ShadowCaster2DData, DraggableData,
     SortingGroupData, SpriteMaskData, LightProbeVolumeData, OccluderData,
-    ReflectionProbeData,
+    ReflectionProbeData, PlanarReflectionData,
     CanvasData, VelocityData, ParentData, ChildrenData, SpineAnimationData, DragonBonesAnimationData,
     TilemapLayerData, BitmapTextData, TrailRendererData, ParticleForceFieldData,
     CameraData as CameraDataCpp, ParticleEmitterData as ParticleEmitterDataCpp,
@@ -28,7 +28,7 @@ import type {
 // C++ enum and the editor dropdowns derive from the same values. ScaleMode's
 // canonical values come from CanvasScaleMode (only its Cocos-compat aliases
 // ShowAll/NoBorder are TS-side).
-import { ProjectionType, ClearFlags, EmitterShape, SimulationSpace, SubEmitterTrigger, ForceFieldType, LightType, CanvasScaleMode, ShapeType, ParticleEasing, ParticleCollisionMode, ParticleCollisionFallback, SpriteMaskInteraction, SpriteDrawMode } from '../wasm/wasm.generated';
+import { ProjectionType, ClearFlags, EmitterShape, SimulationSpace, SubEmitterTrigger, ForceFieldType, LightType, CanvasScaleMode, ShapeType, ParticleEasing, ParticleCollisionMode, ParticleCollisionFallback, ReflectionAxis, ReflectionQuality, ReflectionUpdate, SpriteMaskInteraction, SpriteDrawMode } from '../wasm/wasm.generated';
 import { BlendMode } from '../render/blend';
 import { getDefaultContext } from './context';
 import type {
@@ -831,7 +831,7 @@ export type ScaleMode = (typeof ScaleMode)[keyof typeof ScaleMode];
 export type {
     TransformData, SpriteData, ShapeRendererData, LightData, ShadowCaster2DData, DraggableData,
     SortingGroupData, SpriteMaskData, LightProbeVolumeData, OccluderData,
-    ReflectionProbeData,
+    ReflectionProbeData, PlanarReflectionData,
     CanvasData, VelocityData, ParentData, ChildrenData, SpineAnimationData, DragonBonesAnimationData,
     TilemapLayerData, BitmapTextData, TrailRendererData, ParticleForceFieldData,
 };
@@ -952,6 +952,11 @@ export const ShadowCaster2D = defineBuiltin<ShadowCaster2DData>('ShadowCaster2D'
 // box a creator would otherwise place blind.
 export const LightProbeVolume = defineBuiltin<LightProbeVolumeData>('LightProbeVolume',
     metaDefaults<LightProbeVolumeData>('LightProbeVolume')
+);
+
+/** A non-recursive planar capture, received by this entity's lit material. @experimental */
+export const PlanarReflection = defineBuiltin<PlanarReflectionData>('PlanarReflection',
+    metaDefaults<PlanarReflectionData>('PlanarReflection')
 );
 
 /**
@@ -1167,7 +1172,7 @@ export const TilemapLayer = defineBuiltin<TilemapLayerData>('TilemapLayer',
 // EmitterShape, SimulationSpace and ParticleEasing are re-exported from the
 // generated module (see the import at the top) — single-sourced from their C++
 // ES_ENUMs beside the component fields that serialize them.
-export { ParticleEasing, ParticleCollisionMode, ParticleCollisionFallback };
+export { ParticleEasing, ParticleCollisionMode, ParticleCollisionFallback, ReflectionAxis, ReflectionQuality, ReflectionUpdate };
 
 // =============================================================================
 // ParticleEmitter Component

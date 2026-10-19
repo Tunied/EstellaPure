@@ -1,0 +1,242 @@
+{
+  "version": 4,
+  "name": "Planar Reflection",
+  "entities": [
+    {
+      "id": 1,
+      "name": "Camera",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 0,
+              "y": 3,
+              "z": 6
+            },
+            "rotation": {
+              "x": -0.22975292,
+              "y": 0,
+              "z": 0,
+              "w": 0.97324899
+            }
+          }
+        },
+        {
+          "type": "Camera",
+          "data": {
+            "projectionType": 0,
+            "orthoSize": 6,
+            "isActive": true,
+            "clearFlags": 3,
+            "backgroundColor": {
+              "r": 0.02,
+              "g": 0.02,
+              "b": 0.02,
+              "a": 1
+            },
+            "fov": 50,
+            "nearPlane": 0.1,
+            "farPlane": 100
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Mirror",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "rotation": {
+              "x": -0.70710678,
+              "y": 0,
+              "z": 0,
+              "w": 0.70710678
+            },
+            "scale": {
+              "x": 7,
+              "y": 7,
+              "z": 1
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/meshes/plane.esmesh",
+            "material": "assets/materials/mirror.esmaterial",
+            "opaque": true,
+            "lit": true,
+            "enabled": true
+          }
+        },
+        {
+          "type": "PlanarReflection",
+          "data": {
+            "axis": 2,
+            "quality": 0,
+            "resolutionScale": 1,
+            "maxSize": 512,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Red",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -1.3,
+              "y": 1.0,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.01,
+              "y": 0.01,
+              "z": 0.01
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "opaque": true,
+            "cullBackfaces": true,
+            "lit": true,
+            "layer": 1,
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          }
+        },
+        {
+          "type": "ReflectionSubject",
+          "data": {}
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Green",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 1.3,
+              "y": 0.7,
+              "z": -0.8
+            },
+            "scale": {
+              "x": 0.007,
+              "y": 0.007,
+              "z": 0.007
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "opaque": true,
+            "cullBackfaces": true,
+            "lit": true,
+            "layer": 2,
+            "color": {
+              "r": 0,
+              "g": 1,
+              "b": 0,
+              "a": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "Lamp",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "rotation": {
+              "x": -0.3,
+              "y": -0.25,
+              "z": 0,
+              "w": 0.9205976319760985
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 1,
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "intensity": 3,
+            "meshShadows": false,
+            "shadowExtent": 8,
+            "enabled": true,
+            "sourceAngle": 0.53
+          }
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "name": "Ambient",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 2,
+            "intensity": 0.2,
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "enabled": true
+          }
+        }
+      ]
+    }
+  ]
+}

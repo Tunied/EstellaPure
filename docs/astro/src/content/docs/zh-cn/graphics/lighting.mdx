@@ -356,6 +356,49 @@ Lighting 面板会说场景已经过期。
 const app = createWebApp(module, { colorSpace: 'linear' });
 ```
 
+## 动态平面反射
+
+给平面实体添加 `PlanarReflection`，实体需要有 GPU 常驻网格的 `MeshRenderer`
+以及受光 / PBR 材质。实体世界原点与选定的本地轴定义反射平面。捕获跟随当前渲染相机，
+排除平面另一侧的几何、接收面自身及屏幕 UI。水面、镜子、光滑地面复用同一能力；
+这一步提供反射基础，不包含水体模拟。
+
+```typescript
+import { PlanarReflection, ReflectionAxis, ReflectionQuality,
+  ReflectionUpdate, refreshPlanarReflection, planarReflectionStatus } from 'esengine';
+
+world.insert(surface, PlanarReflection, {
+  axis: ReflectionAxis.Y,
+  quality: ReflectionQuality.Custom,
+  resolutionScale: 0.5,
+  maxSize: 1024,
+  update: ReflectionUpdate.EveryFrame,
+});
+// 按需模式下，场景改变后主动刷新：
+refreshPlanarReflection(app, surface);
+const capture = planarReflectionStatus(app, surface, cameraEntity);
+```
+
+继续使用材质原有的颜色、金属度、Fresnel 与粗糙度。捕获替换本次绘制的环境镜面输入，
+不会与原有天空反射重复相加。粗糙度使用小范围空间滤波近似，不是预过滤 GGX 卷积。
+不受光材质不会采样 PBR 反射；接收网格应是平面，避免用有厚度的盒子代替反射平面。
+
+每个视图先支持一个可见反射面，按稳定实体 ID 选择；其他面明确显示 `budget-excluded`。
+多相机各自保存捕获；视图不再使用时释放目标，尺寸改变或设备重建后重新捕获。
+捕获不执行后处理、项目绘制回调或递归反射，也不会为反射相机重新生成 2D 光照遮罩。
+
+低 / 中 / 高档默认使用 ¼ / 512、½ / 1024、1× / 2048 的比例与最长边上限，全部每帧更新。
+可在项目画质档中配置 `planarReflectionScale`、`planarReflectionMaxSize`、
+`planarReflectionUpdatesPerSecond`；更新次数为 0 表示每帧。
+自定义频率和按需更新只影响反射捕获，不限制主场景帧率。
+
+Details 提供捕获参数、画质覆盖、临时反射平面预览和实际尺寸 / 绘制 / 资源诊断。
+视图 0 是手动 / 编辑器视图；游戏运行时传入相机的运行时实体 ID。
+
+打开 `examples/planar-reflection`：空格切换反射，1 / 2 / 3 切换项目画质，移动物体展示动态倒影。
+WebGL2 / WebGPU 无界面检查覆盖几何位置、裁剪、层过滤与更新策略；
+移动端真机帧时间验收仍待完成。
+
 ## 在编辑器里
 
 ![编辑器视口里的 2D 光——它的照射范围与投射的阴影](@/assets/guides/zh/lighting.png)

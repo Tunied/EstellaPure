@@ -67,6 +67,7 @@ public:
     /** Append one draw's indirect light; returns 1 + where it sits, so that 0
      *  stays available for "no volume holds this draw". */
     u32 addProbe(const ProbeConstants& probe);
+    u32 addPlanar(const PlanarConstants& value) { planar_.push_back(value); return static_cast<u32>(planar_.size()); }
 
     u32 commandCount() const { return static_cast<u32>(commands_.size()); }
     /** Entities by original submission type, independent of a merged run's head. */
@@ -202,6 +203,7 @@ private:
     std::vector<glm::mat4> skin_matrices_;
     std::vector<MorphConstants> morph_shapes_;
     std::vector<ProbeConstants> probes_;
+    std::vector<PlanarConstants> planar_;
     /// One entry per INSTANCE of every merged run, in the order the run draws
     /// them: the merge is where an instance's probe is still known, and the
     /// texture is packed from this afterwards.
@@ -215,7 +217,7 @@ private:
     std::vector<glm::vec4> probe_run_;
     /// Each merged draw's per-draw blocks, staged for the pass before it draws.
     struct StagedBlocks {
-        PerDrawBlocks::Range skin, morph, probe, instance;
+        PerDrawBlocks::Range skin, morph, probe, instance, planar;
     };
     std::vector<StagedBlocks> staged_;
     void stageBlocks(const PerDrawBlockSet& blocks);

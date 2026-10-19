@@ -335,7 +335,8 @@ MeshDrawKeys meshDrawFor(RenderFrameContext& ctx, ecs::Registry& registry, Entit
                          bool& warnedBones, bool weightHeat = false) {
     const MeshProgramFacts facts =
         meshFactsFromEntity(ctx, registry, entity, mesh, resident, warnedBones);
-    return { meshVariantFrom(facts, ctx.environment_texture_id != 0, shadowDepth, weightHeat),
+    return { meshVariantFrom(facts, ctx.environment_texture_id != 0
+                || (!shadowDepth && ctx.frame && ctx.frame->planarTextureFor(entity) != 0), shadowDepth, weightHeat),
              facts.normalTextureId };
 }
 }  // namespace
@@ -666,6 +667,14 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
             .entity = entity,
             .type = RenderType::Mesh,
         };
+
+        if (!shadowDepth && ctx.frame) {
+            const u32 reflection = ctx.frame->planarTextureFor(entity);
+            if (reflection != 0) {
+                key.envTextureId = reflection;
+                key.planarIndex = draw_list.addPlanar(ctx.frame->planarConstants());
+            }
+        }
 
         // An opaque surface says so itself rather than waiting for a depth layer:
         // no blending, depth written AND tested — the only way one mesh hides

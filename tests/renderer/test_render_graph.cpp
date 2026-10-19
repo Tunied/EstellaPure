@@ -37,6 +37,22 @@ rg::PassDesc fullscreen(const char* name, std::vector<rg::ResourceId> reads,
 }  // namespace
 
 int main() {
+    // A persistent capture is an input to the scene, not its replacement.
+    {
+        MockGfxDevice d;
+        rg::RenderGraph graph(d);
+        std::vector<std::string> ran;
+        graph.begin(256, 128);
+        const auto screen = graph.importTarget(FramebufferHandle{9}, 256, 128);
+        const auto capture = graph.importTarget(FramebufferHandle{10}, 128, 64, false);
+        graph.addPass(fullscreen("capture", {}, capture, &ran));
+        auto scene = fullscreen("scene", {}, screen, &ran);
+        scene.dependencies.push_back(capture);
+        graph.addPass(std::move(scene));
+        graph.execute();
+        CHECK((ran == std::vector<std::string>{"capture", "scene"}),
+              "a non-output import preserves the final scene and its capture dependency");
+    }
     // --- a linear chain runs on two physical targets ---
     {
         MockGfxDevice d;

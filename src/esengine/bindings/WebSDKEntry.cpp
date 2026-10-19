@@ -775,6 +775,8 @@ EMSCRIPTEN_BINDINGS(esengine_renderer) {
     emscripten::function("renderer_setDepthLayers", &esengine::renderer_setDepthLayers);
     emscripten::function("renderer_setQualityBudgets", &esengine::renderer_setQualityBudgets);
     emscripten::function("renderer_setShadowDistance", &esengine::renderer_setShadowDistance);
+    emscripten::function("renderer_setPlanarReflectionQuality", &esengine::renderer_setPlanarReflectionQuality);
+    emscripten::function("renderer_getPlanarReflectionStatus", &esengine::renderer_getPlanarReflectionStatus);
     emscripten::function("renderer_setViewLighting", &esengine::renderer_setViewLighting);
     emscripten::function("renderer_setCullingMask", &esengine::renderer_setCullingMask);
     emscripten::function("renderer_setViewId", &esengine::renderer_setViewId);

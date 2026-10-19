@@ -564,10 +564,9 @@ private:
     u32 bound_pipeline_ = 0;
     u32 bound_index_buffer_ = 0;
     i32 stencil_ref_ = 0;  ///< Last user-set reference (re-applied after internal quads).
-    /// Nine: the eight the engine had, plus where a draw's objects start in the
-    /// frame's record texture. WebGPU grants 12 uniform buffers a stage and
-    /// WebGL2 grants 12 blocks a stage, so nine is inside both.
-    static constexpr u32 kUniformSlots = 9;
+    /// Slots 0..9 include the per-draw planar capture. Ten is inside both
+    /// WebGPU's and WebGL2's guaranteed 12 uniform buffers per stage.
+    static constexpr u32 kUniformSlots = 10;
     u32 uniform_slots_[kUniformSlots] = {};  ///< BufferHandle id per UBO binding slot.
     u32 uniform_offsets_[kUniformSlots] = {};
     u32 uniform_sizes_[kUniformSlots] = {};  ///< 0 = the whole buffer.

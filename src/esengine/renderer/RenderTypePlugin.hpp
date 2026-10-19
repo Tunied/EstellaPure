@@ -240,6 +240,7 @@ struct RenderCollectContext {
      *        answer about what a camera cannot see says nothing about it.
      */
     const OcclusionView* occlusion = nullptr;
+    Entity excluded = INVALID_ENTITY;
 
     /** @brief Whether this collect is the frame's screen overlay. */
     bool isOverlay() const { return frame_context.purpose == RenderPurpose::ScreenOverlay; }
@@ -252,6 +253,7 @@ struct RenderCollectContext {
      *          twice — or by nobody, which is what a 3D HUD was.
      */
     bool accepts(Entity entity) const {
+        if (entity == excluded) return false;
         const bool screen = screen_ui && screen_ui->count(entity.id()) != 0;
         return isOverlay() == screen;
     }

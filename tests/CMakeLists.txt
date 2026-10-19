@@ -304,6 +304,13 @@ target_include_directories(test_clip_depth PRIVATE
 )
 add_test(NAME test_clip_depth COMMAND test_clip_depth)
 
+add_executable(test_planar_reflection renderer/test_planar_reflection.cpp)
+target_include_directories(test_planar_reflection PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/third_party/glm
+)
+add_test(NAME test_planar_reflection COMMAND test_planar_reflection)
+
 # Shadow atlas allocation. Header-only, and here rather than in a pixel gate for
 # the arithmetic a frame cannot show: which square a claim hands out, and what a
 # refused one leaves behind. Whether a light READS the square it was given is a

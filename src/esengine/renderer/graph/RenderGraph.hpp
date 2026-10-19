@@ -152,9 +152,11 @@ public:
      * @brief The framebuffer the graph must end in (the screen, an editor FBO).
      *
      * @details Also what culling works back from: a pass no path reaches from
-     *          here did not contribute to the image and is dropped.
+     *          here did not contribute to the image and is dropped. Set output
+     *          false for a persistent intermediate capture: importing it must
+     *          not move the final output away from the scene or its post stack.
      */
-    ResourceId importTarget(FramebufferHandle target, u32 width, u32 height);
+    ResourceId importTarget(FramebufferHandle target, u32 width, u32 height, bool output = true);
 
     /** A target the graph allocates from the pool and recycles after its last read. */
     ResourceId createTarget(const TargetDesc& desc);

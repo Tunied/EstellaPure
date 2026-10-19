@@ -23,6 +23,7 @@
 #include "../store/InstanceConstants.hpp"
 #include "../store/MorphConstants.hpp"
 #include "../store/ProbeConstants.hpp"
+#include "../store/PlanarConstants.hpp"
 #include "../../core/Log.hpp"
 
 #include <cstring>
@@ -248,6 +249,11 @@ bool Shader::compile(const std::string& vertexSrc, const std::string& fragmentSr
     u32 instanceBlock = device_->getUniformBlockIndex(program_, INSTANCE_CONSTANTS_BLOCK);
     if (instanceBlock != GFX_INVALID_UNIFORM_BLOCK) {
         device_->uniformBlockBinding(program_, instanceBlock, INSTANCE_CONSTANTS_BINDING);
+    }
+
+    const u32 planarBlock = device_->getUniformBlockIndex(program_, PLANAR_CONSTANTS_BLOCK);
+    if (planarBlock != GFX_INVALID_UNIFORM_BLOCK) {
+        device_->uniformBlockBinding(program_, planarBlock, PLANAR_CONSTANTS_BINDING);
     }
 
     // Same for the per-draw params block (rewriteLooseUniforms generates it for

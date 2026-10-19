@@ -16,6 +16,8 @@ published separately; it ships inside the editor.
 
 ### Added
 
+- **Dynamic planar reflections.** A shared 2D/3D render-graph capture provides mirrored cameras, plane clipping, layer filtering and PBR reflection input for flat meshes. Details adds quality overrides, plane preview and capture diagnostics; project tiers, every-frame/fixed-rate/on-demand capture, per-camera ownership and device recovery share one implementation. A runnable example and WebGL2/WebGPU headless pixel checks are included. One visible surface per view; mobile device acceptance remains pending.
+
 - **SUD OpenPaaS development export.** An opt-in project platform preset exports a `main.js` directory for PinK's third-party builder. Its SDK profile bridges `sud`, package-file WASM loading, XHR, WebSocket and localStorage through the shared 2D/3D mini-game runtime. Headless checks exercise real exported 2D and 3D frames, including a WASM result without `module`; PinK packaging and Android/iOS acceptance remain pending. Login, ads, payment, WebGPU and EmscriptenGLX are not enabled by this initial integration.
   The directory includes the initial `manifest.json` emitted by the official web2sp converter. That converter produces a SUD project directory, not a binary `.sp` file; final package generation remains separate from directory export.
   `package-openpaas` now invokes PinK's official packer directly to generate encrypted, signed `.sp` files and verify all payload files before replacing the output. Real 2D/3D examples pass export → package → verify → decrypt → payload comparison → headless rendering with independent test keys; authorized Hello PinK and device acceptance remain pending. Uploading is user-managed.

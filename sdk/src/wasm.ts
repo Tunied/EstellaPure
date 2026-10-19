@@ -675,6 +675,8 @@ export interface ESEngineModule {
     renderer_setQualityBudgets?(atlasSize: number, cellSize: number,
         cascades: number, particleLimit: number): void;
     renderer_setShadowDistance?(distance: number): void;
+    renderer_setPlanarReflectionQuality?(scale: number, maxSize: number, updatesPerSecond: number): void;
+    renderer_getPlanarReflectionStatus?(view: number, entity: number): string;
     renderer_setViewLighting?(mode: number, rotationDegrees: number, keyIntensity: number, fillIntensity: number, skyIntensity: number, showSky: boolean): void;
     renderer_setCullingMask?(mask: number): void;
     renderer_setViewId?(view: number): void;
