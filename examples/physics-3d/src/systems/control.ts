@@ -1,6 +1,6 @@
 import {
     defineSystem, Query, Mut, Res, ResMut, Input,
-    CharacterController3D, Physics3DDebugDraw,
+    CharacterController3D, Physics3DDebugDraw, SwingTwistJoint3D, SixDOFJoint3D,
 } from 'esengine';
 
 const WALK_SPEED = 320;
@@ -48,4 +48,18 @@ export const debugToggleSystem = defineSystem(
         debug.modify((config) => { config.enabled = !config.enabled; });
     },
     { name: 'DebugToggleSystem' },
+);
+
+/** Reverse the example's live motors without rebuilding their reference frames. */
+export const reverseJointMotorsSystem = defineSystem(
+    [Query(Mut(SwingTwistJoint3D)), Query(Mut(SixDOFJoint3D)), Res(Input)],
+    (swings, sixes, input) => {
+        if (!input.isKeyPressed('KeyJ')) return;
+        for (const [, joint] of swings) joint.angularVelocity.z = -joint.angularVelocity.z;
+        for (const [, joint] of sixes) {
+            joint.linearVelocity.x = -joint.linearVelocity.x;
+            joint.angularVelocity.y = -joint.angularVelocity.y;
+        }
+    },
+    { name: 'ReverseJointMotors' },
 );

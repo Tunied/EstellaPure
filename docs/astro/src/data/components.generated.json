@@ -3829,6 +3829,146 @@
       ]
     },
     {
+      "name": "SixDOFJoint3D",
+      "source": "ts",
+      "fields": [
+        {
+          "key": "connectedEntity",
+          "type": "Entity",
+          "default": "-1"
+        },
+        {
+          "key": "anchor",
+          "type": "Vec3",
+          "default": "(0, 0, 0)",
+          "doc": "Attachment in this entity’s local frame, in world units."
+        },
+        {
+          "key": "axis",
+          "type": "Vec3",
+          "default": "(1, 0, 0)",
+          "doc": "Local X/twist direction. Must be nonzero."
+        },
+        {
+          "key": "normalAxis",
+          "type": "Vec3",
+          "default": "(0, 1, 0)",
+          "doc": "Local Y reference. Must not be parallel to the X/twist axis."
+        },
+        {
+          "key": "enableMotor",
+          "type": "boolean",
+          "default": "false"
+        },
+        {
+          "key": "angularVelocity",
+          "type": "Vec3",
+          "default": "(0, 0, 0)",
+          "doc": "Body B relative to A, in constraint axes (rad/s)."
+        },
+        {
+          "key": "maxMotorTorque",
+          "type": "number",
+          "default": "10",
+          "doc": "Maximum torque per motor axis (N m).",
+          "range": "≥ 0"
+        },
+        {
+          "key": "collideConnected",
+          "type": "boolean",
+          "default": "false"
+        },
+        {
+          "key": "enabled",
+          "type": "boolean",
+          "default": "true"
+        },
+        {
+          "key": "translationMotion",
+          "type": "Vec3",
+          "default": "(0, 0, 0)",
+          "doc": "Each axis: 0 locked, 1 limited, 2 free."
+        },
+        {
+          "key": "rotationMotion",
+          "type": "Vec3",
+          "default": "(0, 0, 0)",
+          "doc": "Each axis: 0 locked, 1 limited, 2 free."
+        },
+        {
+          "key": "translationLower",
+          "type": "Vec3",
+          "default": "(-100, -100, -100)"
+        },
+        {
+          "key": "translationUpper",
+          "type": "Vec3",
+          "default": "(100, 100, 100)"
+        },
+        {
+          "key": "rotationLower",
+          "type": "Vec3",
+          "default": "(-0.5236, -0.5236, -0.5236)"
+        },
+        {
+          "key": "rotationUpper",
+          "type": "Vec3",
+          "default": "(0.5236, 0.5236, 0.5236)"
+        },
+        {
+          "key": "linearVelocity",
+          "type": "Vec3",
+          "default": "(0, 0, 0)",
+          "doc": "Body B relative to A, in constraint axes (world units/s)."
+        },
+        {
+          "key": "maxMotorForce",
+          "type": "number",
+          "default": "100",
+          "doc": "Maximum force per translation axis (N).",
+          "range": "≥ 0"
+        }
+      ],
+      "animatable": [
+        "connectedEntity",
+        "anchor.x",
+        "anchor.y",
+        "anchor.z",
+        "axis.x",
+        "axis.y",
+        "axis.z",
+        "normalAxis.x",
+        "normalAxis.y",
+        "normalAxis.z",
+        "angularVelocity.x",
+        "angularVelocity.y",
+        "angularVelocity.z",
+        "maxMotorTorque",
+        "translationMotion.x",
+        "translationMotion.y",
+        "translationMotion.z",
+        "rotationMotion.x",
+        "rotationMotion.y",
+        "rotationMotion.z",
+        "translationLower.x",
+        "translationLower.y",
+        "translationLower.z",
+        "translationUpper.x",
+        "translationUpper.y",
+        "translationUpper.z",
+        "rotationLower.x",
+        "rotationLower.y",
+        "rotationLower.z",
+        "rotationUpper.x",
+        "rotationUpper.y",
+        "rotationUpper.z",
+        "linearVelocity.x",
+        "linearVelocity.y",
+        "linearVelocity.z",
+        "maxMotorForce"
+      ]
+    },
+    {
       "name": "SliderJoint2D",
       "source": "ts",
       "fields": [
@@ -4428,6 +4568,107 @@
       ],
       "animatable": [
         "cellSize"
+      ]
+    },
+    {
+      "name": "SwingTwistJoint3D",
+      "source": "ts",
+      "fields": [
+        {
+          "key": "connectedEntity",
+          "type": "Entity",
+          "default": "-1"
+        },
+        {
+          "key": "anchor",
+          "type": "Vec3",
+          "default": "(0, 0, 0)",
+          "doc": "Attachment in this entity’s local frame, in world units."
+        },
+        {
+          "key": "axis",
+          "type": "Vec3",
+          "default": "(0, 1, 0)",
+          "doc": "Local X/twist direction. Must be nonzero."
+        },
+        {
+          "key": "normalAxis",
+          "type": "Vec3",
+          "default": "(1, 0, 0)",
+          "doc": "Local Y reference. Must not be parallel to the X/twist axis."
+        },
+        {
+          "key": "enableMotor",
+          "type": "boolean",
+          "default": "false"
+        },
+        {
+          "key": "angularVelocity",
+          "type": "Vec3",
+          "default": "(0, 0, 0)",
+          "doc": "Body B relative to A, in constraint axes (rad/s)."
+        },
+        {
+          "key": "maxMotorTorque",
+          "type": "number",
+          "default": "10",
+          "doc": "Maximum torque per motor axis (N m).",
+          "range": "≥ 0"
+        },
+        {
+          "key": "collideConnected",
+          "type": "boolean",
+          "default": "false"
+        },
+        {
+          "key": "enabled",
+          "type": "boolean",
+          "default": "true"
+        },
+        {
+          "key": "normalHalfConeAngle",
+          "type": "number",
+          "default": "0.7854",
+          "range": "0–3.1416"
+        },
+        {
+          "key": "planeHalfConeAngle",
+          "type": "number",
+          "default": "0.7854",
+          "range": "0–3.1416"
+        },
+        {
+          "key": "twistMinAngle",
+          "type": "number",
+          "default": "-0.5236",
+          "range": "-3.1416–3.1416"
+        },
+        {
+          "key": "twistMaxAngle",
+          "type": "number",
+          "default": "0.5236",
+          "range": "-3.1416–3.1416"
+        }
+      ],
+      "animatable": [
+        "connectedEntity",
+        "anchor.x",
+        "anchor.y",
+        "anchor.z",
+        "axis.x",
+        "axis.y",
+        "axis.z",
+        "normalAxis.x",
+        "normalAxis.y",
+        "normalAxis.z",
+        "angularVelocity.x",
+        "angularVelocity.y",
+        "angularVelocity.z",
+        "maxMotorTorque",
+        "normalHalfConeAngle",
+        "planeHalfConeAngle",
+        "twistMinAngle",
+        "twistMaxAngle"
       ]
     },
     {

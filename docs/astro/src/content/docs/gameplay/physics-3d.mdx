@@ -412,3 +412,47 @@ straight through and shows up in `sensorEnters` instead of `contactEnters`.
 Nothing stops an entity carrying both sets, but nothing merges them either: the two
 worlds do not see each other, and a 2D collider will never stop a 3D body. Pick one
 per scene.
+
+### Swing/twist and six-axis joints
+
+`SwingTwistJoint3D` locks translation and limits rotation with an elliptical swing
+cone and a separate twist interval. `axis` is local constraint X (twist),
+`normalAxis` is its local Y reference. Directions are normalized and orthogonalized;
+zero or parallel directions are rejected.
+
+`SixDOFJoint3D` independently controls each axis using `JointMotion3D.Locked` (0),
+`Limited` (1), or `Free` (2) in `translationMotion` and `rotationMotion`. Locked axes
+stay at the creation pose; limited axes use the corresponding lower/upper vector;
+free axes ignore those bounds. Limited lower bounds must be strictly below upper
+bounds. Angular limits lie within −π to π; Y/Z rotation uses Jolt's pyramid limits.
+
+```typescript
+cmds.spawn().insert(SixDOFJoint3D, {
+  connectedEntity: base,
+  translationMotion: { x: JointMotion3D.Limited, y: JointMotion3D.Locked, z: JointMotion3D.Locked },
+  translationLower: { x: -100, y: 0, z: 0 },
+  translationUpper: { x: 100, y: 0, z: 0 },
+});
+```
+
+The Inspector shows angles in degrees; files and scripts store radians. Translation
+limits and linear velocity use world units and world units/s. Angular velocity is
+rad/s; force and torque are N and N·m, independent of `pixelsPerUnit`.
+
+Motors default off. `enableMotor`, `linearVelocity` (SixDOF only),
+`angularVelocity`, `maxMotorForce` and `maxMotorTorque` can change while running
+without rebuilding the joint. Targets describe **connected body B relative to the
+owning body A**, in constraint axes. If B is static, A moves in the opposite direction.
+Each motor axis shares the specified force/torque cap. This is velocity control,
+not a pose servo or active ragdoll.
+
+Changing a frame, collision setting or limit rebuilds these joints using the
+current pose as zero. Disabling/removing a component releases it before its bodies
+are removed. `joint3DSettingsError(settings)` reports invalid settings; invalid
+joints remain uncreated instead of entering the solver with malformed limits.
+
+The existing **3D Physics** example includes a shoulder/arm and a limited carriage.
+Press **J** to reverse their motors; **F1** toggles collider debug drawing. Select
+either joint in the editor to inspect its limits. Viewport limits are read-only;
+edit their numbers in Details. These components are experimental. Headless Jolt
+checks cover limits and motors; target-device acceptance is recorded separately.

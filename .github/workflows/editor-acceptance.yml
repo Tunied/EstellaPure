@@ -50,8 +50,8 @@ jobs:
         env:
           CHECK_NAMES: ${{ inputs.checks }}
           OUT: ${{ github.workspace }}/output/editor-acceptance
-          ELECTRON_DISABLE_SANDBOX: '1'
           ESTELLA_MCP_EDITOR_VISIBLE: '1'
+          ELECTRON_DISABLE_SANDBOX: '1'
         run: |
           read -r -a names <<< "$CHECK_NAMES"
           xvfb-run -a --server-args="-screen 0 1920x1080x24" node scripts/editor-checks/run.mjs "${names[@]}"

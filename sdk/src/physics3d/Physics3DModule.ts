@@ -81,6 +81,19 @@ export interface Physics3DWasmModule {
     _physics3d_overlapBox(px: number, py: number, pz: number,
                           hx: number, hy: number, hz: number, layerMask: number): number;
 
+    _physics3d_addSwingTwistJoint(entity: number, bodyA: number, bodyB: number,
+        px: number, py: number, pz: number, ax: number, ay: number, az: number,
+        nx: number, ny: number, nz: number, normalHalf: number, planeHalf: number,
+        twistMin: number, twistMax: number, collideConnected: number): number;
+    _physics3d_addSixDOFJoint(entity: number, bodyA: number, bodyB: number,
+        px: number, py: number, pz: number, ax: number, ay: number, az: number,
+        nx: number, ny: number, nz: number, translationMotion: number, rotationMotion: number,
+        lx: number, ly: number, lz: number, hx: number, hy: number, hz: number,
+        rx: number, ry: number, rz: number, sx: number, sy: number, sz: number,
+        collideConnected: number): number;
+    _physics3d_setAdvancedJointMotor(entity: number, enable: number,
+        vx: number, vy: number, vz: number, wx: number, wy: number, wz: number,
+        maxForce: number, maxTorque: number): void;
     _physics3d_addPointJoint(entity: number, bodyA: number, bodyB: number,
                              px: number, py: number, pz: number,
                              collideConnected: number): number;
@@ -143,6 +156,7 @@ const REQUIRED_EXPORTS = [
     '_physics3d_contactEnters', '_physics3d_contactEntersBytes',
     '_physics3d_sensorEnters', '_physics3d_sensorEntersBytes',
     '_physics3d_addHingeJoint', '_physics3d_removeJoint',
+    '_physics3d_addSwingTwistJoint', '_physics3d_addSixDOFJoint', '_physics3d_setAdvancedJointMotor',
 ] as const;
 
 /** Throws naming what is missing, rather than letting the first frame do it. */

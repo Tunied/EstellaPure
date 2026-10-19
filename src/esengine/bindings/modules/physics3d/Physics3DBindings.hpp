@@ -83,6 +83,17 @@ void physics3d_moveCharacter(uint32_t characterId, float vx, float vy, float vz,
 void physics3d_setCharacterPosition(uint32_t characterId, float px, float py, float pz);
 
 // Joints
+uint32_t physics3d_addSwingTwistJoint(uint32_t entity, uint32_t bodyA, uint32_t bodyB,
+    float px, float py, float pz, float ax, float ay, float az,
+    float nx, float ny, float nz, float normalHalf, float planeHalf,
+    float twistMin, float twistMax, int collideConnected);
+uint32_t physics3d_addSixDOFJoint(uint32_t entity, uint32_t bodyA, uint32_t bodyB,
+    float px, float py, float pz, float ax, float ay, float az, float nx, float ny, float nz,
+    int translationMotion, int rotationMotion,
+    float lx, float ly, float lz, float hx, float hy, float hz,
+    float rx, float ry, float rz, float sx, float sy, float sz, int collideConnected);
+void physics3d_setAdvancedJointMotor(uint32_t entity, int enable,
+    float vx, float vy, float vz, float wx, float wy, float wz, float maxForce, float maxTorque);
 uint32_t physics3d_addPointJoint(uint32_t entity, uint32_t bodyA, uint32_t bodyB,
                                  float px, float py, float pz, int collideConnected);
 uint32_t physics3d_addHingeJoint(uint32_t entity, uint32_t bodyA, uint32_t bodyB,

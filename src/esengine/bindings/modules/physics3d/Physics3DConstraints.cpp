@@ -5,9 +5,9 @@
  * @brief   Joints: what holds two 3D bodies to each other.
  * @details A door, a rope, a lift, a ragdoll — none of them are a body and a shape,
  *          they are two bodies and a rule about how they may move relative to each
- *          other. Five rules cover almost all of it: a point they share, an axis
+ *          other. Basic rules include a point they share, an axis
  *          they turn about, an axis they slide along, a distance they keep, and no
- *          freedom at all.
+ *          freedom at all. Swing/twist and six-axis constraints add per-axis limits.
  *
  *          Anchors and axes arrive in WORLD space, taken at the moment the joint is
  *          made. That is also what sets the zero of every limit: both bodies are
@@ -29,6 +29,8 @@
 #include <Jolt/Physics/Constraints/HingeConstraint.h>
 #include <Jolt/Physics/Constraints/PointConstraint.h>
 #include <Jolt/Physics/Constraints/SliderConstraint.h>
+#include <Jolt/Physics/Constraints/SwingTwistConstraint.h>
+#include <Jolt/Physics/Constraints/SixDOFConstraint.h>
 
 #include <algorithm>
 #include <cmath>
@@ -158,9 +160,117 @@ void applyMotor(MotorSettings& motor, float maxForceOrTorque) {
     motor.SetTorqueLimit(maxForceOrTorque);
 }
 
+bool finiteVector(Vec3Arg v) {
+    return std::isfinite(v.GetX()) && std::isfinite(v.GetY()) && std::isfinite(v.GetZ());
+}
+
+bool referenceFrame(Vec3Arg x, Vec3Arg y, Vec3& outX, Vec3& outY) {
+    if (!finiteVector(x) || !finiteVector(y) || !std::isfinite(x.LengthSq())
+        || !std::isfinite(y.LengthSq()) || x.LengthSq() < 1.0e-12f || y.LengthSq() < 1.0e-12f) return false;
+    outX = x.Normalized();
+    const Vec3 normal = y - outX * outX.Dot(y);
+    if (normal.LengthSq() < 1.0e-10f * y.LengthSq()) return false;
+    outY = normal.Normalized();
+    return true;
+}
+
 }  // namespace
 
 extern "C" {
+
+/// Both frames coincide at creation, so limits are relative to the authored pose.
+EMSCRIPTEN_KEEPALIVE
+uint32_t physics3d_addSwingTwistJoint(uint32_t entity, uint32_t bodyA, uint32_t bodyB,
+    float px, float py, float pz, float ax, float ay, float az,
+    float nx, float ny, float nz, float normalHalf, float planeHalf,
+    float twistMin, float twistMax, int collideConnected) {
+    if (bodyA == bodyB || !bothLive(bodyA, bodyB) || g().constraints.count(entity) != 0) return 0;
+    Vec3 x, y;
+    if (!referenceFrame(Vec3(ax, ay, az), Vec3(nx, ny, nz), x, y)
+        || !finiteVector(Vec3(px, py, pz))
+        || !std::isfinite(normalHalf) || !std::isfinite(planeHalf)
+        || !std::isfinite(twistMin) || !std::isfinite(twistMax)
+        || normalHalf < 0 || normalHalf > JPH_PI || planeHalf < 0 || planeHalf > JPH_PI
+        || twistMin < -JPH_PI || twistMax > JPH_PI || twistMin > twistMax) return 0;
+    SwingTwistConstraintSettings settings;
+    settings.mSpace = EConstraintSpace::WorldSpace;
+    settings.mPosition1 = settings.mPosition2 = RVec3(px, py, pz);
+    settings.mTwistAxis1 = settings.mTwistAxis2 = x;
+    settings.mPlaneAxis1 = settings.mPlaneAxis2 = x.Cross(y);
+    settings.mNormalHalfConeAngle = normalHalf;
+    settings.mPlaneHalfConeAngle = planeHalf;
+    settings.mTwistMinAngle = twistMin;
+    settings.mTwistMaxAngle = twistMax;
+    return adopt(entity,
+        g().system->GetBodyInterface().CreateConstraint(&settings, BodyID(bodyA), BodyID(bodyB)),
+        bodyA, bodyB, collideConnected);
+}
+
+/// Axis motion is packed as two bits per axis: 0 locked, 1 limited, 2 free.
+EMSCRIPTEN_KEEPALIVE
+uint32_t physics3d_addSixDOFJoint(uint32_t entity, uint32_t bodyA, uint32_t bodyB,
+    float px, float py, float pz, float ax, float ay, float az, float nx, float ny, float nz,
+    int translationMotion, int rotationMotion,
+    float lx, float ly, float lz, float hx, float hy, float hz,
+    float rx, float ry, float rz, float sx, float sy, float sz, int collideConnected) {
+    if (bodyA == bodyB || !bothLive(bodyA, bodyB) || g().constraints.count(entity) != 0) return 0;
+    Vec3 x, y;
+    if (!referenceFrame(Vec3(ax, ay, az), Vec3(nx, ny, nz), x, y)
+        || !finiteVector(Vec3(px, py, pz))
+        || translationMotion < 0 || translationMotion > 63 || rotationMotion < 0 || rotationMotion > 63) return 0;
+    SixDOFConstraintSettings settings;
+    settings.mSpace = EConstraintSpace::WorldSpace;
+    settings.mSwingType = ESwingType::Pyramid;
+    settings.mPosition1 = settings.mPosition2 = RVec3(px, py, pz);
+    settings.mAxisX1 = settings.mAxisX2 = x;
+    settings.mAxisY1 = settings.mAxisY2 = y;
+    const float lower[] = {lx, ly, lz, rx, ry, rz};
+    const float upper[] = {hx, hy, hz, sx, sy, sz};
+    for (int i = 0; i < 6; ++i) {
+        const auto axis = static_cast<SixDOFConstraintSettings::EAxis>(i);
+        const int mode = ((i < 3 ? translationMotion : rotationMotion) >> (2 * (i % 3))) & 3;
+        if (!std::isfinite(lower[i]) || !std::isfinite(upper[i]) || mode == 3) return 0;
+        if (mode == 0) settings.MakeFixedAxis(axis);
+        else if (mode == 2) settings.MakeFreeAxis(axis);
+        else {
+            if (lower[i] >= upper[i] || (i >= 3 && (lower[i] < -JPH_PI || upper[i] > JPH_PI))) return 0;
+            settings.SetLimitedAxis(axis, lower[i], upper[i]);
+        }
+    }
+    return adopt(entity,
+        g().system->GetBodyInterface().CreateConstraint(&settings, BodyID(bodyA), BodyID(bodyB)),
+        bodyA, bodyB, collideConnected);
+}
+
+/// Live velocity/force changes do not rebuild the joint or reset its zero pose.
+EMSCRIPTEN_KEEPALIVE
+void physics3d_setAdvancedJointMotor(uint32_t entity, int enable,
+    float vx, float vy, float vz, float wx, float wy, float wz, float maxForce, float maxTorque) {
+    const auto it = g().constraints.find(entity);
+    if (it == g().constraints.end() || !finiteVector(Vec3(vx, vy, vz)) || !finiteVector(Vec3(wx, wy, wz))
+        || !std::isfinite(maxForce) || maxForce < 0 || !std::isfinite(maxTorque) || maxTorque < 0) return;
+    TwoBodyConstraint* constraint = it->second;
+    const EMotorState state = enable != 0 ? EMotorState::Velocity : EMotorState::Off;
+    if (constraint->GetSubType() == EConstraintSubType::SwingTwist) {
+        auto* joint = static_cast<SwingTwistConstraint*>(constraint);
+        applyMotor(joint->GetSwingMotorSettings(), maxTorque);
+        applyMotor(joint->GetTwistMotorSettings(), maxTorque);
+        joint->SetSwingMotorState(state);
+        joint->SetTwistMotorState(state);
+        joint->SetTargetAngularVelocityCS(Vec3(wx, wy, wz));
+    } else if (constraint->GetSubType() == EConstraintSubType::SixDOF) {
+        auto* joint = static_cast<SixDOFConstraint*>(constraint);
+        for (int i = 0; i < 6; ++i) {
+            const auto axis = static_cast<SixDOFConstraintSettings::EAxis>(i);
+            applyMotor(joint->GetMotorSettings(axis), i < 3 ? maxForce : maxTorque);
+            if (!joint->IsFixedAxis(axis)) joint->SetMotorState(axis, state);
+        }
+        joint->SetTargetVelocityCS(Vec3(vx, vy, vz));
+        joint->SetTargetAngularVelocityCS(Vec3(wx, wy, wz));
+    } else return;
+    g().system->GetBodyInterface().ActivateBody(constraint->GetBody1()->GetID());
+    g().system->GetBodyInterface().ActivateBody(constraint->GetBody2()->GetID());
+}
 
 /// A shared point, free to turn on all three axes — a chain link, a ragdoll limb.
 EMSCRIPTEN_KEEPALIVE

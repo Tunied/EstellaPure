@@ -647,6 +647,59 @@ step(1);
 check('a removed body leaves the readback', bodyPos(CAP) === null);
 check('and its state can no longer be read', bodyState(capId) === null);
 
+// Swing/twist and SixDOF must enforce numeric limits while motors push against them.
+const advancedBody = (entity, x, motion) => m._physics3d_addBox(entity, 0.2, 0.2, 0.2,
+    x, 50, 0, ...IDENTITY, motion, 0, 0, 0, 0, 0, 0, 0.5, 0, 0);
+const swingA = advancedBody(150, 800, STATIC), swingB = advancedBody(151, 800, DYNAMIC);
+check('a swing twist joint is created', m._physics3d_addSwingTwistJoint(152, swingA, swingB,
+    800, 50, 0, 1, 0, 0, 0, 1, 0, 0, 0, -0.3, 0.3, 0) === 1);
+check('an entity cannot silently replace a live constraint', m._physics3d_addSwingTwistJoint(152, swingA, swingB,
+    800, 50, 0, 1, 0, 0, 0, 1, 0, 0, 0, -.1, .1, 0) === 0);
+m._physics3d_setAdvancedJointMotor(152, 1, 0, 0, 0, 1, 0, 0, 0, 100);
+step(120);
+const angleX = (body) => {
+    m._physics3d_getBodyState(body);
+    const o = m._physics3d_queryResult() >> 2;
+    return 2 * Math.atan2(m.HEAPF32[o + 3], m.HEAPF32[o + 6]);
+};
+const twist = angleX(swingB);
+check('twist motor reaches the upper limit without passing it', twist > 0.2 && twist < 0.34, `angle=${twist}`);
+m._physics3d_setAdvancedJointMotor(152, 1, 0, 0, 0, -1, 0, 0, 0, 100);
+step(120);
+const reverseTwist = angleX(swingB);
+check('twist motor reverses without rebuilding the joint', reverseTwist < -0.2 && reverseTwist > -0.34, `angle=${reverseTwist}`);
+const coneA = advancedBody(158, 1000, STATIC), coneB = advancedBody(159, 1000, DYNAMIC);
+check('an unequal swing cone is created', m._physics3d_addSwingTwistJoint(160, coneA, coneB,
+    1000, 50, 0, 1, 0, 0, 0, 1, 0, .3, .6, 0, 0, 0) === 1);
+const angleAxis = (body, axis) => {
+    m._physics3d_getBodyState(body);
+    const o = m._physics3d_queryResult() >> 2;
+    return 2 * Math.atan2(m.HEAPF32[o + 3 + axis], m.HEAPF32[o + 6]);
+};
+m._physics3d_setAdvancedJointMotor(160, 1, 0, 0, 0, 0, 0, 1, 0, 1000);
+step(120);
+check('normal half cone matches the displayed Z swing bound', near(angleAxis(coneB, 2), .3, .04), `angle=${angleAxis(coneB, 2)}`);
+m._physics3d_setAdvancedJointMotor(160, 1, 0, 0, 0, 0, 1, -1, 0, 1000);
+step(120);
+check('swing remains inside both unequal cone bounds', Math.abs(angleAxis(coneB, 1)) <= .65 && Math.abs(angleAxis(coneB, 2)) <= .35,
+    `y=${angleAxis(coneB, 1)} z=${angleAxis(coneB, 2)}`);
+const sixA = advancedBody(153, 900, STATIC), sixB = advancedBody(154, 900, DYNAMIC);
+const sixArgs = [155, sixA, sixB, 900, 50, 0, 1, 0, 0, 0, 1, 0,
+    33, 0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+check('a six axis joint is created', m._physics3d_addSixDOFJoint(...sixArgs) === 1);
+m._physics3d_setAdvancedJointMotor(155, 1, 3, 0, 2, 0, 0, 0, 1000, 100);
+step(120);
+const sixPos = bodyState(sixB);
+check('limited X stops at one metre while locked Y stays put', near(sixPos.x, 901, 0.04) && near(sixPos.y, 50, 0.02), JSON.stringify(sixPos));
+check('free Z continues through the numeric limits', sixPos.z > 3, JSON.stringify(sixPos));
+m._physics3d_setAdvancedJointMotor(155, 1, -3, 0, 0, 0, 0, 0, 100, 100);
+step(120);
+check('six axis motor reverses to its lower limit', near(bodyState(sixB).x, 899, 0.04), JSON.stringify(bodyState(sixB)));
+check('parallel reference axes are rejected', m._physics3d_addSwingTwistJoint(156, swingA, swingB,
+    800, 50, 0, 1, 0, 0, 2, 0, 0, 0.4, 0.4, -0.3, 0.3, 0) === 0);
+const invalidSix = [...sixArgs]; invalidSix[0] = 157; invalidSix[14] = 2;
+check('reversed limited bounds are rejected', m._physics3d_addSixDOFJoint(...invalidSix) === 0);
+
 m._physics3d_shutdown();
 check('the world reports itself gone', m._physics3d_isReady() === 0);
 

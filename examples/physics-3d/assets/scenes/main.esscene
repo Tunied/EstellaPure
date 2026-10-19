@@ -1697,6 +1697,236 @@
           }
         }
       ]
+    },
+    {
+      "id": 70,
+      "name": "Shoulder",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -260,
+              "y": 300,
+              "z": 150
+            }
+          }
+        },
+        {
+          "type": "RigidBody3D",
+          "data": {
+            "bodyType": 0,
+            "gravityScale": 0,
+            "linearDamping": 0.1,
+            "angularDamping": 0.1
+          }
+        },
+        {
+          "type": "BoxCollider3D",
+          "data": {
+            "halfExtents": {
+              "x": 20,
+              "y": 20,
+              "z": 20
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 71,
+      "name": "UpperArm",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -260,
+              "y": 240,
+              "z": 150
+            }
+          }
+        },
+        {
+          "type": "RigidBody3D",
+          "data": {
+            "bodyType": 2,
+            "gravityScale": 0,
+            "linearDamping": 0.1,
+            "angularDamping": 0.1
+          }
+        },
+        {
+          "type": "CapsuleCollider3D",
+          "data": {
+            "radius": 16,
+            "halfHeight": 40
+          }
+        },
+        {
+          "type": "SwingTwistJoint3D",
+          "data": {
+            "connectedEntity": 70,
+            "anchor": {
+              "x": 0,
+              "y": 60,
+              "z": 0
+            },
+            "axis": {
+              "x": 0,
+              "y": -1,
+              "z": 0
+            },
+            "normalAxis": {
+              "x": 1,
+              "y": 0,
+              "z": 0
+            },
+            "normalHalfConeAngle": 0.5,
+            "planeHalfConeAngle": 0.7,
+            "twistMinAngle": -0.35,
+            "twistMaxAngle": 0.35,
+            "enableMotor": true,
+            "angularVelocity": {
+              "x": 0,
+              "y": 0,
+              "z": 0.8
+            },
+            "maxMotorTorque": 100
+          }
+        }
+      ]
+    },
+    {
+      "id": 72,
+      "name": "SliderBase",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 300,
+              "y": 180,
+              "z": 150
+            }
+          }
+        },
+        {
+          "type": "RigidBody3D",
+          "data": {
+            "bodyType": 0,
+            "gravityScale": 0,
+            "linearDamping": 0.1,
+            "angularDamping": 0.1
+          }
+        },
+        {
+          "type": "BoxCollider3D",
+          "data": {
+            "halfExtents": {
+              "x": 20,
+              "y": 20,
+              "z": 20
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 73,
+      "name": "SixDOFCarriage",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 300,
+              "y": 180,
+              "z": 150
+            }
+          }
+        },
+        {
+          "type": "RigidBody3D",
+          "data": {
+            "bodyType": 2,
+            "gravityScale": 0,
+            "linearDamping": 0.1,
+            "angularDamping": 0.1
+          }
+        },
+        {
+          "type": "BoxCollider3D",
+          "data": {
+            "halfExtents": {
+              "x": 28,
+              "y": 18,
+              "z": 24
+            }
+          }
+        },
+        {
+          "type": "SixDOFJoint3D",
+          "data": {
+            "connectedEntity": 72,
+            "translationMotion": {
+              "x": 1,
+              "y": 0,
+              "z": 0
+            },
+            "translationLower": {
+              "x": -100,
+              "y": 0,
+              "z": 0
+            },
+            "translationUpper": {
+              "x": 100,
+              "y": 0,
+              "z": 0
+            },
+            "rotationMotion": {
+              "x": 0,
+              "y": 1,
+              "z": 0
+            },
+            "rotationLower": {
+              "x": 0,
+              "y": -0.3,
+              "z": 0
+            },
+            "rotationUpper": {
+              "x": 0,
+              "y": 0.3,
+              "z": 0
+            },
+            "enableMotor": true,
+            "linearVelocity": {
+              "x": 120,
+              "y": 0,
+              "z": 0
+            },
+            "angularVelocity": {
+              "x": 0,
+              "y": 0.4,
+              "z": 0
+            },
+            "maxMotorForce": 500,
+            "maxMotorTorque": 100
+          }
+        }
+      ]
     }
   ]
 }

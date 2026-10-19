@@ -21,8 +21,8 @@ import {
 } from '../src/asset/meshCollision';
 import { stepPhysics3D, DEFAULT_PHYSICS3D_CONFIG } from '../src/physics3d/Physics3DSystem';
 import {
-    PointJoint3D, HingeJoint3D, SliderJoint3D, FixedJoint3D,
-    type Joint3DMap, type HingeJoint3DData, type SliderJoint3DData,
+    PointJoint3D, HingeJoint3D, SliderJoint3D, FixedJoint3D, SwingTwistJoint3D, SixDOFJoint3D,
+    type Joint3DMap, type HingeJoint3DData, type SliderJoint3DData, type SixDOFJoint3DData, type SwingTwistJoint3DData,
 } from '../src/physics3d/Physics3DJoints';
 import type { Physics3DWasmModule } from '../src/physics3d/Physics3DModule';
 import type { App } from '../src/app/app';
@@ -93,6 +93,9 @@ function fakeModule(): Physics3DWasmModule & {
         _physics3d_addSliderJoint: record('addSliderJoint'),
         _physics3d_addDistanceJoint: record('addDistanceJoint'),
         _physics3d_addFixedJoint: record('addFixedJoint'),
+        _physics3d_addSwingTwistJoint: record('addSwingTwistJoint'),
+        _physics3d_addSixDOFJoint: record('addSixDOFJoint'),
+        _physics3d_setAdvancedJointMotor: record('setAdvancedJointMotor'),
         _physics3d_removeJoint: record('removeJoint'),
         _physics3d_setJointMotor: record('setJointMotor'),
         _physics3d_jointValue: (entity: number) => { calls.push({ name: 'jointValue', args: [entity] }); return 0.25; },
@@ -434,6 +437,44 @@ describe('the 3D world and the ECS', () => {
             world.insert(b, BoxCollider3D);
             return [a, b] as const;
         };
+
+        it('scales six-axis limits and velocity without scaling angles or force', () => {
+            const [a, b] = pair();
+            world.insert(a, SixDOFJoint3D, { connectedEntity: b,
+                translationMotion: { x: 1, y: 0, z: 2 },
+                translationLower: { x: -200, y: 0, z: 0 }, translationUpper: { x: 300, y: 0, z: 0 },
+                rotationMotion: { x: 1, y: 0, z: 0 },
+                rotationLower: { x: -0.4, y: 0, z: 0 }, rotationUpper: { x: 0.6, y: 0, z: 0 },
+                enableMotor: true, linearVelocity: { x: 150, y: 0, z: 0 },
+                angularVelocity: { x: 2, y: 0, z: 0 }, maxMotorForce: 40, maxMotorTorque: 20 });
+            stepJoints();
+            const args = called('addSixDOFJoint')[0]!.args;
+            expect(args.slice(12, 14)).toEqual([33, 1]);
+            expect(args.slice(14, 20)).toEqual([-2, 0, 0, 3, 0, 0]);
+            expect(args.slice(20, 26)).toEqual([-0.4, 0, 0, 0.6, 0, 0]);
+            expect(called('setAdvancedJointMotor')[0]!.args).toEqual([a, 1, 1.5, 0, 0, 2, 0, 0, 40, 20]);
+            stepJoints();
+            expect(called('setAdvancedJointMotor')).toHaveLength(1);
+            world.update(a, SixDOFJoint3D, (d) => { (d as SixDOFJoint3DData).linearVelocity = { x: -200, y: 0, z: 0 }; });
+            stepJoints();
+            expect(called('addSixDOFJoint')).toHaveLength(1);
+            expect(called('setAdvancedJointMotor')[1]!.args[2]).toBe(-2);
+        });
+
+        it('rebuilds changed swing limits and removes an invalid frame before stepping', () => {
+            const [a, b] = pair();
+            world.insert(a, SwingTwistJoint3D, { connectedEntity: b });
+            stepJoints();
+            world.update(a, SwingTwistJoint3D, (d) => { (d as SwingTwistJoint3DData).normalHalfConeAngle = 0.2; });
+            stepJoints();
+            expect(called('addSwingTwistJoint')).toHaveLength(2);
+            expect(called('removeJoint')).toHaveLength(1);
+            world.update(a, SwingTwistJoint3D, (d) => { (d as SwingTwistJoint3DData).normalAxis = { x: 0, y: 1, z: 0 }; });
+            stepJoints();
+            expect(joints.size).toBe(0);
+            expect(called('removeJoint')).toHaveLength(2);
+            expect(called('addSwingTwistJoint')).toHaveLength(2);
+        });
 
         it('hands the anchor over in metres, from where the entity is', () => {
             const [a, b] = pair({ x: 200, y: 100, z: 0 });

@@ -20,6 +20,10 @@ import type { World } from '../ecs/world';
 import type { Entity, Vec3 } from '../types';
 import type { Physics3DWasmModule } from './Physics3DModule';
 import { rotateVec3ByQuat } from './ColliderShape3D';
+import { SwingTwistJoint3D, SixDOFJoint3D, joint3DSettingsError, advancedJointSettings, jointMotionBits,
+    type SwingTwistJoint3DData, type SixDOFJoint3DData } from './AdvancedJoint3D';
+export { SwingTwistJoint3D, SixDOFJoint3D, JointMotion3D, joint3DSettingsError,
+    type SwingTwistJoint3DData, type SixDOFJoint3DData } from './AdvancedJoint3D';
 
 export interface PointJoint3DData {
     connectedEntity: number;
@@ -174,7 +178,7 @@ export const FixedJoint3D = defineComponent<FixedJoint3DData>('FixedJoint3D', {
 
 /** The joint components, in the order the system offers an entity's to the world. */
 export const JOINT3D_TYPES = [
-    PointJoint3D, HingeJoint3D, SliderJoint3D, DistanceJoint3D, FixedJoint3D,
+    PointJoint3D, HingeJoint3D, SliderJoint3D, DistanceJoint3D, FixedJoint3D, SwingTwistJoint3D, SixDOFJoint3D,
 ] as const;
 
 /** What the world holds for one joint: the two bodies it was built between, which
@@ -188,6 +192,8 @@ export interface Joint3DRecord {
      *  gameplay actually changed it. */
     motorOn: boolean;
     motorSpeed: number;
+    settings?: string;
+    motorSettings?: string;
 }
 
 export type Joint3DMap = Map<Entity, Joint3DRecord>;
@@ -195,7 +201,7 @@ export type Joint3DMap = Map<Entity, Joint3DRecord>;
 type AnyJoint = { connectedEntity: number; collideConnected: boolean; enabled: boolean };
 type Joint3DDef = (typeof JOINT3D_TYPES)[number];
 
-/** An entity's joint: the FIRST of the five it carries, matching what the world
+/** An entity's joint: the FIRST of the joint components it carries, matching what the world
  *  builds — the module keys one constraint per entity, so a second component on
  *  the same entity would be geometry nothing enforces. */
 function jointOn(app: App, entity: Entity): { def: Joint3DDef; data: AnyJoint } | null {
@@ -220,6 +226,7 @@ export interface Joint3DShape {
     /** The axis a hinge turns about or a slider travels along. */
     axis: Vec3 | null;
     enabled: boolean;
+    limits?: SwingTwistJoint3DData | SixDOFJoint3DData;
 }
 
 /**
@@ -237,6 +244,7 @@ export function readJoint3D(world: World, entity: number): Joint3DShape | null {
             connectedAnchor: (d.connectedAnchor as Vec3 | undefined) ?? null,
             axis: (d.axis as Vec3 | undefined) ?? null,
             enabled: d.enabled !== false,
+            limits: def === SwingTwistJoint3D || def === SixDOFJoint3D ? d as unknown as SwingTwistJoint3DData | SixDOFJoint3DData : undefined,
         };
     }
     return null;
@@ -268,6 +276,24 @@ function build(app: App, module: Physics3DWasmModule, entity: Entity,
     const collide = (raw as AnyJoint).collideConnected ? 1 : 0;
     const e = entity as number;
 
+    if (def === SwingTwistJoint3D || def === SixDOFJoint3D) {
+        const d = raw as SwingTwistJoint3DData | SixDOFJoint3DData;
+        if (joint3DSettingsError(d)) return false;
+        const a = anchorInMetres(app, entity, d.anchor, ppu);
+        const x = axisInWorld(app, entity, d.axis), y = axisInWorld(app, entity, d.normalAxis);
+        if ('translationMotion' in d) {
+            const lo = d.translationLower, hi = d.translationUpper;
+            const rl = d.rotationLower, rh = d.rotationUpper;
+            return module._physics3d_addSixDOFJoint(e, bodyA, bodyB, a.x, a.y, a.z,
+                x.x, x.y, x.z, y.x, y.y, y.z,
+                jointMotionBits(d.translationMotion), jointMotionBits(d.rotationMotion),
+                lo.x / ppu, lo.y / ppu, lo.z / ppu, hi.x / ppu, hi.y / ppu, hi.z / ppu,
+                rl.x, rl.y, rl.z, rh.x, rh.y, rh.z, collide) !== 0;
+        }
+        return module._physics3d_addSwingTwistJoint(e, bodyA, bodyB, a.x, a.y, a.z,
+            x.x, x.y, x.z, y.x, y.y, y.z, d.normalHalfConeAngle, d.planeHalfConeAngle,
+            d.twistMinAngle, d.twistMaxAngle, collide) !== 0;
+    }
     if (def === PointJoint3D) {
         const d = raw as PointJoint3DData;
         const a = anchorInMetres(app, entity, d.anchor, ppu);
@@ -319,7 +345,10 @@ export function syncJoints3D(app: App, module: Physics3DWasmModule,
     for (const [entity, held] of joints) {
         const joint = app.world.valid(entity) ? jointOn(app, entity) : null;
         const connected = joint ? joint.data.connectedEntity as Entity : (-1 as Entity);
-        const stillRight = joint !== null
+        const advanced = joint && (joint.def === SwingTwistJoint3D || joint.def === SixDOFJoint3D)
+            ? joint.data as SwingTwistJoint3DData | SixDOFJoint3DData : null;
+        const stillRight = (!advanced || (!joint3DSettingsError(advanced) && advancedJointSettings(advanced) === held.settings))
+            && joint !== null
             && joint.data.enabled !== false
             && joint.def._name === held.type
             && !doomed.has(entity) && !doomed.has(connected)
@@ -345,6 +374,8 @@ export function syncJoints3D(app: App, module: Physics3DWasmModule,
                 joints.set(entity, {
                     bodyA, bodyB, type: joint.def._name,
                     motorOn: motor.on, motorSpeed: motor.speed,
+                    settings: joint.def === SwingTwistJoint3D || joint.def === SixDOFJoint3D
+                        ? advancedJointSettings(joint.data as SwingTwistJoint3DData | SixDOFJoint3DData) : undefined,
                 });
             }
         }
@@ -375,7 +406,21 @@ function motorOf(app: App, entity: Entity, def: Joint3DDef, ppu: number,
 function driveJoints3D(app: App, module: Physics3DWasmModule, joints: Joint3DMap,
                        ppu: number): void {
     for (const [entity, held] of joints) {
-        if (held.type === HingeJoint3D._name) {
+        if (held.type === SwingTwistJoint3D._name || held.type === SixDOFJoint3D._name) {
+            const def = held.type === SwingTwistJoint3D._name ? SwingTwistJoint3D : SixDOFJoint3D;
+            const d = app.world.get(entity, def) as SwingTwistJoint3DData | SixDOFJoint3DData;
+            if (joint3DSettingsError(d)) continue;
+            const a = d.angularVelocity;
+            const v = 'linearVelocity' in d ? d.linearVelocity : { x: 0, y: 0, z: 0 };
+            const force = 'maxMotorForce' in d ? d.maxMotorForce : 0;
+            const args = [d.enableMotor ? 1 : 0, v.x / ppu, v.y / ppu, v.z / ppu,
+                a.x, a.y, a.z, force, d.maxMotorTorque] as const;
+            const signature = args.join(',');
+            if (signature !== held.motorSettings) {
+                module._physics3d_setAdvancedJointMotor(entity as number, ...args);
+                held.motorSettings = signature;
+            }
+        } else if (held.type === HingeJoint3D._name) {
             const d = app.world.get(entity, HingeJoint3D) as HingeJoint3DData;
             const on = d.enableMotor === true;
             if (on !== held.motorOn || d.motorSpeed !== held.motorSpeed) {

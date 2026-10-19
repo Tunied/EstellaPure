@@ -175,8 +175,8 @@ describe('web package side modules', () => {
 
   // Joints and mesh colliders are 3D physics components like the bodies are;
   // the scan answers for every type the runtime's own gate counts.
-  it('carries the 3D solver for a joint, not only for a body', async () => {
-    const f = setup({ version: '1.0', name: 'Main', entities: entities({ type: 'HingeJoint3D', data: {} }) });
+  it.each(['HingeJoint3D', 'SwingTwistJoint3D', 'SixDOFJoint3D'])('carries the 3D solver for %s, not only for a body', async (type) => {
+    const f = setup({ version: '1.0', name: 'Main', entities: entities({ type, data: {} }) });
     try {
       await run(f);
       expect(shipped(f.out)).toEqual(['physics3d']);

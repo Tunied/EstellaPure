@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Added
+
+- **3D swing/twist and six-axis joints.** SwingTwistJoint3D adds an elliptical swing cone and twist limits; SixDOFJoint3D locks, limits or frees each translation/rotation axis. Both support live velocity motors. The existing Details controls expose degree-based authoring, and selected viewport gizmos show limits. The 3D Physics example includes a shoulder and carriage with reversible motors. Headless solver checks do not replace target-device acceptance.
+
 ## [0.92.0] - 2026-10-18
 
 ### Added

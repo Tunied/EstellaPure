@@ -232,7 +232,7 @@ const PHYSICS_COMPONENT_TYPES = new Set([
 const PHYSICS3D_COMPONENT_TYPES = new Set([
     'RigidBody3D', 'BoxCollider3D', 'SphereCollider3D', 'CapsuleCollider3D',
     'MeshCollider3D', 'ConvexCollider3D', 'CharacterController3D',
-    'PointJoint3D', 'HingeJoint3D', 'SliderJoint3D', 'DistanceJoint3D', 'FixedJoint3D',
+    'PointJoint3D', 'HingeJoint3D', 'SliderJoint3D', 'DistanceJoint3D', 'FixedJoint3D', 'SwingTwistJoint3D', 'SixDOFJoint3D',
 ]);
 
 /** True if any entity carries a 3D physics component. */

@@ -76,12 +76,14 @@ export {
     SliderJoint3D,
     DistanceJoint3D,
     FixedJoint3D,
+    SwingTwistJoint3D, SixDOFJoint3D, JointMotion3D, joint3DSettingsError,
     readJoint3D,
     type PointJoint3DData,
     type HingeJoint3DData,
     type SliderJoint3DData,
     type DistanceJoint3DData,
     type FixedJoint3DData,
+    type SwingTwistJoint3DData, type SixDOFJoint3DData,
     type Joint3DShape,
 } from './Physics3DJoints';
 

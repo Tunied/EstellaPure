@@ -371,3 +371,30 @@ for (const { sensorEntity, visitorEntity } of events.sensorEnters) {
 
 没有东西阻止一个实体同时带两套组件,但也没有东西会把它们合并:两个世界互相看不见,
 一个 2D 碰撞体永远拦不住一个 3D 刚体。**一个场景选一套。**
+
+### SwingTwist 与六自由度关节
+
+`SwingTwistJoint3D` 锁定平移，用椭圆摆动锥和独立扭转区间限制旋转。
+`axis` 是局部约束 X（扭转轴），`normalAxis` 是局部 Y 参考方向。
+方向会归一化并正交化；零向量或平行方向无效。
+
+`SixDOFJoint3D` 的 `translationMotion` / `rotationMotion` 每轴分别选择
+`JointMotion3D.Locked`（0）、`Limited`（1）或 `Free`（2）。锁定轴保持创建姿态；
+限制轴读取对应 Lower / Upper 向量，下限必须小于上限；自由轴忽略数值边界。
+角度限位必须在 −π 到 π 内，Y/Z 旋转使用 Jolt 的金字塔限位。
+
+Inspector 以度显示角度，文件和脚本仍存弧度。平移限位、线速度分别使用世界单位、
+世界单位/秒；角速度为 rad/s，力和扭矩为 N、N·m，不随 `pixelsPerUnit` 缩放。
+
+马达默认关闭。运行时修改 `enableMotor`、`linearVelocity`（仅 SixDOF）、
+`angularVelocity`、`maxMotorForce`、`maxMotorTorque` 不会重建关节。
+目标速度表示约束坐标系中**连接体 B 相对于声明体 A** 的速度；B 静止时，A 朝相反方向运动。
+每个马达轴共享填写的力或扭矩上限。这是速度控制，不是姿态伺服或主动布娃娃。
+
+修改参考坐标系、碰撞设置或限位会重建关节，当前姿态成为新的零点。
+禁用、移除组件会在刚体移除前释放约束。
+`joint3DSettingsError(settings)` 返回无效设置的原因；无效关节不会进入物理解算。
+
+现有 **3D Physics** 示例包含肩/上臂和受限滑块。按 **J** 反转马达，**F1** 切换碰撞体调试绘制。
+在编辑器选中关节即可检查限位；视口提供只读显示，通过细节面板改数值。
+两种组件仍为实验性接口。无窗口 Jolt 检查覆盖限位和马达，目标设备验收另行记录。
