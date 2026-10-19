@@ -268,7 +268,7 @@ void RenderFrame::releaseFrameTargets() {
 void RenderFrame::beginFrame() {
     ++planar_frame_;
     for (auto it = planar_captures_.begin(); it != planar_captures_.end();) {
-        if (it->second.lastSeen + 1 < planar_frame_) {
+        if (frame_collected_ && it->second.lastSeen + 1 < planar_frame_) {
             if (it->second.frameUbo != BufferHandle::Invalid) device_.deleteBuffer(it->second.frameUbo);
             it = planar_captures_.erase(it);
         } else ++it;

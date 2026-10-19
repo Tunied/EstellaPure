@@ -73,6 +73,9 @@ try {
     assert.equal(ready.width,512); assert.ok(ready.draws>0);
     const on = await capture('enabled');
     const drawsOn = await page.evaluate(() => window.__estellaHeadless.api.getStats().drawCalls);
+    await page.evaluate(() => window.__estellaHeadless.api.idleRenderFrames(8));
+    assert.equal((await status()).state,'ready','cached editor frames must retain the last capture');
+    await step(1);
     const pixel = (image,x,y) => Array.from(image.data.subarray((y*image.width+x)*4,(y*image.width+x)*4+3));
     for (const [x,y,r,g] of [[200,210,255,0],[200,290,255,0],[310,214,0,255],[310,268,0,255]]) {
       const c = pixel(on,x,y);

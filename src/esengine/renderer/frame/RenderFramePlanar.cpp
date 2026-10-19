@@ -60,7 +60,14 @@ void RenderFrame::declarePlanarReflection(ecs::Registry& registry) {
         selected = entity;
         camera = candidate;
     }
-    if (selected == INVALID_ENTITY) return;
+    if (selected == INVALID_ENTITY) {
+        const auto previous = planar_captures_.find(view_id_);
+        if (previous != planar_captures_.end()) {
+            if (previous->second.frameUbo != BufferHandle::Invalid) device_.deleteBuffer(previous->second.frameUbo);
+            planar_captures_.erase(previous);
+        }
+        return;
+    }
     const auto& surface = registry.get<ecs::PlanarReflection>(selected);
     auto& capture = planar_captures_[view_id_];
     capture.lastSeen = planar_frame_;
@@ -165,7 +172,7 @@ void RenderFrame::executePlanarReflection(ecs::Registry& registry, u32 view) {
 
 std::string RenderFrame::planarStatus(u32 view, u32 entity) const {
     const auto found = planar_captures_.find(view);
-    if (found == planar_captures_.end() || found->second.lastSeen != planar_frame_) return "{\"state\":\"inactive\"}";
+    if (found == planar_captures_.end()) return "{\"state\":\"inactive\"}";
     const auto& c = found->second;
     if (c.receiver.id() != entity) return "{\"state\":\"budget-excluded\"}";
     if (!c.valid || !c.target) return "{\"state\":\"unavailable\"}";

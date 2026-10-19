@@ -417,6 +417,13 @@ function skeletalSource(toUrl: (ref: string) => string, label: string): RuntimeA
 
 const api = {
     loadScene,
+    idleRenderFrames(count: number) {
+        if (!module) throw new Error('idleRenderFrames before boot');
+        for (let i = 0; i < count; i++) {
+            module.renderer_beginFrame(i / 60);
+            module.renderer_endFrame?.();
+        }
+    },
     planarReflectionStatus(id: number, cameraId?: number) {
         if (!app) throw new Error('planarReflectionStatus before boot');
         return planarReflectionStatus(app, requireEntity(id), cameraId === undefined ? 0 : requireEntity(cameraId));
