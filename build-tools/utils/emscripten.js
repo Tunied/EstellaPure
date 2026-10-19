@@ -103,6 +103,15 @@ export function proveEmcc(suite) {
 
 let emsdkActivated = false;
 
+// Bound Binaryen workers on Windows; preserve explicit environment overrides.
+export function withBinaryenWorkers(env, platform = process.platform) {
+    const result = { ...env };
+    if (platform === 'win32' && result.BINARYEN_CORES === undefined) {
+        result.BINARYEN_CORES = '4';
+    }
+    return result;
+}
+
 /**
  * Locate an activated emsdk and inject it into this process's environment so
  * `emcc`/`em++`/`emcmake`/`wasm-opt` resolve without the caller having to source
@@ -111,6 +120,8 @@ let emsdkActivated = false;
  * active (either pre-existing on PATH or freshly discovered).
  */
 export function ensureEmscriptenEnv() {
+    const workers = withBinaryenWorkers(process.env).BINARYEN_CORES;
+    if (workers !== undefined) process.env.BINARYEN_CORES = workers;
     if (emsdkActivated) return true;
 
     let root = null;
@@ -255,7 +266,7 @@ export function runCommand(command, args, options = {}) {
         const executable = shell ? `chcp 65001>nul && ${quoted(command)}` : command;
         const proc = spawn(executable, args.map(quoted), {
             cwd,
-            env: { ...process.env, ...env },
+            env: withBinaryenWorkers({ ...process.env, ...env }),
             stdio: silent ? 'pipe' : 'inherit',
             shell,
         });
