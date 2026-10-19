@@ -12,6 +12,10 @@ on:
         required: true
         default: design-frame
         type: string
+      gizmo_hover:
+        description: Also verify trusted transform-handle hover at all sizes
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -61,4 +65,17 @@ jobs:
         with:
           name: editor-acceptance-frames
           path: output/editor-acceptance/
+          retention-days: 7
+      - name: Verify trusted transform-handle hover
+        if: inputs.gizmo_hover
+        env:
+          ELECTRON_DISABLE_SANDBOX: '1'
+          ESTELLA_MCP_EDITOR_VISIBLE: '1'
+        run: node tools/verify-gizmo-hover.mjs
+      - name: Keep trusted hover evidence
+        if: always() && inputs.gizmo_hover
+        uses: actions/upload-artifact@v7
+        with:
+          name: gizmo-hover-editor-checks
+          path: output/gizmo-hover-ci/
           retention-days: 7

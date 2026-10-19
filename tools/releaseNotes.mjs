@@ -28,6 +28,8 @@ export const NOTES_FLOOR = 'v0.65.0';
  * the reader recognises anyway.
  */
 export const NOTED = {
+  'fix(editor): reuse mesh selection geometry and index multi-inspection': { note: 'Faster 3D multi-selection.' },
+  'fix: restore gizmo hover CI and optimize 3d multi-selection': { note: 'Faster 3D multi-selection.' },
   'feat: add shared web runtime support for LAN device preview': { note: 'One-click LAN device preview.' },
   'feat(editor): add quick QR device preview beside Play': { note: 'One-click LAN device preview.' },
   'fix: serialize binaryen optimization on windows': { internal: 'Uses one optimizer worker after wider builds reproduced heap corruption with four; release optimization flags stay unchanged.' },

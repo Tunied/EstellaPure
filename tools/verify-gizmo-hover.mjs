@@ -1,8 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import fs from 'node:fs';import path from 'node:path';import {fileURLToPath} from 'node:url';import assert from 'node:assert/strict';import {runElectron} from './lib/electronRun.mjs';
-if(!process.env.CI)throw Error('This editor acceptance check runs only in CI; local verification must not launch the editor.');
+import {build} from 'esbuild';
+const planOnly=process.argv.includes('--plan');
+if(!process.env.CI&&!planOnly)throw Error('This editor acceptance check runs only in CI; local verification must not launch the editor.');
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),out=path.join(root,'output/gizmo-hover-ci');fs.mkdirSync(out,{recursive:true});
+const compiled=await build({entryPoints:[path.join(root,'desktop/src/tools/gizmo.ts')],bundle:true,write:false,platform:'node',format:'esm',alias:{'@':path.join(root,'desktop/src')}});
+const {GIZMO}=await import(`data:text/javascript;base64,${Buffer.from(compiled.outputFiles[0].text).toString('base64')}`);
+const cases=[{mode:'move',x:GIZMO.axisLen*0.65,y:0,id:'move.x',cursor:'move'},{mode:'scale',x:GIZMO.axisLen,y:0,id:'scale.x',cursor:'ew-resize'},{mode:'rotate',x:GIZMO.ringRadius,y:0,id:'rotate.z',cursor:'grab'},
+  {mode:'universal',name:'universal-move',x:GIZMO.axisLen*0.65,y:0,id:'move.x',cursor:'move'},
+  {mode:'universal',name:'universal-scale',x:GIZMO.universalScaleLen,y:0,id:'scale.x',cursor:'ew-resize'},
+  {mode:'universal',name:'universal-rotate',x:GIZMO.ringRadius/Math.SQRT2,y:-GIZMO.ringRadius/Math.SQRT2,id:'rotate.z',cursor:'grab'}];
+if(planOnly){console.log(JSON.stringify(cases));process.exit(0);}
 const project=fs.mkdtempSync(path.join(out,'project-'));fs.mkdirSync(path.join(project,'assets/scenes'),{recursive:true});fs.mkdirSync(path.join(project,'src'));
 fs.writeFileSync(path.join(project,'project.esproject'),JSON.stringify({formatVersion:'1',name:'Hover acceptance',defaultScene:'assets/scenes/main.esscene',spineVersion:'none'}));
 fs.writeFileSync(path.join(project,'assets/scenes/main.esscene'),JSON.stringify({version:'1.0',name:'Main',entities:[{id:1,name:'Subject',parent:null,children:[],visible:true,components:[{type:'Transform',data:{position:{x:0,y:0,z:0}}},{type:'Sprite',data:{size:{x:60,y:60},color:{r:1,g:0,b:1,a:1}}}]}]}));
@@ -10,10 +19,7 @@ fs.writeFileSync(path.join(project,'src/main.ts'),'export {};');fs.writeFileSync
 const records=[];
 const read="(() => { const s=document.querySelector('.viewport__stage'); return {hover:s?.dataset.gizmoHover,cursor:s?.style.cursor,size:JSON.parse(localStorage.getItem('estella.settings') || '{}')['viewport.gizmoSize'],scene:JSON.stringify(window.__estellaEditor.surface.serializeScene())}; })()";
 try{
- for(const size of [0.5,1,2]) for(const c of [{mode:'move',x:50,y:0,id:'move.x',cursor:'move'},{mode:'scale',x:58,y:0,id:'scale.x',cursor:'ew-resize'},{mode:'rotate',x:42,y:0,id:'rotate.z',cursor:'grab'},
-  {mode:'universal',name:'universal-move',x:42,y:0,id:'move.x',cursor:'move'},
-  {mode:'universal',name:'universal-scale',x:80,y:0,id:'scale.x',cursor:'ew-resize'},
-  {mode:'universal',name:'universal-rotate',x:30,y:-30,id:'rotate.z',cursor:'grab'}]){
+ for(const size of [0.5,1,2]) for(const c of cases){
   const name=c.name ?? c.mode;
   const run=runElectron(['.'],{via:'npx',encoding:'utf8',cwd:path.join(root,'desktop'),timeout:180000,env:{
    ESTELLA_SHOT:path.join(out,name+'-'+size+'.png'),ESTELLA_SHOT_PROJECT:project,ESTELLA_SHOT_SCENE:'assets/scenes/main.esscene',
