@@ -63,6 +63,7 @@ const BLOCK_BINDINGS = {
   // The indirect light where a draw stands, which the injected Lit header
   // declares for every Lit fragment stage — see ProbeConstants.hpp.
   ProbeConstants: 7,
+  PlanarConstants: 9,
 };
 
 /** The blocks above, as the pattern that finds them. Derived and not spelled a
