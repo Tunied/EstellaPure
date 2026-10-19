@@ -23,6 +23,8 @@ import {
   getComponentRegistry,
   startDebugChannel, glContextAttributes,
 } from 'esengine';
+import { installDevicePreview } from './devicePreviewClient';
+declare const __ESTELLA_LAN_PREVIEW__: boolean;
 
 /**
  * A component this host only READS, by the name the registry knows it by.
@@ -953,6 +955,7 @@ async function boot(): Promise<void> {
       void ready().catch(error => console.warn('[YouTube] Ready notification failed', error));
     });
   }
+  if (typeof __ESTELLA_LAN_PREVIEW__ !== 'undefined' && __ESTELLA_LAN_PREVIEW__) installDevicePreview(app, cfg.scripts);
   app.run();
 }
 

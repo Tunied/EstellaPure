@@ -56,6 +56,26 @@ an axis a script was driving. The log line shows the value before you decide.
 Entities the game spawned cannot be kept: the scene has no row to write them to. Those
 are counted in the log rather than silently dropped.
 
+## Preview on a phone
+
+Click **Scan Preview** beside Play to save the current scene and prepare a Web
+preview. Connect your phone to the same network and scan the QR code. The phone
+browser runs the project itself; 2D and 3D use the same runtime and entry point.
+
+The compact popover provides the address, connected-device count and Stop.
+**More Settings** lets you select a saved scene and LAN interface, rebuild, and
+inspect connection or reload errors. Close the popover or settings to keep
+previewing; Stop, switching projects or closing the editor invalidates the link.
+Each session generates a new access token. This preview has no public tunnel.
+
+Saving scenes or assets rebuilds and refreshes connected browsers. Script saves
+use the existing schema probe and system hot swap to retain the running world
+when compatible. Structural changes reload the page and report why. A failed
+build leaves the previous completed preview available. Preview builds skip AOT
+and asset compression. Native and minigame device deployment uses its own tools.
+If the browser origin cannot provide WebGPU, preview uses the existing WebGL2
+backend. The project's shipping backend setting stays unchanged.
+
 ## Autosave & recovery
 
 The editor periodically snapshots your **unsaved** documents — only when there are

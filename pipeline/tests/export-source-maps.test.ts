@@ -80,6 +80,7 @@ describe('source maps in a web package', () => {
     try {
       const res = await run(f);
       expect(res.errors).toEqual([]);
+      expect(readFileSync(path.join(f.out, 'game.js'), 'utf8')).not.toContain('__events');
       expect(existsSync(path.join(f.out, 'sdk', 'index.js.map'))).toBe(false);
       expect(existsSync(path.join(f.out, 'sdk', 'shared', 'resource.js.map'))).toBe(false);
       // A dangling reference is a 404 the moment anyone opens devtools on the

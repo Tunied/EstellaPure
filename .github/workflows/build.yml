@@ -415,6 +415,9 @@ jobs:
         ESTELLA_NO_EMCC: '1'
       run: pnpm --filter ./sdk exec vitest run
 
+    - name: Install headless Chromium for device preview checks
+      run: pnpm exec playwright install --with-deps chromium
+
     - name: Run Desktop tests (engine-coupled)
       env:
         ESTELLA_REQUIRE_WASM: '1'

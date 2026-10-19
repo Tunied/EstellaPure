@@ -460,6 +460,8 @@ function esengineGlobalPlugin(): Plugin {
 }
 
 export interface ExportGameOptions {
+  /** Editor LAN preview only; shipping exports leave the preview client out. */
+  developmentPreview?: boolean;
   root: string;
   /** The project-relative scene to boot. */
   entryScene: string;
@@ -1070,6 +1072,7 @@ async function produceExport(opts: ExportGameOptions): Promise<ExportGameResult>
       const hostEntry = runtimeHostEntry(opts.hostsDir, 'gameHost');
       const host = await build({
         ...common,
+        define: { ...common.define, __ESTELLA_LAN_PREVIEW__: opts.developmentPreview ? 'true' : 'false' },
         stdin: {
           contents: plan.subpaths.map((m) => `import ${JSON.stringify(m)};\n`).join('')
             + `import ${JSON.stringify(hostEntry)};\n`,
