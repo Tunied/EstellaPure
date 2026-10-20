@@ -27,7 +27,8 @@ import { packAtlas, decodePngImage, encodePagePng, type AtlasInputImage } from '
 // Per-asset texture cook settings (compress opt-out / format / size cap), read
 // from the `.meta` `importer` block — the same registry the inspector edits, so a
 // texture's ship-time compression is authored per asset, not one global switch.
-import { audioLoadTypeOf, readTextureCookSettings } from '../project/importSettings';
+import { readTextureCookSettings } from '../project/importSettings';
+import { audioLoadTypeOf } from './audioCook';
 // The compression a build gives one texture, and the one reason it is that.
 // The branch below IS this function — a cook that re-derived the choice would
 // be a second answer to the question an inspector asks before a build runs.

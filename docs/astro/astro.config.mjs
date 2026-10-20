@@ -324,6 +324,7 @@ export default defineConfig({
             { label: 'Profiling & Diagnostics', translations: { 'zh-CN': '性能剖析与诊断' }, slug: 'performance/profiling' },
             { label: 'Level of Detail', translations: { 'zh-CN': '细节层次(LOD)' }, slug: 'performance/level-of-detail' },
             { label: 'Occlusion Culling', translations: { 'zh-CN': '遮挡剔除' }, slug: 'performance/occlusion-culling' },
+            { label: 'Static Batching', translations: { 'zh-CN': '静态合并' }, slug: 'performance/static-batching' },
           ],
         },
         {

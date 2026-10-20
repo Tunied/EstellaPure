@@ -23,7 +23,6 @@ import {
     defineComponent, getComponent, MeshRenderer, Transform, SceneOwner,
     type ComponentDef, type MeshRendererData, type TransformData,
 } from '../ecs/component';
-import { RigidBody3D, CharacterController3D } from '../physics3d/Physics3DComponents';
 import { BodyType } from '../wasm/wasm.generated';
 import { playModeOnly } from '../ecs/env';
 import { Assets } from '../asset/AssetPlugin';
@@ -36,10 +35,37 @@ import {
     type StaticBatchReport,
 } from './staticBatch';
 
+/** Where a marked mesh stands after the last pass: not decided yet, merged, or left out and why. @experimental */
+export const StaticBatchState = {
+    Pending: 0,
+    Merged: 1,
+    Skinned: 2,
+    Morph: 3,
+    Lod: 4,
+    Blended: 5,
+    Moves: 6,
+    Baked: 7,
+    Alone: 8,
+    NoMesh: 9,
+    Layout: 10,
+    Disabled: 11,
+} as const;
+
+const REFUSAL_STATE: Record<StaticBatchRefusal, number> = {
+    skinned: StaticBatchState.Skinned, morph: StaticBatchState.Morph, lod: StaticBatchState.Lod,
+    blended: StaticBatchState.Blended, moves: StaticBatchState.Moves, baked: StaticBatchState.Baked,
+    alone: StaticBatchState.Alone, 'no-mesh': StaticBatchState.NoMesh, layout: StaticBatchState.Layout,
+    disabled: StaticBatchState.Disabled,
+};
+
 /** The fields of the `StaticBatch` component. @experimental */
 export interface StaticBatchData {
     /** Meshes batch only with others of the same group, so two rooms can be kept apart. */
     group: string;
+    /** What the last pass did with this mesh (a {@link StaticBatchState}); written by the pass, 0 until it has run. */
+    state: number;
+    /** How many meshes were drawn together with this one, itself included; 0 unless merged. */
+    batched: number;
 }
 
 /**
@@ -50,9 +76,33 @@ export interface StaticBatchData {
  */
 export const StaticBatch: ComponentDef<StaticBatchData> = defineComponent<StaticBatchData>('StaticBatch', {
     group: '',
+    state: StaticBatchState.Pending,
+    batched: 0,
 }, {
+    // The pass writes these into the running world; they are outputs, never authoring.
+    readonlyFields: ['state', 'batched'],
     fields: {
         group: { tooltip: 'Meshes batch only with others of the same group. Empty is the default group.' },
+        state: {
+            label: 'Status',
+            enum: [
+                { label: 'Waiting', value: StaticBatchState.Pending },
+                { label: 'Merged', value: StaticBatchState.Merged },
+                { label: 'Not merged: skinned', value: StaticBatchState.Skinned },
+                { label: 'Not merged: morphing', value: StaticBatchState.Morph },
+                { label: 'Not merged: level of detail', value: StaticBatchState.Lod },
+                { label: 'Not merged: blended', value: StaticBatchState.Blended },
+                { label: 'Not merged: moves', value: StaticBatchState.Moves },
+                { label: 'Not merged: baked light', value: StaticBatchState.Baked },
+                { label: 'Not merged: alone in its group', value: StaticBatchState.Alone },
+                { label: 'Not merged: no mesh', value: StaticBatchState.NoMesh },
+                { label: 'Not merged: vertex layout', value: StaticBatchState.Layout },
+                { label: 'Not merged: disabled', value: StaticBatchState.Disabled },
+            ],
+            // Nothing to say before a pass has run, so the row stays out of the way in the editor.
+            shownWhen: { field: 'state', values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] },
+        },
+        batched: { label: 'Batched meshes', min: 0, shownWhen: { field: 'state', values: [1] } },
     },
 });
 
@@ -72,6 +122,27 @@ export class StaticBatching {
         return { groups: this.groups_.map((g) => g.report), refused: new Map(this.refused_) };
     }
 
+    /** The last passes in the small form the profiler reports across a process boundary. */
+    summary(): StaticBatchSummary | null {
+        if (this.groups_.length === 0 && this.refused_.size === 0) return null;
+        const byReason = new Map<string, number[]>();
+        for (const [entity, why] of this.refused_) {
+            const list = byReason.get(why);
+            if (list) list.push(entity); else byReason.set(why, [entity]);
+        }
+        return {
+            groups: this.groups_.map((g) => ({
+                entity: g.entity,
+                parts: g.parts.slice(0, SUMMARY_IDS),
+                partCount: g.parts.length,
+                triangles: g.report.triangles,
+                bytes: g.report.bytes,
+                drawsBefore: g.report.drawsBefore,
+            })),
+            refused: [...byReason].map(([reason, entities]) => ({ reason, count: entities.length, entities: entities.slice(0, SUMMARY_IDS) })),
+        };
+    }
+
     /** Marked entities the pass has not decided on yet (their mesh is still loading). */
     get pending(): number {
         return this.pending_;
@@ -82,6 +153,15 @@ export class StaticBatching {
         this.dirty_ = true;
         this.stable_ = 0;
     }
+}
+
+/** Entities named per group or reason in {@link StaticBatching.summary}: enough to select, small enough to poll. */
+const SUMMARY_IDS = 200;
+
+/** What the profiler shows of the batcher: one entry per merged mesh, and the meshes left out by reason. */
+export interface StaticBatchSummary {
+    groups: { entity: number; parts: number[]; partCount: number; triangles: number; bytes: number; drawsBefore: number }[];
+    refused: { reason: string; count: number; entities: number[] }[];
 }
 
 /** The resource the plugin installs. @experimental */
@@ -162,9 +242,17 @@ export class StaticBatchPlugin implements Plugin {
         return world.getEntitiesWithComponents([StaticBatch, MeshRenderer, Transform]).filter((e) => !state.seen_.has(e));
     }
 
-    private refuse(state: StaticBatching, entity: Entity, why: StaticBatchRefusal): void {
+    private refuse(app: App, state: StaticBatching, entity: Entity, why: StaticBatchRefusal): void {
         state.refused_.set(entity, why);
         state.seen_.add(entity);
+        this.stamp(app, entity, REFUSAL_STATE[why], 0);
+    }
+
+    /** Records on the component what became of it, which is where the editor reads it from. */
+    private stamp(app: App, entity: Entity, status: number, batched: number): void {
+        const world = app.world;
+        if (!world.valid(entity) || !world.has(entity, StaticBatch)) return;
+        world.insert(entity, StaticBatch, { ...(world.get(entity, StaticBatch) as StaticBatchData), state: status, batched });
     }
 
     private async pass(app: App, state: StaticBatching, assets: ReturnType<App['getResource']> & any, entities: Entity[]): Promise<void> {
@@ -173,6 +261,9 @@ export class StaticBatchPlugin implements Plugin {
         const skinDef = getComponent('MeshSkin');
         const probeDef = getComponent('LightProbeVolume');
         const bakedDef = getComponent('BakedLighting');
+        // By name, not import: 3D physics is an optional subsystem and a static batch has no business carrying its solver.
+        const bodyDef = getComponent('RigidBody3D');
+        const characterDef = getComponent('CharacterController3D');
         const probed = !!probeDef && world.getEntitiesWithComponents([probeDef]).length > 0;
         const baked = !!bakedDef && world.getEntitiesWithComponents([bakedDef])
             .some((e) => (world.get(e, bakedDef) as { bakedFrom?: string }).bakedFrom);
@@ -185,23 +276,23 @@ export class StaticBatchPlugin implements Plugin {
             if (!world.valid(e)) continue;
             const mr = world.get(e, MeshRenderer) as MeshRendererData;
             const sb = world.get(e, StaticBatch) as StaticBatchData;
-            if (!mr.enabled) { this.refuse(state, e, 'disabled'); continue; }
-            if (!mr.opaque) { this.refuse(state, e, 'blended'); continue; }
-            if (lodDef && world.has(e, lodDef)) { this.refuse(state, e, 'lod'); continue; }
-            if (skinDef && world.has(e, skinDef)) { this.refuse(state, e, 'skinned'); continue; }
-            if (world.has(e, CharacterController3D)
-                || (world.has(e, RigidBody3D) && (world.get(e, RigidBody3D) as { bodyType: number }).bodyType !== BodyType.Static)) {
-                this.refuse(state, e, 'moves');
+            if (!mr.enabled) { this.refuse(app, state, e, 'disabled'); continue; }
+            if (!mr.opaque) { this.refuse(app, state, e, 'blended'); continue; }
+            if (lodDef && world.has(e, lodDef)) { this.refuse(app, state, e, 'lod'); continue; }
+            if (skinDef && world.has(e, skinDef)) { this.refuse(app, state, e, 'skinned'); continue; }
+            if ((characterDef && world.has(e, characterDef))
+                || (bodyDef && world.has(e, bodyDef) && (world.get(e, bodyDef) as { bodyType: number }).bodyType !== BodyType.Static)) {
+                this.refuse(app, state, e, 'moves');
                 continue;
             }
-            if (probed) { this.refuse(state, e, 'baked'); continue; }
+            if (probed) { this.refuse(app, state, e, 'baked'); continue; }
 
             if (!meshes.has(mr.mesh)) meshes.set(mr.mesh, await assets.readMeshData(mr.mesh));
             const mesh = meshes.get(mr.mesh) ?? null;
-            if (!mesh) { this.refuse(state, e, 'no-mesh'); continue; }
-            if (baked && mesh.channels.some((c) => c.semantic === MeshChannel.TexCoord1)) { this.refuse(state, e, 'baked'); continue; }
+            if (!mesh) { this.refuse(app, state, e, 'no-mesh'); continue; }
+            if (baked && mesh.channels.some((c) => c.semantic === MeshChannel.TexCoord1)) { this.refuse(app, state, e, 'baked'); continue; }
             const layout = layoutRefusal(mesh);
-            if (layout) { this.refuse(state, e, layout); continue; }
+            if (layout) { this.refuse(app, state, e, layout); continue; }
             if (!world.valid(e)) continue;
 
             const t = world.get(e, Transform) as TransformData;
@@ -222,17 +313,17 @@ export class StaticBatchPlugin implements Plugin {
         }
 
         const plan = planStaticBatches(candidates, state.limits);
-        for (const e of plan.alone) this.refuse(state, e as Entity, 'alone');
+        for (const e of plan.alone) this.refuse(app, state, e as Entity, 'alone');
 
         for (const batch of plan.batches) {
             const members = batch.entities.filter((e) => world.valid(e as Entity)) as Entity[];
-            if (members.length < 2) { for (const e of members) this.refuse(state, e, 'alone'); continue; }
+            if (members.length < 2) { for (const e of members) this.refuse(app, state, e, 'alone'); continue; }
             const parts: BatchPart[] = members.map((e) => ({ mesh: info.get(e)!.mesh, world: info.get(e)!.world }));
             const merged = mergeMeshes(parts);
             const handle = assets.createMesh(merged);
             if (handle === 0) {
                 log.warn('staticBatch', `the engine refused a merged mesh of ${members.length} parts (${merged.vertexCount} vertices)`);
-                for (const e of members) this.refuse(state, e, 'layout');
+                for (const e of members) this.refuse(app, state, e, 'layout');
                 continue;
             }
             const head = info.get(members[0]!)!;
@@ -244,6 +335,7 @@ export class StaticBatchPlugin implements Plugin {
                 const mr = world.get(e, MeshRenderer) as MeshRendererData;
                 world.insert(e, MeshRenderer, { ...mr, enabled: false });
                 state.seen_.add(e);
+                this.stamp(app, e, StaticBatchState.Merged, members.length);
             }
             state.groups_.push({
                 entity: holder, handle, parts: members,
@@ -286,7 +378,7 @@ export class StaticBatchPlugin implements Plugin {
         const index = state.groups_.indexOf(g);
         if (index < 0) return;
         if (alive.length < 2) {
-            for (const e of alive) this.restore(world, e);
+            for (const e of alive) { this.restore(world, e); this.stamp(app, e, StaticBatchState.Alone, 0); }
             if (world.valid(g.entity)) world.despawn(g.entity);
             assets.releaseBuiltMesh(g.handle);
             state.groups_.splice(index, 1);
@@ -311,6 +403,7 @@ export class StaticBatchPlugin implements Plugin {
         assets.releaseBuiltMesh(g.handle);
         g.handle = handle;
         g.parts = alive;
+        for (const e of alive) this.stamp(app, e, StaticBatchState.Merged, alive.length);
         g.report = {
             ...g.report, parts: alive, vertices: merged.vertexCount, triangles: merged.indices.length / 3,
             bytes: merged.vertices.byteLength + merged.indices.byteLength,

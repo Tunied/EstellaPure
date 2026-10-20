@@ -13,7 +13,8 @@ import { describe, it, expect } from 'vitest';
 import {
   DEFAULT_RUNTIME_CONFIG, packagedRuntimeFields, runtimeConfigOf, withAudioLoadTypes,
 } from '../src/project/runtimeConfig';
-import { audioLoadTypeOf, importerDefaults } from '../src/project/importSettings';
+import { importerDefaults } from '../src/project/importSettings';
+import { audioLoadTypeOf } from '../src/assets/audioCook';
 
 describe('runtimeConfigOf', () => {
   it('carries the same normalized quality policy into exported builds', () => {

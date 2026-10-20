@@ -9,6 +9,7 @@ import type { App, FrameCosts } from '../app/app';
 import { engineApi } from '../ecs/bridge/engineApi';
 import { Quality } from '../render/qualityRuntime';
 import { Audio } from '../audio/Audio';
+import { StaticBatchingRes, type StaticBatchSummary } from '../render/staticBatchPlugin';
 import type { QualityReport } from '../render/quality';
 
 export interface FrameStatsReport {
@@ -32,6 +33,8 @@ export interface FrameStatsReport {
     audioBytes?: number;
     audioStreamedCount?: number;
     audioStreamedSavedBytes?: number;
+    /** What static batching merged and left out; absent until a mesh has been marked. */
+    staticBatch?: StaticBatchSummary;
     quality?: QualityReport;
 }
 
@@ -63,6 +66,7 @@ export function frameStatsReport(app: App): FrameStatsReport {
         wasmBytes: app.wasmModule?.HEAPU8?.byteLength ?? 0,
         vramBytes: m?.renderer_getEstimatedGpuBytes?.() ?? 0,
         ...audioStats(app),
+        ...(app.hasResource(StaticBatchingRes) ? (() => { const s = app.getResource(StaticBatchingRes).summary(); return s ? { staticBatch: s } : {}; })() : {}),
         quality: app.hasResource(Quality) ? app.getResource(Quality)?.report() : undefined,
     };
 }

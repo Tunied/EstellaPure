@@ -111,6 +111,12 @@ export async function encodeWavToMp3(wav: Uint8Array, bitrateKbps: number): Prom
   return out;
 }
 
+/** What the importer asked of a clip when it is not left to the length, or null for `auto`. Read here, beside the other audio importer settings. */
+export function audioLoadTypeOf(importer: Record<string, unknown> | undefined): 'streaming' | 'decompress' | null {
+  const type = importer?.loadType;
+  return type === 'streaming' || type === 'decompress' ? type : null;
+}
+
 /** Per-asset audio import settings from the `.meta` importer block (tolerant). */
 export function audioImportSettings(importer: Record<string, unknown> | undefined): {
   compress: boolean; bitrateKbps: number;

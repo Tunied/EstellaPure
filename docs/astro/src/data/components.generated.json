@@ -4683,6 +4683,49 @@
       ]
     },
     {
+      "name": "StaticBatch",
+      "source": "ts",
+      "fields": [
+        {
+          "key": "group",
+          "type": "string",
+          "default": "empty",
+          "doc": "Meshes batch only with others of the same group. Empty is the default group."
+        },
+        {
+          "key": "state",
+          "type": "enum",
+          "default": "Waiting",
+          "values": [
+            "Waiting",
+            "Merged",
+            "Not merged: skinned",
+            "Not merged: morphing",
+            "Not merged: level of detail",
+            "Not merged: blended",
+            "Not merged: moves",
+            "Not merged: baked light",
+            "Not merged: alone in its group",
+            "Not merged: no mesh",
+            "Not merged: vertex layout",
+            "Not merged: disabled"
+          ],
+          "readonly": true
+        },
+        {
+          "key": "batched",
+          "type": "number",
+          "default": "0",
+          "range": "≥ 0",
+          "readonly": true
+        }
+      ],
+      "animatable": [
+        "state",
+        "batched"
+      ]
+    },
+    {
       "name": "StreamedWorld",
       "source": "ts",
       "fields": [

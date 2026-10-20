@@ -123,6 +123,7 @@ const DISPOSITION = {
 
   // — owed: a creator-facing component nothing in the shipped corpus authors.
   //   Each reason names where the coverage belongs. —
+  StaticBatch: ['owed', 'no corpus scene marks a mesh yet: a marked mesh is merged while the game runs, which a golden project has no frame to certify — the static-batch-on / static-batch-off render scenes, tests/static-batch.test.ts and the static-batch editor check hold it'],
 };
 
 const snapshot = JSON.parse(readFileSync(SNAPSHOT, 'utf8'));

@@ -260,12 +260,6 @@ export const IMPORTER_SCHEMAS: Record<string, ImporterFieldSpec[]> = {
   video: VIDEO,
 };
 
-/** What the importer asked of a clip when it is not left to the length, or null for `auto`. */
-export function audioLoadTypeOf(importer: Record<string, unknown> | undefined): 'streaming' | 'decompress' | null {
-  const type = importer?.loadType;
-  return type === 'streaming' || type === 'decompress' ? type : null;
-}
-
 /** Cook-facing audio import settings, tolerant of hand-edited `.meta` blocks. */
 export function readAudioImportSettings(importer: Record<string, unknown> | undefined): {
   compress: boolean; bitrateKbps: number;

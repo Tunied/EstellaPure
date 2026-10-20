@@ -777,7 +777,7 @@ export {
 } from './render/meshRenderer';
 export {
     StaticBatch, StaticBatching, StaticBatchingRes, StaticBatchPlugin, staticBatchPlugin,
-    type StaticBatchData,
+    StaticBatchState, type StaticBatchData, type StaticBatchSummary,
 } from './render/staticBatchPlugin';
 export {
     mergeMeshes, planStaticBatches, STATIC_BATCH_DEFAULTS,
