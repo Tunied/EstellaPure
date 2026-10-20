@@ -18,7 +18,7 @@ That import is the subject of this page. For the component that draws the result
 
 ## Built-in primitives
 
-Seven shapes need no import and no file. **Create → Cube** (or Sphere, Capsule, Cylinder,
+Seven shapes need no import and no file. **+ Add → Create entity… → Cube** (or Sphere, Capsule, Cylinder,
 Cone, Plane, Quad) makes an entity whose `MeshRenderer.mesh` holds a `builtin:` ref, and the
 same seven appear at the top of the picker on any `MeshRenderer.mesh` field.
 
@@ -44,7 +44,7 @@ they stay two-sided and are still there when seen from behind.
 <Aside type="caution" title="A lit mesh needs a light">
 Primitives are created `lit`, like imported geometry carrying normals. Lighting is
 multiplicative and starts at zero, so a scene with no `Light` in it draws them black —
-**Create → Sun** adds the directional key light a shaded scene wants. Clearing `lit` gives
+**+ Add → Create entity… → Sun** adds the directional key light a shaded scene wants. Clearing `lit` gives
 the flat, unshaded look instead.
 </Aside>
 

@@ -436,7 +436,7 @@ const stick = createVirtualJoystick({ world, parent: canvas, inputId: 'move',
 const actions = defineInputMap({ Move: Axis2D(Virtual('move')) });
 ```
 
-编辑器 Create → UI 面板提供同一个生成预制体。Play 中的鼠标拖动和触控使用
+编辑器的创建实体选择器里,UI 分类提供同一个生成预制体。Play 中的鼠标拖动和触控使用
 同一套捕获机制。禁用、隐藏、移除、取消或切后台会释放该控件自己的贡献，
 其他控件仍保持输出。可以提供自定义底座和手柄外观。
 

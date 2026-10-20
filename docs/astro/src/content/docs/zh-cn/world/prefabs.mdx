@@ -17,7 +17,7 @@ import { Aside } from '@astrojs/starlight/components';
 
 在 **World Outliner** 里右键一个实体 → **Create Prefab**。编辑器会把该实体及其整棵子树抽取成
 `assets/prefabs/<Name>.esprefab`(以实体名命名),并且**不改动**你的场景——原实体原样留在场景里,
-不会被替换成实例。要放置实例,把 `.esprefab` 从内容浏览器拖进场景,或从 **Create → Prefabs** 分类生成。
+不会被替换成实例。要放置实例,把 `.esprefab` 从内容浏览器拖进场景,或从 **+ 添加 → 创建实体… → Prefabs** 分类生成。
 
 <Aside type="note">
   如果子树引用了选区**之外**的实体,编辑器会先询问(*"Expose external references?"*)。这些引用会在
