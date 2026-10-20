@@ -206,6 +206,8 @@ export const NOTED = {
     { note: 'The string table exports and imports XLIFF 1.2.' },
   "fix(editor): the preview language menu appears once the project's string tables are indexed":
     { note: 'The preview language menu appears once the string tables are indexed.' },
+  'fix(editor): Play starts in the preview language even where the runtime picked the system language':
+    { note: 'Play starts in the preview language.' },
   'feat(render): a Tiling & Offset node for material graphs':
     { note: 'Material graphs have a Tiling & Offset node.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
