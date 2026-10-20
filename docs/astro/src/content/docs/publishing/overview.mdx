@@ -14,19 +14,22 @@ so what you shipped is what you tested (*play == ship*).
 
 ![The Package Project dialog — the target list, build configuration, output folder, and scenes in build](@/assets/guides/en/build-dialog.png)
 
-*The Package Project dialog: pick a **target** from the categorized list, a configuration, the output folder, and the [cook options](#asset-cook-options) — then Package.*
+*The Package Project dialog: pick a **target** from the categorized list on the left, then that target's settings, a **profile**, a configuration, compression, the output folder and the scenes to ship — then Package.*
 
 <Steps>
 
-1. Open **File → Build…** to bring up the **Package Project** dialog.
+1. Open **Build → Package Project…** to bring up the **Package Project** dialog.
 2. Pick a **target** from the list — grouped as *General* (Web / Desktop /
-   Playable), *Mini-games* (WeChat and any the project added), and *Mobile*
+   Playable), *Mini-games* (WeChat, Douyin, Kuaishou, Bilibili, quick games, Alipay, Huawei — see
+   [Mini-game platforms](/docs/publishing/minigame-platforms/)), and *Mobile*
    (Android / iOS). A target that ships to more than one place lists them beneath
    it: Desktop branches into *Standalone* and *[Steam](/docs/publishing/steam/)*.
 3. Fill in that target's own settings, shown on its page — what the app is called
    and identified by, and anything the store it goes to needs.
-4. Choose a **build config** — *Development* or *Shipping* (Shipping minifies) — an
-   **output folder**, source maps, and the [asset cook options](#asset-cook-options).
+4. Choose a **profile** (the project's settings, or a saved one), a **build config** —
+   *Development* or *Shipping* (Shipping minifies) — the **compression** choice (the
+   [asset cook options](#asset-cook-options)), an **output folder**, and under **Advanced**
+   the CDN root, a size budget and source maps.
 5. Check the **Scenes in build** list — untick scenes you don't want to ship, and
    pin a different startup scene if needed (see below).
 6. Click **Package** and watch the live build log. When it finishes, the output
@@ -333,7 +336,7 @@ keeps one file per asset, since an update downloads assets one by one.
 ## Packaging settings
 
 What one *target* is called, where it goes and what a store knows it by is edited
-on that target's page in **File → Build…**, beside the build it changes:
+on that target's page in **Build → Package Project…**, beside the build it changes:
 
 - **WeChat** — AppID.
 - **Desktop** — application id override, the product name (which names the app),
@@ -342,8 +345,7 @@ on that target's page in **File → Build…**, beside the build it changes:
   the build ends at an installable package or at the Gradle project, and whether
   an App Bundle is written beside the APK.
 
-What holds for the project *whatever* it ships to stays in **Project Settings →
-Packaging**, and is saved with the project:
+What holds for the project *whatever* it ships to stays in **Settings → Project → Build and modules → Packaging**, and is saved with the project:
 
 - **Application ID** — the reverse-DNS id the installed app is known by: the
   Android manifest package, the iOS bundle id, the desktop installer id. Empty
@@ -355,8 +357,7 @@ Packaging**, and is saved with the project:
 
 ### Screen orientation
 
-Orientation is **one project-wide setting**, not per-target: **Project Settings →
-Display → Orientation** (portrait or landscape), right beside the design resolution.
+Orientation is **one project-wide setting**, not per-target: **Settings → Project → Game → Display → Orientation** (portrait or landscape), right beside the design resolution.
 Every target honors it — the WeChat `game.json` `deviceOrientation`, the web build's
 rotate-to-fit prompt (and a best-effort `screen.orientation.lock`), the desktop
 window's aspect, and the native app's `app.config.json` (the engine can letterbox

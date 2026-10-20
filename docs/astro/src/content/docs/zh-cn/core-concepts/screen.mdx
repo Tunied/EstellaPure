@@ -141,7 +141,7 @@ const halfH = computeEffectiveOrthoSize(
 ## 项目级适配:`ScreenScaling` 资源
 
 `ScreenScaling` 把设计分辨率适配变成*项目*概念而非 UI 概念——没有 `Canvas`(没有 UI)的
-场景照样正确 letterbox。它是**项目设置 → 显示 → 相机适配**的运行时映像。
+场景照样正确 letterbox。它是**设置 → 项目 → 游戏 → 显示 → 相机适配**的运行时映像。
 
 | 字段 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -221,7 +221,7 @@ const setupMinimap = defineSystem([GetWorld()], (world) => {
 });
 ```
 
-编辑器里这个遮罩是一个按**项目排序层名字**列出的多选框(项目设置 → 渲染 → 层名称)。
+编辑器里这个遮罩是一个按**项目排序层名字**列出的多选框(设置 → 项目 → 渲染 → 层名称)。
 编辑器自己的视口不受它影响、永远显示所有层,所以剔除不会在创作时挡住内容。
 
 <Aside type="caution">
@@ -258,7 +258,7 @@ window.addEventListener('resize', feed);
 feed();
 ```
 
-*发布*的方向是项目设置而非运行时状态:**项目设置 → 显示 → 方向**写一个值,所有导出目标
+*发布*的方向是项目设置而非运行时状态:**设置 → 项目 → 游戏 → 显示 → 方向**写一个值,所有导出目标
 共同消费(微信 `game.json`、web/playable 的旋转提示、桌面窗口宽高比)。未设置时,由设计
 分辨率的宽高比推导。
 
@@ -313,7 +313,7 @@ const buildHudRoot = defineSystem([GetWorld()], (world) => {
 
 ## 项目显示设置 → 运行时
 
-**项目设置 → 显示**的每个字段存在哪里、落到哪里:
+**设置 → 项目 → 游戏 → 显示**的每个字段存在哪里、落到哪里:
 
 | 编辑器设置 | 项目 manifest | 运行时效果 |
 |---|---|---|
@@ -343,7 +343,7 @@ applyBuildRuntimeConfig(app, {
   改选缩放模式。
 - **绝不能被裁的内容用 `Expand`(ShowAll)**(重 UI、解谜);把背景画出设计框外。
   **全屏出血的美术用 `Shrink`(NoBorder)**,可接受边缘裁剪时。
-- **优先用项目适配**(项目设置 → 显示的 `ScreenScaling`)而非依赖 UI `Canvas`——它在无
+- **优先用项目适配**(设置 → 项目 → 游戏 → 显示的 `ScreenScaling`)而非依赖 UI `Canvas`——它在无
   UI 的场景也工作,并让相机与 UI 关注点分离。
 - **别把 `pixelsPerUnit` 挪用**为缩放或显示比例;它只缩放物理米。缩放是 `orthoSize`
   (无适配时)或设计分辨率的选择。

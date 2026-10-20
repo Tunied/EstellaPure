@@ -100,8 +100,7 @@ screen — which is why `pivot: {0, 0}` is the **bottom-left** corner, not the t
 ## Draw order & sorting layers
 
 When sprites overlap, draw order decides what's on top. Order is set by the **sorting
-layer** (`sprite.layer`) — a named layer list you define in **Project Settings →
-Rendering**, so the inspector shows a dropdown of *Background*, *Default*, *Foreground*,
+layer** (`sprite.layer`) — a named layer list you define in **Settings → Project → Rendering**, so the inspector shows a dropdown of *Background*, *Default*, *Foreground*,
 etc. instead of a raw number. Lower layers draw first (behind).
 
 ![Left: three sorting layers stacked so a higher layer draws in front. Right: on a Y-sorted layer a sprite lower on screen draws in front of one higher up.](@/assets/guides/sprite-sort.svg)
@@ -224,8 +223,7 @@ world.applyEntityOrder([other, another, card]);
 
 ### Y-sort (top-down occlusion)
 
-For top-down games, check a layer under **Project Settings → Rendering → Y-sorted
-layers** and every sprite, shape, and text on that layer draws in world-Y order:
+For top-down games, check a layer under **Settings → Project → Rendering → Advanced → Y-sorted layers** and every sprite, shape, and text on that layer draws in world-Y order:
 entities lower on screen draw on top, so a character walking below a tree appears in
 front of it — no manual `layer` or z juggling.
 
@@ -237,7 +235,7 @@ front of it — no manual `layer` or z juggling.
 
 ### Depth layers (2.5D)
 
-Check a layer under **Project Settings → Rendering → Depth-sorted layers** and it
+Check a layer under **Settings → Project → Rendering → Advanced → Depth-sorted layers** and it
 stops using paint order entirely: what covers what is decided by the depth buffer,
 from each entity's `Transform` z. With a perspective camera that is 2.5D — sprites
 at different depths occlude each other correctly from any angle, with no sort order

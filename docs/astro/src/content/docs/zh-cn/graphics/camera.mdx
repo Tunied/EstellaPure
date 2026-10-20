@@ -80,7 +80,7 @@ const zoomIn = defineSystem([Res(Tween)], (tween) => {
 `designResolution.y / 2` 加一个缩放模式算出,让世界单位在任何设备上都是设计像素。适配源
 按此顺序:
 
-1. **`ScreenScaling`** 资源(项目设置 → 显示 → 相机适配),当其 `scaleMode` 是真实模式
+1. **`ScreenScaling`** 资源(设置 → 项目 → 游戏 → 显示 → 相机适配),当其 `scaleMode` 是真实模式
    (`≥ 0`)时;
 2. 否则,场景的 **`Canvas`** 组件(若存在);
 3. 否则无——相机按原始 `orthoSize` 渲染。

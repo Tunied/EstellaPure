@@ -157,7 +157,7 @@ fit is on or off, a 1920×1080 window shows exactly one design box.
 
 `ScreenScaling` makes the design-resolution fit a *project* concern instead of a UI
 one — a scene with no `Canvas` (no UI) still letterboxes correctly. It is the
-runtime image of **Project Settings → Display → Camera fit**.
+runtime image of **Settings → Project → Game → Display → Camera fit**.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
@@ -253,7 +253,7 @@ const setupMinimap = defineSystem([GetWorld()], (world) => {
 ```
 
 In the editor the mask is a multi-select of your project's **sorting layer names**
-(Project Settings → Rendering → Layer names). The editor's own viewport ignores it
+(Settings → Project → Rendering → Layer names). The editor's own viewport ignores it
 and always shows every layer, so culling never hides content while you author.
 
 <Aside type="caution">
@@ -353,7 +353,7 @@ sub-pixel amounts. Facts from the implementation:
 
 ## Project Display settings → runtime
 
-Where each **Project Settings → Display** field lives and lands:
+Where each **Settings → Project → Game → Display** field lives and lands:
 
 | Editor setting | Project manifest | Runtime effect |
 |---|---|---|
@@ -385,7 +385,7 @@ applyBuildRuntimeConfig(app, {
 - **`Expand` (ShowAll) for content that must never be cut off** (UI-heavy, puzzle);
   draw backgrounds that bleed past the design frame. **`Shrink` (NoBorder) for
   full-bleed art** where cropping the edges is acceptable.
-- **Prefer the project fit** (`ScreenScaling` via Project Settings → Display) over
+- **Prefer the project fit** (`ScreenScaling` via Settings → Project → Game → Display) over
   relying on the UI `Canvas` — it works in scenes with no UI and keeps camera and
   UI concerns separate.
 - **Don't repurpose `pixelsPerUnit`** as a zoom or display scale; it only scales

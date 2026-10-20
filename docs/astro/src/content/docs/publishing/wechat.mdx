@@ -35,11 +35,11 @@ node build-tools/cli.js build -t videodec-wechat  # video (MPEG-1 wasm decoder)
 
 <Steps>
 
-1. In **Project Settings → Packaging → WeChat**, set your AppID. Screen orientation
-   is project-wide — set it once in **Project Settings → Display → Orientation** (it
+1. In **Settings → Project → Build and modules → Packaging → WeChat**, set your AppID. Screen orientation
+   is project-wide — set it once in **Settings → Project → Game → Display → Orientation** (it
    drives the `game.json` `deviceOrientation` below).
 
-2. Open **File → Build…**, pick the **WeChat** platform in the Package Project
+2. Open **Build → Package Project…**, pick the **WeChat** platform in the Package Project
    dialog, review the **Scenes in build** list, and click **Package**. Estella
    cooks assets, bundles the SDK + your scripts (as CommonJS, via esbuild),
    transforms scenes, and writes a standalone MiniGame package.

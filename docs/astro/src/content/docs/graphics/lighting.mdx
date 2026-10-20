@@ -446,7 +446,7 @@ Linear mode is also the door to **HDR**: where float render targets are availabl
 half-float, so a light with `intensity` above 1 pushes real over-range energy into
 [bloom and tonemap](/docs/graphics/post-processing/) — bright lights glow.
 
-Enable it in **Project Settings → Rendering → Color space → Linear**. Shaders compile
+Enable it in **Settings → Project → Rendering → Color space → Linear**. Shaders compile
 against the mode, so it is fixed at engine boot — the editor prompts for a reload. The
 setting rides the project manifest: the viewport, Play, and every export — web, desktop,
 WeChat, playable — boot the same pipeline. Code-first projects pass it at app creation:

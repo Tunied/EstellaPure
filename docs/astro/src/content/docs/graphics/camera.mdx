@@ -87,7 +87,7 @@ the project's design resolution (default 1920×1080) into the actual screen aspe
 the visible half-height is computed from `designResolution.y / 2` and a scale mode,
 so world units stay design pixels on every device. The fit source is, in order:
 
-1. the **`ScreenScaling`** resource (Project Settings → Display → Camera fit), when
+1. the **`ScreenScaling`** resource (Settings → Project → Game → Display → Camera fit), when
    its `scaleMode` is a real mode (`≥ 0`);
 2. else the scene's **`Canvas`** component, if one exists;
 3. else none — the camera renders its raw `orthoSize`.

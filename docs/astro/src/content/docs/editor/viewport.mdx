@@ -59,7 +59,7 @@ selection changes recompute the target; leaving the canvas clears it. Navigation
 paint, picking and contributed tools keep their own pointer routing. Hover alone
 does not change transforms or begin an undo transaction.
 
-**Settings → Viewport → Gizmos → Transform handle size** scales the transform
+**Settings → Editor → Viewport → Gizmos → Transform handle size** scales the transform
 arrows, center plane, rotation rings and hit areas together from 0.5 to 2 (default
 1). The preference persists across editor sessions. Changing it during a handle
 drag takes effect after release; the current drag retains its size and sensitivity.
@@ -102,8 +102,8 @@ their fields directly (light radius, collider size, emitter shape, joint anchors
 
 ## Editing modes
 
-The Activity Bar's top three icons switch the **editing mode** — **Scene**, **UI**, or
-**Tilemap**. The mode also *follows your selection*: pick a `Canvas` or `UINode` and the
+The Activity Bar's first four icons switch the **editing mode** — **Tilemap**, **UI**, **World**,
+or **Scene**. The mode also *follows your selection*: pick a `Canvas` or `UINode` and the
 editor suggests **UI** mode, a `TilemapLayer` suggests **Tilemap** — switching that mode's
 tools and viewport aids **without** disturbing your panel layout. To open a mode's
 companion panels (UI Widgets, the Tilemap painter), click its Activity Bar icon or the
@@ -112,14 +112,15 @@ clicks won't clear — re-click it to go back to following the selection.
 
 **The design frame + device preview.** A scene is authored against a **design resolution** —
 a fixed reference size (e.g. `1920 × 1080` landscape or `750 × 1334` portrait). This is a
-**project-level** value (Project Settings → Display), not a UI-layer one: the viewport's
-**Design** and **Device** controls work in **every** editor mode (Scene / UI / Tilemap), so
+**project-level** value (Settings → Project → Game → Display), not a UI-layer one: the viewport's
+**design resolution** and **Device** controls work in **every** editor mode, so
 you can preview a gameplay-only scene on a real device **without** a UI Canvas. When the
 scene has a Canvas, UI additionally lays out inside the frame per its scale mode.
 
-- **Design** dropdown (viewport toolbar) — sets the design resolution and reframes to it
-  (undoable). With a Canvas it edits that Canvas; otherwise it edits the project value.
-- **Device** dropdown — picks the **target screen** (iPhone / iPad / 1080p …) in any mode.
+- **Design resolution** dropdown (viewport toolbar, reading the current size such as `800×600`) —
+  sets the design resolution and reframes to it (undoable). With a Canvas it edits that Canvas; otherwise it edits the project value.
+- **Device** dropdown (its button reads `Design` while no device is simulated) — picks the **target
+  screen** (iPhone / iPad / 1080p …) in any mode.
   While editing it draws that screen's aspect as letterbox bars + safe-area insets over
   your scene; when you press **Play** the running game is letterboxed to the same shape,
   in the viewport and in the **Game** panel alike. It never changes your design
@@ -127,7 +128,7 @@ scene has a Canvas, UI additionally lays out inside the frame per its scale mode
 - **Orientation** (same dropdown) — swaps the device's width and height. It applies to a
   **device**, so it is disabled while `Design` is selected: with no screen simulated
   there is nothing to rotate.
-- **Camera Fit** (Project Settings → Display) — how the **main camera** scales the design
+- **Camera Fit** (Settings → Project → Game → Display) — how the **main camera** scales the design
   resolution, independent of any UI Canvas. `None` (default) keeps the camera's own
   orthoSize; any other mode letterboxes the game the same way on every device, and the
   device preview then shows the **real** framing (WYSIWYG for gameplay, not just UI).
@@ -143,7 +144,8 @@ happened to be dragged to.
 ### Project screen presets
 
 The built-in device list is a guess. A team that ships to specific hardware corrects it
-in **Project Settings → Display → Screen presets**: add a row with an id, a name and the
+in **Settings → Project → Game → Advanced → Screen presets** (settings you set once per project
+sit under the page's **Advanced** fold): add a row with an id, a name and the
 portrait size, and it joins the dropdown for everyone who opens the project.
 
 - **Id** is what a saved selection resolves through, so keep it stable. Reusing a built-in

@@ -13,7 +13,7 @@ multi-tileset layers, per-tile animation, and infinite streaming maps.
 
 ## How it works
 
-There are three entry points. The editor's **Tilemap painter** authors layers
+There are three entry points. The editor's **Tilemap mode** authors layers
 visually, backed by a `.estileset` tileset asset. The **`Tilemap`** component
 points an entity at a Tiled JSON file and, at load, spawns one **`TilemapLayer`**
 entity per layer. The **`Tilemaps`** resource is the imperative API for creating
@@ -24,12 +24,13 @@ natively in the editor, or import it from a Tiled file with no extra setup.
 
 ## Paint in the editor
 
-![The Tilemap painter open beside an isometric map in the Estella editor](@/assets/guides/en/tilemap-overview.png)
+![Tilemap mode on an isometric map: the paint tools and layer picker in the viewport toolbar, the Tile Palette in the bottom dock](@/assets/guides/en/tilemap-overview.png)
 
-*Select a `TilemapLayer` and the **Tilemap painter** opens on the left — tools on top, the tileset palette below. Paint straight into the viewport.*
+*Select a `TilemapLayer` and the editor enters **Tilemap mode**: the paint tools and the active layer sit in the viewport toolbar, and the **Tile Palette** opens in the bottom dock with the tileset. Paint straight into the viewport.*
 
-Select an entity with a `TilemapLayer` component and the **Tilemap painter**
-panel opens with the tileset palette. Pick a tool and paint directly in the
+Select an entity with a `TilemapLayer` component — the editor suggests **Tilemap mode**, or
+click its icon in the Activity Bar — and the **Tile Palette** panel opens beside the Content
+Browser with the tileset. Pick a tool from the viewport toolbar and paint directly in the
 viewport — a stamp ghost previews every stroke:
 
 | Tool | Key | What it does |
@@ -47,24 +48,24 @@ viewport — a stamp ghost previews every stroke:
 While a paint tool is active, `H` / `V` flip the stamp and `R` rotates it 90°.
 `Q`, `W`, or `Esc` leave paint mode and hand the keys back to the transform tools.
 
-![Close-up of the Tilemap painter panel — tool row and tile palette](@/assets/guides/en/tilemap-tools.png)
+![The Tile Palette up close — the tileset picker, the Tiles / Terrain / Stamps tabs, the atlas to stamp from, and the current brush](@/assets/guides/en/tilemap-tools.png)
 
-*The painter panel up close: the tool row (brush, erase, rectangle, ellipse, line, bucket, select, eyedropper, terrain), the active tileset tab, and the tile palette you stamp from.*
+*The Tile Palette up close: the tileset picker and the **Tiles / Terrain / Stamps** tabs on top, the atlas you stamp from, and the **Current brush** with flip, rotate, **Random** and **Save as stamp**. The paint tools themselves (brush, erase, rectangle, ellipse, line, bucket, select, eyedropper, terrain) are in the viewport toolbar.*
 
 - **Multi-tile stamps** — drag across the palette to grab a block of tiles as one
   stamp. The palette is keyboard-friendly too: **arrow keys** move the selection,
   **Shift + arrows** grow it into a stamp.
-- **Saved stamps** — the bookmark button below the tools saves the current brush
-  into a per-project stamp library; click a chip to bring a pattern back, `×`
-  deletes it. Identical patterns deduplicate.
-- **Random mode** — toggle the dice button (or press `D` while painting) and each
+- **Saved stamps** — **Save as stamp**, under the current brush, saves it into a
+  per-project stamp library; the **Stamps** tab lists them — click one to bring a
+  pattern back, `×` deletes it. Identical patterns deduplicate.
+- **Random mode** — toggle **Random** (or press `D` while painting) and each
   painted cell samples one tile at random from the stamp instead of repeating the
   pattern — quick scatter for grass, rubble, and other variation. Sampling honors
   each tile's **probability** weight from the tileset editor's Properties mode
   (default 1; 0 = never scattered).
-- **Layer strip** — when the scene has several tilemap layers, a strip at the top
-  of the panel switches the active layer and toggles per-layer visibility and
-  lock; **drag a layer chip** to reorder layers.
+- **Layer picker** — when the scene has several tilemap layers, the layer picker in the
+  viewport toolbar switches the active layer; its menu shows, hides, locks, renames,
+  duplicates and deletes layers, and moves them **up or down** to reorder them.
 
 ## Map orientations
 
@@ -250,9 +251,9 @@ of two models:
   authors the color palette (add / rename / recolor / remove) and the per-tile
   corners: each quarter of a tile is the click target for its corner — click or
   drag a stroke to paint the active color, right button erases — and the
-  painter lists the colors to paint with.
+  Tile Palette's **Terrain** tab lists the colors to paint with.
 
-The painter's terrain brush dispatches on the set's model automatically. A
+The terrain brush dispatches on the set's model automatically. A
 blended-island corner-Wang demo ships in `examples/`.
 
 ## Tilesets & collision
@@ -309,8 +310,8 @@ know — brush / rectangle / fill tools, chunk storage, flip, and the greedy
 box-merge — with no second system to learn. At Play the painted cells spawn static
 colliders, exactly like per-tile collision.
 
-**Create → 2D → Collision Layer** (or the *New Collision Layer* command) makes one,
-seeds a 32 px grid, and opens the painter with the collision palette instead of a
+The **New Collision Layer** command (run it from the Command Palette) makes one,
+seeds a 32 px grid, and opens the Tile Palette with the collision palette instead of a
 tileset.
 
 ![The collision-brush palette — Solid, ramps, half-tiles, One-way, and Trigger brushes, with per-layer friction and bounce fields](@/assets/guides/en/collision-palette.png)

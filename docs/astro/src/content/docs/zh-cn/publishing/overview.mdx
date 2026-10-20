@@ -13,18 +13,19 @@ import { Aside, Steps } from '@astrojs/starlight/components';
 
 ![打包项目对话框——目标列表、构建配置、输出目录与构建场景](@/assets/guides/zh/build-dialog.png)
 
-*打包项目对话框:从分组的列表里选一个**目标**、一个配置、输出目录,以及 [cook 选项](#资产烘焙选项)——然后 Package。*
+*打包项目对话框:从左边分组的列表里选一个**目标**,再看这个目标自己的设置、**配置档**、构建配置、压缩方式、输出目录和要发布的场景——然后 Package。*
 
 <Steps>
 
-1. 打开 **文件 → Build…** 调出 **打包项目(Package Project)** 对话框。
+1. 打开 **构建 → 打包项目…** 调出 **打包项目(Package Project)** 对话框。
 2. 从列表里选一个**目标**——分为*通用*(Web / 桌面 / Playable)、*小游戏*
-   (微信,以及项目自己添加的)、*移动*(Android / iOS)。发往不止一个地方的目标会把这些
+   (微信、抖音、快手、B 站、快游戏、支付宝、华为快游戏——见[小游戏平台](/docs/zh-cn/publishing/minigame-platforms/))、*移动*(Android / iOS)。发往不止一个地方的目标会把这些
    去处列在它下面:桌面分叉为*独立发行*与 *[Steam](/docs/zh-cn/publishing/steam/)*。
 3. 填这个目标自己的设置,就在它的页面上——应用叫什么、用什么 id 认它,
    以及它要发往的那个商店需要的东西。
-4. 选一个**构建配置**——*Development* 或 *Shipping*(Shipping 会压缩)——一个**输出目录**、
-   source map,以及[资产烘焙选项](#资产烘焙选项)。
+4. 选一个**配置档**(项目设置,或一份存好的)、一个**构建配置**——*Development* 或 *Shipping*
+   (Shipping 会压缩)——**压缩**方式([资产烘焙选项](#资产烘焙选项))、一个**输出目录**,以及在
+   **高级**里的 CDN 地址、体积预算和 source map。
 5. 检查**构建场景(Scenes in build)**列表——取消勾选不想发布的场景,需要的话换一个
    启动场景(见下文)。
 6. 点 **Package**,看实时构建日志。完成后输出目录会自动打开(有复选框可关掉),
@@ -275,7 +276,7 @@ which a block-compressed texture must be
 
 ## 打包设置
 
-某**一个目标**叫什么、发往哪里、商店用什么认它,在 **文件 → Build…** 里那个目标自己的
+某**一个目标**叫什么、发往哪里、商店用什么认它,在 **构建 → 打包项目…** 里那个目标自己的
 页面上编辑——就在它所改变的那次构建旁边:
 
 - **微信** —— AppID。
@@ -284,7 +285,7 @@ which a block-compressed texture must be
 - **Android** —— 版本号(Google Play 用来排序构建的整数)、构建产出安装包还是 Gradle 工程,
   以及是否在 APK 之外再写一份 App Bundle。
 
-**无论发往哪里都成立**的那些,留在 **项目设置 → 打包(Packaging)**,并随项目保存:
+**无论发往哪里都成立**的那些,留在 **设置 → 项目 → 构建与模块 → 打包(Packaging)**,并随项目保存:
 
 - **应用 ID** —— 已安装应用的反向域名 id:Android 的 manifest package、iOS 的 bundle id、
   桌面安装包的 id。留空则按项目名推导;正式发布的应用应当自己指定,因为应用商店会永久沿用它。
@@ -293,7 +294,7 @@ which a block-compressed texture must be
 
 ### 屏幕方向
 
-方向是**一个项目级设置**,而非逐平台:**项目设置 → 显示(Display) → 屏幕方向**(竖屏或横屏),就在设计分辨率旁边。所有目标都遵循它——微信 `game.json` 的 `deviceOrientation`、Web 构建的"请旋转设备"提示(以及尽力而为的 `screen.orientation.lock`)、桌面窗口的宽高比,以及原生应用的 `app.config.json`(引擎能 letterbox,却转不动手机)。留空则**从设计分辨率的宽高比推导**(更宽或方形 ⇒ 横屏,更高 ⇒ 竖屏),因此横屏设计零配置即在各处横屏发布。
+方向是**一个项目级设置**,而非逐平台:**设置 → 项目 → 游戏 → 显示(Display) → 屏幕方向**(竖屏或横屏),就在设计分辨率旁边。所有目标都遵循它——微信 `game.json` 的 `deviceOrientation`、Web 构建的"请旋转设备"提示(以及尽力而为的 `screen.orientation.lock`)、桌面窗口的宽高比,以及原生应用的 `app.config.json`(引擎能 letterbox,却转不动手机)。留空则**从设计分辨率的宽高比推导**(更宽或方形 ⇒ 横屏,更高 ⇒ 竖屏),因此横屏设计零配置即在各处横屏发布。
 
 **试玩包是有意的例外**:它从不锁定页面方向。在广告 SDK 里,容器尺寸由 SDK 决定,因此"请旋转设备"这类遮罩可能把游戏永久挡住——玩家转了手机却毫无变化,因为那条 media query 一直在读容器而不是设备。试玩包保持自适应(各平台都要求如此),方向只在平台需要时**声明**出去,例如 Google 的 `ad.orientation` meta 标签。请为两种比例都设计,或用[相机适配](#)做 letterbox,让构图在任一比例下都成立。
 

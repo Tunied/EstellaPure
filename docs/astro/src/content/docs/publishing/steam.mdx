@@ -42,7 +42,7 @@ fullscreen behave the way players expect them to.
 
 ## Setting it up
 
-Open **File → Build…** and pick **Steam**, listed under Desktop in the target
+Open **Build → Package Project…** and pick **Steam**, listed under Desktop in the target
 list — Steam is a destination for the desktop build, so it branches that target
 rather than standing beside it. Everything the channel needs is on that page.
 
@@ -55,8 +55,7 @@ rather than standing beside it. Everything the channel needs is on that page.
 | **Steamworks SDK** | The SDK you downloaded. Its `redistributable_bin/<os>/` library ships inside the app. |
 | **Depot IDs** | Leave at 0 to use `App ID + 1`, … Valve *assigns* these; the generated checklist tells you to check them. |
 
-The **achievement ids** are not here: they live in **Project Settings →
-Packaging**, because every store keeps that same list under a different name.
+The **achievement ids** are not here: they live in **Settings → Project → Build and modules → Packaging**, because every store keeps that same list under a different name.
 Declaring them is what lets an unlock of an id no backend has be refused where it
 happens, instead of being accepted and silently dropped.
 

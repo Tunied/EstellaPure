@@ -71,7 +71,7 @@ claude mcp add estella --env ESTELLA_MCP_ALLOW_WRITES=1 -- \
    "args": ["<path-to>/editor-mcp.mjs", "--attach"]
    ```
 
-2. 打开**设置 → AI 代理 → 允许 AI 代理连接**。编辑器会开启一个仅限本机的端口，
+2. 打开**设置 → 编辑器 → 工具与 AI → AI 代理 → 允许 AI 代理连接**。编辑器会开启一个仅限本机的端口，
    并往自己的 user-data 目录写一个发现文件 `mcp-endpoint.json`，`--attach` 会自己
    找到它——只有你把它挪了位置，才需要显式传路径。那一行会显示当前监听的端口；
    这个开关会被记住，所以此后你双击图标启动的编辑器同样是就绪状态。
