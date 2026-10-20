@@ -1,0 +1,21 @@
+{
+  "version": "1.0",
+  "type": "material",
+  "shader": "builtin:model",
+  "blendMode": 9,
+  "depthTest": true,
+  "depthWrite": true,
+  "cull": 1,
+  "properties": {
+    "u_normalMap": "Emissive_StreetLight_Normal.png",
+    "u_emissiveMap": "Emissive_StreetLight_Emissive.jpg",
+    "u_metallic": 0,
+    "u_roughness": 0.552786405,
+    "u_emissive": {
+      "r": 0.5,
+      "g": 0.5,
+      "b": 0.5,
+      "a": 1
+    }
+  }
+}

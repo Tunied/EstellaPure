@@ -1,0 +1,14 @@
+{
+  "version": "1.0",
+  "type": "material",
+  "shader": "builtin:model",
+  "blendMode": 9,
+  "depthTest": true,
+  "depthWrite": true,
+  "cull": 1,
+  "properties": {
+    "u_normalMap": "Bistro_Sign_Main_Normal.jpg",
+    "u_metallic": 0,
+    "u_roughness": 0.552786405
+  }
+}

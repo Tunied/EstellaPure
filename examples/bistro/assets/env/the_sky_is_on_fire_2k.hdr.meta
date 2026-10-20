@@ -1,0 +1,9 @@
+{
+  "uuid": "5cccc15b-6798-44f4-9388-91270e4e3833",
+  "version": "2.0",
+  "type": "panorama",
+  "importer": {
+    "faceSize": 128,
+    "skyWidth": 2048
+  }
+}

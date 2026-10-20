@@ -32,6 +32,19 @@ required. Credit is given as a courtesy:
 The models and sky are the 2k glTF / HDR downloads, imported unchanged; the scene that arranges
 them is built by `examples/dusk-fort/tools/build-scene.mjs`.
 
+## Amazon Lumberyard Bistro
+
+`bistro` is **Amazon Lumberyard Bistro** (exterior), from NVIDIA's
+[Open Research Content Archive](https://developer.nvidia.com/orca/amazon-lumberyard-bistro),
+released under **[Creative Commons Attribution 4.0](https://creativecommons.org/licenses/by/4.0/)**.
+Unlike the CC0 art above, CC BY requires credit; this section is it:
+
+> Amazon Lumberyard Bistro, Open Research Content Archive (ORCA), 2017 — © Amazon Lumberyard, CC BY 4.0.
+
+The example is a **modified** copy: the FBX was imported with the engine's own importer, cut to the
+pieces within 25 m of the camera's view, and its textures were resized to 1024 and re-encoded. The sky
+is Poly Haven's *The Sky Is On Fire* (CC0, credited above).
+
 ## Spine
 
 `spine-demo` uses **Spineboy**, Esoteric Software's official Spine example skeleton

@@ -1,0 +1,13 @@
+{
+  "formatVersion": "1",
+  "name": "Bistro",
+  "description": "Amazon Lumberyard's Paris street — a thousand scanned and hand-made pieces — lit by the engine's own sun, sky and post-processing.",
+  "tag": "3D",
+  "version": "0.1.0",
+  "defaultScene": "assets/scenes/main.esscene",
+  "designResolution": {
+    "width": 1480,
+    "height": 920
+  },
+  "spineVersion": "none"
+}
