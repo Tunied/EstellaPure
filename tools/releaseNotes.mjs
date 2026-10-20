@@ -200,6 +200,8 @@ export const NOTED = {
     { note: 'Douyin and the other mini-game vendors ship a lean engine entry.' },
   'fix(render): a planar reflection capture falls back to 8 bits when the driver refuses a float target':
     { note: 'Planar reflections fall back to an 8-bit capture on drivers that refuse a float one.' },
+  'fix(editor): the planar reflection inspector reads the capture of the editor view':
+    { note: 'The planar reflection diagnostics read the editor view.' },
   'feat(render): a Tiling & Offset node for material graphs':
     { note: 'Material graphs have a Tiling & Offset node.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':

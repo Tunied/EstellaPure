@@ -16,7 +16,8 @@ export interface PlanarReflectionStatus {
     updated?: boolean;
 }
 
-/** View 0 is the manual/editor view; game views use their runtime camera entity. @experimental */
+/** A view is the camera that drew it: a game view is its runtime camera entity, the editor's own eye is EDITOR_VIEW_ENTITY,
+ *  and 0 is a draw that named no camera. @experimental */
 export function planarReflectionStatus(app: App, entity: Entity, view: Entity = 0): PlanarReflectionStatus {
     const read = engineApi(app)?.renderer_getPlanarReflectionStatus;
     if (!read) return { state: 'unavailable' };

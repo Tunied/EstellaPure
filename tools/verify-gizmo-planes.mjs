@@ -16,6 +16,9 @@ fs.writeFileSync(path.join(project,'assets/scenes/main.esscene'),JSON.stringify(
 ]}]}));
 fs.writeFileSync(path.join(project,'src/main.ts'),'export {};');fs.writeFileSync(path.join(project,'src/components.ts'),'export {};');
 const read=`(async()=>{const e=window.__estellaEditor;const snap=()=>{const t=e.surface.serializeScene().entities.find(v=>v.id===1).components.find(c=>c.type==='Transform').data;return {position:t.position??{x:0,y:0,z:0},scale:t.scale??{x:1,y:1,z:1},rotation:t.rotation??{x:0,y:0,z:0,w:1}};};const pose=snap(),layout=e.gizmoLayout();if(!window.__planesRead){window.__planesRead=true;return {pose,layout};}e.surface.undo();const undone=snap();e.surface.setViewPerspective(false);e.surface.setViewOrbit(0,0);e.runCommand('tool.move');await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));return {pose,layout,undone,flatLayout:e.gizmoLayout()};})()`;
+// CSS px of GIZMO in desktop/src/tools/gizmo.ts: the view ring starts at its radius and a quarter turn ends
+// that far down; a centre scale drag of one axisLen is a factor of 2.
+const VIEW_RING=78,SCALE_LENGTH=80;
 const records=[];
 try{
  for(const axis of ['xy','yz','zx','view','xyz','rotate-view']){
@@ -24,7 +27,7 @@ try{
   const run=runElectron(['.'],{via:'npx',encoding:'utf8',cwd:path.join(root,'desktop'),timeout:180000,env:{
    ESTELLA_SHOT:path.join(out,axis+'.png'),ESTELLA_SHOT_PROJECT:project,ESTELLA_SHOT_SCENE:'assets/scenes/main.esscene',
    ESTELLA_SHOT_EVAL:`(async()=>{const e=window.__estellaEditor;e.runCommand('mode.scene');e.surface.setViewPerspective(true);e.surface.setViewOrbit(45,30);e.surface.select(1);e.frame([1]);await new Promise(r=>setTimeout(r,750));e.runCommand('tool.${mode}');const layout=e.gizmoLayout();if(!layout?.spatial)throw Error('Spatial view was reset before drag: '+JSON.stringify({view:e.editorView(),orbit:e.surface.viewOrbit(),layout}));return {view:e.editorView(),layout};})()`,
-   ESTELLA_SHOT_EDITOR_DRAG:JSON.stringify({selector:'.viewport__stage canvas',point,dx:axis==='rotate-view'?-54:axis==='xyz'?58:11,dy:axis==='rotate-view'?54:axis==='xyz'?0:7,captureAfter:path.join(out,axis+'-spatial.png'),read})}});
+   ESTELLA_SHOT_EDITOR_DRAG:JSON.stringify({selector:'.viewport__stage canvas',point,dx:axis==='rotate-view'?-VIEW_RING:axis==='xyz'?SCALE_LENGTH:11,dy:axis==='rotate-view'?VIEW_RING:axis==='xyz'?0:7,captureAfter:path.join(out,axis+'-spatial.png'),read})}});
   fs.writeFileSync(path.join(out,axis+'.log'),run.stdout+'\n'+run.stderr);
   assert.equal(run.status,0,run.stderr);const line=run.stdout.split('\n').find(l=>l.startsWith('[editorDrag] '));assert(line,'Missing trusted spatial drag: '+axis+'\n'+run.stdout+'\n'+run.stderr);
   const result=JSON.parse(line.slice('[editorDrag] '.length));records.push({axis,...result});
