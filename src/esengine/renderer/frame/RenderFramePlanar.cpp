@@ -5,6 +5,7 @@
 #include "../../ecs/components/MeshRenderer.hpp"
 #include "../../resource/Mesh.hpp"
 #include "../../core/FrameProfiler.hpp"
+#include "../../core/Log.hpp"
 #include <glm/gtc/type_ptr.hpp>
 #include <sstream>
 
@@ -84,8 +85,10 @@ void RenderFrame::declarePlanarReflection(ecs::Registry& registry) {
     const f32 ratio = std::min(scale, static_cast<f32>(limit) / std::max({sourceW, sourceH, 1u}));
     const u32 w = std::max(1u, static_cast<u32>(std::round(sourceW * ratio)));
     const u32 h = std::max(1u, static_cast<u32>(std::round(sourceH * ratio)));
-    const GfxPixelFormat format = linear_color_ && device_.supportsFloatTargets()
+    GfxPixelFormat format = linear_color_ && device_.supportsFloatTargets()
         ? GfxPixelFormat::RGBA16F : GfxPixelFormat::RGBA8;
+    // A driver can claim float targets and still refuse this one; remember that and stay with 8 bits.
+    if (planar_float_refused_) format = GfxPixelFormat::RGBA8;
     const bool generationChanged = capture.generation != device_.deviceGeneration();
     if (!capture.target || capture.target->getWidth() != w || capture.target->getHeight() != h
         || capture.target->getSpecification().colorFormat != format) {
@@ -93,6 +96,13 @@ void RenderFrame::declarePlanarReflection(ecs::Registry& registry) {
         spec.width = w; spec.height = h; spec.linearFilter = true;
         spec.depthStencil = true; spec.colorFormat = format;
         capture.target = Framebuffer::create(device_, spec);
+        if (!capture.target && format == GfxPixelFormat::RGBA16F) {
+            ES_LOG_WARN("Planar reflection: a {}x{} float capture target was refused, falling back to RGBA8", w, h);
+            planar_float_refused_ = true;
+            format = GfxPixelFormat::RGBA8;
+            spec.colorFormat = format;
+            capture.target = Framebuffer::create(device_, spec);
+        }
         capture.valid = false;
     }
     if (!capture.target) return;

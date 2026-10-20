@@ -695,6 +695,7 @@ private:
     u64 planar_frame_ = 0;
     f32 planar_elapsed_ = 0;
     f32 planar_scale_ = 0.5f;
+    bool planar_float_refused_ = false;
     u32 planar_max_size_ = 1024;
     f32 planar_rate_ = 0;
     Entity planar_receiver_ = INVALID_ENTITY;
