@@ -202,6 +202,8 @@ export const NOTED = {
     { note: 'Planar reflections fall back to an 8-bit capture on drivers that refuse a float one.' },
   'fix(editor): the planar reflection inspector reads the capture of the editor view':
     { note: 'The planar reflection diagnostics read the editor view.' },
+  'feat(editor): the string table exchanges XLIFF 1.2 with translators and the viewport previews the scene in any language':
+    { note: 'The string table exports and imports XLIFF 1.2.' },
   'feat(render): a Tiling & Offset node for material graphs':
     { note: 'Material graphs have a Tiling & Offset node.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
