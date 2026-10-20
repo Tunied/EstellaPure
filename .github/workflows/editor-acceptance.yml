@@ -65,6 +65,8 @@ jobs:
           OUT: ${{ github.workspace }}/output/editor-acceptance
           ESTELLA_MCP_EDITOR_VISIBLE: '1'
           ELECTRON_DISABLE_SANDBOX: '1'
+          # The runner has no keychain; the obfuscated store lets the agent pictures keep a stand-in key.
+          ESTELLA_MCP_EDITOR_ARGS: '--password-store=basic'
         run: |
           read -r -a names <<< "$CHECK_NAMES"
           xvfb-run -a --server-args="-screen 0 1920x1080x24" node scripts/editor-checks/run.mjs "${names[@]}"
