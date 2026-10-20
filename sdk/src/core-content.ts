@@ -681,6 +681,7 @@ export {
     type SoundEventSelectionResult,
     applyAudioProjectConfig,
     type AudioProjectConfig,
+    type AudioLoadType,
     type AudioBusDecl,
     type BusEffectDef,
     type FilterEffectDef,

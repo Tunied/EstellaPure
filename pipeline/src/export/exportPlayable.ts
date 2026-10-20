@@ -21,7 +21,7 @@
 import { loadEsbuild } from '../bundle/esbuildRuntime';
 import { runtimeHostEntry } from '../bundle/runtimeHosts';
 import {
-  DEFAULT_RUNTIME_CONFIG, packagedRuntimeFields, type RuntimeProjectConfig,
+  DEFAULT_RUNTIME_CONFIG, packagedRuntimeFields, withAudioLoadTypes, type RuntimeProjectConfig,
 } from '../project/runtimeConfig';
 import { writeFile, mkdir, readFile, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -386,7 +386,7 @@ export async function exportPlayable(opts: {
     `window.__GAME_PATHMAP__=${JSON.stringify(pathMap)};` +
     span(`scenes/${sceneName}.json`, `window.__GAME_SCENES__=${JSON.stringify(scenes)};`) +
     `window.__GAME_FIRST__=${JSON.stringify(sceneName)};` +
-    `window.__GAME_RUNTIME__=${JSON.stringify(playableRuntimeFields(opts.runtime ?? DEFAULT_RUNTIME_CONFIG))};` +
+    `window.__GAME_RUNTIME__=${JSON.stringify(playableRuntimeFields(withAudioLoadTypes(opts.runtime ?? DEFAULT_RUNTIME_CONFIG, cook.audioLoadTypes)))};` +
     span('game-bundle.js', `window.__GAME_BUNDLE__=${JSON.stringify(pack(Buffer.from(bundle, 'utf8')))};`);
   const adProfile = opts.adProfile ?? genericPlayableProfile;
   const network = playableAdInjection(adProfile, { title, orientation });

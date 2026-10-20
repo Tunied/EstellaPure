@@ -27,7 +27,7 @@ import { packAtlas, decodePngImage, encodePagePng, type AtlasInputImage } from '
 // Per-asset texture cook settings (compress opt-out / format / size cap), read
 // from the `.meta` `importer` block — the same registry the inspector edits, so a
 // texture's ship-time compression is authored per asset, not one global switch.
-import { readTextureCookSettings } from '../project/importSettings';
+import { audioLoadTypeOf, readTextureCookSettings } from '../project/importSettings';
 // The compression a build gives one texture, and the one reason it is that.
 // The branch below IS this function — a cook that re-derived the choice would
 // be a second answer to the question an inspector asks before a build runs.
@@ -428,6 +428,8 @@ export interface CookResult {
    *  caller needs to read the content it just shipped (e.g. to scan the scenes
    *  for subsystems the target cannot render). */
   includedPaths: string[];
+  /** The shipped audio clips whose import settings choose how they load (not `auto`), by logical path. */
+  audioLoadTypes: Record<string, 'streaming' | 'decompress'>;
   /** uuids present in the project but unreachable — culled from the build. */
   unused: string[];
   /**
@@ -996,9 +998,15 @@ export async function cookAssets(
     const logical = byUuid.get(uuid)?.path;
     if (logical) inclusion[logical] = how;
   }
+  const audioLoadTypes: Record<string, 'streaming' | 'decompress'> = {};
+  for (const uuid of reachable) {
+    const e = byUuid.get(uuid);
+    const type = e?.type === 'audio' ? audioLoadTypeOf(e.importer) : null;
+    if (e && type) audioLoadTypes[e.path] = type;
+  }
   return {
     ok: failed.length === 0,
-    outDir: absOut, manifestPath, included: [...reachable], includedPaths, unused, warnings, failed,
+    outDir: absOut, manifestPath, included: [...reachable], includedPaths, audioLoadTypes, unused, warnings, failed,
     inclusion,
   };
 }

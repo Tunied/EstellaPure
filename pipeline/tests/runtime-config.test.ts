@@ -11,8 +11,9 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  DEFAULT_RUNTIME_CONFIG, packagedRuntimeFields, runtimeConfigOf,
+  DEFAULT_RUNTIME_CONFIG, packagedRuntimeFields, runtimeConfigOf, withAudioLoadTypes,
 } from '../src/project/runtimeConfig';
+import { audioLoadTypeOf, importerDefaults } from '../src/project/importSettings';
 
 describe('runtimeConfigOf', () => {
   it('carries the same normalized quality policy into exported builds', () => {
@@ -161,3 +162,23 @@ describe('packagedRuntimeFields', () => {
     expect(runtimeConfigOf(state).screenFit.designWidth).toBe(640);
   });
 });
+
+describe('how an audio clip loads', () => {
+  it('is Auto until the importer says otherwise, and a hand-edited value cannot break the cook', () => {
+    expect(importerDefaults('audio').loadType).toBe('auto');
+    expect(audioLoadTypeOf(undefined)).toBeNull();
+    expect(audioLoadTypeOf({ loadType: 'auto' })).toBeNull();
+    expect(audioLoadTypeOf({ loadType: 'streaming' })).toBe('streaming');
+    expect(audioLoadTypeOf({ loadType: 'decompress' })).toBe('decompress');
+    expect(audioLoadTypeOf({ loadType: 'sideways' })).toBeNull();
+  });
+
+  it('rides the packaged audio config only when a clip asked for something', () => {
+    expect(packagedRuntimeFields(DEFAULT_RUNTIME_CONFIG).audioConfig).toBeUndefined();
+    expect(packagedRuntimeFields(withAudioLoadTypes(DEFAULT_RUNTIME_CONFIG, {})).audioConfig).toBeUndefined();
+    const rc = withAudioLoadTypes(DEFAULT_RUNTIME_CONFIG, { 'assets/bgm.mp3': 'streaming' });
+    expect(packagedRuntimeFields(rc).audioConfig).toEqual({ loadTypes: { 'assets/bgm.mp3': 'streaming' } });
+    expect(DEFAULT_RUNTIME_CONFIG.audioConfig.loadTypes).toBeUndefined();
+  });
+});
+

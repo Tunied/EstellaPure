@@ -36,7 +36,7 @@ import type { DebugChannelConfig, PackagedGameConfig } from 'esengine';
 import { packagedDebugChannel } from './debugChannel';
 import { packagedHotUpdate } from './hotUpdateConfig';
 import {
-  DEFAULT_RUNTIME_CONFIG, packagedRuntimeFields, type RuntimeProjectConfig,
+  DEFAULT_RUNTIME_CONFIG, packagedRuntimeFields, withAudioLoadTypes, type RuntimeProjectConfig,
 } from '../project/runtimeConfig';
 import { engineImportMap, FULL_IMPORT_MAP, LEAN_ENTRY_FILE, FULL_ENTRY_FILE, type EngineImportMap } from '../bundle/importMap';
 import { engineInstalls, forcedSideModules, moduleChoices, type EngineInstallPlan } from '../bundle/engineInstalls';
@@ -1197,7 +1197,7 @@ async function produceExport(opts: ExportGameOptions): Promise<ExportGameResult>
     ...(platform === 'web' && opts.webChannel === 'crazygames' && opts.leaderboardEncryptionKey
       ? { leaderboardEncryptionKey: opts.leaderboardEncryptionKey } : {}),
     ...(scriptsFile ? { scripts: scriptsFile } : {}),
-    ...packagedRuntimeFields(runtime),
+    ...packagedRuntimeFields(withAudioLoadTypes(runtime, cook.audioLoadTypes)),
     ...(hotUpdate ? { hotUpdate } : {}),
     ...(sideModuleDeclarations(projectModules, platform).length > 0
       ? { sideModules: sideModuleDeclarations(projectModules, platform) } : {}),

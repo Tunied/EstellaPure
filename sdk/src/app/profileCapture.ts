@@ -45,7 +45,11 @@ export interface CapturedFrame {
     drawCalls?: number;
     triangles?: number;
     entities?: number;
-    memory?: { wasmBytes?: number; jsHeapBytes?: number; vramBytes?: number };
+    memory?: {
+        wasmBytes?: number; jsHeapBytes?: number; vramBytes?: number;
+        /** Decoded audio resident, the clips streamed instead, and the PCM that saved (estimate). */
+        audioBytes?: number; audioStreamedCount?: number; audioStreamedSavedBytes?: number;
+    };
     /** Editor-only. Absent from anything a shipped game records. */
     editor?: {
         ms: number;

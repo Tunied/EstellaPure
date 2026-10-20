@@ -12,6 +12,7 @@
 import type { AudioAPI } from './Audio';
 import type { BusDuckRule } from './AudioMixer';
 import { parseBusEffects, type BusEffectDef } from './BusEffects';
+import type { AudioLoadType } from './PlatformAudioBackend';
 
 export interface AudioBusDecl {
     name: string;
@@ -28,6 +29,12 @@ export interface AudioProjectConfig {
     /** How many voices may sound at once before `priority` decides which is
      *  dropped. 0 or less means no cap. */
     maxVoices?: number;
+    /**
+     * Clips whose import settings ask for something other than `auto`, by project-relative path:
+     * `streaming` plays one from its compressed file, `decompress` decodes it at load. Written by the
+     * editor and the exporter from the assets' import settings, never by hand in the project file.
+     */
+    loadTypes?: Record<string, Exclude<AudioLoadType, 'auto'>>;
 }
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
@@ -62,6 +69,14 @@ export function parseAudioProjectConfig(raw: unknown): AudioProjectConfig {
     if (typeof maxVoices === 'number' && Number.isFinite(maxVoices)) {
         config.maxVoices = Math.floor(maxVoices);
     }
+    const rawTypes = (raw as { loadTypes?: unknown } | undefined)?.loadTypes;
+    if (rawTypes && typeof rawTypes === 'object') {
+        const loadTypes: Record<string, 'streaming' | 'decompress'> = {};
+        for (const [path, type] of Object.entries(rawTypes)) {
+            if (path && (type === 'streaming' || type === 'decompress')) loadTypes[path] = type;
+        }
+        if (Object.keys(loadTypes).length > 0) config.loadTypes = loadTypes;
+    }
     return config;
 }
 
@@ -74,6 +89,7 @@ export function applyAudioProjectConfig(audio: AudioAPI, config: AudioProjectCon
     // Before the buses: the cap is the API's own and applies on every backend,
     // while the loop below returns early where there is no mixer graph.
     if (config?.maxVoices !== undefined) audio.setMaxVoices(config.maxVoices);
+    if (config?.loadTypes !== undefined) audio.setLoadTypes(config.loadTypes);
     for (const bus of config?.buses ?? []) {
         if (!audio.ensureBus(bus.name, bus.parent)) return; // no mixer: nothing applies
         if (bus.volume !== undefined) audio.setBusVolume(bus.name, bus.volume);

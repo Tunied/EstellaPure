@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
-import type { PlatformAudioBackend, AudioBufferHandle, AudioHandle, PlayConfig, AudioDelivery } from './PlatformAudioBackend';
+import type { PlatformAudioBackend, AudioBufferHandle, AudioHandle, PlayConfig, AudioDelivery, AudioLoadOptions, AudioLoadType } from './PlatformAudioBackend';
 import type { AudioMixer, BusDuckRule } from './AudioMixer';
 import type { BusEffectDef } from './BusEffects';
 import { defineResource } from '../ecs/resource';
 import { RuntimeConfig } from '../defaults';
 import { log } from '../util/logger';
 import { disposeAll } from '../util/disposeAll';
+
+/** `./a//b.mp3` and `a/b.mp3` are one clip. */
+function normalizeClipPath(path: string): string {
+    return path.replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/{2,}/g, '/');
+}
 
 const hostSuspensions = new WeakMap<AudioAPI, { owners: Set<object>; sync(): void }>();
 
@@ -55,6 +60,10 @@ export interface AudioBufferStats {
     bufferBudget: number;
     /** Warm-cache entries (refCount 0) awaiting revive or eviction. */
     evictableCount: number;
+    /** Clips played from their compressed file instead of being decoded (unique, not per alias). */
+    streamedCount: number;
+    /** The PCM those clips did not take, estimated from their length: what `bufferBytes` would be if they were decoded. */
+    streamedSavedBytes: number;
 }
 
 /**
@@ -124,6 +133,8 @@ export class AudioAPI {
     private readonly evictOrder_ = new Set<string>();
     private residentBytes_ = 0;
     private bufferBudgetOverride_: number | null = null;
+    /** Importer choices by authored path; a clip with none is `auto`. */
+    private loadTypes_ = new Map<string, AudioLoadType>();
     private bgmHandle_: AudioHandle | null = null;
     private bgmRequest_ = 0;
     private playbackEpoch_ = 0;
@@ -260,9 +271,33 @@ export class AudioAPI {
         return freed;
     }
 
+    /**
+     * How each clip the importer was told about is held. Keyed by the clip's project-relative path, the way
+     * the asset loader and `play` address it; anything absent is `auto`. A clip already loaded keeps how it
+     * was loaded until it is reloaded.
+     */
+    setLoadTypes(types: Readonly<Record<string, AudioLoadType>> | null): void {
+        this.loadTypes_ = new Map(Object.entries(types ?? {}).map(([path, type]) => [normalizeClipPath(path), type]));
+    }
+
+    private loadOptions_(url: string): AudioLoadOptions | undefined {
+        const loadType = this.loadTypes_.get(normalizeClipPath(url));
+        return loadType ? { loadType } : undefined;
+    }
+
     /** Buffer residency counters — the observability side of the budget. */
     getBufferStats(): AudioBufferStats {
+        const seen = new Set<SharedAudioBuffer>();
+        let streamedCount = 0;
+        let streamedSavedBytes = 0;
+        for (const entry of this.bufferCache_.values()) {
+            if (!entry.handle.streamed || seen.has(entry.source)) continue;
+            seen.add(entry.source);
+            streamedCount++;
+            streamedSavedBytes += entry.handle.savedBytes ?? 0;
+        }
         return {
+            streamedCount, streamedSavedBytes,
             bufferCount: this.bufferCache_.size,
             bufferBytes: this.residentBytes_,
             bufferBudget: this.bufferBudget,
@@ -412,7 +447,8 @@ export class AudioAPI {
                 return this.preloadFromData(url, data);
             }
         }
-        await this.ensureBuffer_(url, source => this.backend_.loadBuffer(source));
+        const options = this.loadOptions_(url);
+        await this.ensureBuffer_(url, source => (options ? this.backend_.loadBuffer(source, options) : this.backend_.loadBuffer(source)));
     }
 
     async preloadAll(urls: string[]): Promise<void> {
@@ -426,7 +462,9 @@ export class AudioAPI {
      * for a `url`-delivery backend is the only thing it plays.
      */
     async preloadFromData(url: string, data: ArrayBuffer): Promise<void> {
-        await this.ensureBuffer_(url, source => this.backend_.loadBufferFromData(source, data));
+        const options = this.loadOptions_(url);
+        await this.ensureBuffer_(url, source => (options
+            ? this.backend_.loadBufferFromData(source, data, options) : this.backend_.loadBufferFromData(source, data)));
     }
 
     /**

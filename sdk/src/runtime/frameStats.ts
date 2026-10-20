@@ -8,6 +8,7 @@
 import type { App, FrameCosts } from '../app/app';
 import { engineApi } from '../ecs/bridge/engineApi';
 import { Quality } from '../render/qualityRuntime';
+import { Audio } from '../audio/Audio';
 import type { QualityReport } from '../render/quality';
 
 export interface FrameStatsReport {
@@ -27,12 +28,22 @@ export interface FrameStatsReport {
     gpuScopes: Record<string, number>;
     wasmBytes: number;
     vramBytes: number;
+    /** Decoded audio resident (bytes), and how many clips play from their compressed file instead and the PCM that saved (estimate). */
+    audioBytes?: number;
+    audioStreamedCount?: number;
+    audioStreamedSavedBytes?: number;
     quality?: QualityReport;
 }
 
 function jsonMap(json: string | undefined): Record<string, number> {
     if (!json) return {};
     try { return JSON.parse(json) as Record<string, number>; } catch { return {}; }
+}
+
+function audioStats(app: App): Pick<FrameStatsReport, 'audioBytes' | 'audioStreamedCount' | 'audioStreamedSavedBytes'> {
+    if (!app.hasResource(Audio)) return {};
+    const stats = app.getResource(Audio).getBufferStats();
+    return { audioBytes: stats.bufferBytes, audioStreamedCount: stats.streamedCount, audioStreamedSavedBytes: stats.streamedSavedBytes };
 }
 
 export function frameStatsReport(app: App): FrameStatsReport {
@@ -51,6 +62,7 @@ export function frameStatsReport(app: App): FrameStatsReport {
         gpuScopes: jsonMap(m?.engine_getGpuScopes?.()),
         wasmBytes: app.wasmModule?.HEAPU8?.byteLength ?? 0,
         vramBytes: m?.renderer_getEstimatedGpuBytes?.() ?? 0,
+        ...audioStats(app),
         quality: app.hasResource(Quality) ? app.getResource(Quality)?.report() : undefined,
     };
 }

@@ -163,6 +163,18 @@ const DRAGONBONES: ImporterFieldSpec[] = [
 
 const AUDIO: ImporterFieldSpec[] = [
   {
+    key: 'loadType', label: 'Load Type', type: 'enum', default: 'auto', category: 'Audio',
+    options: [
+      { label: 'Auto', value: 'auto' },
+      { label: 'Decompress On Load', value: 'decompress' },
+      { label: 'Streaming', value: 'streaming' },
+    ],
+    tooltip: 'How the clip is held on Web. Auto streams clips of 30 seconds or longer and decodes shorter '
+      + 'ones. Decompress On Load decodes to memory: instant to start, and a 3-minute track costs about 69 MB. '
+      + 'Streaming plays from the compressed file and takes almost no memory, but cannot loop on an exact '
+      + 'sample and plays one instance of the clip at a time.',
+  },
+  {
     key: 'compress', label: 'Compress', type: 'bool', default: true, category: 'Audio',
     tooltip: 'Re-encode WAV to MP3 at cook (already-compressed formats pass through). '
       + 'MP3 has a small encoder delay — disable for seamless-loop clips.',
@@ -247,6 +259,12 @@ export const IMPORTER_SCHEMAS: Record<string, ImporterFieldSpec[]> = {
   audio: AUDIO,
   video: VIDEO,
 };
+
+/** What the importer asked of a clip when it is not left to the length, or null for `auto`. */
+export function audioLoadTypeOf(importer: Record<string, unknown> | undefined): 'streaming' | 'decompress' | null {
+  const type = importer?.loadType;
+  return type === 'streaming' || type === 'decompress' ? type : null;
+}
 
 /** Cook-facing audio import settings, tolerant of hand-edited `.meta` blocks. */
 export function readAudioImportSettings(importer: Record<string, unknown> | undefined): {

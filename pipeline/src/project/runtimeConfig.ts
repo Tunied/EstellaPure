@@ -166,6 +166,17 @@ export function runtimeConfigOf(
   };
 }
 
+/**
+ * The runtime settings with the clips whose import settings choose how they load. Those live in the
+ * assets' own `.meta`, not in the project manifest, so whoever has the asset index adds them here.
+ */
+export function withAudioLoadTypes(
+  rc: RuntimeProjectConfig, loadTypes: Readonly<Record<string, 'streaming' | 'decompress'>> | undefined,
+): RuntimeProjectConfig {
+  if (!loadTypes || Object.keys(loadTypes).length === 0) return rc;
+  return { ...rc, audioConfig: { ...rc.audioConfig, loadTypes: { ...loadTypes } } };
+}
+
 /** The settings a shipped build carries, as `game.config.json` spells them. */
 export type PackagedRuntimeFields = Pick<
   PackagedGameConfig,
@@ -206,6 +217,7 @@ export function packagedRuntimeFields(rc: RuntimeProjectConfig): PackagedRuntime
     ...(rc.physicsEnabled ? { physicsEnabled: true } : {}),
     ...(isDefaultPhysics(rc.physicsConfig) ? {} : { physicsConfig: rc.physicsConfig }),
     ...(rc.audioConfig.buses?.length || rc.audioConfig.maxVoices !== undefined
+      || Object.keys(rc.audioConfig.loadTypes ?? {}).length > 0
       ? { audioConfig: rc.audioConfig } : {}),
     ...(rc.achievements.length ? { achievements: rc.achievements } : {}),
     ...(rc.steamAppId > 0 ? { steamAppId: rc.steamAppId } : {}),

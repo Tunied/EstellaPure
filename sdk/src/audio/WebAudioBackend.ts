@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
-import type { AudioHandle, AudioBufferHandle, PlayConfig, PlatformAudioBackend, AudioBackendInitOptions } from './PlatformAudioBackend';
+import type { AudioHandle, AudioBufferHandle, PlayConfig, PlatformAudioBackend, AudioBackendInitOptions, AudioLoadOptions } from './PlatformAudioBackend';
+import { decodedPcmBytes, estimateAudioSeconds, shouldStream } from './audioStreaming';
 import { AudioMixer } from './AudioMixer';
 import { AudioPool, type PooledAudioNode } from './AudioPool';
 import { getPlatform } from '../platform/base';
@@ -160,19 +161,189 @@ class WebAudioHandle implements AudioHandle {
     }
 }
 
+/**
+ * A clip played from its compressed file through a media element, routed into the same pooled gain / pan
+ * and bus as a decoded one, so volume, buses, effects and fades treat it alike.
+ * Gives up a sample-accurate loop point and a second simultaneous voice: playing the clip again ends the first.
+ */
+class WebStreamHandle implements AudioHandle {
+    readonly id: number;
+    onEnd?: () => void;
+
+    private element_: HTMLAudioElement | null;
+    private node_: MediaElementAudioSourceNode | null;
+    private poolNode_: PooledAudioNode | null;
+    private pool_: AudioPool | null;
+    private playing_ = false;
+    private stopped_ = false;
+    private readonly duration_: number;
+    private readonly onRelease_: (handle: WebStreamHandle) => void;
+    private readonly ensureResumed_: () => Promise<void>;
+
+    constructor(
+        id: number, element: HTMLAudioElement, node: MediaElementAudioSourceNode, poolNode: PooledAudioNode,
+        pool: AudioPool, duration: number, onRelease: (handle: WebStreamHandle) => void, ensureResumed: () => Promise<void>,
+    ) {
+        this.id = id;
+        this.element_ = element;
+        this.node_ = node;
+        this.poolNode_ = poolNode;
+        this.pool_ = pool;
+        this.duration_ = duration;
+        this.onRelease_ = onRelease;
+        this.ensureResumed_ = ensureResumed;
+        poolNode.source = node;
+        element.onended = () => {
+            if (this.stopped_ || element.loop) return;
+            this.release_();
+            this.onEnd?.();
+        };
+    }
+
+    /** Start (or restart) the element. A browser that blocks it until a gesture is retried once the context resumes. */
+    begin(startOffset: number): void {
+        const element = this.element_;
+        if (!element) return;
+        if (startOffset > 0) element.currentTime = startOffset;
+        this.playing_ = true;
+        const started = element.play();
+        if (started) {
+            started.catch(async () => {
+                if (this.stopped_ || !this.playing_) return;
+                await this.ensureResumed_().catch(() => undefined);
+                if (!this.stopped_ && this.playing_) await element.play().catch(() => { this.playing_ = false; });
+            });
+        }
+    }
+
+    stop(): void {
+        if (this.stopped_) return;
+        this.release_();
+    }
+
+    private release_(): void {
+        this.stopped_ = true;
+        this.playing_ = false;
+        const element = this.element_;
+        if (element) {
+            element.onended = null;
+            element.pause();
+            element.removeAttribute('src');
+            element.load();
+        }
+        this.node_?.disconnect();
+        if (this.poolNode_ && this.pool_) this.pool_.release(this.poolNode_);
+        this.element_ = null;
+        this.node_ = null;
+        this.poolNode_ = null;
+        this.pool_ = null;
+        this.onRelease_(this);
+    }
+
+    pause(): void {
+        if (!this.playing_ || this.stopped_) return;
+        this.playing_ = false;
+        this.element_?.pause();
+    }
+
+    resume(): void {
+        if (this.playing_ || this.stopped_) return;
+        this.begin(0);
+    }
+
+    /** The host suspended the device: hold the element where it is. It still counts as playing, as a decoded voice does. */
+    holdForSuspend(): boolean {
+        if (!this.playing_ || this.stopped_) return false;
+        this.element_?.pause();
+        return true;
+    }
+
+    /** The device is running again: carry on from where the hold left the element. */
+    continueAfterSuspend(): void {
+        if (this.playing_ && !this.stopped_) this.begin(0);
+    }
+
+    setVolume(volume: number): void {
+        if (this.stopped_) return;
+        this.poolNode_!.gain.gain.value = volume;
+    }
+
+    setPan(pan: number): void {
+        if (this.stopped_) return;
+        this.poolNode_!.panner.pan.value = pan;
+    }
+
+    setLoop(loop: boolean): void {
+        if (this.stopped_ || !this.element_) return;
+        this.element_.loop = loop;
+    }
+
+    setPlaybackRate(rate: number): void {
+        if (this.stopped_ || !this.element_) return;
+        this.element_.playbackRate = rate;
+    }
+
+    get isPlaying(): boolean {
+        return this.playing_;
+    }
+
+    get currentTime(): number {
+        return this.element_ ? this.element_.currentTime : 0;
+    }
+
+    get duration(): number {
+        return this.duration_;
+    }
+}
+
+/** How long to wait for an element's metadata before trusting the header estimate. */
+const METADATA_WAIT_MS = 3000;
+
 /** Decoded PCM size of a WebAudio buffer: frames × channels × 4 (Float32). */
 function decodedBytes(buf: AudioBuffer): number {
     return buf.length * buf.numberOfChannels * 4;
 }
 
 interface BufferRecord {
-    buffer: AudioBuffer;
+    buffer: AudioBuffer | null;
     url: string;
+    /** A streamed clip: the object URL its media element plays, and its length. */
+    stream?: { objectUrl: string; duration: number };
 }
 
 interface SourceRecord {
     pending: number;
     bufferId?: number;
+}
+
+const MIME: Record<string, string> = {
+    mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', m4a: 'audio/mp4', aac: 'audio/aac', flac: 'audio/flac', webm: 'audio/webm',
+};
+
+function mimeOf(url: string): string {
+    const ext = /\.([a-z0-9]+)(?:[?#]|$)/i.exec(url)?.[1]?.toLowerCase();
+    return (ext && MIME[ext]) || '';
+}
+
+/** The length a media element reports for `objectUrl`, or `estimate` (or 0) when it will not say in time. */
+function probeDuration(objectUrl: string, estimate: number | null): Promise<number> {
+    return new Promise((resolve) => {
+        const element = new Audio();
+        let done = false;
+        const finish = (seconds: number | null): void => {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            element.removeAttribute('src');
+            element.load();
+            resolve(seconds !== null && Number.isFinite(seconds) && seconds > 0 ? seconds : (estimate ?? 0));
+        };
+        const timer = setTimeout(() => finish(null), METADATA_WAIT_MS);
+        element.preload = 'metadata';
+        element.onloadedmetadata = () => finish(element.duration);
+        element.onerror = () => finish(null);
+        element.src = objectUrl;
+    });
 }
 
 export class WebAudioBackend implements PlatformAudioBackend {
@@ -193,6 +364,12 @@ export class WebAudioBackend implements PlatformAudioBackend {
     private deviceIntentRevision_ = 0;
     private contextGeneration_ = 0;
     private analyser_: AnalyserNode | null = null;
+    /** The streamed voice sounding for each streamed clip (one at a time, see WebStreamHandle). */
+    private readonly streams_ = new Map<number, WebStreamHandle>();
+    /** Streams a suspended device paused, to start again when it resumes. */
+    private heldStreams_: WebStreamHandle[] = [];
+    /** Streamed clips unloaded while still sounding: their object URL is revoked when the voice ends. */
+    private readonly retiredStreams_ = new Map<WebStreamHandle, string>();
 
     get mixer(): AudioMixer | null {
         return this.mixer_;
@@ -273,7 +450,7 @@ export class WebAudioBackend implements PlatformAudioBackend {
         });
     }
 
-    async loadBuffer(url: string): Promise<AudioBufferHandle> {
+    async loadBuffer(url: string, options?: AudioLoadOptions): Promise<AudioBufferHandle> {
         if (!this.context_) {
             throw new Error('AudioContext not initialized');
         }
@@ -284,7 +461,7 @@ export class WebAudioBackend implements PlatformAudioBackend {
         const inFlight = this.loadingUrls_.get(url);
         if (inFlight) return inFlight;
 
-        const promise = this.loadSource_(url, () => getPlatform().readFile(url));
+        const promise = this.loadSource_(url, () => getPlatform().readFile(url), options);
         this.loadingUrls_.set(url, promise);
         try {
             return await promise;
@@ -293,18 +470,26 @@ export class WebAudioBackend implements PlatformAudioBackend {
         }
     }
 
-    async loadBufferFromData(url: string, data: ArrayBuffer): Promise<AudioBufferHandle> {
-        return this.loadSource_(url, async () => data);
+    async loadBufferFromData(url: string, data: ArrayBuffer, options?: AudioLoadOptions): Promise<AudioBufferHandle> {
+        return this.loadSource_(url, async () => data, options);
     }
 
     private cachedBuffer_(url: string): AudioBufferHandle | null {
         const id = this.sources_.get(url)?.bufferId;
         if (id === undefined) return null;
         const record = this.buffers_.get(id);
-        return record ? { id, duration: record.buffer.duration, bytes: decodedBytes(record.buffer) } : null;
+        return record ? this.handleOf_(id, record) : null;
     }
 
-    private async loadSource_(url: string, read: () => Promise<ArrayBuffer>): Promise<AudioBufferHandle> {
+    private handleOf_(id: number, record: BufferRecord): AudioBufferHandle {
+        if (record.stream) {
+            const duration = record.stream.duration;
+            return { id, duration, bytes: 0, streamed: true, savedBytes: decodedPcmBytes(duration) };
+        }
+        return { id, duration: record.buffer!.duration, bytes: decodedBytes(record.buffer!) };
+    }
+
+    private async loadSource_(url: string, read: () => Promise<ArrayBuffer>, options?: AudioLoadOptions): Promise<AudioBufferHandle> {
         const context = this.context_;
         if (!context) {
             throw new Error('AudioContext not initialized');
@@ -321,7 +506,7 @@ export class WebAudioBackend implements PlatformAudioBackend {
         try {
             const data = await read();
             this.assertLoadContext_(context, generation);
-            return await this.decodeBuffer_(url, data, source, context, generation);
+            return await this.decodeBuffer_(url, data, source, context, generation, options);
         } finally {
             source.pending--;
             if (this.sources_.get(url) === source && source.pending === 0 && source.bufferId === undefined) {
@@ -338,11 +523,14 @@ export class WebAudioBackend implements PlatformAudioBackend {
 
     private async decodeBuffer_(
         url: string, data: ArrayBuffer, source: SourceRecord,
-        context: AudioContext, generation: number,
+        context: AudioContext, generation: number, options?: AudioLoadOptions,
     ): Promise<AudioBufferHandle> {
         if (this.sources_.get(url) === source) {
             const cached = this.cachedBuffer_(url);
             if (cached) return cached;
+        }
+        if (shouldStream(options?.loadType, data)) {
+            return this.streamBuffer_(url, data, source, context, generation);
         }
 
         let audioBuffer: AudioBuffer;
@@ -361,6 +549,69 @@ export class WebAudioBackend implements PlatformAudioBackend {
         return { id, duration: audioBuffer.duration, bytes: decodedBytes(audioBuffer) };
     }
 
+    /**
+     * Keep a clip as its compressed bytes behind an object URL, and learn its length from the element
+     * (the header estimate when the browser will not say). Nothing is decoded: this is the memory the
+     * clip does not take.
+     */
+    private async streamBuffer_(
+        url: string, data: ArrayBuffer, source: SourceRecord, context: AudioContext, generation: number,
+    ): Promise<AudioBufferHandle> {
+        const objectUrl = URL.createObjectURL(new Blob([data], { type: mimeOf(url) }));
+        const duration = await probeDuration(objectUrl, estimateAudioSeconds(data));
+        if (this.context_ !== context || this.contextGeneration_ !== generation) {
+            URL.revokeObjectURL(objectUrl);
+            throw new Error('AudioContext changed while loading audio');
+        }
+        const id = ++this.nextBufferId_;
+        this.buffers_.set(id, { buffer: null, url, stream: { objectUrl, duration } });
+        if (this.sources_.get(url) === source) source.bufferId = id;
+        return this.handleOf_(id, this.buffers_.get(id)!);
+    }
+
+    private releaseStream_(handle: WebStreamHandle): void {
+        for (const [id, voice] of this.streams_) if (voice === handle) this.streams_.delete(id);
+        this.heldStreams_ = this.heldStreams_.filter((h) => h !== handle);
+        const retired = this.retiredStreams_.get(handle);
+        if (retired !== undefined) {
+            this.retiredStreams_.delete(handle);
+            URL.revokeObjectURL(retired);
+        }
+    }
+
+    private playStream_(bufferId: number, stream: { objectUrl: string; duration: number }, config: PlayConfig): AudioHandle {
+        const context = this.context_!;
+        const pool = this.pool_!;
+        const mixer = this.mixer_!;
+        // One voice per streamed clip: a second play ends the first.
+        this.streams_.get(bufferId)?.stop();
+        const element = new Audio();
+        element.preload = 'auto';
+        element.src = stream.objectUrl;
+        element.loop = config.loop ?? false;
+        element.playbackRate = config.playbackRate ?? 1;
+        const poolNode = pool.acquire();
+        let node: MediaElementAudioSourceNode;
+        try {
+            node = context.createMediaElementSource(element);
+            node.connect(poolNode.gain);
+            poolNode.gain.gain.value = config.volume ?? 1.0;
+            poolNode.panner.pan.value = config.pan ?? 0;
+            const bus = mixer.getBus(config.bus ?? 'sfx') ?? mixer.sfx;
+            poolNode.panner.connect(bus.input);
+        } catch (error) {
+            pool.release(poolNode);
+            throw error;
+        }
+        const handle = new WebStreamHandle(
+            ++this.nextHandleId_, element, node, poolNode, pool, stream.duration,
+            (h) => this.releaseStream_(h), () => this.ensureResumed(),
+        );
+        this.streams_.set(bufferId, handle);
+        handle.begin(config.startOffset ?? 0);
+        return handle;
+    }
+
     invalidateSource(url: string): void {
         this.sources_.delete(url);
         this.loadingUrls_.delete(url);
@@ -370,6 +621,11 @@ export class WebAudioBackend implements PlatformAudioBackend {
         const record = this.buffers_.get(handle.id);
         if (!record) return;
         this.buffers_.delete(handle.id);
+        if (record.stream) {
+            const sounding = this.streams_.get(handle.id);
+            if (sounding) this.retiredStreams_.set(sounding, record.stream.objectUrl);
+            else URL.revokeObjectURL(record.stream.objectUrl);
+        }
         const source = this.sources_.get(record.url);
         if (source?.bufferId === handle.id) {
             delete source.bufferId;
@@ -382,7 +638,9 @@ export class WebAudioBackend implements PlatformAudioBackend {
             throw new Error('Audio system not initialized');
         }
 
-        const audioBuffer = this.buffers_.get(buffer.id)?.buffer;
+        const record = this.buffers_.get(buffer.id);
+        if (record?.stream) return this.playStream_(buffer.id, record.stream, config);
+        const audioBuffer = record?.buffer;
         if (!audioBuffer) {
             throw new Error(`Buffer ${buffer.id} not found`);
         }
@@ -427,11 +685,16 @@ export class WebAudioBackend implements PlatformAudioBackend {
     }
 
     suspend(): void {
+        // A media element runs on its own clock, so a suspended context would leave it playing out of earshot and out of step.
+        for (const voice of this.streams_.values()) if (voice.holdForSuspend()) this.heldStreams_.push(voice);
         this.fireDeviceIntent_(true);
     }
 
     resume(): void {
         this.fireDeviceIntent_(false);
+        const held = this.heldStreams_;
+        this.heldStreams_ = [];
+        for (const voice of held) voice.continueAfterSuspend();
     }
 
     dispose(): void {
@@ -444,6 +707,12 @@ export class WebAudioBackend implements PlatformAudioBackend {
             document.removeEventListener('keydown', this.resumeHandler_);
             this.resumeHandler_ = null;
         }
+        for (const voice of [...this.streams_.values()]) voice.stop();
+        for (const record of this.buffers_.values()) if (record.stream) URL.revokeObjectURL(record.stream.objectUrl);
+        for (const objectUrl of this.retiredStreams_.values()) URL.revokeObjectURL(objectUrl);
+        this.retiredStreams_.clear();
+        this.streams_.clear();
+        this.heldStreams_ = [];
         this.analyser_ = null;
         this.pool_ = null;
         this.mixer_ = null;

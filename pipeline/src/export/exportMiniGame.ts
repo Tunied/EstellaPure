@@ -33,7 +33,7 @@ import { packagedHotUpdate } from './hotUpdateConfig';
 import { loadEsbuild } from '../bundle/esbuildRuntime';
 import type { ProjectFeatures, ProjectPackaging } from '../project/format';
 import {
-  DEFAULT_RUNTIME_CONFIG, packagedRuntimeFields, type RuntimeProjectConfig,
+  DEFAULT_RUNTIME_CONFIG, packagedRuntimeFields, withAudioLoadTypes, type RuntimeProjectConfig,
 } from '../project/runtimeConfig';
 import { writeFile, mkdir, cp, readFile, rename, rm } from 'node:fs/promises';
 import { brotliCompress as brotliCompressCb, constants as zlibConstants } from 'node:zlib';
@@ -481,7 +481,7 @@ export async function exportMiniGame(profile: MiniGameExportProfile, opts: {
   // a WebGPU request cannot be honoured here — carrying it would be a config
   // field the runtime is guaranteed to ignore.
   const { renderBackend: _webgpuNotHere, ...packaged } =
-    packagedRuntimeFields(opts.runtime ?? DEFAULT_RUNTIME_CONFIG);
+    packagedRuntimeFields(withAudioLoadTypes(opts.runtime ?? DEFAULT_RUNTIME_CONFIG, cook.audioLoadTypes));
   const themeColors = packaged.uiThemeColors;
   const runtimeArgs = Object.entries(packaged)
     .map(([k, v]) => (k === 'uiThemeColors'

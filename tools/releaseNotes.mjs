@@ -208,6 +208,8 @@ export const NOTED = {
     { note: 'The preview language menu appears once the string tables are indexed.' },
   'fix(editor): Play starts in the preview language even where the runtime picked the system language':
     { note: 'Play starts in the preview language.' },
+  'feat(audio): long clips on the Web play from their compressed file instead of decoding to memory':
+    { note: 'Long clips on the Web play from their compressed file instead of being decoded to memory.' },
   'feat(render): a Tiling & Offset node for material graphs':
     { note: 'Material graphs have a Tiling & Offset node.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':

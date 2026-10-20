@@ -18,9 +18,24 @@ export interface AudioHandle {
     onEnd?: () => void;
 }
 
+/**
+ * How a clip is held: `decompress` decodes it to PCM at load, `streaming` plays it from its compressed
+ * file, `auto` lets its length decide (see audioStreaming.ts). A backend with one way of playing a clip
+ * ignores it.
+ */
+export type AudioLoadType = 'auto' | 'decompress' | 'streaming';
+
+export interface AudioLoadOptions {
+    loadType?: AudioLoadType;
+}
+
 export interface AudioBufferHandle {
     readonly id: number;
     readonly duration: number;
+    /** Played from the compressed file, not decoded: `bytes` is then 0 and `savedBytes` is what decoding would have cost. */
+    readonly streamed?: boolean;
+    /** The PCM a streamed clip did not take, estimated from its length. */
+    readonly savedBytes?: number;
     /**
      * Decoded size in bytes, for the audio residency budget. Backends that
      * hold real decoded PCM (WebAudio) report it; streaming backends (WeChat
@@ -62,9 +77,9 @@ export interface PlatformAudioBackend {
     initialize(options?: AudioBackendInitOptions): Promise<void>;
     ensureResumed(): Promise<void>;
     /** @param src a RESOLVED source the host can fetch — never a cache key. */
-    loadBuffer(src: string): Promise<AudioBufferHandle>;
+    loadBuffer(src: string, options?: AudioLoadOptions): Promise<AudioBufferHandle>;
     /** @param src as {@link loadBuffer}; `bytes` backends use `data` and ignore it. */
-    loadBufferFromData(src: string, data: ArrayBuffer): Promise<AudioBufferHandle>;
+    loadBufferFromData(src: string, data: ArrayBuffer, options?: AudioLoadOptions): Promise<AudioBufferHandle>;
     unloadBuffer(handle: AudioBufferHandle): void;
     /** Forget source-address reuse after an authored clip changes. */
     invalidateSource?(src: string): void;

@@ -6,6 +6,7 @@
 import type { App, Plugin } from './app';
 import { Renderer } from '../render/renderer';
 import { engineApi } from '../ecs/bridge/engineApi';
+import { Audio } from '../audio/Audio';
 import {
     PROFILE_CAPTURE_VERSION,
     type CaptureSource,
@@ -28,6 +29,13 @@ export interface ProfileRecorderOptions {
 const DEFAULT_MAX_FRAMES = 1800;
 
 /** Chrome only; 0 where the runtime does not expose its heap. */
+/** What the app's audio holds, when it has any: decoded bytes, and what streaming kept out of memory. */
+function audioMemory(app: App): { audioBytes?: number; audioStreamedCount?: number; audioStreamedSavedBytes?: number } {
+    if (!app.hasResource(Audio)) return {};
+    const stats = app.getResource(Audio).getBufferStats();
+    return { audioBytes: stats.bufferBytes, audioStreamedCount: stats.streamedCount, audioStreamedSavedBytes: stats.streamedSavedBytes };
+}
+
 function jsHeapBytes(): number {
     if (typeof performance === 'undefined') return 0;
     return (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? 0;
@@ -140,6 +148,7 @@ export class ProfileRecorder {
                 wasmBytes: this.app_.wasmModule?.HEAPU8?.byteLength ?? 0,
                 jsHeapBytes: jsHeapBytes(),
                 vramBytes: m?.renderer_getEstimatedGpuBytes?.() ?? 0,
+                ...audioMemory(this.app_),
             },
         };
         this.frames_.push(frame);

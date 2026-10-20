@@ -3,7 +3,8 @@
 export interface PooledAudioNode {
     gain: GainNode;
     panner: StereoPannerNode;
-    source: AudioBufferSourceNode | null;
+    /** A decoded clip's buffer source, or a streamed clip's media element source. */
+    source: AudioBufferSourceNode | MediaElementAudioSourceNode | null;
     inUse: boolean;
     startTime: number;
 }
@@ -54,7 +55,9 @@ export class AudioPool {
     release(node: PooledAudioNode): void {
         if (!node.inUse) return;
         if (node.source) {
-            try { node.source.stop(); } catch (_) { /* already stopped */ }
+            if ('stop' in node.source) {
+                try { node.source.stop(); } catch (_) { /* already stopped */ }
+            }
             node.source.disconnect();
             node.source = null;
         }
