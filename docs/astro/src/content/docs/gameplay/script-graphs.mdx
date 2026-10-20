@@ -1,0 +1,113 @@
+---
+title: Script Graphs
+description: Author gameplay logic visually as a .esgraph asset — events, an exec wire, data wires, variables, callable graphs — and run it on an entity with ScriptGraphAgent.
+---
+
+A **script graph** is gameplay logic drawn as nodes and wires instead of typed. It is
+the visual sibling of [state machines and behavior trees](/docs/gameplay/ai/authoring/):
+the graph is a `.esgraph` asset, an entity runs it, and the leaves it calls are the
+same **actions** you register once in code. It suits the short, event-driven logic
+that is awkward as a state machine — *when the game starts, spawn this; when the key
+is pressed, branch on that*.
+
+The `.esgraph` file **is** the runtime definition: nothing compiles it ahead of time,
+so the graph the editor runs and the graph the package ships are the same bytes.
+
+## Creating and opening a graph
+
+1. In the **Content Browser**, **New → New Script Graph**. The new asset opens in a
+   document tab (double-click any `.esgraph` to reopen it).
+2. **Right-click the canvas** to add an event, then wire what it should do. An empty
+   graph says exactly that.
+3. Select the entity that should run it, add the **`ScriptGraphAgent`** component and
+   set its `graph` field to the asset.
+
+The asset is referenced by path and preloaded with the scene, so it is ready before
+the agent first ticks. Graphs run in **Play** (and in the exported game), in the
+`Update` schedule beside the state-machine interpreter.
+
+## Two kinds of wire
+
+| Wire | Carries | Direction |
+|---|---|---|
+| **Exec** (the control wire) | "run next" | *Pushed*: an event lights its entry node and the wire is walked depth-first. |
+| **Data** (number, boolean, string, entity, any) | a value | *Pulled*: a node reads its inputs by evaluating backwards up the wire when it runs. |
+
+Wires only connect compatible types. An input with nothing wired into it holds a
+**literal** you type on the node.
+
+Order is what the picture promises: a **Sequence** node finishes pin 0's whole chain
+before pin 1 starts. A pure node (no exec pins) feeding two pins of the same node is
+evaluated **once** per activation, so both pins see the same value; the next
+activation evaluates it again, which is what lets a **While** condition become false.
+
+## Adding nodes
+
+The **Node** button in the toolbar (or right-click on the canvas) lists nodes in
+groups:
+
+| Group | Nodes |
+|---|---|
+| **Events** | **Start**, **Every frame**, **Destroy**, **On event** (listens for a named entity event). Each is an entry point; a graph can have several. |
+| **Flow** | **Branch**, **Sequence** (configurable pin count), **While**, **Delay**. |
+| **Variables** | **Get variable**, **Set variable**. |
+| **Values** | **Number**, **Boolean**, **String** literals. |
+| **Queries** | Value-only nodes (no exec pin): arithmetic (Add, Subtract, Multiply, Divide, Absolute, Clamp, Random), comparisons (Less than, Greater than), **And**, **Join strings**, **Key pressed**, **Input axis**, **Find entity by name**, **Get property**, plus every registered **condition**. |
+| **Actions** | Nodes with an exec pin that do something: **Spawn entity**, **Destroy entity**, **Set property**, **Call graph**, plus every action you registered in code. |
+
+An action or condition you register with `registerAction` / `registerCondition` — the
+same ones state machines and behavior trees use — appears here with the ports its
+declaration gives it. The file stores only the verb's *name*, so an old graph is
+redrawn from the current declaration rather than keeping ports its verb no longer has.
+
+**Arrange** lays the nodes out left to right by what feeds what; positions are
+editor-only and ignored at runtime.
+
+## Variables
+
+The **Variables** panel on the canvas lists the graph's **Variables**, **Inputs** and
+**Outputs**, searchable, with how often each is read and written (or *unused*).
+
+- **+ Variable** declares a typed variable with a default. It is **declared by the
+  asset but valued per entity** — two entities running the same graph each keep their
+  own.
+- **Drag** a variable onto the canvas to read it, or choose **Get / Set** from the
+  right-click menu.
+- Rename or change a variable's type from its row. Deleting one that nodes still use
+  leaves those nodes on the canvas, without a variable, and asks first.
+
+## Callable graphs
+
+A graph becomes **callable** when you declare **+ In** (an input pin) or **+ Out** (an
+output pin) on it. Another graph then runs it with a **Call graph** node, handing
+values in and reading results back — the signature lives on the callee, so changing it
+redraws every caller.
+
+A call runs the callee **to completion, synchronously**, inside the caller's step. Each
+call site keeps its own frame for the callee, the callee spends the caller's step
+budget, and nesting is bounded — a graph that reaches itself through a cycle stops
+rather than overflowing the stack.
+
+## Safety limits
+
+Every node activation costs a **step**, and an instance has a budget per tick
+(4096 by default). A graph that loops forever — a **While** that never turns false —
+stops, names the node that exhausted the budget, and stays stopped, instead of
+freezing the editor. Calls nest at most 16 deep. A reference to a graph, prefab or
+verb that does not exist is reported once, not every frame.
+
+## From code
+
+Graphs can also be registered without an asset:
+
+```typescript
+import { registerScriptGraph, ScriptGraphAgent } from 'esengine/logic';
+
+registerScriptGraph('door-open', graphData); // a ScriptGraph object
+
+cmds.spawn().insert(ScriptGraphAgent, { graph: 'door-open' });
+```
+
+`ScriptGraphAgent.graph` takes either a registered name or a `.esgraph` path. See
+[AI → Authoring in the editor](/docs/gameplay/ai/authoring/) for the registry the
+actions come from.

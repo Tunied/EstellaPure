@@ -246,6 +246,7 @@ export default defineConfig({
             { label: 'Physics', translations: { 'zh-CN': '物理' }, slug: 'gameplay/physics' },
             { label: '3D Physics', translations: { 'zh-CN': '3D 物理' }, slug: 'gameplay/physics-3d' },
             { label: 'Markers & Trigger Areas', translations: { 'zh-CN': '标记与触发区' }, slug: 'gameplay/markers' },
+            { label: 'Script Graphs', translations: { 'zh-CN': '脚本图' }, slug: 'gameplay/script-graphs' },
             {
               label: 'Gameplay AI',
               translations: { 'zh-CN': '游戏 AI' },
