@@ -68,8 +68,8 @@
                 "uniforms": {
                   "u_exposure": 0.05,
                   "u_contrast": 1.1,
-                  "u_saturation": 1.05,
-                  "u_temperature": -0.04,
+                  "u_saturation": 1,
+                  "u_temperature": 0.02,
                   "u_tint": 0
                 }
               },

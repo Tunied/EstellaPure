@@ -39,7 +39,7 @@ const entities = [
     { type: 'PostProcessVolume', data: { isGlobal: true, priority: 0, weight: 1, effects: [
       { type: 'ssao', enabled: true, uniforms: { u_radius: 80, u_intensity: 1, u_bias: 0.12, u_power: 1.5 } },
       { type: 'bloom', enabled: true, uniforms: { u_threshold: 0.75, u_intensity: 1.1, u_radius: 1.5 } },
-      { type: 'colorGrade', enabled: true, uniforms: { u_exposure: 0.05, u_contrast: 1.1, u_saturation: 1.05, u_temperature: -0.04, u_tint: 0 } },
+      { type: 'colorGrade', enabled: true, uniforms: { u_exposure: 0.05, u_contrast: 1.1, u_saturation: 1, u_temperature: 0.02, u_tint: 0 } },
       { type: 'tonemap', enabled: true, uniforms: { u_exposure: 0.15 } },
       { type: 'vignette', enabled: true, uniforms: { u_intensity: 0.35, u_softness: 0.6 } },
       { type: 'fxaa', enabled: true, uniforms: { u_intensity: 1 } },
