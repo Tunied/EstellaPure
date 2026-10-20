@@ -40,19 +40,22 @@ const read = `(() => {
 const near = (a, b) => assert(Math.abs(a - b) < 1e-4, `${a} differs from ${b}`);
 const records = [];
 try {
+  // Where a drag starts is where the handle IS, in CSS px from the pivot: the rotate ring's radius, the end of the
+  // scale arrow, the end of the universal tool's separate scale arrow — GIZMO in desktop/src/tools/gizmo.ts.
+  const RING = 66, SCALE_ARROW = 80, UNIVERSAL_SCALE = 100;
   const cases = [
     ...['center', 'individual'].flatMap(pivot => [
-      { pivot, mode: 'rotate', ox: 42, dx: -42, dy: -42 },
-      { pivot, mode: 'scale', ox: 58, dx: 58, dy: 0 },
+      { pivot, mode: 'rotate', ox: RING, dx: -RING, dy: -RING },
+      { pivot, mode: 'scale', ox: SCALE_ARROW, dx: SCALE_ARROW, dy: 0 },
       { pivot, mode: 'move', ox: 50, dx: 25, dy: 0 },
     ]),
-    { pivot: 'individual', mode: 'scale', ox: 58, dx: 58, dy: 0, cancel: true },
-    { pivot: 'individual', mode: 'rotate', ox: 42, dx: -42, dy: -42, alt: true },
+    { pivot: 'individual', mode: 'scale', ox: SCALE_ARROW, dx: SCALE_ARROW, dy: 0, cancel: true },
+    { pivot: 'individual', mode: 'rotate', ox: RING, dx: -RING, dy: -RING, alt: true },
     { pivot: 'individual', tool: 'universal', mode: 'move', ox: 42, dx: 25, dy: 0 },
-    { pivot: 'individual', tool: 'universal', mode: 'scale', ox: 80, dx: 80, dy: 0 },
-    { pivot: 'individual', tool: 'universal', mode: 'rotate', ox: 30, oy: -30, dx: -60, dy: 0 },
-    { pivot: 'individual', tool: 'universal', mode: 'scale', ox: 80, dx: 80, dy: 0, cancel: true },
-    { pivot: 'individual', tool: 'universal', mode: 'rotate', ox: 30, oy: -30, dx: -60, dy: 0, alt: true },
+    { pivot: 'individual', tool: 'universal', mode: 'scale', ox: UNIVERSAL_SCALE, dx: UNIVERSAL_SCALE, dy: 0 },
+    { pivot: 'individual', tool: 'universal', mode: 'rotate', ox: 47, oy: -47, dx: -90, dy: 0 },
+    { pivot: 'individual', tool: 'universal', mode: 'scale', ox: UNIVERSAL_SCALE, dx: UNIVERSAL_SCALE, dy: 0, cancel: true },
+    { pivot: 'individual', tool: 'universal', mode: 'rotate', ox: 47, oy: -47, dx: -90, dy: 0, alt: true },
   ];
   for (const c of cases) {
     const name = `${c.tool === 'universal' ? 'universal-' : ''}${c.pivot}-${c.mode}${c.cancel ? '-escape' : c.alt ? '-duplicate' : ''}`;

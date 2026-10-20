@@ -142,6 +142,7 @@ const DISPOSITION = {
 
   // Not a length in world space at all.
   'BakedLighting.atlasSize': ['not-world', 'the side of a TEXTURE in texels; what it covers in the world is every lightmapped surface at once'],
+  'PlanarReflection.maxSize': ['not-world', 'the longest side of the reflection capture in texels; the plane it mirrors is the surface itself'],
   'Canvas.matchWidthOrHeight': ['not-world', 'a 0..1 blend between two fits, not a length'],
   'UIDropdown.optionHeight': ['not-world', 'a row height inside a laid-out box, resolved by layout rather than placed'],
   'UITooltip.maxWidth': ['not-world', 'the maximum text wrap width in layout pixels of a transient screen popup'],
