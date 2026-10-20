@@ -49,6 +49,14 @@ jobs:
           mkdir -p desktop/public/wasm output/editor-acceptance
           cp build/wasm/web/* desktop/public/wasm/
           pnpm --filter @estella/editor exec vite build
+      # The runner has no CJK font, so a Chinese editor draws its labels as empty boxes. The manual's
+      # Chinese pictures are taken here, so the font goes in first.
+      - name: Fonts for the Chinese pictures
+        if: contains(inputs.checks, 'docs-shots')
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-noto-cjk
+          fc-cache -f
       - name: Run selected acceptance checks
         working-directory: desktop
         shell: bash
