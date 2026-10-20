@@ -204,6 +204,8 @@ export const NOTED = {
     { note: 'The planar reflection diagnostics read the editor view.' },
   'feat(editor): the string table exchanges XLIFF 1.2 with translators and the viewport previews the scene in any language':
     { note: 'The string table exports and imports XLIFF 1.2.' },
+  "fix(editor): the preview language menu appears once the project's string tables are indexed":
+    { note: 'The preview language menu appears once the string tables are indexed.' },
   'feat(render): a Tiling & Offset node for material graphs':
     { note: 'Material graphs have a Tiling & Offset node.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':
