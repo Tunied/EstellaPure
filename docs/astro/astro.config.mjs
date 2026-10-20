@@ -276,6 +276,7 @@ export default defineConfig({
             { label: 'Theming', translations: { 'zh-CN': '主题' }, slug: 'ui/theming' },
             { label: 'Data Binding', translations: { 'zh-CN': '数据绑定' }, slug: 'ui/data-binding' },
             { label: 'Controllers', translations: { 'zh-CN': '控制器' }, slug: 'ui/controllers' },
+            { label: 'UI Debugger', translations: { 'zh-CN': 'UI 调试器' }, slug: 'ui/debugger' },
           ],
         },
         {
@@ -325,6 +326,7 @@ export default defineConfig({
             { label: 'Level of Detail', translations: { 'zh-CN': '细节层次(LOD)' }, slug: 'performance/level-of-detail' },
             { label: 'Occlusion Culling', translations: { 'zh-CN': '遮挡剔除' }, slug: 'performance/occlusion-culling' },
             { label: 'Static Batching', translations: { 'zh-CN': '静态合并' }, slug: 'performance/static-batching' },
+            { label: 'Frame Debugger', translations: { 'zh-CN': '帧调试器' }, slug: 'performance/frame-debugger' },
           ],
         },
         {

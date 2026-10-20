@@ -1,0 +1,70 @@
+---
+title: Frame Debugger
+description: Capture one frame in the editor, list its draw calls, see why each one could not batch with the one before it, and replay the frame up to any draw.
+---
+
+The **Frame Debugger** answers "why is this frame so many draw calls?". It captures
+a single frame, lists every draw call in order, and says for each one **why it
+started a new batch** — a different shader, blend mode, material, texture, scissor
+rectangle and so on. It is the editor's view of the same capture the SDK exposes in
+[Profiling & Diagnostics](/docs/performance/profiling/).
+
+Open it with **Window → Frame Debugger**, or search **Frame Debugger** in the Command
+Palette. It docks beside the Profiler.
+
+## Capturing a frame
+
+1. Pick the **realm** to capture: **Viewport** (the editor's own view), **Running
+   game** (during Play), or **Device** (a connected device preview).
+2. Click **Capture frame**. The panel lists the frame as one or more **passes** — a
+   camera pass per camera, plus a screen-overlay pass for UI drawn on top — each with
+   its draw count.
+
+A capture is a snapshot. If the scene changes afterwards the panel says so; capture
+again to look at the new frame.
+
+## Reading the draw list
+
+Every row is one draw call:
+
+| Column | What it shows |
+|---|---|
+| **Type** | What kind of draw it was — sprites, text, a mesh, a tilemap chunk, an effect… |
+| **Break reason** | Why this draw could not join the one before it. |
+| **Drew** | What it drew: material, shader, texture. |
+| **Triangles** | The triangle count. |
+
+The **Break reason** chips above the list filter the rows to one cause. The usual
+ones:
+
+- **First draw of its pass** — nothing to batch with; every pass starts one.
+- **Shader / Material / Blend mode** — the neighbour uses a different one. Sorting
+  entities so that like draws sit together, or sharing a material, removes these.
+- **Texture slots** — the previous draw had used every texture slot. Packing sprites
+  into fewer atlases helps.
+- **Scissor / Stencil** — a UI mask or clip region changed between the two draws.
+- **Depth / Culling / Render state** — a different depth test, face culling or
+  custom state.
+- **Vertex layout / Index gap** — different kinds of geometry that cannot share a
+  buffer run.
+
+## Inspecting one draw
+
+Click a row, or step with **Previous draw** / **Next draw**, to see its details: the
+material, shader, texture, triangles, instances, layer, scissor and stencil, and the
+**entities** it drew (**Select in the Outliner** jumps to one). A draw with no
+entity — a glyph run, a gizmo, an effect — says so.
+
+The viewport can also **replay** the frame up to the selected draw, so you see
+exactly what had been drawn at that point. If a draw cannot be replayed the panel
+tells you rather than showing a wrong picture.
+
+## Using it well
+
+- Capture a **busy** frame, not an idle one, and read the chips first — one cause
+  usually dominates.
+- A pass full of **Blend** and **Material** breaks on a UI canvas means interleaved
+  widgets of different kinds; reorder siblings or merge materials.
+- Pair it with the [Profiler](/docs/performance/profiling/) and
+  [Static Batching](/docs/performance/static-batching/): the Frame Debugger shows
+  *why* draws split, the others show how many and what merging them saved.

@@ -1,0 +1,65 @@
+---
+title: UI Debugger
+description: Inspect a UI tree live — pick an element, record the events it receives, check text for overflow and pseudo-localization, and walk the Tab order.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The **UI Debugger** is the editor's inspector for the UI tree. Where Details edits an
+entity's components, the Debugger answers *why a control looks or behaves the way it
+does*: what size layout gave it, what input reaches it, whether its text fits, and
+where Tab goes next. Open it from the Command Palette (**UI Debugger**) or the Window
+menu. It reads the **editor world** while you author and the **running world** during
+Play.
+
+It has four views, switched at the top.
+
+## Elements
+
+A searchable **UI hierarchy** on the left and, for the selected node, its real
+component values on the right — including the **computed layout size**, which is what
+layout produced, not what you typed.
+
+- **Pick element** lets you click a UI element in the viewport or Game view instead of
+  hunting through the tree. **Esc** cancels; the picking click is not passed to the game.
+- Values update live. Edit them in Details; edits made during Play revert on Stop.
+
+## Events
+
+Record the events the UI actually dispatches while you play: press **Record events**,
+interact with the game, and read the list — the **target** node, the nodes the event
+**bubbled** through, and whether propagation was **stopped** or the default
+**prevented**. Filter by event type or node.
+
+- It needs a running game: start Play first.
+- It keeps the last 200 records and says when older ones were dropped.
+- Recording does not consume input, and an empty trace alone is not a fault.
+- UI bubbling visits enabled `Interactable` ancestors only; ordinary layout parents are
+  skipped. A `blockRaycast` can end the walk without any stop flag.
+
+## Text
+
+Every `Text` in the scene with its **measured** size next to its **box** and overflow
+mode, so clipped or overflowing labels stand out. Counts for **texts**, **overflow**
+and **to review** sit at the top; **Issues only** hides the rest.
+
+The **Preview** menu re-renders all text as **accent** (letters become accented
+look-alikes — catches fonts missing those glyphs) or **long** (expanded so strings run
+noticeably longer — catches layouts that only fit English). Preview never writes the
+scene's text.
+
+## Focus order
+
+The Tab order of every `Focusable` control, sorted by **Tab index** (ties keep entity
+order), with the reason any control is skipped — disabled, hidden in the tree, or
+outside an open dialog. During Play it also shows the **current focus** and whether it
+is a visible (keyboard) focus. Selecting a row only inspects the entity; it never moves
+focus.
+
+If nothing is listed, add `Focusable` to the controls and capture again.
+
+<Aside>
+The layout readout reports input *candidates*, not hit verdicts: an ancestor mask or an
+occluding sibling can still stop input, so verify clipping and occlusion when a control
+that looks reachable does not respond.
+</Aside>
