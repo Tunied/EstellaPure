@@ -2449,6 +2449,8 @@ export const NOTED = {
     {"note":"Device quality profiles can be previewed in the editor."},
   "fix(editor): opening a timeline opens the Sequencer":
     {"note":"Opening a timeline opens the Sequencer."},
+  "feat(render): static batching draws marked meshes that share a material as one mesh":
+    {"note":"Static meshes that share a material can be drawn as one."},
   "feat(timeline): camera and sequence tracks play shots and nested timelines":
     {"note":"Timelines have camera and sequence tracks."},
   "feat(editor): the Sequencer edits camera shots and sequence clips":

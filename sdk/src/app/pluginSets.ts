@@ -27,6 +27,7 @@ import { videoPlugin } from '../video';
 import { particlePlugin } from '../particle';
 import { trailPlugin } from '../trail';
 import { meshRendererPlugin } from '../render/meshRenderer';
+import { staticBatchPlugin } from '../render/staticBatchPlugin';
 import { postProcessPlugin } from '../postprocess';
 import { timelinePlugin } from '../timeline';
 import { timerPlugin } from '../ecs/timer';
@@ -56,7 +57,7 @@ export const simulationBasePlugins = (): Plugin[] => [
 
 /** What exists to be seen. Every entry drives the engine through `engineApi`. */
 export const presentationBasePlugins = (): Plugin[] => [
-    animationPlugin, videoPlugin, particlePlugin, trailPlugin, meshRendererPlugin,
+    animationPlugin, videoPlugin, particlePlugin, trailPlugin, meshRendererPlugin, staticBatchPlugin,
     postProcessPlugin, timelinePlugin,
 ];
 
@@ -67,7 +68,7 @@ export const presentationBasePlugins = (): Plugin[] => [
  */
 export const PLUGIN_BUILD_ORDER: readonly string[] = [
     'Diagnostics', 'timer', 'velocity', 'lifecycle', 'animation', 'audio', 'video',
-    'particle', 'trail', 'meshRenderer', 'tilemap', 'postProcess', 'timeline',
+    'particle', 'trail', 'meshRenderer', 'staticBatch', 'tilemap', 'postProcess', 'timeline',
     'gameplay',
     'perception', 'fsm', 'bt', 'scriptGraph', 'nav', 'eventBinding', 'replication',
     'services',
@@ -93,7 +94,7 @@ export function inBuildOrder(plugins: readonly Plugin[]): Plugin[] {
 export const webBasePlugins = (): Plugin[] => [
     diagnosticsPlugin,
     timerPlugin, velocityPlugin, lifecyclePlugin, animationPlugin, audioPlugin, videoPlugin,
-    particlePlugin, trailPlugin, meshRendererPlugin, postProcessPlugin, timelinePlugin,
+    particlePlugin, trailPlugin, meshRendererPlugin, staticBatchPlugin, postProcessPlugin, timelinePlugin,
     eventBindingPlugin,
     servicesPlugin,
 ];

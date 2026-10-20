@@ -53,6 +53,16 @@ export class MeshAssetLoader implements AssetLoader<MeshResult> {
         return this.upload_(await this.decode_(path, ctx), handle) !== 0;
     }
 
+    /** The decoded source behind a mesh path — what a tool that rebuilds geometry (a static batch) starts from. */
+    readSource(path: string, ctx: LoadContext): Promise<MeshData> {
+        return this.decode_(path, ctx);
+    }
+
+    /** Uploads geometry that has no file under it; `target` 0 mints a handle, otherwise the existing one is re-realized. */
+    uploadData(mesh: MeshData, target = 0): number {
+        return this.upload_(mesh, target);
+    }
+
     private async decode_(path: string, ctx: LoadContext): Promise<MeshData> {
         const builtin = isBuiltinMeshRef(path) ? builtinMeshTemplate(path) : undefined;
         return builtin
@@ -118,6 +128,11 @@ export class MeshAssetLoader implements AssetLoader<MeshResult> {
                     mesh.aabbMax[0], mesh.aabbMax[1], mesh.aabbMax[2],
                     bindPtr, bind?.length ?? 0, ...shapes);
         });
+    }
+
+    /** Gives back a handle {@link uploadData} minted. */
+    releaseData(handle: number): void {
+        this.core_()?.mesh_release?.(handle);
     }
 
     unload(asset: MeshResult): void {

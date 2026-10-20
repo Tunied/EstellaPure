@@ -1,0 +1,954 @@
+{
+  "version": 4,
+  "name": "static-batch-on",
+  "entities": [
+    {
+      "id": 0,
+      "name": "Camera",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 800,
+              "y": 800,
+              "z": 300
+            }
+          }
+        },
+        {
+          "type": "Camera",
+          "data": {
+            "projectionType": 1,
+            "orthoSize": 150,
+            "isActive": true,
+            "priority": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "name": "cube1",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 680,
+              "y": 890,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.35,
+              "y": 0.35,
+              "z": 0.35
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            },
+            "lit": false,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true
+          }
+        },
+        {
+          "type": "StaticBatch",
+          "data": {
+            "group": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "cube2",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 680,
+              "y": 830,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.35,
+              "y": 0.35,
+              "z": 0.35
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            },
+            "lit": false,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true
+          }
+        },
+        {
+          "type": "StaticBatch",
+          "data": {
+            "group": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "cube3",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 680,
+              "y": 770,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.35,
+              "y": 0.35,
+              "z": 0.35
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            },
+            "lit": false,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true
+          }
+        },
+        {
+          "type": "StaticBatch",
+          "data": {
+            "group": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "cube4",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 680,
+              "y": 710,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.35,
+              "y": 0.35,
+              "z": 0.35
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cube",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            },
+            "lit": false,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true
+          }
+        },
+        {
+          "type": "StaticBatch",
+          "data": {
+            "group": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "sphere1",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 740,
+              "y": 890,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.35,
+              "y": 0.35,
+              "z": 0.35
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:sphere",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            },
+            "lit": false,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true
+          }
+        },
+        {
+          "type": "StaticBatch",
+          "data": {
+            "group": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "sphere2",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 740,
+              "y": 830,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.35,
+              "y": 0.35,
+              "z": 0.35
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:sphere",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            },
+            "lit": false,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true
+          }
+        },
+        {
+          "type": "StaticBatch",
+          "data": {
+            "group": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "sphere3",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 740,
+              "y": 770,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.35,
+              "y": 0.35,
+              "z": 0.35
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:sphere",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            },
+            "lit": false,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true
+          }
+        },
+        {
+          "type": "StaticBatch",
+          "data": {
+            "group": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "sphere4",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 740,
+              "y": 710,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.35,
+              "y": 0.35,
+              "z": 0.35
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:sphere",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            },
+            "lit": false,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true
+          }
+        },
+        {
+          "type": "StaticBatch",
+          "data": {
+            "group": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "capsule1",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 800,
+              "y": 890,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.35,
+              "y": 0.35,
+              "z": 0.35
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:capsule",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            },
+            "lit": false,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true
+          }
+        },
+        {
+          "type": "StaticBatch",
+          "data": {
+            "group": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "capsule2",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 800,
+              "y": 830,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.35,
+              "y": 0.35,
+              "z": 0.35
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:capsule",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            },
+            "lit": false,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true
+          }
+        },
+        {
+          "type": "StaticBatch",
+          "data": {
+            "group": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "name": "capsule3",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 800,
+              "y": 770,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.35,
+              "y": 0.35,
+              "z": 0.35
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:capsule",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            },
+            "lit": false,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true
+          }
+        },
+        {
+          "type": "StaticBatch",
+          "data": {
+            "group": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "name": "capsule4",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 800,
+              "y": 710,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.35,
+              "y": 0.35,
+              "z": 0.35
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:capsule",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            },
+            "lit": false,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true
+          }
+        },
+        {
+          "type": "StaticBatch",
+          "data": {
+            "group": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "name": "cylinder1",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 860,
+              "y": 890,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.35,
+              "y": 0.35,
+              "z": 0.35
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cylinder",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            },
+            "lit": false,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true
+          }
+        },
+        {
+          "type": "StaticBatch",
+          "data": {
+            "group": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "name": "cylinder2",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 860,
+              "y": 830,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.35,
+              "y": 0.35,
+              "z": 0.35
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cylinder",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            },
+            "lit": false,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true
+          }
+        },
+        {
+          "type": "StaticBatch",
+          "data": {
+            "group": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "name": "cylinder3",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 860,
+              "y": 770,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.35,
+              "y": 0.35,
+              "z": 0.35
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cylinder",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            },
+            "lit": false,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true
+          }
+        },
+        {
+          "type": "StaticBatch",
+          "data": {
+            "group": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "name": "cylinder4",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 860,
+              "y": 710,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.35,
+              "y": 0.35,
+              "z": 0.35
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cylinder",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            },
+            "lit": false,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true
+          }
+        },
+        {
+          "type": "StaticBatch",
+          "data": {
+            "group": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "name": "cone1",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 920,
+              "y": 890,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.35,
+              "y": 0.35,
+              "z": 0.35
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cone",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            },
+            "lit": false,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true
+          }
+        },
+        {
+          "type": "StaticBatch",
+          "data": {
+            "group": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "name": "cone2",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 920,
+              "y": 830,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.35,
+              "y": 0.35,
+              "z": 0.35
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cone",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            },
+            "lit": false,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true
+          }
+        },
+        {
+          "type": "StaticBatch",
+          "data": {
+            "group": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "name": "cone3",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 920,
+              "y": 770,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.35,
+              "y": 0.35,
+              "z": 0.35
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cone",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            },
+            "lit": false,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true
+          }
+        },
+        {
+          "type": "StaticBatch",
+          "data": {
+            "group": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "name": "cone4",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 920,
+              "y": 710,
+              "z": 0
+            },
+            "scale": {
+              "x": 0.35,
+              "y": 0.35,
+              "z": 0.35
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "builtin:cone",
+            "color": {
+              "r": 1,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            },
+            "lit": false,
+            "opaque": true,
+            "cullBackfaces": true,
+            "enabled": true
+          }
+        },
+        {
+          "type": "StaticBatch",
+          "data": {
+            "group": ""
+          }
+        }
+      ]
+    }
+  ]
+}

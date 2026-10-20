@@ -775,6 +775,14 @@ export {
     MeshRendererPlugin,
     meshRendererPlugin,
 } from './render/meshRenderer';
+export {
+    StaticBatch, StaticBatching, StaticBatchingRes, StaticBatchPlugin, staticBatchPlugin,
+    type StaticBatchData,
+} from './render/staticBatchPlugin';
+export {
+    mergeMeshes, planStaticBatches, STATIC_BATCH_DEFAULTS,
+    type StaticBatchGroup, type StaticBatchLimits, type StaticBatchRefusal, type StaticBatchReport,
+} from './render/staticBatch';
 
 // =============================================================================
 // Tilemap

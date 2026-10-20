@@ -36,6 +36,7 @@ import { MaterialAssetLoader } from './loaders/MaterialAssetLoader';
 import { MaterialShaderAssetLoader } from './loaders/MaterialShaderAssetLoader';
 import { isBuiltinAssetRef } from './documentRef';
 import { MeshAssetLoader, type MeshResult } from './loaders/MeshAssetLoader';
+import type { MeshData } from './meshFormat';
 import { nativeEngineApi, type EngineApi } from '../ecs/bridge/engineApi';
 import { isBuiltinMeshRef } from './builtinMeshes';
 import { EnvironmentAssetLoader } from './loaders/EnvironmentAssetLoader';
@@ -477,6 +478,12 @@ export class Assets {
      *  live World handle use it to name the asset (see {@link pathForHandle}). */
     private handleToPath_ = new Map<string, string>();
 
+    /**
+     * Geometry built at run time rather than loaded (a static batch), by handle. It has no file to be replayed
+     * from, so the data itself is kept: a device loss puts it back from here.
+     */
+    private builtMeshes_ = new Map<number, MeshData>();
+
     private constructor(options: AssetsOptions) {
         this.backend = options.backend && packedBackend(options.backend, () => this.manifestModel_);
         this.catalog = options.catalog ?? Catalog.empty();
@@ -616,6 +623,12 @@ export class Assets {
 
         let restored = 0;
         for (const handle of this.meshesAwaitingRematerialization()) {
+            const built = this.builtMeshes_.get(handle);
+            if (built) {
+                if (loader.uploadData(built, handle) !== 0) restored++;
+                else log.error('assets', `Device recovery: the engine refused built geometry ${handle}`);
+                continue;
+            }
             const path = this.pathForHandle('mesh', handle);
             if (!path) {
                 log.error('assets', `Device recovery: mesh ${handle} is declared replayable and`
@@ -649,6 +662,35 @@ export class Assets {
             log.warn('assets', `Device recovery: ${owed} texture(s)/mesh(es) have not come back`);
         }
         return whole;
+    }
+
+    /** The decoded geometry behind a mesh handle this realm loaded, or null when nothing here can name it. */
+    async readMeshData(handle: number): Promise<MeshData | null> {
+        const loader = this.getLoader<MeshResult>('mesh');
+        const path = this.pathForHandle('mesh', handle);
+        if (!(loader instanceof MeshAssetLoader) || !path) return null;
+        try {
+            return await loader.readSource(path, this.getLoadContext_());
+        } catch (e) {
+            log.warn('assets', `Reading the geometry of ${path} failed`, e);
+            return null;
+        }
+    }
+
+    /** Uploads geometry built at run time. Returns its handle, or 0 when the engine refused it. */
+    createMesh(data: MeshData): number {
+        const loader = this.getLoader<MeshResult>('mesh');
+        if (!(loader instanceof MeshAssetLoader)) return 0;
+        const handle = loader.uploadData(data);
+        if (handle !== 0) this.builtMeshes_.set(handle, data);
+        return handle;
+    }
+
+    /** Gives back geometry {@link createMesh} made. */
+    releaseBuiltMesh(handle: number): void {
+        if (!this.builtMeshes_.delete(handle)) return;
+        const loader = this.getLoader<MeshResult>('mesh');
+        if (loader instanceof MeshAssetLoader) loader.releaseData(handle);
     }
 
     private async loadTextureVariant_(ref: string, flip: boolean): Promise<TextureResult> {
@@ -2441,6 +2483,9 @@ export class Assets {
                 },
             ], dispose => dispose());
         } finally {
+            const meshLoader = this.getLoader<MeshResult>('mesh');
+            if (meshLoader instanceof MeshAssetLoader) for (const handle of this.builtMeshes_.keys()) meshLoader.releaseData(handle);
+            this.builtMeshes_.clear();
             this.handleToPath_.clear();
             this.releasing_ = false;
         }

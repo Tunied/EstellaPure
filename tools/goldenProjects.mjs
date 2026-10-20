@@ -92,6 +92,7 @@ export const CENSUS_FLOOR = '0.60.0';
  * that does not exist, and release notes are a different act. Theirs is ungated.
  */
 export const SHIPPED = {
+  "Static batching.": { notCertifiable: "Static batching is covered by the static-batch SDK tests and the static-batch-on / static-batch-off render scenes (draw calls and pixels); no golden project marks a mesh StaticBatch." },
   "Camera shots and nested sequences on the timeline.": { notCertifiable: "Camera and sequence tracks are covered by the timeline-sequences, timeline-drive and camera-director SDK tests and the editor timeline-clips tests; no golden project plays a timeline with a camera or sequence track." },
   "Dynamic planar reflections.": { notCertifiable: "Planar reflection is covered by the planar-reflection and planar-reflection-off render-scene pixel gates, tools/tests/planar-reflection.e2e.mjs, test_planar_reflection and the planar-reflection editor authoring check; no golden project carries a reflecting surface." },
   "SUD OpenPaaS development export.": { notCertifiable: "The OpenPaaS export is covered by the pipeline export and package tests, the native SUD runtime end-to-end check and the packer verification; no golden project is packaged for OpenPaaS." },
