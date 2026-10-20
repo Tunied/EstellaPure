@@ -39,6 +39,10 @@ const LEAN = {
     + ' subpaths its own content uses',
   'index.wechat.base.ts': 'not an entry anyone builds from — the shared half of'
     + ' index.wechat and index.wechat.lean',
+  'index.minigame.lean.ts': 'ships no optional subsystem; a mini-game package imports back the'
+    + ' subpaths its own content uses',
+  'index.minigame.base.ts': 'not an entry anyone builds from — the shared half of'
+    + ' index.minigame and index.minigame.lean',
   'index.lean.ts': 'ships no optional subsystem; a web package imports back the'
     + ' subpaths its own content uses',
   'index.base.ts': 'not an entry anyone builds from — the shared half of'

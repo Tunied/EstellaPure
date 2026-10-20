@@ -176,6 +176,7 @@ function builtinReadiness(
  */
 export const MINIGAME_PROFILE_DEFAULTS = {
   sdkEntryFile: 'index.minigame.js',
+  sdkLeanEntryFile: 'index.minigame.lean.js',
   runtimeInit: 'initMiniGameRuntime',
   engineGlueCandidates: MINIGAME_ENGINE_GLUE,
   esTarget: 'es2017' as const,

@@ -11,6 +11,7 @@
     "./dist/index.wechat.js",
     "./dist/index.wechat.lean.js",
     "./dist/index.minigame.js",
+    "./dist/index.minigame.lean.js",
     "./dist/index.node.js",
     "./dist/index.native.js",
     "./dist/dragonbones/index.js",

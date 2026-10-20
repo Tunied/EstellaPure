@@ -5,7 +5,7 @@ import { defineConfig } from 'rolldown';
 // An entry's body runs; every other module is pure and its top-level statements
 // may be dropped. So an entry's prologue is a CALL it makes, never a statement
 // in a module it shares — see runtime/webEntry.ts.
-const ENTRY_FILES = ['/index.ts', '/index.lean.ts', '/index.wechat.ts', '/index.wechat.lean.ts', '/index.minigame.ts', '/index.node.ts', '/index.native.ts'];
+const ENTRY_FILES = ['/index.ts', '/index.lean.ts', '/index.wechat.ts', '/index.wechat.lean.ts', '/index.minigame.ts', '/index.minigame.lean.ts', '/index.node.ts', '/index.native.ts'];
 const treeshake = {
     moduleSideEffects: (id) => ENTRY_FILES.some(e => id.endsWith(e)),
 };
@@ -91,6 +91,7 @@ export default defineConfig([
             'index.wechat': 'src/index.wechat.ts',
             'index.wechat.lean': 'src/index.wechat.lean.ts',
             'index.minigame': 'src/index.minigame.ts',
+            'index.minigame.lean': 'src/index.minigame.lean.ts',
             'index.native': 'src/index.native.ts',
             'physics/index': 'src/physics/index.ts',
             'physics3d/index': 'src/physics3d/index.ts',

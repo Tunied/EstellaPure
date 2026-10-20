@@ -196,6 +196,10 @@ export const NOTED = {
     { note: 'Material graphs have switches, a live preview and extract-to-subgraph.' },
   'fix(editor): a subgraph node wires in the type it returns, a multi-selection drags as one, and depth-only mesh programs stop warning about a texture they lack':
     { note: 'Material graph editor polish.' },
+  'fix(size): a mini-game package for a vendor other than WeChat carries only the subsystems its project uses':
+    { note: 'Douyin and the other mini-game vendors ship a lean engine entry.' },
+  'fix(render): a planar reflection capture falls back to 8 bits when the driver refuses a float target':
+    { note: 'Planar reflections fall back to an 8-bit capture on drivers that refuse a float one.' },
   'feat(render): a Tiling & Offset node for material graphs':
     { note: 'Material graphs have a Tiling & Offset node.' },
   'feat(editor): an asset header names its kind and size, and a segmented switch is used only when its words fit':

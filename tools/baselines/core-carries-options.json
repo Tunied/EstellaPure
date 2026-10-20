@@ -2,7 +2,6 @@
   "edges": [
     "app/app.ts -> ../physics/Physics2DRuntime",
     "app/pluginSets.ts -> ../video",
-    "asset/Assets.ts -> ../spine/prepareSpine",
     "asset/loaders/SpineAssetLoader.ts -> ../../spine/prepareSpine",
     "core-content.ts -> ./video",
     "core-plugins.ts -> ./dragonbones/DragonBonesPlugin",

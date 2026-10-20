@@ -20,7 +20,7 @@ import { FULL_IMPORT_MAP } from '../src/bundle/importMap';
 const ENTRIES = FULL_IMPORT_MAP.entries;
 const OTHER_HOSTS = [
   'index.node.js', 'index.wechat.js', 'index.wechat.cjs.js', 'index.wechat.lean.js',
-  'index.minigame.js', 'index.native.js', 'index.native.bundled.js', 'index.bundled.js',
+  'index.minigame.js', 'index.minigame.lean.js', 'index.native.js', 'index.native.bundled.js', 'index.bundled.js',
 ];
 const WEB_CHUNK = 'shared/webAppFactory.js';
 const MINIGAME_CHUNK = 'shared/wechatRuntime.js';

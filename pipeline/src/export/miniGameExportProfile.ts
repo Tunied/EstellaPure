@@ -327,6 +327,7 @@ export const openpaasExportProfile: MiniGameExportProfile = {
     id: 'openpaas',
     entryFile: 'main.js',
     sdkEntryFile: 'index.minigame.js',
+    sdkLeanEntryFile: 'index.minigame.lean.js',
     runtimeInit: 'initMiniGameRuntime',
     runtimeProfileHost: 'openpaasPlatformProfile',
     engineGlueCandidates: MINIGAME_ENGINE_GLUE,
@@ -461,6 +462,7 @@ export const wechatExportProfile: MiniGameExportProfile = {
 export const douyinExportProfile: MiniGameExportProfile = {
     id: 'douyin',
     sdkEntryFile: 'index.minigame.js',
+    sdkLeanEntryFile: 'index.minigame.lean.js',
     runtimeInit: 'initMiniGameRuntime',
     runtimeProfileHost: 'douyinPlatformProfile',
     // No Douyin-specific engine build — and no web one either: the mini-game
@@ -525,6 +527,7 @@ export const douyinExportProfile: MiniGameExportProfile = {
 export const kuaishouExportProfile: MiniGameExportProfile = {
     id: 'kuaishou',
     sdkEntryFile: 'index.minigame.js',
+    sdkLeanEntryFile: 'index.minigame.lean.js',
     runtimeInit: 'initMiniGameRuntime',
     runtimeProfileHost: 'kuaishouPlatformProfile',
     engineGlueCandidates: MINIGAME_ENGINE_GLUE,
@@ -576,6 +579,7 @@ const BILIBILI_PACKER_SUFFIXES: ReadonlySet<string> = new Set(`png jpg jpeg gif 
 export const bilibiliExportProfile: MiniGameExportProfile = {
     id: 'bilibili',
     sdkEntryFile: 'index.minigame.js',
+    sdkLeanEntryFile: 'index.minigame.lean.js',
     runtimeInit: 'initMiniGameRuntime',
     runtimeProfileHost: 'bilibiliPlatformProfile',
     engineGlueCandidates: MINIGAME_ENGINE_GLUE,
@@ -638,6 +642,7 @@ const COMMONJS_SHIM = 'var __load = function (p) { var m = { exports: {} }; glob
 export const quickgameExportProfile: MiniGameExportProfile = {
     id: 'quickgame',
     sdkEntryFile: 'index.minigame.js',
+    sdkLeanEntryFile: 'index.minigame.lean.js',
     runtimeInit: 'initMiniGameRuntime',
     runtimeProfileHost: 'quickgamePlatformProfile',
     engineGlueCandidates: MINIGAME_ENGINE_GLUE,
@@ -726,6 +731,7 @@ async function packSignedRpk(ctx: MiniGamePackContext, settingsPage: string): Pr
 export const alipayExportProfile: MiniGameExportProfile = {
     id: 'alipay',
     sdkEntryFile: 'index.minigame.js',
+    sdkLeanEntryFile: 'index.minigame.lean.js',
     runtimeInit: 'initMiniGameRuntime',
     runtimeProfileHost: 'alipayPlatformProfile',
     engineGlueCandidates: MINIGAME_ENGINE_GLUE,
@@ -779,6 +785,7 @@ export const alipayExportProfile: MiniGameExportProfile = {
 export const huaweiExportProfile: MiniGameExportProfile = {
     id: 'huawei',
     sdkEntryFile: 'index.minigame.js',
+    sdkLeanEntryFile: 'index.minigame.lean.js',
     runtimeInit: 'initMiniGameRuntime',
     runtimeProfileHost: 'huaweiPlatformProfile',
     engineGlueCandidates: MINIGAME_ENGINE_GLUE,

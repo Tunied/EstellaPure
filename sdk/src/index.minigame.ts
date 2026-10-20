@@ -32,49 +32,12 @@
  * @beta    Pre-1.0: the profile contract may still gain fields as vendors beyond
  *          WeChat are brought up against real devices.
  */
-import { ensureBuiltinComponentsRegistered, markEngineComponentBaseline } from './ecs/component';
-import { ensureBuiltinAiRegistrations } from './ai/builtins';
-
-// No setPlatform here — the game calls installMiniGamePlatform(profile) at boot.
-// Register every engine component / AI name up front so a scene can never
-// silently drop one, and snapshot the baseline against a later hot-reload.
-ensureBuiltinComponentsRegistered();
-ensureBuiltinAiRegistrations();
-markEngineComponentBaseline();
-
-export * from './core';
-// Installs every optional subsystem on the apps this entry builds; a lean entry
-// does not call it and ships without their code.
+// Installs every optional subsystem on the apps this entry builds; `index.minigame.lean`
+// is the same base without it.
 import { installOptionalPlugins } from './runtime/optionalPlugins';
+import { installMiniGameEntry } from './runtime/minigameEntry';
 
+installMiniGameEntry();
 installOptionalPlugins();
-export * from './runtime/webAppFactory';
 
-// The family platform: describe the host as data, install, done.
-export { MiniGamePlatformAdapter, installMiniGamePlatform } from './platform/minigame';
-export type {
-    MiniGameProfile,
-    MiniGameVendor,
-    MiniGameGlobal,
-    MiniGameCanvas,
-    MiniGameImage,
-    MiniGameFileSystemManager,
-    MiniGameRequestOptions,
-    MiniGameSystemInfo,
-    MiniGameTouch,
-    MiniGameTouchEvent,
-    MiniGameKeyEvent,
-    MiniGameStorageInfo,
-    MiniGameInnerAudioContext,
-    MiniGameSocketTask,
-} from './platform/minigame';
-
-// The boot the exporter's generated game.js calls.
-export { initMiniGameRuntime, type MiniGameRuntimeConfig } from './runtime/miniGameRuntime';
-
-// The family backends, exported so a profile can wrap or replace one rather than
-// write it from scratch — with what a replacement is handed at construction.
-export type { VideoBackendContext } from './video/PlatformVideoBackend';
-export { MiniGameAudioBackend } from './audio/MiniGameAudioBackend';
-export { MiniGameSocket } from './net/MiniGameSocket';
-export { createMiniGameSideModuleHost, type MiniGameSideModuleFactories } from './sideModules';
+export * from './index.minigame.base';
