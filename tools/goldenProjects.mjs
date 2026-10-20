@@ -92,6 +92,14 @@ export const CENSUS_FLOOR = '0.60.0';
  * that does not exist, and release notes are a different act. Theirs is ungated.
  */
 export const SHIPPED = {
+  "Dynamic planar reflections.": { notCertifiable: "Planar reflection is covered by the planar-reflection and planar-reflection-off render-scene pixel gates, tools/tests/planar-reflection.e2e.mjs, test_planar_reflection and the planar-reflection editor authoring check; no golden project carries a reflecting surface." },
+  "SUD OpenPaaS development export.": { notCertifiable: "The OpenPaaS export is covered by the pipeline export and package tests, the native SUD runtime end-to-end check and the packer verification; no golden project is packaged for OpenPaaS." },
+  "Plugin filesystem operations.": { notCertifiable: "Editor plugin file access is covered by the plugin-filesystem editor authoring check and the editor tests; a packaged game loads no editor plugin." },
+  "One-click LAN device preview.": { notCertifiable: "The LAN preview is an editor feature, covered by the device-preview editor authoring check and the editor tests; a packaged game cannot observe the editor's preview server." },
+  "Budgeted particle scene collisions.": { notCertifiable: "Particle collisions against physics are covered by the particles-collision render-scene pixel gate and test_particle; no golden project carries particles that collide with the scene." },
+  "Reusable UI trees and color pickers.": { notCertifiable: "TreeView and ColorPicker are covered by the ui-tree-model, ui-tree-color-wasm tests and the tree-color editor authoring check; no golden project places either widget." },
+  "UI tabs and tooltips.": { notCertifiable: "TabView and Tooltip are covered by the ui-tab-tooltip-wasm test and the tab-tooltip editor authoring check; no golden project places either widget." },
+  "3D swing/twist and six-axis joints.": { notCertifiable: "The two joints are covered by advanced-joint3d, physics-joint-reconcile-wasm and the advanced-joint3d editor authoring check; the physics-3d golden project uses neither." },
   "Material graphs have a Tiling & Offset node.": { notCertifiable: "Material graph authoring and compilation are covered by the pipeline tests, editor authoring checks and mat-graph pixel fixture; no golden project carries a material graph asset." },
   "Material graph editor polish.": { notCertifiable: "Material graph authoring and compilation are covered by the pipeline tests, editor authoring checks and mat-graph pixel fixture; no golden project carries a material graph asset." },
   "Material graphs have switches, a live preview and extract-to-subgraph.": { notCertifiable: "Material graph authoring and compilation are covered by the pipeline tests, editor authoring checks and mat-graph pixel fixture; no golden project carries a material graph asset." },
