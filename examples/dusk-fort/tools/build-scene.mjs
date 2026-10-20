@@ -69,13 +69,13 @@ const piece = (name) => `modular_fort_01_${name}`;
 
 // ── the world ────────────────────────────────────────────────────────────
 const camera = add({ name: 'Camera', parent: null, components: [
-  tr({ x: 520, y: 230, z: 1180 }, aim({ x: -0.43, y: -0.075, z: -1 })),
+  tr({ x: 400, y: 440, z: 1000 }, aim({ x: -400, y: -380, z: -1040 })),
   { type: 'Camera', data: { projectionType: 0, fov: 42, nearPlane: 20, farPlane: 9000, isActive: true, priority: 0 } },
   { type: 'PostProcessVolume', data: {
     isGlobal: true, priority: 0, weight: 1,
     effects: [
       { type: 'ssao', enabled: true, uniforms: { u_radius: 90, u_intensity: 1.1, u_bias: 0.12, u_power: 1.5 } },
-      { type: 'distanceFog', enabled: true, uniforms: { u_fogNear: 140, u_fogFar: 480, u_intensity: 0.55, u_fogColor: { r: 0.86, g: 0.55, b: 0.46, a: 1 } } },
+      { type: 'distanceFog', enabled: true, uniforms: { u_fogNear: 140, u_fogFar: 480, u_intensity: 0.55, u_fogColor: { r: 0.62, g: 0.42, b: 0.40, a: 1 } } },
       { type: 'bloom', enabled: true, uniforms: { u_threshold: 0.85, u_intensity: 0.9, u_radius: 1.4 } },
       { type: 'colorGrade', enabled: true, uniforms: { u_exposure: 0.1, u_contrast: 1.08, u_saturation: 1.1, u_temperature: 0.08, u_tint: 0 } },
       { type: 'tonemap', enabled: true, uniforms: { u_exposure: 0.2 } },
@@ -107,7 +107,7 @@ add({ name: 'Ground', parent: null, components: [
   tr({ x: 0, y: -1, z: 0 }, undefined, { x: 120, y: 1, z: 120 }),
   { type: 'MeshRenderer', data: {
     mesh: 'builtin:plane', lit: true, opaque: true, enabled: true,
-    color: { r: 0.30, g: 0.25, b: 0.20, a: 1 },
+    color: { r: 0.15, g: 0.13, b: 0.115, a: 1 },
   } },
 ] });
 
