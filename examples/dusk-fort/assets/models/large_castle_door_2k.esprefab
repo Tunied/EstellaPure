@@ -1,0 +1,138 @@
+{
+  "version": "2",
+  "name": "large_castle_door_2k",
+  "rootEntityId": "root",
+  "entities": [
+    {
+      "prefabEntityId": "root",
+      "name": "large_castle_door_2k",
+      "parent": null,
+      "children": [
+        "n0",
+        "n1",
+        "n2"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n0",
+      "name": "large_castle_door_frame",
+      "parent": "root",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/large_castle_door_2k_0_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/large_castle_door_diff_2k.jpg",
+            "material": "assets/models/large_castle_door_2k_m0.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n1",
+      "name": "large_castle_door_right",
+      "parent": "root",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 0.8959715366363525,
+              "y": 1.164455533027649,
+              "z": 0.021356018260121346
+            },
+            "rotation": {
+              "w": 0.9953643679618835,
+              "x": 0,
+              "y": 0.0961761400103569,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/large_castle_door_2k_1_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/large_castle_door_diff_2k.jpg",
+            "material": "assets/models/large_castle_door_2k_m0.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n2",
+      "name": "large_castle_door_left",
+      "parent": "root",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -0.9870141744613647,
+              "y": 1.1648424863815308,
+              "z": 0.022135525941848755
+            },
+            "rotation": {
+              "w": 0.9993115067481995,
+              "x": 0,
+              "y": -0.037102110683918,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/large_castle_door_2k_2_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/large_castle_door_diff_2k.jpg",
+            "material": "assets/models/large_castle_door_2k_m0.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    }
+  ]
+}

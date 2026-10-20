@@ -1,0 +1,13 @@
+{
+  "formatVersion": "1",
+  "name": "Dusk Fort",
+  "description": "A photoscanned fort, a fire pit and a castle door under a burning twilight sky — lit by the engine's own sun, sky and fire light.",
+  "tag": "3D",
+  "version": "0.1.0",
+  "defaultScene": "assets/scenes/main.esscene",
+  "designResolution": {
+    "width": 1480,
+    "height": 920
+  },
+  "spineVersion": "none"
+}

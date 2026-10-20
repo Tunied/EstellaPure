@@ -16,6 +16,22 @@ starting point for a real game. This credit is a courtesy, not an obligation.
 | [UI Pack](https://kenney.nl/assets/ui-pack) | CC0 | sprite-rendering (arrow) |
 | [Pixel Platformer](https://kenney.nl/assets/pixel-platformer) | CC0 | tilemap-demo (`tileset.png` terrain atlas; `props.png` is a handful of its tiles repacked into a second tileset) |
 
+## Poly Haven (Dusk Fort)
+
+`dusk-fort` uses assets from **[Poly Haven](https://polyhaven.com)**, all released under
+**Creative Commons CC0 1.0 (public domain)** — free to use and redistribute, no attribution
+required. Credit is given as a courtesy:
+
+| Asset | Author | Source |
+| --- | --- | --- |
+| Modular Fort 01 (`modular_fort_01`) | Rico Cilliers | [polyhaven.com/a/modular_fort_01](https://polyhaven.com/a/modular_fort_01) |
+| Stone Fire Pit (`stone_fire_pit`) | Sebastian Platen | [polyhaven.com/a/stone_fire_pit](https://polyhaven.com/a/stone_fire_pit) |
+| Large Castle Door (`large_castle_door`) | Tina | [polyhaven.com/a/large_castle_door](https://polyhaven.com/a/large_castle_door) |
+| The Sky Is On Fire (`the_sky_is_on_fire`, HDRI) | Greg Zaal | [polyhaven.com/a/the_sky_is_on_fire](https://polyhaven.com/a/the_sky_is_on_fire) |
+
+The models and sky are the 2k glTF / HDR downloads, imported unchanged; the scene that arranges
+them is built by `examples/dusk-fort/tools/build-scene.mjs`.
+
 ## Spine
 
 `spine-demo` uses **Spineboy**, Esoteric Software's official Spine example skeleton

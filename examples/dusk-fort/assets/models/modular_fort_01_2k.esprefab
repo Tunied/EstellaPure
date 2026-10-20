@@ -1,0 +1,1878 @@
+{
+  "version": "2",
+  "name": "modular_fort_01_2k",
+  "rootEntityId": "root",
+  "entities": [
+    {
+      "prefabEntityId": "root",
+      "name": "modular_fort_01_2k",
+      "parent": null,
+      "children": [
+        "n0",
+        "n1",
+        "n2",
+        "n3",
+        "n4",
+        "n5",
+        "n6",
+        "n7",
+        "n8",
+        "n9",
+        "n10",
+        "n11",
+        "n12",
+        "n13",
+        "n14",
+        "n15",
+        "n16",
+        "n17",
+        "n18",
+        "n19",
+        "n20",
+        "n21"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n0",
+      "name": "modular_fort_01_wall_thick_corner_02",
+      "parent": "root",
+      "children": [
+        "n0_p0",
+        "n0_p1"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 10.0634183883667,
+              "y": 0,
+              "z": 19.834339141845703
+            }
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n0_p0",
+      "name": "modular_fort_01_2k_0_0",
+      "parent": "n0",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_0_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_wall_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m0.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n0_p1",
+      "name": "modular_fort_01_2k_0_1",
+      "parent": "n0",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_0_1.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_trim_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m1.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n1",
+      "name": "modular_fort_01_tower_round",
+      "parent": "root",
+      "children": [
+        "n1_p0",
+        "n1_p1"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 40.11551284790039,
+              "y": 0.0045948028564453125,
+              "z": -26.027727127075195
+            }
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n1_p0",
+      "name": "modular_fort_01_2k_1_0",
+      "parent": "n1",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_1_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_wall_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m0.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n1_p1",
+      "name": "modular_fort_01_2k_1_1",
+      "parent": "n1",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_1_1.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_trim_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m1.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n2",
+      "name": "modular_fort_01_wall_thick_straight_01",
+      "parent": "root",
+      "children": [
+        "n2_p0",
+        "n2_p1"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 10,
+              "y": 0,
+              "z": -34
+            }
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n2_p0",
+      "name": "modular_fort_01_2k_2_0",
+      "parent": "n2",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_2_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_wall_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m0.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n2_p1",
+      "name": "modular_fort_01_2k_2_1",
+      "parent": "n2",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_2_1.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_trim_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m1.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n3",
+      "name": "modular_fort_01_wall_thick_end_02",
+      "parent": "root",
+      "children": [
+        "n3_p0",
+        "n3_p1"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 48.37779998779297,
+              "y": 0,
+              "z": 20.218524932861328
+            }
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n3_p0",
+      "name": "modular_fort_01_2k_3_0",
+      "parent": "n3",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_3_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_wall_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m0.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n3_p1",
+      "name": "modular_fort_01_2k_3_1",
+      "parent": "n3",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_3_1.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_trim_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m1.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n4",
+      "name": "modular_fort_01_wall_thick_corner_01",
+      "parent": "root",
+      "children": [
+        "n4_p0",
+        "n4_p1"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 18.3778018951416,
+              "y": 0,
+              "z": 8.529607772827148
+            }
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n4_p0",
+      "name": "modular_fort_01_2k_4_0",
+      "parent": "n4",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_4_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_wall_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m0.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n4_p1",
+      "name": "modular_fort_01_2k_4_1",
+      "parent": "n4",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_4_1.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_trim_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m1.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n5",
+      "name": "modular_fort_01_wall_thick_thin_transition_01",
+      "parent": "root",
+      "children": [
+        "n5_p0",
+        "n5_p1"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 23.215503692626953,
+              "y": 0,
+              "z": 20.3673095703125
+            }
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n5_p0",
+      "name": "modular_fort_01_2k_5_0",
+      "parent": "n5",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_5_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_wall_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m0.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n5_p1",
+      "name": "modular_fort_01_2k_5_1",
+      "parent": "n5",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_5_1.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_trim_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m1.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n6",
+      "name": "modular_fort_01_wall_thin_straight_01",
+      "parent": "root",
+      "children": [
+        "n6_p0",
+        "n6_p1"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 19,
+              "y": 0,
+              "z": -14
+            }
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n6_p0",
+      "name": "modular_fort_01_2k_6_0",
+      "parent": "n6",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_6_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_wall_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m0.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n6_p1",
+      "name": "modular_fort_01_2k_6_1",
+      "parent": "n6",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_6_1.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_trim_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m1.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n7",
+      "name": "modular_fort_01_wall_thin_corner_01",
+      "parent": "root",
+      "children": [
+        "n7_p0",
+        "n7_p1"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 38.591434478759766,
+              "y": 0,
+              "z": 35.3673095703125
+            }
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n7_p0",
+      "name": "modular_fort_01_2k_7_0",
+      "parent": "n7",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_7_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_wall_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m0.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n7_p1",
+      "name": "modular_fort_01_2k_7_1",
+      "parent": "n7",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_7_1.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_trim_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m1.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n8",
+      "name": "modular_fort_01_wall_thin_corner_02",
+      "parent": "root",
+      "children": [
+        "n8_p0",
+        "n8_p1"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 10.605060577392578,
+              "y": 0,
+              "z": 30.19417953491211
+            }
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n8_p0",
+      "name": "modular_fort_01_2k_8_0",
+      "parent": "n8",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_8_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_wall_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m0.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n8_p1",
+      "name": "modular_fort_01_2k_8_1",
+      "parent": "n8",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_8_1.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_trim_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m1.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n9",
+      "name": "modular_fort_01_wall_thin_straight_02",
+      "parent": "root",
+      "children": [
+        "n9_p0",
+        "n9_p1"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 10,
+              "y": 0,
+              "z": -14
+            }
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n9_p0",
+      "name": "modular_fort_01_2k_9_0",
+      "parent": "n9",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_9_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_wall_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m0.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n9_p1",
+      "name": "modular_fort_01_2k_9_1",
+      "parent": "n9",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_9_1.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_trim_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m1.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n10",
+      "name": "modular_fort_01_wall_thin_straight_04",
+      "parent": "root",
+      "children": [
+        "n10_p0",
+        "n10_p1"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 31.539642333984375,
+              "y": 0,
+              "z": 7.202505111694336
+            }
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n10_p0",
+      "name": "modular_fort_01_2k_10_0",
+      "parent": "n10",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_10_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_wall_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m0.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n10_p1",
+      "name": "modular_fort_01_2k_10_1",
+      "parent": "n10",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_10_1.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_trim_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m1.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n11",
+      "name": "modular_fort_01_wall_thick_end_01",
+      "parent": "root",
+      "children": [
+        "n11_p0",
+        "n11_p1"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 36.37779998779297,
+              "y": 0,
+              "z": 20.026111602783203
+            }
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n11_p0",
+      "name": "modular_fort_01_2k_11_0",
+      "parent": "n11",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_11_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_wall_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m0.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n11_p1",
+      "name": "modular_fort_01_2k_11_1",
+      "parent": "n11",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_11_1.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_trim_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m1.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n12",
+      "name": "modular_fort_01_wall_thin_gate_01",
+      "parent": "root",
+      "children": [
+        "n12_p0",
+        "n12_p1"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 10.193550109863281,
+              "y": 0,
+              "z": 7.202504634857178
+            }
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n12_p0",
+      "name": "modular_fort_01_2k_12_0",
+      "parent": "n12",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_12_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_wall_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m0.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n12_p1",
+      "name": "modular_fort_01_2k_12_1",
+      "parent": "n12",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_12_1.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_trim_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m1.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n13",
+      "name": "modular_fort_01_wall_thin_corner_03",
+      "parent": "root",
+      "children": [
+        "n13_p0",
+        "n13_p1"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 24.659778594970703,
+              "y": 0,
+              "z": 35.5294075012207
+            }
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n13_p0",
+      "name": "modular_fort_01_2k_13_0",
+      "parent": "n13",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_13_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_wall_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m0.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n13_p1",
+      "name": "modular_fort_01_2k_13_1",
+      "parent": "n13",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_13_1.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_trim_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m1.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n14",
+      "name": "modular_fort_01_wall_thin_straight_03",
+      "parent": "root",
+      "children": [
+        "n14_p0",
+        "n14_p1"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 40.75640106201172,
+              "y": 0,
+              "z": 7.202503204345703
+            }
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n14_p0",
+      "name": "modular_fort_01_2k_14_0",
+      "parent": "n14",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_14_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_wall_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m0.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n14_p1",
+      "name": "modular_fort_01_2k_14_1",
+      "parent": "n14",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_14_1.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_trim_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m1.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n15",
+      "name": "modular_fort_01_wall_walkway_straight_01",
+      "parent": "root",
+      "children": [
+        "n15_p0",
+        "n15_p1",
+        "n15_p2"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 35,
+              "y": 0,
+              "z": -14
+            }
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n15_p0",
+      "name": "modular_fort_01_2k_15_0",
+      "parent": "n15",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_15_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_wall_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m0.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n15_p1",
+      "name": "modular_fort_01_2k_15_1",
+      "parent": "n15",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_15_1.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_trim_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m1.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n15_p2",
+      "name": "modular_fort_01_2k_15_2",
+      "parent": "n15",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_15_2.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_plaster_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m2.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n16",
+      "name": "modular_fort_01_wall_walkway_corner_01",
+      "parent": "root",
+      "children": [
+        "n16_p0",
+        "n16_p1"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 38.591434478759766,
+              "y": 0,
+              "z": 32.817535400390625
+            }
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n16_p0",
+      "name": "modular_fort_01_2k_16_0",
+      "parent": "n16",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_16_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_wall_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m0.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n16_p1",
+      "name": "modular_fort_01_2k_16_1",
+      "parent": "n16",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_16_1.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_trim_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m1.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n17",
+      "name": "modular_fort_01_wall_stairs_straight_01",
+      "parent": "root",
+      "children": [
+        "n17_p0",
+        "n17_p1"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 45,
+              "y": 0,
+              "z": -14
+            }
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n17_p0",
+      "name": "modular_fort_01_2k_17_0",
+      "parent": "n17",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_17_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_wall_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m0.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n17_p1",
+      "name": "modular_fort_01_2k_17_1",
+      "parent": "n17",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_17_1.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_trim_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m1.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n18",
+      "name": "modular_fort_01_wall_walkway_corner_02",
+      "parent": "root",
+      "children": [
+        "n18_p0",
+        "n18_p1"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 13.154834747314453,
+              "y": 0,
+              "z": 30.194183349609375
+            }
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n18_p0",
+      "name": "modular_fort_01_2k_18_0",
+      "parent": "n18",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_18_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_wall_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m0.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n18_p1",
+      "name": "modular_fort_01_2k_18_1",
+      "parent": "n18",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_18_1.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_trim_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m1.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n19",
+      "name": "modular_fort_01_wall_thick_straight_02",
+      "parent": "root",
+      "children": [
+        "n19_p0",
+        "n19_p1"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 26,
+              "y": 0,
+              "z": -14
+            }
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n19_p0",
+      "name": "modular_fort_01_2k_19_0",
+      "parent": "n19",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_19_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_wall_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m0.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n19_p1",
+      "name": "modular_fort_01_2k_19_1",
+      "parent": "n19",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_19_1.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_trim_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m1.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n20",
+      "name": "modular_fort_01_wall_walkway_straight_02",
+      "parent": "root",
+      "children": [
+        "n20_p0",
+        "n20_p1"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 19,
+              "y": 0,
+              "z": -34
+            }
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n20_p0",
+      "name": "modular_fort_01_2k_20_0",
+      "parent": "n20",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_20_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_wall_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m0.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n20_p1",
+      "name": "modular_fort_01_2k_20_1",
+      "parent": "n20",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_20_1.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_trim_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m1.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n21",
+      "name": "modular_fort_01_wall_walkway_end_01",
+      "parent": "root",
+      "children": [
+        "n21_p0",
+        "n21_p1"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 49.54987716674805,
+              "y": 0,
+              "z": 9.555015563964844
+            }
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n21_p0",
+      "name": "modular_fort_01_2k_21_0",
+      "parent": "n21",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_21_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_wall_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m0.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n21_p1",
+      "name": "modular_fort_01_2k_21_1",
+      "parent": "n21",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/modular_fort_01_2k_21_1.esmesh",
+            "lit": true,
+            "texture": "assets/models/textures/modular_fort_01_trim_diff_2k.jpg",
+            "material": "assets/models/modular_fort_01_2k_m1.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    }
+  ]
+}
