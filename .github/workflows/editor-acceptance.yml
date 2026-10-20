@@ -26,8 +26,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      ESTELLA_WIN_W: ${{ contains(inputs.checks, 'docs-hero') && '1900' || '1480' }}
-      ESTELLA_WIN_H: ${{ contains(inputs.checks, 'docs-hero') && '1060' || '920' }}
+      XVFB_SCREEN: ${{ contains(inputs.checks, 'docs-hero') && '2560x1600x24' || '1920x1080x24' }}
+      ESTELLA_WIN_W: ${{ contains(inputs.checks, 'docs-hero') && '2540' || '1480' }}
+      ESTELLA_WIN_H: ${{ contains(inputs.checks, 'docs-hero') && '1500' || '920' }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/editor-checkout
@@ -69,7 +70,7 @@ jobs:
           ESTELLA_SECRETS_PLAINTEXT: '1'
         run: |
           read -r -a names <<< "$CHECK_NAMES"
-          xvfb-run -a --server-args="-screen 0 1920x1080x24" node scripts/editor-checks/run.mjs "${names[@]}"
+          xvfb-run -a --server-args="-screen 0 ${XVFB_SCREEN}" node scripts/editor-checks/run.mjs "${names[@]}"
       - name: Keep the actual frames
         if: always()
         uses: actions/upload-artifact@v7

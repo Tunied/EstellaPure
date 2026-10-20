@@ -43,7 +43,7 @@ Unlike the CC0 art above, CC BY requires credit; this section is it:
 
 The example is a **modified** copy: the FBX was imported with the engine's own importer, cut to the
 pieces within 25 m of the camera's view, and its textures were resized to 1024 and re-encoded. The sky
-is Poly Haven's *The Sky Is On Fire* (CC0, credited above).
+is *San Giuseppe Bridge* by Greg Zaal, [Poly Haven](https://polyhaven.com/a/san_giuseppe_bridge) (CC0), which ships in the Bistro package.
 
 ## Spine
 

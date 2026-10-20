@@ -38,22 +38,22 @@ const entities = [
     { type: 'Camera', data: { projectionType: 0, fov: 50, nearPlane: 10, farPlane: 30000, isActive: true, priority: 0 } },
     { type: 'PostProcessVolume', data: { isGlobal: true, priority: 0, weight: 1, effects: [
       { type: 'ssao', enabled: true, uniforms: { u_radius: 80, u_intensity: 1, u_bias: 0.12, u_power: 1.5 } },
-      { type: 'bloom', enabled: true, uniforms: { u_threshold: 0.75, u_intensity: 1.1, u_radius: 1.5 } },
-      { type: 'colorGrade', enabled: true, uniforms: { u_exposure: 0.05, u_contrast: 1.1, u_saturation: 1, u_temperature: 0.02, u_tint: 0 } },
-      { type: 'tonemap', enabled: true, uniforms: { u_exposure: 0.15 } },
+      { type: 'bloom', enabled: true, uniforms: { u_threshold: 0.85, u_intensity: 1.1, u_radius: 1.5 } },
+      { type: 'colorGrade', enabled: true, uniforms: { u_exposure: 0.05, u_contrast: 1.08, u_saturation: 1, u_temperature: 0, u_tint: 0 } },
+      { type: 'tonemap', enabled: true, uniforms: { u_exposure: 0 } },
       { type: 'vignette', enabled: true, uniforms: { u_intensity: 0.35, u_softness: 0.6 } },
       { type: 'fxaa', enabled: true, uniforms: { u_intensity: 1 } },
     ] } },
   ] },
   { id: 1, name: 'Sun', parent: null, children: [], visible: true, components: [
     tr({ x: 0, y: 0, z: 0 }, aim({ x: -0.4, y: -0.28, z: 0.87 })),
-    { type: 'Light', data: { type: 1, color: { r: 0.62, g: 0.68, b: 0.95, a: 1 }, intensity: 0.7, enabled: true,
+    { type: 'Light', data: { type: 1, color: { r: 0.78, g: 0.74, b: 0.92, a: 1 }, intensity: 0.55, enabled: true,
       meshShadows: true, shadowExtent: 2600, shadowStrength: 0.85, shadowSoftness: 0.3 } },
   ] },
   { id: 2, name: 'Sky', parent: null, children: [], visible: true, components: [
     tr({ x: 0, y: 0, z: 0 }),
-    { type: 'Light', data: { type: 2, color: { r: 1, g: 1, b: 1, a: 1 }, intensity: 0.5, enabled: true,
-      environment: 'assets/env/the_sky_is_on_fire_2k.esenv', drawEnvironment: true } },
+    { type: 'Light', data: { type: 2, color: { r: 1, g: 1, b: 1, a: 1 }, intensity: 0.75, enabled: true,
+      environment: 'assets/env/san_giuseppe_bridge_4k.esenv', drawEnvironment: true } },
   ] },
   // One centimetre of the source is one engine unit, which the import's own 0.016 turns back into 1/62.5.
   { id: 3, parent: null, prefab: 'assets/models/BistroExterior.esprefab', overrides: [
