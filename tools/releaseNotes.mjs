@@ -208,6 +208,8 @@ export const NOTED = {
     { note: 'The preview language menu appears once the string tables are indexed.' },
   'fix(editor): Play starts in the preview language even where the runtime picked the system language':
     { note: 'Play starts in the preview language.' },
+  'feat(audio): the audio import settings have a Load Type, and the profiler reports decoded audio and what streaming saved':
+    { note: 'Long clips on the Web play from their compressed file instead of being decoded to memory.' },
   'feat(audio): long clips on the Web play from their compressed file instead of decoding to memory':
     { note: 'Long clips on the Web play from their compressed file instead of being decoded to memory.' },
   'feat(render): a Tiling & Offset node for material graphs':
