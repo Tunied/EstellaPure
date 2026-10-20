@@ -94,6 +94,8 @@ A timeline is a set of tracks evaluated together each frame:
 | Spine | `Spine` | Play Spine animations as clips. |
 | Marker | `Marker` | Named time markers. |
 | Custom event | `CustomEvent` | Named events with a payload, for your own systems. |
+| Camera | `Camera` | Which camera is the view, shot by shot (see [below](#cameras-and-sequences)). |
+| Sequence | `Sequence` | Another timeline, played inside a window of this one. |
 
 ### Activation ranges
 
@@ -129,6 +131,25 @@ curves and their tangent handles for eases the dope sheet can't express:
 ![The Sequencer curve editor — value curves with tangent handles](@/assets/guides/en/seq-curves.png)
 
 *The curve editor: each keyframed channel becomes an editable curve (here `position.x` easing in, `position.y` bobbing), with per-key tangent handles.*
+
+### Cameras and sequences
+
+A **camera track** holds shots: each bar is one camera that is the view for its span.
+Bars that touch cut; drag a bar so it overlaps the previous one and the overlap becomes a
+blend, shaped by the later shot's blend curve. A span with no shot gives the view back to
+the scene's own camera. There is one camera track per timeline, and its cameras must sit
+below the timeline's root (every track finds its target by name path from that root).
+
+A **sequence track** plays another `.estimeline` inside a window of this one, on its own
+clock: `speed` scales it, and `loop` repeats it to fill the bar instead of holding its last
+frame. **Bind to** picks the node the nested timeline's name paths start from, so one
+greeting sequence can play on different characters. A timeline cannot play itself, directly
+or through another, and nesting stops at four levels; the editor refuses those picks, and a
+loaded game skips them with a warning.
+
+Scrubbing shows the cut in the viewport's camera preview window. Dragging, jumping or
+playing backwards is safe: which shot and which nested frame are showing is a function of
+time alone. Events inside a nested timeline fire only while it plays forward, like any other.
 
 ### What the preview animates
 

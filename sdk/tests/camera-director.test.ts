@@ -131,3 +131,30 @@ describe('resolveMainPOV', () => {
     expect(d.shakes.length).toBe(1);
   });
 });
+
+describe('timeline shot override', () => {
+  const A = mkPOV({ entity: 1, isActive: true, x: 0 });
+  const B = mkPOV({ entity: 2, x: 100 });
+
+  it('holds the shot camera over the active one, and blends across an overlap', () => {
+    const d = dir();
+    d.timelineShot = { from: null, to: 2, weight: 1, curve: BlendCurve.Linear };
+    expect(resolveMainPOV(d, [A, B], 0, true)?.entity).toBe(2);
+    d.timelineShot = { from: 1, to: 2, weight: 0.5, curve: BlendCurve.Linear };
+    expect(resolveMainPOV(d, [A, B], 0, true)!.x).toBeCloseTo(50);
+  });
+
+  it('gives the view back to the scene camera once the shot is cleared', () => {
+    const d = dir();
+    d.timelineShot = { from: null, to: 2, weight: 1, curve: BlendCurve.Linear };
+    resolveMainPOV(d, [A, B], 0, true);
+    d.timelineShot = null;
+    expect(resolveMainPOV(d, [A, B], 1, true)?.entity).toBe(1);
+  });
+
+  it('falls back to normal selection when the shot camera is gone', () => {
+    const d = dir();
+    d.timelineShot = { from: null, to: 9, weight: 1, curve: BlendCurve.Linear };
+    expect(resolveMainPOV(d, [A, B], 0, true)?.entity).toBe(1);
+  });
+});

@@ -129,6 +129,11 @@ export interface LoadContext {
      */
     acquireAsset<T>(type: string, ref: string): Promise<AssetLease<T>>;
     /**
+     * The path an asset ref names, or null when it names nothing known. Optional: a loader that wants to
+     * compare two spellings of one asset (a timeline deciding whether a clip plays itself) asks it.
+     */
+    resolveRef?(ref: string): string | null;
+    /**
      * A prefab loaded, flattened and resolved, so it can be spawned in one
      * frame. Optional: a context built for a loader that never spawns has no
      * reason to carry it.

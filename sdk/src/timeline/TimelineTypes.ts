@@ -5,7 +5,7 @@
  * loader migrates up to: two constants would let a document be written at a
  * version its own reader thinks needs migrating.
  */
-export const TIMELINE_FORMAT_VERSION = '1.2';
+export const TIMELINE_FORMAT_VERSION = '1.3';
 
 export const WrapMode = {
     Once: 0,
@@ -55,6 +55,8 @@ export const TrackType = {
     Marker: 'marker',
     CustomEvent: 'customEvent',
     AnimFrames: 'animFrames',
+    Camera: 'camera',
+    Sequence: 'sequence',
 } as const;
 
 export type TrackType = (typeof TrackType)[keyof typeof TrackType];
@@ -154,7 +156,44 @@ export interface AnimFramesTrack extends TrackBase {
     frames: AnimFrame[];
 }
 
-export type Track = PropertyTrack | SpineTrack | SpriteAnimTrack | AudioTrack | ActivationTrack | MarkerTrack | CustomEventTrack | AnimFramesTrack;
+/**
+ * One shot: the camera that is the view for `duration` seconds from `start`.
+ * Shots that touch cut; shots that overlap blend over the overlap, with this shot's `curve` (a
+ * BlendCurve) shaping the later one's arrival.
+ */
+export interface CameraClip {
+    start: number;
+    duration: number;
+    /** The camera entity, as a name path below the timeline's root, like every track's target. */
+    camera: string;
+    curve?: number;
+}
+
+/** The view over time. Not about any one object, so its `childPath` is always empty. */
+export interface CameraTrack extends TrackBase {
+    type: typeof TrackType.Camera;
+    clips: CameraClip[];
+}
+
+/** Another timeline, played in a window of this one. */
+export interface SequenceClip {
+    start: number;
+    duration: number;
+    /** The `.estimeline` it plays, by asset ref. */
+    timeline: string;
+    /** Where the nested timeline's own name paths start, below this timeline's root ('' = the root itself). */
+    root: string;
+    speed: number;
+    /** Repeat the nested timeline to fill `duration` instead of holding its last frame. */
+    loop: boolean;
+}
+
+export interface SequenceTrack extends TrackBase {
+    type: typeof TrackType.Sequence;
+    clips: SequenceClip[];
+}
+
+export type Track = PropertyTrack | SpineTrack | SpriteAnimTrack | AudioTrack | ActivationTrack | MarkerTrack | CustomEventTrack | AnimFramesTrack | CameraTrack | SequenceTrack;
 
 export interface TimelineAsset {
     version: string;

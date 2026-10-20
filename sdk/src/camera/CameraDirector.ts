@@ -97,6 +97,22 @@ export interface CameraDirectorState {
   /** Active transient shakes (applied to the rendered POV, never to the Transform). */
   shakes: ActiveShake[];
   shakeSeq: number;
+  /**
+   * The view a playing timeline's camera track asks for, set every step it has one. While present it
+   * is the view and `setViewTarget` waits; when the track has nothing to say the scene's own camera is
+   * the view again.
+   */
+  timelineShot: TimelineShot | null;
+  /** The timeline player that set `timelineShot`, so only it can take it back. */
+  timelineOwner: number;
+}
+
+/** A shot between two cameras, `weight` of the way from `from` (or none) to `to`. */
+export interface TimelineShot {
+  from: number | null;
+  to: number;
+  weight: number;
+  curve: number;
 }
 
 export const DEFAULT_DIRECTOR: CameraDirectorState = {
@@ -113,6 +129,8 @@ export const DEFAULT_DIRECTOR: CameraDirectorState = {
   currentMain: null,
   shakes: [],
   shakeSeq: 0,
+  timelineShot: null,
+  timelineOwner: -1,
 };
 
 /** A fresh director state (own arrays) — use per App, not the shared default. */
@@ -154,6 +172,21 @@ export function setViewTarget(
   dir.pendingTarget = entity;
   dir.pendingTime = opts?.time ?? 0;
   dir.pendingCurve = opts?.curve ?? BlendCurve.EaseInOut;
+}
+
+/**
+ * A playing timeline's camera track says which camera is the view (and, across an overlap, how far one is
+ * blended into the next). Pass `null` to give the view back: only the player that set a shot can clear it.
+ */
+export function setTimelineShot(host: CameraDirectorHost, owner: number, shot: TimelineShot | null): void {
+  const dir = directorOf(host);
+  if (shot) {
+    dir.timelineShot = shot;
+    dir.timelineOwner = owner;
+  } else if (dir.timelineOwner === owner) {
+    dir.timelineShot = null;
+    dir.timelineOwner = -1;
+  }
 }
 
 /**
@@ -252,6 +285,17 @@ export function resolveMainPOV(
       dir.from = null;
     }
     dir.target = dir.pendingTarget;
+  }
+
+  const shot = dir.timelineShot;
+  const shotTo = shot ? candidates.find((c) => c.entity === shot.to) : undefined;
+  if (shot && shotTo) {
+    const shotFrom = shot.from === null ? undefined : candidates.find((c) => c.entity === shot.from);
+    const cut = shotFrom ? lerpPOV(shotFrom, shotTo, applyCurve(shot.curve, shot.weight)) : shotTo;
+    dir.blending = false;
+    dir.from = null;
+    dir.currentMain = cut;
+    return applyShakes(dir, cut, now);
   }
 
   const targetPOV =

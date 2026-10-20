@@ -16,6 +16,7 @@
 import { applyWrapMode, sampleTimeline, type SampleDeps, type SampleOptions } from './TimelineEvaluator';
 import { applyTimelineEvent, TimelineEventType } from './TimelineRuntime';
 import { TrackType, WrapMode, type TimelineAsset } from './TimelineTypes';
+import { collectSequenceLayers, resolveActiveShot, type ActiveShot, type SequenceLookup } from './timelineSequences';
 import type { AudioAPI } from '../audio/Audio';
 import type { Entity } from '../types';
 
@@ -28,10 +29,12 @@ export interface TimelineState {
     wrapMode: WrapMode;
     /** Per spine event-track (keyed by track index in asset.tracks): current clip, or -1. */
     spineClipIndices: Record<number, number>;
+    /** The timelines playing inside this one, by `SequenceLayer.key`: where each was last step, for edge detection. */
+    nested: Record<string, { time: number; spineClipIndices: Record<number, number> }>;
 }
 
 export function createTimelineState(wrapMode: WrapMode = WrapMode.Once, speed = 1): TimelineState {
-    return { time: 0, prevTime: 0, playing: false, speed, wrapMode, spineClipIndices: {} };
+    return { time: 0, prevTime: 0, playing: false, speed, wrapMode, spineClipIndices: {}, nested: {} };
 }
 
 export interface FiredEvent {
@@ -123,6 +126,10 @@ export interface AdvanceContext {
     sampleOpts?: SampleOptions;
     /** Side-effect hook after a property field is applied (e.g. UINode anim flags). */
     onPropertyApplied?: (entity: Entity, asset: TimelineAsset) => void;
+    /** How a sequence clip finds the timeline it plays; without it nested clips are not played. */
+    lookup?: SequenceLookup;
+    /** The view this step asks for (null: none), for the camera director. */
+    onShot?: (shot: ActiveShot | null) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -153,6 +160,7 @@ export function applyPlayerFlags(flags: TimelinePlayerFlags, state: TimelineStat
         state.time = 0;
         state.prevTime = 0;
         state.spineClipIndices = {};
+        state.nested = {};
         flags.finished = false;
         changed = true;
     }
@@ -207,6 +215,39 @@ export function advanceTimelineTS(
         applyTimelineEvent(ctx.deps.world, ctx.audio ?? null, e.kind, e.entity, e.intParam, e.floatParam, e.str);
     }
 
+    const lookup = ctx.lookup ?? NO_TIMELINES;
+    if (ctx.lookup) advanceNested(asset, root, state, ctx, ctx.lookup);
+    ctx.onShot?.(resolveActiveShot(asset, state.time, root, ctx.deps.resolveChild, lookup));
+
     if (wrapped.stopped) state.playing = false;
     return wrapped.stopped;
+}
+
+const NO_TIMELINES: SequenceLookup = () => undefined;
+
+/**
+ * Play the timelines nested in `asset`: each runs on its own clock, samples its property tracks onto
+ * its own root and fires its own events. A clip entered this step has no past (-1), so a trigger at its
+ * start fires; one that has ended is forgotten, so entering it again starts it over.
+ */
+function advanceNested(asset: TimelineAsset, root: Entity, state: TimelineState, ctx: AdvanceContext, lookup: SequenceLookup): void {
+    const live = new Set<string>();
+    for (const layer of collectSequenceLayers(asset, state.time, root, ctx.deps.resolveChild, lookup)) {
+        live.add(layer.key);
+        sampleTimeline(layer.asset, layer.time, layer.root, ctx.deps, ctx.sampleOpts);
+        ctx.onPropertyApplied?.(layer.root, layer.asset);
+        const before = state.nested[layer.key];
+        const prev = before ? before.time : -1;
+        const child = createTimelineState(WrapMode.Once, 1);
+        child.time = layer.time;
+        child.prevTime = prev;
+        child.spineClipIndices = before ? before.spineClipIndices : {};
+        const segments: ReadonlyArray<readonly [number, number]> = layer.time < prev
+            ? [[prev, layer.asset.duration], [0, layer.time]] : [[prev, layer.time]];
+        for (const e of detectTimelineEvents(layer.asset, child, ctx.deps.resolveChild, layer.root, segments)) {
+            applyTimelineEvent(ctx.deps.world, ctx.audio ?? null, e.kind, e.entity, e.intParam, e.floatParam, e.str);
+        }
+        state.nested[layer.key] = { time: layer.time, spineClipIndices: child.spineClipIndices };
+    }
+    for (const key of Object.keys(state.nested)) if (!live.has(key)) delete state.nested[key];
 }

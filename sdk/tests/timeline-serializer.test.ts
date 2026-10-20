@@ -6,7 +6,7 @@ import { parseTimelineAsset } from '../src/timeline/TimelineLoader';
 import { WrapMode, TrackType, InterpType, TIMELINE_FORMAT_VERSION, type TimelineAsset } from '../src/timeline/TimelineTypes';
 
 const ASSET: TimelineAsset = {
-    version: '1.2',
+    version: TIMELINE_FORMAT_VERSION,
     type: 'timeline',
     duration: 5,
     wrapMode: WrapMode.Loop,
@@ -35,6 +35,18 @@ const ASSET: TimelineAsset = {
             name: 'Frames',
             childPath: 'fx',
             frames: [{ texture: 't0' }, { texture: 't1', duration: 0.1 }],
+        },
+        {
+            type: TrackType.Camera,
+            name: 'Shots',
+            childPath: '',
+            clips: [{ start: 0, duration: 2, camera: 'CamWide' }, { start: 1.5, duration: 2, camera: 'CamHero', curve: 1 }],
+        },
+        {
+            type: TrackType.Sequence,
+            name: 'Subs',
+            childPath: '',
+            clips: [{ start: 1, duration: 2, timeline: 'sub.estimeline', root: 'Hero', speed: 2, loop: true }],
         },
     ],
 };

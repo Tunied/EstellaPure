@@ -2901,6 +2901,7 @@ export class Assets {
             acquireTexture: async (path, flipY) =>
                 take(path, () => base.acquireTexture(path, flipY), 'texture'),
             acquireAsset: async (type, ref) => take(ref, () => this.acquireTypedLease_(type, ref), type),
+            resolveRef: ref => this.resolveRef(ref),
             preparePrefab: async (ref) => take(ref, () => this.preparePrefabLease_(ref), 'prepared-prefab'),
             createOwnedTexture: async (width, height, pixels, flipY) => {
                 this.assertLoading_(epoch);

@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Added
+
+- **Camera shots and nested sequences on the timeline.** Timelines have camera and sequence tracks. A camera track is a row of shots: each bar is the camera that is the view for its span, bars that touch cut, and a bar dragged over the previous one blends across the overlap with its own curve. A sequence track plays another timeline in a window of this one, on its own clock, with a speed, a loop, and a node to bind to so one sequence can play on different characters. A timeline cannot play itself, directly or through another, and nesting stops at four levels. The Sequencer shows both as bars above the object tracks, with the shot or clip in Details, and the viewport's camera preview follows the shot while you scrub. Which shot and which nested frame show is a function of time alone, so scrubbing, jumping and playing backwards agree.
+
 ### Changed
 
 - **Long audio streams on the Web.** Long clips on the Web play from their compressed file instead of being decoded to memory. A clip's import settings have a Load Type: Auto streams clips of 30 seconds or longer and decodes shorter ones, Decompress On Load always decodes, Streaming always streams. A streamed clip takes almost no memory (a three-minute stereo track is about 69 MB decoded), goes through the same bus, volume and fades, and gives up two things the import setting says: a sample-accurate loop point, and a second simultaneous voice of the same clip. The profiler's memory section shows the decoded audio and, when clips stream, how many and the memory they saved (an estimate from their length). The choice rides in the exported game's audio settings, so an exported game and a playable ad stream the same clips Play does.

@@ -287,3 +287,40 @@ describe('whose wrap mode wins', () => {
         expect(resolveWrapMode('sideways', WrapMode.Loop)).toBe(WrapMode.Loop);
     });
 });
+
+describe('nested sequences', () => {
+    const deps: SampleDeps = { world: {} as SampleDeps['world'], getComponent: () => undefined, resolveChild: resolveRoot };
+    const child: TimelineAsset = {
+        version: '1.3', type: 'timeline', duration: 2, wrapMode: WrapMode.Once,
+        tracks: [{ type: TrackType.CustomEvent, name: 'E', childPath: '', events: [{ time: 0, name: 'go', payload: {} }] }],
+    };
+    const parent: TimelineAsset = {
+        version: '1.3', type: 'timeline', duration: 6, wrapMode: WrapMode.Once,
+        tracks: [{ type: TrackType.Sequence, name: 'S', childPath: '', clips: [
+            { start: 1, duration: 2, timeline: 'child', root: '', speed: 1, loop: false },
+        ] }],
+    };
+    const lookup = (ref: string) => (ref === 'child' ? child : undefined);
+
+    it('runs a nested clock, forgets it after the clip and starts it over on re-entry', () => {
+        const s = createTimelineState(WrapMode.Once);
+        s.playing = true;
+        const shots: unknown[] = [];
+        const step = (dt: number) => advanceTimelineTS(parent, ROOT, s, dt, { deps, lookup, onShot: (x) => shots.push(x) });
+        step(0.5);
+        expect(Object.keys(s.nested)).toHaveLength(0);
+        step(1);
+        expect(Object.keys(s.nested)).toEqual(['0.0/']);
+        expect(s.nested['0.0/']!.time).toBeCloseTo(0.5);
+        step(2);
+        expect(Object.keys(s.nested)).toHaveLength(0);
+        expect(shots.every((x) => x === null)).toBe(true);
+    });
+
+    it('does nothing for nested clips without a lookup', () => {
+        const s = createTimelineState(WrapMode.Once);
+        s.playing = true;
+        advanceTimelineTS(parent, ROOT, s, 1.5, { deps });
+        expect(Object.keys(s.nested)).toHaveLength(0);
+    });
+});

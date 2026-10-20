@@ -16,6 +16,7 @@ import { AnimatorController } from '../animation/Animator';
 import { TIMELINE_MOTION, createTimelineMotionDriver } from './timelineMotion';
 import { resolveChildEntity } from './TimelineRuntime';
 import { advanceTimelineTS, applyPlayerFlags, latchPlayerFinish } from './TimelineDrive';
+import { CameraDirector, setTimelineShot } from '../camera/CameraDirector';
 import type { SampleDeps } from './TimelineEvaluator';
 import type { Entity } from '../types';
 
@@ -70,6 +71,7 @@ export class TimelinePlugin implements Plugin {
         this.offDespawn_ = world.onDespawn((entity: Entity) => {
             app.getResource(Timeline).removeState(entity);
             this.animFramesStates_.delete(entity);
+            if (app.hasResource(CameraDirector)) setTimelineShot(app.getResource(CameraDirector), entity, null);
         });
 
         // The timeline runs entirely in TS: a per-entity
@@ -82,6 +84,7 @@ export class TimelinePlugin implements Plugin {
                 const tl = app.getResource(Timeline);
                 const audio: AudioAPI | null = app.hasResource(Audio) ? app.getResource(Audio) : null;
                 const assets = app.hasResource(Assets) ? app.getResource(Assets) : null;
+                const director = app.hasResource(CameraDirector) ? app.getResource(CameraDirector) : null;
                 const deps: SampleDeps = {
                     world,
                     getComponent,
@@ -108,8 +111,14 @@ export class TimelinePlugin implements Plugin {
 
                     this.ensureAnimFrames(entity, asset);
 
-                    const justFinished = advanceTimelineTS(asset, entity, state, time.delta, { deps, audio });
+                    const justFinished = advanceTimelineTS(asset, entity, state, time.delta, {
+                        deps, audio,
+                        lookup: (ref) => tl.getAsset(ref),
+                        onShot: director ? (shot) => setTimelineShot(director, entity, shot) : undefined,
+                    });
                     this.processAnimFrames(world, entity, state.time, published?.textureHandles);
+                    // A clip that ran out gives the view back; one that is only paused keeps it.
+                    if (justFinished && director) setTimelineShot(director, entity, null);
 
                     if (latchPlayerFinish(player, state, justFinished) || rewound) {
                         world.insert(entity, TimelinePlayer, player);

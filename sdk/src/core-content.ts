@@ -870,6 +870,9 @@ export {
     type SampleWorld, type SampleDeps, type SampleOptions,
     type TimelineAsset, type Track, type PropertyTrack, type PropertyChannel, type Keyframe,
     type SpriteAnimTrack, type AudioTrack, type ActivationTrack, type SpineTrack, type AnimFramesTrack,
+    type CameraClip, type CameraTrack, type SequenceClip, type SequenceTrack,
+    MAX_SEQUENCE_DEPTH, collectSequenceLayers, wouldNestCycle, resolveShot, resolveActiveShot,
+    type SequenceLayer, type SequenceLookup, type ShotState, type ActiveShot,
 } from './timeline';
 
 // =============================================================================

@@ -45,6 +45,10 @@ function serializeTrack(track: Track): Record<string, unknown> {
             return { ...base, markers: track.markers };
         case TrackType.CustomEvent:
             return { ...base, events: track.events };
+        case TrackType.Camera:
+            return { ...base, childPath: '', clips: track.clips };
+        case TrackType.Sequence:
+            return { ...base, childPath: '', clips: track.clips };
         case TrackType.AnimFrames:
             // On-disk key is `animFrames` (matches the loader's read path).
             return { ...base, animFrames: track.frames };

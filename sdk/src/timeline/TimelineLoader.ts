@@ -14,6 +14,8 @@ import {
     type MarkerTrack,
     type CustomEventTrack,
     type AnimFramesTrack,
+    type CameraTrack,
+    type SequenceTrack,
 } from './TimelineTypes';
 import { log } from '../util/logger';
 
@@ -48,6 +50,8 @@ const MIGRATIONS: [string, string, MigrationFn][] = [
             }
         }
     }],
+    // Camera and sequence tracks arrived without changing what an older document means.
+    ['1.2', '1.3', () => undefined],
 ];
 
 function migrateAsset(raw: any): void {
@@ -62,6 +66,8 @@ function migrateAsset(raw: any): void {
 
     raw.version = TIMELINE_FORMAT_VERSION;
 }
+
+const finite = (v: unknown, fallback: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
 
 function parseTrack(raw: any): Track {
     const base = {
@@ -146,6 +152,34 @@ function parseTrack(raw: any): Track {
                 })),
             } as AnimFramesTrack;
 
+        case TrackType.Camera:
+            return {
+                ...base,
+                childPath: '',
+                type: TrackType.Camera,
+                clips: (raw.clips ?? []).map((c: any) => ({
+                    start: finite(c.start, 0),
+                    duration: Math.max(0, finite(c.duration, 0)),
+                    camera: typeof c.camera === 'string' ? c.camera : '',
+                    ...(typeof c.curve === 'number' ? { curve: c.curve } : {}),
+                })),
+            } as CameraTrack;
+
+        case TrackType.Sequence:
+            return {
+                ...base,
+                childPath: '',
+                type: TrackType.Sequence,
+                clips: (raw.clips ?? []).map((c: any) => ({
+                    start: finite(c.start, 0),
+                    duration: Math.max(0, finite(c.duration, 0)),
+                    timeline: typeof c.timeline === 'string' ? c.timeline : '',
+                    root: typeof c.root === 'string' ? c.root : '',
+                    speed: finite(c.speed, 1) || 1,
+                    loop: c.loop === true,
+                })),
+            } as SequenceTrack;
+
         default:
             log.warn('timeline', `Unknown track type: ${raw.type}, skipping`);
             return null as any;
@@ -169,12 +203,15 @@ export interface TimelineAssetPaths {
     audio: string[];
     animClips: string[];
     textures: string[];
+    /** The timelines its sequence clips play. */
+    timelines: string[];
 }
 
 export function extractTimelineAssetPaths(asset: TimelineAsset): TimelineAssetPaths {
     const audio = new Set<string>();
     const animClips = new Set<string>();
     const textures = new Set<string>();
+    const timelines = new Set<string>();
 
     for (const track of asset.tracks) {
         if (track.type === TrackType.Audio) {
@@ -185,6 +222,8 @@ export function extractTimelineAssetPaths(asset: TimelineAsset): TimelineAssetPa
             if (track.clip) {
                 animClips.add(track.clip);
             }
+        } else if (track.type === TrackType.Sequence) {
+            for (const clip of track.clips) if (clip.timeline) timelines.add(clip.timeline);
         } else if (track.type === TrackType.AnimFrames) {
             for (const frame of track.frames) {
                 if (frame.texture) {
@@ -198,5 +237,6 @@ export function extractTimelineAssetPaths(asset: TimelineAsset): TimelineAssetPa
         audio: Array.from(audio),
         animClips: Array.from(animClips),
         textures: Array.from(textures),
+        timelines: Array.from(timelines),
     };
 }

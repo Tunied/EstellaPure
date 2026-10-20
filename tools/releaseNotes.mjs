@@ -2447,4 +2447,8 @@ export const NOTED = {
     {"internal":"Chooses the matching engine branch in editor CI; changes only contributor verification."},
   "feat: preview device quality and stabilize lighting workflows":
     {"note":"Device quality profiles can be previewed in the editor."},
+  "feat(timeline): camera and sequence tracks play shots and nested timelines":
+    {"note":"Timelines have camera and sequence tracks."},
+  "feat(editor): the Sequencer edits camera shots and sequence clips":
+    {"note":"Timelines have camera and sequence tracks."},
 };

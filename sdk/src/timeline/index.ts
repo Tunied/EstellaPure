@@ -19,6 +19,10 @@ export {
     type MarkerTrack,
     type CustomEvent,
     type CustomEventTrack,
+    type CameraClip,
+    type CameraTrack,
+    type SequenceClip,
+    type SequenceTrack,
     type AnimFrame,
     type AnimFramesTrack,
     type Track,
@@ -64,6 +68,19 @@ export {
     collectCustomEvents,
     type PlayheadRun,
 } from './timelineEvents';
+
+export {
+    MAX_SEQUENCE_DEPTH,
+    sequenceLocalTime,
+    collectSequenceLayers,
+    wouldNestCycle,
+    resolveShot,
+    resolveActiveShot,
+    type SequenceLayer,
+    type SequenceLookup,
+    type ShotState,
+    type ActiveShot,
+} from './timelineSequences';
 
 export {
     serializeTimelineAsset,
