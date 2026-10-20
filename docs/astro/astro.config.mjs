@@ -316,6 +316,7 @@ export default defineConfig({
             { label: 'WeChat MiniGame', translations: { 'zh-CN': '微信小游戏' }, slug: 'publishing/wechat' },
             { label: 'Mini-Game Platforms', translations: { 'zh-CN': '小游戏平台' }, slug: 'publishing/minigame-platforms' },
             { label: 'Hot Update', translations: { 'zh-CN': '热更新' }, slug: 'publishing/hot-update' },
+            { label: 'Device Disk Cache', translations: { 'zh-CN': '设备磁盘缓存' }, slug: 'publishing/content-cache' },
             { label: 'Ads & Sharing', translations: { 'zh-CN': '广告与分享' }, slug: 'publishing/ads-sharing' },
           ],
         },

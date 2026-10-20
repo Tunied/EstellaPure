@@ -44,7 +44,7 @@ activation evaluates it again, which is what lets a **While** condition become f
 ## Adding nodes
 
 The **Node** button in the toolbar (or right-click on the canvas) lists nodes in
-groups:
+groups (**Events**, **Flow**, **Variables**, **Values**, **Actions**, **Queries**, **Graphs**):
 
 | Group | Nodes |
 |---|---|
@@ -52,8 +52,13 @@ groups:
 | **Flow** | **Branch**, **Sequence** (configurable pin count), **While**, **Delay**. |
 | **Variables** | **Get variable**, **Set variable**. |
 | **Values** | **Number**, **Boolean**, **String** literals. |
-| **Queries** | Value-only nodes (no exec pin): arithmetic (Add, Subtract, Multiply, Divide, Absolute, Clamp, Random), comparisons (Less than, Greater than), **And**, **Join strings**, **Key pressed**, **Input axis**, **Find entity by name**, **Get property**, plus every registered **condition**. |
-| **Actions** | Nodes with an exec pin that do something: **Spawn entity**, **Destroy entity**, **Set property**, **Call graph**, plus every action you registered in code. |
+| **Actions** | Nodes with an exec pin that do something: `timeline.play` / `timeline.pause`, `spriteAnim.play` / `restart` / `stop`, `audio.play` / `stop`, `soundEvent.trigger` / `stop`, `property.set`, `entity.despawn`, `debug.log`, `scene.load` / `reload`, `ui.setVisible`, `ui.setPage`, `fsm.fire`, `blackboard.set` — plus every action you register in code. |
+| **Queries** | Value-only nodes (no exec pin): `math.*` (add, subtract, multiply, divide, min, max, abs, clamp, lerp, random), `compare.*` (equal, less, greater), `logic.*` (and, or, not), `string.concat`, `property.get`, `entity.self`, `entity.byName`, `input.down` / `pressed` / `axis` / `pointer` — plus every registered condition. |
+| **Graphs** | Every other callable graph in the project, to call it with a **Call graph** node (empty until a graph declares an input). |
+
+The menu lists the verbs by their registry name; once placed, a node is titled
+readably (**Find entity by name**, **Key pressed**, **Set property**…) with the name
+underneath.
 
 An action or condition you register with `registerAction` / `registerCondition` — the
 same ones state machines and behavior trees use — appears here with the ports its
@@ -65,21 +70,22 @@ editor-only and ignored at runtime.
 
 ## Variables
 
-The **Variables** panel on the canvas lists the graph's **Variables**, **Inputs** and
-**Outputs**, searchable, with how often each is read and written (or *unused*).
+The panel beside the canvas has three sections — **Inputs**, **Outputs** and
+**Variables** — each with a count and an **Add** button, searchable, showing how often
+each entry is read and written (or *unused*).
 
-- **+ Variable** declares a typed variable with a default. It is **declared by the
+- **Add** under **Variables** declares a typed variable with a default. It is **declared by the
   asset but valued per entity** — two entities running the same graph each keep their
   own.
-- **Drag** a variable onto the canvas to read it, or choose **Get / Set** from the
-  right-click menu.
+- **Drag** a variable onto the canvas: a plain drop asks **Get** or **Set**; hold `Ctrl/⌘`
+  to drop a Get, `Alt` to drop a Set, with no question.
 - Rename or change a variable's type from its row. Deleting one that nodes still use
   leaves those nodes on the canvas, without a variable, and asks first.
 
 ## Callable graphs
 
-A graph becomes **callable** when you declare **+ In** (an input pin) or **+ Out** (an
-output pin) on it. Another graph then runs it with a **Call graph** node, handing
+A graph becomes **callable** when you **Add** an entry under **Inputs** (an input pin)
+or **Outputs** (an output pin). Another graph then runs it with a **Call graph** node, handing
 values in and reading results back — the signature lives on the callee, so changing it
 redraws every caller.
 
