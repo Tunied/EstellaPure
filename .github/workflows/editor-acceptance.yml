@@ -26,8 +26,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      ESTELLA_WIN_W: '1480'
-      ESTELLA_WIN_H: '920'
+      ESTELLA_WIN_W: ${{ contains(inputs.checks, 'docs-hero') && '1900' || '1480' }}
+      ESTELLA_WIN_H: ${{ contains(inputs.checks, 'docs-hero') && '1060' || '920' }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/editor-checkout

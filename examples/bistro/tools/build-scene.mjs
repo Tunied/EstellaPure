@@ -28,6 +28,9 @@ const aim = (d) => {
 };
 const tr = (position, rotation) => ({ type: 'Transform', data: { position, ...(rotation ? { rotation } : {}) } });
 
+/** The street lamps, as the source places them (centimetres): where the glass is. */
+const LAMPS = [[-2028, -712], [-1773, -1494], [-1194, -962], [-851, -1151], [-220, -1838], [-966, 206], [-209, 465], [-176, 1004], [781, 866], [898, -2008], [2065, 1276], [-1737, -372], [-1351, 128], [373, -2126], [-433, -419]];
+
 const entities = [
   { id: 0, name: 'Camera', parent: null, children: [], visible: true, components: [
     // The view Bistro's authors framed: the corner of the bistro, down the street.
@@ -35,21 +38,21 @@ const entities = [
     { type: 'Camera', data: { projectionType: 0, fov: 50, nearPlane: 10, farPlane: 30000, isActive: true, priority: 0 } },
     { type: 'PostProcessVolume', data: { isGlobal: true, priority: 0, weight: 1, effects: [
       { type: 'ssao', enabled: true, uniforms: { u_radius: 80, u_intensity: 1, u_bias: 0.12, u_power: 1.5 } },
-      { type: 'bloom', enabled: true, uniforms: { u_threshold: 0.9, u_intensity: 0.8, u_radius: 1.3 } },
-      { type: 'colorGrade', enabled: true, uniforms: { u_exposure: 0, u_contrast: 1.06, u_saturation: 1.08, u_temperature: 0.06, u_tint: 0 } },
-      { type: 'tonemap', enabled: true, uniforms: { u_exposure: 0.1 } },
+      { type: 'bloom', enabled: true, uniforms: { u_threshold: 0.75, u_intensity: 1.1, u_radius: 1.5 } },
+      { type: 'colorGrade', enabled: true, uniforms: { u_exposure: 0.05, u_contrast: 1.1, u_saturation: 1.05, u_temperature: -0.04, u_tint: 0 } },
+      { type: 'tonemap', enabled: true, uniforms: { u_exposure: 0.15 } },
       { type: 'vignette', enabled: true, uniforms: { u_intensity: 0.35, u_softness: 0.6 } },
       { type: 'fxaa', enabled: true, uniforms: { u_intensity: 1 } },
     ] } },
   ] },
   { id: 1, name: 'Sun', parent: null, children: [], visible: true, components: [
     tr({ x: 0, y: 0, z: 0 }, aim({ x: -0.4, y: -0.28, z: 0.87 })),
-    { type: 'Light', data: { type: 1, color: { r: 1, g: 0.72, b: 0.46, a: 1 }, intensity: 1.9, enabled: true,
+    { type: 'Light', data: { type: 1, color: { r: 0.62, g: 0.68, b: 0.95, a: 1 }, intensity: 0.7, enabled: true,
       meshShadows: true, shadowExtent: 2600, shadowStrength: 0.85, shadowSoftness: 0.3 } },
   ] },
   { id: 2, name: 'Sky', parent: null, children: [], visible: true, components: [
     tr({ x: 0, y: 0, z: 0 }),
-    { type: 'Light', data: { type: 2, color: { r: 1, g: 1, b: 1, a: 1 }, intensity: 0.8, enabled: true,
+    { type: 'Light', data: { type: 2, color: { r: 1, g: 1, b: 1, a: 1 }, intensity: 0.5, enabled: true,
       environment: 'assets/env/the_sky_is_on_fire_2k.esenv', drawEnvironment: true } },
   ] },
   // One centimetre of the source is one engine unit, which the import's own 0.016 turns back into 1/62.5.
@@ -57,5 +60,9 @@ const entities = [
     { prefabEntityId: 'n1', type: 'property', componentType: 'Transform', propertyName: 'scale', value: { x: 62.5, y: 62.5, z: 62.5 } },
   ], added: [], removed: [] },
 ];
+LAMPS.forEach(([x, z], i) => entities.push({ id: entities.length, name: `Lamp ${i + 1}`, parent: null, children: [], visible: true, components: [
+  tr({ x, y: 420, z }),
+  { type: 'Light', data: { type: 0, color: { r: 1, g: 0.68, b: 0.36, a: 1 }, intensity: 2.4, radius: 560, innerRadius: 40, falloff: 1.3, enabled: true } },
+] }));
 writeFileSync(path.join(ROOT, 'assets/scenes/main.esscene'), JSON.stringify({ version: 4, name: 'Main', entities }, null, 2));
 console.log('wrote scene');

@@ -57,19 +57,19 @@
                 "type": "bloom",
                 "enabled": true,
                 "uniforms": {
-                  "u_threshold": 0.9,
-                  "u_intensity": 0.8,
-                  "u_radius": 1.3
+                  "u_threshold": 0.75,
+                  "u_intensity": 1.1,
+                  "u_radius": 1.5
                 }
               },
               {
                 "type": "colorGrade",
                 "enabled": true,
                 "uniforms": {
-                  "u_exposure": 0,
-                  "u_contrast": 1.06,
-                  "u_saturation": 1.08,
-                  "u_temperature": 0.06,
+                  "u_exposure": 0.05,
+                  "u_contrast": 1.1,
+                  "u_saturation": 1.05,
+                  "u_temperature": -0.04,
                   "u_tint": 0
                 }
               },
@@ -77,7 +77,7 @@
                 "type": "tonemap",
                 "enabled": true,
                 "uniforms": {
-                  "u_exposure": 0.1
+                  "u_exposure": 0.15
                 }
               },
               {
@@ -128,12 +128,12 @@
           "data": {
             "type": 1,
             "color": {
-              "r": 1,
-              "g": 0.72,
-              "b": 0.46,
+              "r": 0.62,
+              "g": 0.68,
+              "b": 0.95,
               "a": 1
             },
-            "intensity": 1.9,
+            "intensity": 0.7,
             "enabled": true,
             "meshShadows": true,
             "shadowExtent": 2600,
@@ -170,7 +170,7 @@
               "b": 1,
               "a": 1
             },
-            "intensity": 0.8,
+            "intensity": 0.5,
             "enabled": true,
             "environment": "assets/env/the_sky_is_on_fire_2k.esenv",
             "drawEnvironment": true
@@ -197,6 +197,546 @@
       ],
       "added": [],
       "removed": []
+    },
+    {
+      "id": 4,
+      "name": "Lamp 1",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -2028,
+              "y": 420,
+              "z": -712
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 0,
+            "color": {
+              "r": 1,
+              "g": 0.68,
+              "b": 0.36,
+              "a": 1
+            },
+            "intensity": 2.4,
+            "radius": 560,
+            "innerRadius": 40,
+            "falloff": 1.3,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Lamp 2",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -1773,
+              "y": 420,
+              "z": -1494
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 0,
+            "color": {
+              "r": 1,
+              "g": 0.68,
+              "b": 0.36,
+              "a": 1
+            },
+            "intensity": 2.4,
+            "radius": 560,
+            "innerRadius": 40,
+            "falloff": 1.3,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Lamp 3",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -1194,
+              "y": 420,
+              "z": -962
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 0,
+            "color": {
+              "r": 1,
+              "g": 0.68,
+              "b": 0.36,
+              "a": 1
+            },
+            "intensity": 2.4,
+            "radius": 560,
+            "innerRadius": 40,
+            "falloff": 1.3,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "Lamp 4",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -851,
+              "y": 420,
+              "z": -1151
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 0,
+            "color": {
+              "r": 1,
+              "g": 0.68,
+              "b": 0.36,
+              "a": 1
+            },
+            "intensity": 2.4,
+            "radius": 560,
+            "innerRadius": 40,
+            "falloff": 1.3,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "Lamp 5",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -220,
+              "y": 420,
+              "z": -1838
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 0,
+            "color": {
+              "r": 1,
+              "g": 0.68,
+              "b": 0.36,
+              "a": 1
+            },
+            "intensity": 2.4,
+            "radius": 560,
+            "innerRadius": 40,
+            "falloff": 1.3,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "Lamp 6",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -966,
+              "y": 420,
+              "z": 206
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 0,
+            "color": {
+              "r": 1,
+              "g": 0.68,
+              "b": 0.36,
+              "a": 1
+            },
+            "intensity": 2.4,
+            "radius": 560,
+            "innerRadius": 40,
+            "falloff": 1.3,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "Lamp 7",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -209,
+              "y": 420,
+              "z": 465
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 0,
+            "color": {
+              "r": 1,
+              "g": 0.68,
+              "b": 0.36,
+              "a": 1
+            },
+            "intensity": 2.4,
+            "radius": 560,
+            "innerRadius": 40,
+            "falloff": 1.3,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "name": "Lamp 8",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -176,
+              "y": 420,
+              "z": 1004
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 0,
+            "color": {
+              "r": 1,
+              "g": 0.68,
+              "b": 0.36,
+              "a": 1
+            },
+            "intensity": 2.4,
+            "radius": 560,
+            "innerRadius": 40,
+            "falloff": 1.3,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "name": "Lamp 9",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 781,
+              "y": 420,
+              "z": 866
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 0,
+            "color": {
+              "r": 1,
+              "g": 0.68,
+              "b": 0.36,
+              "a": 1
+            },
+            "intensity": 2.4,
+            "radius": 560,
+            "innerRadius": 40,
+            "falloff": 1.3,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "name": "Lamp 10",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 898,
+              "y": 420,
+              "z": -2008
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 0,
+            "color": {
+              "r": 1,
+              "g": 0.68,
+              "b": 0.36,
+              "a": 1
+            },
+            "intensity": 2.4,
+            "radius": 560,
+            "innerRadius": 40,
+            "falloff": 1.3,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "name": "Lamp 11",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 2065,
+              "y": 420,
+              "z": 1276
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 0,
+            "color": {
+              "r": 1,
+              "g": 0.68,
+              "b": 0.36,
+              "a": 1
+            },
+            "intensity": 2.4,
+            "radius": 560,
+            "innerRadius": 40,
+            "falloff": 1.3,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "name": "Lamp 12",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -1737,
+              "y": 420,
+              "z": -372
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 0,
+            "color": {
+              "r": 1,
+              "g": 0.68,
+              "b": 0.36,
+              "a": 1
+            },
+            "intensity": 2.4,
+            "radius": 560,
+            "innerRadius": 40,
+            "falloff": 1.3,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "name": "Lamp 13",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -1351,
+              "y": 420,
+              "z": 128
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 0,
+            "color": {
+              "r": 1,
+              "g": 0.68,
+              "b": 0.36,
+              "a": 1
+            },
+            "intensity": 2.4,
+            "radius": 560,
+            "innerRadius": 40,
+            "falloff": 1.3,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "name": "Lamp 14",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 373,
+              "y": 420,
+              "z": -2126
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 0,
+            "color": {
+              "r": 1,
+              "g": 0.68,
+              "b": 0.36,
+              "a": 1
+            },
+            "intensity": 2.4,
+            "radius": 560,
+            "innerRadius": 40,
+            "falloff": 1.3,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "name": "Lamp 15",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -433,
+              "y": 420,
+              "z": -419
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 0,
+            "color": {
+              "r": 1,
+              "g": 0.68,
+              "b": 0.36,
+              "a": 1
+            },
+            "intensity": 2.4,
+            "radius": 560,
+            "innerRadius": 40,
+            "falloff": 1.3,
+            "enabled": true
+          }
+        }
+      ]
     }
   ]
 }

@@ -54,13 +54,6 @@
     {
      "type": "Transform",
      "data": {}
-    },
-    {
-     "type": "TimelinePlayer",
-     "data": {
-      "timeline": "assets/models/BistroExterior_Take_001.estimeline",
-      "playing": false
-     }
     }
    ]
   },
