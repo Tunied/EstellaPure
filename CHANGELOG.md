@@ -22,6 +22,10 @@ published separately; it ships inside the editor.
 
 - **Long audio streams on the Web.** Long clips on the Web play from their compressed file instead of being decoded to memory. A clip's import settings have a Load Type: Auto streams clips of 30 seconds or longer and decodes shorter ones, Decompress On Load always decodes, Streaming always streams. A streamed clip takes almost no memory (a three-minute stereo track is about 69 MB decoded), goes through the same bus, volume and fades, and gives up two things the import setting says: a sample-accurate loop point, and a second simultaneous voice of the same clip. The profiler's memory section shows the decoded audio and, when clips stream, how many and the memory they saved (an estimate from their length). The choice rides in the exported game's audio settings, so an exported game and a playable ad stream the same clips Play does.
 
+### Fixed
+
+- Opening a timeline opens the Sequencer. Double-clicking a timeline used to leave the Sequencer closed unless its tab was already open.
+
 ## [0.93.0] - 2026-10-19
 
 ### Added
