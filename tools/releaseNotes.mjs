@@ -2449,6 +2449,8 @@ export const NOTED = {
     {"note":"Device quality profiles can be previewed in the editor."},
   "fix(editor): opening a timeline opens the Sequencer":
     {"note":"Opening a timeline opens the Sequencer."},
+  "fix(editor): the Static batch section is in the profiler's Render module, and the clip checks find the buttons the theme gate asked for":
+    {"internal":"Places the unreleased Static batch section in the profiler's Render module and adjusts the editor acceptance checks; no released behaviour changed."},
   "feat(render): static batching reports what became of each mesh and why":
     {"note":"Static meshes that share a material can be drawn as one."},
   "feat(editor): the outliner marks static batches and the profiler lists what merged":
