@@ -7,6 +7,8 @@
   "depthWrite": true,
   "cull": 1,
   "properties": {
+    "u_normalMap": "Shopsign_Book_Store_Emissive_Normal.jpg",
+    "u_emissiveMap": "Shopsign_Book_Store_Emissive_Emissive.jpg",
     "u_metallic": 0,
     "u_roughness": 0.552786405,
     "u_emissive": {

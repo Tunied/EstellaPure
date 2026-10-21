@@ -7,6 +7,8 @@
   "depthWrite": true,
   "cull": 1,
   "properties": {
+    "u_normalMap": "Emissive_StreetLight_Normal.png",
+    "u_emissiveMap": "Emissive_StreetLight_Emissive.jpg",
     "u_metallic": 0,
     "u_roughness": 0.552786405,
     "u_emissive": {

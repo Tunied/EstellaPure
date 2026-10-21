@@ -7,6 +7,8 @@
   "depthWrite": true,
   "cull": 1,
   "properties": {
+    "u_normalMap": "Paris_StringLights_01_Orange_Color_Emissive_Normal.png",
+    "u_emissiveMap": "Paris_StringLights_01_Orange_Color_Emissive_Emissive.jpg",
     "u_metallic": 0,
     "u_roughness": 0.552786405,
     "u_emissive": {
