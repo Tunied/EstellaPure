@@ -65,7 +65,7 @@ void VIEW_POST;
 // The sun is the sky's own: it follows the direction the panorama's brightest disc is in.
 add('Sun', [
   tr({ x: 0, y: 0, z: 0 }),
-  { type: 'Light', data: { type: 1, color: { r: 1, g: 1, b: 1, a: 1 }, intensity: 6.74, enabled: true,
+  { type: 'Light', data: { type: 1, color: { r: 1, g: 1, b: 1, a: 1 }, intensity: 1, enabled: true,
     followEnvironmentSun: true, environmentRotation: 180,
     meshShadows: true, shadowExtent: 4600, shadowStrength: 1, sourceAngle: 0.5 } },
 ]);
