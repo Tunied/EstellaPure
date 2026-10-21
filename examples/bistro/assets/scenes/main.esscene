@@ -321,7 +321,7 @@
             },
             "spacing": 400,
             "enabled": true,
-            "probes": "main_probes_7.esprobes"
+            "probes": "@uuid:688e2a6f-f0e8-4299-afeb-91934510217a"
           }
         }
       ]
