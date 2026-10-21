@@ -10,6 +10,7 @@ import { getEffectDef } from './effects';
 import { blendVolumeEffects, computeVolumeFactor, type ActiveVolume, type BlendedEffect, type VolumeTransform } from './volumeBlending';
 import type { ShaderHandle } from '../render/material';
 import { Material } from '../render/material';
+import { applyWeatherToEffects, currentWeather, currentWeatherDrive } from './weather';
 
 export interface PostProcessVolumeConfig {
     enabled: boolean;
@@ -65,6 +66,43 @@ function applyColors(
 // skip the whole wasm-boundary rebuild. Keyed by the stack object (auto-cleared
 // when the stack is destroyed/GC'd).
 const lastEffectSig = new WeakMap<object, string>();
+// And of its SHAPE alone — which effects, which parameters, which textures — so a frame that only moved numbers
+// (a weather in transition, a fading volume) writes them into the passes it has instead of building them again.
+const lastShapeSig = new WeakMap<object, string>();
+
+function shapeSignature(effects: ResolvedEffects): string {
+    let sig = '';
+    for (const [type, data] of effects) {
+        if (!data.enabled) continue;
+        sig += type + ':';
+        for (const k of data.uniforms.keys()) sig += k + ',';
+        sig += '|';
+        for (const [k, ref] of data.textures) sig += k + '=' + ref + ';';
+        sig += '|';
+        for (const k of data.colors.keys()) sig += k + ',';
+        sig += '#';
+    }
+    return sig;
+}
+
+/** The names of the passes an effect becomes: one, or the several a multi-pass effect is made of. */
+function passNamesOf(effectType: string): string[] {
+    const def = getEffectDef(effectType);
+    if (def?.multiPass) return def.multiPass.map((p) => p.name);
+    return [effectType];
+}
+
+function writeValues(stack: ReturnType<PostProcessAPI['createStack']>, effects: ResolvedEffects): void {
+    for (const [effectType, effectData] of effects) {
+        if (!effectData.enabled || !getEffectDef(effectType)) continue;
+        for (const passName of passNamesOf(effectType)) {
+            for (const [uniformName, uniformValue] of effectData.uniforms) {
+                stack.setUniform(passName, uniformName, uniformValue);
+            }
+            applyColors(stack, passName, effectData.colors);
+        }
+    }
+}
 
 /** Stable string of the enabled effects (type + uniforms + textures). */
 function effectsSignature(effects: ResolvedEffects): string {
@@ -109,6 +147,14 @@ function applyBlendedEffects(
     const sig = effectsSignature(effects);
     if (lastEffectSig.get(stack) === sig) return;
     lastEffectSig.set(stack, sig);
+
+    // The same effects with other numbers: write the numbers.
+    const shape = shapeSignature(effects);
+    if (lastShapeSig.get(stack) === shape) {
+        writeValues(stack, effects);
+        return;
+    }
+    lastShapeSig.set(stack, shape);
 
     stack.clearPasses();
 
@@ -178,6 +224,11 @@ export const postProcessVolumeSystem = defineSystem(
             const blended = activeVolumes.length > 0
                 ? blendVolumeEffects(activeVolumes)
                 : new Map() as ResolvedEffects;
+
+            // The weather, if a Weather component is in the scene: scales and tints what the volumes resolved, and
+            // brings the effects a weather implies.
+            const weather = currentWeather();
+            if (weather) applyWeatherToEffects(blended, weather, currentWeatherDrive());
 
             applyBlendedEffects(api, cameraEntity, blended);
         }

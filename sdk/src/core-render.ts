@@ -174,6 +174,20 @@ export {
     getEffectDef,
     getEffectTypes,
     getAllEffectDefs,
+    registerWeatherPreset,
+    weatherPresetId,
+    weatherPresetNames,
+    blendWeather,
+    currentWeather,
+    WeatherDrive,
+    WEATHER_CLEAR,
+    WEATHER_MIST,
+    WEATHER_OVERCAST,
+    WEATHER_RAIN,
+    WEATHER_STORM,
+    WEATHER_NONE,
+    type WeatherState,
+    type WeatherPreset,
 } from './postprocess';
 
 // =============================================================================

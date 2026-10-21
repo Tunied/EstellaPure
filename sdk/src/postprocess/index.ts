@@ -31,3 +31,19 @@ export {
     type PostProcessVolumeConfig,
 } from './volumeSystem';
 export { PostProcessPlugin, postProcessPlugin } from './PostProcessPlugin';
+export {
+    registerWeatherPreset,
+    weatherPresetId,
+    weatherPresetNames,
+    blendWeather,
+    currentWeather,
+    WeatherDrive,
+    WEATHER_CLEAR,
+    WEATHER_MIST,
+    WEATHER_OVERCAST,
+    WEATHER_RAIN,
+    WEATHER_STORM,
+    WEATHER_NONE,
+    type WeatherState,
+    type WeatherPreset,
+} from './weather';

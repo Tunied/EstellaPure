@@ -5,6 +5,7 @@ import { Schedule } from '../ecs/system';
 import { Assets } from '../asset/AssetPlugin';
 import { PostProcess, PostProcessAPI } from './PostProcessAPI';
 import { postProcessVolumeSystem, cleanupVolumeSystem, setVolumeTextureResolver, PostProcessVolumeConfigResource } from './volumeSystem';
+import { weatherSystem, resetWeatherSystem } from './weatherSystem';
 
 export class PostProcessPlugin implements Plugin {
     name = 'postProcess';
@@ -23,10 +24,13 @@ export class PostProcessPlugin implements Plugin {
         // cache lookup by the time a volume applies.
         setVolumeTextureResolver((ref) =>
             app.hasResource(Assets) ? (app.getResource(Assets).getTexture(ref)?.handle ?? 0) : 0);
+        // The weather first: the volumes read what it has decided.
+        app.addSystemToSchedule(Schedule.PostUpdate, weatherSystem);
         app.addSystemToSchedule(Schedule.PostUpdate, postProcessVolumeSystem);
     }
 
     cleanup(app?: App): void {
+        resetWeatherSystem();
         if (app?.hasResource(PostProcess)) {
             cleanupVolumeSystem(app.getResource(PostProcess));
         }

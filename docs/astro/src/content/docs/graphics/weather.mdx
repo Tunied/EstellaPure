@@ -1,0 +1,64 @@
+---
+title: Weather
+description: A Weather component that puts a scene under clear, mist, overcast, rain or storm, turns between them, and cycles by itself.
+---
+
+A scene's weather is not a pile of effect parameters. A project's fog is in its own units and its sun is as bright
+as its author made it, so a weather is expressed as **multipliers of what the scene already says** — the sun at a
+quarter of its strength, the fog five times as thick, the picture a little greyer — plus a few levels that mean the same
+everywhere: how hard it rains, how wet the ground is. The same preset then fits any project.
+
+## The component
+
+Add a `Weather` component to one entity.
+
+| Field | What it does |
+|---|---|
+| `preset` | The weather the scene is in: Clear, Mist, Overcast, Rain, Storm. |
+| `target` | The weather it is turning into; None for none. |
+| `progress` | How far along that turn it is (0–1). The game advances it; set it in the editor to preview a half-turn. |
+| `duration` | Seconds a turn takes. |
+| `sequence` | Presets to cycle through by themselves, comma separated — `clear,mist,rain,clear`. Empty stays put. |
+| `hold` | Seconds each weather of the sequence holds before the next turn. |
+| `drive` | What the weather drives: Lights, Fog, Rain, Grade, Exposure, Reflections, Sound. |
+
+A turn is eased, so it starts and ends gently, and a finished turn lands on its target and clears itself.
+
+## What a weather changes
+
+- **Lights.** Directional lights are scaled (and tinted) and the ambient light is scaled, from the strengths they were
+  authored with — the weather scales your number, never its own last answer — and they are put back when the weather
+  is taken away or `Lights` is switched off. Only while the game runs: in the editor the lights are left alone, so
+  previewing a weather never changes the scene you save.
+- **Fog.** Height Fog's density, its sun glow and the volumetric light it carries are scaled, its sky haze is raised, and
+  its colour moves toward the weather's.
+- **Rain.** The Rain effect is brought with the weather (when the scene has none) at the preset's strength, and Rain and
+  Screen Space Reflections are given the wetness and puddles it leaves. Where the scene authored its own rain, the
+  weather can only raise it.
+- **Grade and exposure.** Colour Grade's saturation and contrast are scaled, and Auto Exposure's compensation raised.
+
+The effects are applied after the scene's volumes have blended, so a scene that fogs itself thinly stays thinner than
+one that fogs itself thickly in the same rain.
+
+## Your own weathers
+
+```ts
+import { registerWeatherPreset, WEATHER_CLEAR } from 'esengine';
+
+// A preset names only what it changes; everything else is neutral.
+const sandstorm = registerWeatherPreset('sandstorm', {
+  sun: 0.5, fogDensity: 10, fogTint: [0.82, 0.62, 0.38], fogTintAmount: 0.85,
+  saturation: 0.8, exposure: 0.4,
+});
+```
+
+A custom preset answers to its name in a `sequence`, and to the id `registerWeatherPreset` returns in `preset` and
+`target`. Registering a built-in name again retunes it.
+
+## Turning by code
+
+The component is data: write `target` and `progress: 0` and the system does the rest.
+
+```ts
+world.insert(weatherEntity, Weather, { target: WEATHER_RAIN, progress: 0, duration: 10 });
+```

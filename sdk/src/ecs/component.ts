@@ -1331,6 +1331,58 @@ export const PostProcessVolume = defineComponent<PostProcessVolumeData>('PostPro
     },
 });
 
+export interface WeatherData {
+    /** The weather the scene is in (the built-in presets: Clear, Mist, Overcast, Rain, Storm). */
+    preset: number;
+    /** The weather it is turning into; -1 for none. */
+    target: number;
+    /** How far along that turn it is, 0..1. The system advances it in play, and a value set here previews it in the editor. */
+    progress: number;
+    /** Seconds a turn takes. */
+    duration: number;
+    /** Presets to cycle through by themselves, by name or id, comma separated ("clear,mist,rain,clear"); empty = stay. */
+    sequence: string;
+    /** Seconds each weather of the sequence holds before the next turn begins. */
+    hold: number;
+    /** What the weather drives: lights, fog, rain, grade, exposure, reflections, sound. */
+    drive: number;
+}
+
+const WEATHER_PRESET_OPTIONS = [
+    { label: 'Clear', value: 0 }, { label: 'Mist', value: 1 }, { label: 'Overcast', value: 2 },
+    { label: 'Rain', value: 3 }, { label: 'Storm', value: 4 },
+];
+
+/**
+ * The weather of a scene: one of a few presets, a turn toward another, and an optional cycle between them.
+ *
+ * @details A preset is a handful of multipliers on what the scene already has — the sun at a fraction of its strength,
+ *          the fog thicker, the picture a little greyer — and a few absolute levels (how hard it rains, how wet the ground
+ *          is), so the same weather fits any project. The component drives the scene's lights (in play), the post-process
+ *          effects its volumes resolve (rain, fog, grade, exposure, reflections) and the sound of the rain.
+ */
+export const Weather = defineComponent<WeatherData>('Weather', {
+    preset: 0,
+    target: -1,
+    progress: 0,
+    duration: 6,
+    sequence: '',
+    hold: 20,
+    drive: 127,
+}, {
+    fields: {
+        preset: { enum: WEATHER_PRESET_OPTIONS },
+        target: { enum: [{ label: 'None', value: -1 }, ...WEATHER_PRESET_OPTIONS] },
+        progress: { min: 0, max: 1, step: 0.01 },
+        duration: { min: 0.1, max: 600, step: 0.1, unit: 's' },
+        hold: { min: 0, max: 3600, step: 1, unit: 's' },
+        drive: { flags: [
+            { label: 'Lights', value: 1 }, { label: 'Fog', value: 2 }, { label: 'Rain', value: 4 }, { label: 'Grade', value: 8 },
+            { label: 'Exposure', value: 16 }, { label: 'Reflections', value: 32 }, { label: 'Sound', value: 64 },
+        ] },
+    },
+});
+
 export type {
     RigidBody2DData, BoxCollider2DData, CircleCollider2DData, CapsuleCollider2DData,
 };

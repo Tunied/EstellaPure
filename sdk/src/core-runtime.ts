@@ -165,6 +165,8 @@ export {
     type ParticleForceFieldData,
     PostProcessVolume,
     type PostProcessVolumeData,
+    Weather,
+    type WeatherData,
 } from './ecs/component';
 
 export {

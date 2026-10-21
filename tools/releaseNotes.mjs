@@ -2493,6 +2493,8 @@ export const NOTED = {
     {"note":"Skinned meshes are followed by their bones, from the palette they were last drawn with."},
   "feat(render): fog follows the scene's sun and can walk the air against its shadow map":
     {"note":"Height Fog and Light Shafts follow the scene's own sun, and Height Fog can carry the sun's shadows as volumetric light."},
+  "feat(runtime): a Weather component puts a scene under a preset, turns between presets and cycles through a sequence":
+    {"note":"A Weather component puts a scene under clear, mist, overcast, rain or storm, turns between them and cycles by itself."},
   "feat(render): reflections no longer guess a surface, plain meshes record themselves, and what the ray never finds is the sky":
     {"note":"Screen-space reflections leave a surface that recorded nothing alone, plain meshes now record a rough dielectric, and a puddle reflects the sky and what lies off screen."},
 };
