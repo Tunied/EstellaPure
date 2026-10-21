@@ -7,7 +7,6 @@
   "depthWrite": true,
   "cull": 1,
   "properties": {
-    "u_normalMap": "Foliage_Trunk_Normal.png",
     "u_metallic": 0,
     "u_roughness": 0.552786405
   }

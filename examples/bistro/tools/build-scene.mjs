@@ -1,19 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 /**
- * @file  The example's scene: the Bistro prefab, a sun, a sky and a camera.
+ * @file  The example's scene: Bistro's pieces, a sun that follows the sky, a probe volume and a camera.
  *
- * The prefab is Amazon Lumberyard's Bistro exterior, imported with the engine's own FBX import and
- * then cut to what the camera sees (everything within 25 m of the point it looks at) and its images
- * shrunk to 1024 so the project fits in a repository. The cut is described in README.md.
+ * `pieces.json` holds what the source's hierarchy came to — one entry per mesh the camera can see, with
+ * the world transform it ends up at (centimetres, Y up) and the renderer data the import wrote. The scene
+ * is FLAT because `estella bake-scene` bakes the document it is given, and a hierarchy is only resolved by
+ * the editor. The bake then writes the lightmap, probe grid and reflections beside it:
  *
  *   node examples/bistro/tools/build-scene.mjs
+ *   node pipeline/bin/estella.mjs bake-scene examples/bistro/assets/scenes/main.esscene
  */
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+const pieces = JSON.parse(readFileSync(path.join(ROOT, 'tools/pieces.json'), 'utf8'));
+
 const mul = (a, b) => ({
   w: a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z,
   x: a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
@@ -26,43 +30,60 @@ const aim = (d) => {
   const yaw = Math.atan2(-d.x, -d.z), pitch = Math.asin(d.y / len);
   return mul({ x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) }, { x: Math.sin(pitch / 2), y: 0, z: 0, w: Math.cos(pitch / 2) });
 };
-const tr = (position, rotation) => ({ type: 'Transform', data: { position, ...(rotation ? { rotation } : {}) } });
+const tr = (position, rotation, scale) => ({ type: 'Transform', data: { position, ...(rotation ? { rotation } : {}), ...(scale ? { scale } : {}) } });
+const v3 = ([x, y, z]) => ({ x, y, z });
 
-/** The street lamps, as the source places them (centimetres): where the glass is. */
-const LAMPS = [[-2028, -712], [-1773, -1494], [-1194, -962], [-851, -1151], [-220, -1838], [-966, 206], [-209, 465], [-176, 1004], [781, 866], [898, -2008], [2065, 1276], [-1737, -372], [-1351, 128], [373, -2126], [-433, -419]];
+// The view of NVIDIA's reference picture of the exterior, solved from its landmarks (centimetres).
+const EYE = [-2427, 580, -12];
+const TARGET = [-760, 190, -30];
 
-const entities = [
-  { id: 0, name: 'Camera', parent: null, children: [], visible: true, components: [
-    // The view Bistro's authors framed: the corner of the bistro, down the street.
-    tr({ x: 913, y: 268, z: -2613 }, { w: -0.161483506, x: 0.00561383802, y: -0.986263651, z: -0.0342866248 }),
-    { type: 'Camera', data: { projectionType: 0, fov: 50, nearPlane: 10, farPlane: 30000, isActive: true, priority: 0 } },
-    { type: 'PostProcessVolume', data: { isGlobal: true, priority: 0, weight: 1, effects: [
-      { type: 'ssao', enabled: true, uniforms: { u_radius: 80, u_intensity: 1, u_bias: 0.12, u_power: 1.5 } },
-      { type: 'bloom', enabled: true, uniforms: { u_threshold: 0.85, u_intensity: 1.1, u_radius: 1.5 } },
-      { type: 'colorGrade', enabled: true, uniforms: { u_exposure: 0.05, u_contrast: 1.08, u_saturation: 1, u_temperature: 0, u_tint: 0 } },
-      { type: 'tonemap', enabled: true, uniforms: { u_exposure: 0 } },
-      { type: 'vignette', enabled: true, uniforms: { u_intensity: 0.35, u_softness: 0.6 } },
-      { type: 'fxaa', enabled: true, uniforms: { u_intensity: 1 } },
-    ] } },
-  ] },
-  { id: 1, name: 'Sun', parent: null, children: [], visible: true, components: [
-    tr({ x: 0, y: 0, z: 0 }, aim({ x: -0.4, y: -0.28, z: 0.87 })),
-    { type: 'Light', data: { type: 1, color: { r: 0.78, g: 0.74, b: 0.92, a: 1 }, intensity: 0.55, enabled: true,
-      meshShadows: true, shadowExtent: 2600, shadowStrength: 0.85, shadowSoftness: 0.3 } },
-  ] },
-  { id: 2, name: 'Sky', parent: null, children: [], visible: true, components: [
-    tr({ x: 0, y: 0, z: 0 }),
-    { type: 'Light', data: { type: 2, color: { r: 1, g: 1, b: 1, a: 1 }, intensity: 0.75, enabled: true,
-      environment: 'assets/env/san_giuseppe_bridge_4k.esenv', drawEnvironment: true } },
-  ] },
-  // One centimetre of the source is one engine unit, which the import's own 0.016 turns back into 1/62.5.
-  { id: 3, parent: null, prefab: 'assets/models/BistroExterior.esprefab', overrides: [
-    { prefabEntityId: 'n1', type: 'property', componentType: 'Transform', propertyName: 'scale', value: { x: 62.5, y: 62.5, z: 62.5 } },
-  ], added: [], removed: [] },
-];
-LAMPS.forEach(([x, z], i) => entities.push({ id: entities.length, name: `Lamp ${i + 1}`, parent: null, children: [], visible: true, components: [
-  tr({ x, y: 420, z }),
-  { type: 'Light', data: { type: 0, color: { r: 1, g: 0.68, b: 0.36, a: 1 }, intensity: 2.4, radius: 560, innerRadius: 40, falloff: 1.3, enabled: true } },
-] }));
+const entities = [];
+const add = (name, components) => { entities.push({ id: entities.length, name, parent: null, children: [], visible: true, components }); };
+
+add('Camera', [
+  tr(v3(EYE), aim({ x: TARGET[0] - EYE[0], y: TARGET[1] - EYE[1], z: TARGET[2] - EYE[2] })),
+  { type: 'Camera', data: { projectionType: 0, fov: 35.6, nearPlane: 10, farPlane: 40000, isActive: true, priority: 0 } },
+  { type: 'PostProcessVolume', data: { isGlobal: true, priority: 0, weight: 1, effects: [
+    { type: 'ssao', enabled: true, uniforms: { u_radius: 70, u_intensity: 1, u_bias: 0.12, u_power: 1.5 } },
+    { type: 'bloom', enabled: true, uniforms: { u_threshold: 0.9, u_intensity: 0.5, u_radius: 1.2 } },
+    { type: 'tonemap', enabled: true, uniforms: { u_exposure: 0 } },
+    { type: 'fxaa', enabled: true, uniforms: { u_intensity: 1 } },
+  ] } },
+]);
+// The sun is the sky's own: it follows the direction the panorama's brightest disc is in.
+add('Sun', [
+  tr({ x: 0, y: 0, z: 0 }),
+  { type: 'Light', data: { type: 1, color: { r: 1, g: 1, b: 1, a: 1 }, intensity: 6.74, enabled: true,
+    followEnvironmentSun: true, environmentRotation: 180,
+    meshShadows: true, shadowExtent: 4600, shadowStrength: 1, sourceAngle: 0.5 } },
+]);
+add('Sky', [
+  tr({ x: 0, y: 0, z: 0 }),
+  { type: 'Light', data: { type: 2, color: { r: 1, g: 1, b: 1, a: 1 }, intensity: 4, enabled: true,
+    environment: 'assets/env/san_giuseppe_bridge_4k.esenv', environmentRotation: 180, drawEnvironment: true } },
+]);
+add('Baked Lighting', [
+  tr({ x: 0, y: 0, z: 0 }),
+  { type: 'BakedLighting', data: { atlasSize: 4096, texelsPerUnit: 0.08, bounces: 2, samples: 32, probeSamples: 64 } },
+]);
+// One grid of probes over the street the camera looks along, for what moves through it.
+add('Probes', [
+  tr({ x: -600, y: 400, z: -200 }),
+  { type: 'LightProbeVolume', data: { halfExtents: { x: 2400, y: 400, z: 1600 }, spacing: 400, enabled: true } },
+]);
+// What the glass and the wet stone show is the street, not the sky.
+add('Reflection · street', [tr({ x: -1000, y: 300, z: -250 }), { type: 'ReflectionProbe', data: { halfExtents: { x: 1800, y: 600, z: 1400 } } }]);
+add('Reflection · far', [tr({ x: 1800, y: 300, z: -250 }), { type: 'ReflectionProbe', data: { halfExtents: { x: 1800, y: 600, z: 1400 } } }]);
+
+for (const piece of pieces) {
+  entities.push({
+    id: entities.length, name: piece.name, parent: null, children: [], visible: true,
+    components: [
+      tr(v3(piece.p), { w: piece.q[0], x: piece.q[1], y: piece.q[2], z: piece.q[3] }, { x: piece.s, y: piece.s, z: piece.s }),
+      { type: 'MeshRenderer', data: piece.mr },
+    ],
+  });
+}
+
 writeFileSync(path.join(ROOT, 'assets/scenes/main.esscene'), JSON.stringify({ version: 4, name: 'Main', entities }, null, 2));
-console.log('wrote scene');
+console.log(`wrote ${entities.length} entities`);

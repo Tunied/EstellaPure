@@ -7,7 +7,6 @@
   "depthWrite": true,
   "cull": 1,
   "properties": {
-    "u_normalMap": "MASTER_Concrete_Grooved_Normal.jpg",
     "u_metallic": 0,
     "u_roughness": 0.552786405
   }

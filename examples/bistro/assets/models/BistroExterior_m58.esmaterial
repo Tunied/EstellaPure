@@ -7,9 +7,7 @@
   "depthWrite": true,
   "cull": 0,
   "properties": {
-    "u_normalMap": "Foliage_Flowers_Normal.jpg",
     "u_metallic": 0,
-    "u_roughness": 0.552786405,
-    "u_alphaCutoff": 0.5
+    "u_roughness": 0.552786405
   }
 }

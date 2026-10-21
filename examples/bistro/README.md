@@ -15,4 +15,17 @@ scenes) from <https://developer.nvidia.com/orca/amazon-lumberyard-bistro>. To fi
    and the prefab's own camera and light were removed (the scene brings its own);
 3. images were resized to 1024 pixels and, where fully opaque, saved as JPEG.
 
-The scene (`assets/scenes/main.esscene`) is written by `tools/build-scene.mjs`.
+The model was imported with *Generate Lightmap UVs* on, so the bake has a patch per surface. Pieces
+the reference camera cannot see (beyond about 45 m, or outside a cone around its view) were dropped.
+
+`tools/pieces.json` is what the hierarchy came to: one entry per remaining mesh with its world
+transform. `tools/build-scene.mjs` turns that into the flat scene `assets/scenes/main.esscene`, and the
+bake writes the lightmap, the probe grid and the reflections beside it:
+
+```
+node examples/bistro/tools/build-scene.mjs
+node pipeline/bin/estella.mjs bake-scene examples/bistro/assets/scenes/main.esscene
+```
+
+The camera is NVIDIA's reference view of the exterior, solved from its landmarks; the sun is the sky's
+own (`followEnvironmentSun`), the sky is turned half a revolution.

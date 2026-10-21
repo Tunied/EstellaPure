@@ -7,9 +7,7 @@
   "depthWrite": true,
   "cull": 1,
   "properties": {
-    "u_normalMap": "Paris_LiquorBottle_01_Labels_Normal.jpg",
     "u_metallic": 0,
-    "u_roughness": 0.552786405,
-    "u_alphaCutoff": 0.5
+    "u_roughness": 0.552786405
   }
 }
