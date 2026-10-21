@@ -1583,6 +1583,7 @@ void main() {
     float haze = pow(1.0 - up, 3.0);
 
     vec3 dayCol = mix(lin(vec3(0.12, 0.30, 0.72)), lin(vec3(0.60, 0.74, 0.92)), haze) * 2.0 * u_intensity;
+    dayCol *= mix(0.12, 1.0, smoothstep(-0.12, 0.35, se));
     vec3 nightCol = mix(lin(vec3(0.003, 0.006, 0.02)), lin(vec3(0.016, 0.024, 0.06)), haze);
     vec3 col = mix(nightCol, dayCol, day);
 
@@ -1590,7 +1591,7 @@ void main() {
     vec2 flatDir = dir.xz / max(length(dir.xz), 1e-4);
     vec2 flatSun = sun.xz / max(length(sun.xz), 1e-4);
     float side = max(dot(flatDir, flatSun), 0.0);
-    col += lin(vec3(1.0, 0.42, 0.16)) * (twi * haze * (0.25 + 0.75 * side * side) * 1.6 * u_twilight);
+    col += lin(vec3(1.0, 0.42, 0.16)) * (twi * haze * (0.25 + 0.75 * side * side) * 1.8 * u_twilight);
 
     float overcast = clamp(u_overcast, 0.0, 1.0);
     float clear = 1.0 - overcast;
@@ -1602,7 +1603,7 @@ void main() {
     float halo = pow(max(cosd, 0.0), 16.0) * 0.25 + pow(max(cosd, 0.0), 256.0);
     vec3 sunCol = mix(lin(vec3(1.0, 0.55, 0.25)), lin(vec3(1.0, 0.96, 0.88)), smoothstep(0.0, 0.35, se));
     float above = smoothstep(-0.02, 0.02, dir.y) * smoothstep(-0.05, 0.0, se);
-    col += sunCol * (disc * u_sunBrightness * clear + halo * (0.4 + 0.6 * clear)) * above;
+    col += sunCol * (disc * u_sunBrightness * clear + halo * (0.15 + 0.85 * clear)) * above;
 
     // The moon stands opposite the sun and a little above where it would be, so it is up when the sun is well down.
     float sAz = atan(sun.x, sun.z);
@@ -1613,9 +1614,9 @@ void main() {
     float md = dot(dir, moon);
     float moonR = radians(0.26 * 2.5);
     float moonDisc = smoothstep(cos(moonR * 1.1), cos(moonR * 0.9), md);
-    float moonGlow = pow(max(md, 0.0), 300.0) * 0.5 + pow(max(md, 0.0), 24.0) * 0.03;
+    float moonGlow = pow(max(md, 0.0), 2500.0) * 0.5 + pow(max(md, 0.0), 60.0) * 0.015;
     float night = 1.0 - day;
-    col += lin(vec3(0.80, 0.88, 1.0)) * ((moonDisc * 3.0 + moonGlow) * u_moon * night * clear * smoothstep(-0.02, 0.04, dir.y));
+    col += lin(vec3(0.80, 0.88, 1.0)) * ((moonDisc * 3.0 + moonGlow) * u_moon * night * clear * clear * smoothstep(-0.02, 0.04, dir.y));
 
     // Stars: a point in some of the cells of a lattice over the sphere, brighter and more coloured at random.
     if (night > 0.02 && dir.y > 0.0 && u_stars > 0.0) {
@@ -1628,7 +1629,7 @@ void main() {
             float spot = smoothstep(0.22, 0.02, length(fr - c));
             float bright = (0.4 + hash13(id + 1.7) * 1.6) * (h > 0.995 ? 3.0 : 1.0);
             vec3 tint = mix(lin(vec3(1.0, 0.85, 0.7)), lin(vec3(0.7, 0.8, 1.0)), hash13(id + 5.3));
-            float seen = night * night * clear * smoothstep(0.0, 0.15, dir.y) * (1.0 - 0.9 * smoothstep(0.97, 0.999, md));
+            float seen = night * night * clear * clear * smoothstep(0.05, -0.15, se) * smoothstep(0.0, 0.15, dir.y) * (1.0 - 0.9 * smoothstep(0.97, 0.999, md));
             col += tint * (spot * bright * 2.5 * u_stars * seen);
         }
     }
@@ -1678,14 +1679,14 @@ fn lin(c : vec3f) -> vec3f {
     let up = max(dir.y, 0.0);
     let haze = pow(1.0 - up, 3.0);
 
-    let dayCol = mix(lin(vec3f(0.12, 0.30, 0.72)), lin(vec3f(0.60, 0.74, 0.92)), haze) * 2.0 * mc.u_intensity;
+    let dayCol = mix(lin(vec3f(0.12, 0.30, 0.72)), lin(vec3f(0.60, 0.74, 0.92)), haze) * 2.0 * mc.u_intensity * mix(0.12, 1.0, smoothstep(-0.12, 0.35, se));
     let nightCol = mix(lin(vec3f(0.003, 0.006, 0.02)), lin(vec3f(0.016, 0.024, 0.06)), haze);
     var col = mix(nightCol, dayCol, day);
 
     let flatDir = dir.xz / max(length(dir.xz), 1e-4);
     let flatSun = sun.xz / max(length(sun.xz), 1e-4);
     let side = max(dot(flatDir, flatSun), 0.0);
-    col = col + lin(vec3f(1.0, 0.42, 0.16)) * (twi * haze * (0.25 + 0.75 * side * side) * 1.6 * mc.u_twilight);
+    col = col + lin(vec3f(1.0, 0.42, 0.16)) * (twi * haze * (0.25 + 0.75 * side * side) * 1.8 * mc.u_twilight);
 
     let overcast = clamp(mc.u_overcast, 0.0, 1.0);
     let clear = 1.0 - overcast;
@@ -1696,7 +1697,7 @@ fn lin(c : vec3f) -> vec3f {
     let halo = pow(max(cosd, 0.0), 16.0) * 0.25 + pow(max(cosd, 0.0), 256.0);
     let sunCol = mix(lin(vec3f(1.0, 0.55, 0.25)), lin(vec3f(1.0, 0.96, 0.88)), smoothstep(0.0, 0.35, se));
     let above = smoothstep(-0.02, 0.02, dir.y) * smoothstep(-0.05, 0.0, se);
-    col = col + sunCol * (disc * mc.u_sunBrightness * clear + halo * (0.4 + 0.6 * clear)) * above;
+    col = col + sunCol * (disc * mc.u_sunBrightness * clear + halo * (0.15 + 0.85 * clear)) * above;
 
     let sAz = atan2(sun.x, sun.z);
     let sEl = asin(clamp(sun.y, -1.0, 1.0));
@@ -1706,9 +1707,9 @@ fn lin(c : vec3f) -> vec3f {
     let md = dot(dir, moon);
     let moonR = radians(0.26 * 2.5);
     let moonDisc = smoothstep(cos(moonR * 1.1), cos(moonR * 0.9), md);
-    let moonGlow = pow(max(md, 0.0), 300.0) * 0.5 + pow(max(md, 0.0), 24.0) * 0.03;
+    let moonGlow = pow(max(md, 0.0), 2500.0) * 0.5 + pow(max(md, 0.0), 60.0) * 0.015;
     let night = 1.0 - day;
-    col = col + lin(vec3f(0.80, 0.88, 1.0)) * ((moonDisc * 3.0 + moonGlow) * mc.u_moon * night * clear * smoothstep(-0.02, 0.04, dir.y));
+    col = col + lin(vec3f(0.80, 0.88, 1.0)) * ((moonDisc * 3.0 + moonGlow) * mc.u_moon * night * clear * clear * smoothstep(-0.02, 0.04, dir.y));
 
     if (night > 0.02 && dir.y > 0.0 && mc.u_stars > 0.0) {
         let p = dir * 180.0;
@@ -1721,7 +1722,7 @@ fn lin(c : vec3f) -> vec3f {
             var bright = 0.4 + hash13(id + 1.7) * 1.6;
             if (h > 0.995) { bright = bright * 3.0; }
             let tint = mix(lin(vec3f(1.0, 0.85, 0.7)), lin(vec3f(0.7, 0.8, 1.0)), hash13(id + 5.3));
-            let seen = night * night * clear * smoothstep(0.0, 0.15, dir.y) * (1.0 - 0.9 * smoothstep(0.97, 0.999, md));
+            let seen = night * night * clear * clear * smoothstep(0.05, -0.15, se) * smoothstep(0.0, 0.15, dir.y) * (1.0 - 0.9 * smoothstep(0.97, 0.999, md));
             col = col + tint * (spot * bright * 2.5 * mc.u_stars * seen);
         }
     }
