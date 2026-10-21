@@ -283,6 +283,239 @@ ${WGSL}
         return Material.compileShader(source);
     },
 
+    /**
+     * Screen-space reflections. No G-buffer: the surface normal is rebuilt from depth the way
+     * SSAO does, the reflected ray is marched in the world and projected back to the screen at
+     * every step, and a step that lands behind what the depth buffer shows by less than
+     * `u_thickness` is a hit. What the ray found is blended over the pixel by a Schlick
+     * Fresnel term — weak face-on, strong at a grazing angle — so a wet floor shines toward the
+     * horizon and a wall facing the camera does not.
+     *
+     * Nothing here knows a surface's roughness, which is why `u_floorBias` exists: with it up,
+     * only surfaces that face up reflect, which is what a wet street or a polished floor wants
+     * and what a brick wall does not.
+     */
+    createSsr(): ShaderHandle {
+        const GLSL = `
+const int STEPS = 48;
+const int REFINE = 6;
+
+/// Interleaved gradient noise: a different start offset per pixel, so the stepping
+/// bands dissolve into noise that a temporal pass then averages away.
+float ign(vec2 p) {
+    return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715))));
+}
+/// The screen uv a world point lands on, and whether it is in front of the camera.
+vec3 project(vec3 P) {
+    vec4 c = u_projection * vec4(P, 1.0);
+    return vec3(c.xy / max(c.w, 1e-6) * 0.5 + 0.5, c.w);
+}`;
+        const WGSL = `
+const STEPS : i32 = 48;
+const REFINE : i32 = 6;
+fn ign(p : vec2f) -> f32 {
+    return fract(52.9829189 * fract(dot(p, vec2f(0.06711056, 0.00583715))));
+}
+fn project(P : vec3f) -> vec3f {
+    let c = frame.projection * vec4f(P, 1.0);
+    let w = max(c.w, 1e-6);
+    return vec3f(c.x / w * 0.5 + 0.5, 0.5 - c.y / w * 0.5, c.w);
+}`;
+        const source = `#pragma shader "PP SSR"
+#pragma version 300 es
+#pragma domain PostProcess
+#pragma param u_intensity float default(1) range(0,2)
+#pragma param u_maxDistance float default(400) range(10,3000)
+#pragma param u_thickness float default(12) range(1,200)
+#pragma param u_floorBias float default(1) range(0,1)
+
+#pragma fragment
+precision highp float;
+
+in vec2 v_texCoord;
+uniform sampler2D u_texture;
+uniform highp sampler2D u_sceneDepth;
+out vec4 fragColor;
+
+${SSAO_GLSL}
+${GLSL}
+
+void main() {
+    vec4 scene = texture(u_texture, v_texCoord);
+    ivec2 size = textureSize(u_sceneDepth, 0);
+    ivec2 c = screenTexel(v_texCoord, size);
+    float d = depthAt(c, size);
+    if (d >= 1.0 || u_intensity <= 0.0) { fragColor = scene; return; }
+
+    vec2 cuv = uvOfTexel(c, size);
+    vec3 P = worldFromDepth(cuv, d);
+
+    // The nearer neighbour on each axis, as SSAO takes it: across a silhouette the far
+    // side is another surface and a centred derivative would average the two.
+    float dl = depthAt(c + ivec2(-1, 0), size);
+    float dr = depthAt(c + ivec2( 1, 0), size);
+    float dd = depthAt(c + ivec2(0, -1), size);
+    float du = depthAt(c + ivec2(0,  1), size);
+    vec3 ax = abs(dr - d) < abs(dl - d) ? worldAt(c + ivec2(1, 0), size) - P
+                                        : P - worldAt(c + ivec2(-1, 0), size);
+    vec3 ay = abs(du - d) < abs(dd - d) ? worldAt(c + ivec2(0, 1), size) - P
+                                        : P - worldAt(c + ivec2(0, -1), size);
+    vec3 N = normalize(cross(ax, ay));
+    vec3 V = viewDirection(P);
+    if (dot(N, V) < 0.0) N = -N;
+
+    // Fresnel at this angle, Schlick with the dielectric 4% a surface without a metal in
+    // it reflects face-on; and the floor mask that keeps walls from shining.
+    float cosT = clamp(dot(N, V), 0.0, 1.0);
+    float fresnel = 0.04 + 0.96 * pow(1.0 - cosT, 5.0);
+    float up = mix(1.0, smoothstep(0.55, 0.9, N.y), u_floorBias);
+    float weight = fresnel * up * u_intensity;
+    if (weight < 0.002) { fragColor = scene; return; }
+
+    vec3 R = reflect(-V, N);
+    // A ray heading back at the camera has nothing on screen to find.
+    if (dot(R, V) > 0.97) { fragColor = scene; return; }
+
+    float stepLen = u_maxDistance / float(STEPS);
+    float jitter = ign(gl_FragCoord.xy);
+    vec3 eye = u_camera.w > 0.5 ? u_camera.xyz : P + u_camera.xyz * 1e4;
+    vec3 hitColor = vec3(0.0);
+    float hit = 0.0;
+    float travelled = 0.0;
+    vec3 prevP = P;
+    for (int i = 0; i < STEPS; ++i) {
+        float t = (float(i) + jitter) * stepLen + stepLen * 0.5;
+        vec3 Q = P + R * t;
+        vec3 s = project(Q);
+        if (s.z <= 0.0 || s.x < 0.0 || s.x > 1.0 || s.y < 0.0 || s.y > 1.0) break;
+        float ds = depthAt(screenTexel(s.xy, size), size);
+        if (ds >= 1.0) { prevP = Q; continue; }
+        vec3 S = worldFromDepth(uvOfTexel(screenTexel(s.xy, size), size), ds);
+        // How far the ray has gone past the surface the depth buffer shows there,
+        // measured along the view: positive is behind it.
+        float behind = length(Q - eye) - length(S - eye);
+        if (behind > 0.0 && behind < u_thickness + stepLen) {
+            // Bisect between the last step in front and this one behind.
+            vec3 a = prevP;
+            vec3 b = Q;
+            for (int k = 0; k < REFINE; ++k) {
+                vec3 m = 0.5 * (a + b);
+                vec3 sm = project(m);
+                float dm = depthAt(screenTexel(sm.xy, size), size);
+                vec3 Sm = worldFromDepth(uvOfTexel(screenTexel(sm.xy, size), size), dm);
+                if (length(m - eye) - length(Sm - eye) > 0.0) b = m; else a = m;
+            }
+            vec3 sh = project(b);
+            // The reflected surface must face the ray; one seen edge-on is an
+            // artefact of the depth buffer's stair-stepping, not a surface.
+            vec2 e = min(sh.xy, 1.0 - sh.xy);
+            float edge = smoothstep(0.0, 0.1, min(e.x, e.y));
+            // A farther hit is a rougher reflection: blur it by how far it is.
+            float blur = (length(b - P) / max(u_maxDistance, 1.0)) * 6.0;
+            vec2 texel = 1.0 / vec2(textureSize(u_texture, 0));
+            vec3 col = texture(u_texture, sh.xy).rgb * 0.4;
+            col += texture(u_texture, sh.xy + vec2( blur, 0.0) * texel).rgb * 0.15;
+            col += texture(u_texture, sh.xy + vec2(-blur, 0.0) * texel).rgb * 0.15;
+            col += texture(u_texture, sh.xy + vec2(0.0,  blur) * texel).rgb * 0.15;
+            col += texture(u_texture, sh.xy + vec2(0.0, -blur) * texel).rgb * 0.15;
+            travelled = length(b - P);
+            hit = edge * (1.0 - smoothstep(0.6, 1.0, travelled / u_maxDistance));
+            hitColor = col;
+            break;
+        }
+        prevP = Q;
+    }
+    fragColor = vec4(mix(scene.rgb, hitColor, clamp(weight * hit, 0.0, 1.0)), scene.a);
+}
+#pragma end
+
+#pragma fragment wgsl
+${SSAO_WGSL}
+${WGSL}
+
+@fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
+    let scene = textureSampleLevel(t0, s0, v.v_texCoord, 0.0);
+    let size = vec2i(textureDimensions(t7, 0));
+    let c = screenTexel(v.v_texCoord, size);
+    let d = depthAt(c, size);
+    if (d >= 1.0 || mc.u_intensity <= 0.0) { return scene; }
+
+    let cuv = uvOfTexel(c, size);
+    let P = worldFromDepth(cuv, d);
+
+    let dl = depthAt(c + vec2i(-1, 0), size);
+    let dr = depthAt(c + vec2i( 1, 0), size);
+    let dd = depthAt(c + vec2i(0, -1), size);
+    let du = depthAt(c + vec2i(0,  1), size);
+    var ax = P - worldAt(c + vec2i(-1, 0), size);
+    if (abs(dr - d) < abs(dl - d)) { ax = worldAt(c + vec2i(1, 0), size) - P; }
+    var ay = P - worldAt(c + vec2i(0, -1), size);
+    if (abs(du - d) < abs(dd - d)) { ay = worldAt(c + vec2i(0, 1), size) - P; }
+    var N = normalize(cross(ax, ay));
+    let V = viewDirection(P);
+    if (dot(N, V) < 0.0) { N = -N; }
+
+    let cosT = clamp(dot(N, V), 0.0, 1.0);
+    let fresnel = 0.04 + 0.96 * pow(1.0 - cosT, 5.0);
+    let up = mix(1.0, smoothstep(0.55, 0.9, N.y), mc.u_floorBias);
+    let weight = fresnel * up * mc.u_intensity;
+    if (weight < 0.002) { return scene; }
+
+    let R = reflect(-V, N);
+    if (dot(R, V) > 0.97) { return scene; }
+
+    let stepLen = mc.u_maxDistance / f32(STEPS);
+    let jitter = ign(v.pos.xy);
+    var eye = P + frame.camera.xyz * 1e4;
+    if (frame.camera.w > 0.5) { eye = frame.camera.xyz; }
+    var hitColor = vec3f(0.0);
+    var hit = 0.0;
+    var prevP = P;
+    for (var i : i32 = 0; i < STEPS; i = i + 1) {
+        let t = (f32(i) + jitter) * stepLen + stepLen * 0.5;
+        let Q = P + R * t;
+        let s = project(Q);
+        if (s.z <= 0.0 || s.x < 0.0 || s.x > 1.0 || s.y < 0.0 || s.y > 1.0) { break; }
+        let st = screenTexel(s.xy, size);
+        let ds = depthAt(st, size);
+        if (ds >= 1.0) { prevP = Q; continue; }
+        let S = worldFromDepth(uvOfTexel(st, size), ds);
+        let behind = length(Q - eye) - length(S - eye);
+        if (behind > 0.0 && behind < mc.u_thickness + stepLen) {
+            var a = prevP;
+            var b = Q;
+            for (var k : i32 = 0; k < REFINE; k = k + 1) {
+                let m = 0.5 * (a + b);
+                let sm = project(m);
+                let mt = screenTexel(sm.xy, size);
+                let dm = depthAt(mt, size);
+                let Sm = worldFromDepth(uvOfTexel(mt, size), dm);
+                if (length(m - eye) - length(Sm - eye) > 0.0) { b = m; } else { a = m; }
+            }
+            let sh = project(b);
+            let e = min(sh.xy, vec2f(1.0) - sh.xy);
+            let edge = smoothstep(0.0, 0.1, min(e.x, e.y));
+            let travelled = length(b - P);
+            let blur = (travelled / max(mc.u_maxDistance, 1.0)) * 6.0;
+            let texel = 1.0 / vec2f(vec2i(textureDimensions(t0, 0)));
+            var col = textureSampleLevel(t0, s0, sh.xy, 0.0).rgb * 0.4;
+            col = col + textureSampleLevel(t0, s0, sh.xy + vec2f( blur, 0.0) * texel, 0.0).rgb * 0.15;
+            col = col + textureSampleLevel(t0, s0, sh.xy + vec2f(-blur, 0.0) * texel, 0.0).rgb * 0.15;
+            col = col + textureSampleLevel(t0, s0, sh.xy + vec2f(0.0,  blur) * texel, 0.0).rgb * 0.15;
+            col = col + textureSampleLevel(t0, s0, sh.xy + vec2f(0.0, -blur) * texel, 0.0).rgb * 0.15;
+            hit = edge * (1.0 - smoothstep(0.6, 1.0, travelled / mc.u_maxDistance));
+            hitColor = col;
+            break;
+        }
+        prevP = Q;
+    }
+    return vec4f(mix(scene.rgb, hitColor, clamp(weight * hit, 0.0, 1.0)), scene.a);
+}
+#pragma end
+`;
+        return Material.compileShader(source);
+    },
+
     createBlur(): ShaderHandle {
         const source = `#pragma shader "PP Blur"
 #pragma version 300 es

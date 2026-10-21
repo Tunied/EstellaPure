@@ -2473,4 +2473,6 @@ export const NOTED = {
     {"note":"Newly imported meshes are about 9% smaller on disk."},
   "feat(render): a Temporal Anti-Aliasing effect accumulates frames, with the camera shifted a sub-pixel amount each one":
     {"note":"A Temporal Anti-Aliasing post-process effect smooths edges across frames."},
+  "feat(render): a Screen Space Reflections effect mirrors the scene in the surfaces that face up":
+    {"note":"A Screen Space Reflections post-process effect mirrors props in floors."},
 };

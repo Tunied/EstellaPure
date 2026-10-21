@@ -21,6 +21,7 @@ Estella 通过 ping-pong 帧缓冲运行全屏后处理。加一个 `PostProcess
 | `chromaticAberration` | RGB 色散 | `intensity` |
 | `blur` | 高斯模糊 | `intensity` |
 | `fxaa` | 快速抗锯齿 | `intensity` |
+| `ssr` | 屏幕空间反射:道具映在它们所站的地面上 | `intensity`、`maxDistance`、`thickness`、`floorBias` |
 | `taa` | 时间性抗锯齿:边缘跨多帧平滑 | `blend` |
 | `lensDistortion` | 桶形 / 枕形畸变 | `strength`、`zoom` |
 | `pixelate` | 块状量化 | `pixelSize` |
@@ -33,6 +34,18 @@ Estella 通过 ping-pong 帧缓冲运行全屏后处理。加一个 `PostProcess
 所有原生包(iOS、Android、桌面、Steam)跑的都是 WebGPU。用
 `createWebApp({ msaaSamples })` 调它的大小,`msaaSamples: 1` 在填充率比边缘更要紧的设备上关掉它。
 `fxaa` 是更便宜也更糊的替代品,留给连多一个采样都吃不下的设备。
+
+### 屏幕空间反射
+
+`ssr` 把屏幕上已有的东西反射到朝上的表面里:湿街道、抛光地板、湖岸。没有 G-buffer,所以只用链路
+里已有的东西——法线由深度缓冲重建,反射射线在世界里步进、每一步投影回屏幕,落在深度缓冲所示表面
+刚好后面的一步算命中。找到的颜色按 Schlick 菲涅尔项混到像素上:正对时很弱,掠射时很强,所以地面
+越靠近地平线越亮。命中越远越模糊,这代替了粗糙度。
+
+链路里没有任何东西知道材质的粗糙度,所以由 `floorBias` 决定谁可以反射:为 1 时只有朝上的表面反射,
+为 0 时每个表面仅按菲涅尔项反射。它看不到屏幕外、被别的物体挡住的或天空里的东西——那里像素保持
+原样,所以它叠在环境自身的高光之上而不是取代它。`maxDistance` 是世界长度;步数固定,所以距离越长
+步进越粗,而用来藏起条带的逐像素起始偏移要靠 `taa` 平均掉——两者配合使用。
 
 ### 时间性抗锯齿
 

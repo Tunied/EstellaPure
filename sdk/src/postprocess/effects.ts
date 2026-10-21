@@ -251,6 +251,23 @@ registerEffect({
 });
 
 registerEffect({
+    type: 'ssr',
+    label: 'Screen Space Reflections',
+    factory: () => postProcessEffects.createSsr(),
+    uniforms: [
+        { name: 'u_intensity', label: 'Intensity', min: 0, max: 2, step: 0.01, defaultValue: 1, neutralValue: 0 },
+        // A WORLD length, like SSAO's radius: how far a reflected ray may travel before the
+        // search gives up. Step count is a constant, so a longer reach is a coarser step.
+        { name: 'u_maxDistance', label: 'Max Distance', min: 10, max: 3000, step: 10, defaultValue: 400 },
+        // How far behind a visible surface a ray may pass and still count as having hit it.
+        { name: 'u_thickness', label: 'Thickness', min: 1, max: 200, step: 1, defaultValue: 12 },
+        // 1 = only surfaces that face up reflect (wet ground, polished floors); 0 = every surface
+        // reflects by its Fresnel term alone.
+        { name: 'u_floorBias', label: 'Floor Bias', min: 0, max: 1, step: 0.01, defaultValue: 1 },
+    ],
+});
+
+registerEffect({
     type: 'taa',
     label: 'Temporal Anti-Aliasing',
     factory: () => postProcessEffects.createTaa(),

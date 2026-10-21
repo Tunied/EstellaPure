@@ -22,6 +22,7 @@ several can stack in one frame at no extra target cost beyond the passes.
 | `chromaticAberration` | RGB fringing | `intensity` |
 | `blur` | Gaussian blur | `intensity` |
 | `fxaa` | Fast anti-aliasing | `intensity` |
+| `ssr` | Screen-space reflections: props mirrored in the floor they stand on | `intensity`, `maxDistance`, `thickness`, `floorBias` |
 | `taa` | Temporal anti-aliasing: edges smoothed over several frames | `blend` |
 | `lensDistortion` | Barrel / pincushion warp | `strength`, `zoom` |
 | `pixelate` | Block quantization | `pixelSize` |
@@ -36,6 +37,23 @@ Android, desktop, Steam) runs on. `createWebApp({ msaaSamples })` sizes it, and
 `msaaSamples: 1` turns it off where the fill cost matters more than the edges.
 `fxaa` is the cheaper, blurrier alternative for devices where even one sample
 extra is too much.
+
+### Screen-space reflections
+
+`ssr` reflects what is on screen in the surfaces that face up: a wet street, a polished
+floor, a lake's edge. There is no G-buffer, so it works from what the chain already has — the
+surface normal is rebuilt from the depth buffer, the reflected ray is marched through the world
+and projected back at every step, and a step that lands just behind what the depth buffer shows
+is a hit. What it finds is blended over the pixel by a Schlick Fresnel term: faint face-on,
+strong at a grazing angle, so the floor shines toward the horizon. A farther hit is blurred more,
+which stands in for roughness.
+
+Nothing in the chain knows a material's roughness, so `floorBias` decides what may reflect: at 1
+only up-facing surfaces do, at 0 every surface reflects by its Fresnel term alone. It cannot show
+what is off screen, behind another object or in the sky — there it leaves the pixel as it was, so
+it sits on top of the environment's own specular rather than replacing it. `maxDistance` is a
+world length; the step count is fixed, so a longer reach is a coarser march, and the per-pixel
+start offset that hides the banding is what `taa` averages away — use them together.
 
 ### Temporal anti-aliasing
 
