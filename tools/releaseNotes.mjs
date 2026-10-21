@@ -2479,4 +2479,6 @@ export const NOTED = {
     {"note":"Height Fog and Light Shafts post-process effects add atmosphere."},
   "feat(render): Auto Exposure and Depth of Field effects, and a pass that remembers its last output without shifting the picture":
     {"note":"Auto Exposure and Depth of Field post-process effects are available."},
+  "feat(render): a Rain effect with wet ground, puddles, ripples and splashes, and reflections that treat puddles as mirrors":
+    {"note":"A Rain post-process effect adds falling rain, wet ground, puddles and ripples."},
 };

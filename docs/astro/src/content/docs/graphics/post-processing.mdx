@@ -27,6 +27,7 @@ several can stack in one frame at no extra target cost beyond the passes.
 | `lightShafts` | Sun rays through whatever stands in front of it | `intensity`, `sunAzimuth`, `sunElevation`, `decay`, `reach` |
 | `autoExposure` | Eye adaptation: exposure follows how bright the picture is | `bias`, `speedUp`, `speedDown`, `minEV`, `maxEV` |
 | `depthOfField` | Blur by distance from a focus | `focusDistance`, `focusRange`, `aperture`, `maxBlur` |
+| `rain` | Falling rain, wet ground, puddles, ripples and splashes | `intensity`, `wetness`, `wind`, `speed`, `puddles`, `puddleScale` |
 | `ssr` | Screen-space reflections: props mirrored in the floor they stand on | `intensity`, `maxDistance`, `thickness`, `floorBias` |
 | `taa` | Temporal anti-aliasing: edges smoothed over several frames | `blend` |
 | `lensDistortion` | Barrel / pincushion warp | `strength`, `zoom` |
@@ -42,6 +43,28 @@ Android, desktop, Steam) runs on. `createWebApp({ msaaSamples })` sizes it, and
 `msaaSamples: 1` turns it off where the fill cost matters more than the edges.
 `fxaa` is the cheaper, blurrier alternative for devices where even one sample
 extra is too much.
+
+### Rain, wet ground and puddles
+
+`rain` is a storm in two parts. **Falling rain** is three layers of thin slanted streaks scrolling down the
+screen, each standing at its own distance: a streak is hidden by a surface nearer than its layer and drawn
+over one farther away, and the sky counts as infinitely far. **Wet ground** is found from the depth buffer —
+a surface that faces up, flat enough to hold water — and darkened by `wetness`, because water in the pores takes
+the light a dry surface scatters. Drops that land on it leave **ripples** (rings that spread and fade) and
+**splashes** (the small quick crown of a drop on ground that is not water), laid out on a grid in the world so they
+stay on the ground when the camera moves. Ripples need drops: with `intensity` at 0 the ground is wet and still.
+
+**Puddles** are standing water: `puddles` is how much of the flat ground is under it and `puddleScale` how big the
+pools are, a world length. A pool is darker still, takes denser and clearer ripples, and no splashes. Where a puddle
+lies is a function of the world position alone, so it does not move with the camera. A puddle is also a *mirror*, and
+that is the reflections effect's part: give `ssr` the same `puddles` and `puddleScale` and the pools the rain
+darkens are the pools that reflect — flat, whatever the ground under them, and far more reflective than a dry surface,
+with a sharp reflection where a dry one is blurred. Wet ground in general is shinier than dry: raise `ssr`'s `intensity`
+when it rains.
+
+The clock is the game's. A capture that has to be the same on every run sets `timeScale` to 0 and `phase` to the time it
+wants. What this is not: it does not know a material's roughness or the real shape of the ground, so a puddle is
+a patch of flat ground whatever it lies on, and the rain is a screen-space layer, not particles that collide with the world.
 
 ### Auto exposure
 

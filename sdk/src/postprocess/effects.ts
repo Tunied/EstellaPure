@@ -303,6 +303,31 @@ registerEffect({
 });
 
 registerEffect({
+    type: 'rain',
+    label: 'Rain',
+    factory: () => postProcessEffects.createRain(),
+    uniforms: [
+        // How much rain falls: how many of the streaks that a layer could hold are there.
+        { name: 'u_intensity', label: 'Intensity', min: 0, max: 2, step: 0.01, defaultValue: 1, neutralValue: 0 },
+        // How wet the ground is: how far it darkens and how clearly the rings read.
+        { name: 'u_wetness', label: 'Wetness', min: 0, max: 1, step: 0.01, defaultValue: 1, neutralValue: 0 },
+        // The slant of the fall, and how fast it falls.
+        { name: 'u_wind', label: 'Wind', min: -1, max: 1, step: 0.01, defaultValue: 0.15 },
+        { name: 'u_speed', label: 'Speed', min: 0.2, max: 6, step: 0.1, defaultValue: 1.6 },
+        { name: 'u_streakLength', label: 'Streak Length', min: 0.05, max: 0.9, step: 0.01, defaultValue: 0.3 },
+        // A WORLD length: the size of the grid cell each ring lives in.
+        { name: 'u_rippleScale', label: 'Ripple Scale', min: 5, max: 400, step: 1, defaultValue: 60 },
+        // How much of the flat ground is standing water, and how big the pools are (a WORLD length).
+        // The reflections effect draws the same pools when it is given the same two numbers.
+        { name: 'u_puddles', label: 'Puddles', min: 0, max: 1, step: 0.01, defaultValue: 0.3, neutralValue: 0 },
+        { name: 'u_puddleScale', label: 'Puddle Size', min: 40, max: 2000, step: 10, defaultValue: 350 },
+    ],
+    colors: [
+        { name: 'u_streakColor', label: 'Streak Colour', defaultValue: { r: 0.78, g: 0.82, b: 0.9, a: 1 } },
+    ],
+});
+
+registerEffect({
     type: 'ssao',
     label: 'Ambient Occlusion',
     factory: () => postProcessEffects.createSsaoAo(),
@@ -346,6 +371,10 @@ registerEffect({
         // 1 = only surfaces that face up reflect (wet ground, polished floors); 0 = every surface
         // reflects by its Fresnel term alone.
         { name: 'u_floorBias', label: 'Floor Bias', min: 0, max: 1, step: 0.01, defaultValue: 1 },
+        // Standing water: flat, and a mirror. Give it the same two numbers as the Rain effect's puddles
+        // and the pools it darkens are the pools that reflect.
+        { name: 'u_puddles', label: 'Puddles', min: 0, max: 1, step: 0.01, defaultValue: 0, neutralValue: 0 },
+        { name: 'u_puddleScale', label: 'Puddle Size', min: 40, max: 2000, step: 10, defaultValue: 350 },
     ],
 });
 

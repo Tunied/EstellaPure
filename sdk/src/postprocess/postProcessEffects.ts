@@ -71,6 +71,46 @@ fn worldPerDepth(uv : vec2f, d : f32, P : vec3f) -> f32 {
     return length(worldFromDepth(uv, d + e2) - P) / abs(e2);
 }`;
 
+/**
+ * Where puddles lie, in both languages: a value-noise field over the ground's world xz, cut at a level the
+ * coverage sets. A function of the WORLD position alone, so the rain effect (which darkens a puddle and
+ * rings it) and the reflections effect (which makes it a mirror) draw the same puddles by being given the
+ * same two numbers, and neither has to tell the other where they are.
+ */
+const PUDDLE_GLSL = `
+float puddleHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float puddleNoise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(puddleHash(i), puddleHash(i + vec2(1.0, 0.0)), f.x),
+               mix(puddleHash(i + vec2(0.0, 1.0)), puddleHash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+float puddleMask(vec2 xz, float coverage, float scale) {
+    if (coverage <= 0.0) return 0.0;
+    vec2 p = xz / max(scale, 1.0);
+    float n = 0.55 * puddleNoise(p) + 0.3 * puddleNoise(p * 2.3 + 17.0) + 0.15 * puddleNoise(p * 5.1 + 41.0);
+    float t = 0.78 - coverage * 0.42;
+    return smoothstep(t - 0.03, t + 0.03, n);
+}`;
+
+const PUDDLE_WGSL = `
+fn puddleHash(p : vec2f) -> f32 { return fract(sin(dot(p, vec2f(127.1, 311.7))) * 43758.5453); }
+fn puddleNoise(p : vec2f) -> f32 {
+    let i = floor(p);
+    var f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(puddleHash(i), puddleHash(i + vec2f(1.0, 0.0)), f.x),
+               mix(puddleHash(i + vec2f(0.0, 1.0)), puddleHash(i + vec2f(1.0, 1.0)), f.x), f.y);
+}
+fn puddleMask(xz : vec2f, coverage : f32, scale : f32) -> f32 {
+    if (coverage <= 0.0) { return 0.0; }
+    let p = xz / max(scale, 1.0);
+    let n = 0.55 * puddleNoise(p) + 0.3 * puddleNoise(p * 2.3 + 17.0) + 0.15 * puddleNoise(p * 5.1 + 41.0);
+    let t = 0.78 - coverage * 0.42;
+    return smoothstep(t - 0.03, t + 0.03, n);
+}`;
+
 export const postProcessEffects = {
     createLutGrade(): ShaderHandle {
         // True LUT color grading: a 2D-packed 32^3 LUT (1024x32 — 32 slices of
@@ -328,6 +368,8 @@ fn project(P : vec3f) -> vec3f {
 #pragma param u_maxDistance float default(400) range(10,3000)
 #pragma param u_thickness float default(12) range(1,200)
 #pragma param u_floorBias float default(1) range(0,1)
+#pragma param u_puddles float default(0) range(0,1)
+#pragma param u_puddleScale float default(350) range(40,2000)
 
 #pragma fragment
 precision highp float;
@@ -338,6 +380,7 @@ uniform highp sampler2D u_sceneDepth;
 out vec4 fragColor;
 
 ${SSAO_GLSL}
+${PUDDLE_GLSL}
 ${GLSL}
 
 void main() {
@@ -364,10 +407,19 @@ void main() {
     vec3 V = viewDirection(P);
     if (dot(N, V) < 0.0) N = -N;
 
+    // Standing water is flat and mirror-like whatever the ground under it is: its normal is
+    // straight up, and a still surface reflects far more than the 4% a dry one does.
+    float puddle = 0.0;
+    if (u_puddles > 0.0) {
+        puddle = puddleMask(P.xz, u_puddles, u_puddleScale) * smoothstep(0.86, 0.95, N.y);
+        N = normalize(mix(N, vec3(0.0, 1.0, 0.0), puddle));
+    }
+
     // Fresnel at this angle, Schlick with the dielectric 4% a surface without a metal in
     // it reflects face-on; and the floor mask that keeps walls from shining.
     float cosT = clamp(dot(N, V), 0.0, 1.0);
     float fresnel = 0.04 + 0.96 * pow(1.0 - cosT, 5.0);
+    fresnel = mix(fresnel, max(fresnel, 0.55), puddle);
     float up = mix(1.0, smoothstep(0.55, 0.9, N.y), u_floorBias);
     float weight = fresnel * up * u_intensity;
     if (weight < 0.002) { fragColor = scene; return; }
@@ -411,7 +463,7 @@ void main() {
             vec2 e = min(sh.xy, 1.0 - sh.xy);
             float edge = smoothstep(0.0, 0.1, min(e.x, e.y));
             // A farther hit is a rougher reflection: blur it by how far it is.
-            float blur = (length(b - P) / max(u_maxDistance, 1.0)) * 6.0;
+            float blur = (length(b - P) / max(u_maxDistance, 1.0)) * 6.0 * (1.0 - 0.85 * puddle);
             vec2 texel = 1.0 / vec2(textureSize(u_texture, 0));
             vec3 col = texture(u_texture, sh.xy).rgb * 0.4;
             col += texture(u_texture, sh.xy + vec2( blur, 0.0) * texel).rgb * 0.15;
@@ -431,6 +483,7 @@ void main() {
 
 #pragma fragment wgsl
 ${SSAO_WGSL}
+${PUDDLE_WGSL}
 ${WGSL}
 
 @fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
@@ -455,8 +508,15 @@ ${WGSL}
     let V = viewDirection(P);
     if (dot(N, V) < 0.0) { N = -N; }
 
+    var puddle = 0.0;
+    if (mc.u_puddles > 0.0) {
+        puddle = puddleMask(P.xz, mc.u_puddles, mc.u_puddleScale) * smoothstep(0.86, 0.95, N.y);
+        N = normalize(mix(N, vec3f(0.0, 1.0, 0.0), puddle));
+    }
+
     let cosT = clamp(dot(N, V), 0.0, 1.0);
-    let fresnel = 0.04 + 0.96 * pow(1.0 - cosT, 5.0);
+    var fresnel = 0.04 + 0.96 * pow(1.0 - cosT, 5.0);
+    fresnel = mix(fresnel, max(fresnel, 0.55), puddle);
     let up = mix(1.0, smoothstep(0.55, 0.9, N.y), mc.u_floorBias);
     let weight = fresnel * up * mc.u_intensity;
     if (weight < 0.002) { return scene; }
@@ -496,7 +556,7 @@ ${WGSL}
             let e = min(sh.xy, vec2f(1.0) - sh.xy);
             let edge = smoothstep(0.0, 0.1, min(e.x, e.y));
             let travelled = length(b - P);
-            let blur = (travelled / max(mc.u_maxDistance, 1.0)) * 6.0;
+            let blur = (travelled / max(mc.u_maxDistance, 1.0)) * 6.0 * (1.0 - 0.85 * puddle);
             let texel = 1.0 / vec2f(vec2i(textureDimensions(t0, 0)));
             var col = textureSampleLevel(t0, s0, sh.xy, 0.0).rgb * 0.4;
             col = col + textureSampleLevel(t0, s0, sh.xy + vec2f( blur, 0.0) * texel, 0.0).rgb * 0.15;
@@ -1716,6 +1776,235 @@ ${WGSL}
         wsum = wsum + w;
     }
     return vec4f(sum / wsum, src.a);
+}
+#pragma end
+`;
+        return Material.compileShader(source);
+    },
+
+    /**
+     * Rain, in two parts that a real storm has. Falling streaks: three layers of thin slanted lines
+     * scrolling down the screen, each standing at a different distance, so a streak is hidden by a
+     * surface nearer than the layer it belongs to and drawn over one farther away — the sky counts as
+     * infinitely far. And a wet ground: a surface that faces up is darkened, and rings spread over it
+     * where drops land, laid out on a grid in the WORLD so they stay on the ground when the camera moves.
+     *
+     * The clock is `u_time.x * u_timeScale + u_phase`: left alone it runs with the game, and a capture that
+     * must be the same on every run sets the scale to 0 and the phase to the time it wants.
+     *
+     * Wet surfaces are also shinier than dry ones, which is not done here: raise \`ssr\` beside it.
+     */
+    createRain(): ShaderHandle {
+        const GLSL = `
+float hash11(float n) { return fract(sin(n * 127.1) * 43758.5453); }
+float hash21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+
+/// One layer of streaks: columns across the screen, one streak per cell at most, scrolling down.
+float streaks(vec2 uv, float aspect, float cols, float speed, float seed, float T) {
+    vec2 q = vec2(uv.x * aspect - uv.y * u_wind, uv.y);
+    float cx = floor(q.x * cols);
+    float fx = fract(q.x * cols);
+    float h1 = hash11(cx + seed);
+    float h2 = hash11(cx * 1.7 + seed * 3.1);
+    // GL rows run up the screen, so a pattern that falls moves toward lower rows.
+    float y = q.y * 4.0 + T * speed * (0.8 + 0.4 * h1) + h2 * 17.0;
+    float cell = floor(y);
+    float fy = fract(y);
+    float here = hash11(cx * 31.0 + cell + seed);
+    if (here > u_intensity * 0.5) return 0.0;
+    float dx = abs(fx - 0.5 - (hash11(cell + cx) - 0.5) * 0.6);
+    float across = 1.0 - smoothstep(0.0, 0.06, dx);
+    float along = (1.0 - fy / u_streakLength) * step(fy, u_streakLength);
+    return across * along;
+}`;
+        const WGSL = `
+fn hash11(n : f32) -> f32 { return fract(sin(n * 127.1) * 43758.5453); }
+fn hash21(p : vec2f) -> f32 { return fract(sin(dot(p, vec2f(127.1, 311.7))) * 43758.5453); }
+
+fn streaks(uv : vec2f, aspect : f32, cols : f32, speed : f32, seed : f32, T : f32) -> f32 {
+    let q = vec2f(uv.x * aspect - (1.0 - uv.y) * mc.u_wind, 1.0 - uv.y);
+    let cx = floor(q.x * cols);
+    let fx = fract(q.x * cols);
+    let h1 = hash11(cx + seed);
+    let h2 = hash11(cx * 1.7 + seed * 3.1);
+    // Here uv runs DOWN the screen and q is flipped back to run up, as in GL, so the same
+    // falling motion is the same sign.
+    let y = q.y * 4.0 + T * speed * (0.8 + 0.4 * h1) + h2 * 17.0;
+    let cell = floor(y);
+    let fy = fract(y);
+    let here = hash11(cx * 31.0 + cell + seed);
+    if (here > mc.u_intensity * 0.5) { return 0.0; }
+    let dx = abs(fx - 0.5 - (hash11(cell + cx) - 0.5) * 0.6);
+    let across = 1.0 - smoothstep(0.0, 0.06, dx);
+    var along = 0.0;
+    if (fy <= mc.u_streakLength) { along = 1.0 - fy / mc.u_streakLength; }
+    return across * along;
+}`;
+        const source = `#pragma shader "PP Rain"
+#pragma version 300 es
+#pragma domain PostProcess
+#pragma param u_intensity float default(1) range(0,2)
+#pragma param u_wetness float default(1) range(0,1)
+#pragma param u_wind float default(0.15) range(-1,1)
+#pragma param u_speed float default(1.6) range(0.2,6)
+#pragma param u_streakLength float default(0.3) range(0.05,0.9)
+#pragma param u_rippleScale float default(60) range(5,400)
+#pragma param u_puddles float default(0.3) range(0,1)
+#pragma param u_puddleScale float default(350) range(40,2000)
+#pragma param u_streakColor color default(0.78,0.82,0.9,1)
+#pragma param u_timeScale float default(1) range(0,1)
+#pragma param u_phase float default(0) range(0,100000)
+
+#pragma fragment
+precision highp float;
+
+in vec2 v_texCoord;
+uniform sampler2D u_texture;
+uniform highp sampler2D u_sceneDepth;
+out vec4 fragColor;
+
+${SSAO_GLSL}
+${PUDDLE_GLSL}
+${GLSL}
+
+void main() {
+    vec4 src = texture(u_texture, v_texCoord);
+    vec2 sz = vec2(textureSize(u_texture, 0));
+    float aspect = sz.x / sz.y;
+    float T = u_time.x * u_timeScale + u_phase;
+    ivec2 size = textureSize(u_sceneDepth, 0);
+    ivec2 c = screenTexel(v_texCoord, size);
+    float d = depthAt(c, size);
+    vec3 entry = worldFromDepth(v_texCoord, 0.0);
+    // How far the surface here is, measured along the same ray as the streak layers are.
+    float dist = d >= 1.0 ? 1e9 : length(worldFromDepth(uvOfTexel(c, size), d) - entry);
+
+    vec3 tint = u_streakColor.rgb;
+#ifdef ES_LINEAR
+    tint = srgbToLinear(tint);
+#endif
+    vec3 col = src.rgb;
+
+    if (d < 1.0 && u_wetness > 0.0) {
+        vec3 P = worldFromDepth(uvOfTexel(c, size), d);
+        float dl = depthAt(c + ivec2(-1, 0), size);
+        float dr = depthAt(c + ivec2( 1, 0), size);
+        float dd = depthAt(c + ivec2(0, -1), size);
+        float du = depthAt(c + ivec2(0,  1), size);
+        vec3 ax = abs(dr - d) < abs(dl - d) ? worldAt(c + ivec2(1, 0), size) - P
+                                            : P - worldAt(c + ivec2(-1, 0), size);
+        vec3 ay = abs(du - d) < abs(dd - d) ? worldAt(c + ivec2(0, 1), size) - P
+                                            : P - worldAt(c + ivec2(0, -1), size);
+        vec3 N = normalize(cross(ax, ay));
+        if (dot(N, viewDirection(P)) < 0.0) N = -N;
+        float up = smoothstep(0.86, 0.95, N.y);
+        // A wet surface is darker, because water in the pores takes the light a dry one scatters;
+        // standing water is darker still.
+        float puddle = puddleMask(P.xz, u_puddles, u_puddleScale) * up * u_wetness;
+        col *= 1.0 - 0.32 * u_wetness * up;
+        col *= 1.0 - 0.35 * puddle;
+        // Drops landing need drops falling: wet ground under no rain is still.
+        float falling = clamp(u_intensity, 0.0, 1.0);
+        float near = 1.0 - smoothstep(1200.0, 3500.0, dist);
+        // Rings where drops land, on a grid in the world; they are denser and clearer on standing water.
+        vec2 g = P.xz / u_rippleScale;
+        vec2 id = floor(g);
+        vec2 f = fract(g) - 0.5;
+        float h = hash21(id);
+        vec2 centre = (vec2(hash21(id + 7.0), hash21(id + 13.0)) - 0.5) * 0.5;
+        float phase = fract(T * 0.9 + h);
+        float ring = (1.0 - smoothstep(0.0, 0.035, abs(length(f - centre) - phase * 0.5)))
+                   * (1.0 - phase) * (1.0 - phase) * step(hash21(id + 3.0), mix(0.55, 0.9, puddle));
+        col += tint * ring * mix(0.4, 0.9, puddle) * u_wetness * up * near * falling;
+        // Splashes: the small, quick crown of a drop that lands on ground that is not water.
+        vec2 g2 = P.xz / (u_rippleScale * 0.3);
+        vec2 id2 = floor(g2);
+        vec2 f2 = fract(g2) - 0.5;
+        float ph2 = fract(T * 2.4 + hash21(id2 + 29.0));
+        vec2 c2 = (vec2(hash21(id2 + 5.0), hash21(id2 + 11.0)) - 0.5) * 0.4;
+        float splash = (1.0 - smoothstep(0.0, 0.06, abs(length(f2 - c2) - ph2 * 0.3)))
+                     * (1.0 - ph2) * (1.0 - ph2) * (1.0 - ph2) * step(hash21(id2 + 2.0), 0.5);
+        col += tint * splash * 0.55 * u_wetness * up * near * falling * (1.0 - puddle);
+    }
+
+    // Three layers, nearest last: a layer is drawn only over what is farther than it.
+    float rain = 0.0;
+    if (dist > 120.0)  rain += streaks(v_texCoord, aspect,  70.0, u_speed * 1.0, 1.0, T) * 0.35;
+    if (dist > 450.0)  rain += streaks(v_texCoord, aspect, 130.0, u_speed * 1.4, 2.0, T) * 0.28;
+    if (dist > 1400.0) rain += streaks(v_texCoord, aspect, 230.0, u_speed * 1.9, 3.0, T) * 0.22;
+    col += tint * rain * u_intensity;
+    fragColor = vec4(col, src.a);
+}
+#pragma end
+
+#pragma fragment wgsl
+${SSAO_WGSL}
+${PUDDLE_WGSL}
+${WGSL}
+
+@fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
+    let src = textureSampleLevel(t0, s0, v.v_texCoord, 0.0);
+    let sz = vec2f(vec2i(textureDimensions(t0, 0)));
+    let aspect = sz.x / sz.y;
+    let T = tc.u_time.x * mc.u_timeScale + mc.u_phase;
+    let size = vec2i(textureDimensions(t7, 0));
+    let c = screenTexel(v.v_texCoord, size);
+    let d = depthAt(c, size);
+    let entry = worldFromDepth(v.v_texCoord, 0.0);
+    var dist = 1e9;
+    if (d < 1.0) { dist = length(worldFromDepth(uvOfTexel(c, size), d) - entry); }
+
+    var tint = mc.u_streakColor.rgb;
+#ifdef ES_LINEAR
+    tint = srgbToLinear(tint);
+#endif
+    var col = src.rgb;
+
+    if (d < 1.0 && mc.u_wetness > 0.0) {
+        let P = worldFromDepth(uvOfTexel(c, size), d);
+        let dl = depthAt(c + vec2i(-1, 0), size);
+        let dr = depthAt(c + vec2i( 1, 0), size);
+        let dd = depthAt(c + vec2i(0, -1), size);
+        let du = depthAt(c + vec2i(0,  1), size);
+        var ax = P - worldAt(c + vec2i(-1, 0), size);
+        if (abs(dr - d) < abs(dl - d)) { ax = worldAt(c + vec2i(1, 0), size) - P; }
+        var ay = P - worldAt(c + vec2i(0, -1), size);
+        if (abs(du - d) < abs(dd - d)) { ay = worldAt(c + vec2i(0, 1), size) - P; }
+        var N = normalize(cross(ax, ay));
+        if (dot(N, viewDirection(P)) < 0.0) { N = -N; }
+        let up = smoothstep(0.86, 0.95, N.y);
+        let puddle = puddleMask(P.xz, mc.u_puddles, mc.u_puddleScale) * up * mc.u_wetness;
+        col = col * (1.0 - 0.32 * mc.u_wetness * up);
+        col = col * (1.0 - 0.35 * puddle);
+        let falling = clamp(mc.u_intensity, 0.0, 1.0);
+        let near = 1.0 - smoothstep(1200.0, 3500.0, dist);
+        let g = P.xz / mc.u_rippleScale;
+        let id = floor(g);
+        let f = fract(g) - 0.5;
+        let h = hash21(id);
+        let centre = (vec2f(hash21(id + 7.0), hash21(id + 13.0)) - 0.5) * 0.5;
+        let phase = fract(T * 0.9 + h);
+        var ring = (1.0 - smoothstep(0.0, 0.035, abs(length(f - centre) - phase * 0.5)))
+                 * (1.0 - phase) * (1.0 - phase);
+        if (hash21(id + 3.0) > mix(0.55, 0.9, puddle)) { ring = 0.0; }
+        col = col + tint * ring * mix(0.4, 0.9, puddle) * mc.u_wetness * up * near * falling;
+        let g2 = P.xz / (mc.u_rippleScale * 0.3);
+        let id2 = floor(g2);
+        let f2 = fract(g2) - 0.5;
+        let ph2 = fract(T * 2.4 + hash21(id2 + 29.0));
+        let c2 = (vec2f(hash21(id2 + 5.0), hash21(id2 + 11.0)) - 0.5) * 0.4;
+        var splash = (1.0 - smoothstep(0.0, 0.06, abs(length(f2 - c2) - ph2 * 0.3)))
+                   * (1.0 - ph2) * (1.0 - ph2) * (1.0 - ph2);
+        if (hash21(id2 + 2.0) > 0.5) { splash = 0.0; }
+        col = col + tint * splash * 0.55 * mc.u_wetness * up * near * falling * (1.0 - puddle);
+    }
+
+    var rain = 0.0;
+    if (dist > 120.0)  { rain = rain + streaks(v.v_texCoord, aspect,  70.0, mc.u_speed * 1.0, 1.0, T) * 0.35; }
+    if (dist > 450.0)  { rain = rain + streaks(v.v_texCoord, aspect, 130.0, mc.u_speed * 1.4, 2.0, T) * 0.28; }
+    if (dist > 1400.0) { rain = rain + streaks(v.v_texCoord, aspect, 230.0, mc.u_speed * 1.9, 3.0, T) * 0.22; }
+    col = col + tint * rain * mc.u_intensity;
+    return vec4f(col, src.a);
 }
 #pragma end
 `;

@@ -26,6 +26,7 @@ Estella 通过 ping-pong 帧缓冲运行全屏后处理。加一个 `PostProcess
 | `lightShafts` | 太阳光穿过前方遮挡物形成的光束 | `intensity`、`sunAzimuth`、`sunElevation`、`decay`、`reach` |
 | `autoExposure` | 眼睛适应:曝光跟随画面亮度 | `bias`、`speedUp`、`speedDown`、`minEV`、`maxEV` |
 | `depthOfField` | 按到焦点的距离模糊 | `focusDistance`、`focusRange`、`aperture`、`maxBlur` |
+| `rain` | 下雨、潮湿的地面、水坑、涟漪与水花 | `intensity`、`wetness`、`wind`、`speed`、`puddles`、`puddleScale` |
 | `ssr` | 屏幕空间反射:道具映在它们所站的地面上 | `intensity`、`maxDistance`、`thickness`、`floorBias` |
 | `taa` | 时间性抗锯齿:边缘跨多帧平滑 | `blend` |
 | `lensDistortion` | 桶形 / 枕形畸变 | `strength`、`zoom` |
@@ -39,6 +40,21 @@ Estella 通过 ping-pong 帧缓冲运行全屏后处理。加一个 `PostProcess
 所有原生包(iOS、Android、桌面、Steam)跑的都是 WebGPU。用
 `createWebApp({ msaaSamples })` 调它的大小,`msaaSamples: 1` 在填充率比边缘更要紧的设备上关掉它。
 `fxaa` 是更便宜也更糊的替代品,留给连多一个采样都吃不下的设备。
+
+### 雨、潮湿的地面与水坑
+
+`rain` 是由两部分组成的暴雨。**落下的雨**是三层在屏幕上向下滚动的细斜线,每层站在自己的距离上:比该层更近的表面会挡住
+雨丝,更远的表面则被雨丝盖住,天空算作无限远。**潮湿的地面**由深度缓冲找出——朝上、平得能存水的表面——并按 `wetness`
+压暗,因为孔隙里的水吞掉了干燥表面会散射的光。落在上面的雨滴留下**涟漪**(扩散并消退的圆环)和**水花**(落在非水面上的
+小而快的冠状溅起),它们排布在世界里的网格上,所以相机移动时仍留在地面上。涟漪需要雨滴:`intensity` 为 0 时地面潮湿但静止。
+
+**水坑**是积水:`puddles` 是多少平地被水覆盖,`puddleScale` 是水坑多大(世界长度)。水坑更暗,涟漪更密更清晰,没有水花。
+水坑在哪里只取决于世界位置,所以不会随相机移动。水坑同时是一面**镜子**,这是反射效果的部分:给 `ssr` 同样的 `puddles` 与
+`puddleScale`,雨压暗的水坑就是会反射的水坑——不管下面是什么地面都是平的,反射比干燥表面强得多,且清晰,而干燥表面的反射是模糊的。
+潮湿的地面整体比干燥的更亮泽:下雨时提高 `ssr` 的 `intensity`。
+
+时钟是游戏的。要在每次运行都相同的截图,把 `timeScale` 设为 0,`phase` 设为想要的时间。它不是什么:它不知道材质的粗糙度或地面真实的形状,
+所以水坑是一片平地,不管它落在什么上;雨是屏幕空间的一层,不是会与世界碰撞的粒子。
 
 ### 自动曝光
 
