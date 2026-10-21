@@ -159,6 +159,9 @@ struct ParsedShader {
     /// stands, and (through `sunVisibility`) whether the shadow map says a point of air is lit — so the pipeline
     /// binds the block and the shadow atlas for it.
     bool usesLights = false;
+    /// `#pragma highprecision`: what this post-process shader writes is a measurement, not a picture, so its target is
+    /// a float one whenever the device can render to one — even in a chain of 8-bit pictures.
+    bool highPrecision = false;
     /// `#pragma vertexoffset`: the body of `esMaterialVertex(inout local, inout localNormal, uv)`,
     /// run on a resident mesh's local-space vertex before it is posed and placed. It is the
     /// material's own, so the canonical mesh vertex stage calls it and a material without one

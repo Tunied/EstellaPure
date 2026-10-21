@@ -77,18 +77,33 @@ is judged by ratio and a raw average is decided by whatever lamp is in view; pix
 are left out, because a black backdrop is not a dark scene. The result moves toward its target over time
 from where the last frame left it — brighter faster (`speedUp`) than darker (`speedDown`), per second, so it does not
 depend on the frame rate — and `minEV` / `maxEV` bound how far it may go. `bias` adds stops to the result for a
-scene that should sit darker or brighter than grey. It works in the HDR chain; in an 8-bit chain the
-measurement is coarse and the adaptation steps are visible. Put it before the output transform and
-before `bloom`, so the glow sees the exposure the eye settled on.
+scene that should sit darker or brighter than grey. `metering` chooses where the picture is measured: 0 all of it, 1
+weighted toward the middle (a soft falloff of radius `meterSize`), 2 a spot — a disc of that radius at the middle and
+nothing else, so a bright window behind a dark face stops deciding the face's exposure. The measurement and the settled
+exposure are kept in float targets of their own wherever the device can render to one, so it works the same in an
+8-bit chain, where the picture it exposes is still clamped. Put it before the output transform and before `bloom`,
+so the glow sees the exposure the eye settled on.
 
 ### Depth of field
 
-`depthOfField` blurs what is not at `focusDistance` (a world length from the camera), leaving a slab `focusRange` deep
-sharp. The blur radius, in pixels, grows with how far a surface is from the focus as a share of its distance, up to `maxBlur`;
+`depthOfField` blurs what is not at the focus, leaving a slab `focusRange` deep sharp. It is three passes: the first settles
+where the lens is focused, the second measures how blurred each pixel is (stored beside the colour, in a float target),
+the third gathers the blur.
+
+**Focus** is `focusDistance`, a world length from the camera — or, with `autoFocus` on, the distance of the surface under
+the point `focusX`, `focusY` (shares of the screen's width from the left and height from the top, nine taps around it so one
+pixel does not decide). It moves toward that distance at `focusSpeed`, in the log of the distance, so a rack focus is a
+glide; a point with nothing but sky under it leaves the lens where it was.
+
+**The blur** radius, in pixels, grows with how far a surface is from the focus as a share of its distance, up to `maxBlur`;
 `aperture` is the radius of something infinitely far, and the sky counts as that. Each pixel gathers its neighbours over its own
 circle, counting a neighbour only to the extent that neighbour's own blur reaches back: a sharp object in front of a
-blurred background does not bleed into it, while a blurred foreground spreads over what is behind it. The gather is
-rotated per pixel, so it leaves a fine grain that `taa` averages away.
+blurred background does not bleed into it, while a blurred foreground spreads over what is behind it. The sixty-four taps
+shift along their spiral by a different fraction at each pixel, which leaves a fine grain that `taa` averages away.
+
+**The bokeh** is the shape of the lens: `blades` of 3 or more makes the aperture a polygon of that many sides (0 is round), turned
+by `bladeRotation`, and a bright point out of focus becomes that shape. `highlight` makes bright taps count for more, so a lamp
+out of focus is a bright shape and not a dim smear.
 
 ### The G-buffer
 

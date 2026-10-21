@@ -2499,6 +2499,8 @@ export const NOTED = {
     {"note":"Reflection probes follow the weather: the ambient light scales what baked probes show and how much colour they keep."},
   "feat(render): puddles gather in the low places of the ground and thin on its rises":
     {"note":"Puddles gather in the low places of the ground and thin on its rises, read from the depth buffer."},
+  "feat(render): auto exposure meters a spot, and depth of field auto-focuses and shapes its bokeh by the aperture":
+    {"note":"Auto Exposure can meter the middle of the picture or a spot, and Depth of Field focuses by itself and blurs a light into the shape of its aperture."},
   "feat(render): reflections no longer guess a surface, plain meshes record themselves, and what the ray never finds is the sky":
     {"note":"Screen-space reflections leave a surface that recorded nothing alone, plain meshes now record a rough dielectric, and a puddle reflects the sky and what lies off screen."},
 };

@@ -572,7 +572,9 @@ private:
     bool velocity_active_ = false;
     bool passHasTexture(const PostProcessPass& pass, const char* name);
     /// A history made (or kept) at @p w x @p h, or null when it cannot be.
-    TemporalState* prepareHistory(TemporalState& state, u32 w, u32 h);
+    TemporalState* prepareHistory(TemporalState& state, u32 w, u32 h, GfxPixelFormat format);
+    /// The pass writes a measurement, so its target is a float one where the device has them.
+    bool passIsHighPrecision(const PostProcessPass& pass);
     /// Per pass, per view: what a `u_feedback` pass remembers.
     std::unordered_map<u64, TemporalState> feedback_;
     u64 feedbackKey(const std::string& passName) const;

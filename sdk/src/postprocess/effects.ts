@@ -302,6 +302,11 @@ registerEffect({
         { name: 'u_speedDown', label: 'Darken Speed', min: 0.1, max: 20, step: 0.1, defaultValue: 1 },
         { name: 'u_minEV', label: 'Min EV', min: -10, max: 0, step: 0.5, defaultValue: -4 },
         { name: 'u_maxEV', label: 'Max EV', min: 0, max: 10, step: 0.5, defaultValue: 4 },
+        // Where the picture is measured: 0 the whole of it, 1 weighted toward the middle (a soft falloff), 2 a disc at the
+        // middle and nothing else — a bright window behind a dark face stops deciding the exposure of the face.
+        { name: 'u_metering', label: 'Metering (0 avg, 1 centre, 2 spot)', min: 0, max: 2, step: 1, defaultValue: 0 },
+        // How far the centre-weighted falloff, or the spot, reaches: a share of the picture's height... of its width from the centre.
+        { name: 'u_meterSize', label: 'Meter Size', min: 0.02, max: 1, step: 0.01, defaultValue: 0.35 },
     ],
     // A few texels measure the picture, one pass keeps the settled exposure from frame to frame,
     // and the last applies it. The first two are small; the engine keeps the second's output.
@@ -315,15 +320,33 @@ registerEffect({
 registerEffect({
     type: 'depthOfField',
     label: 'Depth of Field',
-    factory: () => postProcessEffects.createDepthOfField(),
+    factory: () => postProcessEffects.createDofGather(),
     uniforms: [
-        // A WORLD length from the camera to what is in focus.
+        // A WORLD length from the camera to what is in focus (what the lens rests on when Auto Focus is off).
         { name: 'u_focusDistance', label: 'Focus Distance', min: 1, max: 5000, step: 1, defaultValue: 600 },
+        // 1: the lens focuses on the surface under the focus point, and glides there at Focus Speed.
+        { name: 'u_autoFocus', label: 'Auto Focus', min: 0, max: 1, step: 1, defaultValue: 0, neutralValue: 0 },
+        // Where on the screen the auto-focus looks, as a share of its width from the left and of its height from the top.
+        { name: 'u_focusX', label: 'Focus Point X', min: 0, max: 1, step: 0.01, defaultValue: 0.5 },
+        { name: 'u_focusY', label: 'Focus Point Y', min: 0, max: 1, step: 0.01, defaultValue: 0.5 },
+        { name: 'u_focusSpeed', label: 'Focus Speed', min: 0.1, max: 40, step: 0.1, defaultValue: 5 },
         // How deep a slab around it stays sharp, before the blur starts.
         { name: 'u_focusRange', label: 'Focus Range', min: 0, max: 2000, step: 1, defaultValue: 100 },
         // The blur, in pixels, of something infinitely far: a bigger lens blurs sooner and harder.
         { name: 'u_aperture', label: 'Aperture (px)', min: 0, max: 64, step: 0.5, defaultValue: 24, neutralValue: 0 },
         { name: 'u_maxBlur', label: 'Max Blur (px)', min: 1, max: 32, step: 0.5, defaultValue: 14 },
+        // The shape of the aperture: 0 a circle, 3 or more the number of blades of a polygon.
+        { name: 'u_blades', label: 'Aperture Blades (0 = round)', min: 0, max: 9, step: 1, defaultValue: 0 },
+        { name: 'u_bokehRotation', label: 'Blade Rotation', min: 0, max: 360, step: 1, defaultValue: 0 },
+        // How much more a bright point counts in the blur: a lamp out of focus is a bright shape, not a smear.
+        { name: 'u_highlight', label: 'Highlight Boost', min: 0, max: 8, step: 0.1, defaultValue: 0 },
+    ],
+    // Where the lens is focused, how blurred each pixel is, and the blur: the first is a few texels and the
+    // engine keeps it from frame to frame, so an auto-focus glides.
+    multiPass: [
+        { name: 'dof_focus', factory: () => postProcessEffects.createDofFocus(), scale: 0.01 },
+        { name: 'dof_coc', factory: () => postProcessEffects.createDofCoc() },
+        { name: 'dof_gather', factory: () => postProcessEffects.createDofGather() },
     ],
 });
 

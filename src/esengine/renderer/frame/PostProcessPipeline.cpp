@@ -405,17 +405,23 @@ rg::ResourceId PostProcessPipeline::declareVelocity() {
     return velocity_resource_;
 }
 
+bool PostProcessPipeline::passIsHighPrecision(const PostProcessPass& pass) {
+    const MaterialUniformLayout* layout = context_.materials().layoutFor(pass.shader);
+    return layout && layout->highPrecision && device_.supportsFloatTargets();
+}
+
 PostProcessPipeline::TemporalState* PostProcessPipeline::prepareHistory(TemporalState& state,
-                                                                         u32 w, u32 h) {
+                                                                         u32 w, u32 h,
+                                                                         GfxPixelFormat format) {
     w = std::max(w, 1u);
     h = std::max(h, 1u);
     if (state.history[0] && state.width == w && state.height == h
-        && state.format == interFormat()) {
+        && state.format == format) {
         return &state;
     }
     for (auto& fbo : state.history) {
         FramebufferSpec spec;
-        spec.colorFormat = interFormat();
+        spec.colorFormat = format;
         spec.width = w;
         spec.height = h;
         spec.depthStencil = false;
@@ -431,7 +437,7 @@ PostProcessPipeline::TemporalState* PostProcessPipeline::prepareHistory(Temporal
     }
     state.width = w;
     state.height = h;
-    state.format = interFormat();
+    state.format = format;
     state.valid = false;
     return &state;
 }
@@ -853,6 +859,7 @@ void PostProcessPipeline::runChain(std::vector<PostProcessPass>& passes, rg::Res
         // chain's size — so it draws full-size whatever fraction it asked for.
         rg::TargetDesc writeDesc = (i == lastEnabled) ? blitDesc : desc;
         if (i != lastEnabled) writeDesc.scale = pass.scale;
+        if (passIsHighPrecision(pass)) writeDesc.format = GfxPixelFormat::RGBA16F;
         // A temporal pass writes the history target itself, so that what it wrote is
         // still there next frame, and the passes after it read it from there.
         TemporalState* temporal = nullptr;
@@ -862,7 +869,7 @@ void PostProcessPipeline::runChain(std::vector<PostProcessPass>& passes, rg::Res
             if (passIsTemporal(pass)) {
                 // Never begun: nothing shifted this frame's picture, and nothing is remembered.
                 if (auto it = temporal_.find(temporalKey_); it != temporal_.end() && it->second.frame > 0) {
-                    temporal = prepareHistory(it->second, width_, height_);
+                    temporal = prepareHistory(it->second, width_, height_, interFormat());
                     pass.temporal = temporal != nullptr;
                 }
             } else if (passHasTexture(pass, "u_feedback")) {
@@ -870,7 +877,9 @@ void PostProcessPipeline::runChain(std::vector<PostProcessPass>& passes, rg::Res
                 pass.historyKey = feedbackKey(pass.name);
                 const u32 fw = static_cast<u32>(static_cast<f32>(width_) * pass.scale);
                 const u32 fh = static_cast<u32>(static_cast<f32>(height_) * pass.scale);
-                temporal = prepareHistory(feedback_[pass.historyKey], fw, fh);
+                // What it remembers is a measurement: kept in a float even where the picture is 8 bits a channel.
+                temporal = prepareHistory(feedback_[pass.historyKey], fw, fh,
+                                          passIsHighPrecision(pass) ? GfxPixelFormat::RGBA16F : interFormat());
                 pass.feedback = temporal != nullptr;
             }
         }

@@ -140,6 +140,9 @@ describe('what a quality level lets the chain run', () => {
 
     it('names the effects a level leaves out by type, ignoring case', async () => {
         const { qualityPassAllowed } = await import('../src/postprocess/qualityFilter');
-        expect(qualityPassAllowed(level(['DepthOfField']), 'depthOfField')).toBe(false);
+        // Depth of field is three passes now, and a level that leaves it out leaves out all of them.
+        for (const pass of ['dof_focus', 'dof_coc', 'dof_gather']) {
+            expect(qualityPassAllowed(level(['DepthOfField']), pass), pass).toBe(false);
+        }
     });
 });

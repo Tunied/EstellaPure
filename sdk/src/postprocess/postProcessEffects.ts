@@ -1869,6 +1869,7 @@ fn ign(p : vec2f) -> f32 {
         const source = `#pragma shader "PP Auto Exposure Measure"
 #pragma version 300 es
 #pragma domain PostProcess
+#pragma highprecision
 
 #pragma fragment
 precision highp float;
@@ -1933,8 +1934,11 @@ void main() {
 #pragma param u_speedDown float default(1) range(0.1,20)
 #pragma param u_minEV float default(-4) range(-10,0)
 #pragma param u_maxEV float default(4) range(0,10)
+#pragma param u_metering float default(0) range(0,2)
+#pragma param u_meterSize float default(0.35) range(0.02,1)
 #pragma param u_historyValid float default(0) range(0,1)
 #pragma param u_feedback texture default(black)
+#pragma highprecision
 
 #pragma fragment
 precision highp float;
@@ -1943,14 +1947,27 @@ in vec2 v_texCoord;
 uniform sampler2D u_texture;
 out vec4 fragColor;
 
+/// How much a place on the screen counts: everywhere equally, a soft bright-centre bias, or a disc and nothing else.
+float meterWeight(vec2 uv) {
+    if (u_metering < 0.5) return 1.0;
+    float r = length(uv - 0.5) / max(u_meterSize, 0.02);
+    if (u_metering < 1.5) return exp(-2.0 * r * r) + 0.04;
+    return r < 1.0 ? 1.0 : 0.0;
+}
+
 void main() {
     float sum = 0.0;
     float weight = 0.0;
+    // The taps spread over the part of the picture that counts: all of it for an average, a region around the centre
+    // for the other two, so a small spot still has taps in it.
+    float extent = u_metering < 0.5 ? 1.0 : clamp(u_meterSize * 2.4, 0.1, 1.0);
     for (int j = 0; j < 8; ++j) {
         for (int i = 0; i < 8; ++i) {
-            vec2 m = texture(u_texture, (vec2(float(i), float(j)) + 0.5) / 8.0).rg;
-            sum += m.r * m.g;
-            weight += m.g;
+            vec2 at = 0.5 + ((vec2(float(i), float(j)) + 0.5) / 8.0 - 0.5) * extent;
+            vec2 m = texture(u_texture, at).rg;
+            float w = meterWeight(at);
+            sum += m.r * m.g * w;
+            weight += m.g * w;
         }
     }
     // Weighted by how much of each block counted; a picture with nothing to measure
@@ -1970,14 +1987,25 @@ void main() {
 #pragma end
 
 #pragma fragment wgsl
+fn meterWeight(uv : vec2f) -> f32 {
+    if (mc.u_metering < 0.5) { return 1.0; }
+    let r = length(uv - vec2f(0.5)) / max(mc.u_meterSize, 0.02);
+    if (mc.u_metering < 1.5) { return exp(-2.0 * r * r) + 0.04; }
+    return select(0.0, 1.0, r < 1.0);
+}
+
 @fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
     var sum = 0.0;
     var weight = 0.0;
+    var extent = 1.0;
+    if (mc.u_metering >= 0.5) { extent = clamp(mc.u_meterSize * 2.4, 0.1, 1.0); }
     for (var j : i32 = 0; j < 8; j = j + 1) {
         for (var i : i32 = 0; i < 8; i = i + 1) {
-            let m = textureSampleLevel(t0, s0, (vec2f(f32(i), f32(j)) + 0.5) / 8.0, 0.0).rg;
-            sum = sum + m.r * m.g;
-            weight = weight + m.g;
+            let at = vec2f(0.5) + ((vec2f(f32(i), f32(j)) + 0.5) / 8.0 - vec2f(0.5)) * extent;
+            let m = textureSampleLevel(t0, s0, at, 0.0).rg;
+            let w = meterWeight(at);
+            sum = sum + m.r * m.g * w;
+            weight = weight + m.g * w;
         }
     }
     var meanLog = log2(0.18);
@@ -2031,42 +2059,23 @@ void main() {
     },
 
     /**
-     * Depth of field. Each pixel's circle of confusion comes from how far its surface is from the
-     * focus distance, and a pixel outside focus is blurred by gathering its neighbours over that
-     * circle. A neighbour counts only to the extent its OWN circle reaches this pixel: a sharp
-     * object in front of a blurred background does not bleed into it, and a blurred foreground
-     * does spread over what is behind. The sky counts as infinitely far.
+     * Depth of field, pass 1 of 3: where the lens is focused. A few texels hold one number, the focus distance —
+     * the one the author wrote, or with `u_autoFocus` on, the distance of the surface under the focus point,
+     * which moves toward its target a little each frame so a rack focus is a glide and not a cut. A float
+     * target, because a distance in metres is not a share of 255.
      */
-    createDepthOfField(): ShaderHandle {
-        const GLSL = `
-const int TAPS = 32;
-float ign(vec2 p) {
-    return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715))));
-}
-/// The blur radius in pixels at a uv: how far the surface is from the focus, past the slab
-/// that stays sharp, as a share of its distance — the thin-lens ratio, capped.
-float cocAt(vec2 uv, float depth, vec3 eye) {
-    if (depth >= 1.0) return min(u_aperture, u_maxBlur);
-    float dist = length(worldFromDepth(uv, depth) - eye);
-    return min(u_aperture * max(abs(dist - u_focusDistance) - u_focusRange, 0.0) / max(dist, 1e-3), u_maxBlur);
-}`;
-        const WGSL = `
-const TAPS : i32 = 32;
-fn ign(p : vec2f) -> f32 {
-    return fract(52.9829189 * fract(dot(p, vec2f(0.06711056, 0.00583715))));
-}
-fn cocAt(uv : vec2f, depth : f32, eye : vec3f) -> f32 {
-    if (depth >= 1.0) { return min(mc.u_aperture, mc.u_maxBlur); }
-    let dist = length(worldFromDepth(uv, depth) - eye);
-    return min(mc.u_aperture * max(abs(dist - mc.u_focusDistance) - mc.u_focusRange, 0.0) / max(dist, 1e-3), mc.u_maxBlur);
-}`;
-        const source = `#pragma shader "PP Depth of Field"
+    createDofFocus(): ShaderHandle {
+        const source = `#pragma shader "PP DoF Focus"
 #pragma version 300 es
 #pragma domain PostProcess
 #pragma param u_focusDistance float default(600) range(1,5000)
-#pragma param u_focusRange float default(100) range(0,2000)
-#pragma param u_aperture float default(24) range(0,64)
-#pragma param u_maxBlur float default(14) range(1,32)
+#pragma param u_autoFocus float default(0) range(0,1)
+#pragma param u_focusX float default(0.5) range(0,1)
+#pragma param u_focusY float default(0.5) range(0,1)
+#pragma param u_focusSpeed float default(5) range(0.1,40)
+#pragma param u_historyValid float default(0) range(0,1)
+#pragma param u_feedback texture default(black)
+#pragma highprecision
 
 #pragma fragment
 precision highp float;
@@ -2077,59 +2086,245 @@ uniform highp sampler2D u_sceneDepth;
 out vec4 fragColor;
 
 ${SSAO_GLSL}
-${GLSL}
 
 void main() {
-    vec4 src = texture(u_texture, v_texCoord);
-    ivec2 size = textureSize(u_sceneDepth, 0);
-    vec3 eye = u_camera.w > 0.5 ? u_camera.xyz : worldFromDepth(v_texCoord, 0.0);
-    float coc = cocAt(v_texCoord, depthAt(screenTexel(v_texCoord, size), size), eye);
-    if (coc < 0.5) { fragColor = src; return; }
-
-    vec2 texel = 1.0 / vec2(textureSize(u_texture, 0));
-    float rot = ign(gl_FragCoord.xy) * 6.2831853;
-    vec3 sum = src.rgb;
-    float wsum = 1.0;
-    for (int i = 0; i < TAPS; ++i) {
-        float r = coc * sqrt((float(i) + 0.5) / float(TAPS));
-        float a = float(i) * 2.39996323 + rot;
-        vec2 uv = v_texCoord + vec2(cos(a), sin(a)) * r * texel;
-        float tapCoc = cocAt(uv, depthAt(screenTexel(uv, size), size), eye);
-        // Gathered only to the extent that tap's own blur reaches back here.
-        float w = clamp(tapCoc / max(r, 0.5), 0.0, 1.0);
-        sum += texture(u_texture, uv).rgb * w;
-        wsum += w;
+    float prev = texture(u_feedback, vec2(0.5)).r;
+    float target = u_focusDistance;
+    if (u_autoFocus > 0.5) {
+        ivec2 size = textureSize(u_sceneDepth, 0);
+        vec3 eye = worldFromDepth(vec2(u_focusX, 1.0 - u_focusY), 0.0);
+        // Nine taps a little apart: what is under the point, not whatever one pixel of it happens to be.
+        float sum = 0.0;
+        float n = 0.0;
+        for (int j = -1; j <= 1; ++j) {
+            for (int i = -1; i <= 1; ++i) {
+                vec2 uv = vec2(u_focusX, 1.0 - u_focusY) + vec2(float(i), float(j)) * 0.012;
+                float d = depthAt(screenTexel(uv, size), size);
+                if (d >= 1.0) continue;
+                sum += length(worldFromDepth(uv, d) - eye);
+                n += 1.0;
+            }
+        }
+        // Nothing but sky under the point: the lens stays where it was.
+        target = n > 0.5 ? sum / n : (u_historyValid > 0.5 ? prev : u_focusDistance);
     }
-    fragColor = vec4(sum / wsum, src.a);
+    float focus = target;
+    if (u_historyValid > 0.5 && prev > 0.0) {
+        // In the log of the distance: the same share of a near thing and a far one per second.
+        float k = 1.0 - exp(-clamp(u_time.y, 0.0, 0.25) * u_focusSpeed);
+        focus = exp(mix(log(prev), log(max(target, 1e-3)), k));
+    }
+    fragColor = vec4(focus, 0.0, 0.0, 1.0);
 }
 #pragma end
 
 #pragma fragment wgsl
 ${SSAO_WGSL}
+
+@fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
+    let prev = textureSampleLevel(u_feedback, u_feedback_s, vec2f(0.5), 0.0).r;
+    var target_d = mc.u_focusDistance;
+    if (mc.u_autoFocus > 0.5) {
+        let size = vec2i(textureDimensions(t7, 0));
+        let eye = worldFromDepth(vec2f(mc.u_focusX, mc.u_focusY), 0.0);
+        var sum = 0.0;
+        var n = 0.0;
+        for (var j : i32 = -1; j <= 1; j = j + 1) {
+            for (var i : i32 = -1; i <= 1; i = i + 1) {
+                let uv = vec2f(mc.u_focusX, mc.u_focusY) + vec2f(f32(i), f32(j)) * 0.012;
+                let d = depthAt(screenTexel(uv, size), size);
+                if (d >= 1.0) { continue; }
+                sum = sum + length(worldFromDepth(uv, d) - eye);
+                n = n + 1.0;
+            }
+        }
+        if (n > 0.5) { target_d = sum / n; }
+        else if (mc.u_historyValid > 0.5) { target_d = prev; }
+    }
+    var focus = target_d;
+    if (mc.u_historyValid > 0.5 && prev > 0.0) {
+        let k = 1.0 - exp(-clamp(tc.u_time.y, 0.0, 0.25) * mc.u_focusSpeed);
+        focus = exp(mix(log(prev), log(max(target_d, 1e-3)), k));
+    }
+    return vec4f(focus, 0.0, 0.0, 1.0);
+}
+#pragma end
+`;
+        return Material.compileShader(source);
+    },
+
+    /**
+     * Depth of field, pass 2 of 3: how blurred each pixel is. The circle of confusion comes from how far the surface is
+     * from the focus the first pass settled on (at unit 0), past the slab that stays sharp, as a share of its distance — the
+     * thin-lens ratio, capped — and travels in the alpha of the scene (unit 1), so the pass that gathers does not have to find
+     * a depth for every tap. A float target: a blur of 11.4 pixels is not a share of 255.
+     */
+    createDofCoc(): ShaderHandle {
+        const source = `#pragma shader "PP DoF Circle"
+#pragma version 300 es
+#pragma domain PostProcess
+#pragma param u_focusRange float default(100) range(0,2000)
+#pragma param u_aperture float default(24) range(0,64)
+#pragma param u_maxBlur float default(14) range(1,32)
+#pragma highprecision
+
+#pragma fragment
+precision highp float;
+
+in vec2 v_texCoord;
+uniform sampler2D u_texture;
+uniform sampler2D u_sceneTexture;
+uniform highp sampler2D u_sceneDepth;
+out vec4 fragColor;
+
+${SSAO_GLSL}
+
+void main() {
+    vec4 src = texture(u_sceneTexture, v_texCoord);
+    float focus = texture(u_texture, vec2(0.5)).r;
+    ivec2 size = textureSize(u_sceneDepth, 0);
+    float depth = depthAt(screenTexel(v_texCoord, size), size);
+    float coc = min(u_aperture, u_maxBlur);
+    if (depth < 1.0) {
+        vec3 eye = u_camera.w > 0.5 ? u_camera.xyz : worldFromDepth(v_texCoord, 0.0);
+        float dist = length(worldFromDepth(v_texCoord, depth) - eye);
+        coc = min(u_aperture * max(abs(dist - focus) - u_focusRange, 0.0) / max(dist, 1e-3), u_maxBlur);
+    }
+    fragColor = vec4(src.rgb, coc);
+}
+#pragma end
+
+#pragma fragment wgsl
+${SSAO_WGSL}
+
+@fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
+    let src = textureSampleLevel(t1, s1, v.v_texCoord, 0.0);
+    let focus = textureSampleLevel(t0, s0, vec2f(0.5), 0.0).r;
+    let size = vec2i(textureDimensions(t7, 0));
+    let depth = depthAt(screenTexel(v.v_texCoord, size), size);
+    var coc = min(mc.u_aperture, mc.u_maxBlur);
+    if (depth < 1.0) {
+        var eye = worldFromDepth(v.v_texCoord, 0.0);
+        if (frame.camera.w > 0.5) { eye = frame.camera.xyz; }
+        let dist = length(worldFromDepth(v.v_texCoord, depth) - eye);
+        coc = min(mc.u_aperture * max(abs(dist - focus) - mc.u_focusRange, 0.0) / max(dist, 1e-3), mc.u_maxBlur);
+    }
+    return vec4f(src.rgb, coc);
+}
+#pragma end
+`;
+        return Material.compileShader(source);
+    },
+
+    /**
+     * Depth of field, pass 3 of 3: the blur. A pixel gathers its neighbours over its own circle, counting a neighbour
+     * only to the extent that neighbour's own circle reaches back (read from the previous pass's alpha, so a sharp object in
+     * front of a blurred background does not bleed into it while a blurred foreground spreads over what is behind). The taps
+     * lie on a spiral inside a disc, or inside an n-sided polygon when `u_blades` is 3 or more — the shape of the lens's
+     * aperture, which is what a point of light becomes out of focus — and `u_highlight` makes bright taps count for more, so
+     * a lamp out of focus is a bright shape and not a dim smear.
+     */
+    createDofGather(): ShaderHandle {
+        const GLSL = `
+const int TAPS = 64;
+const float TAU = 6.2831853;
+float ign(vec2 p) {
+    return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715))));
+}
+/// A point of the unit disc pushed out to the n-gon that has the disc as its circumscribing circle.
+vec2 shapeTap(vec2 p, float blades, float turn) {
+    if (blades < 2.5) return p;
+    float a = atan(p.y, p.x) - turn;
+    float sector = TAU / blades;
+    float within = mod(a + sector * 0.5, sector) - sector * 0.5;
+    return p * (cos(sector * 0.5) / cos(within));
+}`;
+        const WGSL = `
+const TAPS : i32 = 64;
+const TAU : f32 = 6.2831853;
+fn ign(p : vec2f) -> f32 {
+    return fract(52.9829189 * fract(dot(p, vec2f(0.06711056, 0.00583715))));
+}
+fn shapeTap(p : vec2f, blades : f32, turn : f32) -> vec2f {
+    if (blades < 2.5) { return p; }
+    let a = atan2(p.y, p.x) - turn;
+    let sector = TAU / blades;
+    let within = (a + sector * 0.5) - sector * floor((a + sector * 0.5) / sector) - sector * 0.5;
+    return p * (cos(sector * 0.5) / cos(within));
+}`;
+        const source = `#pragma shader "PP DoF Gather"
+#pragma version 300 es
+#pragma domain PostProcess
+#pragma param u_blades float default(0) range(0,9)
+#pragma param u_bokehRotation float default(0) range(0,360)
+#pragma param u_highlight float default(0) range(0,8)
+
+#pragma fragment
+precision highp float;
+
+in vec2 v_texCoord;
+uniform sampler2D u_texture;
+out vec4 fragColor;
+
+${GLSL}
+
+void main() {
+    vec4 src = texture(u_texture, v_texCoord);
+    float coc = src.a;
+    if (coc < 0.5) { fragColor = vec4(src.rgb, 1.0); return; }
+
+    vec2 texel = 1.0 / vec2(textureSize(u_texture, 0));
+    // The taps shift along their spiral by a fraction of one, a different one at each pixel: the pattern stays whole and
+    // what is left of the jitter is grain a temporal pass averages away, instead of a disc turned about at random.
+    float jitter = ign(gl_FragCoord.xy);
+    float turn = radians(u_bokehRotation);
+    float centre = 1.0 + u_highlight * smoothstep(1.0, 6.0, dot(src.rgb, vec3(0.2126, 0.7152, 0.0722)));
+    vec3 sum = src.rgb * centre;
+    float wsum = centre;
+    for (int i = 0; i < TAPS; ++i) {
+        float k = float(i) + jitter;
+        float r = sqrt((k + 0.5) / float(TAPS));
+        float a = k * 2.39996323;
+        vec2 disc = shapeTap(vec2(cos(a), sin(a)) * r, u_blades, turn);
+        vec2 uv = v_texCoord + disc * coc * texel;
+        vec4 tap = texture(u_texture, uv);
+        // Gathered only to the extent that tap's own blur reaches back here.
+        float w = clamp(tap.a / max(length(disc) * coc, 0.5), 0.0, 1.0);
+        w *= 1.0 + u_highlight * smoothstep(1.0, 6.0, dot(tap.rgb, vec3(0.2126, 0.7152, 0.0722)));
+        sum += tap.rgb * w;
+        wsum += w;
+    }
+    fragColor = vec4(sum / wsum, 1.0);
+}
+#pragma end
+
+#pragma fragment wgsl
 ${WGSL}
 
 @fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
     let src = textureSampleLevel(t0, s0, v.v_texCoord, 0.0);
-    let size = vec2i(textureDimensions(t7, 0));
-    var eye = worldFromDepth(v.v_texCoord, 0.0);
-    if (frame.camera.w > 0.5) { eye = frame.camera.xyz; }
-    let coc = cocAt(v.v_texCoord, depthAt(screenTexel(v.v_texCoord, size), size), eye);
-    if (coc < 0.5) { return src; }
+    let coc = src.a;
+    if (coc < 0.5) { return vec4f(src.rgb, 1.0); }
 
     let texel = 1.0 / vec2f(vec2i(textureDimensions(t0, 0)));
-    let rot = ign(v.pos.xy) * 6.2831853;
-    var sum = src.rgb;
-    var wsum = 1.0;
+    let jitter = ign(v.pos.xy);
+    let turn = radians(mc.u_bokehRotation);
+    let centre = 1.0 + mc.u_highlight * smoothstep(1.0, 6.0, dot(src.rgb, vec3f(0.2126, 0.7152, 0.0722)));
+    var sum = src.rgb * centre;
+    var wsum = centre;
     for (var i : i32 = 0; i < TAPS; i = i + 1) {
-        let r = coc * sqrt((f32(i) + 0.5) / f32(TAPS));
-        let a = f32(i) * 2.39996323 + rot;
-        let uv = v.v_texCoord + vec2f(cos(a), sin(a)) * r * texel;
-        let tapCoc = cocAt(uv, depthAt(screenTexel(uv, size), size), eye);
-        let w = clamp(tapCoc / max(r, 0.5), 0.0, 1.0);
-        sum = sum + textureSampleLevel(t0, s0, uv, 0.0).rgb * w;
+        let k = f32(i) + jitter;
+        let r = sqrt((k + 0.5) / f32(TAPS));
+        let a = k * 2.39996323;
+        let disc = shapeTap(vec2f(cos(a), sin(a)) * r, mc.u_blades, turn);
+        let uv = v.v_texCoord + disc * coc * texel;
+        let tap = textureSampleLevel(t0, s0, uv, 0.0);
+        var w = clamp(tap.a / max(length(disc) * coc, 0.5), 0.0, 1.0);
+        w = w * (1.0 + mc.u_highlight * smoothstep(1.0, 6.0, dot(tap.rgb, vec3f(0.2126, 0.7152, 0.0722))));
+        sum = sum + tap.rgb * w;
         wsum = wsum + w;
     }
-    return vec4f(sum / wsum, src.a);
+    return vec4f(sum / wsum, 1.0);
 }
 #pragma end
 `;
