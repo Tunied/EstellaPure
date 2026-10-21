@@ -4860,6 +4860,8 @@ intensity: number
 meshShadows: boolean
 outerAngle: number
 radius: number
+reflectionSaturation: number
+reflectionScale: number
 shadowDistance: number
 shadowExtent: number
 shadowSoftness: number

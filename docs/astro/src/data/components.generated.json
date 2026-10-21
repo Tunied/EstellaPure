@@ -2122,6 +2122,22 @@
           "doc": "Draw this environment as the sky behind the scene."
         },
         {
+          "key": "reflectionScale",
+          "type": "number",
+          "default": "1",
+          "doc": "Scale what baked reflection probes show (1 = as baked).",
+          "range": "≥ 0",
+          "advanced": true
+        },
+        {
+          "key": "reflectionSaturation",
+          "type": "number",
+          "default": "1",
+          "doc": "How much colour baked reflection probes keep (0 = grey).",
+          "range": "0–1",
+          "advanced": true
+        },
+        {
           "key": "enabled",
           "type": "boolean",
           "default": "true"

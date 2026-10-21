@@ -247,7 +247,9 @@ export const PTR_LAYOUTS: Record<string, PtrLayout> = {
             { name: 'environment', type: 'u32', offset: 84 },
             { name: 'environmentRotation', type: 'f32', offset: 88 },
             { name: 'drawEnvironment', type: 'bool', offset: 92 },
-            { name: 'enabled', type: 'bool', offset: 93 },
+            { name: 'reflectionScale', type: 'f32', offset: 96 },
+            { name: 'reflectionSaturation', type: 'f32', offset: 100 },
+            { name: 'enabled', type: 'bool', offset: 104 },
         ],
     },
     LightProbeVolume: {

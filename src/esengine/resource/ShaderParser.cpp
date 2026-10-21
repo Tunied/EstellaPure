@@ -1566,7 +1566,12 @@ fn envRadiance(R : vec3f, roughness : f32, column : f32, P : vec3f) -> vec3f {
     // A baked column is the WHOLE radiance that reached its probe — the sky, the
     // ambient and every bounce. Adding the flat term or the sky's tint on top
     // would count the light the capture already saw a second time.
-    if (column >= 0.5) { return mix(a, b, lod - lo); }
+    if (column >= 0.5) {
+        let baked = mix(a, b, lod - lo);
+        // What the bake saw, as the weather now says it looks: dimmer, and with less of its colour.
+        let grey = dot(baked, vec3f(0.2126, 0.7152, 0.0722));
+        return mix(vec3f(grey), baked, lc.u_reflParams.z) * lc.u_reflParams.y;
+    }
     return lc.u_ambient.rgb + mix(a, b, lod - lo) * lc.u_envTint.rgb;
 }
 // Which definition of "where is the light" this surface is shaded with. One with a
@@ -2471,7 +2476,12 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             // A baked column is the WHOLE radiance that reached its probe — the sky,
             // the ambient and every bounce. Adding the flat term or the sky's tint on
             // top would count the light the capture already saw a second time.
-            "    if (column >= 0.5) return mix(a, b, lod - lo);\n"
+            "    if (column >= 0.5) {\n"
+            "        highp vec3 baked = mix(a, b, lod - lo);\n"
+            // What the bake saw, as the weather now says it looks: dimmer, and with less of its colour.
+            "        highp float grey = dot(baked, vec3(0.2126, 0.7152, 0.0722));\n"
+            "        return mix(vec3(grey), baked, u_reflParams.z) * u_reflParams.y;\n"
+            "    }\n"
             "    return u_ambient.rgb + mix(a, b, lod - lo) * u_envTint.rgb;\n"
             "}\n"
             // Where a positional light is, from here, and how far. Real geometry measures

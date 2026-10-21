@@ -620,6 +620,8 @@ export interface Light {
     environment: number;
     environmentRotation: number;
     drawEnvironment: boolean;
+    reflectionScale: number;
+    reflectionSaturation: number;
     enabled: boolean;
 }
 

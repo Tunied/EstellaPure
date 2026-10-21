@@ -25,6 +25,8 @@ import {
 interface LightBase {
     intensity: number;
     color: { r: number; g: number; b: number; a: number };
+    reflectionScale: number;
+    reflectionSaturation: number;
     applied: number;
 }
 
@@ -40,31 +42,45 @@ function restoreLights(world: World): void {
     for (const [entity, base] of bases) {
         if (world.has(entity, Light)) {
             const data = world.get(entity, Light) as LightData;
-            world.set(entity, Light, { ...data, intensity: base.intensity, color: { ...base.color } });
+            world.set(entity, Light, {
+                ...data, intensity: base.intensity, color: { ...base.color },
+                reflectionScale: base.reflectionScale, reflectionSaturation: base.reflectionSaturation,
+            });
         }
     }
     bases.clear();
 }
 
-function applyLights(world: World, state: WeatherState): void {
+function applyLights(world: World, state: WeatherState, drive: number): void {
     for (const entity of world.getEntitiesWithComponents([Light])) {
         const data = world.get(entity, Light) as LightData;
         if (data.type !== LIGHT_DIRECTIONAL && data.type !== LIGHT_AMBIENT) continue;
         let base = bases.get(entity);
         if (!base) {
-            base = { intensity: data.intensity, color: { ...data.color }, applied: Number.NaN };
+            base = {
+                intensity: data.intensity, color: { ...data.color },
+                reflectionScale: data.reflectionScale ?? 1, reflectionSaturation: data.reflectionSaturation ?? 1,
+                applied: Number.NaN,
+            };
             bases.set(entity, base);
         }
         const sun = data.type === LIGHT_DIRECTIONAL;
-        const scale = sun ? state.sun : state.sky;
+        const lights = (drive & WeatherDrive.Lights) !== 0;
+        const reflections = (drive & WeatherDrive.Reflections) !== 0 && !sun;
+        const scale = lights ? (sun ? state.sun : state.sky) : 1;
         // The key is what the light would be told: nothing is written for a frame that would say the same again.
-        const key = scale + (sun ? state.sunTint[0] * 7 + state.sunTint[1] * 13 + state.sunTint[2] * 29 : 0);
+        const key = scale + (lights && sun ? state.sunTint[0] * 7 + state.sunTint[1] * 13 + state.sunTint[2] * 29 : 0)
+            + (reflections ? state.reflection * 101 + state.reflectionSaturation * 211 : 0);
         if (base.applied === key) continue;
         base.applied = key;
-        const color = sun
+        const color = lights && sun
             ? { r: base.color.r * state.sunTint[0], g: base.color.g * state.sunTint[1], b: base.color.b * state.sunTint[2], a: base.color.a }
             : { ...base.color };
-        world.set(entity, Light, { ...data, intensity: base.intensity * scale, color });
+        world.set(entity, Light, {
+            ...data, intensity: base.intensity * scale, color,
+            reflectionScale: reflections ? base.reflectionScale * state.reflection : base.reflectionScale,
+            reflectionSaturation: reflections ? base.reflectionSaturation * state.reflectionSaturation : base.reflectionSaturation,
+        });
     }
 }
 
@@ -124,7 +140,7 @@ export const weatherSystem = defineSystem(
         const state = blendWeather(data.preset, data.target, data.progress);
         setCurrentWeather(state, data.drive);
 
-        if (playing && (data.drive & WeatherDrive.Lights)) applyLights(world, state);
+        if (playing && (data.drive & (WeatherDrive.Lights | WeatherDrive.Reflections))) applyLights(world, state, data.drive);
         else if (bases.size > 0) restoreLights(world);
     },
     { name: 'WeatherSystem' }

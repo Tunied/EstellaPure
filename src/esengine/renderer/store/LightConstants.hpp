@@ -183,9 +183,10 @@ struct LightConstants {
     /// from a texture the light does not own — is tinted by the same number.
     glm::vec4 envTint{0.0f};
     /// x = how many COLUMNS the bound atlas holds, the environment's included, so
-    /// one texture serves the sky and every baked room; y/z/w unused. One is the
-    /// environment alone, which is what a scene with no bake has always been.
-    glm::vec4 reflParams{1.0f, 0.0f, 0.0f, 0.0f};
+    /// one texture serves the sky and every baked room; y = how bright a baked
+    /// column shows and z how much colour it keeps (1 = as baked); w unused. One
+    /// column is the environment alone, which is what a scene with no bake has always been.
+    glm::vec4 reflParams{1.0f, 1.0f, 1.0f, 0.0f};
     /// The world box column i answers inside: [2i] = min, [2i+1] = max. Column 0
     /// is the environment and has none — a sky is not somewhere. The shader
     /// PROJECTS onto a box, which is what slides a reflection across a wall.

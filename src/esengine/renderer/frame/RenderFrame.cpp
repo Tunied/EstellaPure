@@ -1320,6 +1320,17 @@ void RenderFrame::collectLights(ecs::Registry& registry) {
             skyYaw = light.environmentRotation;
         }
     }
+    // How the baked reflections are shown: the frame's environment light says, else the first ambient light does.
+    {
+        const ecs::Light* tone = nullptr;
+        for (auto entity : view) {
+            const auto& light = view.get(entity);
+            if (!light.enabled || static_cast<ecs::LightType>(light.type) != ecs::LightType::Ambient) continue;
+            if (entity == skyLight) { tone = &light; break; }
+            if (!tone) tone = &light;
+        }
+        if (tone) context_.lights().setReflectionTone(tone->reflectionScale, tone->reflectionSaturation);
+    }
     const bool sunCast = sunFollowed && sky && sky->hasSun;
     if (sunCast) {
         light_cap_.environmentSun = true;

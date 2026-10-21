@@ -818,6 +818,8 @@ export interface LightPtrData {
     environment: number;
     environmentRotation: number;
     drawEnvironment: boolean;
+    reflectionScale: number;
+    reflectionSaturation: number;
     enabled: boolean;
 }
 
@@ -845,7 +847,9 @@ export function fillLight(
     out.environment = u32[(ptr + 84) >> 2];
     out.environmentRotation = f32[(ptr + 88) >> 2];
     out.drawEnvironment = u8[ptr + 92] !== 0;
-    out.enabled = u8[ptr + 93] !== 0;
+    out.reflectionScale = f32[(ptr + 96) >> 2];
+    out.reflectionSaturation = f32[(ptr + 100) >> 2];
+    out.enabled = u8[ptr + 104] !== 0;
 }
 
 export function writeLight(
@@ -872,7 +876,9 @@ export function writeLight(
     u32[(ptr + 84) >> 2] = data.environment;
     f32[(ptr + 88) >> 2] = data.environmentRotation;
     u8[ptr + 92] = data.drawEnvironment ? 1 : 0;
-    u8[ptr + 93] = data.enabled ? 1 : 0;
+    f32[(ptr + 96) >> 2] = data.reflectionScale;
+    f32[(ptr + 100) >> 2] = data.reflectionSaturation;
+    u8[ptr + 104] = data.enabled ? 1 : 0;
 }
 
 export function createLightData(): LightPtrData {
@@ -897,6 +903,8 @@ export function createLightData(): LightPtrData {
         environment: 0,
         environmentRotation: 0,
         drawEnvironment: false,
+        reflectionScale: 0,
+        reflectionSaturation: 0,
         enabled: false,
     };
 }

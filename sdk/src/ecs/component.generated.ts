@@ -15,7 +15,7 @@ import type { AlignContent, AlignItems, AlignSelf, BodyType, CanvasScaleMode, Cl
  * getAbiLayoutHash(); BuiltinBridge.connect() compares them and refuses to
  * run on mismatch, because mismatched offsets read the wrong heap bytes.
  */
-export const ABI_LAYOUT_HASH = '2f5ac38ffa80eb57';
+export const ABI_LAYOUT_HASH = '174c991a07d3d3ef';
 
 /**
  * One asset-valued field of a component: which field, and what kind of
@@ -479,6 +479,8 @@ export const COMPONENT_META: Record<string, ComponentMetaEntry> = {
             environment: 0,
             environmentRotation: 0,
             drawEnvironment: false,
+            reflectionScale: 1,
+            reflectionSaturation: 1,
             enabled: true,
         },
         renderableField: 'enabled',
@@ -506,6 +508,8 @@ export const COMPONENT_META: Record<string, ComponentMetaEntry> = {
             environment: { tooltip: "Baked environment (.esenv) this Ambient light casts.", shownWhen: { field: "type", values: [2] } },
             environmentRotation: { unit: "deg", tooltip: "Turn the environment about the up axis, in degrees.", shownWhen: { field: "type", values: [2] } },
             drawEnvironment: { tooltip: "Draw this environment as the sky behind the scene.", shownWhen: { field: "type", values: [2] } },
+            reflectionScale: { min: 0, tooltip: "Scale what baked reflection probes show (1 = as baked).", advanced: true, shownWhen: { field: "type", values: [2] } },
+            reflectionSaturation: { min: 0, max: 1, tooltip: "How much colour baked reflection probes keep (0 = grey).", advanced: true, shownWhen: { field: "type", values: [2] } },
         },
     },
     LightProbeVolume: {
@@ -1498,6 +1502,8 @@ export interface LightData {
     environment: number;
     environmentRotation: number;
     drawEnvironment: boolean;
+    reflectionScale: number;
+    reflectionSaturation: number;
     enabled: boolean;
 }
 

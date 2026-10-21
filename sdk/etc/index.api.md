@@ -5,7 +5,7 @@ Symbols: 120 public · 152 beta · 1664 experimental · 3 deprecated
 
 ## ABI_LAYOUT_HASH — const @experimental
 ```
-"2f5ac38ffa80eb57"
+"174c991a07d3d3ef"
 ```
 
 ## ANCHOR_AXES — const @experimental
@@ -4858,6 +4858,8 @@ intensity: number
 meshShadows: boolean
 outerAngle: number
 radius: number
+reflectionSaturation: number
+reflectionScale: number
 shadowDistance: number
 shadowExtent: number
 shadowSoftness: number

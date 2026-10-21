@@ -35,6 +35,9 @@ A turn is eased, so it starts and ends gently, and a finished turn lands on its 
 - **Rain.** The Rain effect is brought with the weather (when the scene has none) at the preset's strength, and Rain and
   Screen Space Reflections are given the wetness and puddles it leaves. Where the scene authored its own rain, the
   weather can only raise it.
+- **Reflections.** A baked reflection probe shows the sky it was baked under, so a rainy street would mirror a sunny one.
+  The ambient light carries `reflectionScale` and `reflectionSaturation` for exactly this: what baked probes show is
+  multiplied by the first and drained of colour by the second, and the weather turns both down.
 - **Grade and exposure.** Colour Grade's saturation and contrast are scaled, and Auto Exposure's compensation raised.
 
 The effects are applied after the scene's volumes have blended, so a scene that fogs itself thinly stays thinner than

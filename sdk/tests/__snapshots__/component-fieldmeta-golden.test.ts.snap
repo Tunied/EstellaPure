@@ -348,6 +348,29 @@ exports[`builtin FieldMeta (RC9-1 equivalence gate) > matches the golden snapsho
       },
       "tooltip": "Falloff reach in world units (Point / Spot).",
     },
+    "reflectionSaturation": {
+      "advanced": true,
+      "max": 1,
+      "min": 0,
+      "shownWhen": {
+        "field": "type",
+        "values": [
+          2,
+        ],
+      },
+      "tooltip": "How much colour baked reflection probes keep (0 = grey).",
+    },
+    "reflectionScale": {
+      "advanced": true,
+      "min": 0,
+      "shownWhen": {
+        "field": "type",
+        "values": [
+          2,
+        ],
+      },
+      "tooltip": "Scale what baked reflection probes show (1 = as baked).",
+    },
     "shadowDistance": {
       "advanced": true,
       "min": 0,

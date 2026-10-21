@@ -629,6 +629,8 @@ struct LightJS {
     u32 environment;
     f32 environmentRotation;
     bool drawEnvironment;
+    f32 reflectionScale;
+    f32 reflectionSaturation;
     bool enabled;
 };
 
@@ -653,6 +655,8 @@ void lightApplyJS(esengine::ecs::Light& c, const LightJS& js) {
     c.environment = resource::EnvironmentHandle(js.environment);
     c.environmentRotation = js.environmentRotation;
     c.drawEnvironment = js.drawEnvironment;
+    c.reflectionScale = js.reflectionScale;
+    c.reflectionSaturation = js.reflectionSaturation;
     c.enabled = js.enabled;
 }
 
@@ -684,6 +688,8 @@ LightJS lightToJS(const esengine::ecs::Light& c) {
     js.environment = c.environment.id();
     js.environmentRotation = c.environmentRotation;
     js.drawEnvironment = c.drawEnvironment;
+    js.reflectionScale = c.reflectionScale;
+    js.reflectionSaturation = c.reflectionSaturation;
     js.enabled = c.enabled;
     return js;
 }
@@ -1822,6 +1828,8 @@ EMSCRIPTEN_BINDINGS(esengine_components) {
         .field("environment", &LightJS::environment)
         .field("environmentRotation", &LightJS::environmentRotation)
         .field("drawEnvironment", &LightJS::drawEnvironment)
+        .field("reflectionScale", &LightJS::reflectionScale)
+        .field("reflectionSaturation", &LightJS::reflectionSaturation)
         .field("enabled", &LightJS::enabled);
 
     value_object<LightProbeVolumeJS>("LightProbeVolume")
@@ -3608,7 +3616,9 @@ static_assert(offsetof(esengine::ecs::Light, followEnvironmentSun) == 80, "ABI o
 static_assert(offsetof(esengine::ecs::Light, environment) == 84, "ABI offset drift: esengine::ecs::Light.environment (EHT expected 84)");
 static_assert(offsetof(esengine::ecs::Light, environmentRotation) == 88, "ABI offset drift: esengine::ecs::Light.environmentRotation (EHT expected 88)");
 static_assert(offsetof(esengine::ecs::Light, drawEnvironment) == 92, "ABI offset drift: esengine::ecs::Light.drawEnvironment (EHT expected 92)");
-static_assert(offsetof(esengine::ecs::Light, enabled) == 93, "ABI offset drift: esengine::ecs::Light.enabled (EHT expected 93)");
+static_assert(offsetof(esengine::ecs::Light, reflectionScale) == 96, "ABI offset drift: esengine::ecs::Light.reflectionScale (EHT expected 96)");
+static_assert(offsetof(esengine::ecs::Light, reflectionSaturation) == 100, "ABI offset drift: esengine::ecs::Light.reflectionSaturation (EHT expected 100)");
+static_assert(offsetof(esengine::ecs::Light, enabled) == 104, "ABI offset drift: esengine::ecs::Light.enabled (EHT expected 104)");
 static_assert(offsetof(esengine::ecs::LightProbeVolume, probes) == 0, "ABI offset drift: esengine::ecs::LightProbeVolume.probes (EHT expected 0)");
 static_assert(offsetof(esengine::ecs::LightProbeVolume, halfExtents) == 4, "ABI offset drift: esengine::ecs::LightProbeVolume.halfExtents (EHT expected 4)");
 static_assert(offsetof(esengine::ecs::LightProbeVolume, spacing) == 16, "ABI offset drift: esengine::ecs::LightProbeVolume.spacing (EHT expected 16)");
@@ -3881,7 +3891,7 @@ static_assert(offsetof(esengine::ecs::Velocity, angular) == 12, "ABI offset drif
 // ABI Hash -- runtime handshake against the SDK bundle
 // =============================================================================
 
-static const char* kEsAbiLayoutHash = "2f5ac38ffa80eb57";
+static const char* kEsAbiLayoutHash = "174c991a07d3d3ef";
 
 std::string esengineGetAbiLayoutHash() {
     return std::string(kEsAbiLayoutHash);

@@ -114,10 +114,17 @@ public:
      */
     void setReflections(const glm::vec4& params, const glm::vec4* boxes, u32 count) {
         data_.envParams = params;
-        data_.reflParams = glm::vec4(static_cast<f32>(count) + 1.0f, 0.0f, 0.0f, 0.0f);
+        data_.reflParams.x = static_cast<f32>(count) + 1.0f;
         for (u32 i = 0; i < count * 2 && i < 2 * MAX_REFLECTION_PROBES; ++i) {
             data_.reflBox[i] = boxes[i];
         }
+        dirty_ = true;
+    }
+
+    /// How baked reflection columns are shown this frame: their brightness and the colour they keep.
+    void setReflectionTone(f32 scale, f32 saturation) {
+        data_.reflParams.y = scale;
+        data_.reflParams.z = saturation;
         dirty_ = true;
     }
 

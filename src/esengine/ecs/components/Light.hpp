@@ -193,6 +193,20 @@ struct Light {
                 tooltip="Draw this environment as the sky behind the scene.")
     bool drawEnvironment{false};
 
+    /** @brief What baked reflection probes show, scaled. A probe was baked under one
+     *         sky, so it goes on showing that sky: a weather that darkens the scene
+     *         turns this down so a rainy street does not mirror a sunny one.
+     *         1 = as baked. Read from the frame's Ambient light. */
+    ES_PROPERTY(min=0, shown_when=type:Ambient, advanced,
+                tooltip="Scale what baked reflection probes show (1 = as baked).")
+    f32 reflectionScale{1.0f};
+
+    /** @brief How much colour baked reflections keep: 1 as baked, 0 grey. An overcast
+     *         sky drains colour from what it lights, and from what a probe mirrors. */
+    ES_PROPERTY(min=0, max=1, shown_when=type:Ambient, advanced,
+                tooltip="How much colour baked reflection probes keep (0 = grey).")
+    f32 reflectionSaturation{1.0f};
+
     /** @brief Disabled lights are skipped during collection. */
     ES_PROPERTY()
     bool enabled{true};
