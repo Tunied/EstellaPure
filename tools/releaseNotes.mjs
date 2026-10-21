@@ -2495,6 +2495,10 @@ export const NOTED = {
     {"note":"Height Fog and Light Shafts follow the scene's own sun, and Height Fog can carry the sun's shadows as volumetric light."},
   "feat(runtime): a TimeOfDay component moves the sun and the moon across the sky and draws the day, the dusk and the night":
     {"note":"A TimeOfDay component moves the sun and the moon across the sky, and a Sky Atmosphere effect draws the day, the dusk and the night."},
+  "fix(render): the dusk sky is dimmer and warmer, the moon is a disc, and an overcast sky hides the moon and stars":
+    {"internal":"Tunes the look of a sky effect added in the same unreleased change, so no creator has seen it before."},
+  "fix(docs): the Time of Day page links under the site's /docs base":
+    {"internal":"A link on a documentation page that had not been published yet."},
   "feat(runtime): a Weather component puts a scene under a preset, turns between presets and cycles through a sequence":
     {"note":"A Weather component puts a scene under clear, mist, overcast, rain or storm, turns between them and cycles by itself."},
   "feat(render): baked reflection probes follow the weather through the ambient light's reflection scale and saturation":
