@@ -86,6 +86,7 @@ const NOT_INSTANCE_FORMATS = {
   '.html': 'a page hosting the built game',
   '.gitignore': 'version control, not content',
   '.png': 'a texture',
+  '.jpg': 'a texture',
   '.svg': 'editable vector artwork; component instances belong to its consuming scene',
   '.ktx2': 'a compressed texture',
   '.hdr': 'an environment map',
