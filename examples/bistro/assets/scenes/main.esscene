@@ -44,6 +44,13 @@
             "weight": 1,
             "effects": [
               {
+                "type": "taa",
+                "enabled": true,
+                "uniforms": {
+                  "u_blend": 0.1
+                }
+              },
+              {
                 "type": "ssao",
                 "enabled": true,
                 "uniforms": {
@@ -54,12 +61,58 @@
                 }
               },
               {
+                "type": "ssr",
+                "enabled": true,
+                "uniforms": {
+                  "u_intensity": 0.6,
+                  "u_maxDistance": 500,
+                  "u_thickness": 14,
+                  "u_floorBias": 1
+                }
+              },
+              {
+                "type": "heightFog",
+                "enabled": true,
+                "colors": {
+                  "u_fogColor": {
+                    "r": 0.72,
+                    "g": 0.78,
+                    "b": 0.86,
+                    "a": 1
+                  },
+                  "u_sunColor": {
+                    "r": 1,
+                    "g": 0.9,
+                    "b": 0.7,
+                    "a": 1
+                  }
+                },
+                "uniforms": {
+                  "u_density": 0.00004,
+                  "u_heightFalloff": 0.0008,
+                  "u_baseHeight": 0,
+                  "u_inscatter": 0.5,
+                  "u_sunAzimuth": 40,
+                  "u_sunElevation": 35,
+                  "u_skyFog": 0.6
+                }
+              },
+              {
+                "type": "autoExposure",
+                "enabled": true,
+                "uniforms": {
+                  "u_bias": 0.15,
+                  "u_minEV": -2,
+                  "u_maxEV": 2
+                }
+              },
+              {
                 "type": "colorGrade",
                 "enabled": true,
                 "uniforms": {
-                  "u_exposure": 0.1,
-                  "u_contrast": 1.04,
-                  "u_saturation": 1.08,
+                  "u_exposure": 0,
+                  "u_contrast": 1.08,
+                  "u_saturation": 1.1,
                   "u_temperature": 0,
                   "u_tint": 0
                 }

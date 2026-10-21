@@ -37,8 +37,6 @@ const v3 = ([x, y, z]) => ({ x, y, z });
 
 // How bright the sky is; the sun is the sky's own, so it is scaled back up to keep its strength.
 const SKY = Number(process.env.SKY ?? 1.6);
-/** Stops of exposure ahead of the output transform. */
-const EXPOSURE = Number(process.env.EXPOSURE ?? -0.8);
 // The cafe corner and the scooter from across the street, at the height of a first-floor window (centimetres).
 const EYE = [-300, 570, 1460];
 const TARGET = [-250, 175, -40];
@@ -50,8 +48,12 @@ add('Camera', [
   tr(v3(EYE), aim({ x: TARGET[0] - EYE[0], y: TARGET[1] - EYE[1], z: TARGET[2] - EYE[2] })),
   { type: 'Camera', data: { projectionType: 0, fov: 33, nearPlane: 10, farPlane: 40000, isActive: true, priority: 0 } },
   { type: 'PostProcessVolume', data: { isGlobal: true, priority: 0, weight: 1, effects: [
+    { type: 'taa', enabled: true, uniforms: { u_blend: 0.1 } },
     { type: 'ssao', enabled: true, uniforms: { u_radius: 70, u_intensity: 1, u_bias: 0.12, u_power: 1.5 } },
-    { type: 'colorGrade', enabled: true, uniforms: { u_exposure: EXPOSURE, u_contrast: 1.04, u_saturation: 1.08, u_temperature: 0, u_tint: 0 } },
+    { type: 'ssr', enabled: true, uniforms: { u_intensity: 0.6, u_maxDistance: 500, u_thickness: 14, u_floorBias: 1 } },
+    { type: 'heightFog', enabled: true, colors: { u_fogColor: { r: 0.72, g: 0.78, b: 0.86, a: 1 }, u_sunColor: { r: 1, g: 0.9, b: 0.7, a: 1 } }, uniforms: { u_density: 4e-05, u_heightFalloff: 0.0008, u_baseHeight: 0, u_inscatter: 0.5, u_sunAzimuth: 40, u_sunElevation: 35, u_skyFog: 0.6 } },
+    { type: 'autoExposure', enabled: true, uniforms: { u_bias: 0.15, u_minEV: -2, u_maxEV: 2 } },
+    { type: 'colorGrade', enabled: true, uniforms: { u_exposure: 0, u_contrast: 1.08, u_saturation: 1.1, u_temperature: 0, u_tint: 0 } },
     { type: 'bloom', enabled: true, uniforms: { u_threshold: 0.9, u_intensity: 0.5, u_radius: 1.2 } },
     { type: 'fxaa', enabled: true, uniforms: { u_intensity: 1 } },
   ] } },
