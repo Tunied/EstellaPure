@@ -251,6 +251,19 @@ registerEffect({
 });
 
 registerEffect({
+    type: 'taa',
+    label: 'Temporal Anti-Aliasing',
+    factory: () => postProcessEffects.createTaa(),
+    // One knob: how much of each frame is the new one. The camera shift, the history
+    // and last frame's camera are the engine's, not the effect's — they are not settings.
+    uniforms: [
+        // Lower is smoother and slower to follow a change; 1 is no accumulation at all,
+        // which is what a blend toward "no effect" fades to.
+        { name: 'u_blend', label: 'Blend', min: 0.02, max: 1, step: 0.01, defaultValue: 0.1, neutralValue: 1 },
+    ],
+});
+
+registerEffect({
     type: 'lutGrade',
     label: 'LUT Grade',
     factory: () => postProcessEffects.createLutGrade(),

@@ -179,6 +179,7 @@ void PostProcessPipeline::shutdown() {
     for (auto& pass : screenPasses_) releasePassResources(pass);
     passes_.clear();
     screenPasses_.clear();
+    temporal_.clear();
 
     auto* device = &device_;
     if (screen_quad_vbo_ != BufferHandle::Invalid && device) {
@@ -225,6 +226,8 @@ void PostProcessPipeline::resize(u32 width, u32 height) {
     // handed out again — they would just sit there holding memory.
     if (graph_) graph_->releasePool();
     sceneResource_ = rg::kNoResource;
+    // History at the old size names texels this picture no longer has.
+    temporal_.clear();
 
     ensureGraph();
 
@@ -273,6 +276,89 @@ void PostProcessPipeline::setPassScale(const std::string& passName, f32 scale) {
 
 void PostProcessPipeline::setPassContinuesEffect(const std::string& passName) {
     if (auto* pass = findPass(passName)) pass->continuesEffect = true;
+}
+
+bool PostProcessPipeline::passIsTemporal(const PostProcessPass& pass) {
+    const MaterialUniformLayout* layout = context_.materials().layoutFor(pass.shader);
+    if (!layout) return false;
+    for (const auto& slot : layout->textures) {
+        if (slot.name == "u_history") return true;
+    }
+    return false;
+}
+
+bool PostProcessPipeline::temporalActive() {
+    if (!initialized_ || bypass_) return false;
+    for (const auto& pass : passes_) {
+        if (pass.enabled && passIsTemporal(pass)) return true;
+    }
+    return false;
+}
+
+namespace {
+/// Van der Corput in @p base: the low-discrepancy sequence a jitter walks the pixel with.
+f32 halton(u32 index, u32 base) {
+    f32 f = 1.0f, r = 0.0f;
+    while (index > 0) {
+        f /= static_cast<f32>(base);
+        r += f * static_cast<f32>(index % base);
+        index /= base;
+    }
+    return r;
+}
+/// Samples before the pattern repeats. Eight covers a pixel evenly enough that the
+/// accumulated image is stable, and repeats fast enough to settle in a few frames.
+constexpr u32 kJitterPhases = 8;
+}  // namespace
+
+glm::vec2 PostProcessPipeline::beginTemporalView(const glm::mat4& viewProjection, u64 key) {
+    TemporalState& state = temporal_[key];
+    temporalKey_ = key;
+    if (state.frame > 0) state.previous = state.current;
+    else state.previous = viewProjection;
+    state.current = viewProjection;
+    ++state.frame;
+    // A chain that did not write last frame leaves history of a picture this one no
+    // longer follows (a camera that was off, a frame the host skipped).
+    if (state.writtenFrame + 1 != state.frame) state.valid = false;
+    const u32 phase = (state.frame % kJitterPhases) + 1;
+    const f32 jx = halton(phase, 2) - 0.5f;
+    const f32 jy = halton(phase, 3) - 0.5f;
+    const f32 w = static_cast<f32>(std::max(width_, 1u));
+    const f32 h = static_cast<f32>(std::max(height_, 1u));
+    return {jx * 2.0f / w, jy * 2.0f / h};
+}
+
+PostProcessPipeline::TemporalState* PostProcessPipeline::prepareTemporal() {
+    auto it = temporal_.find(temporalKey_);
+    // Never begun: nothing shifted this frame's picture, and nothing is remembered.
+    if (it == temporal_.end() || it->second.frame == 0) return nullptr;
+    TemporalState& state = it->second;
+    if (state.history[0] && state.width == width_ && state.height == height_
+        && state.format == interFormat()) {
+        return &state;
+    }
+    for (auto& fbo : state.history) {
+        FramebufferSpec spec;
+        spec.colorFormat = interFormat();
+        spec.width = width_;
+        spec.height = height_;
+        spec.depthStencil = false;
+        // The reprojected read lands between texels, so it wants the filter.
+        spec.linearFilter = true;
+        fbo = Framebuffer::create(device_, spec);
+        if (!fbo) {
+            ES_LOG_ERROR("PostProcessPipeline: Failed to create a temporal history target");
+            state.history[0].reset();
+            state.history[1].reset();
+            return nullptr;
+        }
+    }
+    state.width = width_;
+    state.height = height_;
+    state.format = interFormat();
+    state.valid = false;
+    return &state;
 }
 
 void PostProcessPipeline::releasePassResources(PostProcessPass& pass) {
@@ -472,6 +558,20 @@ void PostProcessPipeline::renderPass(PostProcessPass& pass, const rg::PassContex
     // layout when the effect compiled. Resolution-style inputs come from the
     // injected u_viewport, so nothing per-pass remains loose.
     const MaterialUniformLayout* layout = context_.materials().layoutFor(pass.shader);
+    TemporalState* temporal = nullptr;
+    if (pass.temporal) {
+        if (auto it = temporal_.find(temporalKey_); it != temporal_.end()) temporal = &it->second;
+    }
+    if (temporal) {
+        // The previous picture's camera, as columns: a world point times it is where
+        // that point was one frame ago. Re-sent each frame because it is each frame's.
+        for (int c = 0; c < 4; ++c) {
+            pass.vec4Uniforms["u_prevViewProjection" + std::to_string(c)] =
+                glm::vec4(temporal->previous[c]);
+        }
+        pass.floatUniforms["u_historyValid"] = temporal->valid ? 1.0f : 0.0f;
+        pass.paramDirty = true;
+    }
     if (layout) {
         if (layout->blockSize > 0) {
             if (pass.paramDirty || pass.paramBytes.size() < layout->blockSize) {
@@ -517,6 +617,9 @@ void PostProcessPipeline::renderPass(PostProcessPass& pass, const rg::PassContex
         // an unset param gets its declared default (white/black/flatnormal).
         for (const auto& slot : layout->textures) {
             TextureHandle gpu = context_.materials().builtinDefault(slot.defaultTexture);
+            if (temporal && slot.name == "u_history" && temporal->history[temporal->readIndex]) {
+                gpu = temporal->history[temporal->readIndex]->getColorAttachment();
+            }
             for (const auto& [name, glId] : pass.textureUniforms) {
                 if (name == slot.name && glId != 0) { gpu = TextureHandle{glId}; break; }
             }
@@ -626,8 +729,25 @@ void PostProcessPipeline::runChain(std::vector<PostProcessPass>& passes, rg::Res
         // chain's size — so it draws full-size whatever fraction it asked for.
         rg::TargetDesc writeDesc = (i == lastEnabled) ? blitDesc : desc;
         if (i != lastEnabled) writeDesc.scale = pass.scale;
-        node.write = graph_->createTarget(writeDesc);
-        node.execute = [this, &pass](const rg::PassContext& ctx) { renderPass(pass, ctx); };
+        // A temporal pass writes the history target itself, so that what it wrote is
+        // still there next frame, and the passes after it read it from there.
+        TemporalState* temporal = (&passes == &passes_ && passIsTemporal(pass)) ? prepareTemporal() : nullptr;
+        pass.temporal = temporal != nullptr;
+        if (temporal) {
+            const u32 write = temporal->readIndex ^ 1u;
+            Framebuffer& target = *temporal->history[write];
+            node.write = graph_->importTarget(target.handle(), width_, height_, /*output=*/false,
+                                              target.getColorAttachment());
+            node.execute = [this, &pass, temporal, write](const rg::PassContext& ctx) {
+                renderPass(pass, ctx);
+                temporal->readIndex = write;
+                temporal->valid = true;
+                temporal->writtenFrame = temporal->frame;
+            };
+        } else {
+            node.write = graph_->createTarget(writeDesc);
+            node.execute = [this, &pass](const rg::PassContext& ctx) { renderPass(pass, ctx); };
+        }
         input = node.write;
         graph_->addPass(std::move(node));
     }

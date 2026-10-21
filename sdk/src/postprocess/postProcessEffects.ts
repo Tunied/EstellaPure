@@ -131,6 +131,158 @@ fn sampleLut(c : vec3f) -> vec3f {
         return Material.compileShader(source);
     },
 
+    /**
+     * Temporal anti-aliasing. The engine shifts the picture by a sub-pixel amount each
+     * frame and keeps this pass's last output as `u_history`; this blends the two.
+     *
+     * Where last frame's point was comes from the depth buffer: un-project the pixel to
+     * the world, project it with last frame's camera. That is exact for everything the
+     * camera moves past and wrong for an object that moved by itself — there the history
+     * is a different surface, so it is clipped into the colours the neighbourhood holds,
+     * which hides the mismatch instead of smearing it. The blend is done in a space where
+     * a bright pixel weighs less, or one firefly outlives the frame it appeared in.
+     */
+    createTaa(): ShaderHandle {
+        const GLSL = `
+vec3 toYCoCg(vec3 c) {
+    return vec3(0.25 * c.r + 0.5 * c.g + 0.25 * c.b, 0.5 * c.r - 0.5 * c.b, -0.25 * c.r + 0.5 * c.g - 0.25 * c.b);
+}
+vec3 fromYCoCg(vec3 c) {
+    return vec3(c.x + c.y - c.z, c.x + c.z, c.x - c.y - c.z);
+}
+/// Weighs a pixel by 1 / (1 + peak): an HDR highlight cannot dominate the average.
+vec3 compress(vec3 c) { return c / (1.0 + max(max(c.r, c.g), c.b)); }
+vec3 expand(vec3 c) { return c / max(1.0 - max(max(c.r, c.g), c.b), 1e-4); }`;
+        const WGSL = `
+fn toYCoCg(c : vec3f) -> vec3f {
+    return vec3f(0.25 * c.r + 0.5 * c.g + 0.25 * c.b, 0.5 * c.r - 0.5 * c.b, -0.25 * c.r + 0.5 * c.g - 0.25 * c.b);
+}
+fn fromYCoCg(c : vec3f) -> vec3f {
+    return vec3f(c.x + c.y - c.z, c.x + c.z, c.x - c.y - c.z);
+}
+fn compress(c : vec3f) -> vec3f { return c / (1.0 + max(max(c.r, c.g), c.b)); }
+fn expand(c : vec3f) -> vec3f { return c / max(1.0 - max(max(c.r, c.g), c.b), 1e-4); }`;
+        const source = `#pragma shader "PP TAA"
+#pragma version 300 es
+#pragma domain PostProcess
+#pragma param u_blend float default(0.1) range(0.02,1)
+#pragma param u_historyValid float default(0) range(0,1)
+#pragma param u_prevViewProjection0 color default(1,0,0,0)
+#pragma param u_prevViewProjection1 color default(0,1,0,0)
+#pragma param u_prevViewProjection2 color default(0,0,1,0)
+#pragma param u_prevViewProjection3 color default(0,0,0,1)
+#pragma param u_history texture default(black)
+
+#pragma fragment
+precision highp float;
+
+in vec2 v_texCoord;
+uniform sampler2D u_texture;
+uniform highp sampler2D u_sceneDepth;
+out vec4 fragColor;
+
+${SSAO_GLSL}
+${GLSL}
+
+void main() {
+    ivec2 size = textureSize(u_texture, 0);
+    vec2 texel = 1.0 / vec2(size);
+    vec4 cur = texture(u_texture, v_texCoord);
+
+    // The neighbourhood the history has to look like: its mean and spread, in a
+    // space where colour and brightness are apart.
+    vec3 m1 = vec3(0.0);
+    vec3 m2 = vec3(0.0);
+    for (int y = -1; y <= 1; ++y) {
+        for (int x = -1; x <= 1; ++x) {
+            vec3 s = toYCoCg(compress(texture(u_texture, v_texCoord + vec2(float(x), float(y)) * texel).rgb));
+            m1 += s;
+            m2 += s * s;
+        }
+    }
+    vec3 mean = m1 / 9.0;
+    vec3 sigma = sqrt(max(m2 / 9.0 - mean * mean, vec3(0.0)));
+    vec3 curY = toYCoCg(compress(cur.rgb));
+
+    ivec2 dsize = textureSize(u_sceneDepth, 0);
+    float d = depthAt(screenTexel(v_texCoord, dsize), dsize);
+    vec3 world = worldFromDepth(v_texCoord, d);
+    vec4 prev = mat4(u_prevViewProjection0, u_prevViewProjection1,
+                     u_prevViewProjection2, u_prevViewProjection3) * vec4(world, 1.0);
+    vec2 puv = prev.xy / max(prev.w, 1e-6) * 0.5 + 0.5;
+    bool seen = u_historyValid > 0.5 && prev.w > 1e-6
+             && puv.x >= 0.0 && puv.x <= 1.0 && puv.y >= 0.0 && puv.y <= 1.0;
+    if (!seen) { fragColor = cur; return; }
+
+    vec3 hist = toYCoCg(compress(texture(u_history, puv).rgb));
+    // Pulled toward the neighbourhood's mean until it sits inside the box the
+    // current frame spans: what it clips is what no longer matches.
+    vec3 lo = mean - sigma * 1.25;
+    vec3 hi = mean + sigma * 1.25;
+    vec3 dir = hist - mean;
+    vec3 over = max(abs(dir) / max((hi - lo) * 0.5, vec3(1e-5)), vec3(1.0));
+    hist = mean + dir / max(max(over.x, over.y), over.z);
+
+    // A fast-moving pixel trusts the new frame more: its history is thin.
+    float speed = length((puv - v_texCoord) / texel);
+    float blend = mix(u_blend, min(u_blend * 4.0, 1.0), clamp(speed, 0.0, 1.0));
+    vec3 outY = mix(hist, curY, blend);
+    fragColor = vec4(expand(fromYCoCg(outY)), cur.a);
+}
+#pragma end
+
+#pragma fragment wgsl
+${SSAO_WGSL}
+${WGSL}
+
+@fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
+    let size = vec2i(textureDimensions(t0, 0));
+    let texel = 1.0 / vec2f(size);
+    let cur = textureSampleLevel(t0, s0, v.v_texCoord, 0.0);
+
+    var m1 = vec3f(0.0);
+    var m2 = vec3f(0.0);
+    for (var y : i32 = -1; y <= 1; y = y + 1) {
+        for (var x : i32 = -1; x <= 1; x = x + 1) {
+            let s = toYCoCg(compress(textureSampleLevel(t0, s0, v.v_texCoord + vec2f(f32(x), f32(y)) * texel, 0.0).rgb));
+            m1 = m1 + s;
+            m2 = m2 + s * s;
+        }
+    }
+    let mean = m1 / 9.0;
+    let sigma = sqrt(max(m2 / 9.0 - mean * mean, vec3f(0.0)));
+    let curY = toYCoCg(compress(cur.rgb));
+
+    let dsize = vec2i(textureDimensions(t7, 0));
+    let d = depthAt(screenTexel(v.v_texCoord, dsize), dsize);
+    let world = worldFromDepth(v.v_texCoord, d);
+    let vp = mat4x4f(mc.u_prevViewProjection0, mc.u_prevViewProjection1,
+                     mc.u_prevViewProjection2, mc.u_prevViewProjection3);
+    let prev = vp * vec4f(world, 1.0);
+    // This device's uv runs down the rows, so clip y is flipped on the way back.
+    let pw = max(prev.w, 1e-6);
+    let puv = vec2f(prev.x / pw * 0.5 + 0.5, 0.5 - prev.y / pw * 0.5);
+    let seen = mc.u_historyValid > 0.5 && prev.w > 1e-6
+            && puv.x >= 0.0 && puv.x <= 1.0 && puv.y >= 0.0 && puv.y <= 1.0;
+    if (!seen) { return cur; }
+
+    var hist = toYCoCg(compress(textureSampleLevel(u_history, u_history_s, puv, 0.0).rgb));
+    let lo = mean - sigma * 1.25;
+    let hi = mean + sigma * 1.25;
+    let dir = hist - mean;
+    let over = max(abs(dir) / max((hi - lo) * 0.5, vec3f(1e-5)), vec3f(1.0));
+    hist = mean + dir / max(max(over.x, over.y), over.z);
+
+    let speed = length((puv - v.v_texCoord) / texel);
+    let blend = mix(mc.u_blend, min(mc.u_blend * 4.0, 1.0), clamp(speed, 0.0, 1.0));
+    let outY = mix(hist, curY, blend);
+    return vec4f(expand(fromYCoCg(outY)), cur.a);
+}
+#pragma end
+`;
+        return Material.compileShader(source);
+    },
+
     createBlur(): ShaderHandle {
         const source = `#pragma shader "PP Blur"
 #pragma version 300 es

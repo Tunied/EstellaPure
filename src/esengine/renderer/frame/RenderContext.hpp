@@ -149,6 +149,14 @@ public:
      *          the device's. This is the one place that conversion happens.
      */
     void updateCameraConstants(const glm::mat4& viewProjection);
+    /**
+     * @brief The same, with the picture shifted by @p jitterNdc (a fraction of the
+     *        clip square) — what temporal anti-aliasing samples a different
+     *        sub-pixel position with each frame.
+     * @details Only the UPLOADED matrix moves. The engine's own copy, which culling
+     *          and the camera position are read from, is the unshifted one.
+     */
+    void updateCameraConstants(const glm::mat4& viewProjection, const glm::vec2& jitterNdc);
 
     /**
      * @brief Point the frame at a pass whose projection already suits the device.

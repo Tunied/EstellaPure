@@ -63,6 +63,10 @@ struct PostProcessPass {
     /// (0 = input, 1 = scene).
     std::vector<std::pair<std::string, u32>> textureUniforms;
 
+    /// Set by the chain when the pass keeps its output for the next frame (its
+    /// shader declares `u_history`); the pass then reads the previous frame there.
+    bool temporal = false;
+
     /// Fraction of the chain's size this pass draws at; the pass consuming it
     /// upsamples. The graph resolves the fraction, and u_viewport still reports
     /// the CANVAS, so a fractional pass must read its extent off its texture.
@@ -199,6 +203,25 @@ public:
     void declareChain();
     /** Closes the capture once the graph has run it. */
     void chainDone();
+
+    /**
+     * @brief Whether this frame's chain holds a temporal effect.
+     *
+     * @details An effect is temporal when its shader declares a `u_history` texture:
+     *          the engine then keeps the pass's last output for it and shifts the
+     *          picture by a sub-pixel amount each frame. The pass list is the
+     *          answer, so there is no flag to disagree with it.
+     */
+    bool temporalActive();
+
+    /**
+     * @brief Starts a frame of the temporal view @p key, and answers how far to shift it.
+     *
+     * @param key Names the view whose history this is — two cameras must not
+     *        blend into one history. 0 for the screen.
+     * @return The shift in clip-square units, to hand to the camera constants.
+     */
+    glm::vec2 beginTemporalView(const glm::mat4& viewProjection, u64 key);
 
     /**
      * @brief Checks if pipeline is initialized
@@ -453,6 +476,26 @@ private:
     bool present_required_ = false;
     u32 output_vp_w_ = 0;
     u32 output_vp_h_ = 0;
+
+    /// What a temporal pass remembers of one view between frames.
+    struct TemporalState {
+        glm::mat4 current{1.0f};
+        glm::mat4 previous{1.0f};
+        u32 frame = 0;
+        /// The frame whose chain last wrote the history; a gap means the history
+        /// is of a picture this one no longer follows.
+        u32 writtenFrame = 0;
+        Unique<Framebuffer> history[2];
+        u32 readIndex = 0;
+        bool valid = false;
+        u32 width = 0;
+        u32 height = 0;
+        GfxPixelFormat format = GfxPixelFormat::RGBA8;
+    };
+    std::unordered_map<u64, TemporalState> temporal_;
+    u64 temporalKey_ = 0;
+    bool passIsTemporal(const PostProcessPass& pass);
+    TemporalState* prepareTemporal();
 
     Unique<Framebuffer> screenFBO_;
     bool screenFBOCreated_ = false;

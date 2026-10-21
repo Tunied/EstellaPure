@@ -22,6 +22,7 @@ several can stack in one frame at no extra target cost beyond the passes.
 | `chromaticAberration` | RGB fringing | `intensity` |
 | `blur` | Gaussian blur | `intensity` |
 | `fxaa` | Fast anti-aliasing | `intensity` |
+| `taa` | Temporal anti-aliasing: edges smoothed over several frames | `blend` |
 | `lensDistortion` | Barrel / pincushion warp | `strength`, `zoom` |
 | `pixelate` | Block quantization | `pixelSize` |
 | `outline` | Ink-edge outlines (Sobel edge darkening) | `intensity`, `threshold`, `thickness` |
@@ -35,6 +36,23 @@ Android, desktop, Steam) runs on. `createWebApp({ msaaSamples })` sizes it, and
 `msaaSamples: 1` turns it off where the fill cost matters more than the edges.
 `fxaa` is the cheaper, blurrier alternative for devices where even one sample
 extra is too much.
+
+### Temporal anti-aliasing
+
+`taa` smooths what MSAA cannot reach — shader aliasing and thin geometry — by
+accumulating frames. While the effect is in the chain the engine shifts the picture by
+a different sub-pixel amount each frame (eight positions, repeating), keeps the effect's
+last output, and blends the two. Where a pixel was last frame comes from the depth
+buffer: the pixel is un-projected to the world and projected with the previous
+frame's camera, so a moving camera keeps its history. `blend` is the share of each
+frame that is new: lower is smoother and slower to follow a change, 1 is no accumulation.
+
+Put it **first** in the chain, so everything after it sees the settled image, and keep
+`msaaSamples` on — the two add. Each camera keeps its own history. What it does not
+know is how an object moves by itself: an object that moves is a different surface
+from its history, which is clipped to the colours around it, so fast movers can look
+slightly soft. It needs scene depth like SSAO does, so on WebGPU it cannot run with
+multisampling on a scene that has no depth resolve.
 
 The uniform names above are the friendly labels; **in code they are `u_`-prefixed**
 (`u_intensity`, `u_exposure`, …). Most effects are identity at their defaults

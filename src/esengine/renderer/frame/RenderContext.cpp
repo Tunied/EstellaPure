@@ -166,6 +166,17 @@ void RenderContext::updateCameraConstants(const glm::mat4& viewProjection) {
                          viewProjection);
 }
 
+void RenderContext::updateCameraConstants(const glm::mat4& viewProjection, const glm::vec2& jitterNdc) {
+    // Added to clip xy in proportion to w, so it is the same shift in NDC under a
+    // perspective divide and under none: row 0 and 1 each gain a multiple of row 3.
+    glm::mat4 jittered = viewProjection;
+    for (int col = 0; col < 4; ++col) {
+        jittered[col][0] += jitterNdc.x * viewProjection[col][3];
+        jittered[col][1] += jitterNdc.y * viewProjection[col][3];
+    }
+    uploadFrameConstants(toClipDepthRange(jittered, device_.clipDepthRange()), viewProjection);
+}
+
 void RenderContext::updateFrameConstants(const glm::mat4& viewProjection) {
     uploadFrameConstants(viewProjection, viewProjection);
 }

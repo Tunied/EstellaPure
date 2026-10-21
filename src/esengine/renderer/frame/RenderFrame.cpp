@@ -220,7 +220,16 @@ void RenderFrame::resize(u32 width, u32 height) {
 // The scene pass's body. The graph has bound the target and set the camera's
 // viewport; this is the draw and the constants it needs current.
 void RenderFrame::drawScene() {
-    context_.updateCameraConstants(view_projection_);
+    // A temporal effect in the chain asks for the picture to be shifted by a different
+    // sub-pixel amount each frame, so its history samples what a single frame cannot.
+    // The scene only: the overlay and the shadow maps are drawn with constants of their own.
+    glm::vec2 jitter{0.0f};
+#ifdef ES_ENABLE_POSTPROCESS
+    if (post_process_ && post_process_->isEngaged() && post_process_->temporalActive()) {
+        jitter = post_process_->beginTemporalView(view_projection_, current_target_);
+    }
+#endif
+    context_.updateCameraConstants(view_projection_, jitter);
     // Where THIS camera's pixels sit inside the 2D shadow mask. Per camera because the
     // mask is screen space: two cameras drew into two parts of one target, and a
     // fragment has to read the part its own camera filled.

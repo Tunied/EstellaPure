@@ -21,6 +21,7 @@ Estella 通过 ping-pong 帧缓冲运行全屏后处理。加一个 `PostProcess
 | `chromaticAberration` | RGB 色散 | `intensity` |
 | `blur` | 高斯模糊 | `intensity` |
 | `fxaa` | 快速抗锯齿 | `intensity` |
+| `taa` | 时间性抗锯齿:边缘跨多帧平滑 | `blend` |
 | `lensDistortion` | 桶形 / 枕形畸变 | `strength`、`zoom` |
 | `pixelate` | 块状量化 | `pixelSize` |
 | `outline` | 墨线描边(Sobel 边缘压暗) | `intensity`、`threshold`、`thickness` |
@@ -32,6 +33,18 @@ Estella 通过 ping-pong 帧缓冲运行全屏后处理。加一个 `PostProcess
 所有原生包(iOS、Android、桌面、Steam)跑的都是 WebGPU。用
 `createWebApp({ msaaSamples })` 调它的大小,`msaaSamples: 1` 在填充率比边缘更要紧的设备上关掉它。
 `fxaa` 是更便宜也更糊的替代品,留给连多一个采样都吃不下的设备。
+
+### 时间性抗锯齿
+
+`taa` 抹平 MSAA 够不到的东西——着色锯齿和细几何——办法是跨帧累积。效果在链路里时,引擎每帧把画面
+偏移一个不同的亚像素量(八个位置循环),保留这个效果上一帧的输出,再把两者混合。像素上一帧在哪,
+由深度缓冲得出:把像素反投影到世界,再用上一帧的相机投影回去,所以相机移动时历史还在。`blend`
+是每帧里新画面的占比:越低越平滑、对变化跟得越慢,1 就是不累积。
+
+把它放在链路**最前**,后面的效果看到的就是稳定后的画面,同时保留 `msaaSamples`——两者叠加。
+每个相机有自己的历史。它不知道物体自己怎么动:自己动的物体与它的历史是不同的表面,历史会被
+夹进周围的颜色里,所以快速移动的物体可能略软。它和 SSAO 一样要读场景深度,因此在 WebGPU 上,
+没有深度解析的多重采样场景里无法运行。
 
 上面是友好标签;**在代码里它们带 `u_` 前缀**(`u_intensity`、`u_exposure`……)。多数效果
 在默认值下是恒等(`colorGrade`、`blur`、`chromaticAberration`、`fxaa`、`lensDistortion`、

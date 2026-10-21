@@ -2471,4 +2471,6 @@ export const NOTED = {
     {"note":"Imported models can generate cheaper levels of detail automatically."},
   "feat(assets): meshes with fewer than 65536 vertices are written with 16-bit indices":
     {"note":"Newly imported meshes are about 9% smaller on disk."},
+  "feat(render): a Temporal Anti-Aliasing effect accumulates frames, with the camera shifted a sub-pixel amount each one":
+    {"note":"A Temporal Anti-Aliasing post-process effect smooths edges across frames."},
 };

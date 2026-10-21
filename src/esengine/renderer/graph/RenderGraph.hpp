@@ -155,8 +155,12 @@ public:
      *          here did not contribute to the image and is dropped. Set output
      *          false for a persistent intermediate capture: importing it must
      *          not move the final output away from the scene or its post stack.
+     *          @p readable is the colour texture behind @p target, so a later pass
+     *          can read what this one wrote — a history buffer is imported to be
+     *          written and then sampled, by the next pass and by the next frame.
      */
-    ResourceId importTarget(FramebufferHandle target, u32 width, u32 height, bool output = true);
+    ResourceId importTarget(FramebufferHandle target, u32 width, u32 height, bool output = true,
+                            TextureHandle readable = TextureHandle::Invalid);
 
     /** A target the graph allocates from the pool and recycles after its last read. */
     ResourceId createTarget(const TargetDesc& desc);
