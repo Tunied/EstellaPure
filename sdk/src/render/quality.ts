@@ -27,10 +27,11 @@ export interface QualityProfile {
     postProcess: boolean;
     ssao: boolean;
     /**
-     * Post-process effects this level leaves out, each named by what its passes' names start with
-     * (`ssr`, `taa`, `depthOfField`, `lightShafts` …), compared without regard to case. The expensive ones are
-     * the ones a weak device has no use for: they are measured per effect (`fx-cost` in the editor checks), and
-     * what a level skips follows from what a frame on that device can afford.
+     * Post-process effects this level leaves out, each named by its effect type (`ssr`, `taa`, `depthOfField`,
+     * `lightShafts`, `autoExposure` …), compared without regard to case. An effect is all of its passes: a
+     * multi-pass effect is skipped whole, however its passes are named. The expensive ones are the ones a weak
+     * device has no use for — they are measured per effect (`fx-cost` in the editor checks) — so what a level
+     * skips follows from what a frame on that device can afford.
      */
     skipEffects: readonly string[];
 }
@@ -151,6 +152,16 @@ function resolveProfile(level: QualityLevel, value: unknown): QualityProfile {
                 .map((e) => e.trim()).slice(0, 32)
             : base.skipEffects,
     };
+}
+
+/** A level's profile as the engine will use it: the level's own defaults with a project's overrides on top. */
+export function resolveQualityProfile(level: QualityLevel, overrides?: Partial<QualityProfile>): QualityProfile {
+    return resolveProfile(level, overrides);
+}
+
+/** What a level is before a project says anything about it. */
+export function defaultQualityProfile(level: QualityLevel): QualityProfile {
+    return PROFILES[level];
 }
 
 function matches(rule: DeviceQualityRule, info: DeviceQualityInfo): boolean {

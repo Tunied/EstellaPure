@@ -65,6 +65,21 @@ export function getEffectDef(type: string): EffectDef | undefined {
     return effectRegistry.get(type);
 }
 
+/**
+ * The names of every pass an effect puts in the chain, in order: its sub-passes' for a multi-pass effect
+ * (`ssao` is four, named `ssao_ao`, `ssao_blur_x` …; `autoExposure` is `ae_measure`, `ae_adapt`,
+ * `ae_apply`), its own type otherwise. Empty for a type nobody registered. What a quality level that leaves an
+ * effect out has to remove, and what no guess from the effect's name would find.
+ */
+export function effectPassNames(type: string): string[] {
+    const wanted = type.toLowerCase();
+    for (const def of effectRegistry.values()) {
+        if (def.type.toLowerCase() !== wanted) continue;
+        return def.multiPass ? def.multiPass.map((pass) => pass.name) : [def.type];
+    }
+    return [];
+}
+
 export function getEffectTypes(): string[] {
     return Array.from(effectRegistry.keys());
 }

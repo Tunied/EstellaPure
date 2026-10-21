@@ -8,6 +8,7 @@ import { handleWasmError } from '../wasm/wasmError';
 import { WasmBridge } from '../wasm/WasmBridge';
 import { PostProcessStack, PostProcessState } from './PostProcessStack';
 import type { QualityProfile } from '../render/quality';
+import { qualityPassAllowed } from './qualityFilter';
 
 /**
  * The post-process entry points as a core that HAS them answers them. Named, not
@@ -207,12 +208,7 @@ export class PostProcessAPI {
     }
 
     private allowQualityPass_ = (name: string): boolean => {
-        const q = this.qualityFilter_;
-        if (q === null) return true;
-        if (!q.postProcess) return false;
-        const lower = name.toLowerCase();
-        if (!q.ssao && lower.startsWith('ssao')) return false;
-        return !q.skipEffects.some((skipped) => lower.startsWith(skipped.toLowerCase()));
+        return qualityPassAllowed(this.qualityFilter_, name);
     };
 
     // -- per-App state (stacks / bindings / screen stack) --------------------

@@ -114,3 +114,32 @@ describe('dynamic resolution', () => {
         expect(staticQ.renderScale).toBe(0.75);
     });
 });
+
+describe('what a quality level lets the chain run', () => {
+    const level = (skipEffects: string[], extra: object = {}) => new QualityController({
+        mode: 'low', profiles: { low: { skipEffects, ...extra } },
+    }).profile;
+
+    it('removes every pass of a multi-pass effect, however its passes are named', async () => {
+        const { qualityPassAllowed } = await import('../src/postprocess/qualityFilter');
+        const profile = level(['autoExposure', 'ssao']);
+        for (const pass of ['ae_measure', 'ae_adapt', 'ae_apply', 'ssao_ao', 'ssao_blur_x', 'ssao_composite']) {
+            expect(qualityPassAllowed(profile, pass), pass).toBe(false);
+        }
+        expect(qualityPassAllowed(profile, 'bloom'), 'bloom').toBe(true);
+        expect(qualityPassAllowed(profile, 'ssr'), 'ssr').toBe(true);
+    });
+
+    it('keeps the old prefix reading for a name no effect answers to, and the ssao and post-process switches', async () => {
+        const { qualityPassAllowed } = await import('../src/postprocess/qualityFilter');
+        expect(qualityPassAllowed(level(['custom']), 'custom_pass')).toBe(false);
+        expect(qualityPassAllowed(level([], { ssao: false }), 'ssao_blur_y')).toBe(false);
+        expect(qualityPassAllowed(level([], { postProcess: false }), 'bloom')).toBe(false);
+        expect(qualityPassAllowed(null, 'anything')).toBe(true);
+    });
+
+    it('names the effects a level leaves out by type, ignoring case', async () => {
+        const { qualityPassAllowed } = await import('../src/postprocess/qualityFilter');
+        expect(qualityPassAllowed(level(['DepthOfField']), 'depthOfField')).toBe(false);
+    });
+});

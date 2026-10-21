@@ -1,0 +1,70 @@
+---
+title: Quality Levels
+description: Three levels of what the renderer spends — resolution, shadows, reflections, particles and which post-process effects run — edited one level at a time in Project Settings, chosen by hand or by device rules.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+A project can ship one picture and run it on a flagship phone and on a six-year-old one. **Quality levels** are how:
+three profiles — **Low, Medium, High** — each saying what the renderer spends at that level. The project picks one
+(or lets the device pick), and a game that is too slow for its level steps its resolution down on its own.
+
+## Choosing the level
+
+**Settings → Project → Rendering → Device Quality → Quality level:**
+
+| Mode | Meaning |
+|---|---|
+| Off | No quality management. The project renders as authored. (The default.) |
+| Low / Medium / High | That level, on every device. |
+| Auto | The level comes from the device: the first [device rule](#device-rules) that matches, otherwise memory and core count. |
+
+**Dynamic resolution** lowers the scene's resolution under GPU pressure, down to the level's *Min render scale*, and
+brings it back when there is room; the UI stays at display resolution. **Target frame rate** is the frame time it works
+to.
+
+## What a level holds
+
+**Quality Levels → Editing level** picks which level the rows below show and change. They are grouped by what they spend:
+
+| Group | Settings |
+|---|---|
+| Rendering | Render scale, Min render scale, MSAA |
+| Shadows | Atlas size, Cell size, Cascades, Distance |
+| Reflections and particles | Planar reflection scale, max size and updates per second, Particle limit |
+| Post-processing | A master switch, and a tick for each effect that runs at this level |
+
+Each level starts from the engine's own values for it, and **only what you change is saved** in `project.esproject`
+under `features.rendering.quality.profiles.<level>`. A default the engine improves later reaches a project that never
+touched it, and a row set back to its level's default is not a difference.
+
+<Aside type="note">
+A row's "default" is the default of the level it is showing, so the same number can be a change at Low and the default
+at Medium.
+</Aside>
+
+## Leaving effects out
+
+Every post-process effect the engine has is in the list, ticked where the level runs it. An unticked effect is skipped
+at that level wherever a camera's volume asks for it — and all of it: an effect with several passes, such as Ambient
+Occlusion or Auto Exposure, is removed whole. The manifest holds the effects left out by type:
+
+```json
+"quality": { "mode": "auto", "profiles": { "low": { "skipEffects": ["ssr", "taa", "depthOfField"] } } }
+```
+
+By default Low leaves out reflections, temporal anti-aliasing, depth of field and light shafts; Medium leaves out
+reflections and depth of field; High leaves out nothing. These defaults follow the work each effect does per pixel; they
+are **not** measured on weak devices. The editor's `fx-cost` check measures each effect's cost on the machine it runs on,
+which is a way to find out what yours costs before choosing what a level skips.
+
+## Device rules
+
+Shown when the mode is Auto. Each row names a level and the conditions a device must meet: **Model contains**,
+**GPU contains**, **Max RAM** and **Max cores**, all of which must hold. The first row that matches decides the level. A
+row with no condition would match every device, so it must have one.
+
+## In code
+
+The same settings are `QualityConfig` — `QualityController`, `parseQualityConfig`, `resolveQualityProfile` and
+`defaultQualityProfile` build and read them — and the running level is the `Quality` resource.

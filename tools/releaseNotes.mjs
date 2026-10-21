@@ -2483,6 +2483,8 @@ export const NOTED = {
     {"note":"Auto Exposure and Depth of Field post-process effects are available."},
   "feat(render): a Rain effect with wet ground, puddles, ripples and splashes, and reflections that treat puddles as mirrors":
     {"note":"A Rain post-process effect adds falling rain, wet ground, puddles and ripples."},
+  "feat(editor): Settings edits the three quality levels, one at a time, effect by effect, and the device rules Auto chooses by":
+    {"note":"Settings → Project → Rendering edits each quality level, including which effects it runs."},
   "feat(render): the scene can draw a G-buffer beside its colour, and reflections read each surface's normal, roughness and metalness from it":
     {"note":"Reflections now know how rough and how metal each surface is, from a G-buffer the frame draws on request."},
 };
