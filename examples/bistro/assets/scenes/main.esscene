@@ -61,6 +61,25 @@
                 }
               },
               {
+                "type": "contactShadows",
+                "enabled": true,
+                "uniforms": {
+                  "u_intensity": 0.55,
+                  "u_length": 28,
+                  "u_thickness": 10
+                }
+              },
+              {
+                "type": "ssgi",
+                "enabled": true,
+                "uniforms": {
+                  "u_intensity": 0.9,
+                  "u_radius": 240,
+                  "u_thickness": 40,
+                  "u_maxBounce": 2.5
+                }
+              },
+              {
                 "type": "ssr",
                 "enabled": true,
                 "uniforms": {
@@ -88,13 +107,15 @@
                   }
                 },
                 "uniforms": {
-                  "u_density": 0.00004,
+                  "u_density": 4e-05,
                   "u_heightFalloff": 0.0008,
                   "u_baseHeight": 0,
                   "u_inscatter": 0.5,
                   "u_sunAzimuth": 40,
                   "u_sunElevation": 35,
-                  "u_skyFog": 0.6
+                  "u_skyFog": 0.6,
+                  "u_volumetric": 0.5,
+                  "u_volumeRange": 6000
                 }
               },
               {
@@ -68870,6 +68891,38 @@
               "z": 0.9580078125,
               "w": 0.713623046875
             }
+          }
+        }
+      ]
+    },
+    {
+      "id": 1150,
+      "name": "Weather",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "Weather",
+          "data": {
+            "preset": 0,
+            "target": -1,
+            "progress": 0,
+            "duration": 10,
+            "sequence": "clear,mist,rain,clear",
+            "hold": 8,
+            "drive": 127,
+            "soundSource": 0
           }
         }
       ]
