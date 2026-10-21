@@ -2467,6 +2467,8 @@ export const NOTED = {
     {"note":"The output transform has a Neutral option that keeps hue and saturation."},
   "feat(render): model highlights widen with how fast the vertex normal turns, so they stop sparkling":
     {"note":"Lit models no longer sparkle on rails, bevels and rounded trim."},
+  "feat(import): the editor's model import writes generated levels of detail":
+    {"internal":"The editor-side half of the generated-LOD import: the same setting and the same products as the pipeline's, which carries the note."},
   "feat(import): a model import can write simplified levels of detail and a LODGroup that swaps them in":
     {"note":"Imported models can generate cheaper levels of detail automatically."},
   "feat(assets): meshes with fewer than 65536 vertices are written with 16-bit indices":
@@ -2483,6 +2485,4 @@ export const NOTED = {
     {"note":"A Rain post-process effect adds falling rain, wet ground, puddles and ripples."},
   "feat(render): the scene can draw a G-buffer beside its colour, and reflections read each surface's normal, roughness and metalness from it":
     {"note":"Reflections now know how rough and how metal each surface is, from a G-buffer the frame draws on request."},
-  "feat(render): quality levels can leave out named post-process effects":
-    {"note":"Quality levels can now skip expensive post-process effects by name."},
 };
