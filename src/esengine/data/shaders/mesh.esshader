@@ -137,6 +137,14 @@ out highp vec3 v_worldPos;
 // there is worth several world units, which shadows the caster against itself.
 out highp vec4 v_shadowClip;
 #endif
+#ifdef ES_VELOCITY
+// Where this point is in the picture now and where it was one frame ago, as clip positions so the
+// fragment divides them: z/w is not affine across a triangle, and neither is xy/w. BOTH carry the shift
+// their own frame was drawn with: what the previous picture holds at a pixel is what stood at its
+// SHIFTED place, so the difference is exactly where in that picture to read.
+out highp vec4 v_velCur;
+out highp vec4 v_velPrev;
+#endif
 
 // A material's own vertex offset, for the shadow program built from this source on its behalf: the
 // caster has to bend where the lit surface does, or its shadow stands still. The assembler puts the
@@ -188,6 +196,18 @@ void main() {
 #ifdef SHADOW_DEPTH
     v_shadowClip = gl_Position;
 #endif
+#ifdef ES_VELOCITY
+    {
+        // This record is the motion pass's own: the tint texel carries the shift LAST frame was drawn with, and
+        // the four texels after the model are last frame's view-projection times last frame's model, as rows.
+        highp vec4 L = vec4(local, 1.0);
+        highp vec4 before = esInstanceTint();
+        v_velCur = gl_Position;
+        highp vec4 prev = vec4(dot(esInstanceTexel(4), L), dot(esInstanceTexel(5), L),
+                               dot(esInstanceTexel(6), L), dot(esInstanceTexel(7), L));
+        v_velPrev = vec4(prev.xy + before.xy * prev.w, prev.zw);
+    }
+#endif
     // Only the vertex stage has an instance index, and every instance of a
     // merged run reads its own coefficients.
     v_probeSlot = float(ES_INSTANCE_ID);
@@ -217,6 +237,10 @@ in highp vec3 v_worldPos;
 #ifdef SHADOW_DEPTH
 in highp vec4 v_shadowClip;
 #endif
+#ifdef ES_VELOCITY
+in highp vec4 v_velCur;
+in highp vec4 v_velPrev;
+#endif
 
 uniform sampler2D u_texture;
 #ifdef NORMAL_MAP
@@ -242,7 +266,14 @@ out vec4 fragColor;
 #endif
 
 void main() {
-#ifdef SHADOW_DEPTH
+#ifdef ES_VELOCITY
+    // How far this pixel's surface moved in the picture since last frame, in uv, and the depth it sits at
+    // so a reader can tell whether it is the surface that is visible there. A point that was behind the
+    // camera has no previous place: alpha 0 says "nothing known", which reads as the camera's own motion.
+    highp vec2 now = v_velCur.xy / v_velCur.w;
+    highp vec2 was = v_velPrev.xy / max(v_velPrev.w, 1e-6);
+    fragColor = vec4((was - now) * 0.5, gl_FragCoord.z, v_velPrev.w > 1e-6 ? 1.0 : 0.0);
+#elif defined(SHADOW_DEPTH)
     // The expression the receiver evaluates on u_shadowMatrix, evaluated here on the
     // same matrix and at the same point: whatever each backend's clip z means, both
     // sides mean it alike.
@@ -331,6 +362,10 @@ struct VSOut {
     // The clip position, not the depth it divides down to — see the GLSL twin.
     @location(4) v_shadowClip : vec4f,
 #endif
+#ifdef ES_VELOCITY
+    @location(4) v_velCur : vec4f,
+    @location(7) v_velPrev : vec4f,
+#endif
 #ifdef MESH_LIGHTMAP
     @location(5) v_lightmap : vec3f,
 #endif
@@ -400,6 +435,17 @@ struct VSOut {
 #ifdef SHADOW_DEPTH
     out.v_shadowClip = out.pos;
 #endif
+#ifdef ES_VELOCITY
+    {
+        // See the GLSL twin: the tint texel is last frame's shift, texels 4..7 last frame's matrix as rows.
+        let L = vec4f(local, 1.0);
+        let before = esInstanceTint();
+        out.v_velCur = out.pos;
+        let prev = vec4f(dot(esInstanceTexel(4), L), dot(esInstanceTexel(5), L),
+                         dot(esInstanceTexel(6), L), dot(esInstanceTexel(7), L));
+        out.v_velPrev = vec4f(prev.xy + before.xy * prev.w, prev.zw);
+    }
+#endif
     // The GLSL twin's v_probeSlot fill.
     out.v_probeSlot = f32(inst);
 #ifdef LIT
@@ -460,6 +506,10 @@ struct VSOut {
 #ifdef SHADOW_DEPTH
     @location(4) v_shadowClip : vec4f,
 #endif
+#ifdef ES_VELOCITY
+    @location(4) v_velCur : vec4f,
+    @location(7) v_velPrev : vec4f,
+#endif
 #ifdef MESH_LIGHTMAP
     @location(5) v_lightmap : vec3f,
 #endif
@@ -493,7 +543,12 @@ fn packNormal(n : vec3f) -> vec2f {
 #ifdef MESH_LIGHTMAP
     g_lightmap = v.v_lightmap;
 #endif
-#ifdef SHADOW_DEPTH
+#ifdef ES_VELOCITY
+    // See the GLSL twin. This device's uv runs down the rows, so the sign of y is the reader's to flip.
+    let now = v.v_velCur.xy / v.v_velCur.w;
+    let was = v.v_velPrev.xy / max(v.v_velPrev.w, 1e-6);
+    return vec4f((was - now) * 0.5, v.pos.z, select(0.0, 1.0, v.v_velPrev.w > 1e-6));
+#elif defined(SHADOW_DEPTH)
     // The expression the receiver evaluates on u_shadowMatrix, evaluated here on the
     // same matrix and at the same point: whatever each backend's clip z means, both
     // sides mean it alike.

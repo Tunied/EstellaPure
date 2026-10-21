@@ -954,6 +954,17 @@ private:
      *          vertices the scene is about to draw from.
      */
     TransientBufferPool shadow_pool_;
+    /**
+     * @brief The motion pass's own buffers and draw list, for the same reason as the shadow pass's:
+     *        the scene's list is finalized and uploaded before this one is collected.
+     */
+    TransientBufferPool velocity_pool_;
+    DrawList velocity_list_;
+    /// This frame's shift, kept from the collect so the pass draws through the camera the scene did.
+    glm::vec2 velocity_jitter_{0.0f};
+    /// Collects the meshes that moved by themselves since the last frame into velocity_list_.
+    void collectMotion(ecs::Registry& registry);
+    void executeMotionPass();
     /// One per view, kept across frames for the capacity. The whole pass is collected
     /// before any of it is drawn, so a view's commands have to outlive its collect.
     std::vector<DrawList> shadow_view_lists_;

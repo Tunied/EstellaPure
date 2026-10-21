@@ -410,6 +410,9 @@ registerEffect({
         // Lower is smoother and slower to follow a change; 1 is no accumulation at all,
         // which is what a blend toward "no effect" fades to.
         { name: 'u_blend', label: 'Blend', min: 0.02, max: 1, step: 0.01, defaultValue: 0.1, neutralValue: 1 },
+        // 1 follows a surface that moved by itself by its own displacement; 0 trusts the camera's alone, which
+        // is what every pixel gets where nothing moved — and what a moving one smears with.
+        { name: 'u_objectMotion', label: 'Object Motion', min: 0, max: 1, step: 1, defaultValue: 1, neutralValue: 1 },
     ],
 });
 

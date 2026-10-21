@@ -131,7 +131,8 @@ RenderFrame::RenderFrame(GfxDevice& device, RenderContext& context,
     , pool_(device)
     , target_pool_(device)
     , graph_(device, target_pool_)
-    , shadow_pool_(device) {
+    , shadow_pool_(device)
+    , velocity_pool_(device) {
     target_manager_.setDevice(device);
 }
 
@@ -163,6 +164,7 @@ void RenderFrame::init(u32 width, u32 height) {
 
     pool_.init();
     shadow_pool_.init();
+    velocity_pool_.init();
     planar_pool_.init();
     batch_shader_id_ = initBatchShader();
 
@@ -188,6 +190,7 @@ void RenderFrame::shutdown() {
     plugins_.clear();
     pool_.shutdown();
     shadow_pool_.shutdown();
+    velocity_pool_.shutdown();
     planar_pool_.shutdown();
     releasePlanarCaptures();
     releaseShadowFrameUbos();
@@ -627,6 +630,25 @@ void RenderFrame::end() {
         };
         graph_.addPass(std::move(scene));
     }
+
+#ifdef ES_ENABLE_POSTPROCESS
+    // What the scene drew, drawn again for how far each moving surface travelled: a temporal pass in the
+    // chain reads it, and nothing else does, so a frame whose meshes all stood still declares nothing.
+    if (usePostProcess && scene_resource_ != rg::kNoResource && velocity_list_.commandCount() > 0) {
+        const rg::ResourceId velocity = post_process_->declareVelocity();
+        if (velocity != rg::kNoResource) {
+            rg::PassDesc motion;
+            motion.name = "motion";
+            motion.write = velocity;
+            motion.clear = true;
+            motion.clearDepth = true;
+            // Nothing written is alpha 0: a reader treats it as "the camera's motion, not an object's".
+            motion.clearColor[0] = motion.clearColor[1] = motion.clearColor[2] = motion.clearColor[3] = 0.0f;
+            motion.execute = [this](const rg::PassContext&) { executeMotionPass(); };
+            graph_.addPass(std::move(motion));
+        }
+    }
+#endif
 
     if (usePostProcess) {
 #ifdef ES_ENABLE_POSTPROCESS
@@ -2162,6 +2184,13 @@ void RenderFrame::collectAll(ecs::Registry& registry, bool sceneGBuffer) {
     // Asked at the collect, because it decides which program each material draw is compiled as; the
     // scene pass that executes them is the one the answer is about.
     ctx.gbuffer = sceneGBuffer && post_process_ && post_process_->sceneHasGBuffer();
+    // A temporal effect that follows moving surfaces: the scene collect remembers where each mesh stands,
+    // and the motion collect below compares.
+    const bool followMotion = sceneGBuffer && post_process_ && post_process_->isEngaged()
+                           && post_process_->velocityWanted();
+    ctx.track_motion = followMotion;
+    ctx.motion_key = static_cast<u64>(current_target_);
+    ctx.motion_frame = planar_frame_;
 #else
     (void)sceneGBuffer;
 #endif
@@ -2191,11 +2220,61 @@ void RenderFrame::collectAll(ecs::Registry& registry, bool sceneGBuffer) {
     stats_.culled += collectCtx.culled;
     stats_.occluded += collectCtx.occluded;
 
+    velocity_list_.clear();
+#ifdef ES_ENABLE_POSTPROCESS
+    if (followMotion) collectMotion(registry);
+#endif
+
     // OR-ed across the frame's cameras, applied at the next beginFrame and never
     // mid-frame: the capture is scratch each camera composites out of, and the
     // editor's grid draws into it between begin() and this collect.
     frame_collected_ = true;
     frame_depth_seen_ = frame_depth_seen_ || draw_list_.needsDepth();
+}
+
+void RenderFrame::collectMotion(ecs::Registry& registry) {
+    ES_PROFILE_SCOPE("render.collect.motion");
+#ifdef ES_ENABLE_POSTPROCESS
+    const auto view = post_process_->peekTemporalView(view_projection_, static_cast<u64>(current_target_));
+    velocity_jitter_ = view.jitter;
+    velocity_pool_.beginFrame();
+    velocity_list_.clear();
+
+    auto ctx = makeContext();
+    ctx.purpose = RenderPurpose::Motion;
+    ctx.track_motion = true;
+    ctx.motion_key = static_cast<u64>(current_target_);
+    ctx.motion_frame = planar_frame_;
+    ctx.motion_prev_view_projection = view.previous;
+    ctx.motion_prev_jitter = view.previousJitter;
+    RenderCollectContext collectCtx{registry, frustum_, clip_state_, velocity_pool_, velocity_list_, ctx,
+                                    computeCameraView(ctx.view_projection)};
+    collectCtx.screen_ui = screen_domain_;
+    // The level the scene settled on, not a new choice, and not counted a second time.
+    collectCtx.lod = {view_id_, &lod_view_state_, nullptr};
+    collectCtx.occlusion = &occlusion_;
+    for (auto& plugin : plugins_) {
+        if (plugin->drawsMotion()) plugin->collect(collectCtx);
+    }
+    velocity_list_.finalize(velocity_pool_);
+    velocity_pool_.upload();
+#else
+    (void)registry;
+#endif
+}
+
+void RenderFrame::executeMotionPass() {
+    if (velocity_list_.commandCount() == 0) return;
+    ES_PROFILE_SCOPE("render.motion");
+    // Through the camera the scene was drawn with, jitter included: a surface's depth here has to be the
+    // scene's, since that is what the reader compares it with.
+    context_.updateCameraConstants(view_projection_, velocity_jitter_);
+    // The program is still a Lit shader and still declares the light block (see executeShadowPass).
+    context_.lights().uploadAndBind();
+    velocity_list_.execute(device_, velocity_pool_, context_.materials(), context_.getWhiteTextureId(),
+                           nullptr, context_.perDrawBlocks());
+    ES_PROFILE_COUNTER("render.motion.draws", velocity_list_.mergedDrawCallCount());
+    device_.invalidatePipelineCache();
 }
 
 glm::vec3 srgbToLinearCpu(const glm::vec3& c) {

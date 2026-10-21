@@ -298,8 +298,11 @@ fn sampleLut(c : vec3f) -> vec3f {
      *
      * Where last frame's point was comes from the depth buffer: un-project the pixel to
      * the world, project it with last frame's camera. That is exact for everything the
-     * camera moves past and wrong for an object that moved by itself — there the history
-     * is a different surface, so it is clipped into the colours the neighbourhood holds,
+     * camera moves past and wrong for an object that moved by itself. Those objects are
+     * drawn again in a pass of their own that writes how far each pixel moved
+     * (`u_velocity`), and where that pass is what the scene shows, the pixel follows its
+     * own displacement instead. What neither explains — a skinned surface, a thing the
+     * motion pass did not draw — is clipped into the colours the neighbourhood holds,
      * which hides the mismatch instead of smearing it. The blend is done in a space where
      * a bright pixel weighs less, or one firefly outlives the frame it appeared in.
      */
@@ -327,12 +330,14 @@ fn expand(c : vec3f) -> vec3f { return c / max(1.0 - max(max(c.r, c.g), c.b), 1e
 #pragma version 300 es
 #pragma domain PostProcess
 #pragma param u_blend float default(0.1) range(0.02,1)
+#pragma param u_objectMotion float default(1) range(0,1)
 #pragma param u_historyValid float default(0) range(0,1)
 #pragma param u_prevViewProjection0 color default(1,0,0,0)
 #pragma param u_prevViewProjection1 color default(0,1,0,0)
 #pragma param u_prevViewProjection2 color default(0,0,1,0)
 #pragma param u_prevViewProjection3 color default(0,0,0,1)
 #pragma param u_history texture default(black)
+#pragma param u_velocity texture default(black)
 
 #pragma fragment
 precision highp float;
@@ -371,7 +376,17 @@ void main() {
     vec4 prev = mat4(u_prevViewProjection0, u_prevViewProjection1,
                      u_prevViewProjection2, u_prevViewProjection3) * vec4(world, 1.0);
     vec2 puv = prev.xy / max(prev.w, 1e-6) * 0.5 + 0.5;
-    bool seen = u_historyValid > 0.5 && prev.w > 1e-6
+    bool inFront = prev.w > 1e-6;
+    // A surface that moved by itself: the frame drew its displacement in a pass of its own, and where what it
+    // drew is the surface the scene shows here (its depth agrees), that displacement says where this pixel was
+    // — the camera's does not know about it. Anywhere else the camera's answer stands.
+    ivec2 vsize = textureSize(u_velocity, 0);
+    vec4 vel = texelFetch(u_velocity, screenTexel(v_texCoord, vsize), 0);
+    if (u_objectMotion > 0.5 && vel.a > 0.5 && abs(vel.b - d) <= 2e-5 + (1.0 - d) * 0.02) {
+        puv = v_texCoord + vel.xy;
+        inFront = true;
+    }
+    bool seen = u_historyValid > 0.5 && inFront
              && puv.x >= 0.0 && puv.x <= 1.0 && puv.y >= 0.0 && puv.y <= 1.0;
     if (!seen) { fragColor = cur; return; }
 
@@ -422,8 +437,17 @@ ${WGSL}
     let prev = vp * vec4f(world, 1.0);
     // This device's uv runs down the rows, so clip y is flipped on the way back.
     let pw = max(prev.w, 1e-6);
-    let puv = vec2f(prev.x / pw * 0.5 + 0.5, 0.5 - prev.y / pw * 0.5);
-    let seen = mc.u_historyValid > 0.5 && prev.w > 1e-6
+    var puv = vec2f(prev.x / pw * 0.5 + 0.5, 0.5 - prev.y / pw * 0.5);
+    var inFront = prev.w > 1e-6;
+    // See the GLSL twin: a surface that moved by itself, from the frame's motion pass. This device's uv
+    // runs down the rows, so the displacement's y is flipped on the way in.
+    let vsize = vec2i(textureDimensions(u_velocity, 0));
+    let vel = textureLoad(u_velocity, screenTexel(v.v_texCoord, vsize), 0);
+    if (mc.u_objectMotion > 0.5 && vel.a > 0.5 && abs(vel.b - d) <= 2e-5 + (1.0 - d) * 0.02) {
+        puv = v.v_texCoord + vec2f(vel.x, -vel.y);
+        inFront = true;
+    }
+    let seen = mc.u_historyValid > 0.5 && inFront
             && puv.x >= 0.0 && puv.x <= 1.0 && puv.y >= 0.0 && puv.y <= 1.0;
     if (!seen) { return cur; }
 

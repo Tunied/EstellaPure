@@ -28,7 +28,7 @@ Estella 通过 ping-pong 帧缓冲运行全屏后处理。加一个 `PostProcess
 | `depthOfField` | 按到焦点的距离模糊 | `focusDistance`、`focusRange`、`aperture`、`maxBlur` |
 | `rain` | 下雨、潮湿的地面、水坑、涟漪与水花 | `intensity`、`wetness`、`wind`、`speed`、`puddles`、`puddleScale` |
 | `ssr` | 屏幕空间反射:道具映在它们所站的地面上 | `intensity`、`maxDistance`、`thickness`、`floorBias`、`skyReflection` |
-| `taa` | 时间性抗锯齿:边缘跨多帧平滑 | `blend` |
+| `taa` | 时间性抗锯齿:边缘跨多帧平滑,移动网格按它自己的运动跟随 | `blend`、`objectMotion` |
 | `lensDistortion` | 桶形 / 枕形畸变 | `strength`、`zoom` |
 | `pixelate` | 块状量化 | `pixelSize` |
 | `outline` | 墨线描边(Sobel 边缘压暗) | `intensity`、`threshold`、`thickness` |
@@ -119,9 +119,15 @@ Estella 通过 ping-pong 帧缓冲运行全屏后处理。加一个 `PostProcess
 是每帧里新画面的占比:越低越平滑、对变化跟得越慢,1 就是不累积。
 
 把它放在链路**最前**,后面的效果看到的就是稳定后的画面,同时保留 `msaaSamples`——两者叠加。
-每个相机有自己的历史。它不知道物体自己怎么动:自己动的物体与它的历史是不同的表面,历史会被
-夹进周围的颜色里,所以快速移动的物体可能略软。它和 SSAO 一样要读场景深度,因此在 WebGPU 上,
-没有深度解析的多重采样场景里无法运行。
+每个相机有自己的历史。
+
+相机的运动能说明所有静止物体的历史在哪。自己在动的物体是另一回事,所以效果在链路里时,这一帧会把
+**移动的网格再画一遍**到它自己的目标里,写下每个像素自上一帧走了多远;在那里就是场景所显示的表面时,
+效果改用这个位移。所以又细又快的移动物体会保住对比度,而不是淡进身后的地面。它只多画一遍真正动了的
+东西(一帧里没有物体动就什么都不画),外加一个和场景同尺寸的 RGBA32F 目标,因此需要浮点渲染目标,
+没有的设备会跳过。`objectMotion` 设为 0 就关掉它,只剩相机的答案。目前还不跟随的有:蒙皮网格
+(上一帧的骨骼没有保存)、混合表面,以及材质顶点钩子加上的运动——它们退回相机的答案,并被夹进像素周围
+的颜色里。TAA 和 SSAO 一样要读场景深度,因此在 WebGPU 上,没有深度解析的多重采样场景里无法运行。
 
 上面是友好标签;**在代码里它们带 `u_` 前缀**(`u_intensity`、`u_exposure`……)。多数效果
 在默认值下是恒等(`colorGrade`、`blur`、`chromaticAberration`、`fxaa`、`lensDistortion`、

@@ -29,7 +29,7 @@ several can stack in one frame at no extra target cost beyond the passes.
 | `depthOfField` | Blur by distance from a focus | `focusDistance`, `focusRange`, `aperture`, `maxBlur` |
 | `rain` | Falling rain, wet ground, puddles, ripples and splashes | `intensity`, `wetness`, `wind`, `speed`, `puddles`, `puddleScale` |
 | `ssr` | Screen-space reflections: props mirrored in the floor they stand on | `intensity`, `maxDistance`, `thickness`, `floorBias`, `skyReflection` |
-| `taa` | Temporal anti-aliasing: edges smoothed over several frames | `blend` |
+| `taa` | Temporal anti-aliasing: edges smoothed over several frames, moving meshes followed by their own motion | `blend`, `objectMotion` |
 | `lensDistortion` | Barrel / pincushion warp | `strength`, `zoom` |
 | `pixelate` | Block quantization | `pixelSize` |
 | `outline` | Ink-edge outlines (Sobel edge darkening) | `intensity`, `threshold`, `thickness` |
@@ -158,11 +158,21 @@ frame's camera, so a moving camera keeps its history. `blend` is the share of ea
 frame that is new: lower is smoother and slower to follow a change, 1 is no accumulation.
 
 Put it **first** in the chain, so everything after it sees the settled image, and keep
-`msaaSamples` on — the two add. Each camera keeps its own history. What it does not
-know is how an object moves by itself: an object that moves is a different surface
-from its history, which is clipped to the colours around it, so fast movers can look
-slightly soft. It needs scene depth like SSAO does, so on WebGPU it cannot run with
-multisampling on a scene that has no depth resolve.
+`msaaSamples` on — the two add. Each camera keeps its own history.
+
+The camera's motion says where history was for everything that stood still. An object
+that moves by itself is a different case, so while the effect is in the chain the frame
+draws the **moving meshes a second time** into a target of its own, writing how far each
+pixel travelled since last frame, and the effect follows that instead where it is the
+surface the scene shows. This is why a thin, fast mover keeps its contrast instead of
+fading into the floor behind it. It costs one extra draw of only what moved (nothing,
+for a frame where nothing did) and an RGBA32F target the size of the scene, so it needs
+float render targets, and is skipped on a device without them. `objectMotion` at 0
+turns it off, which leaves the camera's answer alone. What it does not follow yet is a
+skinned mesh, whose bones are not remembered from last frame, a blended surface, and
+motion a material's vertex hook adds — those fall back to the camera's answer, clipped
+into the colours around the pixel. TAA needs scene depth like SSAO does, so on WebGPU
+it cannot run with multisampling on a scene that has no depth resolve.
 
 The uniform names above are the friendly labels; **in code they are `u_`-prefixed**
 (`u_intensity`, `u_exposure`, …). Most effects are identity at their defaults

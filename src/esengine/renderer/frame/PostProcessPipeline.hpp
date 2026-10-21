@@ -221,6 +221,34 @@ public:
     bool temporalActive();
 
     /**
+     * @brief Whether an enabled pass reads how far each moving surface travelled (`u_velocity`).
+     *
+     * @details The frame then draws its moving meshes a second time into a target of its own, so a
+     *          temporal effect can follow an object by its own displacement instead of the camera's.
+     */
+    bool velocityWanted();
+
+    /// What a temporal view would be given by its NEXT begin: the sub-pixel shift and last frame's camera.
+    struct TemporalView {
+        glm::vec2 jitter{0.0f};
+        glm::mat4 previous{1.0f};
+        /// The shift the previous frame was drawn with.
+        glm::vec2 previousJitter{0.0f};
+    };
+    /// Read before the scene is drawn, because the motion pass is collected with the scene and the shift
+    /// is only applied when it is drawn. Changes nothing: beginTemporalView still takes the same step.
+    TemporalView peekTemporalView(const glm::mat4& viewProjection, u64 key) const;
+
+    /**
+     * @brief The motion pass's target for this frame, declared in the graph (kNoResource when it cannot be made).
+     *
+     * @details RGBA32F: xy = how far the surface moved in uv, z = its window depth, w = 1 where something wrote.
+     *          Depth in a float because the reader compares it with the scene's, and a half cannot tell two
+     *          surfaces apart near the far plane.
+     */
+    rg::ResourceId declareVelocity();
+
+    /**
      * @brief Whether this frame's scene target carries a second attachment for the surface's material.
      *
      * @details Decided when the capture opens, from the passes: an effect whose shader says
@@ -524,6 +552,10 @@ private:
     bool passesWantGBuffer();
     bool scene_gbuffer_ = false;
     u32 environment_texture_ = 0;
+    /// The motion pass's target, kept across frames for its size, and whether this frame drew into it.
+    Unique<Framebuffer> velocity_fbo_;
+    rg::ResourceId velocity_resource_ = rg::kNoResource;
+    bool velocity_active_ = false;
     bool passHasTexture(const PostProcessPass& pass, const char* name);
     /// A history made (or kept) at @p w x @p h, or null when it cannot be.
     TemporalState* prepareHistory(TemporalState& state, u32 w, u32 h);

@@ -316,6 +316,14 @@ bool PostProcessPipeline::temporalActive() {
     return false;
 }
 
+bool PostProcessPipeline::velocityWanted() {
+    if (!initialized_ || bypass_ || !device_.supportsFloatTargets()) return false;
+    for (const auto& pass : passes_) {
+        if (pass.enabled && passHasTexture(pass, "u_velocity")) return true;
+    }
+    return false;
+}
+
 namespace {
 /// Van der Corput in @p base: the low-discrepancy sequence a jitter walks the pixel with.
 f32 halton(u32 index, u32 base) {
@@ -348,6 +356,48 @@ glm::vec2 PostProcessPipeline::beginTemporalView(const glm::mat4& viewProjection
     const f32 w = static_cast<f32>(std::max(width_, 1u));
     const f32 h = static_cast<f32>(std::max(height_, 1u));
     return {jx * 2.0f / w, jy * 2.0f / h};
+}
+
+PostProcessPipeline::TemporalView PostProcessPipeline::peekTemporalView(const glm::mat4& viewProjection,
+                                                                        u64 key) const {
+    const auto it = temporal_.find(key);
+    const u32 frame = it == temporal_.end() ? 0u : it->second.frame;
+    TemporalView view;
+    view.previous = frame > 0 ? it->second.current : viewProjection;
+    // The step beginTemporalView will take next: one frame on, the same phase of the same sequence.
+    const u32 phase = ((frame + 1) % kJitterPhases) + 1;
+    const f32 w = static_cast<f32>(std::max(width_, 1u));
+    const f32 h = static_cast<f32>(std::max(height_, 1u));
+    view.jitter = {(halton(phase, 2) - 0.5f) * 2.0f / w, (halton(phase, 3) - 0.5f) * 2.0f / h};
+    if (frame > 0) {
+        const u32 before = (frame % kJitterPhases) + 1;
+        view.previousJitter = {(halton(before, 2) - 0.5f) * 2.0f / w, (halton(before, 3) - 0.5f) * 2.0f / h};
+    }
+    return view;
+}
+
+rg::ResourceId PostProcessPipeline::declareVelocity() {
+    velocity_active_ = false;
+    if (!graph_ || !device_.supportsFloatTargets()) return rg::kNoResource;
+    const u32 w = std::max(width_, 1u);
+    const u32 h = std::max(height_, 1u);
+    if (!velocity_fbo_ || velocity_fbo_->getWidth() != w || velocity_fbo_->getHeight() != h) {
+        FramebufferSpec spec;
+        spec.width = w;
+        spec.height = h;
+        spec.colorFormat = GfxPixelFormat::RGBA32F;
+        spec.depthStencil = true;
+        spec.linearFilter = false;
+        velocity_fbo_ = Framebuffer::create(device_, spec);
+        if (!velocity_fbo_) {
+            ES_LOG_ERROR("PostProcessPipeline: Failed to create the motion target");
+            return rg::kNoResource;
+        }
+    }
+    velocity_resource_ = graph_->importTarget(velocity_fbo_->handle(), w, h, /*output=*/false,
+                                              velocity_fbo_->getColorAttachment());
+    velocity_active_ = true;
+    return velocity_resource_;
 }
 
 PostProcessPipeline::TemporalState* PostProcessPipeline::prepareHistory(TemporalState& state,
@@ -551,6 +601,7 @@ void PostProcessPipeline::declareChain() {
 }
 
 void PostProcessPipeline::chainDone() {
+    velocity_active_ = false;
     if (!initialized_ || !inFrame_) return;
     device_.invalidatePipelineCache();
     inFrame_ = false;
@@ -668,6 +719,9 @@ void PostProcessPipeline::renderPass(PostProcessPass& pass, const rg::PassContex
             if (slot.name == "u_environment" && environment_texture_ != 0) {
                 gpu = TextureHandle{environment_texture_};
             }
+            if (slot.name == "u_velocity" && velocity_active_ && velocity_fbo_) {
+                gpu = velocity_fbo_->getColorAttachment();
+            }
             for (const auto& [name, glId] : pass.textureUniforms) {
                 if (name == slot.name && glId != 0) { gpu = TextureHandle{glId}; break; }
             }
@@ -773,6 +827,11 @@ void PostProcessPipeline::runChain(std::vector<PostProcessPass>& passes, rg::Res
         // the last pass that reads its colour: returned to the pool any earlier,
         // an SSAO behind a colour grade found no depth and occluded nothing.
         if (scene_needs_depth_ || scene_gbuffer_) node.dependencies = {scene};
+        // The motion pass wrote a target this one reads by name, not by unit: the graph owes it ordering
+        // (and the pass its place in the culled set), and the pipeline binds it.
+        if (velocity_active_ && velocity_resource_ != rg::kNoResource && passHasTexture(pass, "u_velocity")) {
+            node.dependencies.push_back(velocity_resource_);
+        }
         // The last pass feeds the blit, which copies into the output rect at the
         // chain's size — so it draws full-size whatever fraction it asked for.
         rg::TargetDesc writeDesc = (i == lastEnabled) ? blitDesc : desc;

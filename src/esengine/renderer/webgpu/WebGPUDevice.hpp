@@ -55,7 +55,7 @@ public:
      *         are 8-bit unorm: a surface is usually the former, a render target
      *         the latter, so they cannot share a slot. */
     enum ColorVariant : u32 {
-        kColorRgba8 = 0, kColorBgra8 = 1, kColorSrgb8 = 2, kColorRgba16f = 3, kColorVariantCount = 4,
+        kColorRgba8 = 0, kColorBgra8 = 1, kColorSrgb8 = 2, kColorRgba16f = 3, kColorRgba32f = 4, kColorVariantCount = 5,
     };
 
     /** @brief Sample count of a pass — a third thing WebGPU validates a pipeline

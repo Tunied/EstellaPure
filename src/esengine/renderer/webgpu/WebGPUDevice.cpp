@@ -860,6 +860,7 @@ u32 WebGPUDevice::colorVariantOf(WGPUTextureFormat format) {
     switch (format) {
     case WGPUTextureFormat_RGBA8UnormSrgb: return kColorSrgb8;
     case WGPUTextureFormat_RGBA16Float:    return kColorRgba16f;
+    case WGPUTextureFormat_RGBA32Float:    return kColorRgba32f;
     case WGPUTextureFormat_BGRA8Unorm:     return kColorBgra8;
     default:                               return kColorRgba8;
     }

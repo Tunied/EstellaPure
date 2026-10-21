@@ -247,10 +247,12 @@ void reportLodAuthoring(const LodLevels& levels, bool& warned) {
 }
 
 u32 meshVariant(bool normals, bool lit, bool normalMapped, bool skinned, bool depthOnly,
-                bool envMapped, bool lightmapped, bool weightHeat = false, bool gbuffer = false) {
+                bool envMapped, bool lightmapped, bool weightHeat = false, bool gbuffer = false,
+                bool motion = false) {
     return (normals ? 1u : 0u) | (lit ? 2u : 0u) | (normalMapped ? 4u : 0u)
          | (skinned ? 8u : 0u) | (depthOnly ? 16u : 0u) | (envMapped ? 32u : 0u)
-         | (lightmapped ? 64u : 0u) | (weightHeat ? 128u : 0u) | (gbuffer ? 256u : 0u);
+         | (lightmapped ? 64u : 0u) | (weightHeat ? 128u : 0u) | (gbuffer ? 256u : 0u)
+         | (motion ? 512u : 0u);
 }
 
 /**
@@ -378,7 +380,7 @@ u32 MeshPlugin::meshProgram(RenderFrameContext& ctx, u32 variant) {
     const bool normalMapped = (variant & 4u) != 0, skinned = (variant & 8u) != 0;
     const bool depthOnly = (variant & 16u) != 0, envMapped = (variant & 32u) != 0;
     const bool lightmapped = (variant & 64u) != 0, weightHeat = (variant & 128u) != 0;
-    const bool gbuffer = (variant & 256u) != 0;
+    const bool gbuffer = (variant & 256u) != 0, motion = (variant & 512u) != 0;
     if (mesh_compiled_[variant]) return mesh_programs_[variant];
     mesh_compiled_[variant] = true;
     // Counted because the cost of this function is entirely the times it does
@@ -396,7 +398,7 @@ u32 MeshPlugin::meshProgram(RenderFrameContext& ctx, u32 variant) {
     if (lightmapped) features.emplace_back("MESH_LIGHTMAP");
     if (weightHeat) features.emplace_back("WEIGHT_HEAT");
     if (depthOnly) features.emplace_back("SHADOW_DEPTH");
-    if (gbuffer) features.emplace_back("ES_GBUFFER");
+    if (motion) features.emplace_back("ES_VELOCITY");
     // Resident geometry owns its texture slots, so it is the vertex source that can
     // carry a shadow map and a reflection — the batch stream's are a per-vertex
     // merge product, and a sampler pinned there would read someone's sprite.
@@ -408,6 +410,9 @@ u32 MeshPlugin::meshProgram(RenderFrameContext& ctx, u32 variant) {
         // the plane on a surface that HAS depth is the 2D convention misapplied.
         features.emplace_back("ES_SURFACE_3D");
     }
+    // After the receiving features, not between them and the `else` they hang from: a lit draw that writes the
+    // surface record still receives shadows and reflections.
+    if (gbuffer) features.emplace_back("ES_GBUFFER");
 
     // Authored as mesh.esshader, WGSL twin included. Its vertex stage is the one
     // that reads a model matrix, which is what lets the vertices stay local.
@@ -511,6 +516,16 @@ RenderPrewarmResult MeshPlugin::prewarm(RenderFrameContext& ctx, ecs::Registry& 
                         anyResident);
 }
 
+void MeshPlugin::trackPose(const RenderFrameContext& ctx, Entity entity, const glm::mat4& model) {
+    Pose& pose = poses_[poseKey(ctx, entity)];
+    // Last frame's, when the view drew this mesh last frame; otherwise it has no past worth following, and
+    // standing where it stands says "did not move".
+    if (pose.frame != 0 && pose.frame + 1 == ctx.motion_frame) pose.previous = pose.current;
+    else if (pose.frame != ctx.motion_frame) pose.previous = model;
+    pose.current = model;
+    pose.frame = ctx.motion_frame;
+}
+
 void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
     auto& registry = collect_ctx.registry;
     auto& clips = collect_ctx.clip_state;
@@ -520,10 +535,19 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
     auto meshView = registry.activeView<ecs::Transform, ecs::MeshRenderer>();
     // Read once: the phase is the same for every mesh this collect walks.
     const bool shadowDepth = ctx.purpose == RenderPurpose::ShadowDepth;
+    // The motion pass draws the same meshes a second time, only those that moved, with no material and no light
+    // — what shadows and motion have in common is that neither is the surface's own look.
+    const bool motion = ctx.purpose == RenderPurpose::Motion;
+    const bool depthPass = shadowDepth || motion;
+    if (!motion && ctx.track_motion && ctx.motion_frame % 256 == 0) {
+        for (auto it = poses_.begin(); it != poses_.end();) {
+            it = it->second.frame + 8 < ctx.motion_frame ? poses_.erase(it) : std::next(it);
+        }
+    }
 
     u32 litProgram = 0;
     // The mesh as this view's mode describes it; one object reused across the walk.
-    const ShadingMode shading = shadowDepth ? ShadingMode::Shaded : collect_ctx.shading;
+    const ShadingMode shading = depthPass ? ShadingMode::Shaded : collect_ctx.shading;
     ecs::MeshRenderer shaded;
 
     // Accumulated, not scoped per mesh: a ScopeTimer pair per phase per entity
@@ -544,7 +568,7 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
         ++walked;
         const auto& authored = meshView.get<ecs::MeshRenderer>(entity);
         const ecs::MeshRenderer* described = &authored;
-        const bool heated = !shadowDepth && collect_ctx.weights.entity == entity;
+        const bool heated = !depthPass && collect_ctx.weights.entity == entity;
         if (heated) {
             shaded = authored;
             applyShading(shaded, ShadingMode::Albedo);
@@ -581,7 +605,10 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
         // Only GPU-resident geometry casts: the inline payload takes the CPU path
         // below, which bakes world space into vertices for the BATCH shader — a
         // shader that writes colour, not the depth this pass is here to collect.
-        if (shadowDepth && !resident) continue;
+        if (depthPass && !resident) continue;
+        // Only a surface that draws opaque and unblended has a motion worth writing: what is blended over
+        // something has two, and the picture can follow one.
+        if (motion && !mesh.opaque) continue;
 
         // A collect with no LOD memory must not select: a shadow map's own screen
         // size means nothing to a player, and borrowing a camera's answer would
@@ -657,8 +684,22 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
                 textureId = tex->getId();
             }
         }
-        const MeshDrawKeys keys =
-            meshDrawFor(ctx, registry, entity, mesh, resident, shadowDepth, warned_bones_, heated);
+        MeshDrawKeys keys{};
+        if (motion) {
+            // What was drawn last frame and what is drawn now, for THIS view. Nothing known, or nothing changed,
+            // means the camera's own motion says it all and the temporal pass already has that.
+            const auto pose = poses_.find(poseKey(ctx, entity));
+            if (pose == poses_.end() || pose->second.frame != ctx.motion_frame
+                || pose->second.previous == pose->second.current) {
+                continue;
+            }
+            const MeshProgramFacts facts =
+                meshFactsFromEntity(ctx, registry, entity, mesh, resident, warned_bones_);
+            if (facts.skinned) continue;
+            keys = { meshVariant(facts.hasNormals, false, false, false, false, false, false, false, false, true), 0 };
+        } else {
+            keys = meshDrawFor(ctx, registry, entity, mesh, resident, shadowDepth, warned_bones_, heated);
+        }
         const u32 normalTextureId = keys.normalTextureId;
 
         BatchDrawKey key{
@@ -676,7 +717,7 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
             .type = RenderType::Mesh,
         };
 
-        if (!shadowDepth && ctx.frame) {
+        if (!depthPass && ctx.frame) {
             const u32 reflection = ctx.frame->planarTextureFor(entity);
             if (reflection != 0) {
                 key.envTextureId = reflection;
@@ -716,7 +757,7 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
         // Casting into a shadow map: opaque and depth-tested whatever the camera's
         // pass makes it, and none of the three ways to describe a surface — lit, a
         // normal map, a material. LAST, so the pass outranks all three.
-        if (shadowDepth) {
+        if (depthPass) {
             key.stage = RenderStage::Opaque;
             key.blend = BlendMode::None;
             key.depthTest = true;
@@ -747,7 +788,7 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
                 // The shape the mesh was REALIZED in, not a second derivation:
                 // the record is read through that layout, so the fact that built
                 // it must pack it. (It already excludes a skinned mesh.)
-                const bool lightmapped = resident->hasLightmapUV;
+                const bool lightmapped = resident->hasLightmapUV && !motion;
                 u32 instOffset = buffers.allocVertices(LayoutId::MeshInstance,
                                                        MESH_INSTANCE_STRIDE);
                 auto* dst = buffers.vertexData(LayoutId::MeshInstance) + instOffset;
@@ -799,11 +840,28 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
                     std::memcpy(dst + MESH_INSTANCE_TEXEL_LIGHTMAP * 16, &rect, 16);
                 }
                 }
+                if (motion) {
+                    // This record is the motion pass's own, so the texels a lit draw keeps its tint, normal
+                    // matrix and bake in are free: last frame's shift in the tint's, and last frame's
+                    // view-projection times last frame's model — as rows, so the shader dots them with the local position.
+                    const Pose& pose = poses_.find(poseKey(ctx, entity))->second;
+                    const glm::vec4 jitter{ctx.motion_prev_jitter, 0.0f, 0.0f};
+                    std::memcpy(dst + MESH_INSTANCE_TEXEL_TINT * 16, &jitter, 16);
+                    const glm::mat4 before = ctx.motion_prev_view_projection * pose.previous;
+                    for (u32 row = 0; row < 4; ++row) {
+                        const glm::vec4 r{before[0][row], before[1][row], before[2][row], before[3][row]};
+                        std::memcpy(dst + (MESH_INSTANCE_TEXEL_NORMAL + row) * 16, &r, 16);
+                    }
+                } else if (ctx.track_motion && !shadowDepth) {
+                    trackPose(ctx, entity, glm::translate(glm::mat4(1.0f), position)
+                                           * glm::mat4_cast(rotation)
+                                           * glm::scale(glm::mat4(1.0f), scale));
+                }
 
                 // A draw reading its own atlas does not ask for IRRADIANCE, and asks
                 // for its reflection either way — a lightmapped wall mirrors the room
                 // like anything else. At the ENTITY's position: bones place a skin.
-                if (!shadowDepth) {
+                if (!depthPass) {
                     ProbeConstants probe;
                     const bool volume = key.lightmapTextureId == 0
                         && ctx.render_context.probes().sample(position, probe);

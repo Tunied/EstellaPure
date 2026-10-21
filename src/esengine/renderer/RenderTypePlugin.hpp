@@ -50,6 +50,9 @@ enum class RenderPurpose : u8 {
     /// post, drawing what belongs to the screen rather than the world. It has no
     /// camera — the projection it is given comes from the layout domain.
     ScreenOverlay,
+    /// The pass that writes how far each moving surface travelled since last frame, for the temporal
+    /// effects: the scene's meshes again, only those that moved, through a program that writes motion.
+    Motion,
 };
 
 struct RenderFrameContext {
@@ -72,6 +75,16 @@ struct RenderFrameContext {
     /// The pass these draws execute in has a second colour attachment for the surface's material, so a
     /// shader that can write it is asked for the variant that does. False for every other collect.
     bool gbuffer = false;
+    /// A temporal effect in the chain reads per-object motion, so the scene collect remembers where each mesh
+    /// was, and the Motion collect has something to compare against. Per view: `motion_key` names which.
+    bool track_motion = false;
+    u64 motion_key = 0;
+    u64 motion_frame = 0;
+    /// Last frame's view-projection (the engine's convention, unjittered) and the shift in NDC that frame was
+    /// drawn with: what the Motion collect writes into each record, so a displacement lands on the raster the
+    /// previous picture was actually drawn on.
+    glm::mat4 motion_prev_view_projection{1.0f};
+    glm::vec2 motion_prev_jitter{0.0f};
 };
 
 /** @brief What every plugin needs to know about the camera, derived once per collect
@@ -433,6 +446,9 @@ public:
      *          depth — so the default is no, and a plugin that casts says so.
      */
     virtual bool castsShadows() const { return false; }
+    /// Whether the Motion collect asks this plugin: what it draws can move by itself, and the picture
+    /// after it needs to know by how much.
+    virtual bool drawsMotion() const { return false; }
 
     /**
      * @brief Whether this plugin can draw an entity that lives in a UI tree.

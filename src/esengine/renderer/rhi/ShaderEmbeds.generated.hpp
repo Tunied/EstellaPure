@@ -507,6 +507,14 @@ out highp vec3 v_worldPos;
 
 out highp vec4 v_shadowClip;
 #endif
+#ifdef ES_VELOCITY
+
+
+
+
+out highp vec4 v_velCur;
+out highp vec4 v_velPrev;
+#endif
 
 
 
@@ -558,6 +566,18 @@ void main() {
 #ifdef SHADOW_DEPTH
     v_shadowClip = gl_Position;
 #endif
+#ifdef ES_VELOCITY
+    {
+
+
+        highp vec4 L = vec4(local, 1.0);
+        highp vec4 before = esInstanceTint();
+        v_velCur = gl_Position;
+        highp vec4 prev = vec4(dot(esInstanceTexel(4), L), dot(esInstanceTexel(5), L),
+                               dot(esInstanceTexel(6), L), dot(esInstanceTexel(7), L));
+        v_velPrev = vec4(prev.xy + before.xy * prev.w, prev.zw);
+    }
+#endif
 
 
     v_probeSlot = float(ES_INSTANCE_ID);
@@ -587,6 +607,10 @@ in highp vec3 v_worldPos;
 #ifdef SHADOW_DEPTH
 in highp vec4 v_shadowClip;
 #endif
+#ifdef ES_VELOCITY
+in highp vec4 v_velCur;
+in highp vec4 v_velPrev;
+#endif
 
 uniform sampler2D u_texture;
 #ifdef NORMAL_MAP
@@ -612,7 +636,14 @@ out vec4 fragColor;
 #endif
 
 void main() {
-#ifdef SHADOW_DEPTH
+#ifdef ES_VELOCITY
+
+
+
+    highp vec2 now = v_velCur.xy / v_velCur.w;
+    highp vec2 was = v_velPrev.xy / max(v_velPrev.w, 1e-6);
+    fragColor = vec4((was - now) * 0.5, gl_FragCoord.z, v_velPrev.w > 1e-6 ? 1.0 : 0.0);
+#elif defined(SHADOW_DEPTH)
 
 
 
@@ -701,6 +732,10 @@ struct VSOut {
 
     @location(4) v_shadowClip : vec4f,
 #endif
+#ifdef ES_VELOCITY
+    @location(4) v_velCur : vec4f,
+    @location(7) v_velPrev : vec4f,
+#endif
 #ifdef MESH_LIGHTMAP
     @location(5) v_lightmap : vec3f,
 #endif
@@ -770,6 +805,17 @@ struct VSOut {
 #ifdef SHADOW_DEPTH
     out.v_shadowClip = out.pos;
 #endif
+#ifdef ES_VELOCITY
+    {
+
+        let L = vec4f(local, 1.0);
+        let before = esInstanceTint();
+        out.v_velCur = out.pos;
+        let prev = vec4f(dot(esInstanceTexel(4), L), dot(esInstanceTexel(5), L),
+                         dot(esInstanceTexel(6), L), dot(esInstanceTexel(7), L));
+        out.v_velPrev = vec4f(prev.xy + before.xy * prev.w, prev.zw);
+    }
+#endif
 
     out.v_probeSlot = f32(inst);
 #ifdef LIT
@@ -830,6 +876,10 @@ struct VSOut {
 #ifdef SHADOW_DEPTH
     @location(4) v_shadowClip : vec4f,
 #endif
+#ifdef ES_VELOCITY
+    @location(4) v_velCur : vec4f,
+    @location(7) v_velPrev : vec4f,
+#endif
 #ifdef MESH_LIGHTMAP
     @location(5) v_lightmap : vec3f,
 #endif
@@ -863,7 +913,12 @@ fn packNormal(n : vec3f) -> vec2f {
 #ifdef MESH_LIGHTMAP
     g_lightmap = v.v_lightmap;
 #endif
-#ifdef SHADOW_DEPTH
+#ifdef ES_VELOCITY
+
+    let now = v.v_velCur.xy / v.v_velCur.w;
+    let was = v.v_velPrev.xy / max(v.v_velPrev.w, 1e-6);
+    return vec4f((was - now) * 0.5, v.pos.z, select(0.0, 1.0, v.v_velPrev.w > 1e-6));
+#elif defined(SHADOW_DEPTH)
 
 
 
