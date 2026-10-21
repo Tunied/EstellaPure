@@ -111,7 +111,7 @@
             "fov": 35.6,
             "nearPlane": 10,
             "farPlane": 40000,
-            "isActive": false,
+            "isActive": true,
             "priority": 0
           }
         }
@@ -147,7 +147,7 @@
             "fov": 45,
             "nearPlane": 10,
             "farPlane": 40000,
-            "isActive": false,
+            "isActive": true,
             "priority": 0
           }
         }
@@ -183,7 +183,7 @@
             "fov": 50,
             "nearPlane": 10,
             "farPlane": 40000,
-            "isActive": false,
+            "isActive": true,
             "priority": 0
           }
         }

@@ -56,7 +56,7 @@ const VIEW_POST = cameraPost();
 function cameraPost() { return JSON.parse(JSON.stringify(entities[0].components[2])); }
 const view = (name, eye, target, fov) => add(name, [
   tr(v3(eye), aim({ x: target[0] - eye[0], y: target[1] - eye[1], z: target[2] - eye[2] })),
-  { type: 'Camera', data: { projectionType: 0, fov, nearPlane: 10, farPlane: 40000, isActive: false, priority: 0 } },
+  { type: 'Camera', data: { projectionType: 0, fov, nearPlane: 10, farPlane: 40000, isActive: true, priority: 0 } },
 ]);
 view('View · corner', [-1560, 580, 34], [-300, 150, 0], 35.6);
 view('View · street', [-1100, 220, 700], [-400, 120, -100], 45);
