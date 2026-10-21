@@ -12,7 +12,22 @@
 
 /** Magic 'ESMH', little-endian. */
 const MAGIC = 0x484d5345;
-const VERSION = 3;
+const VERSION = 4;
+/** The last version whose indices are always 32-bit. */
+const VERSION_U32_INDICES = 3;
+/** Flag bits at header offset 50, beside the morph-normals bit. */
+const FLAG_MORPH_NORMALS = 1;
+/** v4: the index section is 16-bit. Widened to 32-bit when read, so nothing downstream
+ *  of the decoder knows the file was narrower. */
+const FLAG_U16_INDICES = 2;
+/** Largest vertex index a 16-bit index can name. */
+const MAX_U16_INDEX = 0xffff;
+
+/** Whether every index fits in 16 bits — half the index bytes, for any mesh that small. */
+function fitsU16(indices: Uint32Array): boolean {
+    for (let i = 0; i < indices.length; i++) if (indices[i]! > MAX_U16_INDEX) return false;
+    return true;
+}
 /** v1 had no joint count; a file that predates skinning reads with the shorter one. */
 const HEADER_BYTES_V1 = 44;
 /** v2 ended at the joint count; a file that predates morph targets reads with that. */
@@ -159,14 +174,18 @@ export function encodeMesh(data: MeshData): Uint8Array {
     const names = (data.morph?.names ?? []).map(n => new TextEncoder().encode(n));
     const nameBytes = morphNameBytes(names);
     const deltaFloats = data.morph?.deltas.length ?? 0;
+    // Narrowed whenever it loses nothing: an index file is a tenth of a mesh, and the
+    // meshes with more than 65536 vertices stay on the version every reader knows.
+    const narrow = fitsU16(data.indices);
+    const indexBytes = narrow ? 2 : 4;
     const size = HEADER_BYTES + data.channels.length * CHANNEL_BYTES
-        + data.vertexCount * data.vertexStride + data.indices.length * 4
+        + data.vertexCount * data.vertexStride + data.indices.length * indexBytes
         + jointCount * MATRIX_BYTES + nameBytes + deltaFloats * 4;
     const out = new Uint8Array(size);
     const view = new DataView(out.buffer);
 
     view.setUint32(0, MAGIC, true);
-    view.setUint16(4, VERSION, true);
+    view.setUint16(4, narrow ? VERSION : VERSION_U32_INDICES, true);
     view.setUint16(6, data.channels.length, true);
     view.setUint32(8, data.vertexStride, true);
     view.setUint32(12, data.vertexCount, true);
@@ -177,7 +196,7 @@ export function encodeMesh(data: MeshData): Uint8Array {
     }
     view.setUint32(44, jointCount, true);
     view.setUint16(48, names.length, true);
-    view.setUint16(50, data.morph?.hasNormals ? 1 : 0, true);
+    view.setUint16(50, (data.morph?.hasNormals ? FLAG_MORPH_NORMALS : 0) | (narrow ? FLAG_U16_INDICES : 0), true);
     view.setUint32(52, nameBytes, true);
 
     let at = HEADER_BYTES;
@@ -192,8 +211,12 @@ export function encodeMesh(data: MeshData): Uint8Array {
 
     out.set(data.vertices.subarray(0, data.vertexCount * data.vertexStride), at);
     at += data.vertexCount * data.vertexStride;
-    out.set(new Uint8Array(data.indices.buffer, data.indices.byteOffset, data.indices.length * 4), at);
-    at += data.indices.length * 4;
+    if (narrow) {
+        for (let i = 0; i < data.indices.length; i++) view.setUint16(at + i * 2, data.indices[i]!, true);
+    } else {
+        out.set(new Uint8Array(data.indices.buffer, data.indices.byteOffset, data.indices.length * 4), at);
+    }
+    at += data.indices.length * indexBytes;
     if (data.inverseBindMatrices) {
         // Written through the DataView: the section's start is only 4-byte
         // aligned, and a Float32Array view on it may not be constructible.
@@ -249,7 +272,9 @@ export function decodeMesh(bytes: Uint8Array): MeshData {
         : version >= 2 ? HEADER_BYTES_V2 : HEADER_BYTES_V1;
     const jointCount = version >= 2 ? view.getUint32(44, true) : 0;
     const morphCount = version >= 3 ? view.getUint16(48, true) : 0;
-    const morphNormals = version >= 3 && view.getUint16(50, true) !== 0;
+    const flags = version >= 3 ? view.getUint16(50, true) : 0;
+    const morphNormals = (flags & FLAG_MORPH_NORMALS) !== 0;
+    const indexBytes = version > VERSION_U32_INDICES && (flags & FLAG_U16_INDICES) !== 0 ? 2 : 4;
     const nameBytes = version >= 3 ? view.getUint32(52, true) : 0;
     const morphComponents = morphNormals ? 6 : 3;
 
@@ -271,7 +296,7 @@ export function decodeMesh(bytes: Uint8Array): MeshData {
 
     const vertexBytes = vertexCount * vertexStride;
     const deltaFloats = morphCount * vertexCount * morphComponents;
-    const expected = at + vertexBytes + indexCount * 4 + jointCount * MATRIX_BYTES
+    const expected = at + vertexBytes + indexCount * indexBytes + jointCount * MATRIX_BYTES
         + nameBytes + deltaFloats * 4;
     if (bytes.byteLength < expected) {
         throw new Error(`.esmesh is truncated: ${bytes.byteLength} bytes, header describes ${expected}`);
@@ -281,10 +306,14 @@ export function decodeMesh(bytes: Uint8Array): MeshData {
     // the file, and a Uint32Array view on an odd offset throws.
     const indices = new Uint32Array(indexCount);
     const indexBase = at + vertexBytes;
-    for (let i = 0; i < indexCount; i++) indices[i] = view.getUint32(indexBase + i * 4, true);
+    if (indexBytes === 2) {
+        for (let i = 0; i < indexCount; i++) indices[i] = view.getUint16(indexBase + i * 2, true);
+    } else {
+        for (let i = 0; i < indexCount; i++) indices[i] = view.getUint32(indexBase + i * 4, true);
+    }
 
     const out: MeshData = { channels, vertexStride, vertexCount, vertices, indices, aabbMin, aabbMax };
-    const bindBase = indexBase + indexCount * 4;
+    const bindBase = indexBase + indexCount * indexBytes;
     if (jointCount > 0) {
         const matrices = new Float32Array(jointCount * 16);
         for (let i = 0; i < matrices.length; i++) {

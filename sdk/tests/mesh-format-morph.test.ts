@@ -90,10 +90,15 @@ describe('.esmesh morph targets', () => {
     const bytes = encodeMesh(mesh({}));
     // The same file as a v2 writer would have produced: a 48-byte header that
     // ends at the joint count, so the channel table starts eight bytes earlier.
-    const older = new Uint8Array(bytes.byteLength - 8);
+    // Its indices are 32-bit — the width every version before the index flag wrote — so
+    // they are widened by hand: this file is built to be what that writer produced.
+    const tableAndVertices = bytes.subarray(56, 56 + 8 + 3 * POSITION_ONLY.vertexStride);
+    const older = new Uint8Array(48 + tableAndVertices.length + 3 * 4);
     older.set(bytes.subarray(0, 48));
-    older.set(bytes.subarray(56), 48);
-    new DataView(older.buffer).setUint16(4, 2, true);
+    older.set(tableAndVertices, 48);
+    const olderView = new DataView(older.buffer);
+    olderView.setUint16(4, 2, true);
+    [0, 1, 2].forEach((v, i) => olderView.setUint32(48 + tableAndVertices.length + i * 4, v, true));
 
     const decoded = decodeMesh(older);
     expect(decoded.vertexCount).toBe(3);
