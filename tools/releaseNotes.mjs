@@ -2465,4 +2465,6 @@ export const NOTED = {
     {"note":"The output transform has a Neutral option that keeps hue and saturation."},
   "feat(editor): the project's Output transform offers Neutral":
     {"note":"The output transform has a Neutral option that keeps hue and saturation."},
+  "feat(render): model highlights widen with how fast the vertex normal turns, so they stop sparkling":
+    {"note":"Lit models no longer sparkle on rails, bevels and rounded trim."},
 };

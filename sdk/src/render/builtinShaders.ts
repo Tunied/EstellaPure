@@ -381,11 +381,30 @@ uniform sampler2D u_textures[1];
 
 out vec4 fragColor;
 
+// Geometric specular anti-aliasing (Tokuyoshi & Kaplanyan 2019, as Filament spells it).
+// Where the vertex normal turns quickly across a pixel — a bevel, a curved rail, a
+// bolt-head — the highlight is the sum of many normals the pixel cannot resolve, and
+// shading it with ONE normal makes it sparkle from frame to frame. The turn rate is the
+// screen-space derivative of the normal; it widens the lobe by that variance, so the
+// sparkle becomes a steady, slightly rougher highlight. Taken from the vertex normal, not
+// the perturbed one: a normal map's detail is the texture filter's to average.
+float specularAA(highp vec3 dndx, highp vec3 dndy, float roughness) {
+    float variance = 0.25 * (dot(dndx, dndx) + dot(dndy, dndy));
+    float kernel = min(2.0 * variance, 0.18);
+    float alpha = roughness * roughness;
+    return sqrt(sqrt(clamp(alpha * alpha + kernel, 0.0, 1.0)));
+}
+
 // Base colour rides the draw itself (slot 0 x vertex colour) — glTF's baseColor
 // is what a MeshRenderer already carries. Emission is added AFTER lighting (it is light
 // this surface makes) and occlusion scales only the ambient term.
 // Metal-roughness packing is glTF's: roughness in green, metal in blue.
 void main() {
+#ifdef MESH_NORMALS
+    // Before any branch: a derivative needs every fragment of its quad.
+    highp vec3 dndx = dFdx(v_worldNormal);
+    highp vec3 dndy = dFdy(v_worldNormal);
+#endif
     vec4 base = texture(u_textures[0], v_texCoord) * v_color * u_tint;
     // A cutout's alpha becomes coverage: sharpened to about a texel around the
     // cutoff, so alpha-to-coverage feathers the edge instead of stair-stepping it.
@@ -413,17 +432,33 @@ void main() {
     highp vec3 P = vec3(v_worldPos, 0.0);
 #endif
     // specular 1: a glTF material reflects unless KHR_materials_specular says less.
+    float roughness = u_roughness * mr.g;
+#ifdef MESH_NORMALS
+    roughness = specularAA(dndx, dndy, roughness);
+#endif
     vec3 lit = applyLightingPBR(base.rgb, N, P, viewDirection(P),
-                                u_metallic * mr.b, u_roughness * mr.g, 1.0, ao);
+                                u_metallic * mr.b, roughness, 1.0, ao);
     fragColor = vec4(lit + u_emissive.rgb * texture(u_emissiveMap, v_texCoord).rgb, alpha);
 }
 #pragma end
 
 #pragma fragment wgsl
+// The GLSL twin's geometric specular anti-aliasing, spelled the same.
+fn specularAA(dndx : vec3f, dndy : vec3f, roughness : f32) -> f32 {
+    let variance = 0.25 * (dot(dndx, dndx) + dot(dndy, dndy));
+    let kernel = min(2.0 * variance, 0.18);
+    let alpha = roughness * roughness;
+    return sqrt(sqrt(clamp(alpha * alpha + kernel, 0.0, 1.0)));
+}
+
 @fragment fn fs_main(v : VSOut, @builtin(front_facing) front : bool) -> @location(0) vec4f {
     // Taken before any branch: a derivative needs every fragment of its quad.
     let duvx = dpdx(v.v_texCoord);
     let duvy = dpdy(v.v_texCoord);
+#ifdef MESH_NORMALS
+    let dndx = dpdx(v.v_worldNormal);
+    let dndy = dpdy(v.v_worldNormal);
+#endif
     // WGSL has no module varying: the entry point hands the injected header the
     // run its GLSL twin reads straight off one. Without this every material-shaded
     // draw read instance 0's indirect light — one probe volume for the lot.
@@ -455,8 +490,12 @@ void main() {
 #else
     let P = vec3f(v.v_worldPos, 0.0);
 #endif
+    var roughness = mc.u_roughness * mr.g;
+#ifdef MESH_NORMALS
+    roughness = specularAA(dndx, dndy, roughness);
+#endif
     let lit = applyLightingPBR(base.rgb, N, P, viewDirection(P),
-                               mc.u_metallic * mr.b, mc.u_roughness * mr.g, 1.0, ao);
+                               mc.u_metallic * mr.b, roughness, 1.0, ao);
     let emit = mc.u_emissive.rgb
              * textureSampleGrad(u_emissiveMap, u_emissiveMap_s, v.v_texCoord, duvx, duvy).rgb;
     return vec4f(lit + emit, alpha);
