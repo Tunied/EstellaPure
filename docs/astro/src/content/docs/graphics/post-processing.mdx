@@ -25,6 +25,8 @@ several can stack in one frame at no extra target cost beyond the passes.
 | `distanceFog` | Linear fog by distance from the camera | `near`, `far`, `intensity`, colour |
 | `heightFog` | Exponential height fog with the sun's glow and a hazy horizon | `density`, `heightFalloff`, `baseHeight`, `sunAzimuth`, `sunElevation`, `skyFog`, colours |
 | `lightShafts` | Sun rays through whatever stands in front of it | `intensity`, `sunAzimuth`, `sunElevation`, `decay`, `reach` |
+| `autoExposure` | Eye adaptation: exposure follows how bright the picture is | `bias`, `speedUp`, `speedDown`, `minEV`, `maxEV` |
+| `depthOfField` | Blur by distance from a focus | `focusDistance`, `focusRange`, `aperture`, `maxBlur` |
 | `ssr` | Screen-space reflections: props mirrored in the floor they stand on | `intensity`, `maxDistance`, `thickness`, `floorBias` |
 | `taa` | Temporal anti-aliasing: edges smoothed over several frames | `blend` |
 | `lensDistortion` | Barrel / pincushion warp | `strength`, `zoom` |
@@ -40,6 +42,27 @@ Android, desktop, Steam) runs on. `createWebApp({ msaaSamples })` sizes it, and
 `msaaSamples: 1` turns it off where the fill cost matters more than the edges.
 `fxaa` is the cheaper, blurrier alternative for devices where even one sample
 extra is too much.
+
+### Auto exposure
+
+`autoExposure` is the eye: it measures how bright the picture is and settles the exposure that puts
+it at middle grey. The measurement is the average of the **log** of the luminance, since brightness
+is judged by ratio and a raw average is decided by whatever lamp is in view; pixels darker than 2^-8
+are left out, because a black backdrop is not a dark scene. The result moves toward its target over time
+from where the last frame left it — brighter faster (`speedUp`) than darker (`speedDown`), per second, so it does not
+depend on the frame rate — and `minEV` / `maxEV` bound how far it may go. `bias` adds stops to the result for a
+scene that should sit darker or brighter than grey. It works in the HDR chain; in an 8-bit chain the
+measurement is coarse and the adaptation steps are visible. Put it before the output transform and
+before `bloom`, so the glow sees the exposure the eye settled on.
+
+### Depth of field
+
+`depthOfField` blurs what is not at `focusDistance` (a world length from the camera), leaving a slab `focusRange` deep
+sharp. The blur radius, in pixels, grows with how far a surface is from the focus as a share of its distance, up to `maxBlur`;
+`aperture` is the radius of something infinitely far, and the sky counts as that. Each pixel gathers its neighbours over its own
+circle, counting a neighbour only to the extent that neighbour's own blur reaches back: a sharp object in front of a
+blurred background does not bleed into it, while a blurred foreground spreads over what is behind it. The gather is
+rotated per pixel, so it leaves a fine grain that `taa` averages away.
 
 ### Fog and atmosphere
 

@@ -2477,4 +2477,6 @@ export const NOTED = {
     {"note":"A Screen Space Reflections post-process effect mirrors props in floors."},
   "feat(render): Height Fog and Light Shafts effects give a hazy horizon, the sun's glow and rays through what stands in front of it":
     {"note":"Height Fog and Light Shafts post-process effects add atmosphere."},
+  "feat(render): Auto Exposure and Depth of Field effects, and a pass that remembers its last output without shifting the picture":
+    {"note":"Auto Exposure and Depth of Field post-process effects are available."},
 };

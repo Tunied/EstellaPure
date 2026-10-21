@@ -180,6 +180,7 @@ void PostProcessPipeline::shutdown() {
     passes_.clear();
     screenPasses_.clear();
     temporal_.clear();
+    feedback_.clear();
 
     auto* device = &device_;
     if (screen_quad_vbo_ != BufferHandle::Invalid && device) {
@@ -228,6 +229,7 @@ void PostProcessPipeline::resize(u32 width, u32 height) {
     sceneResource_ = rg::kNoResource;
     // History at the old size names texels this picture no longer has.
     temporal_.clear();
+    feedback_.clear();
 
     ensureGraph();
 
@@ -278,13 +280,21 @@ void PostProcessPipeline::setPassContinuesEffect(const std::string& passName) {
     if (auto* pass = findPass(passName)) pass->continuesEffect = true;
 }
 
-bool PostProcessPipeline::passIsTemporal(const PostProcessPass& pass) {
+bool PostProcessPipeline::passHasTexture(const PostProcessPass& pass, const char* name) {
     const MaterialUniformLayout* layout = context_.materials().layoutFor(pass.shader);
     if (!layout) return false;
     for (const auto& slot : layout->textures) {
-        if (slot.name == "u_history") return true;
+        if (slot.name == name) return true;
     }
     return false;
+}
+
+bool PostProcessPipeline::passIsTemporal(const PostProcessPass& pass) {
+    return passHasTexture(pass, "u_history");
+}
+
+u64 PostProcessPipeline::feedbackKey(const std::string& passName) const {
+    return temporalKey_ * 1000003ull + std::hash<std::string>{}(passName);
 }
 
 bool PostProcessPipeline::temporalActive() {
@@ -329,20 +339,19 @@ glm::vec2 PostProcessPipeline::beginTemporalView(const glm::mat4& viewProjection
     return {jx * 2.0f / w, jy * 2.0f / h};
 }
 
-PostProcessPipeline::TemporalState* PostProcessPipeline::prepareTemporal() {
-    auto it = temporal_.find(temporalKey_);
-    // Never begun: nothing shifted this frame's picture, and nothing is remembered.
-    if (it == temporal_.end() || it->second.frame == 0) return nullptr;
-    TemporalState& state = it->second;
-    if (state.history[0] && state.width == width_ && state.height == height_
+PostProcessPipeline::TemporalState* PostProcessPipeline::prepareHistory(TemporalState& state,
+                                                                         u32 w, u32 h) {
+    w = std::max(w, 1u);
+    h = std::max(h, 1u);
+    if (state.history[0] && state.width == w && state.height == h
         && state.format == interFormat()) {
         return &state;
     }
     for (auto& fbo : state.history) {
         FramebufferSpec spec;
         spec.colorFormat = interFormat();
-        spec.width = width_;
-        spec.height = height_;
+        spec.width = w;
+        spec.height = h;
         spec.depthStencil = false;
         // The reprojected read lands between texels, so it wants the filter.
         spec.linearFilter = true;
@@ -354,8 +363,8 @@ PostProcessPipeline::TemporalState* PostProcessPipeline::prepareTemporal() {
             return nullptr;
         }
     }
-    state.width = width_;
-    state.height = height_;
+    state.width = w;
+    state.height = h;
     state.format = interFormat();
     state.valid = false;
     return &state;
@@ -561,14 +570,19 @@ void PostProcessPipeline::renderPass(PostProcessPass& pass, const rg::PassContex
     TemporalState* temporal = nullptr;
     if (pass.temporal) {
         if (auto it = temporal_.find(temporalKey_); it != temporal_.end()) temporal = &it->second;
+    } else if (pass.feedback) {
+        if (auto it = feedback_.find(pass.historyKey); it != feedback_.end()) temporal = &it->second;
     }
-    if (temporal) {
+    if (temporal && pass.temporal) {
         // The previous picture's camera, as columns: a world point times it is where
         // that point was one frame ago. Re-sent each frame because it is each frame's.
         for (int c = 0; c < 4; ++c) {
             pass.vec4Uniforms["u_prevViewProjection" + std::to_string(c)] =
                 glm::vec4(temporal->previous[c]);
         }
+        pass.floatUniforms["u_historyValid"] = temporal->valid ? 1.0f : 0.0f;
+        pass.paramDirty = true;
+    } else if (temporal) {
         pass.floatUniforms["u_historyValid"] = temporal->valid ? 1.0f : 0.0f;
         pass.paramDirty = true;
     }
@@ -617,7 +631,8 @@ void PostProcessPipeline::renderPass(PostProcessPass& pass, const rg::PassContex
         // an unset param gets its declared default (white/black/flatnormal).
         for (const auto& slot : layout->textures) {
             TextureHandle gpu = context_.materials().builtinDefault(slot.defaultTexture);
-            if (temporal && slot.name == "u_history" && temporal->history[temporal->readIndex]) {
+            if (temporal && (slot.name == "u_history" || slot.name == "u_feedback")
+                && temporal->history[temporal->readIndex]) {
                 gpu = temporal->history[temporal->readIndex]->getColorAttachment();
             }
             for (const auto& [name, glId] : pass.textureUniforms) {
@@ -731,13 +746,30 @@ void PostProcessPipeline::runChain(std::vector<PostProcessPass>& passes, rg::Res
         if (i != lastEnabled) writeDesc.scale = pass.scale;
         // A temporal pass writes the history target itself, so that what it wrote is
         // still there next frame, and the passes after it read it from there.
-        TemporalState* temporal = (&passes == &passes_ && passIsTemporal(pass)) ? prepareTemporal() : nullptr;
-        pass.temporal = temporal != nullptr;
+        TemporalState* temporal = nullptr;
+        pass.temporal = false;
+        pass.feedback = false;
+        if (&passes == &passes_) {
+            if (passIsTemporal(pass)) {
+                // Never begun: nothing shifted this frame's picture, and nothing is remembered.
+                if (auto it = temporal_.find(temporalKey_); it != temporal_.end() && it->second.frame > 0) {
+                    temporal = prepareHistory(it->second, width_, height_);
+                    pass.temporal = temporal != nullptr;
+                }
+            } else if (passHasTexture(pass, "u_feedback")) {
+                // At the pass's own size: a measurement is a few texels, not a picture.
+                pass.historyKey = feedbackKey(pass.name);
+                const u32 fw = static_cast<u32>(static_cast<f32>(width_) * pass.scale);
+                const u32 fh = static_cast<u32>(static_cast<f32>(height_) * pass.scale);
+                temporal = prepareHistory(feedback_[pass.historyKey], fw, fh);
+                pass.feedback = temporal != nullptr;
+            }
+        }
         if (temporal) {
             const u32 write = temporal->readIndex ^ 1u;
             Framebuffer& target = *temporal->history[write];
-            node.write = graph_->importTarget(target.handle(), width_, height_, /*output=*/false,
-                                              target.getColorAttachment());
+            node.write = graph_->importTarget(target.handle(), temporal->width, temporal->height,
+                                              /*output=*/false, target.getColorAttachment());
             node.execute = [this, &pass, temporal, write](const rg::PassContext& ctx) {
                 renderPass(pass, ctx);
                 temporal->readIndex = write;

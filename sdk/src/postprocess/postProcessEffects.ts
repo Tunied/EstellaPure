@@ -1442,6 +1442,286 @@ fn ign(p : vec2f) -> f32 {
         return Material.compileShader(source);
     },
 
+    /**
+     * Auto exposure, pass 1 of 3: how bright is the picture, in a few texels. Each texel of this
+     * small target averages the LOG of the luminance over a block of the scene — the log, because
+     * the eye judges brightness by ratio, and an average of raw values is decided by whatever
+     * lamp or sun is in view. Pixels darker than 2^-8 are left out of the average — a black
+     * backdrop is not a dark scene, and counting it would open the exposure to the limit — and
+     * what share of the block counted travels beside the average. Both are stored as 0..1 codes
+     * (the average over -12..8 stops), because the target may be 8-bit when the project is not HDR.
+     */
+    createAutoExposureMeasure(): ShaderHandle {
+        const source = `#pragma shader "PP Auto Exposure Measure"
+#pragma version 300 es
+#pragma domain PostProcess
+
+#pragma fragment
+precision highp float;
+
+in vec2 v_texCoord;
+uniform sampler2D u_texture;
+out vec4 fragColor;
+
+void main() {
+    vec2 texel = 1.0 / vec2(textureSize(u_texture, 0));
+    float sum = 0.0;
+    float counted = 0.0;
+    // Sixteen bilinear taps, four pixels apart: each reads 2x2 pixels and together they
+    // cover the 16x16 block this texel stands for.
+    for (int j = 0; j < 4; ++j) {
+        for (int i = 0; i < 4; ++i) {
+            vec3 c = texture(u_texture, v_texCoord + (vec2(float(i), float(j)) - 1.5) * 4.0 * texel).rgb;
+            float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
+            if (lum > 0.0039) { sum += log2(lum); counted += 1.0; }
+        }
+    }
+    float code = counted > 0.0 ? clamp((sum / counted + 12.0) / 20.0, 0.0, 1.0) : 0.0;
+    fragColor = vec4(code, counted / 16.0, 0.0, 1.0);
+}
+#pragma end
+
+#pragma fragment wgsl
+@fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
+    let texel = 1.0 / vec2f(vec2i(textureDimensions(t0, 0)));
+    var sum = 0.0;
+    var counted = 0.0;
+    for (var j : i32 = 0; j < 4; j = j + 1) {
+        for (var i : i32 = 0; i < 4; i = i + 1) {
+            let c = textureSampleLevel(t0, s0, v.v_texCoord + (vec2f(f32(i), f32(j)) - 1.5) * 4.0 * texel, 0.0).rgb;
+            let lum = dot(c, vec3f(0.2126, 0.7152, 0.0722));
+            if (lum > 0.0039) { sum = sum + log2(lum); counted = counted + 1.0; }
+        }
+    }
+    var code = 0.0;
+    if (counted > 0.0) { code = clamp((sum / counted + 12.0) / 20.0, 0.0, 1.0); }
+    return vec4f(code, counted / 16.0, 0.0, 1.0);
+}
+#pragma end
+`;
+        return Material.compileShader(source);
+    },
+
+    /**
+     * Auto exposure, pass 2 of 3: the exposure the eye has settled on. The measurement is averaged
+     * to one number, turned into the exposure that would put that brightness at middle grey, and
+     * moved toward over time from where the last frame left it — that last value is this pass's own
+     * previous output, which the engine keeps for it (`u_feedback`). Brightening is allowed to
+     * be faster than darkening, as an eye adapts, and the rate is per second so it does not depend on
+     * the frame rate.
+     */
+    createAutoExposureAdapt(): ShaderHandle {
+        const source = `#pragma shader "PP Auto Exposure Adapt"
+#pragma version 300 es
+#pragma domain PostProcess
+#pragma param u_bias float default(0) range(-4,4)
+#pragma param u_speedUp float default(3) range(0.1,20)
+#pragma param u_speedDown float default(1) range(0.1,20)
+#pragma param u_minEV float default(-4) range(-10,0)
+#pragma param u_maxEV float default(4) range(0,10)
+#pragma param u_historyValid float default(0) range(0,1)
+#pragma param u_feedback texture default(black)
+
+#pragma fragment
+precision highp float;
+
+in vec2 v_texCoord;
+uniform sampler2D u_texture;
+out vec4 fragColor;
+
+void main() {
+    float sum = 0.0;
+    float weight = 0.0;
+    for (int j = 0; j < 8; ++j) {
+        for (int i = 0; i < 8; ++i) {
+            vec2 m = texture(u_texture, (vec2(float(i), float(j)) + 0.5) / 8.0).rg;
+            sum += m.r * m.g;
+            weight += m.g;
+        }
+    }
+    // Weighted by how much of each block counted; a picture with nothing to measure
+    // is left at the exposure the author's compensation alone asks for.
+    float meanLog = weight > 1e-3 ? (sum / weight) * 20.0 - 12.0 : log2(0.18);
+    // The exposure that takes the scene's mean to 18% grey, plus what the author asked for.
+    float target = clamp(log2(0.18) - meanLog + u_bias, u_minEV, u_maxEV);
+    float prev = texture(u_feedback, vec2(0.5)).r * 20.0 - 10.0;
+    float ev = target;
+    if (u_historyValid > 0.5) {
+        float rate = target > prev ? u_speedUp : u_speedDown;
+        ev = prev + (target - prev) * (1.0 - exp(-clamp(u_time.y, 0.0, 0.25) * rate));
+    }
+    float code = clamp((ev + 10.0) / 20.0, 0.0, 1.0);
+    fragColor = vec4(code, code, code, 1.0);
+}
+#pragma end
+
+#pragma fragment wgsl
+@fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
+    var sum = 0.0;
+    var weight = 0.0;
+    for (var j : i32 = 0; j < 8; j = j + 1) {
+        for (var i : i32 = 0; i < 8; i = i + 1) {
+            let m = textureSampleLevel(t0, s0, (vec2f(f32(i), f32(j)) + 0.5) / 8.0, 0.0).rg;
+            sum = sum + m.r * m.g;
+            weight = weight + m.g;
+        }
+    }
+    var meanLog = log2(0.18);
+    if (weight > 1e-3) { meanLog = (sum / weight) * 20.0 - 12.0; }
+    let target_ev = clamp(log2(0.18) - meanLog + mc.u_bias, mc.u_minEV, mc.u_maxEV);
+    let prev = textureSampleLevel(u_feedback, u_feedback_s, vec2f(0.5), 0.0).r * 20.0 - 10.0;
+    var ev = target_ev;
+    if (mc.u_historyValid > 0.5) {
+        var rate = mc.u_speedDown;
+        if (target_ev > prev) { rate = mc.u_speedUp; }
+        ev = prev + (target_ev - prev) * (1.0 - exp(-clamp(tc.u_time.y, 0.0, 0.25) * rate));
+    }
+    let code = clamp((ev + 10.0) / 20.0, 0.0, 1.0);
+    return vec4f(code, code, code, 1.0);
+}
+#pragma end
+`;
+        return Material.compileShader(source);
+    },
+
+    /** Auto exposure, pass 3 of 3: the scene, at unit 1, scaled by the exposure the last pass settled on. */
+    createAutoExposureApply(): ShaderHandle {
+        const source = `#pragma shader "PP Auto Exposure Apply"
+#pragma version 300 es
+#pragma domain PostProcess
+
+#pragma fragment
+precision highp float;
+
+in vec2 v_texCoord;
+uniform sampler2D u_texture;
+uniform sampler2D u_sceneTexture;
+out vec4 fragColor;
+
+void main() {
+    float ev = texture(u_texture, vec2(0.5)).r * 20.0 - 10.0;
+    vec4 scene = texture(u_sceneTexture, v_texCoord);
+    fragColor = vec4(scene.rgb * exp2(ev), scene.a);
+}
+#pragma end
+
+#pragma fragment wgsl
+@fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
+    let ev = textureSampleLevel(t0, s0, vec2f(0.5), 0.0).r * 20.0 - 10.0;
+    let scene = textureSampleLevel(t1, s1, v.v_texCoord, 0.0);
+    return vec4f(scene.rgb * exp2(ev), scene.a);
+}
+#pragma end
+`;
+        return Material.compileShader(source);
+    },
+
+    /**
+     * Depth of field. Each pixel's circle of confusion comes from how far its surface is from the
+     * focus distance, and a pixel outside focus is blurred by gathering its neighbours over that
+     * circle. A neighbour counts only to the extent its OWN circle reaches this pixel: a sharp
+     * object in front of a blurred background does not bleed into it, and a blurred foreground
+     * does spread over what is behind. The sky counts as infinitely far.
+     */
+    createDepthOfField(): ShaderHandle {
+        const GLSL = `
+const int TAPS = 32;
+float ign(vec2 p) {
+    return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715))));
+}
+/// The blur radius in pixels at a uv: how far the surface is from the focus, past the slab
+/// that stays sharp, as a share of its distance — the thin-lens ratio, capped.
+float cocAt(vec2 uv, float depth, vec3 eye) {
+    if (depth >= 1.0) return min(u_aperture, u_maxBlur);
+    float dist = length(worldFromDepth(uv, depth) - eye);
+    return min(u_aperture * max(abs(dist - u_focusDistance) - u_focusRange, 0.0) / max(dist, 1e-3), u_maxBlur);
+}`;
+        const WGSL = `
+const TAPS : i32 = 32;
+fn ign(p : vec2f) -> f32 {
+    return fract(52.9829189 * fract(dot(p, vec2f(0.06711056, 0.00583715))));
+}
+fn cocAt(uv : vec2f, depth : f32, eye : vec3f) -> f32 {
+    if (depth >= 1.0) { return min(mc.u_aperture, mc.u_maxBlur); }
+    let dist = length(worldFromDepth(uv, depth) - eye);
+    return min(mc.u_aperture * max(abs(dist - mc.u_focusDistance) - mc.u_focusRange, 0.0) / max(dist, 1e-3), mc.u_maxBlur);
+}`;
+        const source = `#pragma shader "PP Depth of Field"
+#pragma version 300 es
+#pragma domain PostProcess
+#pragma param u_focusDistance float default(600) range(1,5000)
+#pragma param u_focusRange float default(100) range(0,2000)
+#pragma param u_aperture float default(24) range(0,64)
+#pragma param u_maxBlur float default(14) range(1,32)
+
+#pragma fragment
+precision highp float;
+
+in vec2 v_texCoord;
+uniform sampler2D u_texture;
+uniform highp sampler2D u_sceneDepth;
+out vec4 fragColor;
+
+${SSAO_GLSL}
+${GLSL}
+
+void main() {
+    vec4 src = texture(u_texture, v_texCoord);
+    ivec2 size = textureSize(u_sceneDepth, 0);
+    vec3 eye = u_camera.w > 0.5 ? u_camera.xyz : worldFromDepth(v_texCoord, 0.0);
+    float coc = cocAt(v_texCoord, depthAt(screenTexel(v_texCoord, size), size), eye);
+    if (coc < 0.5) { fragColor = src; return; }
+
+    vec2 texel = 1.0 / vec2(textureSize(u_texture, 0));
+    float rot = ign(gl_FragCoord.xy) * 6.2831853;
+    vec3 sum = src.rgb;
+    float wsum = 1.0;
+    for (int i = 0; i < TAPS; ++i) {
+        float r = coc * sqrt((float(i) + 0.5) / float(TAPS));
+        float a = float(i) * 2.39996323 + rot;
+        vec2 uv = v_texCoord + vec2(cos(a), sin(a)) * r * texel;
+        float tapCoc = cocAt(uv, depthAt(screenTexel(uv, size), size), eye);
+        // Gathered only to the extent that tap's own blur reaches back here.
+        float w = clamp(tapCoc / max(r, 0.5), 0.0, 1.0);
+        sum += texture(u_texture, uv).rgb * w;
+        wsum += w;
+    }
+    fragColor = vec4(sum / wsum, src.a);
+}
+#pragma end
+
+#pragma fragment wgsl
+${SSAO_WGSL}
+${WGSL}
+
+@fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
+    let src = textureSampleLevel(t0, s0, v.v_texCoord, 0.0);
+    let size = vec2i(textureDimensions(t7, 0));
+    var eye = worldFromDepth(v.v_texCoord, 0.0);
+    if (frame.camera.w > 0.5) { eye = frame.camera.xyz; }
+    let coc = cocAt(v.v_texCoord, depthAt(screenTexel(v.v_texCoord, size), size), eye);
+    if (coc < 0.5) { return src; }
+
+    let texel = 1.0 / vec2f(vec2i(textureDimensions(t0, 0)));
+    let rot = ign(v.pos.xy) * 6.2831853;
+    var sum = src.rgb;
+    var wsum = 1.0;
+    for (var i : i32 = 0; i < TAPS; i = i + 1) {
+        let r = coc * sqrt((f32(i) + 0.5) / f32(TAPS));
+        let a = f32(i) * 2.39996323 + rot;
+        let uv = v.v_texCoord + vec2f(cos(a), sin(a)) * r * texel;
+        let tapCoc = cocAt(uv, depthAt(screenTexel(uv, size), size), eye);
+        let w = clamp(tapCoc / max(r, 0.5), 0.0, 1.0);
+        sum = sum + textureSampleLevel(t0, s0, uv, 0.0).rgb * w;
+        wsum = wsum + w;
+    }
+    return vec4f(sum / wsum, src.a);
+}
+#pragma end
+`;
+        return Material.compileShader(source);
+    },
+
     createDistanceFog(): ShaderHandle {
         // Fog is a DISTANCE and a depth sample is not one: the same 0.9 is a
         // metre away up close and a hundred out. `worldFromDepth` (injected with

@@ -66,6 +66,12 @@ struct PostProcessPass {
     /// Set by the chain when the pass keeps its output for the next frame (its
     /// shader declares `u_history`); the pass then reads the previous frame there.
     bool temporal = false;
+    /// Set instead of `temporal` when the shader declares `u_feedback`: the pass keeps
+    /// its own last output without shifting the picture, and reads it there. An
+    /// auto-exposure's adapted value is remembered this way.
+    bool feedback = false;
+    /// Which remembered state the pass uses, resolved when the chain is declared.
+    u64 historyKey = 0;
 
     /// Fraction of the chain's size this pass draws at; the pass consuming it
     /// upsamples. The graph resolves the fraction, and u_viewport still reports
@@ -495,7 +501,12 @@ private:
     std::unordered_map<u64, TemporalState> temporal_;
     u64 temporalKey_ = 0;
     bool passIsTemporal(const PostProcessPass& pass);
-    TemporalState* prepareTemporal();
+    bool passHasTexture(const PostProcessPass& pass, const char* name);
+    /// A history made (or kept) at @p w x @p h, or null when it cannot be.
+    TemporalState* prepareHistory(TemporalState& state, u32 w, u32 h);
+    /// Per pass, per view: what a `u_feedback` pass remembers.
+    std::unordered_map<u64, TemporalState> feedback_;
+    u64 feedbackKey(const std::string& passName) const;
 
     Unique<Framebuffer> screenFBO_;
     bool screenFBOCreated_ = false;

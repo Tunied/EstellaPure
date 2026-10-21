@@ -24,6 +24,8 @@ Estella 通过 ping-pong 帧缓冲运行全屏后处理。加一个 `PostProcess
 | `distanceFog` | 按到相机的距离做线性雾 | `near`、`far`、`intensity`、颜色 |
 | `heightFog` | 指数高度雾,带太阳辉光和朦胧的地平线 | `density`、`heightFalloff`、`baseHeight`、`sunAzimuth`、`sunElevation`、`skyFog`、颜色 |
 | `lightShafts` | 太阳光穿过前方遮挡物形成的光束 | `intensity`、`sunAzimuth`、`sunElevation`、`decay`、`reach` |
+| `autoExposure` | 眼睛适应:曝光跟随画面亮度 | `bias`、`speedUp`、`speedDown`、`minEV`、`maxEV` |
+| `depthOfField` | 按到焦点的距离模糊 | `focusDistance`、`focusRange`、`aperture`、`maxBlur` |
 | `ssr` | 屏幕空间反射:道具映在它们所站的地面上 | `intensity`、`maxDistance`、`thickness`、`floorBias` |
 | `taa` | 时间性抗锯齿:边缘跨多帧平滑 | `blend` |
 | `lensDistortion` | 桶形 / 枕形畸变 | `strength`、`zoom` |
@@ -37,6 +39,21 @@ Estella 通过 ping-pong 帧缓冲运行全屏后处理。加一个 `PostProcess
 所有原生包(iOS、Android、桌面、Steam)跑的都是 WebGPU。用
 `createWebApp({ msaaSamples })` 调它的大小,`msaaSamples: 1` 在填充率比边缘更要紧的设备上关掉它。
 `fxaa` 是更便宜也更糊的替代品,留给连多一个采样都吃不下的设备。
+
+### 自动曝光
+
+`autoExposure` 就是眼睛:它测量画面有多亮,并稳定到把画面放在中灰的曝光上。测量的是亮度**对数**的平均,
+因为亮度是按比例判断的,而原始平均会被画面里的某盏灯决定;暗于 2^-8 的像素不计入,因为黑色背景不等于暗场景。
+结果从上一帧的位置随时间趋近目标——变亮比变暗快(`speedUp` / `speedDown`,按秒计,与帧率无关)——
+`minEV` / `maxEV` 限定范围,`bias` 给结果加几档,用于想比中灰更暗或更亮的场景。它在 HDR 链路里工作;
+8 位链路里测量粗糙、适应的台阶可见。放在输出变换之前、`bloom` 之前,让辉光看到眼睛稳定后的曝光。
+
+### 景深
+
+`depthOfField` 模糊不在 `focusDistance`(到相机的世界长度)的东西,`focusRange` 深的一片保持清晰。模糊半径(像素)随表面
+离焦点的距离占其自身距离的比例增长,封顶 `maxBlur`;`aperture` 是无限远处东西的半径,天空算作这样。每个像素在自己的圆里
+收集邻居,只在邻居自己的模糊够得着这里时才计入:清晰的前景物体不会渗进模糊的背景,而模糊的前景会铺到它后面的东西上。
+收集按像素旋转,留下一层细颗粒,由 `taa` 平均掉。
 
 ### 雾与大气
 

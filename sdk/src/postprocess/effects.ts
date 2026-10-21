@@ -265,6 +265,44 @@ registerEffect({
 });
 
 registerEffect({
+    type: 'autoExposure',
+    label: 'Auto Exposure',
+    factory: () => postProcessEffects.createAutoExposureApply(),
+    uniforms: [
+        // Stops added to the exposure the measurement chose: the look of a scene that should be
+        // darker or brighter than middle grey.
+        { name: 'u_bias', label: 'Compensation (EV)', min: -4, max: 4, step: 0.1, defaultValue: 0, neutralValue: 0 },
+        // Stops per second's worth of rate, in each direction: an eye adapts to light faster than to dark.
+        { name: 'u_speedUp', label: 'Brighten Speed', min: 0.1, max: 20, step: 0.1, defaultValue: 3 },
+        { name: 'u_speedDown', label: 'Darken Speed', min: 0.1, max: 20, step: 0.1, defaultValue: 1 },
+        { name: 'u_minEV', label: 'Min EV', min: -10, max: 0, step: 0.5, defaultValue: -4 },
+        { name: 'u_maxEV', label: 'Max EV', min: 0, max: 10, step: 0.5, defaultValue: 4 },
+    ],
+    // A few texels measure the picture, one pass keeps the settled exposure from frame to frame,
+    // and the last applies it. The first two are small; the engine keeps the second's output.
+    multiPass: [
+        { name: 'ae_measure', factory: () => postProcessEffects.createAutoExposureMeasure(), scale: 0.0625 },
+        { name: 'ae_adapt', factory: () => postProcessEffects.createAutoExposureAdapt(), scale: 0.01 },
+        { name: 'ae_apply', factory: () => postProcessEffects.createAutoExposureApply() },
+    ],
+});
+
+registerEffect({
+    type: 'depthOfField',
+    label: 'Depth of Field',
+    factory: () => postProcessEffects.createDepthOfField(),
+    uniforms: [
+        // A WORLD length from the camera to what is in focus.
+        { name: 'u_focusDistance', label: 'Focus Distance', min: 1, max: 5000, step: 1, defaultValue: 600 },
+        // How deep a slab around it stays sharp, before the blur starts.
+        { name: 'u_focusRange', label: 'Focus Range', min: 0, max: 2000, step: 1, defaultValue: 100 },
+        // The blur, in pixels, of something infinitely far: a bigger lens blurs sooner and harder.
+        { name: 'u_aperture', label: 'Aperture (px)', min: 0, max: 64, step: 0.5, defaultValue: 24, neutralValue: 0 },
+        { name: 'u_maxBlur', label: 'Max Blur (px)', min: 1, max: 32, step: 0.5, defaultValue: 14 },
+    ],
+});
+
+registerEffect({
     type: 'ssao',
     label: 'Ambient Occlusion',
     factory: () => postProcessEffects.createSsaoAo(),
