@@ -10882,6 +10882,8 @@ rain: number
 reflection: number
 reflectionSaturation: number
 saturation: number
+shadowSoftness: number
+shadowStrength: number
 sky: number
 skyFog: number
 sound: number

@@ -271,6 +271,44 @@ registerEffect({
 });
 
 registerEffect({
+    type: 'ssgi',
+    label: 'Screen Space GI',
+    factory: () => postProcessEffects.createSsgiApply(),
+    uniforms: [
+        // How much of the bounced light is added: 1 is what the surfaces gave out, scaled by the receiver's colour.
+        { name: 'u_intensity', label: 'Intensity', min: 0, max: 4, step: 0.01, defaultValue: 1, neutralValue: 0 },
+        // A WORLD length: how far from a surface the rays look for something to bounce light from.
+        { name: 'u_radius', label: 'Radius', min: 10, max: 1500, step: 5, defaultValue: 150 },
+        // A WORLD length: how thick a thing the rays can land on, so a far wall is not taken for the one beside it.
+        { name: 'u_thickness', label: 'Thickness', min: 1, max: 300, step: 1, defaultValue: 30 },
+        // Brighter than this a surface does not bounce, so one lamp does not light the street from a single pixel.
+        { name: 'u_maxBounce', label: 'Max Bounce', min: 0.5, max: 16, step: 0.5, defaultValue: 3 },
+    ],
+    // What each surface receives, at half size and in a float; then the neighbours on the same surface averaged and added.
+    multiPass: [
+        { name: 'ssgi_gather', factory: () => postProcessEffects.createSsgiGather(), scale: 0.5 },
+        { name: 'ssgi_apply', factory: () => postProcessEffects.createSsgiApply() },
+    ],
+});
+
+registerEffect({
+    type: 'contactShadows',
+    label: 'Contact Shadows',
+    factory: () => postProcessEffects.createContactShadows(),
+    uniforms: [
+        // How dark a contact shadow is.
+        { name: 'u_intensity', label: 'Intensity', min: 0, max: 1, step: 0.01, defaultValue: 0.6, neutralValue: 0 },
+        // A WORLD length: how far from a surface the ray looks for something standing in the light's way.
+        { name: 'u_length', label: 'Length', min: 5, max: 600, step: 1, defaultValue: 60 },
+        // A WORLD length: how thick a thing can be and still shadow, so a far wall does not shadow what is in front of it.
+        { name: 'u_thickness', label: 'Thickness', min: 0.5, max: 80, step: 0.5, defaultValue: 8 },
+        { name: 'u_followSun', label: 'Follow Scene Sun', min: 0, max: 1, step: 1, defaultValue: 1, neutralValue: 1 },
+        { name: 'u_sunAzimuth', label: 'Sun Azimuth', min: 0, max: 360, step: 1, defaultValue: 40 },
+        { name: 'u_sunElevation', label: 'Sun Elevation', min: -10, max: 90, step: 1, defaultValue: 35 },
+    ],
+});
+
+registerEffect({
     type: 'lightShafts',
     label: 'Light Shafts',
     factory: () => postProcessEffects.createLightShafts(),

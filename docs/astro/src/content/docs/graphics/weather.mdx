@@ -31,6 +31,8 @@ A turn is eased, so it starts and ends gently, and a finished turn lands on its 
   authored with — the weather scales your number, never its own last answer — and they are put back when the weather
   is taken away or `Lights` is switched off. Only while the game runs: in the editor the lights are left alone, so
   previewing a weather never changes the scene you save.
+- **Shadows.** The directional light's shadows get softer (a source `shadowSoftness` suns wide) and lighter (`shadowStrength` times
+  the authored darkness) as the sky clouds over, the way an overcast sky's shadows fade into the ground.
 - **Fog.** Height Fog's density, its sun glow and the volumetric light it carries are scaled, its sky haze is raised, and
   its colour moves toward the weather's.
 - **Rain.** The Rain effect is brought with the weather (when the scene has none) at the preset's strength, and Rain and

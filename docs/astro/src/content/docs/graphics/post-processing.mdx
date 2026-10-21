@@ -25,6 +25,8 @@ several can stack in one frame at no extra target cost beyond the passes.
 | `distanceFog` | Linear fog by distance from the camera | `near`, `far`, `intensity`, colour |
 | `heightFog` | Exponential height fog with the sun's glow and a hazy horizon | `density`, `heightFalloff`, `baseHeight`, `sunAzimuth`, `sunElevation`, `skyFog`, colours |
 | `lightShafts` | Sun rays through whatever stands in front of it | `intensity`, `sunAzimuth`, `sunElevation`, `decay`, `reach` |
+| `contactShadows` | The small sharp shadows at a contact a shadow map is too coarse to hold | `intensity`, `length`, `thickness` |
+| `ssgi` | One bounce of diffuse light between the surfaces the camera sees | `intensity`, `radius`, `thickness`, `maxBounce` |
 | `autoExposure` | Eye adaptation: exposure follows how bright the picture is | `bias`, `speedUp`, `speedDown`, `minEV`, `maxEV` |
 | `depthOfField` | Blur by distance from a focus | `focusDistance`, `focusRange`, `aperture`, `maxBlur` |
 | `rain` | Falling rain, wet ground, puddles, ripples and splashes | `intensity`, `wetness`, `wind`, `speed`, `puddles`, `puddleScale` |
@@ -75,6 +77,20 @@ resident meshes in range, so keep `shelterRange` to the reach you need; ground o
 The clock is the game's. A capture that has to be the same on every run sets `timeScale` to 0 and `phase` to the time it
 wants. What this is not: the ground's shape is read from what the camera sees (a hollow behind a wall is not known),
 and the rain is a screen-space layer, not particles that collide with the world.
+
+### Contact shadows and bounce light
+
+`contactShadows` marches a short ray from each pixel toward the sun (the scene's own directional light, like the fog) in the depth
+buffer, `length` world units long, and darkens the pixel by `intensity` where the ray passes just behind what the depth buffer shows
+(`thickness` says how thick a thing may be and still count). It is for what a shadow map is too coarse to hold — a lamp's foot, a fold of
+cloth, the crack under a door — and is laid over the finished picture, so it is a correction at the contact and not a second shadow.
+
+`ssgi` is one bounce of **diffuse light** from what the camera can see. It needs the [G-buffer](#the-g-buffer): from each surface eight
+rays leave over its hemisphere around the stored normal, each is marched six steps up to `radius` in the depth buffer, and what it lands on
+gives out its colour (the scene's, so the bounce feeds itself over frames). The gather runs at half size into a float target; the second pass averages
+the neighbours that lie on the same surface and adds the light times the receiver's own colour, so a red wall tints the white floor
+beside it and a grey wall bounces grey. It is a screen-space estimate — it sees only what is on screen, and a light that moves lights its
+surroundings with it, which a baked light cannot do — and it is noisier than it looks in one frame: `taa` averages what is left.
 
 ### Auto exposure
 

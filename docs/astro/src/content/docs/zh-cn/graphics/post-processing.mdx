@@ -24,6 +24,8 @@ Estella 通过 ping-pong 帧缓冲运行全屏后处理。加一个 `PostProcess
 | `distanceFog` | 按到相机的距离做线性雾 | `near`、`far`、`intensity`、颜色 |
 | `heightFog` | 指数高度雾,带太阳辉光和朦胧的地平线 | `density`、`heightFalloff`、`baseHeight`、`sunAzimuth`、`sunElevation`、`skyFog`、颜色 |
 | `lightShafts` | 太阳光穿过前方遮挡物形成的光束 | `intensity`、`sunAzimuth`、`sunElevation`、`decay`、`reach` |
+| `contactShadows` | 阴影贴图太粗放不下的接触处的小而锐利的阴影 | `intensity`、`length`、`thickness` |
+| `ssgi` | 相机看得见的表面之间的一次漫反射光弹射 | `intensity`、`radius`、`thickness`、`maxBounce` |
 | `autoExposure` | 眼睛适应:曝光跟随画面亮度 | `bias`、`speedUp`、`speedDown`、`minEV`、`maxEV` |
 | `depthOfField` | 按到焦点的距离模糊 | `focusDistance`、`focusRange`、`aperture`、`maxBlur` |
 | `rain` | 下雨、潮湿的地面、水坑、涟漪与水花 | `intensity`、`wetness`、`wind`、`speed`、`puddles`、`puddleScale` |
@@ -60,6 +62,17 @@ Estella 通过 ping-pong 帧缓冲运行全屏后处理。加一个 `PostProcess
 
 时钟是游戏的。要在每次运行都相同的截图,把 `timeScale` 设为 0,`phase` 设为想要的时间。它不是什么:地面的形状是从相机看到的东西里读出来的(墙后面的凹处它不知道),
 雨是屏幕空间的一层,不是会与世界碰撞的粒子。
+
+### 接触阴影与弹射光
+
+`contactShadows` 从每个像素朝太阳(场景自己的方向光,和雾一样)在深度缓冲里步进一条长 `length` 世界单位的短射线,射线刚好经过深度缓冲所示表面
+后面的地方就把像素压暗 `intensity`(`thickness` 说一个东西多厚还算数)。它用来补阴影贴图太粗放不下的东西——灯的脚、衣褶、门下的缝——
+盖在完成的画面上,所以它是接触处的一次修正,不是第二套阴影。
+
+`ssgi` 是相机看得见的东西带来的**漫反射光**的一次弹射。它需要 [G-buffer](#g-buffer):每个表面绕存下的法线向半球发出八条射线,
+每条在深度缓冲里走六步、最远 `radius`,落到的东西给出它的颜色(用场景的颜色,所以弹射光会在帧与帧之间自己喂自己)。收集在半尺寸的浮点目标上进行;
+第二遍把同一个表面上的邻居平均起来,再把光乘以接收者自己的颜色加上去,所以红墙把旁边的白地面染红,灰墙弹出的是灰。它是屏幕空间的估计——
+只看得到屏幕上有的东西,而移动的光会带着周围一起被照亮,这是烘焙光做不到的——一帧里它比看起来更吵:剩下的由 `taa` 平均掉。
 
 ### 自动曝光
 

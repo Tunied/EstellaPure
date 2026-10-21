@@ -23,6 +23,11 @@ export interface WeatherState {
     sky: number;
     /** × the directional light's colour. */
     sunTint: [number, number, number];
+    /** How soft its shadows are, in suns: 1 leaves them as authored, 8 makes the source eight times wider across the
+     *  sky — an overcast sky's shadows are barely there, and the ones that are fade into the ground. */
+    shadowSoftness: number;
+    /** × how dark the light's shadows are. */
+    shadowStrength: number;
     /** × Height Fog's density. */
     fogDensity: number;
     /** The colour fog moves toward, and how far (0 = its own colour). */
@@ -54,7 +59,7 @@ export interface WeatherState {
 export type WeatherPreset = Partial<WeatherState>;
 
 const NEUTRAL: WeatherState = {
-    sun: 1, sky: 1, sunTint: [1, 1, 1],
+    sun: 1, sky: 1, sunTint: [1, 1, 1], shadowSoftness: 1, shadowStrength: 1,
     fogDensity: 1, fogTint: [0.7, 0.72, 0.76], fogTintAmount: 0, fogGlow: 1, skyFog: 1,
     saturation: 1, contrast: 1, exposure: 0,
     rain: 0, wetness: 0, puddles: 0, ssr: 1,
@@ -89,22 +94,22 @@ function define(id: number, name: string, preset: WeatherPreset): void {
 
 define(WEATHER_CLEAR, 'clear', {});
 define(WEATHER_MIST, 'mist', {
-    sun: 0.45, sky: 0.9, fogDensity: 8, fogTint: [0.86, 0.86, 0.84], fogTintAmount: 0.7, fogGlow: 1.8, skyFog: 1.7,
+    sun: 0.45, sky: 0.9, shadowSoftness: 3, shadowStrength: 0.8, fogDensity: 8, fogTint: [0.86, 0.86, 0.84], fogTintAmount: 0.7, fogGlow: 1.8, skyFog: 1.7,
     saturation: 0.86, contrast: 0.94, exposure: 0.2, wetness: 0.2, puddles: 0.1, ssr: 1.3, reflection: 0.85,
     reflectionSaturation: 0.9,
 });
 define(WEATHER_OVERCAST, 'overcast', {
-    sun: 0.25, sky: 0.85, sunTint: [0.9, 0.93, 1], fogDensity: 3, fogTint: [0.62, 0.66, 0.72], fogTintAmount: 0.5,
+    sun: 0.25, sky: 0.85, sunTint: [0.9, 0.93, 1], shadowSoftness: 8, shadowStrength: 0.5, fogDensity: 3, fogTint: [0.62, 0.66, 0.72], fogTintAmount: 0.5,
     fogGlow: 0.3, skyFog: 1.4, saturation: 0.85, contrast: 0.96, exposure: 0.25, wetness: 0.1, ssr: 1.2,
     reflection: 0.7, reflectionSaturation: 0.7,
 });
 define(WEATHER_RAIN, 'rain', {
-    sun: 0.04, sky: 0.75, sunTint: [0.8, 0.86, 1], fogDensity: 5.5, fogTint: [0.58, 0.63, 0.7], fogTintAmount: 0.8,
+    sun: 0.04, sky: 0.75, sunTint: [0.8, 0.86, 1], shadowSoftness: 10, shadowStrength: 0.3, fogDensity: 5.5, fogTint: [0.58, 0.63, 0.7], fogTintAmount: 0.8,
     fogGlow: 0, skyFog: 1.7, saturation: 0.73, contrast: 0.93, exposure: 0.45, rain: 1.1, wetness: 1, puddles: 0.6,
     ssr: 2.6, reflection: 0.55, reflectionSaturation: 0.5, sound: 1,
 });
 define(WEATHER_STORM, 'storm', {
-    sun: 0.02, sky: 0.5, sunTint: [0.7, 0.78, 1], fogDensity: 8, fogTint: [0.4, 0.44, 0.5], fogTintAmount: 0.9,
+    sun: 0.02, sky: 0.5, sunTint: [0.7, 0.78, 1], shadowSoftness: 10, shadowStrength: 0.2, fogDensity: 8, fogTint: [0.4, 0.44, 0.5], fogTintAmount: 0.9,
     fogGlow: 0, skyFog: 1.8, saturation: 0.6, contrast: 0.9, exposure: 0.8, rain: 2.2, wetness: 1, puddles: 1,
     ssr: 3, reflection: 0.4, reflectionSaturation: 0.35, sound: 1.6,
 });

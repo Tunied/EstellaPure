@@ -28,6 +28,8 @@ interface LightBase {
     color: { r: number; g: number; b: number; a: number };
     reflectionScale: number;
     reflectionSaturation: number;
+    sourceAngle: number;
+    shadowStrength: number;
     applied: number;
 }
 
@@ -49,6 +51,7 @@ function restoreLights(world: World): void {
             world.set(entity, Light, {
                 ...data, intensity: base.intensity, color: { ...base.color },
                 reflectionScale: base.reflectionScale, reflectionSaturation: base.reflectionSaturation,
+                sourceAngle: base.sourceAngle, shadowStrength: base.shadowStrength,
             });
         }
     }
@@ -64,6 +67,7 @@ function applyLights(world: World, state: WeatherState, drive: number): void {
             base = {
                 intensity: data.intensity, color: { ...data.color },
                 reflectionScale: data.reflectionScale ?? 1, reflectionSaturation: data.reflectionSaturation ?? 1,
+                sourceAngle: data.sourceAngle ?? 0, shadowStrength: data.shadowStrength ?? 1,
                 applied: Number.NaN,
             };
             bases.set(entity, base);
@@ -74,14 +78,20 @@ function applyLights(world: World, state: WeatherState, drive: number): void {
         const scale = lights ? (sun ? state.sun : state.sky) : 1;
         // The key is what the light would be told: nothing is written for a frame that would say the same again.
         const key = scale + (lights && sun ? state.sunTint[0] * 7 + state.sunTint[1] * 13 + state.sunTint[2] * 29 : 0)
-            + (reflections ? state.reflection * 101 + state.reflectionSaturation * 211 : 0);
+            + (reflections ? state.reflection * 101 + state.reflectionSaturation * 211 : 0)
+            + (lights && sun ? state.shadowSoftness * 307 + state.shadowStrength * 401 : 0);
         if (base.applied === key) continue;
         base.applied = key;
         const color = lights && sun
             ? { r: base.color.r * state.sunTint[0], g: base.color.g * state.sunTint[1], b: base.color.b * state.sunTint[2], a: base.color.a }
             : { ...base.color };
+        // A sun's width in the sky is 0.53 degrees: softer shadows are a wider source, and a hard-edged light (0) gains the
+        // difference too, so the setting always means something.
+        const widen = lights && sun ? Math.max(state.shadowSoftness - 1, 0) * 0.53 : 0;
         world.set(entity, Light, {
             ...data, intensity: base.intensity * scale, color,
+            sourceAngle: base.sourceAngle + widen,
+            shadowStrength: lights && sun ? Math.min(base.shadowStrength * state.shadowStrength, 1) : base.shadowStrength,
             reflectionScale: reflections ? base.reflectionScale * state.reflection : base.reflectionScale,
             reflectionSaturation: reflections ? base.reflectionSaturation * state.reflectionSaturation : base.reflectionSaturation,
         });

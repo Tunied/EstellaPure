@@ -1725,6 +1725,383 @@ fn opticalDepth(eyeY : f32, dirY : f32, len : f32) -> f32 {
     },
 
     /**
+     * Screen-space global illumination, pass 1 of 2: what each surface receives from the others. From each surface a few
+     * rays leave over its hemisphere (cosine weighted, around the normal the G-buffer holds), each is marched a short way in
+     * the depth buffer, and what it lands on contributes the colour it is lit with — a red wall tints the white floor beside
+     * it, a sunlit patch lights the shade next to it. The scene's colour stands for the light a surface gives out (its direct
+     * and indirect light together, so the bounce feeds itself over frames). Eight rays a pixel are noise; the pass runs at
+     * half size into a float target, and the next pass averages the neighbours that lie on the same surface.
+     */
+    createSsgiGather(): ShaderHandle {
+        const GLSL = `
+const int RAYS = 8;
+const int STEPS = 6;
+float ign(vec2 p) {
+    return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715))));
+}
+/// A direction over the hemisphere of N, cosine weighted, from two numbers in [0, 1).
+vec3 cosineDirection(vec3 N, float u, float v) {
+    float r = sqrt(u);
+    float phi = 6.2831853 * v;
+    vec3 up = abs(N.y) < 0.99 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+    vec3 T = normalize(cross(up, N));
+    vec3 B = cross(N, T);
+    return normalize(T * (r * cos(phi)) + B * (r * sin(phi)) + N * sqrt(max(1.0 - u, 0.0)));
+}`;
+        const WGSL = `
+const RAYS : i32 = 8;
+const STEPS : i32 = 6;
+fn ign(p : vec2f) -> f32 {
+    return fract(52.9829189 * fract(dot(p, vec2f(0.06711056, 0.00583715))));
+}
+fn cosineDirection(N : vec3f, u : f32, v : f32) -> vec3f {
+    let r = sqrt(u);
+    let phi = 6.2831853 * v;
+    var up = vec3f(1.0, 0.0, 0.0);
+    if (abs(N.y) < 0.99) { up = vec3f(0.0, 1.0, 0.0); }
+    let T = normalize(cross(up, N));
+    let B = cross(N, T);
+    return normalize(T * (r * cos(phi)) + B * (r * sin(phi)) + N * sqrt(max(1.0 - u, 0.0)));
+}`;
+        const source = `#pragma shader "PP SSGI Gather"
+#pragma version 300 es
+#pragma domain PostProcess
+#pragma param u_radius float default(150) range(10,1500)
+#pragma param u_thickness float default(30) range(1,300)
+#pragma param u_maxBounce float default(3) range(0.5,16)
+#pragma gbuffer
+#pragma highprecision
+
+#pragma fragment
+precision highp float;
+
+in vec2 v_texCoord;
+uniform sampler2D u_texture;
+uniform highp sampler2D u_sceneDepth;
+uniform sampler2D u_gbuffer;
+out vec4 fragColor;
+
+${SSAO_GLSL}
+${GBUFFER_GLSL}
+${GLSL}
+
+void main() {
+    ivec2 size = textureSize(u_sceneDepth, 0);
+    ivec2 c = screenTexel(v_texCoord, size);
+    float d = depthAt(c, size);
+    if (d >= 1.0) { fragColor = vec4(0.0); return; }
+    Surface sf = readSurface(c);
+    if (!sf.known) { fragColor = vec4(0.0); return; }
+
+    vec3 P = worldFromDepth(uvOfTexel(c, size), d);
+    vec3 N = sf.normal;
+    if (dot(N, viewDirection(P)) < 0.0) N = -N;
+
+    float rot = ign(gl_FragCoord.xy);
+    float turn = ign(gl_FragCoord.yx + vec2(5.588238 * u_time.x * 60.0, 0.0));
+    vec3 gathered = vec3(0.0);
+    for (int k = 0; k < RAYS; ++k) {
+        // A stratified pair per ray, shifted per pixel: the rays of one pixel never bunch, and its neighbours differ.
+        float u = fract((float(k) + 0.5) / float(RAYS) + rot);
+        float v = fract(float(k) * 0.61803399 + turn);
+        vec3 dir = cosineDirection(N, u, v);
+        for (int i = 1; i <= STEPS; ++i) {
+            float f = float(i) / float(STEPS);
+            float t = u_radius * f * f;
+            vec3 Q = P + N * (u_radius * 0.01) + dir * t;
+            vec4 q = u_projection * vec4(Q, 1.0);
+            if (q.w <= 1e-4) break;
+            vec2 uv = q.xy / q.w * 0.5 + 0.5;
+            if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) break;
+            ivec2 tx = screenTexel(uv, size);
+            if (depthAt(tx, size) >= 1.0) continue;
+            float surface = (u_projection * vec4(worldAt(tx, size), 1.0)).w;
+            float behind = q.w - surface;
+            if (behind > u_thickness * 0.05 && behind < u_thickness) {
+                // What that surface gives out, less as it is further: the light of a far wall is spread thin.
+                vec3 hit = min(texture(u_texture, uv).rgb, vec3(u_maxBounce));
+                gathered += hit * (1.0 - f * 0.6);
+                break;
+            }
+        }
+    }
+    fragColor = vec4(gathered / float(RAYS), 1.0);
+}
+#pragma end
+
+#pragma fragment wgsl
+${SSAO_WGSL}
+${GBUFFER_WGSL}
+${WGSL}
+
+@fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
+    let size = vec2i(textureDimensions(t7, 0));
+    let c = screenTexel(v.v_texCoord, size);
+    let d = depthAt(c, size);
+    if (d >= 1.0) { return vec4f(0.0); }
+    let sf = readSurface(c);
+    if (!sf.known) { return vec4f(0.0); }
+
+    let P = worldFromDepth(uvOfTexel(c, size), d);
+    var N = sf.normal;
+    if (dot(N, viewDirection(P)) < 0.0) { N = -N; }
+
+    let rot = ign(v.pos.xy);
+    let turn = ign(v.pos.yx + vec2f(5.588238 * tc.u_time.x * 60.0, 0.0));
+    var gathered = vec3f(0.0);
+    for (var k : i32 = 0; k < RAYS; k = k + 1) {
+        let u = fract((f32(k) + 0.5) / f32(RAYS) + rot);
+        let w = fract(f32(k) * 0.61803399 + turn);
+        let dir = cosineDirection(N, u, w);
+        for (var i : i32 = 1; i <= STEPS; i = i + 1) {
+            let f = f32(i) / f32(STEPS);
+            let t = mc.u_radius * f * f;
+            let Q = P + N * (mc.u_radius * 0.01) + dir * t;
+            let q = frame.projection * vec4f(Q, 1.0);
+            if (q.w <= 1e-4) { break; }
+            let uv = vec2f(q.x / q.w * 0.5 + 0.5, 0.5 - q.y / q.w * 0.5);
+            if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) { break; }
+            let tx = screenTexel(uv, size);
+            if (depthAt(tx, size) >= 1.0) { continue; }
+            let surface = (frame.projection * vec4f(worldAt(tx, size), 1.0)).w;
+            let behind = q.w - surface;
+            if (behind > mc.u_thickness * 0.05 && behind < mc.u_thickness) {
+                let hit = min(textureSampleLevel(t0, s0, uv, 0.0).rgb, vec3f(mc.u_maxBounce));
+                gathered = gathered + hit * (1.0 - f * 0.6);
+                break;
+            }
+        }
+    }
+    return vec4f(gathered / f32(RAYS), 1.0);
+}
+#pragma end
+`;
+        return Material.compileShader(source);
+    },
+
+    /**
+     * Screen-space global illumination, pass 2 of 2: the bounce, cleaned and laid over the picture. Each pixel averages the
+     * gathered light of the pixels around it that lie on the same surface (close in depth, facing the same way), which turns
+     * eight noisy rays into something near two hundred; what the receiver adds is that light times its own colour, since
+     * light that bounced off a surface carries the surface's tint, so a grey wall bounces grey.
+     */
+    createSsgiApply(): ShaderHandle {
+        const source = `#pragma shader "PP SSGI Apply"
+#pragma version 300 es
+#pragma domain PostProcess
+#pragma param u_intensity float default(1) range(0,4)
+#pragma gbuffer
+
+#pragma fragment
+precision highp float;
+
+in vec2 v_texCoord;
+uniform sampler2D u_texture;
+uniform sampler2D u_sceneTexture;
+uniform highp sampler2D u_sceneDepth;
+uniform sampler2D u_gbuffer;
+out vec4 fragColor;
+
+${SSAO_GLSL}
+${GBUFFER_GLSL}
+
+void main() {
+    vec4 src = texture(u_sceneTexture, v_texCoord);
+    ivec2 size = textureSize(u_sceneDepth, 0);
+    ivec2 c = screenTexel(v_texCoord, size);
+    float d = depthAt(c, size);
+    Surface sf = readSurface(c);
+    if (d >= 1.0 || !sf.known || u_intensity <= 0.0) { fragColor = src; return; }
+
+    vec3 P = worldFromDepth(uvOfTexel(c, size), d);
+    float reach = max(length(worldAt(c + ivec2(2, 0), size) - P), 1e-3);
+    vec2 texel = 1.0 / vec2(textureSize(u_texture, 0));
+    vec3 sum = vec3(0.0);
+    float wsum = 0.0;
+    for (int j = -2; j <= 2; ++j) {
+        for (int i = -2; i <= 2; ++i) {
+            vec2 uv = v_texCoord + vec2(float(i), float(j)) * texel;
+            ivec2 t = screenTexel(uv, size);
+            float dt = depthAt(t, size);
+            if (dt >= 1.0) continue;
+            Surface st = readSurface(t);
+            if (!st.known) continue;
+            // The same surface: nearby in the world and facing the same way.
+            float apart = length(worldAt(t, size) - P) / (reach * 8.0);
+            float w = exp(-apart * apart * 4.0) * pow(max(dot(sf.normal, st.normal), 0.0), 8.0);
+            sum += texture(u_texture, uv).rgb * w;
+            wsum += w;
+        }
+    }
+    vec3 gathered = wsum > 1e-4 ? sum / wsum : vec3(0.0);
+    // The bounced light wears the receiver's own colour (its chroma, kept below white so a bright surface does not run away).
+    float lum = max(dot(src.rgb, vec3(0.2126, 0.7152, 0.0722)), 0.02);
+    vec3 albedo = mix(vec3(0.55), clamp(src.rgb / lum, vec3(0.0), vec3(1.6)) * 0.55, 0.7);
+    fragColor = vec4(src.rgb + albedo * gathered * u_intensity, src.a);
+}
+#pragma end
+
+#pragma fragment wgsl
+${SSAO_WGSL}
+${GBUFFER_WGSL}
+
+@fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
+    let src = textureSampleLevel(t1, s1, v.v_texCoord, 0.0);
+    let size = vec2i(textureDimensions(t7, 0));
+    let c = screenTexel(v.v_texCoord, size);
+    let d = depthAt(c, size);
+    let sf = readSurface(c);
+    if (d >= 1.0 || !sf.known || mc.u_intensity <= 0.0) { return src; }
+
+    let P = worldFromDepth(uvOfTexel(c, size), d);
+    let reach = max(length(worldAt(c + vec2i(2, 0), size) - P), 1e-3);
+    let texel = 1.0 / vec2f(vec2i(textureDimensions(t0, 0)));
+    var sum = vec3f(0.0);
+    var wsum = 0.0;
+    for (var j : i32 = -2; j <= 2; j = j + 1) {
+        for (var i : i32 = -2; i <= 2; i = i + 1) {
+            let uv = v.v_texCoord + vec2f(f32(i), f32(j)) * texel;
+            let t = screenTexel(uv, size);
+            let dt = depthAt(t, size);
+            if (dt >= 1.0) { continue; }
+            let st = readSurface(t);
+            if (!st.known) { continue; }
+            let apart = length(worldAt(t, size) - P) / (reach * 8.0);
+            let w = exp(-apart * apart * 4.0) * pow(max(dot(sf.normal, st.normal), 0.0), 8.0);
+            sum = sum + textureSampleLevel(t0, s0, uv, 0.0).rgb * w;
+            wsum = wsum + w;
+        }
+    }
+    var gathered = vec3f(0.0);
+    if (wsum > 1e-4) { gathered = sum / wsum; }
+    let lum = max(dot(src.rgb, vec3f(0.2126, 0.7152, 0.0722)), 0.02);
+    let albedo = mix(vec3f(0.55), clamp(src.rgb / lum, vec3f(0.0), vec3f(1.6)) * 0.55, 0.7);
+    return vec4f(src.rgb + albedo * gathered * mc.u_intensity, src.a);
+}
+#pragma end
+`;
+        return Material.compileShader(source);
+    },
+
+    /**
+     * Contact shadows: the small, sharp shadows a shadow map is too coarse to hold — a lamp's foot on the ground, a
+     * fold of cloth, the crack under a door. From each pixel a short ray is marched toward the sun in the depth buffer; a
+     * step that lands just behind what the buffer shows is a surface standing between this point and the light. It is
+     * laid over the finished picture, so it darkens what is already lit by the same amount whatever the light did: a
+     * correction at the contact, not a replacement for the shadow map. The sun is the scene's own directional light.
+     */
+    createContactShadows(): ShaderHandle {
+        const source = `#pragma shader "PP Contact Shadows"
+#pragma version 300 es
+#pragma domain PostProcess
+#pragma param u_intensity float default(0.6) range(0,1)
+#pragma param u_length float default(60) range(5,600)
+#pragma param u_thickness float default(8) range(0.5,80)
+#pragma param u_followSun float default(1) range(0,1)
+#pragma param u_sunAzimuth float default(40) range(0,360)
+#pragma param u_sunElevation float default(35) range(-10,90)
+#pragma lights
+
+#pragma fragment
+precision highp float;
+
+in vec2 v_texCoord;
+uniform sampler2D u_texture;
+uniform highp sampler2D u_sceneDepth;
+out vec4 fragColor;
+
+const int STEPS = 20;
+
+${SSAO_GLSL}
+
+float ign(vec2 p) {
+    return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715))));
+}
+
+void main() {
+    vec4 src = texture(u_texture, v_texCoord);
+    ivec2 size = textureSize(u_sceneDepth, 0);
+    ivec2 c = screenTexel(v_texCoord, size);
+    float d = depthAt(c, size);
+    if (d >= 1.0 || u_intensity <= 0.0) { fragColor = src; return; }
+
+    vec4 lightDir, lightColor;
+    ivec2 tiles;
+    findSun(lightDir, lightColor, tiles);
+    float az = radians(u_sunAzimuth);
+    float el = radians(u_sunElevation);
+    vec3 L = (u_followSun > 0.5 && lightDir.w > 0.5) ? lightDir.xyz
+           : vec3(cos(el) * sin(az), sin(el), cos(el) * cos(az));
+
+    vec3 P = worldFromDepth(uvOfTexel(c, size), d);
+    float jitter = ign(gl_FragCoord.xy);
+    float occluded = 0.0;
+    for (int i = 0; i < STEPS; ++i) {
+        float t = (float(i) + jitter + 0.5) / float(STEPS) * u_length;
+        vec3 Q = P + L * t;
+        vec4 q = u_projection * vec4(Q, 1.0);
+        if (q.w <= 1e-4) break;
+        vec2 uv = q.xy / q.w * 0.5 + 0.5;
+        if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) break;
+        ivec2 tx = screenTexel(uv, size);
+        if (depthAt(tx, size) >= 1.0) continue;
+        float surface = (u_projection * vec4(worldAt(tx, size), 1.0)).w;
+        // Behind what the buffer shows by more than the surface's own noise, and by less than a wall's thickness.
+        float behind = q.w - surface;
+        if (behind > u_thickness * 0.08 + t * 0.01 && behind < u_thickness) { occluded = 1.0; break; }
+    }
+    // The nearer the blocker, the harder the contact: fades along the ray's length.
+    fragColor = vec4(src.rgb * (1.0 - u_intensity * occluded), src.a);
+}
+#pragma end
+
+#pragma fragment wgsl
+const STEPS : i32 = 20;
+
+${SSAO_WGSL}
+
+fn ign(p : vec2f) -> f32 {
+    return fract(52.9829189 * fract(dot(p, vec2f(0.06711056, 0.00583715))));
+}
+
+@fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
+    let src = textureSampleLevel(t0, s0, v.v_texCoord, 0.0);
+    let size = vec2i(textureDimensions(t7, 0));
+    let c = screenTexel(v.v_texCoord, size);
+    let d = depthAt(c, size);
+    if (d >= 1.0 || mc.u_intensity <= 0.0) { return src; }
+
+    let found = findSun();
+    let az = radians(mc.u_sunAzimuth);
+    let el = radians(mc.u_sunElevation);
+    var L = vec3f(cos(el) * sin(az), sin(el), cos(el) * cos(az));
+    if (mc.u_followSun > 0.5 && found.dir.w > 0.5) { L = found.dir.xyz; }
+
+    let P = worldFromDepth(uvOfTexel(c, size), d);
+    let jitter = ign(v.pos.xy);
+    var occluded = 0.0;
+    for (var i : i32 = 0; i < STEPS; i = i + 1) {
+        let t = (f32(i) + jitter + 0.5) / f32(STEPS) * mc.u_length;
+        let Q = P + L * t;
+        let q = frame.projection * vec4f(Q, 1.0);
+        if (q.w <= 1e-4) { break; }
+        // This device's uv runs down the rows, so clip y is flipped on the way back.
+        let uv = vec2f(q.x / q.w * 0.5 + 0.5, 0.5 - q.y / q.w * 0.5);
+        if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) { break; }
+        let tx = screenTexel(uv, size);
+        if (depthAt(tx, size) >= 1.0) { continue; }
+        let surface = (frame.projection * vec4f(worldAt(tx, size), 1.0)).w;
+        let behind = q.w - surface;
+        if (behind > mc.u_thickness * 0.08 + t * 0.01 && behind < mc.u_thickness) { occluded = 1.0; break; }
+    }
+    return vec4f(src.rgb * (1.0 - mc.u_intensity * occluded), src.a);
+}
+#pragma end
+`;
+        return Material.compileShader(source);
+    },
+
+    /**
      * Light shafts: the sun's light through whatever stands between it and the camera, found in
      * screen space. From each pixel a short march toward the sun's position on screen collects
      * how much of the way is open sky; a pixel behind a branch or a building sees little of it
