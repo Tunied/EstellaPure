@@ -523,6 +523,18 @@ out highp vec4 v_velPrev;
 @@ES_VERTEX_HOOK@@
 #endif
 
+#if defined(ES_VELOCITY) && defined(SKINNED)
+
+highp mat4 esPrevBone(uint joint) {
+    int at = 8 + int(joint) * 3;
+    highp vec4 r0 = esInstanceTexel(at);
+    highp vec4 r1 = esInstanceTexel(at + 1);
+    highp vec4 r2 = esInstanceTexel(at + 2);
+    return mat4(vec4(r0.x, r1.x, r2.x, 0.0), vec4(r0.y, r1.y, r2.y, 0.0),
+                vec4(r0.z, r1.z, r2.z, 0.0), vec4(r0.w, r1.w, r2.w, 1.0));
+}
+#endif
+
 void main() {
     vec3 local = a_position;
 #ifdef MESH_NORMALS
@@ -570,7 +582,14 @@ void main() {
     {
 
 
+#ifdef SKINNED
+
+        highp mat4 prevSkin = a_weights.x * esPrevBone(a_joints.x) + a_weights.y * esPrevBone(a_joints.y)
+                            + a_weights.z * esPrevBone(a_joints.z) + a_weights.w * esPrevBone(a_joints.w);
+        highp vec4 L = prevSkin * vec4(local, 1.0);
+#else
         highp vec4 L = vec4(local, 1.0);
+#endif
         highp vec4 before = esInstanceTint();
         v_velCur = gl_Position;
         highp vec4 prev = vec4(dot(esInstanceTexel(4), L), dot(esInstanceTexel(5), L),
@@ -748,6 +767,20 @@ struct VSOut {
 @@ES_VERTEX_HOOK@@
 #endif
 
+#ifdef ES_VELOCITY
+#ifdef SKINNED
+
+fn esPrevBone(joint : u32) -> mat4x4f {
+    let at = 8 + i32(joint) * 3;
+    let r0 = esInstanceTexel(at);
+    let r1 = esInstanceTexel(at + 1);
+    let r2 = esInstanceTexel(at + 2);
+    return mat4x4f(vec4f(r0.x, r1.x, r2.x, 0.0), vec4f(r0.y, r1.y, r2.y, 0.0),
+                   vec4f(r0.z, r1.z, r2.z, 0.0), vec4f(r0.w, r1.w, r2.w, 1.0));
+}
+#endif
+#endif
+
 @vertex fn vs_main(v : VSIn, @builtin(instance_index) inst : u32) -> VSOut {
     g_instanceId = i32(inst);
     var local = v.a_position;
@@ -808,7 +841,14 @@ struct VSOut {
 #ifdef ES_VELOCITY
     {
 
+#ifdef SKINNED
+
+        let prevSkin = v.a_weights.x * esPrevBone(v.a_joints.x) + v.a_weights.y * esPrevBone(v.a_joints.y)
+                     + v.a_weights.z * esPrevBone(v.a_joints.z) + v.a_weights.w * esPrevBone(v.a_joints.w);
+        let L = prevSkin * vec4f(local, 1.0);
+#else
         let L = vec4f(local, 1.0);
+#endif
         let before = esInstanceTint();
         out.v_velCur = out.pos;
         let prev = vec4f(dot(esInstanceTexel(4), L), dot(esInstanceTexel(5), L),

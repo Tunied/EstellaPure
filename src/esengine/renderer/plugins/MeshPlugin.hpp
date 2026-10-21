@@ -61,10 +61,15 @@ private:
     struct Pose {
         glm::mat4 previous{1.0f};
         glm::mat4 current{1.0f};
+        /// A skinned mesh's bones are world-space and the entity's own transform says nothing about it, so what
+        /// moved is the palette: the one it was drawn with last time and the one it is drawn with now.
+        std::vector<glm::mat4> bonesPrevious;
+        std::vector<glm::mat4> bonesCurrent;
         u64 frame = 0;
     };
     std::unordered_map<u64, Pose> poses_;
-    void trackPose(const RenderFrameContext& ctx, Entity entity, const glm::mat4& model);
+    void trackPose(const RenderFrameContext& ctx, Entity entity, const glm::mat4& model,
+                   const std::vector<glm::mat4>* bones = nullptr);
     static u64 poseKey(const RenderFrameContext& ctx, Entity entity) {
         return ctx.motion_key * 0x9E3779B97F4A7C15ull ^ static_cast<u64>(entity.id());
     }

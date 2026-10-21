@@ -168,10 +168,10 @@ surface the scene shows. This is why a thin, fast mover keeps its contrast inste
 fading into the floor behind it. It costs one extra draw of only what moved (nothing,
 for a frame where nothing did) and an RGBA32F target the size of the scene, so it needs
 float render targets, and is skipped on a device without them. `objectMotion` at 0
-turns it off, which leaves the camera's answer alone. What it does not follow yet is a
-skinned mesh, whose bones are not remembered from last frame, a blended surface, and
-motion a material's vertex hook adds — those fall back to the camera's answer, clipped
-into the colours around the pixel. TAA needs scene depth like SSAO does, so on WebGPU
+turns it off, which leaves the camera's answer alone. A skinned mesh is followed by its
+bones: the frame remembers the palette each one was drawn with last time. What it does not
+follow is a blended surface and motion a material's vertex hook adds — those fall back to
+the camera's answer, clipped into the colours around the pixel. TAA needs scene depth like SSAO does, so on WebGPU
 it cannot run with multisampling on a scene that has no depth resolve.
 
 The uniform names above are the friendly labels; **in code they are `u_`-prefixed**

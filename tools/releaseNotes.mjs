@@ -2489,6 +2489,8 @@ export const NOTED = {
     {"note":"Reflections now know how rough and how metal each surface is, from a G-buffer the frame draws on request."},
   "feat(render): Temporal Anti-Aliasing follows meshes that move by themselves, from a motion pass that draws only what moved":
     {"note":"Temporal Anti-Aliasing now follows meshes that move by themselves, from a motion pass that draws only what moved, so a thin fast object keeps its contrast."},
+  "feat(render): the motion pass follows skinned meshes by the palette their bones were last drawn with":
+    {"note":"Skinned meshes are followed by their bones, from the palette they were last drawn with."},
   "feat(render): reflections no longer guess a surface, plain meshes record themselves, and what the ray never finds is the sky":
     {"note":"Screen-space reflections leave a surface that recorded nothing alone, plain meshes now record a rough dielectric, and a puddle reflects the sky and what lies off screen."},
 };

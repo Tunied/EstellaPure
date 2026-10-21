@@ -516,13 +516,23 @@ RenderPrewarmResult MeshPlugin::prewarm(RenderFrameContext& ctx, ecs::Registry& 
                         anyResident);
 }
 
-void MeshPlugin::trackPose(const RenderFrameContext& ctx, Entity entity, const glm::mat4& model) {
+void MeshPlugin::trackPose(const RenderFrameContext& ctx, Entity entity, const glm::mat4& model,
+                           const std::vector<glm::mat4>* bones) {
     Pose& pose = poses_[poseKey(ctx, entity)];
     // Last frame's, when the view drew this mesh last frame; otherwise it has no past worth following, and
     // standing where it stands says "did not move".
-    if (pose.frame != 0 && pose.frame + 1 == ctx.motion_frame) pose.previous = pose.current;
-    else if (pose.frame != ctx.motion_frame) pose.previous = model;
+    const bool continued = pose.frame != 0 && pose.frame + 1 == ctx.motion_frame;
+    if (continued) {
+        pose.previous = pose.current;
+        pose.bonesPrevious = pose.bonesCurrent;
+    } else if (pose.frame != ctx.motion_frame) {
+        pose.previous = model;
+        if (bones) pose.bonesPrevious = *bones;
+        else pose.bonesPrevious.clear();
+    }
     pose.current = model;
+    if (bones) pose.bonesCurrent = *bones;
+    else pose.bonesCurrent.clear();
     pose.frame = ctx.motion_frame;
 }
 
@@ -690,13 +700,15 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
             // means the camera's own motion says it all and the temporal pass already has that.
             const auto pose = poses_.find(poseKey(ctx, entity));
             if (pose == poses_.end() || pose->second.frame != ctx.motion_frame
-                || pose->second.previous == pose->second.current) {
+                || (pose->second.previous == pose->second.current
+                    && pose->second.bonesPrevious == pose->second.bonesCurrent)) {
                 continue;
             }
             const MeshProgramFacts facts =
                 meshFactsFromEntity(ctx, registry, entity, mesh, resident, warned_bones_);
-            if (facts.skinned) continue;
-            keys = { meshVariant(facts.hasNormals, false, false, false, false, false, false, false, false, true), 0 };
+            // A palette of a different size than last frame's has no joint-for-joint past to follow.
+            if (facts.skinned && pose->second.bonesPrevious.size() != pose->second.bonesCurrent.size()) continue;
+            keys = { meshVariant(facts.hasNormals, false, false, facts.skinned, false, false, false, false, false, true), 0 };
         } else {
             keys = meshDrawFor(ctx, registry, entity, mesh, resident, shadowDepth, warned_bones_, heated);
         }
@@ -789,13 +801,16 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
                 // the record is read through that layout, so the fact that built
                 // it must pack it. (It already excludes a skinned mesh.)
                 const bool lightmapped = resident->hasLightmapUV && !motion;
+                // A skinned motion draw carries last frame's palette in the records right behind its own: three
+                // texels a bone from texel 8 on, which the shader reaches by index like any other texel.
+                const u32 paletteRecords = motion && skinned ? (3 * poseSize + MESH_INSTANCE_TEXELS - 1) / MESH_INSTANCE_TEXELS : 0;
                 u32 instOffset = buffers.allocVertices(LayoutId::MeshInstance,
-                                                       MESH_INSTANCE_STRIDE);
+                                                       MESH_INSTANCE_STRIDE * (1 + paletteRecords));
                 auto* dst = buffers.vertexData(LayoutId::MeshInstance) + instOffset;
                 // The record is one fixed shape, so every texel this variant
                 // does not write still has to say something. Zero is the answer
                 // each of them reads as absent.
-                std::memset(dst, 0, MESH_INSTANCE_STRIDE);
+                std::memset(dst, 0, MESH_INSTANCE_STRIDE * (1 + paletteRecords));
                 // The shapes, whether or not bones move it: the two deform the
                 // same vertices, and a morph target is what the mesh is BEFORE a
                 // pose is applied to it.
@@ -847,15 +862,30 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
                     const Pose& pose = poses_.find(poseKey(ctx, entity))->second;
                     const glm::vec4 jitter{ctx.motion_prev_jitter, 0.0f, 0.0f};
                     std::memcpy(dst + MESH_INSTANCE_TEXEL_TINT * 16, &jitter, 16);
-                    const glm::mat4 before = ctx.motion_prev_view_projection * pose.previous;
+                    // A rigid mesh's last place is its last model, so the matrix is the two together; a skinned
+                    // one is placed by its bones, which the shader applies first, so only the camera goes here.
+                    const glm::mat4 before = skinned ? ctx.motion_prev_view_projection
+                                                     : ctx.motion_prev_view_projection * pose.previous;
                     for (u32 row = 0; row < 4; ++row) {
                         const glm::vec4 r{before[0][row], before[1][row], before[2][row], before[3][row]};
                         std::memcpy(dst + (MESH_INSTANCE_TEXEL_NORMAL + row) * 16, &r, 16);
                     }
+                    if (skinned) {
+                        for (u32 bone = 0; bone < poseSize; ++bone) {
+                            const glm::mat4& m = pose.bonesPrevious[bone];
+                            for (u32 row = 0; row < 3; ++row) {
+                                const glm::vec4 r{m[0][row], m[1][row], m[2][row], m[3][row]};
+                                std::memcpy(dst + (MESH_INSTANCE_TEXELS + bone * 3 + row) * 16, &r, 16);
+                            }
+                        }
+                    }
                 } else if (ctx.track_motion && !shadowDepth) {
-                    trackPose(ctx, entity, glm::translate(glm::mat4(1.0f), position)
-                                           * glm::mat4_cast(rotation)
-                                           * glm::scale(glm::mat4(1.0f), scale));
+                    trackPose(ctx, entity,
+                              skinned ? glm::mat4(1.0f)
+                                      : glm::translate(glm::mat4(1.0f), position)
+                                            * glm::mat4_cast(rotation)
+                                            * glm::scale(glm::mat4(1.0f), scale),
+                              skinned ? &pose_scratch_ : nullptr);
                 }
 
                 // A draw reading its own atlas does not ask for IRRADIANCE, and asks
