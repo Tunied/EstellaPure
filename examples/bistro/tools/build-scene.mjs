@@ -10,9 +10,8 @@
  *
  *   node examples/bistro/tools/build-scene.mjs
  *   node pipeline/bin/estella.mjs bake-scene examples/bistro/assets/scenes/main.esscene
- *   node examples/bistro/tools/build-scene.mjs --finish
  */
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -20,25 +19,6 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const pieces = JSON.parse(readFileSync(path.join(ROOT, 'tools/pieces.json'), 'utf8'));
 const SCENE = path.join(ROOT, 'assets/scenes/main.esscene');
 
-/** Leaves, flowers and ivy are cards cut out by alpha. A bake that sees them as solid shades the street with
- *  their rectangles and lights their backs white, so they sit the bake out and are lit as they are drawn. */
-const cutout = (mr) => {
-  const file = path.join(ROOT, 'assets/models', path.basename(mr.material ?? ''));
-  return !!mr.material && existsSync(file) && (JSON.parse(readFileSync(file, 'utf8')).properties?.u_alphaCutoff ?? 0) > 0;
-};
-
-// `--finish` turns the cut-outs back on in the scene that was just baked; without it they are left out of the bake.
-if (process.argv.includes('--finish')) {
-  const doc = JSON.parse(readFileSync(SCENE, 'utf8'));
-  for (const e of doc.entities) {
-    const mr = e.components.find((c) => c.type === 'MeshRenderer');
-    if (mr && mr.data.enabled === false) mr.data.enabled = true;
-  }
-  writeFileSync(SCENE, `${JSON.stringify(doc, null, 2)}
-`);
-  console.log('foliage back on');
-  process.exit(0);
-}
 
 const mul = (a, b) => ({
   w: a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z,
@@ -107,7 +87,7 @@ for (const piece of pieces) {
     id: entities.length, name: piece.name, parent: null, children: [], visible: true,
     components: [
       tr(v3(piece.p), { w: piece.q[0], x: piece.q[1], y: piece.q[2], z: piece.q[3] }, { x: piece.s, y: piece.s, z: piece.s }),
-      { type: 'MeshRenderer', data: cutout(piece.mr) ? { ...piece.mr, enabled: false } : piece.mr },
+      { type: 'MeshRenderer', data: piece.mr },
     ],
   });
 }
