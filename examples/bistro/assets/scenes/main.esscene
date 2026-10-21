@@ -63,13 +63,6 @@
                 }
               },
               {
-                "type": "tonemap",
-                "enabled": true,
-                "uniforms": {
-                  "u_exposure": 0
-                }
-              },
-              {
                 "type": "fxaa",
                 "enabled": true,
                 "uniforms": {

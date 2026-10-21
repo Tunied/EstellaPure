@@ -46,7 +46,6 @@ add('Camera', [
   { type: 'PostProcessVolume', data: { isGlobal: true, priority: 0, weight: 1, effects: [
     { type: 'ssao', enabled: true, uniforms: { u_radius: 70, u_intensity: 1, u_bias: 0.12, u_power: 1.5 } },
     { type: 'bloom', enabled: true, uniforms: { u_threshold: 0.9, u_intensity: 0.5, u_radius: 1.2 } },
-    { type: 'tonemap', enabled: true, uniforms: { u_exposure: 0 } },
     { type: 'fxaa', enabled: true, uniforms: { u_intensity: 1 } },
   ] } },
 ]);
