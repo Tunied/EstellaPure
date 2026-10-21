@@ -383,9 +383,9 @@ registerEffect({
         { name: 'u_maxDistance', label: 'Max Distance', min: 10, max: 3000, step: 10, defaultValue: 400 },
         // How far behind a visible surface a ray may pass and still count as having hit it.
         { name: 'u_thickness', label: 'Thickness', min: 1, max: 200, step: 1, defaultValue: 12 },
-        // 1 = only surfaces that face up reflect (wet ground, polished floors); 0 = every surface
-        // reflects by its Fresnel term alone.
-        { name: 'u_floorBias', label: 'Floor Bias', min: 0, max: 1, step: 0.01, defaultValue: 1 },
+        // 1 = only surfaces that face up reflect (wet ground, polished floors, and not the walls beside them);
+        // 0 = any surface smooth enough to show a reflection does.
+        { name: 'u_floorBias', label: 'Floor Bias', min: 0, max: 1, step: 0.01, defaultValue: 0 },
         // Standing water: flat, and a mirror. Give it the same two numbers as the Rain effect's puddles
         // and the pools it darkens are the pools that reflect.
         { name: 'u_puddles', label: 'Puddles', min: 0, max: 1, step: 0.01, defaultValue: 0, neutralValue: 0 },
@@ -394,6 +394,9 @@ registerEffect({
         { name: 'u_maxRoughness', label: 'Max Roughness', min: 0.05, max: 1, step: 0.01, defaultValue: 0.75 },
         // How wet the ground is: wet is smoother, so it reflects. Give it the Rain effect's wetness.
         { name: 'u_wetness', label: 'Wetness', min: 0, max: 1, step: 0.01, defaultValue: 0, neutralValue: 0 },
+        // Where the ray finds nothing on screen, how much of the environment's reflection takes its place: the sky
+        // in a puddle, and what is past the edge of the picture.
+        { name: 'u_skyReflection', label: 'Sky Reflection', min: 0, max: 1, step: 0.01, defaultValue: 1, neutralValue: 0 },
     ],
 });
 

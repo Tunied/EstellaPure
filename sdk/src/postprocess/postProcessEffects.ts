@@ -114,7 +114,8 @@ fn puddleMask(xz : vec2f, coverage : f32, scale : f32) -> f32 {
 /**
  * Reading the scene's surface record, in both languages: what each pixel IS, as the scene's own shaders
  * wrote it beside the colour — octahedral normal in rg, roughness in b, metalness in a (a is 0 where nothing
- * wrote, and 0.25 + 0.75 * metalness where something did). An effect that wants it says `#pragma gbuffer`,
+ * wrote, and 0.75 + 0.25 * metalness where something did, so that an edge multisampling averaged with an
+ * unwritten pixel — at most 0.5 — is told from a surface). An effect that wants it says `#pragma gbuffer`,
  * which is what makes the frame draw one, and finds it at `u_gbuffer`.
  */
 const GBUFFER_GLSL = `
@@ -122,14 +123,14 @@ struct Surface { vec3 normal; float roughness; float metallic; bool known; };
 Surface readSurface(ivec2 t) {
     vec4 g = texelFetch(u_gbuffer, t, 0);
     Surface s;
-    s.known = g.a > 0.01;
+    s.known = g.a > 0.7;
     vec2 f = g.rg * 2.0 - 1.0;
     vec3 n = vec3(f.x, f.y, 1.0 - abs(f.x) - abs(f.y));
     float k = clamp(-n.z, 0.0, 1.0);
     n.xy += vec2(n.x >= 0.0 ? -k : k, n.y >= 0.0 ? -k : k);
     s.normal = normalize(n);
     s.roughness = g.b;
-    s.metallic = clamp((g.a - 0.25) / 0.75, 0.0, 1.0);
+    s.metallic = clamp((g.a - 0.75) / 0.25, 0.0, 1.0);
     return s;
 }`;
 
@@ -142,11 +143,93 @@ fn readSurface(t : vec2i) -> Surface {
     let k = clamp(-n.z, 0.0, 1.0);
     n = vec3f(n.x + select(k, -k, n.x >= 0.0), n.y + select(k, -k, n.y >= 0.0), n.z);
     var s : Surface;
-    s.known = g.a > 0.01;
+    s.known = g.a > 0.7;
     s.normal = normalize(n);
     s.roughness = g.b;
-    s.metallic = clamp((g.a - 0.25) / 0.75, 0.0, 1.0);
+    s.metallic = clamp((g.a - 0.75) / 0.25, 0.0, 1.0);
     return s;
+}`;
+
+/**
+ * The frame's environment, sampled from an effect, in both languages: the same prefiltered octahedral atlas the
+ * meshes reflect, read at the sky's own column. This is the engine's `envSampleMip` and `envDirection` as
+ * the mesh shaders spell them (ShaderParser.cpp) — the atlas layout is the one fact they share, so a change
+ * to it is a change here too. The numbers it needs come in as params the pipeline fills from the frame's light
+ * block each frame (\`u_envParams\`: x = has a map, y = range, z = highest mip, w = face size; \`u_envTint\`:
+ * the sky's turn in alpha; \`u_reflParams\`: x = columns in the atlas).
+ */
+const ENV_GLSL = `
+vec3 envDirection(vec3 d) {
+    float a = -u_envTint.a;
+    float s = sin(a);
+    float c = cos(a);
+    return vec3(c * d.x + s * d.z, d.y, -s * d.x + c * d.z);
+}
+vec2 envOctahedral(vec3 d) {
+    vec2 p = d.xz / max(abs(d.x) + abs(d.y) + abs(d.z), 1e-6);
+    if (d.y < 0.0) {
+        p = (1.0 - abs(p.yx)) * vec2(p.x >= 0.0 ? 1.0 : -1.0, p.y >= 0.0 ? 1.0 : -1.0);
+    }
+    return p * 0.5 + 0.5;
+}
+vec3 envSkyMip(vec3 R, float mip) {
+    float face = u_envParams.w;
+    float size = face * exp2(-mip);
+    float yOff = 2.0 * face * (1.0 - exp2(-mip)) + 2.0 * mip;
+    float col = face + 2.0;
+    float atlasW = col * u_reflParams.x;
+    float atlasH = 2.0 * face * (1.0 - exp2(-(u_envParams.z + 1.0))) + 2.0 * (u_envParams.z + 1.0);
+    vec2 uv = envOctahedral(envDirection(R));
+    vec2 lo = vec2(0.5, yOff + 0.5);
+    vec2 hi = vec2(size + 1.5, yOff + size + 1.5);
+    vec2 px = clamp(vec2(1.0 + uv.x * size, yOff + 1.0 + uv.y * size), lo, hi);
+    vec4 t = textureLod(u_environment, px / vec2(atlasW, atlasH), 0.0);
+    return t.rgb * t.rgb * (t.a * t.a * u_envParams.y);
+}
+/// The sky's reflection along a direction at a roughness: two mips of the atlas blended, and tinted by the ambient
+/// light that owns the environment — what the mesh shaders add to the flat ambient term for a reflection.
+vec3 envSky(vec3 R, float roughness) {
+    float lod = clamp(roughness, 0.0, 1.0) * u_envParams.z;
+    float lo = floor(lod);
+    vec3 a = envSkyMip(R, lo);
+    vec3 b = envSkyMip(R, min(lo + 1.0, u_envParams.z));
+    return mix(a, b, lod - lo) * u_envTint.rgb;
+}`;
+
+const ENV_WGSL = `
+fn envDirection(d : vec3f) -> vec3f {
+    let a = -mc.u_envTint.a;
+    let s = sin(a);
+    let c = cos(a);
+    return vec3f(c * d.x + s * d.z, d.y, -s * d.x + c * d.z);
+}
+fn envOctahedral(d : vec3f) -> vec2f {
+    var p = d.xz / max(abs(d.x) + abs(d.y) + abs(d.z), 1e-6);
+    if (d.y < 0.0) {
+        p = (1.0 - abs(vec2f(p.y, p.x))) * vec2f(select(-1.0, 1.0, p.x >= 0.0), select(-1.0, 1.0, p.y >= 0.0));
+    }
+    return p * 0.5 + 0.5;
+}
+fn envSkyMip(R : vec3f, mip : f32) -> vec3f {
+    let face = mc.u_envParams.w;
+    let size = face * exp2(-mip);
+    let yOff = 2.0 * face * (1.0 - exp2(-mip)) + 2.0 * mip;
+    let col = face + 2.0;
+    let atlasW = col * mc.u_reflParams.x;
+    let atlasH = 2.0 * face * (1.0 - exp2(-(mc.u_envParams.z + 1.0))) + 2.0 * (mc.u_envParams.z + 1.0);
+    let uv = envOctahedral(envDirection(R));
+    let lo = vec2f(0.5, yOff + 0.5);
+    let hi = vec2f(size + 1.5, yOff + size + 1.5);
+    let px = clamp(vec2f(1.0 + uv.x * size, yOff + 1.0 + uv.y * size), lo, hi);
+    let t = textureSampleLevel(u_environment, u_environment_s, px / vec2f(atlasW, atlasH), 0.0);
+    return t.rgb * t.rgb * (t.a * t.a * mc.u_envParams.y);
+}
+fn envSky(R : vec3f, roughness : f32) -> vec3f {
+    let lod = clamp(roughness, 0.0, 1.0) * mc.u_envParams.z;
+    let lo = floor(lod);
+    let a = envSkyMip(R, lo);
+    let b = envSkyMip(R, min(lo + 1.0, mc.u_envParams.z));
+    return mix(a, b, lod - lo) * mc.u_envTint.rgb;
 }`;
 
 export const postProcessEffects = {
@@ -405,11 +488,16 @@ fn project(P : vec3f) -> vec3f {
 #pragma param u_intensity float default(1) range(0,2)
 #pragma param u_maxDistance float default(400) range(10,3000)
 #pragma param u_thickness float default(12) range(1,200)
-#pragma param u_floorBias float default(1) range(0,1)
+#pragma param u_floorBias float default(0) range(0,1)
 #pragma param u_puddles float default(0) range(0,1)
 #pragma param u_puddleScale float default(350) range(40,2000)
 #pragma param u_maxRoughness float default(0.75) range(0.05,1)
 #pragma param u_wetness float default(0) range(0,1)
+#pragma param u_skyReflection float default(1) range(0,1)
+#pragma param u_envParams color default(0,0,0,0)
+#pragma param u_envTint color default(0,0,0,0)
+#pragma param u_reflParams color default(1,0,0,0)
+#pragma param u_environment texture default(black)
 #pragma gbuffer
 
 #pragma fragment
@@ -424,6 +512,7 @@ out vec4 fragColor;
 ${SSAO_GLSL}
 ${PUDDLE_GLSL}
 ${GBUFFER_GLSL}
+${ENV_GLSL}
 ${GLSL}
 
 void main() {
@@ -450,19 +539,15 @@ void main() {
     vec3 V = viewDirection(P);
     if (dot(N, V) < 0.0) N = -N;
 
-    // What the surface is, where the scene wrote it: its own normal (a normal map's detail, which depth
-    // cannot see), how rough it is and whether it is metal. Where nothing wrote — a sprite, a draw
-    // with a shader that has no record to give — the depth normal stands, and the surface is taken
-    // for a middling dielectric, which is what reflecting it by Fresnel alone has always assumed.
+    // What the surface is, as the scene wrote it: its own normal (a normal map's detail, which depth
+    // cannot see), how rough it is and whether it is metal. Where nothing wrote — a sprite, a draw whose
+    // shader has no record to give — nothing is known of it, and a reflection of a guess is worse than none.
     Surface sf = readSurface(c);
-    float rough = 0.5;
-    float metal = 0.0;
-    if (sf.known) {
-        N = sf.normal;
-        if (dot(N, V) < 0.0) N = -N;
-        rough = sf.roughness;
-        metal = sf.metallic;
-    }
+    if (!sf.known) { fragColor = scene; return; }
+    N = sf.normal;
+    if (dot(N, V) < 0.0) N = -N;
+    float rough = sf.roughness;
+    float metal = sf.metallic;
 
     // Standing water is flat and mirror-like whatever the ground under it is: its normal is
     // straight up, and a still surface reflects far more than the 4% a dry one does.
@@ -476,7 +561,7 @@ void main() {
     rough = mix(rough, rough * 0.35, u_wetness * flatUp);
     rough = mix(rough, 0.04, puddle);
     // Too rough to show anything: skipped before the march, which is the whole cost.
-    if (sf.known && rough > u_maxRoughness) { fragColor = scene; return; }
+    if (rough > u_maxRoughness) { fragColor = scene; return; }
 
     // Fresnel at this angle, Schlick from the surface's own reflectance face-on: a dielectric's 4%, a
     // metal's near-all. The floor mask keeps a surface nobody described from shining on every wall.
@@ -485,8 +570,9 @@ void main() {
     float fresnel = f0 + (1.0 - f0) * pow(1.0 - cosT, 5.0);
     fresnel = mix(fresnel, max(fresnel, 0.55), puddle);
     // A rough surface's reflection is spread over the lobe and dimmer for it.
-    float gloss = sf.known ? (1.0 - rough) * (1.0 - rough) : 1.0;
-    float up = sf.known ? 1.0 : mix(1.0, smoothstep(0.55, 0.9, N.y), u_floorBias);
+    float gloss = (1.0 - rough) * (1.0 - rough);
+    // Optionally only what faces up reflects: a wet street and not the walls beside it.
+    float up = mix(1.0, smoothstep(0.55, 0.9, N.y), u_floorBias);
     float weight = fresnel * up * gloss * u_intensity;
     if (weight < 0.002) { fragColor = scene; return; }
 
@@ -544,7 +630,15 @@ void main() {
         }
         prevP = Q;
     }
-    fragColor = vec4(mix(scene.rgb, hitColor, clamp(weight * hit, 0.0, 1.0)), scene.a);
+    vec3 result = mix(scene.rgb, hitColor, clamp(weight * hit, 0.0, 1.0));
+    // Where the ray found nothing on screen — it left the picture, or went on to the sky — the surface still
+    // reflects what is there: the environment, at the sharpness its roughness gives. Without it a mirror
+    // (a puddle) would show the sky only where the scene had already painted a blurred copy of it.
+    if (u_envParams.x > 0.5 && u_skyReflection > 0.0) {
+        vec3 sky = envSky(R, rough);
+        result = mix(result, sky, clamp(weight * (1.0 - hit) * u_skyReflection, 0.0, 1.0));
+    }
+    fragColor = vec4(result, scene.a);
 }
 #pragma end
 
@@ -552,6 +646,7 @@ void main() {
 ${SSAO_WGSL}
 ${PUDDLE_WGSL}
 ${GBUFFER_WGSL}
+${ENV_WGSL}
 ${WGSL}
 
 @fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
@@ -577,14 +672,11 @@ ${WGSL}
     if (dot(N, V) < 0.0) { N = -N; }
 
     let sf = readSurface(c);
-    var rough = 0.5;
-    var metal = 0.0;
-    if (sf.known) {
-        N = sf.normal;
-        if (dot(N, V) < 0.0) { N = -N; }
-        rough = sf.roughness;
-        metal = sf.metallic;
-    }
+    if (!sf.known) { return scene; }
+    N = sf.normal;
+    if (dot(N, V) < 0.0) { N = -N; }
+    var rough = sf.roughness;
+    let metal = sf.metallic;
 
     let flatUp = smoothstep(0.86, 0.95, N.y);
     var puddle = 0.0;
@@ -594,16 +686,14 @@ ${WGSL}
     }
     rough = mix(rough, rough * 0.35, mc.u_wetness * flatUp);
     rough = mix(rough, 0.04, puddle);
-    if (sf.known && rough > mc.u_maxRoughness) { return scene; }
+    if (rough > mc.u_maxRoughness) { return scene; }
 
     let cosT = clamp(dot(N, V), 0.0, 1.0);
     let f0 = mix(0.04, 0.9, metal);
     var fresnel = f0 + (1.0 - f0) * pow(1.0 - cosT, 5.0);
     fresnel = mix(fresnel, max(fresnel, 0.55), puddle);
-    var gloss = 1.0;
-    if (sf.known) { gloss = (1.0 - rough) * (1.0 - rough); }
-    var up = 1.0;
-    if (!sf.known) { up = mix(1.0, smoothstep(0.55, 0.9, N.y), mc.u_floorBias); }
+    let gloss = (1.0 - rough) * (1.0 - rough);
+    let up = mix(1.0, smoothstep(0.55, 0.9, N.y), mc.u_floorBias);
     let weight = fresnel * up * gloss * mc.u_intensity;
     if (weight < 0.002) { return scene; }
 
@@ -655,7 +745,12 @@ ${WGSL}
         }
         prevP = Q;
     }
-    return vec4f(mix(scene.rgb, hitColor, clamp(weight * hit, 0.0, 1.0)), scene.a);
+    var result = mix(scene.rgb, hitColor, vec3f(clamp(weight * hit, 0.0, 1.0)));
+    if (mc.u_envParams.x > 0.5 && mc.u_skyReflection > 0.0) {
+        let sky = envSky(R, rough);
+        result = mix(result, sky, vec3f(clamp(weight * (1.0 - hit) * mc.u_skyReflection, 0.0, 1.0)));
+    }
+    return vec4f(result, scene.a);
 }
 #pragma end
 `;

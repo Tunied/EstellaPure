@@ -28,7 +28,7 @@ several can stack in one frame at no extra target cost beyond the passes.
 | `autoExposure` | Eye adaptation: exposure follows how bright the picture is | `bias`, `speedUp`, `speedDown`, `minEV`, `maxEV` |
 | `depthOfField` | Blur by distance from a focus | `focusDistance`, `focusRange`, `aperture`, `maxBlur` |
 | `rain` | Falling rain, wet ground, puddles, ripples and splashes | `intensity`, `wetness`, `wind`, `speed`, `puddles`, `puddleScale` |
-| `ssr` | Screen-space reflections: props mirrored in the floor they stand on | `intensity`, `maxDistance`, `thickness`, `floorBias` |
+| `ssr` | Screen-space reflections: props mirrored in the floor they stand on | `intensity`, `maxDistance`, `thickness`, `floorBias`, `skyReflection` |
 | `taa` | Temporal anti-aliasing: edges smoothed over several frames | `blend` |
 | `lensDistortion` | Barrel / pincushion warp | `strength`, `zoom` |
 | `pixelate` | Block quantization | `pixelSize` |
@@ -91,13 +91,14 @@ rotated per pixel, so it leaves a fine grain that `taa` averages away.
 
 Some effects have to know what a surface IS, not only how it looks. An effect whose shader says `#pragma gbuffer` makes the
 frame draw a second colour attachment beside the scene's, in the same pass and from the same shaders: **octahedral normal in
-`r` and `g`, roughness in `b`, metalness in `a`** (`a` is 0 where nothing wrote, and `0.25 + 0.75 × metalness`
+`r` and `g`, roughness in `b`, metalness in `a`** (`a` is 0 where nothing wrote, and `0.75 + 0.25 × metalness`, so an edge that multisampling averaged with an unwritten pixel (at most 0.5) is told from a surface
 where something did), 8 bits a channel. The effect finds it at `u_gbuffer` (GLSL) or `t6` (WGSL, read with `textureLoad`).
 
 It costs one extra RGBA8 target and one extra write per pixel, and only while an enabled effect asks: a frame with no such
 effect has no attachment and compiles no variant. What writes it today is the built-in **Model** shader — what an imported
-glTF material becomes — which is roughness, metalness and normal map as the material says. A mesh drawn without a material, a sprite, a
-blended surface and a custom shader leave it at 0, and an effect must treat that as "unknown" and fall back, as `ssr` does.
+glTF material becomes, with roughness, metalness and normal map as the material says — and the engine's plain lit mesh, which records
+what it is: a rough dielectric. A sprite, a blended surface, an unlit mesh and a custom shader leave it at 0, and an effect must
+treat that as "unknown" and leave the pixel alone, as `ssr` does.
 A shader of your own can write it: it is compiled with `ES_GBUFFER` defined when the pass has the attachment, and then declares
 a second output (`layout(location = 1) out vec4`, or a struct return in WGSL) and writes the same encoding.
 
@@ -127,8 +128,7 @@ and a light colour are, so the colour you pick is the colour a fully fogged surf
 ### Screen-space reflections
 
 `ssr` reflects what is on screen in the surfaces that face up: a wet street, a polished
-floor, a lake's edge. There is no G-buffer, so it works from what the chain already has — the
-surface normal is rebuilt from the depth buffer, the reflected ray is marched through the world
+floor, a lake's edge. The reflected ray is marched through the world
 and projected back at every step, and a step that lands just behind what the depth buffer shows
 is a hit. What it finds is blended over the pixel by a Schlick Fresnel term: faint face-on,
 strong at a grazing angle, so the floor shines toward the horizon. A farther hit is blurred more,
@@ -139,10 +139,11 @@ surface's own normal (a normal map's detail, which depth cannot see), its roughn
 reflects dimly and blurred, and one rougher than `maxRoughness` is skipped before the ray is marched, which is most of the
 cost; a metal reflects nearly all it receives where a dielectric reflects 4% face-on. `wetness` makes ground
 smoother (a film of water fills the pores), so it reflects as it gets wet, and puddles are mirrors. Where nothing wrote
-a record — a mesh with no material, a sprite — the depth normal stands, the surface is taken for a middling dielectric and
-`floorBias` decides what may reflect: at 1 only up-facing surfaces do, at 0 every surface by its Fresnel term alone.
-It cannot show what is off screen, behind another object or in the sky — there it leaves the pixel as it was, so
-it sits on top of the environment's own specular rather than replacing it. `maxDistance` is a
+a record — a sprite, a blended or unlit surface, a custom shader — nothing is guessed: the pixel is left as it was. `floorBias`
+(0 by default) can narrow what reflects further: at 1 only up-facing surfaces do.
+Where the ray leaves the picture or goes on to the sky, the surface still reflects the **environment** the frame's meshes
+reflect, at the sharpness its roughness gives; `skyReflection` says how much (0 turns it off). So a puddle shows the sky and
+what lies beyond the edge of the picture, not only the props on screen. `maxDistance` is a
 world length; the step count is fixed, so a longer reach is a coarser march, and the per-pixel
 start offset that hides the banding is what `taa` averages away — use them together.
 

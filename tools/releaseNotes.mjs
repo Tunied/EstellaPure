@@ -2487,4 +2487,6 @@ export const NOTED = {
     {"note":"Settings → Project → Rendering edits each quality level, including which effects it runs."},
   "feat(render): the scene can draw a G-buffer beside its colour, and reflections read each surface's normal, roughness and metalness from it":
     {"note":"Reflections now know how rough and how metal each surface is, from a G-buffer the frame draws on request."},
+  "feat(render): reflections no longer guess a surface, plain meshes record themselves, and what the ray never finds is the sky":
+    {"note":"Screen-space reflections leave a surface that recorded nothing alone, plain meshes now record a rough dielectric, and a puddle reflects the sky and what lies off screen."},
 };

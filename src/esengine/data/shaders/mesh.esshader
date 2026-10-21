@@ -223,7 +223,23 @@ uniform sampler2D u_texture;
 uniform sampler2D u_normalMap;
 #endif
 
+#ifdef ES_GBUFFER
+// The frame's second attachment beside the colour: what this surface IS (normal, roughness, metalness),
+// for the post effects that need to know. This shader's surface is the plain one — a rough dielectric —
+// which is a record like any other: "nothing reflects here" is an answer, and one a reflections effect
+// would otherwise have to guess.
+layout(location = 0) out vec4 fragColor;
+layout(location = 1) out vec4 fragSurface;
+
+vec2 packNormal(vec3 n) {
+    n /= (abs(n.x) + abs(n.y) + abs(n.z));
+    vec2 sgn = vec2(n.x >= 0.0 ? 1.0 : -1.0, n.y >= 0.0 ? 1.0 : -1.0);
+    vec2 e = n.z >= 0.0 ? n.xy : (1.0 - abs(n.yx)) * sgn;
+    return e * 0.5 + 0.5;
+}
+#else
 out vec4 fragColor;
+#endif
 
 void main() {
 #ifdef SHADOW_DEPTH
@@ -250,6 +266,9 @@ void main() {
     vec3 shaded = applyLightingPBR(base.rgb, N, v_worldPos, viewDirection(v_worldPos),
                                    0.0, 1.0, 1.0, 1.0);
     fragColor = vec4(shaded, base.a);
+#ifdef ES_GBUFFER
+    fragSurface = vec4(packNormal(normalize(N)), 1.0, 0.75);
+#endif
 #else
 #ifdef MESH_LIGHTMAP
     // Unlit AND lightmapped: the bake is the whole of this surface's light, not
@@ -449,7 +468,25 @@ struct VSOut {
     @location(6) @interpolate(flat) v_probeSlot : f32,
 };
 
+#ifdef ES_GBUFFER
+// What the frame's second attachment takes, beside the colour (see the GLSL twin).
+struct FragOut {
+    @location(0) color : vec4f,
+    @location(1) surface : vec4f,
+};
+
+fn packNormal(n : vec3f) -> vec2f {
+    let a = n / (abs(n.x) + abs(n.y) + abs(n.z));
+    let sgn = vec2f(select(-1.0, 1.0, a.x >= 0.0), select(-1.0, 1.0, a.y >= 0.0));
+    var e = a.xy;
+    if (a.z < 0.0) { e = (vec2f(1.0) - abs(a.yx)) * sgn; }
+    return e * 0.5 + 0.5;
+}
+
+@fragment fn fs_main(v : VSOut, @builtin(front_facing) front : bool) -> FragOut {
+#else
 @fragment fn fs_main(v : VSOut, @builtin(front_facing) front : bool) -> @location(0) vec4f {
+#endif
     // WGSL has no module varying: the entry point hands the injected header the
     // slot its GLSL twin reads straight off one.
     g_probeSlot = v.v_probeSlot;
@@ -476,7 +513,14 @@ struct VSOut {
     // says nothing must still be lit the way the same mesh out of a glTF is.
     let shaded = applyLightingPBR(base.rgb, N, v.v_worldPos, viewDirection(v.v_worldPos),
                                   0.0, 1.0, 1.0, 1.0);
+#ifdef ES_GBUFFER
+    var frag : FragOut;
+    frag.color = vec4f(shaded, base.a);
+    frag.surface = vec4f(packNormal(normalize(N)), 1.0, 0.75);
+    return frag;
+#else
     return vec4f(shaded, base.a);
+#endif
 #else
 #ifdef MESH_LIGHTMAP
     // Unlit AND lightmapped: the bake is the whole of this surface's light.

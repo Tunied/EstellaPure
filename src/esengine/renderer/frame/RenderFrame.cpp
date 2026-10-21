@@ -225,6 +225,8 @@ void RenderFrame::drawScene() {
     // The scene only: the overlay and the shadow maps are drawn with constants of their own.
     glm::vec2 jitter{0.0f};
 #ifdef ES_ENABLE_POSTPROCESS
+    // The atlas the meshes reflect, for an effect that adds a reflection of its own where the scene's ray found none.
+    if (post_process_) post_process_->setEnvironmentTexture(environment_texture_id_);
     if (post_process_ && post_process_->isEngaged() && post_process_->temporalActive()) {
         jitter = post_process_->beginTemporalView(view_projection_, current_target_);
     }

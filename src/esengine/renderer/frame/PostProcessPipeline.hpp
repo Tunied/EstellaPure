@@ -231,6 +231,15 @@ public:
     bool sceneHasGBuffer() const { return inFrame_ && scene_gbuffer_; }
 
     /**
+     * @brief The frame's environment atlas, for an effect that reflects it (`u_environment`).
+     *
+     * @details Handed over by the frame that bound it for the scene: the same atlas the meshes
+     *          reflect, so a reflection an effect adds where the scene's own ray found nothing is the
+     *          sky the surface already shows. 0 = none this frame.
+     */
+    void setEnvironmentTexture(u32 glTextureId) { environment_texture_ = glTextureId; }
+
+    /**
      * @brief Starts a frame of the temporal view @p key, and answers how far to shift it.
      *
      * @param key Names the view whose history this is — two cameras must not
@@ -514,6 +523,7 @@ private:
     /// Some enabled pass of the chain reads the surface record.
     bool passesWantGBuffer();
     bool scene_gbuffer_ = false;
+    u32 environment_texture_ = 0;
     bool passHasTexture(const PostProcessPass& pass, const char* name);
     /// A history made (or kept) at @p w x @p h, or null when it cannot be.
     TemporalState* prepareHistory(TemporalState& state, u32 w, u32 h);

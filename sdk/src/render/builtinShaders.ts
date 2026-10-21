@@ -456,8 +456,9 @@ void main() {
                                 u_metallic * mr.b, roughness, 1.0, ao);
     fragColor = vec4(lit + u_emissive.rgb * texture(u_emissiveMap, v_texCoord).rgb, alpha);
 #ifdef ES_GBUFFER
-    // Alpha says something was drawn here (0 is "nothing wrote"), and carries the metalness above a floor.
-    fragSurface = vec4(packNormal(normalize(N)), roughness, 0.25 + 0.75 * clamp(u_metallic * mr.b, 0.0, 1.0));
+    // Alpha says something was drawn here (0 is "nothing wrote"), and carries the metalness above 0.75: a pixel that
+    // multisampling averaged with an unwritten one falls below it, and an effect can tell such an edge from a surface.
+    fragSurface = vec4(packNormal(normalize(N)), roughness, 0.75 + 0.25 * clamp(u_metallic * mr.b, 0.0, 1.0));
 #endif
 }
 #pragma end
@@ -539,7 +540,7 @@ fn packNormal(n : vec3f) -> vec2f {
 #ifdef ES_GBUFFER
     var frag : FragOut;
     frag.color = vec4f(lit + emit, alpha);
-    frag.surface = vec4f(packNormal(normalize(N)), roughness, 0.25 + 0.75 * clamp(mc.u_metallic * mr.b, 0.0, 1.0));
+    frag.surface = vec4f(packNormal(normalize(N)), roughness, 0.75 + 0.25 * clamp(mc.u_metallic * mr.b, 0.0, 1.0));
     return frag;
 #else
     return vec4f(lit + emit, alpha);

@@ -199,6 +199,8 @@ public:
     bool programWritesGBuffer(u32 programId) const {
         return gbuffer_programs_.count(programId) != 0;
     }
+    /// A program that is not a material's — the engine's own mesh shader — says it writes the record.
+    void markGBufferProgram(u32 programId) const { gbuffer_programs_.insert(programId); }
 
     /// How far @p materialId's vertex hook can move a vertex from the mesh's own bounds, in the
     /// mesh's local units; 0 for a material without one.

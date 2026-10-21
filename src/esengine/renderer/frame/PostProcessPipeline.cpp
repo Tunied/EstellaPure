@@ -15,6 +15,7 @@
 #include "./RenderContext.hpp"
 #include "../rhi/GfxDevice.hpp"
 #include "../store/MaterialConstants.hpp"
+#include "../store/LightConstants.hpp"
 #include "../rhi/Shader.hpp"
 #include "../rhi/ShaderEmbeds.generated.hpp"
 #include "../../resource/ResourceManager.hpp"
@@ -590,6 +591,15 @@ void PostProcessPipeline::renderPass(PostProcessPass& pass, const rg::PassContex
     } else if (pass.feedback) {
         if (auto it = feedback_.find(pass.historyKey); it != feedback_.end()) temporal = &it->second;
     }
+    // An effect that reflects the environment declares its parameters, and takes them from the
+    // light block the scene was drawn with: how the atlas is laid out, how bright it is, how far the sky has turned.
+    if (layout && layout->find("u_envParams")) {
+        const LightConstants& lights = context_.lights().data();
+        pass.vec4Uniforms["u_envParams"] = lights.envParams;
+        pass.vec4Uniforms["u_envTint"] = lights.envTint;
+        pass.vec4Uniforms["u_reflParams"] = lights.reflParams;
+        pass.paramDirty = true;
+    }
     if (temporal && pass.temporal) {
         // The previous picture's camera, as columns: a world point times it is where
         // that point was one frame ago. Re-sent each frame because it is each frame's.
@@ -654,6 +664,9 @@ void PostProcessPipeline::renderPass(PostProcessPass& pass, const rg::PassContex
             if (temporal && (slot.name == "u_history" || slot.name == "u_feedback")
                 && temporal->history[temporal->readIndex]) {
                 gpu = temporal->history[temporal->readIndex]->getColorAttachment();
+            }
+            if (slot.name == "u_environment" && environment_texture_ != 0) {
+                gpu = TextureHandle{environment_texture_};
             }
             for (const auto& [name, glId] : pass.textureUniforms) {
                 if (name == slot.name && glId != 0) { gpu = TextureHandle{glId}; break; }
