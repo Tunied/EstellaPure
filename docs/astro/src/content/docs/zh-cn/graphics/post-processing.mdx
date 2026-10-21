@@ -21,6 +21,9 @@ Estella 通过 ping-pong 帧缓冲运行全屏后处理。加一个 `PostProcess
 | `chromaticAberration` | RGB 色散 | `intensity` |
 | `blur` | 高斯模糊 | `intensity` |
 | `fxaa` | 快速抗锯齿 | `intensity` |
+| `distanceFog` | 按到相机的距离做线性雾 | `near`、`far`、`intensity`、颜色 |
+| `heightFog` | 指数高度雾,带太阳辉光和朦胧的地平线 | `density`、`heightFalloff`、`baseHeight`、`sunAzimuth`、`sunElevation`、`skyFog`、颜色 |
+| `lightShafts` | 太阳光穿过前方遮挡物形成的光束 | `intensity`、`sunAzimuth`、`sunElevation`、`decay`、`reach` |
 | `ssr` | 屏幕空间反射:道具映在它们所站的地面上 | `intensity`、`maxDistance`、`thickness`、`floorBias` |
 | `taa` | 时间性抗锯齿:边缘跨多帧平滑 | `blend` |
 | `lensDistortion` | 桶形 / 枕形畸变 | `strength`、`zoom` |
@@ -34,6 +37,21 @@ Estella 通过 ping-pong 帧缓冲运行全屏后处理。加一个 `PostProcess
 所有原生包(iOS、Android、桌面、Steam)跑的都是 WebGPU。用
 `createWebApp({ msaaSamples })` 调它的大小,`msaaSamples: 1` 在填充率比边缘更要紧的设备上关掉它。
 `fxaa` 是更便宜也更糊的替代品,留给连多一个采样都吃不下的设备。
+
+### 雾与大气
+
+`heightFog` 是随高度变薄的雾:山谷被填满,山顶是清朗的。它的密度按指数下降,所以射线穿过多少雾有
+闭式解——不用步进——而同一个公式让**地平线朦胧、天顶清澈**:贴着地面的射线一直待在浓处,朝上的射线
+立刻离开。天空像素没有可测量的表面,所以它们用一条很长的射线代入公式;`skyFog` 决定天空保留多少这样的
+雾。朝向太阳看时雾带上 `sunColor`:用 `sunAzimuth`(从 +Z 向 +X 的角度)和 `sunElevation`(地平线以上的
+角度)给出太阳方向——它们是这个效果自己的设置,不是从 `Light` 读的,所以要和你放的太阳保持一致。
+
+`lightShafts` 在屏幕空间里找出太阳光穿过前方遮挡物的样子:每个像素朝太阳在屏幕上的位置步进,数这一路有
+多少是开阔天空。太阳需要在屏幕上或刚好在屏幕外,而且只有深度缓冲里有的东西才能投出光束。两者配合出
+低角度太阳的"雾加光束"的样子;都不是带阴影的体积——雾不知道阴影贴图说光在哪里被挡住,所以雾本身是均匀被照亮的。
+
+雾的颜色按 **sRGB** 书写,线性项目里会被转换,和清屏色、灯光色一样,所以你选的颜色就是完全被雾吞没的表面
+显示的颜色。
 
 ### 屏幕空间反射
 

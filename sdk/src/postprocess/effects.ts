@@ -221,6 +221,50 @@ registerEffect({
 });
 
 registerEffect({
+    type: 'heightFog',
+    label: 'Height Fog',
+    factory: () => postProcessEffects.createHeightFog(),
+    uniforms: [
+        // Per WORLD unit at the base height: the share of light a unit of fog takes out.
+        { name: 'u_density', label: 'Density', min: 0, max: 0.05, step: 0.0001, defaultValue: 0.0015, neutralValue: 0 },
+        // How fast the fog thins with height; 0 is a fog of one density at every height.
+        { name: 'u_heightFalloff', label: 'Height Falloff', min: 0, max: 0.1, step: 0.0005, defaultValue: 0.003 },
+        { name: 'u_baseHeight', label: 'Base Height', min: -1000, max: 5000, step: 10, defaultValue: 0 },
+        { name: 'u_startDistance', label: 'Start Distance', min: 0, max: 3000, step: 10, defaultValue: 0 },
+        { name: 'u_maxOpacity', label: 'Max Opacity', min: 0, max: 1, step: 0.01, defaultValue: 1 },
+        // Where the sun is, to colour the haze toward it: degrees from +Z toward +X, and above the horizon.
+        { name: 'u_sunAzimuth', label: 'Sun Azimuth', min: 0, max: 360, step: 1, defaultValue: 40 },
+        { name: 'u_sunElevation', label: 'Sun Elevation', min: -10, max: 90, step: 1, defaultValue: 25 },
+        { name: 'u_inscatter', label: 'Sun Glow', min: 0, max: 2, step: 0.01, defaultValue: 0.6, neutralValue: 0 },
+        { name: 'u_sunExponent', label: 'Glow Sharpness', min: 1, max: 64, step: 1, defaultValue: 8 },
+        // How much of the sky takes the horizon haze; 0 leaves the sky untouched.
+        { name: 'u_skyFog', label: 'Sky Haze', min: 0, max: 1, step: 0.01, defaultValue: 0.8, neutralValue: 0 },
+    ],
+    colors: [
+        { name: 'u_fogColor', label: 'Colour', defaultValue: { r: 0.62, g: 0.7, b: 0.8, a: 1 } },
+        { name: 'u_sunColor', label: 'Sun Colour', defaultValue: { r: 1, g: 0.82, b: 0.55, a: 1 } },
+    ],
+});
+
+registerEffect({
+    type: 'lightShafts',
+    label: 'Light Shafts',
+    factory: () => postProcessEffects.createLightShafts(),
+    uniforms: [
+        { name: 'u_intensity', label: 'Intensity', min: 0, max: 3, step: 0.01, defaultValue: 0.6, neutralValue: 0 },
+        { name: 'u_sunAzimuth', label: 'Sun Azimuth', min: 0, max: 360, step: 1, defaultValue: 40 },
+        { name: 'u_sunElevation', label: 'Sun Elevation', min: -10, max: 90, step: 1, defaultValue: 25 },
+        // Per step of the march: lower fades the shafts sooner along their length.
+        { name: 'u_decay', label: 'Decay', min: 0.8, max: 1, step: 0.005, defaultValue: 0.96 },
+        // How much of the way to the sun each pixel looks: shorter shafts at lower values.
+        { name: 'u_reach', label: 'Reach', min: 0.1, max: 1, step: 0.01, defaultValue: 0.6 },
+    ],
+    colors: [
+        { name: 'u_sunColor', label: 'Sun Colour', defaultValue: { r: 1, g: 0.85, b: 0.6, a: 1 } },
+    ],
+});
+
+registerEffect({
     type: 'ssao',
     label: 'Ambient Occlusion',
     factory: () => postProcessEffects.createSsaoAo(),

@@ -2475,4 +2475,6 @@ export const NOTED = {
     {"note":"A Temporal Anti-Aliasing post-process effect smooths edges across frames."},
   "feat(render): a Screen Space Reflections effect mirrors the scene in the surfaces that face up":
     {"note":"A Screen Space Reflections post-process effect mirrors props in floors."},
+  "feat(render): Height Fog and Light Shafts effects give a hazy horizon, the sun's glow and rays through what stands in front of it":
+    {"note":"Height Fog and Light Shafts post-process effects add atmosphere."},
 };

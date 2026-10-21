@@ -1185,6 +1185,263 @@ fn depthAt(texel : vec2i, size : vec2i) -> f32 {
         return Material.compileShader(source);
     },
 
+    /**
+     * Exponential height fog with the atmosphere's two tells: the sun's glow in the haze and a
+     * sky that thickens toward the horizon.
+     *
+     * The fog's density falls off exponentially with height, so how much of it a ray crosses has a
+     * closed form: the density at the eye, times the length, times a term that says how fast the
+     * ray climbs out of it. That is also what makes the horizon hazy and the zenith clear — a ray
+     * that skims the ground stays in the thick part for ever, and one aimed up leaves it at once —
+     * so the sky pixels, which have no surface to measure to, are run through the same formula
+     * with a very long ray. Looking toward the sun the haze takes the sun's colour.
+     *
+     * The fog colours are authored as sRGB and brought into linear light here when the project is
+     * linear, as a clear colour and a light colour are: a colour is a colour, and the pipeline
+     * under it is not the author's business.
+     */
+    createHeightFog(): ShaderHandle {
+        const source = `#pragma shader "PP Height Fog"
+#pragma version 300 es
+#pragma domain PostProcess
+#pragma param u_fogColor color default(0.62,0.7,0.8,1)
+#pragma param u_sunColor color default(1,0.82,0.55,1)
+#pragma param u_density float default(0.0015) range(0,0.05)
+#pragma param u_heightFalloff float default(0.003) range(0,0.1)
+#pragma param u_baseHeight float default(0) range(-1000,5000)
+#pragma param u_startDistance float default(0) range(0,3000)
+#pragma param u_maxOpacity float default(1) range(0,1)
+#pragma param u_sunAzimuth float default(40) range(0,360)
+#pragma param u_sunElevation float default(25) range(-10,90)
+#pragma param u_inscatter float default(0.6) range(0,2)
+#pragma param u_sunExponent float default(8) range(1,64)
+#pragma param u_skyFog float default(0.8) range(0,1)
+
+#pragma fragment
+precision highp float;
+
+in vec2 v_texCoord;
+uniform sampler2D u_texture;
+uniform highp sampler2D u_sceneDepth;
+out vec4 fragColor;
+
+const float FAR_RAY = 100000.0;
+
+/// What the exponential density integrates to along a ray: the eye's density, the length,
+/// and the term for how fast the ray leaves the fog. Written so a level ray (no climb)
+/// needs no division, and so a long ray downward cannot overflow.
+float opticalDepth(float eyeY, float dirY, float len) {
+    float k = u_heightFalloff;
+    float dens = u_density * exp(clamp(-k * (eyeY - u_baseHeight), -60.0, 60.0));
+    float kd = k * dirY * len;
+    float span = abs(kd) < 1e-4 ? 1.0 : (1.0 - exp(clamp(-kd, -60.0, 60.0))) / kd;
+    return dens * len * span;
+}
+
+void main() {
+    vec4 src = texture(u_texture, v_texCoord);
+    ivec2 size = textureSize(u_sceneDepth, 0);
+    float depth = texelFetch(u_sceneDepth, clamp(ivec2(v_texCoord * vec2(size)), ivec2(0), size - ivec2(1)), 0).r;
+    bool sky = depth >= 1.0;
+
+    // The ray starts on the near plane, which is the one place that is a point under a
+    // perspective camera and under an orthographic one alike.
+    vec3 entry = worldFromDepth(v_texCoord, 0.0);
+    vec3 target = worldFromDepth(v_texCoord, sky ? 1.0 : depth);
+    vec3 dir = normalize(target - entry);
+    float len = sky ? FAR_RAY : length(target - entry);
+    float effective = max(len - u_startDistance, 0.0);
+    if (effective <= 0.0) { fragColor = src; return; }
+
+    float tau = opticalDepth(entry.y + dir.y * u_startDistance, dir.y, effective);
+    float amount = (1.0 - exp(-tau)) * u_maxOpacity * (sky ? u_skyFog : 1.0);
+
+    float az = radians(u_sunAzimuth);
+    float el = radians(u_sunElevation);
+    vec3 sun = vec3(cos(el) * sin(az), sin(el), cos(el) * cos(az));
+    float glow = pow(max(dot(dir, sun), 0.0), u_sunExponent);
+    vec3 fog = u_fogColor.rgb;
+    vec3 sunTint = u_sunColor.rgb;
+#ifdef ES_LINEAR
+    fog = srgbToLinear(fog);
+    sunTint = srgbToLinear(sunTint);
+#endif
+    vec3 colour = mix(fog, sunTint, clamp(glow * u_inscatter, 0.0, 1.0));
+    fragColor = vec4(mix(src.rgb, colour, clamp(amount, 0.0, 1.0)), src.a);
+}
+#pragma end
+
+#pragma fragment wgsl
+const FAR_RAY : f32 = 100000.0;
+
+fn opticalDepth(eyeY : f32, dirY : f32, len : f32) -> f32 {
+    let k = mc.u_heightFalloff;
+    let dens = mc.u_density * exp(clamp(-k * (eyeY - mc.u_baseHeight), -60.0, 60.0));
+    let kd = k * dirY * len;
+    var span = 1.0;
+    if (abs(kd) >= 1e-4) { span = (1.0 - exp(clamp(-kd, -60.0, 60.0))) / kd; }
+    return dens * len * span;
+}
+
+@fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
+    let src = textureSampleLevel(t0, s0, v.v_texCoord, 0.0);
+    let size = vec2i(textureDimensions(t7, 0));
+    let depth = textureLoad(t7, clamp(vec2i(v.v_texCoord * vec2f(size)), vec2i(0), size - vec2i(1)), 0);
+    let sky = depth >= 1.0;
+
+    let entry = worldFromDepth(v.v_texCoord, 0.0);
+    var d = depth;
+    if (sky) { d = 1.0; }
+    let tgt = worldFromDepth(v.v_texCoord, d);
+    let dir = normalize(tgt - entry);
+    var len = length(tgt - entry);
+    if (sky) { len = FAR_RAY; }
+    let effective = max(len - mc.u_startDistance, 0.0);
+    if (effective <= 0.0) { return src; }
+
+    let tau = opticalDepth(entry.y + dir.y * mc.u_startDistance, dir.y, effective);
+    var amount = (1.0 - exp(-tau)) * mc.u_maxOpacity;
+    if (sky) { amount = amount * mc.u_skyFog; }
+
+    let az = radians(mc.u_sunAzimuth);
+    let el = radians(mc.u_sunElevation);
+    let sun = vec3f(cos(el) * sin(az), sin(el), cos(el) * cos(az));
+    let glow = pow(max(dot(dir, sun), 0.0), mc.u_sunExponent);
+    var fog = mc.u_fogColor.rgb;
+    var sunTint = mc.u_sunColor.rgb;
+#ifdef ES_LINEAR
+    fog = srgbToLinear(fog);
+    sunTint = srgbToLinear(sunTint);
+#endif
+    let colour = mix(fog, sunTint, clamp(glow * mc.u_inscatter, 0.0, 1.0));
+    return vec4f(mix(src.rgb, colour, clamp(amount, 0.0, 1.0)), src.a);
+}
+#pragma end
+`;
+        return Material.compileShader(source);
+    },
+
+    /**
+     * Light shafts: the sun's light through whatever stands between it and the camera, found in
+     * screen space. From each pixel a short march toward the sun's position on screen collects
+     * how much of the way is open sky; a pixel behind a branch or a building sees little of it
+     * and one in the open sees all of it, so what stands in front of the sun leaves rays in the
+     * glow around it. The sun's place comes from projecting its direction with the camera's own
+     * matrix, so nothing but the direction is asked of the author.
+     *
+     * Only what the depth buffer holds can cast a shaft, and the sun has to be on screen or
+     * just off it: the march has nowhere to go toward a sun behind the camera.
+     */
+    createLightShafts(): ShaderHandle {
+        const source = `#pragma shader "PP Light Shafts"
+#pragma version 300 es
+#pragma domain PostProcess
+#pragma param u_sunColor color default(1,0.85,0.6,1)
+#pragma param u_intensity float default(0.6) range(0,3)
+#pragma param u_sunAzimuth float default(40) range(0,360)
+#pragma param u_sunElevation float default(25) range(-10,90)
+#pragma param u_decay float default(0.96) range(0.8,1)
+#pragma param u_reach float default(0.6) range(0.1,1)
+
+#pragma fragment
+precision highp float;
+
+in vec2 v_texCoord;
+uniform sampler2D u_texture;
+uniform highp sampler2D u_sceneDepth;
+out vec4 fragColor;
+
+const int SAMPLES = 40;
+
+float ign(vec2 p) {
+    return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715))));
+}
+
+void main() {
+    vec4 src = texture(u_texture, v_texCoord);
+    float az = radians(u_sunAzimuth);
+    float el = radians(u_sunElevation);
+    vec3 sun = vec3(cos(el) * sin(az), sin(el), cos(el) * cos(az));
+    vec3 eye = worldFromDepth(v_texCoord, 0.0);
+    vec4 clip = u_projection * vec4(eye + sun * 10000.0, 1.0);
+    // Behind the camera there is no screen position to march toward.
+    if (clip.w <= 1e-4) { fragColor = src; return; }
+    vec2 sunUv = clip.xy / clip.w * 0.5 + 0.5;
+
+    ivec2 size = textureSize(u_sceneDepth, 0);
+    vec2 toSun = (sunUv - v_texCoord) * u_reach;
+    float aspect = float(size.x) / float(size.y);
+    float dist = length(vec2((sunUv.x - v_texCoord.x) * aspect, sunUv.y - v_texCoord.y));
+    vec2 stepUv = toSun / float(SAMPLES);
+    vec2 uv = v_texCoord + stepUv * ign(gl_FragCoord.xy);
+    float light = 0.0;
+    float weight = 1.0;
+    for (int i = 0; i < SAMPLES; ++i) {
+        uv += stepUv;
+        ivec2 t = clamp(ivec2(uv * vec2(size)), ivec2(0), size - ivec2(1));
+        // Open sky is where the sun reaches; anything with a surface blocks it.
+        float open = texelFetch(u_sceneDepth, t, 0).r >= 1.0 ? 1.0 : 0.0;
+        light += open * weight;
+        weight *= u_decay;
+    }
+    light /= float(SAMPLES);
+    // Strongest next to the sun, gone a screen away from it.
+    float falloff = 1.0 - smoothstep(0.0, 1.2, dist);
+    vec3 tint = u_sunColor.rgb;
+#ifdef ES_LINEAR
+    tint = srgbToLinear(tint);
+#endif
+    fragColor = vec4(src.rgb + tint * light * falloff * u_intensity, src.a);
+}
+#pragma end
+
+#pragma fragment wgsl
+const SAMPLES : i32 = 40;
+
+fn ign(p : vec2f) -> f32 {
+    return fract(52.9829189 * fract(dot(p, vec2f(0.06711056, 0.00583715))));
+}
+
+@fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
+    let src = textureSampleLevel(t0, s0, v.v_texCoord, 0.0);
+    let az = radians(mc.u_sunAzimuth);
+    let el = radians(mc.u_sunElevation);
+    let sun = vec3f(cos(el) * sin(az), sin(el), cos(el) * cos(az));
+    let eye = worldFromDepth(v.v_texCoord, 0.0);
+    let clip = frame.projection * vec4f(eye + sun * 10000.0, 1.0);
+    if (clip.w <= 1e-4) { return src; }
+    // This device's uv runs down the rows, so clip y is flipped on the way back.
+    let sunUv = vec2f(clip.x / clip.w * 0.5 + 0.5, 0.5 - clip.y / clip.w * 0.5);
+
+    let size = vec2i(textureDimensions(t7, 0));
+    let toSun = (sunUv - v.v_texCoord) * mc.u_reach;
+    let aspect = f32(size.x) / f32(size.y);
+    let dist = length(vec2f((sunUv.x - v.v_texCoord.x) * aspect, sunUv.y - v.v_texCoord.y));
+    let stepUv = toSun / f32(SAMPLES);
+    var uv = v.v_texCoord + stepUv * ign(v.pos.xy);
+    var light = 0.0;
+    var weight = 1.0;
+    for (var i : i32 = 0; i < SAMPLES; i = i + 1) {
+        uv = uv + stepUv;
+        let t = clamp(vec2i(uv * vec2f(size)), vec2i(0), size - vec2i(1));
+        var lit = 0.0;
+        if (textureLoad(t7, t, 0) >= 1.0) { lit = 1.0; }
+        light = light + lit * weight;
+        weight = weight * mc.u_decay;
+    }
+    light = light / f32(SAMPLES);
+    let falloff = 1.0 - smoothstep(0.0, 1.2, dist);
+    var tint = mc.u_sunColor.rgb;
+#ifdef ES_LINEAR
+    tint = srgbToLinear(tint);
+#endif
+    return vec4f(src.rgb + tint * light * falloff * mc.u_intensity, src.a);
+}
+#pragma end
+`;
+        return Material.compileShader(source);
+    },
+
     createDistanceFog(): ShaderHandle {
         // Fog is a DISTANCE and a depth sample is not one: the same 0.9 is a
         // metre away up close and a hundred out. `worldFromDepth` (injected with
@@ -1220,7 +1477,12 @@ void main() {
     vec3 entry = worldFromDepth(v_texCoord, 0.0);
     float dist = length(world - entry);
     float t = clamp((dist - u_fogNear) / max(u_fogFar - u_fogNear, 1e-4), 0.0, 1.0);
-    fragColor = vec4(mix(src.rgb, u_fogColor.rgb, t * u_intensity), src.a);
+    // Authored as sRGB, like every colour: a linear frame takes it as light, not as a code.
+    vec3 fog = u_fogColor.rgb;
+#ifdef ES_LINEAR
+    fog = srgbToLinear(fog);
+#endif
+    fragColor = vec4(mix(src.rgb, fog, t * u_intensity), src.a);
 }
 #pragma end
 
@@ -1234,7 +1496,11 @@ void main() {
     let entry = worldFromDepth(v.v_texCoord, 0.0);
     let dist = length(world - entry);
     let t = clamp((dist - mc.u_fogNear) / max(mc.u_fogFar - mc.u_fogNear, 1e-4), 0.0, 1.0);
-    return vec4f(mix(src.rgb, mc.u_fogColor.rgb, vec3f(t * mc.u_intensity)), src.a);
+    var fog = mc.u_fogColor.rgb;
+#ifdef ES_LINEAR
+    fog = srgbToLinear(fog);
+#endif
+    return vec4f(mix(src.rgb, fog, vec3f(t * mc.u_intensity)), src.a);
 }
 #pragma end
 `;

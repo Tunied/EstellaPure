@@ -22,6 +22,9 @@ several can stack in one frame at no extra target cost beyond the passes.
 | `chromaticAberration` | RGB fringing | `intensity` |
 | `blur` | Gaussian blur | `intensity` |
 | `fxaa` | Fast anti-aliasing | `intensity` |
+| `distanceFog` | Linear fog by distance from the camera | `near`, `far`, `intensity`, colour |
+| `heightFog` | Exponential height fog with the sun's glow and a hazy horizon | `density`, `heightFalloff`, `baseHeight`, `sunAzimuth`, `sunElevation`, `skyFog`, colours |
+| `lightShafts` | Sun rays through whatever stands in front of it | `intensity`, `sunAzimuth`, `sunElevation`, `decay`, `reach` |
 | `ssr` | Screen-space reflections: props mirrored in the floor they stand on | `intensity`, `maxDistance`, `thickness`, `floorBias` |
 | `taa` | Temporal anti-aliasing: edges smoothed over several frames | `blend` |
 | `lensDistortion` | Barrel / pincushion warp | `strength`, `zoom` |
@@ -37,6 +40,26 @@ Android, desktop, Steam) runs on. `createWebApp({ msaaSamples })` sizes it, and
 `msaaSamples: 1` turns it off where the fill cost matters more than the edges.
 `fxaa` is the cheaper, blurrier alternative for devices where even one sample
 extra is too much.
+
+### Fog and atmosphere
+
+`heightFog` is fog that thins with height: a valley fills, a hilltop clears. Its density falls
+off exponentially, so how much of it a ray crosses has a closed form — no marching — and the same
+formula makes the **horizon hazy and the zenith clear**, because a ray skimming the ground stays in
+the thick part and one aimed up leaves it at once. Sky pixels have no surface to measure to, so they
+take the formula with a very long ray; `skyFog` says how much of that haze the sky keeps. Looking toward
+the sun the haze takes `sunColor`: give it the sun's direction as `sunAzimuth` (degrees from +Z toward
++X) and `sunElevation` (degrees above the horizon) — these are settings of the effect, not read from
+a `Light`, so keep them in step with the sun you placed.
+
+`lightShafts` finds the sun's light through whatever stands in front of it, in screen space: each pixel
+marches toward the sun's place on screen and counts how much of the way is open sky. It needs the
+sun on screen or just off it, and only what the depth buffer holds can cast a shaft. Together the two
+give the haze-and-rays look of a low sun; neither is a shadowed volume — fog does not know where a
+shadow map says the light is blocked, so the fog itself is lit evenly.
+
+Fog colours are authored as **sRGB** and converted for a linear project, the way a clear colour
+and a light colour are, so the colour you pick is the colour a fully fogged surface shows.
 
 ### Screen-space reflections
 
