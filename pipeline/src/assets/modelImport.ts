@@ -16,6 +16,7 @@ import {
     type MeshData, type MaterialAssetData, type PrefabData, type PrefabEntityData,
     type PrefabComponentData as ComponentData,
 } from 'esengine';
+import { canSimplify, simplifyMesh } from './meshSimplify';
 import { SPARSE_LIGHTMAP_UV, OVERLAPPING_LIGHTMAP_UV } from '../../../sdk/src/lightmap/atlas';
 
 /** One primitive's worth of geometry, named for the file it will be written to. */
@@ -32,6 +33,16 @@ export interface ImportedMesh {
     skinJoints?: number[];
     /** The weight each morph target starts at, where the source states them. */
     morphWeights?: number[];
+    /** Cheaper stand-ins, finest first, written as `<name>_lod<n>.esmesh` (@ref generateLods). */
+    lods?: GeneratedLod[];
+}
+
+/** One cheaper level of a mesh, and the screen height below which it replaces the one above. */
+export interface GeneratedLod {
+    data: MeshData;
+    triangleCount: number;
+    /** Fraction of the viewport height — the unit a `LODGroup` threshold is in. */
+    size: number;
 }
 
 /** Where a material's image comes from: a product this import writes, or a file already on disk. */
@@ -410,6 +421,62 @@ export function applyLightmapUV(meshes: ImportedMesh[]): string[] {
     return warnings;
 }
 
+/** What a generated level keeps and where it takes over — each level is cheaper than the last. */
+const LOD_RATIOS = [0.5, 0.2, 0.07];
+const LOD_SIZES = [0.4, 0.18, 0.07];
+/** A level that sheds less than this share of the one above is not worth a draw swap. */
+const LOD_MIN_SAVING = 0.15;
+/** The collapse may move the surface this far, relative to the mesh's extent. */
+const LOD_ERROR = [0.01, 0.03, 0.08];
+
+export interface LodOptions {
+    /** How many levels to make below the original, 1–3. */
+    levels: number;
+    /** A mesh with fewer triangles than this has nothing worth swapping. */
+    minTriangles: number;
+}
+
+/** The file a mesh's level `n` is written to, by product name (no extension). */
+export function lodName(mesh: ImportedMesh, level: number): string {
+    return `${mesh.name}_lod${level}`;
+}
+
+/**
+ * Makes the cheaper stand-ins a `LODGroup` swaps in, and says what it left alone.
+ * Mutates in place, after any unwrap: a level is a collapse of the mesh as it will
+ * be written, lightmap UV included. Skinned and morphing meshes keep one level.
+ */
+export async function generateLods(meshes: ImportedMesh[], options: LodOptions): Promise<string[]> {
+    const warnings: string[] = [];
+    const levels = Math.min(LOD_RATIOS.length, Math.max(0, Math.floor(options.levels)));
+    if (levels === 0) return warnings;
+    for (const mesh of meshes) {
+        if (mesh.triangleCount < options.minTriangles) continue;
+        if (!canSimplify(mesh.data)) {
+            if (mesh.skinJoints?.length || mesh.data.morph) {
+                warnings.push(`${mesh.name}: skinned or morphing, so it keeps a single level of detail`);
+            }
+            continue;
+        }
+        const out: GeneratedLod[] = [];
+        let above = mesh.triangleCount;
+        for (let level = 0; level < levels; level++) {
+            // Collapse from the ORIGINAL each time: stacking collapses compounds their error.
+            const made = await simplifyMesh(mesh.data, { ratio: LOD_RATIOS[level]!, maxError: LOD_ERROR[level]! });
+            if (!made || made.triangles > above * (1 - LOD_MIN_SAVING)) break;
+            out.push({ data: made.data, triangleCount: made.triangles, size: LOD_SIZES[level]! });
+            above = made.triangles;
+        }
+        if (out.length > 0) mesh.lods = out;
+    }
+    return warnings;
+}
+
+/** The bytes to write for a generated level. */
+export function encodeGeneratedLod(lod: GeneratedLod): Uint8Array {
+    return encodeMesh(lod.data);
+}
+
 /** The bytes to write for an imported mesh. */
 export function encodeImportedMesh(mesh: ImportedMesh): Uint8Array {
     return encodeMesh(mesh.data);
@@ -554,6 +621,18 @@ export function materialProducts(meshes: ImportedMesh[], stem: string,
     return out;
 }
 
+/** The `LODGroup` that points at a mesh's generated levels; none when it made none. */
+function lodComponent(mesh: ImportedMesh, refs: ProductRefs): ComponentData[] {
+    if (!mesh.lods || mesh.lods.length === 0) return [];
+    const prefix = refs.prefix ?? '';
+    const data: Record<string, unknown> = {};
+    mesh.lods.forEach((lod, i) => {
+        data[`lod${i + 1}`] = `${prefix}${lodName(mesh, i + 1)}.esmesh`;
+        data[`lod${i + 1}Size`] = lod.size;
+    });
+    return [{ type: 'LODGroup', data }];
+}
+
 function meshComponent(mesh: ImportedMesh, stem: string, refs: ProductRefs): ComponentData {
     const prefix = refs.prefix ?? '';
     const texture = mesh.material?.baseColorTexture
@@ -675,7 +754,7 @@ export function assembleModelPrefab(name: string, meshes: ImportedMesh[],
         // One primitive rides the node itself; several cannot, since a MeshRenderer
         // draws one mesh — they become its children, at its own origin.
         const own = drawn.length === 1 && drawn[0]
-            ? [meshComponent(drawn[0], name, refs), ...skinComponent(drawn[0]),
+            ? [meshComponent(drawn[0], name, refs), ...lodComponent(drawn[0], refs), ...skinComponent(drawn[0]),
                ...morphComponent(drawn[0])] : [];
         const self = entity(id, node.name, parent, [
             transformComponent(node, rootScale), ...own,
@@ -689,7 +768,7 @@ export function assembleModelPrefab(name: string, meshes: ImportedMesh[],
                 self.children.push(childId);
                 entities.push(entity(childId, mesh.name, id,
                                      [transformComponent(), meshComponent(mesh, name, refs),
-                                      ...skinComponent(mesh), ...morphComponent(mesh)]));
+                                      ...lodComponent(mesh, refs), ...skinComponent(mesh), ...morphComponent(mesh)]));
             });
         }
         for (const child of node.children) self.children.push(emitNode(child, id));
@@ -712,7 +791,8 @@ export function assembleModelPrefab(name: string, meshes: ImportedMesh[],
             const id = `m${i}`;
             root.children.push(id);
             entities.push(entity(id, mesh.name, 'root',
-                                 [transformComponent(), meshComponent(mesh, name, refs)]));
+                                 [transformComponent(), meshComponent(mesh, name, refs),
+                                  ...lodComponent(mesh, refs)]));
         });
     }
     // The player rides the root, which is the entity a clip's childPaths are

@@ -2467,4 +2467,6 @@ export const NOTED = {
     {"note":"The output transform has a Neutral option that keeps hue and saturation."},
   "feat(render): model highlights widen with how fast the vertex normal turns, so they stop sparkling":
     {"note":"Lit models no longer sparkle on rails, bevels and rounded trim."},
+  "feat(import): a model import can write simplified levels of detail and a LODGroup that swaps them in":
+    {"note":"Imported models can generate cheaper levels of detail automatically."},
 };

@@ -218,6 +218,20 @@ const MODEL: ImporterFieldSpec[] = [
       + 'one, and a model that already carries the channel keeps its own.',
   },
   {
+    key: 'lodLevels', label: 'Generate LODs', type: 'enum', default: 0, category: 'Import',
+    options: [{ label: 'Off', value: 0 }, { label: '1 level', value: 1 },
+              { label: '2 levels', value: 2 }, { label: '3 levels', value: 3 }],
+    tooltip: 'Simplify each mesh into cheaper stand-ins (about 50%, 20% and 7% of its '
+      + 'triangles) and add a LODGroup that swaps them in as it shrinks on screen. Smaller '
+      + 'meshes load faster and distant ones draw faster. Skinned and morphing meshes keep one level.',
+  },
+  {
+    key: 'lodMinTriangles', label: 'LOD Minimum Triangles', type: 'number', default: 256, min: 0, step: 16,
+    category: 'Import', advanced: true,
+    tooltip: 'A mesh with fewer triangles than this gets no levels: there is too little to '
+      + 'take out for a swap to pay.',
+  },
+  {
     key: 'specularMap', label: 'Specular Map', type: 'enum', default: 'color',
     category: 'Import', advanced: true,
     options: [{ label: 'Specular Color', value: 'color' }, { label: 'Packed ORM', value: 'orm' }],

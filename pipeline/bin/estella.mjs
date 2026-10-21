@@ -15,7 +15,7 @@ const REPO = path.join(PIPELINE, '..');
 const USAGE = `usage: node pipeline/bin/estella.mjs export <projectDir> [options]
        node pipeline/bin/estella.mjs import-model <file.gltf|file.glb|file.fbx> [outDir]
                                      [--project <dir>] [--scale <n>]
-                                     [--specular-map color|orm] [--lightmap-uv]
+                                     [--specular-map color|orm] [--lightmap-uv] [--lods <0-3>]
        node pipeline/bin/estella.mjs import-hdr <file.hdr> [outDir] [--face-size <n>]
        node pipeline/bin/estella.mjs bake-scene <scene.esscene> [--check]
        node pipeline/bin/estella.mjs package-openpaas <exportDir> --config <local.json> --out <game.sp>
@@ -64,6 +64,9 @@ metalness (Falcor-era scenes such as Bistro); the source's own \`.meta\` setting
 is used when the flag is absent. DDS images are converted to PNG on the way in.
 --lightmap-uv gives every mesh a lightmap UV set (Generate Lightmap UVs in the
 editor), unwrapping one where the source's second set is too sparse to bake into.
+--lods <n> writes n cheaper levels of every mesh (about 50%, 20% and 7% of its
+triangles) as <mesh>_lod<n>.esmesh and a LODGroup that swaps them in (Generate
+LODs in the editor); skinned and morphing meshes keep one level.
 
 import-hdr bakes an equirectangular panorama into the two things a renderer asks
 an environment for: nine irradiance coefficients (in the \`.esenv\`) and one
@@ -105,6 +108,7 @@ function parseArgs(argv) {
     const faceSize = rest.indexOf('--face-size');
     const specular = rest.indexOf('--specular-map');
     const lightmapUV = rest.includes('--lightmap-uv');
+    const lods = rest.indexOf('--lods');
     const out = rest[0] && !rest[0].startsWith('--') ? path.resolve(rest[0]) : null;
     return {
       command, out, source: path.resolve(projectDir),
@@ -113,6 +117,7 @@ function parseArgs(argv) {
       faceSize: faceSize >= 0 ? Number(rest[faceSize + 1]) || undefined : undefined,
       specularMap: specular >= 0 ? rest[specular + 1] : undefined,
       lightmapUV,
+      lodLevels: lods >= 0 ? Number(rest[lods + 1]) : undefined,
     };
   }
   if (command !== 'export' || !projectDir) {
@@ -647,6 +652,20 @@ function lightmapUVFor(opts) {
   }
 }
 
+/** The flag, else the source's own `.meta` import settings: [levels, minimum triangles]. */
+function lodSettingsFor(opts) {
+  let importerMeta = {};
+  try {
+    importerMeta = JSON.parse(readFileSync(`${opts.source}.meta`, 'utf8')).importer ?? {};
+  } catch { /* no meta: the schema's defaults */ }
+  const levels = Number.isFinite(opts.lodLevels) ? opts.lodLevels : importerMeta.lodLevels;
+  const min = importerMeta.lodMinTriangles;
+  return {
+    levels: typeof levels === 'number' ? Math.min(3, Math.max(0, Math.floor(levels))) : 0,
+    minTriangles: typeof min === 'number' && min >= 0 ? min : 256,
+  };
+}
+
 function findProjectRoot(from) {
   for (let dir = from, prev = ''; dir !== prev; prev = dir, dir = path.dirname(dir)) {
     if (PROJECT_FILES.some((name) => existsSync(path.join(dir, name)))) return dir;
@@ -737,6 +756,7 @@ if (opts.command === 'import-model' || opts.command === 'import-gltf') {
       },
     );
     if (lightmapUVFor(opts)) warnings.push(...importer.applyLightmapUV(meshes));
+    warnings.push(...await importer.generateLods(meshes, lodSettingsFor(opts)));
     for (const w of warnings) console.warn(`  ! ${w}`);
     if (!root && meshes.length > 0) {
       console.warn('  ! no project found above the source — refs are bare file names'
@@ -769,6 +789,12 @@ if (opts.command === 'import-model' || opts.command === 'import-gltf') {
       writeFileSync(outFile, importer.encodeImportedMesh(mesh));
       await adopt(outFile);
       report(outFile, `${mesh.vertexCount} vertices, ${mesh.triangleCount} triangles`);
+      for (const [i, lod] of (mesh.lods ?? []).entries()) {
+        const lodFile = path.join(dir, `${importer.lodName(mesh, i + 1)}.esmesh`);
+        writeFileSync(lodFile, importer.encodeGeneratedLod(lod));
+        await adopt(lodFile);
+        report(lodFile, `LOD ${i + 1}: ${lod.triangleCount} triangles`);
+      }
     }
     for (const texture of textures) {
       const outFile = path.join(dir, texture.name);

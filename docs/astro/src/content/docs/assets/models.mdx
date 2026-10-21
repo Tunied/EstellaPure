@@ -99,6 +99,28 @@ Content Browser). Saving it re-imports the model.
 `Scale` lands on the prefab root's `Transform`, never baked into the geometry — the
 `.esmesh` stays faithful to the source, and the number stays visible and editable.
 
+## Generated levels of detail
+
+A mesh seen from far away does not need the triangles it has up close. Set
+**Generate LODs** in the model's import settings to 1, 2 or 3 levels and the
+import collapses each mesh into cheaper copies — about 50%, 20% and 7% of its
+triangles — written beside it as `<mesh>_lod1.esmesh`, `_lod2` and `_lod3`, and
+adds a [`LODGroup`](/performance/level-of-detail/) to the entity that draws it. The
+group swaps a level in as the object shrinks on screen (below 40%, 18% and 7% of
+the viewport height).
+
+The collapse keeps the shape within a small error of the mesh's own size and
+refuses to pull apart a UV seam or a hard edge, so a texture still lands where it
+did. Every surviving vertex is a copy of one the source had, so vertex colours and
+the lightmap UV come along. A level that would shed less than 15% of the level
+above is left out, and a mesh under **LOD Minimum Triangles** (256 by default)
+gets none. A skinned or morphing mesh keeps a single level.
+
+Levels are extra files: three of them add about three quarters of the original
+meshes' size to the project. They cost memory only when a view needs them — they
+are what makes a large scene cheaper to *draw*, not smaller to ship. The
+command-line import takes `--lods <0-3>`.
+
 ## Lightmap UVs
 
 A baked lightmap is read through a **second** UV set, and it has to be one where
