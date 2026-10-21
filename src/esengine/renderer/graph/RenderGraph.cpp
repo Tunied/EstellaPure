@@ -143,6 +143,7 @@ TargetHandle RenderGraph::acquire(const Resource& res) {
     shape.linearFilter = res.desc.linearFilter;
     shape.depthStencil = res.desc.depthStencil;
     shape.samples = res.desc.samples;
+    shape.gbuffer = res.desc.gbuffer;
     const TargetHandle handle = pool_.acquire(shape);
     if (handle != kNoTarget) borrowed_.push_back(handle);
     return handle;
@@ -243,6 +244,13 @@ TextureHandle RenderGraph::depthTextureOf(ResourceId id) const {
     const Resource& res = resources_[id];
     if (res.kind != Kind::Transient || res.pooled == kNoTarget) return TextureHandle::Invalid;
     return pool_.depthTextureOf(res.pooled);
+}
+
+TextureHandle RenderGraph::gbufferTextureOf(ResourceId id) const {
+    if (id >= resources_.size()) return TextureHandle::Invalid;
+    const Resource& res = resources_[id];
+    if (res.kind != Kind::Transient || res.pooled == kNoTarget) return TextureHandle::Invalid;
+    return pool_.gbufferTextureOf(res.pooled);
 }
 
 void RenderGraph::releasePool() {

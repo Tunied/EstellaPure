@@ -35,4 +35,13 @@ inline constexpr u32 MATERIAL_TEXTURE_UNIT_BASE = 8;
  */
 inline constexpr u32 kSceneDepthUnit = 7;
 
+/**
+ * @brief The unit a PostProcess pass reads the scene's surface record at: what a surface IS —
+ *        octahedral normal in rg, roughness in b, metalness in a (0 = nothing wrote here).
+ *
+ * @details Just below the depth, on the same reasoning: the loose-uniform path fills upward from
+ *          2 and stops short of both, and a material's own textures start at 8.
+ */
+inline constexpr u32 kGBufferUnit = 6;
+
 }  // namespace esengine

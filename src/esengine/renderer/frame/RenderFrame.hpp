@@ -496,7 +496,7 @@ public:
     /** @brief The same readiness, from a prepared cell's own description — no
      *         entity of it need exist. */
     RenderPrewarmResult prewarmDocument(const MeshDocumentRecord* rows, u32 count);
-    void collectAll(ecs::Registry& registry);
+    void collectAll(ecs::Registry& registry, bool sceneGBuffer = true);
 
     /**
      * @brief Whether the camera being rendered right now would draw something of

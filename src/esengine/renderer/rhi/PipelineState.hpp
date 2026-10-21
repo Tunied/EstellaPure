@@ -76,6 +76,10 @@ struct PipelineDesc {
     /// meaningful on an opaque draw into a multisampled target; ignored elsewhere.
     bool alphaToCoverage = false;
     GfxTopology topology = GfxTopology::Triangles;
+    /// The shader writes a second colour output (location 1) and the target's second attachment is
+    /// to receive it. A pipeline without it draws into a target that has one and leaves it alone:
+    /// WebGPU wants that said in the pipeline, and GL wants the draw buffers set to match.
+    bool gbuffer = false;
 
     bool operator==(const PipelineDesc&) const = default;
 };

@@ -221,6 +221,16 @@ public:
     bool temporalActive();
 
     /**
+     * @brief Whether this frame's scene target carries a second attachment for the surface's material.
+     *
+     * @details Decided when the capture opens, from the passes: an effect whose shader says
+     *          `#pragma gbuffer` reads what a surface IS (normal, roughness, metalness), which the
+     *          scene's own shaders write beside the colour. A frame with no such effect makes none, so
+     *          the cost is paid only by the project that asked for it.
+     */
+    bool sceneHasGBuffer() const { return inFrame_ && scene_gbuffer_; }
+
+    /**
      * @brief Starts a frame of the temporal view @p key, and answers how far to shift it.
      *
      * @param key Names the view whose history this is — two cameras must not
@@ -501,6 +511,9 @@ private:
     std::unordered_map<u64, TemporalState> temporal_;
     u64 temporalKey_ = 0;
     bool passIsTemporal(const PostProcessPass& pass);
+    /// Some enabled pass of the chain reads the surface record.
+    bool passesWantGBuffer();
+    bool scene_gbuffer_ = false;
     bool passHasTexture(const PostProcessPass& pass, const char* name);
     /// A history made (or kept) at @p w x @p h, or null when it cannot be.
     TemporalState* prepareHistory(TemporalState& state, u32 w, u32 h);

@@ -427,6 +427,12 @@ struct FramebufferDesc {
     /// RHI learns the target was multisampled.
     TextureHandle resolveColor0 = TextureHandle::Invalid;
     TextureHandle resolveDepthStencil = TextureHandle::Invalid;
+    /// A second colour attachment, drawn in the same pass as the first: what the surface IS rather than
+    /// how it looks (normal, roughness, metalness) — see `PipelineDesc::gbuffer`. Invalid for a target
+    /// that carries none, which is nearly all of them.
+    TextureHandle color1 = TextureHandle::Invalid;
+    /// Its single-sample twin, when the target is multisampled.
+    TextureHandle resolveColor1 = TextureHandle::Invalid;
     /// Pixel size, required only when resolving: a blit needs a rectangle and an
     /// attachment handle carries no dimensions.
     u32 width = 0;

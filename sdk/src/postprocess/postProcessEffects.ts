@@ -111,6 +111,44 @@ fn puddleMask(xz : vec2f, coverage : f32, scale : f32) -> f32 {
     return smoothstep(t - 0.03, t + 0.03, n);
 }`;
 
+/**
+ * Reading the scene's surface record, in both languages: what each pixel IS, as the scene's own shaders
+ * wrote it beside the colour — octahedral normal in rg, roughness in b, metalness in a (a is 0 where nothing
+ * wrote, and 0.25 + 0.75 * metalness where something did). An effect that wants it says `#pragma gbuffer`,
+ * which is what makes the frame draw one, and finds it at `u_gbuffer`.
+ */
+const GBUFFER_GLSL = `
+struct Surface { vec3 normal; float roughness; float metallic; bool known; };
+Surface readSurface(ivec2 t) {
+    vec4 g = texelFetch(u_gbuffer, t, 0);
+    Surface s;
+    s.known = g.a > 0.01;
+    vec2 f = g.rg * 2.0 - 1.0;
+    vec3 n = vec3(f.x, f.y, 1.0 - abs(f.x) - abs(f.y));
+    float k = clamp(-n.z, 0.0, 1.0);
+    n.xy += vec2(n.x >= 0.0 ? -k : k, n.y >= 0.0 ? -k : k);
+    s.normal = normalize(n);
+    s.roughness = g.b;
+    s.metallic = clamp((g.a - 0.25) / 0.75, 0.0, 1.0);
+    return s;
+}`;
+
+const GBUFFER_WGSL = `
+struct Surface { normal : vec3f, roughness : f32, metallic : f32, known : bool };
+fn readSurface(t : vec2i) -> Surface {
+    let g = textureLoad(t6, t, 0);
+    var f = g.rg * 2.0 - 1.0;
+    var n = vec3f(f.x, f.y, 1.0 - abs(f.x) - abs(f.y));
+    let k = clamp(-n.z, 0.0, 1.0);
+    n = vec3f(n.x + select(k, -k, n.x >= 0.0), n.y + select(k, -k, n.y >= 0.0), n.z);
+    var s : Surface;
+    s.known = g.a > 0.01;
+    s.normal = normalize(n);
+    s.roughness = g.b;
+    s.metallic = clamp((g.a - 0.25) / 0.75, 0.0, 1.0);
+    return s;
+}`;
+
 export const postProcessEffects = {
     createLutGrade(): ShaderHandle {
         // True LUT color grading: a 2D-packed 32^3 LUT (1024x32 — 32 slices of
@@ -370,6 +408,9 @@ fn project(P : vec3f) -> vec3f {
 #pragma param u_floorBias float default(1) range(0,1)
 #pragma param u_puddles float default(0) range(0,1)
 #pragma param u_puddleScale float default(350) range(40,2000)
+#pragma param u_maxRoughness float default(0.75) range(0.05,1)
+#pragma param u_wetness float default(0) range(0,1)
+#pragma gbuffer
 
 #pragma fragment
 precision highp float;
@@ -377,10 +418,12 @@ precision highp float;
 in vec2 v_texCoord;
 uniform sampler2D u_texture;
 uniform highp sampler2D u_sceneDepth;
+uniform highp sampler2D u_gbuffer;
 out vec4 fragColor;
 
 ${SSAO_GLSL}
 ${PUDDLE_GLSL}
+${GBUFFER_GLSL}
 ${GLSL}
 
 void main() {
@@ -407,21 +450,44 @@ void main() {
     vec3 V = viewDirection(P);
     if (dot(N, V) < 0.0) N = -N;
 
-    // Standing water is flat and mirror-like whatever the ground under it is: its normal is
-    // straight up, and a still surface reflects far more than the 4% a dry one does.
-    float puddle = 0.0;
-    if (u_puddles > 0.0) {
-        puddle = puddleMask(P.xz, u_puddles, u_puddleScale) * smoothstep(0.86, 0.95, N.y);
-        N = normalize(mix(N, vec3(0.0, 1.0, 0.0), puddle));
+    // What the surface is, where the scene wrote it: its own normal (a normal map's detail, which depth
+    // cannot see), how rough it is and whether it is metal. Where nothing wrote — a sprite, a draw
+    // with a shader that has no record to give — the depth normal stands, and the surface is taken
+    // for a middling dielectric, which is what reflecting it by Fresnel alone has always assumed.
+    Surface sf = readSurface(c);
+    float rough = 0.5;
+    float metal = 0.0;
+    if (sf.known) {
+        N = sf.normal;
+        if (dot(N, V) < 0.0) N = -N;
+        rough = sf.roughness;
+        metal = sf.metallic;
     }
 
-    // Fresnel at this angle, Schlick with the dielectric 4% a surface without a metal in
-    // it reflects face-on; and the floor mask that keeps walls from shining.
+    // Standing water is flat and mirror-like whatever the ground under it is: its normal is
+    // straight up, and a still surface reflects far more than the 4% a dry one does.
+    float flatUp = smoothstep(0.86, 0.95, N.y);
+    float puddle = 0.0;
+    if (u_puddles > 0.0) {
+        puddle = puddleMask(P.xz, u_puddles, u_puddleScale) * flatUp;
+        N = normalize(mix(N, vec3(0.0, 1.0, 0.0), puddle));
+    }
+    // Wet ground is smoother than dry: a film of water fills the pores a rough surface scatters from.
+    rough = mix(rough, rough * 0.35, u_wetness * flatUp);
+    rough = mix(rough, 0.04, puddle);
+    // Too rough to show anything: skipped before the march, which is the whole cost.
+    if (sf.known && rough > u_maxRoughness) { fragColor = scene; return; }
+
+    // Fresnel at this angle, Schlick from the surface's own reflectance face-on: a dielectric's 4%, a
+    // metal's near-all. The floor mask keeps a surface nobody described from shining on every wall.
     float cosT = clamp(dot(N, V), 0.0, 1.0);
-    float fresnel = 0.04 + 0.96 * pow(1.0 - cosT, 5.0);
+    float f0 = mix(0.04, 0.9, metal);
+    float fresnel = f0 + (1.0 - f0) * pow(1.0 - cosT, 5.0);
     fresnel = mix(fresnel, max(fresnel, 0.55), puddle);
-    float up = mix(1.0, smoothstep(0.55, 0.9, N.y), u_floorBias);
-    float weight = fresnel * up * u_intensity;
+    // A rough surface's reflection is spread over the lobe and dimmer for it.
+    float gloss = sf.known ? (1.0 - rough) * (1.0 - rough) : 1.0;
+    float up = sf.known ? 1.0 : mix(1.0, smoothstep(0.55, 0.9, N.y), u_floorBias);
+    float weight = fresnel * up * gloss * u_intensity;
     if (weight < 0.002) { fragColor = scene; return; }
 
     vec3 R = reflect(-V, N);
@@ -463,7 +529,8 @@ void main() {
             vec2 e = min(sh.xy, 1.0 - sh.xy);
             float edge = smoothstep(0.0, 0.1, min(e.x, e.y));
             // A farther hit is a rougher reflection: blur it by how far it is.
-            float blur = (length(b - P) / max(u_maxDistance, 1.0)) * 6.0 * (1.0 - 0.85 * puddle);
+            // Wider with the surface's own roughness, and with how far the ray went.
+            float blur = ((length(b - P) / max(u_maxDistance, 1.0)) * 6.0 + rough * 10.0) * (1.0 - 0.85 * puddle);
             vec2 texel = 1.0 / vec2(textureSize(u_texture, 0));
             vec3 col = texture(u_texture, sh.xy).rgb * 0.4;
             col += texture(u_texture, sh.xy + vec2( blur, 0.0) * texel).rgb * 0.15;
@@ -484,6 +551,7 @@ void main() {
 #pragma fragment wgsl
 ${SSAO_WGSL}
 ${PUDDLE_WGSL}
+${GBUFFER_WGSL}
 ${WGSL}
 
 @fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
@@ -508,17 +576,35 @@ ${WGSL}
     let V = viewDirection(P);
     if (dot(N, V) < 0.0) { N = -N; }
 
-    var puddle = 0.0;
-    if (mc.u_puddles > 0.0) {
-        puddle = puddleMask(P.xz, mc.u_puddles, mc.u_puddleScale) * smoothstep(0.86, 0.95, N.y);
-        N = normalize(mix(N, vec3f(0.0, 1.0, 0.0), puddle));
+    let sf = readSurface(c);
+    var rough = 0.5;
+    var metal = 0.0;
+    if (sf.known) {
+        N = sf.normal;
+        if (dot(N, V) < 0.0) { N = -N; }
+        rough = sf.roughness;
+        metal = sf.metallic;
     }
 
+    let flatUp = smoothstep(0.86, 0.95, N.y);
+    var puddle = 0.0;
+    if (mc.u_puddles > 0.0) {
+        puddle = puddleMask(P.xz, mc.u_puddles, mc.u_puddleScale) * flatUp;
+        N = normalize(mix(N, vec3f(0.0, 1.0, 0.0), puddle));
+    }
+    rough = mix(rough, rough * 0.35, mc.u_wetness * flatUp);
+    rough = mix(rough, 0.04, puddle);
+    if (sf.known && rough > mc.u_maxRoughness) { return scene; }
+
     let cosT = clamp(dot(N, V), 0.0, 1.0);
-    var fresnel = 0.04 + 0.96 * pow(1.0 - cosT, 5.0);
+    let f0 = mix(0.04, 0.9, metal);
+    var fresnel = f0 + (1.0 - f0) * pow(1.0 - cosT, 5.0);
     fresnel = mix(fresnel, max(fresnel, 0.55), puddle);
-    let up = mix(1.0, smoothstep(0.55, 0.9, N.y), mc.u_floorBias);
-    let weight = fresnel * up * mc.u_intensity;
+    var gloss = 1.0;
+    if (sf.known) { gloss = (1.0 - rough) * (1.0 - rough); }
+    var up = 1.0;
+    if (!sf.known) { up = mix(1.0, smoothstep(0.55, 0.9, N.y), mc.u_floorBias); }
+    let weight = fresnel * up * gloss * mc.u_intensity;
     if (weight < 0.002) { return scene; }
 
     let R = reflect(-V, N);
@@ -556,7 +642,7 @@ ${WGSL}
             let e = min(sh.xy, vec2f(1.0) - sh.xy);
             let edge = smoothstep(0.0, 0.1, min(e.x, e.y));
             let travelled = length(b - P);
-            let blur = (travelled / max(mc.u_maxDistance, 1.0)) * 6.0 * (1.0 - 0.85 * puddle);
+            let blur = ((travelled / max(mc.u_maxDistance, 1.0)) * 6.0 + rough * 10.0) * (1.0 - 0.85 * puddle);
             let texel = 1.0 / vec2f(vec2i(textureDimensions(t0, 0)));
             var col = textureSampleLevel(t0, s0, sh.xy, 0.0).rgb * 0.4;
             col = col + textureSampleLevel(t0, s0, sh.xy + vec2f( blur, 0.0) * texel, 0.0).rgb * 0.15;

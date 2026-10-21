@@ -55,6 +55,8 @@ struct TargetShape {
     /// Samples the target is DRAWN into with; what it hands back to be sampled
     /// is always single-sample, because the target resolves itself.
     u32 samples = 1;
+    /// A second colour attachment for the surface's material (see FramebufferSpec::gbuffer).
+    bool gbuffer = false;
 };
 
 class TargetPool {
@@ -83,6 +85,8 @@ public:
     /** The depth attachment, for a target that has one — an effect reading the
      *  scene's depth samples this. Invalid when the shape carried no depth. */
     TextureHandle depthTextureOf(TargetHandle handle) const;
+    /** Its second colour attachment, Invalid for a target made without one. */
+    TextureHandle gbufferTextureOf(TargetHandle handle) const;
 
     /**
      * @brief One tick of the clock every borrowed target is aged against.

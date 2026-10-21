@@ -64,6 +64,8 @@ struct TargetDesc {
     /// Samples to DRAW with. What the target hands back to be sampled stays
     /// single-sample either way — the resolve is the target's own business.
     u32 samples = 1;
+    /// A second colour attachment for the surface's material, drawn beside the first.
+    bool gbuffer = false;
 };
 
 /** What a pass's execute() is told: where it is drawing and what it may read. */
@@ -190,6 +192,9 @@ public:
     /** Its depth attachment, for a resource declared with one. Invalid for an
      *  import (the graph did not make it) and for a target without depth. */
     TextureHandle depthTextureOf(ResourceId id) const;
+
+    /** Its second colour attachment, for a resource declared with one. Invalid otherwise. */
+    TextureHandle gbufferTextureOf(ResourceId id) const;
 
     /** Drops every pooled target. For shutdown and for device loss, after which
      *  the handles the pool holds name nothing. */

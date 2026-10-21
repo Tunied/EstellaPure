@@ -1241,11 +1241,14 @@ WGPURenderPipeline WebGPUDevice::ensurePipeline(u32 id) {
     if (!described || !device_) return nullptr;
     PipelineRec& built = pipelines_[id];
     const u32 dsVariant = dsVariantOf(pass_ds_format_);
-    const u32 variant = (dsVariant * kColorVariantCount + colorVariantOf(pass_color_format_))
-                        * kSampleVariantCount + (pass_samples_ > 1 ? kMultiSample : kSingleSample);
+    const PipelineDesc& desc = *described;
+    const u32 gbufferVariant = !pass_gbuffer_ ? kGBufferNone
+                              : desc.gbuffer ? kGBufferWrites : kGBufferSkips;
+    const u32 variant = ((dsVariant * kColorVariantCount + colorVariantOf(pass_color_format_))
+                         * kSampleVariantCount + (pass_samples_ > 1 ? kMultiSample : kSingleSample))
+                        * kGBufferVariantCount + gbufferVariant;
     if (built.variants[variant]) return built.variants[variant];
 
-    const PipelineDesc& desc = *described;
     auto progIt = programs_.find(static_cast<u32>(desc.program));
     const VertexLayoutDesc* layout = vertexLayoutDesc(desc.vertexLayout);
     if (progIt == programs_.end() || !layout) {
@@ -1283,17 +1286,24 @@ WGPURenderPipeline WebGPUDevice::ensurePipeline(u32 id) {
     blendState.color = blend.color;
     blendState.alpha = blend.alpha;
 
-    WGPUColorTargetState target{};
-    target.format = pass_color_format_;
-    target.blend = desc.blendEnabled ? &blendState : nullptr;
-    target.writeMask = writesStencil(desc.stencil) ? WGPUColorWriteMask_None
-                                                               : WGPUColorWriteMask_All;
+    WGPUColorTargetState targets[2]{};
+    targets[0].format = pass_color_format_;
+    targets[0].blend = desc.blendEnabled ? &blendState : nullptr;
+    targets[0].writeMask = writesStencil(desc.stencil) ? WGPUColorWriteMask_None
+                                                       : WGPUColorWriteMask_All;
+    // The second attachment, when the pass has one: written by a shader that has the output, and
+    // declared with an empty write mask by every other — WebGPU asks the pipeline to account for
+    // every attachment of the pass, and a shader with one output may not be given a mask that
+    // would write the second. Never blended: a normal averaged with what was there is neither's.
+    targets[1].format = WGPUTextureFormat_RGBA8Unorm;
+    targets[1].writeMask = (desc.gbuffer && !writesStencil(desc.stencil)) ? WGPUColorWriteMask_All
+                                                                         : WGPUColorWriteMask_None;
 
     WGPUFragmentState fragment{};
     fragment.module = progIt->second.fragment;
     fragment.entryPoint = sv("fs_main");
-    fragment.targetCount = 1;
-    fragment.targets = &target;
+    fragment.targetCount = pass_gbuffer_ ? 2 : 1;
+    fragment.targets = targets;
 
     WGPURenderPipelineDescriptor pd{};
     // Explicit layout from the program's binding masks — the same cached
@@ -1660,7 +1670,8 @@ void WebGPUDevice::resolveDepthAttachment(u32 msaaDepth, u32 resolveDepth) {
 WGPURenderPipeline WebGPUDevice::ensureClearPipeline(bool color, bool depth, bool stencil) {
     // The sample count is part of the key for the same reason the formats are:
     // a clear pipeline is validated against the pass it runs in.
-    const u32 key = colorVariantOf(pass_color_format_) << 6 |
+    const u32 key = (pass_gbuffer_ ? 1u << 12 : 0u) |
+                    colorVariantOf(pass_color_format_) << 6 |
                     dsVariantOf(pass_ds_format_) << 4 |
                     (pass_samples_ > 1 ? 8u : 0u) |
                     (color ? 1u : 0u) | (depth ? 2u : 0u) | (stencil ? 4u : 0u);
@@ -1721,15 +1732,18 @@ struct ClearColor { value : vec4f };
     WGPUShaderModule vs = makeModule(kClearVS);
     WGPUShaderModule fs = makeModule(kClearFS);
 
-    WGPUColorTargetState target{};
-    target.format = pass_color_format_;
-    target.writeMask = color ? WGPUColorWriteMask_All : WGPUColorWriteMask_None;
+    WGPUColorTargetState clearTargets[2]{};
+    clearTargets[0].format = pass_color_format_;
+    clearTargets[0].writeMask = color ? WGPUColorWriteMask_All : WGPUColorWriteMask_None;
+    // A scoped clear is the camera's background, which a surface record has no part in.
+    clearTargets[1].format = WGPUTextureFormat_RGBA8Unorm;
+    clearTargets[1].writeMask = WGPUColorWriteMask_None;
 
     WGPUFragmentState fragment{};
     fragment.module = fs;
     fragment.entryPoint = sv("fs_main");
-    fragment.targetCount = 1;
-    fragment.targets = &target;
+    fragment.targetCount = pass_gbuffer_ ? 2 : 1;
+    fragment.targets = clearTargets;
 
     WGPURenderPipelineDescriptor pd{};
     pd.layout = clear_layout_;
@@ -2120,6 +2134,9 @@ void WebGPUDevice::beginRenderPass(const RenderPassDesc& desc) {
     pass_depth_texture_ = 0;
     pass_is_surface_ = desc.target == FramebufferHandle::Default;
     pass_samples_ = 1;
+    pass_gbuffer_ = false;
+    WGPUTextureView gbufferView = nullptr;
+    WGPUTextureView gbufferResolveView = nullptr;
     pass_depth_msaa_ = 0;
     pass_depth_resolve_ = 0;
     if (desc.target != FramebufferHandle::Default) {
@@ -2153,6 +2170,21 @@ void WebGPUDevice::beginRenderPass(const RenderPassDesc& desc) {
             }
             resolveView = resolveIt->second.view;
             pass_color_texture_ = resolve;
+        }
+        if (fb->color1 != TextureHandle::Invalid) {
+            auto gIt = textures_.find(static_cast<u32>(fb->color1));
+            if (gIt != textures_.end()) {
+                gbufferView = gIt->second.view;
+                pass_gbuffer_ = true;
+                if (gIt->second.samples > 1) {
+                    auto gResolve = textures_.find(static_cast<u32>(fb->resolveColor1));
+                    if (gResolve == textures_.end()) {
+                        ES_LOG_ERROR("WebGPUDevice::beginRenderPass: a multisampled surface record with no resolve twin");
+                        return;
+                    }
+                    gbufferResolveView = gResolve->second.view;
+                }
+            }
         }
         if (depthStencil != 0) {
             auto dsIt = textures_.find(depthStencil);
@@ -2252,9 +2284,21 @@ void WebGPUDevice::beginRenderPass(const RenderPassDesc& desc) {
     color.storeOp = WGPUStoreOp_Store;
     color.clearValue = toWGPUClearColor(desc);
 
+    // The surface record clears to zero — "nothing wrote here" — whatever the background is.
+    WGPURenderPassColorAttachment colors[2]{};
+    colors[0] = color;
+    if (pass_gbuffer_) {
+        colors[1].view = gbufferView;
+        colors[1].resolveTarget = gbufferResolveView;
+        colors[1].depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+        colors[1].loadOp = toWGPULoadOp(desc.clearColor, scoped);
+        colors[1].storeOp = WGPUStoreOp_Store;
+        colors[1].clearValue = {0.0, 0.0, 0.0, 0.0};
+    }
+
     WGPURenderPassDescriptor rp{};
-    rp.colorAttachmentCount = 1;
-    rp.colorAttachments = &color;
+    rp.colorAttachmentCount = pass_gbuffer_ ? 2 : 1;
+    rp.colorAttachments = colors;
 
     WGPURenderPassDepthStencilAttachment ds{};
     if (dsView) {

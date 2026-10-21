@@ -152,6 +152,9 @@ struct ParsedShader {
     /// output alpha is coverage (a cutout sharpened to one texel), so an opaque draw
     /// may turn it into multisample coverage instead of a hard edge.
     std::string coverageParam;
+    /// `#pragma gbuffer`: a post-process shader reads the scene's surface record (normal, roughness,
+    /// metalness) at unit kGBufferUnit, so the frame must draw one for it.
+    bool usesGBuffer = false;
     /// `#pragma vertexoffset`: the body of `esMaterialVertex(inout local, inout localNormal, uv)`,
     /// run on a resident mesh's local-space vertex before it is posed and placed. It is the
     /// material's own, so the canonical mesh vertex stage calls it and a material without one

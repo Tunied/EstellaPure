@@ -47,6 +47,7 @@ static MaterialUniformLayout buildMaterialLayout(const resource::ParsedShader& p
     MaterialUniformLayout layout;
     layout.blockSize = parsed.materialBlockSize;
     layout.coverageParam = parsed.coverageParam;
+    layout.usesGBuffer = parsed.usesGBuffer;
     layout.vertexBounds = parsed.vertexBounds;
     layout.vertexHook = !parsed.vertexHook.empty();
     for (const auto& p : parsed.properties) {

@@ -379,7 +379,23 @@ in highp vec3 v_worldXYZ;
 // engine injects and a bake.
 uniform sampler2D u_textures[1];
 
+#ifdef ES_GBUFFER
+// The frame draws a second attachment beside the colour: what this surface IS, for the post effects
+// that need to know (reflections: how rough, how metal, which way it faces). Only a pass that has the
+// attachment asks for this variant.
+layout(location = 0) out vec4 fragColor;
+layout(location = 1) out vec4 fragSurface;
+
+// Octahedral normal: a unit vector in two channels, which is what an 8-bit target can hold.
+vec2 packNormal(vec3 n) {
+    n /= (abs(n.x) + abs(n.y) + abs(n.z));
+    vec2 sgn = vec2(n.x >= 0.0 ? 1.0 : -1.0, n.y >= 0.0 ? 1.0 : -1.0);
+    vec2 e = n.z >= 0.0 ? n.xy : (1.0 - abs(n.yx)) * sgn;
+    return e * 0.5 + 0.5;
+}
+#else
 out vec4 fragColor;
+#endif
 
 // Geometric specular anti-aliasing (Tokuyoshi & Kaplanyan 2019, as Filament spells it).
 // Where the vertex normal turns quickly across a pixel — a bevel, a curved rail, a
@@ -439,6 +455,10 @@ void main() {
     vec3 lit = applyLightingPBR(base.rgb, N, P, viewDirection(P),
                                 u_metallic * mr.b, roughness, 1.0, ao);
     fragColor = vec4(lit + u_emissive.rgb * texture(u_emissiveMap, v_texCoord).rgb, alpha);
+#ifdef ES_GBUFFER
+    // Alpha says something was drawn here (0 is "nothing wrote"), and carries the metalness above a floor.
+    fragSurface = vec4(packNormal(normalize(N)), roughness, 0.25 + 0.75 * clamp(u_metallic * mr.b, 0.0, 1.0));
+#endif
 }
 #pragma end
 
@@ -451,7 +471,25 @@ fn specularAA(dndx : vec3f, dndy : vec3f, roughness : f32) -> f32 {
     return sqrt(sqrt(clamp(alpha * alpha + kernel, 0.0, 1.0)));
 }
 
+#ifdef ES_GBUFFER
+// What the frame's second attachment takes, beside the colour (see the GLSL twin).
+struct FragOut {
+    @location(0) color : vec4f,
+    @location(1) surface : vec4f,
+};
+
+fn packNormal(n : vec3f) -> vec2f {
+    let a = n / (abs(n.x) + abs(n.y) + abs(n.z));
+    let sgn = vec2f(select(-1.0, 1.0, a.x >= 0.0), select(-1.0, 1.0, a.y >= 0.0));
+    var e = a.xy;
+    if (a.z < 0.0) { e = (vec2f(1.0) - abs(a.yx)) * sgn; }
+    return e * 0.5 + 0.5;
+}
+
+@fragment fn fs_main(v : VSOut, @builtin(front_facing) front : bool) -> FragOut {
+#else
 @fragment fn fs_main(v : VSOut, @builtin(front_facing) front : bool) -> @location(0) vec4f {
+#endif
     // Taken before any branch: a derivative needs every fragment of its quad.
     let duvx = dpdx(v.v_texCoord);
     let duvy = dpdy(v.v_texCoord);
@@ -498,7 +536,14 @@ fn specularAA(dndx : vec3f, dndy : vec3f, roughness : f32) -> f32 {
                                mc.u_metallic * mr.b, roughness, 1.0, ao);
     let emit = mc.u_emissive.rgb
              * textureSampleGrad(u_emissiveMap, u_emissiveMap_s, v.v_texCoord, duvx, duvy).rgb;
+#ifdef ES_GBUFFER
+    var frag : FragOut;
+    frag.color = vec4f(lit + emit, alpha);
+    frag.surface = vec4f(packNormal(normalize(N)), roughness, 0.25 + 0.75 * clamp(mc.u_metallic * mr.b, 0.0, 1.0));
+    return frag;
+#else
     return vec4f(lit + emit, alpha);
+#endif
 }
 #pragma end
 `;

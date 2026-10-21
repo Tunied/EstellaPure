@@ -36,7 +36,11 @@ Framebuffer::Framebuffer(Framebuffer&& other) noexcept
       colorAttachment_(other.colorAttachment_),
       depthAttachment_(other.depthAttachment_),
       resolveColor_(other.resolveColor_),
-      resolveDepth_(other.resolveDepth_) {
+      resolveDepth_(other.resolveDepth_),
+      colorAttachment1_(other.colorAttachment1_),
+      resolveColor1_(other.resolveColor1_) {
+    other.colorAttachment1_ = TextureHandle::Invalid;
+    other.resolveColor1_ = TextureHandle::Invalid;
     other.handle_ = FramebufferHandle::Default;
     other.colorAttachment_ = TextureHandle::Invalid;
     other.depthAttachment_ = TextureHandle::Invalid;
@@ -54,6 +58,10 @@ Framebuffer& Framebuffer::operator=(Framebuffer&& other) noexcept {
         depthAttachment_ = other.depthAttachment_;
         resolveColor_ = other.resolveColor_;
         resolveDepth_ = other.resolveDepth_;
+        colorAttachment1_ = other.colorAttachment1_;
+        resolveColor1_ = other.resolveColor1_;
+        other.colorAttachment1_ = TextureHandle::Invalid;
+        other.resolveColor1_ = TextureHandle::Invalid;
         other.handle_ = FramebufferHandle::Default;
         other.colorAttachment_ = TextureHandle::Invalid;
         other.depthAttachment_ = TextureHandle::Invalid;
@@ -126,6 +134,21 @@ bool Framebuffer::initialize() {
     colorDesc.samples = samples;
     colorAttachment_ = device_->createTexture(colorDesc, GfxContent::transient(), nullptr);
 
+    // The surface's own record: 8 bits a channel is what an octahedral normal, a roughness and a metalness
+    // need, and a float target would spend four times the bandwidth for precision none of them uses.
+    if (spec_.gbuffer) {
+        TextureDesc gDesc = colorDesc;
+        gDesc.format = GfxPixelFormat::RGBA8;
+        // Nearest: a normal or a roughness blended with its neighbour's is neither's.
+        gDesc.minFilter = TextureFilter::Nearest;
+        gDesc.magFilter = TextureFilter::Nearest;
+        colorAttachment1_ = device_->createTexture(gDesc, GfxContent::transient(), nullptr);
+        if (samples > 1) {
+            gDesc.samples = 1;
+            resolveColor1_ = device_->createTexture(gDesc, GfxContent::transient(), nullptr);
+        }
+    }
+
     TextureDesc depthDesc;
     depthDesc.width = spec_.width;
     depthDesc.height = spec_.height;
@@ -152,9 +175,16 @@ bool Framebuffer::initialize() {
         }
     }
 
-    handle_ = device_->createFramebuffer({colorAttachment_, depthAttachment_,
-                                          resolveColor_, resolveDepth_,
-                                          spec_.width, spec_.height});
+    FramebufferDesc fb;
+    fb.color0 = colorAttachment_;
+    fb.depthStencil = depthAttachment_;
+    fb.resolveColor0 = resolveColor_;
+    fb.resolveDepthStencil = resolveDepth_;
+    fb.color1 = colorAttachment1_;
+    fb.resolveColor1 = resolveColor1_;
+    fb.width = spec_.width;
+    fb.height = spec_.height;
+    handle_ = device_->createFramebuffer(fb);
     if (handle_ == FramebufferHandle::Default) {
         ES_LOG_ERROR("Framebuffer is incomplete! (size: {}x{}, GL error 0x{:X})",
                      spec_.width, spec_.height, device_->getError());
@@ -170,6 +200,14 @@ void Framebuffer::cleanup() {
     if (resolveColor_ != TextureHandle::Invalid) {
         device_->deleteTexture(resolveColor_);
         resolveColor_ = TextureHandle::Invalid;
+    }
+    if (resolveColor1_ != TextureHandle::Invalid) {
+        device_->deleteTexture(resolveColor1_);
+        resolveColor1_ = TextureHandle::Invalid;
+    }
+    if (colorAttachment1_ != TextureHandle::Invalid) {
+        device_->deleteTexture(colorAttachment1_);
+        colorAttachment1_ = TextureHandle::Invalid;
     }
     if (resolveDepth_ != TextureHandle::Invalid) {
         device_->deleteTexture(resolveDepth_);

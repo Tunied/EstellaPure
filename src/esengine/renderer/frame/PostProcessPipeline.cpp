@@ -297,6 +297,16 @@ u64 PostProcessPipeline::feedbackKey(const std::string& passName) const {
     return temporalKey_ * 1000003ull + std::hash<std::string>{}(passName);
 }
 
+bool PostProcessPipeline::passesWantGBuffer() {
+    if (bypass_) return false;
+    for (const auto& pass : passes_) {
+        if (!pass.enabled) continue;
+        const MaterialUniformLayout* layout = context_.materials().layoutFor(pass.shader);
+        if (layout && layout->usesGBuffer) return true;
+    }
+    return false;
+}
+
 bool PostProcessPipeline::temporalActive() {
     if (!initialized_ || bypass_) return false;
     for (const auto& pass : passes_) {
@@ -495,6 +505,10 @@ void PostProcessPipeline::begin(const f32* clearColor) {
     // Every other target in the chain is a fullscreen pass and stays at one
     // sample. Gate: check-postfx-aa.
     sceneDesc.samples = scene_samples_;
+    // The surface record needs the scene's depth to test against and to be read beside, so a frame
+    // with no depth has no use for one.
+    scene_gbuffer_ = scene_needs_depth_ && passesWantGBuffer();
+    sceneDesc.gbuffer = scene_gbuffer_;
     sceneResource_ = graph_->createExternalTarget(sceneDesc);
     if (sceneResource_ == rg::kNoResource) {
         ES_LOG_ERROR("PostProcessPipeline: no scene target this frame");
@@ -559,6 +573,9 @@ void PostProcessPipeline::renderPass(PostProcessPass& pass, const rg::PassContex
         if (shader->hasUniform("u_sceneTexture")) shader->setUniform("u_sceneTexture", 1);
         if (shader->hasUniform("u_sceneDepth")) {
             shader->setUniform("u_sceneDepth", static_cast<i32>(kSceneDepthUnit));
+        }
+        if (shader->hasUniform("u_gbuffer")) {
+            shader->setUniform("u_gbuffer", static_cast<i32>(kGBufferUnit));
         }
     }
 
@@ -626,6 +643,9 @@ void PostProcessPipeline::renderPass(PostProcessPass& pass, const rg::PassContex
     // wrote none then finds no edge — the right answer for a flat one.
     device->bindTexture(kSceneDepthUnit, graph_ ? graph_->depthTextureOf(sceneResource_)
                                                 : TextureHandle::Invalid);
+    // And the surface record, on the unit below it, on the same terms: nothing where the frame drew none.
+    device->bindTexture(kGBufferUnit, graph_ && scene_gbuffer_ ? graph_->gbufferTextureOf(sceneResource_)
+                                                               : TextureHandle::Invalid);
 
     // Texture params (LUTs, masks) bind at their reflected material units;
         // an unset param gets its declared default (white/black/flatnormal).
@@ -653,7 +673,7 @@ void PostProcessPipeline::renderPass(PostProcessPass& pass, const rg::PassContex
         for (const auto& [name, glId] : pass.textureUniforms) {
             // Stops below the scene-depth unit rather than walking into it: a
             // sixth loose texture would otherwise take the binding depth is on.
-            if (extraUnit >= kSceneDepthUnit) break;
+            if (extraUnit >= kGBufferUnit) break;
             if (glId != 0 && shader->hasUniform(name)) {
                 device->bindTexture(extraUnit, TextureHandle{glId});
                 shader->setUniform(name, static_cast<i32>(extraUnit));
@@ -739,7 +759,7 @@ void PostProcessPipeline::runChain(std::vector<PostProcessPass>& passes, rg::Res
         // Every pass samples the scene's depth, so the scene target has to outlive
         // the last pass that reads its colour: returned to the pool any earlier,
         // an SSAO behind a colour grade found no depth and occluded nothing.
-        if (scene_needs_depth_) node.dependencies = {scene};
+        if (scene_needs_depth_ || scene_gbuffer_) node.dependencies = {scene};
         // The last pass feeds the blit, which copies into the output rect at the
         // chain's size — so it draws full-size whatever fraction it asked for.
         rg::TargetDesc writeDesc = (i == lastEnabled) ? blitDesc : desc;

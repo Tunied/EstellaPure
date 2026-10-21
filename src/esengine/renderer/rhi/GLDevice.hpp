@@ -228,6 +228,11 @@ private:
     u32 bound_texture_[kTextureSlots] = {};
     i16 current_depth_bias_ = 0;
     i8 alpha_to_coverage_ = -1;  ///< -1: unknown, so the next pipeline sets it.
+    /// The framebuffer being drawn into carries a second colour attachment, and which of the two draw
+    /// buffer sets is live: 0 = colour only, 1 = both, -1 = not yet said for this pass.
+    bool current_fbo_has_gbuffer_ = false;
+    i8 draw_buffers_ = -1;
+    void applyDrawBuffers(bool gbuffer);
     int scissor_test_ = -1;  // tri-state: -1 unknown, 0 disabled, 1 enabled
 
     struct VaoCache {
@@ -252,6 +257,7 @@ private:
         u32 width = 0;
         u32 height = 0;
         bool depth = false;
+        bool gbuffer = false;
     };
     std::unordered_map<u32, ResolvePair> framebuffer_resolve_;
     /// Blit a multisampled target into the single-sample one it owns; no-op for

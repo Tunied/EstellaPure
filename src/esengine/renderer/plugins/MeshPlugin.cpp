@@ -812,7 +812,8 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
                     materialProgram = ctx.materials->meshProgram(key.materialId, ctx.resources,
                                                                  resident->hasNormals, skinned,
                                                                  key.envTextureId != 0,
-                                                                 resident->hasLightmapUV);
+                                                                 resident->hasLightmapUV,
+                                                                 ctx.gbuffer && !shadowDepth);
                     if (materialProgram == 0) {
                         if (!warned_material_) {
                             warned_material_ = true;

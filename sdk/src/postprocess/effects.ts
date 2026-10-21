@@ -375,6 +375,10 @@ registerEffect({
         // and the pools it darkens are the pools that reflect.
         { name: 'u_puddles', label: 'Puddles', min: 0, max: 1, step: 0.01, defaultValue: 0, neutralValue: 0 },
         { name: 'u_puddleScale', label: 'Puddle Size', min: 40, max: 2000, step: 10, defaultValue: 350 },
+        // Surfaces rougher than this reflect nothing and cost nothing: the ray is never marched for them.
+        { name: 'u_maxRoughness', label: 'Max Roughness', min: 0.05, max: 1, step: 0.01, defaultValue: 0.75 },
+        // How wet the ground is: wet is smoother, so it reflects. Give it the Rain effect's wetness.
+        { name: 'u_wetness', label: 'Wetness', min: 0, max: 1, step: 0.01, defaultValue: 0, neutralValue: 0 },
     ],
 });
 

@@ -67,13 +67,21 @@ void MaterialStore::clear() {
 
 u32 MaterialStore::meshProgram(u32 materialId, resource::ResourceManager& resources,
                                bool withNormals, bool skinned, bool envMapped,
-                               bool lightmapped) const {
+                               bool lightmapped, bool gbuffer) const {
+    // Only for a shader that has something to write: one that never mentions the feature would
+    // compile the same program twice and then be declared to write an output it does not have.
+    if (gbuffer) {
+        const MaterialRecord* rec = find(materialId);
+        const auto src = rec && rec->shaderRef.isValid() ? sources_.find(rec->shaderRef.id()) : sources_.end();
+        gbuffer = src != sources_.end() && src->second.source.find("ES_GBUFFER") != std::string::npos;
+    }
     // Keyed by shader AND vertex shape: a layout may not declare an attribute its
     // shader ignores, so geometry with normals — or posed by bones — needs its own.
     const u64 shape = (withNormals ? (1ull << 32) : 0ull)
                     | (skinned ? (1ull << 33) : 0ull)
                     | (envMapped ? (1ull << 34) : 0ull)
-                    | (lightmapped ? (1ull << 36) : 0ull);
+                    | (lightmapped ? (1ull << 36) : 0ull)
+                    | (gbuffer ? (1ull << 38) : 0ull);
     std::vector<std::string> features{ "MESH" };
     if (withNormals) features.push_back("MESH_NORMALS");
     if (skinned) features.push_back("SKINNED");
@@ -86,7 +94,10 @@ u32 MaterialStore::meshProgram(u32 materialId, resource::ResourceManager& resour
     // As above: this vertex source gives the fragment a real world position, so a
     // positional light is read from where it is rather than from the plane.
     features.push_back("ES_SURFACE_3D");
-    return variantProgram(materialId, resources, shape, features, "resident geometry");
+    if (gbuffer) features.push_back("ES_GBUFFER");
+    const u32 program = variantProgram(materialId, resources, shape, features, "resident geometry");
+    if (gbuffer && program != 0) gbuffer_programs_.insert(program);
+    return program;
 }
 
 u32 MaterialStore::shadowProgram(u32 materialId, resource::ResourceManager& resources,

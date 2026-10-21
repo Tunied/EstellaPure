@@ -36,6 +36,11 @@ public:
     /// merge spends slots) and reserved top-down, so a sampler's unit never moves.
     void reserveMask2DSlots(u32 count) { mask_2d_slots_ = std::min(count, MAX_CMD_TEXTURE_SLOTS); }
 
+    /// The pass this list is about to execute into carries a second colour attachment, so the draws
+    /// whose shaders write it say so in their pipelines. Set for the scene pass and cleared after:
+    /// the same list is executed into other targets, which have no second output to take.
+    void setGBufferPass(bool on) { gbuffer_pass_ = on; }
+
     /// A mask itself, which every draw then binds on its unit. Zero leaves the unit
     /// filled with white — "nothing shadows anything", and "the shape covers all".
     void setMask2DTexture(u32 unit, u32 textureId) {
@@ -231,6 +236,7 @@ private:
     /// @see setMask2DTexture — indexed by texture unit, 0 where that unit is not a mask.
     u32 mask_2d_textures_[MAX_CMD_TEXTURE_SLOTS] = {};
     /// @see reserveMask2DSlots
+    bool gbuffer_pass_ = false;
     u32 mask_2d_slots_ = 0;
     u32 merged_draw_calls_ = 0;
     u32 merged_away_ = 0;

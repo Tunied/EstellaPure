@@ -90,6 +90,20 @@ describe('dynamic resolution', () => {
         expect(q.renderScale).toBeLessThanOrEqual(1);
     });
 
+    it('says which post-process effects each level leaves out, and takes an override', () => {
+        const levels = (config: object, level: 'low' | 'medium' | 'high') => {
+            const q = new QualityController({ mode: level, ...config });
+            return q.profile.skipEffects;
+        };
+        // The expensive effects are left to the devices that can afford them.
+        expect(levels({}, 'low')).toContain('ssr');
+        expect(levels({}, 'medium')).toContain('ssr');
+        expect(levels({}, 'high')).toEqual([]);
+        // A project's own list replaces the level's, and what is not a name is dropped.
+        expect(levels({ profiles: { low: { skipEffects: ['Bloom', 7, '  ', null, 'ssr'] } } }, 'low'))
+            .toEqual(['Bloom', 'ssr']);
+    });
+
     it('does not react to background gaps, invalid clocks or a static tier', () => {
         const q = make();
         for (const ms of [NaN, Infinity, 0, -5, 30000]) q.sample(ms);

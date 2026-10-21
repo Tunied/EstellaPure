@@ -377,10 +377,15 @@ private:
         /// Which of group1Mask's bindings are `texture_depth_2d`.
         u32 group1DepthMask = 0;
     };
+    /// What a pass's second colour attachment means to the pipeline drawn into it: there is none, the
+    /// pipeline writes it, or the pipeline leaves it alone (its target is declared with an empty write mask).
+    enum GBufferVariant : u32 { kGBufferNone = 0, kGBufferWrites = 1, kGBufferSkips = 2, kGBufferVariantCount = 3 };
     struct PipelineRec {
-        /// Lazily built per pass shape: [(ds * kColorVariantCount + color) * kSampleVariantCount + samples].
+        /// Lazily built per pass shape:
+        /// [((ds * kColorVariantCount + color) * kSampleVariantCount + samples) * kGBufferVariantCount + gbuffer].
         WGPURenderPipeline variants[static_cast<u32>(kDsVariantCount) * static_cast<u32>(kColorVariantCount)
-                                    * static_cast<u32>(kSampleVariantCount)] = {};
+                                    * static_cast<u32>(kSampleVariantCount)
+                                    * static_cast<u32>(kGBufferVariantCount)] = {};
     };
     struct ReadbackRec {
         WGPUBuffer buffer = nullptr;  ///< CopyDst|MapRead staging buffer.
@@ -514,6 +519,8 @@ private:
     WGPUTextureFormat pass_color_format_ = WGPUTextureFormat_RGBA8Unorm;
     /// Samples of the pass's colour attachment — what its pipelines must declare.
     u32 pass_samples_ = 1;
+    /// The pass draws into a second colour attachment (always RGBA8) beside the first.
+    bool pass_gbuffer_ = false;
     /// The multisampled depth attachment of the pass being ended, and the
     /// single-sample texture it owes its contents to. Both 0 unless resolving.
     u32 pass_depth_msaa_ = 0;

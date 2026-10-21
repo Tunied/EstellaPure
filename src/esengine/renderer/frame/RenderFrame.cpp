@@ -256,8 +256,12 @@ void RenderFrame::drawScene() {
 
     {
         ES_PROFILE_SCOPE("render.submit");
+#ifdef ES_ENABLE_POSTPROCESS
+        draw_list_.setGBufferPass(post_process_ && post_process_->sceneHasGBuffer());
+#endif
         draw_list_.execute(device_, pool_, context_.materials(), context_.getWhiteTextureId(),
                            &frame_capture_, context_.perDrawBlocks());
+        draw_list_.setGBufferPass(false);
     }
 
     // Handed over to whatever the graph runs next. Blend/depth/colour-mask come
@@ -765,7 +769,8 @@ void RenderFrame::renderSurface(ecs::Registry& registry, const glm::mat4& viewPr
     draw_list_.clear();
     clip_state_.clear();
 
-    collectAll(registry);
+    // A preview target is a plain one, whatever the camera's chain is doing.
+    collectAll(registry, /*sceneGBuffer=*/false);
 
     // AFTER the collect, because the clear above would have eaten them. Geometry
     // a caller posed itself and handed over, replayed through the one skeletal
@@ -2122,7 +2127,7 @@ RenderPrewarmResult RenderFrame::prewarmDocument(const MeshDocumentRecord* rows,
     return out;
 }
 
-void RenderFrame::collectAll(ecs::Registry& registry) {
+void RenderFrame::collectAll(ecs::Registry& registry, bool sceneGBuffer) {
     ES_PROFILE_SCOPE("render.collect");
     // Split because "collect is expensive" names no mechanism: planning shadows,
     // gathering lights and walking one render type's population are different
@@ -2151,6 +2156,13 @@ void RenderFrame::collectAll(ecs::Registry& registry) {
     { ES_PROFILE_SCOPE("render.collect.planar"); declarePlanarReflection(registry); }
 
     auto ctx = makeContext();
+#ifdef ES_ENABLE_POSTPROCESS
+    // Asked at the collect, because it decides which program each material draw is compiled as; the
+    // scene pass that executes them is the one the answer is about.
+    ctx.gbuffer = sceneGBuffer && post_process_ && post_process_->sceneHasGBuffer();
+#else
+    (void)sceneGBuffer;
+#endif
 
     RenderCollectContext collectCtx{registry, frustum_, clip_state_, pool_, draw_list_, ctx,
                                     computeCameraView(ctx.view_projection)};

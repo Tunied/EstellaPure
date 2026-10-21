@@ -208,7 +208,11 @@ export class PostProcessAPI {
 
     private allowQualityPass_ = (name: string): boolean => {
         const q = this.qualityFilter_;
-        return q === null || (q.postProcess && (q.ssao || !name.toLowerCase().startsWith('ssao')));
+        if (q === null) return true;
+        if (!q.postProcess) return false;
+        const lower = name.toLowerCase();
+        if (!q.ssao && lower.startsWith('ssao')) return false;
+        return !q.skipEffects.some((skipped) => lower.startsWith(skipped.toLowerCase()));
     };
 
     // -- per-App state (stacks / bindings / screen stack) --------------------

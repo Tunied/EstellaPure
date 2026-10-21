@@ -31,6 +31,7 @@
 #include <cstring>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace esengine {
@@ -91,6 +92,8 @@ struct MaterialUniformLayout {
     /// The param whose value above zero makes output alpha coverage (see
     /// ParsedShader::coverageParam); empty when the shader declares none.
     std::string coverageParam;
+    /// The shader reads the scene's surface record (ParsedShader::usesGBuffer).
+    bool usesGBuffer = false;
     /// What the shader's vertex hook can move a vertex by (ParsedShader::vertexBounds), and whether it
     /// has a hook at all — culling grows a mesh's box by the first, and the shadow pass builds a
     /// program of its own for the second.
@@ -188,7 +191,14 @@ public:
     /// caller falls back rather than drawing it wrong.
     u32 meshProgram(u32 materialId, resource::ResourceManager& resources,
                     bool withNormals = false, bool skinned = false,
-                    bool envMapped = false, bool lightmapped = false) const;
+                    bool envMapped = false, bool lightmapped = false, bool gbuffer = false) const;
+
+    /// Whether @p programId is a variant that writes the surface record's second output — set when
+    /// it was compiled for a pass that has one AND the material's shader has something to write
+    /// (it mentions ES_GBUFFER). The draw list asks per command, so a pipeline says what its shader does.
+    bool programWritesGBuffer(u32 programId) const {
+        return gbuffer_programs_.count(programId) != 0;
+    }
 
     /// How far @p materialId's vertex hook can move a vertex from the mesh's own bounds, in the
     /// mesh's local units; 0 for a material without one.
@@ -350,6 +360,8 @@ private:
     // Indexed first by source shader: retirement touches only its own variants.
     // Handles resolve to the current device program, including after recovery.
     mutable std::unordered_map<u32, std::unordered_map<u64, resource::ShaderHandle>> mesh_programs_;
+    /// Programs compiled with ES_GBUFFER (see programWritesGBuffer).
+    mutable std::unordered_set<u32> gbuffer_programs_;
 
 public:
     /** @brief How many material program variants have been built. A prewarm counts

@@ -32,7 +32,7 @@ u64 texelBytes(const TargetShape& shape) {
 bool sameShape(const TargetShape& a, const TargetShape& b) {
     return a.width == b.width && a.height == b.height && a.format == b.format
            && a.linearFilter == b.linearFilter && a.depthStencil == b.depthStencil
-           && a.samples == b.samples;
+           && a.samples == b.samples && a.gbuffer == b.gbuffer;
 }
 
 }  // namespace
@@ -74,6 +74,7 @@ TargetHandle TargetPool::acquire(const TargetShape& shape) {
     spec.linearFilter = shape.linearFilter;
     spec.colorFormat = shape.format;
     spec.samples = shape.samples;
+    spec.gbuffer = shape.gbuffer;
     auto fbo = Framebuffer::create(device_, spec);
     if (!fbo) {
         ES_LOG_ERROR("TargetPool: failed to create a {}x{} target", shape.width, shape.height);
@@ -126,6 +127,11 @@ TextureHandle TargetPool::textureOf(TargetHandle handle) const {
 TextureHandle TargetPool::depthTextureOf(TargetHandle handle) const {
     const Entry* entry = resolve(handle);
     return entry ? entry->fbo->getDepthAttachment() : TextureHandle::Invalid;
+}
+
+TextureHandle TargetPool::gbufferTextureOf(TargetHandle handle) const {
+    const Entry* entry = resolve(handle);
+    return entry ? entry->fbo->getGBufferAttachment() : TextureHandle::Invalid;
 }
 
 void TargetPool::age() {

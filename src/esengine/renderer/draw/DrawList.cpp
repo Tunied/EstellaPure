@@ -399,6 +399,9 @@ void DrawList::execute(GfxDevice& device, TransientBufferPool& buffers,
         desc.depthBias = cmd.depth_bias;
         desc.topology = cmd.topology;
         desc.alphaToCoverage = !desc.blendEnabled && materials.alphaIsCoverage(cmd.material_id);
+        // What a surface is is recorded only for what replaces what was behind it: a blended
+        // surface is no one thing, and a normal averaged with the one under it is neither's.
+        desc.gbuffer = gbuffer_pass_ && !desc.blendEnabled && materials.programWritesGBuffer(cmd.shader_id);
 
         if (lastHandle == PipelineHandle::Invalid || !(desc == lastDesc)) {
             lastHandle = device.createPipeline(desc);

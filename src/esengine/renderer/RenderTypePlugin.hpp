@@ -69,6 +69,9 @@ struct RenderFrameContext {
     u32 shadow_texture_id = 0;
     /// The frame environment's prefiltered reflection atlas (0 = none this frame).
     u32 environment_texture_id = 0;
+    /// The pass these draws execute in has a second colour attachment for the surface's material, so a
+    /// shader that can write it is asked for the variant that does. False for every other collect.
+    bool gbuffer = false;
 };
 
 /** @brief What every plugin needs to know about the camera, derived once per collect

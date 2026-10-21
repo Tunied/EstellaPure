@@ -56,6 +56,8 @@ struct FramebufferSpec {
     bool linearFilter = false;
     /** @brief Color attachment format. RGBA16F needs GfxDevice::supportsFloatTargets. */
     GfxPixelFormat colorFormat = GfxPixelFormat::RGBA8;
+    /** @brief A second colour attachment (RGBA8) drawn in the same pass: the surface's material, for effects that need to know what they are looking at. */
+    bool gbuffer = false;
 };
 
 // =============================================================================
@@ -150,6 +152,11 @@ public:
         return resolveColor_ != TextureHandle::Invalid ? resolveColor_ : colorAttachment_;
     }
 
+    /** @brief The second colour attachment, resolved like the first (Invalid when the target has none). */
+    TextureHandle getGBufferAttachment() const {
+        return resolveColor1_ != TextureHandle::Invalid ? resolveColor1_ : colorAttachment1_;
+    }
+
     /** @brief Gets the depth attachment texture (Invalid if none) */
     TextureHandle getDepthAttachment() const {
         return resolveDepth_ != TextureHandle::Invalid ? resolveDepth_ : depthAttachment_;
@@ -187,6 +194,9 @@ private:
     /// Single-sample twins, non-Invalid only when spec_.samples > 1.
     TextureHandle resolveColor_ = TextureHandle::Invalid;
     TextureHandle resolveDepth_ = TextureHandle::Invalid;
+    /// The second colour attachment and its single-sample twin (spec_.gbuffer).
+    TextureHandle colorAttachment1_ = TextureHandle::Invalid;
+    TextureHandle resolveColor1_ = TextureHandle::Invalid;
 };
 
 }  // namespace esengine

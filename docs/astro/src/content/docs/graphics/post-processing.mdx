@@ -87,6 +87,23 @@ circle, counting a neighbour only to the extent that neighbour's own blur reache
 blurred background does not bleed into it, while a blurred foreground spreads over what is behind it. The gather is
 rotated per pixel, so it leaves a fine grain that `taa` averages away.
 
+### The G-buffer
+
+Some effects have to know what a surface IS, not only how it looks. An effect whose shader says `#pragma gbuffer` makes the
+frame draw a second colour attachment beside the scene's, in the same pass and from the same shaders: **octahedral normal in
+`r` and `g`, roughness in `b`, metalness in `a`** (`a` is 0 where nothing wrote, and `0.25 + 0.75 × metalness`
+where something did), 8 bits a channel. The effect finds it at `u_gbuffer` (GLSL) or `t6` (WGSL, read with `textureLoad`).
+
+It costs one extra RGBA8 target and one extra write per pixel, and only while an enabled effect asks: a frame with no such
+effect has no attachment and compiles no variant. What writes it today is the built-in **Model** shader — what an imported
+glTF material becomes — which is roughness, metalness and normal map as the material says. A mesh drawn without a material, a sprite, a
+blended surface and a custom shader leave it at 0, and an effect must treat that as "unknown" and fall back, as `ssr` does.
+A shader of your own can write it: it is compiled with `ES_GBUFFER` defined when the pass has the attachment, and then declares
+a second output (`layout(location = 1) out vec4`, or a struct return in WGSL) and writes the same encoding.
+
+On WebGL2 and WebGPU alike the attachment is multisampled with the scene and resolved with it. A blended draw never writes
+it — a normal averaged with the one behind it is neither's — and the scene's own background clears it to 0.
+
 ### Fog and atmosphere
 
 `heightFog` is fog that thins with height: a valley fills, a hilltop clears. Its density falls
@@ -117,9 +134,14 @@ is a hit. What it finds is blended over the pixel by a Schlick Fresnel term: fai
 strong at a grazing angle, so the floor shines toward the horizon. A farther hit is blurred more,
 which stands in for roughness.
 
-Nothing in the chain knows a material's roughness, so `floorBias` decides what may reflect: at 1
-only up-facing surfaces do, at 0 every surface reflects by its Fresnel term alone. It cannot show
-what is off screen, behind another object or in the sky — there it leaves the pixel as it was, so
+What a surface is comes from [the G-buffer](#the-g-buffer): where the scene wrote one, the reflection uses the
+surface's own normal (a normal map's detail, which depth cannot see), its roughness and its metalness. A rough surface
+reflects dimly and blurred, and one rougher than `maxRoughness` is skipped before the ray is marched, which is most of the
+cost; a metal reflects nearly all it receives where a dielectric reflects 4% face-on. `wetness` makes ground
+smoother (a film of water fills the pores), so it reflects as it gets wet, and puddles are mirrors. Where nothing wrote
+a record — a mesh with no material, a sprite — the depth normal stands, the surface is taken for a middling dielectric and
+`floorBias` decides what may reflect: at 1 only up-facing surfaces do, at 0 every surface by its Fresnel term alone.
+It cannot show what is off screen, behind another object or in the sky — there it leaves the pixel as it was, so
 it sits on top of the environment's own specular rather than replacing it. `maxDistance` is a
 world length; the step count is fixed, so a longer reach is a coarser march, and the per-pixel
 start offset that hides the banding is what `taa` averages away — use them together.
