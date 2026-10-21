@@ -18,6 +18,11 @@ describe('parseManifest — rendering.outputTransform', () => {
     expect(m.features?.rendering?.outputTransform).toBe('aces');
   });
 
+  it("keeps 'neutral' — the hue-preserving curve", () => {
+    const m = parseManifest({ name: 'X', features: { rendering: { outputTransform: 'neutral' } } });
+    expect(m.features?.rendering?.outputTransform).toBe('neutral');
+  });
+
   it("drops 'none' (default = absence) and junk values", () => {
     for (const v of ['none', 'ACES', 'filmic', 42, true, null]) {
       const m = parseManifest({ name: 'X', features: { rendering: { outputTransform: v } } });

@@ -13,7 +13,7 @@
   "features": {
     "rendering": {
       "colorSpace": "linear",
-      "outputTransform": "aces"
+      "outputTransform": "neutral"
     }
   }
 }

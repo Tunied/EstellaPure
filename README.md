@@ -24,9 +24,9 @@
 Estella is a **2D and 3D game engine** — sprites, tilemaps and UI as much as lit, shadowed, physically simulated 3D worlds — with a TypeScript SDK driven by a high-performance **C++** core — as WebAssembly on the web, and compiled ahead of time on native platforms. It outputs games that run in **web browsers**, on the **desktop**, in **WeChat MiniGames**, as single-file **playable ads**, and as native **Android / iOS** apps. A visual editor is available as a separate, free download.
 
 <div align="center">
-  <img src="docs/assets/hero-cf5bccde.png" alt="A Paris street corner in daylight, rendered in real time by the Estella engine" width="900" />
+  <img src="docs/assets/hero-630f124c.png" alt="A Paris street corner in daylight, rendered in real time by the Estella engine" width="900" />
   <br/>
-  <sub><i>Amazon Lumberyard Bistro, rendered in real time by Estella (a sun that follows the sky, baked bounce light and reflections, post-processing). Scene © Amazon Lumberyard, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>, modified.</i></sub>
+  <sub><i>Amazon Lumberyard Bistro, rendered in real time by Estella (a sun that follows the sky, baked bounce light and reflections, the Neutral output transform). Scene © Amazon Lumberyard, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>, modified.</i></sub>
 </div>
 
 ## Why Estella?

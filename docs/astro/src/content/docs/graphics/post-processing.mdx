@@ -63,6 +63,28 @@ clamping at the 8-bit store:
 In gamma mode (or without float-target support) the chain is LDR and behaves as
 before; a `threshold` above ~0.75 then never fires.
 
+## Output transform
+
+A scene lit in linear space can hold light brighter than a display can show. The
+**output transform** is the one curve the finished frame goes through on its way to
+the screen — **once, after every effect** — and it is a project setting, not an
+effect: **Settings → Project → Rendering → Output transform**.
+
+| Transform | What it does | Use it for |
+| --- | --- | --- |
+| **None** | Encodes only. Values above 1 clip. | Flat 2D art, UI, anything that must round-trip exactly. |
+| **ACES** | A filmic shoulder: highlights roll off, shadows deepen. It desaturates as it goes, so a very bright red drifts toward cream. | Lit 3D scenes that want a filmic look. |
+| **Neutral** | Khronos PBR Neutral: the same roll-off, but hue and saturation survive. A sunlit red stays red. | Product shots, stylised art, anything whose colours are the point. |
+
+It applies to the editor viewport, to Play and to every export, and changing it
+needs no reload. In code: `outputTransform: 'none' | 'aces' | 'neutral'`.
+
+<Aside>
+The `tonemap` *effect* in the list above is a separate, optional ACES pass inside the
+chain. With an output transform set you usually want neither it nor a second curve:
+pick the output transform and leave the effect off.
+</Aside>
+
 ## Using a `PostProcessVolume`
 
 Add a `PostProcessVolume`, enable effects, and set their parameters. Volumes

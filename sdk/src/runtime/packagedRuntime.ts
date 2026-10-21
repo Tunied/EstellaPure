@@ -65,7 +65,7 @@ export interface PackagedGameConfig {
     /** Project color space — 'linear' boots the linear-light pipeline. */
     colorSpace?: 'gamma' | 'linear';
     /** The curve the frame applies on the way to the display; absent = none. */
-    outputTransform?: 'none' | 'aces';
+    outputTransform?: 'none' | 'aces' | 'neutral';
     /** Scene-target multisampling the project asked for; absent ⇒ 4. Clamped by
      *  the device, which answers capability and never policy. */
     msaaSamples?: number;
@@ -207,7 +207,7 @@ export function packagedAppOptions(
     ySortLayers?: number;
     depthLayers?: number;
     colorSpace?: 'gamma' | 'linear';
-    outputTransform?: 'none' | 'aces';
+    outputTransform?: 'none' | 'aces' | 'neutral';
     msaaSamples?: number;
     quality?: QualityConfig;
     /** GPU backend the build asks for; absent ⇒ WebGL2. A request for

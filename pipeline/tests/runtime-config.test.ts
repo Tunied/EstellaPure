@@ -97,6 +97,12 @@ describe('packagedRuntimeFields', () => {
     expect(fields.depthLayers).toBe(0b110);
   });
 
+  it('reads the neutral output transform and ships it', () => {
+    const rc = runtimeConfigOf({ features: { rendering: { outputTransform: 'neutral' } } });
+    expect(rc.outputTransform).toBe('neutral');
+    expect(packagedRuntimeFields(rc).outputTransform).toBe('neutral');
+  });
+
   it('carries every non-default and nothing else', () => {
     const fields = packagedRuntimeFields(runtimeConfigOf({
       designResolution: { width: 800, height: 600 },

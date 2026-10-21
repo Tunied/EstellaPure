@@ -2461,4 +2461,8 @@ export const NOTED = {
     {"note":"Timelines have camera and sequence tracks."},
   "feat(editor): the Sequencer edits camera shots and sequence clips":
     {"note":"Timelines have camera and sequence tracks."},
+  "feat(render): a Neutral output transform keeps hue and saturation where ACES walks a lit red to cream":
+    {"note":"The output transform has a Neutral option that keeps hue and saturation."},
+  "feat(editor): the project's Output transform offers Neutral":
+    {"note":"The output transform has a Neutral option that keeps hue and saturation."},
 };

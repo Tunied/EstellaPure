@@ -1088,6 +1088,22 @@ fn linearToSrgb(c : vec3f) -> vec3f {
 fn acesFilmic(x : vec3f) -> vec3f {
     return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), vec3f(0.0), vec3f(1.0));
 }
+fn pbrNeutral(color : vec3f) -> vec3f {
+    let startCompression = 0.8 - 0.04;
+    let desaturation = 0.15;
+    var c = color;
+    let x = min(c.r, min(c.g, c.b));
+    var offset = 0.04;
+    if (x < 0.08) { offset = x - 6.25 * x * x; }
+    c = c - vec3f(offset);
+    let peak = max(c.r, max(c.g, c.b));
+    if (peak < startCompression) { return c; }
+    let d = 1.0 - startCompression;
+    let newPeak = 1.0 - d * d / (peak + d - startCompression);
+    c = c * (newPeak / peak);
+    let g = 1.0 - 1.0 / (desaturation * (peak - newPeak) + 1.0);
+    return mix(c, vec3f(newPeak), g);
+}
 )";
 
 const char* kLitHeaderWGSL = R"(struct Light { posDir : vec4f, color : vec4f, spot : vec4f, shadow : vec4f, shadowMap : vec4f, falloff : vec4f };
@@ -1840,6 +1856,22 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             // carries one applies it once, in the pass that also encodes.
             "highp vec3 acesFilmic(highp vec3 x) {\n"
             "    return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);\n"
+            "}\n"
+            // Khronos PBR Neutral (Apache-2.0, KhronosGroup/ToneMapping): hue and saturation
+            // survive the curve, so a lit red stays red where ACES walks it to cream.
+            "highp vec3 pbrNeutral(highp vec3 c) {\n"
+            "    const highp float startCompression = 0.8 - 0.04;\n"
+            "    const highp float desaturation = 0.15;\n"
+            "    highp float x = min(c.r, min(c.g, c.b));\n"
+            "    highp float offset = x < 0.08 ? x - 6.25 * x * x : 0.04;\n"
+            "    c -= offset;\n"
+            "    highp float peak = max(c.r, max(c.g, c.b));\n"
+            "    if (peak < startCompression) return c;\n"
+            "    const highp float d = 1.0 - startCompression;\n"
+            "    highp float newPeak = 1.0 - d * d / (peak + d - startCompression);\n"
+            "    c *= newPeak / peak;\n"
+            "    highp float g = 1.0 - 1.0 / (desaturation * (peak - newPeak) + 1.0);\n"
+            "    return mix(c, newPeak * vec3(1.0, 1.0, 1.0), g);\n"
             "}\n";
         assembled << kColorHelpers;
         headerLines += countNewlines(kColorHelpers);

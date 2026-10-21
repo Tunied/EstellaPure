@@ -96,6 +96,16 @@ void PostProcessPipeline::setViewExposure(f32 ev) {
  * than at init: a project that never asks for a curve never pays for one.
  */
 resource::ShaderHandle PostProcessPipeline::outputShader() {
+    if (output_transform_ == OutputTransform::Neutral) {
+        if (!neutralShader_.isValid()) {
+            neutralShader_ = compileBlit({"ES_TONEMAP_NEUTRAL"});
+            if (!neutralShader_.isValid()) {
+                ES_LOG_ERROR("PostProcessPipeline: no ES_TONEMAP_NEUTRAL blit; output stays untonemapped");
+                return blitShader_;
+            }
+        }
+        return neutralShader_;
+    }
     if (output_transform_ != OutputTransform::ACES) return blitShader_;
     if (!tonemapShader_.isValid()) {
         tonemapShader_ = compileBlit({"ES_TONEMAP"});
@@ -194,6 +204,10 @@ void PostProcessPipeline::shutdown() {
     if (tonemapShader_.isValid()) {
         resourceManager_.releaseShader(tonemapShader_);
         tonemapShader_ = resource::ShaderHandle{};
+    }
+    if (neutralShader_.isValid()) {
+        resourceManager_.releaseShader(neutralShader_);
+        neutralShader_ = resource::ShaderHandle{};
     }
 
     initialized_ = false;

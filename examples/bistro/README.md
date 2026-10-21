@@ -28,4 +28,4 @@ node pipeline/bin/estella.mjs bake-scene examples/bistro/assets/scenes/main.essc
 ```
 
 The sun is the sky's own (`followEnvironmentSun`), the sky is turned half a revolution, and the project
-renders in linear light with the ACES output transform. Leaves, flowers and ivy are cut out by alpha and bake like everything else.
+renders in linear light with the Neutral output transform, which keeps the awnings red where ACES walks them to cream. Leaves, flowers and ivy are cut out by alpha and bake like everything else.

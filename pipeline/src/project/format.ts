@@ -171,9 +171,9 @@ export interface ProjectFeatures {
      *  shaders compile against it. Absent ⇒ 'gamma'. */
     colorSpace?: 'linear';
     /** The curve the frame applies on its way to the display, once and last.
-     *  'aces' engages the capture on its own, so it applies with an empty effect
+     *  'aces' and 'neutral' engage the capture on their own, so it applies with an empty effect
      *  stack. Absent ⇒ none, which is the exact round trip flat content wants. */
-    outputTransform?: 'aces';
+    outputTransform?: 'aces' | 'neutral';
     /** Multisampling for the scene target: 1 turns it off, 4 is the default and
      *  what a browser gives its own drawing buffer. Clamped by what the device
      *  supports. A low-end target turns this down; nothing else should. */
@@ -814,7 +814,7 @@ export function parseManifest(raw: unknown): ProjectManifest {
       // Only 'linear' persists; 'gamma' (the default) is expressed by absence.
       if (r.colorSpace === 'linear') rendering.colorSpace = 'linear';
       // Same shape: only the curve persists, no transform is absence.
-      if (r.outputTransform === 'aces') rendering.outputTransform = 'aces';
+      if (r.outputTransform === 'aces' || r.outputTransform === 'neutral') rendering.outputTransform = r.outputTransform;
       // Only a NON-default count persists; 4 is absence, like the fields above.
       if (r.msaa === 1 || r.msaa === 2 || r.msaa === 8) rendering.msaa = r.msaa;
       if (r.quality) {

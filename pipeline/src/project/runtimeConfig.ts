@@ -73,7 +73,7 @@ export interface RuntimeProjectConfig {
   /** Render colour space; 'gamma' is the default. Boot-fixed (shaders compile against it). */
   colorSpace: 'gamma' | 'linear';
   /** The curve on the way to the display; 'none' is the default. */
-  outputTransform: 'none' | 'aces';
+  outputTransform: 'none' | 'aces' | 'neutral';
   /** Scene-target multisampling the project asks for; 4 is the default. The
    *  device clamps it — this is the policy half, never the capability. */
   msaaSamples: number;
@@ -158,7 +158,8 @@ export function runtimeConfigOf(
     ySortLayers: layerMask(f?.rendering?.ySortLayers),
     depthLayers: layerMask(f?.rendering?.depthLayers),
     colorSpace: f?.rendering?.colorSpace === 'linear' ? 'linear' : 'gamma',
-    outputTransform: f?.rendering?.outputTransform === 'aces' ? 'aces' : 'none',
+    outputTransform: f?.rendering?.outputTransform === 'aces' ? 'aces'
+      : f?.rendering?.outputTransform === 'neutral' ? 'neutral' : 'none',
     msaaSamples: msaaOf(f?.rendering?.msaa),
     quality: parseQualityConfig(f?.rendering?.quality),
     renderBackend: f?.rendering?.backend === 'webgpu' ? 'webgpu' : 'webgl2',
@@ -200,7 +201,7 @@ export function packagedRuntimeFields(rc: RuntimeProjectConfig): PackagedRuntime
     ...(rc.ySortLayers ? { ySortLayers: rc.ySortLayers } : {}),
     ...(rc.depthLayers ? { depthLayers: rc.depthLayers } : {}),
     ...(rc.colorSpace === 'linear' ? { colorSpace: rc.colorSpace } : {}),
-    ...(rc.outputTransform === 'aces' ? { outputTransform: rc.outputTransform } : {}),
+    ...(rc.outputTransform !== 'none' ? { outputTransform: rc.outputTransform } : {}),
     ...(rc.msaaSamples !== 4 ? { msaaSamples: rc.msaaSamples } : {}),
     ...(rc.quality.mode !== 'off' ? { quality: rc.quality } : {}),
     ...(rc.renderBackend === 'webgpu' ? { renderBackend: rc.renderBackend } : {}),

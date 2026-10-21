@@ -167,11 +167,13 @@ export function syncStackToWasm(stack: PostProcessStack, force = false,
  * The curve a frame applies on its way to the display — the pipeline's, not an
  * effect a stack happens to hold, so it runs once and last. `none` leaves values
  * alone, which is the exact round trip flat content wants; `aces` maps radiance
- * above 1 down a filmic shoulder, which is what a lit 3D scene needs.
+ * above 1 down a filmic shoulder, which is what a lit 3D scene needs; `neutral`
+ * (Khronos PBR Neutral) rolls highlights off while keeping hue and saturation, so a
+ * sunlit red stays red where `aces` walks it toward cream.
  *
  * @experimental
  */
-export type OutputTransform = 'none' | 'aces';
+export type OutputTransform = 'none' | 'aces' | 'neutral';
 
 /**
  * The curve's number at the wasm boundary. Here and not at each call: the
@@ -179,7 +181,7 @@ export type OutputTransform = 'none' | 'aces';
  * them and been silently read as `none` by the other.
  */
 export function outputTransformCode(transform: OutputTransform | undefined): number {
-    return transform === 'aces' ? 1 : 0;
+    return transform === 'aces' ? 1 : transform === 'neutral' ? 2 : 0;
 }
 
 export class PostProcessAPI {

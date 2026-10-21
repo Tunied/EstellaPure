@@ -260,6 +260,9 @@ void main() {
 
     c = vec4(acesFilmic(c.rgb), c.a);
 #endif
+#ifdef ES_TONEMAP_NEUTRAL
+    c = vec4(pbrNeutral(c.rgb), c.a);
+#endif
 #ifdef ES_LINEAR
 
 
@@ -276,6 +279,9 @@ void main() {
     c = vec4f(c.rgb * exp2(tc.u_time.z), c.a);
 #ifdef ES_TONEMAP
     c = vec4f(acesFilmic(c.rgb), c.a);
+#endif
+#ifdef ES_TONEMAP_NEUTRAL
+    c = vec4f(pbrNeutral(c.rgb), c.a);
 #endif
 #ifdef ES_LINEAR
     return vec4f(linearToSrgb(c.rgb), c.a);

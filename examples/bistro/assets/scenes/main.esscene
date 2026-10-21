@@ -57,7 +57,7 @@
                 "type": "colorGrade",
                 "enabled": true,
                 "uniforms": {
-                  "u_exposure": -0.8,
+                  "u_exposure": 0.1,
                   "u_contrast": 1.04,
                   "u_saturation": 1.08,
                   "u_temperature": 0,

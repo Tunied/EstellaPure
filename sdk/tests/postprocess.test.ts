@@ -551,3 +551,13 @@ describe('PostProcess API', () => {
         });
     });
 });
+
+describe('outputTransformCode', () => {
+    it('spells each curve as the number the wasm boundary reads', async () => {
+        const { outputTransformCode } = await import('../src/postprocess');
+        expect(outputTransformCode(undefined)).toBe(0);
+        expect(outputTransformCode('none')).toBe(0);
+        expect(outputTransformCode('aces')).toBe(1);
+        expect(outputTransformCode('neutral')).toBe(2);
+    });
+});

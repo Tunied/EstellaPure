@@ -169,7 +169,8 @@ void postprocess_setOutputTransform(u32 transform) {
     // An unknown value is the identity, not a guess: a project built against a
     // newer curve list must not get a different one silently.
     g_postProcessPipeline->setOutputTransform(transform == 1 ? OutputTransform::ACES
-                                                            : OutputTransform::None);
+                                              : transform == 2 ? OutputTransform::Neutral
+                                                               : OutputTransform::None);
 }
 
 void postprocess_setViewExposure(f32 ev) {

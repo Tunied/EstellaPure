@@ -45,6 +45,7 @@ namespace resource {
 enum class OutputTransform : u8 {
     None = 0,  ///< Encode only. Values above 1 clip, which is what LDR content means.
     ACES = 1,  ///< Narkowicz ACES filmic curve, for a scene that carries HDR radiance.
+    Neutral = 2,  ///< Khronos PBR Neutral: hue and saturation survive, highlights roll off.
 };
 
 /**
@@ -419,6 +420,7 @@ private:
     resource::ShaderHandle blitShader_;
     /// The ES_TONEMAP variant of the same file. Invalid until a chain asks for it.
     resource::ShaderHandle tonemapShader_;
+    resource::ShaderHandle neutralShader_;
 
     std::vector<PostProcessPass> passes_;
     u32 width_ = 0;
