@@ -1,10 +1,10 @@
 {
-  "uuid": "b261299a-b881-4bd5-b0ee-9ba673af894f",
+  "uuid": "5f9b6fed-be40-4a9f-862f-9186551f6c70",
   "version": "2.0",
   "type": "texture",
   "importer": {
     "maxSize": 2048,
-    "compress": "auto",
+    "compress": "off",
     "compressFormat": "uastc",
     "mipmaps": true,
     "filterMode": "linear",

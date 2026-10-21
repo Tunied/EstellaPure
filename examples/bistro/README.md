@@ -27,5 +27,8 @@ node examples/bistro/tools/build-scene.mjs
 node pipeline/bin/estella.mjs bake-scene examples/bistro/assets/scenes/main.esscene
 ```
 
-The camera is NVIDIA's reference view of the exterior, solved from its landmarks; the sun is the sky's
-own (`followEnvironmentSun`), the sky is turned half a revolution.
+The sun is the sky's own (`followEnvironmentSun`), the sky is turned half a revolution, and the project
+renders in linear light with the ACES output transform. Leaves, flowers and ivy are cut out by alpha, so
+they sit the bake out (`build-scene.mjs` leaves them disabled while it bakes, then `--finish` turns them on)
+and are lit as they are drawn. Their images ship with Compression off: an alpha PNG compressed to KTX2 did not
+transcode in the editor viewport, and the leaves came out white.
