@@ -2497,6 +2497,8 @@ export const NOTED = {
     {"note":"A Weather component puts a scene under clear, mist, overcast, rain or storm, turns between them and cycles by itself."},
   "feat(render): baked reflection probes follow the weather through the ambient light's reflection scale and saturation":
     {"note":"Reflection probes follow the weather: the ambient light scales what baked probes show and how much colour they keep."},
+  "feat(render): puddles gather in the low places of the ground and thin on its rises":
+    {"note":"Puddles gather in the low places of the ground and thin on its rises, read from the depth buffer."},
   "feat(render): reflections no longer guess a surface, plain meshes record themselves, and what the ray never finds is the sky":
     {"note":"Screen-space reflections leave a surface that recorded nothing alone, plain meshes now record a rough dielectric, and a puddle reflects the sky and what lies off screen."},
 };

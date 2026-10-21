@@ -112,6 +112,60 @@ fn puddleMask(xz : vec2f, coverage : f32, scale : f32) -> f32 {
 }`;
 
 /**
+ * Where water gathers. Standing water collects in the low places of a surface and is gone from its crowns, so the
+ * coverage the author asked for is not the same everywhere: it is measured against the ground around, three rings of eight
+ * depth taps whose reach is the size of a pool. A point lower than what surrounds it (by up to a rim's height) holds
+ * more of the water, one that stands above it holds less, and flat ground keeps the coverage it was given — where the
+ * noise alone decides which patch becomes a pool. Needs the depth helpers above it.
+ */
+const BASIN_GLSL = `
+float basinCoverage(ivec2 c, ivec2 size, vec3 P, float coverage, float scale) {
+    if (coverage <= 0.0) return 0.0;
+    // How big a pixel is in the world here, which says how many of them a pool's reach is.
+    float pixel = length(worldAt(c + ivec2(1, 0), size) - P);
+    float reach = scale * 1.2;
+    float r = clamp(reach / max(pixel, 1e-3), 3.0, 80.0);
+    // A rise this high is a rim: more than that is a wall or a prop, which is not what water gathers against.
+    float rim = reach * 0.12;
+    float sum = 0.0;
+    // Three rings, so a rise of any width between here and the edge of the reach has taps on it.
+    for (int k = 1; k <= 3; ++k) {
+        float rk = r * float(k) / 3.0;
+        for (int i = 0; i < 8; ++i) {
+            float a = (float(i) + 0.5 * float(k)) * 0.7853982;
+            ivec2 t = c + ivec2(floor(vec2(cos(a), sin(a)) * rk + 0.5));
+            if (depthAt(t, size) >= 1.0) continue;
+            float rise = worldAt(t, size).y - P.y;
+            sum += clamp(rise, -rim, rim) * step(abs(rise), reach);
+        }
+    }
+    float basin = clamp(sum / (24.0 * rim) * 3.0, -1.0, 1.0);
+    return clamp(coverage * (1.0 + 2.2 * basin), 0.0, 1.0);
+}`;
+
+const BASIN_WGSL = `
+fn basinCoverage(c : vec2i, size : vec2i, P : vec3f, coverage : f32, scale : f32) -> f32 {
+    if (coverage <= 0.0) { return 0.0; }
+    let pixel = length(worldAt(c + vec2i(1, 0), size) - P);
+    let reach = scale * 1.2;
+    let r = clamp(reach / max(pixel, 1e-3), 3.0, 80.0);
+    let rim = reach * 0.12;
+    var sum = 0.0;
+    for (var k : i32 = 1; k <= 3; k = k + 1) {
+        let rk = r * f32(k) / 3.0;
+        for (var i : i32 = 0; i < 8; i = i + 1) {
+            let a = (f32(i) + 0.5 * f32(k)) * 0.7853982;
+            let t = c + vec2i(floor(vec2f(cos(a), sin(a)) * rk + 0.5));
+            if (depthAt(t, size) >= 1.0) { continue; }
+            let rise = worldAt(t, size).y - P.y;
+            sum = sum + clamp(rise, -rim, rim) * select(0.0, 1.0, abs(rise) <= reach);
+        }
+    }
+    let basin = clamp(sum / (24.0 * rim) * 3.0, -1.0, 1.0);
+    return clamp(coverage * (1.0 + 2.2 * basin), 0.0, 1.0);
+}`;
+
+/**
  * Reading the scene's surface record, in both languages: what each pixel IS, as the scene's own shaders
  * wrote it beside the colour — octahedral normal in rg, roughness in b, metalness in a (a is 0 where nothing
  * wrote, and 0.75 + 0.25 * metalness where something did, so that an edge multisampling averaged with an
@@ -535,6 +589,7 @@ out vec4 fragColor;
 
 ${SSAO_GLSL}
 ${PUDDLE_GLSL}
+${BASIN_GLSL}
 ${GBUFFER_GLSL}
 ${ENV_GLSL}
 ${GLSL}
@@ -578,7 +633,7 @@ void main() {
     float flatUp = smoothstep(0.86, 0.95, N.y);
     float puddle = 0.0;
     if (u_puddles > 0.0) {
-        puddle = puddleMask(P.xz, u_puddles, u_puddleScale) * flatUp;
+        puddle = puddleMask(P.xz, basinCoverage(c, size, P, u_puddles, u_puddleScale), u_puddleScale) * flatUp;
         N = normalize(mix(N, vec3(0.0, 1.0, 0.0), puddle));
     }
     // Wet ground is smoother than dry: a film of water fills the pores a rough surface scatters from.
@@ -669,6 +724,7 @@ void main() {
 #pragma fragment wgsl
 ${SSAO_WGSL}
 ${PUDDLE_WGSL}
+${BASIN_WGSL}
 ${GBUFFER_WGSL}
 ${ENV_WGSL}
 ${WGSL}
@@ -705,7 +761,7 @@ ${WGSL}
     let flatUp = smoothstep(0.86, 0.95, N.y);
     var puddle = 0.0;
     if (mc.u_puddles > 0.0) {
-        puddle = puddleMask(P.xz, mc.u_puddles, mc.u_puddleScale) * flatUp;
+        puddle = puddleMask(P.xz, basinCoverage(c, size, P, mc.u_puddles, mc.u_puddleScale), mc.u_puddleScale) * flatUp;
         N = normalize(mix(N, vec3f(0.0, 1.0, 0.0), puddle));
     }
     rough = mix(rough, rough * 0.35, mc.u_wetness * flatUp);
@@ -2163,6 +2219,7 @@ out vec4 fragColor;
 
 ${SSAO_GLSL}
 ${PUDDLE_GLSL}
+${BASIN_GLSL}
 ${GLSL}
 
 void main() {
@@ -2198,7 +2255,7 @@ void main() {
         float up = smoothstep(0.86, 0.95, N.y);
         // A wet surface is darker, because water in the pores takes the light a dry one scatters;
         // standing water is darker still.
-        float puddle = puddleMask(P.xz, u_puddles, u_puddleScale) * up * u_wetness;
+        float puddle = puddleMask(P.xz, basinCoverage(c, size, P, u_puddles, u_puddleScale), u_puddleScale) * up * u_wetness;
         col *= 1.0 - 0.32 * u_wetness * up;
         col *= 1.0 - 0.35 * puddle;
         // Drops landing need drops falling: wet ground under no rain is still.
@@ -2238,6 +2295,7 @@ void main() {
 #pragma fragment wgsl
 ${SSAO_WGSL}
 ${PUDDLE_WGSL}
+${BASIN_WGSL}
 ${WGSL}
 
 @fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
@@ -2271,7 +2329,7 @@ ${WGSL}
         var N = normalize(cross(ax, ay));
         if (dot(N, viewDirection(P)) < 0.0) { N = -N; }
         let up = smoothstep(0.86, 0.95, N.y);
-        let puddle = puddleMask(P.xz, mc.u_puddles, mc.u_puddleScale) * up * mc.u_wetness;
+        let puddle = puddleMask(P.xz, basinCoverage(c, size, P, mc.u_puddles, mc.u_puddleScale), mc.u_puddleScale) * up * mc.u_wetness;
         col = col * (1.0 - 0.32 * mc.u_wetness * up);
         col = col * (1.0 - 0.35 * puddle);
         let falling = clamp(mc.u_intensity, 0.0, 1.0);

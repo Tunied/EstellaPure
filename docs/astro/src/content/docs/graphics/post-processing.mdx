@@ -56,15 +56,18 @@ stay on the ground when the camera moves. Ripples need drops: with `intensity` a
 
 **Puddles** are standing water: `puddles` is how much of the flat ground is under it and `puddleScale` how big the
 pools are, a world length. A pool is darker still, takes denser and clearer ripples, and no splashes. Where a puddle
-lies is a function of the world position alone, so it does not move with the camera. A puddle is also a *mirror*, and
+lies is a function of the world position and of the ground around it: the noise places the pools, and the depth buffer
+says which places are low — a point lower than the ground within a pool's reach holds more water, one on a rise holds
+less, and flat ground keeps the coverage it was given. Pools therefore gather against a kerb, in a dip and at the foot
+of a slope, and they do not move with the camera. A puddle is also a *mirror*, and
 that is the reflections effect's part: give `ssr` the same `puddles` and `puddleScale` and the pools the rain
 darkens are the pools that reflect — flat, whatever the ground under them, and far more reflective than a dry surface,
 with a sharp reflection where a dry one is blurred. Wet ground in general is shinier than dry: raise `ssr`'s `intensity`
 when it rains.
 
 The clock is the game's. A capture that has to be the same on every run sets `timeScale` to 0 and `phase` to the time it
-wants. What this is not: it does not know a material's roughness or the real shape of the ground, so a puddle is
-a patch of flat ground whatever it lies on, and the rain is a screen-space layer, not particles that collide with the world.
+wants. What this is not: the ground's shape is read from what the camera sees (a hollow behind a wall is not known),
+and the rain is a screen-space layer, not particles that collide with the world.
 
 ### Auto exposure
 
