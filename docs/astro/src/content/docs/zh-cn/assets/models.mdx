@@ -93,7 +93,7 @@ Transform 给，和导入的模型一样。
 远处的网格用不着近处那么多三角形。在模型的导入设置里把 **Generate LODs** 设为 1、2 或 3 级,
 导入就会把每个网格简化成更便宜的副本 —— 大约保留 50%、20% 和 7% 的三角形 ——
 写成它旁边的 `<mesh>_lod1.esmesh`、`_lod2`、`_lod3`,并给绘制它的实体加一个
-[`LODGroup`](/zh-cn/performance/level-of-detail/)。物体在屏幕上缩小时,LODGroup 依次换上
+[`LODGroup`](/docs/zh-cn/performance/level-of-detail/)。物体在屏幕上缩小时,LODGroup 依次换上
 各级(分别在低于视口高度的 40%、18%、7% 时)。
 
 简化把形状误差控制在网格自身尺寸的很小比例内,并且不会拆开 UV 接缝和硬边,所以贴图仍落在原处。
