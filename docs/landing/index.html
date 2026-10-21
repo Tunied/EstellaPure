@@ -225,7 +225,7 @@
 
     .shot { margin: 60px auto 0; max-width: 1000px; }
     .shot figure { margin: 0; }
-    .shot img {
+    .shot img, .shot video {
       width: 100%; height: auto; display: block;
       border: 1px solid var(--line); border-radius: var(--r-xl);
       box-shadow: var(--shadow-hero);
@@ -446,9 +446,18 @@
 
       <div class="shot">
         <figure>
-          <img src="/hero-630f124c.png" width="1742" height="980"
-               alt="A Paris street corner in daylight, rendered in real time by the Estella engine: a cafe, a scooter, cobbles and sun shadows" loading="lazy" />
-          <figcaption>Amazon Lumberyard Bistro, rendered in real time by Estella — a sun that follows the sky, baked bounce light and reflections, the Neutral output transform. Scene © Amazon Lumberyard, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>, modified.</figcaption>
+          <!-- A loop of the same street through a weather cycle, drawn by the engine one frame at a time:
+               clear, morning mist, rain with puddles, clear again. The still is the poster, and what
+               a visitor who prefers no motion is left with. -->
+          <video id="hero-loop" width="1280" height="720" autoplay muted loop playsinline preload="metadata"
+                 poster="/hero-5df1f015.png"
+                 aria-label="A Paris street corner rendered in real time by the Estella engine, moving from clear daylight through morning mist into rain, with wet cobbles, puddles that mirror the scene, and ripples">
+            <source src="/weather-52d9aaaa.webm" type="video/webm" />
+            <source src="/weather-e54375ff.mp4" type="video/mp4" />
+            <img src="/hero-5df1f015.png" width="1742" height="980"
+                 alt="A Paris street corner in daylight, rendered in real time by the Estella engine: a cafe, a scooter, cobbles and sun shadows" />
+          </video>
+          <figcaption>Amazon Lumberyard Bistro, drawn by Estella through a weather cycle — clear, mist, then rain with wet ground, puddles and ripples. Sun and sky, baked bounce light, reflections, fog, auto exposure and the Neutral output transform, all engine effects. Scene © Amazon Lumberyard, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>, modified.</figcaption>
         </figure>
       </div>
     </section>
@@ -682,6 +691,14 @@
           });
         })
         .catch(function () { /* the built-in labels stand */ });
+    })();
+    // A visitor who asked for less motion gets the still the loop's poster shows, not a street that rains.
+    (function () {
+      var v = document.getElementById('hero-loop');
+      if (v && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        v.removeAttribute('autoplay');
+        v.pause();
+      }
     })();
   </script>
 </body>
