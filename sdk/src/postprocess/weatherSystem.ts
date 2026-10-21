@@ -14,6 +14,7 @@ import { Res, Time, type TimeData } from '../ecs/resource';
 import { Query, Mut } from '../ecs/query';
 import { GetWorld } from '../ecs/system';
 import { Weather, Light, type WeatherData, type LightData } from '../ecs/component';
+import { AudioSource, type AudioSourceData } from '../audio/AudioComponents';
 import type { World } from '../ecs/world';
 import type { Entity } from '../types';
 import { isEditor, isPlayMode } from '../ecs/env';
@@ -34,6 +35,9 @@ const bases = new Map<Entity, LightBase>();
 
 /** Where each Weather is in its sequence, and how long it has held. Not in the component: a scene file need not carry it. */
 const cycles = new Map<Entity, { index: number; held: number }>();
+
+/** The volume a rain track was authored at, so the weather scales the author's number and not its own last answer. */
+const soundBases = new Map<Entity, number>();
 
 const LIGHT_DIRECTIONAL = 1;
 const LIGHT_AMBIENT = 2;
@@ -84,6 +88,32 @@ function applyLights(world: World, state: WeatherState, drive: number): void {
     }
 }
 
+function restoreSound(world: World): void {
+    for (const [entity, volume] of soundBases) {
+        if (world.has(entity, AudioSource)) {
+            const data = world.get(entity, AudioSource) as AudioSourceData;
+            world.set(entity, AudioSource, { ...data, volume, playing: false });
+        }
+    }
+    soundBases.clear();
+}
+
+/** The rain's track, loud as the weather is: raised while it rains at all, lowered when it stops. */
+function applySound(world: World, source: number, state: WeatherState): void {
+    const entity = source as Entity;
+    if (!world.has(entity, AudioSource)) return;
+    const data = world.get(entity, AudioSource) as AudioSourceData;
+    let base = soundBases.get(entity);
+    if (base === undefined) {
+        base = data.volume;
+        soundBases.set(entity, base);
+    }
+    const volume = base * Math.min(state.sound, 1.5);
+    const playing = state.sound > 0.02;
+    if (Math.abs(data.volume - volume) < 1e-4 && data.playing === playing) return;
+    world.set(entity, AudioSource, { ...data, volume, playing, loop: true });
+}
+
 /** The preset a name or an id in a sequence stands for. */
 function presetOf(token: string): number | undefined {
     const trimmed = token.trim();
@@ -129,6 +159,7 @@ export const weatherSystem = defineSystem(
         for (const entry of weathers) { found = entry; break; }
         if (!found) {
             if (bases.size > 0) restoreLights(world);
+            if (soundBases.size > 0) restoreSound(world);
             cycles.clear();
             setCurrentWeather(null);
             return;
@@ -142,6 +173,9 @@ export const weatherSystem = defineSystem(
 
         if (playing && (data.drive & (WeatherDrive.Lights | WeatherDrive.Reflections))) applyLights(world, state, data.drive);
         else if (bases.size > 0) restoreLights(world);
+
+        if (playing && (data.drive & WeatherDrive.Sound) && data.soundSource) applySound(world, data.soundSource, state);
+        else if (soundBases.size > 0) restoreSound(world);
     },
     { name: 'WeatherSystem' }
 );
@@ -149,6 +183,7 @@ export const weatherSystem = defineSystem(
 /** Forgets what the system remembers: a device loss, a test, an app shut down. */
 export function resetWeatherSystem(): void {
     bases.clear();
+    soundBases.clear();
     cycles.clear();
     setCurrentWeather(null);
 }

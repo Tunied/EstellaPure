@@ -132,7 +132,8 @@ RenderFrame::RenderFrame(GfxDevice& device, RenderContext& context,
     , target_pool_(device)
     , graph_(device, target_pool_)
     , shadow_pool_(device)
-    , velocity_pool_(device) {
+    , velocity_pool_(device)
+    , cover_pool_(device) {
     target_manager_.setDevice(device);
 }
 
@@ -165,6 +166,7 @@ void RenderFrame::init(u32 width, u32 height) {
     pool_.init();
     shadow_pool_.init();
     velocity_pool_.init();
+    cover_pool_.init();
     planar_pool_.init();
     batch_shader_id_ = initBatchShader();
 
@@ -191,6 +193,11 @@ void RenderFrame::shutdown() {
     pool_.shutdown();
     shadow_pool_.shutdown();
     velocity_pool_.shutdown();
+    cover_pool_.shutdown();
+    if (cover_frame_ubo_ != BufferHandle::Invalid) {
+        device_.deleteBuffer(cover_frame_ubo_);
+        cover_frame_ubo_ = BufferHandle::Invalid;
+    }
     planar_pool_.shutdown();
     releasePlanarCaptures();
     releaseShadowFrameUbos();
@@ -234,6 +241,7 @@ void RenderFrame::drawScene() {
         jitter = post_process_->beginTemporalView(view_projection_, current_target_);
     }
 #endif
+    scene_jitter_ = jitter;
     context_.updateCameraConstants(view_projection_, jitter);
     // Where THIS camera's pixels sit inside the 2D shadow mask. Per camera because the
     // mask is screen space: two cameras drew into two parts of one target, and a
@@ -646,6 +654,25 @@ void RenderFrame::end() {
             motion.clearColor[0] = motion.clearColor[1] = motion.clearColor[2] = motion.clearColor[3] = 0.0f;
             motion.execute = [this](const rg::PassContext&) { executeMotionPass(); };
             graph_.addPass(std::move(motion));
+        }
+    }
+#endif
+
+#ifdef ES_ENABLE_POSTPROCESS
+    // What stands over each place, for an effect that keeps rain off what is sheltered.
+    if (usePostProcess && scene_resource_ != rg::kNoResource && cover_list_.commandCount() > 0) {
+        const rg::ResourceId cover = post_process_->declareCover(1024);
+        if (cover != rg::kNoResource) {
+            post_process_->setCoverMatrix(cover_view_projection_);
+            rg::PassDesc pass;
+            pass.name = "rain-cover";
+            pass.write = cover;
+            pass.clear = true;
+            pass.clearDepth = true;
+            // White is depth 1: nothing above.
+            pass.clearColor[0] = pass.clearColor[1] = pass.clearColor[2] = pass.clearColor[3] = 1.0f;
+            pass.execute = [this](const rg::PassContext&) { executeCoverPass(); };
+            graph_.addPass(std::move(pass));
         }
     }
 #endif
@@ -2233,8 +2260,10 @@ void RenderFrame::collectAll(ecs::Registry& registry, bool sceneGBuffer) {
     stats_.occluded += collectCtx.occluded;
 
     velocity_list_.clear();
+    cover_list_.clear();
 #ifdef ES_ENABLE_POSTPROCESS
     if (followMotion) collectMotion(registry);
+    if (sceneGBuffer && post_process_ && post_process_->isEngaged() && post_process_->coverWanted()) collectCover(registry);
 #endif
 
     // OR-ed across the frame's cameras, applied at the next beginFrame and never
@@ -2273,6 +2302,64 @@ void RenderFrame::collectMotion(ecs::Registry& registry) {
 #else
     (void)registry;
 #endif
+}
+
+void RenderFrame::collectCover(ecs::Registry& registry) {
+    ES_PROFILE_SCOPE("render.collect.cover");
+#ifdef ES_ENABLE_POSTPROCESS
+    const f32 range = post_process_->coverRange();
+    // From above, over the camera, snapped to the map's own texel grid so the map does not shimmer as the camera moves.
+    const glm::vec4 eye4 = cameraFromViewProjection(view_projection_);
+    const glm::vec3 eye = eye4.w > 0.5f ? glm::vec3(eye4) : glm::vec3(0.0f);
+    const f32 texel = (range * 2.0f) / 1024.0f;
+    const glm::vec3 centre(std::floor(eye.x / texel) * texel, eye.y, std::floor(eye.z / texel) * texel);
+    const f32 depth = range * 2.0f;
+    const glm::mat4 view = glm::lookAt(centre + glm::vec3(0.0f, range, 0.0f), centre, glm::vec3(0.0f, 0.0f, -1.0f));
+    // Written out like the shadow maps' own, so the depth it stores runs over [0, 1] on either device.
+    glm::mat4 proj(1.0f);
+    proj[0][0] = 1.0f / range;
+    proj[1][1] = 1.0f / range;
+    proj[2][2] = -1.0f / depth;
+    proj[3][2] = 0.0f;
+    cover_view_projection_ = proj * view;
+
+    cover_pool_.beginFrame();
+    cover_list_.clear();
+    Frustum frustum;
+    frustum.extractFromMatrix(cover_view_projection_);
+    auto ctx = makeContext();
+    ctx.view_projection = cover_view_projection_;
+    ctx.purpose = RenderPurpose::ShadowDepth;
+    RenderCollectContext collectCtx{registry, frustum, clip_state_, cover_pool_, cover_list_, ctx,
+                                    computeCameraView(cover_view_projection_)};
+    collectCtx.screen_ui = screen_domain_;
+    for (auto& plugin : plugins_) {
+        if (plugin->castsShadows()) plugin->collect(collectCtx);
+    }
+    cover_list_.finalize(cover_pool_);
+    cover_pool_.upload();
+#else
+    (void)registry;
+#endif
+}
+
+void RenderFrame::executeCoverPass() {
+    if (cover_list_.commandCount() == 0) return;
+    ES_PROFILE_SCOPE("render.cover");
+    if (cover_frame_ubo_ == BufferHandle::Invalid) {
+        cover_frame_ubo_ = device_.createBuffer({GfxBufferUsage::Uniform, RenderContext::frameConstantsSize(), /*dynamic=*/true},
+                                                GfxContent::transient(), nullptr);
+    }
+    if (cover_frame_ubo_ == BufferHandle::Invalid) return;
+    device_.setViewport(0, 0, 1024, 1024);
+    context_.useFrameConstants(cover_frame_ubo_, cover_view_projection_);
+    context_.lights().uploadAndBind();
+    cover_list_.execute(device_, cover_pool_, context_.materials(), context_.getWhiteTextureId(), nullptr,
+                        context_.perDrawBlocks());
+    ES_PROFILE_COUNTER("render.cover.draws", cover_list_.mergedDrawCallCount());
+    // The constants the chain after this reads are the camera's, which this pass borrowed the slot from.
+    context_.updateCameraConstants(view_projection_, scene_jitter_);
+    device_.invalidatePipelineCache();
 }
 
 void RenderFrame::executeMotionPass() {

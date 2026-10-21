@@ -2403,6 +2403,14 @@ fn streaks(uv : vec2f, aspect : f32, cols : f32, speed : f32, seed : f32, T : f3
 #pragma param u_streakColor color default(0.78,0.82,0.9,1)
 #pragma param u_timeScale float default(1) range(0,1)
 #pragma param u_phase float default(0) range(0,100000)
+#pragma param u_shelterRange float default(3000) range(100,30000)
+#pragma param u_shelterBias float default(40) range(1,500)
+#pragma param u_coverActive float default(0) range(0,1)
+#pragma param u_coverMatrix0 color default(1,0,0,0)
+#pragma param u_coverMatrix1 color default(0,1,0,0)
+#pragma param u_coverMatrix2 color default(0,0,1,0)
+#pragma param u_coverMatrix3 color default(0,0,0,1)
+#pragma param u_rainCover texture default(white)
 
 #pragma fragment
 precision highp float;
@@ -2416,6 +2424,18 @@ ${SSAO_GLSL}
 ${PUDDLE_GLSL}
 ${BASIN_GLSL}
 ${GLSL}
+
+/// 1 where something stands over a point, as the map of the scene seen from straight above says — an awning, a roof,
+/// a tree — and 0 in the open. The map stores the depth the shadow maps do, so a point on the surface itself is not over it.
+float shelteredAt(vec3 W) {
+    if (u_coverActive < 0.5) return 0.0;
+    vec4 c = mat4(u_coverMatrix0, u_coverMatrix1, u_coverMatrix2, u_coverMatrix3) * vec4(W, 1.0);
+    vec2 uv = c.xy / c.w * 0.5 + 0.5;
+    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) return 0.0;
+    float stored = dot(texture(u_rainCover, uv).rgb, vec3(1.0, 1.0 / 255.0, 1.0 / 65025.0));
+    float here = clamp(c.z / c.w * 0.5 + 0.5, 0.0, 1.0);
+    return stored < here - u_shelterBias / (4.0 * u_shelterRange) ? 1.0 : 0.0;
+}
 
 void main() {
     vec4 src = texture(u_texture, v_texCoord);
@@ -2450,11 +2470,15 @@ void main() {
         float up = smoothstep(0.86, 0.95, N.y);
         // A wet surface is darker, because water in the pores takes the light a dry one scatters;
         // standing water is darker still.
-        float puddle = puddleMask(P.xz, basinCoverage(c, size, P, u_puddles, u_puddleScale), u_puddleScale) * up * u_wetness;
-        col *= 1.0 - 0.32 * u_wetness * up;
+        // What stands over it: rain does not reach ground under an awning, so it stays dry and still, and the drops that
+        // would have fallen there have landed on the awning instead — which, being open to the sky, is wet in its turn.
+        float shelter = shelteredAt(P + vec3(0.0, 1.0, 0.0));
+        float wet = u_wetness * (1.0 - 0.9 * shelter);
+        float puddle = puddleMask(P.xz, basinCoverage(c, size, P, u_puddles, u_puddleScale), u_puddleScale) * up * wet;
+        col *= 1.0 - 0.32 * wet * up;
         col *= 1.0 - 0.35 * puddle;
         // Drops landing need drops falling: wet ground under no rain is still.
-        float falling = clamp(u_intensity, 0.0, 1.0);
+        float falling = clamp(u_intensity, 0.0, 1.0) * (1.0 - shelter);
         float near = 1.0 - smoothstep(1200.0, 3500.0, dist);
         // Rings where drops land, on a grid in the world; they are denser and clearer on standing water.
         vec2 g = P.xz / u_rippleScale;
@@ -2478,10 +2502,12 @@ void main() {
     }
 
     // Three layers, nearest last: a layer is drawn only over what is farther than it.
+    // And a layer's drops fall where the layer stands: under a roof there are none.
+    vec3 along = normalize(worldFromDepth(v_texCoord, d < 1.0 ? d : 1.0) - entry);
     float rain = 0.0;
-    if (dist > 120.0)  rain += streaks(v_texCoord, aspect,  70.0, u_speed * 1.0, 1.0, T) * 0.35;
-    if (dist > 450.0)  rain += streaks(v_texCoord, aspect, 130.0, u_speed * 1.4, 2.0, T) * 0.28;
-    if (dist > 1400.0) rain += streaks(v_texCoord, aspect, 230.0, u_speed * 1.9, 3.0, T) * 0.22;
+    if (dist > 120.0)  rain += streaks(v_texCoord, aspect,  70.0, u_speed * 1.0, 1.0, T) * 0.35 * (1.0 - shelteredAt(entry + along * 120.0));
+    if (dist > 450.0)  rain += streaks(v_texCoord, aspect, 130.0, u_speed * 1.4, 2.0, T) * 0.28 * (1.0 - shelteredAt(entry + along * 450.0));
+    if (dist > 1400.0) rain += streaks(v_texCoord, aspect, 230.0, u_speed * 1.9, 3.0, T) * 0.22 * (1.0 - shelteredAt(entry + along * 1400.0));
     col += tint * rain * u_intensity;
     fragColor = vec4(col, src.a);
 }
@@ -2492,6 +2518,19 @@ ${SSAO_WGSL}
 ${PUDDLE_WGSL}
 ${BASIN_WGSL}
 ${WGSL}
+
+fn shelteredAt(W : vec3f) -> f32 {
+    if (mc.u_coverActive < 0.5) { return 0.0; }
+    let m = mat4x4f(mc.u_coverMatrix0, mc.u_coverMatrix1, mc.u_coverMatrix2, mc.u_coverMatrix3);
+    let c = m * vec4f(W, 1.0);
+    let uv = c.xy / c.w * 0.5 + 0.5;
+    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) { return 0.0; }
+    // This device's texture rows run the other way from the clip space the map was drawn in.
+    let stored = dot(textureSampleLevel(u_rainCover, u_rainCover_s, vec2f(uv.x, 1.0 - uv.y), 0.0).rgb,
+                     vec3f(1.0, 1.0 / 255.0, 1.0 / 65025.0));
+    let here = clamp(c.z / c.w * 0.5 + 0.5, 0.0, 1.0);
+    return select(0.0, 1.0, stored < here - mc.u_shelterBias / (4.0 * mc.u_shelterRange));
+}
 
 @fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
     let src = textureSampleLevel(t0, s0, v.v_texCoord, 0.0);
@@ -2524,10 +2563,12 @@ ${WGSL}
         var N = normalize(cross(ax, ay));
         if (dot(N, viewDirection(P)) < 0.0) { N = -N; }
         let up = smoothstep(0.86, 0.95, N.y);
-        let puddle = puddleMask(P.xz, basinCoverage(c, size, P, mc.u_puddles, mc.u_puddleScale), mc.u_puddleScale) * up * mc.u_wetness;
-        col = col * (1.0 - 0.32 * mc.u_wetness * up);
+        let shelter = shelteredAt(P + vec3f(0.0, 1.0, 0.0));
+        let wet = mc.u_wetness * (1.0 - 0.9 * shelter);
+        let puddle = puddleMask(P.xz, basinCoverage(c, size, P, mc.u_puddles, mc.u_puddleScale), mc.u_puddleScale) * up * wet;
+        col = col * (1.0 - 0.32 * wet * up);
         col = col * (1.0 - 0.35 * puddle);
-        let falling = clamp(mc.u_intensity, 0.0, 1.0);
+        let falling = clamp(mc.u_intensity, 0.0, 1.0) * (1.0 - shelter);
         let near = 1.0 - smoothstep(1200.0, 3500.0, dist);
         let g = P.xz / mc.u_rippleScale;
         let id = floor(g);
@@ -2550,10 +2591,13 @@ ${WGSL}
         col = col + tint * splash * 0.55 * mc.u_wetness * up * near * falling * (1.0 - puddle);
     }
 
+    var dd1 = d;
+    if (d >= 1.0) { dd1 = 1.0; }
+    let along = normalize(worldFromDepth(v.v_texCoord, dd1) - entry);
     var rain = 0.0;
-    if (dist > 120.0)  { rain = rain + streaks(v.v_texCoord, aspect,  70.0, mc.u_speed * 1.0, 1.0, T) * 0.35; }
-    if (dist > 450.0)  { rain = rain + streaks(v.v_texCoord, aspect, 130.0, mc.u_speed * 1.4, 2.0, T) * 0.28; }
-    if (dist > 1400.0) { rain = rain + streaks(v.v_texCoord, aspect, 230.0, mc.u_speed * 1.9, 3.0, T) * 0.22; }
+    if (dist > 120.0)  { rain = rain + streaks(v.v_texCoord, aspect,  70.0, mc.u_speed * 1.0, 1.0, T) * 0.35 * (1.0 - shelteredAt(entry + along * 120.0)); }
+    if (dist > 450.0)  { rain = rain + streaks(v.v_texCoord, aspect, 130.0, mc.u_speed * 1.4, 2.0, T) * 0.28 * (1.0 - shelteredAt(entry + along * 450.0)); }
+    if (dist > 1400.0) { rain = rain + streaks(v.v_texCoord, aspect, 230.0, mc.u_speed * 1.9, 3.0, T) * 0.22 * (1.0 - shelteredAt(entry + along * 1400.0)); }
     col = col + tint * rain * mc.u_intensity;
     return vec4f(col, src.a);
 }

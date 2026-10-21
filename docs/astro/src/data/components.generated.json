@@ -6657,6 +6657,11 @@
           "key": "drive",
           "type": "number",
           "default": "127"
+        },
+        {
+          "key": "soundSource",
+          "type": "Entity",
+          "default": "none"
         }
       ],
       "animatable": [
@@ -6665,7 +6670,8 @@
         "progress",
         "duration",
         "hold",
-        "drive"
+        "drive",
+        "soundSource"
       ]
     },
     {

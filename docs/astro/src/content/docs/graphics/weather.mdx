@@ -21,6 +21,7 @@ Add a `Weather` component to one entity.
 | `sequence` | Presets to cycle through by themselves, comma separated — `clear,mist,rain,clear`. Empty stays put. |
 | `hold` | Seconds each weather of the sequence holds before the next turn. |
 | `drive` | What the weather drives: Lights, Fog, Rain, Grade, Exposure, Reflections, Sound. |
+| `soundSource` | An entity with a looping `AudioSource` — the sound of the rain. The weather raises its `playing` while it rains and sets its volume to the authored one times how hard it rains. |
 
 A turn is eased, so it starts and ends gently, and a finished turn lands on its target and clears itself.
 

@@ -381,6 +381,46 @@ PostProcessPipeline::TemporalView PostProcessPipeline::peekTemporalView(const gl
     return view;
 }
 
+bool PostProcessPipeline::coverWanted() {
+    if (!initialized_ || bypass_) return false;
+    for (const auto& pass : passes_) {
+        if (pass.enabled && passHasTexture(pass, "u_rainCover")) return true;
+    }
+    return false;
+}
+
+f32 PostProcessPipeline::coverRange() {
+    for (const auto& pass : passes_) {
+        if (!pass.enabled || !passHasTexture(pass, "u_rainCover")) continue;
+        if (auto it = pass.floatUniforms.find("u_shelterRange"); it != pass.floatUniforms.end()) {
+            return std::max(it->second, 10.0f);
+        }
+    }
+    return 3000.0f;
+}
+
+rg::ResourceId PostProcessPipeline::declareCover(u32 size) {
+    cover_active_ = false;
+    if (!graph_) return rg::kNoResource;
+    if (!cover_fbo_ || cover_fbo_->getWidth() != size) {
+        FramebufferSpec spec;
+        spec.width = size;
+        spec.height = size;
+        spec.colorFormat = GfxPixelFormat::RGBA8;
+        spec.depthStencil = true;
+        spec.linearFilter = false;
+        cover_fbo_ = Framebuffer::create(device_, spec);
+        if (!cover_fbo_) {
+            ES_LOG_ERROR("PostProcessPipeline: Failed to create the rain cover target");
+            return rg::kNoResource;
+        }
+    }
+    cover_resource_ = graph_->importTarget(cover_fbo_->handle(), size, size, /*output=*/false,
+                                           cover_fbo_->getColorAttachment());
+    cover_active_ = true;
+    return cover_resource_;
+}
+
 rg::ResourceId PostProcessPipeline::declareVelocity() {
     velocity_active_ = false;
     if (!graph_ || !device_.supportsFloatTargets()) return rg::kNoResource;
@@ -613,6 +653,7 @@ void PostProcessPipeline::declareChain() {
 
 void PostProcessPipeline::chainDone() {
     velocity_active_ = false;
+    cover_active_ = false;
     if (!initialized_ || !inFrame_) return;
     device_.invalidatePipelineCache();
     inFrame_ = false;
@@ -658,6 +699,14 @@ void PostProcessPipeline::renderPass(PostProcessPass& pass, const rg::PassContex
     }
     // An effect that reflects the environment declares its parameters, and takes them from the
     // light block the scene was drawn with: how the atlas is laid out, how bright it is, how far the sky has turned.
+    // An effect that asks what stands over a place is handed the matrix the answer was drawn through, and whether there is one.
+    if (layout && layout->find("u_coverMatrix0")) {
+        for (int c = 0; c < 4; ++c) {
+            pass.vec4Uniforms["u_coverMatrix" + std::to_string(c)] = glm::vec4(cover_matrix_[c]);
+        }
+        pass.floatUniforms["u_coverActive"] = cover_active_ ? 1.0f : 0.0f;
+        pass.paramDirty = true;
+    }
     if (layout && layout->usesLights) {
         // The block the scene was lit with, bound again: the passes between have no claim on its slot, but a
         // chain is not the place to find out. And the atlas on the unit the Lit shaders read it from.
@@ -741,6 +790,9 @@ void PostProcessPipeline::renderPass(PostProcessPass& pass, const rg::PassContex
             }
             if (slot.name == "u_velocity" && velocity_active_ && velocity_fbo_) {
                 gpu = velocity_fbo_->getColorAttachment();
+            }
+            if (slot.name == "u_rainCover" && cover_active_ && cover_fbo_) {
+                gpu = cover_fbo_->getColorAttachment();
             }
             for (const auto& [name, glId] : pass.textureUniforms) {
                 if (name == slot.name && glId != 0) { gpu = TextureHandle{glId}; break; }
@@ -851,6 +903,9 @@ void PostProcessPipeline::runChain(std::vector<PostProcessPass>& passes, rg::Res
         // (and the pass its place in the culled set), and the pipeline binds it.
         if (velocity_active_ && velocity_resource_ != rg::kNoResource && passHasTexture(pass, "u_velocity")) {
             node.dependencies.push_back(velocity_resource_);
+        }
+        if (cover_active_ && cover_resource_ != rg::kNoResource && passHasTexture(pass, "u_rainCover")) {
+            node.dependencies.push_back(cover_resource_);
         }
         if (shadow_resource_ != rg::kNoResource && passUsesLights(pass)) {
             node.dependencies.push_back(shadow_resource_);

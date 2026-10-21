@@ -249,6 +249,20 @@ public:
     rg::ResourceId declareVelocity();
 
     /**
+     * @brief Whether an enabled pass reads what stands over each place (`u_rainCover`).
+     *
+     * @details The frame then draws the scene from straight above, depth only, around the camera: a map of the highest
+     *          surface at each spot, so an effect can tell open ground from ground under an awning.
+     */
+    bool coverWanted();
+    /// How far from the camera, in world units, that map reaches each way (the effect's `u_shelterRange`).
+    f32 coverRange();
+    /// The map's target for this frame, declared in the graph (kNoResource when it cannot be made).
+    rg::ResourceId declareCover(u32 size);
+    /// The matrix the map was drawn through, for the effect to put a world point in it.
+    void setCoverMatrix(const glm::mat4& viewProjection) { cover_matrix_ = viewProjection; }
+
+    /**
      * @brief Whether this frame's scene target carries a second attachment for the surface's material.
      *
      * @details Decided when the capture opens, from the passes: an effect whose shader says
@@ -567,6 +581,10 @@ private:
     u32 shadow_texture_ = 0;
     rg::ResourceId shadow_resource_ = rg::kNoResource;
     /// The motion pass's target, kept across frames for its size, and whether this frame drew into it.
+    Unique<Framebuffer> cover_fbo_;
+    rg::ResourceId cover_resource_ = rg::kNoResource;
+    bool cover_active_ = false;
+    glm::mat4 cover_matrix_{1.0f};
     Unique<Framebuffer> velocity_fbo_;
     rg::ResourceId velocity_resource_ = rg::kNoResource;
     bool velocity_active_ = false;

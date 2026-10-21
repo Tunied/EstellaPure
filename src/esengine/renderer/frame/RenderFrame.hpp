@@ -965,6 +965,21 @@ private:
     /// Collects the meshes that moved by themselves since the last frame into velocity_list_.
     void collectMotion(ecs::Registry& registry);
     void executeMotionPass();
+    /**
+     * @brief The scene seen from straight above, depth only, around the camera — what stands over each place.
+     *
+     * @details Collected like a shadow map (the depth variant of every resident mesh) through a camera of its own, because
+     *          what an effect asks of it is whether something is above a point, and a shadow map from the sun answers that for
+     *          the sun's direction only. Its own buffers and list, for the same reason as the motion pass's.
+     */
+    void collectCover(ecs::Registry& registry);
+    void executeCoverPass();
+    TransientBufferPool cover_pool_;
+    DrawList cover_list_;
+    BufferHandle cover_frame_ubo_ = BufferHandle::Invalid;
+    glm::mat4 cover_view_projection_{1.0f};
+    /// The shift the scene was drawn with, so a pass that borrows the frame's constants can hand them back as they were.
+    glm::vec2 scene_jitter_{0.0f};
     /// One per view, kept across frames for the capacity. The whole pass is collected
     /// before any of it is drawn, so a view's commands have to outlive its collect.
     std::vector<DrawList> shadow_view_lists_;

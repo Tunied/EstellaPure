@@ -65,6 +65,13 @@ darkens are the pools that reflect — flat, whatever the ground under them, and
 with a sharp reflection where a dry one is blurred. Wet ground in general is shinier than dry: raise `ssr`'s `intensity`
 when it rains.
 
+**Shelter.** Rain does not fall through a roof. While a `rain` effect is in the chain the frame draws the scene once from straight
+above, depth only, in a 1024² square around the camera (`shelterRange` world units each way) — a map of the highest surface at
+each place — and the effect asks it whether something stands over a point. Ground under an awning stays dry and still (no
+wetness, no puddles, no ripples), the streaks of a layer that stands under a roof are not drawn, and the drops that would have
+fallen there have landed on the awning, which is open to the sky and is wet in its turn. It costs the depth-only draw of the
+resident meshes in range, so keep `shelterRange` to the reach you need; ground outside the map is treated as open.
+
 The clock is the game's. A capture that has to be the same on every run sets `timeScale` to 0 and `phase` to the time it
 wants. What this is not: the ground's shape is read from what the camera sees (a hollow behind a wall is not known),
 and the rain is a screen-space layer, not particles that collide with the world.

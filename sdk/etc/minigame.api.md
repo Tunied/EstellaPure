@@ -11149,6 +11149,7 @@ hold: number
 preset: number
 progress: number
 sequence: string
+soundSource: number
 target: number
 ```
 

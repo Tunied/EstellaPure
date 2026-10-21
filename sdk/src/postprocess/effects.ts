@@ -365,6 +365,9 @@ registerEffect({
         { name: 'u_streakLength', label: 'Streak Length', min: 0.05, max: 0.9, step: 0.01, defaultValue: 0.3 },
         // A WORLD length: the size of the grid cell each ring lives in.
         { name: 'u_rippleScale', label: 'Ripple Scale', min: 5, max: 400, step: 1, defaultValue: 60 },
+        // How far from the camera, in world units, the map of what stands over each place reaches: ground under an awning
+        // inside it stays dry. The map is the scene drawn from straight above, so this is also how much of it costs.
+        { name: 'u_shelterRange', label: 'Shelter Range', min: 100, max: 30000, step: 100, defaultValue: 3000 },
         // How much of the flat ground is standing water, and how big the pools are (a WORLD length).
         // The reflections effect draws the same pools when it is given the same two numbers.
         { name: 'u_puddles', label: 'Puddles', min: 0, max: 1, step: 0.01, defaultValue: 0.3, neutralValue: 0 },

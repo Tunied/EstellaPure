@@ -1346,6 +1346,9 @@ export interface WeatherData {
     hold: number;
     /** What the weather drives: lights, fog, rain, grade, exposure, reflections, sound. */
     drive: number;
+    /** An entity with a looping AudioSource — the sound of the rain. The weather sets its volume (the authored one times
+     *  how hard it rains) and raises or lowers its `playing`. 0 = none. */
+    soundSource: number;
 }
 
 const WEATHER_PRESET_OPTIONS = [
@@ -1369,7 +1372,9 @@ export const Weather = defineComponent<WeatherData>('Weather', {
     sequence: '',
     hold: 20,
     drive: 127,
+    soundSource: 0,
 }, {
+    entityFields: ['soundSource'],
     fields: {
         preset: { enum: WEATHER_PRESET_OPTIONS },
         target: { enum: [{ label: 'None', value: -1 }, ...WEATHER_PRESET_OPTIONS] },
