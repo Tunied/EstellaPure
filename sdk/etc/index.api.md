@@ -5660,7 +5660,7 @@ width: number | undefined
 
 ## OutputTransform — type @experimental
 ```
-'none' | 'aces'
+'none' | 'aces' | 'neutral'
 ```
 
 ## PREFAB_FORMAT_VERSION — const @experimental
@@ -5709,7 +5709,7 @@ entryScene: string
 hotUpdate: { remoteRoot?: string; persistUpdateKey?: string; } | undefined
 leaderboardEncryptionKey: string | undefined
 msaaSamples: number | undefined
-outputTransform: "none" | "aces" | undefined
+outputTransform: "none" | "aces" | "neutral" | undefined
 physicsConfig: Physics2DPluginConfig | undefined
 physicsEnabled: boolean | undefined
 quality: QualityConfig | undefined
@@ -13054,7 +13054,7 @@ MeshRendererPlugin
 
 ## packagedAppOptions — function @experimental
 ```
-(config: Pick<PackagedGameConfig, "ySortLayers" | "depthLayers" | "colorSpace" | "outputTransform" | "screenFit" | "msaaSamples" | "quality">): { ySortLayers?: number; depthLayers?: number; colorSpace?: "gamma" | "linear"; outputTransform?: "none" | "aces"; msaaSamples?: number; quality?: QualityConfig; renderBackend?: "webgl2" | "webgpu"; screenFit?: PackagedGameConfig["screenFit"]; }
+(config: Pick<PackagedGameConfig, "ySortLayers" | "depthLayers" | "colorSpace" | "outputTransform" | "screenFit" | "msaaSamples" | "quality">): { ySortLayers?: number; depthLayers?: number; colorSpace?: "gamma" | "linear"; outputTransform?: "none" | "aces" | "neutral"; msaaSamples?: number; quality?: QualityConfig; renderBackend?: "webgl2" | "webgpu"; screenFit?: PackagedGameConfig["screenFit"]; }
 ```
 
 ## packagedRuntimeInit — function @experimental
