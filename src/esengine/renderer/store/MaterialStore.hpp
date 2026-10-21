@@ -94,6 +94,8 @@ struct MaterialUniformLayout {
     std::string coverageParam;
     /// The shader reads the scene's surface record (ParsedShader::usesGBuffer).
     bool usesGBuffer = false;
+    /// The shader reads the frame's light block and shadow atlas (ParsedShader::usesLights).
+    bool usesLights = false;
     /// What the shader's vertex hook can move a vertex by (ParsedShader::vertexBounds), and whether it
     /// has a hook at all — culling grows a mesh's box by the first, and the shadow pass builds a
     /// program of its own for the second.

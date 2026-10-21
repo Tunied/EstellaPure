@@ -113,14 +113,21 @@ formula makes the **horizon hazy and the zenith clear**, because a ray skimming 
 the thick part and one aimed up leaves it at once. Sky pixels have no surface to measure to, so they
 take the formula with a very long ray; `skyFog` says how much of that haze the sky keeps. Looking toward
 the sun the haze takes `sunColor`: give it the sun's direction as `sunAzimuth` (degrees from +Z toward
-+X) and `sunElevation` (degrees above the horizon) — these are settings of the effect, not read from
-a `Light`, so keep them in step with the sun you placed.
++X) and `sunElevation` (degrees above the horizon). With `followSun` on (the default) the effect
+ignores them and takes the sun from the scene: the first directional light that shines, its direction
+and its colour, so a sun that turns takes its haze with it; the two angles are what a scene with no
+directional light falls back to.
+
+`volumetric` makes the haze carry the sun's shadows. The air between the camera and each surface is walked in
+24 steps against the sun's shadow map, and every step that stands in light scatters some of it toward the
+eye — so a building's shadow is dark fog and the gap between two of them a beam. It needs a directional light
+that casts shadows (the effect reads the same atlas the meshes receive from), and `volumeRange` says how far
+from the camera the air is walked; beyond it the fog still dims but takes no shafts.
 
 `lightShafts` finds the sun's light through whatever stands in front of it, in screen space: each pixel
 marches toward the sun's place on screen and counts how much of the way is open sky. It needs the
 sun on screen or just off it, and only what the depth buffer holds can cast a shaft. Together the two
-give the haze-and-rays look of a low sun; neither is a shadowed volume — fog does not know where a
-shadow map says the light is blocked, so the fog itself is lit evenly.
+give the haze-and-rays look of a low sun; `lightShafts` is still screen-space; the shadowed volume is `heightFog`'s `volumetric`.
 
 Fog colours are authored as **sRGB** and converted for a linear project, the way a clear colour
 and a light colour are, so the colour you pick is the colour a fully fogged surface shows.

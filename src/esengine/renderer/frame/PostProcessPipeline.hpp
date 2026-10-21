@@ -268,6 +268,17 @@ public:
     void setEnvironmentTexture(u32 glTextureId) { environment_texture_ = glTextureId; }
 
     /**
+     * @brief The frame's shadow atlas, for an effect that asks whether a point of air is in the sun (`#pragma lights`).
+     *
+     * @details The atlas is a graph resource the scene pass names as a dependency; an effect that reads it names it
+     *          too, or the graph would hand it back to the pool before the effect ran. 0 / kNoResource = no map.
+     */
+    void setShadowAtlas(u32 glTextureId, rg::ResourceId resource) {
+        shadow_texture_ = glTextureId;
+        shadow_resource_ = resource;
+    }
+
+    /**
      * @brief Starts a frame of the temporal view @p key, and answers how far to shift it.
      *
      * @param key Names the view whose history this is — two cameras must not
@@ -548,10 +559,13 @@ private:
     std::unordered_map<u64, TemporalState> temporal_;
     u64 temporalKey_ = 0;
     bool passIsTemporal(const PostProcessPass& pass);
+    bool passUsesLights(const PostProcessPass& pass);
     /// Some enabled pass of the chain reads the surface record.
     bool passesWantGBuffer();
     bool scene_gbuffer_ = false;
     u32 environment_texture_ = 0;
+    u32 shadow_texture_ = 0;
+    rg::ResourceId shadow_resource_ = rg::kNoResource;
     /// The motion pass's target, kept across frames for its size, and whether this frame drew into it.
     Unique<Framebuffer> velocity_fbo_;
     rg::ResourceId velocity_resource_ = rg::kNoResource;

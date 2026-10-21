@@ -247,13 +247,22 @@ registerEffect({
         { name: 'u_baseHeight', label: 'Base Height', min: -1000, max: 5000, step: 10, defaultValue: 0 },
         { name: 'u_startDistance', label: 'Start Distance', min: 0, max: 3000, step: 10, defaultValue: 0 },
         { name: 'u_maxOpacity', label: 'Max Opacity', min: 0, max: 1, step: 0.01, defaultValue: 1 },
-        // Where the sun is, to colour the haze toward it: degrees from +Z toward +X, and above the horizon.
+        // 1: the sun is the scene's own directional light — its direction and colour — and the two angles below are
+        // only what a scene with no sun falls back to. 0: the angles are the sun.
+        { name: 'u_followSun', label: 'Follow Scene Sun', min: 0, max: 1, step: 1, defaultValue: 1, neutralValue: 1 },
+        // Where the sun is when it is not followed, to colour the haze toward it: degrees from +Z toward +X, and above the horizon.
         { name: 'u_sunAzimuth', label: 'Sun Azimuth', min: 0, max: 360, step: 1, defaultValue: 40 },
         { name: 'u_sunElevation', label: 'Sun Elevation', min: -10, max: 90, step: 1, defaultValue: 25 },
         { name: 'u_inscatter', label: 'Sun Glow', min: 0, max: 2, step: 0.01, defaultValue: 0.6, neutralValue: 0 },
         { name: 'u_sunExponent', label: 'Glow Sharpness', min: 1, max: 64, step: 1, defaultValue: 8 },
         // How much of the sky takes the horizon haze; 0 leaves the sky untouched.
         { name: 'u_skyFog', label: 'Sky Haze', min: 0, max: 1, step: 0.01, defaultValue: 0.8, neutralValue: 0 },
+        // How much of the sun's light through the haze comes from walking the air against the shadow map, so a
+        // building's shadow is dark fog and the gap between two of them a beam. 0 is the glow alone; it needs a
+        // directional light that casts a shadow, and costs 24 taps a pixel.
+        { name: 'u_volumetric', label: 'Volumetric Light', min: 0, max: 1, step: 0.01, defaultValue: 0, neutralValue: 0 },
+        // How far from the camera the air is walked: past it the fog still dims, but takes no shafts.
+        { name: 'u_volumeRange', label: 'Volumetric Range', min: 100, max: 30000, step: 100, defaultValue: 3000 },
     ],
     colors: [
         { name: 'u_fogColor', label: 'Colour', defaultValue: { r: 0.62, g: 0.7, b: 0.8, a: 1 } },
@@ -267,6 +276,7 @@ registerEffect({
     factory: () => postProcessEffects.createLightShafts(),
     uniforms: [
         { name: 'u_intensity', label: 'Intensity', min: 0, max: 3, step: 0.01, defaultValue: 0.6, neutralValue: 0 },
+        { name: 'u_followSun', label: 'Follow Scene Sun', min: 0, max: 1, step: 1, defaultValue: 1, neutralValue: 1 },
         { name: 'u_sunAzimuth', label: 'Sun Azimuth', min: 0, max: 360, step: 1, defaultValue: 40 },
         { name: 'u_sunElevation', label: 'Sun Elevation', min: -10, max: 90, step: 1, defaultValue: 25 },
         // Per step of the march: lower fades the shafts sooner along their length.

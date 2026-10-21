@@ -652,6 +652,7 @@ void RenderFrame::end() {
 
     if (usePostProcess) {
 #ifdef ES_ENABLE_POSTPROCESS
+        post_process_->setShadowAtlas(shadow_texture_id_, shadow_resource_);
         post_process_->declareChain();
 #endif
     }

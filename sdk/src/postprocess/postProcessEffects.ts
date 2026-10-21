@@ -1481,6 +1481,10 @@ fn depthAt(texel : vec2i, size : vec2i) -> f32 {
 #pragma param u_inscatter float default(0.6) range(0,2)
 #pragma param u_sunExponent float default(8) range(1,64)
 #pragma param u_skyFog float default(0.8) range(0,1)
+#pragma param u_followSun float default(1) range(0,1)
+#pragma param u_volumetric float default(0) range(0,1)
+#pragma param u_volumeRange float default(3000) range(100,30000)
+#pragma lights
 
 #pragma fragment
 precision highp float;
@@ -1491,6 +1495,16 @@ uniform highp sampler2D u_sceneDepth;
 out vec4 fragColor;
 
 const float FAR_RAY = 100000.0;
+const int VOLUME_STEPS = 24;
+
+float ign(vec2 p) {
+    return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715))));
+}
+/// How much of a ray's light a particle scatters toward the viewer: forward, the way fog glows around the sun.
+float phaseHG(float cosine) {
+    const float g = 0.55;
+    return (1.0 - g * g) / pow(max(1.0 + g * g - 2.0 * g * cosine, 1e-3), 1.5) * 0.25;
+}
 
 /// What the exponential density integrates to along a ray: the eye's density, the length,
 /// and the term for how fast the ray leaves the fog. Written so a level ray (no climb)
@@ -1521,9 +1535,15 @@ void main() {
     float tau = opticalDepth(entry.y + dir.y * u_startDistance, dir.y, effective);
     float amount = (1.0 - exp(-tau)) * u_maxOpacity * (sky ? u_skyFog : 1.0);
 
+    // The sun is the scene's own directional light unless the effect is told to ignore it: where it stands and
+    // what colour it is come from the light block, so a sun that moves takes its haze with it.
+    vec4 lightDir, lightColor;
+    ivec2 tiles;
+    findSun(lightDir, lightColor, tiles);
+    bool follow = u_followSun > 0.5 && lightDir.w > 0.5;
     float az = radians(u_sunAzimuth);
     float el = radians(u_sunElevation);
-    vec3 sun = vec3(cos(el) * sin(az), sin(el), cos(el) * cos(az));
+    vec3 sun = follow ? lightDir.xyz : vec3(cos(el) * sin(az), sin(el), cos(el) * cos(az));
     float glow = pow(max(dot(dir, sun), 0.0), u_sunExponent);
     vec3 fog = u_fogColor.rgb;
     vec3 sunTint = u_sunColor.rgb;
@@ -1531,13 +1551,46 @@ void main() {
     fog = srgbToLinear(fog);
     sunTint = srgbToLinear(sunTint);
 #endif
-    vec3 colour = mix(fog, sunTint, clamp(glow * u_inscatter, 0.0, 1.0));
-    fragColor = vec4(mix(src.rgb, colour, clamp(amount, 0.0, 1.0)), src.a);
+    // The light's own colour is already in the pipeline's space; only its hue is wanted, not its strength.
+    if (follow) sunTint = lightColor.rgb / max(max(lightColor.r, lightColor.g), max(lightColor.b, 1e-3));
+    float shaped = u_volumetric > 0.0 ? glow * (1.0 - u_volumetric) : glow;
+    vec3 colour = mix(fog, sunTint, clamp(shaped * u_inscatter, 0.0, 1.0));
+    vec3 result = mix(src.rgb, colour, clamp(amount, 0.0, 1.0));
+
+    // The sun's light through the haze, where the shadow map says it gets through: the air between the camera and
+    // the surface is walked in steps, and each one that stands in light adds what it scatters toward the eye.
+    if (u_volumetric > 0.0 && follow) {
+        float range = min(len, u_volumeRange);
+        float span = max(range - u_startDistance, 0.0);
+        float ds = span / float(VOLUME_STEPS);
+        float jitter = ign(gl_FragCoord.xy);
+        float transmit = 1.0;
+        float lit = 0.0;
+        for (int i = 0; i < VOLUME_STEPS; ++i) {
+            float t = u_startDistance + (float(i) + jitter) * ds;
+            vec3 p = entry + dir * t;
+            float dens = u_density * exp(clamp(-u_heightFalloff * (p.y - u_baseHeight), -60.0, 60.0));
+            lit += transmit * dens * ds * sunVisibility(p, tiles.x, tiles.y);
+            transmit *= exp(-dens * ds);
+        }
+        float strength = clamp(lightColor.a, 0.0, 8.0) * 0.5;
+        result += sunTint * lit * phaseHG(dot(dir, sun)) * u_inscatter * u_volumetric * strength * (sky ? u_skyFog : 1.0);
+    }
+    fragColor = vec4(result, src.a);
 }
 #pragma end
 
 #pragma fragment wgsl
 const FAR_RAY : f32 = 100000.0;
+const VOLUME_STEPS : i32 = 24;
+
+fn ign(p : vec2f) -> f32 {
+    return fract(52.9829189 * fract(dot(p, vec2f(0.06711056, 0.00583715))));
+}
+fn phaseHG(cosine : f32) -> f32 {
+    let g = 0.55;
+    return (1.0 - g * g) / pow(max(1.0 + g * g - 2.0 * g * cosine, 1e-3), 1.5) * 0.25;
+}
 
 fn opticalDepth(eyeY : f32, dirY : f32, len : f32) -> f32 {
     let k = mc.u_heightFalloff;
@@ -1568,18 +1621,47 @@ fn opticalDepth(eyeY : f32, dirY : f32, len : f32) -> f32 {
     var amount = (1.0 - exp(-tau)) * mc.u_maxOpacity;
     if (sky) { amount = amount * mc.u_skyFog; }
 
+    // See the GLSL twin: the scene's own sun unless told not to follow it.
+    let found = findSun();
+    let follow = mc.u_followSun > 0.5 && found.dir.w > 0.5;
     let az = radians(mc.u_sunAzimuth);
     let el = radians(mc.u_sunElevation);
-    let sun = vec3f(cos(el) * sin(az), sin(el), cos(el) * cos(az));
-    let glow = pow(max(dot(dir, sun), 0.0), mc.u_sunExponent);
+    var sun = vec3f(cos(el) * sin(az), sin(el), cos(el) * cos(az));
+    if (follow) { sun = found.dir.xyz; }
+    var shaped = dot(dir, sun);
+    let glow = pow(max(shaped, 0.0), mc.u_sunExponent);
     var fog = mc.u_fogColor.rgb;
     var sunTint = mc.u_sunColor.rgb;
 #ifdef ES_LINEAR
     fog = srgbToLinear(fog);
     sunTint = srgbToLinear(sunTint);
 #endif
-    let colour = mix(fog, sunTint, clamp(glow * mc.u_inscatter, 0.0, 1.0));
-    return vec4f(mix(src.rgb, colour, clamp(amount, 0.0, 1.0)), src.a);
+    if (follow) { sunTint = found.color.rgb / max(max(found.color.r, found.color.g), max(found.color.b, 1e-3)); }
+    var glowShare = glow;
+    if (mc.u_volumetric > 0.0) { glowShare = glow * (1.0 - mc.u_volumetric); }
+    let colour = mix(fog, sunTint, clamp(glowShare * mc.u_inscatter, 0.0, 1.0));
+    var result = mix(src.rgb, colour, clamp(amount, 0.0, 1.0));
+
+    if (mc.u_volumetric > 0.0 && follow) {
+        let range = min(len, mc.u_volumeRange);
+        let span = max(range - mc.u_startDistance, 0.0);
+        let ds = span / f32(VOLUME_STEPS);
+        let jitter = ign(v.pos.xy);
+        var transmit = 1.0;
+        var lit = 0.0;
+        for (var i : i32 = 0; i < VOLUME_STEPS; i = i + 1) {
+            let t = mc.u_startDistance + (f32(i) + jitter) * ds;
+            let p = entry + dir * t;
+            let dens = mc.u_density * exp(clamp(-mc.u_heightFalloff * (p.y - mc.u_baseHeight), -60.0, 60.0));
+            lit = lit + transmit * dens * ds * sunVisibility(p, found.tiles.x, found.tiles.y);
+            transmit = transmit * exp(-dens * ds);
+        }
+        let strength = clamp(found.color.a, 0.0, 8.0) * 0.5;
+        var skyShare = 1.0;
+        if (sky) { skyShare = mc.u_skyFog; }
+        result = result + sunTint * lit * phaseHG(dot(dir, sun)) * mc.u_inscatter * mc.u_volumetric * strength * skyShare;
+    }
+    return vec4f(result, src.a);
 }
 #pragma end
 `;
@@ -1607,6 +1689,8 @@ fn opticalDepth(eyeY : f32, dirY : f32, len : f32) -> f32 {
 #pragma param u_sunElevation float default(25) range(-10,90)
 #pragma param u_decay float default(0.96) range(0.8,1)
 #pragma param u_reach float default(0.6) range(0.1,1)
+#pragma param u_followSun float default(1) range(0,1)
+#pragma lights
 
 #pragma fragment
 precision highp float;
@@ -1624,9 +1708,13 @@ float ign(vec2 p) {
 
 void main() {
     vec4 src = texture(u_texture, v_texCoord);
+    vec4 lightDir, lightColor;
+    ivec2 tiles;
+    findSun(lightDir, lightColor, tiles);
+    bool follow = u_followSun > 0.5 && lightDir.w > 0.5;
     float az = radians(u_sunAzimuth);
     float el = radians(u_sunElevation);
-    vec3 sun = vec3(cos(el) * sin(az), sin(el), cos(el) * cos(az));
+    vec3 sun = follow ? lightDir.xyz : vec3(cos(el) * sin(az), sin(el), cos(el) * cos(az));
     vec3 eye = worldFromDepth(v_texCoord, 0.0);
     vec4 clip = u_projection * vec4(eye + sun * 10000.0, 1.0);
     // Behind the camera there is no screen position to march toward.
@@ -1656,6 +1744,7 @@ void main() {
 #ifdef ES_LINEAR
     tint = srgbToLinear(tint);
 #endif
+    if (follow) tint = lightColor.rgb / max(max(lightColor.r, lightColor.g), max(lightColor.b, 1e-3));
     fragColor = vec4(src.rgb + tint * light * falloff * u_intensity, src.a);
 }
 #pragma end
@@ -1669,9 +1758,12 @@ fn ign(p : vec2f) -> f32 {
 
 @fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
     let src = textureSampleLevel(t0, s0, v.v_texCoord, 0.0);
+    let found = findSun();
+    let follow = mc.u_followSun > 0.5 && found.dir.w > 0.5;
     let az = radians(mc.u_sunAzimuth);
     let el = radians(mc.u_sunElevation);
-    let sun = vec3f(cos(el) * sin(az), sin(el), cos(el) * cos(az));
+    var sun = vec3f(cos(el) * sin(az), sin(el), cos(el) * cos(az));
+    if (follow) { sun = found.dir.xyz; }
     let eye = worldFromDepth(v.v_texCoord, 0.0);
     let clip = frame.projection * vec4f(eye + sun * 10000.0, 1.0);
     if (clip.w <= 1e-4) { return src; }
@@ -1700,6 +1792,7 @@ fn ign(p : vec2f) -> f32 {
 #ifdef ES_LINEAR
     tint = srgbToLinear(tint);
 #endif
+    if (follow) { tint = found.color.rgb / max(max(found.color.r, found.color.g), max(found.color.b, 1e-3)); }
     return vec4f(src.rgb + tint * light * falloff * mc.u_intensity, src.a);
 }
 #pragma end

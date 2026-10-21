@@ -699,6 +699,11 @@ ParsedShader ShaderParser::parse(const std::string& source, const ShaderIncludeR
             continue;
         }
 
+        if (directive == "lights") {
+            result.usesLights = true;
+            continue;
+        }
+
         if (directive == "vertexbounds") {
             // How far the vertex hook may move a vertex, in the mesh's local units.
             result.vertexBounds = std::strtof(argument.c_str(), nullptr);
@@ -1108,6 +1113,70 @@ fn pbrNeutral(color : vec3f) -> vec3f {
     c = c * (newPeak / peak);
     let g = 1.0 - 1.0 / (desaturation * (peak - newPeak) + 1.0);
     return mix(c, vec3f(newPeak), g);
+}
+)";
+
+// The light block and the shadow map as a fullscreen pass sees them: the same block the Lit shaders read, the atlas on
+// unit 2 where a pass has nothing else, and the two questions an effect asks of them — which light is the sun, and is
+// this point of air in its light. One tap, no filtering: a fog sample is not a surface.
+const char* kPostLightHeaderWGSL = R"(struct Light { posDir : vec4f, color : vec4f, spot : vec4f, shadow : vec4f, shadowMap : vec4f, falloff : vec4f };
+struct LightConstants {
+    u_ambient : vec4f,
+    u_lights : array<Light, 16>,
+    u_mask2DRect : vec4f,
+    u_shadowMatrix : array<mat4x4f, 16>,
+    u_shadowTile : array<vec4f, 16>,
+    u_shadowParams : vec4f,
+    u_envIrradiance : array<vec4f, 9>,
+    u_envParams : vec4f,
+    u_envTint : vec4f,
+    u_reflParams : vec4f,
+    u_reflBox : array<vec4f, 30>,
+};
+@group(0) @binding(2) var<uniform> lc : LightConstants;
+fn unpackDepth(c : vec3f) -> f32 {
+    return dot(c, vec3f(1.0, 1.0 / 255.0, 1.0 / 65025.0));
+}
+// The first directional light that shines: xyz = where it stands in the sky, w = 1 (0 = none),
+// color = its colour and strength, tiles = x first atlas tile, y how many.
+struct Sun { dir : vec4f, color : vec4f, tiles : vec2i };
+fn findSun() -> Sun {
+    var s : Sun;
+    s.dir = vec4f(0.0);
+    s.color = vec4f(0.0);
+    s.tiles = vec2i(0, 0);
+    for (var i = 0; i < 16; i++) {
+        let l = lc.u_lights[i];
+        if (l.posDir.z > 0.5 && l.posDir.z < 1.5 && l.color.a > 0.0) {
+            s.dir = vec4f(-normalize(vec3f(l.posDir.x, l.posDir.y, l.posDir.w)), 1.0);
+            s.color = l.color;
+            s.tiles = vec2i(i32(l.shadowMap.x), i32(l.shadowMap.y));
+            return s;
+        }
+    }
+    return s;
+}
+fn sunVisibility(worldPos : vec3f, first : i32, count : i32) -> f32 {
+    if (lc.u_shadowParams.x < 0.5 || count <= 0) { return 1.0; }
+    for (var k = 0; k < 16; k++) {
+        if (k >= count) { break; }
+        let t = first + k;
+        let m = lc.u_shadowMatrix[t];
+        let c = m * vec4f(worldPos, 1.0);
+        if (c.w <= 0.0) { continue; }
+        let proj = c.xyz / c.w;
+        let uv = proj.xy * 0.5 + 0.5;
+        if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0 || proj.z < 0.0 || proj.z > 1.0) { continue; }
+        let rect = lc.u_shadowTile[t];
+        // The tile and the square inside it are turned over on this backend, as in the Lit header.
+        let base = vec2f(rect.x, 1.0 - rect.y - rect.z);
+        let at = base + vec2f(uv.x, 1.0 - uv.y) * rect.z;
+        let lo = base + lc.u_shadowParams.y * 0.5;
+        let hi = base + rect.z - lc.u_shadowParams.y * 0.5;
+        let d = unpackDepth(textureSampleLevel(t2, s2, clamp(at, lo, hi), 0.0).rgb);
+        return select(1.0, 0.0, d < clamp(proj.z * 0.5 + 0.5, 0.0, 1.0) - 0.0025);
+    }
+    return 1.0;
 }
 )";
 
@@ -1770,6 +1839,7 @@ ShaderParser::AssembledStage assembleWGSLStage(const ParsedShader& parsed,
     if (stage == ShaderStage::Fragment) {
         inject(wgslMaterialTextureDecls(parsed));
         if (lit) inject(kLitHeaderWGSL);
+        if (parsed.domain == "PostProcess" && parsed.usesLights) inject(kPostLightHeaderWGSL);
         inject(kColorHelpersWGSL);
     }
     // The records, for a stage that names them — the same question, and the same
@@ -2566,6 +2636,68 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
         }
         assembled << kLitHeader;
         headerLines += countNewlines(kLitHeader);
+    }
+
+    // The same block for a fullscreen pass that asks for it, with the two questions an effect puts to it.
+    if (stage == ShaderStage::Fragment && parsed.domain == "PostProcess" && parsed.usesLights) {
+        static const char* kPostLightHeader =
+            "struct Light { highp vec4 posDir; highp vec4 color; highp vec4 spot; highp vec4 shadow;"
+            " highp vec4 shadowMap; highp vec4 falloff; };\n"
+            "layout(std140) uniform LightConstants {\n"
+            "    highp vec4 u_ambient;\n"
+            "    Light u_lights[16];\n"
+            "    highp vec4 u_mask2DRect;\n"
+            "    highp mat4 u_shadowMatrix[16];\n"
+            "    highp vec4 u_shadowTile[16];\n"
+            "    highp vec4 u_shadowParams;\n"
+            "    highp vec4 u_envIrradiance[9];\n"
+            "    highp vec4 u_envParams;\n"
+            "    highp vec4 u_envTint;\n"
+            "    highp vec4 u_reflParams;\n"
+            "    highp vec4 u_reflBox[30];\n"
+            "};\n"
+            "uniform highp sampler2D u_shadowMap;\n"
+            "highp float unpackDepth(in highp vec3 c) {\n"
+            "    return dot(c, vec3(1.0, 1.0 / 255.0, 1.0 / 65025.0));\n"
+            "}\n"
+            // The first directional light that shines: dir.xyz = where it stands in the sky, dir.w = 1 (0 = none).
+            "void findSun(out highp vec4 dir, out highp vec4 color, out ivec2 tiles) {\n"
+            "    dir = vec4(0.0);\n"
+            "    color = vec4(0.0);\n"
+            "    tiles = ivec2(0);\n"
+            "    for (int i = 0; i < 16; ++i) {\n"
+            "        Light l = u_lights[i];\n"
+            "        if (l.posDir.z > 0.5 && l.posDir.z < 1.5 && l.color.a > 0.0) {\n"
+            "            dir = vec4(-normalize(vec3(l.posDir.x, l.posDir.y, l.posDir.w)), 1.0);\n"
+            "            color = l.color;\n"
+            "            tiles = ivec2(int(l.shadowMap.x), int(l.shadowMap.y));\n"
+            "            return;\n"
+            "        }\n"
+            "    }\n"
+            "}\n"
+            // One tap, no filtering: a sample of air is not a surface.
+            "highp float sunVisibility(in highp vec3 worldPos, in int first, in int count) {\n"
+            "    if (u_shadowParams.x < 0.5 || count <= 0) return 1.0;\n"
+            "    for (int k = 0; k < 16; ++k) {\n"
+            "        if (k >= count) break;\n"
+            "        int t = first + k;\n"
+            "        highp mat4 m = u_shadowMatrix[t];\n"
+            "        highp vec4 c = m * vec4(worldPos, 1.0);\n"
+            "        if (c.w <= 0.0) continue;\n"
+            "        highp vec3 proj = c.xyz / c.w;\n"
+            "        highp vec2 uv = proj.xy * 0.5 + 0.5;\n"
+            "        if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0 || proj.z < 0.0 || proj.z > 1.0) continue;\n"
+            "        highp vec4 rect = u_shadowTile[t];\n"
+            "        highp vec2 at = rect.xy + uv * rect.z;\n"
+            "        highp vec2 lo = rect.xy + u_shadowParams.y * 0.5;\n"
+            "        highp vec2 hi = rect.xy + rect.z - u_shadowParams.y * 0.5;\n"
+            "        highp float d = unpackDepth(texture(u_shadowMap, clamp(at, lo, hi)).rgb);\n"
+            "        return d < clamp(proj.z * 0.5 + 0.5, 0.0, 1.0) - 0.0025 ? 0.0 : 1.0;\n"
+            "    }\n"
+            "    return 1.0;\n"
+            "}\n";
+        assembled << kPostLightHeader;
+        headerLines += countNewlines(kPostLightHeader);
     }
 
     if (!platform.empty()) {

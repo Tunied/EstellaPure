@@ -290,6 +290,11 @@ bool PostProcessPipeline::passHasTexture(const PostProcessPass& pass, const char
     return false;
 }
 
+bool PostProcessPipeline::passUsesLights(const PostProcessPass& pass) {
+    const MaterialUniformLayout* layout = context_.materials().layoutFor(pass.shader);
+    return layout && layout->usesLights;
+}
+
 bool PostProcessPipeline::passIsTemporal(const PostProcessPass& pass) {
     return passHasTexture(pass, "u_history");
 }
@@ -629,6 +634,9 @@ void PostProcessPipeline::renderPass(PostProcessPass& pass, const rg::PassContex
         if (shader->hasUniform("u_gbuffer")) {
             shader->setUniform("u_gbuffer", static_cast<i32>(kGBufferUnit));
         }
+        if (shader->hasUniform("u_shadowMap")) {
+            shader->setUniform("u_shadowMap", static_cast<i32>(SHADOW_MAP_TEXTURE_UNIT));
+        }
     }
 
     // #pragma-param effects: params ride the reflected MaterialConstants block
@@ -644,6 +652,12 @@ void PostProcessPipeline::renderPass(PostProcessPass& pass, const rg::PassContex
     }
     // An effect that reflects the environment declares its parameters, and takes them from the
     // light block the scene was drawn with: how the atlas is laid out, how bright it is, how far the sky has turned.
+    if (layout && layout->usesLights) {
+        // The block the scene was lit with, bound again: the passes between have no claim on its slot, but a
+        // chain is not the place to find out. And the atlas on the unit the Lit shaders read it from.
+        context_.lights().uploadAndBind();
+        if (shadow_texture_ != 0) device->bindTexture(SHADOW_MAP_TEXTURE_UNIT, TextureHandle{shadow_texture_});
+    }
     if (layout && layout->find("u_envParams")) {
         const LightConstants& lights = context_.lights().data();
         pass.vec4Uniforms["u_envParams"] = lights.envParams;
@@ -831,6 +845,9 @@ void PostProcessPipeline::runChain(std::vector<PostProcessPass>& passes, rg::Res
         // (and the pass its place in the culled set), and the pipeline binds it.
         if (velocity_active_ && velocity_resource_ != rg::kNoResource && passHasTexture(pass, "u_velocity")) {
             node.dependencies.push_back(velocity_resource_);
+        }
+        if (shadow_resource_ != rg::kNoResource && passUsesLights(pass)) {
+            node.dependencies.push_back(shadow_resource_);
         }
         // The last pass feeds the blit, which copies into the output rect at the
         // chain's size — so it draws full-size whatever fraction it asked for.
