@@ -11,6 +11,7 @@ import { blendVolumeEffects, computeVolumeFactor, type ActiveVolume, type Blende
 import type { ShaderHandle } from '../render/material';
 import { Material } from '../render/material';
 import { applyWeatherToEffects, currentWeather, currentWeatherDrive } from './weather';
+import { applyTimeToEffects, currentTimeOfDay, currentTimeDrive, timeLightsApplied } from './timeOfDay';
 
 export interface PostProcessVolumeConfig {
     enabled: boolean;
@@ -229,6 +230,8 @@ export const postProcessVolumeSystem = defineSystem(
             // brings the effects a weather implies.
             const weather = currentWeather();
             if (weather) applyWeatherToEffects(blended, weather, currentWeatherDrive());
+            const clock = currentTimeOfDay();
+            if (clock) applyTimeToEffects(blended, clock, currentTimeDrive(), timeLightsApplied());
 
             applyBlendedEffects(api, cameraEntity, blended);
         }

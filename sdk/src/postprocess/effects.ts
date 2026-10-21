@@ -236,6 +236,30 @@ registerEffect({
 });
 
 registerEffect({
+    type: 'skyAtmosphere',
+    label: 'Sky Atmosphere',
+    factory: () => postProcessEffects.createSkyAtmosphere(),
+    uniforms: [
+        // How bright the day's sky is; the night's is its own.
+        { name: 'u_intensity', label: 'Brightness', min: 0, max: 8, step: 0.01, defaultValue: 1 },
+        // How much of the sky behind the scene (a panorama, a clear colour) is kept: 0 replaces it, 1 leaves it.
+        { name: 'u_panorama', label: 'Keep Background', min: 0, max: 1, step: 0.01, defaultValue: 0, neutralValue: 1 },
+        // 0 is a clear sky; 1 a grey one with no sun, moon or stars. A Weather component drives it.
+        { name: 'u_overcast', label: 'Overcast', min: 0, max: 1, step: 0.01, defaultValue: 0 },
+        { name: 'u_sunSize', label: 'Sun Size', min: 0.2, max: 8, step: 0.1, defaultValue: 1 },
+        { name: 'u_sunBrightness', label: 'Sun Brightness', min: 0, max: 400, step: 1, defaultValue: 40 },
+        { name: 'u_moon', label: 'Moon', min: 0, max: 4, step: 0.05, defaultValue: 1 },
+        { name: 'u_stars', label: 'Stars', min: 0, max: 4, step: 0.05, defaultValue: 1 },
+        // How strong the glow of dusk and dawn is on the horizon.
+        { name: 'u_twilight', label: 'Twilight', min: 0, max: 2, step: 0.05, defaultValue: 1 },
+        // 1: the sun is the scene's directional light. 0: the two angles are. A TimeOfDay component writes them.
+        { name: 'u_followSun', label: 'Follow Scene Sun', min: 0, max: 1, step: 1, defaultValue: 1, neutralValue: 1 },
+        { name: 'u_sunAzimuth', label: 'Sun Azimuth', min: 0, max: 360, step: 1, defaultValue: 40 },
+        { name: 'u_sunElevation', label: 'Sun Elevation', min: -90, max: 90, step: 1, defaultValue: 35 },
+    ],
+});
+
+registerEffect({
     type: 'heightFog',
     label: 'Height Fog',
     factory: () => postProcessEffects.createHeightFog(),
@@ -252,7 +276,7 @@ registerEffect({
         { name: 'u_followSun', label: 'Follow Scene Sun', min: 0, max: 1, step: 1, defaultValue: 1, neutralValue: 1 },
         // Where the sun is when it is not followed, to colour the haze toward it: degrees from +Z toward +X, and above the horizon.
         { name: 'u_sunAzimuth', label: 'Sun Azimuth', min: 0, max: 360, step: 1, defaultValue: 40 },
-        { name: 'u_sunElevation', label: 'Sun Elevation', min: -10, max: 90, step: 1, defaultValue: 25 },
+        { name: 'u_sunElevation', label: 'Sun Elevation', min: -90, max: 90, step: 1, defaultValue: 25 },
         { name: 'u_inscatter', label: 'Sun Glow', min: 0, max: 2, step: 0.01, defaultValue: 0.6, neutralValue: 0 },
         { name: 'u_sunExponent', label: 'Glow Sharpness', min: 1, max: 64, step: 1, defaultValue: 8 },
         // How much of the sky takes the horizon haze; 0 leaves the sky untouched.
@@ -304,7 +328,7 @@ registerEffect({
         { name: 'u_thickness', label: 'Thickness', min: 0.5, max: 80, step: 0.5, defaultValue: 8 },
         { name: 'u_followSun', label: 'Follow Scene Sun', min: 0, max: 1, step: 1, defaultValue: 1, neutralValue: 1 },
         { name: 'u_sunAzimuth', label: 'Sun Azimuth', min: 0, max: 360, step: 1, defaultValue: 40 },
-        { name: 'u_sunElevation', label: 'Sun Elevation', min: -10, max: 90, step: 1, defaultValue: 35 },
+        { name: 'u_sunElevation', label: 'Sun Elevation', min: -90, max: 90, step: 1, defaultValue: 35 },
     ],
 });
 
@@ -316,7 +340,7 @@ registerEffect({
         { name: 'u_intensity', label: 'Intensity', min: 0, max: 3, step: 0.01, defaultValue: 0.6, neutralValue: 0 },
         { name: 'u_followSun', label: 'Follow Scene Sun', min: 0, max: 1, step: 1, defaultValue: 1, neutralValue: 1 },
         { name: 'u_sunAzimuth', label: 'Sun Azimuth', min: 0, max: 360, step: 1, defaultValue: 40 },
-        { name: 'u_sunElevation', label: 'Sun Elevation', min: -10, max: 90, step: 1, defaultValue: 25 },
+        { name: 'u_sunElevation', label: 'Sun Elevation', min: -90, max: 90, step: 1, defaultValue: 25 },
         // Per step of the march: lower fades the shafts sooner along their length.
         { name: 'u_decay', label: 'Decay', min: 0.8, max: 1, step: 0.005, defaultValue: 0.96 },
         // How much of the way to the sun each pixel looks: shorter shafts at lower values.

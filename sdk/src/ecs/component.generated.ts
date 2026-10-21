@@ -15,7 +15,7 @@ import type { AlignContent, AlignItems, AlignSelf, BodyType, CanvasScaleMode, Cl
  * getAbiLayoutHash(); BuiltinBridge.connect() compares them and refuses to
  * run on mismatch, because mismatched offsets read the wrong heap bytes.
  */
-export const ABI_LAYOUT_HASH = '174c991a07d3d3ef';
+export const ABI_LAYOUT_HASH = '8eba82ff470da2d6';
 
 /**
  * One asset-valued field of a component: which field, and what kind of
@@ -476,17 +476,19 @@ export const COMPONENT_META: Record<string, ComponentMetaEntry> = {
             meshShadows: false,
             shadowExtent: 0,
             followEnvironmentSun: false,
+            aimFollowedSun: false,
             environment: 0,
             environmentRotation: 0,
             drawEnvironment: false,
             reflectionScale: 1,
             reflectionSaturation: 1,
+            bakedTint: { r: 1, g: 1, b: 1, a: 1 },
             enabled: true,
         },
         renderableField: 'enabled',
         assetFields: [{ field: 'cookie', type: 'texture' as AssetFieldType }, { field: 'environment', type: 'environment' as AssetFieldType }],
         entityFields: [],
-        colorFields: ['color'],
+        colorFields: ['color', 'bakedTint'],
         animatableFields: ['color.r', 'color.g', 'color.b', 'color.a', 'intensity', 'radius', 'innerRadius', 'falloff', 'shadowStrength', 'cookieSize.x', 'cookieSize.y', 'innerAngle', 'outerAngle', 'shadowSoftness', 'sourceAngle', 'shadowDistance'],
         fields: {
             type: { enum: [{ label: 'Point', value: 0 }, { label: 'Directional', value: 1 }, { label: 'Ambient', value: 2 }, { label: 'Spot', value: 3 }], tooltip: "Point, Directional, Ambient, or Spot." },
@@ -505,11 +507,13 @@ export const COMPONENT_META: Record<string, ComponentMetaEntry> = {
             meshShadows: { tooltip: "Cast a shadow map over 3D meshes (Directional, Spot, Point).", shownWhen: { field: "type", values: [0, 1, 3] } },
             shadowExtent: { min: 0, tooltip: "Shadow map coverage radius; 0 = fit the view.", advanced: true, shownWhen: { field: "type", values: [1] } },
             followEnvironmentSun: { tooltip: "Take direction and strength from the environment's sun, and light the sky without it.", shownWhen: { field: "type", values: [1] } },
+            aimFollowedSun: { tooltip: "With Follow Environment Sun: aim by this light's Transform, not by the panorama.", advanced: true, shownWhen: { field: "type", values: [1] } },
             environment: { tooltip: "Baked environment (.esenv) this Ambient light casts.", shownWhen: { field: "type", values: [2] } },
             environmentRotation: { unit: "deg", tooltip: "Turn the environment about the up axis, in degrees.", shownWhen: { field: "type", values: [2] } },
             drawEnvironment: { tooltip: "Draw this environment as the sky behind the scene.", shownWhen: { field: "type", values: [2] } },
             reflectionScale: { min: 0, tooltip: "Scale what baked reflection probes show (1 = as baked).", advanced: true, shownWhen: { field: "type", values: [2] } },
             reflectionSaturation: { min: 0, max: 1, tooltip: "How much colour baked reflection probes keep (0 = grey).", advanced: true, shownWhen: { field: "type", values: [2] } },
+            bakedTint: { tooltip: "Multiply baked indirect light (lightmaps, probe volumes) by this colour (1 = as baked).", advanced: true, shownWhen: { field: "type", values: [2] } },
         },
     },
     LightProbeVolume: {
@@ -1499,11 +1503,13 @@ export interface LightData {
     meshShadows: boolean;
     shadowExtent: number;
     followEnvironmentSun: boolean;
+    aimFollowedSun: boolean;
     environment: number;
     environmentRotation: number;
     drawEnvironment: boolean;
     reflectionScale: number;
     reflectionSaturation: number;
+    bakedTint: Color;
     enabled: boolean;
 }
 

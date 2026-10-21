@@ -128,6 +128,12 @@ public:
         dirty_ = true;
     }
 
+    /// What baked indirect light is multiplied by this frame: the day's or the weather's say on a bake of one moment.
+    void setBakedTint(const glm::vec3& tint) {
+        data_.bakedTint = glm::vec4(tint, 1.0f);
+        dirty_ = true;
+    }
+
     /// Gives light @p slot a channel of the frame's 2D shadow mask, and says the mask
     /// exists. A slot nobody names keeps the -1 it was collected with, which is a light
     /// that lights without shadowing.

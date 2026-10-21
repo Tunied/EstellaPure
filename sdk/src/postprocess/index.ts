@@ -47,3 +47,4 @@ export {
     type WeatherState,
     type WeatherPreset,
 } from './weather';
+export { timeOfDayAt, sunPosition, currentTimeOfDay, TimeDrive, type TimeOfDayState } from './timeOfDay';

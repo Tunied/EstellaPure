@@ -35,4 +35,9 @@ export {
     WEATHER_NONE,
     type WeatherState,
     type WeatherPreset,
+    timeOfDayAt,
+    sunPosition,
+    currentTimeOfDay,
+    TimeDrive,
+    type TimeOfDayState,
 } from './postprocess/index';

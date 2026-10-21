@@ -1388,6 +1388,50 @@ export const Weather = defineComponent<WeatherData>('Weather', {
     },
 });
 
+export interface TimeOfDayData {
+    /** The hour of the day, 0..24 (12 is noon). The system advances it in play, and a value set here previews it in the editor. */
+    hour: number;
+    /** Seconds a whole day takes while the game runs; 0 holds the hour where it is. */
+    daySeconds: number;
+    /** Where on the planet, in degrees (positive north): how high the noon sun climbs and how long a day is. */
+    latitude: number;
+    /** The season, in degrees, -23.5 (winter) .. 23.5 (summer) in the north. */
+    declination: number;
+    /** How far the world is turned from compass north (+Z) toward +X, in degrees: which way the sun rises. */
+    north: number;
+    /** What the time drives: the lights, the sky, the fog, the exposure, the reflections. */
+    drive: number;
+}
+
+/**
+ * The time of day of a scene: where the sun and the moon are, and what the light, the sky and the fog are because of it.
+ *
+ * @details The sun crosses the sky along the path its latitude and the season give it; the scene's directional light is aimed
+ *          at it (at the moon by night) and scaled by a day's curve — warm and weak near the horizon, gone once it is down — and
+ *          the ambient light follows. A Sky Atmosphere effect draws the sun, a dusk glow, a moon and stars where it stands,
+ *          and the fog is lit as the day is. It composes with Weather: both scale the same lights from what the author set.
+ */
+export const TimeOfDay = defineComponent<TimeOfDayData>('TimeOfDay', {
+    hour: 12,
+    daySeconds: 0,
+    latitude: 40,
+    declination: 15,
+    north: 0,
+    drive: 31,
+}, {
+    fields: {
+        hour: { min: 0, max: 24, step: 0.05, unit: 'h' },
+        daySeconds: { min: 0, max: 86400, step: 1, unit: 's' },
+        latitude: { min: -90, max: 90, step: 1, unit: 'deg' },
+        declination: { min: -23.5, max: 23.5, step: 0.5, unit: 'deg' },
+        north: { min: -180, max: 180, step: 1, unit: 'deg' },
+        drive: { flags: [
+            { label: 'Lights', value: 1 }, { label: 'Sky', value: 2 }, { label: 'Fog', value: 4 },
+            { label: 'Exposure', value: 8 }, { label: 'Reflections', value: 16 },
+        ] },
+    },
+});
+
 export type {
     RigidBody2DData, BoxCollider2DData, CircleCollider2DData, CapsuleCollider2DData,
 };

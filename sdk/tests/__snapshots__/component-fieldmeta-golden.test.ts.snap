@@ -217,6 +217,26 @@ exports[`builtin FieldMeta (RC9-1 equivalence gate) > matches the golden snapsho
     },
   },
   "Light": {
+    "aimFollowedSun": {
+      "advanced": true,
+      "shownWhen": {
+        "field": "type",
+        "values": [
+          1,
+        ],
+      },
+      "tooltip": "With Follow Environment Sun: aim by this light's Transform, not by the panorama.",
+    },
+    "bakedTint": {
+      "advanced": true,
+      "shownWhen": {
+        "field": "type",
+        "values": [
+          2,
+        ],
+      },
+      "tooltip": "Multiply baked indirect light (lightmaps, probe volumes) by this colour (1 = as baked).",
+    },
     "cookie": {
       "shownWhen": {
         "field": "type",
@@ -1475,6 +1495,62 @@ exports[`builtin FieldMeta (RC9-1 equivalence gate) > matches the golden snapsho
     "tilesetColumns": {
       "min": 1,
       "step": 1,
+    },
+  },
+  "TimeOfDay": {
+    "daySeconds": {
+      "max": 86400,
+      "min": 0,
+      "step": 1,
+      "unit": "s",
+    },
+    "declination": {
+      "max": 23.5,
+      "min": -23.5,
+      "step": 0.5,
+      "unit": "deg",
+    },
+    "drive": {
+      "flags": [
+        {
+          "label": "Lights",
+          "value": 1,
+        },
+        {
+          "label": "Sky",
+          "value": 2,
+        },
+        {
+          "label": "Fog",
+          "value": 4,
+        },
+        {
+          "label": "Exposure",
+          "value": 8,
+        },
+        {
+          "label": "Reflections",
+          "value": 16,
+        },
+      ],
+    },
+    "hour": {
+      "max": 24,
+      "min": 0,
+      "step": 0.05,
+      "unit": "h",
+    },
+    "latitude": {
+      "max": 90,
+      "min": -90,
+      "step": 1,
+      "unit": "deg",
+    },
+    "north": {
+      "max": 180,
+      "min": -180,
+      "step": 1,
+      "unit": "deg",
     },
   },
   "TrailRenderer": {

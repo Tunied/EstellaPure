@@ -2,18 +2,22 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 /**
  * @file  weatherSystem.ts
- * @brief Runs the scene's Weather: advances its turns and cycle, and puts it on the lights.
+ * @brief Runs the scene's Weather and TimeOfDay: advances them, and puts them on the lights.
  *
- * @details Only the lights are written to — the effects are read from `currentWeather()` by the volume system a step later,
- *          which is what lets the editor preview the post-process half of a weather without the scene's own lights being
- *          changed (and saved) by it. The lights are rewritten only in play mode, from the strengths they were authored
- *          with, and put back when the weather goes.
+ * @details Only the lights are written to — the effects are read from `currentWeather()` and `currentTimeOfDay()` by the
+ *          volume system a step later, which is what lets the editor preview the post-process half of a weather or an hour
+ *          without the scene's own lights being changed (and saved) by it. The lights are rewritten only in play mode, from
+ *          the strengths they were authored with, and put back when the weather and the clock go. One system owns both
+ *          because both scale the same lights: each from what the author set, neither from the other's last answer.
  */
 import { defineSystem } from '../ecs/system';
 import { Res, Time, type TimeData } from '../ecs/resource';
 import { Query, Mut } from '../ecs/query';
 import { GetWorld } from '../ecs/system';
-import { Weather, Light, type WeatherData, type LightData } from '../ecs/component';
+import {
+    Weather, TimeOfDay, Light, Transform,
+    type WeatherData, type TimeOfDayData, type LightData, type TransformData,
+} from '../ecs/component';
 import { AudioSource, type AudioSourceData } from '../audio/AudioComponents';
 import type { World } from '../ecs/world';
 import type { Entity } from '../types';
@@ -21,6 +25,7 @@ import { isEditor, isPlayMode } from '../ecs/env';
 import {
     blendWeather, setCurrentWeather, weatherPresetId, WEATHER_NONE, WeatherDrive, type WeatherState,
 } from './weather';
+import { timeOfDayAt, setCurrentTimeOfDay, TimeDrive, type TimeOfDayState } from './timeOfDay';
 
 /** What a light was authored with, kept so a weather scales the author's number and never its own last answer. */
 interface LightBase {
@@ -30,7 +35,11 @@ interface LightBase {
     reflectionSaturation: number;
     sourceAngle: number;
     shadowStrength: number;
-    applied: number;
+    aimFollowedSun: boolean;
+    bakedTint: { r: number; g: number; b: number; a: number };
+    /** The aim the light had, once the clock has taken it. */
+    rotation: { x: number; y: number; z: number; w: number } | null;
+    applied: string;
 }
 
 const bases = new Map<Entity, LightBase>();
@@ -51,15 +60,77 @@ function restoreLights(world: World): void {
             world.set(entity, Light, {
                 ...data, intensity: base.intensity, color: { ...base.color },
                 reflectionScale: base.reflectionScale, reflectionSaturation: base.reflectionSaturation,
-                sourceAngle: base.sourceAngle, shadowStrength: base.shadowStrength,
+                sourceAngle: base.sourceAngle, shadowStrength: base.shadowStrength, aimFollowedSun: base.aimFollowedSun,
+                bakedTint: { ...base.bakedTint },
             });
+        }
+        if (base.rotation && world.has(entity, Transform)) {
+            const t = world.get(entity, Transform) as TransformData;
+            world.set(entity, Transform, { ...t, rotation: { ...base.rotation } });
         }
     }
     bases.clear();
 }
 
-function applyLights(world: World, state: WeatherState, drive: number): void {
+/** The rotation that turns a thing facing -Z (a light) to face `f`: a turn about Y, then one about X. */
+function aimQuaternion(f: [number, number, number]): { x: number; y: number; z: number; w: number } {
+    const len = Math.hypot(f[0], f[1], f[2]) || 1;
+    const yaw = Math.atan2(-f[0], -f[2]);
+    const pitch = Math.asin(Math.min(Math.max(f[1] / len, -1), 1));
+    const qy = { w: Math.cos(yaw / 2), x: 0, y: Math.sin(yaw / 2), z: 0 };
+    const qx = { w: Math.cos(pitch / 2), x: Math.sin(pitch / 2), y: 0, z: 0 };
+    return {
+        w: qy.w * qx.w - qy.x * qx.x - qy.y * qx.y - qy.z * qx.z,
+        x: qy.w * qx.x + qy.x * qx.w + qy.y * qx.z - qy.z * qx.y,
+        y: qy.w * qx.y - qy.x * qx.z + qy.y * qx.w + qy.z * qx.x,
+        z: qy.w * qx.z + qy.x * qx.y - qy.y * qx.x + qy.z * qx.w,
+    };
+}
+
+/**
+ * Whether the scene's key light already shines the way the clock says: the case in the editor when something other than the
+ * clock (a script, a hand) has set the lights to the hour, and the effects that follow the sun should follow that light.
+ */
+function keyLightAgrees(world: World, time: TimeOfDayState): boolean {
     for (const entity of world.getEntitiesWithComponents([Light])) {
+        const data = world.get(entity, Light) as LightData;
+        if (data.type !== LIGHT_DIRECTIONAL || !(data.followEnvironmentSun || data.meshShadows) || !world.has(entity, Transform)) continue;
+        const q = (world.get(entity, Transform) as TransformData).rotation;
+        const f: [number, number, number] = [-2 * (q.x * q.z + q.w * q.y), -2 * (q.y * q.z - q.w * q.x), -(1 - 2 * (q.x * q.x + q.y * q.y))];
+        const l = time.lightDir;
+        return -(f[0] * l[0] + f[1] * l[1] + f[2] * l[2]) > 0.9985;
+    }
+    return false;
+}
+
+/** What is scaling the lights this frame: a weather, a time of day, either, both. */
+interface Rig {
+    weather: WeatherState | null;
+    weatherDrive: number;
+    time: TimeOfDayState | null;
+    timeDrive: number;
+}
+
+function applyLights(world: World, rig: Rig): void {
+    const { weather, time } = rig;
+    const lightsByWeather = !!weather && (rig.weatherDrive & WeatherDrive.Lights) !== 0;
+    const reflectionsByWeather = !!weather && (rig.weatherDrive & WeatherDrive.Reflections) !== 0;
+    const lightsByTime = !!time && (rig.timeDrive & TimeDrive.Lights) !== 0;
+    const reflectionsByTime = !!time && (rig.timeDrive & TimeDrive.Reflections) !== 0;
+
+    const lights = world.getEntitiesWithComponents([Light]);
+    // The sun of the scene, for the clock to aim: the lights that follow a panorama's sun or cast shadows, else the first directional.
+    const suns = new Set<Entity>();
+    let firstDirectional: Entity | null = null;
+    for (const entity of lights) {
+        const data = world.get(entity, Light) as LightData;
+        if (data.type !== LIGHT_DIRECTIONAL) continue;
+        if (firstDirectional === null) firstDirectional = entity;
+        if (data.followEnvironmentSun || data.meshShadows) suns.add(entity);
+    }
+    if (suns.size === 0 && firstDirectional !== null) suns.add(firstDirectional);
+
+    for (const entity of lights) {
         const data = world.get(entity, Light) as LightData;
         if (data.type !== LIGHT_DIRECTIONAL && data.type !== LIGHT_AMBIENT) continue;
         let base = bases.get(entity);
@@ -68,33 +139,58 @@ function applyLights(world: World, state: WeatherState, drive: number): void {
                 intensity: data.intensity, color: { ...data.color },
                 reflectionScale: data.reflectionScale ?? 1, reflectionSaturation: data.reflectionSaturation ?? 1,
                 sourceAngle: data.sourceAngle ?? 0, shadowStrength: data.shadowStrength ?? 1,
-                applied: Number.NaN,
+                aimFollowedSun: data.aimFollowedSun ?? false,
+                bakedTint: { ...(data.bakedTint ?? { r: 1, g: 1, b: 1, a: 1 }) }, rotation: null,
+                applied: '',
             };
             bases.set(entity, base);
         }
         const sun = data.type === LIGHT_DIRECTIONAL;
-        const lights = (drive & WeatherDrive.Lights) !== 0;
-        const reflections = (drive & WeatherDrive.Reflections) !== 0 && !sun;
-        const scale = lights ? (sun ? state.sun : state.sky) : 1;
+        const wScale = lightsByWeather ? (sun ? weather!.sun : weather!.sky) : 1;
+        const tScale = lightsByTime ? (sun ? time!.light : time!.sky) : 1;
+        const wTint: [number, number, number] = lightsByWeather && sun ? weather!.sunTint : [1, 1, 1];
+        const tTint: [number, number, number] = lightsByTime ? (sun ? time!.lightTint : time!.skyTint) : [1, 1, 1];
+        const reflections = !sun && (reflectionsByWeather || reflectionsByTime);
+        const refl = (reflectionsByWeather ? weather!.reflection : 1) * (reflectionsByTime ? time!.reflection : 1);
+        const reflSat = (reflectionsByWeather ? weather!.reflectionSaturation : 1) * (reflectionsByTime ? time!.reflectionSaturation : 1);
+        const aimed = lightsByTime && sun && suns.has(entity);
+        // A bake holds one moment's light, so the ambient light's scale and tint are laid over it too.
+        const bake = !sun && (lightsByWeather || lightsByTime);
         // The key is what the light would be told: nothing is written for a frame that would say the same again.
-        const key = scale + (lights && sun ? state.sunTint[0] * 7 + state.sunTint[1] * 13 + state.sunTint[2] * 29 : 0)
-            + (reflections ? state.reflection * 101 + state.reflectionSaturation * 211 : 0)
-            + (lights && sun ? state.shadowSoftness * 307 + state.shadowStrength * 401 : 0);
+        const key = [
+            wScale, tScale, wTint[0], wTint[1], wTint[2], tTint[0], tTint[1], tTint[2], reflections ? refl : 0, reflections ? reflSat : 0,
+            lightsByWeather && sun ? weather!.shadowSoftness : 0, lightsByWeather && sun ? weather!.shadowStrength : 0,
+            bake ? 1 : 0, aimed ? time!.lightDir[0] : 0, aimed ? time!.lightDir[1] : 0, aimed ? time!.lightDir[2] : 0,
+        ].map((v) => v.toFixed(5)).join(',');
         if (base.applied === key) continue;
         base.applied = key;
-        const color = lights && sun
-            ? { r: base.color.r * state.sunTint[0], g: base.color.g * state.sunTint[1], b: base.color.b * state.sunTint[2], a: base.color.a }
-            : { ...base.color };
+        const color = {
+            r: base.color.r * wTint[0] * tTint[0], g: base.color.g * wTint[1] * tTint[1], b: base.color.b * wTint[2] * tTint[2], a: base.color.a,
+        };
         // A sun's width in the sky is 0.53 degrees: softer shadows are a wider source, and a hard-edged light (0) gains the
         // difference too, so the setting always means something.
-        const widen = lights && sun ? Math.max(state.shadowSoftness - 1, 0) * 0.53 : 0;
+        const widen = lightsByWeather && sun ? Math.max(weather!.shadowSoftness - 1, 0) * 0.53 : 0;
         world.set(entity, Light, {
-            ...data, intensity: base.intensity * scale, color,
+            ...data, intensity: base.intensity * wScale * tScale, color,
             sourceAngle: base.sourceAngle + widen,
-            shadowStrength: lights && sun ? Math.min(base.shadowStrength * state.shadowStrength, 1) : base.shadowStrength,
-            reflectionScale: reflections ? base.reflectionScale * state.reflection : base.reflectionScale,
-            reflectionSaturation: reflections ? base.reflectionSaturation * state.reflectionSaturation : base.reflectionSaturation,
+            shadowStrength: lightsByWeather && sun ? Math.min(base.shadowStrength * weather!.shadowStrength, 1) : base.shadowStrength,
+            reflectionScale: reflections ? base.reflectionScale * refl : base.reflectionScale,
+            reflectionSaturation: reflections ? base.reflectionSaturation * reflSat : base.reflectionSaturation,
+            aimFollowedSun: aimed ? true : base.aimFollowedSun,
+            bakedTint: bake
+                ? { r: base.bakedTint.r * wScale * tScale * tTint[0], g: base.bakedTint.g * wScale * tScale * tTint[1], b: base.bakedTint.b * wScale * tScale * tTint[2], a: 1 }
+                : { ...base.bakedTint },
         });
+        if (aimed && world.has(entity, Transform)) {
+            const t = world.get(entity, Transform) as TransformData;
+            if (!base.rotation) base.rotation = { ...t.rotation };
+            const l = time!.lightDir;
+            world.set(entity, Transform, { ...t, rotation: aimQuaternion([-l[0], -l[1], -l[2]]) });
+        } else if (!aimed && base.rotation && world.has(entity, Transform)) {
+            const t = world.get(entity, Transform) as TransformData;
+            world.set(entity, Transform, { ...t, rotation: { ...base.rotation } });
+            base.rotation = null;
+        }
     }
 }
 
@@ -163,28 +259,52 @@ function advance(entity: Entity, data: WeatherData, dt: number): void {
 }
 
 export const weatherSystem = defineSystem(
-    [Query(Mut(Weather)), Res(Time), GetWorld()],
-    (weathers: Iterable<[Entity, WeatherData]>, time: TimeData, world: World) => {
+    [Query(Mut(Weather)), Query(Mut(TimeOfDay)), Res(Time), GetWorld()],
+    (weathers: Iterable<[Entity, WeatherData]>, times: Iterable<[Entity, TimeOfDayData]>, time: TimeData, world: World) => {
         let found: [Entity, WeatherData] | null = null;
         for (const entry of weathers) { found = entry; break; }
-        if (!found) {
+        let clock: [Entity, TimeOfDayData] | null = null;
+        for (const entry of times) { clock = entry; break; }
+        if (!found && !clock) {
             if (bases.size > 0) restoreLights(world);
             if (soundBases.size > 0) restoreSound(world);
             cycles.clear();
             setCurrentWeather(null);
+            setCurrentTimeOfDay(null);
             return;
         }
-        const [entity, data] = found;
         const playing = !isEditor() || isPlayMode();
-        if (playing) advance(entity, data, time.delta);
 
-        const state = blendWeather(data.preset, data.target, data.progress);
-        setCurrentWeather(state, data.drive);
+        let weatherState: WeatherState | null = null;
+        let weatherDrive = 0;
+        if (found) {
+            const [entity, data] = found;
+            if (playing) advance(entity, data, time.delta);
+            weatherState = blendWeather(data.preset, data.target, data.progress);
+            weatherDrive = data.drive;
+            setCurrentWeather(weatherState, data.drive);
+        } else {
+            setCurrentWeather(null);
+        }
 
-        if (playing && (data.drive & (WeatherDrive.Lights | WeatherDrive.Reflections))) applyLights(world, state, data.drive);
+        let timeState: TimeOfDayState | null = null;
+        let timeDrive = 0;
+        if (clock) {
+            const data = clock[1];
+            if (playing && data.daySeconds > 0) data.hour = (data.hour + time.delta * 24 / data.daySeconds) % 24;
+            timeState = timeOfDayAt(data.hour, data.latitude, data.declination, data.north);
+            timeDrive = data.drive;
+            setCurrentTimeOfDay(timeState, data.drive, (playing && (data.drive & TimeDrive.Lights) !== 0) || (!playing && keyLightAgrees(world, timeState)));
+        } else {
+            setCurrentTimeOfDay(null);
+        }
+
+        const lightWork = (weatherState !== null && (weatherDrive & (WeatherDrive.Lights | WeatherDrive.Reflections)) !== 0)
+            || (timeState !== null && (timeDrive & (TimeDrive.Lights | TimeDrive.Reflections)) !== 0);
+        if (playing && lightWork) applyLights(world, { weather: weatherState, weatherDrive, time: timeState, timeDrive });
         else if (bases.size > 0) restoreLights(world);
 
-        if (playing && (data.drive & WeatherDrive.Sound) && data.soundSource) applySound(world, data.soundSource, state);
+        if (found && playing && (found[1].drive & WeatherDrive.Sound) && found[1].soundSource) applySound(world, found[1].soundSource, weatherState!);
         else if (soundBases.size > 0) restoreSound(world);
     },
     { name: 'WeatherSystem' }
@@ -196,4 +316,5 @@ export function resetWeatherSystem(): void {
     soundBases.clear();
     cycles.clear();
     setCurrentWeather(null);
+    setCurrentTimeOfDay(null);
 }

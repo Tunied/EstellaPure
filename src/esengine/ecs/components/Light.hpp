@@ -168,6 +168,15 @@ struct Light {
                 tooltip="Take direction and strength from the environment's sun, and light the sky without it.")
     bool followEnvironmentSun{false};
 
+    /** @brief With @ref followEnvironmentSun, aim this light by its own Transform instead of
+     *         by where the panorama's sun is. The panorama still gives the light its colour
+     *         and strength and still loses its sun in the lighting; only the direction is
+     *         the scene's. What a time of day needs: a sun that crosses the sky over a
+     *         panorama that was photographed with it in one place. */
+    ES_PROPERTY(shown_when=type:Directional, advanced,
+                tooltip="With Follow Environment Sun: aim by this light's Transform, not by the panorama.")
+    bool aimFollowedSun{false};
+
     /** @brief What this Ambient light IS, when it is more than one colour: a baked
      *         panorama's irradiance and reflection. Without one the light stays the
      *         flat term it has always been — the same lighting, at order zero.
@@ -206,6 +215,15 @@ struct Light {
     ES_PROPERTY(min=0, max=1, shown_when=type:Ambient, advanced,
                 tooltip="How much colour baked reflection probes keep (0 = grey).")
     f32 reflectionSaturation{1.0f};
+
+    /** @brief What baked INDIRECT light (a lightmap, a probe volume) is multiplied by. A bake
+     *         holds the light of one moment, and a lightmapped surface takes all of its
+     *         indirect light from it, so a scene that moves through a day or a weather scales
+     *         and tints the bake here — the way it scales this light. 1 = as baked. Read from
+     *         the frame's Ambient light. */
+    ES_PROPERTY(shown_when=type:Ambient, advanced,
+                tooltip="Multiply baked indirect light (lightmaps, probe volumes) by this colour (1 = as baked).")
+    glm::vec4 bakedTint{1.0f, 1.0f, 1.0f, 1.0f};
 
     /** @brief Disabled lights are skipped during collection. */
     ES_PROPERTY()

@@ -2104,6 +2104,13 @@
           "doc": "Take direction and strength from the environment's sun, and light the sky without it."
         },
         {
+          "key": "aimFollowedSun",
+          "type": "boolean",
+          "default": "false",
+          "doc": "With Follow Environment Sun: aim by this light's Transform, not by the panorama.",
+          "advanced": true
+        },
+        {
           "key": "environment",
           "type": "Asset<environment>",
           "default": "none",
@@ -2135,6 +2142,13 @@
           "default": "1",
           "doc": "How much colour baked reflection probes keep (0 = grey).",
           "range": "0–1",
+          "advanced": true
+        },
+        {
+          "key": "bakedTint",
+          "type": "Color",
+          "default": "#ffffff",
+          "doc": "Multiply baked indirect light (lightmaps, probe volumes) by this colour (1 = as baked).",
           "advanced": true
         },
         {
@@ -5466,6 +5480,55 @@
         "tintColor.b",
         "tintColor.a",
         "opacity"
+      ]
+    },
+    {
+      "name": "TimeOfDay",
+      "source": "ts",
+      "fields": [
+        {
+          "key": "hour",
+          "type": "number",
+          "default": "12",
+          "range": "0–24, step 0.05"
+        },
+        {
+          "key": "daySeconds",
+          "type": "number",
+          "default": "0",
+          "range": "0–86400, step 1"
+        },
+        {
+          "key": "latitude",
+          "type": "number",
+          "default": "40",
+          "range": "-90–90, step 1"
+        },
+        {
+          "key": "declination",
+          "type": "number",
+          "default": "15",
+          "range": "-23.5–23.5, step 0.5"
+        },
+        {
+          "key": "north",
+          "type": "number",
+          "default": "0",
+          "range": "-180–180, step 1"
+        },
+        {
+          "key": "drive",
+          "type": "number",
+          "default": "31"
+        }
+      ],
+      "animatable": [
+        "hour",
+        "daySeconds",
+        "latitude",
+        "declination",
+        "north",
+        "drive"
       ]
     },
     {

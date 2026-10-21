@@ -52,6 +52,8 @@ export interface WeatherState {
      *  whatever sky the scene had then. */
     reflection: number;
     reflectionSaturation: number;
+    /** How overcast the sky is, 0 clear .. 1 grey: what Sky Atmosphere draws no sun, moon or stars through. */
+    overcast: number;
     /** How loud the rain on the soundtrack is, 0..2. */
     sound: number;
 }
@@ -63,7 +65,7 @@ const NEUTRAL: WeatherState = {
     fogDensity: 1, fogTint: [0.7, 0.72, 0.76], fogTintAmount: 0, fogGlow: 1, skyFog: 1,
     saturation: 1, contrast: 1, exposure: 0,
     rain: 0, wetness: 0, puddles: 0, ssr: 1,
-    reflection: 1, reflectionSaturation: 1, sound: 0,
+    reflection: 1, reflectionSaturation: 1, overcast: 0, sound: 0,
 };
 
 /** The presets every project has. Their ids are the dropdown's values, so they only ever grow. */
@@ -96,22 +98,22 @@ define(WEATHER_CLEAR, 'clear', {});
 define(WEATHER_MIST, 'mist', {
     sun: 0.45, sky: 0.9, shadowSoftness: 3, shadowStrength: 0.8, fogDensity: 8, fogTint: [0.86, 0.86, 0.84], fogTintAmount: 0.7, fogGlow: 1.8, skyFog: 1.7,
     saturation: 0.86, contrast: 0.94, exposure: 0.2, wetness: 0.2, puddles: 0.1, ssr: 1.3, reflection: 0.85,
-    reflectionSaturation: 0.9,
+    reflectionSaturation: 0.9, overcast: 0.55,
 });
 define(WEATHER_OVERCAST, 'overcast', {
     sun: 0.25, sky: 0.85, sunTint: [0.9, 0.93, 1], shadowSoftness: 8, shadowStrength: 0.5, fogDensity: 3, fogTint: [0.62, 0.66, 0.72], fogTintAmount: 0.5,
     fogGlow: 0.3, skyFog: 1.4, saturation: 0.85, contrast: 0.96, exposure: 0.25, wetness: 0.1, ssr: 1.2,
-    reflection: 0.7, reflectionSaturation: 0.7,
+    reflection: 0.7, reflectionSaturation: 0.7, overcast: 0.95,
 });
 define(WEATHER_RAIN, 'rain', {
     sun: 0.04, sky: 0.75, sunTint: [0.8, 0.86, 1], shadowSoftness: 10, shadowStrength: 0.3, fogDensity: 5.5, fogTint: [0.58, 0.63, 0.7], fogTintAmount: 0.8,
     fogGlow: 0, skyFog: 1.7, saturation: 0.73, contrast: 0.93, exposure: 0.45, rain: 1.1, wetness: 1, puddles: 0.6,
-    ssr: 2.6, reflection: 0.55, reflectionSaturation: 0.5, sound: 1,
+    ssr: 2.6, reflection: 0.55, reflectionSaturation: 0.5, overcast: 0.9, sound: 1,
 });
 define(WEATHER_STORM, 'storm', {
     sun: 0.02, sky: 0.5, sunTint: [0.7, 0.78, 1], shadowSoftness: 10, shadowStrength: 0.2, fogDensity: 8, fogTint: [0.4, 0.44, 0.5], fogTintAmount: 0.9,
     fogGlow: 0, skyFog: 1.8, saturation: 0.6, contrast: 0.9, exposure: 0.8, rain: 2.2, wetness: 1, puddles: 1,
-    ssr: 3, reflection: 0.4, reflectionSaturation: 0.35, sound: 1.6,
+    ssr: 3, reflection: 0.4, reflectionSaturation: 0.35, overcast: 1, sound: 1.6,
 });
 
 /**
@@ -236,6 +238,10 @@ export function applyWeatherToEffects(effects: Map<string, BlendedEffect>, state
                 ?? getEffectDef('heightFog')?.colors?.find((c) => c.name === 'u_fogColor')?.defaultValue;
             if (colour && state.fogTintAmount > 0) fog.colors.set('u_fogColor', towards(colour, state.fogTint, state.fogTintAmount));
         }
+    }
+    if (drive & WeatherDrive.Fog) {
+        const sky = effects.get('skyAtmosphere');
+        if (sky && sky.enabled) sky.uniforms.set('u_overcast', Math.max(value(sky, 'skyAtmosphere', 'u_overcast'), state.overcast));
     }
     if (drive & WeatherDrive.Rain) {
         if (state.rain > 0.001 || state.wetness > 0.001) {

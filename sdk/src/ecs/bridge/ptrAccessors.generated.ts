@@ -815,11 +815,13 @@ export interface LightPtrData {
     meshShadows: boolean;
     shadowExtent: number;
     followEnvironmentSun: boolean;
+    aimFollowedSun: boolean;
     environment: number;
     environmentRotation: number;
     drawEnvironment: boolean;
     reflectionScale: number;
     reflectionSaturation: number;
+    bakedTint: Color;
     enabled: boolean;
 }
 
@@ -844,12 +846,14 @@ export function fillLight(
     out.meshShadows = u8[ptr + 72] !== 0;
     out.shadowExtent = f32[(ptr + 76) >> 2];
     out.followEnvironmentSun = u8[ptr + 80] !== 0;
+    out.aimFollowedSun = u8[ptr + 81] !== 0;
     out.environment = u32[(ptr + 84) >> 2];
     out.environmentRotation = f32[(ptr + 88) >> 2];
     out.drawEnvironment = u8[ptr + 92] !== 0;
     out.reflectionScale = f32[(ptr + 96) >> 2];
     out.reflectionSaturation = f32[(ptr + 100) >> 2];
-    out.enabled = u8[ptr + 104] !== 0;
+    const bakedTint_ = out.bakedTint; bakedTint_.r = f32[(ptr + 104) >> 2]; bakedTint_.g = f32[((ptr + 104) >> 2) + 1]; bakedTint_.b = f32[((ptr + 104) >> 2) + 2]; bakedTint_.a = f32[((ptr + 104) >> 2) + 3];
+    out.enabled = u8[ptr + 120] !== 0;
 }
 
 export function writeLight(
@@ -873,12 +877,14 @@ export function writeLight(
     u8[ptr + 72] = data.meshShadows ? 1 : 0;
     f32[(ptr + 76) >> 2] = data.shadowExtent;
     u8[ptr + 80] = data.followEnvironmentSun ? 1 : 0;
+    u8[ptr + 81] = data.aimFollowedSun ? 1 : 0;
     u32[(ptr + 84) >> 2] = data.environment;
     f32[(ptr + 88) >> 2] = data.environmentRotation;
     u8[ptr + 92] = data.drawEnvironment ? 1 : 0;
     f32[(ptr + 96) >> 2] = data.reflectionScale;
     f32[(ptr + 100) >> 2] = data.reflectionSaturation;
-    u8[ptr + 104] = data.enabled ? 1 : 0;
+    f32[(ptr + 104) >> 2] = data.bakedTint.r; f32[((ptr + 104) >> 2) + 1] = data.bakedTint.g; f32[((ptr + 104) >> 2) + 2] = data.bakedTint.b; f32[((ptr + 104) >> 2) + 3] = data.bakedTint.a;
+    u8[ptr + 120] = data.enabled ? 1 : 0;
 }
 
 export function createLightData(): LightPtrData {
@@ -900,11 +906,13 @@ export function createLightData(): LightPtrData {
         meshShadows: false,
         shadowExtent: 0,
         followEnvironmentSun: false,
+        aimFollowedSun: false,
         environment: 0,
         environmentRotation: 0,
         drawEnvironment: false,
         reflectionScale: 0,
         reflectionSaturation: 0,
+        bakedTint: { r: 0, g: 0, b: 0, a: 0 },
         enabled: false,
     };
 }

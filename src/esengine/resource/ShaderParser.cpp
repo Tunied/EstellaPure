@@ -1137,6 +1137,7 @@ struct LightConstants {
     u_envTint : vec4f,
     u_reflParams : vec4f,
     u_reflBox : array<vec4f, 30>,
+    u_bakedTint : vec4f,
 };
 @group(0) @binding(2) var<uniform> lc : LightConstants;
 fn unpackDepth(c : vec3f) -> f32 {
@@ -1198,6 +1199,7 @@ struct LightConstants {
     u_envTint : vec4f,
     u_reflParams : vec4f,
     u_reflBox : array<vec4f, 30>,
+    u_bakedTint : vec4f,
 };
 @group(0) @binding(2) var<uniform> lc : LightConstants;
 struct ProbeConstants { u_probeIrradiance : array<vec4f, 1000>, u_probeTail : vec4f };
@@ -1478,13 +1480,13 @@ fn bakedIrradiance() -> vec3f {
 #endif
 fn indirectIrradiance(N : vec3f) -> vec3f {
 #ifdef MESH_LIGHTMAP
-    if (g_lightmap.z > 0.5) { return bakedIrradiance(); }
+    if (g_lightmap.z > 0.5) { return bakedIrradiance() * lc.u_bakedTint.rgb; }
 #endif
     let base = clamp(i32(g_probeSlot), 0, 99) * 10;
     if (pc.u_probeIrradiance[base].w > 0.5) {
         var sh : array<vec4f, 9>;
         for (var i = 0; i < 9; i = i + 1) { sh[i] = pc.u_probeIrradiance[base + i]; }
-        return max(shIrradiance(sh, N), vec3f(0.0));
+        return max(shIrradiance(sh, N), vec3f(0.0)) * lc.u_bakedTint.rgb;
     }
     return envIrradiance(N);
 }
@@ -2069,6 +2071,7 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "    highp vec4 u_envTint;\n"         // the ambient light's colour, scaling both halves
             "    highp vec4 u_reflParams;\n"      // x = columns in the bound atlas (1 = sky only)
             "    highp vec4 u_reflBox[30];\n"     // [2i] = column i+1's world min, [2i+1] its max
+            "    highp vec4 u_bakedTint;\n"      // what baked indirect light is multiplied by
             "};\n"
             // One run of nine per INSTANCE, not one for the draw: a merged draw
             // holds objects standing in many places. The flag in w tells "no
@@ -2383,13 +2386,13 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             // it holds every light and bounce that reached this very point.
             "highp vec3 indirectIrradiance(in highp vec3 N) {\n"
             "#ifdef MESH_LIGHTMAP\n"
-            "    if (v_lightmap.z > 0.5) return bakedIrradiance();\n"
+            "    if (v_lightmap.z > 0.5) return bakedIrradiance() * u_bakedTint.rgb;\n"
             "#endif\n"
             "    highp int base = probeRun();\n"
             "    if (u_probeIrradiance[base].w > 0.5) {\n"
             "        highp vec4 sh[9];\n"
             "        for (int i = 0; i < 9; i++) sh[i] = u_probeIrradiance[base + i];\n"
-            "        return max(shIrradiance(sh, N), vec3(0.0));\n"
+            "        return max(shIrradiance(sh, N), vec3(0.0)) * u_bakedTint.rgb;\n"
             "    }\n"
             "    return envIrradiance(N);\n"
             "}\n"
@@ -2670,6 +2673,7 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "    highp vec4 u_envTint;\n"
             "    highp vec4 u_reflParams;\n"
             "    highp vec4 u_reflBox[30];\n"
+            "    highp vec4 u_bakedTint;\n"
             "};\n"
             "uniform highp sampler2D u_shadowMap;\n"
             "highp float unpackDepth(in highp vec3 c) {\n"

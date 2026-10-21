@@ -1507,6 +1507,236 @@ fn depthAt(texel : vec2i, size : vec2i) -> f32 {
     },
 
     /**
+     * A sky that has a time of day: the gradient of the dome, the sun and its halo, the glow of dusk, a moon, and stars.
+     *
+     * Drawn only where there is no surface (the depth buffer is at its far plane), so it replaces the panorama behind the
+     * scene and leaves everything in front of it alone. The dome is two colours — zenith and horizon — for the day and two
+     * for the night, mixed by how high the sun stands; near the horizon a warm glow gathers toward the sun's side of the
+     * sky. The sun is a disc with a halo, the moon a disc standing opposite it (high when the sun is far below the
+     * horizon), and the stars are points hashed from the view direction, so they hold still as the camera turns. An
+     * overcast sky greys the dome and hides all three.
+     *
+     * Where the sun is comes from the scene's own directional light, or — when the effect is told not to follow it — from two
+     * angles, which is what a TimeOfDay component writes. The effect is a sky and not a lighting model: what lights the
+     * scene is the lights, and `TimeOfDay` moves those too.
+     */
+    createSkyAtmosphere(): ShaderHandle {
+        const source = `#pragma shader "PP Sky Atmosphere"
+#pragma version 300 es
+#pragma domain PostProcess
+#pragma param u_intensity float default(1) range(0,8)
+#pragma param u_panorama float default(0) range(0,1)
+#pragma param u_overcast float default(0) range(0,1)
+#pragma param u_sunSize float default(1) range(0.2,8)
+#pragma param u_sunBrightness float default(40) range(0,400)
+#pragma param u_moon float default(1) range(0,4)
+#pragma param u_stars float default(1) range(0,4)
+#pragma param u_twilight float default(1) range(0,2)
+#pragma param u_followSun float default(1) range(0,1)
+#pragma param u_sunAzimuth float default(40) range(0,360)
+#pragma param u_sunElevation float default(35) range(-90,90)
+#pragma lights
+
+#pragma fragment
+precision highp float;
+
+in vec2 v_texCoord;
+uniform sampler2D u_texture;
+uniform highp sampler2D u_sceneDepth;
+out vec4 fragColor;
+
+float hash13(vec3 p) {
+    p = fract(p * 0.1031);
+    p += dot(p, p.zyx + 31.32);
+    return fract((p.x + p.y) * p.z);
+}
+
+vec3 lin(vec3 c) {
+#ifdef ES_LINEAR
+    return srgbToLinear(c);
+#else
+    return c;
+#endif
+}
+
+void main() {
+    vec4 src = texture(u_texture, v_texCoord);
+    ivec2 size = textureSize(u_sceneDepth, 0);
+    float depth = texelFetch(u_sceneDepth, clamp(ivec2(v_texCoord * vec2(size)), ivec2(0), size - ivec2(1)), 0).r;
+    if (depth < 1.0) { fragColor = src; return; }
+
+    vec3 entry = worldFromDepth(v_texCoord, 0.0);
+    vec3 dir = normalize(worldFromDepth(v_texCoord, 1.0) - entry);
+
+    vec4 lightDir, lightColor;
+    ivec2 tiles;
+    findSun(lightDir, lightColor, tiles);
+    bool follow = u_followSun > 0.5 && lightDir.w > 0.5;
+    float az = radians(u_sunAzimuth);
+    float el = radians(u_sunElevation);
+    vec3 sun = follow ? lightDir.xyz : vec3(cos(el) * sin(az), sin(el), cos(el) * cos(az));
+    float se = sun.y;
+
+    float day = smoothstep(-0.10, 0.25, se);
+    float twi = exp(-se * se * 70.0);
+    float up = max(dir.y, 0.0);
+    float haze = pow(1.0 - up, 3.0);
+
+    vec3 dayCol = mix(lin(vec3(0.12, 0.30, 0.72)), lin(vec3(0.60, 0.74, 0.92)), haze) * 2.0 * u_intensity;
+    vec3 nightCol = mix(lin(vec3(0.003, 0.006, 0.02)), lin(vec3(0.016, 0.024, 0.06)), haze);
+    vec3 col = mix(nightCol, dayCol, day);
+
+    // The glow of dusk and dawn: low in the sky, and thickest on the sun's side of it.
+    vec2 flatDir = dir.xz / max(length(dir.xz), 1e-4);
+    vec2 flatSun = sun.xz / max(length(sun.xz), 1e-4);
+    float side = max(dot(flatDir, flatSun), 0.0);
+    col += lin(vec3(1.0, 0.42, 0.16)) * (twi * haze * (0.25 + 0.75 * side * side) * 1.6 * u_twilight);
+
+    float overcast = clamp(u_overcast, 0.0, 1.0);
+    float clear = 1.0 - overcast;
+
+    // The sun: a disc, a tight halo and a wide one, warm near the horizon and white above.
+    float cosd = dot(dir, sun);
+    float sunR = radians(0.265 * u_sunSize);
+    float disc = smoothstep(cos(sunR * 1.15), cos(sunR * 0.85), cosd);
+    float halo = pow(max(cosd, 0.0), 16.0) * 0.25 + pow(max(cosd, 0.0), 256.0);
+    vec3 sunCol = mix(lin(vec3(1.0, 0.55, 0.25)), lin(vec3(1.0, 0.96, 0.88)), smoothstep(0.0, 0.35, se));
+    float above = smoothstep(-0.02, 0.02, dir.y) * smoothstep(-0.05, 0.0, se);
+    col += sunCol * (disc * u_sunBrightness * clear + halo * (0.4 + 0.6 * clear)) * above;
+
+    // The moon stands opposite the sun and a little above where it would be, so it is up when the sun is well down.
+    float sAz = atan(sun.x, sun.z);
+    float sEl = asin(clamp(sun.y, -1.0, 1.0));
+    float mEl = -sEl * 0.85 + radians(12.0);
+    float mAz = sAz + 3.14159265;
+    vec3 moon = vec3(cos(mEl) * sin(mAz), sin(mEl), cos(mEl) * cos(mAz));
+    float md = dot(dir, moon);
+    float moonR = radians(0.26 * 2.5);
+    float moonDisc = smoothstep(cos(moonR * 1.1), cos(moonR * 0.9), md);
+    float moonGlow = pow(max(md, 0.0), 300.0) * 0.5 + pow(max(md, 0.0), 24.0) * 0.03;
+    float night = 1.0 - day;
+    col += lin(vec3(0.80, 0.88, 1.0)) * ((moonDisc * 3.0 + moonGlow) * u_moon * night * clear * smoothstep(-0.02, 0.04, dir.y));
+
+    // Stars: a point in some of the cells of a lattice over the sphere, brighter and more coloured at random.
+    if (night > 0.02 && dir.y > 0.0 && u_stars > 0.0) {
+        vec3 p = dir * 180.0;
+        vec3 id = floor(p);
+        vec3 fr = p - id;
+        float h = hash13(id);
+        if (h > 0.965) {
+            vec3 c = vec3(hash13(id + 7.1), hash13(id + 13.3), hash13(id + 3.7)) * 0.6 + 0.2;
+            float spot = smoothstep(0.22, 0.02, length(fr - c));
+            float bright = (0.4 + hash13(id + 1.7) * 1.6) * (h > 0.995 ? 3.0 : 1.0);
+            vec3 tint = mix(lin(vec3(1.0, 0.85, 0.7)), lin(vec3(0.7, 0.8, 1.0)), hash13(id + 5.3));
+            float seen = night * night * clear * smoothstep(0.0, 0.15, dir.y) * (1.0 - 0.9 * smoothstep(0.97, 0.999, md));
+            col += tint * (spot * bright * 2.5 * u_stars * seen);
+        }
+    }
+
+    // An overcast sky is grey and a little darker than the one above it.
+    float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
+    col = mix(col, vec3(luma) * 0.85, overcast * 0.85) * (1.0 - 0.3 * overcast);
+
+    fragColor = vec4(mix(col, src.rgb, clamp(u_panorama, 0.0, 1.0)), src.a);
+}
+#pragma end
+
+#pragma fragment wgsl
+fn hash13(p0 : vec3f) -> f32 {
+    var p = fract(p0 * 0.1031);
+    p = p + dot(p, p.zyx + 31.32);
+    return fract((p.x + p.y) * p.z);
+}
+
+fn lin(c : vec3f) -> vec3f {
+#ifdef ES_LINEAR
+    return srgbToLinear(c);
+#else
+    return c;
+#endif
+}
+
+@fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
+    let src = textureSampleLevel(t0, s0, v.v_texCoord, 0.0);
+    let size = vec2i(textureDimensions(t7, 0));
+    let depth = textureLoad(t7, clamp(vec2i(v.v_texCoord * vec2f(size)), vec2i(0), size - vec2i(1)), 0);
+    if (depth < 1.0) { return src; }
+
+    let entry = worldFromDepth(v.v_texCoord, 0.0);
+    let dir = normalize(worldFromDepth(v.v_texCoord, 1.0) - entry);
+
+    let found = findSun();
+    let follow = mc.u_followSun > 0.5 && found.dir.w > 0.5;
+    let az = radians(mc.u_sunAzimuth);
+    let el = radians(mc.u_sunElevation);
+    var sun = vec3f(cos(el) * sin(az), sin(el), cos(el) * cos(az));
+    if (follow) { sun = found.dir.xyz; }
+    let se = sun.y;
+
+    let day = smoothstep(-0.10, 0.25, se);
+    let twi = exp(-se * se * 70.0);
+    let up = max(dir.y, 0.0);
+    let haze = pow(1.0 - up, 3.0);
+
+    let dayCol = mix(lin(vec3f(0.12, 0.30, 0.72)), lin(vec3f(0.60, 0.74, 0.92)), haze) * 2.0 * mc.u_intensity;
+    let nightCol = mix(lin(vec3f(0.003, 0.006, 0.02)), lin(vec3f(0.016, 0.024, 0.06)), haze);
+    var col = mix(nightCol, dayCol, day);
+
+    let flatDir = dir.xz / max(length(dir.xz), 1e-4);
+    let flatSun = sun.xz / max(length(sun.xz), 1e-4);
+    let side = max(dot(flatDir, flatSun), 0.0);
+    col = col + lin(vec3f(1.0, 0.42, 0.16)) * (twi * haze * (0.25 + 0.75 * side * side) * 1.6 * mc.u_twilight);
+
+    let overcast = clamp(mc.u_overcast, 0.0, 1.0);
+    let clear = 1.0 - overcast;
+
+    let cosd = dot(dir, sun);
+    let sunR = radians(0.265 * mc.u_sunSize);
+    let disc = smoothstep(cos(sunR * 1.15), cos(sunR * 0.85), cosd);
+    let halo = pow(max(cosd, 0.0), 16.0) * 0.25 + pow(max(cosd, 0.0), 256.0);
+    let sunCol = mix(lin(vec3f(1.0, 0.55, 0.25)), lin(vec3f(1.0, 0.96, 0.88)), smoothstep(0.0, 0.35, se));
+    let above = smoothstep(-0.02, 0.02, dir.y) * smoothstep(-0.05, 0.0, se);
+    col = col + sunCol * (disc * mc.u_sunBrightness * clear + halo * (0.4 + 0.6 * clear)) * above;
+
+    let sAz = atan2(sun.x, sun.z);
+    let sEl = asin(clamp(sun.y, -1.0, 1.0));
+    let mEl = -sEl * 0.85 + radians(12.0);
+    let mAz = sAz + 3.14159265;
+    let moon = vec3f(cos(mEl) * sin(mAz), sin(mEl), cos(mEl) * cos(mAz));
+    let md = dot(dir, moon);
+    let moonR = radians(0.26 * 2.5);
+    let moonDisc = smoothstep(cos(moonR * 1.1), cos(moonR * 0.9), md);
+    let moonGlow = pow(max(md, 0.0), 300.0) * 0.5 + pow(max(md, 0.0), 24.0) * 0.03;
+    let night = 1.0 - day;
+    col = col + lin(vec3f(0.80, 0.88, 1.0)) * ((moonDisc * 3.0 + moonGlow) * mc.u_moon * night * clear * smoothstep(-0.02, 0.04, dir.y));
+
+    if (night > 0.02 && dir.y > 0.0 && mc.u_stars > 0.0) {
+        let p = dir * 180.0;
+        let id = floor(p);
+        let fr = p - id;
+        let h = hash13(id);
+        if (h > 0.965) {
+            let c = vec3f(hash13(id + 7.1), hash13(id + 13.3), hash13(id + 3.7)) * 0.6 + 0.2;
+            let spot = smoothstep(0.22, 0.02, length(fr - c));
+            var bright = 0.4 + hash13(id + 1.7) * 1.6;
+            if (h > 0.995) { bright = bright * 3.0; }
+            let tint = mix(lin(vec3f(1.0, 0.85, 0.7)), lin(vec3f(0.7, 0.8, 1.0)), hash13(id + 5.3));
+            let seen = night * night * clear * smoothstep(0.0, 0.15, dir.y) * (1.0 - 0.9 * smoothstep(0.97, 0.999, md));
+            col = col + tint * (spot * bright * 2.5 * mc.u_stars * seen);
+        }
+    }
+
+    let luma = dot(col, vec3f(0.2126, 0.7152, 0.0722));
+    col = mix(col, vec3f(luma) * 0.85, overcast * 0.85) * (1.0 - 0.3 * overcast);
+
+    return vec4f(mix(col, src.rgb, clamp(mc.u_panorama, 0.0, 1.0)), src.a);
+}
+#pragma end
+`;
+        return Material.compileShader(source);
+    },
+
+    /**
      * Exponential height fog with the atmosphere's two tells: the sun's glow in the haze and a
      * sky that thickens toward the horizon.
      *
@@ -1533,7 +1763,7 @@ fn depthAt(texel : vec2i, size : vec2i) -> f32 {
 #pragma param u_startDistance float default(0) range(0,3000)
 #pragma param u_maxOpacity float default(1) range(0,1)
 #pragma param u_sunAzimuth float default(40) range(0,360)
-#pragma param u_sunElevation float default(25) range(-10,90)
+#pragma param u_sunElevation float default(25) range(-90,90)
 #pragma param u_inscatter float default(0.6) range(0,2)
 #pragma param u_sunExponent float default(8) range(1,64)
 #pragma param u_skyFog float default(0.8) range(0,1)
@@ -1999,7 +2229,7 @@ ${GBUFFER_WGSL}
 #pragma param u_thickness float default(8) range(0.5,80)
 #pragma param u_followSun float default(1) range(0,1)
 #pragma param u_sunAzimuth float default(40) range(0,360)
-#pragma param u_sunElevation float default(35) range(-10,90)
+#pragma param u_sunElevation float default(35) range(-90,90)
 #pragma lights
 
 #pragma fragment
@@ -2119,7 +2349,7 @@ fn ign(p : vec2f) -> f32 {
 #pragma param u_sunColor color default(1,0.85,0.6,1)
 #pragma param u_intensity float default(0.6) range(0,3)
 #pragma param u_sunAzimuth float default(40) range(0,360)
-#pragma param u_sunElevation float default(25) range(-10,90)
+#pragma param u_sunElevation float default(25) range(-90,90)
 #pragma param u_decay float default(0.96) range(0.8,1)
 #pragma param u_reach float default(0.6) range(0.1,1)
 #pragma param u_followSun float default(1) range(0,1)

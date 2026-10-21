@@ -44,6 +44,14 @@
             "weight": 1,
             "effects": [
               {
+                "type": "skyAtmosphere",
+                "enabled": true,
+                "uniforms": {
+                  "u_intensity": 1.1,
+                  "u_sunBrightness": 40
+                }
+              },
+              {
                 "type": "taa",
                 "enabled": true,
                 "uniforms": {
@@ -68923,6 +68931,36 @@
             "hold": 8,
             "drive": 127,
             "soundSource": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": 1151,
+      "name": "Time of Day",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "TimeOfDay",
+          "data": {
+            "hour": 12,
+            "daySeconds": 0,
+            "latitude": 48.8,
+            "declination": 12,
+            "north": 180,
+            "drive": 31
           }
         }
       ]

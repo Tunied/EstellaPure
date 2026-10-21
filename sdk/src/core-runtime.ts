@@ -167,6 +167,8 @@ export {
     type PostProcessVolumeData,
     Weather,
     type WeatherData,
+    TimeOfDay,
+    type TimeOfDayData,
 } from './ecs/component';
 
 export {

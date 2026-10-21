@@ -48,6 +48,7 @@ add('Camera', [
   tr(v3(EYE), aim({ x: TARGET[0] - EYE[0], y: TARGET[1] - EYE[1], z: TARGET[2] - EYE[2] })),
   { type: 'Camera', data: { projectionType: 0, fov: 33, nearPlane: 10, farPlane: 40000, isActive: true, priority: 0 } },
   { type: 'PostProcessVolume', data: { isGlobal: true, priority: 0, weight: 1, effects: [
+    { type: 'skyAtmosphere', enabled: true, uniforms: { u_intensity: 1.1, u_sunBrightness: 40 } },
     { type: 'taa', enabled: true, uniforms: { u_blend: 0.1 } },
     { type: 'ssao', enabled: true, uniforms: { u_radius: 70, u_intensity: 1, u_bias: 0.12, u_power: 1.5 } },
     { type: 'contactShadows', enabled: true, uniforms: { u_intensity: 0.55, u_length: 28, u_thickness: 10 } },
@@ -100,6 +101,12 @@ for (const piece of pieces) {
 add('Weather', [
   tr({ x: 0, y: 0, z: 0 }),
   { type: 'Weather', data: { preset: 0, target: -1, progress: 0, duration: 10, sequence: 'clear,mist,rain,clear', hold: 8, drive: 127, soundSource: 0 } },
+]);
+
+// The hour the street is shot at, and how the sun walks: Paris in early autumn, the world turned so that noon is behind the camera.
+add('Time of Day', [
+  tr({ x: 0, y: 0, z: 0 }),
+  { type: 'TimeOfDay', data: { hour: 12, daySeconds: 0, latitude: 48.8, declination: 12, north: 180, drive: 31 } },
 ]);
 
 writeFileSync(SCENE, JSON.stringify({ version: 4, name: 'Main', entities }, null, 2));

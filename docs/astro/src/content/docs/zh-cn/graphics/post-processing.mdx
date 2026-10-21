@@ -23,6 +23,7 @@ Estella 通过 ping-pong 帧缓冲运行全屏后处理。加一个 `PostProcess
 | `fxaa` | 快速抗锯齿 | `intensity` |
 | `distanceFog` | 按到相机的距离做线性雾 | `near`、`far`、`intensity`、颜色 |
 | `heightFog` | 指数高度雾,带太阳辉光和朦胧的地平线 | `density`、`heightFalloff`、`baseHeight`、`sunAzimuth`、`sunElevation`、`skyFog`、颜色 |
+| `skyAtmosphere` | 有昼夜的天空:天穹、太阳、黄昏辉光、月亮和星星,画在没有表面的地方 | `intensity`、`overcast`、`moon`、`stars`、`twilight`、`sunAzimuth`、`sunElevation` |
 | `lightShafts` | 太阳光穿过前方遮挡物形成的光束 | `intensity`、`sunAzimuth`、`sunElevation`、`decay`、`reach` |
 | `contactShadows` | 阴影贴图太粗放不下的接触处的小而锐利的阴影 | `intensity`、`length`、`thickness` |
 | `ssgi` | 相机看得见的表面之间的一次漫反射光弹射 | `intensity`、`radius`、`thickness`、`maxBounce` |

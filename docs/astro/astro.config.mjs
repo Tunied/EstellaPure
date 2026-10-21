@@ -224,6 +224,7 @@ export default defineConfig({
             { label: '2D Lighting & Shadows', translations: { 'zh-CN': '2D 光照与阴影' }, slug: 'graphics/lighting' },
             { label: 'Post-processing', translations: { 'zh-CN': '后处理' }, slug: 'graphics/post-processing' },
             { label: 'Weather', translations: { 'zh-CN': '天气' }, slug: 'graphics/weather' },
+            { label: 'Time of Day', translations: { 'zh-CN': '昼夜' }, slug: 'graphics/time-of-day' },
             { label: 'Custom Drawing', translations: { 'zh-CN': '自定义绘制' }, slug: 'graphics/drawing' },
             { label: 'Video', translations: { 'zh-CN': '视频' }, slug: 'graphics/video' },
           ],

@@ -617,11 +617,13 @@ export interface Light {
     meshShadows: boolean;
     shadowExtent: number;
     followEnvironmentSun: boolean;
+    aimFollowedSun: boolean;
     environment: number;
     environmentRotation: number;
     drawEnvironment: boolean;
     reflectionScale: number;
     reflectionSaturation: number;
+    bakedTint: Vec4;
     enabled: boolean;
 }
 

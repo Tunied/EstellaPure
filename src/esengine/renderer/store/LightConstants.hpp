@@ -191,13 +191,16 @@ struct LightConstants {
     /// is the environment and has none — a sky is not somewhere. The shader
     /// PROJECTS onto a box, which is what slides a reflection across a wall.
     glm::vec4 reflBox[2 * MAX_REFLECTION_PROBES]{};
+    /// rgb = what the BAKED indirect light (a lightmap, a probe volume) is multiplied by: a bake holds one
+    /// moment's light, so a scene that passes through a day or a weather scales and tints it here (1 = as baked).
+    glm::vec4 bakedTint{1.0f};
 };
 
 static_assert(sizeof(GpuLight) == 96, "GpuLight must be std140-tight (six vec4s)");
 static_assert(sizeof(LightConstants) == 16 + 96 * MAX_LIGHTS + 16
                                         + 64 * MAX_SHADOW_TILES + 16 * MAX_SHADOW_TILES
                                         + 16 + 16 * 9 + 16 + 16
-                                        + 16 + 32 * MAX_REFLECTION_PROBES,
+                                        + 16 + 32 * MAX_REFLECTION_PROBES + 16,
               "LightConstants must match the std140 GLSL block layout");
 
 }  // namespace esengine

@@ -1357,6 +1357,7 @@ void RenderFrame::collectLights(ecs::Registry& registry) {
             if (!tone) tone = &light;
         }
         if (tone) context_.lights().setReflectionTone(tone->reflectionScale, tone->reflectionSaturation);
+        context_.lights().setBakedTint(tone ? glm::vec3(tone->bakedTint) : glm::vec3(1.0f));
     }
     const bool sunCast = sunFollowed && sky && sky->hasSun;
     if (sunCast) {
@@ -1421,7 +1422,7 @@ void RenderFrame::collectLights(ecs::Registry& registry) {
             // z=1 flags directional (no attenuation) in the shader; w carries the aim's third
             // component, which only a directional light has a use for — point and spot spend
             // that slot on their falloff radius.
-            const glm::vec3 aim = followsSun ? light_cap_.environmentSunAim
+            const glm::vec3 aim = followsSun && !light.aimFollowedSun ? light_cap_.environmentSunAim
                                              : lightForward(registry.tryGet<ecs::Transform>(entity));
             gpu.posDir = glm::vec4(aim.x, aim.y, 1.0f, aim.z);
             // A source infinitely far away has no half-extent a map can divide by a
