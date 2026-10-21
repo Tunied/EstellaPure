@@ -6,7 +6,7 @@ description: A TimeOfDay component that moves the sun and the moon across the sk
 A day is a path the sun takes and what the light, the sky and the fog are because of where it is. `TimeOfDay` places the
 sun with the astronomy that fits in four lines — an hour angle, a latitude and a season — so a day has the right shape
 (a long high arc in summer, a short low one in winter, sunrise toward the east) from three numbers a person can understand.
-Everything else is the same idea as [Weather](/graphics/weather/): **multipliers of what the scene already says**, so the
+Everything else is the same idea as [Weather](/docs/graphics/weather/): **multipliers of what the scene already says**, so the
 same hour fits any project.
 
 ## The component
@@ -30,7 +30,7 @@ Add a `TimeOfDay` component to one entity.
   that fall away from the moon. The crossover happens where both are dark, so nothing pops.
 - **The ambient light** is scaled and tinted — blue by night, warm at dusk — and **baked reflection probes** are dimmed and
   drained of colour, since they were baked under a daytime sky.
-- **The sky.** A [Sky Atmosphere](/graphics/post-processing/) effect draws the dome, the sun, a dusk glow on the sun's side of the
+- **The sky.** A [Sky Atmosphere](/docs/graphics/post-processing/) effect draws the dome, the sun, a dusk glow on the sun's side of the
   horizon, the moon and the stars. It takes the sun from the clock, so it never mistakes the moon-lit key light for the sun.
 - **Fog.** Height Fog's colour is lit as the day is (dark at night, orange at dusk), and its glow follows the key light.
 - **Exposure.** Auto Exposure's compensation is raised at night so it stays readable (a scene without one gets it on its Colour
