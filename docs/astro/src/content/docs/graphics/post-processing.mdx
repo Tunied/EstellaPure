@@ -177,7 +177,7 @@ An effect can be a **compute shader** instead of a draw: WGSL run over the whole
 many neighbours or keeps a result of its own is written without a render pass per step. `sharpen` is one: each pixel is
 pushed away from the mean of its neighbours and then held inside the range they span, so an edge gets steeper without a halo.
 
-A compute effect needs a device with a compute stage, which is **WebGPU**. On WebGL2 (and in Play, which runs on WebGL2) the effect
+A compute effect needs a device with a compute stage, which is **WebGPU**. On WebGL2 the effect
 is left out of the chain and the picture goes through as it was — a compute effect is for refining a picture that is already whole,
 so write one that way. Ask `postprocess_supportsCompute` (or check the backend) if your game needs to know.
 
