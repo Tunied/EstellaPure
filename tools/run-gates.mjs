@@ -20,7 +20,7 @@
  *   node tools/run-gates.mjs --scope local --where local
  *   node tools/run-gates.mjs --scope local --keep-going --matrix out.json
  */
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { existsSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -126,6 +126,12 @@ const GAPS = [
   },
 ];
 const declared = GAPS.filter((g) => process.env[g.env] === g.value);
+/**
+ * How many gates run at once. The list is cut at every `exclusive` gate (a build): the gates between two cuts share the pool, a cut
+ * gate runs alone. Verdicts are still read in list order, so the first red is a serial run's; the other reds are named with it.
+ */
+const JOBS = Math.max(1, Number(flag('jobs', '1')) || 1);
+
 /**
  * Narrow to named gates. A scan finds ten reds at once and then each fix wants
  * ONE of them re-run; without this the only way to re-check a gate is to pay for
@@ -263,18 +269,65 @@ function firstFailingLine(text) {
 const matrix = [];
 let firstRed = null;
 
+/** One gate, run to the end with its output kept: what the pool hands back, shaped like a spawnSync result. */
+function runBuffered(gate) {
+  return new Promise((resolve) => {
+    const began = Date.now();
+    const child = spawn('sh', ['-c', gate.run], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (d) => { stdout += d; });
+    child.stderr.on('data', (d) => { stderr += d; });
+    child.on('error', (error) => resolve({ error, status: null, stdout, stderr, ms: Date.now() - began }));
+    child.on('close', (status) => {
+      const word = status === 0 ? 'ok' : status === CANNOT_ANSWER ? 'answered nothing' : 'RED';
+      console.error(`  · ${gate.id} ${word} (${((Date.now() - began) / 1000).toFixed(0)}s)`);
+      resolve({ status, stdout, stderr, ms: Date.now() - began });
+    });
+  });
+}
+
+/** Every gate's result, by id, run JOBS at a time between the cuts. Empty for a serial run. */
+const precomputed = new Map();
+if (JOBS > 1) {
+  const segments = [];
+  let run = [];
+  for (const gate of gates) {
+    if (gate.exclusive) {
+      if (run.length) segments.push(run);
+      segments.push([gate]);
+      run = [];
+    } else run.push(gate);
+  }
+  if (run.length) segments.push(run);
+  console.log(`  running ${JOBS} at a time, in ${segments.length} step(s) cut at the gates that build`);
+  for (const segment of segments) {
+    let next = 0;
+    const worker = async () => {
+      while (next < segment.length) {
+        const gate = segment[next++];
+        precomputed.set(gate.id, await runBuffered(gate));
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(JOBS, segment.length) }, worker));
+  }
+}
+
 for (const gate of gates) {
   const began = Date.now();
   if (SCAN) process.stdout.write(`\n=== ${gate.id}\n    ${gate.run}\n`);
   // A scan keeps the output so the matrix can carry the failing line; a gate run
   // streams it, because a person is watching one command and wants it live.
-  const r = SCAN
+  const pre = precomputed.get(gate.id);
+  const r = pre ?? (SCAN
     ? spawnSync('sh', ['-c', gate.run], {
       cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 28,
       stdio: ['ignore', 'pipe', 'pipe'],
     })
-    : spawnSync('sh', ['-c', gate.run], { cwd: ROOT, stdio: 'inherit' });
-  const ms = Date.now() - began;
+    : spawnSync('sh', ['-c', gate.run], { cwd: ROOT, stdio: 'inherit' }));
+  // A pooled run has no terminal to stream to, so what the gate said is said now, where its verdict is read.
+  if (pre && !SCAN) { process.stdout.write(pre.stdout); process.stderr.write(pre.stderr); }
+  const ms = pre ? pre.ms : Date.now() - began;
   spent.push({ id: gate.id, ms });
   // A shell that would not start is not a gate that failed. Reported as one it
   // sends the reader after the first gate's subject, which said nothing at all.
@@ -323,6 +376,14 @@ for (const gate of gates) {
   }
   if (r.status !== 0) {
     console.error(`\n✗ ${gate.id} — \`${gate.run}\``);
+    // The rest of the list has run already, so the other reds are known and are named here instead of costing a run each.
+    const alsoRed = gates.filter((g) => {
+      const other = precomputed.get(g.id);
+      return g !== gate && other && other.status !== 0 && other.status !== CANNOT_ANSWER;
+    });
+    if (alsoRed.length) {
+      console.error(`  also red in this run: ${alsoRed.map((g) => g.id).join(', ')} (re-run them alone with --only once this one is fixed)`);
+    }
     // Naming what did NOT run matters at the moment of failure: the gates after
     // this one said nothing, and a reader should not take silence for green.
     const after = gates.slice(gates.indexOf(gate) + 1);

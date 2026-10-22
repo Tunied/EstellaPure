@@ -75,7 +75,8 @@ if (!/resolveColor_\s*=\s*device_->createTexture/.test(fb)) {
         + 'attachment it resolves into. Resolve is the target\'s own business — a pass or an '
         + 'effect must never have to ask for it.');
 }
-if (!/createFramebuffer\(\{[^}]*resolveColor_/s.test(fb)) {
+// Handed over either inline, or through the descriptor the function builds up (`fb.resolveColor0 = resolveColor_`) and then passes.
+if (!/createFramebuffer\(\{[^}]*resolveColor_/s.test(fb) && !(/\.resolveColor0\s*=\s*resolveColor_/.test(fb) && /createFramebuffer\(\s*fb\s*\)/.test(fb))) {
     findings.push(`${FB_CPP}: the resolve attachments are created but not handed to `
         + 'createFramebuffer, so the device has nothing to resolve into.');
 }

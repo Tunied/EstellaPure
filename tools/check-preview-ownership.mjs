@@ -94,7 +94,7 @@ const RULES = [
         holds: () => {
             const body = strip(read(FRAME_C)).match(/void RenderFrame::renderSurface\([\s\S]*?\n\}/);
             if (!body) return 'renderSurface is gone';
-            const collect = body[0].indexOf('collectAll(registry)');
+            const collect = body[0].indexOf('collectAll(registry');
             // The LOOP, not the parameter — which is named in the signature above.
             const replay = body[0].search(/for\s*\([^)]*:\s*extraSkeletalBatches\s*\)/);
             const finalize = body[0].indexOf('draw_list_.finalize');

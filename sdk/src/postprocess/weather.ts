@@ -123,7 +123,7 @@ define(WEATHER_STORM, 'storm', {
  *          project can retune a built-in one. A custom id is for code (`weatherTo`, a component's `preset` value) — the
  *          Inspector's dropdown lists the built-ins.
  *
- * @public
+ * @beta
  */
 export function registerWeatherPreset(name: string, preset: WeatherPreset): number {
     const existing = byName.get(name);
@@ -132,12 +132,12 @@ export function registerWeatherPreset(name: string, preset: WeatherPreset): numb
     return id;
 }
 
-/** The id a preset answers to, or undefined. @public */
+/** The id a preset answers to, or undefined. @beta */
 export function weatherPresetId(name: string): number | undefined {
     return byName.get(name);
 }
 
-/** Every preset, built-in first. @public */
+/** Every preset, built-in first. @beta */
 export function weatherPresetNames(): string[] {
     return [...registry.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v.name);
 }
@@ -149,7 +149,7 @@ const mix = (a: number, b: number, t: number): number => a + (b - a) * t;
 /**
  * The weather `progress` of the way from one preset to another, eased so a transition starts and ends gently.
  *
- * @public
+ * @beta
  */
 export function blendWeather(from: number, to: number, progress: number): WeatherState {
     const a = (registry.get(from) ?? registry.get(WEATHER_CLEAR)!).state;
@@ -186,7 +186,7 @@ export function setCurrentWeather(state: WeatherState | null, drive: number = We
     current = state ? { state, drive } : null;
 }
 
-/** @public */
+/** @beta */
 export function currentWeather(): WeatherState | null {
     return current ? current.state : null;
 }

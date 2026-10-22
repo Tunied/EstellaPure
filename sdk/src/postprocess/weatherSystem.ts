@@ -258,6 +258,7 @@ function advance(entity: Entity, data: WeatherData, dt: number): void {
     data.progress = 0;
 }
 
+// system-access: the weather reads and writes the lights, the sound sources and the post-process volumes it drives, which no query names.
 export const weatherSystem = defineSystem(
     [Query(Mut(Weather)), Query(Mut(TimeOfDay)), Res(Time), GetWorld()],
     (weathers: Iterable<[Entity, WeatherData]>, times: Iterable<[Entity, TimeOfDayData]>, time: TimeData, world: World) => {

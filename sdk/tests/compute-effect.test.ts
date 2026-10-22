@@ -115,7 +115,8 @@ describe('native effects', () => {
 
     it('pushes a native pass by its kind, and leaves it out on a core that cannot', () => {
         const pp = new PostProcessAPI();
-        const withNative = { ...mockCore(true), postprocess_addNativePass: vi.fn().mockReturnValue(0) };
+        const core = mockCore(true);
+        const withNative = Object.assign(core, { postprocess_addNativePass: vi.fn().mockReturnValue(0) });
         initPostProcessAPI(withNative as unknown as ESEngineModule);
         const stack = new PostProcessStack(pp.state);
         stack.addNativePass('voxelGI', 'voxelGI');

@@ -36,6 +36,7 @@ export const SCOPES = ['local', 'ci'];
  * runs the ones a change touched, so it meets its unit-test owner before the remote.
  */
 export const GATES = [
+  // `exclusive: true` is a build or a writer of what a later gate reads: a `--jobs` run cuts the list there and runs it alone.
   { id: 'tsc-sdk', run: 'pnpm --filter ./sdk exec tsc --noEmit' },
   // Up here rather than beside `tsc-pipeline`: the compiler resolves `esengine`
   // to its own stub (compiler/tsconfig.json), so it needs nothing built and has
@@ -85,7 +86,7 @@ export const GATES = [
   { id: 'project-health', run: 'node tools/check-project-health.mjs' },
   // Everything below reads what this emits: the declaration snapshot, the
   // editor's own type-check and the examples all resolve `esengine` from dist.
-  { id: 'sdk-build', run: 'pnpm --filter ./sdk build' },
+  { id: 'sdk-build', exclusive: true, run: 'pnpm --filter ./sdk build' },
   { id: 'api-surface-dts', run: 'node tools/api-surface.mjs --check-dts' },
   // Both read `esengine` from dist, and the editor reads the pipeline.
   { id: 'tsc-pipeline', run: 'pnpm --filter @estella/pipeline exec tsc --noEmit' },
@@ -131,7 +132,7 @@ export const GATES = [
   { id: 'pipeline-boundary', run: 'node tools/check-pipeline-boundary.mjs' },
   // And the boundary holds in practice: a real project packages from the command
   // line with no editor built.
-  { id: 'headless-export', run: 'node tools/check-headless-export.mjs' },
+  { id: 'headless-export', exclusive: true, run: 'node tools/check-headless-export.mjs' },
   // The 478 SDK test files were in no checker's scope: the production config
   // compiles src/ and vitest strips types. A ratchet, not a demand for zero —
   // except in the net suites, which are held to none.
@@ -282,13 +283,13 @@ export const GATES = [
   { id: 'comment-style', run: 'node tools/check-comment-style.mjs' },
   { id: 'silent-writes', run: 'node tools/mutation-census.mjs --gate' },
   {
-    id: 'cpp-tests',
+    id: 'cpp-tests', exclusive: true,
     run: 'node tools/check-cpp-tests.mjs',
     where: 'local',
     why: 'it configures and builds a native cmake tree; CI compiles and RUNS those harnesses in its own C++ jobs',
   },
   {
-    id: 'native-build',
+    id: 'native-build', exclusive: true,
     run: 'node tools/check-native-build.mjs',
     where: 'local',
     why: 'it builds the engine out of the tree `cli native` configured; CI builds every native target from scratch',
@@ -364,8 +365,8 @@ export const GATES = [
   },
   { id: 'screen-domain', run: 'node tools/check-screen-domain.mjs' },
   { id: 'rm-retries', run: 'node tools/check-rm-retries.mjs' },
-  { id: 'examples', run: 'node build-tools/cli.js check-examples' },
-  { id: 'documents', run: 'node build-tools/cli.js validate-documents' },
+  { id: 'examples', exclusive: true, run: 'node build-tools/cli.js check-examples' },
+  { id: 'documents', exclusive: true, run: 'node build-tools/cli.js validate-documents' },
 ];
 
 /** Whether `p` names, or sits under, one of `roots`. */

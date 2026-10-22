@@ -95,7 +95,7 @@ export function sunPosition(hour: number, latitude: number, declination: number,
     return { elevation, azimuth: compass + north * RAD };
 }
 
-/** The time of day at an hour. @public */
+/** The time of day at an hour. @beta */
 export function timeOfDayAt(hour: number, latitude = 40, declination = 15, north = 0): TimeOfDayState {
     const h = ((hour % 24) + 24) % 24;
     const sun = sunPosition(h, latitude, declination, north);
@@ -147,7 +147,7 @@ export function setCurrentTimeOfDay(state: TimeOfDayState | null, drive: number 
     current = state ? { state, drive, lightsApplied } : null;
 }
 
-/** The time of day the frame is under, or null. @public */
+/** The time of day the frame is under, or null. @beta */
 export function currentTimeOfDay(): TimeOfDayState | null {
     return current ? current.state : null;
 }
