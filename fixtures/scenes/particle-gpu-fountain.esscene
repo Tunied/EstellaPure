@@ -1,0 +1,108 @@
+{
+  "version": 4,
+  "name": "ParticleGpuFountain",
+  "entities": [
+    {
+      "id": 0,
+      "name": "Camera",
+      "parent": null,
+      "children": [],
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 10
+            }
+          }
+        },
+        {
+          "type": "Camera",
+          "data": {
+            "projectionType": 1,
+            "orthoSize": 100,
+            "isActive": true,
+            "priority": 0
+          }
+        }
+      ],
+      "visible": true
+    },
+    {
+      "id": 1,
+      "name": "Emitter",
+      "parent": null,
+      "children": [],
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "ParticleEmitter",
+          "data": {
+            "rate": 40000,
+            "burstCount": 0,
+            "burstInterval": 1000,
+            "maxParticles": 100000,
+            "lifetimeMin": 2,
+            "lifetimeMax": 3,
+            "shape": 3,
+            "shapeSize": {
+              "x": 120,
+              "y": 120,
+              "z": 0
+            },
+            "speedMin": 80,
+            "speedMax": 160,
+            "startSizeMin": 2,
+            "startSizeMax": 3,
+            "endSizeMin": 1,
+            "endSizeMax": 1,
+            "gravity": {
+              "x": 0,
+              "y": -120,
+              "z": 0
+            },
+            "damping": 0,
+            "simulationSpace": 0,
+            "looping": true,
+            "playOnStart": true,
+            "startColor": {
+              "r": 1,
+              "g": 0.8,
+              "b": 0.3,
+              "a": 1
+            },
+            "endColor": {
+              "r": 1,
+              "g": 0.1,
+              "b": 0,
+              "a": 0
+            },
+            "gpuSimulation": true,
+            "shapeRadius": 10,
+            "shapeAngle": 60,
+            "noiseStrength": 30,
+            "noiseFrequency": 0.05,
+            "noiseOctaves": 2,
+            "collisionEnabled": true,
+            "collisionFloor": -80,
+            "collisionBounce": 0.5,
+            "collisionFriction": 0.1,
+            "blendMode": 1
+          }
+        }
+      ],
+      "visible": true
+    }
+  ]
+}

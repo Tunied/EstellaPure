@@ -58,6 +58,11 @@ public:
      * slot here before drawElementsInstanced. The static quad slot is untouched.
      */
     void bindInstanceLayout(LayoutId layout, u32 instanceByteOffset);
+    /** The same layout with the per-instance slot taken from @p instances whole — records a compute kernel wrote. */
+    void bindInstanceBuffer(LayoutId layout, BufferHandle instances);
+    /** Creates a stream's static buffers (a particle's quad and indices) without writing to it: a draw whose records
+     *  live elsewhere still needs them, and nothing else would ask. */
+    void reserveStream(LayoutId layout) { ensureStorage(layout); }
 
     /** The device vertex layout a pipeline drawing this stream must reference. */
     VertexLayoutHandle layoutHandle(LayoutId layout) const;

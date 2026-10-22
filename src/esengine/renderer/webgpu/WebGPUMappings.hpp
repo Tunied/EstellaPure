@@ -227,8 +227,9 @@ inline WGPUBufferUsage toWGPUBufferUsage(GfxBufferUsage usage) {
     case GfxBufferUsage::Vertex:  return WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst;
     case GfxBufferUsage::Index:   return WGPUBufferUsage_Index | WGPUBufferUsage_CopyDst;
     case GfxBufferUsage::Uniform: return WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst;
-    // Copy both ways: a compute buffer is filled from the CPU and read back to it.
-    case GfxBufferUsage::Storage: return WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc;
+    // Copy both ways: a compute buffer is filled from the CPU and read back to it. Vertex too: what a
+    // kernel wrote can be drawn as it lies (GPU particles), in a later pass.
+    case GfxBufferUsage::Storage: return WGPUBufferUsage_Storage | WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc;
     default:                      return WGPUBufferUsage_CopyDst;
     }
 }

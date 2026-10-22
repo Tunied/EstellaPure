@@ -485,7 +485,11 @@ void DrawList::execute(GfxDevice& device, TransientBufferPool& buffers,
         } else if (cmd.instance_count > 0) {
             // Instanced: static geometry (index_count indices from offset 0) drawn
             // instance_count times, instance attributes rebased at vertex_byte_offset.
-            buffers.bindInstanceLayout(cmd.layout_id, cmd.vertex_byte_offset);
+            if (cmd.instance_buffer != BufferHandle::Invalid) {
+                buffers.bindInstanceBuffer(cmd.layout_id, cmd.instance_buffer);
+            } else {
+                buffers.bindInstanceLayout(cmd.layout_id, cmd.vertex_byte_offset);
+            }
             device.drawElementsInstanced(cmd.index_count, GfxDataType::UnsignedInt, 0, cmd.instance_count);
         } else {
             buffers.bindLayout(cmd.layout_id);

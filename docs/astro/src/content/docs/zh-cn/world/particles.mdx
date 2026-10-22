@@ -85,6 +85,7 @@ const spawnEmbers = defineSystem([Commands()], (cmds) => {
 | `looping` | boolean | `true` | 到 `duration` 后重新开始,而不是停止。 |
 | `playOnStart` | boolean | `true` | 实体一存在就开始发射。 |
 | `maxParticles` | number | `1000` | 池大小——存活粒子的硬上限。 |
+| `gpuSimulation` | boolean | `false` | 在 GPU 上模拟。见 [GPU 模拟](#gpu-模拟)。 |
 
 ### 生命周期 (Lifetime)
 
@@ -487,10 +488,41 @@ const control = defineSystem([Res(Particle)], (particles) => {
 Details 支持查看计数与临时碰撞法线，法线开关不写入场景。
 `particle-demo/assets/scenes/scene-collisions.esscene` 示例包含 2D / 3D 墙面、撞击爆发与项目事件计数。
 
+## GPU 模拟
+
+打开 `gpuSimulation`,粒子就住在 GPU 上:每一帧由一个 compute kernel 推进全部粒子,绘制直接读它写出的结果。CPU 只决定
+这一帧诞生多少个,所以十万或百万粒子的发射器花的是一次 dispatch 而不是一个循环。这时 `maxParticles` 是 GPU 保存的环的大小
+(最多 2,000,000);新粒子占下一个槽位,粒子死亡后的槽位绘制为空。
+
+```ts
+world.insert(entity, ParticleEmitter, {
+  gpuSimulation: true,
+  maxParticles: 500_000,
+  rate: 200_000,
+  lifetimeMin: 2, lifetimeMax: 3,
+  shape: EmitterShape.Cone, shapeAngle: 40,
+  speedMin: 200, speedMax: 400,
+  gravity: { x: 0, y: -300, z: 0 },
+  noiseStrength: 40, noiseFrequency: 0.01,
+  collisionEnabled: true, collisionFloor: 0, collisionBounce: 0.4,
+});
+```
+
+它跑的是同一个发射器:形状、旋度噪声、力场(前八个)、重力、阻尼、地面平面、颜色 / 尺寸 / 速度随生命曲线和精灵表都一样。
+每个发射器用自己固定的种子,所以场景每次回放的粒子相同。它不做的事:
+
+- **没有子发射器、逐粒子拖尾和场景查询碰撞**(`Physics2D` / `Physics3D`)。GPU 发射器只和地面平面碰撞。
+- **不排序。** `Additive` 或镂空的效果是精确的;一大堆 `Normal` 混合的粒子按槽位顺序绘制。
+- **不能放在 UI 树里。** `Canvas` 下的发射器走屏幕叠加层绘制,kernel 不会喂给它;请留在 CPU 上。
+- **`Particle.aliveCount` 是上界。** 真实状态在 GPU 里,不做回读。
+
+它需要支持 compute 的设备——WebGPU。在 WebGL2 和小游戏运行时里,同一个发射器改在 CPU 上跑,**上限 20,000 个粒子**,
+所以为百万粒子做的场景仍能播放,只是更稀。如果在意没有 WebGPU 的平台,请让效果在这个上限下仍然成立。
+
 ## 性能与最佳实践
 
 - **控制 `maxParticles`。** 它是固定池;按最坏情况定大小,别更高。多个小发射器比一个巨大的
-  更利于剔除。
+  更利于剔除。超过几千个粒子时,改用 [GPU 模拟](#gpu-模拟)。
 - **辉光优先用 `Additive`**(火焰、火花、魔法)——它掩盖 overdraw 且无需排序。不透明的
   烟尘留给 `Normal`/`Multiply`。
 - **把粒子贴图打成图集**并共享一个 `material`,让发射器合批。

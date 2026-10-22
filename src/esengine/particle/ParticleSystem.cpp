@@ -86,7 +86,33 @@ void ParticleSystem::update(ecs::Registry& registry, f32 dt) {
             continue;
         }
 
+        // A GPU emitter keeps no pool: its particles live in a GPU ring. Where the device cannot compute it
+        // is an ordinary emitter, capped so a million-particle setup cannot take the CPU down with it.
+        const bool useGpu = emitter.gpuSimulation && gpu_available_;
+        u32 capacity = static_cast<u32>(std::clamp(emitter.maxParticles, 0, 1'000'000));
+        if (emitter.gpuSimulation && !gpu_available_) capacity = std::min(capacity, kGpuFallbackCapacity);
+        if (useGpu) capacity = static_cast<u32>(std::clamp(emitter.maxParticles, 0, static_cast<i32>(kGpuMaxCapacity)));
+
         auto it = states_.find(entity);
+        if (it != states_.end() && (it->second.gpu != useGpu || (useGpu && it->second.gpuCapacity != capacity))) {
+            // Changed how it simulates (or how big): the schedule carries over, so a burst already spent is not spent
+            // twice. The device is only known once the renderer has run, a frame after the first update, so an emitter
+            // that began on the CPU is moved to the GPU with as many particles as it had alive.
+            EmitterState old = std::move(it->second);
+            states_.erase(it);
+            auto [moved, _] = states_.emplace(entity, EmitterState(useGpu ? 0u : capacity));
+            EmitterState& next = moved->second;
+            next.emission_accumulator = old.emission_accumulator;
+            next.elapsed_time = old.elapsed_time;
+            next.burst_timer = old.burst_timer;
+            next.noise_time = old.noise_time;
+            next.playing = old.playing;
+            next.first_update = old.first_update;
+            next.gpu = useGpu;
+            next.gpuCapacity = useGpu ? capacity : 0;
+            if (useGpu) next.gpuBurst = std::min(old.pool.aliveCount(), capacity);
+            it = moved;
+        }
         if (it == states_.end()) {
             auto [insertIt, _] = states_.emplace(
                 entity,
@@ -94,9 +120,11 @@ void ParticleSystem::update(ecs::Registry& registry, f32 dt) {
                 // but a script, scene file, or replicated value bypasses that — a
                 // negative cast to u32 (or a multi-billion count) would resize the
                 // pool into a bad_alloc.
-                EmitterState(static_cast<u32>(std::clamp(emitter.maxParticles, 0, 1'000'000)))
+                EmitterState(useGpu ? 0u : capacity)
             );
             it = insertIt;
+            it->second.gpu = useGpu;
+            it->second.gpuCapacity = useGpu ? capacity : 0;
             if (emitter.playOnStart) {
                 it->second.playing = true;
             }
@@ -129,6 +157,13 @@ void ParticleSystem::update(ecs::Registry& registry, f32 dt) {
             emitting = false;
         }
 
+        // The schedule is one thing whoever runs the particles: a GPU emitter only counts what is born.
+        auto emit = [&](u32 count, bool burst) {
+            if (!state.gpu) { emitParticles(emitter, transform, state, count); return; }
+            u32& pending = burst ? state.gpuBurst : state.gpuSmooth;
+            pending = std::min(pending + count, state.gpuCapacity);
+        };
+
         if (emitting) {
             state.elapsed_time += dt;
 
@@ -137,18 +172,24 @@ void ParticleSystem::update(ecs::Registry& registry, f32 dt) {
                 u32 toEmit = static_cast<u32>(state.emission_accumulator);
                 if (toEmit > 0) {
                     state.emission_accumulator -= static_cast<f32>(toEmit);
-                    emitParticles(emitter, transform, state, toEmit);
+                    emit(toEmit, false);
                 }
             }
 
             if (emitter.burstCount > 0) {
                 if (state.burst_timer <= 0.0f) {
-                    emitParticles(emitter, transform, state,
-                                  static_cast<u32>(emitter.burstCount));
+                    emit(static_cast<u32>(emitter.burstCount), true);
                     state.burst_timer = emitter.burstInterval;
                 }
                 state.burst_timer -= dt;
             }
+        }
+
+        if (state.gpu) {
+            // The kernel does what updateParticles would; this side only keeps the clocks it needs.
+            state.noise_time += dt;
+            state.gpuDt += dt;
+            continue;
         }
 
         const EmitterFrame frame{transform.worldPosition, transform.worldRotation,
@@ -210,6 +251,11 @@ void ParticleSystem::reset(Entity entity) {
     auto it = states_.find(entity);
     if (it != states_.end()) {
         it->second.pool.clear();
+        if (it->second.gpu) {
+            it->second.gpuSmooth = it->second.gpuBurst = it->second.gpuSpawned = 0;
+            it->second.gpuDt = 0.0f;
+            it->second.gpuReset = true;
+        }
         it->second.emission_accumulator = 0.0f;
         it->second.elapsed_time = 0.0f;
         it->second.burst_timer = 0.0f;
@@ -249,9 +295,39 @@ void ParticleSystem::setSpeedLut(Entity entity, const f32* values, i32 count) {
 u32 ParticleSystem::aliveCount(Entity entity) const {
     auto it = states_.find(entity);
     if (it != states_.end()) {
+        // The GPU keeps the truth; what this side can say is how many slots have ever held one, an upper bound.
+        if (it->second.gpu) return std::min(it->second.gpuSpawned, it->second.gpuCapacity);
         return it->second.pool.aliveCount();
     }
     return 0;
+}
+
+bool ParticleSystem::peekGpuStep(Entity entity, GpuStep& out) const {
+    auto it = states_.find(entity);
+    if (it == states_.end() || !it->second.gpu) return false;
+    const EmitterState& state = it->second;
+    out = {};
+    out.capacity = state.gpuCapacity;
+    // A frame that went long (a stall, a hidden tab) is not simulated as one huge step.
+    out.dt = std::min(state.gpuDt, 0.1f);
+    out.noiseTime = state.noise_time;
+    out.reset = state.gpuReset;
+    out.smoothCount = std::min(state.gpuSmooth, state.gpuCapacity);
+    out.spawnCount = std::min(out.smoothCount + state.gpuBurst, state.gpuCapacity);
+    out.firstIndex = state.gpuSpawned;
+    out.drawCount = std::min(state.gpuSpawned + out.spawnCount, state.gpuCapacity);
+    return true;
+}
+
+void ParticleSystem::commitGpuStep(Entity entity, const GpuStep& step) {
+    auto it = states_.find(entity);
+    if (it == states_.end() || !it->second.gpu) return;
+    EmitterState& state = it->second;
+    // A stall longer than a step is not replayed, and births past the ring's size were never going to be seen.
+    state.gpuDt = 0.0f;
+    state.gpuSmooth = state.gpuBurst = 0;
+    state.gpuSpawned += step.spawnCount;
+    if (step.reset) state.gpuReset = false;
 }
 
 u32 ParticleSystem::totalAliveParticles() const {

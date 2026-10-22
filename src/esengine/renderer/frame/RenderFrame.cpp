@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 #include "./RenderFrame.hpp"
+#ifdef ES_ENABLE_PARTICLES
+#include "./GpuParticles.hpp"
+#endif
 #include "../rhi/Shader.hpp"
 #include "../rhi/ShaderEmbeds.generated.hpp"
 #include "../store/LightStore.hpp"
@@ -163,6 +166,9 @@ void RenderFrame::init(u32 width, u32 height) {
     post_process_->init(width, height);
 #endif
 
+#ifdef ES_ENABLE_PARTICLES
+    gpu_particles_ = makeUnique<GpuParticles>(device_);
+#endif
     pool_.init();
     shadow_pool_.init();
     velocity_pool_.init();
@@ -190,6 +196,12 @@ void RenderFrame::shutdown() {
         plugin->shutdown();
     }
     plugins_.clear();
+#ifdef ES_ENABLE_PARTICLES
+    if (gpu_particles_) {
+        gpu_particles_->release();
+        gpu_particles_.reset();
+    }
+#endif
     pool_.shutdown();
     shadow_pool_.shutdown();
     velocity_pool_.shutdown();
@@ -299,6 +311,9 @@ void RenderFrame::releaseFrameTargets() {
 
 void RenderFrame::beginFrame() {
     ++planar_frame_;
+#ifdef ES_ENABLE_PARTICLES
+    if (gpu_particles_) gpu_particles_->beginFrame();
+#endif
     for (auto it = planar_captures_.begin(); it != planar_captures_.end();) {
         if (frame_collected_ && it->second.lastSeen + 1 < planar_frame_) {
             if (it->second.frameUbo != BufferHandle::Invalid) device_.deleteBuffer(it->second.frameUbo);
@@ -602,6 +617,8 @@ void RenderFrame::publishFrameCounters() {
     ES_PROFILE_COUNTER("render.shapes", stats_.shapes);
 #ifdef ES_ENABLE_PARTICLES
     ES_PROFILE_COUNTER("render.particles", stats_.particles);
+    // What the compute-simulated emitters asked of the GPU: a scene whose emitters fell back to the CPU reads zero here.
+    ES_PROFILE_COUNTER("render.particles.gpuSlots", gpu_particles_ ? gpu_particles_->drawnSlots() : 0u);
 #endif
 }
 
@@ -644,6 +661,13 @@ void RenderFrame::end() {
             scene.dependencies.push_back(shadow_2d_resource_);
         }
         if (planar_resource_ != rg::kNoResource) scene.dependencies.push_back(planar_resource_);
+#ifdef ES_ENABLE_PARTICLES
+        // The particles a kernel advances this frame are drawn by the scene, so it runs first.
+        if (gpu_particles_) {
+            const rg::ResourceId simulated = gpu_particles_->declare(graph_);
+            if (simulated != rg::kNoResource) scene.dependencies.push_back(simulated);
+        }
+#endif
         // A surface that refracts has to see what stands behind it, and what stands behind it is the opaque scene: the pass is
         // drawn in two, with a copy of the picture taken between. Only where the scene is a texture a pass can read (a chain is
         // engaged) and a draw in the list asks for the copy.
@@ -755,6 +779,11 @@ void RenderFrame::end() {
         gpu_timer_.end(device_);
         FrameProfiler::get().gpuScope("graph", gpu_timer_.lastMs());
     }
+#ifdef ES_ENABLE_PARTICLES
+    // After the graph, which is where the kernels run: a frame that dispatched none (its emitters fell back to the CPU, or
+    // nothing moved) says so.
+    ES_PROFILE_COUNTER("render.particles.gpuDispatches", gpu_particles_ ? gpu_particles_->lastDispatches() : 0u);
+#endif
     scene_resource_ = rg::kNoResource;
     shadow_resource_ = rg::kNoResource;
     shadow_views_.clear();

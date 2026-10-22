@@ -222,6 +222,13 @@ void TransientBufferPool::bindInstanceLayout(LayoutId layout, u32 instanceByteOf
     device_.setIndexBuffer(s.ebo);
 }
 
+void TransientBufferPool::bindInstanceBuffer(LayoutId layout, BufferHandle instances) {
+    const Stream& s = stream(layout);
+    device_.setVertexBuffer(0, s.quad_vbo, 0);
+    device_.setVertexBuffer(1, instances, 0);
+    device_.setIndexBuffer(s.ebo);
+}
+
 VertexLayoutHandle TransientBufferPool::layoutHandle(LayoutId layout) const {
     return stream(layout).layout;
 }

@@ -84,6 +84,12 @@ struct ParticleEmitter {
     ES_PROPERTY(min=1, step=1, category=Emission)
     i32 maxParticles{1000};
 
+    // Simulated by a compute kernel (WebGPU); elsewhere the emitter runs on the CPU, capped. Gravity, damping,
+    // noise, force fields, the floor plane and over-life curves apply; sub-emitters, trails and
+    // scene-query collision are CPU-only.
+    ES_PROPERTY(category=Emission, tooltip="Simulate on the GPU (WebGPU compute). Falls back to a capped CPU simulation elsewhere. Sub-emitters, trails and physics collision are CPU-only.")
+    bool gpuSimulation{false};
+
     // Lifetime
     ES_PROPERTY(min=0, category=Lifetime)
     f32 lifetimeMin{5.0f};

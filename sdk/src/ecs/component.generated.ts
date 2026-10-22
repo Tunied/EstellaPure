@@ -15,7 +15,7 @@ import type { AlignContent, AlignItems, AlignSelf, BodyType, CanvasScaleMode, Cl
  * getAbiLayoutHash(); BuiltinBridge.connect() compares them and refuses to
  * run on mismatch, because mismatched offsets read the wrong heap bytes.
  */
-export const ABI_LAYOUT_HASH = '8eba82ff470da2d6';
+export const ABI_LAYOUT_HASH = '0161363c22733817';
 
 /**
  * One asset-valued field of a component: which field, and what kind of
@@ -654,6 +654,7 @@ export const COMPONENT_META: Record<string, ComponentMetaEntry> = {
             looping: true,
             playOnStart: true,
             maxParticles: 1000,
+            gpuSimulation: false,
             lifetimeMin: 5,
             lifetimeMax: 5,
             shape: 3,
@@ -726,6 +727,7 @@ export const COMPONENT_META: Record<string, ComponentMetaEntry> = {
             looping: { category: "Emission" },
             playOnStart: { category: "Emission" },
             maxParticles: { min: 1, step: 1, category: "Emission" },
+            gpuSimulation: { tooltip: "Simulate on the GPU (WebGPU compute). Falls back to a capped CPU simulation elsewhere. Sub-emitters, trails and physics collision are CPU-only.", category: "Emission" },
             lifetimeMin: { min: 0, category: "Lifetime" },
             lifetimeMax: { min: 0, category: "Lifetime" },
             shape: { enum: [{ label: 'Point', value: 0 }, { label: 'Circle', value: 1 }, { label: 'Box', value: 2 }, { label: 'Cone', value: 3 }, { label: 'Sphere', value: 4 }, { label: 'Hemisphere', value: 5 }], category: "Shape" },
@@ -1590,6 +1592,7 @@ export interface ParticleEmitterData {
     looping: boolean;
     playOnStart: boolean;
     maxParticles: number;
+    gpuSimulation: boolean;
     lifetimeMin: number;
     lifetimeMax: number;
     shape: EmitterShape;

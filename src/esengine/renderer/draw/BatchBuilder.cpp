@@ -112,6 +112,7 @@ void pushBatchDraw(DrawList& drawList, const ClipState& clips,
     cmd.vertex_count = vertexCount;
     cmd.instance_count = key.instanceCount;
     cmd.instance_stride = key.instanceStride;
+    cmd.instance_buffer = key.instanceBuffer;
     cmd.vertex_buffer = key.vertexBuffer;
     cmd.index_buffer = key.indexBuffer;
     cmd.vertex_layout = key.vertexLayout;

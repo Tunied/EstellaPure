@@ -145,6 +145,9 @@ struct DrawCommand {
     // Bytes one of those records occupies; 0 = the stream's own stride, which the
     // merge would have to guess. Set by whoever wrote them.
     u32 instance_stride = 0;
+    // The instance records already sit in a GPU buffer (a compute kernel wrote them): bound whole in place of the
+    // stream's slice. Never merged; instance_count says how many to draw.
+    BufferHandle instance_buffer = BufferHandle::Invalid;
 
     // Geometry on the GPU rather than in this frame's pool. Set together or not
     // at all; index_offset/index_count then index INTO these. Sorting, material and

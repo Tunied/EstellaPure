@@ -126,6 +126,9 @@ struct BatchDrawKey {
     // Bytes one instance record occupies. Needed to coalesce two such draws into
     // one: the merge relocates their records so they sit next to each other.
     u32 instanceStride = 0;
+    // Instance records a compute kernel already wrote to the GPU (ParticleInstance layout): drawn from there instead
+    // of from the stream, so the draw's vertexByteOffset means nothing.
+    BufferHandle instanceBuffer = BufferHandle::Invalid;
     // Geometry the GPU already holds. Set together with a MeshInstance stream, whose
     // offset is the draw's vertexByteOffset: the mesh supplies the vertices and the
     // frame supplies only the transforms.

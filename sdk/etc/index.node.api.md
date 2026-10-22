@@ -5958,6 +5958,7 @@ enabled: boolean
 endColor: Color
 endSizeMax: number
 endSizeMin: number
+gpuSimulation: boolean
 gravity: Vec3
 layer: number
 lifetimeMax: number

@@ -71,6 +71,18 @@ struct CollisionStats {
 static_assert(sizeof(CollisionQuery) == 40 && sizeof(CollisionReply) == 32);
 static_assert(sizeof(CollisionEvent) == 56 && sizeof(CollisionStats) == 40);
 
+/// What one frame asks of a GPU-simulated emitter: how long to advance, how many to spawn and where in the ring they go.
+struct GpuStep {
+    f32 dt = 0.0f;
+    f32 noiseTime = 0.0f;
+    u32 capacity = 0;
+    u32 firstIndex = 0;   ///< Absolute index of the first particle born this step (slot = index % capacity).
+    u32 spawnCount = 0;   ///< Born this step: `smoothCount` spread across dt, then the rest as one burst.
+    u32 smoothCount = 0;
+    u32 drawCount = 0;    ///< Slots that may hold a live particle once this step has run.
+    bool reset = false;   ///< Kill everything first (a reset() since the last step).
+};
+
 struct EmitterState {
     ParticlePool pool;
     f32 emission_accumulator = 0.0f;
@@ -91,6 +103,15 @@ struct EmitterState {
 
     u32 collisionCursor = 0, collisionOrdinal = 0;
 
+    // GPU simulation: the emitter keeps its schedule here (rate, bursts, duration) and the particles live in
+    // a GPU ring this state only counts. The pool stays empty, so a million-particle emitter costs no heap.
+    bool gpu = false;
+    u32 gpuCapacity = 0;
+    f32 gpuDt = 0.0f;
+    u32 gpuSmooth = 0, gpuBurst = 0;
+    u32 gpuSpawned = 0;
+    bool gpuReset = false;
+
     explicit EmitterState(u32 capacity) : pool(capacity) {}
 };
 
@@ -106,6 +127,21 @@ public:
     void reseedFrom(const esengine::RandomSource& source);
 
     void update(ecs::Registry& registry, f32 dt);
+
+    /// Whether emitters that ask for GPU simulation get it. Set by the renderer, which knows the device; false
+    /// means they run on the CPU, capped at kGpuFallbackCapacity.
+    void setGpuAvailable(bool available) { gpu_available_ = available; }
+    bool gpuAvailable() const { return gpu_available_; }
+    static constexpr u32 kGpuMaxCapacity = 2'000'000;
+    static constexpr u32 kGpuFallbackCapacity = 20'000;
+
+    /// What a GPU emitter has to do to catch up: the time, the births, where in the ring they go. False when the entity
+    /// is not simulated on the GPU. Nothing is consumed until commitGpuStep, so a step that was asked for and never run
+    /// (a collect whose frame did not reach the graph) is asked for again next time rather than lost.
+    bool peekGpuStep(Entity entity, GpuStep& out) const;
+    /// The kernel ran this step: the time and births it covered are spent.
+    void commitGpuStep(Entity entity, const GpuStep& step);
+    const std::vector<ForceFieldInstance>& forceFields() const { return force_fields_; }
 
     // update() integrates; resolveCollisions() completes all queries in this same
     // frame before rendering. No reply survives into the next update.
@@ -141,6 +177,11 @@ public:
      *  particle travels along the trajectory it already has — it is not a force,
      *  and gravity, damping and noise still accumulate into velocity as before. */
     void setSpeedLut(Entity entity, const f32* values, i32 count);
+
+    /// The over-life curves an entity was given, for the GPU kernel to read; null where none was set.
+    const ColorLut* colorLut(Entity entity) const { auto it = colorLuts_.find(entity); return it == colorLuts_.end() ? nullptr : &it->second; }
+    const SizeLut* sizeLut(Entity entity) const { auto it = sizeLuts_.find(entity); return it == sizeLuts_.end() ? nullptr : &it->second; }
+    const SizeLut* speedLut(Entity entity) const { auto it = speedLuts_.find(entity); return it == speedLuts_.end() ? nullptr : &it->second; }
 
 private:
     void emitParticles(const ecs::ParticleEmitter& emitter,
@@ -200,6 +241,7 @@ private:
     std::unordered_map<Entity, SizeLut> sizeLuts_;
     std::unordered_map<Entity, SizeLut> speedLuts_;
     std::mt19937 rng_;
+    bool gpu_available_ = false;
     u32 particle_limit_ = 0xffffffffu;
     std::vector<u32> dead_particle_indices_;
     // Active scene force fields, rebuilt each update() and applied to world-space

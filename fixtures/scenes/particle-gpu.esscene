@@ -1,0 +1,98 @@
+{
+  "version": 4,
+  "name": "ParticleGpu",
+  "entities": [
+    {
+      "id": 0,
+      "name": "Camera",
+      "parent": null,
+      "children": [],
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 10
+            }
+          }
+        },
+        {
+          "type": "Camera",
+          "data": {
+            "projectionType": 1,
+            "orthoSize": 100,
+            "isActive": true,
+            "priority": 0
+          }
+        }
+      ],
+      "visible": true
+    },
+    {
+      "id": 1,
+      "name": "Emitter",
+      "parent": null,
+      "children": [],
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            }
+          }
+        },
+        {
+          "type": "ParticleEmitter",
+          "data": {
+            "rate": 0,
+            "burstCount": 4000,
+            "burstInterval": 1000,
+            "maxParticles": 4000,
+            "lifetimeMin": 10,
+            "lifetimeMax": 10,
+            "shape": 2,
+            "shapeSize": {
+              "x": 120,
+              "y": 120,
+              "z": 0
+            },
+            "speedMin": 0,
+            "speedMax": 0,
+            "startSizeMin": 30,
+            "startSizeMax": 30,
+            "endSizeMin": 30,
+            "endSizeMax": 30,
+            "gravity": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "damping": 0,
+            "simulationSpace": 0,
+            "looping": false,
+            "playOnStart": true,
+            "startColor": {
+              "r": 0,
+              "g": 1,
+              "b": 0,
+              "a": 1
+            },
+            "endColor": {
+              "r": 0,
+              "g": 1,
+              "b": 0,
+              "a": 1
+            },
+            "gpuSimulation": true
+          }
+        }
+      ],
+      "visible": true
+    }
+  ]
+}

@@ -116,6 +116,7 @@ endif()
 if(ES_ENABLE_PARTICLES)
     list(APPEND ESENGINE_SOURCES
         ${ESENGINE_ROOT}/src/esengine/renderer/plugins/ParticlePlugin.cpp
+        ${ESENGINE_ROOT}/src/esengine/renderer/frame/GpuParticles.cpp
         ${ESENGINE_ROOT}/src/esengine/particle/Particle.cpp
         ${ESENGINE_ROOT}/src/esengine/particle/ParticleSystem.cpp)
 endif()

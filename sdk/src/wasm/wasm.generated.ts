@@ -686,6 +686,7 @@ export interface ParticleEmitter {
     looping: boolean;
     playOnStart: boolean;
     maxParticles: number;
+    gpuSimulation: boolean;
     lifetimeMin: number;
     lifetimeMax: number;
     shape: number;

@@ -4,6 +4,7 @@
 #include "../draw/BatchBuilder.hpp"
 #include "../frame/RenderContext.hpp"
 #include "../frame/RenderFrame.hpp"
+#include "../frame/GpuParticles.hpp"
 #include "../rhi/Shader.hpp"
 #include "../rhi/ShaderEmbeds.generated.hpp"
 #include "../rhi/Texture.hpp"
@@ -36,6 +37,10 @@ static_assert(sizeof(ParticleInstanceData) == 44, "instance stride must match th
 }  // namespace
 
 void ParticlePlugin::init(RenderFrameContext& ctx) {
+    // Whether emitters that ask to simulate on the GPU can: the device says, and the CPU sim falls back where it cannot.
+    if (particle_system_ && ctx.frame && ctx.frame->gpuParticles()) {
+        particle_system_->setGpuAvailable(ctx.frame->gpuParticles()->available());
+    }
     // Particle instancing shader, authored as particle.esshader (single source,
     // WGSL twin included) and embedded for the web build. Attribute locations
     // are explicit, so no name bindings.
@@ -84,7 +89,25 @@ void ParticlePlugin::collect(RenderCollectContext& collect_ctx) {
         transform.ensureDecomposed();
 
         const auto* state = particle_system_->getState(entity);
-        if (!state || state->pool.aliveCount() == 0) continue;
+        if (!state) continue;
+
+        // A GPU emitter's particles are in a buffer a kernel writes: this frame's step is queued, and the draw is told
+        // where to read them. The CPU has nothing per particle to do.
+        BufferHandle gpuInstances = BufferHandle::Invalid;
+        u32 particleCount = 0;
+        if (state->gpu) {
+            GpuParticles* gpu = ctx.frame ? ctx.frame->gpuParticles() : nullptr;
+            // The screen's overlay is not drawn through the graph the kernel runs in.
+            if (!gpu || collect_ctx.isOverlay()) continue;
+            buffers.reserveStream(LayoutId::ParticleInstance);
+            particle::GpuStep step;
+            if (!particle_system_->peekGpuStep(entity, step)) continue;
+            if (!gpu->submit(entity, emitter, transform, *particle_system_, step, gpuInstances)) continue;
+            particleCount = step.drawCount;
+        } else {
+            particleCount = state->pool.aliveCount();
+        }
+        if (particleCount == 0) continue;
 
         u32 textureId = ctx.white_texture_id;
         if (emitter.texture.isValid()) {
@@ -115,14 +138,17 @@ void ParticlePlugin::collect(RenderCollectContext& collect_ctx) {
 
         BlendMode blendMode = static_cast<BlendMode>(emitter.blendMode);
 
-        u32 particleCount = state->pool.aliveCount();
-        u32 instByteOffset = buffers.allocVertices(LayoutId::ParticleInstance,
+        u32 instByteOffset = 0;
+        ParticleInstanceData* inst = nullptr;
+        if (!state->gpu) {
+            instByteOffset = buffers.allocVertices(LayoutId::ParticleInstance,
                                                    particleCount * sizeof(ParticleInstanceData));
-        auto* inst = reinterpret_cast<ParticleInstanceData*>(
-            buffers.vertexData(LayoutId::ParticleInstance) + instByteOffset);
+            inst = reinterpret_cast<ParticleInstanceData*>(
+                buffers.vertexData(LayoutId::ParticleInstance) + instByteOffset);
+        }
 
         u32 i = 0;
-        state->pool.forEachAlive([&](const particle::Particle& p) {
+        if (!state->gpu) state->pool.forEachAlive([&](const particle::Particle& p) {
             glm::vec3 worldPos;
             glm::vec2 size;
             if (isLocalSpace) {
@@ -192,6 +218,7 @@ void ParticlePlugin::collect(RenderCollectContext& collect_ctx) {
             .materialId = materialId,
             .layoutId = LayoutId::ParticleInstance,
             .instanceCount = particleCount,
+            .instanceBuffer = gpuInstances,
         };
         // The stream's static unit-quad indices (offset 0) drawn once per particle,
         // with the instance slice based at instByteOffset.
@@ -201,7 +228,7 @@ void ParticlePlugin::collect(RenderCollectContext& collect_ctx) {
         // Each live particle drags a tapering ribbon along its recorded path. Built on
         // the CPU and streamed through the Batch face (triangle strip), exactly like the
         // standalone TrailRenderer — no new GPU path. Off unless the emitter opts in.
-        if (emitter.trailEnabled && emitter.trailWidth > 0.0f &&
+        if (!state->gpu && emitter.trailEnabled && emitter.trailWidth > 0.0f &&
             state->trail_count.size() == state->pool.particles().size()) {
             BatchDrawKey trailKey{
                 .stage = ctx.current_stage,

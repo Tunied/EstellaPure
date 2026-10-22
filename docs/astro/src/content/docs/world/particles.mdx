@@ -94,6 +94,7 @@ in degrees.
 | `looping` | boolean | `true` | Restart after `duration` instead of stopping. |
 | `playOnStart` | boolean | `true` | Begin emitting as soon as the entity exists. |
 | `maxParticles` | number | `1000` | Pool size — the hard cap on live particles. |
+| `gpuSimulation` | boolean | `false` | Simulate on the GPU. See [GPU simulation](#gpu-simulation). |
 
 ### Lifetime
 
@@ -535,10 +536,47 @@ The Details panel shows these counters and transient hit normals. Normal display
 is not saved to the scene. The sample `particle-demo/assets/scenes/scene-collisions.esscene`
 demonstrates 2D and 3D walls, impact bursts and project-owned event counters.
 
+## GPU simulation
+
+Turn on `gpuSimulation` and the particles live on the GPU: a compute kernel advances every one of them each frame, and the
+draw reads what it wrote. The CPU only decides how many are born, so an emitter of a hundred thousand or a million particles
+costs a dispatch, not a loop. `maxParticles` is then the size of the ring the GPU keeps (up to 2,000,000); a new particle takes
+the next slot, and a slot whose particle has died is drawn as nothing.
+
+```ts
+world.insert(entity, ParticleEmitter, {
+  gpuSimulation: true,
+  maxParticles: 500_000,
+  rate: 200_000,
+  lifetimeMin: 2, lifetimeMax: 3,
+  shape: EmitterShape.Cone, shapeAngle: 40,
+  speedMin: 200, speedMax: 400,
+  gravity: { x: 0, y: -300, z: 0 },
+  noiseStrength: 40, noiseFrequency: 0.01,
+  collisionEnabled: true, collisionFloor: 0, collisionBounce: 0.4,
+});
+```
+
+It runs the same emitter, with the same shapes, curl noise, force fields (the first eight), gravity, damping, floor plane,
+color / size / speed over life and sprite sheets. Each emitter draws from a fixed seed of its own, so a scene replays the same
+particles. What it does not do:
+
+- **No sub-emitters, no per-particle trails, no scene-query collision** (`Physics2D` / `Physics3D`). A GPU emitter collides
+  with the floor plane only.
+- **Not sorted.** An `Additive` or cut-out look is exact; a deep pile of `Normal`-blended particles draws in slot order.
+- **Not in a UI tree.** An emitter under a `Canvas` draws through the screen overlay, which the kernel does not feed; leave it
+  on the CPU.
+- **`Particle.aliveCount` is an upper bound.** The GPU keeps the truth and nothing is read back.
+
+It needs a device with compute — WebGPU. On WebGL2 and in mini-game runtimes the same emitter runs on the CPU, **capped at
+20,000 particles**, so a scene built for a million still plays, thinner. Design the look to survive the cap if a platform
+without WebGPU matters to you.
+
 ## Performance & best practices
 
 - **Budget `maxParticles`.** It's a fixed pool; size it to the worst case, not
-  higher. Many small emitters beat one huge one for culling.
+  higher. Many small emitters beat one huge one for culling. Past a few thousand
+  particles, use [GPU simulation](#gpu-simulation).
 - **Prefer `Additive` for light** (fire, sparks, magic) — it hides overdraw and
   needs no sorting. Reserve `Normal`/`Multiply` for opaque smoke/dust.
 - **Atlas particle textures** and share one `material` so emitters batch.

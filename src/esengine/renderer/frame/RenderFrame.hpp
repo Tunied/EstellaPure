@@ -38,6 +38,8 @@
 
 namespace esengine {
 
+class GpuParticles;
+
 namespace ecs { struct Light; }
 class ImmediateDraw;
 
@@ -519,6 +521,11 @@ public:
 
     static constexpr u32 STAGE_COUNT = 4;
 
+#ifdef ES_ENABLE_PARTICLES
+    /** Where emitters that simulate on the GPU queue their step, and find the buffer to draw (null before init). */
+    GpuParticles* gpuParticles() { return gpu_particles_.get(); }
+#endif
+
 private:
     GfxDevice& device_;
     RenderContext& context_;
@@ -527,6 +534,10 @@ private:
 
 #ifdef ES_ENABLE_POSTPROCESS
     Unique<PostProcessPipeline> post_process_;
+#endif
+#ifdef ES_ENABLE_PARTICLES
+    /// The compute-simulated particles' buffers live here, across frames: their state is the point of them.
+    Unique<GpuParticles> gpu_particles_;
 #endif
     RenderTargetManager target_manager_;
 

@@ -6,6 +6,7 @@
 #include <esengine/particle/ParticleEasing.hpp>
 #include <esengine/particle/ParticleSystem.hpp>
 #include <cmath>
+#include <functional>
 
 using namespace esengine;
 using namespace esengine::particle;
@@ -779,6 +780,145 @@ TEST_CASE("system_burst_emission") {
 
     system.update(registry, 0.01f);
     CHECK_EQ(system.aliveCount(e), 100u);
+}
+
+// ============================================================================
+// GPU simulation: the schedule the kernel is handed (the kernel itself runs in the pixel gates)
+// ============================================================================
+
+namespace {
+Entity makeGpuEmitter(ecs::Registry& registry, const std::function<void(ecs::ParticleEmitter&)>& tune) {
+    Entity e = registry.create();
+    registry.emplace<ecs::Transform>(e);
+    auto& emitter = registry.emplace<ecs::ParticleEmitter>(e);
+    emitter.rate = 0.0f;
+    emitter.lifetimeMin = emitter.lifetimeMax = 10.0f;
+    emitter.maxParticles = 1000;
+    emitter.gpuSimulation = true;
+    tune(emitter);
+    return e;
+}
+}  // namespace
+
+TEST_CASE("gpu_emitter_without_a_compute_device_runs_on_the_cpu_capped") {
+    ecs::Registry registry;
+    ParticleSystem system;
+    Entity e = makeGpuEmitter(registry, [](ecs::ParticleEmitter& m) { m.burstCount = 50000; m.maxParticles = 200000; });
+    system.update(registry, 0.01f);
+    GpuStep step;
+    CHECK_FALSE(system.peekGpuStep(e, step));
+    // The capacity is what keeps a million-particle setup from taking the CPU down: it fills, and stops.
+    CHECK_EQ(system.aliveCount(e), ParticleSystem::kGpuFallbackCapacity);
+}
+
+TEST_CASE("gpu_emitter_hands_over_a_step_and_keeps_no_pool") {
+    ecs::Registry registry;
+    ParticleSystem system;
+    system.setGpuAvailable(true);
+    Entity e = makeGpuEmitter(registry, [](ecs::ParticleEmitter& m) { m.burstCount = 500; m.maxParticles = 1'000'000; });
+    system.update(registry, 0.01f);
+    CHECK_EQ(system.getState(e)->pool.capacity(), 0u);
+
+    GpuStep step;
+    REQUIRE(system.peekGpuStep(e, step));
+    CHECK_EQ(step.capacity, 1'000'000u);
+    CHECK_EQ(step.spawnCount, 500u);
+    CHECK_EQ(step.smoothCount, 0u);
+    CHECK_EQ(step.firstIndex, 0u);
+    CHECK_EQ(step.drawCount, 500u);
+
+    // Nothing is spent until the kernel has run it: a step asked for twice is the same step.
+    GpuStep again;
+    REQUIRE(system.peekGpuStep(e, again));
+    CHECK_EQ(again.spawnCount, 500u);
+    CHECK_EQ(again.firstIndex, 0u);
+
+    system.commitGpuStep(e, step);
+    GpuStep next;
+    REQUIRE(system.peekGpuStep(e, next));
+    CHECK_EQ(next.spawnCount, 0u);
+    CHECK_EQ(next.firstIndex, 500u);
+    CHECK_EQ(next.drawCount, 500u);
+    CHECK_EQ(system.aliveCount(e), 500u);
+}
+
+TEST_CASE("gpu_emitter_rate_births_are_the_smooth_ones") {
+    ecs::Registry registry;
+    ParticleSystem system;
+    system.setGpuAvailable(true);
+    Entity e = makeGpuEmitter(registry, [](ecs::ParticleEmitter& m) { m.rate = 1000.0f; m.burstCount = 7; m.burstInterval = 100.0f; });
+    system.update(registry, 0.1f);
+    GpuStep step;
+    REQUIRE(system.peekGpuStep(e, step));
+    CHECK_EQ(step.smoothCount, 100u);
+    CHECK_EQ(step.spawnCount, 107u);
+    CHECK(step.dt == doctest::Approx(0.1f));
+}
+
+TEST_CASE("gpu_emitter_ring_never_asks_for_more_than_it_holds") {
+    ecs::Registry registry;
+    ParticleSystem system;
+    system.setGpuAvailable(true);
+    Entity e = makeGpuEmitter(registry, [](ecs::ParticleEmitter& m) { m.burstCount = 250; m.maxParticles = 100; });
+    system.update(registry, 0.01f);
+    GpuStep step;
+    REQUIRE(system.peekGpuStep(e, step));
+    CHECK_EQ(step.spawnCount, 100u);
+    CHECK_EQ(step.drawCount, 100u);
+}
+
+TEST_CASE("gpu_emitter_a_long_frame_is_not_one_huge_step") {
+    ecs::Registry registry;
+    ParticleSystem system;
+    system.setGpuAvailable(true);
+    Entity e = makeGpuEmitter(registry, [](ecs::ParticleEmitter&) {});
+    system.update(registry, 1.0f);
+    GpuStep step;
+    REQUIRE(system.peekGpuStep(e, step));
+    CHECK(step.dt == doctest::Approx(0.1f));
+    system.commitGpuStep(e, step);
+    REQUIRE(system.peekGpuStep(e, step));
+    CHECK(step.dt == 0.0f);
+}
+
+TEST_CASE("gpu_emitter_reset_clears_the_ring_until_the_kernel_has_done_it") {
+    ecs::Registry registry;
+    ParticleSystem system;
+    system.setGpuAvailable(true);
+    Entity e = makeGpuEmitter(registry, [](ecs::ParticleEmitter& m) { m.burstCount = 40; });
+    system.update(registry, 0.01f);
+    GpuStep step;
+    REQUIRE(system.peekGpuStep(e, step));
+    system.commitGpuStep(e, step);
+    CHECK_EQ(system.aliveCount(e), 40u);
+
+    system.reset(e);
+    CHECK_EQ(system.aliveCount(e), 0u);
+    REQUIRE(system.peekGpuStep(e, step));
+    CHECK(step.reset);
+    CHECK_EQ(step.drawCount, 0u);
+    system.commitGpuStep(e, step);
+    REQUIRE(system.peekGpuStep(e, step));
+    CHECK_FALSE(step.reset);
+}
+
+TEST_CASE("gpu_emitter_that_began_on_the_cpu_moves_over_without_firing_its_burst_twice") {
+    ecs::Registry registry;
+    ParticleSystem system;
+    Entity e = makeGpuEmitter(registry, [](ecs::ParticleEmitter& m) { m.burstCount = 50; m.burstInterval = 100.0f; });
+    // The device is only known once the renderer has run, a frame after the first update.
+    system.update(registry, 0.01f);
+    CHECK_EQ(system.aliveCount(e), 50u);
+
+    system.setGpuAvailable(true);
+    system.update(registry, 0.01f);
+    GpuStep step;
+    REQUIRE(system.peekGpuStep(e, step));
+    CHECK_EQ(step.spawnCount, 50u);
+    system.commitGpuStep(e, step);
+    system.update(registry, 0.01f);
+    REQUIRE(system.peekGpuStep(e, step));
+    CHECK_EQ(step.spawnCount, 0u);
 }
 
 // ============================================================================
