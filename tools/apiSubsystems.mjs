@@ -316,6 +316,16 @@ export const SUBSYSTEMS = [
         entry: ['MeshRenderer', 'MeshRendererAPI', 'MeshRenderers'],
     },
     {
+        id: 'terrain-foliage',
+        title: 'Terrain & foliage',
+        titleZh: '地形与植被',
+        source: ['terrain', 'foliage'],
+        tier: 'experimental',
+        why: 'the ground and the plants on it draw and are checked in the editor on both backends, but nothing collides with the ground yet and the authoring panels have not been read for a shape',
+        whyZh: '地面和上面的植物在编辑器里两个后端都能画出来并有检查，但还没有东西和地面碰撞，创作面板也还没有被拿来定下这套接口的形状',
+        entry: ['Terrain', 'Foliage'],
+    },
+    {
         id: 'decal',
         title: 'Decals',
         titleZh: '贴花',

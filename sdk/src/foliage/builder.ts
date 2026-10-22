@@ -1,0 +1,278 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
+/**
+ * @file    builder.ts
+ * @brief   Where plants stand, and the geometry of a patch of them.
+ *
+ * @details A field of grass is tens of thousands of blades and a forest is thousands of trees, which no engine draws one entity at a time. The
+ *          ground is cut into cells and every cell is ONE mesh with all its plants in it, so a field is a few hundred draws that
+ *          culling can drop whole. Each cell is built at the detail its distance deserves — fewer, broader blades; a tree
+ *          reduced to two crossed cards — and the engine's own level-of-detail picks among them.
+ *
+ *          What the wind needs is painted into the vertices, because a plant is not a thing the vertex stage can see once it is
+ *          merged: the colour's red is how far up the plant the vertex is (the tip moves and the root does not), green is a
+ *          phase of the plant's own so a meadow does not sway as one, and blue is how much light reaches it (the base of a
+ *          clump is darker). The Foliage material reads them; a mesh drawn without it shows them as colour, so a field with
+ *          no material is painted in its own colours instead.
+ */
+import { MeshChannel, MeshChannelType, packChannels, type MeshData } from '../asset/meshFormat';
+
+/** One plant, in the space of the cell that holds it. */
+export interface Plant {
+    x: number;
+    y: number;
+    z: number;
+    /** Turn about the vertical, radians. */
+    yaw: number;
+    scale: number;
+    /** 0 to 1: its own phase in the wind, and how dark its roots are. */
+    phase: number;
+    shade: number;
+}
+
+/** What a place is, as the ground answers: how high it is and how much it faces up. */
+export type Ground = (x: number, z: number) => { y: number; up: number } | null;
+
+export interface ScatterParams {
+    /** The cell: its centre and its side, in the space the ground answers in. */
+    centerX: number;
+    centerZ: number;
+    size: number;
+    count: number;
+    seed: number;
+    /** An integer naming the cell, so two cells never roll the same dice. */
+    cellKey: number;
+    minScale: number;
+    maxScale: number;
+    /** The least a place may face up (the normal's y) and still grow something. */
+    minUp: number;
+    heightMin: number;
+    heightMax: number;
+}
+
+/** A deterministic 32-bit generator: the same seed grows the same field on every host. */
+export function rng(seed: number): () => number {
+    let a = seed | 0;
+    return () => {
+        a = (a + 0x6d2b79f5) | 0;
+        let t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+/**
+ * The plants of one cell: `count` tries at random places, each kept only where the ground is gentle enough and in the height band.
+ * Positions come back relative to the cell's centre, with the ground's height already in them.
+ */
+export function scatterCell(p: ScatterParams, ground: Ground): Plant[] {
+    const random = rng(Math.imul(p.seed | 0, 73856093) ^ Math.imul(p.cellKey | 0, 19349663) ^ 0x9e3779b9);
+    const out: Plant[] = [];
+    for (let i = 0; i < p.count; i++) {
+        const x = p.centerX + (random() - 0.5) * p.size;
+        const z = p.centerZ + (random() - 0.5) * p.size;
+        const yaw = random() * Math.PI * 2;
+        const scale = p.minScale + (p.maxScale - p.minScale) * random();
+        const phase = random();
+        const shade = 0.7 + 0.3 * random();
+        const g = ground(x, z);
+        if (!g || g.up < p.minUp || g.y < p.heightMin || g.y > p.heightMax) continue;
+        out.push({ x: x - p.centerX, y: g.y, z: z - p.centerZ, yaw, scale, phase, shade });
+    }
+    return out;
+}
+
+/** The vertices a patch is made of, before they are packed. */
+interface Builder {
+    pos: number[];
+    uv: number[];
+    color: number[];
+    nrm: number[];
+    idx: number[];
+}
+
+const newBuilder = (): Builder => ({ pos: [], uv: [], color: [], nrm: [], idx: [] });
+
+function vertex(b: Builder, x: number, y: number, z: number, u: number, v: number,
+                r: number, g: number, bl: number, nx: number, ny: number, nz: number): number {
+    b.pos.push(x, y, z);
+    b.uv.push(u, v);
+    b.color.push(r, g, bl, 1);
+    b.nrm.push(nx, ny, nz);
+    return b.pos.length / 3 - 1;
+}
+
+function pack(b: Builder): MeshData {
+    const { channels, vertexStride } = packChannels([
+        { semantic: MeshChannel.Position, components: 3, type: MeshChannelType.Float32 },
+        { semantic: MeshChannel.TexCoord0, components: 2, type: MeshChannelType.Float32 },
+        { semantic: MeshChannel.Color, components: 4, type: MeshChannelType.UNorm8 },
+        { semantic: MeshChannel.Normal, components: 3, type: MeshChannelType.Float32 },
+    ]);
+    const vertexCount = b.pos.length / 3;
+    const vertices = new Uint8Array(Math.max(1, vertexCount) * vertexStride);
+    const view = new DataView(vertices.buffer);
+    const posAt = channels[0]!.offset, uvAt = channels[1]!.offset, colorAt = channels[2]!.offset, normalAt = channels[3]!.offset;
+    const min: [number, number, number] = [Infinity, Infinity, Infinity];
+    const max: [number, number, number] = [-Infinity, -Infinity, -Infinity];
+    for (let i = 0; i < vertexCount; i++) {
+        const at = i * vertexStride;
+        for (let k = 0; k < 3; k++) {
+            const value = b.pos[i * 3 + k]!;
+            view.setFloat32(at + posAt + k * 4, value, true);
+            view.setFloat32(at + normalAt + k * 4, b.nrm[i * 3 + k]!, true);
+            if (value < min[k]!) min[k] = value;
+            if (value > max[k]!) max[k] = value;
+        }
+        view.setFloat32(at + uvAt, b.uv[i * 2]!, true);
+        view.setFloat32(at + uvAt + 4, b.uv[i * 2 + 1]!, true);
+        for (let k = 0; k < 4; k++) view.setUint8(at + colorAt + k, Math.round(Math.min(Math.max(b.color[i * 4 + k]!, 0), 1) * 255));
+    }
+    if (vertexCount === 0) { min.fill(0); max.fill(0); }
+    return { channels, vertexStride, vertexCount, vertices, indices: new Uint32Array(b.idx), aabbMin: min, aabbMax: max };
+}
+
+/** How blades are drawn. */
+export interface BladeParams {
+    height: number;
+    width: number;
+    /** Segments up a blade; the more, the smoother its bend. */
+    segments: number;
+    /** Every n-th plant only, drawn broader to make up for the ones left out. */
+    thin: number;
+    /** Paint a colour the plain material shows, instead of the wind's weights. */
+    paint?: { base: [number, number, number]; tip: [number, number, number] } | null;
+}
+
+/**
+ * A patch of grass: a tapered, slightly bent blade for each plant, facing where its yaw says. The normal leans toward the ground's up
+ * so a meadow is lit as one surface and not as ten thousand knives.
+ */
+export function buildGrassMesh(plants: readonly Plant[], blade: BladeParams): MeshData {
+    const b = newBuilder();
+    const segments = Math.max(1, Math.floor(blade.segments));
+    const thin = Math.max(1, Math.floor(blade.thin));
+    const widen = Math.sqrt(thin);
+    for (let i = 0; i < plants.length; i += thin) {
+        const p = plants[i]!;
+        const h = blade.height * p.scale * (widen > 1 ? 1.1 : 1);
+        const w = blade.width * p.scale * widen * 0.5;
+        const cos = Math.cos(p.yaw), sin = Math.sin(p.yaw);
+        // The blade's width runs along (cos, 0, -sin) and it faces (sin, 0, cos).
+        const fx = sin, fz = cos;
+        const base = b.pos.length / 3;
+        const ring: number[] = [];
+        for (let s = 0; s <= segments; s++) {
+            const t = s / segments;
+            const half = s === segments ? 0 : w * (1 - t * 0.85);
+            const lean = t * t * h * 0.12;
+            const y = p.y + t * h;
+            const cx = p.x + fx * lean, cz = p.z + fz * lean;
+            const color = blade.paint ? paintColor(blade.paint, t, p.shade) : [t, p.phase, p.shade * (0.55 + 0.45 * t)] as const;
+            const ny = 0.65;
+            const nx = fx * 0.75, nz = fz * 0.75;
+            const left = vertex(b, cx - cos * half, y, cz + sin * half, 0, t, color[0], color[1], color[2], nx, ny, nz);
+            if (s === segments) { ring.push(left, left); continue; }
+            const right = vertex(b, cx + cos * half, y, cz - sin * half, 1, t, color[0], color[1], color[2], nx, ny, nz);
+            ring.push(left, right);
+        }
+        void base;
+        for (let s = 0; s < segments; s++) {
+            const l0 = ring[s * 2]!, r0 = ring[s * 2 + 1]!, l1 = ring[s * 2 + 2]!, r1 = ring[s * 2 + 3]!;
+            b.idx.push(l0, r0, l1);
+            if (r1 !== l1) b.idx.push(r0, r1, l1);
+        }
+    }
+    return pack(b);
+}
+
+function paintColor(paint: NonNullable<BladeParams['paint']>, t: number, shade: number): [number, number, number] {
+    const light = shade * (0.55 + 0.45 * t);
+    return [
+        (paint.base[0] + (paint.tip[0] - paint.base[0]) * t) * light,
+        (paint.base[1] + (paint.tip[1] - paint.base[1]) * t) * light,
+        (paint.base[2] + (paint.tip[2] - paint.base[2]) * t) * light,
+    ];
+}
+
+/** Reads a channel of a source mesh as floats. */
+function reader(mesh: MeshData, semantic: number, components: number): ((v: number, out: number[]) => boolean) {
+    const channel = mesh.channels.find((c) => c.semantic === semantic);
+    if (!channel || channel.type !== MeshChannelType.Float32 || channel.components < components) return () => false;
+    const view = new DataView(mesh.vertices.buffer, mesh.vertices.byteOffset, mesh.vertices.byteLength);
+    return (v, out) => {
+        for (let k = 0; k < components; k++) out[k] = view.getFloat32(v * mesh.vertexStride + channel.offset + k * 4, true);
+        return true;
+    };
+}
+
+/**
+ * Copies of a mesh, one per plant, as one mesh: placed, turned about the vertical and scaled, with the wind's weights painted by how
+ * high each vertex stands on its own copy (a tree's trunk hardly moves, its crown does).
+ */
+export function buildInstancedMesh(source: MeshData, plants: readonly Plant[], paint?: BladeParams['paint']): MeshData {
+    const b = newBuilder();
+    const readPosition = reader(source, MeshChannel.Position, 3);
+    const readNormal = reader(source, MeshChannel.Normal, 3);
+    const readUv = reader(source, MeshChannel.TexCoord0, 2);
+    const minY = source.aabbMin[1], span = Math.max(1e-6, source.aabbMax[1] - source.aabbMin[1]);
+    const p3 = [0, 0, 0], n3 = [0, 1, 0], uv2 = [0, 0];
+    for (const plant of plants) {
+        const base = b.pos.length / 3;
+        const cos = Math.cos(plant.yaw), sin = Math.sin(plant.yaw);
+        for (let v = 0; v < source.vertexCount; v++) {
+            readPosition(v, p3);
+            if (!readNormal(v, n3)) { n3[0] = 0; n3[1] = 1; n3[2] = 0; }
+            if (!readUv(v, uv2)) { uv2[0] = 0; uv2[1] = 0; }
+            const t = Math.min(Math.max((p3[1]! - minY) / span, 0), 1);
+            const x = p3[0]! * plant.scale, y = p3[1]! * plant.scale, z = p3[2]! * plant.scale;
+            const color = paint ? paintColor(paint, t, plant.shade) : [t, plant.phase, plant.shade * (0.6 + 0.4 * t)] as const;
+            vertex(b, plant.x + x * cos + z * sin, plant.y + y, plant.z - x * sin + z * cos, uv2[0]!, uv2[1]!,
+                   color[0], color[1], color[2], n3[0]! * cos + n3[2]! * sin, n3[1]!, -n3[0]! * sin + n3[2]! * cos);
+        }
+        for (const i of source.indices) b.idx.push(base + i);
+    }
+    return pack(b);
+}
+
+/** The rectangle of the plant's texture a card shows, in uv. */
+export interface CardRect {
+    u0: number;
+    v0: number;
+    u1: number;
+    v1: number;
+}
+
+/**
+ * The far version of a plant: two cards crossed at right angles, as wide and as tall as the plant is, each showing the rectangle of the
+ * plant's texture that is its picture. Cheap enough that a forest on the horizon is a few triangles a tree, and seen from any side.
+ */
+export function buildBillboardMesh(
+    plants: readonly Plant[], width: number, height: number, rect: CardRect, paint?: BladeParams['paint'], triangle = false,
+): MeshData {
+    const b = newBuilder();
+    for (const plant of plants) {
+        const w = width * plant.scale * 0.5, h = height * plant.scale;
+        for (const turn of [0, Math.PI / 2]) {
+            const a = plant.yaw + turn;
+            const cos = Math.cos(a), sin = Math.sin(a);
+            const lower = paint ? paintColor(paint, 0, plant.shade) : [0, plant.phase, plant.shade * 0.6] as const;
+            const upper = paint ? paintColor(paint, 1, plant.shade) : [1, plant.phase, plant.shade] as const;
+            if (triangle) {
+                // A tent: wide at a tenth of the height, where a conifer's needles begin, and a point at the top.
+                const foot = h * 0.1, vMid = rect.v0 + (rect.v1 - rect.v0) * 0.1, uMid = (rect.u0 + rect.u1) / 2;
+                const t0 = vertex(b, plant.x - cos * w, plant.y + foot, plant.z + sin * w, rect.u0, vMid, lower[0], lower[1], lower[2], 0, 1, 0);
+                const t1 = vertex(b, plant.x + cos * w, plant.y + foot, plant.z - sin * w, rect.u1, vMid, lower[0], lower[1], lower[2], 0, 1, 0);
+                const t2 = vertex(b, plant.x, plant.y + h, plant.z, uMid, rect.v1, upper[0], upper[1], upper[2], 0, 1, 0);
+                b.idx.push(t0, t1, t2);
+                continue;
+            }
+            const v0 = vertex(b, plant.x - cos * w, plant.y, plant.z + sin * w, rect.u0, rect.v0, lower[0], lower[1], lower[2], 0, 1, 0);
+            const v1 = vertex(b, plant.x + cos * w, plant.y, plant.z - sin * w, rect.u1, rect.v0, lower[0], lower[1], lower[2], 0, 1, 0);
+            const v2 = vertex(b, plant.x + cos * w, plant.y + h, plant.z - sin * w, rect.u1, rect.v1, upper[0], upper[1], upper[2], 0, 1, 0);
+            const v3 = vertex(b, plant.x - cos * w, plant.y + h, plant.z + sin * w, rect.u0, rect.v1, upper[0], upper[1], upper[2], 0, 1, 0);
+            b.idx.push(v0, v1, v2, v0, v2, v3);
+        }
+    }
+    return pack(b);
+}

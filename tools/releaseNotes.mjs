@@ -2509,6 +2509,14 @@ export const NOTED = {
     {"note":"A Water material: waves that travel, the scene seen through it bent and tinted by how deep the water is, reflections, and foam at the shore and on the crests."},
   "chore(editor-checks): a water-look check":
     {"internal":"the editor check for the Water material entry above"},
+  "feat(render): Terrain and Foliage components with heightmaps, painted layers, wind and level of detail":
+    {"note":"A Terrain component makes ground from a heightmap or noise, paints it with grass, dirt, snow and rock layers and draws it in chunks that coarsen with distance; a Foliage component scatters grass or a mesh over it, swaying in the wind and thinning out with distance."},
+  "chore(editor-checks): terrain and foliage checks, and the inspector's buttons on the shared components":
+    {"internal":"the editor checks for the Terrain and Foliage entry above, and the effect stack and weather panels moved onto the shared Button and IconButton"},
+  "feat(examples): add the Wilds example, a lake under mountains with terrain, water, foliage and cloud shadows":
+    {"note":"Wilds is a new 3D example: a lake under mountains at dusk, made from a generated heightmap with the Terrain, Water and Foliage features and the sky's cloud shadows."},
+  "chore(tools): the gates run in parallel with --jobs, and the reds a full run gathered are cleared":
+    {"internal":"tooling for the static gates, and fixes to checks that had drifted from the code they guard"},
   "fix(render): a wire narrower than a pixel is no longer painted over by the sky in dashes":
     {"note":"A wire or railing thinner than a pixel stays one line against the sky instead of breaking into dashes."},
   "fix(render): contact shadows no longer speckle a surface the sun does not reach, and a temporal pass placed before a noisy effect is flagged":

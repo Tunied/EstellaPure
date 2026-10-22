@@ -370,10 +370,12 @@ std::string canonicalVertexStageWGSL(bool lit, const std::string& hook = {}) {
     src +=
         "    return out;\n"
         "}\n";
+    // The vertex's own colour is the one per-vertex channel a hook has besides its position, normal and uv: wind sways a plant by
+    // a weight painted in it. A hook reads `es_vertexColor`; one that does not is not changed.
     fillHook(src, "@@WGSL_HOOK@@", hook.empty() ? std::string() :
-        "#ifdef MESH\n" + hook + "\n#endif\n");
+        "#ifdef MESH\nvar<private> es_vertexColor : vec4f;\n" + hook + "\n#endif\n");
     fillHook(src, "@@WGSL_CALL@@", hook.empty() ? std::string() :
-        "    esMaterialVertex(&local, &localNormal, v.a_texCoord);\n");
+        "    es_vertexColor = v.a_color;\n    esMaterialVertex(&local, &localNormal, v.a_texCoord);\n");
     return src;
 }
 
@@ -576,9 +578,9 @@ std::string canonicalVertexStage(bool lit, const std::string& hook = {}) {
     }
     src += "}\n";
     fillHook(src, "@@GLSL_HOOK@@", hook.empty() ? std::string() :
-        "#ifdef MESH\n" + hook + "\n#endif\n");
+        "#ifdef MESH\nhighp vec4 es_vertexColor;\n" + hook + "\n#endif\n");
     fillHook(src, "@@GLSL_CALL@@", hook.empty() ? std::string() :
-        "    esMaterialVertex(local, localNormal, a_texCoord);\n");
+        "    es_vertexColor = a_color;\n    esMaterialVertex(local, localNormal, a_texCoord);\n");
     return src;
 }
 

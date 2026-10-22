@@ -172,6 +172,7 @@ export {
     type EffectDef,
     type ComputeEffectSource,
     type EffectUniformDef,
+    registerEffect,
     getEffectDef,
     getEffectTypes,
     getAllEffectDefs,

@@ -28,7 +28,7 @@ function sectionsBalance(source: string): boolean {
     let open = 0;
     for (const line of source.split('\n')) {
         const t = line.trim();
-        if (/^#pragma (vertex|fragment|properties|variant)\b/.test(t)) {
+        if (/^#pragma (vertex|vertexoffset|fragment|properties|variant)\b/.test(t)) {
             if (open !== 0) return false;
             open = 1;
         } else if (t === '#pragma end') {

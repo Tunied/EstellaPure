@@ -223,6 +223,8 @@ export default defineConfig({
             { label: 'Materials & Shaders', translations: { 'zh-CN': '材质与着色器' }, slug: 'graphics/materials' },
             { label: '2D Lighting & Shadows', translations: { 'zh-CN': '2D 光照与阴影' }, slug: 'graphics/lighting' },
             { label: 'Post-processing', translations: { 'zh-CN': '后处理' }, slug: 'graphics/post-processing' },
+            { label: 'Terrain', translations: { 'zh-CN': '地形' }, slug: 'graphics/terrain' },
+            { label: 'Foliage', translations: { 'zh-CN': '植被' }, slug: 'graphics/foliage' },
             { label: 'Weather', translations: { 'zh-CN': '天气' }, slug: 'graphics/weather' },
             { label: 'Time of Day', translations: { 'zh-CN': '昼夜' }, slug: 'graphics/time-of-day' },
             { label: 'Custom Drawing', translations: { 'zh-CN': '自定义绘制' }, slug: 'graphics/drawing' },

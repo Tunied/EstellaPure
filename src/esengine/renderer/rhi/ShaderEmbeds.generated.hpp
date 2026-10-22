@@ -625,6 +625,8 @@ out highp vec4 v_velPrev;
 
 
 #ifdef ES_MATERIAL_VERTEX
+
+highp vec4 es_vertexColor;
 @@ES_VERTEX_HOOK@@
 #endif
 
@@ -649,6 +651,7 @@ void main() {
 #endif
     applyMorph(local, localNormal);
 #ifdef ES_MATERIAL_VERTEX
+    es_vertexColor = a_color;
     esMaterialVertex(local, localNormal, a_texCoord);
 #endif
 #ifdef SKINNED
@@ -869,6 +872,7 @@ struct VSOut {
 };
 
 #ifdef ES_MATERIAL_VERTEX
+var<private> es_vertexColor : vec4f;
 @@ES_VERTEX_HOOK@@
 #endif
 
@@ -906,6 +910,7 @@ fn esPrevBone(joint : u32) -> mat4x4f {
         }
     }
 #ifdef ES_MATERIAL_VERTEX
+    es_vertexColor = v.a_color;
     esMaterialVertex(&local, &localNormal, v.a_texCoord);
 #endif
 #ifdef SKINNED

@@ -106,6 +106,20 @@ const DISPOSITION = {
 
   // The component's own drawing is the picture; an outline round it would trace
   // what is already on screen.
+  'Terrain.sizeX': ['renders', 'the ground drawn at it is the outline'],
+  'Terrain.sizeZ': ['renders', 'the ground drawn at it is the outline'],
+  'Terrain.height': ['renders', 'the ground drawn at it is the outline'],
+  'Terrain.dirtHeight': ['not-world', 'a share of the height of the terrain, 0 to 1'],
+  'Terrain.snowHeight': ['not-world', 'a share of the height of the terrain, 0 to 1'],
+  'Foliage.sizeX': ['owed', 'the area plants grow in is not outlined in the viewport yet'],
+  'Foliage.sizeZ': ['owed', 'the area plants grow in is not outlined in the viewport yet'],
+  'Foliage.cellSize': ['no-place', 'the square the area is cut into for drawing, not a region of the entity'],
+  'Foliage.bladeWidth': ['renders', 'the blades drawn at it are the picture'],
+  'Foliage.bladeHeight': ['renders', 'the blades drawn at it are the picture'],
+  'Foliage.heightMin': ['no-place', 'a band of world heights plants grow in, not a region round the entity'],
+  'Foliage.heightMax': ['no-place', 'a band of world heights plants grow in, not a region round the entity'],
+  'Foliage.lodDistance': ['no-place', 'a distance from the camera past which the far version is drawn'],
+  'Foliage.drawDistance': ['no-place', 'a distance from the camera past which nothing is drawn'],
   'Sprite.size': ['renders', 'the sprite drawn at it is the outline'],
   'Sprite.tileSize': ['renders', 'the repeat of a drawn sprite'],
   'ShapeRenderer.size': ['renders', 'the shape drawn at it is the outline'],

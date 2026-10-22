@@ -2382,7 +2382,6 @@ void RenderFrame::collectMotion(ecs::Registry& registry) {
         if (plugin->drawsMotion()) plugin->collect(collectCtx);
     }
     velocity_list_.finalize(velocity_pool_);
-    velocity_pool_.upload();
 #else
     (void)registry;
 #endif
@@ -2421,7 +2420,6 @@ void RenderFrame::collectCover(ecs::Registry& registry) {
         if (plugin->castsShadows()) plugin->collect(collectCtx);
     }
     cover_list_.finalize(cover_pool_);
-    cover_pool_.upload();
 #else
     (void)registry;
 #endif
@@ -2430,6 +2428,8 @@ void RenderFrame::collectCover(ecs::Registry& registry) {
 void RenderFrame::executeCoverPass() {
     if (cover_list_.commandCount() == 0) return;
     ES_PROFILE_SCOPE("render.cover");
+    // Here, in the pass, and not while collecting: an upload during collect opens a pass that swallows the host draws that follow it.
+    cover_pool_.upload();
     if (cover_frame_ubo_ == BufferHandle::Invalid) {
         cover_frame_ubo_ = device_.createBuffer({GfxBufferUsage::Uniform, RenderContext::frameConstantsSize(), /*dynamic=*/true},
                                                 GfxContent::transient(), nullptr);
@@ -2449,6 +2449,7 @@ void RenderFrame::executeCoverPass() {
 void RenderFrame::executeMotionPass() {
     if (velocity_list_.commandCount() == 0) return;
     ES_PROFILE_SCOPE("render.motion");
+    velocity_pool_.upload();
     // Through the camera the scene was drawn with, jitter included: a surface's depth here has to be the
     // scene's, since that is what the reader compares it with.
     context_.updateCameraConstants(view_projection_, velocity_jitter_);

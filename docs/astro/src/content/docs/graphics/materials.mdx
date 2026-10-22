@@ -34,6 +34,8 @@ creates a material from a built-in template — the same list ships in code as
 | **UV Scroll** | `sprite-uv-scroll` | Scrolls the texture by `u_scrollSpeed` × time. |
 | **Model** | `model` | What a glTF material says beyond base color: `u_normalMap`, `u_emissive`(`Map`), `u_occlusionMap` + `u_occlusionStrength`, `u_alphaCutoff`, `u_metallic` / `u_roughness` (+ `u_metallicRoughnessMap`), and the [shading layers](#shading-layers) — clear coat, sheen, anisotropy, translucency, thin film, index of refraction, transmission. Written by model import. |
 
+| **Terrain** | `terrain` | Four texture layers (grass, dirt, snow, rock) weighted by the [Terrain](/docs/graphics/terrain/) component and tiled by world position. |
+| **Foliage** | `foliage` | Plants that sway in the wind: a vertex bend by weights painted in the vertex colour, two-sided and translucent, with an optional cutout texture. See [Foliage](/docs/graphics/foliage/). |
 | **Water** | `water` | A horizontal body of water: travelling waves and ripples, the scene behind it bent and tinted by how deep the water is, reflections, and foam. See [Water](#water). |
 
 A new material **references** its template by id — it stores `shader: "builtin:sprite-unlit"`

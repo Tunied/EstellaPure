@@ -1,0 +1,135 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
+import { describe, it, expect } from 'vitest';
+import { MeshChannel } from '../src/asset/meshFormat';
+import { buildBillboardMesh, buildGrassMesh, buildInstancedMesh, rng, scatterCell, type Ground, type Plant } from '../src/foliage/builder';
+
+const flat: Ground = () => ({ y: 2, up: 1 });
+const params = {
+    centerX: 100, centerZ: -40, size: 20, count: 50, seed: 3, cellKey: 7,
+    minScale: 0.8, maxScale: 1.2, minUp: 0.7, heightMin: -1e5, heightMax: 1e5,
+};
+
+function colorOf(mesh: ReturnType<typeof buildGrassMesh>, v: number): number[] {
+    const c = mesh.channels.find((x) => x.semantic === MeshChannel.Color)!;
+    return [...mesh.vertices.slice(v * mesh.vertexStride + c.offset, v * mesh.vertexStride + c.offset + 4)];
+}
+function positionOf(mesh: ReturnType<typeof buildGrassMesh>, v: number): number[] {
+    const c = mesh.channels.find((x) => x.semantic === MeshChannel.Position)!;
+    const view = new DataView(mesh.vertices.buffer);
+    const at = v * mesh.vertexStride + c.offset;
+    return [view.getFloat32(at, true), view.getFloat32(at + 4, true), view.getFloat32(at + 8, true)];
+}
+
+describe('scattering', () => {
+    it('is the same on every run and different for another seed or cell', () => {
+        const a = scatterCell(params, flat), b = scatterCell(params, flat);
+        expect(a).toEqual(b);
+        expect(scatterCell({ ...params, seed: 4 }, flat)).not.toEqual(a);
+        expect(scatterCell({ ...params, cellKey: 8 }, flat)).not.toEqual(a);
+        const r = rng(5);
+        expect(r()).not.toBe(r());
+    });
+
+    it('keeps every plant inside its cell, relative to its centre, at the ground\'s height', () => {
+        for (const p of scatterCell(params, flat)) {
+            expect(Math.abs(p.x)).toBeLessThanOrEqual(10);
+            expect(Math.abs(p.z)).toBeLessThanOrEqual(10);
+            expect(p.y).toBe(2);
+            expect(p.scale).toBeGreaterThanOrEqual(0.8);
+            expect(p.scale).toBeLessThanOrEqual(1.2);
+        }
+    });
+
+    it('leaves out steep ground, ground outside the height band and places with no ground', () => {
+        expect(scatterCell(params, () => ({ y: 0, up: 0.3 }))).toHaveLength(0);
+        expect(scatterCell({ ...params, heightMax: 1 }, flat)).toHaveLength(0);
+        expect(scatterCell(params, () => null)).toHaveLength(0);
+        const half = scatterCell(params, (x) => (x > 100 ? { y: 0, up: 1 } : null));
+        expect(half.length).toBeGreaterThan(0);
+        expect(half.length).toBeLessThan(50);
+    });
+});
+
+describe('grass', () => {
+    const plants: Plant[] = [
+        { x: 0, y: 0, z: 0, yaw: 0, scale: 1, phase: 0.5, shade: 1 },
+        { x: 5, y: 0, z: 5, yaw: 1, scale: 1, phase: 0.25, shade: 0.8 },
+        { x: -5, y: 0, z: 5, yaw: 2, scale: 1, phase: 0.75, shade: 0.9 },
+    ];
+
+    it('has 2s+1 vertices and 2s-1 triangles a blade', () => {
+        const mesh = buildGrassMesh(plants, { height: 10, width: 2, segments: 3, thin: 1 });
+        expect(mesh.vertexCount).toBe(3 * 7);
+        expect(mesh.indices.length / 3).toBe(3 * 5);
+    });
+
+    it('draws every n-th blade, broader, so the far version costs a share of the near one', () => {
+        const near = buildGrassMesh(plants, { height: 10, width: 2, segments: 3, thin: 1 });
+        const far = buildGrassMesh(plants, { height: 10, width: 2, segments: 1, thin: 3 });
+        expect(far.indices.length).toBeLessThan(near.indices.length / 4);
+        const wide = (m: typeof near): number => positionOf(m, 1)[0]! - positionOf(m, 0)[0]!;
+        expect(Math.abs(wide(far))).toBeGreaterThan(Math.abs(wide(near)));
+    });
+
+    it('paints the wind\'s weights: red from the root up, green the plant\'s phase', () => {
+        const mesh = buildGrassMesh(plants, { height: 10, width: 2, segments: 3, thin: 1 });
+        const root = colorOf(mesh, 0), tip = colorOf(mesh, 6);
+        expect(root[0]).toBe(0);
+        expect(tip[0]).toBe(255);
+        expect(root[1]).toBe(Math.round(0.5 * 255));
+        expect(root[2]!).toBeLessThan(tip[2]!);
+        expect(positionOf(mesh, 6)[1]).toBeCloseTo(10, 4);
+    });
+
+    it('paints a colour instead when it has no material to read the weights', () => {
+        const mesh = buildGrassMesh(plants, { height: 10, width: 2, segments: 3, thin: 1, paint: { base: [0, 0.2, 0], tip: [0.5, 1, 0] } });
+        const tip = colorOf(mesh, 6);
+        expect(tip[1]).toBeGreaterThan(tip[2]!);
+    });
+});
+
+describe('instanced meshes and billboards', () => {
+    const quad = buildGrassMesh([{ x: 0, y: 0, z: 0, yaw: 0, scale: 1, phase: 0, shade: 1 }], { height: 10, width: 2, segments: 1, thin: 1 });
+
+    it('copies a mesh once a plant, placed and scaled, with its weights painted by height on its own copy', () => {
+        const plants: Plant[] = [
+            { x: 10, y: 1, z: 0, yaw: 0, scale: 2, phase: 0.3, shade: 1 },
+            { x: -10, y: 0, z: 0, yaw: Math.PI / 2, scale: 1, phase: 0.6, shade: 1 },
+        ];
+        const mesh = buildInstancedMesh(quad, plants);
+        expect(mesh.vertexCount).toBe(quad.vertexCount * 2);
+        expect(mesh.indices.length).toBe(quad.indices.length * 2);
+        // The tip of the first copy is twice as tall, a metre up, ten along.
+        const tip = positionOf(mesh, 2);
+        expect(tip[1]).toBeCloseTo(1 + 20, 3);
+        expect(colorOf(mesh, 0)[0]).toBe(0);
+        expect(colorOf(mesh, 2)[0]).toBe(255);
+    });
+
+    it('makes two crossed cards a plant showing the rectangle it is given', () => {
+        const mesh = buildBillboardMesh([{ x: 0, y: 0, z: 0, yaw: 0, scale: 1, phase: 0, shade: 1 }], 4, 8, { u0: 0.25, v0: 0, u1: 0.75, v1: 0.5 });
+        expect(mesh.vertexCount).toBe(8);
+        expect(mesh.indices.length / 3).toBe(4);
+        expect(mesh.aabbMax[1]).toBeCloseTo(8, 4);
+        const uv = mesh.channels.find((c) => c.semantic === MeshChannel.TexCoord0)!;
+        const view = new DataView(mesh.vertices.buffer);
+        expect(view.getFloat32(uv.offset, true)).toBeCloseTo(0.25, 5);
+        expect(view.getFloat32(2 * mesh.vertexStride + uv.offset + 4, true)).toBeCloseTo(0.5, 5);
+    });
+
+    it('draws a tent, one triangle a card, when asked', () => {
+        const plant: Plant = { x: 0, y: 0, z: 0, yaw: 0, scale: 1, phase: 0, shade: 1 };
+        const tent = buildBillboardMesh([plant], 4, 8, { u0: 0, v0: 0, u1: 1, v1: 1 }, null, true);
+        expect(tent.vertexCount).toBe(6);
+        expect(tent.indices.length / 3).toBe(2);
+        expect(tent.aabbMax[1]).toBeCloseTo(8, 4);
+        expect(tent.aabbMin[1]).toBeCloseTo(0.8, 4);
+    });
+
+    it('is an empty mesh, not a crash, for a cell with no plants', () => {
+        const mesh = buildGrassMesh([], { height: 10, width: 2, segments: 3, thin: 1 });
+        expect(mesh.vertexCount).toBe(0);
+        expect(mesh.indices.length).toBe(0);
+    });
+});

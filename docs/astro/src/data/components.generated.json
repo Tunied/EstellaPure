@@ -1607,6 +1607,172 @@
       ]
     },
     {
+      "name": "Foliage",
+      "source": "ts",
+      "fields": [
+        {
+          "key": "mesh",
+          "type": "Asset<mesh>",
+          "default": "none",
+          "doc": "The plant to scatter. Empty grows grass."
+        },
+        {
+          "key": "material",
+          "type": "Asset<material>",
+          "default": "none",
+          "doc": "A material on the Foliage shader, which makes the wind. Empty draws the plants still, in their own colours."
+        },
+        {
+          "key": "sizeX",
+          "type": "number",
+          "default": "400",
+          "doc": "World size along x, centred on this entity.",
+          "range": "≥ 1"
+        },
+        {
+          "key": "sizeZ",
+          "type": "number",
+          "default": "400",
+          "doc": "World size along z, centred on this entity.",
+          "range": "≥ 1"
+        },
+        {
+          "key": "cellSize",
+          "type": "number",
+          "default": "40",
+          "doc": "Side of the cells the area is cut into. Each is one mesh, culled whole.",
+          "range": "≥ 4"
+        },
+        {
+          "key": "count",
+          "type": "number",
+          "default": "500",
+          "doc": "Plants per cell.",
+          "range": "≥ 0, step 1"
+        },
+        {
+          "key": "seed",
+          "type": "number",
+          "default": "1",
+          "doc": "Another seed grows the same plants in other places.",
+          "range": "step 1"
+        },
+        {
+          "key": "minScale",
+          "type": "number",
+          "default": "0.8",
+          "range": "≥ 0.01"
+        },
+        {
+          "key": "maxScale",
+          "type": "number",
+          "default": "1.25",
+          "range": "≥ 0.01"
+        },
+        {
+          "key": "minUp",
+          "type": "number",
+          "default": "0.7",
+          "doc": "The least a place may face up and still grow something. Lower lets plants onto slopes.",
+          "range": "0–1, step 0.01"
+        },
+        {
+          "key": "heightMin",
+          "type": "number",
+          "default": "-100000",
+          "doc": "The lowest world height plants grow at."
+        },
+        {
+          "key": "heightMax",
+          "type": "number",
+          "default": "100000",
+          "doc": "The highest world height plants grow at."
+        },
+        {
+          "key": "bladeHeight",
+          "type": "number",
+          "default": "14",
+          "doc": "Height of a blade at scale 1.",
+          "range": "≥ 0.1"
+        },
+        {
+          "key": "bladeWidth",
+          "type": "number",
+          "default": "1.6",
+          "doc": "Width of a blade at its base, at scale 1.",
+          "range": "≥ 0.01"
+        },
+        {
+          "key": "lodDistance",
+          "type": "number",
+          "default": "140",
+          "doc": "Past this a cell is drawn as its far version: fewer, broader blades, or a tree as crossed cards.",
+          "range": "≥ 1"
+        },
+        {
+          "key": "drawDistance",
+          "type": "number",
+          "default": "420",
+          "doc": "Past this a cell is not drawn.",
+          "range": "≥ 1"
+        },
+        {
+          "key": "cardU0",
+          "type": "number",
+          "default": "0",
+          "doc": "The part of the plant's texture a far tree shows (left, bottom, right, top)."
+        },
+        {
+          "key": "cardV0",
+          "type": "number",
+          "default": "0"
+        },
+        {
+          "key": "cardU1",
+          "type": "number",
+          "default": "1"
+        },
+        {
+          "key": "cardV1",
+          "type": "number",
+          "default": "1"
+        },
+        {
+          "key": "cardTent",
+          "type": "enum",
+          "default": "Rectangle",
+          "doc": "The outline of the cards a far tree is drawn as.",
+          "values": [
+            "Rectangle",
+            "Tent (conifer)"
+          ]
+        }
+      ],
+      "animatable": [
+        "mesh",
+        "material",
+        "sizeX",
+        "sizeZ",
+        "cellSize",
+        "count",
+        "seed",
+        "minScale",
+        "maxScale",
+        "minUp",
+        "heightMin",
+        "heightMax",
+        "bladeHeight",
+        "bladeWidth",
+        "lodDistance",
+        "drawDistance",
+        "cardU0",
+        "cardV0",
+        "cardU1",
+        "cardV1",
+        "cardTent"
+      ]
+    },
+    {
       "name": "FollowTarget",
       "source": "ts",
       "fields": [
@@ -4870,6 +5036,199 @@
         "planeHalfConeAngle",
         "twistMinAngle",
         "twistMaxAngle"
+      ]
+    },
+    {
+      "name": "Terrain",
+      "source": "ts",
+      "fields": [
+        {
+          "key": "heightmap",
+          "type": "Asset<texture>",
+          "default": "none",
+          "doc": "A heightmap image: red is the height. Empty makes the ground from noise."
+        },
+        {
+          "key": "splatmap",
+          "type": "Asset<texture>",
+          "default": "none",
+          "doc": "An image whose red, green, blue and alpha are the weights of grass, dirt, snow and rock."
+        },
+        {
+          "key": "material",
+          "type": "Asset<material>",
+          "default": "none",
+          "doc": "A material on the Terrain shader. Empty draws the layer colours onto the ground."
+        },
+        {
+          "key": "sizeX",
+          "type": "number",
+          "default": "1000",
+          "doc": "World size along x.",
+          "range": "≥ 1"
+        },
+        {
+          "key": "sizeZ",
+          "type": "number",
+          "default": "1000",
+          "doc": "World size along z.",
+          "range": "≥ 1"
+        },
+        {
+          "key": "height",
+          "type": "number",
+          "default": "150",
+          "doc": "World height of the highest ground.",
+          "range": "≥ 0"
+        },
+        {
+          "key": "chunks",
+          "type": "number",
+          "default": "8",
+          "doc": "Chunks along each side; each is drawn and culled on its own.",
+          "range": "1–64, step 1"
+        },
+        {
+          "key": "chunkCells",
+          "type": "number",
+          "default": "32",
+          "doc": "Cells along a chunk side at its finest level. A power of two keeps the levels clean.",
+          "range": "2–128, step 1"
+        },
+        {
+          "key": "lodLevels",
+          "type": "number",
+          "default": "4",
+          "doc": "Levels of detail per chunk, each half as fine as the one before.",
+          "range": "1–4, step 1"
+        },
+        {
+          "key": "detail",
+          "type": "number",
+          "default": "1",
+          "doc": "Above 1 the finer levels are kept out to a greater distance.",
+          "range": "0.1–8, step 0.1"
+        },
+        {
+          "key": "seed",
+          "type": "number",
+          "default": "1",
+          "doc": "Another seed is another ground.",
+          "range": "step 1"
+        },
+        {
+          "key": "frequency",
+          "type": "number",
+          "default": "3",
+          "doc": "How many hills across the terrain.",
+          "range": "0.1–32, step 0.1"
+        },
+        {
+          "key": "octaves",
+          "type": "number",
+          "default": "5",
+          "doc": "Layers of detail in the noise.",
+          "range": "1–8, step 1"
+        },
+        {
+          "key": "persistence",
+          "type": "number",
+          "default": "0.5",
+          "doc": "How much of its height each finer layer keeps. Lower is smoother.",
+          "range": "0–1, step 0.01"
+        },
+        {
+          "key": "ridged",
+          "type": "number",
+          "default": "0.35",
+          "doc": "0 is rolling hills; 1 is sharp ridges.",
+          "range": "0–1, step 0.01"
+        },
+        {
+          "key": "resolution",
+          "type": "number",
+          "default": "257",
+          "doc": "Samples along each side of the noise ground.",
+          "range": "17–2049, step 1"
+        },
+        {
+          "key": "rockSlope",
+          "type": "number",
+          "default": "0.35",
+          "doc": "How steep ground must be to turn to rock. 0 is flat, 1 is sheer.",
+          "range": "0–1, step 0.01"
+        },
+        {
+          "key": "dirtHeight",
+          "type": "number",
+          "default": "0.62",
+          "doc": "The height, as a share of the terrain, where grass gives way to dirt.",
+          "range": "0–1, step 0.01"
+        },
+        {
+          "key": "snowHeight",
+          "type": "number",
+          "default": "0.88",
+          "doc": "The height, as a share of the terrain, where snow begins.",
+          "range": "0–1, step 0.01"
+        },
+        {
+          "key": "layerColor0",
+          "type": "Color",
+          "default": "#477533"
+        },
+        {
+          "key": "layerColor1",
+          "type": "Color",
+          "default": "#735c3d"
+        },
+        {
+          "key": "layerColor2",
+          "type": "Color",
+          "default": "#edf2fa"
+        },
+        {
+          "key": "layerColor3",
+          "type": "Color",
+          "default": "#66615c"
+        }
+      ],
+      "animatable": [
+        "heightmap",
+        "splatmap",
+        "material",
+        "sizeX",
+        "sizeZ",
+        "height",
+        "chunks",
+        "chunkCells",
+        "lodLevels",
+        "detail",
+        "seed",
+        "frequency",
+        "octaves",
+        "persistence",
+        "ridged",
+        "resolution",
+        "rockSlope",
+        "dirtHeight",
+        "snowHeight",
+        "layerColor0.r",
+        "layerColor0.g",
+        "layerColor0.b",
+        "layerColor0.a",
+        "layerColor1.r",
+        "layerColor1.g",
+        "layerColor1.b",
+        "layerColor1.a",
+        "layerColor2.r",
+        "layerColor2.g",
+        "layerColor2.b",
+        "layerColor2.a",
+        "layerColor3.r",
+        "layerColor3.g",
+        "layerColor3.b",
+        "layerColor3.a"
       ]
     },
     {

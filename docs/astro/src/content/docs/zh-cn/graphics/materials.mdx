@@ -30,6 +30,8 @@ std140 uniform 块,于是 CPU 能按名字设置、并安全地送到 GPU。一�
 | **UV Scroll** | `sprite-uv-scroll` | 按 `u_scrollSpeed` × 时间滚动纹理。 |
 | **Model** | `model` | glTF 材质在 base color 之外说的东西:`u_normalMap`、`u_emissive`(`Map`)、`u_occlusionMap` + `u_occlusionStrength`、`u_alphaCutoff`、`u_metallic` / `u_roughness`(以及 `u_metallicRoughnessMap`),还有[着色层](#着色层)——清漆、绒面、各向异性、半透、薄膜干涉、折射率、透射。模型导入会写出它。 |
 
+| **Terrain** | `terrain` | 四个纹理图层(草、泥土、雪、岩石),由 [Terrain](/docs/zh-cn/graphics/terrain/) 组件加权并按世界位置平铺。 |
+| **Foliage** | `foliage` | 在风里摆动的植物:按顶点颜色里画好的权重做顶点弯曲,双面、半透光,可选镂空纹理。见[植被](/docs/zh-cn/graphics/foliage/)。 |
 | **Water** | `water` | 水平的水体:传播的波浪和涟漪、被折射并按水深染色的背后场景、反射与泡沫。见[水](#水)。 |
 
 新建材质是**按 id 引用**其模板的——它存的是 `shader: "builtin:sprite-unlit"`,并**不会**在磁盘上
