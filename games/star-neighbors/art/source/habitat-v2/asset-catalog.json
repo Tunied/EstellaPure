@@ -1,0 +1,555 @@
+{
+  "stage": "art-review-v2",
+  "units": "metres",
+  "sourceUp": "Z",
+  "glbUp": "Y",
+  "glass": "KHR_materials_transmission; requires renderer support",
+  "assets": [
+    {
+      "id": "floor-2m",
+      "nominal": [
+        2,
+        2,
+        0.21
+      ],
+      "sourceDimensionsXYZ": [
+        2.0,
+        2.0,
+        0.215
+      ],
+      "triangles": 1304,
+      "drawMeshes": 3,
+      "editablePieces": 10,
+      "sourceSockets": {
+        "top": [
+          0,
+          0,
+          0.21
+        ],
+        "left": [
+          -1,
+          0,
+          0
+        ],
+        "right": [
+          1,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/habitat-v2/floor-2m.glb"
+    },
+    {
+      "id": "foundation-edge-2m",
+      "nominal": [
+        2,
+        0.5,
+        0.21
+      ],
+      "sourceDimensionsXYZ": [
+        2.0,
+        0.5625,
+        0.21
+      ],
+      "triangles": 940,
+      "drawMeshes": 4,
+      "editablePieces": 5,
+      "sourceSockets": {
+        "wall": [
+          0,
+          0,
+          0.21
+        ],
+        "floor": [
+          0,
+          0.5,
+          0
+        ]
+      },
+      "glb": "art/models/habitat-v2/foundation-edge-2m.glb"
+    },
+    {
+      "id": "foundation-corner-r050",
+      "nominal": [
+        0.5,
+        0.5,
+        0.21
+      ],
+      "sourceDimensionsXYZ": [
+        0.4999,
+        0.4999,
+        0.21
+      ],
+      "triangles": 1272,
+      "drawMeshes": 2,
+      "editablePieces": 2,
+      "sourceSockets": {
+        "front": [
+          0,
+          -0.5,
+          0.21
+        ],
+        "side": [
+          0.5,
+          0,
+          0.21
+        ]
+      },
+      "glb": "art/models/habitat-v2/foundation-corner-r050.glb"
+    },
+    {
+      "id": "wall-solid-2m",
+      "nominal": [
+        2,
+        0.22,
+        2.8
+      ],
+      "sourceDimensionsXYZ": [
+        1.988,
+        0.3203,
+        2.8
+      ],
+      "triangles": 10848,
+      "drawMeshes": 8,
+      "editablePieces": 51,
+      "sourceSockets": {
+        "left": [
+          -1.0,
+          0,
+          0
+        ],
+        "right": [
+          1.0,
+          0,
+          0
+        ],
+        "roof": [
+          0,
+          0,
+          2.8
+        ]
+      },
+      "glb": "art/models/habitat-v2/wall-solid-2m.glb"
+    },
+    {
+      "id": "wall-window-2m",
+      "nominal": [
+        2,
+        0.22,
+        2.8
+      ],
+      "sourceDimensionsXYZ": [
+        1.988,
+        0.525,
+        2.8
+      ],
+      "triangles": 12388,
+      "drawMeshes": 9,
+      "editablePieces": 33,
+      "sourceSockets": {
+        "left": [
+          -1.0,
+          0,
+          0
+        ],
+        "right": [
+          1.0,
+          0,
+          0
+        ],
+        "roof": [
+          0,
+          0,
+          2.8
+        ]
+      },
+      "glb": "art/models/habitat-v2/wall-window-2m.glb"
+    },
+    {
+      "id": "wall-panorama-4m",
+      "nominal": [
+        4,
+        0.22,
+        2.8
+      ],
+      "sourceDimensionsXYZ": [
+        3.988,
+        0.525,
+        2.8
+      ],
+      "triangles": 12388,
+      "drawMeshes": 9,
+      "editablePieces": 33,
+      "sourceSockets": {
+        "left": [
+          -2.0,
+          0,
+          0
+        ],
+        "right": [
+          2.0,
+          0,
+          0
+        ],
+        "roof": [
+          0,
+          0,
+          2.8
+        ]
+      },
+      "glb": "art/models/habitat-v2/wall-panorama-4m.glb"
+    },
+    {
+      "id": "wall-doorway-2m",
+      "nominal": [
+        2,
+        0.22,
+        2.8
+      ],
+      "sourceDimensionsXYZ": [
+        1.988,
+        0.457,
+        2.84
+      ],
+      "triangles": 12828,
+      "drawMeshes": 9,
+      "editablePieces": 36,
+      "sourceSockets": {
+        "left": [
+          -1.0,
+          0,
+          0
+        ],
+        "right": [
+          1.0,
+          0,
+          0
+        ],
+        "roof": [
+          0,
+          0,
+          2.8
+        ]
+      },
+      "glb": "art/models/habitat-v2/wall-doorway-2m.glb"
+    },
+    {
+      "id": "door-leaf-110",
+      "nominal": [
+        1.125,
+        0.3,
+        2.34
+      ],
+      "sourceDimensionsXYZ": [
+        1.125,
+        0.311,
+        2.27
+      ],
+      "triangles": 7260,
+      "drawMeshes": 8,
+      "editablePieces": 14,
+      "sourceSockets": {
+        "doorway": [
+          0,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/habitat-v2/door-leaf-110.glb"
+    },
+    {
+      "id": "wall-corner-r050",
+      "nominal": [
+        0.5,
+        0.5,
+        2.8
+      ],
+      "sourceDimensionsXYZ": [
+        0.5349,
+        0.5349,
+        2.8
+      ],
+      "triangles": 4840,
+      "drawMeshes": 4,
+      "editablePieces": 6,
+      "sourceSockets": {
+        "front": [
+          0,
+          -0.5,
+          0
+        ],
+        "side": [
+          0.5,
+          0,
+          0
+        ],
+        "roof": [
+          0,
+          0,
+          2.8
+        ]
+      },
+      "glb": "art/models/habitat-v2/wall-corner-r050.glb"
+    },
+    {
+      "id": "roof-center-2m",
+      "nominal": [
+        2,
+        2,
+        0.5
+      ],
+      "sourceDimensionsXYZ": [
+        2.0,
+        2.0,
+        0.224
+      ],
+      "triangles": 752,
+      "drawMeshes": 3,
+      "editablePieces": 4,
+      "sourceSockets": {
+        "left": [
+          -1,
+          0,
+          0.5
+        ],
+        "right": [
+          1,
+          0,
+          0.5
+        ]
+      },
+      "glb": "art/models/habitat-v2/roof-center-2m.glb"
+    },
+    {
+      "id": "roof-edge-2m",
+      "nominal": [
+        2,
+        0.5,
+        0.5
+      ],
+      "sourceDimensionsXYZ": [
+        2.0,
+        0.577,
+        0.4998
+      ],
+      "triangles": 1516,
+      "drawMeshes": 5,
+      "editablePieces": 9,
+      "sourceSockets": {
+        "wall": [
+          0,
+          0,
+          0
+        ],
+        "roof": [
+          0,
+          0.5,
+          0.5
+        ]
+      },
+      "glb": "art/models/habitat-v2/roof-edge-2m.glb"
+    },
+    {
+      "id": "roof-corner-r050",
+      "nominal": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "sourceDimensionsXYZ": [
+        0.543,
+        0.543,
+        0.5015
+      ],
+      "triangles": 5528,
+      "drawMeshes": 3,
+      "editablePieces": 3,
+      "sourceSockets": {
+        "front": [
+          0,
+          -0.5,
+          0
+        ],
+        "side": [
+          0.5,
+          0,
+          0
+        ],
+        "roof": [
+          0,
+          0,
+          0.5
+        ]
+      },
+      "glb": "art/models/habitat-v2/roof-corner-r050.glb"
+    },
+    {
+      "id": "entry-step-2m",
+      "nominal": [
+        1.83,
+        0.925,
+        0.25
+      ],
+      "sourceDimensionsXYZ": [
+        1.83,
+        1.005,
+        0.2575
+      ],
+      "triangles": 3384,
+      "drawMeshes": 4,
+      "editablePieces": 18,
+      "sourceSockets": {
+        "doorway": [
+          0,
+          0,
+          0.21
+        ]
+      },
+      "glb": "art/models/habitat-v2/entry-step-2m.glb"
+    },
+    {
+      "id": "roof-vent",
+      "nominal": [
+        1.38,
+        1.02,
+        0.46
+      ],
+      "sourceDimensionsXYZ": [
+        1.38,
+        1.02,
+        0.4575
+      ],
+      "triangles": 3008,
+      "drawMeshes": 6,
+      "editablePieces": 18,
+      "sourceSockets": {
+        "roof": [
+          0,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/habitat-v2/roof-vent.glb"
+    },
+    {
+      "id": "wall-utility",
+      "nominal": [
+        1.4,
+        0.3,
+        0.86
+      ],
+      "sourceDimensionsXYZ": [
+        1.4,
+        0.335,
+        0.81
+      ],
+      "triangles": 3952,
+      "drawMeshes": 6,
+      "editablePieces": 18,
+      "sourceSockets": {
+        "wall": [
+          0,
+          0.14,
+          0
+        ]
+      },
+      "glb": "art/models/habitat-v2/wall-utility.glb"
+    },
+    {
+      "id": "interior-bench-2m",
+      "nominal": [
+        1.8,
+        0.72,
+        1.165
+      ],
+      "sourceDimensionsXYZ": [
+        1.8,
+        0.745,
+        1.165
+      ],
+      "triangles": 1504,
+      "drawMeshes": 4,
+      "editablePieces": 8,
+      "sourceSockets": {
+        "floor": [
+          0,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/habitat-v2/interior-bench-2m.glb"
+    },
+    {
+      "id": "interior-console",
+      "nominal": [
+        1.5,
+        0.85,
+        1.59
+      ],
+      "sourceDimensionsXYZ": [
+        1.5,
+        0.85,
+        1.59
+      ],
+      "triangles": 4824,
+      "drawMeshes": 8,
+      "editablePieces": 15,
+      "sourceSockets": {
+        "floor": [
+          0,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/habitat-v2/interior-console.glb"
+    },
+    {
+      "id": "ceiling-light-2m",
+      "nominal": [
+        1.8,
+        0.15,
+        0.08
+      ],
+      "sourceDimensionsXYZ": [
+        1.8,
+        0.15,
+        0.0955
+      ],
+      "triangles": 376,
+      "drawMeshes": 2,
+      "editablePieces": 2,
+      "sourceSockets": {
+        "ceiling": [
+          0,
+          0,
+          0.07
+        ]
+      },
+      "glb": "art/models/habitat-v2/ceiling-light-2m.glb"
+    },
+    {
+      "id": "interior-planter",
+      "nominal": [
+        0.8,
+        0.8,
+        0.85
+      ],
+      "sourceDimensionsXYZ": [
+        0.5836,
+        0.5242,
+        0.6635
+      ],
+      "triangles": 2584,
+      "drawMeshes": 4,
+      "editablePieces": 29,
+      "sourceSockets": {
+        "support": [
+          0,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/habitat-v2/interior-planter.glb"
+    }
+  ]
+}
