@@ -1548,6 +1548,8 @@ fn depthAt(texel : vec2i, size : vec2i) -> f32 {
 #pragma param u_followSun float default(1) range(0,1)
 #pragma param u_sunAzimuth float default(40) range(0,360)
 #pragma param u_sunElevation float default(35) range(-90,90)
+#pragma param u_cloudShadow float default(0) range(0,1)
+#pragma param u_unitsPerKm float default(1000) range(1,100000)
 #pragma lights
 
 #pragma fragment
@@ -1655,6 +1657,29 @@ float cloudDensity(vec3 p, float coverage, float base, float thick, int octaves)
     return smoothstep(1.0 - coverage, 1.0 - coverage + 0.22, n) * shape;
 }
 
+/// How much of the sun reaches a surface at @p world through the cloud layer: 1 is all of it. The sun's ray is marched up through
+/// the slab against the same density the sky draws, so a shadow falls where the cloud above it is. Ambient light is not shadowed.
+float cloudShadowAt(vec3 world, vec3 cam, vec3 sun, float coverage, float overcast, vec3 drift) {
+    float strength = u_cloudShadow * smoothstep(0.02, 0.14, sun.y);
+    if (strength <= 0.001 || coverage <= 0.01) return 1.0;
+    float k = 1.0 / max(u_unitsPerKm, 1e-3);
+    float h = u_altitude + (world.y - cam.y) * k;
+    float tt = (u_cloudBase + u_cloudThickness - h) / sun.y;
+    if (tt <= 0.0) return 1.0;
+    float tb = max(u_cloudBase - h, 0.0) / sun.y;
+    const int N = 6;
+    float ds = (tt - tb) / float(N);
+    float sigma = 1.3 * (1.0 + overcast * 1.5);
+    float tau = 0.0;
+    float jitter = ign(gl_FragCoord.xy);
+    for (int i = 0; i < N; ++i) {
+        float t = tb + (float(i) + jitter) * ds;
+        vec3 p = vec3(world.x * k + sun.x * t, h + sun.y * t, world.z * k + sun.z * t) + drift;
+        tau += cloudDensity(p, coverage, u_cloudBase, u_cloudThickness, 2) * sigma * ds;
+    }
+    return 1.0 - strength * 0.8 * (1.0 - exp(-tau));
+}
+
 void main() {
     vec4 src = texture(u_texture, v_texCoord);
     ivec2 size = textureSize(u_sceneDepth, 0);
@@ -1662,7 +1687,8 @@ void main() {
     // The scene was cleared to nothing when the background is not kept (the engine's rule, same threshold): what is left of a pixel's
     // alpha is how much the sky shows through it, and that includes a pixel whose depth says surface because one sample of it is.
     bool covered = u_panorama <= 0.001;
-    if (covered ? (depth < 1.0 && src.a > 0.999) : depth < 1.0) { fragColor = src; return; }
+    bool geometry = covered ? (depth < 1.0 && src.a > 0.999) : depth < 1.0;
+    if (geometry && u_cloudShadow <= 0.001) { fragColor = src; return; }
 
     vec3 entry = worldFromDepth(v_texCoord, 0.0);
     vec3 dir = normalize(worldFromDepth(v_texCoord, 1.0) - entry);
@@ -1678,6 +1704,17 @@ void main() {
 
     float overcast = clamp(u_overcast, 0.0, 1.0);
     float haze = u_haze * (1.0 + overcast * 2.0);
+
+    // Clouds that cast shadows are in the world, not on the camera: the pattern is anchored to where the camera stands.
+    bool shadowed = u_cloudShadow > 0.001;
+    vec3 anchor = shadowed ? vec3(entry.x, 0.0, entry.z) / max(u_unitsPerKm, 1e-3) : vec3(0.0);
+    float windAngle = radians(u_windDirection);
+    vec3 windDrift = vec3(sin(windAngle), 0.0, cos(windAngle)) * (u_windSpeed * u_time.x) + anchor;
+    if (geometry) {
+        float lit = cloudShadowAt(worldFromDepth(v_texCoord, depth), entry, sun, max(u_clouds, overcast * 0.95), overcast, windDrift);
+        fragColor = vec4(src.rgb * lit, src.a);
+        return;
+    }
 
     // The dome. Below the horizon there is no sky: the ray is flattened onto it so a camera that looks down sees the haze there.
     vec3 sdir = normalize(vec3(dir.x, max(dir.y, 0.015), dir.z));
@@ -1736,8 +1773,7 @@ void main() {
         float ds = (tt - tb) / float(STEPS);
         float jitter = ign(gl_FragCoord.xy);
         float sigma = 1.3 * (1.0 + overcast * 1.5);
-        float wind = radians(u_windDirection);
-        vec3 drift = vec3(sin(wind), 0.0, cos(wind)) * (u_windSpeed * u_time.x);
+        vec3 drift = windDrift;
         float cosS = dot(dir, sun);
         float phase = mix(0.35 + 0.65 * pow(max(cosS, 0.0), 6.0), 0.5, 0.4);
         vec3 ambient = dome * 0.7 + lin(vec3(0.55, 0.65, 0.9)) * 0.015 * night;
@@ -1879,12 +1915,34 @@ fn cloudDensity(p : vec3f, coverage : f32, base : f32, thick : f32, octaves : i3
     return smoothstep(1.0 - coverage, 1.0 - coverage + 0.22, n) * shape;
 }
 
+fn cloudShadowAt(world : vec3f, cam : vec3f, sun : vec3f, coverage : f32, overcast : f32, drift : vec3f, px : vec2f) -> f32 {
+    let strength = mc.u_cloudShadow * smoothstep(0.02, 0.14, sun.y);
+    if (strength <= 0.001 || coverage <= 0.01) { return 1.0; }
+    let k = 1.0 / max(mc.u_unitsPerKm, 1e-3);
+    let h = mc.u_altitude + (world.y - cam.y) * k;
+    let tt = (mc.u_cloudBase + mc.u_cloudThickness - h) / sun.y;
+    if (tt <= 0.0) { return 1.0; }
+    let tb = max(mc.u_cloudBase - h, 0.0) / sun.y;
+    let N = 6;
+    let ds = (tt - tb) / f32(N);
+    let sigma = 1.3 * (1.0 + overcast * 1.5);
+    var tau = 0.0;
+    let jitter = ign(px);
+    for (var i : i32 = 0; i < N; i = i + 1) {
+        let t = tb + (f32(i) + jitter) * ds;
+        let p = vec3f(world.x * k + sun.x * t, h + sun.y * t, world.z * k + sun.z * t) + drift;
+        tau = tau + cloudDensity(p, coverage, mc.u_cloudBase, mc.u_cloudThickness, 2) * sigma * ds;
+    }
+    return 1.0 - strength * 0.8 * (1.0 - exp(-tau));
+}
+
 @fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
     let src = textureSampleLevel(t0, s0, v.v_texCoord, 0.0);
     let size = vec2i(textureDimensions(t7, 0));
     let depth = textureLoad(t7, clamp(vec2i(v.v_texCoord * vec2f(size)), vec2i(0), size - vec2i(1)), 0);
     let covered = mc.u_panorama <= 0.001;
-    if ((covered && depth < 1.0 && src.a > 0.999) || (!covered && depth < 1.0)) { return src; }
+    let geometry = (covered && depth < 1.0 && src.a > 0.999) || (!covered && depth < 1.0);
+    if (geometry && mc.u_cloudShadow <= 0.001) { return src; }
 
     let entry = worldFromDepth(v.v_texCoord, 0.0);
     let dir = normalize(worldFromDepth(v.v_texCoord, 1.0) - entry);
@@ -1899,6 +1957,15 @@ fn cloudDensity(p : vec3f, coverage : f32, base : f32, thick : f32, octaves : i3
 
     let overcast = clamp(mc.u_overcast, 0.0, 1.0);
     let haze = mc.u_haze * (1.0 + overcast * 2.0);
+
+    var anchor = vec3f(0.0);
+    if (mc.u_cloudShadow > 0.001) { anchor = vec3f(entry.x, 0.0, entry.z) / max(mc.u_unitsPerKm, 1e-3); }
+    let windAngle = radians(mc.u_windDirection);
+    let windDrift = vec3f(sin(windAngle), 0.0, cos(windAngle)) * (mc.u_windSpeed * tc.u_time.x) + anchor;
+    if (geometry) {
+        let lit = cloudShadowAt(worldFromDepth(v.v_texCoord, depth), entry, sun, max(mc.u_clouds, overcast * 0.95), overcast, windDrift, v.pos.xy);
+        return vec4f(src.rgb * lit, src.a);
+    }
 
     let sdir = normalize(vec3f(dir.x, max(dir.y, 0.015), dir.z));
     let sc = scatter(sdir, sun, mc.u_altitude, haze);
@@ -1952,8 +2019,7 @@ fn cloudDensity(p : vec3f, coverage : f32, base : f32, thick : f32, octaves : i3
         let ds = (tt - tb) / f32(STEPS);
         let jitter = ign(v.pos.xy);
         let sigma = 1.3 * (1.0 + overcast * 1.5);
-        let wind = radians(mc.u_windDirection);
-        let drift = vec3f(sin(wind), 0.0, cos(wind)) * (mc.u_windSpeed * tc.u_time.x);
+        let drift = windDrift;
         let cosS = dot(dir, sun);
         let phase = mix(0.35 + 0.65 * pow(max(cosS, 0.0), 6.0), 0.5, 0.4);
         let ambient = dome * 0.7 + lin(vec3f(0.55, 0.65, 0.9)) * 0.015 * night;

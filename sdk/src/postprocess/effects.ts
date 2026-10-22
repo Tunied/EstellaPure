@@ -302,6 +302,10 @@ registerEffect({
         { name: 'u_followSun', label: 'Follow Scene Sun', min: 0, max: 1, step: 1, defaultValue: 1, neutralValue: 1 },
         { name: 'u_sunAzimuth', label: 'Sun Azimuth', min: 0, max: 360, step: 1, defaultValue: 40 },
         { name: 'u_sunElevation', label: 'Sun Elevation', min: -90, max: 90, step: 1, defaultValue: 35 },
+        // How much of the sun the clouds keep off the scene's surfaces. Above 0 the clouds are fixed to the world, not carried along with the camera.
+        { name: 'u_cloudShadow', label: 'Cloud Shadows', min: 0, max: 1, step: 0.01, defaultValue: 0, neutralValue: 0 },
+        // How many world units are a kilometre: the sky is in kilometres, the scene in its own units.
+        { name: 'u_unitsPerKm', label: 'World Units per km', min: 1, max: 100000, step: 1, defaultValue: 1000 },
     ],
 });
 

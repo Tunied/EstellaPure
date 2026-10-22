@@ -74,6 +74,15 @@ scene is cleared to nothing while the effect is in the chain and its alpha says 
 sky is laid under an edge by that share instead of replacing the pixel. Nothing downstream sees it: the effect hands back alpha 1.
 Turn **Keep Background** up and the scene is cleared to the camera's colour again, which is what keeping the background means.
 
+### Cloud shadows
+
+Turn **Cloud Shadows** above 0 and the sun's ray from each surface is marched up through the cloud layer the sky draws, against the
+same density, so the ground is darker and patchier under a cloud and lit where the sky is open. The sun's own light is what is
+kept off; ambient light is not shadowed. Casting shadows also pins the clouds to the world instead of carrying them along with the
+camera, so walking under a cloud and out of it works. The sky is in kilometres and the scene in its own units: **World Units per km**
+says how many of the scene's units make one. At 0 (the default) the effect is exactly as it was. The shadow falls on surfaces only; the
+clouds are still drawn where there is sky.
+
 ### Rain, wet ground and puddles
 
 `rain` is a storm in two parts. **Falling rain** is three layers of thin slanted streaks scrolling down the
