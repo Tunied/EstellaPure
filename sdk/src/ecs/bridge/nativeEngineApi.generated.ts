@@ -99,6 +99,7 @@ export interface NativeEngineApi {
     particle_set_speed_lut?(entity: number, ptr: number, count: number): void;
     particle_stop?(registry: unknown, entity: number): void;
     particle_update?(registry: unknown, dt: number): void;
+    postprocess_addComputePass?(name: string, wgsl: string, params: string, workgroupX: number, workgroupY: number): number;
     postprocess_addPass?(name: string, shaderHandle: number): number;
     postprocess_addScreenPass?(name: string, shaderHandle: number): number;
     postprocess_begin?(): void;
@@ -129,6 +130,7 @@ export interface NativeEngineApi {
     postprocess_setUniformVec4?(passName: string, uniform: string, x: number, y: number, z: number, w: number): void;
     postprocess_setViewExposure?(ev: number): void;
     postprocess_shutdown?(): void;
+    postprocess_supportsCompute?(): boolean;
     probe_volume_create?(resX: number, resY: number, resZ: number, shPtr: number): number;
     probe_volume_release?(volumeHandle: number): void;
     registry_batchSyncPhysicsTransforms?(registry: unknown, bufferPtr: number, count: number, ppu: number): void;
@@ -412,6 +414,7 @@ export function createNativeEngineApi(
     bind('particle_set_speed_lut', 'es_particle_set_speed_lut', false);
     bind('particle_stop', 'es_particle_stop', true);
     bind('particle_update', 'es_particle_update', true);
+    bind('postprocess_addComputePass', 'es_postprocess_addComputePass', false);
     bind('postprocess_addPass', 'es_postprocess_addPass', false);
     bind('postprocess_addScreenPass', 'es_postprocess_addScreenPass', false);
     bind('postprocess_begin', 'es_postprocess_begin', false);
@@ -442,6 +445,7 @@ export function createNativeEngineApi(
     bind('postprocess_setUniformVec4', 'es_postprocess_setUniformVec4', false);
     bind('postprocess_setViewExposure', 'es_postprocess_setViewExposure', false);
     bind('postprocess_shutdown', 'es_postprocess_shutdown', false);
+    bind('postprocess_supportsCompute', 'es_postprocess_supportsCompute', false);
     bind('probe_volume_create', 'es_probe_volume_create', false);
     bind('probe_volume_release', 'es_probe_volume_release', false);
     bind('registry_batchSyncPhysicsTransforms', 'es_registry_batchSyncPhysicsTransforms', true);

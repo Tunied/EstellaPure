@@ -175,7 +175,15 @@ function applyBlendedEffects(
                 applyTextures(stack, subPass.name, effectData.textures);
                 applyColors(stack, subPass.name, effectData.colors);
             }
-        } else {
+        } else if (def.compute) {
+            // The params block is the effect's uniforms in their listed order, each at the volume's value or the effect's own default.
+            stack.addComputePass(effectType, {
+                source: def.compute.source,
+                params: def.uniforms.map((u) => u.name),
+                workgroupSize: def.compute.workgroupSize ?? [8, 8],
+            });
+            for (const u of def.uniforms) stack.setUniform(effectType, u.name, effectData.uniforms.get(u.name) ?? u.defaultValue);
+        } else if (def.factory) {
             const shader = getOrCreateShader(api, effectType, def.factory);
             stack.addPass(effectType, shader);
             for (const [uniformName, uniformValue] of effectData.uniforms) {

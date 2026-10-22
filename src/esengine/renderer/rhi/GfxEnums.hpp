@@ -648,7 +648,7 @@ struct GfxComputeSource {
  *          format is the texture's, and `Sampler` is a `sampler`.
  */
 struct GfxComputeBinding {
-    enum class Kind : u8 { Uniform, StorageRead, Storage, Texture, StorageTexture, Sampler };
+    enum class Kind : u8 { Uniform, StorageRead, Storage, Texture, StorageTexture, Sampler, DepthTexture };
     Kind kind = Kind::Uniform;
     u32 binding = 0;
     BufferHandle buffer = BufferHandle::Invalid;
@@ -673,6 +673,11 @@ struct GfxComputeBinding {
     }
     static GfxComputeBinding storageTexture(u32 binding, TextureHandle texture) {
         GfxComputeBinding b; b.kind = Kind::StorageTexture; b.binding = binding; b.texture = texture; return b;
+    }
+    /// A depth texture, read with textureLoad as `texture_depth_2d`. An Invalid handle binds a stand-in, so a shader
+    /// that declares the binding runs whether or not the frame wrote depth.
+    static GfxComputeBinding depth(u32 binding, TextureHandle texture) {
+        GfxComputeBinding b; b.kind = Kind::DepthTexture; b.binding = binding; b.texture = texture; return b;
     }
     static GfxComputeBinding sampler(u32 binding, TextureFilter filter) {
         GfxComputeBinding b; b.kind = Kind::Sampler; b.binding = binding; b.filter = filter; return b;

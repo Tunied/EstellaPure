@@ -25,6 +25,7 @@ several can stack in one frame at no extra target cost beyond the passes.
 | `distanceFog` | Linear fog by distance from the camera | `near`, `far`, `intensity`, colour |
 | `heightFog` | Exponential height fog with the sun's glow and a hazy horizon | `density`, `heightFalloff`, `baseHeight`, `sunAzimuth`, `sunElevation`, `skyFog`, colours |
 | `skyAtmosphere` | An atmosphere that scatters the sun's light, with sun, moon, stars and volumetric clouds, drawn where there is no surface | `intensity`, `haze`, `altitude`, `clouds`, `cloudBase`, `cloudThickness`, `windSpeed`, `overcast`, `sunAzimuth`, `sunElevation` |
+| `sharpen` | Sharpening that cannot make a halo (a compute effect: WebGPU only) | `intensity`, `limit` |
 | `lightShafts` | Sun rays through whatever stands in front of it | `intensity`, `sunAzimuth`, `sunElevation`, `decay`, `reach` |
 | `contactShadows` | The small sharp shadows at a contact a shadow map is too coarse to hold | `intensity`, `length`, `thickness` |
 | `ssgi` | One bounce of diffuse light between the surfaces the camera sees | `intensity`, `radius`, `thickness`, `maxBounce` |
@@ -146,6 +147,43 @@ a second output (`layout(location = 1) out vec4`, or a struct return in WGSL) an
 
 On WebGL2 and WebGPU alike the attachment is multisampled with the scene and resolved with it. A blended draw never writes
 it — a normal averaged with the one behind it is neither's — and the scene's own background clears it to 0.
+
+### Compute effects (WebGPU)
+
+An effect can be a **compute shader** instead of a draw: WGSL run over the whole picture, which is how an effect that reads
+many neighbours or keeps a result of its own is written without a render pass per step. `sharpen` is one: each pixel is
+pushed away from the mean of its neighbours and then held inside the range they span, so an edge gets steeper without a halo.
+
+A compute effect needs a device with a compute stage, which is **WebGPU**. On WebGL2 (and in Play, which runs on WebGL2) the effect
+is left out of the chain and the picture goes through as it was — a compute effect is for refining a picture that is already whole,
+so write one that way. Ask `postprocess_supportsCompute` (or check the backend) if your game needs to know.
+
+Register your own like any other effect, with `compute` in place of `factory`:
+
+```ts
+import { registerEffect } from 'esengine';
+
+registerEffect({
+  type: 'myInvert',
+  label: 'Invert',
+  compute: { source: INVERT_WGSL, workgroupSize: [8, 8] },
+  // The params block: these, as f32s, in this order.
+  uniforms: [{ name: 'u_amount', label: 'Amount', min: 0, max: 1, step: 0.01, defaultValue: 1 }],
+});
+```
+
+The shader gets these at group 0, and declares the ones it uses, with an entry point named `main`:
+
+| Binding | What | Declared as |
+|---|---|---|
+| 0 | the image so far | `texture_2d<f32>` |
+| 1 | the image it writes, the same size | `texture_storage_2d<rgba16float, write>` |
+| 2 | the effect's `uniforms`, as f32s in listed order | `var<uniform>` of a struct that starts with them |
+| 3 | the size, `vec4f(w, h, 1/w, 1/h)` | `var<uniform>` |
+| 4 | the scene's depth | `texture_depth_2d` |
+| 5 | a linear clamp sampler | `sampler` |
+
+It is dispatched over the whole picture in groups of `workgroupSize`, so it checks that its pixel is inside the image.
 
 ### Fog and atmosphere
 

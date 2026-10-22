@@ -2818,6 +2818,18 @@ bool WebGPUDevice::backendDispatchCompute(u32 id, const GfxComputeBinding* bindi
             key += "." + std::to_string(static_cast<u32>(le.texture.sampleType));
             break;
         }
+        case GfxComputeBinding::Kind::DepthTexture: {
+            auto it = textures_.find(static_cast<u32>(b.texture));
+            const TextureRec* rec = (it != textures_.end() && it->second.texture && isDepthFormat(it->second.format)) ? &it->second : nullptr;
+            if (!rec) {
+                ensureDummies();
+                rec = &dummy_depth_texture_;
+            }
+            le.texture.sampleType = WGPUTextureSampleType_Depth;
+            le.texture.viewDimension = WGPUTextureViewDimension_2D;
+            ge.textureView = rec->sampleView;
+            break;
+        }
         case GfxComputeBinding::Kind::StorageTexture: {
             auto it = textures_.find(static_cast<u32>(b.texture));
             if (it == textures_.end() || !it->second.texture) {

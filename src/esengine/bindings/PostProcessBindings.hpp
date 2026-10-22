@@ -12,6 +12,15 @@ bool postprocess_init(u32 width, u32 height);
 void postprocess_shutdown();
 void postprocess_resize(u32 width, u32 height);
 u32 postprocess_addPass(const std::string& name, u32 shaderHandle);
+/**
+ * @brief Adds a pass that is a WGSL compute shader over the picture (see PostProcessPipeline::addComputePass).
+ * @param params The names of the f32 params the shader's block holds, in order, comma separated.
+ * @details On a device with no compute stage the pass is left out of the chain and the picture goes through as it was.
+ */
+u32 postprocess_addComputePass(const std::string& name, const std::string& wgsl, const std::string& params,
+                               u32 workgroupX, u32 workgroupY);
+/** @brief Whether compute passes run on this device: WebGPU yes, WebGL2 no. */
+bool postprocess_supportsCompute();
 /** The project's multisampling request for the scene target; 1 = off. Clamped
  *  by what the device supports — the device answers capability, not policy. */
 void postprocess_setMsaaSamples(u32 samples);

@@ -14,6 +14,7 @@ export {
     POSTPROCESS_VERTEX,
     type PassConfig,
     type EffectDef,
+    type ComputeEffectSource,
     type EffectUniformDef,
     registerEffect,
     getEffectDef,

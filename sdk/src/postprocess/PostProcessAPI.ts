@@ -28,7 +28,9 @@ type PostProcessCore = Required<Pick<NonNullable<EngineApi>,
     | 'postprocess_beginScreenCapture' | 'postprocess_endScreenCapture'
     | 'postprocess_executeScreenPasses' | 'postprocess_addScreenPass'
     | 'postprocess_clearScreenPasses' | 'postprocess_setScreenUniformFloat'
-    | 'postprocess_setScreenUniformVec4'>>;
+    | 'postprocess_setScreenUniformVec4'>>
+    // A core without a compute stage (or built before there was one) does not answer this one.
+    & Pick<NonNullable<EngineApi>, 'postprocess_addComputePass' | 'postprocess_supportsCompute'>;
 
 /** Guarded view of the core: after a wasm abort a call throws instead of reaching
  *  a dead module; a native host's bindings never abort. */
@@ -118,7 +120,14 @@ export function syncStackToWasm(stack: PostProcessStack, force = false,
     for (const pass of stack.passes) {
         if (!pass.enabled || !allow(pass.name)) continue;
         try {
-            m.postprocess_addPass(pass.name, pass.shader);
+            if (pass.compute) {
+                // No compute on this core (WebGL2): the pass is left out and the picture goes through as it was.
+                if (!m.postprocess_addComputePass) continue;
+                m.postprocess_addComputePass(pass.name, pass.compute.source, pass.compute.params.join(','),
+                    pass.compute.workgroupSize[0], pass.compute.workgroupSize[1]);
+            } else {
+                m.postprocess_addPass(pass.name, pass.shader);
+            }
             // Only when it is not 1: every pass that predates fractional sizing
             // means full size, and saying so is the same answer.
             if (pass.scale !== 1) m.postprocess_setPassScale(pass.name, pass.scale);

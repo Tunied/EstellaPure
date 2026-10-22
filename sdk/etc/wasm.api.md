@@ -382,6 +382,7 @@ particle_set_size_lut: ((entity: number, ptr: number, count: number) => void) | 
 particle_set_speed_lut: ((entity: number, ptr: number, count: number) => void) | undefined
 particle_stop: ((registry: CppRegistry, entity: number) => void) | undefined
 particle_update: ((registry: CppRegistry, dt: number) => void) | undefined
+postprocess_addComputePass: ((name: string, wgsl: string, params: string, workgroupX: number, workgroupY: number) => number) | undefined
 postprocess_addPass: (name: string, shaderHandle: number) => number
 postprocess_addScreenPass: (name: string, shaderHandle: number) => number
 postprocess_begin: () => void
@@ -412,6 +413,7 @@ postprocess_setUniformFloat: (passName: string, uniform: string, value: number) 
 postprocess_setUniformVec4: (passName: string, uniform: string, x: number, y: number, z: number, w: number) => void
 postprocess_setViewExposure: ((ev: number) => void) | undefined
 postprocess_shutdown: () => void
+postprocess_supportsCompute: (() => boolean) | undefined
 probe_volume_create: ((resX: number, resY: number, resZ: number, shPtr: number) => number) | undefined
 probe_volume_release: ((volumeHandle: number) => void) | undefined
 provideReplacementDevice: (() => boolean) | undefined

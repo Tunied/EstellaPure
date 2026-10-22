@@ -198,6 +198,8 @@ void RenderGraph::execute() {
 
         if (pass.compute) {
             // A dispatch is not a draw: it runs between render passes, with nothing bound for it by the graph.
+            // The pass before it is still open on a device that leaves one open until the next begins; a dispatch needs it closed.
+            device_.endRenderPass();
             inputScratch_.clear();
             for (const ResourceId id : pass.reads) inputScratch_.push_back(textureOf(id));
             if (pass.execute) {

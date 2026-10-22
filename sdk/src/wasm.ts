@@ -522,6 +522,8 @@ export interface ESEngineModule {
     postprocess_shutdown(): void;
     postprocess_resize(width: number, height: number): void;
     postprocess_addPass(name: string, shaderHandle: number): number;
+    postprocess_addComputePass?(name: string, wgsl: string, params: string, workgroupX: number, workgroupY: number): number;
+    postprocess_supportsCompute?(): boolean;
     postprocess_setPassScale(name: string, scale: number): void;
     postprocess_setPassContinuesEffect(name: string): void;
     postprocess_setMsaaSamples(samples: number): void;

@@ -83,6 +83,14 @@ struct PostProcessPass {
     /// starts an effect, so a single-pass effect sees the chain as it reached it.
     bool continuesEffect = false;
 
+    /// A compute pass (see PostProcessPipeline::addComputePass): the program, which floats its params block holds, in
+    /// order, and the workgroup the shader declares. Invalid for every pass that draws.
+    ComputeHandle compute = ComputeHandle::Invalid;
+    bool isCompute = false;
+    std::vector<std::string> computeParams;
+    u32 workgroupX = 8;
+    u32 workgroupY = 8;
+
     /// #pragma-param shaders: the pass's packed MaterialConstants payload +
     /// its UBO (binding 1) — the same reflected block a material would use.
     /// Rebuilt from float/vec4Uniforms over the layout defaults when dirty.
@@ -146,6 +154,21 @@ public:
      * @return Index of the added pass
      */
     u32 addPass(const std::string& name, resource::ShaderHandle shader);
+    /**
+     * @brief Adds a pass that is a compute shader over the picture instead of a draw.
+     * @details The WGSL is handed these, at group 0: `@binding(0)` the image so far (`texture_2d<f32>`), `@binding(1)`
+     *          the image it writes (`texture_storage_2d<rgba16float, write>`, the same size), `@binding(2)` a uniform
+     *          block of @p params as f32s in that order, `@binding(3)` the size as `vec4f(w, h, 1/w, 1/h)`, `@binding(4)`
+     *          the scene's depth (`texture_depth_2d`), `@binding(5)` a linear clamp sampler. A shader declares the ones it
+     *          uses. It is dispatched over the whole image in groups of @p workgroupX x @p workgroupY, which it declares.
+     *          Compute needs a device that supportsCompute(): on one that does not the pass is left out of the chain, and
+     *          the picture goes through as it was.
+     * @return Index of the added pass.
+     */
+    u32 addComputePass(const std::string& name, const std::string& wgsl, const std::vector<std::string>& params,
+                       u32 workgroupX, u32 workgroupY);
+    /// Whether passes added with addComputePass run on this device.
+    bool supportsCompute() const;
     /// The project's multisampling request; 1 = off. Clamped by the device.
     void setRequestedSamples(u32 samples);
     /// What the scene target is actually created with: the request after the
@@ -496,6 +519,15 @@ private:
     void drawScreenQuad();
     void applyPassPipeline(const Shader& shader);
     void renderPass(PostProcessPass& pass, const rg::PassContext& ctx);
+    /// A compute pass: its params and the size into a block each, the picture, the depth and the output bound, one dispatch over it.
+    void computePass(PostProcessPass& pass, const rg::PassContext& ctx);
+    /// Whether a pass has anything to run on this device: a drawn pass always, a compute one only where there is compute.
+    bool runnable(const PostProcessPass& pass) const;
+    /// Compute programs by source, kept while the pipeline lives: the passes are pushed again every camera, and a
+    /// program is a compiled pipeline, not something to build per frame.
+    std::unordered_map<std::string, ComputeHandle> compute_cache_;
+    /// The size block a compute pass reads, one for all of them (each dispatch writes it just before it runs).
+    BufferHandle compute_view_ubo_ = BufferHandle::Invalid;
     /// Declares one chain onto an already-begun graph and runs it, ending in the
     /// output target. @p scene is the resource the first effect reads.
     void runChain(std::vector<PostProcessPass>& passes, rg::ResourceId scene);

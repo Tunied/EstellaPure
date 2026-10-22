@@ -24,6 +24,7 @@ Estella 通过 ping-pong 帧缓冲运行全屏后处理。加一个 `PostProcess
 | `distanceFog` | 按到相机的距离做线性雾 | `near`、`far`、`intensity`、颜色 |
 | `heightFog` | 指数高度雾,带太阳辉光和朦胧的地平线 | `density`、`heightFalloff`、`baseHeight`、`sunAzimuth`、`sunElevation`、`skyFog`、颜色 |
 | `skyAtmosphere` | 散射太阳光的大气,带太阳、月亮、星星和体积云,画在没有表面的地方 | `intensity`、`haze`、`altitude`、`clouds`、`cloudBase`、`cloudThickness`、`windSpeed`、`overcast`、`sunAzimuth`、`sunElevation` |
+| `sharpen` | 不会出光晕的锐化(计算特效:仅 WebGPU) | `intensity`、`limit` |
 | `lightShafts` | 太阳光穿过前方遮挡物形成的光束 | `intensity`、`sunAzimuth`、`sunElevation`、`decay`、`reach` |
 | `contactShadows` | 阴影贴图太粗放不下的接触处的小而锐利的阴影 | `intensity`、`length`、`thickness` |
 | `ssgi` | 相机看得见的表面之间的一次漫反射光弹射 | `intensity`、`radius`、`thickness`、`maxBounce` |
@@ -113,6 +114,41 @@ Estella 通过 ping-pong 帧缓冲运行全屏后处理。加一个 `PostProcess
 编译会定义 `ES_GBUFFER`,然后声明第二个输出(`layout(location = 1) out vec4`,WGSL 里是返回结构体)并按同样的编码写入。
 
 在 WebGL2 和 WebGPU 上,附件都与场景一起多重采样、一起解析。混合绘制从不写它——与背后那个平均过的法线谁也不是——场景自己的背景把它清成 0。
+
+### 计算特效(WebGPU)
+
+一个特效可以是**计算着色器**而不是绘制:在整张画面上运行的 WGSL,适合需要读取很多相邻像素、或要保留自己结果的特效,不必每一步都开一个渲染 pass。
+`sharpen` 就是一个:每个像素被推离邻居的均值,再被限制在邻居所张成的范围内,所以边缘变陡却不会出光晕。
+
+计算特效需要有计算阶段的设备,也就是 **WebGPU**。在 WebGL2(以及运行在 WebGL2 上的 Play)里,这个特效会被从链路中拿掉,画面原样通过——
+计算特效是用来精修一张已经完整的画面的,所以请按这个思路写。游戏需要知道时,可以问 `postprocess_supportsCompute`(或检查后端)。
+
+像注册其他特效一样注册你自己的,用 `compute` 代替 `factory`:
+
+```ts
+import { registerEffect } from 'esengine';
+
+registerEffect({
+  type: 'myInvert',
+  label: '反相',
+  compute: { source: INVERT_WGSL, workgroupSize: [8, 8] },
+  // 参数块:这些,按这个顺序,作为 f32。
+  uniforms: [{ name: 'u_amount', label: '强度', min: 0, max: 1, step: 0.01, defaultValue: 1 }],
+});
+```
+
+着色器在 group 0 里拿到下面这些,声明它用到的即可,入口函数叫 `main`:
+
+| 绑定 | 内容 | 声明为 |
+|---|---|---|
+| 0 | 到目前为止的画面 | `texture_2d<f32>` |
+| 1 | 它要写入的画面,同样大小 | `texture_storage_2d<rgba16float, write>` |
+| 2 | 特效的 `uniforms`,按列出的顺序作为 f32 | 以它们开头的结构体的 `var<uniform>` |
+| 3 | 尺寸,`vec4f(w, h, 1/w, 1/h)` | `var<uniform>` |
+| 4 | 场景深度 | `texture_depth_2d` |
+| 5 | 线性夹取采样器 | `sampler` |
+
+它按 `workgroupSize` 为一组铺满整张画面,所以要自己检查像素是否在图像内。
 
 ### 雾与大气
 

@@ -178,6 +178,12 @@ void PostProcessPipeline::shutdown() {
 
     for (auto& pass : passes_) releasePassResources(pass);
     for (auto& pass : screenPasses_) releasePassResources(pass);
+    for (auto& [source, program] : compute_cache_) device_.deleteCompute(program);
+    compute_cache_.clear();
+    if (compute_view_ubo_ != BufferHandle::Invalid) {
+        device_.deleteBuffer(compute_view_ubo_);
+        compute_view_ubo_ = BufferHandle::Invalid;
+    }
     passes_.clear();
     screenPasses_.clear();
     temporal_.clear();
@@ -247,6 +253,38 @@ u32 PostProcessPipeline::addPass(const std::string& name, resource::ShaderHandle
     pass.shader = shader;
     pass.enabled = true;
 
+    passes_.push_back(pass);
+    return static_cast<u32>(passes_.size() - 1);
+}
+
+bool PostProcessPipeline::supportsCompute() const { return device_.supportsCompute(); }
+
+bool PostProcessPipeline::runnable(const PostProcessPass& pass) const {
+    return pass.enabled && (!pass.isCompute || (device_.supportsCompute() && pass.compute != ComputeHandle::Invalid));
+}
+
+u32 PostProcessPipeline::addComputePass(const std::string& name, const std::string& wgsl,
+                                         const std::vector<std::string>& params, u32 workgroupX, u32 workgroupY) {
+    PostProcessPass pass;
+    pass.name = name;
+    pass.enabled = true;
+    pass.isCompute = true;
+    pass.computeParams = params;
+    pass.workgroupX = std::max(workgroupX, 1u);
+    pass.workgroupY = std::max(workgroupY, 1u);
+    if (device_.supportsCompute()) {
+        auto cached = compute_cache_.find(wgsl);
+        if (cached == compute_cache_.end()) {
+            std::string log;
+            const ComputeHandle program = device_.createCompute(GfxComputeSource{GfxShaderLanguage::WGSL, wgsl.c_str(), "main"}, &log);
+            if (program == ComputeHandle::Invalid) {
+                ES_LOG_ERROR("PostProcessPipeline: compute pass '{}' did not compile: {}", name, log);
+            }
+            // A program that failed is remembered as failed, or every camera of every frame would try it again.
+            cached = compute_cache_.emplace(wgsl, program).first;
+        }
+        pass.compute = cached->second;
+    }
     passes_.push_back(pass);
     return static_cast<u32>(passes_.size() - 1);
 }
@@ -831,6 +869,52 @@ void PostProcessPipeline::renderPass(PostProcessPass& pass, const rg::PassContex
     drawScreenQuad();
 }
 
+void PostProcessPipeline::computePass(PostProcessPass& pass, const rg::PassContext& ctx) {
+    if (pass.compute == ComputeHandle::Invalid || ctx.output == TextureHandle::Invalid) return;
+    const TextureHandle input = ctx.input(0);
+    if (input == TextureHandle::Invalid) return;
+
+    // The params block: the pass's floats in the order the effect declared them, at least one vec4 (a uniform
+    // binding is never smaller than that).
+    const usize floats = std::max<usize>(4, (pass.computeParams.size() + 3) / 4 * 4);
+    std::vector<f32> values(floats, 0.0f);
+    for (usize i = 0; i < pass.computeParams.size(); ++i) {
+        if (auto it = pass.floatUniforms.find(pass.computeParams[i]); it != pass.floatUniforms.end()) values[i] = it->second;
+    }
+    const u32 paramBytes = static_cast<u32>(values.size() * sizeof(f32));
+    if (pass.paramUbo == BufferHandle::Invalid) {
+        pass.paramUbo = device_.createBuffer({GfxBufferUsage::Uniform, paramBytes, /*dynamic=*/true},
+                                             GfxContent::retained(), values.data());
+    } else {
+        device_.updateBuffer(pass.paramUbo, 0, values.data(), paramBytes);
+    }
+
+    const f32 w = static_cast<f32>(std::max(ctx.width, 1u));
+    const f32 h = static_cast<f32>(std::max(ctx.height, 1u));
+    const f32 view[4] = {w, h, 1.0f / w, 1.0f / h};
+    if (compute_view_ubo_ == BufferHandle::Invalid) {
+        compute_view_ubo_ = device_.createBuffer({GfxBufferUsage::Uniform, sizeof(view), /*dynamic=*/true},
+                                                 GfxContent::retained(), view);
+    } else {
+        device_.updateBuffer(compute_view_ubo_, 0, view, sizeof(view));
+    }
+
+    // The scene's depth where the frame wrote one; the device stands a blank in where it did not.
+    const TextureHandle depth = (graph_ && sceneResource_ != rg::kNoResource) ? graph_->depthTextureOf(sceneResource_)
+                                                                              : TextureHandle::Invalid;
+    const GfxComputeBinding bindings[6] = {
+        GfxComputeBinding::sampled(0, input),
+        GfxComputeBinding::storageTexture(1, ctx.output),
+        GfxComputeBinding::uniform(2, pass.paramUbo),
+        GfxComputeBinding::uniform(3, compute_view_ubo_),
+        GfxComputeBinding::depth(4, depth),
+        GfxComputeBinding::sampler(5, TextureFilter::Linear),
+    };
+    const u32 groupsX = (ctx.width + pass.workgroupX - 1) / pass.workgroupX;
+    const u32 groupsY = (ctx.height + pass.workgroupY - 1) / pass.workgroupY;
+    device_.dispatchCompute(pass.compute, bindings, 6, groupsX, groupsY, 1);
+}
+
 void PostProcessPipeline::clearPasses() {
     for (auto& pass : passes_) releasePassResources(pass);
     passes_.clear();
@@ -880,14 +964,14 @@ void PostProcessPipeline::runChain(std::vector<PostProcessPass>& passes, rg::Res
     // Which enabled pass is last decides which target the blit will sample.
     usize lastEnabled = passes.size();
     for (usize i = passes.size(); i-- > 0;) {
-        if (passes[i].enabled) { lastEnabled = i; break; }
+        if (runnable(passes[i])) { lastEnabled = i; break; }
     }
 
     rg::ResourceId input = scene;
     rg::ResourceId effectInput = scene;
     for (usize i = 0; i < passes.size(); ++i) {
         auto& pass = passes[i];
-        if (!pass.enabled) continue;
+        if (!runnable(pass)) continue;
         if (!pass.continuesEffect) effectInput = input;
         rg::PassDesc node;
         node.name = pass.name;
@@ -915,6 +999,23 @@ void PostProcessPipeline::runChain(std::vector<PostProcessPass>& passes, rg::Res
         rg::TargetDesc writeDesc = (i == lastEnabled) ? blitDesc : desc;
         if (i != lastEnabled) writeDesc.scale = pass.scale;
         if (passIsHighPrecision(pass)) writeDesc.format = GfxPixelFormat::RGBA16F;
+        if (pass.isCompute) {
+            // A compute pass writes a storage texture, which is a half float whatever the chain keeps between passes (the
+            // shader says its format), and it reads the scene's depth, so the scene has to outlive it.
+            writeDesc.format = GfxPixelFormat::RGBA16F;
+            writeDesc.storage = true;
+            writeDesc.linearFilter = true;
+            pass.temporal = false;
+            pass.feedback = false;
+            node.compute = true;
+            node.reads = {input};
+            node.dependencies = {scene};
+            node.write = graph_->createTarget(writeDesc);
+            node.execute = [this, &pass](const rg::PassContext& ctx) { computePass(pass, ctx); };
+            input = node.write;
+            graph_->addPass(std::move(node));
+            continue;
+        }
         // A temporal pass writes the history target itself, so that what it wrote is
         // still there next frame, and the passes after it read it from there.
         TemporalState* temporal = nullptr;

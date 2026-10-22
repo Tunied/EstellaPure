@@ -66,6 +66,25 @@ u32 postprocess_addPass(const std::string& name, u32 shaderHandle) {
     return g_postProcessPipeline->addPass(name, resource::ShaderHandle(shaderHandle));
 }
 
+u32 postprocess_addComputePass(const std::string& name, const std::string& wgsl, const std::string& params,
+                               u32 workgroupX, u32 workgroupY) {
+    if (!g_postProcessPipeline) return 0;
+    std::vector<std::string> names;
+    usize start = 0;
+    while (start <= params.size() && !params.empty()) {
+        const usize comma = params.find(',', start);
+        const usize end = comma == std::string::npos ? params.size() : comma;
+        if (end > start) names.push_back(params.substr(start, end - start));
+        if (comma == std::string::npos) break;
+        start = comma + 1;
+    }
+    return g_postProcessPipeline->addComputePass(name, wgsl, names, workgroupX, workgroupY);
+}
+
+bool postprocess_supportsCompute() {
+    return g_postProcessPipeline ? g_postProcessPipeline->supportsCompute() : (g_device && g_device->supportsCompute());
+}
+
 void postprocess_setMsaaSamples(u32 samples) {
     if (g_postProcessPipeline) g_postProcessPipeline->setRequestedSamples(samples);
 }

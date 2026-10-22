@@ -170,6 +170,7 @@ export {
     type OutputTransform,
     type HdrFormat,
     type EffectDef,
+    type ComputeEffectSource,
     type EffectUniformDef,
     getEffectDef,
     getEffectTypes,

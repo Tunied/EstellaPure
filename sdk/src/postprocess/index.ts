@@ -9,6 +9,7 @@ export { postProcessEffects } from './postProcessEffects';
 export { POSTPROCESS_VERTEX } from './shaders';
 export {
     type EffectDef,
+    type ComputeEffectSource,
     type EffectUniformDef,
     registerEffect,
     getEffectDef,

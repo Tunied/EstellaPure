@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import type { ShaderHandle } from '../render/material';
 import { postProcessEffects } from './postProcessEffects';
+import { SHARPEN_WGSL } from './computeEffects';
 
 export interface EffectUniformDef {
     name: string;
@@ -43,10 +44,26 @@ export interface EffectSubPass {
     scale?: number;
 }
 
+/**
+ * An effect that is a compute shader over the picture rather than a draw. The WGSL is handed, at group 0: `@binding(0)` the image
+ * so far (`texture_2d<f32>`), `@binding(1)` the image it writes (`texture_storage_2d<rgba16float, write>`), `@binding(2)` a uniform
+ * block of the effect's `uniforms` as f32s in the order they are listed, `@binding(3)` the size (`vec4f(w, h, 1/w, 1/h)`),
+ * `@binding(4)` the scene's depth (`texture_depth_2d`) and `@binding(5)` a linear clamp sampler; it declares the ones it uses and
+ * an entry point named `main`. Only a device with a compute stage (WebGPU) runs it: on WebGL2 the effect is left out.
+ */
+export interface ComputeEffectSource {
+    source: string;
+    /** The workgroup size the shader declares; it is dispatched over the whole picture in groups of this. Default 8 x 8. */
+    workgroupSize?: [number, number];
+}
+
 export interface EffectDef {
     type: string;
     label: string;
-    factory: () => ShaderHandle;
+    /** What compiles the effect's draw shader. Absent for a compute effect (see {@link compute}). */
+    factory?: () => ShaderHandle;
+    /** Set instead of `factory` for an effect that runs as a compute shader. */
+    compute?: ComputeEffectSource;
     uniforms: EffectUniformDef[];
     /** Texture params, carried on the volume as serialized refs (`textures`). */
     textures?: EffectTextureDef[];
@@ -267,6 +284,19 @@ registerEffect({
         { name: 'u_followSun', label: 'Follow Scene Sun', min: 0, max: 1, step: 1, defaultValue: 1, neutralValue: 1 },
         { name: 'u_sunAzimuth', label: 'Sun Azimuth', min: 0, max: 360, step: 1, defaultValue: 40 },
         { name: 'u_sunElevation', label: 'Sun Elevation', min: -90, max: 90, step: 1, defaultValue: 35 },
+    ],
+});
+
+// A compute effect: only a device with a compute stage (WebGPU) runs it; on WebGL2 the picture goes through as it was.
+registerEffect({
+    type: 'sharpen',
+    label: 'Sharpen',
+    compute: { source: SHARPEN_WGSL },
+    uniforms: [
+        // How hard a pixel is pushed away from the mean of its neighbours. 0 leaves the picture alone.
+        { name: 'u_intensity', label: 'Intensity', min: 0, max: 2, step: 0.01, defaultValue: 0.5, neutralValue: 0 },
+        // How far past the range of its neighbours a pixel may be pushed, as a share of that range: 0 cannot overshoot at all.
+        { name: 'u_limit', label: 'Overshoot Limit', min: 0, max: 1, step: 0.01, defaultValue: 0.25 },
     ],
 });
 
