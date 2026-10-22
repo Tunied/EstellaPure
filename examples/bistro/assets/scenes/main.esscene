@@ -52,13 +52,6 @@
                 }
               },
               {
-                "type": "taa",
-                "enabled": true,
-                "uniforms": {
-                  "u_blend": 0.1
-                }
-              },
-              {
                 "type": "ssao",
                 "enabled": true,
                 "uniforms": {
@@ -124,6 +117,13 @@
                   "u_skyFog": 0.6,
                   "u_volumetric": 0.5,
                   "u_volumeRange": 6000
+                }
+              },
+              {
+                "type": "taa",
+                "enabled": true,
+                "uniforms": {
+                  "u_blend": 0.1
                 }
               },
               {

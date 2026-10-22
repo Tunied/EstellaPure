@@ -49,12 +49,14 @@ add('Camera', [
   { type: 'Camera', data: { projectionType: 0, fov: 33, nearPlane: 10, farPlane: 40000, isActive: true, priority: 0 } },
   { type: 'PostProcessVolume', data: { isGlobal: true, priority: 0, weight: 1, effects: [
     { type: 'skyAtmosphere', enabled: true, uniforms: { u_intensity: 1.1, u_sunBrightness: 40 } },
-    { type: 'taa', enabled: true, uniforms: { u_blend: 0.1 } },
     { type: 'ssao', enabled: true, uniforms: { u_radius: 70, u_intensity: 1, u_bias: 0.12, u_power: 1.5 } },
     { type: 'contactShadows', enabled: true, uniforms: { u_intensity: 0.55, u_length: 28, u_thickness: 10 } },
     { type: 'ssgi', enabled: true, uniforms: { u_intensity: 0.9, u_radius: 240, u_thickness: 40, u_maxBounce: 2.5 } },
     { type: 'ssr', enabled: true, uniforms: { u_intensity: 0.6, u_maxDistance: 500, u_thickness: 14, u_floorBias: 1 } },
     { type: 'heightFog', enabled: true, colors: { u_fogColor: { r: 0.72, g: 0.78, b: 0.86, a: 1 }, u_sunColor: { r: 1, g: 0.9, b: 0.7, a: 1 } }, uniforms: { u_density: 4e-05, u_heightFalloff: 0.0008, u_baseHeight: 0, u_inscatter: 0.5, u_sunAzimuth: 40, u_sunElevation: 35, u_skyFog: 0.6, u_volumetric: 0.5, u_volumeRange: 6000 } },
+    // After every effect whose noise it is there to average (ambient occlusion, contact shadows, GI, reflections, fog): a temporal
+    // pass only resolves what runs BEFORE it, and a speckle added after it reaches the screen as it is.
+    { type: 'taa', enabled: true, uniforms: { u_blend: 0.1 } },
     { type: 'autoExposure', enabled: true, uniforms: { u_bias: 0.15, u_minEV: -2, u_maxEV: 2 } },
     { type: 'colorGrade', enabled: true, uniforms: { u_exposure: 0, u_contrast: 1.08, u_saturation: 1.1, u_temperature: 0, u_tint: 0 } },
     { type: 'bloom', enabled: true, uniforms: { u_threshold: 0.9, u_intensity: 0.5, u_radius: 1.2 } },

@@ -301,6 +301,11 @@ start offset that hides the banding is what `taa` averages away — use them tog
 
 ### Temporal anti-aliasing
 
+**Put `taa` after every effect whose noise it should average** — ambient occlusion, contact shadows, global illumination,
+reflections, fog. A temporal pass resolves what runs before it; a speckle added after it reaches the screen as it is. In the
+Bistro example moving `taa` from second place to after the fog lowered the grain on a flat wall by a quarter. The editor marks a
+`taa` that has such an effect after it with a warning tag.
+
 `taa` smooths what MSAA cannot reach — shader aliasing and thin geometry — by
 accumulating frames. While the effect is in the chain the engine shifts the picture by
 a different sub-pixel amount each frame (eight positions, repeating), keeps the effect's

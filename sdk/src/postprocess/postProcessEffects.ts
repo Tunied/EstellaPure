@@ -2508,7 +2508,22 @@ void main() {
            : vec3(cos(el) * sin(az), sin(el), cos(el) * cos(az));
 
     vec3 P = worldFromDepth(uvOfTexel(c, size), d);
-    float jitter = ign(gl_FragCoord.xy);
+    // A surface that faces away from the sun is already dark, and a shadow on it is a second one: the term fades out before
+    // the terminator instead of speckling the dark side. The normal is the depth buffer's own, from the nearer neighbour on
+    // each axis (the same pick the occlusion passes make, so a silhouette does not average into a normal facing neither).
+    float dl = depthAt(c + ivec2(-1, 0), size);
+    float dr = depthAt(c + ivec2( 1, 0), size);
+    float dd = depthAt(c + ivec2(0, -1), size);
+    float du = depthAt(c + ivec2(0,  1), size);
+    vec3 ax = abs(dr - d) < abs(dl - d) ? worldAt(c + ivec2(1, 0), size) - P : P - worldAt(c + ivec2(-1, 0), size);
+    vec3 ay = abs(du - d) < abs(dd - d) ? worldAt(c + ivec2(0, 1), size) - P : P - worldAt(c + ivec2(0, -1), size);
+    vec3 N = normalize(cross(ax, ay));
+    if (dot(N, viewDirection(P)) < 0.0) N = -N;
+    float facing = smoothstep(0.02, 0.25, dot(N, L));
+    if (facing <= 0.0) { fragColor = src; return; }
+    // A different start offset every frame as well as every pixel, so what a temporal pass averages is the whole march and not one
+    // fixed pattern of it.
+    float jitter = ign(gl_FragCoord.xy + 5.588238 * float(int(u_time.x * 60.0) & 63));
     float occluded = 0.0;
     for (int i = 0; i < STEPS; ++i) {
         float t = (float(i) + jitter + 0.5) / float(STEPS) * u_length;
@@ -2522,10 +2537,14 @@ void main() {
         float surface = (u_projection * vec4(worldAt(tx, size), 1.0)).w;
         // Behind what the buffer shows by more than the surface's own noise, and by less than a wall's thickness.
         float behind = q.w - surface;
-        if (behind > u_thickness * 0.08 + t * 0.01 && behind < u_thickness) { occluded = 1.0; break; }
+        if (behind > u_thickness * 0.08 + t * 0.01 && behind < u_thickness) {
+            // The nearer the blocker, the harder the contact: a hit at the far end of the march is half a shadow, not a whole one.
+            float reach = t / u_length;
+            occluded = 1.0 - reach * reach;
+            break;
+        }
     }
-    // The nearer the blocker, the harder the contact: fades along the ray's length.
-    fragColor = vec4(src.rgb * (1.0 - u_intensity * occluded), src.a);
+    fragColor = vec4(src.rgb * (1.0 - u_intensity * occluded * facing), src.a);
 }
 #pragma end
 
@@ -2552,7 +2571,19 @@ fn ign(p : vec2f) -> f32 {
     if (mc.u_followSun > 0.5 && found.dir.w > 0.5) { L = found.dir.xyz; }
 
     let P = worldFromDepth(uvOfTexel(c, size), d);
-    let jitter = ign(v.pos.xy);
+    let dl = depthAt(c + vec2i(-1, 0), size);
+    let dr = depthAt(c + vec2i( 1, 0), size);
+    let dd = depthAt(c + vec2i(0, -1), size);
+    let du = depthAt(c + vec2i(0,  1), size);
+    var ax = P - worldAt(c + vec2i(-1, 0), size);
+    if (abs(dr - d) < abs(dl - d)) { ax = worldAt(c + vec2i(1, 0), size) - P; }
+    var ay = P - worldAt(c + vec2i(0, -1), size);
+    if (abs(du - d) < abs(dd - d)) { ay = worldAt(c + vec2i(0, 1), size) - P; }
+    var N = normalize(cross(ax, ay));
+    if (dot(N, viewDirection(P)) < 0.0) { N = -N; }
+    let facing = smoothstep(0.02, 0.25, dot(N, L));
+    if (facing <= 0.0) { return src; }
+    let jitter = ign(v.pos.xy + vec2f(5.588238 * f32(i32(tc.u_time.x * 60.0) & 63)));
     var occluded = 0.0;
     for (var i : i32 = 0; i < STEPS; i = i + 1) {
         let t = (f32(i) + jitter + 0.5) / f32(STEPS) * mc.u_length;
@@ -2566,9 +2597,13 @@ fn ign(p : vec2f) -> f32 {
         if (depthAt(tx, size) >= 1.0) { continue; }
         let surface = (frame.projection * vec4f(worldAt(tx, size), 1.0)).w;
         let behind = q.w - surface;
-        if (behind > mc.u_thickness * 0.08 + t * 0.01 && behind < mc.u_thickness) { occluded = 1.0; break; }
+        if (behind > mc.u_thickness * 0.08 + t * 0.01 && behind < mc.u_thickness) {
+            let reach = t / mc.u_length;
+            occluded = 1.0 - reach * reach;
+            break;
+        }
     }
-    return vec4f(src.rgb * (1.0 - mc.u_intensity * occluded), src.a);
+    return vec4f(src.rgb * (1.0 - mc.u_intensity * occluded * facing), src.a);
 }
 #pragma end
 `;
