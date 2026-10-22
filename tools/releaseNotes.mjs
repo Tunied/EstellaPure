@@ -2515,6 +2515,8 @@ export const NOTED = {
     {"internal":"the editor checks for the Terrain and Foliage entry above, and the effect stack and weather panels moved onto the shared Button and IconButton"},
   "feat(examples): add the Wilds example, a lake under mountains with terrain, water, foliage and cloud shadows":
     {"note":"Wilds is a new 3D example: a lake under mountains at dusk, made from a generated heightmap with the Terrain, Water and Foliage features and the sky's cloud shadows."},
+  "chore(tools): the corpus now authors Terrain and Foliage":
+    {"internal":"the corpus-authoring list after the Wilds example authors both components"},
   "chore(tools): the gates run in parallel with --jobs, and the reds a full run gathered are cleared":
     {"internal":"tooling for the static gates, and fixes to checks that had drifted from the code they guard"},
   "fix(render): a wire narrower than a pixel is no longer painted over by the sky in dashes":
