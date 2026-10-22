@@ -1,0 +1,83 @@
+{
+  "version": "2",
+  "name": "floor-2m",
+  "rootEntityId": "n2",
+  "entities": [
+    {
+      "prefabEntityId": "n2",
+      "name": "floor-2m",
+      "parent": null,
+      "children": [
+        "n0",
+        "n1"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n0",
+      "name": "floor-2m__ivory",
+      "parent": "n2",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/floor-2m/floor-2m_0_0.esmesh",
+            "lit": true,
+            "material": "assets/materials/ivory.esmaterial",
+            "color": {
+              "r": 0.7599999904632568,
+              "g": 0.7099999785423279,
+              "b": 0.5899999737739563,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true,
+            "cullBackfaces": false
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n1",
+      "name": "floor-2m__steel",
+      "parent": "n2",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/floor-2m/floor-2m_1_0.esmesh",
+            "lit": true,
+            "material": "assets/materials/steel.esmaterial",
+            "color": {
+              "r": 0.23000000417232513,
+              "g": 0.30000001192092896,
+              "b": 0.3199999928474426,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true,
+            "cullBackfaces": false
+          }
+        }
+      ]
+    }
+  ]
+}

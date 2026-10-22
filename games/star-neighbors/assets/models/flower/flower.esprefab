@@ -1,0 +1,83 @@
+{
+  "version": "2",
+  "name": "flower",
+  "rootEntityId": "n2",
+  "entities": [
+    {
+      "prefabEntityId": "n2",
+      "name": "flower",
+      "parent": null,
+      "children": [
+        "n0",
+        "n1"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n0",
+      "name": "flower__leaf",
+      "parent": "n2",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/flower/flower_0_0.esmesh",
+            "lit": true,
+            "material": "assets/materials/leaf.esmaterial",
+            "color": {
+              "r": 0.11999999731779099,
+              "g": 0.27000001072883606,
+              "b": 0.03500000014901161,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true,
+            "cullBackfaces": false
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n1",
+      "name": "flower__petal",
+      "parent": "n2",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/flower/flower_1_0.esmesh",
+            "lit": true,
+            "material": "assets/materials/petal.esmaterial",
+            "color": {
+              "r": 0.9300000071525574,
+              "g": 0.7699999809265137,
+              "b": 0.30000001192092896,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true,
+            "cullBackfaces": false
+          }
+        }
+      ]
+    }
+  ]
+}

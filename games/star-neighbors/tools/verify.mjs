@@ -1,0 +1,53 @@
+import { chromium } from 'playwright';
+import assert from 'node:assert/strict';
+import { mkdir,writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { serveHost } from '../../../tools/lib/staticServer.mjs';
+
+const out=path.resolve('output/star-neighbors');await mkdir(out,{recursive:true});
+const server=await serveHost(path.join(out,'web'));
+const browser=await chromium.launch({headless:true,args:['--use-angle=d3d11','--enable-webgl','--ignore-gpu-blocklist','--enable-unsafe-swiftshader']});
+const errors=[],warnings=[],checks=[];
+try {
+  const page=await browser.newPage({viewport:{width:1600,height:1000},deviceScaleFactor:1});
+  page.on('pageerror',e=>errors.push(String(e)));
+  page.on('console',m=>{if(m.type()==='error')errors.push(m.text());if(m.type()==='warning')warnings.push(m.text());});
+  page.on('response',r=>{if(r.status()>=400)errors.push(`${r.status()} ${r.url()}`);});
+  await page.goto(`http://127.0.0.1:${server.address().port}/?headless`,{waitUntil:'load'});
+  await page.waitForFunction(()=>window.__estellaCooked?.facts().ready,{timeout:60000});
+  const facts=()=>page.evaluate(()=>window.__estellaCooked.facts());
+  const paused=value=>page.evaluate(value=>window.__estellaCooked.setPaused(value),value);
+  const step=(n=2)=>page.evaluate(n=>window.__estellaCooked.step(n),n);
+  const frames=async()=>{const start=(await facts()).frame;await page.waitForFunction(start=>window.__estellaCooked.facts().frame>=start+2,start);};
+  const key=async(code,n=2)=>{await paused(false);await page.keyboard.down(code);await frames();await paused(true);await step(n);await page.keyboard.up(code);await step();};
+  const click=async(x,y)=>{await paused(false);await page.mouse.click(x,y);await frames();await paused(true);await step();};
+  await paused(true);await step(20);assert.deepEqual(errors,[]);
+  await page.screenshot({path:path.join(out,'actual-day.png')});checks.push('3D kit, shared materials, terrain and native 2D HUD loaded');
+  await key('b');assert.equal((await facts()).building,true);
+  await key('Enter');assert.equal((await facts()).placed,1);assert.equal((await facts()).valid,false);
+  await key('Enter');assert.equal((await facts()).placed,1);
+  await key('ArrowRight');assert.equal((await facts()).cursorX,4);
+  await key('3');await key('r');assert.equal((await facts()).rotation,1);
+  await key('Enter');assert.equal((await facts()).placed,2);
+  await page.screenshot({path:path.join(out,'actual-built.png')});
+  await key('Backspace');assert.equal((await facts()).placed,1);
+  await key('Escape');await key('Enter');assert.equal((await facts()).placed,1);assert.equal((await facts()).building,false);
+  checks.push('Grid placement, rotation, overlap rejection, cancel and undo via real keyboard');
+  await click(203,837);assert.equal((await facts()).selected,1);assert.equal((await facts()).building,true);
+  await click(1370,886);assert.equal((await facts()).placed,2);
+  await click(284,899);assert.equal((await facts()).placed,1);
+  checks.push('Native UI selects actual kit parts, places and retracts them');
+  await key('Escape');await key('n');assert.equal((await facts()).night,true);
+  await page.screenshot({path:path.join(out,'actual-night.png')});
+  await click(1370,830);assert.equal((await facts()).night,false);
+  checks.push('Day and night lighting controls');
+  const before=(await facts()).cameraX;await key('a',60);assert.ok((await facts()).cameraX<before-1);
+  await key('Home');assert.ok(Math.abs((await facts()).cameraX-14)<.001);
+  checks.push('Inspection camera movement and reset');
+  await page.setViewportSize({width:1280,height:720});await step(3);
+  await page.screenshot({path:path.join(out,'actual-1280.png')});
+  assert.deepEqual(errors,[]);assert.deepEqual(warnings,[]);
+  const report={status:'passed',checks,errors,warnings,facts:await facts(),scope:'Local art and assembly study only; multiplayer, planet generation, saves, character and target-device performance not accepted.',editorAcceptance:'Not run locally; CI only.'};
+  await writeFile(path.join(out,'verification.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));
+}catch(error){await writeFile(path.join(out,'verification-failure.json'),JSON.stringify({error:String(error),errors,warnings,checks},null,2)+'\n');throw error;}
+finally{await browser.close();server.close();}

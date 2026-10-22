@@ -1,0 +1,176 @@
+{
+  "version": "2",
+  "name": "planter",
+  "rootEntityId": "n5",
+  "entities": [
+    {
+      "prefabEntityId": "n5",
+      "name": "planter",
+      "parent": null,
+      "children": [
+        "n0",
+        "n1",
+        "n2",
+        "n3",
+        "n4"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n0",
+      "name": "planter__cyan",
+      "parent": "n5",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/planter/planter_0_0.esmesh",
+            "lit": true,
+            "material": "assets/materials/cyan.esmaterial",
+            "color": {
+              "r": 0.05000000074505806,
+              "g": 0.6499999761581421,
+              "b": 0.75,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true,
+            "cullBackfaces": false
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n1",
+      "name": "planter__ivory",
+      "parent": "n5",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/planter/planter_1_0.esmesh",
+            "lit": true,
+            "material": "assets/materials/ivory.esmaterial",
+            "color": {
+              "r": 0.7599999904632568,
+              "g": 0.7099999785423279,
+              "b": 0.5899999737739563,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true,
+            "cullBackfaces": false
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n2",
+      "name": "planter__orange",
+      "parent": "n5",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/planter/planter_2_0.esmesh",
+            "lit": true,
+            "material": "assets/materials/orange.esmaterial",
+            "color": {
+              "r": 0.8999999761581421,
+              "g": 0.3499999940395355,
+              "b": 0.054999999701976776,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true,
+            "cullBackfaces": false
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n3",
+      "name": "planter__soil",
+      "parent": "n5",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/planter/planter_3_0.esmesh",
+            "lit": true,
+            "material": "assets/materials/soil.esmaterial",
+            "color": {
+              "r": 0.11999999731779099,
+              "g": 0.06499999761581421,
+              "b": 0.029999999329447746,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true,
+            "cullBackfaces": false
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n4",
+      "name": "planter__steel",
+      "parent": "n5",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/planter/planter_4_0.esmesh",
+            "lit": true,
+            "material": "assets/materials/steel.esmaterial",
+            "color": {
+              "r": 0.23000000417232513,
+              "g": 0.30000001192092896,
+              "b": 0.3199999928474426,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true,
+            "cullBackfaces": false
+          }
+        }
+      ]
+    }
+  ]
+}

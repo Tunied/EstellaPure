@@ -2,9 +2,31 @@
 
 项目暂名。多人合作、社交优先的未来卡通星球建造游戏：每个人拥有自己的星球，在持续扩展的共享宇宙里拜访朋友、寻找新家、共同建设。
 
-**当前阶段：策划与美术方向讨论。尚无本项目可运行的游戏、服务器或经过验证的承载人数。**
+**当前阶段：首版模块化结构与交互样区，可导出 Web 运行。已有 3D 拼装部件与原生 2D 建造界面；正式角色、联机、星球生成、存档与承载人数尚未实现或验收。**
 
-3D 星球、角色、建筑与环境承载主要游玩体验；2D 星图、界面、物品图标和社交反馈同步设计。原型拟使用 Estella，具体客户端及服务端能力需按验收项逐步验证。
+3D 星球、角色、建筑与环境承载主要游玩体验；2D 星图、界面、物品图标和社交反馈同步设计。当前样区使用 Estella，后续客户端及服务端能力按验收项逐步验证。
+
+![实际 Web 样区日景](art/reviews/engine-day.png)
+
+这是用于检查尺寸、拆件和操作的第一版结构试作，尚未达到选定概念图的美术精度。窗面目前是反光色板，温室尚未封玻璃；地表、远景和植被仍需细化。灰色人形是 1.78 米比例参照，正式人物见 [待评审参考视图](art/references/settler-reference.png)。
+
+可编辑源文件：[Blender 模块与样区](art/source/star-neighbors-art-sample.blend)。项目入口：[project.esproject](project.esproject)。
+
+## 操作与运行
+
+- WASD 移动观察镜头，Q/E 升降，按住右键环视，Home 回到全景。
+- B 开关建造，1/2/3 选择地板/种植箱/储物箱，方向键按 2 米移动，R 旋转，Enter 放置。
+- Backspace 或“撤回”收回最后一个部件；Esc 退出建造；N 切换日夜灯光。
+- 界面按钮与键盘使用同一套操作。庭院最多展示 8 个新增部件，刷新即重置；这个数量只是试作对象池大小。
+
+在仓库根目录执行：
+
+```powershell
+node pipeline/bin/estella.mjs export games/star-neighbors --out output/star-neighbors/web
+python -m http.server 8080 --directory output/star-neighbors/web
+```
+
+浏览器访问 `http://localhost:8080`。生成、导入和无界面验证的完整步骤见 [模块化制作约定](docs/07-modular-production.md)。
 
 ## 策划文件
 
@@ -16,6 +38,7 @@
 | [联机与持久化设计](docs/04-network-and-persistence.md) | 分区、共享状态、权限、跨区转移、离线结算与容量边界 |
 | [原型里程碑与验收](docs/05-milestones.md) | 交付顺序、验收案例、观察指标和未验证事项 |
 | [决策记录](docs/06-decisions.md) | 已确认、建议采用、等待看图选择的事项 |
+| [模块化制作约定](docs/07-modular-production.md) | 部件规格、材质、代码职责、复现与未完成项目 |
 
 ## 当前共识
 
@@ -32,8 +55,14 @@ star-neighbors/
   README.md
   docs/                 策划、玩法、美术、联机与验收
   art/
-    concepts/           风格候选图，尚非运行时资产
-    prompts/            三张候选图的完整制作描述
+    concepts/           风格参考，尚非运行时资产
+    references/         待评审的角色多视图
+    prompts/            图像完整制作描述
+    source/             可编辑 Blender、规格、清单和装配布局
+    reviews/            实际日夜截图与检查结果
+  assets/               独立模型/预制体、共享材质、天空、场景
+  src/                  镜头、建造、灯光、界面与状态
+  tools/                模型构建、导入、装配及无界面验证
 ```
 
-文档中的数值是用于讨论和验证的初始参数；验收目标不代表功能已经实现。项目暂名不代表正式游戏名称。后续代码、场景和引擎工程文件将在对应原型阶段建立。
+文档中的数值是用于讨论和验证的初始参数；验收目标不代表功能已经实现。项目暂名不代表正式游戏名称。

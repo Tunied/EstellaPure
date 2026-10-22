@@ -1,0 +1,294 @@
+[
+  {
+    "id": "floor-2m",
+    "sourceCollection": "KIT/floor-2m",
+    "glb": "assets/models/floor-2m.glb",
+    "triangles": 1128,
+    "materialSlots": 2,
+    "dimensions": [
+      2.0,
+      0.2255,
+      2.0
+    ],
+    "origin": "bottom-centre",
+    "stage": "art-study"
+  },
+  {
+    "id": "wall-2m",
+    "sourceCollection": "KIT/wall-2m",
+    "glb": "assets/models/wall-2m.glb",
+    "triangles": 2068,
+    "materialSlots": 4,
+    "dimensions": [
+      2.0,
+      2.8,
+      0.3
+    ],
+    "origin": "bottom-centre",
+    "stage": "art-study"
+  },
+  {
+    "id": "window-2m",
+    "sourceCollection": "KIT/window-2m",
+    "glb": "assets/models/window-2m.glb",
+    "triangles": 4272,
+    "materialSlots": 6,
+    "dimensions": [
+      2.0,
+      2.8,
+      0.3
+    ],
+    "origin": "bottom-centre",
+    "stage": "art-study"
+  },
+  {
+    "id": "door-2m",
+    "sourceCollection": "KIT/door-2m",
+    "glb": "assets/models/door-2m.glb",
+    "triangles": 3452,
+    "materialSlots": 5,
+    "dimensions": [
+      2.0,
+      2.8,
+      0.375
+    ],
+    "origin": "bottom-centre",
+    "stage": "art-study"
+  },
+  {
+    "id": "roof-2m",
+    "sourceCollection": "KIT/roof-2m",
+    "glb": "assets/models/roof-2m.glb",
+    "triangles": 752,
+    "materialSlots": 2,
+    "dimensions": [
+      2.04,
+      0.36,
+      2.04
+    ],
+    "origin": "bottom-centre",
+    "stage": "art-study"
+  },
+  {
+    "id": "greenhouse-2m",
+    "sourceCollection": "KIT/greenhouse-2m",
+    "glb": "assets/models/greenhouse-2m.glb",
+    "triangles": 3760,
+    "materialSlots": 5,
+    "dimensions": [
+      2.15,
+      2.1448,
+      2.15
+    ],
+    "origin": "bottom-centre",
+    "stage": "art-study"
+  },
+  {
+    "id": "planter",
+    "sourceCollection": "KIT/planter",
+    "glb": "assets/models/planter.glb",
+    "triangles": 1880,
+    "materialSlots": 5,
+    "dimensions": [
+      2.0,
+      0.565,
+      1.1525
+    ],
+    "origin": "bottom-centre",
+    "stage": "art-study"
+  },
+  {
+    "id": "crate",
+    "sourceCollection": "KIT/crate",
+    "glb": "assets/models/crate.glb",
+    "triangles": 1692,
+    "materialSlots": 5,
+    "dimensions": [
+      1.02,
+      0.84,
+      0.8525
+    ],
+    "origin": "bottom-centre",
+    "stage": "art-study"
+  },
+  {
+    "id": "solar-panel",
+    "sourceCollection": "KIT/solar-panel",
+    "glb": "assets/models/solar-panel.glb",
+    "triangles": 4924,
+    "materialSlots": 3,
+    "dimensions": [
+      2.0,
+      1.4904,
+      1.299
+    ],
+    "origin": "bottom-centre",
+    "stage": "art-study"
+  },
+  {
+    "id": "portal",
+    "sourceCollection": "KIT/portal",
+    "glb": "assets/models/portal.glb",
+    "triangles": 15316,
+    "materialSlots": 4,
+    "dimensions": [
+      4.6,
+      4.5372,
+      2.5
+    ],
+    "origin": "bottom-centre",
+    "stage": "art-study"
+  },
+  {
+    "id": "repair-robot",
+    "sourceCollection": "KIT/repair-robot",
+    "glb": "assets/models/repair-robot.glb",
+    "triangles": 2244,
+    "materialSlots": 5,
+    "dimensions": [
+      1.025,
+      0.9,
+      0.643
+    ],
+    "origin": "bottom-centre",
+    "stage": "art-study"
+  },
+  {
+    "id": "crop",
+    "sourceCollection": "KIT/crop",
+    "glb": "assets/models/crop.glb",
+    "triangles": 892,
+    "materialSlots": 3,
+    "dimensions": [
+      0.7232,
+      0.78,
+      0.5583
+    ],
+    "origin": "bottom-centre",
+    "stage": "art-study"
+  },
+  {
+    "id": "grass-tuft",
+    "sourceCollection": "KIT/grass-tuft",
+    "glb": "assets/models/grass-tuft.glb",
+    "triangles": 64,
+    "materialSlots": 1,
+    "dimensions": [
+      0.3583,
+      0.3295,
+      0.3544
+    ],
+    "origin": "bottom-centre",
+    "stage": "art-study"
+  },
+  {
+    "id": "flower",
+    "sourceCollection": "KIT/flower",
+    "glb": "assets/models/flower.glb",
+    "triangles": 828,
+    "materialSlots": 2,
+    "dimensions": [
+      0.406,
+      0.343,
+      0.2519
+    ],
+    "origin": "bottom-centre",
+    "stage": "art-study"
+  },
+  {
+    "id": "tree",
+    "sourceCollection": "KIT/tree",
+    "glb": "assets/models/tree.glb",
+    "triangles": 2248,
+    "materialSlots": 3,
+    "dimensions": [
+      3.8723,
+      3.745,
+      3.4603
+    ],
+    "origin": "bottom-centre",
+    "stage": "art-study"
+  },
+  {
+    "id": "rock",
+    "sourceCollection": "KIT/rock",
+    "glb": "assets/models/rock.glb",
+    "triangles": 80,
+    "materialSlots": 1,
+    "dimensions": [
+      2.1407,
+      0.99,
+      1.2703
+    ],
+    "origin": "bottom-centre",
+    "stage": "art-study"
+  },
+  {
+    "id": "scale-mannequin",
+    "sourceCollection": "KIT/scale-mannequin",
+    "glb": "assets/models/scale-mannequin.glb",
+    "triangles": 26756,
+    "materialSlots": 1,
+    "dimensions": [
+      1.0605,
+      1.78,
+      0.452
+    ],
+    "origin": "bottom-centre",
+    "stage": "scale-reference"
+  },
+  {
+    "id": "terrain-0-0",
+    "sourceCollection": "KIT/terrain-0-0",
+    "glb": "assets/models/terrain-0-0.glb",
+    "triangles": 38868,
+    "materialSlots": 4,
+    "origin": "sample-world-origin",
+    "stage": "environment-study"
+  },
+  {
+    "id": "terrain-0-1",
+    "sourceCollection": "KIT/terrain-0-1",
+    "glb": "assets/models/terrain-0-1.glb",
+    "triangles": 39380,
+    "materialSlots": 4,
+    "origin": "sample-world-origin",
+    "stage": "environment-study"
+  },
+  {
+    "id": "terrain-1-0",
+    "sourceCollection": "KIT/terrain-1-0",
+    "glb": "assets/models/terrain-1-0.glb",
+    "triangles": 42872,
+    "materialSlots": 4,
+    "origin": "sample-world-origin",
+    "stage": "environment-study"
+  },
+  {
+    "id": "terrain-1-1",
+    "sourceCollection": "KIT/terrain-1-1",
+    "glb": "assets/models/terrain-1-1.glb",
+    "triangles": 38952,
+    "materialSlots": 4,
+    "origin": "sample-world-origin",
+    "stage": "environment-study"
+  },
+  {
+    "id": "landscape",
+    "sourceCollection": "KIT/landscape",
+    "glb": "assets/models/landscape.glb",
+    "triangles": 1624,
+    "materialSlots": 3,
+    "origin": "sample-world-origin",
+    "stage": "environment-study"
+  },
+  {
+    "id": "sky-dome",
+    "sourceCollection": "KIT/sky-dome",
+    "glb": "assets/models/sky-dome.glb",
+    "triangles": 6036,
+    "materialSlots": 3,
+    "origin": "sample-world-origin",
+    "stage": "environment-study"
+  }
+]

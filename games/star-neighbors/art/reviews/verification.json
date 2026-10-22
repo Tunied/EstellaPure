@@ -1,0 +1,28 @@
+{
+  "status": "passed",
+  "checks": [
+    "3D kit, shared materials, terrain and native 2D HUD loaded",
+    "Grid placement, rotation, overlap rejection, cancel and undo via real keyboard",
+    "Native UI selects actual kit parts, places and retracts them",
+    "Day and night lighting controls",
+    "Inspection camera movement and reset"
+  ],
+  "errors": [],
+  "warnings": [],
+  "facts": {
+    "ready": true,
+    "frame": 184,
+    "placed": 1,
+    "building": false,
+    "selected": 1,
+    "valid": true,
+    "night": false,
+    "cursorX": 4,
+    "cursorZ": 4,
+    "rotation": 1,
+    "cameraX": 14,
+    "cameraZ": 20
+  },
+  "scope": "Local art and assembly study only; multiplayer, planet generation, saves, character and target-device performance not accepted.",
+  "editorAcceptance": "Not run locally; CI only."
+}

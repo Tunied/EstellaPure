@@ -1,0 +1,114 @@
+{
+  "version": "2",
+  "name": "sky-dome",
+  "rootEntityId": "n3",
+  "entities": [
+    {
+      "prefabEntityId": "n3",
+      "name": "sky-dome",
+      "parent": null,
+      "children": [
+        "n0",
+        "n1",
+        "n2"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n0",
+      "name": "sky-dome__planet",
+      "parent": "n3",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/sky-dome/sky-dome_0_0.esmesh",
+            "lit": true,
+            "material": "assets/materials/planet.esmaterial",
+            "color": {
+              "r": 0.47999998927116394,
+              "g": 0.6499999761581421,
+              "b": 0.7300000190734863,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true,
+            "cullBackfaces": false
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n1",
+      "name": "sky-dome__sky",
+      "parent": "n3",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/sky-dome/sky-dome_1_0.esmesh",
+            "lit": true,
+            "material": "assets/materials/sky.esmaterial",
+            "color": {
+              "r": 0.23000000417232513,
+              "g": 0.47999998927116394,
+              "b": 0.699999988079071,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true,
+            "cullBackfaces": false
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n2",
+      "name": "sky-dome__star",
+      "parent": "n3",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/sky-dome/sky-dome_2_0.esmesh",
+            "lit": true,
+            "material": "assets/materials/star.esmaterial",
+            "color": {
+              "r": 0.8999999761581421,
+              "g": 0.949999988079071,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true,
+            "cullBackfaces": false
+          }
+        }
+      ]
+    }
+  ]
+}

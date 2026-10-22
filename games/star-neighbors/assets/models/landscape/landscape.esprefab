@@ -1,0 +1,114 @@
+{
+  "version": "2",
+  "name": "landscape",
+  "rootEntityId": "n3",
+  "entities": [
+    {
+      "prefabEntityId": "n3",
+      "name": "landscape",
+      "parent": null,
+      "children": [
+        "n0",
+        "n1",
+        "n2"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n0",
+      "name": "landscape__glass",
+      "parent": "n3",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/landscape/landscape_0_0.esmesh",
+            "lit": true,
+            "material": "assets/materials/glass.esmaterial",
+            "color": {
+              "r": 0.07999999821186066,
+              "g": 0.2800000011920929,
+              "b": 0.3400000035762787,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true,
+            "cullBackfaces": false
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n1",
+      "name": "landscape__grass",
+      "parent": "n3",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/landscape/landscape_1_0.esmesh",
+            "lit": true,
+            "material": "assets/materials/grass.esmaterial",
+            "color": {
+              "r": 0.10000000149011612,
+              "g": 0.1899999976158142,
+              "b": 0.03500000014901161,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true,
+            "cullBackfaces": false
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n2",
+      "name": "landscape__stone",
+      "parent": "n3",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/landscape/landscape_2_0.esmesh",
+            "lit": true,
+            "material": "assets/materials/stone.esmaterial",
+            "color": {
+              "r": 0.3700000047683716,
+              "g": 0.4000000059604645,
+              "b": 0.36000001430511475,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true,
+            "cullBackfaces": false
+          }
+        }
+      ]
+    }
+  ]
+}

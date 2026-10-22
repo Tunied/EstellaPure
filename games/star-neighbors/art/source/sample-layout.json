@@ -1,0 +1,607 @@
+[
+  {
+    "name": "floor-2m-0",
+    "asset": "floor-2m",
+    "position": [
+      -7,
+      0,
+      -3
+    ],
+    "yaw": 0,
+    "scale": 1
+  },
+  {
+    "name": "roof-2m-1",
+    "asset": "roof-2m",
+    "position": [
+      -7,
+      3.01,
+      -3
+    ],
+    "yaw": 0,
+    "scale": 1
+  },
+  {
+    "name": "floor-2m-2",
+    "asset": "floor-2m",
+    "position": [
+      -7,
+      0,
+      -1
+    ],
+    "yaw": 0,
+    "scale": 1
+  },
+  {
+    "name": "roof-2m-3",
+    "asset": "roof-2m",
+    "position": [
+      -7,
+      3.01,
+      -1
+    ],
+    "yaw": 0,
+    "scale": 1
+  },
+  {
+    "name": "floor-2m-4",
+    "asset": "floor-2m",
+    "position": [
+      -5,
+      0,
+      -3
+    ],
+    "yaw": 0,
+    "scale": 1
+  },
+  {
+    "name": "roof-2m-5",
+    "asset": "roof-2m",
+    "position": [
+      -5,
+      3.01,
+      -3
+    ],
+    "yaw": 0,
+    "scale": 1
+  },
+  {
+    "name": "floor-2m-6",
+    "asset": "floor-2m",
+    "position": [
+      -5,
+      0,
+      -1
+    ],
+    "yaw": 0,
+    "scale": 1
+  },
+  {
+    "name": "roof-2m-7",
+    "asset": "roof-2m",
+    "position": [
+      -5,
+      3.01,
+      -1
+    ],
+    "yaw": 0,
+    "scale": 1
+  },
+  {
+    "name": "floor-2m-8",
+    "asset": "floor-2m",
+    "position": [
+      -3,
+      0,
+      -3
+    ],
+    "yaw": 0,
+    "scale": 1
+  },
+  {
+    "name": "roof-2m-9",
+    "asset": "roof-2m",
+    "position": [
+      -3,
+      3.01,
+      -3
+    ],
+    "yaw": 0,
+    "scale": 1
+  },
+  {
+    "name": "floor-2m-10",
+    "asset": "floor-2m",
+    "position": [
+      -3,
+      0,
+      -1
+    ],
+    "yaw": 0,
+    "scale": 1
+  },
+  {
+    "name": "roof-2m-11",
+    "asset": "roof-2m",
+    "position": [
+      -3,
+      3.01,
+      -1
+    ],
+    "yaw": 0,
+    "scale": 1
+  },
+  {
+    "name": "window-2m-12",
+    "asset": "window-2m",
+    "position": [
+      -7,
+      0.21,
+      0
+    ],
+    "yaw": 0,
+    "scale": 1
+  },
+  {
+    "name": "window-2m-13",
+    "asset": "window-2m",
+    "position": [
+      -5,
+      0.21,
+      0
+    ],
+    "yaw": 0,
+    "scale": 1
+  },
+  {
+    "name": "door-2m-14",
+    "asset": "door-2m",
+    "position": [
+      -3,
+      0.21,
+      0
+    ],
+    "yaw": 0,
+    "scale": 1
+  },
+  {
+    "name": "wall-2m-15",
+    "asset": "wall-2m",
+    "position": [
+      -7,
+      0.21,
+      -4
+    ],
+    "yaw": 180,
+    "scale": 1
+  },
+  {
+    "name": "wall-2m-16",
+    "asset": "wall-2m",
+    "position": [
+      -5,
+      0.21,
+      -4
+    ],
+    "yaw": 180,
+    "scale": 1
+  },
+  {
+    "name": "wall-2m-17",
+    "asset": "wall-2m",
+    "position": [
+      -3,
+      0.21,
+      -4
+    ],
+    "yaw": 180,
+    "scale": 1
+  },
+  {
+    "name": "wall-2m-18",
+    "asset": "wall-2m",
+    "position": [
+      -8,
+      0.21,
+      -3
+    ],
+    "yaw": -90,
+    "scale": 1
+  },
+  {
+    "name": "window-2m-19",
+    "asset": "window-2m",
+    "position": [
+      -2,
+      0.21,
+      -3
+    ],
+    "yaw": 90,
+    "scale": 1
+  },
+  {
+    "name": "wall-2m-20",
+    "asset": "wall-2m",
+    "position": [
+      -8,
+      0.21,
+      -1
+    ],
+    "yaw": -90,
+    "scale": 1
+  },
+  {
+    "name": "window-2m-21",
+    "asset": "window-2m",
+    "position": [
+      -2,
+      0.21,
+      -1
+    ],
+    "yaw": 90,
+    "scale": 1
+  },
+  {
+    "name": "greenhouse-2m-22",
+    "asset": "greenhouse-2m",
+    "position": [
+      -9.4,
+      0,
+      -1.2
+    ],
+    "yaw": 0,
+    "scale": 1
+  },
+  {
+    "name": "Portal",
+    "asset": "portal",
+    "position": [
+      6.3,
+      0,
+      -1.8
+    ],
+    "yaw": -12,
+    "scale": 1
+  },
+  {
+    "name": "Garden planter",
+    "asset": "planter",
+    "position": [
+      -6.7,
+      0,
+      4.1
+    ],
+    "yaw": 0,
+    "scale": 1
+  },
+  {
+    "name": "planter-25",
+    "asset": "planter",
+    "position": [
+      -9.0,
+      0,
+      2.2
+    ],
+    "yaw": 20,
+    "scale": 1
+  },
+  {
+    "name": "crop-26",
+    "asset": "crop",
+    "position": [
+      -7.25,
+      0.56,
+      4.1
+    ],
+    "yaw": 0,
+    "scale": 1
+  },
+  {
+    "name": "crop-27",
+    "asset": "crop",
+    "position": [
+      -6.65,
+      0.56,
+      4.1
+    ],
+    "yaw": 0,
+    "scale": 1
+  },
+  {
+    "name": "crop-28",
+    "asset": "crop",
+    "position": [
+      -6.05,
+      0.56,
+      4.1
+    ],
+    "yaw": 0,
+    "scale": 1
+  },
+  {
+    "name": "crop-29",
+    "asset": "crop",
+    "position": [
+      -9.5,
+      0.56,
+      2.2
+    ],
+    "yaw": 0,
+    "scale": 1
+  },
+  {
+    "name": "crop-30",
+    "asset": "crop",
+    "position": [
+      -8.9,
+      0.56,
+      2.2
+    ],
+    "yaw": 0,
+    "scale": 1
+  },
+  {
+    "name": "crate-31",
+    "asset": "crate",
+    "position": [
+      -2.1,
+      0,
+      4.6
+    ],
+    "yaw": -12,
+    "scale": 1
+  },
+  {
+    "name": "crate-32",
+    "asset": "crate",
+    "position": [
+      -3.1,
+      0,
+      4.9
+    ],
+    "yaw": 14,
+    "scale": 0.8
+  },
+  {
+    "name": "solar-panel-33",
+    "asset": "solar-panel",
+    "position": [
+      -0.8,
+      0,
+      -0.3
+    ],
+    "yaw": -10,
+    "scale": 1
+  },
+  {
+    "name": "Robot",
+    "asset": "repair-robot",
+    "position": [
+      0.1,
+      1.65,
+      0.1
+    ],
+    "yaw": 0,
+    "scale": 1
+  },
+  {
+    "name": "Scale mannequin",
+    "asset": "scale-mannequin",
+    "position": [
+      2.7,
+      0,
+      1.9
+    ],
+    "yaw": -35,
+    "scale": 1
+  },
+  {
+    "name": "tree-36",
+    "asset": "tree",
+    "position": [
+      -11,
+      0,
+      -5
+    ],
+    "yaw": 154.57694508154654,
+    "scale": 1.6
+  },
+  {
+    "name": "tree-37",
+    "asset": "tree",
+    "position": [
+      -12,
+      0,
+      5
+    ],
+    "yaw": 162.36686398216818,
+    "scale": 1.3
+  },
+  {
+    "name": "tree-38",
+    "asset": "tree",
+    "position": [
+      -9,
+      0,
+      10
+    ],
+    "yaw": 312.82653954603705,
+    "scale": 1.2
+  },
+  {
+    "name": "tree-39",
+    "asset": "tree",
+    "position": [
+      11,
+      0,
+      -6
+    ],
+    "yaw": 171.36352864736764,
+    "scale": 1.6
+  },
+  {
+    "name": "tree-40",
+    "asset": "tree",
+    "position": [
+      13,
+      0,
+      4
+    ],
+    "yaw": 66.49187901221164,
+    "scale": 1.3
+  },
+  {
+    "name": "tree-41",
+    "asset": "tree",
+    "position": [
+      -1,
+      0,
+      -10
+    ],
+    "yaw": 313.21475205853284,
+    "scale": 1.1
+  },
+  {
+    "name": "tree-42",
+    "asset": "tree",
+    "position": [
+      8,
+      0,
+      -11
+    ],
+    "yaw": 224.72059017619245,
+    "scale": 1.2
+  },
+  {
+    "name": "rock-43",
+    "asset": "rock",
+    "position": [
+      -10,
+      0,
+      8
+    ],
+    "yaw": 303.01472845510256,
+    "scale": 1.3
+  },
+  {
+    "name": "rock-44",
+    "asset": "rock",
+    "position": [
+      11,
+      0,
+      6
+    ],
+    "yaw": 247.3586218077604,
+    "scale": 1.5
+  },
+  {
+    "name": "rock-45",
+    "asset": "rock",
+    "position": [
+      9,
+      0,
+      -7
+    ],
+    "yaw": 239.04499295072327,
+    "scale": 2.2
+  },
+  {
+    "name": "rock-46",
+    "asset": "rock",
+    "position": [
+      -13,
+      0,
+      -7
+    ],
+    "yaw": 2.809796974922434,
+    "scale": 2
+  },
+  {
+    "name": "rock-47",
+    "asset": "rock",
+    "position": [
+      -2,
+      0,
+      -9
+    ],
+    "yaw": 300.30011586817153,
+    "scale": 0.7
+  },
+  {
+    "name": "rock-48",
+    "asset": "rock",
+    "position": [
+      8,
+      0,
+      9
+    ],
+    "yaw": 147.8919480546702,
+    "scale": 0.8
+  },
+  {
+    "name": "terrain-0-0-49",
+    "asset": "terrain-0-0",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "yaw": 0,
+    "scale": 1
+  },
+  {
+    "name": "terrain-0-1-50",
+    "asset": "terrain-0-1",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "yaw": 0,
+    "scale": 1
+  },
+  {
+    "name": "terrain-1-0-51",
+    "asset": "terrain-1-0",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "yaw": 0,
+    "scale": 1
+  },
+  {
+    "name": "terrain-1-1-52",
+    "asset": "terrain-1-1",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "yaw": 0,
+    "scale": 1
+  },
+  {
+    "name": "landscape-53",
+    "asset": "landscape",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "yaw": 0,
+    "scale": 1
+  },
+  {
+    "name": "Sky dome",
+    "asset": "sky-dome",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "yaw": 0,
+    "scale": 1
+  }
+]

@@ -2,6 +2,8 @@
 
 日期：2026-10-22。状态：用户已明确指出主参考。初版温暖科幻图为制作基准，后来进一步简化的 A 图不采用。
 
+已新增 [首版模块化结构与交互样区](07-modular-production.md) 和 [成年拓荒者多视图](../art/references/settler-reference.png)。它们均处于试作/评审阶段；样区验证拆件与运行，不代表已经达到本页参考图的材质、人物和环境精度。
+
 ## 当前主参考
 
 ![选定的温暖科幻方向](../art/concepts/selected-warm-sci-fi.png)
