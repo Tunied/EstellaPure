@@ -2,10 +2,11 @@
   "status": "passed",
   "scope": "Background Blender GLB import, geometry/UV/bounds checks and reassembled render; not engine acceptance",
   "blender": "5.2.1 LTS",
-  "assets": 19,
+  "assets": 22,
+  "dependencies": 0,
   "assemblyInstances": 65,
-  "trianglesUniqueKit": 91496,
-  "bytesGLB": 14165868,
+  "trianglesUniqueKit": 94128,
+  "bytesGLB": 16244120,
   "results": [
     {
       "asset": "floor-2m",
@@ -99,8 +100,8 @@
     },
     {
       "asset": "wall-doorway-2m",
-      "bytes": 1057340,
-      "sha256": "84ddaf498d2f73d1a89cfff8d93e22e96871d30a6aaaffc29de6646ff19099bb",
+      "bytes": 1057116,
+      "sha256": "335ccae4dcb5d803fc7bd95a1ec29410ff54be4de4e5f2edff6ed08bd09c2872",
       "meshes": 9,
       "triangles": 12828,
       "collapsedTriangles": 0,
@@ -114,13 +115,13 @@
     },
     {
       "asset": "door-leaf-110",
-      "bytes": 881800,
-      "sha256": "53d53e5190997c43c796ed1108920afe006feae8b7ca9d1e402d3d9dbcf86cf5",
+      "bytes": 881824,
+      "sha256": "52c304db4d35403c38b919a97d15a21325aa16254e3e42bb3f1b93a55ac19d84",
       "meshes": 8,
       "triangles": 7260,
       "collapsedTriangles": 0,
       "dimensionsZUp": [
-        1.125,
+        1.235,
         0.311,
         2.27
       ],
@@ -288,6 +289,51 @@
         0.5836,
         0.5242,
         0.6635
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "support-column-2p8",
+      "bytes": 701192,
+      "sha256": "53ce3ab29d71f4644b77c23d75316685bf8b06c2da22bceb892274d7b5eabfc2",
+      "meshes": 4,
+      "triangles": 1128,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.32,
+        0.32,
+        2.8
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "ceiling-beam-2m",
+      "bytes": 695876,
+      "sha256": "814409401ae223c54f0e7906eecdf73ec76407f4936ba22c6a6ed66f50ee9f09",
+      "meshes": 4,
+      "triangles": 940,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        2.0,
+        0.24,
+        0.2375
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "ceiling-beam-end-050",
+      "bytes": 681384,
+      "sha256": "46d92097aaaa00a6db6fb3bcbf6a500bd640cb73207d0fbc1b52c3a7d5baa302",
+      "meshes": 3,
+      "triangles": 564,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.5,
+        0.32,
+        0.28
       ],
       "embeddedImages": 2,
       "uvFinite": true

@@ -1,16 +1,21 @@
 """Headless art QA: import every delivered GLB and rebuild its review assembly."""
 from pathlib import Path
-import bpy, json, math, struct, hashlib
+import bpy, json, math, struct, hashlib, argparse, sys
 from mathutils import Vector, Matrix
 
-HERE=Path(__file__).resolve().parent
+parser=argparse.ArgumentParser()
+parser.add_argument('--kit',default='habitat-v2')
+args=parser.parse_args(sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else [])
+HERE=Path(__file__).resolve().parent.parent/args.kit
 PROJECT=HERE.parents[2]
-REVIEW=PROJECT/'art/reviews/habitat-v2'
-catalog=json.loads((HERE/'asset-catalog.json').read_text(encoding='utf-8'))['assets']
+REVIEW=PROJECT/'art/reviews'/args.kit
+manifest=json.loads((HERE/'asset-catalog.json').read_text(encoding='utf-8'))
+catalog=manifest['assets']+manifest.get('dependencies',[])
 layout=json.loads((HERE/'assembly.json').read_text(encoding='utf-8'))
-bpy.ops.wm.open_mainfile(filepath=str(HERE/'habitat-v2.blend'))
+bpy.ops.wm.open_mainfile(filepath=str(HERE/(args.kit+'.blend')))
 scene=bpy.context.scene
-scene.collection.children['ASSEMBLY / 7 x 5 metre home'].hide_render=True
+for collection in scene.collection.children:
+    if collection.name.startswith('ASSEMBLY /'):collection.hide_render=True
 imports=bpy.data.collections.new('QA / imported GLB library');scene.collection.children.link(imports)
 assembled=bpy.data.collections.new('QA / imported GLB assembly');scene.collection.children.link(assembled)
 results=[];cache={}
@@ -30,7 +35,8 @@ for entry in catalog:
     bpy.context.view_layer.update()
     points=[o.matrix_world@Vector(c) for o in meshes for c in o.bound_box]
     dims=[max(p[i] for p in points)-min(p[i] for p in points) for i in range(3)]
-    assert all(abs(a-b)<.002 for a,b in zip(dims,entry['sourceDimensionsXYZ'])),(path,dims,entry['sourceDimensionsXYZ'])
+    if 'sourceDimensionsXYZ' in entry:
+        assert all(abs(a-b)<.002 for a,b in zip(dims,entry['sourceDimensionsXYZ'])),(path,dims,entry['sourceDimensionsXYZ'])
     triangles=0;zero_area=0
     for o in meshes:
         assert o.data.uv_layers,path
@@ -38,10 +44,10 @@ for entry in catalog:
         assert all(math.isfinite(c) for layer in o.data.uv_layers for uv in layer.data for c in uv.uv),path
         o.data.calc_loop_triangles();triangles+=len(o.data.loop_triangles)
         zero_area+=sum(t.area<1e-12 for t in o.data.loop_triangles)
-    assert triangles==entry['triangles'],(path,triangles,entry['triangles'])
-    assert len(meshes)==entry['drawMeshes'],(path,len(meshes),entry['drawMeshes'])
+    if 'triangles' in entry:assert triangles==entry['triangles'],(path,triangles,entry['triangles'])
+    if 'drawMeshes' in entry:assert len(meshes)==entry['drawMeshes'],(path,len(meshes),entry['drawMeshes'])
     # Fonts contain tiny faces; reject genuinely collapsed triangles only.
-    if entry['id'] in ('wall-window-2m','wall-panorama-4m','door-leaf-110'):
+    if any(m.get('name','').startswith('07 • smoked teal glass') for m in doc.get('materials',[])):
         assert 'KHR_materials_transmission' in doc.get('extensionsUsed',[]),path
     cache[entry['id']]=[(o,o.matrix_world.copy()) for o in meshes]
     for o in objs:
@@ -68,7 +74,7 @@ try:
 except Exception:scene.cycles.device='CPU'
 bpy.ops.render.render(write_still=True)
 report={'status':'passed','scope':'Background Blender GLB import, geometry/UV/bounds checks and reassembled render; not engine acceptance',
-        'blender':bpy.app.version_string,'assets':len(results),'assemblyInstances':len(layout),
+        'blender':bpy.app.version_string,'assets':len(manifest['assets']),'dependencies':len(manifest.get('dependencies',[])),'assemblyInstances':len(layout),
         'trianglesUniqueKit':sum(x['triangles'] for x in results),'bytesGLB':sum(x['bytes'] for x in results),
         'results':results}
 (REVIEW/'asset-check.json').write_text(json.dumps(report,indent=2,ensure_ascii=False)+'\n',encoding='utf-8')

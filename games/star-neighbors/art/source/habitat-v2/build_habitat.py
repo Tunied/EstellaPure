@@ -10,8 +10,9 @@ from mathutils import Vector, Matrix
 
 HERE = Path(__file__).resolve().parent
 PROJECT = HERE.parents[2]
-OUT = PROJECT / 'art/models/habitat-v2'
-REVIEW = PROJECT / 'art/reviews/habitat-v2'
+KIT_SLUG = globals().get('KIT_SLUG', 'habitat-v2')
+OUT = PROJECT / 'art/models' / KIT_SLUG
+REVIEW = PROJECT / 'art/reviews' / KIT_SLUG
 TEX = HERE / 'textures'
 for p in (OUT, REVIEW, TEX): p.mkdir(parents=True, exist_ok=True)
 random.seed(1022)
@@ -183,7 +184,7 @@ def wall_trim(w=2,entrance=False):
         box('Module seam gasket',(x,.077,1.4),(.025,.16,2.79),RUBBER,.003)
         box('Removable joint cover',(x,-.017,1.4),(.058,.052,2.62),PAINT,.018)
     if entrance:
-        for x in [-.83,.83]:box('Foot rail',(x,-.025,.105),(.25,.15,.18),DARK,.025)
+        for x in [-.87,.87]:box('Foot rail',(x,-.025,.105),(.17,.15,.18),DARK,.025)
     else:
         box('Foot rail',(0,-.025,.105),(w-.10,.15,.18),DARK,.025)
     box('Upper enamel ribbon',(0,-.033,2.565),(w-.12,.055,.13),ORANGE,.025)
@@ -192,7 +193,7 @@ def wall_trim(w=2,entrance=False):
     for x in [-w/2+.14,w/2-.14]:
         screw(x,-.035,2.55);screw(x,-.02,.34)
     if entrance:
-        for x in [-.83,.83]:box('Lower rain joint',(x,-.023,.45),(.19,.026,.018),DARK,.005)
+        for x in [-.87,.87]:box('Lower rain joint',(x,-.023,.45),(.15,.026,.018),DARK,.005)
     else:
         box('Lower rain joint',(0,-.023,.45),(w-.18,.026,.018),DARK,.005)
 
@@ -241,6 +242,7 @@ def finish(name,nominal,sockets):
     coll.hide_render=True
     for o in parts:o.hide_set(True)
 
+# -- End shared art helpers --
 wall_sockets={'left':[-1,0,0],'right':[1,0,0],'roof':[0,0,2.8]}
 
 start('floor-2m')
@@ -300,7 +302,7 @@ for name,w in [('wall-solid-2m',2),('wall-window-2m',2),('wall-panorama-4m',4),(
         for i in range(11):box('Vent blade',(-.55+i*.11,-.06,.67),(.056,.037,.135),METAL,.009)
     else:
         door='doorway' in name
-        iw,ih,ir,cz=(1.18,2.35,.24,1.245) if door else (w-.40,1.63,.24,1.59)
+        iw,ih,ir,cz=(1.29,2.35,.24,1.245) if door else (w-.40,1.63,.24,1.59)
         frame('Insulated wall skin',(w-.014,2.8,.06),(iw,ih,ir),(0,cz),0,.22,INNER,(0,1.4))
         frame('Outer shell',(w-.07,2.73,.07),(iw+.06,ih+.06,ir+.03),(0,cz),-.018,.04,PAINT,(0,1.4))
         frame('Recess gasket',(iw+.12,ih+.12,ir+.06),(iw-.01,ih-.01,ir),(0,cz),-.047,.06,RUBBER)
@@ -315,10 +317,10 @@ for name,w in [('wall-solid-2m',2),('wall-window-2m',2),('wall-panorama-4m',4),(
             for x in [-iw/2+.11,iw/2-.11]:
                 box('Window latch',(x,-.105,cz-ih/2+.07),(.10,.045,.038),METAL,.009)
         else:
-            box('Door threshold',(0,.06,.07),(1.24,.45,.085),METAL,.018)
-            box('Keypad mount',(.80,-.072,1.22),(.20,.15,.40),DARK,.05)
-            panel('Keypad glass',.122,.25,.026,(.80,1.25),-.153,.012,CYAN)
-            for z in [1.17,1.23,1.29]:box('Keypad graphic',(.8,-.169,z),(.06,.006,.012),WHITE,.002)
+            box('Door threshold',(0,.06,.07),(1.35,.45,.085),METAL,.018)
+            box('Keypad mount',(.85,-.072,1.22),(.14,.15,.40),DARK,.04)
+            panel('Keypad glass',.10,.25,.024,(.85,1.25),-.153,.012,CYAN)
+            for z in [1.17,1.23,1.29]:box('Keypad graphic',(.85,-.169,z),(.055,.006,.012),WHITE,.002)
     wall_trim(w,entrance='doorway' in name)
     if 'doorway' in name:
         # Entrance header remains readable above the standardized ribbon.
@@ -326,9 +328,9 @@ for name,w in [('wall-solid-2m',2),('wall-window-2m',2),('wall-panorama-4m',4),(
     finish(name,[w,.22,2.8],{'left':[-w/2,0,0],'right':[w/2,0,0],'roof':[0,0,2.8]})
 
 start('door-leaf-110')
-frame('Door perimeter seal',(1.125,2.27,.215),(.17,.77,.084),(-.23,1.64),.10,.09,RUBBER,(0,1.205))
-frame('Door outer leaf',(1.09,2.23,.195),(.17,.77,.084),(-.23,1.64),.075,.12,PAINT,(0,1.205))
-frame('Inset door panel',(.81,1.99,.17),(.17,.77,.084),(-.23,1.64),.055,.032,INNER,(0,1.205))
+frame('Door perimeter seal',(1.235,2.27,.215),(.17,.77,.084),(-.23,1.64),.10,.09,RUBBER,(0,1.205))
+frame('Door outer leaf',(1.20,2.23,.195),(.17,.77,.084),(-.23,1.64),.075,.12,PAINT,(0,1.205))
+frame('Inset door panel',(.92,1.99,.17),(.17,.77,.084),(-.23,1.64),.055,.032,INNER,(0,1.205))
 frame('Vision gasket',(.23,.83,.115),(.17,.77,.085),(-.23,1.64),.028,.05,DARK)
 panel('Vision glass',.17,.77,.084,(-.23,1.64),.055,.012,GLASS)
 box('Orange safety spine',(.30,.025,1.20),(.065,.03,1.56),ORANGE,.018)
@@ -337,7 +339,7 @@ cylinder('Door pull',(.32,-.09,.90),(.32,-.09,1.25),.026,METAL)
 for z in [.62,.70,.78]:box('Lower door emboss',(-.1,.031,z),(.45,.024,.02),DARK,.006)
 text3d('01',(-.02,.013,1.55),.19)
 text3d('HOME',(-.02,.012,1.43),.048)
-finish(current,[1.125,.3,2.34],{'doorway':[0,0,0]})
+finish(current,[1.235,.3,2.34],{'doorway':[0,0,0]})
 
 start('wall-corner-r050')
 arc_section('Curved insulated shell',.28,.50,0,2.8,PAINT)
@@ -472,6 +474,27 @@ for i in range(13):
     mod=o.modifiers.new('Leaf thickness','SOLIDIFY');mod.thickness=.001
     bpy.context.view_layer.objects.active=o;bpy.ops.object.modifier_apply(modifier=mod.name)
 finish(current,[.8,.8,.85],{'support':[0,0,0]})
+
+start('support-column-2p8')
+box('Load-bearing core',(0,0,1.4),(.16,.16,2.8),DARK,.025)
+for z in [.065,2.735]:
+    box('Column shoe',(0,0,z),(.32,.32,.13),METAL,.028)
+    box('Enamel collar',(0,0,.15 if z<1 else 2.65),(.24,.24,.07),ORANGE,.018)
+box('Column jacket',(0,0,1.4),(.20,.20,2.40),PAINT,.04)
+finish(current,[.32,.32,2.8],{'floor':[0,0,0],'ceiling':[0,0,2.8]})
+
+start('ceiling-beam-2m')
+box('Beam web',(0,0,-.10),(2,.12,.20),DARK,.016)
+box('Beam lower flange',(0,0,-.19),(2,.24,.06),PAINT,.015)
+for x in [-.92,.92]:box('Beam splice',(x,0,-.10),(.14,.18,.20),METAL,.02)
+box('Recessed ceiling light',(0,0,-.225),(1.55,.075,.025),LAMP,.008)
+finish(current,[2,.24,.24],{'left':[-1,0,0],'right':[1,0,0],'ceiling':[0,0,0]})
+
+start('ceiling-beam-end-050')
+box('Eave extension web',(0,0,-.10),(.50,.12,.20),DARK,.016)
+box('Eave extension flange',(0,0,-.19),(.50,.24,.06),PAINT,.015)
+box('Wall connection shoe',(.20,0,-.08),(.10,.32,.28),METAL,.02)
+finish(current,[.50,.32,.28],{'inner':[-.25,0,0],'wall':[.25,0,0]})
 
 # The composition is an assembly of linked module meshes, never a fused cabin.
 assembly=bpy.data.collections.new('ASSEMBLY / 7 x 5 metre home');scene.collection.children.link(assembly)

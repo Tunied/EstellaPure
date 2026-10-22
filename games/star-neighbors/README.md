@@ -2,13 +2,19 @@
 
 项目暂名。多人合作、社交优先的未来卡通星球建造游戏：每个人拥有自己的星球，在持续扩展的共享宇宙里拜访朋友、寻找新家、共同建设。
 
-**当前工作聚焦美术资产：居住舱第二版包含 19 个独立模型，优先确认造型、材质与模块拼接。此前 3D 结构样区与原生 2D 建造界面保留；正式角色、联机、星球生成、存档与承载人数尚未实现或验收。**
+**当前工作聚焦美术资产：居住舱第二版包含 22 个独立模型，温室包含 12 个新模型并复用 2 个居住舱部件。优先确认造型、材质与模块拼接。此前 3D 结构样区与原生 2D 建造界面保留；正式角色、联机、星球生成、存档与承载人数尚未实现或验收。**
 
 3D 星球、角色、建筑与环境承载主要游玩体验；2D 星图、界面、物品图标和社交反馈同步设计。当前样区使用 Estella，后续客户端及服务端能力按验收项逐步验证。
 
 ![居住舱第二版实际模型渲染](art/reviews/habitat-v2/01-assembled.png)
 
 当前美术交付：[可编辑居住舱 Blender](art/source/habitat-v2/habitat-v2.blend)、[独立 GLB 模型](art/models/habitat-v2/)、[主要模块拆件图](art/reviews/habitat-v2/03-module-sheet.png)、[窗口细节](art/reviews/habitat-v2/02-window-detail.png)、[模块尺寸与交付说明](art/source/habitat-v2/README.md)。图为实际模型的离线渲染，尚未替换 Web 样区或通过最终美术验收。
+
+同一套部件已拼成 [7×5 米与 13×9 米房间](art/reviews/habitat-v2/05-room-expansion.png)，并补充 [大房间剖视](art/reviews/habitat-v2/06-expanded-cutaway.png)。门洞净宽调整到 1.20 米，见 [1.78 米比例人偶同框检查](art/reviews/habitat-v2/07-doorway-scale.png)。这里验证的是美术拼装与尺度。
+
+![模块化温室实际模型渲染](art/reviews/greenhouse-v1/01-greenhouse.png)
+
+温室交付：[可编辑 Blender](art/source/greenhouse-v1/greenhouse-v1.blend)、[独立模型](art/models/greenhouse-v1/)、[拆件图](art/reviews/greenhouse-v1/03-garden-modules.png)、[种植床与灌溉设备](art/reviews/greenhouse-v1/02-growing-bed.png)、[尺寸和扩建方式](art/source/greenhouse-v1/README.md)。
 
 此前的 [Web 样区](art/reviews/engine-day.png) 用于检查尺寸、拆件和操作，其窗面仍是反光色板、温室尚未封玻璃；地表、远景和植被仍需细化。灰色人形是 1.78 米比例参照，正式人物见 [待评审参考视图](art/references/settler-reference.png)。
 

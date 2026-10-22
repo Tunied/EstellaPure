@@ -236,12 +236,12 @@
     {
       "id": "door-leaf-110",
       "nominal": [
-        1.125,
+        1.235,
         0.3,
         2.34
       ],
       "sourceDimensionsXYZ": [
-        1.125,
+        1.235,
         0.311,
         2.27
       ],
@@ -550,6 +550,98 @@
         ]
       },
       "glb": "art/models/habitat-v2/interior-planter.glb"
+    },
+    {
+      "id": "support-column-2p8",
+      "nominal": [
+        0.32,
+        0.32,
+        2.8
+      ],
+      "sourceDimensionsXYZ": [
+        0.32,
+        0.32,
+        2.8
+      ],
+      "triangles": 1128,
+      "drawMeshes": 4,
+      "editablePieces": 6,
+      "sourceSockets": {
+        "floor": [
+          0,
+          0,
+          0
+        ],
+        "ceiling": [
+          0,
+          0,
+          2.8
+        ]
+      },
+      "glb": "art/models/habitat-v2/support-column-2p8.glb"
+    },
+    {
+      "id": "ceiling-beam-2m",
+      "nominal": [
+        2,
+        0.24,
+        0.24
+      ],
+      "sourceDimensionsXYZ": [
+        2.0,
+        0.24,
+        0.2375
+      ],
+      "triangles": 940,
+      "drawMeshes": 4,
+      "editablePieces": 5,
+      "sourceSockets": {
+        "left": [
+          -1,
+          0,
+          0
+        ],
+        "right": [
+          1,
+          0,
+          0
+        ],
+        "ceiling": [
+          0,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/habitat-v2/ceiling-beam-2m.glb"
+    },
+    {
+      "id": "ceiling-beam-end-050",
+      "nominal": [
+        0.5,
+        0.32,
+        0.28
+      ],
+      "sourceDimensionsXYZ": [
+        0.5,
+        0.32,
+        0.28
+      ],
+      "triangles": 564,
+      "drawMeshes": 3,
+      "editablePieces": 3,
+      "sourceSockets": {
+        "inner": [
+          -0.25,
+          0,
+          0
+        ],
+        "wall": [
+          0.25,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/habitat-v2/ceiling-beam-end-050.glb"
     }
   ]
 }

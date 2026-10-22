@@ -1,0 +1,524 @@
+[
+  {
+    "asset": "garden-floor-2m",
+    "positionZUp": [
+      -1,
+      -2,
+      0
+    ],
+    "yawZ": 0
+  },
+  {
+    "asset": "garden-floor-2m",
+    "positionZUp": [
+      1,
+      -2,
+      0
+    ],
+    "yawZ": 0
+  },
+  {
+    "asset": "garden-wall-glass-2m",
+    "positionZUp": [
+      2,
+      -2,
+      0.21
+    ],
+    "yawZ": 90
+  },
+  {
+    "asset": "garden-gutter-2m",
+    "positionZUp": [
+      2,
+      -2,
+      3.01
+    ],
+    "yawZ": 0
+  },
+  {
+    "asset": "garden-wall-glass-2m",
+    "positionZUp": [
+      -2,
+      -2,
+      0.21
+    ],
+    "yawZ": 270
+  },
+  {
+    "asset": "garden-gutter-2m",
+    "positionZUp": [
+      -2,
+      -2,
+      3.01
+    ],
+    "yawZ": 180
+  },
+  {
+    "asset": "garden-roof-glass-half-2m",
+    "positionZUp": [
+      0,
+      -2,
+      3.01
+    ],
+    "yawZ": 0
+  },
+  {
+    "asset": "garden-roof-glass-half-2m",
+    "positionZUp": [
+      0,
+      -2,
+      3.01
+    ],
+    "yawZ": 180
+  },
+  {
+    "asset": "garden-ridge-2m",
+    "positionZUp": [
+      0,
+      -2,
+      3.01
+    ],
+    "yawZ": 0
+  },
+  {
+    "asset": "garden-floor-2m",
+    "positionZUp": [
+      -1,
+      0,
+      0
+    ],
+    "yawZ": 0
+  },
+  {
+    "asset": "garden-floor-2m",
+    "positionZUp": [
+      1,
+      0,
+      0
+    ],
+    "yawZ": 0
+  },
+  {
+    "asset": "garden-wall-glass-2m",
+    "positionZUp": [
+      2,
+      0,
+      0.21
+    ],
+    "yawZ": 90
+  },
+  {
+    "asset": "garden-gutter-2m",
+    "positionZUp": [
+      2,
+      0,
+      3.01
+    ],
+    "yawZ": 0
+  },
+  {
+    "asset": "garden-wall-glass-2m",
+    "positionZUp": [
+      -2,
+      0,
+      0.21
+    ],
+    "yawZ": 270
+  },
+  {
+    "asset": "garden-gutter-2m",
+    "positionZUp": [
+      -2,
+      0,
+      3.01
+    ],
+    "yawZ": 180
+  },
+  {
+    "asset": "garden-roof-glass-half-2m",
+    "positionZUp": [
+      0,
+      0,
+      3.01
+    ],
+    "yawZ": 0
+  },
+  {
+    "asset": "garden-roof-glass-half-2m",
+    "positionZUp": [
+      0,
+      0,
+      3.01
+    ],
+    "yawZ": 180
+  },
+  {
+    "asset": "garden-ridge-2m",
+    "positionZUp": [
+      0,
+      0,
+      3.01
+    ],
+    "yawZ": 0
+  },
+  {
+    "asset": "garden-floor-2m",
+    "positionZUp": [
+      -1,
+      2,
+      0
+    ],
+    "yawZ": 0
+  },
+  {
+    "asset": "garden-floor-2m",
+    "positionZUp": [
+      1,
+      2,
+      0
+    ],
+    "yawZ": 0
+  },
+  {
+    "asset": "garden-wall-glass-2m",
+    "positionZUp": [
+      2,
+      2,
+      0.21
+    ],
+    "yawZ": 90
+  },
+  {
+    "asset": "garden-gutter-2m",
+    "positionZUp": [
+      2,
+      2,
+      3.01
+    ],
+    "yawZ": 0
+  },
+  {
+    "asset": "garden-wall-glass-2m",
+    "positionZUp": [
+      -2,
+      2,
+      0.21
+    ],
+    "yawZ": 270
+  },
+  {
+    "asset": "garden-gutter-2m",
+    "positionZUp": [
+      -2,
+      2,
+      3.01
+    ],
+    "yawZ": 180
+  },
+  {
+    "asset": "garden-roof-glass-half-2m",
+    "positionZUp": [
+      0,
+      2,
+      3.01
+    ],
+    "yawZ": 0
+  },
+  {
+    "asset": "garden-roof-glass-half-2m",
+    "positionZUp": [
+      0,
+      2,
+      3.01
+    ],
+    "yawZ": 180
+  },
+  {
+    "asset": "garden-ridge-2m",
+    "positionZUp": [
+      0,
+      2,
+      3.01
+    ],
+    "yawZ": 0
+  },
+  {
+    "asset": "garden-arch-half-2m",
+    "positionZUp": [
+      0,
+      -3,
+      3.01
+    ],
+    "yawZ": 0
+  },
+  {
+    "asset": "garden-arch-half-2m",
+    "positionZUp": [
+      0,
+      -3,
+      3.01
+    ],
+    "yawZ": 180
+  },
+  {
+    "asset": "garden-arch-half-2m",
+    "positionZUp": [
+      0,
+      -1,
+      3.01
+    ],
+    "yawZ": 0
+  },
+  {
+    "asset": "garden-arch-half-2m",
+    "positionZUp": [
+      0,
+      -1,
+      3.01
+    ],
+    "yawZ": 180
+  },
+  {
+    "asset": "garden-arch-half-2m",
+    "positionZUp": [
+      0,
+      1,
+      3.01
+    ],
+    "yawZ": 0
+  },
+  {
+    "asset": "garden-arch-half-2m",
+    "positionZUp": [
+      0,
+      1,
+      3.01
+    ],
+    "yawZ": 180
+  },
+  {
+    "asset": "garden-arch-half-2m",
+    "positionZUp": [
+      0,
+      3,
+      3.01
+    ],
+    "yawZ": 0
+  },
+  {
+    "asset": "garden-arch-half-2m",
+    "positionZUp": [
+      0,
+      3,
+      3.01
+    ],
+    "yawZ": 180
+  },
+  {
+    "asset": "garden-wall-glass-2m",
+    "positionZUp": [
+      -1,
+      -3,
+      0.21
+    ],
+    "yawZ": 0
+  },
+  {
+    "asset": "habitat/wall-doorway-2m",
+    "positionZUp": [
+      1,
+      -3,
+      0.21
+    ],
+    "yawZ": 0
+  },
+  {
+    "asset": "garden-door-glass-120",
+    "positionZUp": [
+      1,
+      -3,
+      0.21
+    ],
+    "yawZ": 0
+  },
+  {
+    "asset": "habitat/entry-step-2m",
+    "positionZUp": [
+      1,
+      -3.03,
+      0
+    ],
+    "yawZ": 0
+  },
+  {
+    "asset": "garden-roof-end-half-2m",
+    "positionZUp": [
+      0,
+      -3,
+      3.01
+    ],
+    "yawZ": 0
+  },
+  {
+    "asset": "garden-roof-end-half-2m",
+    "positionZUp": [
+      0,
+      -3,
+      3.01
+    ],
+    "yawZ": 180
+  },
+  {
+    "asset": "garden-corner-post",
+    "positionZUp": [
+      -2,
+      -3,
+      0.21
+    ],
+    "yawZ": 0
+  },
+  {
+    "asset": "garden-corner-post",
+    "positionZUp": [
+      2,
+      -3,
+      0.21
+    ],
+    "yawZ": 0
+  },
+  {
+    "asset": "garden-wall-glass-2m",
+    "positionZUp": [
+      -1,
+      3,
+      0.21
+    ],
+    "yawZ": 180
+  },
+  {
+    "asset": "garden-wall-glass-2m",
+    "positionZUp": [
+      1,
+      3,
+      0.21
+    ],
+    "yawZ": 180
+  },
+  {
+    "asset": "garden-roof-end-half-2m",
+    "positionZUp": [
+      0,
+      3,
+      3.01
+    ],
+    "yawZ": 0
+  },
+  {
+    "asset": "garden-roof-end-half-2m",
+    "positionZUp": [
+      0,
+      3,
+      3.01
+    ],
+    "yawZ": 180
+  },
+  {
+    "asset": "garden-corner-post",
+    "positionZUp": [
+      -2,
+      3,
+      0.21
+    ],
+    "yawZ": 0
+  },
+  {
+    "asset": "garden-corner-post",
+    "positionZUp": [
+      2,
+      3,
+      0.21
+    ],
+    "yawZ": 0
+  },
+  {
+    "asset": "growing-bed-2m",
+    "positionZUp": [
+      -1.32,
+      -1.3,
+      0.21
+    ],
+    "yawZ": 90
+  },
+  {
+    "asset": "crop-tray-leafy",
+    "positionZUp": [
+      -1.32,
+      -1.3,
+      0.887
+    ],
+    "yawZ": 90
+  },
+  {
+    "asset": "growing-bed-2m",
+    "positionZUp": [
+      -1.32,
+      0.8,
+      0.21
+    ],
+    "yawZ": 90
+  },
+  {
+    "asset": "crop-tray-leafy",
+    "positionZUp": [
+      -1.32,
+      0.8,
+      0.887
+    ],
+    "yawZ": 90
+  },
+  {
+    "asset": "growing-bed-2m",
+    "positionZUp": [
+      1.32,
+      -1.3,
+      0.21
+    ],
+    "yawZ": 90
+  },
+  {
+    "asset": "crop-tray-leafy",
+    "positionZUp": [
+      1.32,
+      -1.3,
+      0.887
+    ],
+    "yawZ": 90
+  },
+  {
+    "asset": "growing-bed-2m",
+    "positionZUp": [
+      1.32,
+      0.8,
+      0.21
+    ],
+    "yawZ": 90
+  },
+  {
+    "asset": "crop-tray-leafy",
+    "positionZUp": [
+      1.32,
+      0.8,
+      0.887
+    ],
+    "yawZ": 90
+  },
+  {
+    "asset": "garden-irrigation-unit",
+    "positionZUp": [
+      -1.15,
+      2.45,
+      0.21
+    ],
+    "yawZ": 0
+  }
+]
