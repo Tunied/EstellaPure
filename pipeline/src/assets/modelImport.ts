@@ -85,6 +85,13 @@ export interface ImportedMaterial {
     /** glTF's packing: roughness in green, metal in blue, multiplying the factors. */
     metallicRoughnessTexture?: ImportedImageRef;
     /**
+     * Metalness, roughness and occlusion as the source wrote them: a separate image each, the value in its red channel (roughness
+     * inverted when the source gave glossiness). Image preparation packs them into the one map above, glTF's way, and removes this.
+     */
+    separateMaps?: {
+        metalness?: ImportedImageRef; roughness?: ImportedImageRef; roughnessIsGlossiness?: boolean; occlusion?: ImportedImageRef;
+    };
+    /**
      * What the surface has beyond a metal/rough pair, one field per glTF extension that says it — the values are
      * the extension's own factors, absent where the source says nothing (the engine's defaults are glTF's).
      */

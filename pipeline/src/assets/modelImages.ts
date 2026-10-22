@@ -115,11 +115,60 @@ export function prepareModelImages(result: ModelImportResult,
         return entry;
     };
 
+    /**
+     * Metalness, roughness and occlusion written as separate images, packed into the one map the engine samples: occlusion in red,
+     * roughness in green, metal in blue, each from its source's red channel (roughness inverted when the source gave glossiness).
+     * A channel with no image stays at full, so the material's own factor says it. Only PNG and DDS can be read here.
+     */
+    const packSeparateMaps = (material: ImportedMaterial, label: string): void => {
+        const separate = material.separateMaps;
+        if (!separate) return;
+        delete material.separateMaps;
+        const read = (ref: ImportedImageRef | undefined) => (ref ? load(ref, label).pixels : null);
+        const metal = read(separate.metalness), rough = read(separate.roughness), occlusion = read(separate.occlusion);
+        const wanted = [separate.metalness, separate.roughness].filter(Boolean).length;
+        if (wanted === 0 || [metal, rough].filter(Boolean).length < wanted) {
+            result.warnings.push(`${label}: its separate metalness/roughness maps could not be packed (only PNG and DDS can be read) —`
+                + ` the constants ${(material.metallic ?? 0).toFixed(2)}/${(material.roughness ?? 1).toFixed(2)} are used instead`);
+            return;
+        }
+        const sources = [metal, rough, occlusion].filter((p): p is Pixels => !!p);
+        const width = Math.max(...sources.map(p => p.width)), height = Math.max(...sources.map(p => p.height));
+        // Nearest-neighbour from each source into the largest's grid: maps of different sizes still line up in uv.
+        const sample = (p: Pixels | null, x: number, y: number): number | null => {
+            if (!p) return null;
+            const sx = Math.min(p.width - 1, Math.floor((x + 0.5) * p.width / width));
+            const sy = Math.min(p.height - 1, Math.floor((y + 0.5) * p.height / height));
+            return p.rgba[(sy * p.width + sx) * 4]!;
+        };
+        const packed = new Uint8Array(width * height * 4);
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const at = (y * width + x) * 4;
+                const ao = sample(occlusion, x, y), r = sample(rough, x, y), m = sample(metal, x, y);
+                packed[at] = ao ?? 255;
+                packed[at + 1] = r === null ? 255 : separate.roughnessIsGlossiness ? 255 - r : r;
+                packed[at + 2] = m ?? 255;
+                packed[at + 3] = 255;
+            }
+        }
+        const name = `${material.name.replace(/[^A-Za-z0-9_-]+/g, '_')}_orm.png`;
+        const texture = { name, bytes: encodeRgbaPng(width, height, packed) };
+        result.textures.push(texture);
+        embedded.set(name, texture);
+        const ref: ImportedImageRef = { file: name, external: false };
+        material.metallicRoughnessTexture = ref;
+        if (metal) material.metallic = 1;
+        if (rough) material.roughness = 1;
+        if (occlusion) { material.occlusionTexture = ref; material.occlusionStrength = 1; }
+    };
+
     const noticed = new Set<string>();
     const materials = new Set<ImportedMaterial>();
     for (const mesh of result.meshes) if (mesh.material) materials.add(mesh.material);
     for (const material of materials) {
         const label = `material "${material.name}"`;
+        packSeparateMaps(material, label);
         for (const slot of SLOTS) {
             const ref = material[slot];
             if (!ref) continue;

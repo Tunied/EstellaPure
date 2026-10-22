@@ -50,6 +50,53 @@ describe('preparing a model\'s images', () => {
         expect([...decoded.data.subarray(0, 4)]).toEqual([10, 20, 30, 255]);
     });
 
+    it('packs separate metalness, roughness and occlusion maps the way glTF does', () => {
+        const files: Record<string, Uint8Array> = {
+            'metal.png': png(() => [200, 0, 0, 255]),
+            'rough.png': png(() => [60, 0, 0, 255]),
+            'ao.png': png(() => [150, 0, 0, 255]),
+        };
+        const result = model({
+            metallic: 0.3, roughness: 0.5,
+            separateMaps: {
+                metalness: { file: 'metal.png', external: true }, roughness: { file: 'rough.png', external: true },
+                occlusion: { file: 'ao.png', external: true },
+            },
+        }, ['metal.png', 'rough.png', 'ao.png']);
+        prepareModelImages(result, uri => files[uri] ?? null);
+        const material = result.meshes[0]!.material!;
+        expect(material.separateMaps).toBeUndefined();
+        expect(material.metallicRoughnessTexture).toEqual({ file: 'm_orm.png', external: false, settings: { sRGB: false } });
+        expect(material.occlusionTexture?.file).toBe('m_orm.png');
+        // The factors step aside, since the maps now say it.
+        expect(material.metallic).toBe(1);
+        expect(material.roughness).toBe(1);
+        const packed = PNG.sync.read(Buffer.from(result.textures.find(t => t.name === 'm_orm.png')!.bytes));
+        expect([...packed.data.subarray(0, 4)]).toEqual([150, 60, 200, 255]);
+    });
+
+    it('inverts a glossiness map, and leaves a channel with no image at full so the factor speaks', () => {
+        const files: Record<string, Uint8Array> = { 'gloss.png': png(() => [230, 0, 0, 255]) };
+        const result = model({ metallic: 0.3, roughness: 0.5, separateMaps: { roughness: { file: 'gloss.png', external: true }, roughnessIsGlossiness: true } },
+            ['gloss.png']);
+        prepareModelImages(result, uri => files[uri] ?? null);
+        const material = result.meshes[0]!.material!;
+        expect(material.metallic).toBe(0.3);
+        expect(material.roughness).toBe(1);
+        const packed = PNG.sync.read(Buffer.from(result.textures[0]!.bytes));
+        expect([...packed.data.subarray(0, 4)]).toEqual([255, 25, 255, 255]);
+    });
+
+    it('says so when a map cannot be read, and keeps the constants', () => {
+        const files: Record<string, Uint8Array> = { 'metal.png': png(() => [200, 0, 0, 255]), 'rough.jpg': new Uint8Array([1, 2, 3]) };
+        const result = model({ metallic: 0.3, roughness: 0.5, separateMaps: { metalness: { file: 'metal.png', external: true }, roughness: { file: 'rough.jpg', external: true } } },
+            ['metal.png', 'rough.jpg']);
+        prepareModelImages(result, uri => files[uri] ?? null);
+        const material = result.meshes[0]!.material!;
+        expect(material.metallicRoughnessTexture).toBeUndefined();
+        expect(result.warnings.join('\n')).toMatch(/could not be packed/);
+    });
+
     it('drops an occlusion map that is zero everywhere, and says so', () => {
         const result = model({ occlusionTexture: { file: 'orm.png', external: true }, occlusionStrength: 1 });
         prepareModelImages(result, () => png(i => [0, 100 + i, 0, 255]));

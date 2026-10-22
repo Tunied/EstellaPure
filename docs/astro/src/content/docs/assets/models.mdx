@@ -272,11 +272,14 @@ exponent, and it reports **no** metalness rather than a made-up zero-metal surfa
 
 Two things about FBX materials are worth knowing before you author for it:
 
-- **Metalness and roughness maps are only carried when they are one image**, packed the way
-  glTF packs them (roughness in green, metal in blue) — which is what the engine's Model
-  shader samples. Exporters normally write two separate images; when they do, the import
-  says so and the constants are used. Pack them into one image, or set the map by hand on
-  the `.esmaterial`.
+- **Separate metalness, roughness and occlusion maps are packed for you.** The engine's Model
+  shader samples one image packed the way glTF packs it (occlusion in red, roughness in
+  green, metal in blue). Exporters normally write a separate image for each, so the import
+  reads them (the value is the red channel; a glossiness map is inverted), packs them into
+  one `<material>_orm.png` beside the model, and binds it to both slots. A channel with no
+  map stays at full, so the material's own metallic or roughness value still says it, and
+  maps of different sizes are lined up on the largest. Only PNG and DDS can be read there:
+  with another format the import says so and uses the constants.
 - **An opacity map is not carried.** Alpha comes from the base colour image's own channel.
 
 ## Compressed geometry (glTF)

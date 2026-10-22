@@ -327,16 +327,26 @@ function readMaterial(ctx: TextureContext, source: FbxMaterial, index: number): 
         ? readTexture(ctx, source.specularColor.texture, label) : null;
     const metalMap = source.metalness?.texture ?? null;
     const roughMap = source.roughness?.texture ?? null;
-    // The engine samples ONE map packed glTF's way (roughness in green, metal in
-    // blue), and FBX exporters normally write two separate images. There is no
-    // single image to bind when they do, so the import says so.
+    // The engine samples ONE map packed glTF's way (roughness in green, metal in blue), and FBX exporters normally write a separate
+    // image for each; those are handed on below to be packed into one.
     const packed = metalMap && roughMap && metalMap.file === roughMap.file
         ? readTexture(ctx, metalMap, label) : null;
     const metallicRoughnessTexture = orm ?? packed;
-    if (!metallicRoughnessTexture && (metalMap || roughMap)) {
-        ctx.warnings.push(`${label}: its separate metalness/roughness maps are not imported —`
-            + ' the engine samples one image packed as glTF does (roughness in green, metal in'
-            + ` blue); the constants ${metallic.toFixed(2)}/${roughness.toFixed(2)} are used instead`);
+    // Separate images are handed on as they are: the image step packs them into one, and says so if it cannot read them.
+    const glossMap = !roughMap ? source.glossiness?.texture ?? null : null;
+    let separateMaps: NonNullable<ImportedMaterial['separateMaps']> | null = null;
+    if (!metallicRoughnessTexture && (metalMap || roughMap || glossMap)) {
+        const metalness = metalMap ? readTexture(ctx, metalMap, label) : null;
+        const rough = roughMap ?? glossMap;
+        const roughnessRef = rough ? readTexture(ctx, rough, label) : null;
+        const occlusionRef = source.occlusion?.texture ? readTexture(ctx, source.occlusion.texture, label) : null;
+        if (metalness || roughnessRef) {
+            separateMaps = {
+                ...(metalness ? { metalness } : {}),
+                ...(roughnessRef ? { roughness: roughnessRef, roughnessIsGlossiness: !roughMap } : {}),
+                ...(occlusionRef ? { occlusion: occlusionRef } : {}),
+            };
+        }
     }
 
     const emissionFactor = scalar(source.emissionFactor, 1);
@@ -368,6 +378,7 @@ function readMaterial(ctx: TextureContext, source: FbxMaterial, index: number): 
         metallic: orm ? 1 : metallic,
         roughness: orm ? 1 : roughness,
         ...(metallicRoughnessTexture ? { metallicRoughnessTexture } : {}),
+        ...(separateMaps ? { separateMaps } : {}),
     };
 }
 

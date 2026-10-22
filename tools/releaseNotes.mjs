@@ -2521,6 +2521,8 @@ export const NOTED = {
     {"note":"Two new shaders for characters: Skin softens diffuse light by colour, warms the terminator and lets light through thin places without blurring the picture, and Hair lights strands along a flow map with two shifted highlights. Normal maps on stretched UVs (a face unwrapped into an atlas) now keep their shape, and mipmapped textures are sampled with anisotropic filtering where the device has it."},
   "chore(editor-checks): hair-look and skin-look checks":
     {"internal":"the editor checks for the Skin and Hair entry above"},
+  "feat(import): separate metalness, roughness and occlusion maps are packed the way glTF packs them":
+    {"note":"Importing an FBX with separate metalness, roughness and occlusion images now packs them into the one map the Model shader samples, instead of dropping them."},
   "chore(tools): the gates run in parallel with --jobs, and the reds a full run gathered are cleared":
     {"internal":"tooling for the static gates, and fixes to checks that had drifted from the code they guard"},
   "fix(render): a wire narrower than a pixel is no longer painted over by the sky in dashes":
