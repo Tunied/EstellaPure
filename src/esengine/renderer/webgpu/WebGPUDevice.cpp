@@ -1398,7 +1398,9 @@ WGPUSampler WebGPUDevice::samplerFor(u8 key) {
     sd.mipmapFilter = WGPUMipmapFilterMode_Linear;
     sd.lodMinClamp = 0.0f;
     sd.lodMaxClamp = 32.0f;
-    sd.maxAnisotropy = 1;
+    // Sharpened at a slant (a floor, a hair card, a sleeve seen edge-on): the sampler takes extra samples along the footprint's long side.
+    // WebGPU allows it only when every filter is linear, so a nearest-filtered sampler stays at one.
+    sd.maxAnisotropy = (key & 3u) == 0u ? 16 : 1;
     WGPUSampler sampler = wgpuDeviceCreateSampler(device_, &sd);
     samplers_[key] = sampler;
     return sampler;

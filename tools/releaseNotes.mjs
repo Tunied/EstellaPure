@@ -2517,6 +2517,10 @@ export const NOTED = {
     {"note":"Wilds is a new 3D example: a lake under mountains at dusk, made from a generated heightmap with the Terrain, Water and Foliage features and the sky's cloud shadows."},
   "chore(tools): the corpus now authors Terrain and Foliage":
     {"internal":"the corpus-authoring list after the Wilds example authors both components"},
+  "feat(render): Skin and Hair shaders, and normal maps keep their shape on stretched UVs":
+    {"note":"Two new shaders for characters: Skin softens diffuse light by colour, warms the terminator and lets light through thin places without blurring the picture, and Hair lights strands along a flow map with two shifted highlights. Normal maps on stretched UVs (a face unwrapped into an atlas) now keep their shape, and mipmapped textures are sampled with anisotropic filtering where the device has it."},
+  "chore(editor-checks): hair-look and skin-look checks":
+    {"internal":"the editor checks for the Skin and Hair entry above"},
   "chore(tools): the gates run in parallel with --jobs, and the reds a full run gathered are cleared":
     {"internal":"tooling for the static gates, and fixes to checks that had drifted from the code they guard"},
   "fix(render): a wire narrower than a pixel is no longer painted over by the sky in dashes":

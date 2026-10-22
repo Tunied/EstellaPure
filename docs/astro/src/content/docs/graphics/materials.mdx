@@ -36,6 +36,8 @@ creates a material from a built-in template — the same list ships in code as
 
 | **Terrain** | `terrain` | Four texture layers (grass, dirt, snow, rock) weighted by the [Terrain](/docs/graphics/terrain/) component and tiled by world position. |
 | **Foliage** | `foliage` | Plants that sway in the wind: a vertex bend by weights painted in the vertex colour, two-sided and translucent, with an optional cutout texture. See [Foliage](/docs/graphics/foliage/). |
+| **Skin** | `skin` | Soft diffuse by colour, a warm terminator, light through thin places, two shine lobes and a fuzz — without blurring the picture. See [Skin and hair](#skin-and-hair). |
+| **Hair** | `hair` | Strand lighting: Kajiya-Kay diffuse, two shifted highlights along a flow map, and light through the strands. See [Skin and hair](#skin-and-hair). |
 | **Water** | `water` | A horizontal body of water: travelling waves and ripples, the scene behind it bent and tinted by how deep the water is, reflections, and foam. See [Water](#water). |
 
 A new material **references** its template by id — it stores `shader: "builtin:sprite-unlit"`
@@ -62,6 +64,29 @@ Parameters are in world units: a scene in metres wants the defaults, one in cent
 - Like glass, it refracts the opaque scene only: a boat's hull seen through it is, but another transparent surface is not.
 - The surface is taken to lie flat: a water plane that is tilted or curved will shade as if it were level.
 - The waves do not move the geometry, so a wave does not break the shoreline or lift a floating object, and the silhouette against the sky is a straight line.
+
+## Skin and hair
+
+Two shaders for the parts of a character a metal/rough pair does not describe. Both take the base colour from the mesh's own texture, as
+the Model shader does, and take `u_normalMap` and an `u_ormMap` (occlusion in red, roughness in green) as **data** textures: import them
+with sRGB **off**, or the normal map is bent by the colour curve and the surface comes out blotched.
+
+**Skin** (`builtin:skin`) does not blur the picture. Light that goes into skin and comes out a little way off softens the lit side of a
+curve, and it does that here per colour: the diffuse light is taken from a softer normal than the surface's own, softest for red
+(`u_blurRed`, `u_blurGreen`, mip levels of the normal map), so the pores and the highlight stay sharp. The terminator is warmed (`u_sssColor`, `u_sssWrap`),
+a thin or strongly curved place lets light through (`u_translucency`, `u_thinness`: an ear, a nostril, a finger), the shine is two
+lobes (`u_specular`, `u_lobe2`, `u_lobe2Roughness`) and a faint fuzz lights the rim (`u_fuzz`). Turn `u_subsurface` on to also mark it for the
+[Subsurface Scattering](/docs/graphics/post-processing/#subsurface-scattering) effect, which spreads what is left on a larger scale at the cost of
+blurring the picture. It shades each pixel with three lighting passes, so it is for the skin of a character in view, not for a crowd.
+
+**Hair** (`builtin:hair`) lights a strand as a strand. `u_flowMap` says which way the strands run (red and green are a direction across the
+texture), the diffuse light is Kajiya-Kay (a strand is lit by how far the light is from along it), and the shine is two narrow
+highlights along the strand, shifted against each other by `u_shiftMap` (`u_shiftAmount`, `u_shiftTile`): a white one near the surface and a coloured
+one under it (`u_secondaryTint`). `u_roughness` sets how tight the lines are. Light comes through the strands from behind (`u_translucency`),
+`u_sharpen` keeps the fine strands a card is covered in from washing out at a slant, and `u_rootDark` darkens the roots by the occlusion map.
+A hair model is usually cards or ribbons, not strands; this shader gives the shading of a strand to what the geometry gives it.
+
+Both read the same lighting core as every Lit shader, so shadows, image-based light and the other effects apply.
 
 ## Shading layers
 

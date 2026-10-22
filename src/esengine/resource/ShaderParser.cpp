@@ -1400,8 +1400,9 @@ fn perturbNormal(N : vec3f, worldPos : vec3f, uv : vec2f, tangentNormal : vec3f)
     let m = max(dot(T, T), dot(B, B));
     let scale = max(dot(dp1, dp1), dot(dp2, dp2)) * max(dot(duv1, duv1), dot(duv2, duv2));
     if (!(m > scale * 1e-6)) { return N; }
-    let invmax = inverseSqrt(m);
-    return normalize(mat3x3f(T * invmax, B * invmax, N) * tangentNormal);
+    // Each axis to unit length on its own: a texture stretched more along one axis than the other (a face unwrapped into an atlas) has
+    // a short T beside a long B, and scaling both by the longer one would leave the normal map flat along the short one.
+    return normalize(mat3x3f(T * inverseSqrt(max(dot(T, T), 1e-20)), B * inverseSqrt(max(dot(B, B), 1e-20)), N) * tangentNormal);
 }
 // Where a world point lands in this camera's part of a screen-space mask: on the Z = 0
 // plane, which is the plane a 2D occluder hides things in, and through this same camera
@@ -1710,12 +1711,14 @@ fn applyLightingSurface(albedo : vec3f, N : vec3f, worldPos : vec3f, V : vec3f, 
     }
     let ab = envBRDFApprox(NdotV, roughness);
     var envR = reflect(-V, N);
-    if (ext.aniso.w != 0.0) {
+    if (ext.aniso.w != 0.0 || ext.misc.y > 0.0) {
         let T = ext.aniso.xyz;
         var grain = T;
-        if (ext.aniso.w >= 0.0) { grain = cross(N, T); }
+        if (ext.aniso.w >= 0.0 && ext.misc.y <= 0.0) { grain = cross(N, T); }
         let bent = normalize(cross(cross(grain, V), grain));
-        envR = reflect(-V, normalize(mix(N, bent, vec3f(abs(ext.aniso.w)))));
+        var bendBy = abs(ext.aniso.w);
+        if (ext.misc.y > 0.0) { bendBy = 0.55; }
+        envR = reflect(-V, normalize(mix(N, bent, vec3f(bendBy))));
     }
     var envF = F0 * ab.x + vec3f(ab.y);
     if (ext.film.x > 0.0) { envF = filmFresnel(envF, NdotV, ext.film); }
@@ -1783,10 +1786,27 @@ fn shadeLight(pd : vec4f, col : vec4f, sp : vec4f, sh : vec4f, sm : vec4f, fo : 
                          shadowFactor3D(worldPos, N, L, vec2f(sh.x, sm.z), i32(sm.x), i32(sm.y)),
                          fo.z);
         }
-        let ndotl = max(dot(N, L), 0.0);
+        var ndotl = max(dot(N, L), 0.0);
+        // Hair (misc.y above zero; aniso.xyz is the strand): Kajiya-Kay diffuse, which lights a strand by how far light is from along it.
+        if (ext.misc.y > 0.0) {
+            let along = dot(ext.aniso.xyz, L);
+            ndotl = mix(ndotl, sqrt(max(1.0 - along * along, 0.0)) * clamp(dot(N, L) * 0.5 + 0.65, 0.0, 1.0), 0.6);
+        }
         let radiance = col.rgb * (col.a * ndotl * atten);
         lit += radiance;
-        if (specular > 0.0) {
+        if (specular > 0.0 && ext.misc.y > 0.0) {
+            // Two shifted, narrow lobes along the strand: a white one near the surface and a coloured one under it (scatter.rgb).
+            let H = normalize(L + V);
+            let primaryExp = clamp(2.0 / (a * a), 8.0, 900.0);
+            let strandA = normalize(ext.aniso.xyz + N * ext.misc.z);
+            let strandB = normalize(ext.aniso.xyz + N * ext.misc.w);
+            let h1 = dot(strandA, H);
+            let h2 = dot(strandB, H);
+            let lobe1 = smoothstep(-1.0, 0.0, h1) * pow(sqrt(max(1.0 - h1 * h1, 0.0)), primaryExp);
+            let lobe2 = smoothstep(-1.0, 0.0, h2) * pow(sqrt(max(1.0 - h2 * h2, 0.0)), primaryExp * 0.3);
+            let lightOn = col.rgb * (col.a * atten * clamp(dot(N, L) + 0.35, 0.0, 1.0));
+            gloss += lightOn * (lobe1 * 0.55 + lobe2 * ext.scatter.rgb * 1.6) * (ext.misc.y * specular);
+        } else if (specular > 0.0) {
             let H = normalize(L + V);
             var brdf : f32;
             if (ext.aniso.w != 0.0) {
@@ -2436,8 +2456,7 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "    highp float m = max(dot(T, T), dot(B, B));\n"
             "    highp float scale = max(dot(dp1, dp1), dot(dp2, dp2)) * max(dot(duv1, duv1), dot(duv2, duv2));\n"
             "    if (!(m > scale * 1e-6)) return N;\n"
-            "    highp float invmax = inversesqrt(m);\n"
-            "    return normalize(mat3(T * invmax, B * invmax, N) * tangentNormal);\n"
+            "    return normalize(mat3(T * inversesqrt(max(dot(T, T), 1e-20)), B * inversesqrt(max(dot(B, B), 1e-20)), N) * tangentNormal);\n"
             "}\n"
             // Where a world point lands in this camera's part of a screen-space mask.
             // Measured on the Z = 0 plane, which is the plane a 2D occluder hides things
@@ -2797,11 +2816,11 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             // reflection of it a metal is black wherever no light happens to point.
             "    highp vec2 ab = envBRDFApprox(NdotV, roughness);\n"
             "    highp vec3 envR = reflect(-V, N);\n"
-            "    if (ext.aniso.w != 0.0) {\n"
+            "    if (ext.aniso.w != 0.0 || ext.misc.y > 0.0) {\n"
             "        highp vec3 T = ext.aniso.xyz;\n"
-            "        highp vec3 grain = ext.aniso.w >= 0.0 ? cross(N, T) : T;\n"
+            "        highp vec3 grain = (ext.aniso.w >= 0.0 && ext.misc.y <= 0.0) ? cross(N, T) : T;\n"
             "        highp vec3 bent = normalize(cross(cross(grain, V), grain));\n"
-            "        envR = reflect(-V, normalize(mix(N, bent, abs(ext.aniso.w))));\n"
+            "        envR = reflect(-V, normalize(mix(N, bent, ext.misc.y > 0.0 ? 0.55 : abs(ext.aniso.w))));\n"
             "    }\n"
             "    highp vec3 envF = F0 * ab.x + ab.y;\n"
             "    if (ext.film.x > 0.0) envF = filmFresnel(envF, NdotV, ext.film);\n"
@@ -2876,12 +2895,27 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "                                             int(sm.x), int(sm.y)), fo.z);\n"
             "        }\n"
             "        highp float ndotl = max(dot(N, L), 0.0);\n"
+            // Hair (misc.y above zero; aniso.xyz is the strand): Kajiya-Kay diffuse, which lights a strand by how far light is from along it.
+            "        if (ext.misc.y > 0.0) {\n"
+            "            highp float along = dot(ext.aniso.xyz, L);\n"
+            "            ndotl = mix(ndotl, sqrt(max(1.0 - along * along, 0.0)) * clamp(dot(N, L) * 0.5 + 0.65, 0.0, 1.0), 0.6);\n"
+            "        }\n"
             "        highp vec3 radiance = col.rgb * (col.a * ndotl * atten);\n"
             "        lit += radiance;\n"
-            // A uniform branch: a surface that reflects nothing does not pay for the lobe.
-            // The pi turns the engine's light intensity into the irradiance the BRDF wants,
-            // which the diffuse side cancels against albedo/pi and never has to spell out.
-            "        if (specular > 0.0) {\n"
+            // A uniform branch: a surface that reflects nothing does not pay for the lobe. The pi turns the engine's light intensity
+            // into the irradiance the BRDF wants (the diffuse side cancels it against albedo/pi). Hair has two narrow lobes of its own.
+            "        if (specular > 0.0 && ext.misc.y > 0.0) {\n"
+            "            highp vec3 H = normalize(L + V);\n"
+            "            highp float primaryExp = clamp(2.0 / (a * a), 8.0, 900.0);\n"
+            "            highp vec3 t1 = normalize(ext.aniso.xyz + N * ext.misc.z);\n"
+            "            highp vec3 t2 = normalize(ext.aniso.xyz + N * ext.misc.w);\n"
+            "            highp float h1 = dot(t1, H);\n"
+            "            highp float h2 = dot(t2, H);\n"
+            "            highp float lobe1 = smoothstep(-1.0, 0.0, h1) * pow(sqrt(max(1.0 - h1 * h1, 0.0)), primaryExp);\n"
+            "            highp float lobe2 = smoothstep(-1.0, 0.0, h2) * pow(sqrt(max(1.0 - h2 * h2, 0.0)), primaryExp * 0.3);\n"
+            "            highp vec3 lightOn = col.rgb * (col.a * atten * clamp(dot(N, L) + 0.35, 0.0, 1.0));\n"
+            "            gloss += lightOn * (lobe1 * 0.55 + lobe2 * ext.scatter.rgb * 1.6) * (ext.misc.y * specular);\n"
+            "        } else if (specular > 0.0) {\n"
             "            highp vec3 H = normalize(L + V);\n"
             "            highp float brdf;\n"
             "            if (ext.aniso.w != 0.0) {\n"

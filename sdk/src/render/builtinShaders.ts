@@ -1365,6 +1365,353 @@ fn packNormal(n : vec3f) -> vec2f {
 #pragma end
 `;
 
+// Hair: lit as strands. The flow map gives the strand direction; the lighting does Kajiya-Kay diffuse and two shifted highlights along it
+// (misc.y above zero is the switch). Two-sided and translucent; the base colour is the mesh's own texture, as in the Model shader.
+const HAIR = `#pragma shader "Hair"
+#pragma version 300 es
+#pragma domain Lit
+#pragma param u_tint color default(1,1,1,1)
+#pragma param u_normalMap texture default(flatnormal) texel(data)
+#pragma param u_ormMap texture default(white) texel(data)
+#pragma param u_occlusionStrength float default(1) range(0,1) ui(slider)
+// Which way each strand runs: red and green are a direction across the texture, the way an authored flow map writes it.
+#pragma param u_flowMap texture default(white) texel(data)
+// A texture that shifts the highlight along the strand from one place to the next, and how far, and how often it repeats.
+#pragma param u_shiftMap texture default(white) texel(data)
+#pragma param u_shiftAmount float default(0.35) range(0,1) ui(slider)
+#pragma param u_shiftTile float default(6) range(0.1,64) ui(slider)
+// How tightly each highlight is drawn (roughness: lower is a narrower line), how strong they are, and how far each rides off the strand's
+// centre line. The second is the coloured one, tinted by u_secondaryTint.
+#pragma param u_roughness float default(0.3) range(0.05,1) ui(slider)
+#pragma param u_specular float default(1) range(0,2) ui(slider)
+#pragma param u_shiftPrimary float default(-0.1) range(-1,1) ui(slider)
+#pragma param u_shiftSecondary float default(0.2) range(-1,1) ui(slider)
+#pragma param u_secondaryTint color default(0.75,0.45,0.25,1)
+// Light that comes through the strands from behind.
+#pragma param u_translucency float default(0.4) range(0,1) ui(slider)
+// A negative bias on the colour's mip level keeps the fine strands a hair card is covered in from washing out at a slant, which they do at once.
+#pragma param u_sharpen float default(-0.8) range(-3,1) ui(slider)
+// How much darker the roots are than the tips: the occlusion map's red, pushed.
+#pragma param u_rootDark float default(0.5) range(0,1) ui(slider)
+
+#pragma fragment
+precision highp float;
+
+in vec4 v_color;
+in vec2 v_texCoord;
+in highp vec2 v_worldPos;
+#ifdef MESH_NORMALS
+in highp vec3 v_worldNormal;
+in highp vec3 v_worldXYZ;
+#endif
+uniform sampler2D u_textures[1];
+
+#ifdef ES_GBUFFER
+layout(location = 0) out vec4 fragColor;
+layout(location = 1) out vec4 fragSurface;
+
+vec2 packNormal(vec3 n) {
+    n /= (abs(n.x) + abs(n.y) + abs(n.z));
+    vec2 sgn = vec2(n.x >= 0.0 ? 1.0 : -1.0, n.y >= 0.0 ? 1.0 : -1.0);
+    vec2 e = n.z >= 0.0 ? n.xy : (1.0 - abs(n.yx)) * sgn;
+    return e * 0.5 + 0.5;
+}
+#else
+out vec4 fragColor;
+#endif
+
+void main() {
+#ifdef MESH_NORMALS
+    highp vec3 Ng = normalize(v_worldNormal);
+    highp vec3 P = v_worldXYZ;
+    highp vec3 N = perturbNormal(Ng, P, v_texCoord, sampleNormal(u_normalMap, v_texCoord));
+    if (!gl_FrontFacing) { N = -N; Ng = -Ng; }
+    // The strand: the flow map's direction across the texture, put onto the surface and made to lie across the normal.
+    vec2 flow = texture(u_flowMap, v_texCoord).rg * 2.0 - 1.0;
+    highp vec3 T = perturbNormal(Ng, P, v_texCoord, vec3(flow, 0.0));
+    T -= N * dot(N, T);
+    if (dot(T, T) < 1e-6) T = cross(N, abs(N.y) < 0.99 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0));
+    T = normalize(T);
+#else
+    highp vec3 P = vec3(v_worldPos, 0.0);
+    highp vec3 N = vec3(0.0, 0.0, 1.0);
+    highp vec3 T = vec3(0.0, 1.0, 0.0);
+#endif
+    vec4 base = texture(u_textures[0], v_texCoord, u_sharpen) * v_color * u_tint;
+    float root = texture(u_ormMap, v_texCoord).r;
+    float ao = mix(1.0, root, u_occlusionStrength);
+    base.rgb *= mix(1.0, 0.35 + 0.65 * root, u_rootDark);
+    float noise = (texture(u_shiftMap, v_texCoord * u_shiftTile).r - 0.5) * u_shiftAmount;
+    SurfaceExt ext = surfaceExtNone(N);
+    ext.aniso = vec4(T, 0.0);
+    ext.misc = vec4(0.046, 1.0, u_shiftPrimary + noise, u_shiftSecondary + noise);
+    ext.scatter = vec4(base.rgb * u_secondaryTint.rgb * 1.6, 0.35);
+    ext.trans = vec4(u_translucency, 0.25, 0.0, 0.0);
+    vec3 viewDir = viewDirection(P);
+    vec3 lit = applyLightingSurface(base.rgb, N, P, viewDir, 0.0, u_roughness, u_specular, ao, ext);
+    fragColor = vec4(lit, 1.0);
+#ifdef ES_GBUFFER
+    fragSurface = vec4(packNormal(normalize(N)), u_roughness, 0.75);
+#endif
+}
+#pragma end
+
+#pragma fragment wgsl
+#ifdef ES_GBUFFER
+struct FragOut {
+    @location(0) color : vec4f,
+    @location(1) surface : vec4f,
+};
+
+fn packNormal(n : vec3f) -> vec2f {
+    let a = n / (abs(n.x) + abs(n.y) + abs(n.z));
+    let sgn = vec2f(select(-1.0, 1.0, a.x >= 0.0), select(-1.0, 1.0, a.y >= 0.0));
+    var e = a.xy;
+    if (a.z < 0.0) { e = (vec2f(1.0) - abs(a.yx)) * sgn; }
+    return e * 0.5 + 0.5;
+}
+
+@fragment fn fs_main(v : VSOut, @builtin(front_facing) front : bool) -> FragOut {
+#else
+@fragment fn fs_main(v : VSOut, @builtin(front_facing) front : bool) -> @location(0) vec4f {
+#endif
+    let duvx = dpdx(v.v_texCoord);
+    let duvy = dpdy(v.v_texCoord);
+    g_probeSlot = v.v_probeSlot;
+#ifdef MESH_LIGHTMAP
+    g_lightmap = v.v_lightmap;
+#endif
+    var base = textureSampleBias(t0, s0, v.v_texCoord, mc.u_sharpen) * v.v_color * mc.u_tint;
+    let flowTex = textureSampleGrad(u_flowMap, u_flowMap_s, v.v_texCoord, duvx, duvy).rg * 2.0 - vec2f(1.0);
+    let orm = textureSampleGrad(u_ormMap, u_ormMap_s, v.v_texCoord, duvx, duvy);
+    let shiftTex = textureSampleGrad(u_shiftMap, u_shiftMap_s, v.v_texCoord * mc.u_shiftTile, duvx * mc.u_shiftTile, duvy * mc.u_shiftTile).r;
+#ifdef MESH_NORMALS
+    var Ng = normalize(v.v_worldNormal);
+    let P = v.v_worldXYZ;
+    var N = perturbNormal(Ng, P, v.v_texCoord, sampleNormalGrad(u_normalMap, u_normalMap_s, v.v_texCoord, duvx, duvy));
+    if (!front) { N = -N; Ng = -Ng; }
+    var T = perturbNormal(Ng, P, v.v_texCoord, vec3f(flowTex, 0.0));
+    T = T - N * dot(N, T);
+    if (dot(T, T) < 1e-6) {
+        var seed = vec3f(1.0, 0.0, 0.0);
+        if (abs(N.y) < 0.99) { seed = vec3f(0.0, 1.0, 0.0); }
+        T = cross(N, seed);
+    }
+    T = normalize(T);
+#else
+    let P = vec3f(v.v_worldPos.x, 0.0, v.v_worldPos.y);
+    let N = vec3f(0.0, 0.0, 1.0);
+    let T = vec3f(0.0, 1.0, 0.0);
+#endif
+    let ao = mix(1.0, orm.r, mc.u_occlusionStrength);
+    base = vec4f(base.rgb * mix(1.0, 0.35 + 0.65 * orm.r, mc.u_rootDark), base.a);
+    let noise = (shiftTex - 0.5) * mc.u_shiftAmount;
+    var ext = surfaceExtNone(N);
+    ext.aniso = vec4f(T, 0.0);
+    ext.misc = vec4f(0.046, 1.0, mc.u_shiftPrimary + noise, mc.u_shiftSecondary + noise);
+    ext.scatter = vec4f(base.rgb * mc.u_secondaryTint.rgb * 1.6, 0.35);
+    ext.trans = vec4f(mc.u_translucency, 0.25, 0.0, 0.0);
+    let viewDir = viewDirection(P);
+    let lit = applyLightingSurface(base.rgb, N, P, viewDir, 0.0, mc.u_roughness, mc.u_specular, ao, ext);
+#ifdef ES_GBUFFER
+    var frag : FragOut;
+    frag.color = vec4f(lit, 1.0);
+    frag.surface = vec4f(packNormal(normalize(N)), mc.u_roughness, 0.75);
+    return frag;
+#else
+    return vec4f(lit, 1.0);
+#endif
+}
+#pragma end
+`;
+
+// Skin: scattering without blurring the picture. Diffuse light comes from a softer normal than the surface's own (softest for red), the
+// terminator is warmed, thin curved places let light through, and the shine is two lobes and a fuzz. Base colour is the mesh's texture.
+const SKIN = `#pragma shader "Skin"
+#pragma version 300 es
+#pragma domain Lit
+#pragma param u_tint color default(1,1,1,1)
+#pragma param u_normalMap texture default(flatnormal) texel(data)
+#pragma param u_ormMap texture default(white) texel(data)
+#pragma param u_occlusionStrength float default(1) range(0,1) ui(slider)
+// How rough the surface is (a scale on the map's own roughness), how much it shines, and the second, tighter lobe.
+#pragma param u_roughness float default(1) range(0,2) ui(slider)
+#pragma param u_specular float default(1) range(0,2) ui(slider)
+#pragma param u_lobe2 float default(0.18) range(0,1) ui(slider)
+#pragma param u_lobe2Roughness float default(0.4) range(0.05,1) ui(slider)
+// How much softer than the surface's own normal the diffuse light's normal is: for red, then for green and blue (mip levels of the normal map).
+#pragma param u_blurRed float default(3.2) range(0,8) ui(slider)
+#pragma param u_blurGreen float default(1.6) range(0,8) ui(slider)
+// The colour the terminator takes and how far light wraps past it.
+#pragma param u_sssColor color default(0.95,0.4,0.3,1)
+#pragma param u_sssWrap float default(0.45) range(0,1) ui(slider)
+// Light through thin places: how much, and how much of a surface's curvature counts as thin.
+#pragma param u_translucency float default(0.5) range(0,1) ui(slider)
+#pragma param u_thinness float default(0.5) range(0,1) ui(slider)
+// The fine fuzz that lights a rim.
+#pragma param u_fuzz float default(0.1) range(0,1) ui(slider)
+// Marks the surface for the Subsurface Scattering effect, which spreads what is left of the light on a larger scale. Off by default.
+#pragma param u_subsurface float default(0) range(0,1) ui(slider)
+
+#pragma fragment
+precision highp float;
+
+in vec4 v_color;
+in vec2 v_texCoord;
+in highp vec2 v_worldPos;
+#ifdef MESH_NORMALS
+in highp vec3 v_worldNormal;
+in highp vec3 v_worldXYZ;
+#endif
+uniform sampler2D u_textures[1];
+
+#ifdef ES_GBUFFER
+layout(location = 0) out vec4 fragColor;
+layout(location = 1) out vec4 fragSurface;
+
+vec2 packNormal(vec3 n) {
+    n /= (abs(n.x) + abs(n.y) + abs(n.z));
+    vec2 sgn = vec2(n.x >= 0.0 ? 1.0 : -1.0, n.y >= 0.0 ? 1.0 : -1.0);
+    vec2 e = n.z >= 0.0 ? n.xy : (1.0 - abs(n.yx)) * sgn;
+    return e * 0.5 + 0.5;
+}
+#else
+out vec4 fragColor;
+#endif
+
+vec3 skinNormalAt(float bias) {
+    return normalize(texture(u_normalMap, v_texCoord, bias).xyz * 2.0 - 1.0);
+}
+
+void main() {
+#ifdef MESH_NORMALS
+    highp vec3 Ng = normalize(v_worldNormal);
+    highp vec3 P = v_worldXYZ;
+    if (!gl_FrontFacing) Ng = -Ng;
+    highp vec3 N = perturbNormal(Ng, P, v_texCoord, skinNormalAt(0.0));
+    highp vec3 Nmid = perturbNormal(Ng, P, v_texCoord, skinNormalAt(u_blurGreen));
+    highp vec3 Nsoft = perturbNormal(Ng, P, v_texCoord, skinNormalAt(u_blurRed));
+    // How fast the surface turns across a pixel, against how big a pixel is: the thin, strongly curved places.
+    float turn = (length(dFdx(Ng)) + length(dFdy(Ng))) / max(length(dFdx(P)) + length(dFdy(P)), 1e-5);
+    float thick = 1.0 - clamp(turn * 12.0 * u_thinness, 0.0, 1.0);
+#else
+    highp vec3 P = vec3(v_worldPos, 0.0);
+    highp vec3 N = vec3(0.0, 0.0, 1.0);
+    highp vec3 Nmid = N;
+    highp vec3 Nsoft = N;
+    float thick = 1.0;
+#endif
+    vec4 base = texture(u_textures[0], v_texCoord) * v_color * u_tint;
+    vec4 orm = texture(u_ormMap, v_texCoord);
+    float ao = mix(1.0, orm.r, u_occlusionStrength);
+    float rough = clamp(orm.g * u_roughness, 0.05, 1.0);
+    vec3 viewDir = viewDirection(P);
+
+    // The diffuse light, from two softnesses of normal, with the terminator warmed and light let through a thin place.
+    SurfaceExt wrapped = surfaceExtNone(Nsoft);
+    wrapped.scatter = vec4(u_sssColor.rgb * base.rgb * 1.4, u_sssWrap);
+    wrapped.trans = vec4(u_translucency, thick, 0.0, 0.0);
+    vec3 soft = applyLightingSurface(base.rgb, Nsoft, P, viewDir, 0.0, 1.0, 0.0, ao, wrapped);
+    SurfaceExt wrappedMid = surfaceExtNone(Nmid);
+    wrappedMid.scatter = wrapped.scatter;
+    wrappedMid.trans = wrapped.trans;
+    vec3 mid = applyLightingSurface(base.rgb, Nmid, P, viewDir, 0.0, 1.0, 0.0, ao, wrappedMid);
+    vec3 diffuse = vec3(soft.r, mid.g, mid.b);
+
+    // The shine: two lobes and a fuzz, on the surface's own normal, with no diffuse under it.
+    SurfaceExt shine = surfaceExtNone(N);
+    shine.coat = vec4(u_lobe2, u_lobe2Roughness, 0.0, 0.0);
+    shine.coatN = vec4(N, 0.0);
+    shine.sheen = vec4(vec3(u_fuzz), 0.5);
+    vec3 spec = applyLightingSurface(vec3(0.0), N, P, viewDir, 0.0, rough, u_specular, ao, shine);
+
+    float alpha = u_subsurface > 0.0 ? 0.996 : 1.0;
+    fragColor = vec4(diffuse + spec, alpha);
+#ifdef ES_GBUFFER
+    fragSurface = vec4(packNormal(normalize(N)), rough, 0.75);
+#endif
+}
+#pragma end
+
+#pragma fragment wgsl
+#ifdef ES_GBUFFER
+struct FragOut {
+    @location(0) color : vec4f,
+    @location(1) surface : vec4f,
+};
+
+fn packNormal(n : vec3f) -> vec2f {
+    let a = n / (abs(n.x) + abs(n.y) + abs(n.z));
+    let sgn = vec2f(select(-1.0, 1.0, a.x >= 0.0), select(-1.0, 1.0, a.y >= 0.0));
+    var e = a.xy;
+    if (a.z < 0.0) { e = (vec2f(1.0) - abs(a.yx)) * sgn; }
+    return e * 0.5 + 0.5;
+}
+
+@fragment fn fs_main(v : VSOut, @builtin(front_facing) front : bool) -> FragOut {
+#else
+@fragment fn fs_main(v : VSOut, @builtin(front_facing) front : bool) -> @location(0) vec4f {
+#endif
+    // Every sample is taken here, before any branch.
+    g_probeSlot = v.v_probeSlot;
+#ifdef MESH_LIGHTMAP
+    g_lightmap = v.v_lightmap;
+#endif
+    let base = textureSample(t0, s0, v.v_texCoord) * v.v_color * mc.u_tint;
+    let orm = textureSample(u_ormMap, u_ormMap_s, v.v_texCoord);
+    let tangentSharp = normalize(textureSampleBias(u_normalMap, u_normalMap_s, v.v_texCoord, 0.0).xyz * 2.0 - vec3f(1.0));
+    let tangentMid = normalize(textureSampleBias(u_normalMap, u_normalMap_s, v.v_texCoord, mc.u_blurGreen).xyz * 2.0 - vec3f(1.0));
+    let tangentSoft = normalize(textureSampleBias(u_normalMap, u_normalMap_s, v.v_texCoord, mc.u_blurRed).xyz * 2.0 - vec3f(1.0));
+#ifdef MESH_NORMALS
+    var Ng = normalize(v.v_worldNormal);
+    let P = v.v_worldXYZ;
+    if (!front) { Ng = -Ng; }
+    let N = perturbNormal(Ng, P, v.v_texCoord, tangentSharp);
+    let Nmid = perturbNormal(Ng, P, v.v_texCoord, tangentMid);
+    let Nsoft = perturbNormal(Ng, P, v.v_texCoord, tangentSoft);
+    let turn = (length(dpdx(Ng)) + length(dpdy(Ng))) / max(length(dpdx(P)) + length(dpdy(P)), 1e-5);
+    let thick = 1.0 - clamp(turn * 12.0 * mc.u_thinness, 0.0, 1.0);
+#else
+    let P = vec3f(v.v_worldPos.x, 0.0, v.v_worldPos.y);
+    let N = vec3f(0.0, 0.0, 1.0);
+    let Nmid = N;
+    let Nsoft = N;
+    let thick = 1.0;
+#endif
+    let ao = mix(1.0, orm.r, mc.u_occlusionStrength);
+    let rough = clamp(orm.g * mc.u_roughness, 0.05, 1.0);
+    let viewDir = viewDirection(P);
+
+    var wrapped = surfaceExtNone(Nsoft);
+    wrapped.scatter = vec4f(mc.u_sssColor.rgb * base.rgb * 1.4, mc.u_sssWrap);
+    wrapped.trans = vec4f(mc.u_translucency, thick, 0.0, 0.0);
+    let soft = applyLightingSurface(base.rgb, Nsoft, P, viewDir, 0.0, 1.0, 0.0, ao, wrapped);
+    var wrappedMid = surfaceExtNone(Nmid);
+    wrappedMid.scatter = wrapped.scatter;
+    wrappedMid.trans = wrapped.trans;
+    let mid = applyLightingSurface(base.rgb, Nmid, P, viewDir, 0.0, 1.0, 0.0, ao, wrappedMid);
+    let diffuse = vec3f(soft.r, mid.g, mid.b);
+
+    var shine = surfaceExtNone(N);
+    shine.coat = vec4f(mc.u_lobe2, mc.u_lobe2Roughness, 0.0, 0.0);
+    shine.coatN = vec4f(N, 0.0);
+    shine.sheen = vec4f(vec3f(mc.u_fuzz), 0.5);
+    let spec = applyLightingSurface(vec3f(0.0), N, P, viewDir, 0.0, rough, mc.u_specular, ao, shine);
+
+    var alpha = 1.0;
+    if (mc.u_subsurface > 0.0) { alpha = 0.996; }
+#ifdef ES_GBUFFER
+    var frag : FragOut;
+    frag.color = vec4f(diffuse + spec, alpha);
+    frag.surface = vec4f(packNormal(normalize(N)), rough, 0.75);
+    return frag;
+#else
+    return vec4f(diffuse + spec, alpha);
+#endif
+}
+#pragma end
+`;
+
 export const BUILTIN_SHADER_TEMPLATES: readonly BuiltinShaderTemplate[] = [
     template('sprite-unlit', 'Unlit', 'Texture × vertex color × tint, no lighting.', SPRITE_UNLIT),
     template('sprite-lit', 'Lit', 'Lit by the scene\'s 2D lights; optional normal map.', SPRITE_LIT),
@@ -1386,6 +1733,10 @@ export const BUILTIN_SHADER_TEMPLATES: readonly BuiltinShaderTemplate[] = [
         'Four texture layers (grass, dirt, snow, rock) weighted by the Terrain component, tiled by world position.', TERRAIN),
     template('foliage', 'Foliage',
         'Plants that sway in the wind: a vertex bend by painted weights, two-sided and translucent, with an optional cutout texture.', FOLIAGE),
+    template('hair', 'Hair',
+        'Strand lighting: Kajiya-Kay diffuse, two shifted highlights along a flow map, and light through the strands.', HAIR),
+    template('skin', 'Skin',
+        'Soft diffuse by colour, a warm terminator, light through thin places, two shine lobes and a fuzz — without blurring the picture.', SKIN),
 ];
 
 export function builtinShaderTemplate(id: string): BuiltinShaderTemplate | undefined {

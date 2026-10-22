@@ -49,6 +49,10 @@
  *   ESTELLA_VERIFY_TIMEOUT_MS  how long this run may take before it reports one
  */
 import { app, BrowserWindow } from 'electron';
+
+// The launcher that started this reads its output through a pipe. If that launcher is stopped, the pipe is gone and the next line printed
+// would raise an uncaught exception, which Electron shows as a dialog box: a run nobody is listening to ends quietly instead.
+for (const stream of [process.stdout, process.stderr]) stream.on('error', () => app.exit(0));
 import os from 'node:os';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';

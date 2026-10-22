@@ -237,6 +237,25 @@ bool glExtensionPresent(const char* name) {
     return false;
 }
 
+/**
+ * How far the bound texture is sharpened where it is seen at a slant. A mipmapped texture is averaged to the footprint's longer side, so a
+ * floor, a hair card or a sleeve seen edge-on washes out; with this the sampler takes extra samples along the long side instead.
+ * WebGL2 has it as an extension and an extension may be absent, so it is asked once and left alone where it is not there.
+ */
+void setAnisotropy(const TextureDesc& desc, bool mipped) {
+    static const GLfloat kMax = [] {
+        constexpr GLenum kMaxAnisotropy = 0x84FF;  // GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT
+        if (!(glExtensionPresent("GL_EXT_texture_filter_anisotropic") || glExtensionPresent("EXT_texture_filter_anisotropic"))) return 1.0f;
+        GLfloat v = 1.0f;
+        glGetFloatv(kMaxAnisotropy, &v);
+        return v < 1.0f ? 1.0f : v;
+    }();
+    if (kMax <= 1.0f) return;
+    constexpr GLenum kTextureMaxAnisotropy = 0x84FE;  // GL_TEXTURE_MAX_ANISOTROPY_EXT
+    const bool linear = desc.minFilter != TextureFilter::Nearest && desc.magFilter != TextureFilter::Nearest;
+    glTexParameterf(GL_TEXTURE_2D, kTextureMaxAnisotropy, (mipped && linear) ? (kMax < 16.0f ? kMax : 16.0f) : 1.0f);
+}
+
 std::string readShaderInfoLog(GLuint shader) {
     GLint logLength = 0;
     glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logLength);
@@ -1142,6 +1161,7 @@ bool GLDevice::backendCreateTexture(u32 id, const TextureDesc& desc, const void*
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, toGLFilter(desc.magFilter));
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, toGLWrap(desc.wrapS));
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, toGLWrap(desc.wrapT));
+    setAnisotropy(desc, desc.mipmaps);
 
     if (desc.mipmaps && pixels) {
         glGenerateMipmap(GL_TEXTURE_2D);
@@ -1182,6 +1202,7 @@ bool GLDevice::backendCreateCompressedTexture(u32 id, const TextureDesc& desc, G
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, toGLFilter(desc.magFilter));
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, toGLWrap(desc.wrapS));
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, toGLWrap(desc.wrapT));
+    setAnisotropy(desc, levels > 1);
     return true;
 }
 
@@ -1228,6 +1249,7 @@ void GLDevice::backendSetTextureParams(u32 id, const TextureDesc& desc) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, toGLFilter(desc.magFilter));
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, toGLWrap(desc.wrapS));
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, toGLWrap(desc.wrapT));
+    setAnisotropy(desc, desc.mipmaps);
 }
 
 void GLDevice::backendGenerateMipmaps(u32 id) {
