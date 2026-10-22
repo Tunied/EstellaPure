@@ -17,7 +17,7 @@ const [glsl, wgsl] = [source.slice(0, split), source.slice(split)];
 const LAYERS = [
     'u_ior', 'u_specular', 'u_clearcoat', 'u_clearcoatRoughness', 'u_sheenColor', 'u_sheenRoughness', 'u_anisotropy',
     'u_anisotropyRotation', 'u_translucency', 'u_translucencyColor', 'u_thickness', 'u_transmission', 'u_attenuationColor',
-    'u_iridescence', 'u_iridescenceIor', 'u_iridescenceThickness',
+    'u_iridescence', 'u_iridescenceIor', 'u_iridescenceThickness', 'u_subsurface', 'u_refractionStrength',
 ];
 
 describe('the Model shader\'s shading layers', () => {

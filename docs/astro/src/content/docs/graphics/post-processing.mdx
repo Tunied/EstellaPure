@@ -30,6 +30,7 @@ several can stack in one frame at no extra target cost beyond the passes.
 | `lightShafts` | Sun rays through whatever stands in front of it | `intensity`, `sunAzimuth`, `sunElevation`, `decay`, `reach` |
 | `ssao` | Ambient occlusion from a ring of depth samples around each point | `radius`, `intensity`, `bias`, `power` |
 | `gtao` | Ground-truth ambient occlusion: the horizon each point can see, integrated against its own normal | `radius`, `intensity`, `power`, `thickness` |
+| `subsurface` | Light spreading through a marked surface: its lit colour blurred along it, red furthest | `width`, `strength`, `color` |
 | `contactShadows` | The small sharp shadows at a contact a shadow map is too coarse to hold | `intensity`, `length`, `thickness` |
 | `ssgi` | One bounce of diffuse light between the surfaces the camera sees | `intensity`, `radius`, `thickness`, `maxBounce` |
 | `autoExposure` | Eye adaptation: exposure follows how bright the picture is | `bias`, `speedUp`, `speedDown`, `minEV`, `maxEV` |
@@ -97,6 +98,20 @@ resident meshes in range, so keep `shelterRange` to the reach you need; ground o
 The clock is the game's. A capture that has to be the same on every run sets `timeScale` to 0 and `phase` to the time it
 wants. What this is not: the ground's shape is read from what the camera sees (a hollow behind a wall is not known),
 and the rain is a screen-space layer, not particles that collide with the world.
+
+### Subsurface scattering
+
+Skin, wax, marble and leaves show the lit picture softened along the surface, each colour by a different amount: red
+travels far, blue barely. `subsurface` is that blur, as an x pass and a y pass over the finished picture. Which
+surfaces take part is the material's choice — a Model material with `u_subsurface` above zero marks its pixels (it
+draws them with alpha 0.996, which nothing on screen shows and which the effect gives back as 1) — and the effect
+decides how far: `width` is a world length for the widest colour, `color` the proportions between the channels (the
+brightest travels the full width), `strength` how much of the blur is mixed in. A marked pixel gathers only from marked
+neighbours on the same surface, so an ear does not bleed into the wall behind it.
+
+It blurs the lit colour as it stands, specular included, so a sharp highlight on a scattering surface is softened with
+it, and the width belongs to the effect, so every scattering material in view shares it. The effect needs scene depth
+like ambient occlusion does, and the low quality level leaves it out.
 
 ### Ambient occlusion
 

@@ -4,6 +4,7 @@ import type { ShaderHandle } from '../render/material';
 import { postProcessEffects } from './postProcessEffects';
 import { lensEffects } from './lensEffects';
 import { gtaoPasses } from './gtao';
+import { subsurfacePasses } from './subsurface';
 import { SHARPEN_WGSL } from './computeEffects';
 
 export interface EffectUniformDef {
@@ -543,6 +544,27 @@ registerEffect({
         { name: 'ssao_blur_x', factory: () => postProcessEffects.createSsaoBlur(0), scale: 0.5 },
         { name: 'ssao_blur_y', factory: () => postProcessEffects.createSsaoBlur(1), scale: 0.5 },
         { name: 'ssao_composite', factory: () => postProcessEffects.createSsaoComposite() },
+    ],
+});
+
+registerEffect({
+    type: 'subsurface',
+    label: 'Subsurface Scattering',
+    factory: () => subsurfacePasses.createSubsurface(0),
+    // Light that enters a marked surface and leaves it nearby: the lit picture blurred along the surface, each colour by its
+    // own amount. Which surfaces: the ones whose material holds a Subsurface above zero (the Model material's `u_subsurface`).
+    uniforms: [
+        // A world length: how far the widest colour travels. Skin is a few millimetres; wax and marble are centimetres.
+        { name: 'u_width', label: 'Width', min: 0.1, max: 80, step: 0.1, defaultValue: 8 },
+        { name: 'u_strength', label: 'Strength', min: 0, max: 1, step: 0.01, defaultValue: 1, neutralValue: 0 },
+    ],
+    // The colour sets the proportions between the channels: the brightest travels the full width.
+    colors: [
+        { name: 'u_color', label: 'Scatter Colour', defaultValue: { r: 1, g: 0.45, b: 0.25, a: 1 } },
+    ],
+    multiPass: [
+        { name: 'sss_x', factory: () => subsurfacePasses.createSubsurface(0) },
+        { name: 'sss_y', factory: () => subsurfacePasses.createSubsurface(1) },
     ],
 });
 

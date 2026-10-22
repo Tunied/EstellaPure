@@ -377,6 +377,9 @@ const MODEL = `#pragma shader "Model"
 #pragma param u_thickness float default(0) range(0,1) ui(slider)
 #pragma param u_transmission float default(0) range(0,1) ui(slider)
 #pragma param u_attenuationColor color default(1,1,1,1)
+// Marks this surface as one light scatters through (skin, wax, a leaf): its pixels are drawn with alpha 0.996, which the
+// Subsurface Scattering effect reads and blurs along the surface. Does nothing without that effect; the effect gives alpha back.
+#pragma param u_subsurface float default(0) range(0,1) ui(slider)
 // The picture of the opaque scene as it stood behind this surface, which the frame takes a copy of before it draws a material
 // that holds a transmission above zero (and only then: a draw that reads it is made after the copy). The white it falls back
 // to has alpha 1, and a real copy has 0.5 — which is how this tells whether it has one.
@@ -533,6 +536,7 @@ void main() {
     }
     vec3 lit = applyLightingSurface(base.rgb * (1.0 - u_transmission * refracted), N, P, viewDir,
                                     u_metallic * mr.b, roughness, u_specular, ao, ext);
+    if (u_subsurface > 0.0 && u_alphaCutoff <= 0.0) alpha = min(alpha, 0.996);
     fragColor = vec4(lit + seen + u_emissive.rgb * texture(u_emissiveMap, v_texCoord).rgb, alpha);
 #ifdef ES_GBUFFER
     // Alpha says something was drawn here (0 is "nothing wrote"), and carries the metalness above 0.75: a pixel that
@@ -670,6 +674,7 @@ fn packNormal(n : vec3f) -> vec2f {
     }
     let lit = applyLightingSurface(base.rgb * (1.0 - mc.u_transmission * refracted), N, P, viewDir,
                                    mc.u_metallic * mr.b, roughness, mc.u_specular, ao, ext);
+    if (mc.u_subsurface > 0.0 && mc.u_alphaCutoff <= 0.0) { alpha = min(alpha, 0.996); }
     let emit = mc.u_emissive.rgb
              * textureSampleGrad(u_emissiveMap, u_emissiveMap_s, v.v_texCoord, duvx, duvy).rgb;
 #ifdef ES_GBUFFER

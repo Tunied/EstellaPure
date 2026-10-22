@@ -2493,6 +2493,8 @@ export const NOTED = {
     {"note":"Skinned meshes are followed by their bones, from the palette they were last drawn with."},
   "feat(render): fog follows the scene's sun and can walk the air against its shadow map":
     {"note":"Height Fog and Light Shafts follow the scene's own sun, and Height Fog can carry the sun's shadows as volumetric light."},
+  "feat(render): screen-space subsurface scattering blurs the lit colour of surfaces a material marks":
+    {"note":"A Subsurface Scattering effect blurs the lit colour of the surfaces a material marks as scattering, red furthest, without bleeding across a depth edge."},
   "feat(render): a transmissive material refracts the opaque scene behind it":
     {"note":"Glass and water refract: a material with transmission bends and tints the opaque scene behind it, softened by its roughness."},
   "feat(render): ground-truth ambient occlusion joins the post-process effects":

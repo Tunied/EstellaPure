@@ -60,7 +60,7 @@ const PROFILES: Record<QualityLevel, QualityProfile> = {
         shadowAtlasSize: 1024, shadowCellSize: 256, shadowCascades: 2,
         planarReflectionScale: 0.25, planarReflectionMaxSize: 512, planarReflectionUpdatesPerSecond: 0,
         shadowDistance: 0, particleLimit: 1000, postProcess: true, ssao: false,
-        skipEffects: ['ssr', 'taa', 'depthOfField', 'lightShafts', 'motionBlur', 'lensFlare', 'gtao'],
+        skipEffects: ['ssr', 'taa', 'depthOfField', 'lightShafts', 'motionBlur', 'lensFlare', 'gtao', 'subsurface'],
     },
     medium: {
         renderScale: 1, minRenderScale: 0.65, msaaSamples: 2,
