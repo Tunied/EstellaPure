@@ -1,0 +1,12 @@
+{
+  "formatVersion": "1",
+  "name": "下城避难所 · Cyber Rooftop",
+  "description": "A cyberpunk rooftop survival-building scene with native 3D geometry and a native 2D HUD.",
+  "tag": "3D",
+  "version": "0.1.0",
+  "defaultScene": "assets/scenes/main.esscene",
+  "designResolution": { "width": 1672, "height": 940 },
+  "spineVersion": "none",
+  "scripts": { "main": "src/main.ts" },
+  "features": { "rendering": { "colorSpace": "linear", "outputTransform": "aces", "quality": { "mode": "high" } } }
+}

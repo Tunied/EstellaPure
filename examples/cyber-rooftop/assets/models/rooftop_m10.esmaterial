@@ -1,0 +1,20 @@
+{
+  "version": "1.0",
+  "type": "material",
+  "shader": "builtin:model",
+  "blendMode": 9,
+  "depthTest": true,
+  "depthWrite": true,
+  "cull": 0,
+  "properties": {
+    "u_emissiveMap": "rooftop_4.png",
+    "u_metallic": 0,
+    "u_roughness": 0.4000000059604645,
+    "u_emissive": {
+      "r": 2.200000047683716,
+      "g": 2.200000047683716,
+      "b": 2.200000047683716,
+      "a": 1
+    }
+  }
+}

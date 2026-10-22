@@ -1,0 +1,1162 @@
+{
+  "version": "2",
+  "name": "rooftop",
+  "rootEntityId": "root",
+  "entities": [
+    {
+      "prefabEntityId": "root",
+      "name": "rooftop",
+      "parent": null,
+      "children": [
+        "n1",
+        "n3",
+        "n9",
+        "n16",
+        "n39"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n1",
+      "name": "Deck",
+      "parent": "root",
+      "children": [
+        "n0"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n0",
+      "name": "Deck_roof",
+      "parent": "n1",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_0_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/rooftop_0.png",
+            "material": "assets/models/rooftop_m0.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n3",
+      "name": "Ghost",
+      "parent": "root",
+      "children": [
+        "n2"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n2",
+      "name": "Ghost_cyan",
+      "parent": "n3",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_1_0.esmesh",
+            "lit": true,
+            "material": "assets/models/rooftop_m1.esmaterial",
+            "color": {
+              "r": 0.019999999552965164,
+              "g": 0.7200000286102295,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n9",
+      "name": "Tool",
+      "parent": "root",
+      "children": [
+        "n4",
+        "n5",
+        "n6",
+        "n7",
+        "n8"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n4",
+      "name": "Tool_dark",
+      "parent": "n9",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_2_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/rooftop_1.png",
+            "material": "assets/models/rooftop_m2.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n5",
+      "name": "Tool_display",
+      "parent": "n9",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_3_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/rooftop_2.png",
+            "material": "assets/models/rooftop_m3.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n6",
+      "name": "Tool_orange",
+      "parent": "n9",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_4_0.esmesh",
+            "lit": true,
+            "material": "assets/models/rooftop_m4.esmaterial",
+            "color": {
+              "r": 0.7200000286102295,
+              "g": 0.25,
+              "b": 0.03500000014901161,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n7",
+      "name": "Tool_steel",
+      "parent": "n9",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_5_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/rooftop_3.png",
+            "material": "assets/models/rooftop_m5.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n8",
+      "name": "Tool_toolbody",
+      "parent": "n9",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_6_0.esmesh",
+            "lit": true,
+            "material": "assets/models/rooftop_m6.esmaterial",
+            "color": {
+              "r": 0.33000001311302185,
+              "g": 0.4000000059604645,
+              "b": 0.44999998807907104,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n16",
+      "name": "Train",
+      "parent": "root",
+      "children": [
+        "n10",
+        "n11",
+        "n12",
+        "n13",
+        "n14",
+        "n15"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n10",
+      "name": "Train_cyan",
+      "parent": "n16",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_7_0.esmesh",
+            "lit": true,
+            "material": "assets/models/rooftop_m1.esmaterial",
+            "color": {
+              "r": 0.019999999552965164,
+              "g": 0.7200000286102295,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n11",
+      "name": "Train_dark",
+      "parent": "n16",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_8_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/rooftop_1.png",
+            "material": "assets/models/rooftop_m2.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n12",
+      "name": "Train_glass",
+      "parent": "n16",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_9_0.esmesh",
+            "lit": true,
+            "material": "assets/models/rooftop_m7.esmaterial",
+            "color": {
+              "r": 0.017999999225139618,
+              "g": 0.09000000357627869,
+              "b": 0.12999999523162842,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n13",
+      "name": "Train_pink",
+      "parent": "n16",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_10_0.esmesh",
+            "lit": true,
+            "material": "assets/models/rooftop_m8.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 0.017999999225139618,
+              "b": 0.36000001430511475,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n14",
+      "name": "Train_steel",
+      "parent": "n16",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_11_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/rooftop_3.png",
+            "material": "assets/models/rooftop_m5.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n15",
+      "name": "Train_windowCool",
+      "parent": "n16",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_12_0.esmesh",
+            "lit": true,
+            "material": "assets/models/rooftop_m9.esmaterial",
+            "color": {
+              "r": 0.11999999731779099,
+              "g": 0.3799999952316284,
+              "b": 0.6399999856948853,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n39",
+      "name": "World",
+      "parent": "root",
+      "children": [
+        "n17",
+        "n18",
+        "n19",
+        "n20",
+        "n21",
+        "n22",
+        "n23",
+        "n24",
+        "n25",
+        "n26",
+        "n27",
+        "n28",
+        "n29",
+        "n30",
+        "n31",
+        "n32",
+        "n33",
+        "n34",
+        "n35",
+        "n36",
+        "n37",
+        "n38"
+      ],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n17",
+      "name": "World_billboard",
+      "parent": "n39",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_13_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/rooftop_4.png",
+            "material": "assets/models/rooftop_m10.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n18",
+      "name": "World_cyan",
+      "parent": "n39",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_14_0.esmesh",
+            "lit": true,
+            "material": "assets/models/rooftop_m1.esmaterial",
+            "color": {
+              "r": 0.019999999552965164,
+              "g": 0.7200000286102295,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n19",
+      "name": "World_dark",
+      "parent": "n39",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_15_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/rooftop_1.png",
+            "material": "assets/models/rooftop_m2.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n20",
+      "name": "World_glass",
+      "parent": "n39",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_16_0.esmesh",
+            "lit": true,
+            "material": "assets/models/rooftop_m7.esmaterial",
+            "color": {
+              "r": 0.017999999225139618,
+              "g": 0.09000000357627869,
+              "b": 0.12999999523162842,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n21",
+      "name": "World_leaf",
+      "parent": "n39",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_17_0.esmesh",
+            "lit": true,
+            "material": "assets/models/rooftop_m11.esmaterial",
+            "color": {
+              "r": 0.07999999821186066,
+              "g": 0.2800000011920929,
+              "b": 0.04500000178813934,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n22",
+      "name": "World_leaflight",
+      "parent": "n39",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_18_0.esmesh",
+            "lit": true,
+            "material": "assets/models/rooftop_m12.esmaterial",
+            "color": {
+              "r": 0.25,
+              "g": 0.4300000071525574,
+              "b": 0.06499999761581421,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n23",
+      "name": "World_orange",
+      "parent": "n39",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_19_0.esmesh",
+            "lit": true,
+            "material": "assets/models/rooftop_m4.esmaterial",
+            "color": {
+              "r": 0.7200000286102295,
+              "g": 0.25,
+              "b": 0.03500000014901161,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n24",
+      "name": "World_paint",
+      "parent": "n39",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_20_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/rooftop_5.png",
+            "material": "assets/models/rooftop_m13.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n25",
+      "name": "World_pink",
+      "parent": "n39",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_21_0.esmesh",
+            "lit": true,
+            "material": "assets/models/rooftop_m8.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 0.017999999225139618,
+              "b": 0.36000001430511475,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n26",
+      "name": "World_puddle",
+      "parent": "n39",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_22_0.esmesh",
+            "lit": true,
+            "material": "assets/models/rooftop_m14.esmaterial",
+            "color": {
+              "r": 0.11999999731779099,
+              "g": 0.18000000715255737,
+              "b": 0.2199999988079071,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n27",
+      "name": "World_sign0",
+      "parent": "n39",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_23_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/rooftop_6.png",
+            "material": "assets/models/rooftop_m15.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n28",
+      "name": "World_sign1",
+      "parent": "n39",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_24_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/rooftop_7.png",
+            "material": "assets/models/rooftop_m16.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n29",
+      "name": "World_sign2",
+      "parent": "n39",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_25_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/rooftop_8.png",
+            "material": "assets/models/rooftop_m17.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n30",
+      "name": "World_sign3",
+      "parent": "n39",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_26_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/rooftop_9.png",
+            "material": "assets/models/rooftop_m18.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n31",
+      "name": "World_sign4",
+      "parent": "n39",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_27_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/rooftop_10.png",
+            "material": "assets/models/rooftop_m19.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n32",
+      "name": "World_sign5",
+      "parent": "n39",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_28_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/rooftop_11.png",
+            "material": "assets/models/rooftop_m20.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n33",
+      "name": "World_soil",
+      "parent": "n39",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_29_0.esmesh",
+            "lit": true,
+            "material": "assets/models/rooftop_m21.esmaterial",
+            "color": {
+              "r": 0.03999999910593033,
+              "g": 0.02500000037252903,
+              "b": 0.017999999225139618,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n34",
+      "name": "World_steel",
+      "parent": "n39",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_30_0.esmesh",
+            "lit": true,
+            "texture": "assets/models/rooftop_3.png",
+            "material": "assets/models/rooftop_m5.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n35",
+      "name": "World_warm",
+      "parent": "n39",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_31_0.esmesh",
+            "lit": true,
+            "material": "assets/models/rooftop_m22.esmaterial",
+            "color": {
+              "r": 1,
+              "g": 0.47999998927116394,
+              "b": 0.11999999731779099,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n36",
+      "name": "World_windowCool",
+      "parent": "n39",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_32_0.esmesh",
+            "lit": true,
+            "material": "assets/models/rooftop_m9.esmaterial",
+            "color": {
+              "r": 0.11999999731779099,
+              "g": 0.3799999952316284,
+              "b": 0.6399999856948853,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n37",
+      "name": "World_windowDark",
+      "parent": "n39",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_33_0.esmesh",
+            "lit": true,
+            "material": "assets/models/rooftop_m23.esmaterial",
+            "color": {
+              "r": 0.02199999988079071,
+              "g": 0.04500000178813934,
+              "b": 0.06499999761581421,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    },
+    {
+      "prefabEntityId": "n38",
+      "name": "World_windowWarm",
+      "parent": "n39",
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {}
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "assets/models/rooftop_34_0.esmesh",
+            "lit": true,
+            "material": "assets/models/rooftop_m24.esmaterial",
+            "color": {
+              "r": 0.8500000238418579,
+              "g": 0.47999998927116394,
+              "b": 0.20000000298023224,
+              "a": 1
+            },
+            "opaque": true,
+            "enabled": true
+          }
+        }
+      ]
+    }
+  ]
+}

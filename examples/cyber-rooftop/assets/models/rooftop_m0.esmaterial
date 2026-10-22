@@ -1,0 +1,16 @@
+{
+  "version": "1.0",
+  "type": "material",
+  "shader": "builtin:model",
+  "blendMode": 9,
+  "depthTest": true,
+  "depthWrite": true,
+  "cull": 0,
+  "properties": {
+    "u_metallic": 0.15,
+    "u_roughness": 0.85,
+    "u_specular": 0.35,
+    "u_normalMap": "../textures/roof-normal.png",
+    "u_metallicRoughnessMap": "../textures/roof-orm.png"
+  }
+}
