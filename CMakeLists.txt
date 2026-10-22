@@ -76,6 +76,9 @@ if(ES_SANITIZE)
     if(EMSCRIPTEN)
         # ASan's shadow memory does not fit in the harnesses' fixed default heap.
         add_link_options(-sALLOW_MEMORY_GROWTH=1)
+        # Debug frames under ASan are several times a Release frame, and a harness keeps a whole RenderFrame (its light
+        # blocks alone are 16 KB) on the stack: the 64 KB default ends in a stack cookie overwritten at exit.
+        add_link_options(-sSTACK_SIZE=2097152)
     endif()
 endif()
 
