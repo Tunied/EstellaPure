@@ -22,6 +22,14 @@ Add a `TimeOfDay` component to one entity.
 | `north` | How far the world is turned from compass north (+Z) toward +X, in degrees — which way the sun rises. |
 | `drive` | What the time drives: Lights, Sky, Fog, Exposure, Reflections. |
 
+## In the editor
+
+Select the entity and the Details panel shows the day instead of a list of numbers: the sun's height across 24 hours, drawn
+from this component's own latitude and declination (a winter day is a low short arc, a polar summer one never sets), with a
+hand you drag to set the hour — or click the dial and use the arrow keys, 15 minutes a step, an hour with Shift. Beside it
+are the sun's height, the daylight and the key light's scale at that hour, and below, a switch for each thing the clock
+drives. The hour you set is what the editor previews; it only advances in Play.
+
 ## What an hour changes
 
 - **The key light.** The scene's directional light (the one that follows a panorama's sun or casts shadows, else the first) is

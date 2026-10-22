@@ -3571,6 +3571,7 @@ v: WorldAxis
 
 ## EffectDef — interface @experimental
 ```
+category: EffectCategory | undefined
 colors: EffectColorDef[] | undefined
 compute: ComputeEffectSource | undefined
 factory: (() => ShaderHandle) | undefined
@@ -5013,7 +5014,7 @@ sceneName: string | undefined
 source: RuntimeAssetSource
 spineManager: SpineManager | null | undefined
 spineModule: SpineWasmModule | null | undefined
-uiTheme: "dark" | "light" | undefined
+uiTheme: "light" | "dark" | undefined
 uiThemeOverrides: ThemeOverrides | undefined
 ```
 
@@ -5613,7 +5614,7 @@ send: (data: string | ArrayBuffer) => void
 ## NodeParamSpec — interface @beta
 ```
 key: string
-kind: "texture" | "text" | "bool" | "float" | "channel" | "color"
+kind: "texture" | "text" | "bool" | "float" | "color" | "channel"
 label: string
 ```
 
@@ -6475,7 +6476,7 @@ physicsConfig: Physics2DPluginConfig | undefined
 physicsEnabled: boolean | undefined
 remoteRoot: string | undefined
 sceneData: SceneData
-uiTheme: "dark" | "light" | undefined
+uiTheme: "light" | "dark" | undefined
 uiThemeOverrides: ThemeOverrides | undefined
 wasmBaseUrl: string | undefined
 ```
@@ -6503,7 +6504,7 @@ module: ESEngineModule
 physicsConfig: Physics2DPluginConfig | undefined
 physicsEnabled: boolean | undefined
 scenes: { name: string; data: SceneData; }[]
-uiTheme: "dark" | "light" | undefined
+uiTheme: "light" | "dark" | undefined
 uiThemeOverrides: ThemeOverrides | undefined
 ySortLayers: number | undefined
 ```
@@ -7510,7 +7511,7 @@ source: RuntimeAssetSource
 spineManager: SpineManager | null | undefined
 spineModule: SpineWasmModule | null | undefined
 steamAppId: number | undefined
-uiTheme: "dark" | "light" | undefined
+uiTheme: "light" | "dark" | undefined
 uiThemeOverrides: ThemeOverrides | undefined
 worlds: WorldManifest[] | undefined
 ```

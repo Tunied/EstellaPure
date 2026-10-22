@@ -377,6 +377,10 @@ pick the output transform and leave the effect off.
 
 ## Using a `PostProcessVolume`
 
+In the editor a volume's effects are listed in the order they run, each with its switch and its parameters (colour parameters
+included), a fold to hide them, and a tag for what it is for (Lens, Colour, Light, Atmosphere, Anti-aliasing, Stylize); an
+effect that needs a compute shader says **WebGPU only**. The add menu groups the effects the same way.
+
 Add a `PostProcessVolume`, enable effects, and set their parameters. Volumes
 **blend where they overlap**, so you can drive effects by area (a "underwater"
 volume) or fade them in over a transition.

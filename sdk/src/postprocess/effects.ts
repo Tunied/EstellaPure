@@ -60,9 +60,14 @@ export interface ComputeEffectSource {
     workgroupSize?: [number, number];
 }
 
+/** What an effect is for, which is how an editor groups a list of thirty: the camera, the colour, the light, the air, the edges, a look. */
+export type EffectCategory = 'lens' | 'color' | 'light' | 'atmosphere' | 'aa' | 'stylize';
+
 export interface EffectDef {
     type: string;
     label: string;
+    /** Set for every built-in effect, by the table at the end of this file. */
+    category?: EffectCategory;
     /** What compiles the effect's draw shader. Absent for a compute effect (see {@link compute}). */
     factory?: () => ShaderHandle;
     /** Set instead of `factory` for an effect that runs as a compute shader. */
@@ -688,3 +693,18 @@ registerEffect({
         { name: 'u_lut', label: 'LUT (1024x32, 32 slices)' },
     ],
 });
+
+const CATEGORIES: Record<EffectCategory, string[]> = {
+    lens: ['bloom', 'depthOfField', 'motionBlur', 'lensFlare', 'filmGrain', 'chromaticAberration', 'lensDistortion', 'vignette', 'sharpen'],
+    color: ['tonemap', 'colorGrade', 'lutGrade', 'autoExposure', 'grayscale'],
+    light: ['ssao', 'gtao', 'ssgi', 'ssr', 'voxelGI', 'contactShadows', 'lightShafts', 'subsurface'],
+    atmosphere: ['distanceFog', 'heightFog', 'skyAtmosphere', 'rain'],
+    aa: ['fxaa', 'taa'],
+    stylize: ['blur', 'pixelate', 'outline', 'depthOutline'],
+};
+for (const [category, types] of Object.entries(CATEGORIES) as [EffectCategory, string[]][]) {
+    for (const type of types) {
+        const def = effectRegistry.get(type);
+        if (def) def.category = category;
+    }
+}
