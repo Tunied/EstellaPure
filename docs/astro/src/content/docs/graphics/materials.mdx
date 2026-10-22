@@ -32,7 +32,7 @@ creates a material from a built-in template — the same list ships in code as
 | **Dissolve** | `sprite-dissolve` | Noise burn-away with a glowing edge (`u_progress` 0→1). |
 | **Pixelate** | `sprite-pixelate` | Quantizes UVs to a `u_pixels` grid. |
 | **UV Scroll** | `sprite-uv-scroll` | Scrolls the texture by `u_scrollSpeed` × time. |
-| **Model** | `model` | What a glTF material says beyond base color: `u_normalMap`, `u_emissive`(`Map`), `u_occlusionMap` + `u_occlusionStrength`, `u_alphaCutoff`, `u_metallic` / `u_roughness` (+ `u_metallicRoughnessMap`). Written by model import. |
+| **Model** | `model` | What a glTF material says beyond base color: `u_normalMap`, `u_emissive`(`Map`), `u_occlusionMap` + `u_occlusionStrength`, `u_alphaCutoff`, `u_metallic` / `u_roughness` (+ `u_metallicRoughnessMap`), and the [shading layers](#shading-layers) — clear coat, sheen, anisotropy, translucency, thin film, index of refraction, transmission. Written by model import. |
 
 A new material **references** its template by id — it stores `shader: "builtin:sprite-unlit"`
 and writes **no shader file** to disk. The engine compiles the built-in from in-code source
@@ -40,6 +40,43 @@ and writes **no shader file** to disk. The engine compiles the built-in from in-
 so a fresh material draws immediately with nothing extra to manage. A real `.esshader` only
 lands on disk when you **convert** the material to a unique shader (below) or **create a
 shader** yourself.
+
+## Shading layers
+
+The **Model** shader is a metal/rough surface with layers on top. Each is off at its default, a layer at zero costs the surface nothing, and a material that says none of them is the plain surface it always was.
+
+| Layer | Parameters | What it does |
+|---|---|---|
+| Clear coat | `u_clearcoat`, `u_clearcoatRoughness` | A smooth lacquer over the surface: a second, sharper highlight, the base underneath darkened by what the coat reflects, and an environment reflection of its own. The coat is lit by the surface's own normal, so a bump map roughens what is under it and not the lacquer. Car paint, varnished wood, wet stone. |
+| Sheen | `u_sheenColor`, `u_sheenRoughness` | The soft light that cloth throws back at grazing angles (a Charlie lobe), taken out of the base so that it does not add energy. Velvet, satin, felt. |
+| Anisotropy | `u_anisotropy` (-1..1), `u_anisotropyRotation` | A highlight stretched across the grooves instead of round: brushed metal, hair-like fibres, CDs. The grooves run along the UV frame turned by the rotation; the environment reflection is bent the same way. |
+| Translucency | `u_translucency`, `u_translucencyColor`, `u_thickness` | Light that scatters into a thin surface: the lit side wraps past the terminator, and a lamp behind shows through, tinted, less the thicker it is. Leaves, paper, wax, a lampshade, skin at the ears. |
+| Thin film | `u_iridescence`, `u_iridescenceIor`, `u_iridescenceThickness` (nm) | The reflection changes hue with the angle: soap, oil, beetle shell, coated glass. |
+| Index of refraction | `u_ior`, `u_specular` | How strongly a non-metal reflects head-on (1.5 is glass and most plastics; a gemstone is 2.4), and a master scale on the reflection. |
+| Transmission | `u_transmission`, `u_attenuationColor` | Glass and water: the surface lets that much of what is behind show, tinted, and reflects more at grazing angles. See the limits. |
+
+Everything here is written by model import from the glTF extensions of the same names (`KHR_materials_clearcoat`, `_sheen`, `_anisotropy`, `_ior`, `_specular`, `_iridescence`, `_transmission`, `_volume`, `_diffuse_transmission`) — see [Models](/docs/assets/models/).
+
+**Limits.** These are cheap, real-time models, and say where they stop:
+
+- **Transmission shows no refraction.** There is no picture of the opaque scene to bend, so a transmissive surface is drawn alpha-blended: the background behind it is undistorted, and the highlights on it are dimmed by the same blend. Pull the transmission down for a surface that must keep its highlights.
+- **Translucency does not blur.** There is no screen-space subsurface pass; the light that enters at one point leaves at that point.
+- **A layer's textures are not read.** Each layer is a constant for the whole material (the Model shader has no texture unit left for more); a glTF extension's maps are reported at import and its factors are kept.
+- **Sheen and thin film are fits.** Sheen's energy loss and the film's interference are analytic approximations in place of the lookup tables a production renderer bakes.
+- **Not provided:** hair (a Marschner-style strand model), eyes, a separate normal map for the coat, layered materials beyond one coat.
+
+### In your own shader
+
+A `Lit` shader reaches the same lighting. `applyLightingSurface(albedo, N, worldPos, V, metallic, roughness, specular, ao, ext)` is `applyLightingPBR` with the layers; start `ext` from `surfaceExtNone(N)` and set what you use:
+
+| Field | Holds |
+|---|---|
+| `ext.coat` | `x` strength, `y` perceptual roughness; `ext.coatN.xyz` the coat's normal |
+| `ext.sheen` | `rgb` colour (black is off), `a` perceptual roughness |
+| `ext.aniso` | `xyz` tangent (unit, across `N`), `w` strength -1..1 (0 is off) |
+| `ext.scatter` | `rgb` colour the scattered light takes, `a` wrap 0..1; `ext.trans.x` how much passes through, `ext.trans.y` thickness 0..1 |
+| `ext.film` | `x` strength, `y` film index, `z` thickness in nanometres |
+| `ext.misc.x` | reflectance at normal incidence of a non-metal (0.04 for an index of 1.5) |
 
 ## Choosing & sharing shaders in the editor
 

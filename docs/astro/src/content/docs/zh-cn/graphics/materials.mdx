@@ -28,12 +28,49 @@ std140 uniform 块,于是 CPU 能按名字设置、并安全地送到 GPU。一�
 | **Dissolve** | `sprite-dissolve` | 噪声烧蚀 + 发光边缘(`u_progress` 0→1)。 |
 | **Pixelate** | `sprite-pixelate` | UV 量化到 `u_pixels` 网格。 |
 | **UV Scroll** | `sprite-uv-scroll` | 按 `u_scrollSpeed` × 时间滚动纹理。 |
-| **Model** | `model` | glTF 材质在 base color 之外说的东西:`u_normalMap`、`u_emissive`(`Map`)、`u_occlusionMap` + `u_occlusionStrength`、`u_alphaCutoff`、`u_metallic` / `u_roughness`(以及 `u_metallicRoughnessMap`)。模型导入会写出它。 |
+| **Model** | `model` | glTF 材质在 base color 之外说的东西:`u_normalMap`、`u_emissive`(`Map`)、`u_occlusionMap` + `u_occlusionStrength`、`u_alphaCutoff`、`u_metallic` / `u_roughness`(以及 `u_metallicRoughnessMap`),还有[着色层](#着色层)——清漆、绒面、各向异性、半透、薄膜干涉、折射率、透射。模型导入会写出它。 |
 
 新建材质是**按 id 引用**其模板的——它存的是 `shader: "builtin:sprite-unlit"`,并**不会**在磁盘上
 写出 shader 文件。引擎从内置源码编译该模板(运行时加载器、cook 步骤、编辑器三处以同样方式解析
 `builtin:<id>`),所以新材质立即就能绘制,无需额外管理。只有当你把材质**转为独立着色器**(见下文)
 或自己**新建着色器**时,才会有真正的 `.esshader` 落到磁盘上。
+
+## 着色层
+
+**Model** shader 是一个金属/粗糙度表面,上面可以叠层。每一层默认关闭,强度为零的层不消耗任何开销,一个什么都不写的材质就是它一直以来的那个普通表面。
+
+| 层 | 参数 | 作用 |
+|---|---|---|
+| 清漆(Clear coat) | `u_clearcoat`、`u_clearcoatRoughness` | 表面上一层光滑的漆:第二个更锐利的高光,底层被清漆反射走的那部分变暗,并带有自己的环境反射。清漆用表面自身的法线着色,所以法线贴图只会让漆下面变粗糙,不会让漆变粗糙。车漆、清漆木头、湿石头。 |
+| 绒面(Sheen) | `u_sheenColor`、`u_sheenRoughness` | 布料在掠射角回弹的柔光(Charlie 瓣),并从底层里扣掉对应能量,不凭空增加亮度。天鹅绒、缎面、毛毡。 |
+| 各向异性 | `u_anisotropy`(-1..1)、`u_anisotropyRotation` | 高光沿垂直于纹路的方向被拉长而不是圆的:拉丝金属、纤维、光盘。纹路沿 UV 坐标系按旋转角转过后的方向;环境反射也按同一方向弯折。 |
+| 半透(Translucency) | `u_translucency`、`u_translucencyColor`、`u_thickness` | 光散射进薄的表面:受光面越过明暗交界线向背光侧延伸,背后的灯会透出来并带上颜色,越厚越弱。树叶、纸、蜡、灯罩、耳朵边缘的皮肤。 |
+| 薄膜干涉 | `u_iridescence`、`u_iridescenceIor`、`u_iridescenceThickness`(nm) | 反射的色相随角度变化:肥皂泡、油膜、甲虫壳、镀膜玻璃。 |
+| 折射率 | `u_ior`、`u_specular` | 非金属正对时反射有多强(1.5 是玻璃和大多数塑料,宝石是 2.4),以及反射的总缩放。 |
+| 透射(Transmission) | `u_transmission`、`u_attenuationColor` | 玻璃和水:表面让背后的东西按该比例透出来并带上颜色,掠射角处反射更强。见下方限制。 |
+
+这些都由模型导入从同名的 glTF 扩展写出(`KHR_materials_clearcoat`、`_sheen`、`_anisotropy`、`_ior`、`_specular`、`_iridescence`、`_transmission`、`_volume`、`_diffuse_transmission`)——见[模型](/docs/zh-cn/assets/models/)。
+
+**限制。** 这些是便宜的实时模型,下面说清楚它们止步在哪里:
+
+- **透射没有折射。** 没有不透明场景的画面可以拿来扭曲,所以透射表面按 alpha 混合绘制:它后面的背景不会变形,表面上的高光也会被同一次混合压暗。需要保住高光的表面请把透射调低。
+- **半透不做模糊。** 没有屏幕空间次表面散射 pass;从某一点进入的光就在这一点出去。
+- **不读取层的贴图。** 每一层对整个材质是一个常量(Model shader 已经没有多余的纹理单元);glTF 扩展的贴图在导入时会报告,其系数会保留。
+- **绒面和薄膜是拟合。** 绒面的能量损失和薄膜的干涉是解析近似,代替了生产级渲染器烘焙的查找表。
+- **不提供:** 头发(Marschner 式的发丝模型)、眼睛、清漆单独的法线贴图、超过一层清漆的分层材质。
+
+### 在你自己的 shader 里
+
+`Lit` shader 可以用同一套光照。`applyLightingSurface(albedo, N, worldPos, V, metallic, roughness, specular, ao, ext)` 就是带层的 `applyLightingPBR`;用 `surfaceExtNone(N)` 起一个 `ext`,再设置你用到的字段:
+
+| 字段 | 含义 |
+|---|---|
+| `ext.coat` | `x` 强度,`y` 感知粗糙度;`ext.coatN.xyz` 清漆的法线 |
+| `ext.sheen` | `rgb` 颜色(黑色为关闭),`a` 感知粗糙度 |
+| `ext.aniso` | `xyz` 切线(单位向量,垂直于 `N`),`w` 强度 -1..1(0 为关闭) |
+| `ext.scatter` | `rgb` 散射光的颜色,`a` 包裹 0..1;`ext.trans.x` 透过多少,`ext.trans.y` 厚度 0..1 |
+| `ext.film` | `x` 强度,`y` 膜的折射率,`z` 厚度(纳米) |
+| `ext.misc.x` | 非金属正对时的反射率(折射率 1.5 对应 0.04) |
 
 ## 在编辑器里选取与共享着色器
 

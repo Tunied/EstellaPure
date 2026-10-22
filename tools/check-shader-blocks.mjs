@@ -100,7 +100,7 @@ const ALIASES = {
 const SIGNATURE_GAPS = {
     sampleNormal: 'WGSL takes the texture and its sampler apart; GLSL has one combined type',
     sampleNormalGrad: 'WGSL takes the texture and its sampler apart; GLSL has one combined type',
-    shadeLight: 'WGSL returns the light and gloss it adds (a struct); GLSL accumulates them in two inout arguments',
+    shadeLight: 'WGSL returns the light, gloss and extra light it adds (a struct); GLSL accumulates them in three inout arguments',
 };
 
 /** A field name as the comparison sees it: the `u_` a shader adds is not part of it. */
@@ -220,7 +220,7 @@ function helpers(pattern) {
     return out;
 }
 
-const glslFns = helpers(/^\s*(?:highp\s+)?(?:void|vec[234]|float|mat[234])\s+(\w+)\s*\(([^)]*)\)\s*\{/gm);
+const glslFns = helpers(/^\s*(?:highp\s+)?(?:void|vec[234]|float|mat[234]|SurfaceExt)\s+(\w+)\s*\(([^)]*)\)\s*\{/gm);
 const wgslFns = helpers(/\bfn\s+(\w+)\s*\(([^)]*)\)\s*->/g);
 
 const shape = (counts) => counts.length === 1 ? `${counts[0]} argument(s)`

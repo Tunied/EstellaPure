@@ -1627,18 +1627,53 @@ fn distanceFalloff(dist : f32, reach : f32, fo : vec4f) -> f32 {
     let ramp = clamp((reach - dist) / max(reach - fo.x, 1e-4), 0.0, 1.0);
     return pow(ramp, max(fo.y, 1e-3));
 }
-fn applyLightingPBR(albedo : vec3f, N : vec3f, worldPos : vec3f, V : vec3f, metallic : f32,
-                    roughness : f32, specular : f32, ao : f32) -> vec3f {
-    let F0 = mix(vec3f(0.04), albedo, vec3f(metallic));
+)"
+// Split again for the same reason: the surface layers and the lighting that reads them.
+R"(struct SurfaceExt { coat : vec4f, coatN : vec4f, sheen : vec4f, aniso : vec4f, scatter : vec4f, trans : vec4f, film : vec4f, misc : vec4f };
+fn surfaceExtNone(N : vec3f) -> SurfaceExt {
+    return SurfaceExt(vec4f(0.0), vec4f(N, 0.0), vec4f(0.0), vec4f(0.0), vec4f(0.0), vec4f(0.0), vec4f(0.0),
+                      vec4f(0.04, 0.0, 0.0, 0.0));
+}
+fn distributionCharlie(NdotH : f32, a : f32) -> f32 {
+    let invA = 1.0 / max(a, 1e-3);
+    let sin2 = max(1.0 - NdotH * NdotH, 0.0078125);
+    return (2.0 + invA) * pow(sin2, invA * 0.5) / 6.28318531;
+}
+fn visibilityNeubelt(NdotV : f32, NdotL : f32) -> f32 {
+    return 1.0 / max(4.0 * (NdotL + NdotV - NdotL * NdotV), 1e-4);
+}
+fn distributionGGXAniso(at : f32, ab : f32, ToH : f32, BoH : f32, NoH : f32) -> f32 {
+    let a2 = at * ab;
+    let d = vec3f(ab * ToH, at * BoH, a2 * NoH);
+    let b2 = a2 / max(dot(d, d), 1e-7);
+    return a2 * b2 * b2 / 3.14159265;
+}
+fn visibilityGGXAniso(at : f32, ab : f32, ToV : f32, BoV : f32, ToL : f32, BoL : f32, NoV : f32, NoL : f32) -> f32 {
+    let lambdaV = NoL * length(vec3f(at * ToV, ab * BoV, NoV));
+    let lambdaL = NoV * length(vec3f(at * ToL, ab * BoL, NoL));
+    return 0.5 / max(lambdaV + lambdaL, 1e-5);
+}
+fn filmFresnel(F : vec3f, cosTheta : f32, film : vec4f) -> vec3f {
+    let sinT2 = (1.0 - cosTheta * cosTheta) / (film.y * film.y);
+    let cosT = sqrt(max(1.0 - sinT2, 0.0));
+    let opd = 2.0 * film.y * film.z * cosT;
+    let tint = vec3f(0.5) + vec3f(0.5) * cos(vec3f(6.28318531 * opd) / vec3f(650.0, 510.0, 475.0));
+    return clamp(F * mix(vec3f(1.0), tint * 2.0, vec3f(film.x)), vec3f(0.0), vec3f(1.0));
+}
+fn applyLightingSurface(albedo : vec3f, N : vec3f, worldPos : vec3f, V : vec3f, metallic : f32,
+                        roughness : f32, specular : f32, ao : f32, ext : SurfaceExt) -> vec3f {
+    let F0 = mix(vec3f(ext.misc.x), albedo, vec3f(metallic));
     let a = max(roughness * roughness, 1e-3);
     let NdotV = max(dot(N, V), 1e-4);
     var lit = indirectIrradiance(N) * ao;
     var gloss = vec3f(0.0);
+    var extra = vec3f(0.0);
     for (var i = 0; i < 16; i++) {
         let term = shadeLight(lc.u_lights[i].posDir, lc.u_lights[i].color, lc.u_lights[i].spot, lc.u_lights[i].shadow,
-                              lc.u_lights[i].shadowMap, lc.u_lights[i].falloff, N, V, worldPos, a, F0, NdotV, specular, roughness);
+                              lc.u_lights[i].shadowMap, lc.u_lights[i].falloff, N, V, worldPos, a, F0, NdotV, specular, roughness, ext);
         lit += term.lit;
         gloss += term.gloss;
+        extra += term.extra;
     }
     // The lights past the sixteen: this pixel's tile is found from where the fragment lands through the camera it was drawn by
     // (normalized device coordinates, the same on every backend), and only the lights whose bit is set in its mask are shaded.
@@ -1659,22 +1694,53 @@ fn applyLightingPBR(albedo : vec3f, N : vec3f, worldPos : vec3f, V : vec3f, meta
                 if (k >= tiledCount) { break; }
                 let term = shadeLight(lc.tiledLights[k].posDir, lc.tiledLights[k].color, lc.tiledLights[k].spot,
                                       lc.tiledLights[k].shadow, lc.tiledLights[k].shadowMap, lc.tiledLights[k].falloff,
-                                      N, V, worldPos, a, F0, NdotV, specular, roughness);
+                                      N, V, worldPos, a, F0, NdotV, specular, roughness, ext);
                 lit += term.lit;
                 gloss += term.gloss;
+                extra += term.extra;
             }
         }
     }
     let ab = envBRDFApprox(NdotV, roughness);
-    gloss += envRadiance(reflect(-V, N), roughness, reflectionColumn(), worldPos) * (ao * specular)
-           * (F0 * ab.x + vec3f(ab.y));
-    return albedo * (1.0 - metallic) * lit + gloss;
+    var envR = reflect(-V, N);
+    if (ext.aniso.w != 0.0) {
+        let T = ext.aniso.xyz;
+        var grain = T;
+        if (ext.aniso.w >= 0.0) { grain = cross(N, T); }
+        let bent = normalize(cross(cross(grain, V), grain));
+        envR = reflect(-V, normalize(mix(N, bent, vec3f(abs(ext.aniso.w)))));
+    }
+    var envF = F0 * ab.x + vec3f(ab.y);
+    if (ext.film.x > 0.0) { envF = filmFresnel(envF, NdotV, ext.film); }
+    gloss += envRadiance(envR, roughness, reflectionColumn(), worldPos) * (ao * specular)
+           * envF;
+    let base = albedo * (1.0 - metallic) * lit + gloss;
+    var baseScale = 1.0;
+    if (ext.coat.x > 0.0) {
+        let coatNdotV = max(dot(ext.coatN.xyz, V), 1e-4);
+        let cab = envBRDFApprox(coatNdotV, ext.coat.y);
+        let Fc = (0.04 * cab.x + cab.y) * ext.coat.x;
+        baseScale *= 1.0 - Fc;
+        extra += envRadiance(reflect(-V, ext.coatN.xyz), ext.coat.y, reflectionColumn(), worldPos) * (ao * Fc);
+    }
+    if (dot(ext.sheen.rgb, vec3f(1.0)) > 0.0) {
+        let sheenAlbedo = 0.2 + 0.3 * ext.sheen.a;
+        baseScale *= 1.0 - max(max(ext.sheen.r, ext.sheen.g), ext.sheen.b) * sheenAlbedo;
+        extra += ext.sheen.rgb * (indirectIrradiance(N) * ao * sheenAlbedo);
+    }
+    return base * baseScale + extra;
 }
-struct LightTerm { lit : vec3f, gloss : vec3f };
+fn applyLightingPBR(albedo : vec3f, N : vec3f, worldPos : vec3f, V : vec3f, metallic : f32,
+                    roughness : f32, specular : f32, ao : f32) -> vec3f {
+    return applyLightingSurface(albedo, N, worldPos, V, metallic, roughness, specular, ao, surfaceExtNone(N));
+}
+struct LightTerm { lit : vec3f, gloss : vec3f, extra : vec3f };
 fn shadeLight(pd : vec4f, col : vec4f, sp : vec4f, sh : vec4f, sm : vec4f, fo : vec4f, N : vec3f, V : vec3f,
-              worldPos : vec3f, a : f32, F0 : vec3f, NdotV : f32, specular : f32, roughness : f32) -> LightTerm {
+              worldPos : vec3f, a : f32, F0 : vec3f, NdotV : f32, specular : f32, roughness : f32,
+              ext : SurfaceExt) -> LightTerm {
     var lit = vec3f(0.0);
     var gloss = vec3f(0.0);
+    var extra = vec3f(0.0);
     {
         var L : vec3f;
         var atten : f32;
@@ -1715,14 +1781,52 @@ fn shadeLight(pd : vec4f, col : vec4f, sp : vec4f, sh : vec4f, sm : vec4f, fo : 
         lit += radiance;
         if (specular > 0.0) {
             let H = normalize(L + V);
-            let brdf = distributionGGX(max(dot(N, H), 0.0), a)
+            var brdf : f32;
+            if (ext.aniso.w != 0.0) {
+                let T = ext.aniso.xyz;
+                let B = cross(N, T);
+                let at = max(a * (1.0 + ext.aniso.w), 0.002);
+                let ab = max(a * (1.0 - ext.aniso.w), 0.002);
+                brdf = distributionGGXAniso(at, ab, dot(T, H), dot(B, H), max(dot(N, H), 0.0))
+                     * visibilityGGXAniso(at, ab, dot(T, V), dot(B, V), dot(T, L), dot(B, L), NdotV, ndotl);
+            } else {
+                brdf = distributionGGX(max(dot(N, H), 0.0), a)
                      * geometrySmith(NdotV, ndotl, roughness)
                      / max(4.0 * NdotV * ndotl, 1e-4);
-            gloss += radiance * fresnelSchlick(max(dot(V, H), 0.0), F0)
+            }
+            var F = fresnelSchlick(max(dot(V, H), 0.0), F0);
+            if (ext.film.x > 0.0) { F = filmFresnel(F, max(dot(V, H), 0.0), ext.film); }
+            gloss += radiance * F
                    * (brdf * 3.14159265 * specular);
         }
+        if (col.a > 0.0 && atten > 0.0
+            && (ext.coat.x > 0.0 || ext.scatter.a > 0.0 || dot(ext.sheen.rgb, vec3f(1.0)) > 0.0)) {
+            let irr = col.rgb * (col.a * atten);
+            let Hx = normalize(L + V);
+            let VdotH = max(dot(V, Hx), 0.0);
+            if (ext.coat.x > 0.0) {
+                let coatNdotL = max(dot(ext.coatN.xyz, L), 0.0);
+                let coatA = max(ext.coat.y * ext.coat.y, 1e-3);
+                let Fc = (0.04 + 0.96 * pow(1.0 - VdotH, 5.0)) * ext.coat.x;
+                extra += irr * coatNdotL
+                       * (distributionGGX(max(dot(ext.coatN.xyz, Hx), 0.0), coatA) * (0.25 / max(VdotH * VdotH, 1e-4))
+                          * Fc * 3.14159265);
+            }
+            if (dot(ext.sheen.rgb, vec3f(1.0)) > 0.0) {
+                let sheenA = max(ext.sheen.a * ext.sheen.a, 1e-3);
+                extra += irr * ndotl * ext.sheen.rgb
+                       * (distributionCharlie(max(dot(N, Hx), 0.0), sheenA) * visibilityNeubelt(NdotV, ndotl) * 3.14159265);
+            }
+            if (ext.scatter.a > 0.0) {
+                let wrapped = clamp((dot(N, L) + ext.scatter.a) / (1.0 + ext.scatter.a), 0.0, 1.0);
+                extra += irr * ext.scatter.rgb * max(wrapped - ndotl, 0.0);
+                let Hb = normalize(L + N * 0.3);
+                extra += irr * ext.scatter.rgb
+                       * (pow(clamp(dot(V, -Hb), 0.0, 1.0), 4.0) * ext.trans.x * (1.0 - ext.trans.y));
+            }
+        }
     }
-    return LightTerm(lit, gloss);
+    return LightTerm(lit, gloss, extra);
 }
 fn applyLighting2DAO(albedo : vec3f, N : vec3f, worldPos : vec2f, ao : f32) -> vec3f {
     let P = vec3f(worldPos, 0.0);
@@ -2579,33 +2683,85 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "    highp float ramp = clamp((reach - dist) / max(reach - fo.x, 1e-4), 0.0, 1.0);\n"
             "    return pow(ramp, max(fo.y, 1e-3));\n"
             "}\n"
+            // What a surface has beyond a base colour and a metal/rough pair: a clear coat over it, a sheen on it, grooves that stretch
+            // its highlight, light that scatters into it or passes through it, a thin film that tints its reflection. All zero is the
+            // plain surface (surfaceExtNone), and every term below sits behind a branch on it, so the plain surface pays nothing.
+            //   coat    x strength, y perceptual roughness      coatN  the coat's own normal (the geometric one, not the bump map's)
+            //   sheen   rgb colour, a perceptual roughness      aniso  xyz tangent (unit, across N), w strength -1..1
+            //   scatter rgb colour scattered light takes, a wrap 0..1
+            //   trans   x light passing through, y thickness 0..1   film  x strength, y film index, z thickness in nm
+            //   misc    x dielectric reflectance at normal incidence (0.04 for an index of 1.5)
+            "struct SurfaceExt {\n"
+            "    highp vec4 coat;\n"
+            "    highp vec4 coatN;\n"
+            "    highp vec4 sheen;\n"
+            "    highp vec4 aniso;\n"
+            "    highp vec4 scatter;\n"
+            "    highp vec4 trans;\n"
+            "    highp vec4 film;\n"
+            "    highp vec4 misc;\n"
+            "};\n"
+            "SurfaceExt surfaceExtNone(in highp vec3 N) {\n"
+            "    return SurfaceExt(vec4(0.0), vec4(N, 0.0), vec4(0.0), vec4(0.0), vec4(0.0), vec4(0.0), vec4(0.0),\n"
+            "                      vec4(0.04, 0.0, 0.0, 0.0));\n"
+            "}\n"
+            "highp float distributionCharlie(in highp float NdotH, in highp float a) {\n"
+            "    highp float invA = 1.0 / max(a, 1e-3);\n"
+            "    highp float sin2 = max(1.0 - NdotH * NdotH, 0.0078125);\n"
+            "    return (2.0 + invA) * pow(sin2, invA * 0.5) / 6.28318531;\n"
+            "}\n"
+            "highp float visibilityNeubelt(in highp float NdotV, in highp float NdotL) {\n"
+            "    return 1.0 / max(4.0 * (NdotL + NdotV - NdotL * NdotV), 1e-4);\n"
+            "}\n"
+            "highp float distributionGGXAniso(in highp float at, in highp float ab, in highp float ToH,\n"
+            "                                 in highp float BoH, in highp float NoH) {\n"
+            "    highp float a2 = at * ab;\n"
+            "    highp vec3 d = vec3(ab * ToH, at * BoH, a2 * NoH);\n"
+            "    highp float b2 = a2 / max(dot(d, d), 1e-7);\n"
+            "    return a2 * b2 * b2 / 3.14159265;\n"
+            "}\n"
+            "highp float visibilityGGXAniso(in highp float at, in highp float ab, in highp float ToV, in highp float BoV,\n"
+            "                               in highp float ToL, in highp float BoL, in highp float NoV, in highp float NoL) {\n"
+            "    highp float lambdaV = NoL * length(vec3(at * ToV, ab * BoV, NoV));\n"
+            "    highp float lambdaL = NoV * length(vec3(at * ToL, ab * BoL, NoL));\n"
+            "    return 0.5 / max(lambdaV + lambdaL, 1e-5);\n"
+            "}\n"
+            "highp vec3 filmFresnel(in highp vec3 F, in highp float cosTheta, in highp vec4 film) {\n"
+            "    highp float sinT2 = (1.0 - cosTheta * cosTheta) / (film.y * film.y);\n"
+            "    highp float cosT = sqrt(max(1.0 - sinT2, 0.0));\n"
+            "    highp float opd = 2.0 * film.y * film.z * cosT;\n"
+            "    highp vec3 tint = vec3(0.5) + 0.5 * cos(6.28318531 * opd / vec3(650.0, 510.0, 475.0));\n"
+            "    return clamp(F * mix(vec3(1.0), tint * 2.0, film.x), vec3(0.0), vec3(1.0));\n"
+            "}\n"
             // The body of the per-light loop, a function so that the lights the tiles carry are shaded by the same code as the sixteen.
             "void shadeLight(in highp vec4 pd, in highp vec4 col, in highp vec4 sp, in highp vec4 sh, in highp vec4 sm,\n"
             "                in highp vec4 fo, in highp vec3 N, in highp vec3 V, in highp vec3 worldPos,\n"
             "                in highp float a, in highp vec3 F0, in highp float NdotV, in highp float specular,\n"
-            "                in highp float roughness, inout highp vec3 lit, inout highp vec3 gloss);\n"
+            "                in highp float roughness, in SurfaceExt ext, inout highp vec3 lit, inout highp vec3 gloss,\n"
+            "                inout highp vec3 extra);\n"
             // The lighting model in its general form; a lit 2D surface is its zero
             // (metallic 0, roughness 1, specular 0 leaves albedo * NdotL, pixel for pixel
             // what this engine has always drawn), so there is one model and not two.
-            "highp vec3 applyLightingPBR(in highp vec3 albedo, in highp vec3 N, in highp vec3 worldPos,\n"
-            "                            in highp vec3 V, in highp float metallic,\n"
-            "                            in highp float roughness, in highp float specular,\n"
-            "                            in highp float ao) {\n"
+            "highp vec3 applyLightingSurface(in highp vec3 albedo, in highp vec3 N, in highp vec3 worldPos,\n"
+            "                                 in highp vec3 V, in highp float metallic,\n"
+            "                                 in highp float roughness, in highp float specular,\n"
+            "                                 in highp float ao, in SurfaceExt ext) {\n"
             // glTF's specularFactor scales the whole lobe, so 0 removes it rather than
             // leaving Schlick's grazing-angle rim behind.
-            "    highp vec3 F0 = mix(vec3(0.04), albedo, metallic);\n"
+            "    highp vec3 F0 = mix(vec3(ext.misc.x), albedo, metallic);\n"
             "    highp float a = max(roughness * roughness, 1e-3);\n"
             "    highp float NdotV = max(dot(N, V), 1e-4);\n"
             // Occlusion darkens the light that arrives from everywhere, which is the
             // environment; a surface's own lights are unobstructed by it.
             "    highp vec3 lit = indirectIrradiance(N) * ao;\n"
             "    highp vec3 gloss = vec3(0.0);\n"
+            "    highp vec3 extra = vec3(0.0);\n"
             // A Light has no third coordinate, so distance stays in the plane and a
             // point light's height is its radius. Normal and view are the 3D part.
             "    for (int i = 0; i < 16; ++i) {\n"
             "        shadeLight(u_lights[i].posDir, u_lights[i].color, u_lights[i].spot, u_lights[i].shadow,\n"
             "                   u_lights[i].shadowMap, u_lights[i].falloff, N, V, worldPos, a, F0, NdotV,\n"
-            "                   specular, roughness, lit, gloss);\n"
+            "                   specular, roughness, ext, lit, gloss, extra);\n"
             "    }\n"
             // The lights past the sixteen: this pixel's tile is found from where the fragment lands through the camera it was drawn by
             // (normalized device coordinates, the same on every backend), and only the lights whose bit is set in its mask are shaded.
@@ -2625,7 +2781,7 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "                if (k >= tiledCount) break;\n"
             "                shadeLight(u_tiledLights[k].posDir, u_tiledLights[k].color, u_tiledLights[k].spot,\n"
             "                           u_tiledLights[k].shadow, u_tiledLights[k].shadowMap, u_tiledLights[k].falloff,\n"
-            "                           N, V, worldPos, a, F0, NdotV, specular, roughness, lit, gloss);\n"
+            "                           N, V, worldPos, a, F0, NdotV, specular, roughness, ext, lit, gloss, extra);\n"
             "            }\n"
             "        }\n"
             "    }\n"
@@ -2633,15 +2789,45 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             // radiance from every direction. A metal has no diffuse, so without a
             // reflection of it a metal is black wherever no light happens to point.
             "    highp vec2 ab = envBRDFApprox(NdotV, roughness);\n"
-            "    gloss += envRadiance(reflect(-V, N), roughness, reflectionColumn(), worldPos)\n"
+            "    highp vec3 envR = reflect(-V, N);\n"
+            "    if (ext.aniso.w != 0.0) {\n"
+            "        highp vec3 T = ext.aniso.xyz;\n"
+            "        highp vec3 grain = ext.aniso.w >= 0.0 ? cross(N, T) : T;\n"
+            "        highp vec3 bent = normalize(cross(cross(grain, V), grain));\n"
+            "        envR = reflect(-V, normalize(mix(N, bent, abs(ext.aniso.w))));\n"
+            "    }\n"
+            "    highp vec3 envF = F0 * ab.x + ab.y;\n"
+            "    if (ext.film.x > 0.0) envF = filmFresnel(envF, NdotV, ext.film);\n"
+            "    gloss += envRadiance(envR, roughness, reflectionColumn(), worldPos)\n"
             "           * (ao * specular)\n"
-            "           * (F0 * ab.x + ab.y);\n"
-            "    return albedo * (1.0 - metallic) * lit + gloss;\n"
+            "           * envF;\n"
+            "    highp vec3 base = albedo * (1.0 - metallic) * lit + gloss;\n"
+            "    highp float baseScale = 1.0;\n"
+            "    if (ext.coat.x > 0.0) {\n"
+            "        highp float coatNdotV = max(dot(ext.coatN.xyz, V), 1e-4);\n"
+            "        highp vec2 cab = envBRDFApprox(coatNdotV, ext.coat.y);\n"
+            "        highp float Fc = (0.04 * cab.x + cab.y) * ext.coat.x;\n"
+            "        baseScale *= 1.0 - Fc;\n"
+            "        extra += envRadiance(reflect(-V, ext.coatN.xyz), ext.coat.y, reflectionColumn(), worldPos) * (ao * Fc);\n"
+            "    }\n"
+            "    if (dot(ext.sheen.rgb, vec3(1.0)) > 0.0) {\n"
+            "        highp float sheenAlbedo = 0.2 + 0.3 * ext.sheen.a;\n"
+            "        baseScale *= 1.0 - max(max(ext.sheen.r, ext.sheen.g), ext.sheen.b) * sheenAlbedo;\n"
+            "        extra += ext.sheen.rgb * (indirectIrradiance(N) * ao * sheenAlbedo);\n"
+            "    }\n"
+            "    return base * baseScale + extra;\n"
+            "}\n"
+            "highp vec3 applyLightingPBR(in highp vec3 albedo, in highp vec3 N, in highp vec3 worldPos,\n"
+            "                            in highp vec3 V, in highp float metallic,\n"
+            "                            in highp float roughness, in highp float specular,\n"
+            "                            in highp float ao) {\n"
+            "    return applyLightingSurface(albedo, N, worldPos, V, metallic, roughness, specular, ao, surfaceExtNone(N));\n"
             "}\n"
             "void shadeLight(in highp vec4 pd, in highp vec4 col, in highp vec4 sp, in highp vec4 sh, in highp vec4 sm,\n"
             "                in highp vec4 fo, in highp vec3 N, in highp vec3 V, in highp vec3 worldPos,\n"
             "                in highp float a, in highp vec3 F0, in highp float NdotV, in highp float specular,\n"
-            "                in highp float roughness, inout highp vec3 lit, inout highp vec3 gloss) {\n"
+            "                in highp float roughness, in SurfaceExt ext, inout highp vec3 lit, inout highp vec3 gloss,\n"
+            "                inout highp vec3 extra) {\n"
             "        highp vec3 L;\n"
             "        highp float atten;\n"
             "        highp vec2 target = pd.xy;\n"           // shadow-ray aim point (light position by default)
@@ -2690,11 +2876,49 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             // which the diffuse side cancels against albedo/pi and never has to spell out.
             "        if (specular > 0.0) {\n"
             "            highp vec3 H = normalize(L + V);\n"
-            "            highp float brdf = distributionGGX(max(dot(N, H), 0.0), a)\n"
-            "                             * geometrySmith(NdotV, ndotl, roughness)\n"
-            "                             / max(4.0 * NdotV * ndotl, 1e-4);\n"
-            "            gloss += radiance * fresnelSchlick(max(dot(V, H), 0.0), F0)\n"
+            "            highp float brdf;\n"
+            "            if (ext.aniso.w != 0.0) {\n"
+            "                highp vec3 T = ext.aniso.xyz;\n"
+            "                highp vec3 B = cross(N, T);\n"
+            "                highp float at = max(a * (1.0 + ext.aniso.w), 0.002);\n"
+            "                highp float ab = max(a * (1.0 - ext.aniso.w), 0.002);\n"
+            "                brdf = distributionGGXAniso(at, ab, dot(T, H), dot(B, H), max(dot(N, H), 0.0))\n"
+            "                     * visibilityGGXAniso(at, ab, dot(T, V), dot(B, V), dot(T, L), dot(B, L), NdotV, ndotl);\n"
+            "            } else {\n"
+            "                brdf = distributionGGX(max(dot(N, H), 0.0), a)\n"
+            "                     * geometrySmith(NdotV, ndotl, roughness)\n"
+            "                     / max(4.0 * NdotV * ndotl, 1e-4);\n"
+            "            }\n"
+            "            highp vec3 F = fresnelSchlick(max(dot(V, H), 0.0), F0);\n"
+            "            if (ext.film.x > 0.0) F = filmFresnel(F, max(dot(V, H), 0.0), ext.film);\n"
+            "            gloss += radiance * F\n"
             "                   * (brdf * 3.14159265 * specular);\n"
+            "        }\n"
+            "        if (col.a > 0.0 && atten > 0.0\n"
+            "            && (ext.coat.x > 0.0 || ext.scatter.a > 0.0 || dot(ext.sheen.rgb, vec3(1.0)) > 0.0)) {\n"
+            "            highp vec3 irr = col.rgb * (col.a * atten);\n"
+            "            highp vec3 Hx = normalize(L + V);\n"
+            "            highp float VdotH = max(dot(V, Hx), 0.0);\n"
+            "            if (ext.coat.x > 0.0) {\n"
+            "                highp float coatNdotL = max(dot(ext.coatN.xyz, L), 0.0);\n"
+            "                highp float coatA = max(ext.coat.y * ext.coat.y, 1e-3);\n"
+            "                highp float Fc = (0.04 + 0.96 * pow(1.0 - VdotH, 5.0)) * ext.coat.x;\n"
+            "                extra += irr * coatNdotL\n"
+            "                       * (distributionGGX(max(dot(ext.coatN.xyz, Hx), 0.0), coatA) * (0.25 / max(VdotH * VdotH, 1e-4))\n"
+            "                          * Fc * 3.14159265);\n"
+            "            }\n"
+            "            if (dot(ext.sheen.rgb, vec3(1.0)) > 0.0) {\n"
+            "                highp float sheenA = max(ext.sheen.a * ext.sheen.a, 1e-3);\n"
+            "                extra += irr * ndotl * ext.sheen.rgb\n"
+            "                       * (distributionCharlie(max(dot(N, Hx), 0.0), sheenA) * visibilityNeubelt(NdotV, ndotl) * 3.14159265);\n"
+            "            }\n"
+            "            if (ext.scatter.a > 0.0) {\n"
+            "                highp float wrapped = clamp((dot(N, L) + ext.scatter.a) / (1.0 + ext.scatter.a), 0.0, 1.0);\n"
+            "                extra += irr * ext.scatter.rgb * max(wrapped - ndotl, 0.0);\n"
+            "                highp vec3 Hb = normalize(L + N * 0.3);\n"
+            "                extra += irr * ext.scatter.rgb\n"
+            "                       * (pow(clamp(dot(V, -Hb), 0.0, 1.0), 4.0) * ext.trans.x * (1.0 - ext.trans.y));\n"
+            "            }\n"
             "        }\n"
             "}\n"
             "highp vec3 applyLighting2DAO(highp vec3 albedo, highp vec3 N, highp vec2 worldPos,\n"

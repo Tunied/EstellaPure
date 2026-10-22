@@ -162,6 +162,13 @@ chart,每片投影到自己的平面,再按**同一个**世界-纹素比打包�
 | `occlusionTexture`（含 `strength`） | `u_occlusionMap` / `u_occlusionStrength` |
 | `alphaMode: MASK` + `alphaCutoff` | `u_alphaCutoff` |
 | `metallicFactor` / `roughnessFactor` / `metallicRoughnessTexture` | `u_metallic` / `u_roughness` / `u_metallicRoughnessMap` |
+| `KHR_materials_clearcoat` | `u_clearcoat` / `u_clearcoatRoughness` |
+| `KHR_materials_sheen` | `u_sheenColor` / `u_sheenRoughness` |
+| `KHR_materials_anisotropy` | `u_anisotropy` / `u_anisotropyRotation` |
+| `KHR_materials_ior`、`KHR_materials_specular`(`specularFactor`) | `u_ior`、`u_specular` |
+| `KHR_materials_iridescence` | `u_iridescence` / `u_iridescenceIor` / `u_iridescenceThickness`(取最小–最大范围的中间值) |
+| `KHR_materials_diffuse_transmission` | `u_translucency` / `u_translucencyColor` |
+| `KHR_materials_transmission`、`KHR_materials_volume` | `u_transmission`、`u_thickness`、`u_attenuationColor`——材质按混合方式绘制 |
 
 金属度与粗糙度即使等于引擎自己的默认值也会写出来：glTF 把两个系数都默认成 1（完全粗糙的
 金属），而 shader 把金属度默认成 0 —— 省略它们的产物会描述出一个源文件没有说过的表面。
@@ -253,6 +260,7 @@ Physical、Blender 的 Principled 最终都落到[材质](#材质)那一节列�
 | 第二套 UV（`TEXCOORD_1`）、`KHR_texture_transform`、FBX 的 uv transform | UV 按作者写的原样使用。 |
 | 非三角形 primitive（`mode` ≠ 4） | 渲染器画的是三角形列表。 |
 | `normalTexture.scale` | 法线贴图按全强度应用。 |
+| 着色层的贴图(`clearcoatTexture`、`sheenColorTexture`、`anisotropyTexture` 等)、`specularColorFactor`、`attenuationDistance` | 每一层对整个材质是一个常量;系数保留,贴图只做报告。见[着色层](/docs/zh-cn/graphics/materials/#着色层)。 |
 | FBX 里的相机与灯光 | 场景的相机与灯光属于场景，不属于模型。 |
 | FBX 分离的金属度/粗糙度贴图、FBX 的不透明度贴图 | 见 [FBX](#fbx)。 |
 

@@ -576,10 +576,19 @@ function readMaterial(ctx: MaterialContext, textureCache: Map<number, ImportedIm
     if (src.normalTexture?.scale !== undefined && src.normalTexture.scale !== 1) {
         unused.push(`normal-map scale ${src.normalTexture.scale}`);
     }
-    for (const name of Object.keys(src.extensions ?? {})) {
-        if (name !== 'KHR_materials_emissive_strength') unused.push(name);
+    const partial: string[] = [];
+    for (const [name, value] of Object.entries(src.extensions ?? {})) {
+        if (!SHADING_EXTENSIONS.has(name)) unused.push(name);
+        // A layer's maps are not carried (the Model shader has no unit left for them): its factors are, and what a
+        // map would have varied across the surface is said to be flat.
+        else if (value && typeof value === 'object'
+            && Object.keys(value).some(key => key.endsWith('Texture'))) partial.push(name);
     }
     if (unused.length > 0) ctx.warnings.push(`${label}: ${unused.join(', ')} not imported`);
+    if (partial.length > 0) {
+        ctx.warnings.push(`${label}: the textures of ${partial.join(', ')} are not imported (their factors are)`);
+    }
+    const layers = readShadingLayers(src.extensions ?? {});
 
     const texture = pbr.baseColorTexture
         ? readTexture(ctx, textureCache, pbr.baseColorTexture, label) : null;
@@ -611,8 +620,9 @@ function readMaterial(ctx: MaterialContext, textureCache: Map<number, ImportedIm
         baseColor: [factor[0] ?? 1, factor[1] ?? 1, factor[2] ?? 1, factor[3] ?? 1],
         // A glTF is OPAQUE and single-sided unless it says otherwise, so a model
         // arrives occluding itself the way it was authored to. MASK is opaque
-        // too — what it adds is the cutoff below.
-        opaque: (src.alphaMode ?? 'OPAQUE') !== 'BLEND',
+        // too — what it adds is the cutoff below. Transmission lets what is behind
+        // show, which a surface that writes depth and blends nothing cannot.
+        opaque: (src.alphaMode ?? 'OPAQUE') !== 'BLEND' && !((layers.transmission ?? 0) > 0),
         cullBackfaces: src.doubleSided !== true,
         ...(texture ? { baseColorTexture: texture } : {}),
         ...(normal ? { normalTexture: normal } : {}),
@@ -628,7 +638,84 @@ function readMaterial(ctx: MaterialContext, textureCache: Map<number, ImportedIm
         roughness,
         ...(metalRoughMap ? { metallicRoughnessTexture: metalRoughMap } : {}),
         ...(src.alphaMode === 'MASK' ? { alphaCutoff: src.alphaCutoff ?? 0.5 } : {}),
+        ...layers,
     };
+}
+
+/** The extensions that say something about SHADING and are read into the Model shader's layers. */
+const SHADING_EXTENSIONS = new Set([
+    'KHR_materials_emissive_strength', 'KHR_materials_clearcoat', 'KHR_materials_sheen', 'KHR_materials_anisotropy',
+    'KHR_materials_ior', 'KHR_materials_specular', 'KHR_materials_transmission', 'KHR_materials_volume',
+    'KHR_materials_diffuse_transmission', 'KHR_materials_iridescence',
+]);
+
+type Layers = Pick<ImportedMaterial, 'clearcoat' | 'clearcoatRoughness' | 'sheenColor' | 'sheenRoughness' | 'anisotropy'
+    | 'anisotropyRotation' | 'ior' | 'specular' | 'translucency' | 'translucencyColor' | 'transmission' | 'thickness'
+    | 'attenuationColor' | 'iridescence' | 'iridescenceIor' | 'iridescenceThickness'>;
+
+/**
+ * The shading layers a material's extensions state, as the engine's own parameters. A number that is not one, or a
+ * colour that is not three of them, is read as the extension's default — an exporter's slip is not worth refusing a
+ * model for. Only what the source SAYS is written, so a plain material still needs no product at all.
+ */
+function readShadingLayers(extensions: Record<string, unknown>): Layers {
+    const ext = (name: string): Record<string, unknown> | undefined => {
+        const value = extensions[name];
+        return value && typeof value === 'object' ? value as Record<string, unknown> : undefined;
+    };
+    const num = (value: unknown, fallback: number): number =>
+        typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+    const rgb = (value: unknown, fallback: [number, number, number]): [number, number, number] =>
+        Array.isArray(value) && value.length >= 3 && value.slice(0, 3).every(v => typeof v === 'number' && Number.isFinite(v))
+            ? [value[0], value[1], value[2]] : fallback;
+    const out: Layers = {};
+
+    const coat = ext('KHR_materials_clearcoat');
+    if (coat && num(coat.clearcoatFactor, 0) > 0) {
+        out.clearcoat = num(coat.clearcoatFactor, 0);
+        out.clearcoatRoughness = num(coat.clearcoatRoughnessFactor, 0);
+    }
+    const sheen = ext('KHR_materials_sheen');
+    if (sheen) {
+        const color = rgb(sheen.sheenColorFactor, [0, 0, 0]);
+        if (color.some(v => v > 0)) {
+            out.sheenColor = color;
+            out.sheenRoughness = num(sheen.sheenRoughnessFactor, 0);
+        }
+    }
+    const anisotropy = ext('KHR_materials_anisotropy');
+    if (anisotropy && num(anisotropy.anisotropyStrength, 0) !== 0) {
+        out.anisotropy = num(anisotropy.anisotropyStrength, 0);
+        out.anisotropyRotation = num(anisotropy.anisotropyRotation, 0);
+    }
+    const ior = ext('KHR_materials_ior');
+    if (ior && num(ior.ior, 1.5) !== 1.5) out.ior = Math.max(num(ior.ior, 1.5), 1);
+    const specular = ext('KHR_materials_specular');
+    if (specular && num(specular.specularFactor, 1) !== 1) out.specular = Math.min(Math.max(num(specular.specularFactor, 1), 0), 1);
+    const diffuse = ext('KHR_materials_diffuse_transmission');
+    if (diffuse && num(diffuse.diffuseTransmissionFactor, 0) > 0) {
+        out.translucency = Math.min(num(diffuse.diffuseTransmissionFactor, 0), 1);
+        out.translucencyColor = rgb(diffuse.diffuseTransmissionColorFactor, [1, 1, 1]);
+    }
+    const transmission = ext('KHR_materials_transmission');
+    if (transmission && num(transmission.transmissionFactor, 0) > 0) {
+        out.transmission = Math.min(num(transmission.transmissionFactor, 0), 1);
+        const volume = ext('KHR_materials_volume');
+        if (volume) {
+            const tint = rgb(volume.attenuationColor, [1, 1, 1]);
+            if (tint.some(v => v !== 1)) out.attenuationColor = tint;
+        }
+    }
+    const volume = ext('KHR_materials_volume');
+    if (volume && num(volume.thicknessFactor, 0) > 0) out.thickness = Math.min(num(volume.thicknessFactor, 0), 1);
+    const film = ext('KHR_materials_iridescence');
+    if (film && num(film.iridescenceFactor, 0) > 0) {
+        out.iridescence = Math.min(num(film.iridescenceFactor, 0), 1);
+        out.iridescenceIor = Math.max(num(film.iridescenceIor, 1.3), 1);
+        // The film's thickness is a range a map walks across; with the map unread, the middle of it.
+        out.iridescenceThickness = (num(film.iridescenceThicknessMinimum, 100) + num(film.iridescenceThicknessMaximum, 400)) / 2;
+    }
+    return out;
 }
 
 /**

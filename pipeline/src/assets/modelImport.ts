@@ -84,6 +84,33 @@ export interface ImportedMaterial {
     roughness?: number;
     /** glTF's packing: roughness in green, metal in blue, multiplying the factors. */
     metallicRoughnessTexture?: ImportedImageRef;
+    /**
+     * What the surface has beyond a metal/rough pair, one field per glTF extension that says it — the values are
+     * the extension's own factors, absent where the source says nothing (the engine's defaults are glTF's).
+     */
+    /** KHR_materials_clearcoat: a smooth lacquer over the surface. */
+    clearcoat?: number;
+    clearcoatRoughness?: number;
+    /** KHR_materials_sheen: the soft rim light of cloth. */
+    sheenColor?: [number, number, number];
+    sheenRoughness?: number;
+    /** KHR_materials_anisotropy: a highlight stretched along grooves, turned by `anisotropyRotation` radians. */
+    anisotropy?: number;
+    anisotropyRotation?: number;
+    /** KHR_materials_ior and KHR_materials_specular's factor. */
+    ior?: number;
+    specular?: number;
+    /** KHR_materials_diffuse_transmission: light that scatters through a thin surface, tinted. */
+    translucency?: number;
+    translucencyColor?: [number, number, number];
+    /** KHR_materials_transmission, and KHR_materials_volume's thickness and tint. */
+    transmission?: number;
+    thickness?: number;
+    attenuationColor?: [number, number, number];
+    /** KHR_materials_iridescence: a thin film over the surface. */
+    iridescence?: number;
+    iridescenceIor?: number;
+    iridescenceThickness?: number;
     /** A fragment below this alpha is discarded. */
     alphaCutoff?: number;
     /** Drawn without blending, and taking part in depth. */
@@ -527,6 +554,21 @@ function materialImageRef(image: ImportedImageRef, refs: ProductRefs): string {
 }
 
 /**
+ * The Model shader's parameter each layer field becomes. A colour is a `{r, g, b, a}` object and a number is itself,
+ * so one table carries them all and a field the source did not state is simply not written.
+ */
+const MATERIAL_LAYER_PROPERTIES: readonly [keyof ImportedMaterial, string][] = [
+    ['clearcoat', 'u_clearcoat'], ['clearcoatRoughness', 'u_clearcoatRoughness'],
+    ['sheenColor', 'u_sheenColor'], ['sheenRoughness', 'u_sheenRoughness'],
+    ['anisotropy', 'u_anisotropy'], ['anisotropyRotation', 'u_anisotropyRotation'],
+    ['ior', 'u_ior'], ['specular', 'u_specular'],
+    ['translucency', 'u_translucency'], ['translucencyColor', 'u_translucencyColor'],
+    ['transmission', 'u_transmission'], ['thickness', 'u_thickness'], ['attenuationColor', 'u_attenuationColor'],
+    ['iridescence', 'u_iridescence'], ['iridescenceIor', 'u_iridescenceIor'],
+    ['iridescenceThickness', 'u_iridescenceThickness'],
+];
+
+/**
  * Whether this material says anything a MeshRenderer's own fields cannot: shading is
  * per-material constants and samplers, and the component has neither. A metal-
  * roughness pair the engine's defaults already are needs nothing written — but
@@ -535,7 +577,8 @@ function materialImageRef(image: ImportedImageRef, refs: ProductRefs): string {
 function needsMaterial(material: ImportedMaterial | undefined): material is ImportedMaterial {
     return !!material && !!(material.normalTexture || material.emissive || material.emissiveTexture
         || material.occlusionTexture || material.alphaCutoff || material.metallicRoughnessTexture
-        || (material.metallic ?? 0) !== 0 || (material.roughness ?? 1) !== 1);
+        || (material.metallic ?? 0) !== 0 || (material.roughness ?? 1) !== 1
+        || MATERIAL_LAYER_PROPERTIES.some(([field]) => material[field] !== undefined));
 }
 
 /** `<stem>_m<source material index>` — the product a material becomes. */
@@ -602,6 +645,12 @@ export function materialProducts(meshes: ImportedMesh[], stem: string,
             properties.u_occlusionStrength = material.occlusionStrength;
         }
         if (material.alphaCutoff !== undefined) properties.u_alphaCutoff = material.alphaCutoff;
+        for (const [field, parameter] of MATERIAL_LAYER_PROPERTIES) {
+            const value = material[field];
+            if (value === undefined) continue;
+            properties[parameter] = Array.isArray(value)
+                ? { r: value[0], g: value[1], b: value[2], a: 1 } : value;
+        }
 
         out.push({
             name: materialName(stem, material),

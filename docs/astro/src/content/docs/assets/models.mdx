@@ -188,6 +188,13 @@ component has no room for. Written only when the source uses one of them, on the
 | `occlusionTexture` (+ `strength`) | `u_occlusionMap` / `u_occlusionStrength` |
 | `alphaMode: MASK` + `alphaCutoff` | `u_alphaCutoff` |
 | `metallicFactor` / `roughnessFactor` / `metallicRoughnessTexture` | `u_metallic` / `u_roughness` / `u_metallicRoughnessMap` |
+| `KHR_materials_clearcoat` | `u_clearcoat` / `u_clearcoatRoughness` |
+| `KHR_materials_sheen` | `u_sheenColor` / `u_sheenRoughness` |
+| `KHR_materials_anisotropy` | `u_anisotropy` / `u_anisotropyRotation` |
+| `KHR_materials_ior`, `KHR_materials_specular` (`specularFactor`) | `u_ior`, `u_specular` |
+| `KHR_materials_iridescence` | `u_iridescence` / `u_iridescenceIor` / `u_iridescenceThickness` (the middle of the min–max range) |
+| `KHR_materials_diffuse_transmission` | `u_translucency` / `u_translucencyColor` |
+| `KHR_materials_transmission`, `KHR_materials_volume` | `u_transmission`, `u_thickness`, `u_attenuationColor` — and the material draws blended |
 
 Metal and roughness are written even when they match the engine's own defaults: glTF
 defaults both factors to 1 (a fully rough metal) and the shader defaults metal to 0, so a
@@ -289,6 +296,7 @@ when it runs.
 | A second UV set (`TEXCOORD_1`), `KHR_texture_transform`, an FBX uv transform | UVs are used as authored. |
 | Non-triangle primitives (`mode` ≠ 4) | The renderer draws triangle lists. |
 | `normalTexture.scale` | The map is applied at full strength. |
+| The textures of a shading layer (`clearcoatTexture`, `sheenColorTexture`, `anisotropyTexture`, …), `specularColorFactor`, `attenuationDistance` | Each layer is a constant for the whole material; its factors are kept and the textures are reported. See [Shading layers](/docs/graphics/materials/#shading-layers). |
 | Cameras and lights in an FBX | A scene's camera and lighting are the scene's, not the model's. |
 | Separate FBX metalness/roughness maps, an FBX opacity map | See [FBX](#fbx). |
 

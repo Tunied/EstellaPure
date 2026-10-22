@@ -210,12 +210,12 @@ describe('glTF material import', () => {
       pbrMetallicRoughness: { metallicFactor: 1, roughnessFactor: 0.3 },
       normalTexture: { index: 0, scale: 0.4 }, emissiveFactor: [1, 0, 0],
       alphaMode: 'MASK', alphaCutoff: 0.4, doubleSided: false,
-      extensions: { KHR_materials_clearcoat: {} },
+      extensions: { KHR_materials_pbrSpecularGlossiness: {} },
     }];
     const { meshes, warnings } = await importGltfMeshes(gltf(doc), 'model');
     const line = warnings.join('\n');
     expect(line).toContain('normal-map scale 0.4');
-    expect(line).toContain('KHR_materials_clearcoat');
+    expect(line).toContain('KHR_materials_pbrSpecularGlossiness');
     // The channels that DO reach a shader are products, not warnings — metal and
     // roughness among them now that the lighting model has a view direction.
     expect(line).not.toContain('metallic-roughness');
@@ -465,11 +465,62 @@ describe('glTF material products', () => {
   it('defaults an omitted strength to one and still reports unsupported extensions', async () => {
     const doc = shaded({
       emissiveFactor: [1, 0.5, 0],
-      extensions: { KHR_materials_emissive_strength: {}, KHR_materials_clearcoat: {} },
+      extensions: { KHR_materials_emissive_strength: {}, KHR_materials_pbrSpecularGlossiness: {} },
     });
     const { meshes, warnings } = await importGltfMeshes(gltf(doc), 'model');
     expect(meshes[0]!.material?.emissive).toEqual([1, 0.5, 0]);
-    expect(warnings).toEqual(['material "Shaded": KHR_materials_clearcoat not imported']);
+    expect(warnings).toEqual(['material "Shaded": KHR_materials_pbrSpecularGlossiness not imported']);
+  });
+
+  it('carries the shading layers its extensions state, as the Model shader parameters', async () => {
+    const { meshes, warnings } = await importGltfMeshes(gltf(shaded({
+      extensions: {
+        KHR_materials_clearcoat: { clearcoatFactor: 0.8, clearcoatRoughnessFactor: 0.1 },
+        KHR_materials_sheen: { sheenColorFactor: [0.9, 0.8, 0.7], sheenRoughnessFactor: 0.4 },
+        KHR_materials_anisotropy: { anisotropyStrength: 0.6, anisotropyRotation: 1.5 },
+        KHR_materials_ior: { ior: 1.8 },
+        KHR_materials_specular: { specularFactor: 0.5 },
+        KHR_materials_iridescence: { iridescenceFactor: 1, iridescenceIor: 1.4, iridescenceThicknessMinimum: 200, iridescenceThicknessMaximum: 400 },
+        KHR_materials_diffuse_transmission: { diffuseTransmissionFactor: 0.7, diffuseTransmissionColorFactor: [1, 0.5, 0.25] },
+      },
+    })), 'model');
+    const products = materialProducts(meshes, 'model');
+    expect(warnings).toEqual([]);
+    expect(meshes[0]!.material?.opaque).toBe(true);
+    expect(products[0]!.data.properties).toMatchObject({
+      u_clearcoat: 0.8, u_clearcoatRoughness: 0.1,
+      u_sheenColor: { r: 0.9, g: 0.8, b: 0.7, a: 1 }, u_sheenRoughness: 0.4,
+      u_anisotropy: 0.6, u_anisotropyRotation: 1.5, u_ior: 1.8, u_specular: 0.5,
+      u_iridescence: 1, u_iridescenceIor: 1.4, u_iridescenceThickness: 300,
+      u_translucency: 0.7, u_translucencyColor: { r: 1, g: 0.5, b: 0.25, a: 1 },
+    });
+  });
+
+  it('draws a transmissive surface blended, and tints it by the volume attenuation', async () => {
+    const { products } = await productsOf(shaded({
+      extensions: {
+        KHR_materials_transmission: { transmissionFactor: 0.9 },
+        KHR_materials_volume: { thicknessFactor: 0.3, attenuationColor: [0.5, 0.8, 1] },
+      },
+    }));
+    expect(products[0]!.data).toMatchObject({ blendMode: BlendMode.Normal, depthWrite: false });
+    expect(products[0]!.data.properties).toMatchObject({
+      u_transmission: 0.9, u_thickness: 0.3, u_attenuationColor: { r: 0.5, g: 0.8, b: 1, a: 1 },
+    });
+  });
+
+  it('writes nothing for a layer that is at its default, and says its maps are not imported', async () => {
+    const { meshes, warnings } = await importGltfMeshes(gltf(shaded({
+      extensions: {
+        KHR_materials_clearcoat: { clearcoatFactor: 0 },
+        KHR_materials_ior: { ior: 1.5 },
+        KHR_materials_sheen: { sheenColorFactor: [0, 0, 0], sheenColorTexture: { index: 0 } },
+      },
+    })), 'model');
+    expect(meshes[0]!.material?.clearcoat).toBeUndefined();
+    expect(meshes[0]!.material?.ior).toBeUndefined();
+    expect(meshes[0]!.material?.sheenColor).toBeUndefined();
+    expect(warnings).toEqual(['material "Shaded": the textures of KHR_materials_sheen are not imported (their factors are)']);
   });
 
   it.each([-1, '24', null])('reports an invalid emission strength %s', async strength => {

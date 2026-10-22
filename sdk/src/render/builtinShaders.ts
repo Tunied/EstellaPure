@@ -362,6 +362,24 @@ const MODEL = `#pragma shader "Model"
 #pragma param u_metallic float default(0) range(0,1) ui(slider)
 #pragma param u_roughness float default(1) range(0,1) ui(slider)
 #pragma param u_metallicRoughnessMap texture default(white) texel(data)
+// What a surface has beyond a metal/rough pair. Every one is zero (or glTF's own default) for a surface that has none of it,
+// and the lighting skips a layer whose strength is zero, so a plain material pays nothing for these.
+#pragma param u_ior float default(1.5) range(1,3) ui(slider)
+#pragma param u_specular float default(1) range(0,1) ui(slider)
+#pragma param u_clearcoat float default(0) range(0,1) ui(slider)
+#pragma param u_clearcoatRoughness float default(0.03) range(0,1) ui(slider)
+#pragma param u_sheenColor color default(0,0,0,1)
+#pragma param u_sheenRoughness float default(0.5) range(0,1) ui(slider)
+#pragma param u_anisotropy float default(0) range(-1,1) ui(slider)
+#pragma param u_anisotropyRotation float default(0) range(-3.1416,3.1416) ui(slider)
+#pragma param u_translucency float default(0) range(0,1) ui(slider)
+#pragma param u_translucencyColor color default(1,1,1,1)
+#pragma param u_thickness float default(0) range(0,1) ui(slider)
+#pragma param u_transmission float default(0) range(0,1) ui(slider)
+#pragma param u_attenuationColor color default(1,1,1,1)
+#pragma param u_iridescence float default(0) range(0,1) ui(slider)
+#pragma param u_iridescenceIor float default(1.3) range(1,2.5) ui(slider)
+#pragma param u_iridescenceThickness float default(400) range(0,1200) ui(slider)
 
 #pragma fragment
 precision mediump float;
@@ -431,10 +449,11 @@ void main() {
         alpha = min(alpha, 1.0);
     }
 #ifdef MESH_NORMALS
-    highp vec3 N = perturbNormal(normalize(v_worldNormal), v_worldXYZ, v_texCoord,
+    highp vec3 Ng = normalize(v_worldNormal);
+    highp vec3 N = perturbNormal(Ng, v_worldXYZ, v_texCoord,
                                  sampleNormal(u_normalMap, v_texCoord));
     // A double-sided surface is lit from the side it is seen from (glTF's rule).
-    if (!gl_FrontFacing) N = -N;
+    if (!gl_FrontFacing) { N = -N; Ng = -Ng; }
 #else
     vec3 N = sampleNormal(u_normalMap, v_texCoord);
 #endif
@@ -452,8 +471,41 @@ void main() {
 #ifdef MESH_NORMALS
     roughness = specularAA(dndx, dndy, roughness);
 #endif
-    vec3 lit = applyLightingPBR(base.rgb, N, P, viewDirection(P),
-                                u_metallic * mr.b, roughness, 1.0, ao);
+    SurfaceExt ext = surfaceExtNone(N);
+    if (u_ior != 1.5) {
+        float r = (u_ior - 1.0) / (u_ior + 1.0);
+        ext.misc.x = r * r;
+    }
+#ifdef MESH_NORMALS
+    // The coat's normal is the surface's own, not the bump map's: a coat is smooth over whatever it covers.
+    if (u_clearcoat > 0.0) {
+        ext.coat = vec4(u_clearcoat, max(u_clearcoatRoughness, 0.045), 0.0, 0.0);
+        ext.coatN = vec4(Ng, 0.0);
+    }
+    if (u_anisotropy != 0.0) {
+        // The direction the grooves run, from the UV frame turned by the rotation, then made to lie across N.
+        highp vec3 T = perturbNormal(Ng, P, v_texCoord, vec3(cos(u_anisotropyRotation), sin(u_anisotropyRotation), 0.0));
+        T -= N * dot(N, T);
+        if (dot(T, T) < 1e-6) T = cross(N, abs(N.y) < 0.99 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0));
+        ext.aniso = vec4(normalize(T), clamp(u_anisotropy, -0.99, 0.99));
+    }
+#endif
+    if (dot(u_sheenColor.rgb, vec3(1.0)) > 0.0) ext.sheen = vec4(u_sheenColor.rgb, max(u_sheenRoughness, 0.07));
+    if (u_translucency > 0.0) {
+        ext.scatter = vec4(u_translucencyColor.rgb * base.rgb, u_translucency * 0.5);
+        ext.trans = vec4(u_translucency, u_thickness, 0.0, 0.0);
+    }
+    if (u_iridescence > 0.0) ext.film = vec4(u_iridescence, max(u_iridescenceIor, 1.0), u_iridescenceThickness, 0.0);
+    vec3 viewDir = viewDirection(P);
+    // Light that passes through. With no picture of what is behind to refract, the surface lets that much of it show: its
+    // coverage falls with the transmission, and returns at grazing angles where glass reflects instead of passing light.
+    if (u_transmission > 0.0) {
+        float cosV = clamp(dot(N, viewDir), 0.0, 1.0);
+        alpha *= 1.0 - u_transmission * (1.0 - (0.04 + 0.96 * pow(1.0 - cosV, 5.0)));
+        base.rgb = mix(base.rgb, base.rgb * u_attenuationColor.rgb, u_transmission);
+    }
+    vec3 lit = applyLightingSurface(base.rgb, N, P, viewDir,
+                                    u_metallic * mr.b, roughness, u_specular, ao, ext);
     fragColor = vec4(lit + u_emissive.rgb * texture(u_emissiveMap, v_texCoord).rgb, alpha);
 #ifdef ES_GBUFFER
     // Alpha says something was drawn here (0 is "nothing wrote"), and carries the metalness above 0.75: a pixel that
@@ -505,7 +557,7 @@ fn packNormal(n : vec3f) -> vec2f {
 #ifdef MESH_LIGHTMAP
     g_lightmap = v.v_lightmap;
 #endif
-    let base = textureSampleGrad(t0, s0, v.v_texCoord, duvx, duvy) * v.v_color * mc.u_tint;
+    var base = textureSampleGrad(t0, s0, v.v_texCoord, duvx, duvy) * v.v_color * mc.u_tint;
     // Before any discard: a derivative needs every fragment of its quad.
     let edge = max(fwidth(base.a), 1e-4);
     var alpha = base.a;
@@ -515,9 +567,10 @@ fn packNormal(n : vec3f) -> vec2f {
         alpha = min(alpha, 1.0);
     }
 #ifdef MESH_NORMALS
-    var N = perturbNormal(normalize(v.v_worldNormal), v.v_worldXYZ, v.v_texCoord,
+    var Ng = normalize(v.v_worldNormal);
+    var N = perturbNormal(Ng, v.v_worldXYZ, v.v_texCoord,
                           sampleNormalGrad(u_normalMap, u_normalMap_s, v.v_texCoord, duvx, duvy));
-    if (!front) { N = -N; }
+    if (!front) { N = -N; Ng = -Ng; }
 #else
     let N = sampleNormalGrad(u_normalMap, u_normalMap_s, v.v_texCoord, duvx, duvy);
 #endif
@@ -533,8 +586,42 @@ fn packNormal(n : vec3f) -> vec2f {
 #ifdef MESH_NORMALS
     roughness = specularAA(dndx, dndy, roughness);
 #endif
-    let lit = applyLightingPBR(base.rgb, N, P, viewDirection(P),
-                               mc.u_metallic * mr.b, roughness, 1.0, ao);
+    var ext = surfaceExtNone(N);
+    if (mc.u_ior != 1.5) {
+        let r = (mc.u_ior - 1.0) / (mc.u_ior + 1.0);
+        ext.misc.x = r * r;
+    }
+#ifdef MESH_NORMALS
+    // See the GLSL twin: the coat's normal is the surface's own, not the bump map's.
+    if (mc.u_clearcoat > 0.0) {
+        ext.coat = vec4f(mc.u_clearcoat, max(mc.u_clearcoatRoughness, 0.045), 0.0, 0.0);
+        ext.coatN = vec4f(Ng, 0.0);
+    }
+    if (mc.u_anisotropy != 0.0) {
+        var T = perturbNormal(Ng, P, v.v_texCoord, vec3f(cos(mc.u_anisotropyRotation), sin(mc.u_anisotropyRotation), 0.0));
+        T -= N * dot(N, T);
+        if (dot(T, T) < 1e-6) {
+            var seed = vec3f(1.0, 0.0, 0.0);
+            if (abs(N.y) < 0.99) { seed = vec3f(0.0, 1.0, 0.0); }
+            T = cross(N, seed);
+        }
+        ext.aniso = vec4f(normalize(T), clamp(mc.u_anisotropy, -0.99, 0.99));
+    }
+#endif
+    if (dot(mc.u_sheenColor.rgb, vec3f(1.0)) > 0.0) { ext.sheen = vec4f(mc.u_sheenColor.rgb, max(mc.u_sheenRoughness, 0.07)); }
+    if (mc.u_translucency > 0.0) {
+        ext.scatter = vec4f(mc.u_translucencyColor.rgb * base.rgb, mc.u_translucency * 0.5);
+        ext.trans = vec4f(mc.u_translucency, mc.u_thickness, 0.0, 0.0);
+    }
+    if (mc.u_iridescence > 0.0) { ext.film = vec4f(mc.u_iridescence, max(mc.u_iridescenceIor, 1.0), mc.u_iridescenceThickness, 0.0); }
+    let viewDir = viewDirection(P);
+    if (mc.u_transmission > 0.0) {
+        let cosV = clamp(dot(N, viewDir), 0.0, 1.0);
+        alpha *= 1.0 - mc.u_transmission * (1.0 - (0.04 + 0.96 * pow(1.0 - cosV, 5.0)));
+        base = vec4f(mix(base.rgb, base.rgb * mc.u_attenuationColor.rgb, vec3f(mc.u_transmission)), base.a);
+    }
+    let lit = applyLightingSurface(base.rgb, N, P, viewDir,
+                                   mc.u_metallic * mr.b, roughness, mc.u_specular, ao, ext);
     let emit = mc.u_emissive.rgb
              * textureSampleGrad(u_emissiveMap, u_emissiveMap_s, v.v_texCoord, duvx, duvy).rgb;
 #ifdef ES_GBUFFER
