@@ -127,8 +127,6 @@ const DISPOSITION = {
 
   // — owed: a creator-facing component nothing in the shipped corpus authors.
   //   Each reason names where the coverage belongs. —
-  Foliage: ['owed', 'no corpus scene has foliage yet: the cells are built by the plugin while the game runs, which a golden project has no frame to certify — the foliage-look editor check and tests/foliage-builder.test.ts hold it'],
-  Terrain: ['owed', 'no corpus scene has a terrain yet: the ground is built by the plugin while the game runs, which a golden project has no frame to certify — the terrain-look editor check and tests/terrain-mesh.test.ts hold it'],
   StaticBatch: ['owed', 'no corpus scene marks a mesh yet: a marked mesh is merged while the game runs, which a golden project has no frame to certify — the static-batch-on / static-batch-off render scenes, tests/static-batch.test.ts and the static-batch editor check hold it'],
 };
 
