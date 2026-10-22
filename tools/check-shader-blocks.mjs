@@ -100,6 +100,7 @@ const ALIASES = {
 const SIGNATURE_GAPS = {
     sampleNormal: 'WGSL takes the texture and its sampler apart; GLSL has one combined type',
     sampleNormalGrad: 'WGSL takes the texture and its sampler apart; GLSL has one combined type',
+    shadeLight: 'WGSL returns the light and gloss it adds (a struct); GLSL accumulates them in two inout arguments',
 };
 
 /** A field name as the comparison sees it: the `u_` a shader adds is not part of it. */
@@ -146,7 +147,8 @@ function cppBlock(name, file) {
 /** `MAX_LIGHTS` and friends, so a C++ array length compares as a number. */
 function constants() {
     const out = new Map();
-    for (const file of new Set(Object.values(BLOCKS))) {
+    // The tile grid's size is TiledLights.hpp's, which the lighting block's array bounds are written in.
+    for (const file of new Set([...Object.values(BLOCKS), 'src/esengine/renderer/store/TiledLights.hpp'])) {
         const source = readFileSync(path.join(ROOT, file), 'utf8');
         for (const [, k, v] of source.matchAll(/constexpr\s+\w+\s+(\w+)\s*=\s*(\d+)/g)) {
             out.set(k, v);
@@ -218,7 +220,7 @@ function helpers(pattern) {
     return out;
 }
 
-const glslFns = helpers(/^\s*(?:highp\s+)?(?:vec[234]|float|mat[234])\s+(\w+)\s*\(([^)]*)\)\s*\{/gm);
+const glslFns = helpers(/^\s*(?:highp\s+)?(?:void|vec[234]|float|mat[234])\s+(\w+)\s*\(([^)]*)\)\s*\{/gm);
 const wgslFns = helpers(/\bfn\s+(\w+)\s*\(([^)]*)\)\s*->/g);
 
 const shape = (counts) => counts.length === 1 ? `${counts[0]} argument(s)`

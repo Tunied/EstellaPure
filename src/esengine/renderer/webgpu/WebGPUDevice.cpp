@@ -1940,10 +1940,10 @@ WGPUPipelineLayout WebGPUDevice::pipelineLayoutFor(u32 group0Mask, u32 group1Mas
 
 void WebGPUDevice::ensureDummies() {
     if (!dummy_ubo_.buffer) {
-        // Sized past the largest engine block (LightConstants, 1184 bytes) so a
+        // Sized past the largest engine block (LightConstants, just under 16 KB with the tiled lights) so a
         // declared-but-unbound block always satisfies draw-time size validation.
-        const std::vector<u8> zeros(2048, 0);
-        dummy_ubo_ = BufferRec{makeBuffer(GfxBufferUsage::Uniform, 2048, zeros.data()), 2048,
+        const std::vector<u8> zeros(16384, 0);
+        dummy_ubo_ = BufferRec{makeBuffer(GfxBufferUsage::Uniform, 16384, zeros.data()), 16384,
                                GfxBufferUsage::Uniform};
     }
     if (!dummy_texture_.texture) {

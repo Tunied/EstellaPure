@@ -40,6 +40,7 @@ public:
     void clear() {
         data_ = LightConstants{};
         count_ = 0;
+        tiledCount_ = 0;
         hasEnvironment_ = false;
         dirty_ = true;
     }
@@ -61,6 +62,29 @@ public:
         data_.ambient.w = static_cast<f32>(count_);
         dirty_ = true;
     }
+
+    /// Appends a light the loop's sixteen did not have room for, to be read through the tile masks: it marks every tile of
+    /// @p viewProjection its sphere (@p position, @p radius) can reach. Returns false past MAX_TILED_LIGHTS.
+    bool addTiledLight(const GpuLight& light, const glm::mat4& viewProjection, const glm::vec3& position, f32 radius) {
+        if (tiledCount_ >= MAX_TILED_LIGHTS) return false;
+        data_.tiledLights[tiledCount_] = light;
+        markLightTiles(viewProjection, position, radius, tiledCount_, reinterpret_cast<u32(*)[4]>(data_.tileMask));
+        ++tiledCount_;
+        data_.tileInfo = glm::vec4(static_cast<f32>(tiledCount_), static_cast<f32>(TILE_COLUMNS), static_cast<f32>(TILE_ROWS), 0.0f);
+        dirty_ = true;
+        return true;
+    }
+
+    /// Hides the tiled lights from the passes that follow, which draw through another camera (a planar reflection): their masks
+    /// were made for the camera this frame is seen from and would be read by pixels they mean nothing to. A false brings them back.
+    void suspendTiled(bool suspended) {
+        const f32 count = suspended ? 0.0f : static_cast<f32>(tiledCount_);
+        if (data_.tileInfo.x == count) return;
+        data_.tileInfo.x = count;
+        dirty_ = true;
+    }
+
+    u32 tiledCount() const { return tiledCount_; }
 
     /// Hands over the shadow tiles a frame rendered: per tile a world -> clip matrix
     /// and the atlas rect it was drawn into (bias in w), plus the params whose x is
@@ -172,6 +196,7 @@ public:
 private:
     LightConstants data_{};
     u32 count_ = 0;
+    u32 tiledCount_ = 0;
     bool hasEnvironment_ = false;
     BufferHandle ubo_ = BufferHandle::Invalid;
     bool dirty_ = true;

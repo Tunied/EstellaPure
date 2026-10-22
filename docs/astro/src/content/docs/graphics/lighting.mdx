@@ -80,6 +80,24 @@ const addSun = defineSystem([Commands()], (cmds) => {
 .insert(Light, { type: LightType.Ambient, intensity: 0.25 });
 ```
 
+## Many lights
+
+A frame carries **112 lights** at once: sixteen the lighting loop reads for every pixel, and up to 96 more that are **tiled**. A street at night with
+a lamp every few metres, a corridor of neon, a room of candles — each is just a point or spot `Light`, and all of them light what they reach.
+
+How it works, so that you can predict it: the sixteen the loop reads directly are the sun (directional lights), then anything that casts a
+shadow, then the brightest. Every other point or spot light **without a shadow map** goes into the tiled set. The screen is divided into a 16 × 12 grid; for
+each tile the engine records which lights' spheres (`radius`) can reach it, and a pixel shades only the lights recorded for its own tile. The cost
+follows the lights near a pixel, not the lights in the scene — a hundred lamps cost what the handful in view cost.
+
+What to keep in mind:
+
+- **Tiled lights do not cast shadows.** A shadow-casting light that does not make the sixteen is turned away (the Light Status in the editor says so), since the loop is the only
+  place a shadow map is read. Give the lights that matter shadows and let the many be the glow.
+- **`radius` is the reach.** The tile masks are built from it; a light with a huge radius touches every tile and costs like it.
+- Planar reflections are drawn with the sixteen only: their camera is not the one the tiles were made for.
+- 2D lights ride the same set, so a 2D scene with fifty torches is lit too.
+
 ## Shaping the falloff
 
 A Point or Spot light fades from its own centre to nothing at `radius`, in a straight

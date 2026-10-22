@@ -167,9 +167,12 @@ void RenderFrame::executePlanarReflection(ecs::Registry& registry, u32 view) {
     planar_pool_.upload();
     context_.useFrameConstants(capture.frameUbo,
         toClipDepthRange(capture.camera.projection, device_.clipDepthRange()));
+    // The tiled lights' masks are for the camera the scene is seen from; this one looks from the mirror.
+    context_.lights().suspendTiled(true);
     context_.lights().uploadAndBind();
     planar_list_.execute(device_, planar_pool_, context_.materials(),
                          context_.getWhiteTextureId(), nullptr, context_.perDrawBlocks());
+    context_.lights().suspendTiled(false);
     capture.valid = true;
     capture.lastTime = planar_elapsed_;
     capture.draws = planar_list_.mergedDrawCallCount();

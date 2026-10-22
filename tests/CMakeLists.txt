@@ -373,6 +373,14 @@ target_include_directories(test_probe_store PRIVATE
 )
 add_test(NAME test_probe_store COMMAND test_probe_store)
 
+# Which screen tiles a light's sphere can reach (tiled forward lighting's CPU half). Header-only, so it runs without a device.
+add_executable(test_tiled_lights renderer/test_tiled_lights.cpp)
+target_include_directories(test_tiled_lights PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/third_party/glm
+)
+add_test(NAME test_tiled_lights COMMAND test_tiled_lights)
+
 # Which baked column a point reflects. Header-only, so it runs without a device —
 # the pixel gate says a surface came out the wrong colour, this says whether the
 # lookup took the wrong box or let two bakes into one frame.

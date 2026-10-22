@@ -13,6 +13,7 @@
 #pragma once
 
 #include "../../core/Types.hpp"
+#include "./TiledLights.hpp"
 
 #include <glm/glm.hpp>
 
@@ -194,13 +195,21 @@ struct LightConstants {
     /// rgb = what the BAKED indirect light (a lightmap, a probe volume) is multiplied by: a bake holds one
     /// moment's light, so a scene that passes through a day or a weather scales and tints it here (1 = as baked).
     glm::vec4 bakedTint{1.0f};
+    /// The lights past the loop's sixteen (point and spot, no shadow map), read through the tile masks below; see TiledLights.hpp.
+    GpuLight tiledLights[MAX_TILED_LIGHTS];
+    /// Per screen tile, which of those lights can reach it: bit i of word i / 32.
+    glm::uvec4 tileMask[TILE_COLUMNS * TILE_ROWS]{};
+    /// x = how many tiled lights there are (0 = the loop does not run), y = tile columns, z = tile rows, w unused.
+    glm::vec4 tileInfo{0.0f};
 };
 
 static_assert(sizeof(GpuLight) == 96, "GpuLight must be std140-tight (six vec4s)");
+static_assert(sizeof(LightConstants) <= 16384, "the block has to fit the 16 KB every device guarantees a uniform block");
 static_assert(sizeof(LightConstants) == 16 + 96 * MAX_LIGHTS + 16
                                         + 64 * MAX_SHADOW_TILES + 16 * MAX_SHADOW_TILES
                                         + 16 + 16 * 9 + 16 + 16
-                                        + 16 + 32 * MAX_REFLECTION_PROBES + 16,
+                                        + 16 + 32 * MAX_REFLECTION_PROBES + 16
+                                        + 96 * MAX_TILED_LIGHTS + 16 * TILE_COLUMNS * TILE_ROWS + 16,
               "LightConstants must match the std140 GLSL block layout");
 
 }  // namespace esengine

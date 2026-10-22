@@ -1138,6 +1138,9 @@ struct LightConstants {
     u_reflParams : vec4f,
     u_reflBox : array<vec4f, 30>,
     u_bakedTint : vec4f,
+    tiledLights : array<Light, 96>,
+    tileMask : array<vec4u, 192>,
+    tileInfo : vec4f,
 };
 @group(0) @binding(2) var<uniform> lc : LightConstants;
 fn unpackDepth(c : vec3f) -> f32 {
@@ -1200,6 +1203,9 @@ struct LightConstants {
     u_reflParams : vec4f,
     u_reflBox : array<vec4f, 30>,
     u_bakedTint : vec4f,
+    tiledLights : array<Light, 96>,
+    tileMask : array<vec4u, 192>,
+    tileInfo : vec4f,
 };
 @group(0) @binding(2) var<uniform> lc : LightConstants;
 struct ProbeConstants { u_probeIrradiance : array<vec4f, 1000>, u_probeTail : vec4f };
@@ -1629,10 +1635,47 @@ fn applyLightingPBR(albedo : vec3f, N : vec3f, worldPos : vec3f, V : vec3f, meta
     var lit = indirectIrradiance(N) * ao;
     var gloss = vec3f(0.0);
     for (var i = 0; i < 16; i++) {
-        let pd = lc.u_lights[i].posDir;
-        let col = lc.u_lights[i].color;
-        let sh = lc.u_lights[i].shadow;
-        let fo = lc.u_lights[i].falloff;
+        let term = shadeLight(lc.u_lights[i].posDir, lc.u_lights[i].color, lc.u_lights[i].spot, lc.u_lights[i].shadow,
+                              lc.u_lights[i].shadowMap, lc.u_lights[i].falloff, N, V, worldPos, a, F0, NdotV, specular, roughness);
+        lit += term.lit;
+        gloss += term.gloss;
+    }
+    // The lights past the sixteen: this pixel's tile is found from where the fragment lands through the camera it was drawn by
+    // (normalized device coordinates, the same on every backend), and only the lights whose bit is set in its mask are shaded.
+    let tiledCount = i32(lc.tileInfo.x);
+    if (tiledCount > 0) {
+        let tileClip = frame.projection * vec4f(worldPos, 1.0);
+        let tileNdc = tileClip.xy / max(tileClip.w, 1e-4);
+        let tileCount = vec2i(i32(lc.tileInfo.y), i32(lc.tileInfo.z));
+        let tile = clamp(vec2i(floor((tileNdc * 0.5 + 0.5) * vec2f(tileCount))), vec2i(0), tileCount - vec2i(1));
+        let mask = lc.tileMask[tile.y * tileCount.x + tile.x];
+        for (var w = 0; w < 3; w++) {
+            var bits = mask.x;
+            if (w == 1) { bits = mask.y; } else if (w == 2) { bits = mask.z; }
+            if (bits == 0u) { continue; }
+            for (var b = 0; b < 32; b++) {
+                if ((bits & (1u << u32(b))) == 0u) { continue; }
+                let k = w * 32 + b;
+                if (k >= tiledCount) { break; }
+                let term = shadeLight(lc.tiledLights[k].posDir, lc.tiledLights[k].color, lc.tiledLights[k].spot,
+                                      lc.tiledLights[k].shadow, lc.tiledLights[k].shadowMap, lc.tiledLights[k].falloff,
+                                      N, V, worldPos, a, F0, NdotV, specular, roughness);
+                lit += term.lit;
+                gloss += term.gloss;
+            }
+        }
+    }
+    let ab = envBRDFApprox(NdotV, roughness);
+    gloss += envRadiance(reflect(-V, N), roughness, reflectionColumn(), worldPos) * (ao * specular)
+           * (F0 * ab.x + vec3f(ab.y));
+    return albedo * (1.0 - metallic) * lit + gloss;
+}
+struct LightTerm { lit : vec3f, gloss : vec3f };
+fn shadeLight(pd : vec4f, col : vec4f, sp : vec4f, sh : vec4f, sm : vec4f, fo : vec4f, N : vec3f, V : vec3f,
+              worldPos : vec3f, a : f32, F0 : vec3f, NdotV : f32, specular : f32, roughness : f32) -> LightTerm {
+    var lit = vec3f(0.0);
+    var gloss = vec3f(0.0);
+    {
         var L : vec3f;
         var atten : f32;
         var aim = pd.xy;
@@ -1650,7 +1693,6 @@ fn applyLightingPBR(albedo : vec3f, N : vec3f, worldPos : vec3f, V : vec3f, meta
             castShadow = sh.y > 0.0 && dot(toLight, toLight) > 0.5;
             aim = worldPos.xy + toLight * sh.y;
         } else {
-            let sp = lc.u_lights[i].spot;
             let toL = lightVector(pd, sh, worldPos);
             let dist = lightDistance(toL);
             atten = distanceFalloff(dist, max(pd.w, 0.0001), fo);
@@ -1661,9 +1703,8 @@ fn applyLightingPBR(albedo : vec3f, N : vec3f, worldPos : vec3f, V : vec3f, meta
             atten *= shapeFactor2D(fo.w, worldPos.xy);
         }
         if (castShadow && col.a > 0.0 && atten > 0.0) {
-            atten *= mix(1.0, shadowFactor2D(lc.u_lights[i].shadowMap.w, worldPos.xy), fo.z);
+            atten *= mix(1.0, shadowFactor2D(sm.w, worldPos.xy), fo.z);
         }
-        let sm = lc.u_lights[i].shadowMap;
         if (sm.y > 0.0 && atten > 0.0) {
             atten *= mix(1.0,
                          shadowFactor3D(worldPos, N, L, vec2f(sh.x, sm.z), i32(sm.x), i32(sm.y)),
@@ -1681,10 +1722,7 @@ fn applyLightingPBR(albedo : vec3f, N : vec3f, worldPos : vec3f, V : vec3f, meta
                    * (brdf * 3.14159265 * specular);
         }
     }
-    let ab = envBRDFApprox(NdotV, roughness);
-    gloss += envRadiance(reflect(-V, N), roughness, reflectionColumn(), worldPos) * (ao * specular)
-           * (F0 * ab.x + vec3f(ab.y));
-    return albedo * (1.0 - metallic) * lit + gloss;
+    return LightTerm(lit, gloss);
 }
 fn applyLighting2DAO(albedo : vec3f, N : vec3f, worldPos : vec2f, ao : f32) -> vec3f {
     let P = vec3f(worldPos, 0.0);
@@ -2072,6 +2110,9 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "    highp vec4 u_reflParams;\n"      // x = columns in the bound atlas (1 = sky only)
             "    highp vec4 u_reflBox[30];\n"     // [2i] = column i+1's world min, [2i+1] its max
             "    highp vec4 u_bakedTint;\n"      // what baked indirect light is multiplied by
+            "    Light u_tiledLights[96];\n"
+            "    highp uvec4 u_tileMask[192];\n"
+            "    highp vec4 u_tileInfo;\n"
             "};\n"
             // One run of nine per INSTANCE, not one for the draw: a merged draw
             // holds objects standing in many places. The flag in w tells "no
@@ -2538,6 +2579,11 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "    highp float ramp = clamp((reach - dist) / max(reach - fo.x, 1e-4), 0.0, 1.0);\n"
             "    return pow(ramp, max(fo.y, 1e-3));\n"
             "}\n"
+            // The body of the per-light loop, a function so that the lights the tiles carry are shaded by the same code as the sixteen.
+            "void shadeLight(in highp vec4 pd, in highp vec4 col, in highp vec4 sp, in highp vec4 sh, in highp vec4 sm,\n"
+            "                in highp vec4 fo, in highp vec3 N, in highp vec3 V, in highp vec3 worldPos,\n"
+            "                in highp float a, in highp vec3 F0, in highp float NdotV, in highp float specular,\n"
+            "                in highp float roughness, inout highp vec3 lit, inout highp vec3 gloss);\n"
             // The lighting model in its general form; a lit 2D surface is its zero
             // (metallic 0, roughness 1, specular 0 leaves albedo * NdotL, pixel for pixel
             // what this engine has always drawn), so there is one model and not two.
@@ -2557,10 +2603,45 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             // A Light has no third coordinate, so distance stays in the plane and a
             // point light's height is its radius. Normal and view are the 3D part.
             "    for (int i = 0; i < 16; ++i) {\n"
-            "        highp vec4 pd = u_lights[i].posDir;\n"
-            "        highp vec4 col = u_lights[i].color;\n"
-            "        highp vec4 sh = u_lights[i].shadow;\n"  // x = penumbra softness, y = directional distance
-            "        highp vec4 fo = u_lights[i].falloff;\n"  // x = inner radius, y = exponent, z = shadow strength
+            "        shadeLight(u_lights[i].posDir, u_lights[i].color, u_lights[i].spot, u_lights[i].shadow,\n"
+            "                   u_lights[i].shadowMap, u_lights[i].falloff, N, V, worldPos, a, F0, NdotV,\n"
+            "                   specular, roughness, lit, gloss);\n"
+            "    }\n"
+            // The lights past the sixteen: this pixel's tile is found from where the fragment lands through the camera it was drawn by
+            // (normalized device coordinates, the same on every backend), and only the lights whose bit is set in its mask are shaded.
+            "    int tiledCount = int(u_tileInfo.x);\n"
+            "    if (tiledCount > 0) {\n"
+            "        highp vec4 tileClip = u_projection * vec4(worldPos, 1.0);\n"
+            "        highp vec2 tileNdc = tileClip.xy / max(tileClip.w, 1e-4);\n"
+            "        ivec2 tileCount = ivec2(int(u_tileInfo.y), int(u_tileInfo.z));\n"
+            "        ivec2 tile = clamp(ivec2(floor((tileNdc * 0.5 + 0.5) * vec2(tileCount))), ivec2(0), tileCount - ivec2(1));\n"
+            "        highp uvec4 mask = u_tileMask[tile.y * tileCount.x + tile.x];\n"
+            "        for (int w = 0; w < 3; ++w) {\n"
+            "            highp uint bits = w == 0 ? mask.x : (w == 1 ? mask.y : mask.z);\n"
+            "            if (bits == 0u) continue;\n"
+            "            for (int b = 0; b < 32; ++b) {\n"
+            "                if ((bits & (1u << uint(b))) == 0u) continue;\n"
+            "                int k = w * 32 + b;\n"
+            "                if (k >= tiledCount) break;\n"
+            "                shadeLight(u_tiledLights[k].posDir, u_tiledLights[k].color, u_tiledLights[k].spot,\n"
+            "                           u_tiledLights[k].shadow, u_tiledLights[k].shadowMap, u_tiledLights[k].falloff,\n"
+            "                           N, V, worldPos, a, F0, NdotV, specular, roughness, lit, gloss);\n"
+            "            }\n"
+            "        }\n"
+            "    }\n"
+            // The environment, which for this engine is the ambient term: the same
+            // radiance from every direction. A metal has no diffuse, so without a
+            // reflection of it a metal is black wherever no light happens to point.
+            "    highp vec2 ab = envBRDFApprox(NdotV, roughness);\n"
+            "    gloss += envRadiance(reflect(-V, N), roughness, reflectionColumn(), worldPos)\n"
+            "           * (ao * specular)\n"
+            "           * (F0 * ab.x + ab.y);\n"
+            "    return albedo * (1.0 - metallic) * lit + gloss;\n"
+            "}\n"
+            "void shadeLight(in highp vec4 pd, in highp vec4 col, in highp vec4 sp, in highp vec4 sh, in highp vec4 sm,\n"
+            "                in highp vec4 fo, in highp vec3 N, in highp vec3 V, in highp vec3 worldPos,\n"
+            "                in highp float a, in highp vec3 F0, in highp float NdotV, in highp float specular,\n"
+            "                in highp float roughness, inout highp vec3 lit, inout highp vec3 gloss) {\n"
             "        highp vec3 L;\n"
             "        highp float atten;\n"
             "        highp vec2 target = pd.xy;\n"           // shadow-ray aim point (light position by default)
@@ -2580,7 +2661,6 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "            castShadow = sh.y > 0.0 && dot(toLight, toLight) > 0.5;\n"
             "            target = worldPos.xy + toLight * sh.y;\n"
             "        } else {\n"
-            "            highp vec4 sp = u_lights[i].spot;\n"
             "            highp vec3 toL = lightVector(pd, sh, worldPos);\n"
             "            highp float dist = lightDistance(toL);\n"
             "            atten = distanceFalloff(dist, max(pd.w, 0.0001), fo);\n"
@@ -2593,12 +2673,11 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "            atten *= shapeFactor2D(fo.w, worldPos.xy);\n"
             "        }\n"
             "        if (castShadow && col.a > 0.0 && atten > 0.0) {\n"
-            "            atten *= mix(1.0, shadowFactor2D(u_lights[i].shadowMap.w, worldPos.xy), fo.z);\n"
+            "            atten *= mix(1.0, shadowFactor2D(sm.w, worldPos.xy), fo.z);\n"
             "        }\n"
             // The tiles this light rendered into, which are its own: a fragment
             // tested against every map in the atlas would be darkened by geometry
             // seen from somewhere no light reaching it is standing.
-            "        highp vec4 sm = u_lights[i].shadowMap;\n"
             "        if (sm.y > 0.0 && atten > 0.0) {\n"
             "            atten *= mix(1.0, shadowFactor3D(worldPos, N, L, vec2(sh.x, sm.z),\n"
             "                                             int(sm.x), int(sm.y)), fo.z);\n"
@@ -2617,15 +2696,6 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "            gloss += radiance * fresnelSchlick(max(dot(V, H), 0.0), F0)\n"
             "                   * (brdf * 3.14159265 * specular);\n"
             "        }\n"
-            "    }\n"
-            // The environment, which for this engine is the ambient term: the same
-            // radiance from every direction. A metal has no diffuse, so without a
-            // reflection of it a metal is black wherever no light happens to point.
-            "    highp vec2 ab = envBRDFApprox(NdotV, roughness);\n"
-            "    gloss += envRadiance(reflect(-V, N), roughness, reflectionColumn(), worldPos)\n"
-            "           * (ao * specular)\n"
-            "           * (F0 * ab.x + ab.y);\n"
-            "    return albedo * (1.0 - metallic) * lit + gloss;\n"
             "}\n"
             "highp vec3 applyLighting2DAO(highp vec3 albedo, highp vec3 N, highp vec2 worldPos,\n"
             "                             highp float ao) {\n"
@@ -2674,6 +2744,9 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "    highp vec4 u_reflParams;\n"
             "    highp vec4 u_reflBox[30];\n"
             "    highp vec4 u_bakedTint;\n"
+            "    Light u_tiledLights[96];\n"
+            "    highp uvec4 u_tileMask[192];\n"
+            "    highp vec4 u_tileInfo;\n"
             "};\n"
             "uniform highp sampler2D u_shadowMap;\n"
             "highp float unpackDepth(in highp vec3 c) {\n"

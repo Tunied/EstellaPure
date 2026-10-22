@@ -1478,28 +1478,42 @@ void RenderFrame::collectLights(ecs::Registry& registry) {
         collected.push_back({gpu, castsMeshShadow, caster});
     }
 
-    light_cap_.limit = MAX_LIGHTS;
+    light_cap_.limit = MAX_LIGHTS + MAX_TILED_LIGHTS;
     light_cap_.requested = static_cast<u32>(collected.size() + light_cap_.refused.size());
+    // The lights past the loop's sixteen that can still be carried: point and spot lights with no shadow map, which a tile mask
+    // can hand to the fragments they reach. Everything else turned away is refused as it always was.
+    std::vector<CollectedLight> tiled;
     if (collected.size() > MAX_LIGHTS) {
-        std::partial_sort(collected.begin(), collected.begin() + MAX_LIGHTS, collected.end(),
-                          [](const CollectedLight& a, const CollectedLight& b) {
-                              return a.gpu.color.a > b.gpu.color.a;
-                          });
-        // Recorded AFTER the sort and BEFORE the resize: this is the one moment
-        // the frame knows which lights it is about to stop carrying, and it used
-        // to spend that moment printing how many.
+        // Which sixteen the loop reads: the sun, and what casts a shadow (the loop is the only place a shadow is read), first;
+        // then the brightest. Sorted whole, since what is left over is read in this order too.
+        const auto rank = [](const CollectedLight& l) {
+            const bool directional = l.gpu.posDir.z > 0.5f && l.gpu.posDir.z < 1.5f;
+            return directional ? 0 : (l.castsMeshShadow ? 1 : 2);
+        };
+        std::stable_sort(collected.begin(), collected.end(), [&rank](const CollectedLight& a, const CollectedLight& b) {
+            const int ra = rank(a), rb = rank(b);
+            if (ra != rb) return ra < rb;
+            return a.gpu.color.a > b.gpu.color.a;
+        });
         for (usize i = MAX_LIGHTS; i < collected.size(); ++i) {
-            const CollectedLight& dropped = collected[i];
-            light_cap_.refused.push_back({dropped.caster.light,
-                                          static_cast<u8>(dropped.gpu.posDir.z),
-                                          dropped.gpu.color.a, LightRefusal::Capacity});
-            ES_LOG_WARN("collectLights: light {} is not in this frame ({}); {} of {} kept, brightest first",
-                        dropped.caster.light.raw, lightRefusalName(LightRefusal::Capacity),
-                        MAX_LIGHTS, collected.size());
+            CollectedLight& rest = collected[i];
+            const bool positional = rest.gpu.posDir.z < 0.5f || rest.gpu.posDir.z > 1.5f;
+            if (positional && !rest.castsMeshShadow && tiled.size() < MAX_TILED_LIGHTS) {
+                tiled.push_back(rest);
+                continue;
+            }
+            // Recorded AFTER the sort and BEFORE the resize: this is the one moment
+            // the frame knows which lights it is about to stop carrying, and it used
+            // to spend that moment printing how many.
+            light_cap_.refused.push_back({rest.caster.light, static_cast<u8>(rest.gpu.posDir.z),
+                                          rest.gpu.color.a, LightRefusal::Capacity});
+            ES_LOG_WARN("collectLights: light {} is not in this frame ({}); {} kept of {}, brightest first",
+                        rest.caster.light.raw, lightRefusalName(LightRefusal::Capacity),
+                        MAX_LIGHTS + tiled.size(), collected.size());
         }
         collected.resize(MAX_LIGHTS);
     }
-    light_cap_.accepted = static_cast<u32>(collected.size());
+    light_cap_.accepted = static_cast<u32>(collected.size() + tiled.size());
     for (u32 slot = 0; slot < collected.size(); ++slot) {
         if (collected[slot].castsMeshShadow) {
             ShadowCaster caster = collected[slot].caster;
@@ -1507,6 +1521,10 @@ void RenderFrame::collectLights(ecs::Registry& registry) {
             shadow_casters_.push_back(caster);
         }
         lights.addLight(collected[slot].gpu);
+    }
+    for (const CollectedLight& light : tiled) {
+        const glm::vec3 position(light.gpu.posDir.x, light.gpu.posDir.y, light.gpu.shadow.z);
+        lights.addTiledLight(light.gpu, view_projection_, position, std::max(light.gpu.posDir.w, 0.0f));
     }
 
     // Last, because which lights the mask can carry is a question about the array the
