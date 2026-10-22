@@ -1529,6 +1529,9 @@ fn depthAt(texel : vec2i, size : vec2i) -> f32 {
 #pragma domain PostProcess
 #pragma param u_intensity float default(1) range(0,8)
 #pragma param u_panorama float default(0) range(0,1)
+// A marker the engine reads, not a setting: with it declared (and the background not kept) the scene is cleared to nothing, so its alpha
+// is how much of each pixel geometry covers and the sky is laid under it. See PostProcessPipeline::sceneCoverageWanted.
+#pragma param u_sceneCoverage float default(1) range(0,1)
 #pragma param u_overcast float default(0) range(0,1)
 #pragma param u_haze float default(1) range(0,8)
 #pragma param u_altitude float default(0.1) range(0,20)
@@ -1656,7 +1659,10 @@ void main() {
     vec4 src = texture(u_texture, v_texCoord);
     ivec2 size = textureSize(u_sceneDepth, 0);
     float depth = texelFetch(u_sceneDepth, clamp(ivec2(v_texCoord * vec2(size)), ivec2(0), size - ivec2(1)), 0).r;
-    if (depth < 1.0) { fragColor = src; return; }
+    // The scene was cleared to nothing when the background is not kept (the engine's rule, same threshold): what is left of a pixel's
+    // alpha is how much the sky shows through it, and that includes a pixel whose depth says surface because one sample of it is.
+    bool covered = u_panorama <= 0.001;
+    if (covered ? (depth < 1.0 && src.a > 0.999) : depth < 1.0) { fragColor = src; return; }
 
     vec3 entry = worldFromDepth(v_texCoord, 0.0);
     vec3 dir = normalize(worldFromDepth(v_texCoord, 1.0) - entry);
@@ -1764,6 +1770,11 @@ void main() {
     float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
     col = mix(col, vec3(luma), overcast * 0.5);
 
+    if (covered) {
+        // Under the geometry by its coverage; a mark in the alpha (a scattering surface's 0.996) is kept, a partial edge becomes whole.
+        fragColor = vec4(src.rgb + (1.0 - src.a) * col, src.a > 0.99 ? src.a : 1.0);
+        return;
+    }
     fragColor = vec4(mix(col, src.rgb, clamp(u_panorama, 0.0, 1.0)), src.a);
 }
 #pragma end
@@ -1872,7 +1883,8 @@ fn cloudDensity(p : vec3f, coverage : f32, base : f32, thick : f32, octaves : i3
     let src = textureSampleLevel(t0, s0, v.v_texCoord, 0.0);
     let size = vec2i(textureDimensions(t7, 0));
     let depth = textureLoad(t7, clamp(vec2i(v.v_texCoord * vec2f(size)), vec2i(0), size - vec2i(1)), 0);
-    if (depth < 1.0) { return src; }
+    let covered = mc.u_panorama <= 0.001;
+    if ((covered && depth < 1.0 && src.a > 0.999) || (!covered && depth < 1.0)) { return src; }
 
     let entry = worldFromDepth(v.v_texCoord, 0.0);
     let dir = normalize(worldFromDepth(v.v_texCoord, 1.0) - entry);
@@ -1973,7 +1985,10 @@ fn cloudDensity(p : vec3f, coverage : f32, base : f32, thick : f32, octaves : i3
     let luma = dot(col, vec3f(0.2126, 0.7152, 0.0722));
     col = mix(col, vec3f(luma), overcast * 0.5);
 
-    return vec4f(mix(col, src.rgb, clamp(mc.u_panorama, 0.0, 1.0)), src.a);
+    if (covered) {
+        return vec4f(src.rgb + (1.0 - src.a) * col, select(1.0, src.a, src.a > 0.99));
+    }
+    return vec4f(mix(col, src.rgb, vec3f(clamp(mc.u_panorama, 0.0, 1.0))), src.a);
 }
 #pragma end
 `;

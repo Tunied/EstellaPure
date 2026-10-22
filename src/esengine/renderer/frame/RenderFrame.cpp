@@ -427,6 +427,12 @@ void RenderFrame::openPass(const PassClear& clear, RenderTargetManager::Handle t
     pass.clearColorValue[2] = clearRgb.b;
     pass.clearColorValue[3] = clear.colorValue.a;
     scene_clear_ = glm::make_vec4(pass.clearColorValue);
+#ifdef ES_ENABLE_POSTPROCESS
+    // An effect that lays a sky UNDER the scene needs the scene's alpha to be its coverage, which a clear to nothing makes it.
+    if (usePostProcess && post_process_->sceneCoverageWanted()) {
+        for (f32& channel : pass.clearColorValue) channel = 0.0f;
+    }
+#endif
     pass.clearX = clear.x;
     pass.clearY = clear.y;
     pass.clearW = clear.w;

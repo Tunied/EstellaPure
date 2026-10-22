@@ -67,6 +67,13 @@ temporal effect does, so it can be used without `taa`.
 `filmGrain` and `lensFlare` are plain post effects. The flare reads the picture itself, so it only has something to
 throw where the picture holds values above `threshold`: a bright sun disc, a lamp, an emissive surface (in HDR).
 
+### The sky and thin geometry
+
+`skyAtmosphere` draws the sky after the scene, under it. For that to leave a wire or a railing thinner than a pixel whole, the
+scene is cleared to nothing while the effect is in the chain and its alpha says how much of each pixel geometry covers, so the
+sky is laid under an edge by that share instead of replacing the pixel. Nothing downstream sees it: the effect hands back alpha 1.
+Turn **Keep Background** up and the scene is cleared to the camera's colour again, which is what keeping the background means.
+
 ### Rain, wet ground and puddles
 
 `rain` is a storm in two parts. **Falling rain** is three layers of thin slanted streaks scrolling down the

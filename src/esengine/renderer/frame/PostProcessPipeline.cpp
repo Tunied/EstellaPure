@@ -414,6 +414,18 @@ void PostProcessPipeline::trackView(const glm::mat4& viewProjection, u64 key) {
     ++state.frame;
 }
 
+bool PostProcessPipeline::sceneCoverageWanted() {
+    if (!initialized_ || bypass_) return false;
+    for (const auto& pass : passes_) {
+        if (!pass.enabled || !pass.nativeKind.empty()) continue;
+        const MaterialUniformLayout* layout = context_.materials().layoutFor(pass.shader);
+        if (!layout || !layout->find("u_sceneCoverage")) continue;
+        if (const auto it = pass.floatUniforms.find("u_panorama"); it != pass.floatUniforms.end() && it->second > 0.001f) continue;
+        return true;
+    }
+    return false;
+}
+
 bool PostProcessPipeline::velocityWanted() {
     if (!initialized_ || bypass_ || !device_.supportsFloatTargets()) return false;
     for (const auto& pass : passes_) {

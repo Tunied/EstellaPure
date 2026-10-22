@@ -268,6 +268,18 @@ public:
     /// encode: a copy, with the alpha set to a marker (0.5) a shader can tell from the white a texture param falls back to.
     void grabScene();
 
+    /**
+     * @brief Whether the scene is to be cleared to nothing (all four channels zero) so that its alpha says how much of each pixel geometry covers.
+     *
+     * @details A sky drawn after the scene (the Sky Atmosphere effect) replaces every pixel whose depth is the far plane. Depth is resolved from
+     *          one sample of a multisampled target, so a wire narrower than a pixel — covered at some samples, not at the one depth keeps — is
+     *          painted over wherever that sample missed, and a line becomes dashes. With a clear of (0,0,0,0) the resolved colour is the
+     *          geometry's share premultiplied and the alpha is its coverage, which is exactly what the sky has to be laid UNDER.
+     *          An enabled pass asks for it by declaring `u_sceneCoverage`, unless it keeps the scene's own background (`u_panorama` above zero):
+     *          there the cleared pixels are what the picture shows, and they must stay the camera's colour.
+     */
+    bool sceneCoverageWanted();
+
     /// Records this frame's camera as the view @p key's current one, and last frame's as its previous. No shift.
     void trackView(const glm::mat4& viewProjection, u64 key);
 

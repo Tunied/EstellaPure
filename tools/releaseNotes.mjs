@@ -2495,6 +2495,8 @@ export const NOTED = {
     {"note":"Height Fog and Light Shafts follow the scene's own sun, and Height Fog can carry the sun's shadows as volumetric light."},
   "feat(editor): Time Of Day and Weather panels, a grouped effect stack and material layer switches":
     {"internal":"the desktop half of the Details panels entry just below, which carries the note"},
+  "fix(render): a wire narrower than a pixel is no longer painted over by the sky in dashes":
+    {"note":"A wire or railing thinner than a pixel stays one line against the sky instead of breaking into dashes."},
   "fix(render): contact shadows no longer speckle a surface the sun does not reach, and a temporal pass placed before a noisy effect is flagged":
     {"note":"Contact shadows are soft and keep off surfaces facing away from the sun, so a wall no longer carries a speckle a temporal pass could not average, and the effect stack flags a Temporal Anti-Aliasing that sits before a noisy effect."},
   "feat(editor): Time Of Day and Weather have Details panels of their own, the effect stack is grouped, and a material's surface layers are switches":
