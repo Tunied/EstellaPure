@@ -309,6 +309,25 @@ public:
         return it != materials_.end() ? &it->second : nullptr;
     }
 
+    /// Whether @p materialId's shader reads the picture of what is behind it (declares `u_sceneColor`): refraction, a lens, anything
+    /// that has to see the opaque scene as it stood before this draw. Such a draw is made after a copy of that picture is taken.
+    bool usesSceneColor(u32 materialId) const {
+        const MaterialRecord* m = find(materialId);
+        const MaterialUniformLayout* layout = m ? layoutFor(m->shaderRef) : nullptr;
+        if (!layout || layout->findTexture("u_sceneColor") == nullptr) return false;
+        // A shader that has a `u_transmission` (the Model shader, whose material is mostly opaque) asks for the copy only while
+        // the material holds it above zero; one that has none always does.
+        const MaterialParamSlot* slot = layout->find("u_transmission");
+        if (!slot) return true;
+        if (slot->offset + sizeof(f32) > m->uboBytes.size()) return false;
+        f32 value = 0.0f;
+        std::memcpy(&value, m->uboBytes.data() + slot->offset, sizeof(f32));
+        return value > 0.0f;
+    }
+    /// The copy of the opaque scene the frame took for the draws above, or invalid when it took none. Bound to a material's
+    /// `u_sceneColor` unit unless the material was given a texture of its own there.
+    void setSceneColor(TextureHandle texture) { sceneColor_ = texture; }
+
     /// Whether @p materialId's output alpha is coverage now: its shader names a
     /// coverage param and this material holds it above zero.
     bool alphaIsCoverage(u32 materialId) const {
@@ -368,6 +387,7 @@ private:
     mutable std::unordered_map<u32, std::unordered_map<u64, resource::ShaderHandle>> mesh_programs_;
     /// Programs compiled with ES_GBUFFER (see programWritesGBuffer).
     mutable std::unordered_set<u32> gbuffer_programs_;
+    TextureHandle sceneColor_ = TextureHandle::Invalid;
 
 public:
     /** @brief How many material program variants have been built. A prewarm counts

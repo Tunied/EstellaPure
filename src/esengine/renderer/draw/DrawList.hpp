@@ -55,10 +55,16 @@ public:
     // white_texture_id fills a Batch draw's unused sampler slots — a STABLE texture
     // so those slots stay pinned across draws and the bind cache dedups them
     // (filling with the draw's own tex re-pointed all 8 units on every tex change).
+    /// Which of the list's draws an execute makes. A draw whose material reads the picture behind it (`u_sceneColor`) has to be
+    /// made after a copy of that picture is taken, so the frame executes the list twice: the rest, then those.
+    enum class Phase : u8 { All, WithoutSceneColor, SceneColorOnly };
     void execute(GfxDevice& device, TransientBufferPool& buffers,
                  MaterialStore& materials, u32 white_texture_id = 0,
                  FrameCapture* capture = nullptr,
-                 const PerDrawBlockSet& blocks = {});
+                 const PerDrawBlockSet& blocks = {}, Phase phase = Phase::All);
+
+    /// Whether any merged draw reads the picture behind it.
+    bool anyUsesSceneColor(const MaterialStore& materials) const;
 
     /** Append one draw's bone matrices; returns where they start. Frame-scoped,
      *  like the vertex pool: a command references an offset, not a copy. */

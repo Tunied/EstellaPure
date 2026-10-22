@@ -131,6 +131,8 @@ describe('which texture params a shader reads as numbers', () => {
             .filter((p) => p.type === 'texture').map((p) => [p.name, p.texel ?? 'colour']);
         expect(Object.fromEntries(data)).toEqual({
             u_normalMap: 'data', u_emissiveMap: 'colour', u_occlusionMap: 'data', u_metallicRoughnessMap: 'data',
+            // The picture of the scene the frame binds for refraction: never a project texture, so nothing to flag.
+            u_sceneColor: 'colour',
         });
     });
 });

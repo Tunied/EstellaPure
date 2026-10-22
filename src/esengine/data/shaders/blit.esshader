@@ -52,6 +52,12 @@ void main() {
 #endif
     // The editor view's exposure (u_time.z, stops): zero outside the editor, where
     // exp2(0) = 1 leaves every pixel as it was. Before the curve, like any exposure.
+#ifdef ES_COPY
+    // A copy of the picture for a surface that looks through to it. Alpha 0.5 says "a real copy": the texture param a shader falls
+    // back to when the frame took none is white, whose alpha is 1.
+    fragColor = vec4(c.rgb, 0.5);
+    return;
+#endif
     c = vec4(c.rgb * exp2(u_time.z), c.a);
 #ifdef ES_TONEMAP
     // The output transform: scene radiance can exceed 1.0 on an HDR target,
@@ -110,6 +116,9 @@ fn upscale(uv : vec2f) -> vec4f {
     var c = upscale(v.v_texCoord);
 #else
     var c = textureSampleLevel(t0, s0, v.v_texCoord, 0.0);
+#endif
+#ifdef ES_COPY
+    return vec4f(c.rgb, 0.5);
 #endif
     c = vec4f(c.rgb * exp2(tc.u_time.z), c.a);
 #ifdef ES_TONEMAP

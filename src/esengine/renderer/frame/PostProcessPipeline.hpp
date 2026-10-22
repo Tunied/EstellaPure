@@ -261,6 +261,13 @@ public:
      */
     bool cameraMotionWanted();
 
+    /// The shape of the copy of the opaque scene a refractive surface reads: the chain's own, bilinear.
+    rg::TargetDesc grabTarget() const { return chainTarget(/*withDepth=*/false); }
+
+    /// Copies what is bound at unit 0 (the scene, as the pass before drew it) into the target being drawn. No exposure, no curve, no
+    /// encode: a copy, with the alpha set to a marker (0.5) a shader can tell from the white a texture param falls back to.
+    void grabScene();
+
     /// Records this frame's camera as the view @p key's current one, and last frame's as its previous. No shift.
     void trackView(const glm::mat4& viewProjection, u64 key);
 
@@ -587,6 +594,7 @@ private:
     resource::ShaderHandle neutralShader_;
     /// The same three blits (plain, neutral, ACES) with the resampling upscaler, compiled when a present first needs one.
     resource::ShaderHandle upscaleShaders_[3];
+    resource::ShaderHandle copyShader_;
 
     std::vector<PostProcessPass> passes_;
     u32 width_ = 0;

@@ -791,7 +791,7 @@ private:
     /// Deletes them. Device loss and shutdown: the handles name nothing afterwards.
     void releaseShadowFrameUbos();
     /// The scene pass's body: the draw, and the constants it needs current.
-    void drawScene();
+    void drawScene(DrawList::Phase phase = DrawList::Phase::All);
     /// Drops the atlas texture id the frame published; its target is the graph's
     /// to give back.
     void releaseFrameTargets();

@@ -227,6 +227,10 @@ void PostProcessPipeline::shutdown() {
         resourceManager_.releaseShader(tonemapShader_);
         tonemapShader_ = resource::ShaderHandle{};
     }
+    if (copyShader_.isValid()) {
+        resourceManager_.releaseShader(copyShader_);
+        copyShader_ = resource::ShaderHandle{};
+    }
     for (auto& shader : upscaleShaders_) {
         if (!shader.isValid()) continue;
         resourceManager_.releaseShader(shader);
@@ -990,6 +994,22 @@ void PostProcessPipeline::setOutputViewport(u32 x, u32 y, u32 w, u32 h) {
     output_vp_y_ = y;
     output_vp_w_ = w;
     output_vp_h_ = h;
+}
+
+void PostProcessPipeline::grabScene() {
+    if (!copyShader_.isValid()) {
+        copyShader_ = compileBlit({"ES_COPY"});
+        if (!copyShader_.isValid()) {
+            ES_LOG_ERROR("PostProcessPipeline: no copy shader; a refractive surface sees nothing behind it");
+            return;
+        }
+    }
+    Shader* shader = resourceManager_.getShader(copyShader_);
+    if (!shader) return;
+    applyPassPipeline(*shader);
+    shader->setUniform("u_texture", 0);
+    shader->commitParams();
+    drawScreenQuad();
 }
 
 void PostProcessPipeline::blitPass() {

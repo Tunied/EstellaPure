@@ -355,9 +355,16 @@ void DrawList::stageBlocks(const PerDrawBlockSet& blocks) {
     }
 }
 
+bool DrawList::anyUsesSceneColor(const MaterialStore& materials) const {
+    for (u32 i = 0; i < merged_draw_calls_; ++i) {
+        if (commands_[i].material_id != 0 && materials.usesSceneColor(commands_[i].material_id)) return true;
+    }
+    return false;
+}
+
 void DrawList::execute(GfxDevice& device, TransientBufferPool& buffers,
                        MaterialStore& materials, u32 white_texture_id,
-                       FrameCapture* capture, const PerDrawBlockSet& blocks) {
+                       FrameCapture* capture, const PerDrawBlockSet& blocks, Phase phase) {
     PipelineDesc lastDesc{};
     PipelineHandle lastHandle = PipelineHandle::Invalid;
 
@@ -372,6 +379,10 @@ void DrawList::execute(GfxDevice& device, TransientBufferPool& buffers,
     for (u32 i = 0; i < merged_draw_calls_; ++i) {
         const auto& cmd = commands_[i];
         const StagedBlocks& staged = staged_[i];
+        if (phase != Phase::All
+            && (cmd.material_id != 0 && materials.usesSceneColor(cmd.material_id)) != (phase == Phase::SceneColorOnly)) {
+            continue;
+        }
 
         const GfxStencilMode stencil = stencilModeOf(cmd.state_flags);
 

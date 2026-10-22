@@ -229,7 +229,7 @@ void RenderFrame::resize(u32 width, u32 height) {
 
 // The scene pass's body. The graph has bound the target and set the camera's
 // viewport; this is the draw and the constants it needs current.
-void RenderFrame::drawScene() {
+void RenderFrame::drawScene(DrawList::Phase phase) {
     // A temporal effect in the chain asks for the picture to be shifted by a different
     // sub-pixel amount each frame, so its history samples what a single frame cannot.
     // The scene only: the overlay and the shadow maps are drawn with constants of their own.
@@ -237,7 +237,11 @@ void RenderFrame::drawScene() {
 #ifdef ES_ENABLE_POSTPROCESS
     // The atlas the meshes reflect, for an effect that adds a reflection of its own where the scene's ray found none.
     if (post_process_) post_process_->setEnvironmentTexture(environment_texture_id_);
-    if (post_process_ && post_process_->isEngaged() && post_process_->temporalActive()) {
+    if (phase == DrawList::Phase::SceneColorOnly) {
+        // The second half of a scene drawn in two: the same camera, shifted the same way, and a frame that must not step the
+        // temporal view a second time.
+        jitter = scene_jitter_;
+    } else if (post_process_ && post_process_->isEngaged() && post_process_->temporalActive()) {
         jitter = post_process_->beginTemporalView(view_projection_, current_target_);
     } else if (post_process_ && post_process_->isEngaged() && post_process_->cameraMotionWanted()) {
         post_process_->trackView(view_projection_, current_target_);
@@ -275,7 +279,7 @@ void RenderFrame::drawScene() {
         draw_list_.setGBufferPass(post_process_ && post_process_->sceneHasGBuffer());
 #endif
         draw_list_.execute(device_, pool_, context_.materials(), context_.getWhiteTextureId(),
-                           &frame_capture_, context_.perDrawBlocks());
+                           &frame_capture_, context_.perDrawBlocks(), phase);
         draw_list_.setGBufferPass(false);
     }
 
@@ -634,11 +638,45 @@ void RenderFrame::end() {
             scene.dependencies.push_back(shadow_2d_resource_);
         }
         if (planar_resource_ != rg::kNoResource) scene.dependencies.push_back(planar_resource_);
-        scene.execute = [this](const rg::PassContext&) {
-            drawScene();
-            if (presented_overlay_draw_) presented_overlay_draw_->flushDeferred();
+        // A surface that refracts has to see what stands behind it, and what stands behind it is the opaque scene: the pass is
+        // drawn in two, with a copy of the picture taken between. Only where the scene is a texture a pass can read (a chain is
+        // engaged) and a draw in the list asks for the copy.
+        bool glass = false;
+#ifdef ES_ENABLE_POSTPROCESS
+        glass = usePostProcess && draw_list_.anyUsesSceneColor(context_.materials());
+#endif
+        rg::PassDesc glassPass;
+        rg::ResourceId grab = rg::kNoResource;
+        if (glass) {
+#ifdef ES_ENABLE_POSTPROCESS
+            grab = graph_.createTarget(post_process_->grabTarget());
+            glassPass = scene;
+            glassPass.name = "scene-glass";
+            glassPass.dependencies.push_back(grab);
+            glassPass.execute = [this, grab](const rg::PassContext&) {
+                context_.materials().setSceneColor(graph_.textureOf(grab));
+                drawScene(DrawList::Phase::SceneColorOnly);
+                context_.materials().setSceneColor(TextureHandle::Invalid);
+                if (presented_overlay_draw_) presented_overlay_draw_->flushDeferred();
+            };
+#endif
+        }
+        scene.execute = [this, glass](const rg::PassContext&) {
+            drawScene(glass ? DrawList::Phase::WithoutSceneColor : DrawList::Phase::All);
+            if (!glass && presented_overlay_draw_) presented_overlay_draw_->flushDeferred();
         };
         graph_.addPass(std::move(scene));
+        if (glass) {
+#ifdef ES_ENABLE_POSTPROCESS
+            rg::PassDesc copy;
+            copy.name = "scene-grab";
+            copy.reads = {scene_resource_};
+            copy.write = grab;
+            copy.execute = [this](const rg::PassContext&) { post_process_->grabScene(); };
+            graph_.addPass(std::move(copy));
+#endif
+            graph_.addPass(std::move(glassPass));
+        }
     }
 
 #ifdef ES_ENABLE_POSTPROCESS

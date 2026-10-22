@@ -53,13 +53,13 @@ The **Model** shader is a metal/rough surface with layers on top. Each is off at
 | Translucency | `u_translucency`, `u_translucencyColor`, `u_thickness` | Light that scatters into a thin surface: the lit side wraps past the terminator, and a lamp behind shows through, tinted, less the thicker it is. Leaves, paper, wax, a lampshade, skin at the ears. |
 | Thin film | `u_iridescence`, `u_iridescenceIor`, `u_iridescenceThickness` (nm) | The reflection changes hue with the angle: soap, oil, beetle shell, coated glass. |
 | Index of refraction | `u_ior`, `u_specular` | How strongly a non-metal reflects head-on (1.5 is glass and most plastics; a gemstone is 2.4), and a master scale on the reflection. |
-| Transmission | `u_transmission`, `u_attenuationColor` | Glass and water: the surface lets that much of what is behind show, tinted, and reflects more at grazing angles. See the limits. |
+| Transmission | `u_transmission`, `u_attenuationColor`, `u_thickness`, `u_refractionStrength` | Glass and water: the surface shows what is behind it, bent by the glass (thicker bends more), tinted, and softened by its roughness; it reflects more at grazing angles. |
 
 Everything here is written by model import from the glTF extensions of the same names (`KHR_materials_clearcoat`, `_sheen`, `_anisotropy`, `_ior`, `_specular`, `_iridescence`, `_transmission`, `_volume`, `_diffuse_transmission`) — see [Models](/docs/assets/models/).
 
 **Limits.** These are cheap, real-time models, and say where they stop:
 
-- **Transmission shows no refraction.** There is no picture of the opaque scene to bend, so a transmissive surface is drawn alpha-blended: the background behind it is undistorted, and the highlights on it are dimmed by the same blend. Pull the transmission down for a surface that must keep its highlights.
+- **Transmission refracts the opaque scene only.** A material that holds `u_transmission` above zero is drawn after the rest of the scene, from a copy of the picture taken just before: the ray is bent through the surface's thickness and the copy is read where it lands. So glass does not refract other glass, and a thin shell bends the picture by a fixed amount rather than as a lens that flips it. It needs a scene the engine can copy, which means a post-process chain is running (any effect, an output transform, or a render scale below 1); without one the surface falls back to alpha-blended coverage and shows the background undistorted.
 - **Translucency does not blur.** There is no screen-space subsurface pass; the light that enters at one point leaves at that point.
 - **A layer's textures are not read.** Each layer is a constant for the whole material (the Model shader has no texture unit left for more); a glTF extension's maps are reported at import and its factors are kept.
 - **Sheen and thin film are fits.** Sheen's energy loss and the film's interference are analytic approximations in place of the lookup tables a production renderer bakes.

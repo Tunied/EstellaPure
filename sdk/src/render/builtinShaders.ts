@@ -377,6 +377,11 @@ const MODEL = `#pragma shader "Model"
 #pragma param u_thickness float default(0) range(0,1) ui(slider)
 #pragma param u_transmission float default(0) range(0,1) ui(slider)
 #pragma param u_attenuationColor color default(1,1,1,1)
+// The picture of the opaque scene as it stood behind this surface, which the frame takes a copy of before it draws a material
+// that holds a transmission above zero (and only then: a draw that reads it is made after the copy). The white it falls back
+// to has alpha 1, and a real copy has 0.5 — which is how this tells whether it has one.
+#pragma param u_sceneColor texture default(white)
+#pragma param u_refractionStrength float default(1) range(0,4) ui(slider)
 #pragma param u_iridescence float default(0) range(0,1) ui(slider)
 #pragma param u_iridescenceIor float default(1.3) range(1,2.5) ui(slider)
 #pragma param u_iridescenceThickness float default(400) range(0,1200) ui(slider)
@@ -497,16 +502,38 @@ void main() {
     }
     if (u_iridescence > 0.0) ext.film = vec4(u_iridescence, max(u_iridescenceIor, 1.0), u_iridescenceThickness, 0.0);
     vec3 viewDir = viewDirection(P);
-    // Light that passes through. With no picture of what is behind to refract, the surface lets that much of it show: its
-    // coverage falls with the transmission, and returns at grazing angles where glass reflects instead of passing light.
+    // Light that passes through: what stands behind the surface, bent by the glass and tinted by it, and less of it where the
+    // surface reflects instead. The frame took a copy of the opaque scene for this draw; the ray is refracted through the
+    // surface's thickness, and the copy is read where it lands, blurred by the roughness.
+    vec3 seen = vec3(0.0);
+    float refracted = 0.0;
     if (u_transmission > 0.0) {
         float cosV = clamp(dot(N, viewDir), 0.0, 1.0);
-        alpha *= 1.0 - u_transmission * (1.0 - (0.04 + 0.96 * pow(1.0 - cosV, 5.0)));
-        base.rgb = mix(base.rgb, base.rgb * u_attenuationColor.rgb, u_transmission);
+        float fresnel = ext.misc.x + (1.0 - ext.misc.x) * pow(1.0 - cosV, 5.0);
+        if (texture(u_sceneColor, vec2(0.5)).a < 0.75) {
+            vec3 bent = refract(-viewDir, N, 1.0 / max(u_ior, 1.0));
+            float depth = max(u_thickness, 0.15) * 60.0 * u_refractionStrength;
+            vec4 landed = u_projection * vec4(P + bent * depth, 1.0);
+            vec2 uv = landed.xy / max(landed.w, 1e-4) * 0.5 + 0.5;
+            float spread = roughness * roughness * 0.04;
+            vec3 behind = texture(u_sceneColor, clamp(uv, vec2(0.001), vec2(0.999))).rgb;
+            for (int i = 0; i < 8; ++i) {
+                float a = float(i) * 2.39996;
+                vec2 o = vec2(cos(a), sin(a)) * (spread * sqrt((float(i) + 0.5) / 8.0));
+                behind += texture(u_sceneColor, clamp(uv + o, vec2(0.001), vec2(0.999))).rgb;
+            }
+            seen = behind / 9.0 * u_attenuationColor.rgb * (1.0 - fresnel) * u_transmission;
+            refracted = 1.0;
+        } else {
+            // No picture to refract (the scene is not a texture here): the surface lets that much of the scene show instead,
+            // by its own coverage, which dims what it reflects with it.
+            alpha *= 1.0 - u_transmission * (1.0 - fresnel);
+            base.rgb = mix(base.rgb, base.rgb * u_attenuationColor.rgb, u_transmission);
+        }
     }
-    vec3 lit = applyLightingSurface(base.rgb, N, P, viewDir,
+    vec3 lit = applyLightingSurface(base.rgb * (1.0 - u_transmission * refracted), N, P, viewDir,
                                     u_metallic * mr.b, roughness, u_specular, ao, ext);
-    fragColor = vec4(lit + u_emissive.rgb * texture(u_emissiveMap, v_texCoord).rgb, alpha);
+    fragColor = vec4(lit + seen + u_emissive.rgb * texture(u_emissiveMap, v_texCoord).rgb, alpha);
 #ifdef ES_GBUFFER
     // Alpha says something was drawn here (0 is "nothing wrote"), and carries the metalness above 0.75: a pixel that
     // multisampling averaged with an unwritten one falls below it, and an effect can tell such an edge from a surface.
@@ -615,22 +642,43 @@ fn packNormal(n : vec3f) -> vec2f {
     }
     if (mc.u_iridescence > 0.0) { ext.film = vec4f(mc.u_iridescence, max(mc.u_iridescenceIor, 1.0), mc.u_iridescenceThickness, 0.0); }
     let viewDir = viewDirection(P);
+    var seen = vec3f(0.0);
+    var refracted = 0.0;
     if (mc.u_transmission > 0.0) {
         let cosV = clamp(dot(N, viewDir), 0.0, 1.0);
-        alpha *= 1.0 - mc.u_transmission * (1.0 - (0.04 + 0.96 * pow(1.0 - cosV, 5.0)));
-        base = vec4f(mix(base.rgb, base.rgb * mc.u_attenuationColor.rgb, vec3f(mc.u_transmission)), base.a);
+        let fresnel = ext.misc.x + (1.0 - ext.misc.x) * pow(1.0 - cosV, 5.0);
+        if (textureSampleLevel(u_sceneColor, u_sceneColor_s, vec2f(0.5), 0.0).a < 0.75) {
+            let bent = refract(-viewDir, N, 1.0 / max(mc.u_ior, 1.0));
+            let depth = max(mc.u_thickness, 0.15) * 60.0 * mc.u_refractionStrength;
+            let landed = frame.projection * vec4f(P + bent * depth, 1.0);
+            let w = max(landed.w, 1e-4);
+            // This device's rows run down the texture, so clip y is flipped on the way to a uv.
+            let uv = vec2f(landed.x / w * 0.5 + 0.5, 0.5 - landed.y / w * 0.5);
+            let spread = roughness * roughness * 0.04;
+            var behind = textureSampleLevel(u_sceneColor, u_sceneColor_s, clamp(uv, vec2f(0.001), vec2f(0.999)), 0.0).rgb;
+            for (var i : i32 = 0; i < 8; i = i + 1) {
+                let a = f32(i) * 2.39996;
+                let o = vec2f(cos(a), sin(a)) * (spread * sqrt((f32(i) + 0.5) / 8.0));
+                behind = behind + textureSampleLevel(u_sceneColor, u_sceneColor_s, clamp(uv + o, vec2f(0.001), vec2f(0.999)), 0.0).rgb;
+            }
+            seen = behind / 9.0 * mc.u_attenuationColor.rgb * (1.0 - fresnel) * mc.u_transmission;
+            refracted = 1.0;
+        } else {
+            alpha *= 1.0 - mc.u_transmission * (1.0 - fresnel);
+            base = vec4f(mix(base.rgb, base.rgb * mc.u_attenuationColor.rgb, vec3f(mc.u_transmission)), base.a);
+        }
     }
-    let lit = applyLightingSurface(base.rgb, N, P, viewDir,
+    let lit = applyLightingSurface(base.rgb * (1.0 - mc.u_transmission * refracted), N, P, viewDir,
                                    mc.u_metallic * mr.b, roughness, mc.u_specular, ao, ext);
     let emit = mc.u_emissive.rgb
              * textureSampleGrad(u_emissiveMap, u_emissiveMap_s, v.v_texCoord, duvx, duvy).rgb;
 #ifdef ES_GBUFFER
     var frag : FragOut;
-    frag.color = vec4f(lit + emit, alpha);
+    frag.color = vec4f(lit + seen + emit, alpha);
     frag.surface = vec4f(packNormal(normalize(N)), roughness, 0.75 + 0.25 * clamp(mc.u_metallic * mr.b, 0.0, 1.0));
     return frag;
 #else
-    return vec4f(lit + emit, alpha);
+    return vec4f(lit + seen + emit, alpha);
 #endif
 }
 #pragma end
