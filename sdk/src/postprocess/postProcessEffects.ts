@@ -1507,14 +1507,17 @@ fn depthAt(texel : vec2i, size : vec2i) -> f32 {
     },
 
     /**
-     * A sky that has a time of day: the gradient of the dome, the sun and its halo, the glow of dusk, a moon, and stars.
+     * A sky that has a time of day and weather in it: the scattering of the atmosphere, a sun that goes red as it sets, a
+     * moon, stars, and volumetric clouds that the sun lights.
      *
      * Drawn only where there is no surface (the depth buffer is at its far plane), so it replaces the panorama behind the
-     * scene and leaves everything in front of it alone. The dome is two colours — zenith and horizon — for the day and two
-     * for the night, mixed by how high the sun stands; near the horizon a warm glow gathers toward the sun's side of the
-     * sky. The sun is a disc with a halo, the moon a disc standing opposite it (high when the sun is far below the
-     * horizon), and the stars are points hashed from the view direction, so they hold still as the camera turns. An
-     * overcast sky greys the dome and hides all three.
+     * scene and leaves everything in front of it alone. The dome is single scattering through a planet's atmosphere — Rayleigh
+     * for the blue of the air, Mie for the haze and the white glare round the sun — integrated along the view ray and, for
+     * each step of it, along the ray to the sun, so a sunset's reds and the sky after it are the same calculation as noon's
+     * blue and not separate colours blended by hand. The clouds are a slab a few kilometres up that is marched in steps
+     * against a noise density: lit by the sun through what lies between (they go dark underneath and silver at the edge, and
+     * pink at dusk since the light that reaches them is the sun's after the air), moved by the wind, and thick enough that
+     * the sun, moon and stars behind them are dimmed by the same transmittance. A Weather component raises the coverage.
      *
      * Where the sun is comes from the scene's own directional light, or — when the effect is told not to follow it — from two
      * angles, which is what a TimeOfDay component writes. The effect is a sky and not a lighting model: what lights the
@@ -1527,11 +1530,18 @@ fn depthAt(texel : vec2i, size : vec2i) -> f32 {
 #pragma param u_intensity float default(1) range(0,8)
 #pragma param u_panorama float default(0) range(0,1)
 #pragma param u_overcast float default(0) range(0,1)
+#pragma param u_haze float default(1) range(0,8)
+#pragma param u_altitude float default(0.1) range(0,20)
 #pragma param u_sunSize float default(1) range(0.2,8)
 #pragma param u_sunBrightness float default(40) range(0,400)
 #pragma param u_moon float default(1) range(0,4)
 #pragma param u_stars float default(1) range(0,4)
-#pragma param u_twilight float default(1) range(0,2)
+#pragma param u_clouds float default(0.45) range(0,1)
+#pragma param u_cloudBase float default(1.5) range(0.2,10)
+#pragma param u_cloudThickness float default(2.5) range(0.2,8)
+#pragma param u_cloudBrightness float default(1) range(0,4)
+#pragma param u_windSpeed float default(0.05) range(0,2)
+#pragma param u_windDirection float default(60) range(0,360)
 #pragma param u_followSun float default(1) range(0,1)
 #pragma param u_sunAzimuth float default(40) range(0,360)
 #pragma param u_sunElevation float default(35) range(-90,90)
@@ -1545,10 +1555,31 @@ uniform sampler2D u_texture;
 uniform highp sampler2D u_sceneDepth;
 out vec4 fragColor;
 
+const float R_E = 6360.0;
+const float R_A = 6420.0;
+const vec3 BETA_R = vec3(0.0058, 0.0135, 0.0331);
+const float BETA_M = 0.021;
+const float H_R = 8.0;
+const float H_M = 1.2;
+const float SUN_I = 22.0;
+
 float hash13(vec3 p) {
     p = fract(p * 0.1031);
     p += dot(p, p.zyx + 31.32);
     return fract((p.x + p.y) * p.z);
+}
+float ign(vec2 p) {
+    return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715))));
+}
+float vnoise(vec3 p) {
+    vec3 i = floor(p);
+    vec3 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    float a = mix(hash13(i), hash13(i + vec3(1, 0, 0)), f.x);
+    float b = mix(hash13(i + vec3(0, 1, 0)), hash13(i + vec3(1, 1, 0)), f.x);
+    float c = mix(hash13(i + vec3(0, 0, 1)), hash13(i + vec3(1, 0, 1)), f.x);
+    float d = mix(hash13(i + vec3(0, 1, 1)), hash13(i + vec3(1, 1, 1)), f.x);
+    return mix(mix(a, b, f.y), mix(c, d, f.y), f.z);
 }
 
 vec3 lin(vec3 c) {
@@ -1557,6 +1588,68 @@ vec3 lin(vec3 c) {
 #else
     return c;
 #endif
+}
+
+/// Where a ray from o along d meets the sphere of radius r about the planet's centre: the two distances, or -1 for a miss.
+vec2 sphereHit(vec3 o, vec3 d, float r) {
+    float b = dot(o, d);
+    float disc = b * b - (dot(o, o) - r * r);
+    if (disc < 0.0) return vec2(-1.0);
+    float s = sqrt(disc);
+    return vec2(-b - s, -b + s);
+}
+
+/// The air between p and the top of the atmosphere along d, as (Rayleigh, Mie) optical depth; z is 0 where the planet is in the way.
+vec3 lightDepth(vec3 p, vec3 d) {
+    vec2 ground = sphereHit(p, d, R_E);
+    if (ground.y > 0.0 && ground.x > 0.0) return vec3(0.0);
+    float len = sphereHit(p, d, R_A).y;
+    float ds = len / 4.0;
+    vec2 od = vec2(0.0);
+    for (int j = 0; j < 4; ++j) {
+        vec3 q = p + d * (ds * (float(j) + 0.5));
+        od += exp(-(length(q) - R_E) / vec2(H_R, H_M)) * ds;
+    }
+    return vec3(od, 1.0);
+}
+
+/// The sky's radiance along dir, by single scattering; @p sunTrans is the sun's light by the time it reaches the viewer.
+vec3 scatter(vec3 dir, vec3 sun, float alt, float haze, out vec3 sunTrans) {
+    vec3 o = vec3(0.0, R_E + alt, 0.0);
+    float len = sphereHit(o, dir, R_A).y;
+    const int N = 16;
+    float ds = len / float(N);
+    float mu = dot(dir, sun);
+    float g = 0.76;
+    float phaseR = 3.0 / (16.0 * 3.14159265) * (1.0 + mu * mu);
+    float phaseM = 3.0 / (8.0 * 3.14159265) * ((1.0 - g * g) * (1.0 + mu * mu)) / ((2.0 + g * g) * pow(1.0 + g * g - 2.0 * g * mu, 1.5));
+    vec2 od = vec2(0.0);
+    vec3 sumR = vec3(0.0);
+    vec3 sumM = vec3(0.0);
+    for (int i = 0; i < N; ++i) {
+        vec3 p = o + dir * (ds * (float(i) + 0.5));
+        vec2 dens = exp(-(length(p) - R_E) / vec2(H_R, H_M)) * ds;
+        od += dens;
+        vec3 ol = lightDepth(p, sun);
+        if (ol.z > 0.5) {
+            vec3 attn = exp(-(BETA_R * (od.x + ol.x) + BETA_M * haze * 1.1 * (od.y + ol.y)));
+            sumR += attn * dens.x;
+            sumM += attn * dens.y;
+        }
+    }
+    vec3 st = lightDepth(o, sun);
+    sunTrans = st.z > 0.5 ? exp(-(BETA_R * st.x + BETA_M * haze * 1.1 * st.y)) : vec3(0.0);
+    return (sumR * BETA_R * phaseR + sumM * BETA_M * haze * phaseM) * SUN_I;
+}
+
+float cloudDensity(vec3 p, float coverage, float base, float thick, int octaves) {
+    float h = clamp((p.y - base) / thick, 0.0, 1.0);
+    float shape = smoothstep(0.0, 0.14, h) * smoothstep(1.0, 0.55, h);
+    vec3 q = vec3(p.x, p.y * 1.8, p.z) * 0.32;
+    float n = vnoise(q) * 0.58 + vnoise(q * 2.13) * 0.28;
+    if (octaves > 2) n += vnoise(q * 4.7) * 0.14;
+    else n += 0.07;
+    return smoothstep(1.0 - coverage, 1.0 - coverage + 0.22, n) * shape;
 }
 
 void main() {
@@ -1577,33 +1670,26 @@ void main() {
     vec3 sun = follow ? lightDir.xyz : vec3(cos(el) * sin(az), sin(el), cos(el) * cos(az));
     float se = sun.y;
 
-    float day = smoothstep(-0.10, 0.25, se);
-    float twi = exp(-se * se * 70.0);
-    float up = max(dir.y, 0.0);
-    float haze = pow(1.0 - up, 3.0);
-
-    vec3 dayCol = mix(lin(vec3(0.12, 0.30, 0.72)), lin(vec3(0.60, 0.74, 0.92)), haze) * 2.0 * u_intensity;
-    dayCol *= mix(0.12, 1.0, smoothstep(-0.12, 0.35, se));
-    vec3 nightCol = mix(lin(vec3(0.003, 0.006, 0.02)), lin(vec3(0.016, 0.024, 0.06)), haze);
-    vec3 col = mix(nightCol, dayCol, day);
-
-    // The glow of dusk and dawn: low in the sky, and thickest on the sun's side of it.
-    vec2 flatDir = dir.xz / max(length(dir.xz), 1e-4);
-    vec2 flatSun = sun.xz / max(length(sun.xz), 1e-4);
-    float side = max(dot(flatDir, flatSun), 0.0);
-    col += lin(vec3(1.0, 0.42, 0.16)) * (twi * haze * (0.25 + 0.75 * side * side) * 1.8 * u_twilight);
-
     float overcast = clamp(u_overcast, 0.0, 1.0);
-    float clear = 1.0 - overcast;
+    float haze = u_haze * (1.0 + overcast * 2.0);
 
-    // The sun: a disc, a tight halo and a wide one, warm near the horizon and white above.
+    // The dome. Below the horizon there is no sky: the ray is flattened onto it so a camera that looks down sees the haze there.
+    vec3 sdir = normalize(vec3(dir.x, max(dir.y, 0.015), dir.z));
+    vec3 sunTrans;
+    vec3 col = scatter(sdir, sun, u_altitude, haze, sunTrans) * 0.55 * u_intensity;
+    // Below the horizon there is no sky, only the dimmer light the ground sends up.
+    col *= 1.0 - 0.75 * smoothstep(0.0, -0.3, dir.y);
+    // What the air keeps of the night: a faint glow so the dome is not black where there is no moon.
+    float night = 1.0 - smoothstep(-0.10, 0.12, se);
+    col += mix(lin(vec3(0.003, 0.006, 0.02)), lin(vec3(0.016, 0.024, 0.06)), pow(1.0 - max(dir.y, 0.0), 3.0)) * night;
+    vec3 dome = col;
+
+    // The sun: a disc as bright as the light that reaches us, so it is white overhead and red at the horizon.
     float cosd = dot(dir, sun);
     float sunR = radians(0.265 * u_sunSize);
     float disc = smoothstep(cos(sunR * 1.15), cos(sunR * 0.85), cosd);
-    float halo = pow(max(cosd, 0.0), 16.0) * 0.25 + pow(max(cosd, 0.0), 256.0);
-    vec3 sunCol = mix(lin(vec3(1.0, 0.55, 0.25)), lin(vec3(1.0, 0.96, 0.88)), smoothstep(0.0, 0.35, se));
-    float above = smoothstep(-0.02, 0.02, dir.y) * smoothstep(-0.05, 0.0, se);
-    col += sunCol * (disc * u_sunBrightness * clear + halo * (0.15 + 0.85 * clear)) * above;
+    float above = smoothstep(-0.02, 0.02, dir.y);
+    col += sunTrans * disc * u_sunBrightness * above * (1.0 - overcast);
 
     // The moon stands opposite the sun and a little above where it would be, so it is up when the sun is well down.
     float sAz = atan(sun.x, sun.z);
@@ -1615,8 +1701,7 @@ void main() {
     float moonR = radians(0.26 * 2.5);
     float moonDisc = smoothstep(cos(moonR * 1.1), cos(moonR * 0.9), md);
     float moonGlow = pow(max(md, 0.0), 2500.0) * 0.5 + pow(max(md, 0.0), 60.0) * 0.015;
-    float night = 1.0 - day;
-    col += lin(vec3(0.80, 0.88, 1.0)) * ((moonDisc * 3.0 + moonGlow) * u_moon * night * clear * clear * smoothstep(-0.02, 0.04, dir.y));
+    col += lin(vec3(0.80, 0.88, 1.0)) * ((moonDisc * 3.0 + moonGlow) * u_moon * night * smoothstep(-0.02, 0.04, dir.y));
 
     // Stars: a point in some of the cells of a lattice over the sphere, brighter and more coloured at random.
     if (night > 0.02 && dir.y > 0.0 && u_stars > 0.0) {
@@ -1629,24 +1714,86 @@ void main() {
             float spot = smoothstep(0.22, 0.02, length(fr - c));
             float bright = (0.4 + hash13(id + 1.7) * 1.6) * (h > 0.995 ? 3.0 : 1.0);
             vec3 tint = mix(lin(vec3(1.0, 0.85, 0.7)), lin(vec3(0.7, 0.8, 1.0)), hash13(id + 5.3));
-            float seen = night * night * clear * clear * smoothstep(0.05, -0.15, se) * smoothstep(0.0, 0.15, dir.y) * (1.0 - 0.9 * smoothstep(0.97, 0.999, md));
+            float seen = night * night * smoothstep(0.05, -0.15, se) * smoothstep(0.0, 0.15, dir.y) * (1.0 - 0.9 * smoothstep(0.97, 0.999, md));
             col += tint * (spot * bright * 2.5 * u_stars * seen);
         }
     }
 
-    // An overcast sky is grey and a little darker than the one above it.
+    // Clouds: a slab marched against a noise density, lit by the sun through what is between.
+    float coverage = max(u_clouds, overcast * 0.95);
+    if (coverage > 0.01 && dir.y > 0.01) {
+        float base = u_cloudBase;
+        float thick = u_cloudThickness;
+        float tb = max(base - u_altitude, 0.0) / dir.y;
+        float tt = (base + thick - u_altitude) / dir.y;
+        const int STEPS = 16;
+        float ds = (tt - tb) / float(STEPS);
+        float jitter = ign(gl_FragCoord.xy);
+        float sigma = 1.3 * (1.0 + overcast * 1.5);
+        float wind = radians(u_windDirection);
+        vec3 drift = vec3(sin(wind), 0.0, cos(wind)) * (u_windSpeed * u_time.x);
+        float cosS = dot(dir, sun);
+        float phase = mix(0.35 + 0.65 * pow(max(cosS, 0.0), 6.0), 0.5, 0.4);
+        vec3 ambient = dome * 0.7 + lin(vec3(0.55, 0.65, 0.9)) * 0.015 * night;
+        vec3 sunLight = sunTrans * 1.2 * u_cloudBrightness;
+        float trans = 1.0;
+        vec3 lit = vec3(0.0);
+        for (int i = 0; i < STEPS; ++i) {
+            if (trans < 0.02) break;
+            float t = tb + (float(i) + jitter) * ds;
+            vec3 p = vec3(dir.x * t, u_altitude + dir.y * t, dir.z * t) + drift;
+            float d = cloudDensity(p, coverage, base, thick, 3);
+            if (d < 0.002) continue;
+            float tau = 0.0;
+            for (int k = 1; k <= 3; ++k) {
+                vec3 q = p + sun * (0.35 * float(k));
+                tau += cloudDensity(q, coverage, base, thick, 2) * 0.35 * sigma;
+            }
+            float energy = exp(-tau * 1.1) + 0.25 * exp(-tau * 0.25);
+            vec3 S = sunLight * energy * phase * 2.0 + ambient;
+            float ext = d * sigma * ds;
+            float tr = exp(-ext);
+            lit += trans * (1.0 - tr) * S;
+            trans *= tr;
+        }
+        float fade = smoothstep(0.01, 0.14, dir.y);
+        col = mix(col, col * trans + lit, fade);
+    }
+
+    // An overcast sky is also a little greyer than the cloud-free one under it.
     float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
-    col = mix(col, vec3(luma) * 0.85, overcast * 0.85) * (1.0 - 0.3 * overcast);
+    col = mix(col, vec3(luma), overcast * 0.5);
 
     fragColor = vec4(mix(col, src.rgb, clamp(u_panorama, 0.0, 1.0)), src.a);
 }
 #pragma end
 
 #pragma fragment wgsl
+const R_E : f32 = 6360.0;
+const R_A : f32 = 6420.0;
+const BETA_R : vec3f = vec3f(0.0058, 0.0135, 0.0331);
+const BETA_M : f32 = 0.021;
+const H_R : f32 = 8.0;
+const H_M : f32 = 1.2;
+const SUN_I : f32 = 22.0;
+
 fn hash13(p0 : vec3f) -> f32 {
     var p = fract(p0 * 0.1031);
     p = p + dot(p, p.zyx + 31.32);
     return fract((p.x + p.y) * p.z);
+}
+fn ign(p : vec2f) -> f32 {
+    return fract(52.9829189 * fract(dot(p, vec2f(0.06711056, 0.00583715))));
+}
+fn vnoise(p : vec3f) -> f32 {
+    let i = floor(p);
+    var f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    let a = mix(hash13(i), hash13(i + vec3f(1, 0, 0)), f.x);
+    let b = mix(hash13(i + vec3f(0, 1, 0)), hash13(i + vec3f(1, 1, 0)), f.x);
+    let c = mix(hash13(i + vec3f(0, 0, 1)), hash13(i + vec3f(1, 0, 1)), f.x);
+    let d = mix(hash13(i + vec3f(0, 1, 1)), hash13(i + vec3f(1, 1, 1)), f.x);
+    return mix(mix(a, b, f.y), mix(c, d, f.y), f.z);
 }
 
 fn lin(c : vec3f) -> vec3f {
@@ -1655,6 +1802,70 @@ fn lin(c : vec3f) -> vec3f {
 #else
     return c;
 #endif
+}
+
+fn sphereHit(o : vec3f, d : vec3f, r : f32) -> vec2f {
+    let b = dot(o, d);
+    let disc = b * b - (dot(o, o) - r * r);
+    if (disc < 0.0) { return vec2f(-1.0); }
+    let s = sqrt(disc);
+    return vec2f(-b - s, -b + s);
+}
+
+fn lightDepth(p : vec3f, d : vec3f) -> vec3f {
+    let ground = sphereHit(p, d, R_E);
+    if (ground.y > 0.0 && ground.x > 0.0) { return vec3f(0.0); }
+    let len = sphereHit(p, d, R_A).y;
+    let ds = len / 4.0;
+    var od = vec2f(0.0);
+    for (var j : i32 = 0; j < 4; j = j + 1) {
+        let q = p + d * (ds * (f32(j) + 0.5));
+        od = od + exp(-(length(q) - R_E) / vec2f(H_R, H_M)) * ds;
+    }
+    return vec3f(od, 1.0);
+}
+
+struct Scatter { radiance : vec3f, sunTrans : vec3f };
+
+fn scatter(dir : vec3f, sun : vec3f, alt : f32, haze : f32) -> Scatter {
+    let o = vec3f(0.0, R_E + alt, 0.0);
+    let len = sphereHit(o, dir, R_A).y;
+    let N = 16;
+    let ds = len / f32(N);
+    let mu = dot(dir, sun);
+    let g = 0.76;
+    let phaseR = 3.0 / (16.0 * 3.14159265) * (1.0 + mu * mu);
+    let phaseM = 3.0 / (8.0 * 3.14159265) * ((1.0 - g * g) * (1.0 + mu * mu)) / ((2.0 + g * g) * pow(1.0 + g * g - 2.0 * g * mu, 1.5));
+    var od = vec2f(0.0);
+    var sumR = vec3f(0.0);
+    var sumM = vec3f(0.0);
+    for (var i : i32 = 0; i < N; i = i + 1) {
+        let p = o + dir * (ds * (f32(i) + 0.5));
+        let dens = exp(-(length(p) - R_E) / vec2f(H_R, H_M)) * ds;
+        od = od + dens;
+        let ol = lightDepth(p, sun);
+        if (ol.z > 0.5) {
+            let attn = exp(-(BETA_R * (od.x + ol.x) + BETA_M * haze * 1.1 * (od.y + ol.y)));
+            sumR = sumR + attn * dens.x;
+            sumM = sumM + attn * dens.y;
+        }
+    }
+    let st = lightDepth(o, sun);
+    var trans = vec3f(0.0);
+    if (st.z > 0.5) { trans = exp(-(BETA_R * st.x + BETA_M * haze * 1.1 * st.y)); }
+    var out : Scatter;
+    out.radiance = (sumR * BETA_R * phaseR + sumM * BETA_M * haze * phaseM) * SUN_I;
+    out.sunTrans = trans;
+    return out;
+}
+
+fn cloudDensity(p : vec3f, coverage : f32, base : f32, thick : f32, octaves : i32) -> f32 {
+    let h = clamp((p.y - base) / thick, 0.0, 1.0);
+    let shape = smoothstep(0.0, 0.14, h) * smoothstep(1.0, 0.55, h);
+    let q = vec3f(p.x, p.y * 1.8, p.z) * 0.32;
+    var n = vnoise(q) * 0.58 + vnoise(q * 2.13) * 0.28;
+    if (octaves > 2) { n = n + vnoise(q * 4.7) * 0.14; } else { n = n + 0.07; }
+    return smoothstep(1.0 - coverage, 1.0 - coverage + 0.22, n) * shape;
 }
 
 @fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
@@ -1674,30 +1885,23 @@ fn lin(c : vec3f) -> vec3f {
     if (follow) { sun = found.dir.xyz; }
     let se = sun.y;
 
-    let day = smoothstep(-0.10, 0.25, se);
-    let twi = exp(-se * se * 70.0);
-    let up = max(dir.y, 0.0);
-    let haze = pow(1.0 - up, 3.0);
-
-    let dayCol = mix(lin(vec3f(0.12, 0.30, 0.72)), lin(vec3f(0.60, 0.74, 0.92)), haze) * 2.0 * mc.u_intensity * mix(0.12, 1.0, smoothstep(-0.12, 0.35, se));
-    let nightCol = mix(lin(vec3f(0.003, 0.006, 0.02)), lin(vec3f(0.016, 0.024, 0.06)), haze);
-    var col = mix(nightCol, dayCol, day);
-
-    let flatDir = dir.xz / max(length(dir.xz), 1e-4);
-    let flatSun = sun.xz / max(length(sun.xz), 1e-4);
-    let side = max(dot(flatDir, flatSun), 0.0);
-    col = col + lin(vec3f(1.0, 0.42, 0.16)) * (twi * haze * (0.25 + 0.75 * side * side) * 1.8 * mc.u_twilight);
-
     let overcast = clamp(mc.u_overcast, 0.0, 1.0);
-    let clear = 1.0 - overcast;
+    let haze = mc.u_haze * (1.0 + overcast * 2.0);
+
+    let sdir = normalize(vec3f(dir.x, max(dir.y, 0.015), dir.z));
+    let sc = scatter(sdir, sun, mc.u_altitude, haze);
+    let sunTrans = sc.sunTrans;
+    var col = sc.radiance * 0.55 * mc.u_intensity;
+    col = col * (1.0 - 0.75 * smoothstep(0.0, -0.3, dir.y));
+    let night = 1.0 - smoothstep(-0.10, 0.12, se);
+    col = col + mix(lin(vec3f(0.003, 0.006, 0.02)), lin(vec3f(0.016, 0.024, 0.06)), pow(1.0 - max(dir.y, 0.0), 3.0)) * night;
+    let dome = col;
 
     let cosd = dot(dir, sun);
     let sunR = radians(0.265 * mc.u_sunSize);
     let disc = smoothstep(cos(sunR * 1.15), cos(sunR * 0.85), cosd);
-    let halo = pow(max(cosd, 0.0), 16.0) * 0.25 + pow(max(cosd, 0.0), 256.0);
-    let sunCol = mix(lin(vec3f(1.0, 0.55, 0.25)), lin(vec3f(1.0, 0.96, 0.88)), smoothstep(0.0, 0.35, se));
-    let above = smoothstep(-0.02, 0.02, dir.y) * smoothstep(-0.05, 0.0, se);
-    col = col + sunCol * (disc * mc.u_sunBrightness * clear + halo * (0.15 + 0.85 * clear)) * above;
+    let above = smoothstep(-0.02, 0.02, dir.y);
+    col = col + sunTrans * disc * mc.u_sunBrightness * above * (1.0 - overcast);
 
     let sAz = atan2(sun.x, sun.z);
     let sEl = asin(clamp(sun.y, -1.0, 1.0));
@@ -1708,8 +1912,7 @@ fn lin(c : vec3f) -> vec3f {
     let moonR = radians(0.26 * 2.5);
     let moonDisc = smoothstep(cos(moonR * 1.1), cos(moonR * 0.9), md);
     let moonGlow = pow(max(md, 0.0), 2500.0) * 0.5 + pow(max(md, 0.0), 60.0) * 0.015;
-    let night = 1.0 - day;
-    col = col + lin(vec3f(0.80, 0.88, 1.0)) * ((moonDisc * 3.0 + moonGlow) * mc.u_moon * night * clear * clear * smoothstep(-0.02, 0.04, dir.y));
+    col = col + lin(vec3f(0.80, 0.88, 1.0)) * ((moonDisc * 3.0 + moonGlow) * mc.u_moon * night * smoothstep(-0.02, 0.04, dir.y));
 
     if (night > 0.02 && dir.y > 0.0 && mc.u_stars > 0.0) {
         let p = dir * 180.0;
@@ -1722,13 +1925,53 @@ fn lin(c : vec3f) -> vec3f {
             var bright = 0.4 + hash13(id + 1.7) * 1.6;
             if (h > 0.995) { bright = bright * 3.0; }
             let tint = mix(lin(vec3f(1.0, 0.85, 0.7)), lin(vec3f(0.7, 0.8, 1.0)), hash13(id + 5.3));
-            let seen = night * night * clear * clear * smoothstep(0.05, -0.15, se) * smoothstep(0.0, 0.15, dir.y) * (1.0 - 0.9 * smoothstep(0.97, 0.999, md));
+            let seen = night * night * smoothstep(0.05, -0.15, se) * smoothstep(0.0, 0.15, dir.y) * (1.0 - 0.9 * smoothstep(0.97, 0.999, md));
             col = col + tint * (spot * bright * 2.5 * mc.u_stars * seen);
         }
     }
 
+    let coverage = max(mc.u_clouds, overcast * 0.95);
+    if (coverage > 0.01 && dir.y > 0.01) {
+        let base = mc.u_cloudBase;
+        let thick = mc.u_cloudThickness;
+        let tb = max(base - mc.u_altitude, 0.0) / dir.y;
+        let tt = (base + thick - mc.u_altitude) / dir.y;
+        let STEPS = 16;
+        let ds = (tt - tb) / f32(STEPS);
+        let jitter = ign(v.pos.xy);
+        let sigma = 1.3 * (1.0 + overcast * 1.5);
+        let wind = radians(mc.u_windDirection);
+        let drift = vec3f(sin(wind), 0.0, cos(wind)) * (mc.u_windSpeed * tc.u_time.x);
+        let cosS = dot(dir, sun);
+        let phase = mix(0.35 + 0.65 * pow(max(cosS, 0.0), 6.0), 0.5, 0.4);
+        let ambient = dome * 0.7 + lin(vec3f(0.55, 0.65, 0.9)) * 0.015 * night;
+        let sunLight = sunTrans * 1.2 * mc.u_cloudBrightness;
+        var trans = 1.0;
+        var lit = vec3f(0.0);
+        for (var i : i32 = 0; i < STEPS; i = i + 1) {
+            if (trans < 0.02) { break; }
+            let t = tb + (f32(i) + jitter) * ds;
+            let p = vec3f(dir.x * t, mc.u_altitude + dir.y * t, dir.z * t) + drift;
+            let d = cloudDensity(p, coverage, base, thick, 3);
+            if (d < 0.002) { continue; }
+            var tau = 0.0;
+            for (var k : i32 = 1; k <= 3; k = k + 1) {
+                let q = p + sun * (0.35 * f32(k));
+                tau = tau + cloudDensity(q, coverage, base, thick, 2) * 0.35 * sigma;
+            }
+            let energy = exp(-tau * 1.1) + 0.25 * exp(-tau * 0.25);
+            let S = sunLight * energy * phase * 2.0 + ambient;
+            let ext = d * sigma * ds;
+            let tr = exp(-ext);
+            lit = lit + trans * (1.0 - tr) * S;
+            trans = trans * tr;
+        }
+        let fade = smoothstep(0.01, 0.14, dir.y);
+        col = mix(col, col * trans + lit, fade);
+    }
+
     let luma = dot(col, vec3f(0.2126, 0.7152, 0.0722));
-    col = mix(col, vec3f(luma) * 0.85, overcast * 0.85) * (1.0 - 0.3 * overcast);
+    col = mix(col, vec3f(luma), overcast * 0.5);
 
     return vec4f(mix(col, src.rgb, clamp(mc.u_panorama, 0.0, 1.0)), src.a);
 }

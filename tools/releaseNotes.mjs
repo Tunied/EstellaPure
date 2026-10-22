@@ -2493,6 +2493,8 @@ export const NOTED = {
     {"note":"Skinned meshes are followed by their bones, from the palette they were last drawn with."},
   "feat(render): fog follows the scene's sun and can walk the air against its shadow map":
     {"note":"Height Fog and Light Shafts follow the scene's own sun, and Height Fog can carry the sun's shadows as volumetric light."},
+  "feat(render): the sky scatters light like an atmosphere and carries volumetric clouds the sun lights":
+    {"note":"The Sky Atmosphere effect scatters the sun's light through an atmosphere and draws volumetric clouds that the sun lights and the wind moves."},
   "feat(runtime): a TimeOfDay component moves the sun and the moon across the sky and draws the day, the dusk and the night":
     {"note":"A TimeOfDay component moves the sun and the moon across the sky, and a Sky Atmosphere effect draws the day, the dusk and the night."},
   "fix(render): the dusk sky is dimmer and warmer, the moon is a disc, and an overcast sky hides the moon and stars":

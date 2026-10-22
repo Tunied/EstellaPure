@@ -240,18 +240,29 @@ registerEffect({
     label: 'Sky Atmosphere',
     factory: () => postProcessEffects.createSkyAtmosphere(),
     uniforms: [
-        // How bright the day's sky is; the night's is its own.
+        // How bright the sky is.
         { name: 'u_intensity', label: 'Brightness', min: 0, max: 8, step: 0.01, defaultValue: 1 },
         // How much of the sky behind the scene (a panorama, a clear colour) is kept: 0 replaces it, 1 leaves it.
         { name: 'u_panorama', label: 'Keep Background', min: 0, max: 1, step: 0.01, defaultValue: 0, neutralValue: 1 },
-        // 0 is a clear sky; 1 a grey one with no sun, moon or stars. A Weather component drives it.
+        // 0 is the weather's to say not at all; 1 a sky with no break in it. A Weather component drives it.
         { name: 'u_overcast', label: 'Overcast', min: 0, max: 1, step: 0.01, defaultValue: 0 },
+        // How much haze (Mie scattering) the air holds: more is a whiter, glarier sky and a redder sunset.
+        { name: 'u_haze', label: 'Haze', min: 0, max: 8, step: 0.05, defaultValue: 1 },
+        // The camera's height above the ground the sky is seen from, in kilometres.
+        { name: 'u_altitude', label: 'Altitude', min: 0, max: 20, step: 0.1, defaultValue: 0.1 },
         { name: 'u_sunSize', label: 'Sun Size', min: 0.2, max: 8, step: 0.1, defaultValue: 1 },
         { name: 'u_sunBrightness', label: 'Sun Brightness', min: 0, max: 400, step: 1, defaultValue: 40 },
         { name: 'u_moon', label: 'Moon', min: 0, max: 4, step: 0.05, defaultValue: 1 },
         { name: 'u_stars', label: 'Stars', min: 0, max: 4, step: 0.05, defaultValue: 1 },
-        // How strong the glow of dusk and dawn is on the horizon.
-        { name: 'u_twilight', label: 'Twilight', min: 0, max: 2, step: 0.05, defaultValue: 1 },
+        // How much of the sky the clouds cover, 0 to 1. A weather raises it.
+        { name: 'u_clouds', label: 'Cloud Coverage', min: 0, max: 1, step: 0.01, defaultValue: 0.45, neutralValue: 0 },
+        // Where the cloud layer starts and how deep it is, in kilometres above the ground.
+        { name: 'u_cloudBase', label: 'Cloud Base', min: 0.2, max: 10, step: 0.1, defaultValue: 1.5 },
+        { name: 'u_cloudThickness', label: 'Cloud Thickness', min: 0.2, max: 8, step: 0.1, defaultValue: 2.5 },
+        { name: 'u_cloudBrightness', label: 'Cloud Brightness', min: 0, max: 4, step: 0.05, defaultValue: 1 },
+        // How fast the clouds drift (kilometres a second) and which way (degrees from +Z toward +X).
+        { name: 'u_windSpeed', label: 'Wind Speed', min: 0, max: 2, step: 0.01, defaultValue: 0.05 },
+        { name: 'u_windDirection', label: 'Wind Direction', min: 0, max: 360, step: 1, defaultValue: 60 },
         // 1: the sun is the scene's directional light. 0: the two angles are. A TimeOfDay component writes them.
         { name: 'u_followSun', label: 'Follow Scene Sun', min: 0, max: 1, step: 1, defaultValue: 1, neutralValue: 1 },
         { name: 'u_sunAzimuth', label: 'Sun Azimuth', min: 0, max: 360, step: 1, defaultValue: 40 },

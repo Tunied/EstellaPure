@@ -24,7 +24,7 @@ several can stack in one frame at no extra target cost beyond the passes.
 | `fxaa` | Fast anti-aliasing | `intensity` |
 | `distanceFog` | Linear fog by distance from the camera | `near`, `far`, `intensity`, colour |
 | `heightFog` | Exponential height fog with the sun's glow and a hazy horizon | `density`, `heightFalloff`, `baseHeight`, `sunAzimuth`, `sunElevation`, `skyFog`, colours |
-| `skyAtmosphere` | A sky with a time of day: dome, sun, dusk glow, moon and stars, drawn where there is no surface | `intensity`, `overcast`, `moon`, `stars`, `twilight`, `sunAzimuth`, `sunElevation` |
+| `skyAtmosphere` | An atmosphere that scatters the sun's light, with sun, moon, stars and volumetric clouds, drawn where there is no surface | `intensity`, `haze`, `altitude`, `clouds`, `cloudBase`, `cloudThickness`, `windSpeed`, `overcast`, `sunAzimuth`, `sunElevation` |
 | `lightShafts` | Sun rays through whatever stands in front of it | `intensity`, `sunAzimuth`, `sunElevation`, `decay`, `reach` |
 | `contactShadows` | The small sharp shadows at a contact a shadow map is too coarse to hold | `intensity`, `length`, `thickness` |
 | `ssgi` | One bounce of diffuse light between the surfaces the camera sees | `intensity`, `radius`, `thickness`, `maxBounce` |

@@ -30,8 +30,10 @@ Add a `TimeOfDay` component to one entity.
   that fall away from the moon. The crossover happens where both are dark, so nothing pops.
 - **The ambient light** is scaled and tinted — blue by night, warm at dusk — and **baked reflection probes** are dimmed and
   drained of colour, since they were baked under a daytime sky.
-- **The sky.** A [Sky Atmosphere](/docs/graphics/post-processing/) effect draws the dome, the sun, a dusk glow on the sun's side of the
-  horizon, the moon and the stars. It takes the sun from the clock, so it never mistakes the moon-lit key light for the sun.
+- **The sky.** A [Sky Atmosphere](/docs/graphics/post-processing/) effect scatters the sun's light through a planet's atmosphere — Rayleigh for
+  the blue of the air, Mie for the haze and the glare round the sun — so the blue of noon, the red of a sunset and the afterglow
+  after it come out of one calculation. It draws the sun (white overhead, red at the horizon), the moon, the stars, and volumetric
+  clouds the sun lights and the wind moves. It takes the sun from the clock, so it never mistakes the moon-lit key light for the sun.
 - **Fog.** Height Fog's colour is lit as the day is (dark at night, orange at dusk), and its glow follows the key light.
 - **Exposure.** Auto Exposure's compensation is raised at night so it stays readable (a scene without one gets it on its Colour
   Grade).

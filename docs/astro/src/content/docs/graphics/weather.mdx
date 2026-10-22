@@ -41,7 +41,7 @@ A turn is eased, so it starts and ends gently, and a finished turn lands on its 
 - **Reflections.** A baked reflection probe shows the sky it was baked under, so a rainy street would mirror a sunny one.
   The ambient light carries `reflectionScale` and `reflectionSaturation` for exactly this: what baked probes show is
   multiplied by the first and drained of colour by the second, and the weather turns both down.
-- **Sky.** A Sky Atmosphere effect is greyed by the preset's `overcast`: the sun, moon and stars are hidden as it clouds over.
+- **Sky.** A Sky Atmosphere effect takes the preset's `overcast` as cloud coverage and haze: the clouds thicken and join up, and the sun, moon and stars behind them are hidden by the same transmittance.
 - **Grade and exposure.** Colour Grade's saturation and contrast are scaled, and Auto Exposure's compensation raised.
 
 The effects are applied after the scene's volumes have blended, so a scene that fogs itself thinly stays thinner than
