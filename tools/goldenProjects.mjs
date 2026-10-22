@@ -617,6 +617,90 @@ export const SHIPPED = {
     { notCertifiable: 'a graph authoring rule, read by check-frame-lifecycle' },
   'An offscreen preview is addressed by its handle':
     { notCertifiable: 'an editor preview surface; the editor suite owns it' },
+  "GPU particles.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Contact shadows and screen-space bounce light.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Terrain and Foliage.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Separate material maps packed on import.":
+    { notCertifiable: "An import-pipeline change, covered by the pipeline tests; no golden project's model sources exercise it, and a packaged game only sees its product." },
+  "Skin and hair.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Anisotropic filtering.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Wilds example.":
+    { notCertifiable: "Adds example scene content using existing rendering features; check-examples validates its sources. The example has not earned packaged-frame certification." },
+  "Foliage.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Terrain.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Water.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Cloud shadows.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Voxel GI on WebGL2.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Cyber Rooftop example.":
+    { notCertifiable: "Adds example scene content using existing rendering features; check-examples validates its sources. The example has not earned packaged-frame certification." },
+  "Thin lines against the sky.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Cleaner contact shadows.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Details panels for the world.":
+    { notCertifiable: "An editor authoring surface, covered by the editor tests and authoring checks; a packaged game cannot observe the editor interface." },
+  "Subsurface scattering.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Refraction.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Ground-truth ambient occlusion.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "A sharper upscale.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Motion blur, film grain and lens flare.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Shading layers.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Many lights.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Play on WebGPU.":
+    { notCertifiable: "An editor authoring surface, covered by the editor tests and authoring checks; a packaged game cannot observe the editor interface." },
+  "Voxel GI.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Compute effects.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Sky.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Time of day.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Weather.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Quality levels are edited in Settings.":
+    { notCertifiable: "An editor authoring surface, covered by the editor tests and authoring checks; a packaged game cannot observe the editor interface." },
+  "A G-buffer, and reflections that read it.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Rain, wet ground and puddles.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Auto Exposure and Depth of Field.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Height Fog and Light Shafts.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Screen Space Reflections.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Temporal Anti-Aliasing.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Smaller meshes on disk.":
+    { notCertifiable: "An import-pipeline change, covered by the pipeline tests; no golden project's model sources exercise it, and a packaged game only sees its product." },
+  "Levels of detail generated at import.":
+    { notCertifiable: "An import-pipeline change, covered by the pipeline tests; no golden project's model sources exercise it, and a packaged game only sees its product." },
+  "Steadier highlights on curved and bevelled surfaces.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "A Neutral output transform.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Static batching.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Camera shots and nested sequences on the timeline.":
+    { notCertifiable: "An editor authoring surface, covered by the editor tests and authoring checks; a packaged game cannot observe the editor interface." },
 };
 
 /** Numeric compare of two `x.y.z` strings. */

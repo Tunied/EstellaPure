@@ -14,6 +14,8 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+## [0.94.0] - 2026-10-22
+
 ### Added
 
 - **GPU particles.** Particle emitters can now simulate on the GPU: turn on gpuSimulation and a compute kernel advances every particle, so an emitter of a hundred thousand or a million particles costs a dispatch instead of a loop. The kernel runs the same emitter: shapes, curl noise, force fields, gravity, damping, a floor plane, colour, size and speed over life and sprite sheets, up to 2,000,000 particles. Sub-emitters, trails and physics collision stay on the CPU, the particles are not sorted, and it needs WebGPU: on WebGL2 and mini-games the same emitter runs on the CPU, capped at 20,000 particles.
@@ -14720,7 +14722,8 @@ not kept before this file was introduced — see the Git history at
 `github.com/esengine/estella` for the full commit-level record since the first
 commit on 2026-01-25.
 
-[Unreleased]: https://github.com/esengine/estella/compare/v0.93.0...HEAD
+[Unreleased]: https://github.com/esengine/estella/compare/v0.94.0...HEAD
+[0.94.0]: https://github.com/esengine/estella/compare/v0.93.0...v0.94.0
 [0.93.0]: https://github.com/esengine/estella/compare/v0.92.0...v0.93.0
 [0.92.0]: https://github.com/esengine/estella/compare/v0.91.0...v0.92.0
 [0.91.0]: https://github.com/esengine/estella/compare/v0.90.0...v0.91.0
