@@ -278,6 +278,9 @@ endif()
 
 if(ES_ENABLE_WEBGPU)
     target_compile_definitions(esengine PUBLIC ES_ENABLE_WEBGPU)
+    if(ES_ENABLE_PARTICLES)
+        target_compile_definitions(esengine PUBLIC ES_ENABLE_GPU_PARTICLES)
+    endif()
     # PUBLIC: the port supplies webgpu.h at compile time and its JS glue at
     # link time — every SDK executable linking the engine needs both sides.
     target_compile_options(esengine PUBLIC --use-port=emdawnwebgpu)

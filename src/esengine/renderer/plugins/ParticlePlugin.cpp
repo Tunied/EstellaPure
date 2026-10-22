@@ -4,7 +4,9 @@
 #include "../draw/BatchBuilder.hpp"
 #include "../frame/RenderContext.hpp"
 #include "../frame/RenderFrame.hpp"
+#ifdef ES_ENABLE_GPU_PARTICLES
 #include "../frame/GpuParticles.hpp"
+#endif
 #include "../rhi/Shader.hpp"
 #include "../rhi/ShaderEmbeds.generated.hpp"
 #include "../rhi/Texture.hpp"
@@ -38,9 +40,11 @@ static_assert(sizeof(ParticleInstanceData) == 44, "instance stride must match th
 
 void ParticlePlugin::init(RenderFrameContext& ctx) {
     // Whether emitters that ask to simulate on the GPU can: the device says, and the CPU sim falls back where it cannot.
+#ifdef ES_ENABLE_GPU_PARTICLES
     if (particle_system_ && ctx.frame && ctx.frame->gpuParticles()) {
         particle_system_->setGpuAvailable(ctx.frame->gpuParticles()->available());
     }
+#endif
     // Particle instancing shader, authored as particle.esshader (single source,
     // WGSL twin included) and embedded for the web build. Attribute locations
     // are explicit, so no name bindings.
@@ -96,6 +100,7 @@ void ParticlePlugin::collect(RenderCollectContext& collect_ctx) {
         BufferHandle gpuInstances = BufferHandle::Invalid;
         u32 particleCount = 0;
         if (state->gpu) {
+#ifdef ES_ENABLE_GPU_PARTICLES
             GpuParticles* gpu = ctx.frame ? ctx.frame->gpuParticles() : nullptr;
             // The screen's overlay is not drawn through the graph the kernel runs in.
             if (!gpu || collect_ctx.isOverlay()) continue;
@@ -104,6 +109,9 @@ void ParticlePlugin::collect(RenderCollectContext& collect_ctx) {
             if (!particle_system_->peekGpuStep(entity, step)) continue;
             if (!gpu->submit(entity, emitter, transform, *particle_system_, step, gpuInstances)) continue;
             particleCount = step.drawCount;
+#else
+            continue;  // no compute in this build: ParticleSystem never marks an emitter GPU-simulated
+#endif
         } else {
             particleCount = state->pool.aliveCount();
         }

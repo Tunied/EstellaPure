@@ -17,6 +17,7 @@ namespace {
 /// Eight u32 per voxel: radiance r, g, b (fixed point), a sample count, the facing x, y, z (fixed point), a spare.
 constexpr u32 kVoxelWords = 8;
 
+#ifdef ES_ENABLE_WEBGPU
 /// What every kernel sees at group 0: the frame, the cache's parameters and the cache itself.
 const char* kCommon = R"WGSL(
 struct Frame { projection : mat4x4f, camera : vec4f, inverseViewProjection : mat4x4f };
@@ -282,6 +283,15 @@ fn main(@builtin(global_invocation_id) id : vec3u) {
     textureStore(outTex, t, vec4f(result, src.a));
 }
 )WGSL";
+#else
+// The kernels are WGSL and only the WebGPU device runs them: a build without it (WeChat, playables) carries none of the text.
+const char* const kCommon = "";
+const char* const kSurface = "";
+const char* const kMaintain = "";
+const char* const kInject = "";
+const char* const kGather = "";
+const char* const kApply = "";
+#endif
 
 std::string join(const char* a, const char* b, const char* c = "") {
     return std::string(a) + b + c;

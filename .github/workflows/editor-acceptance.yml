@@ -65,6 +65,7 @@ jobs:
           CHECK_NAMES: ${{ inputs.checks }}
           OUT: ${{ github.workspace }}/output/editor-acceptance
           ESTELLA_MCP_EDITOR_VISIBLE: '1'
+          # electron-preconditions: job-wide — the editor's check scripts live in the private submodule and cannot import electronRun
           ELECTRON_DISABLE_SANDBOX: '1'
           # The runner has no keychain; this lets the agent pictures keep a stand-in key anyway.
           ESTELLA_SECRETS_PLAINTEXT: '1'

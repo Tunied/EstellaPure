@@ -100,6 +100,12 @@ if(ES_ENABLE_WEBGPU)
     list(APPEND ESENGINE_SOURCES ${ESENGINE_ROOT}/src/esengine/renderer/webgpu/WebGPUDevice.cpp)
 endif()
 
+# The compute kernel behind GPU particles. Only the WebGPU device computes, so a build without it (WeChat, playables)
+# carries none of it.
+if(ES_ENABLE_WEBGPU AND ES_ENABLE_PARTICLES)
+    list(APPEND ESENGINE_SOURCES ${ESENGINE_ROOT}/src/esengine/renderer/frame/GpuParticles.cpp)
+endif()
+
 if(ES_ENABLE_POSTPROCESS)
     list(APPEND ESENGINE_SOURCES
         ${ESENGINE_ROOT}/src/esengine/renderer/frame/PostProcessPipeline.cpp
@@ -116,7 +122,6 @@ endif()
 if(ES_ENABLE_PARTICLES)
     list(APPEND ESENGINE_SOURCES
         ${ESENGINE_ROOT}/src/esengine/renderer/plugins/ParticlePlugin.cpp
-        ${ESENGINE_ROOT}/src/esengine/renderer/frame/GpuParticles.cpp
         ${ESENGINE_ROOT}/src/esengine/particle/Particle.cpp
         ${ESENGINE_ROOT}/src/esengine/particle/ParticleSystem.cpp)
 endif()

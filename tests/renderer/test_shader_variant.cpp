@@ -599,7 +599,7 @@ static void testVertexHook() {
     // The hook is for resident meshes. Without MESH the call is compiled out, 2D batches draw as before.
     const std::string batch = ShaderParser::assembleStage(p, ShaderStage::Vertex, "", {});
     CHECK(batch.find("#define MESH") == std::string::npos
-              && batch.find("#ifdef MESH\nvoid esMaterialVertex(") != std::string::npos
+              && batch.find("#ifdef MESH\nhighp vec4 es_vertexColor;\nvoid esMaterialVertex(") != std::string::npos
               && batch.find("#ifdef MESH\n    vec3 local = a_position;") != std::string::npos,
           "GLSL: the hook and its call sit under MESH, so a 2D batch variant compiles them out");
 

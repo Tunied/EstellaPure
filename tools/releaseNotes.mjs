@@ -2525,6 +2525,8 @@ export const NOTED = {
     {"note":"Importing an FBX with separate metalness, roughness and occlusion images now packs them into the one map the Model shader samples, instead of dropping them."},
   "feat(particles): emitters can simulate on the GPU":
     {"note":"Particle emitters can now simulate on the GPU: turn on gpuSimulation and a compute kernel advances every particle, so an emitter of a hundred thousand or a million particles costs a dispatch instead of a loop."},
+  "feat(star-neighbors): add modular art and construction study":
+    {"internal":"art source and review images of an in-development game under games/, which no creator using the engine or editor can observe"},
   "chore(tools): the gates run in parallel with --jobs, and the reds a full run gathered are cleared":
     {"internal":"tooling for the static gates, and fixes to checks that had drifted from the code they guard"},
   "fix(render): a wire narrower than a pixel is no longer painted over by the sky in dashes":

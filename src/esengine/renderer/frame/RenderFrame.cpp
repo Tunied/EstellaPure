@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 #include "./RenderFrame.hpp"
-#ifdef ES_ENABLE_PARTICLES
+#ifdef ES_ENABLE_GPU_PARTICLES
 #include "./GpuParticles.hpp"
 #endif
 #include "../rhi/Shader.hpp"
@@ -166,7 +166,7 @@ void RenderFrame::init(u32 width, u32 height) {
     post_process_->init(width, height);
 #endif
 
-#ifdef ES_ENABLE_PARTICLES
+#ifdef ES_ENABLE_GPU_PARTICLES
     gpu_particles_ = makeUnique<GpuParticles>(device_);
 #endif
     pool_.init();
@@ -196,7 +196,7 @@ void RenderFrame::shutdown() {
         plugin->shutdown();
     }
     plugins_.clear();
-#ifdef ES_ENABLE_PARTICLES
+#ifdef ES_ENABLE_GPU_PARTICLES
     if (gpu_particles_) {
         gpu_particles_->release();
         gpu_particles_.reset();
@@ -311,7 +311,7 @@ void RenderFrame::releaseFrameTargets() {
 
 void RenderFrame::beginFrame() {
     ++planar_frame_;
-#ifdef ES_ENABLE_PARTICLES
+#ifdef ES_ENABLE_GPU_PARTICLES
     if (gpu_particles_) gpu_particles_->beginFrame();
 #endif
     for (auto it = planar_captures_.begin(); it != planar_captures_.end();) {
@@ -618,7 +618,9 @@ void RenderFrame::publishFrameCounters() {
 #ifdef ES_ENABLE_PARTICLES
     ES_PROFILE_COUNTER("render.particles", stats_.particles);
     // What the compute-simulated emitters asked of the GPU: a scene whose emitters fell back to the CPU reads zero here.
+#ifdef ES_ENABLE_GPU_PARTICLES
     ES_PROFILE_COUNTER("render.particles.gpuSlots", gpu_particles_ ? gpu_particles_->drawnSlots() : 0u);
+#endif
 #endif
 }
 
@@ -661,7 +663,7 @@ void RenderFrame::end() {
             scene.dependencies.push_back(shadow_2d_resource_);
         }
         if (planar_resource_ != rg::kNoResource) scene.dependencies.push_back(planar_resource_);
-#ifdef ES_ENABLE_PARTICLES
+#ifdef ES_ENABLE_GPU_PARTICLES
         // The particles a kernel advances this frame are drawn by the scene, so it runs first.
         if (gpu_particles_) {
             const rg::ResourceId simulated = gpu_particles_->declare(graph_);
@@ -779,7 +781,7 @@ void RenderFrame::end() {
         gpu_timer_.end(device_);
         FrameProfiler::get().gpuScope("graph", gpu_timer_.lastMs());
     }
-#ifdef ES_ENABLE_PARTICLES
+#ifdef ES_ENABLE_GPU_PARTICLES
     // After the graph, which is where the kernels run: a frame that dispatched none (its emitters fell back to the CPU, or
     // nothing moved) says so.
     ES_PROFILE_COUNTER("render.particles.gpuDispatches", gpu_particles_ ? gpu_particles_->lastDispatches() : 0u);
