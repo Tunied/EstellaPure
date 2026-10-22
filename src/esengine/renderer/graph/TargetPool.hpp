@@ -57,6 +57,8 @@ struct TargetShape {
     u32 samples = 1;
     /// A second colour attachment for the surface's material (see FramebufferSpec::gbuffer).
     bool gbuffer = false;
+    /// Written by a compute shader as a storage texture, and sampled after.
+    bool storage = false;
 };
 
 class TargetPool {

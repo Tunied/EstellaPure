@@ -378,6 +378,33 @@ int main() {
         CHECK(dead.deviceStatus() == GfxDeviceStatus::Dead, "it stays Dead");
     }
 
+    // --- compute programs: refused where there is no compute, rebuilt after a loss where there is ---
+    {
+        MockGfxDevice none;
+        std::string log;
+        const ComputeHandle refused = none.createCompute({GfxShaderLanguage::WGSL, "src", "main"}, &log);
+        CHECK(refused == ComputeHandle::Invalid && !log.empty(), "a device with no compute stage refuses a compute program and says why");
+        CHECK(!none.dispatchCompute(ComputeHandle{1}, nullptr, 0, 1), "and a dispatch on it runs nothing");
+
+        MockGfxDevice d;
+        d.computeSupported = true;
+        const ComputeHandle glsl = d.createCompute({GfxShaderLanguage::GLSL_ES300, "src", "main"}, &log);
+        CHECK(glsl == ComputeHandle::Invalid, "compute is WGSL only");
+        const ComputeHandle program = d.createCompute({GfxShaderLanguage::WGSL, "src", "main"}, &log);
+        CHECK(program != ComputeHandle::Invalid && d.createComputeCalls == 1, "a compute program is built on a device that computes");
+        CHECK(d.dispatchCompute(program, nullptr, 0, 4, 2, 1) && d.dispatchComputeCalls == 1, "and dispatched");
+        CHECK(!d.dispatchCompute(program, nullptr, 0, 0, 1, 1) && d.dispatchComputeCalls == 1, "a dispatch of no groups runs nothing");
+
+        d.notifyDeviceLost(GfxDeviceLostReason::ContextLost, "gone");
+        CHECK(!d.dispatchCompute(program, nullptr, 0, 1), "nothing is dispatched on a lost device");
+        d.recoverDevice();
+        CHECK(d.createComputeCalls == 2, "the program is built once more on the new device");
+        CHECK(d.dispatchCompute(program, nullptr, 0, 1) && d.dispatchComputeCalls == 2, "and the same handle dispatches again");
+
+        d.deleteCompute(program);
+        CHECK(d.deleteComputeCalls == 1 && !d.dispatchCompute(program, nullptr, 0, 1), "a deleted program names nothing");
+    }
+
     std::printf(g_failures ? "\n%d FAILURE(S)\n" : "\nall passed\n", g_failures);
     return g_failures ? 1 : 0;
 }

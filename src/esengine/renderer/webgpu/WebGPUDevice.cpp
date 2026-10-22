@@ -201,6 +201,21 @@ void WebGPUDevice::releaseDeviceObjects() {
         if (rec.fragment) wgpuShaderModuleRelease(rec.fragment);
     }
     programs_.clear();
+    for (auto& [id, rec] : computes_) {
+        for (auto& [key, pipeline] : rec.pipelines) {
+            if (pipeline) wgpuComputePipelineRelease(pipeline);
+        }
+        if (rec.module) wgpuShaderModuleRelease(rec.module);
+    }
+    computes_.clear();
+    for (auto& [key, layout] : compute_pipeline_layouts_) {
+        if (layout) wgpuPipelineLayoutRelease(layout);
+    }
+    compute_pipeline_layouts_.clear();
+    for (auto& [key, layout] : compute_layouts_) {
+        if (layout) wgpuBindGroupLayoutRelease(layout);
+    }
+    compute_layouts_.clear();
     for (auto& [id, rec] : pipelines_) {
         for (WGPURenderPipeline variant : rec.variants) {
             if (variant) wgpuRenderPipelineRelease(variant);
@@ -888,6 +903,12 @@ bool WebGPUDevice::makeTexture(const TextureDesc& desc, const void* pixels, Text
                    ? (WGPUTextureUsage_TextureBinding | WGPUTextureUsage_RenderAttachment)
                    : (WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst |
                       WGPUTextureUsage_CopySrc | WGPUTextureUsage_RenderAttachment);
+    // A compute target is also written by shaders. Only these formats have the capability in core WebGPU,
+    // and one that does not is created plain rather than refused: the record says what it got.
+    const bool storage = desc.storage && td.sampleCount == 1 &&
+                         (td.format == WGPUTextureFormat_RGBA8Unorm || td.format == WGPUTextureFormat_RGBA16Float ||
+                          td.format == WGPUTextureFormat_RGBA32Float);
+    if (storage) td.usage |= WGPUTextureUsage_StorageBinding;
     // No copies: invalid on a multisampled texture. Depth keeps TextureBinding
     // because resolveDepthAttachment samples it; colour is read through the
     // single-sample twin the pass resolves into.
@@ -940,6 +961,7 @@ bool WebGPUDevice::makeTexture(const TextureDesc& desc, const void* pixels, Text
                      desc.width, desc.height, td.format, desc.format,
                      packSamplerKey(desc.minFilter, desc.magFilter, desc.wrapS, desc.wrapT),
                      td.sampleCount, td.mipLevelCount};
+    out.storage = storage;
 
     if (pixels && !isDepthFormat(td.format)) {
         // desc.flipY, not false: the caller's orientation request has to reach the
@@ -2547,6 +2569,24 @@ bool WebGPUDevice::takeReadback(ReadbackHandle handle, void* dest, usize destSiz
     auto it = readbacks_.find(static_cast<u32>(handle));
     if (it == readbacks_.end() || it->second.status != GfxReadbackStatus::Ready) return false;
     ReadbackRec& rec = it->second;
+    if (rec.raw) {
+        // A compute readback: the source's own bytes, rows top-down with the padding taken out.
+        if (destSize < rec.tightBytes) return false;
+        const auto* mapped = static_cast<const u8*>(
+            wgpuBufferGetConstMappedRange(rec.buffer, 0, static_cast<u64>(rec.paddedBytesPerRow) * rec.height));
+        if (!mapped) {
+            releaseReadback(static_cast<u32>(handle));
+            return false;
+        }
+        auto* out = static_cast<u8*>(dest);
+        const u32 rowBytes = rec.width * rec.bytesPerTexel;
+        for (u32 row = 0; row < rec.height; ++row) {
+            std::memcpy(out + static_cast<usize>(row) * rowBytes, mapped + static_cast<usize>(row) * rec.paddedBytesPerRow, rowBytes);
+        }
+        wgpuBufferUnmap(rec.buffer);
+        releaseReadback(static_cast<u32>(handle));
+        return true;
+    }
     const usize tight = static_cast<usize>(rec.width) * rec.height * 4;
     if (destSize < tight) return false;
     const auto* mapped = static_cast<const u8*>(
@@ -2653,6 +2693,277 @@ i32 WebGPUDevice::getInt(GfxIntParam param) {
     case GfxIntParam::MaxVertexAttribs:     return 16;
     default: return 0;
     }
+}
+
+
+// =============================================================================
+// Compute
+// =============================================================================
+
+namespace {
+/// Bytes a texel takes in the formats a compute shader can write, 0 for the rest.
+u32 storageTexelBytes(WGPUTextureFormat format) {
+    switch (format) {
+    case WGPUTextureFormat_RGBA8Unorm:
+    case WGPUTextureFormat_BGRA8Unorm:
+    case WGPUTextureFormat_RGBA8UnormSrgb: return 4;
+    case WGPUTextureFormat_RGBA16Float:    return 8;
+    case WGPUTextureFormat_RGBA32Float:    return 16;
+    default:                               return 0;
+    }
+}
+
+constexpr u32 kMaxComputeBindings = 16;
+constexpr u32 kMaxWorkgroupsPerDimension = 65535;
+}  // namespace
+
+bool WebGPUDevice::backendCreateCompute(u32 id, const GfxComputeSource& source, std::string* outLog) {
+    if (source.language != GfxShaderLanguage::WGSL || !source.source) {
+        if (outLog) *outLog = "WebGPUDevice compiles WGSL only";
+        return false;
+    }
+    if (!device_) {
+        if (outLog) *outLog = "no WGPUDevice";
+        return false;
+    }
+    WGPUShaderSourceWGSL wgsl{};
+    wgsl.chain.sType = WGPUSType_ShaderSourceWGSL;
+    wgsl.code = sv(source.source);
+    WGPUShaderModuleDescriptor md{};
+    md.nextInChain = &wgsl.chain;
+    WGPUShaderModule module = wgpuDeviceCreateShaderModule(device_, &md);
+    if (!module) {
+        if (outLog) *outLog = "shader module creation failed";
+        return false;
+    }
+    ComputeRec rec;
+    rec.module = module;
+    rec.entry = source.entry && *source.entry ? source.entry : "main";
+    computes_[id] = std::move(rec);
+    return true;
+}
+
+void WebGPUDevice::backendDeleteCompute(u32 id) {
+    auto it = computes_.find(id);
+    if (it == computes_.end()) return;
+    for (auto& [key, pipeline] : it->second.pipelines) {
+        if (pipeline) wgpuComputePipelineRelease(pipeline);
+    }
+    if (it->second.module) wgpuShaderModuleRelease(it->second.module);
+    computes_.erase(it);
+}
+
+bool WebGPUDevice::backendDispatchCompute(u32 id, const GfxComputeBinding* bindings, u32 bindingCount,
+                                          u32 groupsX, u32 groupsY, u32 groupsZ) {
+    if (inPass()) {
+        ES_LOG_ERROR("WebGPUDevice::dispatchCompute: must be called outside a render pass");
+        return false;
+    }
+    auto program = computes_.find(id);
+    if (program == computes_.end() || !program->second.module) return false;
+    if (groupsX > kMaxWorkgroupsPerDimension || groupsY > kMaxWorkgroupsPerDimension ||
+        groupsZ > kMaxWorkgroupsPerDimension || bindingCount > kMaxComputeBindings) {
+        ES_LOG_ERROR("WebGPUDevice::dispatchCompute: {}x{}x{} groups with {} bindings is over the limit",
+                     groupsX, groupsY, groupsZ, bindingCount);
+        return false;
+    }
+
+    WGPUBindGroupLayoutEntry layoutEntries[kMaxComputeBindings] = {};
+    WGPUBindGroupEntry groupEntries[kMaxComputeBindings] = {};
+    std::string key;
+    for (u32 i = 0; i < bindingCount; ++i) {
+        const GfxComputeBinding& b = bindings[i];
+        WGPUBindGroupLayoutEntry& le = layoutEntries[i];
+        WGPUBindGroupEntry& ge = groupEntries[i];
+        le.binding = ge.binding = b.binding;
+        le.visibility = WGPUShaderStage_Compute;
+        key += std::to_string(b.binding) + "." + std::to_string(static_cast<u32>(b.kind));
+        switch (b.kind) {
+        case GfxComputeBinding::Kind::Uniform:
+        case GfxComputeBinding::Kind::StorageRead:
+        case GfxComputeBinding::Kind::Storage: {
+            auto it = buffers_.find(static_cast<u32>(b.buffer));
+            if (it == buffers_.end() || !it->second.buffer) {
+                ES_LOG_ERROR("WebGPUDevice::dispatchCompute: binding {} names a buffer that is gone", b.binding);
+                return false;
+            }
+            const bool uniform = b.kind == GfxComputeBinding::Kind::Uniform;
+            if ((uniform && it->second.usage != GfxBufferUsage::Uniform) ||
+                (!uniform && it->second.usage != GfxBufferUsage::Storage)) {
+                ES_LOG_ERROR("WebGPUDevice::dispatchCompute: binding {} is bound as {} but the buffer was not made for it",
+                             b.binding, uniform ? "a uniform" : "storage");
+                return false;
+            }
+            le.buffer.type = uniform ? WGPUBufferBindingType_Uniform
+                           : b.kind == GfxComputeBinding::Kind::StorageRead ? WGPUBufferBindingType_ReadOnlyStorage
+                                                                           : WGPUBufferBindingType_Storage;
+            ge.buffer = it->second.buffer;
+            ge.offset = b.offset;
+            const u32 whole = webgpu::alignedWriteSize(it->second.size);
+            ge.size = b.size ? b.size : (whole > b.offset ? whole - b.offset : 0);
+            break;
+        }
+        case GfxComputeBinding::Kind::Texture: {
+            auto it = textures_.find(static_cast<u32>(b.texture));
+            if (it == textures_.end() || !it->second.texture) {
+                ES_LOG_ERROR("WebGPUDevice::dispatchCompute: binding {} names a texture that is gone", b.binding);
+                return false;
+            }
+            const WGPUTextureFormat f = it->second.format;
+            le.texture.sampleType = isDepthFormat(f) ? WGPUTextureSampleType_Depth
+                                  : f == WGPUTextureFormat_RGBA32Float ? WGPUTextureSampleType_UnfilterableFloat
+                                                                       : WGPUTextureSampleType_Float;
+            le.texture.viewDimension = WGPUTextureViewDimension_2D;
+            ge.textureView = it->second.sampleView;
+            key += "." + std::to_string(static_cast<u32>(le.texture.sampleType));
+            break;
+        }
+        case GfxComputeBinding::Kind::StorageTexture: {
+            auto it = textures_.find(static_cast<u32>(b.texture));
+            if (it == textures_.end() || !it->second.texture) {
+                ES_LOG_ERROR("WebGPUDevice::dispatchCompute: binding {} names a texture that is gone", b.binding);
+                return false;
+            }
+            if (!it->second.storage) {
+                ES_LOG_ERROR("WebGPUDevice::dispatchCompute: binding {} is a storage texture but the texture was not made with storage", b.binding);
+                return false;
+            }
+            le.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
+            le.storageTexture.format = it->second.format;
+            le.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
+            ge.textureView = it->second.view;
+            key += "." + std::to_string(static_cast<u32>(it->second.format));
+            break;
+        }
+        case GfxComputeBinding::Kind::Sampler:
+            le.sampler.type = WGPUSamplerBindingType_Filtering;
+            ge.sampler = samplerFor(packSamplerKey(b.filter, b.filter, TextureWrap::ClampToEdge, TextureWrap::ClampToEdge));
+            break;
+        }
+        key += "/";
+    }
+
+    WGPUBindGroupLayout layout = nullptr;
+    auto cachedLayout = compute_layouts_.find(key);
+    if (cachedLayout != compute_layouts_.end()) {
+        layout = cachedLayout->second;
+    } else {
+        WGPUBindGroupLayoutDescriptor bld{};
+        bld.entryCount = bindingCount;
+        bld.entries = layoutEntries;
+        layout = wgpuDeviceCreateBindGroupLayout(device_, &bld);
+        compute_layouts_[key] = layout;
+    }
+    if (!layout) return false;
+
+    WGPUPipelineLayout pipelineLayout = nullptr;
+    auto cachedPipelineLayout = compute_pipeline_layouts_.find(key);
+    if (cachedPipelineLayout != compute_pipeline_layouts_.end()) {
+        pipelineLayout = cachedPipelineLayout->second;
+    } else {
+        WGPUPipelineLayoutDescriptor pld{};
+        pld.bindGroupLayoutCount = 1;
+        pld.bindGroupLayouts = &layout;
+        pipelineLayout = wgpuDeviceCreatePipelineLayout(device_, &pld);
+        compute_pipeline_layouts_[key] = pipelineLayout;
+    }
+    if (!pipelineLayout) return false;
+
+    WGPUComputePipeline pipeline = nullptr;
+    auto cachedPipeline = program->second.pipelines.find(key);
+    if (cachedPipeline != program->second.pipelines.end()) {
+        pipeline = cachedPipeline->second;
+    } else {
+        WGPUComputePipelineDescriptor cpd = WGPU_COMPUTE_PIPELINE_DESCRIPTOR_INIT;
+        cpd.layout = pipelineLayout;
+        cpd.compute.module = program->second.module;
+        cpd.compute.entryPoint = sv(program->second.entry.c_str());
+        pipeline = wgpuDeviceCreateComputePipeline(device_, &cpd);
+        program->second.pipelines[key] = pipeline;
+    }
+    if (!pipeline) return false;
+
+    WGPUBindGroupDescriptor bgd{};
+    bgd.layout = layout;
+    bgd.entryCount = bindingCount;
+    bgd.entries = groupEntries;
+    WGPUBindGroup group = wgpuDeviceCreateBindGroup(device_, &bgd);
+    if (!group) return false;
+
+    WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(device_, nullptr);
+    WGPUComputePassDescriptor pd = WGPU_COMPUTE_PASS_DESCRIPTOR_INIT;
+    WGPUComputePassEncoder pass = wgpuCommandEncoderBeginComputePass(encoder, &pd);
+    wgpuComputePassEncoderSetPipeline(pass, pipeline);
+    wgpuComputePassEncoderSetBindGroup(pass, 0, group, 0, nullptr);
+    wgpuComputePassEncoderDispatchWorkgroups(pass, groupsX, groupsY, groupsZ);
+    wgpuComputePassEncoderEnd(pass);
+    wgpuComputePassEncoderRelease(pass);
+    WGPUCommandBuffer commands = wgpuCommandEncoderFinish(encoder, nullptr);
+    wgpuCommandEncoderRelease(encoder);
+    wgpuQueueSubmit(queue_, 1, &commands);
+    wgpuCommandBufferRelease(commands);
+    wgpuBindGroupRelease(group);
+    return true;
+}
+
+u32 WebGPUDevice::allocRawReadback(u32 w, u32 h, u32 bytesPerTexel, u32 tightBytes) {
+    // A texture copy wants 256-byte rows; a buffer copy is one row of any multiple of four.
+    const u32 padded = (h > 1 || bytesPerTexel != 1) ? ((w * bytesPerTexel + 255u) & ~255u) : tightBytes;
+    WGPUBufferDescriptor bd{};
+    bd.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead;
+    bd.size = static_cast<u64>(padded) * h;
+    WGPUBuffer buffer = wgpuDeviceCreateBuffer(device_, &bd);
+    if (!buffer) return 0;
+    const u32 id = next_readback_id_++;
+    ReadbackRec rec{buffer, w, h, padded, GfxReadbackStatus::Pending};
+    rec.raw = true;
+    rec.bytesPerTexel = bytesPerTexel;
+    rec.tightBytes = tightBytes;
+    readbacks_[id] = rec;
+    return id;
+}
+
+ReadbackHandle WebGPUDevice::requestBufferReadback(BufferHandle buffer, u32 offsetBytes, u32 sizeBytes) {
+    if (!isDeviceUsable() || !device_ || sizeBytes == 0 || (offsetBytes & 3u) || (sizeBytes & 3u)) {
+        return ReadbackHandle::Invalid;
+    }
+    if (inPass()) {
+        ES_LOG_ERROR("WebGPUDevice::requestBufferReadback: must be called outside a render pass");
+        return ReadbackHandle::Invalid;
+    }
+    auto it = buffers_.find(static_cast<u32>(buffer));
+    if (it == buffers_.end() || !it->second.buffer || it->second.usage != GfxBufferUsage::Storage ||
+        static_cast<u64>(offsetBytes) + sizeBytes > webgpu::alignedWriteSize(it->second.size)) {
+        return ReadbackHandle::Invalid;
+    }
+    // One row of sizeBytes bytes: width counts bytes, a texel is one.
+    const u32 id = allocRawReadback(sizeBytes, 1, 1, sizeBytes);
+    if (!id) return ReadbackHandle::Invalid;
+    WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(device_, nullptr);
+    wgpuCommandEncoderCopyBufferToBuffer(encoder, it->second.buffer, offsetBytes, readbacks_[id].buffer, 0, sizeBytes);
+    WGPUCommandBuffer commands = wgpuCommandEncoderFinish(encoder, nullptr);
+    wgpuCommandEncoderRelease(encoder);
+    wgpuQueueSubmit(queue_, 1, &commands);
+    wgpuCommandBufferRelease(commands);
+    mapReadback(id);
+    return static_cast<ReadbackHandle>(id);
+}
+
+ReadbackHandle WebGPUDevice::requestTextureReadback(TextureHandle texture) {
+    if (!isDeviceUsable() || !device_) return ReadbackHandle::Invalid;
+    if (inPass()) {
+        ES_LOG_ERROR("WebGPUDevice::requestTextureReadback: must be called outside a render pass");
+        return ReadbackHandle::Invalid;
+    }
+    auto it = textures_.find(static_cast<u32>(texture));
+    if (it == textures_.end() || !it->second.texture || it->second.samples > 1) return ReadbackHandle::Invalid;
+    const u32 bpt = storageTexelBytes(it->second.format);
+    if (bpt == 0) return ReadbackHandle::Invalid;
+    const u32 w = it->second.width, h = it->second.height;
+    const u32 id = allocRawReadback(w, h, bpt, w * h * bpt);
+    if (!id) return ReadbackHandle::Invalid;
+    submitReadbackCopy(id, it->second.texture);
+    return static_cast<ReadbackHandle>(id);
 }
 
 }  // namespace esengine

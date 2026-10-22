@@ -41,6 +41,15 @@ struct MockGfxDevice final : GfxDevice {
     int beginRenderPassCalls = 0;
     int endRenderPassCalls = 0;
     int createProgramCalls = 0;
+    // A stand-in for a backend with (or without) a compute stage.
+    bool computeSupported = false;
+    int createComputeCalls = 0;
+    int deleteComputeCalls = 0;
+    int dispatchComputeCalls = 0;
+    bool supportsCompute() const override { return computeSupported; }
+    bool backendCreateCompute(u32, const GfxComputeSource&, std::string*) override { ++createComputeCalls; return true; }
+    void backendDeleteCompute(u32) override { ++deleteComputeCalls; }
+    bool backendDispatchCompute(u32, const GfxComputeBinding*, u32, u32, u32, u32) override { ++dispatchComputeCalls; return true; }
     int deleteProgramCalls = 0;
     int setUniform1iCalls = 0;
     int setUniform1fCalls = 0;

@@ -71,6 +71,7 @@ bool GfxDevice::markDeviceLost(GfxDeviceLostReason reason, std::string message, 
     for (auto& [id, record] : registry_.buffers.all()) { record.realized = false; record.owed = false; }
     for (auto& [id, record] : registry_.textures.all()) { record.realized = false; record.owed = false; }
     for (auto& [id, record] : registry_.programs.all()) record.realized = false;
+    for (auto& [id, record] : registry_.computes.all()) record.realized = false;
     for (auto& [id, record] : registry_.framebuffers.all()) record.realized = false;
     for (auto& [id, record] : registry_.timerQueries.all()) record.realized = false;
     owed_count_ = 0;
@@ -114,6 +115,13 @@ void GfxDevice::realizeRegistry() {
         } else {
             ES_LOG_ERROR("Device recovery: program {} did not rebuild: {}", id, log);
         }
+    }
+
+    for (auto& [id, record] : registry_.computes.all()) {
+        const GfxComputeSource source{GfxShaderLanguage::WGSL, record.source.c_str(), record.entry.c_str()};
+        std::string log;
+        record.realized = backendCreateCompute(id, source, &log);
+        if (!record.realized) ES_LOG_ERROR("Device recovery: compute program {} did not rebuild: {}", id, log);
     }
 
     for (auto& [id, record] : registry_.buffers.all()) {
@@ -601,6 +609,51 @@ void GfxDevice::deleteProgram(ShaderHandle program) {
     registry_.programs.erase(id);
     native_locations_.erase(id);
     if (current_program_ == program) current_program_ = ShaderHandle::Invalid;
+}
+
+ComputeHandle GfxDevice::createCompute(const GfxComputeSource& source, std::string* outLog) {
+    if (device_status_ == GfxDeviceStatus::Dead) {
+        if (outLog) *outLog = "device dead";
+        return ComputeHandle::Invalid;
+    }
+    if (!supportsCompute()) {
+        if (outLog) *outLog = "this device has no compute stage";
+        return ComputeHandle::Invalid;
+    }
+    if (source.language != GfxShaderLanguage::WGSL || !source.source) {
+        if (outLog) *outLog = "compute is WGSL only";
+        return ComputeHandle::Invalid;
+    }
+    GfxComputeRecord record;
+    record.source = source.source;
+    record.entry = source.entry ? source.entry : "main";
+    const u32 id = registry_.computes.insert(std::move(record));
+    if (!isDeviceUsable()) return ComputeHandle{id};
+    if (!backendCreateCompute(id, source, outLog)) {
+        registry_.computes.erase(id);
+        return ComputeHandle::Invalid;
+    }
+    registry_.computes.find(id)->realized = true;
+    return ComputeHandle{id};
+}
+
+void GfxDevice::deleteCompute(ComputeHandle program) {
+    const u32 id = static_cast<u32>(program);
+    auto* record = registry_.computes.find(id);
+    if (!record) return;
+    if (record->realized) backendDeleteCompute(id);
+    registry_.computes.erase(id);
+}
+
+bool GfxDevice::dispatchCompute(ComputeHandle program, const GfxComputeBinding* bindings, u32 bindingCount,
+                                u32 groupsX, u32 groupsY, u32 groupsZ) {
+    if (!supportsCompute() || !isDeviceUsable()) return false;
+    const u32 id = static_cast<u32>(program);
+    const auto* record = registry_.computes.find(id);
+    if (!record || !record->realized) return false;
+    if (groupsX == 0 || groupsY == 0 || groupsZ == 0) return false;
+    if (bindingCount > 0 && !bindings) return false;
+    return backendDispatchCompute(id, bindings, bindingCount, groupsX, groupsY, groupsZ);
 }
 
 void GfxDevice::useProgram(ShaderHandle program) {

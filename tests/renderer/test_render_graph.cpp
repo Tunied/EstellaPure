@@ -435,6 +435,61 @@ int main() {
               "so the newcomer is reachable and the ghost still is not");
     }
 
+    // --- a compute pass opens no render pass, writes a storage target, and feeds the pass after it ---
+    {
+        MockGfxDevice d;
+        rg::RenderGraph graph(d);
+        std::vector<std::string> ran;
+        graph.begin(256, 128);
+        const auto screen = graph.importTarget(FramebufferHandle{9}, 256, 128);
+        const auto scene = graph.importTexture(TextureHandle{5}, 256, 128);
+        rg::TargetDesc storage;
+        storage.storage = true;
+        const auto computed = graph.createTarget(storage);
+
+        TextureHandle seenInput = TextureHandle::Invalid;
+        TextureHandle seenOutput = TextureHandle::Invalid;
+        rg::PassDesc compute;
+        compute.name = "compute";
+        compute.reads = {scene};
+        compute.write = computed;
+        compute.compute = true;
+        compute.execute = [&](const rg::PassContext& ctx) {
+            ran.push_back("compute");
+            seenInput = ctx.input(0);
+            seenOutput = ctx.output;
+        };
+        graph.addPass(std::move(compute));
+        graph.addPass(fullscreen("draw", {computed}, screen, &ran));
+        graph.execute();
+
+        CHECK((ran == std::vector<std::string>{"compute", "draw"}), "a compute pass runs in order with the draws around it");
+        CHECK(d.beginRenderPassCalls == 1, "and opens no render pass of its own");
+        CHECK(seenInput == TextureHandle{5}, "it is told the texture it reads");
+        CHECK(seenOutput != TextureHandle::Invalid, "and the storage texture it writes");
+    }
+
+    // --- a compute pass nothing reads is culled like any other ---
+    {
+        MockGfxDevice d;
+        rg::RenderGraph graph(d);
+        std::vector<std::string> ran;
+        graph.begin(64, 64);
+        const auto screen = graph.importTarget(FramebufferHandle{9}, 64, 64);
+        rg::TargetDesc storage;
+        storage.storage = true;
+        const auto unused = graph.createTarget(storage);
+        rg::PassDesc compute;
+        compute.name = "compute";
+        compute.write = unused;
+        compute.compute = true;
+        compute.execute = [&](const rg::PassContext&) { ran.push_back("compute"); };
+        graph.addPass(std::move(compute));
+        graph.addPass(fullscreen("draw", {}, screen, &ran));
+        graph.execute();
+        CHECK((ran == std::vector<std::string>{"draw"}), "a compute pass whose output nothing reaches is dropped");
+    }
+
     std::printf(g_failures == 0 ? "\nALL PASS\n" : "\n%d FAILURE(S)\n", g_failures);
     return g_failures == 0 ? 0 : 1;
 }

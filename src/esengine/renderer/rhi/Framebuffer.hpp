@@ -58,6 +58,8 @@ struct FramebufferSpec {
     GfxPixelFormat colorFormat = GfxPixelFormat::RGBA8;
     /** @brief A second colour attachment (RGBA8) drawn in the same pass: the surface's material, for effects that need to know what they are looking at. */
     bool gbuffer = false;
+    /** @brief The colour attachment can also be written by a compute shader (GfxDevice::supportsCompute). */
+    bool storage = false;
 };
 
 // =============================================================================

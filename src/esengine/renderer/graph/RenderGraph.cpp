@@ -144,6 +144,7 @@ TargetHandle RenderGraph::acquire(const Resource& res) {
     shape.depthStencil = res.desc.depthStencil;
     shape.samples = res.desc.samples;
     shape.gbuffer = res.desc.gbuffer;
+    shape.storage = res.desc.storage;
     const TargetHandle handle = pool_.acquire(shape);
     if (handle != kNoTarget) borrowed_.push_back(handle);
     return handle;
@@ -193,6 +194,25 @@ void RenderGraph::execute() {
             fbo = pool_.framebufferOf(target.pooled);
         } else {
             fbo = target.target;
+        }
+
+        if (pass.compute) {
+            // A dispatch is not a draw: it runs between render passes, with nothing bound for it by the graph.
+            inputScratch_.clear();
+            for (const ResourceId id : pass.reads) inputScratch_.push_back(textureOf(id));
+            if (pass.execute) {
+                PassContext ctx;
+                ctx.width = target.width;
+                ctx.height = target.height;
+                ctx.inputs = &inputScratch_;
+                ctx.output = target.texture;
+                pass.execute(ctx);
+            }
+            ++executed_;
+            for (auto& res : resources_) {
+                if (res.kind == Kind::Transient && res.lastRead == static_cast<i32>(i)) release(res);
+            }
+            continue;
         }
 
         RenderPassDesc rp{};

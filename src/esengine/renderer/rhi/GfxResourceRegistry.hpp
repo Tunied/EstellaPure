@@ -73,6 +73,12 @@ struct GfxProgramRecord {
 
 inline constexpr u32 GFX_UNBOUND_BLOCK = 0xFFFFFFFFu;
 
+struct GfxComputeRecord {
+    std::string source;
+    std::string entry;
+    bool realized = false;
+};
+
 struct GfxFramebufferRecord {
     FramebufferDesc desc;
     bool realized = false;
@@ -136,6 +142,7 @@ public:
     GfxRecordTable<GfxBufferRecord> buffers;
     GfxRecordTable<GfxTextureRecord> textures;
     GfxRecordTable<GfxProgramRecord> programs;
+    GfxRecordTable<GfxComputeRecord> computes;
     GfxRecordTable<GfxFramebufferRecord> framebuffers;
     GfxRecordTable<GfxLayoutRecord> layouts;
     GfxRecordTable<GfxPipelineRecord> pipelines;

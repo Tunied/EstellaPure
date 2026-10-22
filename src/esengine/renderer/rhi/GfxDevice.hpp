@@ -497,6 +497,59 @@ public:
     /** @brief Deletes a shader program */
     void deleteProgram(ShaderHandle program);
 
+    // =========================================================================
+    // Compute
+    // =========================================================================
+
+    /**
+     * @brief Whether this device runs compute shaders.
+     * @details WebGPU does; WebGL2 has no compute stage, so a caller asks first and keeps a fallback. The calls below
+     *          are harmless on a device that does not: they refuse (Invalid, false) and draw nothing.
+     */
+    virtual bool supportsCompute() const { return false; }
+
+    /**
+     * @brief Compiles a compute program.
+     * @return The program, or Invalid with @p outLog saying why (no compute, wrong language, a WGSL error).
+     */
+    ComputeHandle createCompute(const GfxComputeSource& source, std::string* outLog = nullptr);
+
+    /** @brief Deletes a compute program. */
+    void deleteCompute(ComputeHandle program);
+
+    /**
+     * @brief Runs @p program over @p groupsX x @p groupsY x @p groupsZ workgroups, with these resources bound.
+     *
+     * @details Outside a render pass, in submission order with every pass before and after it, so what an earlier
+     *          pass drew is there to read and what this writes is there for the next to sample. A storage buffer
+     *          or texture is bound for write only by the bindings listed; the rest of the device's state is
+     *          untouched.
+     * @return false when nothing ran: the device does not compute, a resource named is gone, a render pass is
+     *         open, or a count is zero or over the device's limit.
+     */
+    bool dispatchCompute(ComputeHandle program, const GfxComputeBinding* bindings, u32 bindingCount,
+                         u32 groupsX, u32 groupsY = 1, u32 groupsZ = 1);
+
+    /**
+     * @brief Copies bytes of a storage buffer out, to be taken with pollReadback / takeReadback.
+     * @details takeReadback hands the bytes back as they are in the buffer; @p size and @p offsetBytes are
+     *          multiples of 4. Invalid on a device that does not compute.
+     */
+    virtual ReadbackHandle requestBufferReadback(BufferHandle buffer, u32 offsetBytes, u32 sizeBytes) {
+        (void)buffer; (void)offsetBytes; (void)sizeBytes;
+        return ReadbackHandle::Invalid;
+    }
+
+    /**
+     * @brief Copies a storage texture's pixels out, tightly packed in the texture's own format (rows top-down).
+     * @details Unlike requestReadback it names the texture, not a framebuffer, since a compute target has none.
+     *          RGBA8, RGBA16F and RGBA32F: four, eight and sixteen bytes a texel.
+     */
+    virtual ReadbackHandle requestTextureReadback(TextureHandle texture) {
+        (void)texture;
+        return ReadbackHandle::Invalid;
+    }
+
     /**
      * @brief Binds a program directly, for setup-time uniform seeding.
      * @details Per-frame rendering binds programs through setPipeline.
@@ -760,6 +813,17 @@ protected:
     virtual void backendSetTextureParams(u32 id, const TextureDesc& desc) = 0;
     virtual void backendGenerateMipmaps(u32 id) = 0;
 
+    virtual bool backendCreateCompute(u32 id, const GfxComputeSource& source, std::string* outLog) {
+        (void)id; (void)source;
+        if (outLog) *outLog = "this device has no compute stage";
+        return false;
+    }
+    virtual void backendDeleteCompute(u32 id) { (void)id; }
+    virtual bool backendDispatchCompute(u32 id, const GfxComputeBinding* bindings, u32 bindingCount,
+                                        u32 groupsX, u32 groupsY, u32 groupsZ) {
+        (void)id; (void)bindings; (void)bindingCount; (void)groupsX; (void)groupsY; (void)groupsZ;
+        return false;
+    }
     virtual bool backendCreateProgram(u32 id, const GfxShaderSource& source,
                                       const GfxAttribBinding* bindings, u32 bindingCount,
                                       std::string* outLog, GfxShaderStage* outFailedStage) = 0;

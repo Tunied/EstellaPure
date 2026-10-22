@@ -66,6 +66,8 @@ struct TargetDesc {
     u32 samples = 1;
     /// A second colour attachment for the surface's material, drawn beside the first.
     bool gbuffer = false;
+    /// Written by a compute shader (a pass with `compute` set), then sampled like any target.
+    bool storage = false;
 };
 
 /** What a pass's execute() is told: where it is drawing and what it may read. */
@@ -74,6 +76,8 @@ struct PassContext {
     u32 height = 0;
     /// The pass's declared reads, already bound to units 0..n-1, in order.
     const std::vector<TextureHandle>* inputs = nullptr;
+    /// The texture this pass writes: the storage texture of a compute pass (a render pass draws into its framebuffer instead).
+    TextureHandle output = TextureHandle::Invalid;
 
     TextureHandle input(u32 i) const {
         return (inputs && i < inputs->size()) ? (*inputs)[i] : TextureHandle::Invalid;
@@ -100,6 +104,11 @@ struct PassDesc {
      */
     std::vector<ResourceId> dependencies;
     ResourceId write = kNoResource;
+    /**
+     * @brief A compute pass: no render pass is opened and no unit is bound — `execute` dispatches, reading `ctx.input(i)` and
+     *        writing `ctx.output`, which has to be a target declared with `storage`. Ordered, culled and recycled like any pass.
+     */
+    bool compute = false;
     bool clear = false;
     /// Clears the depth attachment with the colour, for a target that has one.
     /// A geometry pass writes depth, so the frame before it is not what it

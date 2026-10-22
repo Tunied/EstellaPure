@@ -136,6 +136,11 @@ public:
         surface_samples_ = samples > 1 ? kMsaaSamples : 1;
     }
 
+    /// WebGPU is the backend with a compute stage; a device-less instance (bookkeeping only) has none to offer.
+    bool supportsCompute() const override { return device_ != nullptr; }
+    ReadbackHandle requestBufferReadback(BufferHandle buffer, u32 offsetBytes, u32 sizeBytes) override;
+    ReadbackHandle requestTextureReadback(TextureHandle texture) override;
+
     bool supportsShaderLanguage(GfxShaderLanguage language) const override {
         return language == GfxShaderLanguage::WGSL;
     }
@@ -190,6 +195,11 @@ protected:
                               const void* pixels, bool flipY) override;
     void backendSetTextureParams(u32 id, const TextureDesc& desc) override;
     void backendGenerateMipmaps(u32 id) override;
+
+    bool backendCreateCompute(u32 id, const GfxComputeSource& source, std::string* outLog) override;
+    void backendDeleteCompute(u32 id) override;
+    bool backendDispatchCompute(u32 id, const GfxComputeBinding* bindings, u32 bindingCount,
+                                u32 groupsX, u32 groupsY, u32 groupsZ) override;
 
     bool backendCreateProgram(u32 id, const GfxShaderSource& source,
                               const GfxAttribBinding* bindings, u32 bindingCount,
@@ -358,6 +368,8 @@ private:
         /// 1, or the whole chain for a texture that declared mipmaps. `view` is
         /// then level 0 alone (an attachment is one level) and `sampleView` all.
         u32 mipLevels = 1;
+        /// Created with StorageBinding: a compute shader may write it.
+        bool storage = false;
     };
     struct ProgramRec {
         WGPUShaderModule vertex = nullptr;
@@ -387,12 +399,22 @@ private:
                                     * static_cast<u32>(kSampleVariantCount)
                                     * static_cast<u32>(kGBufferVariantCount)] = {};
     };
+    struct ComputeRec {
+        WGPUShaderModule module = nullptr;
+        std::string entry;
+        /// One pipeline per bind-group layout the program has been dispatched with.
+        std::unordered_map<std::string, WGPUComputePipeline> pipelines;
+    };
     struct ReadbackRec {
         WGPUBuffer buffer = nullptr;  ///< CopyDst|MapRead staging buffer.
         u32 width = 0;
         u32 height = 0;
         u32 paddedBytesPerRow = 0;  ///< Row stride in the buffer (256-aligned).
         GfxReadbackStatus status = GfxReadbackStatus::Pending;
+        /// A compute readback: tight rows in the source's own bytes, top-down, never flipped to GL's order.
+        bool raw = false;
+        u32 bytesPerTexel = 4;
+        u32 tightBytes = 0;  ///< What takeReadback hands back for a raw readback.
     };
 
     /** @brief Logs a not-yet-implemented path once per entry point. */
@@ -500,6 +522,8 @@ private:
     void releaseDeviceObjects();
     /** A staging buffer + record with no copy submitted yet; 0 on failure. */
     u32 allocReadback(u32 w, u32 h);
+    /// The same for a compute readback: @p bytes of a buffer, or a w x h texture of @p bytesPerTexel.
+    u32 allocRawReadback(u32 w, u32 h, u32 bytesPerTexel, u32 tightBytes);
     void submitReadbackCopy(u32 id, WGPUTexture source);
     void encodeReadbackCopy(WGPUCommandEncoder encoder, u32 id, WGPUTexture source);
     void mapReadback(u32 id);
@@ -658,6 +682,10 @@ private:
     std::unordered_map<u32, BufferRec> buffers_;
     std::unordered_map<u32, TextureRec> textures_;
     std::unordered_map<u32, ProgramRec> programs_;
+    std::unordered_map<u32, ComputeRec> computes_;
+    /// Bind-group layouts of compute dispatches, by what they bind (see computeLayoutKey).
+    std::unordered_map<std::string, WGPUBindGroupLayout> compute_layouts_;
+    std::unordered_map<std::string, WGPUPipelineLayout> compute_pipeline_layouts_;
     std::unordered_map<u32, PipelineRec> pipelines_;
     std::vector<std::string> stub_logged_;
 };

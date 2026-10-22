@@ -32,7 +32,7 @@ u64 texelBytes(const TargetShape& shape) {
 bool sameShape(const TargetShape& a, const TargetShape& b) {
     return a.width == b.width && a.height == b.height && a.format == b.format
            && a.linearFilter == b.linearFilter && a.depthStencil == b.depthStencil
-           && a.samples == b.samples && a.gbuffer == b.gbuffer;
+           && a.samples == b.samples && a.gbuffer == b.gbuffer && a.storage == b.storage;
 }
 
 }  // namespace
@@ -75,6 +75,7 @@ TargetHandle TargetPool::acquire(const TargetShape& shape) {
     spec.colorFormat = shape.format;
     spec.samples = shape.samples;
     spec.gbuffer = shape.gbuffer;
+    spec.storage = shape.storage;
     auto fbo = Framebuffer::create(device_, spec);
     if (!fbo) {
         ES_LOG_ERROR("TargetPool: failed to create a {}x{} target", shape.width, shape.height);

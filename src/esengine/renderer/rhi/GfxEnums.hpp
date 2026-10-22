@@ -31,6 +31,8 @@ namespace esengine {
 enum class BufferHandle : u32 { Invalid = 0 };
 enum class TextureHandle : u32 { Invalid = 0 };
 enum class ShaderHandle : u32 { Invalid = 0 };
+/** @brief A compute program (GfxDevice::createCompute); only a device that supportsCompute() issues one. */
+enum class ComputeHandle : u32 { Invalid = 0 };
 /** @brief Handle 0 is the default framebuffer (backbuffer); it cannot be created or deleted. */
 enum class FramebufferHandle : u32 { Default = 0 };
 /** @brief An in-flight framebuffer readback (GfxDevice::requestReadback). */
@@ -67,6 +69,8 @@ enum class GfxBufferUsage : u8 {
     Vertex,
     Index,
     Uniform,
+    /// Read and written by compute shaders (`var<storage, read_write>`), and readable back. Needs a device that supportsCompute().
+    Storage,
 };
 
 // =============================================================================
@@ -414,6 +418,9 @@ struct TextureDesc {
     TextureWrap wrapT = TextureWrap::ClampToEdge;
     bool mipmaps = false;
     bool flipY = false;
+    /// Writable from a compute shader as a storage texture. RGBA8, RGBA16F and RGBA32F only, and only on a device
+    /// that supportsCompute(); a texture asked for this elsewhere is created without it.
+    bool storage = false;
 };
 
 /**
@@ -621,6 +628,55 @@ struct GfxShaderSource {
     GfxShaderLanguage language = GfxShaderLanguage::GLSL_ES300;
     const char* vertexSrc = nullptr;
     const char* fragmentSrc = nullptr;
+};
+
+/** @brief A compute program's source. Compute is WGSL only: GLSL ES 3.00 has no compute stage. */
+struct GfxComputeSource {
+    GfxShaderLanguage language = GfxShaderLanguage::WGSL;
+    const char* source = nullptr;
+    /// The `@compute` entry point.
+    const char* entry = "main";
+};
+
+/**
+ * @brief One resource a compute dispatch binds, at `@group(0) @binding(binding)`.
+ *
+ * @details The bind-group layout is built from the list itself, so the shader's declarations have to say the
+ *          same thing: `Uniform` is `var<uniform>`, `StorageRead` is `var<storage, read>`, `Storage` is
+ *          `var<storage, read_write>`, `Texture` is a `texture_2d<f32>` (or `texture_depth_2d` for a depth
+ *          texture) read with `textureLoad`, `StorageTexture` is a `texture_storage_2d<FORMAT, write>` whose
+ *          format is the texture's, and `Sampler` is a `sampler`.
+ */
+struct GfxComputeBinding {
+    enum class Kind : u8 { Uniform, StorageRead, Storage, Texture, StorageTexture, Sampler };
+    Kind kind = Kind::Uniform;
+    u32 binding = 0;
+    BufferHandle buffer = BufferHandle::Invalid;
+    /// Bytes into the buffer (a multiple of 256 for a uniform, 4 for storage) and how many; 0 = the rest.
+    u32 offset = 0;
+    u32 size = 0;
+    TextureHandle texture = TextureHandle::Invalid;
+    /// A Sampler's filter.
+    TextureFilter filter = TextureFilter::Linear;
+
+    static GfxComputeBinding uniform(u32 binding, BufferHandle buffer, u32 offset = 0, u32 size = 0) {
+        GfxComputeBinding b; b.kind = Kind::Uniform; b.binding = binding; b.buffer = buffer; b.offset = offset; b.size = size; return b;
+    }
+    static GfxComputeBinding storageRead(u32 binding, BufferHandle buffer, u32 offset = 0, u32 size = 0) {
+        GfxComputeBinding b; b.kind = Kind::StorageRead; b.binding = binding; b.buffer = buffer; b.offset = offset; b.size = size; return b;
+    }
+    static GfxComputeBinding storage(u32 binding, BufferHandle buffer, u32 offset = 0, u32 size = 0) {
+        GfxComputeBinding b; b.kind = Kind::Storage; b.binding = binding; b.buffer = buffer; b.offset = offset; b.size = size; return b;
+    }
+    static GfxComputeBinding sampled(u32 binding, TextureHandle texture) {
+        GfxComputeBinding b; b.kind = Kind::Texture; b.binding = binding; b.texture = texture; return b;
+    }
+    static GfxComputeBinding storageTexture(u32 binding, TextureHandle texture) {
+        GfxComputeBinding b; b.kind = Kind::StorageTexture; b.binding = binding; b.texture = texture; return b;
+    }
+    static GfxComputeBinding sampler(u32 binding, TextureFilter filter) {
+        GfxComputeBinding b; b.kind = Kind::Sampler; b.binding = binding; b.filter = filter; return b;
+    }
 };
 
 /**

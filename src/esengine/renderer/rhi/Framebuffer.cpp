@@ -132,6 +132,7 @@ bool Framebuffer::initialize() {
     colorDesc.minFilter = filter;
     colorDesc.magFilter = filter;
     colorDesc.samples = samples;
+    colorDesc.storage = spec_.storage && samples == 1 && device_->supportsCompute();
     colorAttachment_ = device_->createTexture(colorDesc, GfxContent::transient(), nullptr);
 
     // The surface's own record: 8 bits a channel is what an octahedral normal, a roughness and a metalness

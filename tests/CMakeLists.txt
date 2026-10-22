@@ -565,6 +565,24 @@ if(EMSCRIPTEN)
     target_link_options(webgpu_bringup PRIVATE --use-port=emdawnwebgpu)
 endif()
 
+# WebGPU compute bring-up: a browser-run wasm that drives the compute half of the RHI through the real WebGPUDevice
+# (storage buffers and textures, dispatch, readback) and prints what the GPU computed. Driven by
+# desktop/scripts/webgpu-compute-bringup.mjs, which asserts it.
+if(EMSCRIPTEN)
+    add_executable(webgpu_compute_bringup
+        renderer/webgpu_compute_bringup.cpp
+        ${CMAKE_SOURCE_DIR}/src/esengine/renderer/webgpu/WebGPUDevice.cpp
+        ${CMAKE_SOURCE_DIR}/src/esengine/renderer/rhi/GfxDevice.cpp
+        ${CMAKE_SOURCE_DIR}/src/esengine/core/Log.cpp
+    )
+    target_include_directories(webgpu_compute_bringup PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/third_party/glm
+    )
+    target_compile_options(webgpu_compute_bringup PRIVATE --use-port=emdawnwebgpu)
+    target_link_options(webgpu_compute_bringup PRIVATE --use-port=emdawnwebgpu)
+endif()
+
 # Engine-level backend parity harness (REARCH_WGSL Phase 2): the FULL engine —
 # EstellaContext with every subsystem — booted on an injected backend (WebGPU
 # via emdawnwebgpu, or the stock WebGL2 path, chosen by URL) rendering one ECS
