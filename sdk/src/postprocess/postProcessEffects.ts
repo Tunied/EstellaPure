@@ -172,7 +172,7 @@ fn basinCoverage(c : vec2i, size : vec2i, P : vec3f, coverage : f32, scale : f32
  * unwritten pixel — at most 0.5 — is told from a surface). An effect that wants it says `#pragma gbuffer`,
  * which is what makes the frame draw one, and finds it at `u_gbuffer`.
  */
-const GBUFFER_GLSL = `
+export const GBUFFER_GLSL = `
 struct Surface { vec3 normal; float roughness; float metallic; bool known; };
 Surface readSurface(ivec2 t) {
     vec4 g = texelFetch(u_gbuffer, t, 0);

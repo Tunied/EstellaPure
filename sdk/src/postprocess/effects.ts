@@ -5,6 +5,7 @@ import { postProcessEffects } from './postProcessEffects';
 import { lensEffects } from './lensEffects';
 import { gtaoPasses } from './gtao';
 import { subsurfacePasses } from './subsurface';
+import { voxelGIFallback, VOXEL_ATLAS } from './voxelGIFallback';
 import { SHARPEN_WGSL } from './computeEffects';
 
 export interface EffectUniformDef {
@@ -45,6 +46,8 @@ export interface EffectSubPass {
      * effect ends on a pass that reads the small result and writes the big one.
      */
     scale?: number;
+    /** Uniforms this pass always carries, whatever the volume says: constants of its design (the voxel atlas's size). */
+    uniforms?: Record<string, number>;
 }
 
 /**
@@ -74,6 +77,11 @@ export interface EffectDef {
     compute?: ComputeEffectSource;
     /** Set instead of `factory` for an effect the engine implements itself, in compute passes of its own ("voxelGI"). */
     native?: string;
+    /**
+     * Passes that stand in for a `native` or `compute` effect on a device that cannot run it (a fragment version of a compute
+     * one). They take every one of the effect's uniforms, as a multi-pass effect's passes do.
+     */
+    fallback?: EffectSubPass[];
     uniforms: EffectUniformDef[];
     /** Texture params, carried on the volume as serialized refs (`textures`). */
     textures?: EffectTextureDef[];
@@ -102,7 +110,7 @@ export function effectPassNames(type: string): string[] {
     const wanted = type.toLowerCase();
     for (const def of effectRegistry.values()) {
         if (def.type.toLowerCase() !== wanted) continue;
-        return def.multiPass ? def.multiPass.map((pass) => pass.name) : [def.type];
+        return def.multiPass ? def.multiPass.map((pass) => pass.name) : [def.type, ...(def.fallback?.map((pass) => pass.name) ?? [])];
     }
     return [];
 }
@@ -304,6 +312,12 @@ registerEffect({
     type: 'voxelGI',
     label: 'Voxel GI',
     native: 'voxelGI',
+    // WebGL2 has no compute: the same cache built by fragment passes, at a fixed half-size gather.
+    fallback: [
+        { name: 'gi_voxels', factory: () => voxelGIFallback.createVoxels(), uniforms: { u_feedbackWidth: VOXEL_ATLAS.width, u_feedbackHeight: VOXEL_ATLAS.height } },
+        { name: 'gi_gather', factory: () => voxelGIFallback.createGather(), scale: 0.5 },
+        { name: 'gi_apply', factory: () => voxelGIFallback.createApply() },
+    ],
     uniforms: [
         // How much of the gathered light is added over the picture.
         { name: 'u_intensity', label: 'Intensity', min: 0, max: 4, step: 0.01, defaultValue: 1, neutralValue: 0 },

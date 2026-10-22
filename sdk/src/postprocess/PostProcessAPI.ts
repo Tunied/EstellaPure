@@ -91,6 +91,18 @@ export function shutdownPostProcessAPI(): void {
     module = null;
 }
 
+/**
+ * Whether the device the chain runs on has a compute stage (WebGPU). False before the chain is up, and on WebGL2.
+ * An effect that has a compute version and a fragment one asks which to build.
+ */
+export function deviceHasCompute(): boolean {
+    try {
+        return getModule().postprocess_supportsCompute?.() === true;
+    } catch {
+        return false;
+    }
+}
+
 function getModule(): PostProcessCore {
     if (!module) {
         throw new Error('PostProcess API not initialized. Call initPostProcessAPI() first.');

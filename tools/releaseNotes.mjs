@@ -2497,6 +2497,10 @@ export const NOTED = {
     {"internal":"the desktop half of the Details panels entry just below, which carries the note"},
   "feat(examples): add cyberpunk rooftop scene and building HUD":
     {"note":"Cyber Rooftop adds a rooftop survival-base example with a 2D HUD and a first-person build tool."},
+  "feat(render): Voxel GI runs on WebGL2 with fragment passes":
+    {"note":"Voxel GI now runs on WebGL2: the world-space bounce light is built with fragment passes where there is no compute stage."},
+  "chore(editor-checks): Voxel GI is checked on WebGL2 as well":
+    {"internal":"the editor check for the WebGL2 Voxel GI entry above"},
   "fix(render): a wire narrower than a pixel is no longer painted over by the sky in dashes":
     {"note":"A wire or railing thinner than a pixel stays one line against the sky instead of breaking into dashes."},
   "fix(render): contact shadows no longer speckle a surface the sun does not reach, and a temporal pass placed before a noisy effect is flagged":

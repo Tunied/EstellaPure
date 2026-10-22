@@ -1156,8 +1156,15 @@ void PostProcessPipeline::runChain(std::vector<PostProcessPass>& passes, rg::Res
             } else if (passHasTexture(pass, "u_feedback")) {
                 // At the pass's own size: a measurement is a few texels, not a picture.
                 pass.historyKey = feedbackKey(pass.name);
-                const u32 fw = static_cast<u32>(static_cast<f32>(width_) * pass.scale);
-                const u32 fh = static_cast<u32>(static_cast<f32>(height_) * pass.scale);
+                u32 fw = static_cast<u32>(static_cast<f32>(width_) * pass.scale);
+                u32 fh = static_cast<u32>(static_cast<f32>(height_) * pass.scale);
+                // A memory that is not a picture (the voxel cache laid out as an atlas) names its own size, in texels.
+                const auto sized = [&pass](const char* name, u32 fallback) {
+                    const auto it = pass.floatUniforms.find(name);
+                    return it != pass.floatUniforms.end() && it->second >= 1.0f ? std::min(static_cast<u32>(it->second), 4096u) : fallback;
+                };
+                fw = sized("u_feedbackWidth", fw);
+                fh = sized("u_feedbackHeight", fh);
                 // What it remembers is a measurement: kept in a float even where the picture is 8 bits a channel.
                 temporal = prepareHistory(feedback_[pass.historyKey], fw, fh,
                                           passIsHighPrecision(pass) ? GfxPixelFormat::RGBA16F : interFormat());

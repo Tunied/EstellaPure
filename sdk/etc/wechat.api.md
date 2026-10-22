@@ -3575,6 +3575,7 @@ category: EffectCategory | undefined
 colors: EffectColorDef[] | undefined
 compute: ComputeEffectSource | undefined
 factory: (() => ShaderHandle) | undefined
+fallback: EffectSubPass[] | undefined
 label: string
 multiPass: EffectSubPass[] | undefined
 native: string | undefined

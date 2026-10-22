@@ -5,7 +5,7 @@ import { defineResource, Res } from '../ecs/resource';
 import { Query } from '../ecs/query';
 import type { Entity } from '../types';
 import { PostProcessVolume, Transform, Camera, type PostProcessVolumeData, type TransformData, type CameraData } from '../ecs/component';
-import { PostProcess, type PostProcessAPI } from './PostProcessAPI';
+import { PostProcess, deviceHasCompute, type PostProcessAPI } from './PostProcessAPI';
 import { getEffectDef } from './effects';
 import { blendVolumeEffects, computeVolumeFactor, type ActiveVolume, type BlendedEffect, type VolumeTransform } from './volumeBlending';
 import type { ShaderHandle } from '../render/material';
@@ -174,6 +174,14 @@ function applyBlendedEffects(
                 }
                 applyTextures(stack, subPass.name, effectData.textures);
                 applyColors(stack, subPass.name, effectData.colors);
+            }
+        } else if (def.native && def.fallback && !deviceHasCompute()) {
+            // No compute stage: the fragment version of the same effect stands in for it.
+            for (const [index, subPass] of def.fallback.entries()) {
+                const shader = getOrCreateShader(api, subPass.name, subPass.factory);
+                stack.addPass(subPass.name, shader, subPass.scale ?? 1, index > 0);
+                for (const u of def.uniforms) stack.setUniform(subPass.name, u.name, effectData.uniforms.get(u.name) ?? u.defaultValue);
+                for (const [name, value] of Object.entries(subPass.uniforms ?? {})) stack.setUniform(subPass.name, name, value);
             }
         } else if (def.native) {
             stack.addNativePass(effectType, def.native);
