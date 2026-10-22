@@ -22,6 +22,8 @@ export interface PassConfig {
     continuesEffect: boolean;
     /** Set for a compute pass: it has no `shader`, and the engine dispatches this WGSL over the picture instead. */
     compute?: ComputePassSource;
+    /** Set for a pass the engine implements itself ("voxelGI"): it has no `shader`, and the engine declares its own passes. */
+    native?: string;
 }
 
 /** What a compute pass runs: the WGSL, the names of its f32 params in the order its params block lists them, and its workgroup size. */
@@ -98,6 +100,23 @@ export class PostProcessStack {
             scale: 1,
             continuesEffect: false,
             compute,
+        });
+        this.dirty_ = true;
+        return this;
+    }
+
+    /** Adds a pass the engine implements itself, by kind. A device with no compute stage leaves it out of the chain. */
+    addNativePass(name: string, kind: string): this {
+        this.passes_.push({
+            name,
+            shader: 0 as ShaderHandle,
+            enabled: true,
+            floatUniforms: new Map(),
+            vec4Uniforms: new Map(),
+            textureUniforms: new Map(),
+            scale: 1,
+            continuesEffect: false,
+            native: kind,
         });
         this.dirty_ = true;
         return this;

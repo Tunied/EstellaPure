@@ -175,6 +175,9 @@ function applyBlendedEffects(
                 applyTextures(stack, subPass.name, effectData.textures);
                 applyColors(stack, subPass.name, effectData.colors);
             }
+        } else if (def.native) {
+            stack.addNativePass(effectType, def.native);
+            for (const u of def.uniforms) stack.setUniform(effectType, u.name, effectData.uniforms.get(u.name) ?? u.defaultValue);
         } else if (def.compute) {
             // The params block is the effect's uniforms in their listed order, each at the volume's value or the effect's own default.
             stack.addComputePass(effectType, {

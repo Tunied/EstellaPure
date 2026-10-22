@@ -25,6 +25,7 @@ several can stack in one frame at no extra target cost beyond the passes.
 | `distanceFog` | Linear fog by distance from the camera | `near`, `far`, `intensity`, colour |
 | `heightFog` | Exponential height fog with the sun's glow and a hazy horizon | `density`, `heightFalloff`, `baseHeight`, `sunAzimuth`, `sunElevation`, `skyFog`, colours |
 | `skyAtmosphere` | An atmosphere that scatters the sun's light, with sun, moon, stars and volumetric clouds, drawn where there is no surface | `intensity`, `haze`, `altitude`, `clouds`, `cloudBase`, `cloudThickness`, `windSpeed`, `overcast`, `sunAzimuth`, `sunElevation` |
+| `voxelGI` | Diffuse global illumination from a world-space voxel cache the camera remembers (WebGPU only) | `intensity`, `rays`, `voxelSize`, `range`, `maxBounce`, `decay`, `blend`, `divisor` |
 | `sharpen` | Sharpening that cannot make a halo (a compute effect: WebGPU only) | `intensity`, `limit` |
 | `lightShafts` | Sun rays through whatever stands in front of it | `intensity`, `sunAzimuth`, `sunElevation`, `decay`, `reach` |
 | `contactShadows` | The small sharp shadows at a contact a shadow map is too coarse to hold | `intensity`, `length`, `thickness` |
@@ -147,6 +148,28 @@ a second output (`layout(location = 1) out vec4`, or a struct return in WGSL) an
 
 On WebGL2 and WebGPU alike the attachment is multisampled with the scene and resolved with it. A blended draw never writes
 it — a normal averaged with the one behind it is neither's — and the scene's own background clears it to 0.
+
+### Voxel GI (WebGPU)
+
+`voxelGI` is diffuse global illumination from a **world-space voxel cache**. A grid of voxels (128 × 64 × 128 around the camera, `voxelSize`
+world units each) remembers what the camera has seen: every frame the lit picture is written into the voxels its visible surfaces
+stand in — their average radiance and the way they face — and what was there before fades by `decay`. Light is then gathered the way a
+path tracer would, but through the grid: from each visible surface a few cosine-weighted rays (`rays`) are marched cell by cell, and
+where one meets a voxel that faces it, that voxel's radiance is the light it brings. The gather runs at a fraction of the picture's size
+(`divisor`), is blended over frames (`blend`) and is upsampled with the depth, so it does not bleed across an edge.
+
+Because the cache is the world's and not the screen's, a bright wall that has left the picture still tints the floor beside it, a surface lit
+only by another is lit, and a moving light lights its surroundings — the three things the screen-space bounce (`ssgi`) cannot do.
+
+It is **not a trace of the scene's geometry**, and it says so:
+
+- the cache holds the surfaces the camera has *seen*, at the voxel's size — a surface it has not seen yet sends no light, and a thin one is as thick as a cell;
+- one bounce, diffuse only (no glossy transport), and the picture it is injected from carries last frame's light, so a bright surface feeds itself a little;
+- it needs a **compute stage**: WebGPU. On WebGL2 the effect is left out and the picture goes through as it was — use `ssgi` there;
+- it costs a grid of memory (about 32 MB), four compute passes a frame and one cache per camera.
+
+It is not Unreal's Lumen: there is no distance-field or hardware ray tracing and no surface cache of the scene's meshes, which is what lets Lumen light what
+has never been on screen. Voxel GI is the version of the idea that needs only the picture.
 
 ### Compute effects (WebGPU)
 

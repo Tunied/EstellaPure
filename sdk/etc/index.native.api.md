@@ -3589,6 +3589,7 @@ compute: ComputeEffectSource | undefined
 factory: (() => ShaderHandle) | undefined
 label: string
 multiPass: EffectSubPass[] | undefined
+native: string | undefined
 textures: EffectTextureDef[] | undefined
 type: string
 uniforms: EffectUniformDef[]
@@ -6860,6 +6861,7 @@ static prototype: PostProcessPlugin
 ## PostProcessStack — class @experimental
 ```
 addComputePass: (name: string, compute: ComputePassSource) => PostProcessStack
+addNativePass: (name: string, kind: string) => PostProcessStack
 addPass: (name: string, shader: ShaderHandle, scale?: number, continuesEffect?: boolean) => PostProcessStack
 clearDirty: () => void
 clearPasses: () => PostProcessStack

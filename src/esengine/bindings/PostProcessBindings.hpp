@@ -21,6 +21,11 @@ u32 postprocess_addComputePass(const std::string& name, const std::string& wgsl,
                                u32 workgroupX, u32 workgroupY);
 /** @brief Whether compute passes run on this device: WebGPU yes, WebGL2 no. */
 bool postprocess_supportsCompute();
+/**
+ * @brief Adds a pass the engine implements itself ("voxelGI"); its parameters are set by name like any pass's.
+ * @details On a device with no compute stage the pass is left out of the chain and the picture goes through as it was.
+ */
+u32 postprocess_addNativePass(const std::string& name, const std::string& kind);
 /** The project's multisampling request for the scene target; 1 = off. Clamped
  *  by what the device supports — the device answers capability, not policy. */
 void postprocess_setMsaaSamples(u32 samples);

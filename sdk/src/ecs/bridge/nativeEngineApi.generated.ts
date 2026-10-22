@@ -100,6 +100,7 @@ export interface NativeEngineApi {
     particle_stop?(registry: unknown, entity: number): void;
     particle_update?(registry: unknown, dt: number): void;
     postprocess_addComputePass?(name: string, wgsl: string, params: string, workgroupX: number, workgroupY: number): number;
+    postprocess_addNativePass?(name: string, kind: string): number;
     postprocess_addPass?(name: string, shaderHandle: number): number;
     postprocess_addScreenPass?(name: string, shaderHandle: number): number;
     postprocess_begin?(): void;
@@ -415,6 +416,7 @@ export function createNativeEngineApi(
     bind('particle_stop', 'es_particle_stop', true);
     bind('particle_update', 'es_particle_update', true);
     bind('postprocess_addComputePass', 'es_postprocess_addComputePass', false);
+    bind('postprocess_addNativePass', 'es_postprocess_addNativePass', false);
     bind('postprocess_addPass', 'es_postprocess_addPass', false);
     bind('postprocess_addScreenPass', 'es_postprocess_addScreenPass', false);
     bind('postprocess_begin', 'es_postprocess_begin', false);

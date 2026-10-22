@@ -24,6 +24,7 @@ Estella 通过 ping-pong 帧缓冲运行全屏后处理。加一个 `PostProcess
 | `distanceFog` | 按到相机的距离做线性雾 | `near`、`far`、`intensity`、颜色 |
 | `heightFog` | 指数高度雾,带太阳辉光和朦胧的地平线 | `density`、`heightFalloff`、`baseHeight`、`sunAzimuth`、`sunElevation`、`skyFog`、颜色 |
 | `skyAtmosphere` | 散射太阳光的大气,带太阳、月亮、星星和体积云,画在没有表面的地方 | `intensity`、`haze`、`altitude`、`clouds`、`cloudBase`、`cloudThickness`、`windSpeed`、`overcast`、`sunAzimuth`、`sunElevation` |
+| `voxelGI` | 基于相机记住的世界空间体素缓存的漫反射全局光照(仅 WebGPU) | `intensity`、`rays`、`voxelSize`、`range`、`maxBounce`、`decay`、`blend`、`divisor` |
 | `sharpen` | 不会出光晕的锐化(计算特效:仅 WebGPU) | `intensity`、`limit` |
 | `lightShafts` | 太阳光穿过前方遮挡物形成的光束 | `intensity`、`sunAzimuth`、`sunElevation`、`decay`、`reach` |
 | `contactShadows` | 阴影贴图太粗放不下的接触处的小而锐利的阴影 | `intensity`、`length`、`thickness` |
@@ -114,6 +115,24 @@ Estella 通过 ping-pong 帧缓冲运行全屏后处理。加一个 `PostProcess
 编译会定义 `ES_GBUFFER`,然后声明第二个输出(`layout(location = 1) out vec4`,WGSL 里是返回结构体)并按同样的编码写入。
 
 在 WebGL2 和 WebGPU 上,附件都与场景一起多重采样、一起解析。混合绘制从不写它——与背后那个平均过的法线谁也不是——场景自己的背景把它清成 0。
+
+### 体素 GI(WebGPU)
+
+`voxelGI` 是基于**世界空间体素缓存**的漫反射全局光照。一个围绕相机的体素网格(128 × 64 × 128,每个 `voxelSize` 世界单位)记住相机见过的东西:
+每一帧,被照亮的画面被写进它可见表面所在的体素——它们的平均辐射度和朝向——原有的内容按 `decay` 衰减。然后像路径追踪那样收集光,只是穿过网格:
+从每个可见表面发出几条余弦加权的光线(`rays`),逐格前进,遇到一个朝向它的体素,那个体素的辐射度就是它带来的光。收集在画面尺寸的一部分上进行
+(`divisor`),跨帧混合(`blend`),并用深度上采样,所以不会越过边缘渗色。
+
+因为缓存属于世界而不是屏幕,一面已经离开画面的亮墙仍会给旁边的地面染色,只被另一个表面照亮的表面也能被照亮,移动的光会照亮周围——这三件事屏幕空间的弹射(`ssgi`)都做不到。
+
+它**不是对场景几何体的追踪**,并且如实说明:
+
+- 缓存里只有相机*见过*的表面,精度是体素大小——没见过的表面不发光,薄的东西和一格一样厚;
+- 一次弹射,只有漫反射(没有光泽传输),注入用的画面带着上一帧的光,所以很亮的表面会稍微自己给自己供光;
+- 它需要**计算阶段**:WebGPU。在 WebGL2 上该特效会被拿掉,画面原样通过——那里请用 `ssgi`;
+- 它要一块网格内存(约 32 MB)、每帧四个计算 pass、每个相机一份缓存。
+
+它不是虚幻的 Lumen:没有距离场或硬件光追,也没有场景网格的表面缓存——这正是 Lumen 能照亮从未出现在屏幕上的东西的原因。体素 GI 是这个思路中只需要画面的那一版。
 
 ### 计算特效(WebGPU)
 

@@ -383,6 +383,7 @@ particle_set_speed_lut: ((entity: number, ptr: number, count: number) => void) |
 particle_stop: ((registry: CppRegistry, entity: number) => void) | undefined
 particle_update: ((registry: CppRegistry, dt: number) => void) | undefined
 postprocess_addComputePass: ((name: string, wgsl: string, params: string, workgroupX: number, workgroupY: number) => number) | undefined
+postprocess_addNativePass: ((name: string, kind: string) => number) | undefined
 postprocess_addPass: (name: string, shaderHandle: number) => number
 postprocess_addScreenPass: (name: string, shaderHandle: number) => number
 postprocess_begin: () => void

@@ -55,9 +55,9 @@ describe('compute effects', () => {
         expect(def!.compute!.source).toMatch(/struct Params \{ intensity : f32, limit : f32/);
     });
 
-    it('keeps every effect either a draw or a compute shader, never neither', () => {
+    it('keeps every effect either a draw, a compute shader or a native pass, never none', () => {
         for (const def of getAllEffectDefs()) {
-            const kinds = (def.factory ? 1 : 0) + (def.compute ? 1 : 0) + (def.multiPass ? 1 : 0);
+            const kinds = (def.factory ? 1 : 0) + (def.compute ? 1 : 0) + (def.native ? 1 : 0) + (def.multiPass ? 1 : 0);
             expect(kinds, `${def.type} must say how it runs`).toBeGreaterThanOrEqual(1);
         }
     });
@@ -94,5 +94,44 @@ describe('compute effects', () => {
             uniforms: [{ name: 'u_amount', label: 'Amount', min: 0, max: 1, step: 0.1, defaultValue: 0.5 }],
         });
         expect(getEffectDef('testCompute')!.compute!.workgroupSize).toEqual([8, 8]);
+    });
+});
+
+describe('native effects', () => {
+    it('registers Voxel GI as an effect the engine implements itself', () => {
+        const def = getEffectDef('voxelGI');
+        expect(def).toBeDefined();
+        expect(def!.native).toBe('voxelGI');
+        expect(def!.factory).toBeUndefined();
+        expect(def!.compute).toBeUndefined();
+        // The native side reads these by name, with these defaults when one is not set.
+        expect(def!.uniforms.map((u) => u.name)).toEqual([
+            'u_intensity', 'u_rays', 'u_voxelSize', 'u_range', 'u_maxBounce', 'u_decay', 'u_bias', 'u_divisor', 'u_blend', 'u_debug',
+        ]);
+        const defaults = Object.fromEntries(def!.uniforms.map((u) => [u.name, u.defaultValue]));
+        expect(defaults.u_rays).toBe(8);
+        expect(defaults.u_divisor).toBe(2);
+    });
+
+    it('pushes a native pass by its kind, and leaves it out on a core that cannot', () => {
+        const pp = new PostProcessAPI();
+        const withNative = { ...mockCore(true), postprocess_addNativePass: vi.fn().mockReturnValue(0) };
+        initPostProcessAPI(withNative as unknown as ESEngineModule);
+        const stack = new PostProcessStack(pp.state);
+        stack.addNativePass('voxelGI', 'voxelGI');
+        stack.setUniform('voxelGI', 'u_rays', 12);
+        syncStackToWasm(stack, true);
+        expect(withNative.postprocess_addNativePass).toHaveBeenCalledWith('voxelGI', 'voxelGI');
+        expect(withNative.postprocess_addPass).not.toHaveBeenCalled();
+        expect(withNative.postprocess_setUniformFloat).toHaveBeenCalledWith('voxelGI', 'u_rays', 12);
+        shutdownPostProcessAPI();
+
+        const without = mockCore(true);
+        initPostProcessAPI(without as unknown as ESEngineModule);
+        const other = new PostProcessStack(pp.state);
+        other.addNativePass('voxelGI', 'voxelGI');
+        expect(() => syncStackToWasm(other, true)).not.toThrow();
+        expect(without.postprocess_addPass).not.toHaveBeenCalled();
+        shutdownPostProcessAPI();
     });
 });

@@ -23,12 +23,14 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <memory>
 
 namespace esengine {
 
 class GfxDevice;
 class RenderContext;
 class Shader;
+class VoxelGI;
 
 namespace resource {
     class ResourceManager;
@@ -87,6 +89,8 @@ struct PostProcessPass {
     /// order, and the workgroup the shader declares. Invalid for every pass that draws.
     ComputeHandle compute = ComputeHandle::Invalid;
     bool isCompute = false;
+    /// A pass the engine implements itself, in compute passes of its own (see VoxelGI): its name, empty for every other pass.
+    std::string nativeKind;
     std::vector<std::string> computeParams;
     u32 workgroupX = 8;
     u32 workgroupY = 8;
@@ -167,6 +171,11 @@ public:
      */
     u32 addComputePass(const std::string& name, const std::string& wgsl, const std::vector<std::string>& params,
                        u32 workgroupX, u32 workgroupY);
+    /**
+     * @brief Adds a pass the engine implements itself: "voxelGI" (see VoxelGI). Its parameters are set like any pass's, by name.
+     * @details Needs a device with a compute stage; elsewhere the pass is left out of the chain.
+     */
+    u32 addNativePass(const std::string& name, const std::string& kind);
     /// Whether passes added with addComputePass run on this device.
     bool supportsCompute() const;
     /// The project's multisampling request; 1 = off. Clamped by the device.
@@ -526,6 +535,9 @@ private:
     /// Compute programs by source, kept while the pipeline lives: the passes are pushed again every camera, and a
     /// program is a compiled pipeline, not something to build per frame.
     std::unordered_map<std::string, ComputeHandle> compute_cache_;
+    /// The voxel GI's cache lives here, across frames: what it has seen is the point of it. One per camera, since a cache is a
+    /// window around the eye and two eyes would take turns tearing each other's down.
+    std::unordered_map<u64, Unique<VoxelGI>> voxel_gis_;
     /// The size block a compute pass reads, one for all of them (each dispatch writes it just before it runs).
     BufferHandle compute_view_ubo_ = BufferHandle::Invalid;
     /// Declares one chain onto an already-begun graph and runs it, ending in the

@@ -176,6 +176,9 @@ public:
      */
     void useFrameConstants(BufferHandle ubo, const glm::mat4& viewProjection);
 
+    /** @brief The buffer the camera's FrameConstants live in, for a compute pass that reads them (it is bound at group 0). */
+    BufferHandle frameUbo() const { return frameUbo_; }
+
     /** @brief Bytes a buffer passed to useFrameConstants must hold. */
     static u32 frameConstantsSize();
 

@@ -81,6 +81,11 @@ u32 postprocess_addComputePass(const std::string& name, const std::string& wgsl,
     return g_postProcessPipeline->addComputePass(name, wgsl, names, workgroupX, workgroupY);
 }
 
+u32 postprocess_addNativePass(const std::string& name, const std::string& kind) {
+    if (!g_postProcessPipeline) return 0;
+    return g_postProcessPipeline->addNativePass(name, kind);
+}
+
 bool postprocess_supportsCompute() {
     return g_postProcessPipeline ? g_postProcessPipeline->supportsCompute() : (g_device && g_device->supportsCompute());
 }

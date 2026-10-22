@@ -2493,6 +2493,8 @@ export const NOTED = {
     {"note":"Skinned meshes are followed by their bones, from the palette they were last drawn with."},
   "feat(render): fog follows the scene's sun and can walk the air against its shadow map":
     {"note":"Height Fog and Light Shafts follow the scene's own sun, and Height Fog can carry the sun's shadows as volumetric light."},
+  "feat(render): Voxel GI lights from a world-space cache of what the camera has seen, run as compute passes":
+    {"note":"Voxel GI adds diffuse bounce light from a world-space voxel cache the camera remembers, on WebGPU."},
   "feat(render): post-process effects can be compute shaders, and Sharpen is one":
     {"note":"A post-process effect can be a WGSL compute shader over the picture, run on WebGPU and left out on WebGL2, and Sharpen is the first."},
   "feat(render): the WebGPU device runs compute shaders, and the render graph has compute passes":

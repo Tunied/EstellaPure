@@ -64,6 +64,8 @@ export interface EffectDef {
     factory?: () => ShaderHandle;
     /** Set instead of `factory` for an effect that runs as a compute shader. */
     compute?: ComputeEffectSource;
+    /** Set instead of `factory` for an effect the engine implements itself, in compute passes of its own ("voxelGI"). */
+    native?: string;
     uniforms: EffectUniformDef[];
     /** Texture params, carried on the volume as serialized refs (`textures`). */
     textures?: EffectTextureDef[];
@@ -284,6 +286,37 @@ registerEffect({
         { name: 'u_followSun', label: 'Follow Scene Sun', min: 0, max: 1, step: 1, defaultValue: 1, neutralValue: 1 },
         { name: 'u_sunAzimuth', label: 'Sun Azimuth', min: 0, max: 360, step: 1, defaultValue: 40 },
         { name: 'u_sunElevation', label: 'Sun Elevation', min: -90, max: 90, step: 1, defaultValue: 35 },
+    ],
+});
+
+// Diffuse global illumination from a world-space voxel cache the frame seeds and the camera remembers: light a surface
+// that has left the screen still gives is kept. Compute passes the engine declares itself, so WebGPU only; on WebGL2
+// the picture goes through as it was (use Screen Space GI there).
+registerEffect({
+    type: 'voxelGI',
+    label: 'Voxel GI',
+    native: 'voxelGI',
+    uniforms: [
+        // How much of the gathered light is added over the picture.
+        { name: 'u_intensity', label: 'Intensity', min: 0, max: 4, step: 0.01, defaultValue: 1, neutralValue: 0 },
+        // Rays per surface point: more is smoother and costs in proportion.
+        { name: 'u_rays', label: 'Rays', min: 1, max: 32, step: 1, defaultValue: 8 },
+        // The world size of a voxel: the cache is 128 x 64 x 128 of them around the camera, so this sets how far it reaches and how finely.
+        { name: 'u_voxelSize', label: 'Voxel Size', min: 4, max: 400, step: 1, defaultValue: 40 },
+        // How far a ray looks, in voxels.
+        { name: 'u_range', label: 'Range', min: 4, max: 90, step: 1, defaultValue: 48 },
+        // Brighter than this a surface does not give out, so one lamp does not light the street from a single pixel.
+        { name: 'u_maxBounce', label: 'Max Bounce', min: 0.5, max: 16, step: 0.5, defaultValue: 3 },
+        // What the cache keeps each frame of what it held: lower forgets sooner (a moving light follows faster), higher is steadier.
+        { name: 'u_decay', label: 'Memory', min: 0, max: 0.99, step: 0.01, defaultValue: 0.93 },
+        // How far off its own voxel a ray starts, in voxels, so a surface is not lit by itself.
+        { name: 'u_bias', label: 'Start Bias', min: 0, max: 4, step: 0.1, defaultValue: 1.2 },
+        // The gather runs at 1 / this of the picture's size along each axis.
+        { name: 'u_divisor', label: 'Resolution Divisor', min: 1, max: 4, step: 1, defaultValue: 2 },
+        // How much of each frame's gather goes into the picture; lower is smoother and slower to follow a change.
+        { name: 'u_blend', label: 'Temporal Blend', min: 0.02, max: 1, step: 0.01, defaultValue: 0.2 },
+        // 1 shows the gathered light alone.
+        { name: 'u_debug', label: 'Show GI Only', min: 0, max: 1, step: 1, defaultValue: 0 },
     ],
 });
 

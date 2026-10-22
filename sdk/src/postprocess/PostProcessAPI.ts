@@ -30,7 +30,7 @@ type PostProcessCore = Required<Pick<NonNullable<EngineApi>,
     | 'postprocess_clearScreenPasses' | 'postprocess_setScreenUniformFloat'
     | 'postprocess_setScreenUniformVec4'>>
     // A core without a compute stage (or built before there was one) does not answer this one.
-    & Pick<NonNullable<EngineApi>, 'postprocess_addComputePass' | 'postprocess_supportsCompute'>;
+    & Pick<NonNullable<EngineApi>, 'postprocess_addComputePass' | 'postprocess_supportsCompute' | 'postprocess_addNativePass'>;
 
 /** Guarded view of the core: after a wasm abort a call throws instead of reaching
  *  a dead module; a native host's bindings never abort. */
@@ -120,7 +120,10 @@ export function syncStackToWasm(stack: PostProcessStack, force = false,
     for (const pass of stack.passes) {
         if (!pass.enabled || !allow(pass.name)) continue;
         try {
-            if (pass.compute) {
+            if (pass.native) {
+                if (!m.postprocess_addNativePass) continue;
+                m.postprocess_addNativePass(pass.name, pass.native);
+            } else if (pass.compute) {
                 // No compute on this core (WebGL2): the pass is left out and the picture goes through as it was.
                 if (!m.postprocess_addComputePass) continue;
                 m.postprocess_addComputePass(pass.name, pass.compute.source, pass.compute.params.join(','),

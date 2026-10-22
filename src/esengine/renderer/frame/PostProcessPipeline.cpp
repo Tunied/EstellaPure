@@ -13,6 +13,7 @@
 
 #include "./PostProcessPipeline.hpp"
 #include "./RenderContext.hpp"
+#include "./VoxelGI.hpp"
 #include "../rhi/GfxDevice.hpp"
 #include "../store/MaterialConstants.hpp"
 #include "../store/LightConstants.hpp"
@@ -180,6 +181,7 @@ void PostProcessPipeline::shutdown() {
     for (auto& pass : screenPasses_) releasePassResources(pass);
     for (auto& [source, program] : compute_cache_) device_.deleteCompute(program);
     compute_cache_.clear();
+    voxel_gis_.clear();
     if (compute_view_ubo_ != BufferHandle::Invalid) {
         device_.deleteBuffer(compute_view_ubo_);
         compute_view_ubo_ = BufferHandle::Invalid;
@@ -260,7 +262,17 @@ u32 PostProcessPipeline::addPass(const std::string& name, resource::ShaderHandle
 bool PostProcessPipeline::supportsCompute() const { return device_.supportsCompute(); }
 
 bool PostProcessPipeline::runnable(const PostProcessPass& pass) const {
+    if (!pass.nativeKind.empty()) return pass.enabled && device_.supportsCompute();
     return pass.enabled && (!pass.isCompute || (device_.supportsCompute() && pass.compute != ComputeHandle::Invalid));
+}
+
+u32 PostProcessPipeline::addNativePass(const std::string& name, const std::string& kind) {
+    PostProcessPass pass;
+    pass.name = name;
+    pass.enabled = true;
+    pass.nativeKind = kind;
+    passes_.push_back(pass);
+    return static_cast<u32>(passes_.size() - 1);
 }
 
 u32 PostProcessPipeline::addComputePass(const std::string& name, const std::string& wgsl,
@@ -345,6 +357,11 @@ bool PostProcessPipeline::passesWantGBuffer() {
     if (bypass_) return false;
     for (const auto& pass : passes_) {
         if (!pass.enabled) continue;
+        // The voxel GI reads the surface's normal, whatever the effect's shader (it has none).
+        if (!pass.nativeKind.empty()) {
+            if (device_.supportsCompute()) return true;
+            continue;
+        }
         const MaterialUniformLayout* layout = context_.materials().layoutFor(pass.shader);
         if (layout && layout->usesGBuffer) return true;
     }
@@ -999,6 +1016,38 @@ void PostProcessPipeline::runChain(std::vector<PostProcessPass>& passes, rg::Res
         rg::TargetDesc writeDesc = (i == lastEnabled) ? blitDesc : desc;
         if (i != lastEnabled) writeDesc.scale = pass.scale;
         if (passIsHighPrecision(pass)) writeDesc.format = GfxPixelFormat::RGBA16F;
+        if (!pass.nativeKind.empty()) {
+            // A pass the engine implements itself, in compute passes of its own that it declares onto the graph.
+            if (pass.nativeKind == "voxelGI" && &passes == &passes_ && (scene_needs_depth_ || scene_gbuffer_) && scene_gbuffer_) {
+                const auto get = [&pass](const char* name, f32 fallback) {
+                    const auto it = pass.floatUniforms.find(name);
+                    return it != pass.floatUniforms.end() ? it->second : fallback;
+                };
+                VoxelGIParams gi;
+                gi.intensity = get("u_intensity", gi.intensity);
+                gi.rays = static_cast<u32>(std::max(get("u_rays", static_cast<f32>(gi.rays)), 1.0f));
+                gi.voxelSize = get("u_voxelSize", gi.voxelSize);
+                gi.range = get("u_range", gi.range);
+                gi.maxBounce = get("u_maxBounce", gi.maxBounce);
+                gi.decay = get("u_decay", gi.decay);
+                gi.bias = get("u_bias", gi.bias);
+                gi.divisor = static_cast<u32>(std::max(get("u_divisor", static_cast<f32>(gi.divisor)), 1.0f));
+                gi.debug = get("u_debug", gi.debug);
+                gi.blend = get("u_blend", gi.blend);
+                auto& cache = voxel_gis_[temporalKey_];
+                if (!cache) {
+                    // A handful of cameras at most have a cache each; one past that evicts another's, which rebuilds when its camera returns.
+                    if (voxel_gis_.size() > 4) {
+                        for (auto it = voxel_gis_.begin(); it != voxel_gis_.end(); ++it) {
+                            if (it->first != temporalKey_) { voxel_gis_.erase(it); break; }
+                        }
+                    }
+                    voxel_gis_[temporalKey_] = makeUnique<VoxelGI>(device_, context_);
+                }
+                input = voxel_gis_[temporalKey_]->declare(*graph_, input, scene, gi, width_, height_);
+            }
+            continue;
+        }
         if (pass.isCompute) {
             // A compute pass writes a storage texture, which is a half float whatever the chain keeps between passes (the
             // shader says its format), and it reads the scene's depth, so the scene has to outlive it.
