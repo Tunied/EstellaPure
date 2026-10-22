@@ -1,0 +1,35 @@
+{
+  "version": "1.0",
+  "type": "material",
+  "shader": "builtin:water",
+  "blendMode": 0,
+  "depthTest": true,
+  "depthWrite": true,
+  "cull": 0,
+  "properties": {
+    "u_waveLength": 220,
+    "u_waveHeight": 5,
+    "u_waveSpeed": 0.8,
+    "u_waveDirection": 25,
+    "u_rippleLength": 26,
+    "u_rippleStrength": 0.34,
+    "u_density": 0.009,
+    "u_foamWidth": 34,
+    "u_foamCrest": 0.35,
+    "u_distortionRange": 180,
+    "u_fallbackDepth": 120,
+    "u_roughness": 0.03,
+    "u_shallowColor": {
+      "r": 0.14,
+      "g": 0.46,
+      "b": 0.46,
+      "a": 1
+    },
+    "u_deepColor": {
+      "r": 0.012,
+      "g": 0.07,
+      "b": 0.13,
+      "a": 1
+    }
+  }
+}

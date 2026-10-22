@@ -1,0 +1,390 @@
+{
+ "version": 4,
+ "name": "Wilds",
+ "entities": [
+  {
+   "id": 0,
+   "name": "Camera",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {
+      "position": {
+       "x": -170,
+       "y": 298.7795329024739,
+       "z": 800
+      },
+      "rotation": {
+       "x": -0.01999866669333308,
+       "y": 0,
+       "z": 0,
+       "w": 0.9998000066665778
+      }
+     }
+    },
+    {
+     "type": "Camera",
+     "data": {
+      "projectionType": 0,
+      "fov": 52,
+      "nearPlane": 2,
+      "farPlane": 20000,
+      "isActive": true,
+      "priority": 0
+     }
+    },
+    {
+     "type": "PostProcessVolume",
+     "data": {
+      "isGlobal": true,
+      "priority": 0,
+      "weight": 1,
+      "effects": [
+       {
+        "type": "skyAtmosphere",
+        "enabled": true,
+        "uniforms": {
+         "u_intensity": 1.05,
+         "u_haze": 1.1,
+         "u_sunBrightness": 40,
+         "u_clouds": 0.5,
+         "u_cloudShadow": 0.7,
+         "u_unitsPerKm": 1000,
+         "u_windSpeed": 0.03
+        }
+       },
+       {
+        "type": "gtao",
+        "enabled": true,
+        "uniforms": {
+         "u_radius": 60,
+         "u_intensity": 1
+        }
+       },
+       {
+        "type": "ssr",
+        "enabled": false,
+        "uniforms": {
+         "u_intensity": 0.7,
+         "u_maxDistance": 900,
+         "u_thickness": 10
+        }
+       },
+       {
+        "type": "heightFog",
+        "enabled": true,
+        "colors": {
+         "u_fogColor": {
+          "r": 0.62,
+          "g": 0.72,
+          "b": 0.84,
+          "a": 1
+         },
+         "u_sunColor": {
+          "r": 1,
+          "g": 0.86,
+          "b": 0.62,
+          "a": 1
+         }
+        },
+        "uniforms": {
+         "u_density": 0.00012,
+         "u_heightFalloff": 0.0014,
+         "u_baseHeight": 112,
+         "u_inscatter": 0.6,
+         "u_skyFog": 0.5,
+         "u_volumetric": 0.5,
+         "u_volumeRange": 4000
+        }
+       },
+       {
+        "type": "lightShafts",
+        "enabled": true,
+        "uniforms": {
+         "u_intensity": 0.35
+        }
+       },
+       {
+        "type": "taa",
+        "enabled": true,
+        "uniforms": {
+         "u_blend": 0.1
+        }
+       },
+       {
+        "type": "autoExposure",
+        "enabled": true,
+        "uniforms": {
+         "u_bias": -0.1,
+         "u_minEV": -2,
+         "u_maxEV": 2
+        }
+       },
+       {
+        "type": "colorGrade",
+        "enabled": true,
+        "uniforms": {
+         "u_contrast": 1.08,
+         "u_saturation": 1.12
+        }
+       },
+       {
+        "type": "bloom",
+        "enabled": true,
+        "uniforms": {
+         "u_threshold": 0.9,
+         "u_intensity": 0.4,
+         "u_radius": 1.1
+        }
+       },
+       {
+        "type": "fxaa",
+        "enabled": true,
+        "uniforms": {
+         "u_intensity": 1
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": 1,
+   "name": "Clock",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "TimeOfDay",
+     "data": {
+      "hour": 17,
+      "daySeconds": 0,
+      "latitude": 45,
+      "declination": 15,
+      "north": 0,
+      "drive": 31
+     }
+    }
+   ]
+  },
+  {
+   "id": 2,
+   "name": "Sun",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "Light",
+     "data": {
+      "type": 1,
+      "color": {
+       "r": 1,
+       "g": 1,
+       "b": 1,
+       "a": 1
+      },
+      "intensity": 3,
+      "enabled": true,
+      "meshShadows": true,
+      "shadowExtent": 3000,
+      "shadowStrength": 1,
+      "sourceAngle": 0.5
+     }
+    }
+   ]
+  },
+  {
+   "id": 3,
+   "name": "Sky",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "Light",
+     "data": {
+      "type": 2,
+      "color": {
+       "r": 0.8,
+       "g": 0.88,
+       "b": 1,
+       "a": 1
+      },
+      "intensity": 0.55,
+      "enabled": true
+     }
+    }
+   ]
+  },
+  {
+   "id": 4,
+   "name": "Terrain",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "Terrain",
+     "data": {
+      "sizeX": 3200,
+      "sizeZ": 3200,
+      "height": 560,
+      "chunks": 16,
+      "chunkCells": 32,
+      "lodLevels": 4,
+      "detail": 1.4,
+      "heightmap": "assets/textures/height.png",
+      "rockSlope": 0.34,
+      "dirtHeight": 0.5,
+      "snowHeight": 0.84,
+      "material": "assets/materials/terrain.esmaterial"
+     }
+    }
+   ]
+  },
+  {
+   "id": 5,
+   "name": "Lake",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {
+      "position": {
+       "x": 0,
+       "y": 112,
+       "z": 0
+      },
+      "scale": {
+       "x": 32,
+       "y": 1,
+       "z": 32
+      }
+     }
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "builtin:plane",
+      "lit": true,
+      "opaque": false,
+      "cullBackfaces": false,
+      "material": "assets/materials/water.esmaterial",
+      "color": {
+       "r": 1,
+       "g": 1,
+       "b": 1,
+       "a": 1
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": 6,
+   "name": "Meadow",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {
+      "position": {
+       "x": -170,
+       "y": 0,
+       "z": 540
+      }
+     }
+    },
+    {
+     "type": "Foliage",
+     "data": {
+      "material": "assets/materials/grass.esmaterial",
+      "sizeX": 420,
+      "sizeZ": 420,
+      "cellSize": 30,
+      "count": 1400,
+      "seed": 3,
+      "minScale": 0.7,
+      "maxScale": 1.3,
+      "minUp": 0.8,
+      "heightMin": 118,
+      "heightMax": 392,
+      "bladeHeight": 46,
+      "bladeWidth": 4.2,
+      "lodDistance": 160,
+      "drawDistance": 420
+     }
+    }
+   ]
+  },
+  {
+   "id": 7,
+   "name": "Pines",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {
+      "position": {
+       "x": 0,
+       "y": 0,
+       "z": 0
+      }
+     }
+    },
+    {
+     "type": "Foliage",
+     "data": {
+      "mesh": "assets/models/pine.esmesh",
+      "material": "assets/materials/pine.esmaterial",
+      "sizeX": 2560,
+      "sizeZ": 2560,
+      "cellSize": 160,
+      "count": 16,
+      "seed": 8,
+      "minScale": 0.7,
+      "maxScale": 1.6,
+      "minUp": 0.8,
+      "heightMin": 154,
+      "heightMax": 369.6,
+      "lodDistance": 650,
+      "drawDistance": 3600,
+      "cardU0": 0.2,
+      "cardV0": 0.22,
+      "cardU1": 0.8,
+      "cardV1": 0.95,
+      "cardTent": 1
+     }
+    }
+   ]
+  }
+ ]
+}
