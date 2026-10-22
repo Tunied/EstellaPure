@@ -28,6 +28,8 @@ several can stack in one frame at no extra target cost beyond the passes.
 | `voxelGI` | Diffuse global illumination from a world-space voxel cache the camera remembers (WebGPU only) | `intensity`, `rays`, `voxelSize`, `range`, `maxBounce`, `decay`, `blend`, `divisor` |
 | `sharpen` | Sharpening that cannot make a halo (a compute effect: WebGPU only) | `intensity`, `limit` |
 | `lightShafts` | Sun rays through whatever stands in front of it | `intensity`, `sunAzimuth`, `sunElevation`, `decay`, `reach` |
+| `ssao` | Ambient occlusion from a ring of depth samples around each point | `radius`, `intensity`, `bias`, `power` |
+| `gtao` | Ground-truth ambient occlusion: the horizon each point can see, integrated against its own normal | `radius`, `intensity`, `power`, `thickness` |
 | `contactShadows` | The small sharp shadows at a contact a shadow map is too coarse to hold | `intensity`, `length`, `thickness` |
 | `ssgi` | One bounce of diffuse light between the surfaces the camera sees | `intensity`, `radius`, `thickness`, `maxBounce` |
 | `autoExposure` | Eye adaptation: exposure follows how bright the picture is | `bias`, `speedUp`, `speedDown`, `minEV`, `maxEV` |
@@ -95,6 +97,16 @@ resident meshes in range, so keep `shelterRange` to the reach you need; ground o
 The clock is the game's. A capture that has to be the same on every run sets `timeScale` to 0 and `phase` to the time it
 wants. What this is not: the ground's shape is read from what the camera sees (a hollow behind a wall is not known),
 and the rain is a screen-space layer, not particles that collide with the world.
+
+### Ambient occlusion
+
+Two estimators share one blur and one composite. `ssao` counts how many of a ring of nearby points stand above the
+surface; it is the cheaper of the two and needs a `bias` so that a flat floor does not shade itself. `gtao` marches
+the depth buffer along a few slice planes through each pixel, finds how high the horizon climbs on both sides, and
+integrates the arc that is left open, weighted by the surface's own normal — so there is no bias to set, a flat floor
+stays white, and a crease darkens by how closed it really is. `radius` is a world length in both. `thickness` (GTAO) lets
+a thin occluder such as a railing be seen past. Both read scene depth, run at half resolution and blur without crossing
+a depth edge. Quality levels govern both through the one ambient-occlusion switch, and the low level leaves GTAO out.
 
 ### Contact shadows and bounce light
 

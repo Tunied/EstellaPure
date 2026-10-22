@@ -30,6 +30,8 @@ Estella 通过 ping-pong 帧缓冲运行全屏后处理。加一个 `PostProcess
 | `voxelGI` | 基于相机记住的世界空间体素缓存的漫反射全局光照(仅 WebGPU) | `intensity`、`rays`、`voxelSize`、`range`、`maxBounce`、`decay`、`blend`、`divisor` |
 | `sharpen` | 不会出光晕的锐化(计算特效:仅 WebGPU) | `intensity`、`limit` |
 | `lightShafts` | 太阳光穿过前方遮挡物形成的光束 | `intensity`、`sunAzimuth`、`sunElevation`、`decay`、`reach` |
+| `ssao` | 由每个点周围一圈深度采样得出的环境光遮蔽 | `radius`、`intensity`、`bias`、`power` |
+| `gtao` | 真值环境光遮蔽:每个点能看见的地平线,按它自身法线积分 | `radius`、`intensity`、`power`、`thickness` |
 | `contactShadows` | 阴影贴图太粗放不下的接触处的小而锐利的阴影 | `intensity`、`length`、`thickness` |
 | `ssgi` | 相机看得见的表面之间的一次漫反射光弹射 | `intensity`、`radius`、`thickness`、`maxBounce` |
 | `autoExposure` | 眼睛适应:曝光跟随画面亮度 | `bias`、`speedUp`、`speedDown`、`minEV`、`maxEV` |
@@ -74,6 +76,10 @@ Estella 通过 ping-pong 帧缓冲运行全屏后处理。加一个 `PostProcess
 
 时钟是游戏的。要在每次运行都相同的截图,把 `timeScale` 设为 0,`phase` 设为想要的时间。它不是什么:地面的形状是从相机看到的东西里读出来的(墙后面的凹处它不知道),
 雨是屏幕空间的一层,不是会与世界碰撞的粒子。
+
+### 环境光遮蔽
+
+两种估计器共用一套模糊和合成。`ssao` 数的是周围一圈点里有多少高于表面;它更便宜,需要 `bias` 来避免平坦的地面给自己上阴影。`gtao` 沿每个像素的几个切片平面在深度缓冲里步进,找出两侧地平线升到多高,再对剩下的开阔弧段按表面自身法线积分——所以没有要调的 bias,平坦的地面保持白色,夹角处的暗度就是它实际有多封闭。两者的 `radius` 都是世界长度。`thickness`(GTAO)让栏杆这类很薄的遮挡物可以被看穿。两者都读场景深度、以半分辨率运行,并且模糊时不会跨过深度边缘。质量档位用同一个环境光遮蔽开关管理两者,低档位不包含 GTAO。
 
 ### 接触阴影与弹射光
 

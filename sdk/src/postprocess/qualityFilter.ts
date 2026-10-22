@@ -16,7 +16,8 @@ export function qualityPassAllowed(profile: Readonly<QualityProfile> | null, pas
     if (profile === null) return true;
     if (!profile.postProcess) return false;
     const name = passName.toLowerCase();
-    if (!profile.ssao && effectPassNames('ssao').some((pass) => pass.toLowerCase() === name)) return false;
+    // The profile's own switch for ambient occlusion governs both estimators: it was written for the one and means the other.
+    if (!profile.ssao && ['ssao', 'gtao'].some((type) => effectPassNames(type).some((pass) => pass.toLowerCase() === name))) return false;
     for (const skipped of profile.skipEffects) {
         const passes = effectPassNames(skipped);
         if (passes.length > 0) {

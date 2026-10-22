@@ -3,6 +3,7 @@
 import type { ShaderHandle } from '../render/material';
 import { postProcessEffects } from './postProcessEffects';
 import { lensEffects } from './lensEffects';
+import { gtaoPasses } from './gtao';
 import { SHARPEN_WGSL } from './computeEffects';
 
 export interface EffectUniformDef {
@@ -542,6 +543,27 @@ registerEffect({
         { name: 'ssao_blur_x', factory: () => postProcessEffects.createSsaoBlur(0), scale: 0.5 },
         { name: 'ssao_blur_y', factory: () => postProcessEffects.createSsaoBlur(1), scale: 0.5 },
         { name: 'ssao_composite', factory: () => postProcessEffects.createSsaoComposite() },
+    ],
+});
+
+registerEffect({
+    type: 'gtao',
+    label: 'Ground-Truth Ambient Occlusion',
+    factory: () => gtaoPasses.createGtaoAo(),
+    // The horizon-based estimator in place of the ring of samples: no bias to tune against a surface occluding itself,
+    // so a flat floor stays white and a crease darkens by how closed it really is. The blur and the composite are SSAO's.
+    uniforms: [
+        { name: 'u_radius', label: 'Radius', min: 1, max: 500, step: 1, defaultValue: 80 },
+        { name: 'u_intensity', label: 'Intensity', min: 0, max: 2, step: 0.01, defaultValue: 1 },
+        { name: 'u_power', label: 'Power', min: 0.5, max: 4, step: 0.05, defaultValue: 1.4, neutralValue: 1 },
+        // 0 trusts every occluder to be as tall as it looks; 1 lets a thin one (a railing, a leaf) be seen past.
+        { name: 'u_thickness', label: 'Thickness', min: 0, max: 1, step: 0.01, defaultValue: 0.5 },
+    ],
+    multiPass: [
+        { name: 'gtao_ao', factory: () => gtaoPasses.createGtaoAo(), scale: 0.5 },
+        { name: 'gtao_blur_x', factory: () => postProcessEffects.createSsaoBlur(0), scale: 0.5 },
+        { name: 'gtao_blur_y', factory: () => postProcessEffects.createSsaoBlur(1), scale: 0.5 },
+        { name: 'gtao_composite', factory: () => postProcessEffects.createSsaoComposite() },
     ],
 });
 
