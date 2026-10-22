@@ -401,6 +401,13 @@ public:
      *          one to disagree with. A whole multiple copies exactly, and
      *          interpolating it blurs a picture that needed no resampling.
      */
+    /// A present that stretches the chain's picture over a bigger rect by a factor that is not a whole number: where a
+    /// bilinear copy would blur it, and the blit resamples with a sharper filter instead.
+    bool presentUpscales() const {
+        return presentScales() && width_ > 0 && height_ > 0 && !presentIsWholeMultiple()
+            && (output_vp_w_ > width_ || output_vp_h_ > height_);
+    }
+
     bool presentIsWholeMultiple() const {
         if (!presentScales() || width_ == 0 || height_ == 0) return false;
         if (output_vp_w_ % width_ || output_vp_h_ % height_) return false;
@@ -578,6 +585,8 @@ private:
     /// The ES_TONEMAP variant of the same file. Invalid until a chain asks for it.
     resource::ShaderHandle tonemapShader_;
     resource::ShaderHandle neutralShader_;
+    /// The same three blits (plain, neutral, ACES) with the resampling upscaler, compiled when a present first needs one.
+    resource::ShaderHandle upscaleShaders_[3];
 
     std::vector<PostProcessPass> passes_;
     u32 width_ = 0;

@@ -20,7 +20,7 @@ three profiles — **Low, Medium, High** — each saying what the renderer spend
 | Auto | The level comes from the device: the first [device rule](#device-rules) that matches, otherwise memory and core count. |
 
 **Dynamic resolution** lowers the scene's resolution under GPU pressure, down to the level's *Min render scale*, and
-brings it back when there is room; the UI stays at display resolution. **Target frame rate** is the frame time it works
+brings it back when there is room; the UI stays at display resolution. A scene drawn below the screen's size is stretched back with a Catmull-Rom resampler clamped to the texels around it, which keeps an edge steeper than a bilinear copy does without drawing a halo; a whole-number stretch is an exact copy instead. **Target frame rate** is the frame time it works
 to.
 
 ## What a level holds

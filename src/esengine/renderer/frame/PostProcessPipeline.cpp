@@ -98,6 +98,17 @@ void PostProcessPipeline::setViewExposure(f32 ev) {
  * than at init: a project that never asks for a curve never pays for one.
  */
 resource::ShaderHandle PostProcessPipeline::outputShader() {
+    if (presentUpscales()) {
+        const usize which = output_transform_ == OutputTransform::Neutral ? 1 : output_transform_ == OutputTransform::ACES ? 2 : 0;
+        if (!upscaleShaders_[which].isValid()) {
+            std::vector<std::string> features{"ES_UPSCALE"};
+            if (which == 1) features.push_back("ES_TONEMAP_NEUTRAL");
+            if (which == 2) features.push_back("ES_TONEMAP");
+            upscaleShaders_[which] = compileBlit(features);
+            if (!upscaleShaders_[which].isValid()) ES_LOG_ERROR("PostProcessPipeline: no upscaling blit; the present stays bilinear");
+        }
+        if (upscaleShaders_[which].isValid()) return upscaleShaders_[which];
+    }
     if (output_transform_ == OutputTransform::Neutral) {
         if (!neutralShader_.isValid()) {
             neutralShader_ = compileBlit({"ES_TONEMAP_NEUTRAL"});
@@ -215,6 +226,11 @@ void PostProcessPipeline::shutdown() {
     if (tonemapShader_.isValid()) {
         resourceManager_.releaseShader(tonemapShader_);
         tonemapShader_ = resource::ShaderHandle{};
+    }
+    for (auto& shader : upscaleShaders_) {
+        if (!shader.isValid()) continue;
+        resourceManager_.releaseShader(shader);
+        shader = resource::ShaderHandle{};
     }
     if (neutralShader_.isValid()) {
         resourceManager_.releaseShader(neutralShader_);

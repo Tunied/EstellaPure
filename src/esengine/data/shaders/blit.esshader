@@ -9,8 +9,47 @@ in vec2 v_texCoord;
 uniform sampler2D u_texture;
 out vec4 fragColor;
 
+#ifdef ES_UPSCALE
+// The picture is being stretched over more pixels than it has. A bilinear copy softens every edge by the stretch; this is
+// Catmull-Rom (Jimenez's five taps of the hardware filter) clamped to what the four nearest texels span, so it sharpens an
+// edge without drawing the halo a plain cubic does.
+vec4 upscale(vec2 uv) {
+    vec2 size = vec2(textureSize(u_texture, 0));
+    vec2 pos = uv * size;
+    vec2 centre = floor(pos - 0.5) + 0.5;
+    vec2 f = pos - centre;
+    vec2 f2 = f * f;
+    vec2 f3 = f2 * f;
+    vec2 w0 = f2 - 0.5 * (f3 + f);
+    vec2 w1 = 1.5 * f3 - 2.5 * f2 + 1.0;
+    vec2 w3 = 0.5 * (f3 - f2);
+    vec2 w2 = 1.0 - w0 - w1 - w3;
+    vec2 w12 = w1 + w2;
+    vec2 t0 = (centre - 1.0) / size;
+    vec2 t3 = (centre + 2.0) / size;
+    vec2 t12 = (centre + w2 / w12) / size;
+    vec4 sum = texture(u_texture, vec2(t12.x, t0.y)) * (w12.x * w0.y)
+             + texture(u_texture, vec2(t0.x, t12.y)) * (w0.x * w12.y)
+             + texture(u_texture, t12) * (w12.x * w12.y)
+             + texture(u_texture, vec2(t3.x, t12.y)) * (w3.x * w12.y)
+             + texture(u_texture, vec2(t12.x, t3.y)) * (w12.x * w3.y);
+    sum /= (w12.x * w0.y + w0.x * w12.y + w12.x * w12.y + w3.x * w12.y + w12.x * w3.y);
+    ivec2 base = ivec2(centre - 0.5);
+    ivec2 hi = ivec2(size) - 1;
+    vec4 a = texelFetch(u_texture, clamp(base, ivec2(0), hi), 0);
+    vec4 b = texelFetch(u_texture, clamp(base + ivec2(1, 0), ivec2(0), hi), 0);
+    vec4 d = texelFetch(u_texture, clamp(base + ivec2(0, 1), ivec2(0), hi), 0);
+    vec4 e = texelFetch(u_texture, clamp(base + ivec2(1, 1), ivec2(0), hi), 0);
+    return clamp(sum, min(min(a, b), min(d, e)), max(max(a, b), max(d, e)));
+}
+#endif
+
 void main() {
+#ifdef ES_UPSCALE
+    vec4 c = upscale(v_texCoord);
+#else
     vec4 c = texture(u_texture, v_texCoord);
+#endif
     // The editor view's exposure (u_time.z, stops): zero outside the editor, where
     // exp2(0) = 1 leaves every pixel as it was. Before the curve, like any exposure.
     c = vec4(c.rgb * exp2(u_time.z), c.a);
@@ -34,8 +73,44 @@ void main() {
 #pragma end
 
 #pragma fragment wgsl
+#ifdef ES_UPSCALE
+fn upscale(uv : vec2f) -> vec4f {
+    let size = vec2f(textureDimensions(t0, 0));
+    let pos = uv * size;
+    let centre = floor(pos - vec2f(0.5)) + vec2f(0.5);
+    let f = pos - centre;
+    let f2 = f * f;
+    let f3 = f2 * f;
+    let w0 = f2 - 0.5 * (f3 + f);
+    let w1 = 1.5 * f3 - 2.5 * f2 + vec2f(1.0);
+    let w3 = 0.5 * (f3 - f2);
+    let w2 = vec2f(1.0) - w0 - w1 - w3;
+    let w12 = w1 + w2;
+    let tapLo = (centre - vec2f(1.0)) / size;
+    let tapHi = (centre + vec2f(2.0)) / size;
+    let tapMid = (centre + w2 / w12) / size;
+    var sum = textureSampleLevel(t0, s0, vec2f(tapMid.x, tapLo.y), 0.0) * (w12.x * w0.y)
+            + textureSampleLevel(t0, s0, vec2f(tapLo.x, tapMid.y), 0.0) * (w0.x * w12.y)
+            + textureSampleLevel(t0, s0, tapMid, 0.0) * (w12.x * w12.y)
+            + textureSampleLevel(t0, s0, vec2f(tapHi.x, tapMid.y), 0.0) * (w3.x * w12.y)
+            + textureSampleLevel(t0, s0, vec2f(tapMid.x, tapHi.y), 0.0) * (w12.x * w3.y);
+    sum = sum / (w12.x * w0.y + w0.x * w12.y + w12.x * w12.y + w3.x * w12.y + w12.x * w3.y);
+    let base = vec2i(centre - vec2f(0.5));
+    let hi = vec2i(size) - vec2i(1);
+    let a = textureLoad(t0, clamp(base, vec2i(0), hi), 0);
+    let b = textureLoad(t0, clamp(base + vec2i(1, 0), vec2i(0), hi), 0);
+    let d = textureLoad(t0, clamp(base + vec2i(0, 1), vec2i(0), hi), 0);
+    let e = textureLoad(t0, clamp(base + vec2i(1, 1), vec2i(0), hi), 0);
+    return clamp(sum, min(min(a, b), min(d, e)), max(max(a, b), max(d, e)));
+}
+#endif
+
 @fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
+#ifdef ES_UPSCALE
+    var c = upscale(v.v_texCoord);
+#else
     var c = textureSampleLevel(t0, s0, v.v_texCoord, 0.0);
+#endif
     c = vec4f(c.rgb * exp2(tc.u_time.z), c.a);
 #ifdef ES_TONEMAP
     c = vec4f(acesFilmic(c.rgb), c.a);
