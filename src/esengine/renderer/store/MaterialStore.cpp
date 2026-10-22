@@ -276,6 +276,7 @@ void MaterialStore::bindForDraw(u32 materialId) {
             TextureHandle gpu = builtinDefault(slot.defaultTexture);
             // What stood behind this draw, where the frame took a copy of it; a material that named a texture there keeps its own.
             if (sceneColor_ != TextureHandle::Invalid && slot.name == "u_sceneColor") gpu = sceneColor_;
+            if (sceneDepth_ != TextureHandle::Invalid && slot.name == "u_sceneDepthMap") gpu = sceneDepth_;
             for (const auto& b : rec.textures) {
                 if (b.unit != slot.unit) continue;
                 // Resolved HERE rather than cached at set time. A pool lookup is

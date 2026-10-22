@@ -653,16 +653,25 @@ void RenderFrame::end() {
 #endif
         rg::PassDesc glassPass;
         rg::ResourceId grab = rg::kNoResource;
+        rg::ResourceId grabDepth = rg::kNoResource;
         if (glass) {
 #ifdef ES_ENABLE_POSTPROCESS
             grab = graph_.createTarget(post_process_->grabTarget());
+            // The distance to what stands behind, for a surface that measures the water in front of it: only when one asks, and
+            // only where a float target can hold distances.
+            if (draw_list_.anyUsesSceneDepth(context_.materials()) && post_process_->canGrabDepth()) {
+                grabDepth = graph_.createTarget(post_process_->grabDepthTarget());
+            }
             glassPass = scene;
             glassPass.name = "scene-glass";
             glassPass.dependencies.push_back(grab);
-            glassPass.execute = [this, grab](const rg::PassContext&) {
+            if (grabDepth != rg::kNoResource) glassPass.dependencies.push_back(grabDepth);
+            glassPass.execute = [this, grab, grabDepth](const rg::PassContext&) {
                 context_.materials().setSceneColor(graph_.textureOf(grab));
+                if (grabDepth != rg::kNoResource) context_.materials().setSceneDepth(graph_.textureOf(grabDepth));
                 drawScene(DrawList::Phase::SceneColorOnly);
                 context_.materials().setSceneColor(TextureHandle::Invalid);
+                context_.materials().setSceneDepth(TextureHandle::Invalid);
                 if (presented_overlay_draw_) presented_overlay_draw_->flushDeferred();
             };
 #endif
@@ -680,6 +689,14 @@ void RenderFrame::end() {
             copy.write = grab;
             copy.execute = [this](const rg::PassContext&) { post_process_->grabScene(); };
             graph_.addPass(std::move(copy));
+            if (grabDepth != rg::kNoResource) {
+                rg::PassDesc copyDepth;
+                copyDepth.name = "scene-grab-depth";
+                copyDepth.reads = {scene_resource_};
+                copyDepth.write = grabDepth;
+                copyDepth.execute = [this](const rg::PassContext&) { post_process_->grabDepth(); };
+                graph_.addPass(std::move(copyDepth));
+            }
 #endif
             graph_.addPass(std::move(glassPass));
         }

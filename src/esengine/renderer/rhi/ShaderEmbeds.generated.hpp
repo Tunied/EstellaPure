@@ -247,6 +247,9 @@ precision highp float;
 
 in vec2 v_texCoord;
 uniform sampler2D u_texture;
+#ifdef ES_COPY_DEPTH
+uniform highp sampler2D u_sceneDepth;
+#endif
 out vec4 fragColor;
 
 #ifdef ES_UPSCALE
@@ -285,6 +288,16 @@ vec4 upscale(vec2 uv) {
 #endif
 
 void main() {
+#ifdef ES_COPY_DEPTH
+
+
+    ivec2 depthSize = textureSize(u_sceneDepth, 0);
+    float rawDepth = texelFetch(u_sceneDepth, clamp(ivec2(v_texCoord * vec2(depthSize)), ivec2(0), depthSize - ivec2(1)), 0).r;
+    vec3 scenePoint = worldFromDepth(v_texCoord, rawDepth);
+    float eyeDistance = u_camera.w > 0.5 ? length(scenePoint - u_camera.xyz) : -dot(scenePoint, u_camera.xyz);
+    fragColor = vec4(rawDepth >= 1.0 ? 60000.0 : eyeDistance, 0.0, 0.0, 0.5);
+    return;
+#endif
 #ifdef ES_UPSCALE
     vec4 c = upscale(v_texCoord);
 #else
@@ -352,6 +365,14 @@ fn upscale(uv : vec2f) -> vec4f {
 #endif
 
 @fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
+#ifdef ES_COPY_DEPTH
+    let depthSize = vec2i(textureDimensions(t7, 0));
+    let rawDepth = textureLoad(t7, clamp(vec2i(v.v_texCoord * vec2f(depthSize)), vec2i(0), depthSize - vec2i(1)), 0);
+    let scenePoint = worldFromDepth(v.v_texCoord, rawDepth);
+    var eyeDistance = -dot(scenePoint, frame.camera.xyz);
+    if (frame.camera.w > 0.5) { eyeDistance = length(scenePoint - frame.camera.xyz); }
+    return vec4f(select(eyeDistance, 60000.0, rawDepth >= 1.0), 0.0, 0.0, 0.5);
+#endif
 #ifdef ES_UPSCALE
     var c = upscale(v.v_texCoord);
 #else

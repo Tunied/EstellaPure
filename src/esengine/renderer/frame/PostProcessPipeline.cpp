@@ -231,6 +231,10 @@ void PostProcessPipeline::shutdown() {
         resourceManager_.releaseShader(copyShader_);
         copyShader_ = resource::ShaderHandle{};
     }
+    if (copyDepthShader_.isValid()) {
+        resourceManager_.releaseShader(copyDepthShader_);
+        copyDepthShader_ = resource::ShaderHandle{};
+    }
     for (auto& shader : upscaleShaders_) {
         if (!shader.isValid()) continue;
         resourceManager_.releaseShader(shader);
@@ -1021,6 +1025,28 @@ void PostProcessPipeline::grabScene() {
     applyPassPipeline(*shader);
     shader->setUniform("u_texture", 0);
     shader->commitParams();
+    drawScreenQuad();
+}
+
+bool PostProcessPipeline::canGrabDepth() {
+    return device_.supportsFloatTargets();
+}
+
+void PostProcessPipeline::grabDepth() {
+    if (!copyDepthShader_.isValid()) {
+        copyDepthShader_ = compileBlit({"ES_COPY_DEPTH"});
+        if (!copyDepthShader_.isValid()) {
+            ES_LOG_ERROR("PostProcessPipeline: no depth copy shader; water sees no depth behind it");
+            return;
+        }
+    }
+    Shader* shader = resourceManager_.getShader(copyDepthShader_);
+    if (!shader) return;
+    applyPassPipeline(*shader);
+    shader->setUniform("u_texture", 0);
+    if (shader->hasUniform("u_sceneDepth")) shader->setUniform("u_sceneDepth", static_cast<i32>(kSceneDepthUnit));
+    shader->commitParams();
+    device_.bindTexture(kSceneDepthUnit, graph_ ? graph_->depthTextureOf(sceneResource_) : TextureHandle::Invalid);
     drawScreenQuad();
 }
 

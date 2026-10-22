@@ -328,6 +328,16 @@ public:
     /// `u_sceneColor` unit unless the material was given a texture of its own there.
     void setSceneColor(TextureHandle texture) { sceneColor_ = texture; }
 
+    /// Whether @p materialId's shader reads how far the opaque scene behind it is (declares `u_sceneDepthMap`): water measuring its
+    /// own depth, a fade where a surface meets what it lies on. Such a draw is also made after the scene's copy.
+    bool usesSceneDepth(u32 materialId) const {
+        const MaterialRecord* m = find(materialId);
+        const MaterialUniformLayout* layout = m ? layoutFor(m->shaderRef) : nullptr;
+        return layout && layout->findTexture("u_sceneDepthMap") != nullptr;
+    }
+    /// The copy of the opaque scene's distances the frame took, or invalid when it took none. Bound to a material's `u_sceneDepthMap` unit.
+    void setSceneDepth(TextureHandle texture) { sceneDepth_ = texture; }
+
     /// Whether @p materialId's output alpha is coverage now: its shader names a
     /// coverage param and this material holds it above zero.
     bool alphaIsCoverage(u32 materialId) const {
@@ -388,6 +398,7 @@ private:
     /// Programs compiled with ES_GBUFFER (see programWritesGBuffer).
     mutable std::unordered_set<u32> gbuffer_programs_;
     TextureHandle sceneColor_ = TextureHandle::Invalid;
+    TextureHandle sceneDepth_ = TextureHandle::Invalid;
 
 public:
     /** @brief How many material program variants have been built. A prewarm counts

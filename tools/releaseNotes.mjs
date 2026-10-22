@@ -2505,6 +2505,10 @@ export const NOTED = {
     {"note":"The Sky Atmosphere's clouds can now cast shadows on the scene."},
   "chore(editor-checks): a cloud-shadow check":
     {"internal":"the editor check for the cloud shadows entry above"},
+  "feat(render): a Water material with waves, refraction, depth absorption and foam":
+    {"note":"A Water material: waves that travel, the scene seen through it bent and tinted by how deep the water is, reflections, and foam at the shore and on the crests."},
+  "chore(editor-checks): a water-look check":
+    {"internal":"the editor check for the Water material entry above"},
   "fix(render): a wire narrower than a pixel is no longer painted over by the sky in dashes":
     {"note":"A wire or railing thinner than a pixel stays one line against the sky instead of breaking into dashes."},
   "fix(render): contact shadows no longer speckle a surface the sun does not reach, and a temporal pass placed before a noisy effect is flagged":

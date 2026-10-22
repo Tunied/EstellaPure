@@ -362,6 +362,13 @@ bool DrawList::anyUsesSceneColor(const MaterialStore& materials) const {
     return false;
 }
 
+bool DrawList::anyUsesSceneDepth(const MaterialStore& materials) const {
+    for (u32 i = 0; i < merged_draw_calls_; ++i) {
+        if (commands_[i].material_id != 0 && materials.usesSceneDepth(commands_[i].material_id)) return true;
+    }
+    return false;
+}
+
 void DrawList::execute(GfxDevice& device, TransientBufferPool& buffers,
                        MaterialStore& materials, u32 white_texture_id,
                        FrameCapture* capture, const PerDrawBlockSet& blocks, Phase phase) {

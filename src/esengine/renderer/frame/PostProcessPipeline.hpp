@@ -268,6 +268,18 @@ public:
     /// encode: a copy, with the alpha set to a marker (0.5) a shader can tell from the white a texture param falls back to.
     void grabScene();
 
+    /// Whether this device can hold the distances a depth copy is made of: a float target. Without one a surface that measures
+    /// the water in front of what is behind it gets no depth and falls back to a fixed column.
+    bool canGrabDepth();
+    /// The shape of the copy of the opaque scene's depth: how far each pixel is from the eye, in the red channel of a float target.
+    rg::TargetDesc grabDepthTarget() {
+        rg::TargetDesc desc = chainTarget(/*withDepth=*/false);
+        desc.format = GfxPixelFormat::RGBA16F;
+        return desc;
+    }
+    /// Draws, into the target being drawn, the distance to the opaque scene at every pixel (the scene's depth, read at its unit).
+    void grabDepth();
+
     /**
      * @brief Whether the scene is to be cleared to nothing (all four channels zero) so that its alpha says how much of each pixel geometry covers.
      *
@@ -607,6 +619,7 @@ private:
     /// The same three blits (plain, neutral, ACES) with the resampling upscaler, compiled when a present first needs one.
     resource::ShaderHandle upscaleShaders_[3];
     resource::ShaderHandle copyShader_;
+    resource::ShaderHandle copyDepthShader_;
 
     std::vector<PostProcessPass> passes_;
     u32 width_ = 0;

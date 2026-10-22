@@ -65,6 +65,8 @@ public:
 
     /// Whether any merged draw reads the picture behind it.
     bool anyUsesSceneColor(const MaterialStore& materials) const;
+    /// Whether any merged draw reads the distance to the opaque scene behind it.
+    bool anyUsesSceneDepth(const MaterialStore& materials) const;
 
     /** Append one draw's bone matrices; returns where they start. Frame-scoped,
      *  like the vertex pool: a command references an offset, not a copy. */
