@@ -239,6 +239,8 @@ void RenderFrame::drawScene() {
     if (post_process_) post_process_->setEnvironmentTexture(environment_texture_id_);
     if (post_process_ && post_process_->isEngaged() && post_process_->temporalActive()) {
         jitter = post_process_->beginTemporalView(view_projection_, current_target_);
+    } else if (post_process_ && post_process_->isEngaged() && post_process_->cameraMotionWanted()) {
+        post_process_->trackView(view_projection_, current_target_);
     }
 #endif
     scene_jitter_ = jitter;
@@ -2296,7 +2298,9 @@ void RenderFrame::collectMotion(ecs::Registry& registry) {
     ES_PROFILE_SCOPE("render.collect.motion");
 #ifdef ES_ENABLE_POSTPROCESS
     const auto view = post_process_->peekTemporalView(view_projection_, static_cast<u64>(current_target_));
-    velocity_jitter_ = view.jitter;
+    // The shift is only there when something resolves it; a chain that follows motion without a history draws still.
+    const bool shifted = post_process_->temporalActive();
+    velocity_jitter_ = shifted ? view.jitter : glm::vec2(0.0f);
     velocity_pool_.beginFrame();
     velocity_list_.clear();
 
@@ -2306,7 +2310,7 @@ void RenderFrame::collectMotion(ecs::Registry& registry) {
     ctx.motion_key = static_cast<u64>(current_target_);
     ctx.motion_frame = planar_frame_;
     ctx.motion_prev_view_projection = view.previous;
-    ctx.motion_prev_jitter = view.previousJitter;
+    ctx.motion_prev_jitter = shifted ? view.previousJitter : glm::vec2(0.0f);
     RenderCollectContext collectCtx{registry, frustum_, clip_state_, velocity_pool_, velocity_list_, ctx,
                                     computeCameraView(ctx.view_projection)};
     collectCtx.screen_ui = screen_domain_;

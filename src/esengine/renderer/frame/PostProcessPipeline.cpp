@@ -376,6 +376,24 @@ bool PostProcessPipeline::temporalActive() {
     return false;
 }
 
+bool PostProcessPipeline::cameraMotionWanted() {
+    if (!initialized_ || bypass_) return false;
+    for (const auto& pass : passes_) {
+        if (!pass.enabled || !pass.nativeKind.empty() || passIsTemporal(pass)) continue;
+        const MaterialUniformLayout* layout = context_.materials().layoutFor(pass.shader);
+        if (layout && layout->find("u_prevViewProjection0")) return true;
+    }
+    return false;
+}
+
+void PostProcessPipeline::trackView(const glm::mat4& viewProjection, u64 key) {
+    TemporalState& state = temporal_[key];
+    temporalKey_ = key;
+    state.previous = state.frame > 0 ? state.current : viewProjection;
+    state.current = viewProjection;
+    ++state.frame;
+}
+
 bool PostProcessPipeline::velocityWanted() {
     if (!initialized_ || bypass_ || !device_.supportsFloatTargets()) return false;
     for (const auto& pass : passes_) {
@@ -787,6 +805,16 @@ void PostProcessPipeline::renderPass(PostProcessPass& pass, const rg::PassContex
     } else if (temporal) {
         pass.floatUniforms["u_historyValid"] = temporal->valid ? 1.0f : 0.0f;
         pass.paramDirty = true;
+    }
+    // An effect that wants only where the camera WAS (motion blur): no history, so no `temporal` above, but the
+    // same matrix. Nothing to send before the view has been followed once.
+    if (!pass.temporal && layout && layout->find("u_prevViewProjection0")) {
+        if (auto it = temporal_.find(temporalKey_); it != temporal_.end()) {
+            for (int c = 0; c < 4; ++c) {
+                pass.vec4Uniforms["u_prevViewProjection" + std::to_string(c)] = glm::vec4(it->second.previous[c]);
+            }
+            pass.paramDirty = true;
+        }
     }
     if (layout) {
         if (layout->blockSize > 0) {

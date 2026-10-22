@@ -253,6 +253,18 @@ public:
     bool temporalActive();
 
     /**
+     * @brief Whether an enabled pass that keeps no history reads the previous camera (`u_prevViewProjection0`).
+     *
+     * @details Motion blur is one: it needs to know where each pixel was a frame ago, and nothing else of the
+     *          temporal machinery — no history, and above all no sub-pixel shift, which would shake a picture
+     *          nothing resolves. The frame then follows the camera with @ref trackView.
+     */
+    bool cameraMotionWanted();
+
+    /// Records this frame's camera as the view @p key's current one, and last frame's as its previous. No shift.
+    void trackView(const glm::mat4& viewProjection, u64 key);
+
+    /**
      * @brief Whether an enabled pass reads how far each moving surface travelled (`u_velocity`).
      *
      * @details The frame then draws its moving meshes a second time into a target of its own, so a

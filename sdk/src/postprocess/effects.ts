@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import type { ShaderHandle } from '../render/material';
 import { postProcessEffects } from './postProcessEffects';
+import { lensEffects } from './lensEffects';
 import { SHARPEN_WGSL } from './computeEffects';
 
 export interface EffectUniformDef {
@@ -585,6 +586,50 @@ registerEffect({
         // 1 follows a surface that moved by itself by its own displacement; 0 trusts the camera's alone, which
         // is what every pixel gets where nothing moved — and what a moving one smears with.
         { name: 'u_objectMotion', label: 'Object Motion', min: 0, max: 1, step: 1, defaultValue: 1, neutralValue: 1 },
+    ],
+});
+
+registerEffect({
+    type: 'motionBlur',
+    label: 'Motion Blur',
+    factory: () => lensEffects.createMotionBlur(),
+    // The camera's and the moving meshes' own motion, both from the frame; what is left to set is the exposure.
+    uniforms: [
+        // The shutter: how much of the distance a pixel moved in a frame the streak covers. 0.5 is a 180 degree shutter.
+        { name: 'u_intensity', label: 'Shutter', min: 0, max: 2, step: 0.01, defaultValue: 0.5, neutralValue: 0 },
+        // The longest streak as a fraction of the picture, so a cut or a teleport smears a little and not the frame.
+        { name: 'u_maxBlur', label: 'Max Blur', min: 0.002, max: 0.25, step: 0.002, defaultValue: 0.05 },
+        { name: 'u_objectMotion', label: 'Object Motion', min: 0, max: 1, step: 1, defaultValue: 1, neutralValue: 1 },
+    ],
+});
+
+registerEffect({
+    type: 'filmGrain',
+    label: 'Film Grain',
+    factory: () => lensEffects.createFilmGrain(),
+    uniforms: [
+        { name: 'u_intensity', label: 'Intensity', min: 0, max: 1, step: 0.01, defaultValue: 0.15, neutralValue: 0 },
+        { name: 'u_size', label: 'Grain Size', min: 1, max: 6, step: 0.1, defaultValue: 1.6 },
+        // 1 puts the grain in the mid-tones where film has it; 0 spreads it evenly, blacks and whites included.
+        { name: 'u_response', label: 'Mid-tone Response', min: 0, max: 1, step: 0.01, defaultValue: 0.8 },
+    ],
+});
+
+registerEffect({
+    type: 'lensFlare',
+    label: 'Lens Flare',
+    factory: () => lensEffects.createLensFlare(),
+    uniforms: [
+        { name: 'u_intensity', label: 'Intensity', min: 0, max: 4, step: 0.01, defaultValue: 0.4, neutralValue: 0 },
+        // Only what is brighter than this (in the picture's own units, HDR included) throws a flare.
+        { name: 'u_threshold', label: 'Threshold', min: 0, max: 8, step: 0.05, defaultValue: 1.2 },
+        { name: 'u_ghosts', label: 'Ghosts', min: 1, max: 8, step: 1, defaultValue: 5 },
+        { name: 'u_dispersal', label: 'Dispersal', min: 0.05, max: 1, step: 0.01, defaultValue: 0.35 },
+        { name: 'u_haloWidth', label: 'Halo Width', min: 0, max: 1, step: 0.01, defaultValue: 0.45 },
+        { name: 'u_chromatic', label: 'Colour Fringe', min: 0, max: 0.05, step: 0.001, defaultValue: 0.012 },
+    ],
+    colors: [
+        { name: 'u_tint', label: 'Tint', defaultValue: { r: 1, g: 0.85, b: 0.7, a: 1 } },
     ],
 });
 

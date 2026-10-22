@@ -1075,13 +1075,18 @@ std::string wgslReachedTextureDecls(const std::string& source, bool postProcess)
 // #pragma param texture uniforms: material units (>= 8) take the unit→binding
 // convention in rhi/WgslBindings.hpp, and the sampler rides the param's own name with
 // an _s suffix: textureSampleLevel(u_mask, u_mask_s, uv, 0.0).
-std::string wgslMaterialTextureDecls(const ParsedShader& parsed) {
+//
+// The sampler is declared only for a texture the stage samples through it. A texture read with textureLoad alone has
+// no sampler to bind, and that is what lets a 32-bit float one (the motion pass's) be its binding: a float32 texture
+// cannot be filtered, and a layout that pairs it with a filtering sampler is refused by the device.
+std::string wgslMaterialTextureDecls(const ParsedShader& parsed, const std::string& body) {
     std::string src;
     for (const auto& p : parsed.properties) {
         if (!p.fromParam || p.type != ShaderPropertyType::Texture || p.textureUnit < 0) continue;
         const u32 unit = static_cast<u32>(p.textureUnit);
         src += "@group(1) @binding(" + std::to_string(unit + 8) + ") var " + p.name +
                " : texture_2d<f32>;\n";
+        if (body.find(p.name + "_s") == std::string::npos) continue;
         src += "@group(1) @binding(" + std::to_string(unit + 16) + ") var " + p.name +
                "_s : sampler;\n";
     }
@@ -1991,7 +1996,7 @@ ShaderParser::AssembledStage assembleWGSLStage(const ParsedShader& parsed,
         inject(block);
     }
     if (stage == ShaderStage::Fragment) {
-        inject(wgslMaterialTextureDecls(parsed));
+        inject(wgslMaterialTextureDecls(parsed, bodyIt->second));
         if (lit) inject(kLitHeaderWGSL);
         if (parsed.domain == "PostProcess" && parsed.usesLights) inject(kPostLightHeaderWGSL);
         inject(kColorHelpersWGSL);

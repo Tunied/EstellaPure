@@ -19,6 +19,9 @@ Estella 通过 ping-pong 帧缓冲运行全屏后处理。加一个 `PostProcess
 | `lutGrade` | 通过查找表纹理(LUT)调色 | `u_lut`(纹理)、`intensity` |
 | `vignette` | 屏幕边缘变暗 | `intensity`、`softness` |
 | `chromaticAberration` | RGB 色散 | `intensity` |
+| `motionBlur` | 沿上一帧以来的运动抹开:相机的移动来自深度缓冲,运动网格自身的移动来自运动 pass | `intensity`(快门)、`maxBlur`、`objectMotion` |
+| `filmGrain` | 胶片晶粒大小的噪点,在中间调最强,随时钟闪动 | `intensity`、`size`、`response` |
+| `lensFlare` | 亮于阈值的物体投出的鬼影和光晕,带色彩边缘 | `intensity`、`threshold`、`ghosts`、`dispersal`、`haloWidth`、`chromatic`、`tint` |
 | `blur` | 高斯模糊 | `intensity` |
 | `fxaa` | 快速抗锯齿 | `intensity` |
 | `distanceFog` | 按到相机的距离做线性雾 | `near`、`far`、`intensity`、颜色 |
@@ -45,6 +48,12 @@ Estella 通过 ping-pong 帧缓冲运行全屏后处理。加一个 `PostProcess
 所有原生包(iOS、Android、桌面、Steam)跑的都是 WebGPU。用
 `createWebApp({ msaaSamples })` 调它的大小,`msaaSamples: 1` 在填充率比边缘更要紧的设备上关掉它。
 `fxaa` 是更便宜也更糊的替代品,留给连多一个采样都吃不下的设备。
+
+### 运动模糊与镜头
+
+`motionBlur` 无需配置:加上它,相机的移动由深度缓冲得出,运动网格的移动由时间性抗锯齿用的同一个运动 pass 得出,所以自己在动的网格会沿着它自己的轨迹被抹开,而不是相机的轨迹。`intensity` 是快门——0.5 是 180° 快门的半帧曝光,1 是整帧——`maxBlur` 把拖影长度限制在画面的一个比例内,切镜头或瞬移只会抹开一点点,不会抹开整个画面。相机没动时它画出原图,并且不像时间性效果那样对画面做亚像素偏移,所以可以不带 `taa` 单独使用。
+
+`filmGrain` 和 `lensFlare` 是普通的后处理效果。镜头光斑读取的是画面本身,所以只有画面里存在高于 `threshold` 的值(明亮的太阳圆盘、灯、HDR 下的自发光表面)时它才有东西可投。
 
 ### 雨、潮湿的地面与水坑
 

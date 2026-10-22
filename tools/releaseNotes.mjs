@@ -2493,6 +2493,8 @@ export const NOTED = {
     {"note":"Skinned meshes are followed by their bones, from the palette they were last drawn with."},
   "feat(render): fog follows the scene's sun and can walk the air against its shadow map":
     {"note":"Height Fog and Light Shafts follow the scene's own sun, and Height Fog can carry the sun's shadows as volumetric light."},
+  "feat(render): motion blur, film grain and lens flare join the post-process effects":
+    {"note":"Motion blur, film grain and lens flare are post-process effects, and a moving mesh's motion now reaches effects on WebGPU too."},
   "feat(render): materials carry a clear coat, sheen, anisotropy, translucency, thin film, index of refraction and transmission":
     {"note":"The Model material has shading layers — clear coat, sheen, anisotropy, translucency, thin film, index of refraction and transmission — and a glTF with the matching extensions arrives using them."},
   "feat(render): a frame carries 112 lights, the lights past the sixteenth lighting their pixels through screen tiles":

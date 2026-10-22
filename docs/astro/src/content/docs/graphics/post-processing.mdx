@@ -36,6 +36,9 @@ several can stack in one frame at no extra target cost beyond the passes.
 | `ssr` | Screen-space reflections: props mirrored in the floor they stand on | `intensity`, `maxDistance`, `thickness`, `floorBias`, `skyReflection` |
 | `taa` | Temporal anti-aliasing: edges smoothed over several frames, moving meshes followed by their own motion | `blend`, `objectMotion` |
 | `lensDistortion` | Barrel / pincushion warp | `strength`, `zoom` |
+| `motionBlur` | Smears what moved since the last frame: the camera's move from the depth buffer, a moving mesh's own from the motion pass | `intensity` (the shutter), `maxBlur`, `objectMotion` |
+| `filmGrain` | Noise the size of a film crystal, strongest in the mid-tones, crawling with the clock | `intensity`, `size`, `response` |
+| `lensFlare` | Ghosts and a halo thrown by whatever is brighter than a threshold, with a colour fringe | `intensity`, `threshold`, `ghosts`, `dispersal`, `haloWidth`, `chromatic`, `tint` |
 | `pixelate` | Block quantization | `pixelSize` |
 | `outline` | Ink-edge outlines (Sobel edge darkening) | `intensity`, `threshold`, `thickness` |
 | `grayscale` | Desaturate | `intensity` |
@@ -48,6 +51,18 @@ Android, desktop, Steam) runs on. `createWebApp({ msaaSamples })` sizes it, and
 `msaaSamples: 1` turns it off where the fill cost matters more than the edges.
 `fxaa` is the cheaper, blurrier alternative for devices where even one sample
 extra is too much.
+
+### Motion blur and the lens
+
+`motionBlur` needs no setup: add it and it follows the camera by the depth buffer and any moving mesh by the same
+motion pass temporal anti-aliasing uses, so a mesh that moves by itself is smeared along its own path and not the
+camera's. `intensity` is the shutter — 0.5 is the half-frame exposure of a 180° shutter, 1 a whole frame — and
+`maxBlur` caps the streak as a fraction of the picture so a cut or a teleport smears a little and not the frame.
+It draws the picture still when the camera has not moved, and it does not shift the picture sub-pixel the way a
+temporal effect does, so it can be used without `taa`.
+
+`filmGrain` and `lensFlare` are plain post effects. The flare reads the picture itself, so it only has something to
+throw where the picture holds values above `threshold`: a bright sun disc, a lamp, an emissive surface (in HDR).
 
 ### Rain, wet ground and puddles
 

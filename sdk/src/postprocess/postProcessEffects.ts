@@ -21,7 +21,7 @@ import { Material } from '../render/material';
  * definition each: a fix that reached only the first of three copies compiled
  * fine and drew a black screen.
  */
-const SSAO_GLSL = `/// A texel of the pass's uv, which runs in the device's own row order: up the
+export const SSAO_GLSL = `/// A texel of the pass's uv, which runs in the device's own row order: up the
 /// screen here, down it on WebGPU. Its inverse round-trips through that uv.
 ivec2 screenTexel(vec2 uv, ivec2 size) {
     return clamp(ivec2(uv * vec2(size)), ivec2(0), size - ivec2(1));
@@ -49,7 +49,7 @@ float worldPerDepth(vec2 uv, float d, vec3 P) {
     return length(worldFromDepth(uv, d + de) - P) / abs(de);
 }`;
 
-const SSAO_WGSL = `fn screenTexel(uv : vec2f, size : vec2i) -> vec2i {
+export const SSAO_WGSL = `fn screenTexel(uv : vec2f, size : vec2i) -> vec2i {
     return clamp(vec2i(uv * vec2f(size)), vec2i(0), size - vec2i(1));
 }
 fn uvOfTexel(t : vec2i, size : vec2i) -> vec2f {
