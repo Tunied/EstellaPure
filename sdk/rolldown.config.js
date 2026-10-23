@@ -98,6 +98,7 @@ export default defineConfig([
             'spine/index': 'src/spine/index.ts',
             'tilemap/index': 'src/tilemap/index.ts',
             'terrain/index': 'src/terrain/index.ts',
+            'timeline/index': 'src/timeline/entry.ts',
             'foliage/index': 'src/foliage/index.ts',
             'logic/index': 'src/logic/index.ts',
             'debug-channel/index': 'src/debug-channel/index.ts',

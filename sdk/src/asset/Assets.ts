@@ -44,7 +44,6 @@ import { ProbeVolumeAssetLoader } from './loaders/ProbeVolumeAssetLoader';
 import { FontAssetLoader } from './loaders/FontAssetLoader';
 import { AudioAssetLoader } from './loaders/AudioAssetLoader';
 import { AnimClipAssetLoader } from './loaders/AnimClipAssetLoader';
-import { TimelineAssetLoader } from './loaders/TimelineAssetLoader';
 import { PrefabAssetLoader } from './loaders/PrefabAssetLoader';
 import { AnimatorControllerAssetLoader } from './loaders/AnimatorControllerAssetLoader';
 import { AvatarAssetLoader } from './loaders/AvatarAssetLoader';
@@ -2643,7 +2642,6 @@ export class Assets {
         // invalidate have no LoadContext), so it shares Assets' lazy accessor.
         this.register(new AudioAssetLoader(() => this.getAudio_()));
         this.register(new AnimClipAssetLoader());
-        this.register(new TimelineAssetLoader());
         this.register(new PrefabAssetLoader());
         // A recipe is bound to an exact era, just like a resolved material.
         // Use the same pending cache, generation ledger and dependency graph.

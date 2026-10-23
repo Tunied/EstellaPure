@@ -249,6 +249,10 @@ you can call it yourself:
 Sampling covers property tracks; event-like tracks (audio, markers, custom
 events) fire edge-detected during playback, not on a sample.
 
+## In a package
+
+Timelines are an optional module: a package carries the runtime and the loader when a scene has a `TimelinePlayer`, the content has an `.estimeline`, or a script imports `esengine/timeline`. A game with none of them ships neither.
+
 ## Best practices
 
 - **Author in the Sequencer** — the timeline asset holds the tracks; code just plays

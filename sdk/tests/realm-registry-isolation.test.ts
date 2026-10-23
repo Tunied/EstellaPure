@@ -18,6 +18,10 @@ import { Catalog } from '../src/asset/Catalog';
 import { Assets as AssetsResource } from '../src/asset/AssetPlugin';
 import { fsmTouches } from '../src/ai/fsm/FsmPlugin';
 import { btTouches } from '../src/ai/bt/BtPlugin';
+import { registerTimelineSupport } from '../src/timeline/timelineSupport';
+
+// Timelines are an optional module: a package that plays one has registered it.
+registerTimelineSupport();
 import { StateMachineAgent, clearFsmStore, registerFsm,
          type StateMachineAgentData } from '../src/ai/fsm/StateMachineAgent';
 import { FsmPlugin, stepStateMachines } from '../src/ai/fsm/FsmPlugin';

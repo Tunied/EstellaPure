@@ -29,7 +29,6 @@ import { trailPlugin } from '../trail';
 import { meshRendererPlugin } from '../render/meshRenderer';
 import { staticBatchPlugin } from '../render/staticBatchPlugin';
 import { postProcessPlugin } from '../postprocess';
-import { timelinePlugin } from '../timeline';
 import { timerPlugin } from '../ecs/timer';
 import { velocityPlugin } from '../velocity';
 import { lifecyclePlugin } from '../ecs/lifecycle';
@@ -58,7 +57,7 @@ export const simulationBasePlugins = (): Plugin[] => [
 /** What exists to be seen. Every entry drives the engine through `engineApi`. */
 export const presentationBasePlugins = (): Plugin[] => [
     animationPlugin, videoPlugin, particlePlugin, trailPlugin, meshRendererPlugin, staticBatchPlugin,
-    postProcessPlugin, timelinePlugin,
+    postProcessPlugin,
 ];
 
 /**
@@ -94,7 +93,7 @@ export function inBuildOrder(plugins: readonly Plugin[]): Plugin[] {
 export const webBasePlugins = (): Plugin[] => [
     diagnosticsPlugin,
     timerPlugin, velocityPlugin, lifecyclePlugin, animationPlugin, audioPlugin, videoPlugin,
-    particlePlugin, trailPlugin, meshRendererPlugin, staticBatchPlugin, postProcessPlugin, timelinePlugin,
+    particlePlugin, trailPlugin, meshRendererPlugin, staticBatchPlugin, postProcessPlugin,
     eventBindingPlugin,
     servicesPlugin,
 ];

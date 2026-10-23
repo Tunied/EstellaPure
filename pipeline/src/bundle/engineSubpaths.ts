@@ -13,6 +13,7 @@ export const ESENGINE_SUBPATHS: Readonly<Record<string, string>> = {
   'esengine/spine': 'spine/index.js',
   'esengine/tilemap': 'tilemap/index.js',
   'esengine/terrain': 'terrain/index.js',
+  'esengine/timeline': 'timeline/index.js',
   'esengine/foliage': 'foliage/index.js',
   'esengine/logic': 'logic/index.js',
   'esengine/debug-channel': 'debug-channel/index.js',

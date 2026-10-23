@@ -24,6 +24,7 @@ import { ESENGINE_SUBPATHS } from './engineSubpaths';
  *  scene says "script graph", the `.esgraph` it references does. */
 const ASSET_SUBPATH: Readonly<Record<string, string>> = {
     '.esgraph': 'esengine/logic',
+    '.estimeline': 'esengine/timeline',
     '.esfsm': 'esengine/ai',
     '.esbt': 'esengine/ai',
 };

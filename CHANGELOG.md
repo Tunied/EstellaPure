@@ -16,7 +16,8 @@ published separately; it ships inside the editor.
 
 ### Changed
 
-- **Terrain and Foliage are optional modules.** Terrain and Foliage are now optional modules, esengine/terrain and esengine/foliage: a package carries them when a scene has a Terrain or Foliage component or a script imports the subpath, and a game with neither ships none of them (about 33 KB less in a UI-only mini-game). Import `Terrain`, `Foliage` and their helpers from `esengine/terrain` and `esengine/foliage` rather than `esengine`; the export installs the module for a scene that uses either component.
+- **Timelines are an optional module.** Timelines are now an optional module, esengine/timeline: a package carries the timeline runtime and its loader when a scene has a TimelinePlayer, the content has an .estimeline, or a script imports the subpath, and a game with none of them ships neither. The API is unchanged and still reachable from `esengine`.
+- **Terrain and Foliage are optional modules.** Terrain and Foliage are now optional modules, esengine/terrain and esengine/foliage: a package carries them when a scene has a Terrain or Foliage component or a script imports the subpath, and a game with neither ships none of them (about 33 KB less in a UI-only mini-game). The API is unchanged and still reachable from `esengine`; the export installs the module for a scene that uses either component.
 
 ## [0.94.0] - 2026-10-22
 

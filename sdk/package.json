@@ -18,6 +18,7 @@
     "./dist/spine/index.js",
     "./dist/tilemap/index.js",
     "./dist/terrain/index.js",
+    "./dist/timeline/index.js",
     "./dist/foliage/index.js",
     "./dist/logic/index.js",
     "./dist/debug-channel/index.js",
@@ -72,6 +73,10 @@
     "./tilemap": {
       "import": "./dist/tilemap/index.js",
       "types": "./dist/tilemap/index.d.ts"
+    },
+    "./timeline": {
+      "import": "./dist/timeline/index.js",
+      "types": "./dist/timeline/index.d.ts"
     },
     "./terrain": {
       "import": "./dist/terrain/index.js",

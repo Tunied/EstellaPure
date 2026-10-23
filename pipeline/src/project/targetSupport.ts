@@ -27,7 +27,7 @@ import { NATIVE_PLATFORMS, type ExportPlatform } from './platforms';
 
 /** An engine subsystem a build target may lack. */
 export type Subsystem =
-    | 'text' | 'tilemap' | 'terrain' | 'foliage' | 'particles' | 'postprocess' | 'physics' | 'physics3d'
+    | 'text' | 'tilemap' | 'terrain' | 'foliage' | 'timeline' | 'particles' | 'postprocess' | 'physics' | 'physics3d'
     | 'spine' | 'dragonbones' | 'video' | 'ai' | 'logic' | 'replication' | 'gameplay';
 
 /**
@@ -40,6 +40,7 @@ export const SUBSYSTEM_COMPONENTS: Readonly<Record<Subsystem, readonly string[]>
     text: ['Text', 'BitmapText'],
     tilemap: ['Tilemap', 'TilemapLayer'],
     terrain: ['Terrain'],
+    timeline: ['TimelinePlayer'],
     foliage: ['Foliage'],
     particles: ['ParticleEmitter', 'ParticleForceField'],
     postprocess: ['PostProcessVolume'],
@@ -72,6 +73,7 @@ export const SUBSYSTEM_LABEL: Readonly<Record<Subsystem, string>> = {
     text: 'Text',
     tilemap: 'Tilemaps',
     terrain: 'Terrain',
+    timeline: 'Timelines',
     foliage: 'Foliage',
     particles: 'Particles',
     postprocess: 'Post-processing',
@@ -98,6 +100,7 @@ export const SUBSYSTEM_INSTALL: Readonly<Record<Subsystem, string>> = {
     postprocess: 'base',
     tilemap: 'esengine/tilemap',
     terrain: 'esengine/terrain',
+    timeline: 'esengine/timeline',
     foliage: 'esengine/foliage',
     physics: 'esengine/physics',
     physics3d: 'esengine/physics3d',

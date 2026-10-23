@@ -25,6 +25,11 @@ describe('the engine modules a package installs', () => {
         expect(engineInstalls({ subsystems: ['particles'] }).subpaths).toEqual([]);
     });
 
+    it('takes timelines from a TimelinePlayer or from the .estimeline it plays', () => {
+        expect(engineInstalls({ subsystems: ['timeline'] }).subpaths).toEqual(['esengine/timeline']);
+        expect(engineInstalls({ assetPaths: ['assets/cutscenes/Intro.estimeline'] }).subpaths).toEqual(['esengine/timeline']);
+    });
+
     it('takes one a document names by asset rather than by component', () => {
         // Nothing in a scene says "script graph"; the .esgraph it references does.
         expect(engineInstalls({ assetPaths: ['assets/logic/Door.esgraph'] }).subpaths)
