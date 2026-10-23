@@ -51,7 +51,7 @@ line how many bones the chain has below its entity and how many end tips, or, in
 
 Select a chain's root and the viewport draws it, and the colliders it keeps out of, in the **Spring bones** entry of the Gizmo menu: the bones as the animation poses them
 as amber lines, a ring at each joint the width of the strand's `radius` (a dot where it is 0), a tip where `endLength` gives one, and each collider as a wireframe sphere or
-capsule in the collider green. Select a `SpringBoneCollider` and its own shape is drawn. Nothing is drawn for what is not selected, so a character's hair does not fill the viewport.
+capsule in the collider green. Select a `SpringBoneCollider` and its own shape is drawn, with six square handles to size it: on a sphere all six set the radius, on a capsule the four round its middle set the radius and the two on its ends set the height (the distance between the centres of its end spheres). The handles on the far side of the shape are faded. A drag is one undo step, shows the value beside the pointer, and the strands follow it live while Preview FX is on. Nothing is drawn for what is not selected, so a character's hair does not fill the viewport.
 
 **View → Preview FX** (on in a fresh editor, the same switch particles and trails use) runs the chain in the edit viewport: drag the head, or change a field, and the
 hair swings. With it on, the simulated chain is drawn solid over the animated pose, dashed, so the difference you are tuning is the difference you see. Turning it off
@@ -82,5 +82,5 @@ cost 0.28 ms an update.** The test is `springbone` in the editor checks; `test_s
 - A bone with several children aims at its first child; the others follow by being children, and aim at their own.
 - Scale is taken from the bones' composed scale; non-uniform scale down a chain is not modelled.
 - Collision is bone against sphere or capsule: no collision between strands, no self-collision, and no collision with the world's physics shapes.
-- The wind is a field on each chain, not a force in the scene: there is no scene-wide wind source to set once for every chain. A collider's radius, height and offset are typed in Details; the viewport has no handles to drag them. Chains are made from names; the importer does not look at
+- The wind is a field on each chain, not a force in the scene: there is no scene-wide wind source to set once for every chain. A collider's offset is typed in Details, or set by moving its entity; the handles size it, they do not place it. Chains are made from names; the importer does not look at
   the shape of the mesh, so a strand with no `Hair_` bone gets no motion.
