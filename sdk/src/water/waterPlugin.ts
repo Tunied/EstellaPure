@@ -23,11 +23,16 @@ import {
 import { Assets } from '../asset/AssetPlugin';
 import type { MaterialShaderSource } from '../asset/loaders/MaterialShaderAssetLoader';
 import { Material, MATERIAL_FORMAT_VERSION } from '../render/material';
+import { createTextureFromPixels } from '../runtime/runtimeAssets';
+import { getResourceManager } from '../wasm/resourceManager';
+import { TextureContent } from '../wasm';
+import { TerrainsRes } from '../terrain/terrainPlugin';
 import { BlendMode } from '../render/blend';
 import { log } from '../util/logger';
 import type { Entity } from '../types';
 import { waveHeight, waveSlope, type WaveParams } from './waves';
-import { buildOceanMesh, buildRectMesh, oceanSnap } from './waterMesh';
+import { buildBoxMesh, buildOceanMesh, oceanSnap } from './waterMesh';
+import { ShoreField, type Point2 } from './shore';
 
 /** What a body of water is. River arrives with the spline it follows. */
 export const WaterForm = { Ocean: 0, Lake: 1, River: 2 } as const;
@@ -38,9 +43,13 @@ export interface WaterBodyData {
     form: number;
     /** A material on the Water shader. Empty uses the stock one. */
     material: number;
-    /** A lake's extent along x and z, centred on its entity. An ocean has none: it follows the camera. */
+    /** A lake's extent along x and z, centred on its entity, when it has no outline of its own. An ocean has none: it follows the camera. */
     sizeX: number;
     sizeZ: number;
+    /** A lake's outline: three points or more round it on its own xz plane (x, y is x, z). Empty is the rectangle of `sizeX` by `sizeZ`. */
+    boundary: Point2[];
+    /** How far in from the edge, and how deep, the waves take to come to full height; 0 leaves them whole to the edge. */
+    shoreWidth: number;
     /** The cell size of the finest ring, and (ocean) how many cells a ring has a side and how many rings there are. */
     cellSize: number;
     cells: number;
@@ -58,7 +67,7 @@ export interface WaterBodyData {
  * @experimental
  */
 export const WaterBody: ComponentDef<WaterBodyData> = defineComponent<WaterBodyData>('WaterBody', {
-    form: WaterForm.Lake, material: 0, sizeX: 100, sizeZ: 100, cellSize: 1, cells: 64, rings: 5,
+    form: WaterForm.Lake, material: 0, sizeX: 100, sizeZ: 100, boundary: [] as Point2[], shoreWidth: 3, cellSize: 1, cells: 64, rings: 5,
     waveHeight: 0.3, waveLength: 14, waveSpeed: 1, waveDirection: 30,
 }, {
     assetFields: [{ field: 'material', type: 'material' }],
@@ -67,6 +76,8 @@ export const WaterBody: ComponentDef<WaterBodyData> = defineComponent<WaterBodyD
         material: { category: 'Look', tooltip: 'A material on the Water shader. Empty uses the stock water.' },
         sizeX: { min: 1, category: 'Shape', tooltip: 'A lake\'s size along x.' },
         sizeZ: { min: 1, category: 'Shape', tooltip: 'A lake\'s size along z.' },
+        boundary: { category: 'Shape', tooltip: 'The outline of a lake: points round it on its own xz plane. Empty is the rectangle of its size.' },
+        shoreWidth: { min: 0, category: 'Shape', tooltip: 'How far in from the edge, and how deep, the waves take to come to full height. 0 leaves them whole to the edge.' },
         cellSize: { min: 0.05, category: 'Detail', tooltip: 'The cell size of the finest ring. Waves shorter than six cells are not drawn as geometry there (the shading still shows them).' },
         cells: { min: 4, max: 256, step: 4, category: 'Detail', tooltip: 'Cells along a ring\'s side (an ocean).' },
         rings: { min: 1, max: 8, step: 1, category: 'Detail', tooltip: 'Rings of an ocean, each twice as coarse as the one inside it.' },
@@ -96,6 +107,9 @@ interface Built {
     signature: string;
     data: WaterBodyData;
     mesh: number;
+    /** A lake's baked shore, and the texture the shader reads it from. */
+    field: ShoreField | null;
+    shoreTexture: number;
     child: Entity;
     instance: number;
     epoch: number;
@@ -123,11 +137,15 @@ export class Waters {
             const scale = t.worldScale.y || 1;
             const q = toLocal(t, x, y, z, scale);
             const d = built.data;
-            const inside = d.form === WaterForm.Ocean || (Math.abs(q[0]) <= d.sizeX / 2 && Math.abs(q[2]) <= d.sizeZ / 2);
+            const field = built.field;
+            const inside = d.form === WaterForm.Ocean || (field ? field.inside(q[0], q[2]) : false);
             if (!inside) continue;
             const params = paramsOf(d);
-            const h = waveHeight(params, q[0], q[2], time);
-            const [sx, sz] = waveSlope(params, q[0], q[2], time);
+            // The waves a lake keeps toward its shore are the ones its mesh was built with.
+            const damp = field ? field.damp(q[0], q[2]) : 1;
+            const h = waveHeight(params, q[0], q[2], time) * damp;
+            const [rx, rz] = waveSlope(params, q[0], q[2], time);
+            const sx = rx * damp, sz = rz * damp;
             const len = Math.hypot(sx, 1, sz);
             const normal = rotate(t.worldRotation, -sx / len, 1 / len, -sz / len);
             const onSurface = fromLocal(t, q[0], h, q[2], scale);
@@ -153,6 +171,13 @@ export class Waters {
 /** The resource the plugin installs. @experimental */
 export const WatersRes = defineResource<Waters>(new Waters(), 'Waters');
 
+/** The outline of a lake: its own boundary when it has three points or more, else the rectangle of its size. */
+function outlineOf(d: WaterBodyData): Point2[] {
+    if (d.boundary.length >= 3) return d.boundary.map((p) => ({ x: p.x, y: p.y }));
+    const hx = d.sizeX / 2, hz = d.sizeZ / 2;
+    return [{ x: -hx, y: -hz }, { x: hx, y: -hz }, { x: hx, y: hz }, { x: -hx, y: hz }];
+}
+
 function paramsOf(d: WaterBodyData): WaveParams {
     return { height: d.waveHeight, length: d.waveLength, speed: d.waveSpeed, direction: d.waveDirection };
 }
@@ -177,8 +202,8 @@ function fromLocal(t: TransformData, x: number, y: number, z: number, scale: num
 }
 
 /** What shapes the geometry: when it changes the child is rebuilt; the waves and the material are not part of it. */
-function signatureOf(d: WaterBodyData): string {
-    return JSON.stringify([d.form, d.sizeX, d.sizeZ, d.cellSize, d.cells, d.rings, d.material]);
+function signatureOf(d: WaterBodyData, ground: string): string {
+    return JSON.stringify([d.form, d.sizeX, d.sizeZ, d.boundary, d.shoreWidth, d.cellSize, d.cells, d.rings, d.material, ground]);
 }
 
 export class WaterPlugin implements Plugin {
@@ -200,11 +225,11 @@ export class WaterPlugin implements Plugin {
             const eye = this.eye(app);
             for (const entity of app.world.getEntitiesWithComponents([WaterBody, Transform])) {
                 const data = app.world.get(entity, WaterBody) as WaterBodyData;
-                const signature = signatureOf(data);
+                const signature = signatureOf(data, this.groundKey(app, entity, data));
                 let built = waters.built_.get(entity);
                 if (!built || built.signature !== signature) {
                     if (built) this.destroy(app, built);
-                    built = { signature, data: { ...data }, mesh: 0, child: 0 as Entity, instance: 0, epoch: (built?.epoch ?? 0) + 1, pending: false };
+                    built = { signature, data: { ...data }, mesh: 0, field: null, shoreTexture: 0, child: 0 as Entity, instance: 0, epoch: (built?.epoch ?? 0) + 1, pending: false };
                     waters.built_.set(entity, built);
                 }
                 built.data = { ...data };
@@ -256,14 +281,27 @@ export class WaterPlugin implements Plugin {
             if (built.epoch !== epoch || !app.world.valid(entity)) return;
             const d = built.data;
             const assets = app.getResource(Assets);
-            const mesh = assets.createMesh(d.form === WaterForm.Ocean
-                ? buildOceanMesh(d.cells, d.rings, d.cellSize)
-                : buildRectMesh(d.sizeX, d.sizeZ, d.cellSize));
+            let mesh: number;
+            if (d.form === WaterForm.Ocean) {
+                mesh = assets.createMesh(buildOceanMesh(d.cells, d.rings, d.cellSize));
+            } else {
+                // A lake: its outline (or its rectangle), the ground under it, and what the two say about the waves and the shore.
+                const poly = outlineOf(d);
+                const reach = Math.max(...poly.map((p) => Math.abs(p.x)), ...poly.map((p) => Math.abs(p.y)));
+                const res = Math.min(256, Math.max(32, Math.ceil((reach * 2) / Math.max(d.cellSize * 0.5, 0.05))));
+                built.field = new ShoreField(poly, res, d.shoreWidth, this.groundUnder(app, entity));
+                const field = built.field;
+                mesh = assets.createMesh(buildBoxMesh(field.minX, field.minZ, field.minX + field.sizeX, field.minZ + field.sizeZ, d.cellSize, {
+                    damp: (x, z) => field.damp(x, z),
+                    keep: (x, z, cell) => field.distance(x, z) > -cell,
+                }));
+            }
             if (mesh === 0) { log.warn('water', 'the engine refused the water geometry'); return; }
             const instance = Material.createInstance(source);
             if (instance === 0) { assets.releaseBuiltMesh(mesh); log.warn('water', 'the water material could not be instanced'); return; }
             built.mesh = mesh;
             built.instance = instance;
+            if (built.field) this.uploadShore(app, built);
             const child = app.world.spawn('Water');
             app.world.insert(child, Transform, { position: { x: 0, y: 0, z: 0 } });
             app.world.insert(child, MeshRenderer, {
@@ -276,6 +314,46 @@ export class WaterPlugin implements Plugin {
         } finally {
             built.pending = false;
         }
+    }
+
+    /** Gives the shader a lake's shore: the baked field as a texture, and where over the lake it lies. */
+    private uploadShore(app: App, built: Built): void {
+        const field = built.field!;
+        // The encoding spans a few shore widths either side of the edge; a shore of none still needs a span for the foam.
+        const range = Math.max(built.data.shoreWidth * 4, 16);
+        const pixels = field.encode(range);
+        built.shoreTexture = createTextureFromPixels(app.wasmModule, { width: field.res, height: field.res, pixels }, TextureContent.Retained, false,
+            { filterMode: 'linear', wrapMode: 'clamp' });
+        Material.setUniform(built.instance, 'u_shoreMap', Material.tex(built.shoreTexture));
+        Material.setUniform(built.instance, 'u_shoreOn', 1);
+        Material.setUniform(built.instance, 'u_shoreOrigin', { x: field.minX, y: field.minZ });
+        Material.setUniform(built.instance, 'u_shoreSize', { x: field.sizeX, y: field.sizeZ });
+        Material.setUniform(built.instance, 'u_shoreRange', range);
+    }
+
+    /** The height of the ground under a body's plane, in the body's own space, where a terrain is and the body is level; else nothing is known. */
+    private groundUnder(app: App, entity: Entity): ((x: number, z: number) => number | null) | undefined {
+        if (!app.hasResource(TerrainsRes)) return undefined;
+        const terrains = app.getResource(TerrainsRes);
+        const t = app.world.tryGet(entity, Transform) as TransformData | null;
+        if (!t || terrains.built_.size === 0) return undefined;
+        const level = Math.abs(t.worldRotation.x) < 1e-4 && Math.abs(t.worldRotation.z) < 1e-4;
+        if (!level) return undefined;
+        const scale = t.worldScale.y || 1;
+        const sx = t.worldScale.x || 1, sz = t.worldScale.z || 1;
+        return (x, z) => {
+            const g = terrains.heightAt(t.worldPosition.x + x * sx, t.worldPosition.z + z * sz);
+            return g === null ? null : (g - t.worldPosition.y) / scale;
+        };
+    }
+
+    /** What the ground under a body adds to whether it must be rebuilt: the terrain's revision, and where the body stands over it. */
+    private groundKey(app: App, entity: Entity, data: WaterBodyData): string {
+        if (data.form === WaterForm.Ocean || !app.hasResource(TerrainsRes)) return '';
+        const terrains = app.getResource(TerrainsRes);
+        if (terrains.built_.size === 0) return '';
+        const t = app.world.tryGet(entity, Transform) as TransformData | null;
+        return t ? `${terrains.revision_}:${t.worldPosition.x}:${t.worldPosition.y}:${t.worldPosition.z}:${t.worldScale.x}:${t.worldScale.y}:${t.worldScale.z}` : '';
     }
 
     /** Writes the component into the instance, and moves an ocean's mesh to the camera. */
@@ -308,6 +386,9 @@ export class WaterPlugin implements Plugin {
         built.epoch++;
         if (built.child && app.world.valid(built.child)) app.world.despawn(built.child);
         if (built.instance) Material.release(built.instance);
+        if (built.shoreTexture) getResourceManager()?.releaseTexture(built.shoreTexture);
+        built.shoreTexture = 0;
+        built.field = null;
         if (built.mesh && app.hasResource(Assets)) app.getResource(Assets).releaseBuiltMesh(built.mesh);
         built.child = 0 as Entity;
         built.instance = 0;

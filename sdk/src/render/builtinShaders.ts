@@ -732,6 +732,13 @@ const WATER = `#pragma shader "Water"
 // The cell size of the mesh's finest ring, for a body the WaterBody component built: a vertex in a coarser ring (its colour's red says which) fades the
 // waves it cannot draw, those shorter than six of its cells. 0 draws every wave at every vertex.
 #pragma param u_cellSize float default(0) range(0,100) ui(slider)
+// A lake's shore, baked by the WaterBody component over its box: red the signed distance to its outline (0.5 at the edge), green how deep the water is,
+// blue the share of the waves kept, all over u_shoreRange. The pixels outside the outline are cut, the waves die toward the shore, and it foams there.
+#pragma param u_shoreOn float default(0) range(0,1) ui(slider)
+#pragma param u_shoreMap texture default(white) texel(data)
+#pragma param u_shoreOrigin vec2 default(0,0)
+#pragma param u_shoreSize vec2 default(1,1)
+#pragma param u_shoreRange float default(16) range(0.01,10000) ui(slider)
 #pragma param u_sceneColor texture default(white)
 #pragma param u_sceneDepthMap texture default(white) texel(data)
 
@@ -756,7 +763,8 @@ float waterWaveHeight(vec2 p, float time, float cell) {
 void esMaterialVertex(inout vec3 local, inout vec3 localNormal, in vec2 uv) {
     if (u_waveSpace < 0.5) return;
     float cell = u_cellSize > 0.0 ? u_cellSize * exp2(es_vertexColor.r * 7.0) : 0.0;
-    local.y += waterWaveHeight(uv + u_origin, u_time.x, cell);
+    float damp = u_shoreOn > 0.5 ? es_vertexColor.g : 1.0;
+    local.y += waterWaveHeight(uv + u_origin, u_time.x, cell) * damp;
 }
 #pragma end
 
@@ -782,7 +790,9 @@ fn esMaterialVertex(local : ptr<function, vec3f>, localNormal : ptr<function, ve
     if (mc.u_waveSpace < 0.5) { return; }
     var cell = 0.0;
     if (mc.u_cellSize > 0.0) { cell = mc.u_cellSize * exp2(es_vertexColor.r * 7.0); }
-    (*local).y = (*local).y + waterWaveHeight(uv + mc.u_origin, tc.u_time.x, cell);
+    var damp = 1.0;
+    if (mc.u_shoreOn > 0.5) { damp = es_vertexColor.g; }
+    (*local).y = (*local).y + waterWaveHeight(uv + mc.u_origin, tc.u_time.x, cell) * damp;
 }
 #pragma end
 
@@ -867,8 +877,14 @@ void main() {
 
     // The surface: the long waves, then the ripples they carry, flattened with distance so the far water is calm rather than aliased.
     vec2 wp = u_waveSpace > 0.5 ? v_texCoord + u_origin : P.xz;
+    // The lake's shore at this pixel (a texture read, taken before any branch).
+    vec4 shoreTex = texture(u_shoreMap, clamp((v_texCoord - u_shoreOrigin) / max(u_shoreSize, vec2(1e-4)), vec2(0.0), vec2(1.0)));
+    float shoreDist = (shoreTex.r - 0.5) * 2.0 * u_shoreRange;
+    float shoreDepth = shoreTex.g * u_shoreRange;
+    float damp = u_shoreOn > 0.5 ? shoreTex.b : 1.0;
     float crest;
-    vec2 slope = waveSlope(wp, time, waterDist, crest);
+    vec2 slope = waveSlope(wp, time, waterDist, crest) * damp;
+    crest *= damp;
     float rippleFade = clamp(1.0 - waterDist / (u_rippleLength * 180.0), 0.0, 1.0);
     float e = u_rippleLength * 0.1;
     vec2 ripple = vec2(ripples(wp + vec2(e, 0.0), time) - ripples(wp - vec2(e, 0.0), time),
@@ -924,6 +940,10 @@ void main() {
     float breakup = waterNoise(wp * foamScale + vec2(time * 0.07, time * 0.05)) * 0.6 + waterNoise(wp * foamScale * 3.0 - vec2(time * 0.13, 0.0)) * 0.4;
     float pulse = 0.65 + 0.35 * sin(time * 0.9 + breakup * 6.0);
     float shore = haveDepth && u_foamWidth > 0.0 ? clamp((1.0 - vertical / (u_foamWidth * pulse)) * 1.5 - breakup * 0.8, 0.0, 1.0) : 0.0;
+    // The baked shore foams too, where the depth buffer cannot say (no chain, no float targets) and along the lake's outline.
+    if (u_shoreOn > 0.5 && u_foamWidth > 0.0) {
+        shore = max(shore, clamp((1.0 - min(shoreDist, shoreDepth) / (u_foamWidth * pulse)) * 1.5 - breakup * 0.8, 0.0, 1.0));
+    }
     float onCrest = u_foamCrest > 0.0 ? smoothstep(1.0 - 0.3 * u_foamCrest, 1.0, crest) * smoothstep(0.35, 0.75, breakup) : 0.0;
     float foam = clamp(max(shore, onCrest * u_foamCrest), 0.0, 1.0);
 
@@ -935,6 +955,8 @@ void main() {
     float cosV = clamp(dot(N, viewDir), 0.0, 1.0);
     float fresnel = 0.0204 + (1.0 - 0.0204) * pow(1.0 - cosV, 5.0);
     vec3 seen = behind * transmit * (1.0 - fresnel) * (1.0 - foam);
+    // Outside the lake's outline there is no water.
+    if (u_shoreOn > 0.5 && shoreDist < 0.0) discard;
     fragColor = vec4(lit + seen, haveColor ? 1.0 : 0.85);
 #ifdef ES_GBUFFER
     fragSurface = vec4(packNormal(normalize(N)), roughness, 0.75);
@@ -1024,8 +1046,14 @@ fn waveSlope(p : vec2f, time : f32, dist : f32) -> Waves {
 
     var wp = P.xz;
     if (mc.u_waveSpace > 0.5) { wp = v.v_texCoord + mc.u_origin; }
-    let waves = waveSlope(wp, time, waterDist);
-    var slope = waves.slope;
+    let shoreTex = textureSample(u_shoreMap, u_shoreMap_s, clamp((v.v_texCoord - mc.u_shoreOrigin) / max(mc.u_shoreSize, vec2f(1e-4)), vec2f(0.0), vec2f(1.0)));
+    let shoreDist = (shoreTex.r - 0.5) * 2.0 * mc.u_shoreRange;
+    let shoreDepth = shoreTex.g * mc.u_shoreRange;
+    var damp = 1.0;
+    if (mc.u_shoreOn > 0.5) { damp = shoreTex.b; }
+    var waves = waveSlope(wp, time, waterDist);
+    waves.crest = waves.crest * damp;
+    var slope = waves.slope * damp;
     let rippleFade = clamp(1.0 - waterDist / (mc.u_rippleLength * 180.0), 0.0, 1.0);
     let eps = mc.u_rippleLength * 0.1;
     let ripple = vec2f(ripples(wp + vec2f(eps, 0.0), time) - ripples(wp - vec2f(eps, 0.0), time),
@@ -1079,6 +1107,9 @@ fn waveSlope(p : vec2f, time : f32, dist : f32) -> Waves {
     let pulse = 0.65 + 0.35 * sin(time * 0.9 + breakup * 6.0);
     var shore = 0.0;
     if (haveDepth && mc.u_foamWidth > 0.0) { shore = clamp((1.0 - vertical / (mc.u_foamWidth * pulse)) * 1.5 - breakup * 0.8, 0.0, 1.0); }
+    if (mc.u_shoreOn > 0.5 && mc.u_foamWidth > 0.0) {
+        shore = max(shore, clamp((1.0 - min(shoreDist, shoreDepth) / (mc.u_foamWidth * pulse)) * 1.5 - breakup * 0.8, 0.0, 1.0));
+    }
     var onCrest = 0.0;
     if (mc.u_foamCrest > 0.0) { onCrest = smoothstep(1.0 - 0.3 * mc.u_foamCrest, 1.0, waves.crest) * smoothstep(0.35, 0.75, breakup); }
     let foam = clamp(max(shore, onCrest * mc.u_foamCrest), 0.0, 1.0);
@@ -1093,6 +1124,7 @@ fn waveSlope(p : vec2f, time : f32, dist : f32) -> Waves {
     let seen = behind * transmit * (1.0 - fresnel) * (1.0 - foam);
     var alpha = 0.85;
     if (haveColor) { alpha = 1.0; }
+    if (mc.u_shoreOn > 0.5 && shoreDist < 0.0) { discard; }
 #ifdef ES_GBUFFER
     var frag : FragOut;
     frag.color = vec4f(lit + seen, alpha);

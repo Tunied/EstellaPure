@@ -5,8 +5,9 @@
  * @brief   The geometry of a body of water: a flat grid for a lake, rings of coarsening grids for an ocean.
  *
  * @details Both lie in the body's xz plane facing up, with the uv the position itself (so the Water shader's body space is local x and
- *          z), and the vertex colour's red the number of the ring the vertex is in, in sevenths (`cell * 2^(red * 7)` is its cell
- *          size): the Water shader's vertex hook fades the waves a coarse ring cannot draw by it.
+ *          z), the vertex colour's red the number of the ring the vertex is in, in sevenths (`cell * 2^(red * 7)` is its cell
+ *          size: the Water shader's vertex hook fades the waves a coarse ring cannot draw by it), and its green the share of the waves
+ *          the point keeps toward a lake's shore (1 elsewhere).
  *
  *          An ocean is rings, each a grid of the same number of cells with twice the cell size of the one inside it and a hole where that one
  *          sits. Where two rings meet the coarse one has half the vertices along the edge, so the surfaces can part there by what the waves
@@ -22,20 +23,39 @@ interface Grid {
     ring: number;
 }
 
+/** What shapes a lake's grid beyond its box: how much of its waves each point keeps, and which cells are worth drawing at all. */
+export interface RectOptions {
+    /** The share of the waves kept at (x, z), 0 to 1: written into each vertex's green, which the Water shader's vertex hook multiplies the height by. */
+    damp?: (x: number, z: number) => number;
+    /** Whether the cell whose middle is (x, z) is drawn: a lake with a boundary of its own leaves out the cells wholly outside it. */
+    keep?: (x: number, z: number, cell: number) => boolean;
+}
+
 /** A flat rectangle of water, `sizeX` by `sizeZ`, centred on its origin. */
-export function buildRectMesh(sizeX: number, sizeZ: number, cellSize: number): MeshData {
+export function buildRectMesh(sizeX: number, sizeZ: number, cellSize: number, options: RectOptions = {}): MeshData {
+    return buildBoxMesh(-sizeX / 2, -sizeZ / 2, sizeX / 2, sizeZ / 2, cellSize, options);
+}
+
+/** A flat grid over the box from (minX, minZ) to (maxX, maxZ), in the body's own space. */
+export function buildBoxMesh(minX: number, minZ: number, maxX: number, maxZ: number, cellSize: number, options: RectOptions = {}): MeshData {
+    const sizeX = maxX - minX, sizeZ = maxZ - minZ;
     const cellsX = Math.max(1, Math.round(sizeX / cellSize)), cellsZ = Math.max(1, Math.round(sizeZ / cellSize));
     const positions: number[] = [], colors: number[] = [];
     for (let j = 0; j <= cellsZ; j++) {
         for (let i = 0; i <= cellsX; i++) {
-            positions.push(-sizeX / 2 + (i / cellsX) * sizeX, 0, -sizeZ / 2 + (j / cellsZ) * sizeZ);
-            colors.push(0, 0, 0, 1);
+            const x = minX + (i / cellsX) * sizeX, z = minZ + (j / cellsZ) * sizeZ;
+            positions.push(x, 0, z);
+            colors.push(0, options.damp ? options.damp(x, z) : 1, 0, 1);
         }
     }
     const indices: number[] = [];
     const at = (i: number, j: number): number => j * (cellsX + 1) + i;
+    const cell = Math.max(sizeX / cellsX, sizeZ / cellsZ);
     for (let j = 0; j < cellsZ; j++) {
-        for (let i = 0; i < cellsX; i++) quad(indices, at(i, j), at(i, j + 1), at(i + 1, j), at(i + 1, j + 1));
+        for (let i = 0; i < cellsX; i++) {
+            if (options.keep && !options.keep(minX + ((i + 0.5) / cellsX) * sizeX, minZ + ((j + 0.5) / cellsZ) * sizeZ, cell)) continue;
+            quad(indices, at(i, j), at(i, j + 1), at(i + 1, j), at(i + 1, j + 1));
+        }
     }
     return pack(positions, colors, indices);
 }
@@ -59,7 +79,7 @@ export function buildOceanMesh(cells: number, rings: number, cellSize: number): 
         for (let j = 0; j <= n; j++) {
             for (let i = 0; i <= n; i++) {
                 positions.push(-grid.half + i * grid.cell, 0, -grid.half + j * grid.cell);
-                colors.push(grid.ring / 7, 0, 0, 1);
+                colors.push(grid.ring / 7, 1, 0, 1);
             }
         }
         for (let j = 0; j < n; j++) {

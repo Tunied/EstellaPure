@@ -4,7 +4,8 @@ export {
     WaterBody, WaterForm, Waters, WatersRes, WaterPlugin, waterPlugin, type WaterBodyData, type WaterSample,
 } from './waterPlugin';
 export { WAVE_SET, waveFade, waveHeight, waveSlope, type WaveParams } from './waves';
-export { buildOceanMesh, buildRectMesh, oceanReach, oceanSnap } from './waterMesh';
+export { buildBoxMesh, buildOceanMesh, buildRectMesh, oceanReach, oceanSnap, type RectOptions } from './waterMesh';
+export { ShoreField, UNKNOWN_DEPTH, polygonSdf, shoreDamp, type GroundDepth, type Point2 } from './shore';
 
 // Importing this subpath INSTALLS water — see tilemap/index.ts.
 import { registerWaterSupport } from './waterSupport';

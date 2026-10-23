@@ -123,7 +123,7 @@ const DISPOSITION = {
   SceneOwner: ['derived', 'scene loading records which scene an entity came from; authoring it would claim an ownership the loader never granted'],
 
   // — code-only: an example demonstrates it from TypeScript, honestly —
-  WaterBody: ['owed', 'no example carries a body of water yet; the first lake with a boundary of its own (the next step of the water work) goes into one'],
+  WaterBody: ['owed', 'no example carries a body of water yet; the first of the water work that is shown off (rivers, with the spline) goes into one'],
   Replicated: ['code-only', 'multiplayer-arena declares its replicated set beside the server systems that own it; the wire table is a contract both ends compile against, not scene content'],
 
   // — owed: a creator-facing component nothing in the shipped corpus authors.

@@ -2559,6 +2559,8 @@ export const NOTED = {
     {"note":"Cyber Rooftop gets a rebuilt rooftop model and textures, a wet roof material with a planar reflection under a rain sky, rain, fog and bloom in the scene, a larger set of HUD icons and inventory art, and a wider build footprint."},
   "feat(water): a WaterBody builds an ocean or a lake whose waves lift the geometry and can be read from code":
     {"note":"Water gets a component and a chapter of its own. A WaterBody builds an ocean (without an edge, following the camera, in rings that coarsen with distance) or a rectangular lake, lifts its geometry with the waves, follows its own up when it is tilted, and answers for its surface from code (`Waters.sample`) with the same formula the shader draws. Water is an optional module (`esengine/water`): a 2D game carries none of it."},
+  "feat(water): a lake takes an outline of its own and calms its waves toward the shore":
+    {"note":"A lake can have an outline of its own and knows its shore. `boundary` cuts it to a polygon on its plane (crisp at the pixel, not at the grid's cells), `shoreWidth` calms its waves toward the edge and where it is shallow over a Terrain, and the shore foams along the outline. `Waters.sample` answers with the same calmed waves and says a point in the notch of a concave lake is not inside."},
   "chore(tools): the gates run in parallel with --jobs, and the reds a full run gathered are cleared":
     {"internal":"tooling for the static gates, and fixes to checks that had drifted from the code they guard"},
   "fix(render): a wire narrower than a pixel is no longer painted over by the sky in dashes":

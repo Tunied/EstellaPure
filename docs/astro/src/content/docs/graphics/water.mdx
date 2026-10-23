@@ -17,7 +17,9 @@ changes.
 
 | Field | What it does |
 |---|---|
-| `form` | **Ocean**: without an edge, follows the camera. **Lake**: a rectangle of `sizeX` by `sizeZ` centred on the entity. |
+| `form` | **Ocean**: without an edge, follows the camera. **Lake**: a rectangle of `sizeX` by `sizeZ` centred on the entity, or the outline in `boundary`. |
+| `boundary` | A lake's outline: three points or more round it on its own xz plane. Empty is the rectangle. |
+| `shoreWidth` | How far in from the edge, and how deep, the waves take to come to full height. 0 leaves them whole to the edge. |
 | `material` | A material on the Water shader. Empty uses the stock water. |
 | `cellSize` | The cell size of the finest ring of geometry. |
 | `cells`, `rings` | An ocean's rings: cells along a ring's side, and how many rings. |
@@ -46,6 +48,17 @@ A coarse ring cannot draw a short wave: below three cells to a wavelength it wou
 its cells (the shading still shows them, per pixel). Where two rings meet, the coarse one has half the vertices along the edge, and the surfaces
 can part by what the waves do between them; keep `waveLength` at least six of the coarsest visible ring's cells and there is no seam to see.
 
+## Lakes and shores
+
+A lake is cut to its outline, and the waves know where its edge is and how deep the water is. The body bakes a small field over the box of its
+outline: the signed distance to the edge, and the depth of the water over the ground under it. From the two comes the share of the waves a point
+keeps (none at the edge or where the water is not deep, all from `shoreWidth` in), written into the mesh's vertices so the geometry calms toward
+the shore, and into a texture so the pixels do too, the edge is cut where the outline is (not at the grid's cells), and the shore foams along it.
+
+With a `Terrain` in the scene and the lake level, the ground under it is the terrain: the water fills the low ground and meets the hills where they
+cross it (the depth test does that), and the waves die out as it shallows. The field is rebuilt when the terrain changes or the lake moves; a tilted
+lake, or one over no terrain, is as deep as it likes. The outline should not cross itself.
+
 ## Asking the surface
 
 `Waters.sample(x, y, z)` (the `WatersRes` resource) answers for the body that holds a point:
@@ -53,7 +66,7 @@ can part by what the waves do between them; keep `waveLength` at least six of th
 - `depth`: how far the point is above the surface along the body's up (negative under it), in world units;
 - `normal`: the surface's normal there, in world space;
 - `surface`: the world position on the surface straight above or below the point;
-- `inside`: whether the point is over the body's extent.
+- `inside`: whether the point is over the body's extent: inside a lake's outline (an ocean has none, so it is always).
 
 It reads the same formula the shader draws, at the time of the frame. The body's position, rotation and uniform scale are taken into account.
 `Waters.heightAt(x, z)` is the short form for an untilted body. A point over no water answers `null`.
@@ -86,8 +99,8 @@ What is not there yet, so nobody is surprised:
   Without the chain the water is drawn over the scene as a translucent surface; without float targets the depth is `u_fallbackDepth` everywhere, so
   there is no shore foam and no change of colour with depth.
 - Like glass, it refracts the opaque scene only: a boat's hull seen through it is, but another transparent surface is not.
-- A lake is a rectangle; a boundary of your own shape, lakes that fill a terrain basin, rivers along a curve, flow, and the waves' breaking at a
-  shore are not built yet.
+- Rivers along a curve and flow are not built yet. A lake's outline is a polygon on a plane: it does not follow a curved shore, and the waves die
+  toward the shore without breaking on it.
 - Nothing floats on it or swims in it yet: `Waters.sample` gives what a buoyancy force needs, but there is no force.
 - A camera under the surface sees the water turned over, and nothing else changes: no underwater fog or tint.
 - It does not react to what moves through it: no ripples, no wake.
