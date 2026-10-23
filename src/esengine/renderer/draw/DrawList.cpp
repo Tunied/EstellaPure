@@ -362,6 +362,14 @@ bool DrawList::anyUsesSceneColor(const MaterialStore& materials) const {
     return false;
 }
 
+bool DrawList::anyBlendedWithoutSceneColor(const MaterialStore& materials) const {
+    for (u32 i = 0; i < merged_draw_calls_; ++i) {
+        const auto& cmd = commands_[i];
+        if (cmd.blend_mode != BlendMode::None && !(cmd.material_id != 0 && materials.usesSceneColor(cmd.material_id))) return true;
+    }
+    return false;
+}
+
 bool DrawList::anyUsesSceneDepth(const MaterialStore& materials) const {
     for (u32 i = 0; i < merged_draw_calls_; ++i) {
         if (commands_[i].material_id != 0 && materials.usesSceneDepth(commands_[i].material_id)) return true;
@@ -386,9 +394,18 @@ void DrawList::execute(GfxDevice& device, TransientBufferPool& buffers,
     for (u32 i = 0; i < merged_draw_calls_; ++i) {
         const auto& cmd = commands_[i];
         const StagedBlocks& staged = staged_[i];
-        if (phase != Phase::All
-            && (cmd.material_id != 0 && materials.usesSceneColor(cmd.material_id)) != (phase == Phase::SceneColorOnly)) {
-            continue;
+        if (phase != Phase::All) {
+            const bool refracts = cmd.material_id != 0 && materials.usesSceneColor(cmd.material_id);
+            const bool blended = cmd.blend_mode != BlendMode::None;
+            bool drawn = false;
+            switch (phase) {
+                case Phase::WithoutSceneColor: drawn = !refracts; break;
+                case Phase::SceneColorOnly: drawn = refracts; break;
+                case Phase::OpaqueOnly: drawn = !refracts && !blended; break;
+                case Phase::BlendedOnly: drawn = !refracts && blended; break;
+                case Phase::All: drawn = true; break;
+            }
+            if (!drawn) continue;
         }
 
         const GfxStencilMode stencil = stencilModeOf(cmd.state_flags);

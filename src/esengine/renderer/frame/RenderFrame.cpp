@@ -249,7 +249,7 @@ void RenderFrame::drawScene(DrawList::Phase phase) {
 #ifdef ES_ENABLE_POSTPROCESS
     // The atlas the meshes reflect, for an effect that adds a reflection of its own where the scene's ray found none.
     if (post_process_) post_process_->setEnvironmentTexture(environment_texture_id_);
-    if (phase == DrawList::Phase::SceneColorOnly) {
+    if (phase == DrawList::Phase::SceneColorOnly || phase == DrawList::Phase::BlendedOnly) {
         // The second half of a scene drawn in two: the same camera, shifted the same way, and a frame that must not step the
         // temporal view a second time.
         jitter = scene_jitter_;
@@ -677,12 +677,24 @@ void RenderFrame::end() {
 #ifdef ES_ENABLE_POSTPROCESS
         glass = usePostProcess && draw_list_.anyUsesSceneColor(context_.materials());
 #endif
+        // A blended surface (a pane, a particle, a leaf card) writes no depth, so drawn before the water it is covered by it wherever the water is in
+        // front of the pixel's opaque, whichever side of the surface it is on. So where there are any, the scene is built in layers: the opaque
+        // scene, then the blended draws over it (the picture the water refracts, so what is under the surface is seen through it), then the opaque
+        // scene put back and the water drawn, and last the blended draws once more, depth-tested against the water now: those in front of the
+        // surface land on it, those behind it fail and are only seen through it. The pixels the water does not cover were put back, so they are blended once.
+        bool layered = false;
+#ifdef ES_ENABLE_POSTPROCESS
+        layered = glass && draw_list_.anyBlendedWithoutSceneColor(context_.materials());
+#endif
         rg::PassDesc glassPass;
+        rg::PassDesc blendedPass, overPass;
+        rg::ResourceId grabOpaque = rg::kNoResource;
         rg::ResourceId grab = rg::kNoResource;
         rg::ResourceId grabDepth = rg::kNoResource;
         if (glass) {
 #ifdef ES_ENABLE_POSTPROCESS
             grab = graph_.createTarget(post_process_->grabTarget());
+            if (layered) grabOpaque = graph_.createTarget(post_process_->grabTarget());
             // The distance to what stands behind, for a surface that measures the water in front of it: only when one asks, and
             // only where a float target can hold distances.
             if (draw_list_.anyUsesSceneDepth(context_.materials()) && post_process_->canGrabDepth()) {
@@ -692,18 +704,32 @@ void RenderFrame::end() {
             glassPass.name = "scene-glass";
             glassPass.dependencies.push_back(grab);
             if (grabDepth != rg::kNoResource) glassPass.dependencies.push_back(grabDepth);
-            glassPass.execute = [this, grab, grabDepth](const rg::PassContext&) {
+            if (layered) {
+                blendedPass = scene;
+                blendedPass.name = "scene-blended";
+                blendedPass.dependencies.push_back(grabOpaque);
+                if (grabDepth != rg::kNoResource) blendedPass.dependencies.push_back(grabDepth);
+                blendedPass.execute = [this](const rg::PassContext&) { drawScene(DrawList::Phase::BlendedOnly); };
+                overPass = scene;
+                overPass.name = "scene-blended-over";
+                overPass.dependencies.push_back(grab);
+                overPass.execute = [this](const rg::PassContext&) {
+                    drawScene(DrawList::Phase::BlendedOnly);
+                    if (presented_overlay_draw_) presented_overlay_draw_->flushDeferred();
+                };
+            }
+            glassPass.execute = [this, grab, grabDepth, layered](const rg::PassContext&) {
                 context_.materials().setSceneColor(graph_.textureOf(grab));
                 if (grabDepth != rg::kNoResource) context_.materials().setSceneDepth(graph_.textureOf(grabDepth));
                 drawScene(DrawList::Phase::SceneColorOnly);
                 context_.materials().setSceneColor(TextureHandle::Invalid);
                 context_.materials().setSceneDepth(TextureHandle::Invalid);
-                if (presented_overlay_draw_) presented_overlay_draw_->flushDeferred();
+                if (!layered && presented_overlay_draw_) presented_overlay_draw_->flushDeferred();
             };
 #endif
         }
-        scene.execute = [this, glass](const rg::PassContext&) {
-            drawScene(glass ? DrawList::Phase::WithoutSceneColor : DrawList::Phase::All);
+        scene.execute = [this, glass, layered](const rg::PassContext&) {
+            drawScene(layered ? DrawList::Phase::OpaqueOnly : glass ? DrawList::Phase::WithoutSceneColor : DrawList::Phase::All);
             if (!glass && presented_overlay_draw_) presented_overlay_draw_->flushDeferred();
         };
         graph_.addPass(std::move(scene));
@@ -712,7 +738,7 @@ void RenderFrame::end() {
             rg::PassDesc copy;
             copy.name = "scene-grab";
             copy.reads = {scene_resource_};
-            copy.write = grab;
+            copy.write = layered ? grabOpaque : grab;
             copy.execute = [this](const rg::PassContext&) { post_process_->grabScene(); };
             graph_.addPass(std::move(copy));
             if (grabDepth != rg::kNoResource) {
@@ -724,7 +750,24 @@ void RenderFrame::end() {
                 graph_.addPass(std::move(copyDepth));
             }
 #endif
+            if (layered) {
+                graph_.addPass(std::move(blendedPass));
+                rg::PassDesc copyBlended;
+                copyBlended.name = "scene-grab-blended";
+                copyBlended.reads = {scene_resource_};
+                copyBlended.write = grab;
+                copyBlended.execute = [this](const rg::PassContext&) { post_process_->grabScene(); };
+                graph_.addPass(std::move(copyBlended));
+                // The opaque scene put back: what the blended draws left in the pixels is theirs to leave again, in the pass after the water.
+                rg::PassDesc restore;
+                restore.name = "scene-restore";
+                restore.reads = {grabOpaque};
+                restore.write = scene_resource_;
+                restore.execute = [this](const rg::PassContext&) { post_process_->grabScene(); };
+                graph_.addPass(std::move(restore));
+            }
             graph_.addPass(std::move(glassPass));
+            if (layered) graph_.addPass(std::move(overPass));
         }
     }
 

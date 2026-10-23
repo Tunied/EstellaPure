@@ -57,7 +57,7 @@ public:
     // (filling with the draw's own tex re-pointed all 8 units on every tex change).
     /// Which of the list's draws an execute makes. A draw whose material reads the picture behind it (`u_sceneColor`) has to be
     /// made after a copy of that picture is taken, so the frame executes the list twice: the rest, then those.
-    enum class Phase : u8 { All, WithoutSceneColor, SceneColorOnly };
+    enum class Phase : u8 { All, WithoutSceneColor, SceneColorOnly, OpaqueOnly, BlendedOnly };
     void execute(GfxDevice& device, TransientBufferPool& buffers,
                  MaterialStore& materials, u32 white_texture_id = 0,
                  FrameCapture* capture = nullptr,
@@ -65,6 +65,8 @@ public:
 
     /// Whether any merged draw reads the picture behind it.
     bool anyUsesSceneColor(const MaterialStore& materials) const;
+    /// Whether the list holds a blended draw that does not refract: what has to be ordered against a refracting surface by where it is, not by when it was drawn.
+    bool anyBlendedWithoutSceneColor(const MaterialStore& materials) const;
     /// Whether any merged draw reads the distance to the opaque scene behind it.
     bool anyUsesSceneDepth(const MaterialStore& materials) const;
 

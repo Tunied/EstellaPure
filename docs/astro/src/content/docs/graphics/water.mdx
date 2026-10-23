@@ -201,7 +201,11 @@ What is not there yet, so nobody is surprised:
 - It needs the same engine-copied scene as glass (a post-process chain is running) and a device whose render targets can hold floats for the depth.
   Without the chain the water is drawn over the scene as a translucent surface; without float targets the depth is `u_fallbackDepth` everywhere, so
   there is no shore foam and no change of colour with depth.
-- Like glass, it refracts the opaque scene only: a boat's hull seen through it is, but another transparent surface is not.
+- Blended surfaces (a pane, a particle, a leaf card) are ordered against water and glass by the pixel: when a frame has both, it is drawn in layers (the opaque scene, the blended draws
+  over it for the picture the water refracts, the opaque scene put back and the water drawn, then the blended draws again depth-tested against the water). A blended thing under the surface is
+  seen through it, one in front lies on it, and where there is no water it is blended once. It costs two more full-screen copies of the scene and a second pass over the blended draws, only in frames
+  that have both. A blended draw with no depth test, or one that crosses the surface, is drawn whole on both sides of it, and one in front of the water is seen through it a second time, faintly,
+  as the picture the water refracts holds it.
 - A river does not carve the ground, rapids and falls are not foamed by how fast or steep the water runs, and two bodies do not blend where they meet.
   A lake's outline is a polygon on a plane: it does not follow a curved shore, and the waves die toward the shore without breaking on it.
 - Things float (see [Floating](#floating)) and make a wake (see [Ripples](#ripples)); nothing swims yet.
