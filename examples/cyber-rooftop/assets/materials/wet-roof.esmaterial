@@ -1,0 +1,15 @@
+{
+  "version": "1.0",
+  "type": "material",
+  "shader": "wet-roof.esshader",
+  "blendMode": 9,
+  "depthTest": true,
+  "depthWrite": true,
+  "cull": 0,
+  "properties": {
+    "u_normalMap": "../textures/roof-normal.png",
+    "u_wetMask": "../textures/roof-wetness.png",
+    "u_distortion": 0.65,
+    "u_reflection": 0.65
+  }
+}

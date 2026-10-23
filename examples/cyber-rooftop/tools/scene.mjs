@@ -16,31 +16,54 @@ function rotation(yaw,pitch=0) {
   return {x:Math.cos(yaw/2)*Math.sin(pitch/2),y:Math.sin(yaw/2)*Math.cos(pitch/2),z:-Math.sin(yaw/2)*Math.sin(pitch/2),w:Math.cos(yaw/2)*Math.cos(pitch/2)};
 }
 const camera=add('Camera',[
-  tr([6,2.5,13.5],{rotation:rotation(.26,-.035)}),
+  tr([6,1.8,13.5],{rotation:rotation(.26,-.07)}),
   c('Camera',{projectionType:0,fov:64,nearPlane:.06,farPlane:350,isActive:true,priority:0,clearFlags:3}),
   c('PostProcessVolume',{isGlobal:true,weight:1,priority:0,effects:[
     {type:'ssao',enabled:true,uniforms:{u_radius:.6,u_intensity:.8,u_bias:.04,u_power:1.2}},
-    {type:'bloom',enabled:true,uniforms:{u_threshold:1.1,u_intensity:.42,u_radius:1.1}},
-    {type:'distanceFog',enabled:true,uniforms:{u_fogNear:12,u_fogFar:110,u_intensity:.72},colors:{u_fogColor:rgba(.20,.31,.44)}},
-    {type:'colorGrade',enabled:true,uniforms:{u_exposure:.1,u_contrast:1.03,u_saturation:.85}},
+    {type:'rain',enabled:true,uniforms:{u_intensity:.24,u_wetness:.2,u_wind:.08,u_speed:1.4,u_streakLength:.2,u_rippleScale:.30,u_shelterRange:40,u_puddles:.3,u_puddleScale:1.4}},
+    {type:'heightFog',enabled:true,uniforms:{u_density:.012,u_heightFalloff:.028,u_baseHeight:0,u_startDistance:22,u_maxOpacity:.68,u_inscatter:0,u_skyFog:.15,u_volumetric:0},colors:{u_fogColor:rgba(.24,.34,.47)}},
+    {type:'bloom',enabled:true,uniforms:{u_threshold:1.25,u_intensity:.32,u_radius:1.0}},
+    {type:'colorGrade',enabled:true,uniforms:{u_exposure:.1,u_contrast:1.06,u_saturation:.96}},
     {type:'vignette',enabled:true,uniforms:{u_intensity:.16,u_softness:.8}},
     {type:'fxaa',enabled:true,uniforms:{}},
   ]}),
 ]);
 const prefab=read('assets/models/rooftop.esprefab'); const ids=new Map();
 // Scene-specific wetness tuning lives here so re-importing the model is repeatable.
-const deckMat=read('assets/models/rooftop_m0.esmaterial');
-Object.assign(deckMat.properties,{u_roughness:.85,u_metallic:.15,u_specular:.35,u_normalMap:'../textures/roof-normal.png',u_metallicRoughnessMap:'../textures/roof-orm.png'});
-write('assets/models/rooftop_m0.esmaterial',deckMat);
+// Importers may renumber materials as geometry is added. Resolve by semantic node.
+const deckMaterial=prefab.entities.find(e=>e.name==='Deck_roof').components.find(c=>c.type==='MeshRenderer').data.material;
+const deckMat=read(deckMaterial);
+Object.assign(deckMat.properties,{u_roughness:.75,u_metallic:.5,u_specular:.9,u_clearcoat:.35,u_clearcoatRoughness:.14,u_normalMap:'../textures/roof-normal.png',u_metallicRoughnessMap:'../textures/roof-orm.png'});
+write(deckMaterial,deckMat);
 for(const e of prefab.entities) {
   const parent=e.name==='Tool'?camera:(e.parent===null?null:ids.get(e.parent));
   const comps=structuredClone(e.components);
   if(e.name==='Ghost') comps.find(x=>x.type==='Transform').data.position=vec([4,.06,9.5]);
-  if(e.name==='World_puddle') comps.push(c('PlanarReflection',{axis:1,clipOffset:.025,resolutionScale:.5,maxSize:1024,enabled:true}));
+  if(e.name==='World_puddle') comps.find(x=>x.type==='MeshRenderer').data.enabled=false;
+  if(e.name==='Deck_roof') {
+    comps.find(x=>x.type==='MeshRenderer').data.material='assets/materials/wet-roof.esmaterial';
+    comps.push(c('PlanarReflection',{axis:1,clipOffset:.025,quality:1,resolutionScale:1,maxSize:2048,enabled:true}));
+  }
   // The deck origin is below its upper face; lift the receiver's transform and mesh together.
-  if(e.name==='Tool') Object.assign(comps.find(x=>x.type==='Transform').data,{position:vec([.12,-.07,-.70]),scale:vec([.78,.78,.78]),rotation:rotation(-.22,.08)});
+  if(e.name==='Tool') Object.assign(comps.find(x=>x.type==='Transform').data,{position:vec([.51,-.10,-.65]),scale:vec([.58,.58,.58]),rotation:rotation(.28,.05)});
   ids.set(e.prefabEntityId,add(e.name,comps,parent));
 }
+const glove=entities.find(e=>e.name==='Glove');
+const tool=entities.find(e=>e.name==='Tool');
+if(glove.parent!==null) entities[glove.parent].children=entities[glove.parent].children.filter(id=>id!==glove.id);
+glove.parent=tool.id;tool.children.push(glove.id);
+// The filled hologram shares the placement transform and remains depth-tested.
+const surface=entities.find(e=>e.name==='GhostSurface');
+const ghostRoot=entities.find(e=>e.name==='Ghost');
+if(surface.parent!==null) entities[surface.parent].children=entities[surface.parent].children.filter(id=>id!==surface.id);
+surface.parent=ghostRoot.id;ghostRoot.children.push(surface.id);
+const surfaceMesh=entities.find(e=>e.name==='GhostSurface_cyan');
+const surfaceMr=surfaceMesh.components.find(x=>x.type==='MeshRenderer').data;
+const surfaceMat=read(surfaceMr.material);
+Object.assign(surfaceMat,{blendMode:1,depthWrite:false,cull:0});
+surfaceMat.properties.u_emissive=rgba(.02,.7,.85);
+write('assets/models/hologram-surface.esmaterial',surfaceMat);
+Object.assign(surfaceMr,{material:'assets/models/hologram-surface.esmaterial',opaque:false,color:rgba(.03,.4,.5,.13)});
 const ghostEntity=entities.find(e=>e.name==='Ghost_cyan');
 const badGhost=structuredClone(ghostEntity.components);
 const ghostMaterial=badGhost.find(c=>c.type==='MeshRenderer').data.material;
@@ -49,24 +72,27 @@ invalidMaterial.properties.u_emissive=rgba(4,.06,.10);
 write('assets/models/invalid-placement.esmaterial',invalidMaterial);
 Object.assign(badGhost.find(c=>c.type==='MeshRenderer').data,{material:'assets/models/invalid-placement.esmaterial',enabled:false});
 add('Ghost_invalid',badGhost,ghostEntity.parent);
-add('City ambient',[tr(),c('Light',{type:2,color:rgba(.70,.83,1),intensity:4.5,enabled:true,environment:'assets/env/night.esenv',drawEnvironment:true})]);
-add('Moon fill',[tr([0,0,0],{rotation:rotation(-.3,-.65)}),c('Light',{type:1,color:rgba(.55,.72,1),intensity:1.4,enabled:true,meshShadows:true,shadowExtent:45,shadowStrength:.65})]);
+add('City ambient',[tr(),c('Light',{type:2,color:rgba(.92,.96,1),intensity:1.8,enabled:true,environment:'assets/env/rain-sky.esenv',drawEnvironment:true})]);
+add('Moon fill',[tr([0,0,0],{rotation:rotation(-.3,-.65)}),c('Light',{type:1,color:rgba(.55,.72,1),intensity:.65,enabled:true,meshShadows:true,shadowExtent:45,shadowStrength:.8})]);
 const point=(name,p,col,power,radius,parent=null)=>add(name,[tr(p),c('Light',{type:0,color:col,intensity:power,radius,innerRadius:.4,falloff:1.2,enabled:true})],parent);
-point('Warm entrance',[.2,3,-2],rgba(1,.58,.25),2.4,14);
-point('Grow bay pink',[-10,3,-1],rgba(1,.12,.42),1.2,15);
-point('Upper grow pink',[-11,5.1,-2],rgba(1,.12,.45),.9,12);
-point('Water plant cyan',[6,2,-2],rgba(.30,.72,1),1.4,13);
-point('Rooftop neon bounce',[2,4,8],rgba(.55,.68,.85),2.0,18);
-point('Street magenta spill',[-15,3,8],rgba(1,.08,.4),1.8,15);
+point('Warm entrance',[.2,3,-2],rgba(1,.48,.15),2.4,9);
+point('Grow bay pink',[-7,2,-2.5],rgba(1,.025,.32),1.1,8);
+point('Upper grow pink',[-7,5.3,-2.5],rgba(1,.035,.4),1.1,8);
+point('Canopy warm',[-6,7,-2.5],rgba(1,.55,.20),1.8,9);
+point('Greenhouse worklight',[-7,3.5,-2.5],rgba(.8,1,.55),.6,6);
+point('Water plant cyan',[6,2,-2],rgba(.10,.72,1),2.3,10);
+point('Rooftop neon bounce',[2,2,8],rgba(.12,.5,.85),1.3,14);
+point('Street magenta spill',[-5,1,7],rgba(1,.03,.32),3.2,12);
 point('Billboard spill',[13,8,-12],rgba(.03,.42,1),2.5,20);
-point('Tool fill',[.2,.1,-.3],rgba(.85,.88,1),1.2,2.5,camera);
+point('Tool fill',[.3,.1,-.3],rgba(.85,.88,1),2.4,3.0,camera);
+for(const name of ['Warm entrance','Upper grow pink','Canopy warm']) Object.assign(entities.find(e=>e.name===name).components.find(c=>c.type==='Light').data,{meshShadows:true,shadowStrength:.75,shadowSoftness:.24});
 
 // A small reusable build pool keeps all assets in the normal scene loading path.
 for(let i=0;i<12;i++) {
   const root=add(`Built ${i}`,[tr()]);
   const piece=(name,p,s,mesh,color)=>add(`Built ${i} ${name}`,[tr(p,{scale:vec(s.map(v=>v/100))}),c('MeshRenderer',{mesh,lit:true,opaque:true,enabled:false,color})],root);
-  piece('platform',[0,.18,0],[5.8,.32,3.4],'builtin:cube',rgba(.26,.34,.39));
-  for(const x of [-2.8,2.8]) for(const z of [-1.6,1.6]) piece(`leg ${x} ${z}`,[x,.15,z],[.18,.30,.18],'builtin:cube',rgba(.5,.6,.65));
+  piece('platform',[0,.30,0],[6.8,.32,4.2],'builtin:cube',rgba(.26,.34,.39));
+  for(const x of [-3.3,3.3]) for(const z of [-2,2]) piece(`leg ${x} ${z}`,[x,.23,z],[.18,.46,.18],'builtin:cube',rgba(.5,.6,.65));
   piece('filter',[0,1.0,0],[.8,1.7,.8],'builtin:cylinder',rgba(.44,.56,.61));
   piece('control',[.6,.55,.1],[.5,.9,.7],'builtin:cube',rgba(.1,.18,.23));
 }
@@ -87,11 +113,12 @@ function rect(name,x,y,w,h,color,parent=canvas) {return ui(name,x,y,w,h,[c('UIVi
 function label(name,text,x,y,w,h=28,size=20,color=rgba(.91,.96,1),bold=false,align=0,parent=canvas) {return ui(name,x,y,w,h,[c('Text',{content:text,fontSize:size,fontFamily:'Microsoft YaHei, sans-serif',color,bold,align,verticalAlign:1,wordWrap:false})],parent);}
 const cyan=rgba(.1,.84,1),pink=rgba(1,.08,.6),muted=rgba(.61,.78,.85);
 art('Location panel','hud-location',20,20,270,100);
-label('Location icon','▥',36,28,36,45,34,cyan);
+art('Location icon','hud-symbol-city',33,27,45,45);
 label('Location','下城避难所',82,26,194,28,22,undefined,true);
 label('Day','第 07 天 · 22:16',83,56,195,24,16);
 rect('Location divider',28,81,248,1,rgba(.2,.5,.6,.5));
-label('Weather','☂  酸雨 · 18°C',36,87,240,27,18,muted);
+art('Weather icon','hud-symbol-rain',35,87,28,28);
+label('Weather','酸雨 · 18°C',79,87,180,27,18);
 art('Objectives panel','hud-objectives',20,134,280,112);
 label('Objective title','建立安全屋',36,143,250,29,21,undefined,true);
 rect('Objective divider',29,176,256,1,rgba(.2,.5,.6,.5));
@@ -110,18 +137,18 @@ label('Map north','N',1620,25,22,22,16);
 label('Map player','▲',1523,130,30,30,26,cyan,false,1);
 
 art('Vitals panel','hud-vitals',20,740,260,174);
-for(const [i,icon,title,value,col] of [[0,'✚','生命','100',rgba(.12,.93,.48)],[1,'◉','义体','82%',cyan],[2,'◈','饮水','64%',cyan],[3,'ϟ','能量','71%',rgba(1,.8,.05)]]) {
- const y=748+i*40;label('Vital icon '+i,icon,34,y,36,29,26,col);
+for(const [i,icon,title,value,col] of [[0,'health','生命','100',rgba(.12,.93,.48)],[1,'cyber','义体','82%',cyan],[2,'water','饮水','64%',cyan],[3,'energy','能量','71%',rgba(1,.8,.05)]]) {
+ const y=748+i*40;art('Vital icon '+i,'hud-symbol-'+icon,32,y,31,31);
  label('Vital label '+i,title,76,y,95,24,18);label('Vital value '+i,value,210,y,48,24,17,undefined,false,2);
  rect('Vital track '+i,76,y+27,181,8,rgba(.13,.24,.28,.9));
  rect('Vital fill '+i,76,y+27,181*[1,.82,.64,.71][i],8,col);
 }
 art('Build panel','hud-build',1392,540,260,190);
-art('Building icon','hud-item-4',1408,550,67,49);
+art('Building icon','inventory-4',1403,545,83,63);
 label('Building title','加固平台',1490,554,148,30,22,undefined,true);
 rect('Build divider',1408,604,226,1,muted);
-label('Steel label','▰  废钢',1410,619,140,26,20);label('Steel value','24/4',1560,619,76,26,20,undefined,false,2);
-label('Circuit label','▧  电子元件',1410,656,150,26,20);label('Circuit value','16/2',1560,656,76,26,20,undefined,false,2);
+art('Steel icon','hud-symbol-steel',1410,617,31,31);label('Steel label','废钢',1452,619,95,26,20);label('Steel value','24/4',1560,619,76,26,20,undefined,false,2);
+art('Circuit icon','hud-symbol-chip',1410,654,31,31);label('Circuit label','电子元件',1452,656,100,26,20);label('Circuit value','16/2',1560,656,76,26,20,undefined,false,2);
 label('Build status','●  可建造',1410,695,225,26,19,rgba(.22,1,.45),true);
 art('Controls frame','hud-hint',622,738,430,40);
 label('Controls','鼠标左键 放置   R 旋转   Esc 取消',633,743,408,28,17,undefined,false,1);
@@ -129,10 +156,10 @@ for(let i=0;i<8;i++) {
  const x=446+i*98;const slot=art('Slot '+(i+1),'hud-slot',x,802,92,94);
  entities[slot].components.push(c('Interactable',{enabled:true,raycastTarget:true,blockRaycast:true}));
  label('Slot key '+i,String(i+1),x+9,807,22,22,16);
- art('Item '+i,`hud-item-${i+1}`,x+5,825,82,64);
+ art('Item '+i,`inventory-${i+1}`,x+2,819,88,77);
 }
 const select=ui('Selected slot',740,802,92,94);
-rect('Select top',0,0,92,3,cyan,select);rect('Select left',0,0,3,94,cyan,select);rect('Select right',89,0,3,94,cyan,select);rect('Select bottom',0,91,92,3,cyan,select);
+art('Selection glow','hud-selected',-6,-6,104,106,select);
 label('Navigation hint','WASD 移动 · 按住右键环视 · B 建造 · F 回收 · Home 参考视角',450,908,800,22,14,muted,false,1);
 label('Crosshair','·',824,452,24,28,27,undefined,false,1);
 label('Toast','',560,672,560,32,21,rgba(.25,1,.85),false,1);

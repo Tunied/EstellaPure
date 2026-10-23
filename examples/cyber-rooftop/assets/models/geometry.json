@@ -2,11 +2,16 @@
   "groups": [
     "Deck",
     "World",
+    "Habitat",
+    "City",
+    "Rail",
     "Train",
     "Ghost",
-    "Tool"
+    "GhostSurface",
+    "Tool",
+    "Glove"
   ],
-  "meshBatches": 35,
-  "vertices": 169084,
-  "faces": 130065
+  "meshBatches": 63,
+  "vertices": 314488,
+  "faces": 242144
 }

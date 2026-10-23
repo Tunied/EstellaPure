@@ -1,7 +1,7 @@
 """Deterministic original surface maps and signage for the rooftop scene."""
 from pathlib import Path
 import random, math
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'assets/textures'
@@ -36,17 +36,26 @@ surface('steel',(85,91,93))
 surface('paint',(129,125,107))
 surface('roof',(44,53,62),seams=True)
 surface('rubber',(57,66,77))
+surface('tarp',(39,43,39))
+surface('tool-metal',(40,46,49))
+surface('ochre',(163,104,35))
 
-# Uneven wet concrete: perturb reflected light instead of producing a perfect mirror.
+# Multiscale aggregate and rain pits, without regular sine-wave ridges.
+height=Image.new('L',(512,512));hp=height.load()
+for y in range(512):
+    for x in range(512):hp[x,y]=max(0,min(255,int(rng.gauss(128,42))))
+coarse=height.filter(ImageFilter.GaussianBlur(5));fine=height.filter(ImageFilter.GaussianBlur(.65))
+hp=fine.load();cp=coarse.load()
 normal=Image.new('RGB',(512,512)); np=normal.load()
 orm=Image.new('RGB',(512,512)); op=orm.load()
 for y in range(512):
     for x in range(512):
-        a=math.sin(x*.19+y*.08)*math.sin(y*.14-x*.03)
-        b=math.sin(y*.31+x*.025)*math.sin(x*.12)
-        np[x,y]=(int(128+a*24),int(128+b*24),248)
-        op[x,y]=(255,int(125+35*a+20*b),105)
+        dx=(hp[(x+1)%512,y]-hp[(x-1)%512,y])*1.8
+        dy=(hp[x,(y+1)%512]-hp[x,(y-1)%512])*1.8
+        np[x,y]=(int(max(4,min(251,128-dx))),int(max(4,min(251,128-dy))),226)
+        op[x,y]=(255,max(65,min(220,int(150+(cp[x,y]-128)*5+(hp[x,y]-128)*.5))),160)
 normal.save(OUT/'roof-normal.png');orm.save(OUT/'roof-orm.png')
+ImageOps.autocontrast(coarse).filter(ImageFilter.GaussianBlur(1.5)).save(OUT/'roof-wetness.png')
 
 for i, (label,col) in enumerate([
     ('自由港',(255,45,162)), ('未来医疗',(48,217,255)),
@@ -77,25 +86,79 @@ def frame(name,w,h):
     s=2; im=Image.new('RGBA',(w*s,h*s)); d=ImageDraw.Draw(im)
     poly=[(12,0),(w-3,0),(w,3),(w,h-12),(w-12,h),(3,h),(0,h-3),(0,12)]
     poly=[(x*s,y*s) for x,y in poly]
-    d.polygon(poly,fill=(4,17,27,214),outline=(88,134,147,230),width=2)
+    d.polygon(poly,fill=(7,25,35,224),outline=(103,160,174,235),width=2)
+    for y in range(9,h*s-9,4):d.line((8,y,w*s-8,y),fill=(9,28,38,224),width=1)
+    d.line((24,7,w*s-14,7),fill=(56,91,103,150),width=1)
+    d.line((7,26,7,h*s-16),fill=(26,101,123,140),width=2)
     d.line([(0,26),(26,0),(80,0)],fill=(35,233,255),width=6)
     d.line([(w*s-80,h*s-2),(w*s-26,h*s-2),(w*s-2,h*s-26)],fill=(255,36,166),width=6)
     im.resize((w,h),Image.Resampling.LANCZOS).save(OUT/f'{name}.png')
 for name,w,h in [('hud-location',270,100),('hud-objectives',280,112),('hud-vitals',260,174),('hud-build',260,190),('hud-slot',92,94),('hud-hint',430,40)]: frame(name,w,h)
 
-im=Image.new('RGB',(250,194),(7,20,30)); d=ImageDraw.Draw(im)
-for x in range(-50,300,36):
-    d.line((x,0,x+70,194),fill=(43,75,89),width=9)
-    for y in range(0,194,28):
-        d.rectangle((x+y*.36+8,y+5,x+y*.36+30,y+22),fill=(22,44,58),outline=(75,100,111))
-for k in range(18):
-    x,y=rng.randrange(250),rng.randrange(194)
-    d.rectangle((x,y,x+5,y+2),fill=(242,33,146) if k%2 else (40,202,229))
-d.rectangle((77,89,158,151),outline=(181,225,236),width=2)
-d.rectangle((82,95,112,108),outline=(181,225,236),width=2)
-d.rectangle((115,95,148,108),outline=(181,225,236),width=2)
-d.polygon([(176,43),(186,53),(176,63),(166,53)],outline=(255,193,40),width=3)
+im=Image.new('RGBA',(184,188));d=ImageDraw.Draw(im)
+d.rounded_rectangle((2,2,181,185),9,fill=(5,22,31,225),outline=(66,103,116,255),width=2)
+d.rounded_rectangle((7,7,176,180),6,outline=(27,56,69,220),width=1)
+im.resize((92,94),Image.Resampling.LANCZOS).save(OUT/'hud-slot.png')
+im=Image.new('RGBA',(208,212));d=ImageDraw.Draw(im)
+d.rounded_rectangle((13,13,194,198),10,outline=(0,231,255,180),width=13)
+im=im.filter(ImageFilter.GaussianBlur(5));d=ImageDraw.Draw(im)
+d.rounded_rectangle((13,13,194,198),10,outline=(75,244,255,255),width=4)
+d.line((14,34,34,14,67,14),fill=(180,255,255,255),width=5)
+im.save(OUT/'hud-selected.png')
+
+im=Image.new('RGB',(900,760),(7,16,26));d=ImageDraw.Draw(im)
+for x in range(-80,900,135):
+    for y in range(-80,760,120):
+        w,h=rng.randrange(72,108),rng.randrange(68,94)
+        d.rectangle((x+6,y+7,x+w+7,y+h+8),fill=(0,3,10))
+        d.rectangle((x,y,x+w,y+h),fill=(40,52,68),outline=(138,158,180),width=2)
+        d.rectangle((x+7,y+7,x+w-7,y+h-7),outline=(70,92,116),width=2)
+        for j in range(3):
+            px=x+12+j*22;py=y+14+(j%2)*25
+            d.rectangle((px,py,px+12,py+20),fill=(13,24,35),outline=(78,103,122),width=2)
+        d.line((x,y+h+13,x+w,y+h+13),fill=(53,93,112),width=2)
+for x in range(-90,900,135):d.line((x+119,0,x+119,760),fill=(74,123,141),width=3)
+d.line((0,371,900,371),fill=(8,7,24),width=28)
+d.line((0,363,900,363),fill=(235,25,155),width=3)
+d.line((0,379,900,379),fill=(59,196,233),width=3)
+for k in range(30):
+    x,y=rng.randrange(900),rng.randrange(760)
+    d.rectangle((x,y,x+6,y+3),fill=(240,36,150) if k%2 else (42,216,245))
+d.rectangle((369,390,532,506),outline=(175,220,238),width=5)
+d.rectangle((379,400,520,435),fill=(30,61,72),outline=(157,197,215),width=3)
+im=im.rotate(17,resample=Image.Resampling.BICUBIC)
+im=im.crop((120,115,780,645)).resize((500,388),Image.Resampling.LANCZOS)
+d=ImageDraw.Draw(im);d.polygon([(348,101),(367,120),(348,139),(329,120)],outline=(255,188,25),width=5)
 im.save(OUT/'hud-map.png')
+
+# Crisp pictograms authored as editable paths, with supersampling for the native HUD.
+for name in ['city','rain','health','cyber','water','energy','steel','chip']:
+    im=Image.new('RGBA',(96,96));d=ImageDraw.Draw(im);col=(137,221,244,255)
+    if name=='city':
+        for x,h in [(15,45),(31,65),(49,80),(67,55)]:
+            d.rectangle((x,88-h,x+12,83),outline=col,width=3)
+            for y in range(91-h,80,9):d.line((x+4,y,x+8,y),fill=col,width=2)
+        d.line((7,88,89,88),fill=col,width=3)
+    elif name=='rain':
+        d.ellipse((24,17,62,50),fill=col);d.ellipse((47,27,78,53),fill=col);d.rounded_rectangle((13,35,80,57),10,fill=col)
+        for x in [29,47,65]:d.line((x,64,x-9,80),fill=col,width=5)
+    elif name=='health':d.polygon([(38,12),(59,12),(59,38),(84,38),(84,59),(59,59),(59,85),(38,85),(38,59),(12,59),(12,38),(38,38)],fill=(188,236,248))
+    elif name=='cyber':
+        d.arc((13,13,80,80),30,330,fill=col,width=8);d.polygon([(76,21),(90,34),(70,37)],fill=col)
+        d.ellipse((34,27,61,52),fill=col);d.polygon([(35,45),(61,45),(67,69),(27,69)],fill=col)
+    elif name=='water':
+        d.polygon([(48,7),(17,59),(19,75),(31,87),(61,87),(77,72),(78,59)],fill=(25,190,239))
+        d.arc((24,43,68,80),60,180,fill=(186,245,255),width=4)
+    elif name=='energy':d.polygon([(58,4),(15,55),(43,55),(34,93),(80,37),(51,37)],fill=(255,222,23))
+    elif name=='steel':
+        d.polygon([(12,49),(57,19),(86,34),(43,68)],fill=(157,177,188),outline=col,width=3)
+        d.polygon([(12,49),(43,68),(43,81),(12,64)],fill=(48,68,82),outline=col,width=2)
+        d.polygon([(43,68),(86,34),(86,48),(43,81)],fill=(86,114,128),outline=col,width=2)
+    else:
+        d.polygon([(15,43),(58,16),(83,48),(40,80)],fill=(40,128,155),outline=col,width=3)
+        d.polygon([(34,42),(52,31),(65,49),(48,61)],fill=(23,41,48),outline=col,width=2)
+        for j in range(5):d.line((24+j*8,39-j*5,17+j*8,29-j*5),fill=col,width=3)
+    im.save(OUT/f'hud-symbol-{name}.png')
 
 def iso(d,x,y,w,h,depth,color):
     a=(x,y); b=(x+w,y-h*.45); c=(x+w+depth,y-h*.45+depth*.4); e=(x+depth,y+depth*.4)

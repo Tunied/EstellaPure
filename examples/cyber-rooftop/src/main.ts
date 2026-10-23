@@ -57,7 +57,7 @@ addPlugin({
                 for(let n=1;n<=8;n++) if(click.target===get(world,`Slot ${n}`)) {selected=n;building=n===4||n===5;}
             }
             const kind=selected===5?'purifier':'platform';
-            const p:Placement={x:Math.round((cam.position.x-Math.sin(yaw)*9)/1.5)*1.5,z:Math.round((cam.position.z-Math.cos(yaw)*9)/1.5)*1.5,rotation,kind};
+            const p:Placement={x:Math.round((cam.position.x-Math.sin(yaw)*9+Math.cos(yaw)*.35)*2)/2,z:Math.round((cam.position.z-Math.cos(yaw)*9-Math.sin(yaw)*.35)*2)/2,rotation,kind};
             const bill=costs[kind]; const space=canPlace(p,placed); const funded=steel>=bill.steel&&circuits>=bill.circuits;
             const valid=space&&funded&&placed.length<12;
             const ghost=get(world,'Ghost'),ghostTr=world.get(ghost,Transform);
@@ -65,6 +65,7 @@ addPlugin({
             ghostTr.scale=kind==='purifier'?{x:.3,y:4,z:.4}:{x:1,y:1,z:1};world.insert(ghost,Transform,ghostTr);
             visibility(world,'Ghost_cyan',building&&valid);
             visibility(world,'Ghost_invalid',building&&!valid);
+            visibility(world,'GhostSurface_cyan',building&&valid);
             const viewportHeight=typeof window==='undefined'?940:window.innerHeight;
             if(input.isMouseButtonPressed(0)) facts.pointerPresses++;
             if(building&&input.isMouseButtonPressed(0)&&mouse.y<viewportHeight*.78) {
@@ -74,7 +75,7 @@ addPlugin({
                     const e=get(world,`Built ${n}`),t=world.get(e,Transform);
                     t.position={x:p.x,y:0,z:p.z};t.rotation=ghostTr.rotation;world.insert(e,Transform,t);
                     visibility(world,`Built ${n} platform`,true);
-                    if(kind==='platform') for(const x of [-2.8,2.8])for(const z of [-1.6,1.6])visibility(world,`Built ${n} leg ${x} ${z}`,true);
+                    if(kind==='platform') for(const x of [-3.3,3.3])for(const z of [-2,2])visibility(world,`Built ${n} leg ${x} ${z}`,true);
                     if(kind==='purifier') {
                         const base=get(world,`Built ${n} platform`),bt=world.get(base,Transform);bt.scale={x:.018,y:.0032,z:.015};world.insert(base,Transform,bt);
                         visibility(world,`Built ${n} filter`,true);visibility(world,`Built ${n} control`,true);label(world,'Water objective','☑  建造净水装置  1/1');water=84;
@@ -87,7 +88,7 @@ addPlugin({
                 else toast(world,reclaimed>=4?'补给箱已回收完毕':'靠近右侧补给箱后按 F 回收');
             }
             // Train moves along its modelled rail; camera, tool and minimap stay live.
-            const train=get(world,'Train'),tt=world.get(train,Transform);tt.position.x=Math.sin(elapsed*.06)*12;world.insert(train,Transform,tt);
+            const train=get(world,'Train'),tt=world.get(train,Transform);tt.position.x=Math.sin(elapsed*.06)*1.5;tt.position.z=tt.position.x*.48;world.insert(train,Transform,tt);
             const sel=get(world,'Selected slot'),sn=world.get(sel,UINode);sn.insetLeft={unit:0,value:446+(selected-1)*98};world.insert(sel,UINode,sn);
             label(world,'Building title',kind==='purifier'?'净水装置':'加固平台');
             label(world,'Steel value',`${steel}/${bill.steel}`);label(world,'Circuit value',`${circuits}/${bill.circuits}`);

@@ -1,0 +1,100 @@
+#pragma shader "Rooftop rain film"
+#pragma version 300 es
+#pragma domain Lit
+#pragma param u_normalMap texture default(flatnormal) texel(data)
+#pragma param u_wetMask texture default(white) texel(data)
+#pragma param u_distortion float default(0.65) range(0,2)
+#pragma param u_reflection float default(0.6) range(0,1)
+
+#pragma fragment
+precision highp float;
+in vec4 v_color;
+in vec2 v_texCoord;
+in highp vec2 v_worldPos;
+#ifdef MESH_NORMALS
+in highp vec3 v_worldNormal;
+in highp vec3 v_worldXYZ;
+#endif
+uniform sampler2D u_textures[1];
+#ifdef ES_GBUFFER
+layout(location=0) out vec4 fragColor;
+layout(location=1) out vec4 fragSurface;
+vec2 packNormal(vec3 n) {
+    n /= abs(n.x)+abs(n.y)+abs(n.z);
+    vec2 sg=vec2(n.x>=0.0?1.0:-1.0,n.y>=0.0?1.0:-1.0);
+    return (n.z>=0.0?n.xy:(1.0-abs(n.yx))*sg)*0.5+0.5;
+}
+#else
+out vec4 fragColor;
+#endif
+void main() {
+    vec4 base=texture(u_textures[0],v_texCoord)*v_color;
+    vec3 tn=sampleNormal(u_normalMap,v_texCoord);
+#ifdef MESH_NORMALS
+    vec3 P=v_worldXYZ;
+    vec3 N=perturbNormal(normalize(v_worldNormal),P,v_texCoord,tn);
+#else
+    vec3 P=vec3(v_worldPos,0.0);
+    vec3 N=tn;
+#endif
+    float pool=texture(u_wetMask,v_texCoord*0.38).r;
+    float grain=texture(u_wetMask,v_texCoord*3.1).r;
+    float wet=smoothstep(0.18,0.78,pool)*mix(0.35,1.0,grain)*u_reflection;
+    // A thin water film changes where the planar reflection is sampled. Its
+    // displacement is in metres, so camera motion preserves the surface scale.
+    vec3 waterP=P+vec3(tn.x,0.0,tn.y)*u_distortion*(0.35+pool);
+    vec3 V=viewDirection(P);
+    vec3 dry=applyLightingPBR(base.rgb*1.45,N,P,V,0.0,0.92,0.02,1.0);
+    vec3 film=applyLightingPBR(vec3(0.10,0.14,0.17),normalize(mix(vec3(0.0,1.0,0.0),N,0.28)),waterP,V,0.55,0.47,1.0,1.0);
+    fragColor=vec4(film,base.a);
+#ifdef ES_GBUFFER
+    fragSurface=vec4(packNormal(N),mix(0.92,0.47,wet),0.75+0.25*wet*0.55);
+#endif
+}
+#pragma end
+
+#pragma fragment wgsl
+#ifdef ES_GBUFFER
+struct FragOut {
+    @location(0) color:vec4f,
+    @location(1) surface:vec4f,
+};
+fn packNormal(n0:vec3f)->vec2f {
+    let n=n0/(abs(n0.x)+abs(n0.y)+abs(n0.z));
+    let sg=select(vec2f(-1.0),vec2f(1.0),n.xy>=vec2f(0.0));
+    return select((1.0-abs(n.yx))*sg,n.xy,n.z>=0.0)*0.5+0.5;
+}
+#endif
+@fragment fn fs_main(v:VSOut)->
+#ifdef ES_GBUFFER
+FragOut
+#else
+@location(0) vec4f
+#endif
+{
+    let dx=dpdx(v.v_texCoord);let dy=dpdy(v.v_texCoord);
+    let base=textureSampleGrad(t0,s0,v.v_texCoord,dx,dy)*v.v_color;
+    let tn=sampleNormalGrad(u_normalMap,u_normalMap_s,v.v_texCoord,dx,dy);
+#ifdef MESH_NORMALS
+    let P=v.v_worldXYZ;
+    let N=perturbNormal(normalize(v.v_worldNormal),P,v.v_texCoord,tn);
+#else
+    let P=vec3f(v.v_worldPos,0.0);let N=tn;
+#endif
+    let pool=textureSampleGrad(u_wetMask,u_wetMask_s,v.v_texCoord*0.38,dx*0.38,dy*0.38).r;
+    let grain=textureSampleGrad(u_wetMask,u_wetMask_s,v.v_texCoord*3.1,dx*3.1,dy*3.1).r;
+    let wet=smoothstep(0.18,0.78,pool)*mix(0.35,1.0,grain)*mc.u_reflection;
+    let waterP=P+vec3f(tn.x,0.0,tn.y)*mc.u_distortion*(0.35+pool);
+    let V=viewDirection(P);
+    let dry=applyLightingPBR(base.rgb*1.45,N,P,V,0.0,0.92,0.02,1.0);
+    let film=applyLightingPBR(vec3f(0.10,0.14,0.17),normalize(mix(vec3f(0.0,1.0,0.0),N,vec3f(0.28))),waterP,V,0.55,0.47,1.0,1.0);
+    let color=vec4f(mix(dry,film,vec3f(wet)),base.a);
+#ifdef ES_GBUFFER
+    var out:FragOut;out.color=color;
+    out.surface=vec4f(packNormal(N),mix(0.92,0.47,wet),0.75+0.25*wet*0.55);
+    return out;
+#else
+    return color;
+#endif
+}
+#pragma end

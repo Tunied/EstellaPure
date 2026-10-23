@@ -7,10 +7,14 @@
   "depthWrite": true,
   "cull": 0,
   "properties": {
-    "u_metallic": 0.15,
-    "u_roughness": 0.85,
-    "u_specular": 0.35,
-    "u_normalMap": "../textures/roof-normal.png",
-    "u_metallicRoughnessMap": "../textures/roof-orm.png"
+    "u_emissiveMap": "rooftop_0.png",
+    "u_metallic": 0,
+    "u_roughness": 0.4000000059604645,
+    "u_emissive": {
+      "r": 2.200000047683716,
+      "g": 2.200000047683716,
+      "b": 2.200000047683716,
+      "a": 1
+    }
   }
 }

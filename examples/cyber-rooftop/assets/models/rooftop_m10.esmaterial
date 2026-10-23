@@ -7,13 +7,13 @@
   "depthWrite": true,
   "cull": 0,
   "properties": {
-    "u_emissiveMap": "rooftop_4.png",
+    "u_emissiveMap": "rooftop_3.png",
     "u_metallic": 0,
     "u_roughness": 0.4000000059604645,
     "u_emissive": {
-      "r": 2.200000047683716,
-      "g": 2.200000047683716,
-      "b": 2.200000047683716,
+      "r": 2.5999999046325684,
+      "g": 2.5999999046325684,
+      "b": 2.5999999046325684,
       "a": 1
     }
   }

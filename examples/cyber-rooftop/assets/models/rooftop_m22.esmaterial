@@ -7,13 +7,7 @@
   "depthWrite": true,
   "cull": 0,
   "properties": {
-    "u_metallic": 0.10000000149011612,
-    "u_roughness": 0.25,
-    "u_emissive": {
-      "r": 4,
-      "g": 1.9199999570846558,
-      "b": 0.47999998927116394,
-      "a": 1
-    }
+    "u_metallic": 0.800000011920929,
+    "u_roughness": 0.11999999731779099
   }
 }
