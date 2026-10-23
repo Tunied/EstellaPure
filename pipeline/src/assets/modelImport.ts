@@ -727,6 +727,7 @@ function characterProperties(shading: CharacterShading, material: ImportedMateri
     }
     if (shading === 'skin') {
         properties.u_sssWrap = 0; properties.u_translucency = 0; properties.u_lobe2 = 0; properties.u_fuzz = 0;
+        properties.u_blurRed = 0; properties.u_blurGreen = 0;
     }
     if (shading === 'hair') {
         properties.u_translucency = 0; properties.u_shiftAmount = 0; properties.u_rootDark = 0;
