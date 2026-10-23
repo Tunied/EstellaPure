@@ -5,7 +5,8 @@ export {
 } from './waterPlugin';
 export { WAVE_SET, waveFade, waveHeight, waveSlope, type WaveParams } from './waves';
 export { UnderwaterPlugin, registerUnderwaterEffect } from './underwater';
-export { Floating, FloatingPlugin, floatingForce, type FloatingBody, type FloatingData, type FloatingForce } from './floating';
+export { RippleField } from './ripples';
+export { Floating, FloatingPlugin, floatingForce, wakeStrength, type FloatingBody, type FloatingData, type FloatingForce } from './floating';
 export { buildRiverMesh, currentShare } from './riverMesh';
 export { buildBoxMesh, buildOceanMesh, buildRectMesh, oceanReach, oceanSnap, type RectOptions } from './waterMesh';
 export { ShoreField, UNKNOWN_DEPTH, polygonSdf, shoreDamp, type GroundDepth, type Point2 } from './shore';

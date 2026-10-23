@@ -86,6 +86,7 @@ a server, a test or a build that draws nothing floats things the same.
 | `drag` | How hard the water resists the body moving through it, per second. It brings a body to rest in still water and carries it with a river's current. |
 | `radius` | How deep, in world units, a point of the body has to be under the surface to be wholly wet. |
 | `points` | Points of the body, in its own space and world units, the water is asked about. Spread them (the corners of a hull) and the waves tip it. Empty is the one at its origin. |
+| `wake` | How much of a ripple the body makes in water that keeps ripples ([Ripples](#ripples)). 0 makes none. |
 
 At each point the share of it under water (0 at the surface, 1 from `radius` down) gives a buoyant force against gravity of `mass * g * buoyancy * share / points`,
 applied at the point, and a drag against the point's velocity relative to the water (the body's own and what its turning adds there, less the current). The forces are
@@ -94,6 +95,25 @@ applied every fixed step before the world steps. A body with `buoyancy` 2 and on
 It needs the 3D physics module, and a build of it with the force functions (`_physics3d_addForce`, `_physics3d_getBodyDynamics`); one without them warns once and
 floats nothing. Floating is one rigid body in one fluid: there is no added mass, no lift from the shape of a hull, and a body that is wholly under is not pushed
 toward anything but by the current.
+
+## Ripples
+
+A body of water keeps what disturbs it when `ripples` is above 0. The water holds a square window of its surface (`rippleSize` world units a side, `ripples` cells along it)
+as a grid of heights and steps it with the wave equation: every cell is pulled toward its neighbours and carries the velocity it had, so a bump put in spreads as a ring
+at `rippleSpeed`, loses `rippleDamping` of its height a second, and is gone. Beside the heights the grid keeps **foam**: a disturbance feeds it where it happened and it fades
+at `foamFade` a second, so a splash leaves white water that lingers and thins and does not blink out with the ring.
+
+- **Who disturbs.** A script calls `Waters.disturb(x, y, z, radius, strength)` (the point goes to the body that holds it; `strength` is a height in world units, negative is a dip),
+  and a `Floating` body does it itself: what goes down into the water, comes up out of it or moves along its surface pushes the water by its speed (`wake` multiplies it).
+- **What it changes.** The shader reads the grid as a texture: the slope of the ripples bends the normal, which is what the light, the reflection and the refraction see, and the foam
+  whitens the surface. The geometry is not lifted by it. The surface the code reads does carry them: `Waters.sample` adds the ripple's height to the surface, and `Waters.rippleAt(x, y, z)`
+  gives it alone, so a floating ball is lifted by the ring that passes under it.
+- **Where.** The window follows the active camera, in whole cells, so a lake or an ocean of any size has ripples where they are seen for the price of one grid. What the window leaves behind is
+  forgotten, and what it comes to is still water. A wave reaching its edge goes out and is not reflected. The grid is stepped on the CPU, in as many substeps as keep a wave from crossing more than
+  half a cell, and uploaded as an RGBA8 texture (red the height, green the foam): the same on every backend.
+
+The grid can hold as much height as `max(2 * waveHeight, rippleSize / 50)`: a disturbance that goes on (a body moving) saturates there and does not pile up. A cell is `rippleSize / ripples`
+world units, so a ripple narrower than a cell or two is not drawn. Cost is `ripples` squared per substep and one texture upload a frame: 128 is sixteen thousand cells.
 
 ## Under the surface
 
@@ -184,10 +204,11 @@ What is not there yet, so nobody is surprised:
 - Like glass, it refracts the opaque scene only: a boat's hull seen through it is, but another transparent surface is not.
 - A river does not carve the ground, rapids and falls are not foamed by how fast or steep the water runs, and two bodies do not blend where they meet.
   A lake's outline is a polygon on a plane: it does not follow a curved shore, and the waves die toward the shore without breaking on it.
-- Things float (see [Floating](#floating)); nothing swims yet, and a body in the water makes no ripple or wake.
+- Things float (see [Floating](#floating)) and make a wake (see [Ripples](#ripples)); nothing swims yet.
 - Caustics and shafts follow the first directional light only, from a pattern and not a simulation: the web does not respond to the actual shape of the waves. From above the caustics
   take what is under the water to face up (the picture holds no normals there), so a wall under the surface is lit as a floor would be.
 - The mirror from below is screen-space: it shows only what the frame has on screen, and a ray that leaves the picture or meets nothing finds the water's own colour.
 - The body of water a camera is under is the first the surface query finds at the camera's place: a camera under two overlapping bodies takes the numbers of the first.
-- It does not react to what moves through it: no ripples, no wake.
+- Ripples only bend the shading and carry foam: they do not lift the geometry, they are one window of a body following the camera (a body far from every camera keeps none), and a
+  body keeps one window, so two cameras in a split screen share the first's. Foam that a ripple leaves is not carried by a river's current.
 - The waves are the four peaked sines, not a spectrum, and they lift the surface without pushing it sideways.

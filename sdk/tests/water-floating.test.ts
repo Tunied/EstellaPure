@@ -5,7 +5,7 @@ import { floatingForce, type FloatingBody, type FloatingData } from '../src/wate
 import type { WaterSample } from '../src/water/waterPlugin';
 
 const gravity: [number, number, number] = [0, -9.81, 0];
-const floating = (extra: Partial<FloatingData> = {}): FloatingData => ({ buoyancy: 1, drag: 0, radius: 50, points: [], ...extra });
+const floating = (extra: Partial<FloatingData> = {}): FloatingData => ({ buoyancy: 1, drag: 0, radius: 50, points: [], wake: 1, ...extra });
 const body = (extra: Partial<FloatingBody> = {}): FloatingBody => ({ position: [0, 0, 0], velocity: [0, 0, 0], angularVelocity: [0, 0, 0], mass: 100, ...extra });
 const water = (depth: number, flow: [number, number, number] = [0, 0, 0]): WaterSample => ({
     entity: 1 as never, depth, normal: [0, 1, 0], flow, surface: [0, 0, 0], inside: true,

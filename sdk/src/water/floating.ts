@@ -38,6 +38,8 @@ export interface FloatingData {
     radius: number;
     /** The points of the body, in its own space and world units, the water is asked about. Empty is the one at its origin. */
     points: Vec3Like[];
+    /** How much of a ripple the body makes in a body of water that keeps ripples: a multiplier, 0 for none. */
+    wake: number;
 }
 
 /**
@@ -46,13 +48,14 @@ export interface FloatingData {
  * @experimental
  */
 export const Floating: ComponentDef<FloatingData> = defineComponent<FloatingData>('Floating', {
-    buoyancy: 2, drag: 1, radius: 50, points: [] as Vec3Like[],
+    buoyancy: 2, drag: 1, radius: 50, points: [] as Vec3Like[], wake: 1,
 }, {
     fields: {
         buoyancy: { min: 0, max: 20, category: 'Water', tooltip: 'The water\'s density against the body\'s. 1 holds it up exactly when it is wholly under; 2 floats it half under.' },
         drag: { min: 0, max: 20, category: 'Water', tooltip: 'How hard the water resists the body moving through it, per second.' },
         radius: { min: 0.01, category: 'Water', tooltip: 'How deep under the surface, in world units, a point of the body is wholly wet.' },
         points: { category: 'Water', tooltip: 'Points of the body, in its own space, the water is asked about: spread them (the corners of a hull) and waves tip it. Empty is the one at its origin.' },
+        wake: { min: 0, max: 10, category: 'Water', tooltip: 'How much of a ripple the body makes in water that keeps ripples (WaterBody Ripples). 0 makes none.' },
     },
 });
 
@@ -110,6 +113,24 @@ export function floatingForce(
     };
 }
 
+/** How much of a wake, in world units of water height, a step of a point's motion through the surface makes per unit of the multiplier. */
+const WAKE_PER_SPEED = 0.08;
+
+/**
+ * The bump a point at the surface puts into ripples this step, in world units (negative is a dip), or 0 where it is not touching the surface.
+ * `velocity` is the point's velocity relative to the water in world units a second; what goes down into the water pushes it down, and moving along it drags a trough.
+ */
+export function wakeStrength(sample: WaterSample | null, velocity: [number, number, number], floating: FloatingData, dt: number): number {
+    if (!sample || floating.wake <= 0) return 0;
+    if (Math.abs(sample.depth) > Math.max(floating.radius, 1e-6)) return 0;
+    const n = sample.normal;
+    const along = velocity[0] * n[0] + velocity[1] * n[1] + velocity[2] * n[2];
+    const sideways = Math.hypot(velocity[0] - along * n[0], velocity[1] - along * n[1], velocity[2] - along * n[2]);
+    const push = (along - 0.2 * sideways) * dt * WAKE_PER_SPEED * floating.wake;
+    const cap = floating.radius * 0.2;
+    return Math.min(Math.max(push, -cap), cap);
+}
+
 /** Rotates `v` by the unit quaternion `q`. */
 function rotate(q: { x: number; y: number; z: number; w: number }, v: Vec3Like): [number, number, number] {
     const tx = 2 * (q.y * v.z - q.z * v.y), ty = 2 * (q.z * v.x - q.x * v.z), tz = 2 * (q.x * v.y - q.y * v.x);
@@ -158,6 +179,13 @@ export function installFloating(app: App): void {
                 const sample = waters.sample(world[0], world[1], world[2]);
                 const result = floatingForce(body, [world[0] / ppu, world[1] / ppu, world[2] / ppu], sample, floating, gravity, ppu, config.fixedTimestep, offsets.length);
                 if (result) module._physics3d_addForce(id, result.force[0], result.force[1], result.force[2], result.point[0], result.point[1], result.point[2]);
+                if (sample && floating.wake > 0) {
+                    const relative: [number, number, number] = [
+                        body.velocity[0] * ppu - sample.flow[0], body.velocity[1] * ppu - sample.flow[1], body.velocity[2] * ppu - sample.flow[2],
+                    ];
+                    const push = wakeStrength(sample, relative, floating, config.fixedTimestep);
+                    if (push !== 0) waters.disturb(world[0], world[1], world[2], floating.radius, push);
+                }
             }
         }
     }, { name: 'FloatingSystem' }));

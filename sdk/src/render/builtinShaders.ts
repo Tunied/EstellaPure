@@ -751,6 +751,14 @@ const WATER = `#pragma shader "Water"
 #pragma param u_causticStrength float default(0.6) range(0,3) ui(slider)
 #pragma param u_causticScale float default(2) range(0.05,2000) ui(slider)
 #pragma param u_causticSpeed float default(0.35) range(0,4) ui(slider)
+// The disturbance the water keeps (WaterBody ripples): a window of the body's xz plane, red the height of the ripples (0.5 at rest, u_rippleRange above or below at 1 and 0)
+// and green the foam they left, as the CPU stepped them. u_rippleSize is the window's side, u_rippleTexel one texel of it.
+#pragma param u_rippleOn float default(0) range(0,1) ui(slider)
+#pragma param u_rippleMap texture default(white) texel(data)
+#pragma param u_rippleOrigin vec2 default(0,0)
+#pragma param u_rippleSize float default(64) range(0.01,100000) ui(slider)
+#pragma param u_rippleTexel float default(0.0156) range(0,1) ui(slider)
+#pragma param u_rippleRange float default(1) range(0.0001,1000) ui(slider)
 #pragma param u_sceneColor texture default(white)
 #pragma param u_sceneDepthMap texture default(white) texel(data)
 
@@ -964,6 +972,16 @@ void main() {
     float shoreDist = (shoreTex.r - 0.5) * 2.0 * u_shoreRange;
     float shoreDepth = shoreTex.g * u_shoreRange;
     float damp = u_shoreOn > 0.5 ? shoreTex.b : 1.0;
+    // The ripples at this pixel: their height on four sides gives the slope they add, and the foam is what they left (reads taken before any branch).
+    vec2 ripUv = (wp - u_rippleOrigin) / max(u_rippleSize, 1e-4);
+    vec4 ripC = texture(u_rippleMap, ripUv);
+    vec2 ripStep = vec2(u_rippleTexel);
+    float ripCell = max(u_rippleSize * u_rippleTexel, 1e-5);
+    float ripL = texture(u_rippleMap, ripUv - vec2(ripStep.x, 0.0)).r, ripR = texture(u_rippleMap, ripUv + vec2(ripStep.x, 0.0)).r;
+    float ripD = texture(u_rippleMap, ripUv - vec2(0.0, ripStep.y)).r, ripU = texture(u_rippleMap, ripUv + vec2(0.0, ripStep.y)).r;
+    bool ripIn = u_rippleOn > 0.5 && u_waveSpace > 0.5 && all(greaterThanEqual(ripUv, vec2(0.0))) && all(lessThanEqual(ripUv, vec2(1.0)));
+    vec2 ripSlope = ripIn ? vec2(ripR - ripL, ripU - ripD) * u_rippleRange / ripCell : vec2(0.0);
+    float ripFoam = ripIn ? ripC.g : 0.0;
     float crest;
     vec2 slope;
     if (u_flowSpeed > 0.0) {
@@ -984,6 +1002,7 @@ void main() {
     }
     slope *= damp;
     crest *= damp;
+    slope += ripSlope;
     vec3 N = normalize(vec3(-slope.x, 1.0, -slope.y));
     vec3 Ngeo = vec3(0.0, 1.0, 0.0);
 #ifdef MESH_NORMALS
@@ -1059,7 +1078,7 @@ void main() {
         shore = max(shore, clamp((1.0 - min(shoreDist, shoreDepth) / (u_foamWidth * pulse)) * 1.5 - breakup * 0.8, 0.0, 1.0));
     }
     float onCrest = u_foamCrest > 0.0 ? smoothstep(1.0 - 0.3 * u_foamCrest, 1.0, crest) * smoothstep(0.35, 0.75, breakup) : 0.0;
-    float foam = clamp(max(shore, onCrest * u_foamCrest), 0.0, 1.0);
+    float foam = clamp(max(max(shore, onCrest * u_foamCrest), ripFoam * (0.55 + 0.45 * breakup)), 0.0, 1.0);
 
     SurfaceExt ext = surfaceExtNone(N);
     ext.misc.x = 0.0204;
@@ -1249,6 +1268,18 @@ fn waterSurface(p : vec2f, time : f32, dist : f32) -> vec3f {
     let shoreDepth = shoreTex.g * mc.u_shoreRange;
     var damp = 1.0;
     if (mc.u_shoreOn > 0.5) { damp = shoreTex.b; }
+    // The ripples at this pixel: their height on four sides gives the slope they add, and the foam is what they left (taken in uniform control flow).
+    let ripUv = (wp - mc.u_rippleOrigin) / max(mc.u_rippleSize, 1e-4);
+    let ripC = textureSample(u_rippleMap, u_rippleMap_s, ripUv);
+    let ripCell = max(mc.u_rippleSize * mc.u_rippleTexel, 1e-5);
+    let ripL = textureSample(u_rippleMap, u_rippleMap_s, ripUv - vec2f(mc.u_rippleTexel, 0.0)).r;
+    let ripR = textureSample(u_rippleMap, u_rippleMap_s, ripUv + vec2f(mc.u_rippleTexel, 0.0)).r;
+    let ripD = textureSample(u_rippleMap, u_rippleMap_s, ripUv - vec2f(0.0, mc.u_rippleTexel)).r;
+    let ripU = textureSample(u_rippleMap, u_rippleMap_s, ripUv + vec2f(0.0, mc.u_rippleTexel)).r;
+    let ripIn = mc.u_rippleOn > 0.5 && mc.u_waveSpace > 0.5 && all(ripUv >= vec2f(0.0)) && all(ripUv <= vec2f(1.0));
+    var ripSlope = vec2f(0.0);
+    var ripFoam = 0.0;
+    if (ripIn) { ripSlope = vec2f(ripR - ripL, ripU - ripD) * mc.u_rippleRange / ripCell; ripFoam = ripC.g; }
     var surface = vec3f(0.0);
     if (mc.u_flowSpeed > 0.0) {
         // A river: two copies of the surface carried downstream a cycle at a time, each fading in as the other fades out.
@@ -1265,7 +1296,7 @@ fn waterSurface(p : vec2f, time : f32, dist : f32) -> vec3f {
     }
     var waves : Waves;
     waves.crest = surface.z * damp;
-    var slope = surface.xy * damp;
+    var slope = surface.xy * damp + ripSlope;
     var N = normalize(vec3f(-slope.x, 1.0, -slope.y));
     var Ngeo = vec3f(0.0, 1.0, 0.0);
 #ifdef MESH_NORMALS
@@ -1335,7 +1366,7 @@ fn waterSurface(p : vec2f, time : f32, dist : f32) -> vec3f {
     }
     var onCrest = 0.0;
     if (mc.u_foamCrest > 0.0) { onCrest = smoothstep(1.0 - 0.3 * mc.u_foamCrest, 1.0, waves.crest) * smoothstep(0.35, 0.75, breakup); }
-    let foam = clamp(max(shore, onCrest * mc.u_foamCrest), 0.0, 1.0);
+    let foam = clamp(max(max(shore, onCrest * mc.u_foamCrest), ripFoam * (0.55 + 0.45 * breakup)), 0.0, 1.0);
 
     var ext = surfaceExtNone(N);
     ext.misc.x = 0.0204;

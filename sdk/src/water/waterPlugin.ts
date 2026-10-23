@@ -23,8 +23,8 @@ import {
 import { Assets } from '../asset/AssetPlugin';
 import type { MaterialShaderSource } from '../asset/loaders/MaterialShaderAssetLoader';
 import { Material, MATERIAL_FORMAT_VERSION } from '../render/material';
-import { createTextureFromPixels } from '../runtime/runtimeAssets';
-import { getResourceManager } from '../wasm/resourceManager';
+import { createTextureFromPixels, updateTextureSubregion } from '../runtime/runtimeAssets';
+import { getResourceManager, provideTextureContent, withdrawTextureContent } from '../wasm/resourceManager';
 import { TextureContent } from '../wasm';
 import { TerrainsRes } from '../terrain/terrainPlugin';
 import { BlendMode } from '../render/blend';
@@ -36,6 +36,7 @@ import { ShoreField, type Point2 } from './shore';
 import { buildRiverMesh, currentShare } from './riverMesh';
 import { Spline, type SplineData } from '../spline/splinePlugin';
 import { SplineCurve } from '../spline/curve';
+import { RippleField } from './ripples';
 
 /** What a body of water is. A river follows the `Spline` on its own entity. */
 export const WaterForm = { Ocean: 0, Lake: 1, River: 2 } as const;
@@ -64,6 +65,13 @@ export interface WaterBodyData {
     waveLength: number;
     waveSpeed: number;
     waveDirection: number;
+    /** Cells along a side of the ripple grid; 0 keeps no ripples. The grid is a window of `rippleSize` that follows the camera. */
+    ripples: number;
+    rippleSize: number;
+    /** How fast a ripple spreads (world units a second), how much of its height it loses a second, and how fast the foam it leaves fades a second. */
+    rippleSpeed: number;
+    rippleDamping: number;
+    foamFade: number;
 }
 
 /**
@@ -74,6 +82,7 @@ export interface WaterBodyData {
 export const WaterBody: ComponentDef<WaterBodyData> = defineComponent<WaterBodyData>('WaterBody', {
     form: WaterForm.Lake, material: 0, sizeX: 100, sizeZ: 100, boundary: [] as Point2[], shoreWidth: 3, cellSize: 1, cells: 64, rings: 5, flowSpeed: 2,
     waveHeight: 0.3, waveLength: 14, waveSpeed: 1, waveDirection: 30,
+    ripples: 0, rippleSize: 64, rippleSpeed: 6, rippleDamping: 0.8, foamFade: 0.4,
 }, {
     assetFields: [{ field: 'material', type: 'material' }],
     fields: {
@@ -91,6 +100,11 @@ export const WaterBody: ComponentDef<WaterBodyData> = defineComponent<WaterBodyD
         waveLength: { min: 0.5, max: 300, category: 'Waves', tooltip: 'The length of the longest wave.' },
         waveSpeed: { min: 0, max: 4, category: 'Waves', tooltip: 'A multiplier on how fast the waves travel.' },
         waveDirection: { min: 0, max: 360, category: 'Waves', tooltip: 'The heading of the waves, in degrees.' },
+        ripples: { min: 0, max: 256, step: 8, category: 'Ripples', tooltip: 'Cells along a side of the grid that keeps what disturbs the water: bodies moving in it, and what a script disturbs. 0 keeps none.' },
+        rippleSize: { min: 4, category: 'Ripples', tooltip: 'The side of the window the ripples are kept in, in world units. It follows the camera.' },
+        rippleSpeed: { min: 0.1, max: 40, category: 'Ripples', tooltip: 'How fast a ripple spreads, in world units a second.' },
+        rippleDamping: { min: 0, max: 10, category: 'Ripples', tooltip: 'How much of its height a ripple loses each second.' },
+        foamFade: { min: 0, max: 10, category: 'Ripples', tooltip: 'How fast the foam a disturbance leaves fades, a second.' },
     },
 });
 
@@ -121,6 +135,10 @@ interface Built {
     curve: SplineCurve | null;
     widest: number;
     shoreTexture: number;
+    /** The ripples this body keeps, where `ripples` asks for them, and the texture the shader reads them from. */
+    ripples: RippleField | null;
+    rippleTexture: number;
+    rippleBytes: Uint8Array | null;
     child: Entity;
     instance: number;
     epoch: number;
@@ -169,7 +187,7 @@ export class Waters {
             const params = paramsOf(d);
             // The waves a lake keeps toward its shore are the ones its mesh was built with.
             const damp = field ? field.damp(q[0], q[2]) : 1;
-            const h = waveHeight(params, q[0], q[2], time) * damp;
+            const h = waveHeight(params, q[0], q[2], time) * damp + (built.ripples ? built.ripples.heightAt(q[0], q[2]) : 0);
             const [rx, rz] = waveSlope(params, q[0], q[2], time);
             const sx = rx * damp, sz = rz * damp;
             const len = Math.hypot(sx, 1, sz);
@@ -178,6 +196,44 @@ export class Waters {
             return { entity, depth: (q[1] - h) * scale, normal, flow: [0, 0, 0], surface: onSurface, inside };
         }
         return null;
+    }
+
+    /**
+     * Disturbs the water at the world point (x, y, z): a bump of `strength` world units (negative is a dip) over `radius`, which spreads as a ring and leaves foam.
+     * Goes to the body that holds the point, and does nothing where there is none or where the body keeps no ripples.
+     */
+    disturb(x: number, y: number, z: number, radius: number, strength: number): boolean {
+        const world = this.app_?.world;
+        if (!world) return false;
+        for (const [entity, built] of this.built_) {
+            if (!world.valid(entity) || !built.ripples) continue;
+            const t = world.tryGet(entity, Transform) as TransformData | null;
+            if (!t) continue;
+            const scale = t.worldScale.y || 1;
+            const q = toLocal(t, x, y, z, scale);
+            const inside = built.data.form === WaterForm.Ocean || (built.field ? built.field.inside(q[0], q[2]) : false)
+                || (built.curve ? built.curve.nearest(q[0], q[2]).distance <= built.curve.width(built.curve.nearest(q[0], q[2]).s) / 2 : false);
+            if (!inside) continue;
+            built.ripples.disturb(q[0], q[2], radius / scale, strength / scale);
+            return true;
+        }
+        return false;
+    }
+
+    /** The height the ripples add to the surface at the world point, for a body that keeps them; 0 elsewhere. */
+    rippleAt(x: number, y: number, z: number): number {
+        const world = this.app_?.world;
+        if (!world) return 0;
+        for (const [entity, built] of this.built_) {
+            if (!world.valid(entity) || !built.ripples) continue;
+            const t = world.tryGet(entity, Transform) as TransformData | null;
+            if (!t) continue;
+            const scale = t.worldScale.y || 1;
+            const q = toLocal(t, x, y, z, scale);
+            const h = built.ripples.heightAt(q[0], q[2]);
+            if (h !== 0) return h * scale;
+        }
+        return 0;
     }
 
     /** The world height of the surface above or below (x, z) for an untilted body, or null where there is none. */
@@ -258,11 +314,12 @@ export class WaterPlugin implements Plugin {
                 let built = waters.built_.get(entity);
                 if (!built || built.signature !== signature) {
                     if (built) this.destroy(app, built);
-                    built = { signature, data: { ...data }, mesh: 0, field: null, curve: null, widest: 0, shoreTexture: 0, child: 0 as Entity, instance: 0, epoch: (built?.epoch ?? 0) + 1, pending: false };
+                    built = { signature, data: { ...data }, mesh: 0, field: null, curve: null, widest: 0, shoreTexture: 0, ripples: null, rippleTexture: 0, rippleBytes: null, child: 0 as Entity, instance: 0, epoch: (built?.epoch ?? 0) + 1, pending: false };
                     waters.built_.set(entity, built);
                     this.surface(app, entity, built);
                 }
                 built.data = { ...data };
+                this.ripple(app, entity, built, eye ?? this.eye(app), app.getResource(Time).delta);
                 if (!rendering) continue;
                 if (!built.child && !built.pending) void this.build_(app, entity, built);
                 if (built.child && built.instance) this.update(app, entity, built, eye, time);
@@ -408,6 +465,69 @@ export class WaterPlugin implements Plugin {
         return t ? `${terrains.revision_}:${t.worldPosition.x}:${t.worldPosition.y}:${t.worldPosition.z}:${t.worldScale.x}:${t.worldScale.y}:${t.worldScale.z}` : '';
     }
 
+    /**
+     * Keeps a body's ripples: makes the grid when `ripples` asks for one, moves its window to the camera, steps it, and (where drawn) puts it where the shader reads it.
+     * It runs headless too, so the surface a test or a server asks about has them.
+     */
+    private ripple(app: App, entity: Entity, built: Built, eye: [number, number, number] | null, dt: number): void {
+        const d = built.data;
+        if (d.ripples <= 0) { this.dropRipples(built); return; }
+        const n = Math.max(8, Math.floor(d.ripples)), size = Math.max(d.rippleSize, 1e-3);
+        if (!built.ripples || built.ripples.n !== n || built.ripples.size !== size) {
+            this.dropRipples(built);
+            built.ripples = new RippleField(n, size);
+            // Until a camera says otherwise a body keeps its window over its middle.
+            built.ripples.recenter(built.field ? built.field.minX + built.field.sizeX / 2 : 0, built.field ? built.field.minZ + built.field.sizeZ / 2 : 0);
+        }
+        const field = built.ripples;
+        const t = app.world.tryGet(entity, Transform) as TransformData | null;
+        if (t && eye) {
+            const q = toLocal(t, eye[0], eye[1], eye[2], t.worldScale.y || 1);
+            field.recenter(q[0], q[2]);
+        }
+        field.step(Math.min(Math.max(dt, 0), 0.1), d.rippleSpeed, d.rippleDamping, d.foamFade);
+        if (!built.instance || !app.hasResource(Assets)) return;
+        const range = this.rippleRange(d);
+        field.limit = range;
+        const bytes = field.encode(range, built.rippleBytes ?? undefined);
+        built.rippleBytes = bytes;
+        if (!built.rippleTexture) {
+            built.rippleTexture = createTextureFromPixels(app.wasmModule, { width: n, height: n, pixels: bytes }, TextureContent.Retained, false,
+                { filterMode: 'linear', wrapMode: 'clamp' });
+            const handle = built.rippleTexture;
+            provideTextureContent(handle, () => {
+                if (built.rippleTexture !== handle || !built.rippleBytes) return false;
+                updateTextureSubregion(app.wasmModule, handle, 0, 0, n, n, built.rippleBytes);
+                return true;
+            });
+            Material.setUniform(built.instance, 'u_rippleMap', Material.tex(handle));
+        } else {
+            updateTextureSubregion(app.wasmModule, built.rippleTexture, 0, 0, n, n, bytes);
+        }
+        const set = (name: string, value: number | { x: number; y: number }): void => { Material.setUniform(built.instance, name, value); };
+        set('u_rippleOn', 1);
+        set('u_rippleOrigin', { x: field.originX, y: field.originZ });
+        set('u_rippleSize', field.size);
+        set('u_rippleTexel', 1 / n);
+        set('u_rippleRange', range);
+    }
+
+    /** The height the grid holds and its encoding spans either side of rest: twice the waves' height, or a fiftieth of the window where the water is calm. */
+    private rippleRange(d: WaterBodyData): number {
+        return Math.max(d.waveHeight * 2, d.rippleSize * 0.02);
+    }
+
+    private dropRipples(built: Built): void {
+        if (built.rippleTexture) {
+            withdrawTextureContent(built.rippleTexture);
+            getResourceManager()?.releaseTexture(built.rippleTexture);
+        }
+        built.rippleTexture = 0;
+        built.rippleBytes = null;
+        built.ripples = null;
+        if (built.instance) Material.setUniform(built.instance, 'u_rippleOn', 0);
+    }
+
     /** Writes the component into the instance, and moves an ocean's mesh to the camera. */
     private update(app: App, entity: Entity, built: Built, eye: [number, number, number] | null, time: number): void {
         const d = built.data;
@@ -439,6 +559,7 @@ export class WaterPlugin implements Plugin {
     private destroy(app: App, built: Built): void {
         built.epoch++;
         if (built.child && app.world.valid(built.child)) app.world.despawn(built.child);
+        this.dropRipples(built);
         if (built.instance) Material.release(built.instance);
         if (built.shoreTexture) getResourceManager()?.releaseTexture(built.shoreTexture);
         built.shoreTexture = 0;
