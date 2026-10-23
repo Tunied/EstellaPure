@@ -29,7 +29,11 @@ description: 骨骼链的次级运动(头发、尾巴、绳索):放在链根上�
 
 ## 从模型导入
 
-把模型的 **Spring Bones** 导入设置改成 **By Bone Name**,导入器就按文件里已有的名字建链,不用手动设置几十根发丝:
+把模型的 **Spring Bones** 导入设置改成 **From File Data and Names**,导入器就按文件里已有的信息建链,不用手动设置几十根发丝。它按下面的顺序查找:
+
+1. **`VRMC_springBone`**(VRM 1.0 扩展):弹簧、碰撞体、碰撞体组和它们的数值。一条弹簧变成它第一个关节上的 `SpringBone`(这根骨头固定,它下面的骨头会动),VRM 里按秒的刚度和重力强度会换算成引擎按帧的刚度和加速度。关节少于两个、或会带动它没有列出的骨头的弹簧,会在导入警告里报告。
+2. **节点自己的属性**:链根上的 `extras.estella.springBone`(`stiffness`、`drag`、`gravity`、`radius`、`endLength`)和碰撞体节点上的 `extras.estella.springCollider`(`shape`、`radius`、`height`、`offset`)。Blender 的自定义属性就是这样带着精确尺寸进到引擎里的。在同一个节点上,它优先于 VRM。
+3. **名字**,补全前两者没说的部分:
 
 | 名字 | 变成 |
 | --- | --- |

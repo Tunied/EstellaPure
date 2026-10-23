@@ -15,6 +15,7 @@ import { MESH_MAX_BONES, MeshChannel, MeshChannelType, packChannels,
          type MeshMorphTargets } from 'esengine';
 import { MeshoptDecoder } from 'meshoptimizer/decoder';
 import { generateTangents } from './meshTangents';
+import { readSpringBones } from './springBoneSource';
 import {
     ANIMATED_PATHS, alignQuaternionSigns, animationProductName, disambiguateNodes,
     nodeChildPaths, nodeNameFor, samplerKeyframes, timelineDocument,
@@ -153,13 +154,14 @@ interface GltfJson {
         weights?: number[];
         camera?: number;
         extensions?: { KHR_lights_punctual?: { light?: number } };
+        extras?: unknown;
     }[];
     cameras?: {
         type: string;
         perspective?: { yfov: number; znear: number; zfar?: number; aspectRatio?: number };
         orthographic?: { xmag: number; ymag: number; znear: number; zfar: number };
     }[];
-    extensions?: { KHR_lights_punctual?: { lights?: GltfLight[] } };
+    extensions?: { KHR_lights_punctual?: { lights?: GltfLight[] } } & Record<string, unknown>;
     skins?: { name?: string; joints: number[]; inverseBindMatrices?: number; skeleton?: number }[];
     animations?: {
         name?: string;
@@ -780,6 +782,7 @@ function readNodes(json: GltfJson, meshIndexOf: Map<string, number>,
     const roots = json.scenes?.[json.scene ?? 0]?.nodes
         ?? source.map((_, i) => i).filter(i => !source.some(n => n.children?.includes(i)));
 
+    const spring = readSpringBones(json, warnings);
     const visiting = new Set<number>();
     const build = (index: number): ImportedNode | null => {
         const node = source[index];
@@ -804,7 +807,7 @@ function readNodes(json: GltfJson, meshIndexOf: Map<string, number>,
             : readLight(json.extensions?.KHR_lights_punctual?.lights?.[lightIndex], warnings, name);
         const camera = node.camera === undefined ? undefined : readCamera(json.cameras?.[node.camera]);
         return { index, name, ...nodeTrs(node), meshes, children,
-                 ...(light ? { light } : {}), ...(camera ? { camera } : {}) };
+                 ...(light ? { light } : {}), ...(camera ? { camera } : {}), ...(spring.get(index) ?? {}) };
     };
 
     const built = roots.map(build).filter((n): n is ImportedNode => n !== null);

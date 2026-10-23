@@ -34,7 +34,11 @@ and shoulders bones so hair does not pass through the body.
 
 ## From a model
 
-Set a model's **Spring Bones** import setting to **By Bone Name** and the importer builds the chains from names the file already carries, so nobody sets up forty strands by hand:
+Set a model's **Spring Bones** import setting to **From File Data and Names** and the importer builds the chains from what the file already says, so nobody sets up forty strands by hand. It looks, in this order, at:
+
+1. **`VRMC_springBone`**, the VRM 1.0 extension: springs, colliders and collider groups with their numbers. A spring becomes a `SpringBone` on its first joint (that bone is held, the ones below it move), and its stiffness (per second in VRM) and gravity power are converted to the engine's per-frame and acceleration units. Springs that name fewer than two joints, or that would move bones they do not name, are reported in the import warnings.
+2. **A node's own properties**, `extras.estella.springBone` (`stiffness`, `drag`, `gravity`, `radius`, `endLength`) on a chain root and `extras.estella.springCollider` (`shape`, `radius`, `height`, `offset`) on a collider node, which is how a Blender custom property reaches the engine with exact sizes. These win over VRM for the node they are on.
+3. **Names**, for whatever those leave unsaid:
 
 | Name | Becomes |
 | --- | --- |

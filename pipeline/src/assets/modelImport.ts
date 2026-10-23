@@ -162,6 +162,30 @@ export interface ImportedNode {
     light?: ImportedLight;
     /** A camera the node carries, looking along its local -Z with +Y up. */
     camera?: ImportedCamera;
+    /** This node is the root of a spring chain: the bones below it are the strand. Lengths are the model's metres. */
+    springBone?: ImportedSpringBone;
+    /** Colliders this node hosts, each an entity of its own below it so one bone can carry several. */
+    springColliders?: ImportedSpringCollider[];
+}
+
+/** What a source states about a spring chain; a field it leaves out keeps the component's default (or the name rule's, for a chain found by name). */
+export interface ImportedSpringBone {
+    stiffness?: number;
+    drag?: number;
+    gravity?: [number, number, number];
+    radius?: number;
+    endLength?: number;
+    /** Prefab entity ids of the colliders the chain is kept out of; left out, every collider in the model. */
+    colliders?: string[];
+}
+
+/** A sphere (`shape` 0) or capsule (1) placed relative to its host node: `offset` and `rotation` (x, y, z, w) put its centre and its Y axis. */
+export interface ImportedSpringCollider {
+    shape: 0 | 1;
+    radius: number;
+    height?: number;
+    offset?: [number, number, number];
+    rotation?: [number, number, number, number];
 }
 
 /**
@@ -897,6 +921,33 @@ function entity(id: string, name: string, parent: string | null,
     return { prefabEntityId: id, name, parent, children: [], visible: true, components };
 }
 
+/** The spring data a source stated for this node: a SpringBone on it, and an entity below it for each collider it hosts. Lengths are the model's metres times the import scale. */
+function addExplicitSpringBones(node: ImportedNode, self: PrefabEntityData, entities: PrefabEntityData[], scale: number): void {
+    (node.springColliders ?? []).forEach((c, i) => {
+        const id = `${self.prefabEntityId}_sbc${i}`;
+        const [x, y, z] = c.offset ?? [0, 0, 0];
+        const [rx, ry, rz, rw] = c.rotation ?? [0, 0, 0, 1];
+        self.children.push(id);
+        entities.push(entity(id, `${node.name}_collider${i}`, self.prefabEntityId, [
+            { type: 'Transform', data: {
+                ...(x || y || z ? { position: { x, y, z } } : {}),
+                ...(rx || ry || rz || rw !== 1 ? { rotation: { w: rw, x: rx, y: ry, z: rz } } : {}),
+            } },
+            { type: 'SpringBoneCollider', data: { shape: c.shape, radius: c.radius, ...(c.shape === 1 ? { height: c.height ?? 0 } : {}) } },
+        ]));
+    });
+    const s = node.springBone;
+    if (!s) return;
+    self.components.push({ type: 'SpringBone', data: {
+        ...(s.stiffness !== undefined ? { stiffness: s.stiffness } : {}),
+        ...(s.drag !== undefined ? { drag: s.drag } : {}),
+        ...(s.gravity ? { gravity: { x: s.gravity[0] * scale, y: s.gravity[1] * scale, z: s.gravity[2] * scale } } : {}),
+        ...(s.radius !== undefined ? { radius: s.radius * scale } : {}),
+        ...(s.endLength !== undefined ? { endLength: s.endLength * scale } : {}),
+        ...(s.colliders ? { colliders: [...s.colliders] } : {}),
+    } });
+}
+
 /** A hair chain's root bone: `Hair_<region>_<chain>_00`, the joint the body or the animation drives and the chain hangs from. */
 const HAIR_CHAIN_ROOT = /^Hair_([A-Za-z]+(?:_[A-Za-z]+)*)_(\d{2})_00$/;
 /** A collider an artist left in the model: `SBC_Sphere_<name>_r<cm>` or `SBC_Capsule_<name>_r<cm>_h<cm>`; the node's own transform places it, a capsule runs along its local +Y. */
@@ -917,8 +968,16 @@ const HAIR_FEEL: Record<string, { stiffness: number; drag: number }> = {
  * Returns the counts it made.
  */
 export function springBoneComponents(entities: PrefabEntityData[], scale = 1): { chains: number; colliders: number } {
-    const colliders: string[] = [];
+    const has = (e: PrefabEntityData, type: string): boolean => e.components.some(c => c.type === type);
+    // What the file stated outright is already on the entities; names only fill in what it did not.
+    const colliders: string[] = entities.filter(e => has(e, 'SpringBoneCollider')).map(e => e.prefabEntityId);
     for (const e of entities) {
+        for (const c of e.components) {
+            if (c.type === 'SpringBone' && c.data.colliders === undefined) c.data.colliders = [...colliders];
+        }
+    }
+    for (const e of entities) {
+        if (has(e, 'SpringBoneCollider')) continue;
         const m = SPRING_COLLIDER.exec(e.name);
         if (!m) continue;
         const radius = Number(m[3]) / 100;
@@ -932,7 +991,7 @@ export function springBoneComponents(entities: PrefabEntityData[], scale = 1): {
     let chains = 0;
     for (const e of entities) {
         const m = HAIR_CHAIN_ROOT.exec(e.name);
-        if (!m || e.children.length === 0) continue;
+        if (!m || e.children.length === 0 || has(e, 'SpringBone')) continue;
         const feel = HAIR_FEEL[m[1]!.split('_')[0]!] ?? { stiffness: 0.1, drag: 0.5 };
         e.components.push({ type: 'SpringBone', data: {
             stiffness: feel.stiffness, drag: feel.drag,
@@ -971,6 +1030,7 @@ export function assembleModelPrefab(name: string, meshes: ImportedMesh[],
             ...(node.camera ? [cameraComponent(node.camera)] : []),
         ]);
         entities.push(self);
+        if (refs.springBones) addExplicitSpringBones(node, self, entities, options.scale ?? 1);
         if (own.length === 0) {
             drawn.forEach((mesh, i) => {
                 const childId = `${id}_p${i}`;

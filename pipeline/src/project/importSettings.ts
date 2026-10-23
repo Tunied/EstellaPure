@@ -242,11 +242,11 @@ const MODEL: ImporterFieldSpec[] = [
   {
     key: 'springBones', label: 'Spring Bones', type: 'enum', default: 'off',
     category: 'Import', advanced: true,
-    options: [{ label: 'Off', value: 'off' }, { label: 'By Bone Name', value: 'auto' }],
-    tooltip: 'Give hair its secondary motion from names the model already carries: a bone called Hair_<region>_<chain>_00 '
-      + 'becomes a SpringBone and everything below it the strand, and an empty called SBC_Sphere_<name>_r<cm> or '
-      + 'SBC_Capsule_<name>_r<cm>_h<cm> becomes a collider the strands are kept out of. Sizes are in metres, as the model has them. '
-      + 'A name is a convention, so check what it found.',
+    options: [{ label: 'Off', value: 'off' }, { label: 'From File Data and Names', value: 'auto' }],
+    tooltip: 'Give hair its secondary motion from what the model already says. A VRM spring-bone extension or a node custom '
+      + 'property (extras.estella.springBone / springCollider) is used as stated; for what they leave out, a bone called '
+      + 'Hair_<region>_<chain>_00 becomes a SpringBone and an empty called SBC_Sphere_<name>_r<cm> or '
+      + 'SBC_Capsule_<name>_r<cm>_h<cm> a collider. Sizes are in metres, as the model has them. A name is a convention, so check what it found.',
   },
   {
     key: 'specularMap', label: 'Specular Map', type: 'enum', default: 'color',
