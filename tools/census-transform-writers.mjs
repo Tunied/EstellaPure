@@ -60,6 +60,10 @@ const SEAMS = [
         why: 'builds its own Registry and composes it in place, so nothing outside the call can read a stale value',
     },
     {
+        file: 'src/esengine/springbone/SpringBoneSystem.cpp', fn: 'update', role: 'announces',
+        why: 'writes the local rotation of every bone it aimed and announces once after the pass; positions are never written',
+    },
+    {
         file: 'src/esengine/bindings/EditorAPI.generated.cpp', fn: 'editor_setFloat', role: 'announces',
         why: 'emitted from WRITE_HOOKS; check-transform-seam holds which arms get it',
     },

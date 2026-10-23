@@ -39,6 +39,7 @@
 #include "../particle/ParticleSystem.hpp"
 #endif
 #include "../trail/TrailSystem.hpp"
+#include "../springbone/SpringBoneSystem.hpp"
 #include "../ui/UISystem.hpp"
 
 #ifdef __EMSCRIPTEN__
@@ -65,6 +66,7 @@ static EstellaContext& ctx() { return activeCtx(); }
 #define g_particleSystem (ctx().tryGet<particle::ParticleSystem>())
 #endif
 #define g_trailSystem (ctx().tryGet<trail::TrailSystem>())
+#define g_springBoneSystem (ctx().tryGet<springbone::SpringBoneSystem>())
 
 namespace {
 // The channels the engine's own mesh uploads use, named by semantic so a change
@@ -777,6 +779,17 @@ void trail_clear(ecs::Registry& registry, u32 entity) {
     if (!g_trailSystem) return;
     (void)registry;
     g_trailSystem->clear(Entity::fromRaw(entity));
+}
+
+void springbone_update(ecs::Registry& registry, f32 dt) {
+    if (!g_springBoneSystem) return;
+    g_springBoneSystem->update(registry, g_transformSystem, dt);
+}
+
+void springbone_reset(ecs::Registry& registry, u32 entity) {
+    if (!g_springBoneSystem) return;
+    (void)registry;
+    g_springBoneSystem->reset(Entity::fromRaw(entity));
 }
 
 void renderer_setStage(i32 stage) {

@@ -500,6 +500,27 @@ export const PTR_LAYOUTS: Record<string, PtrLayout> = {
             { name: 'enabled', type: 'bool', offset: 84 },
         ],
     },
+    SpringBone: {
+        ptrFn: 'getSpringBonePtr',
+        fields: [
+            { name: 'enabled', type: 'bool', offset: 0 },
+            { name: 'stiffness', type: 'f32', offset: 4 },
+            { name: 'drag', type: 'f32', offset: 8 },
+            { name: 'gravity', type: 'vec3', offset: 12 },
+            { name: 'endLength', type: 'f32', offset: 24 },
+            { name: 'radius', type: 'f32', offset: 28 },
+            { name: 'weight', type: 'f32', offset: 32 },
+        ],
+    },
+    SpringBoneCollider: {
+        ptrFn: 'getSpringBoneColliderPtr',
+        fields: [
+            { name: 'shape', type: 'u8', offset: 0 },
+            { name: 'radius', type: 'f32', offset: 4 },
+            { name: 'height', type: 'f32', offset: 8 },
+            { name: 'offset', type: 'vec3', offset: 12 },
+        ],
+    },
     Sprite: {
         ptrFn: 'getSpritePtr',
         fields: [

@@ -45,6 +45,18 @@ target_include_directories(test_tween_activity PRIVATE
 )
 add_test(NAME test_tween_activity COMMAND test_tween_activity)
 
+add_executable(test_springbone
+    springbone/test_springbone.cpp
+    ${CMAKE_SOURCE_DIR}/src/esengine/springbone/SpringBoneSolver.cpp
+    ${CMAKE_SOURCE_DIR}/src/esengine/springbone/SpringBoneSystem.cpp
+    ${CMAKE_SOURCE_DIR}/src/esengine/core/Log.cpp
+)
+target_include_directories(test_springbone PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/third_party/glm
+)
+add_test(NAME test_springbone COMMAND test_springbone)
+
 add_executable(test_entity_activity
     ecs/test_entity_activity.cpp
     ${CMAKE_SOURCE_DIR}/src/esengine/core/Log.cpp

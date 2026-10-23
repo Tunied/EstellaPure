@@ -19,7 +19,7 @@ import type {
     SortingGroupData, SpriteMaskData, LightProbeVolumeData, OccluderData,
     ReflectionProbeData, PlanarReflectionData,
     CanvasData, VelocityData, ParentData, ChildrenData, SpineAnimationData, DragonBonesAnimationData,
-    TilemapLayerData, BitmapTextData, TrailRendererData, ParticleForceFieldData,
+    TilemapLayerData, BitmapTextData, TrailRendererData, ParticleForceFieldData, SpringBoneData, SpringBoneColliderData,
     CameraData as CameraDataCpp, ParticleEmitterData as ParticleEmitterDataCpp,
     MeshRendererData as MeshRendererDataCpp,
 } from './component.generated';
@@ -833,7 +833,7 @@ export type {
     SortingGroupData, SpriteMaskData, LightProbeVolumeData, OccluderData,
     ReflectionProbeData, PlanarReflectionData,
     CanvasData, VelocityData, ParentData, ChildrenData, SpineAnimationData, DragonBonesAnimationData,
-    TilemapLayerData, BitmapTextData, TrailRendererData, ParticleForceFieldData,
+    TilemapLayerData, BitmapTextData, TrailRendererData, ParticleForceFieldData, SpringBoneData, SpringBoneColliderData,
 };
 
 export type LocalTransformData = TransformData;
@@ -1118,6 +1118,15 @@ export const MeshRenderer = defineBuiltin<MeshRendererData>('MeshRenderer',
 // rendered as a ribbon by TrailPlugin; nothing crosses as a component field.
 export const TrailRenderer = defineBuiltin<TrailRendererData>('TrailRenderer',
     metaDefaults<TrailRendererData>('TrailRenderer')
+);
+
+// Spring bones. Pure config: a chain's simulated state is owned by the C++ SpringBoneSystem, keyed by its root entity, and what it
+// writes back is the local rotation of the bones under the root.
+export const SpringBone = defineBuiltin<SpringBoneData>('SpringBone',
+    metaDefaults<SpringBoneData>('SpringBone')
+);
+export const SpringBoneCollider = defineBuiltin<SpringBoneColliderData>('SpringBoneCollider',
+    metaDefaults<SpringBoneColliderData>('SpringBoneCollider')
 );
 
 // Particle force field. A scene-placed zone (wind, attractor, vortex, drag) that the

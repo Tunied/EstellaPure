@@ -745,6 +745,8 @@ EMSCRIPTEN_BINDINGS(esengine_renderer) {
 #endif
     emscripten::function("trail_update", &esengine::trail_update);
     emscripten::function("trail_clear", &esengine::trail_clear);
+    emscripten::function("springbone_update", &esengine::springbone_update);
+    emscripten::function("springbone_reset", &esengine::springbone_reset);
     emscripten::function("renderer_setStage", &esengine::renderer_setStage);
     emscripten::function("renderer_createTarget", &esengine::renderer_createTarget);
     emscripten::function("renderer_releaseTarget", &esengine::renderer_releaseTarget);

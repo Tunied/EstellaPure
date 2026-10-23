@@ -614,6 +614,8 @@ export interface ESEngineModule {
     particle_set_speed_lut?(entity: number, ptr: number, count: number): void;
     trail_update?(registry: CppRegistry, dt: number): void;
     trail_clear?(registry: CppRegistry, entity: number): void;
+    springbone_update?(registry: CppRegistry, dt: number): void;
+    springbone_reset?(registry: CppRegistry, entity: number): void;
 
     // Tilemap API
     tilemap_initLayer?(entity: number, width: number, height: number,

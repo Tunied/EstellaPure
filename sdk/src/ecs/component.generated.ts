@@ -7,7 +7,7 @@
 import type { AssetFieldType } from '../scene/scene';
 import type { FieldMeta } from './component';
 import type { Color, Entity, Quat, Vec2, Vec3, Vec4 } from '../types';
-import type { AlignContent, AlignItems, AlignSelf, BodyType, CanvasScaleMode, ClearFlags, Dimension, EmitterShape, FlexDirection, FlexWrap, ForceFieldType, JustifyContent, LightType, MaskMode, Padding, ParticleCollisionFallback, ParticleCollisionMode, ParticleEasing, ProjectionType, ReflectionAxis, ReflectionQuality, ReflectionUpdate, ScrollMovement, ShapeType, SimulationSpace, SpriteDrawMode, SpriteMaskInteraction, SubEmitterTrigger, TextAlign, TilemapOrientation, TilemapStaggerAxis, TilemapStaggerIndex, UIDisplay, UIFillMethod, UIFillOrigin, UIPointerEvents, UIPositionType, UIVisualFit, UIVisualType } from '../wasm/wasm.generated';
+import type { AlignContent, AlignItems, AlignSelf, BodyType, CanvasScaleMode, ClearFlags, Dimension, EmitterShape, FlexDirection, FlexWrap, ForceFieldType, JustifyContent, LightType, MaskMode, Padding, ParticleCollisionFallback, ParticleCollisionMode, ParticleEasing, ProjectionType, ReflectionAxis, ReflectionQuality, ReflectionUpdate, ScrollMovement, ShapeType, SimulationSpace, SpringBoneShape, SpriteDrawMode, SpriteMaskInteraction, SubEmitterTrigger, TextAlign, TilemapOrientation, TilemapStaggerAxis, TilemapStaggerIndex, UIDisplay, UIFillMethod, UIFillOrigin, UIPointerEvents, UIPositionType, UIVisualFit, UIVisualType } from '../wasm/wasm.generated';
 
 /**
  * Single-source-of-truth hash of the C++/TS boundary ABI (component
@@ -15,7 +15,7 @@ import type { AlignContent, AlignItems, AlignSelf, BodyType, CanvasScaleMode, Cl
  * getAbiLayoutHash(); BuiltinBridge.connect() compares them and refuses to
  * run on mismatch, because mismatched offsets read the wrong heap bytes.
  */
-export const ABI_LAYOUT_HASH = '0161363c22733817';
+export const ABI_LAYOUT_HASH = '0683d80a6ccb5275';
 
 /**
  * One asset-valued field of a component: which field, and what kind of
@@ -1016,6 +1016,50 @@ export const COMPONENT_META: Record<string, ComponentMetaEntry> = {
             skeletonScale: { min: 0 },
         },
     },
+    SpringBone: {
+        defaults: {
+            enabled: true,
+            stiffness: 0.1,
+            drag: 0.5,
+            gravity: { x: 0, y: -980, z: 0 },
+            endLength: 0,
+            radius: 0,
+            weight: 1,
+            colliders: [],
+        },
+        assetFields: [],
+        entityFields: ['colliders'],
+        colorFields: [],
+        animatableFields: [],
+        fields: {
+            enabled: { tooltip: "Off leaves the chain exactly as the animation poses it." },
+            stiffness: { min: 0, max: 1, step: 0.01, slider: true, tooltip: "How hard each bone is pulled back toward its animated pose. 0 hangs free, 1 follows the animation exactly." },
+            drag: { min: 0, max: 1, step: 0.01, slider: true, tooltip: "How much of its speed a bone loses each frame. Higher settles sooner." },
+            gravity: { tooltip: "Gravity on the chain, in world units a second squared (world y is up)." },
+            endLength: { min: 0, step: 0.1, tooltip: "Length of the tip past each end bone, in world units. 0 leaves the end bones unsimulated." },
+            radius: { min: 0, step: 0.1, tooltip: "Thickness of the strand, in world units, kept clear of the colliders." },
+            weight: { min: 0, max: 1, step: 0.01, slider: true, tooltip: "How much of the simulation is used. 0 is the animation alone." },
+            colliders: { tooltip: "Entities with a SpringBoneCollider that this chain is kept out of (the head, the shoulders)." },
+        },
+    },
+    SpringBoneCollider: {
+        defaults: {
+            shape: 0,
+            radius: 10,
+            height: 20,
+            offset: { x: 0, y: 0, z: 0 },
+        },
+        assetFields: [],
+        entityFields: [],
+        colorFields: [],
+        animatableFields: [],
+        fields: {
+            shape: { enum: [{ label: 'Sphere', value: 0 }, { label: 'Capsule', value: 1 }], tooltip: "Sphere, or a capsule along the entity's own Y axis." },
+            radius: { min: 0, step: 0.1, tooltip: "Radius in world units, before the entity's scale." },
+            height: { min: 0, step: 0.1, tooltip: "A capsule's length between the centres of its end spheres, in world units before scale.", shownWhen: { field: "shape", values: [1] } },
+            offset: { tooltip: "Where the centre of the shape is, in the entity's own space." },
+        },
+    },
     Sprite: {
         defaults: {
             texture: 0,
@@ -1784,6 +1828,24 @@ export interface SpineAnimationData {
     skeletonScale: number;
     material: number;
     enabled: boolean;
+}
+
+export interface SpringBoneData {
+    enabled: boolean;
+    stiffness: number;
+    drag: number;
+    gravity: Vec3;
+    endLength: number;
+    radius: number;
+    weight: number;
+    colliders: Entity[];
+}
+
+export interface SpringBoneColliderData {
+    shape: SpringBoneShape;
+    radius: number;
+    height: number;
+    offset: Vec3;
 }
 
 /**

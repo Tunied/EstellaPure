@@ -140,6 +140,9 @@ set(ESENGINE_HEADERS
     src/esengine/renderer/plugins/TrailPlugin.hpp
     src/esengine/trail/TrailSystem.hpp
     src/esengine/ecs/components/TrailRenderer.hpp
+    src/esengine/springbone/SpringBoneSolver.hpp
+    src/esengine/springbone/SpringBoneSystem.hpp
+    src/esengine/ecs/components/SpringBone.hpp
     src/esengine/renderer/rhi/RenderTarget.hpp
     src/esengine/renderer/frame/RenderFrame.hpp
     src/esengine/renderer/draw/ImmediateDraw.hpp

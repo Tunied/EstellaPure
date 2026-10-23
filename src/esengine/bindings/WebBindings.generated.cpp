@@ -36,6 +36,7 @@
 #include "../ecs/components/ShapeRenderer.hpp"
 #include "../ecs/components/SortingGroup.hpp"
 #include "../ecs/components/SpineAnimation.hpp"
+#include "../ecs/components/SpringBone.hpp"
 #include "../ecs/components/Sprite.hpp"
 #include "../ecs/components/SpriteMask.hpp"
 #include "../ecs/components/TilemapLayer.hpp"
@@ -247,6 +248,10 @@ EMSCRIPTEN_BINDINGS(esengine_enums) {
     enum_<esengine::ecs::SimulationSpace>("SimulationSpace")
         .value("World", esengine::ecs::SimulationSpace::World)
         .value("Local", esengine::ecs::SimulationSpace::Local);
+
+    enum_<esengine::ecs::SpringBoneShape>("SpringBoneShape")
+        .value("Sphere", esengine::ecs::SpringBoneShape::Sphere)
+        .value("Capsule", esengine::ecs::SpringBoneShape::Capsule);
 
     enum_<esengine::ecs::SpriteDrawMode>("SpriteDrawMode")
         .value("Auto", esengine::ecs::SpriteDrawMode::Auto)
@@ -1265,6 +1270,78 @@ ShadowCaster2DJS shadowcaster2dToJS(const esengine::ecs::ShadowCaster2D& c) {
     return js;
 }
 
+struct SpringBoneJS {
+    bool enabled;
+    f32 stiffness;
+    f32 drag;
+    glm::vec3 gravity;
+    f32 endLength;
+    f32 radius;
+    f32 weight;
+    std::vector<u32> colliders;
+};
+
+void springboneApplyJS(esengine::ecs::SpringBone& c, const SpringBoneJS& js) {
+    c.enabled = js.enabled;
+    c.stiffness = js.stiffness;
+    c.drag = js.drag;
+    c.gravity = js.gravity;
+    c.endLength = js.endLength;
+    c.radius = js.radius;
+    c.weight = js.weight;
+    c.colliders.reserve(js.colliders.size());
+    for (auto v : js.colliders) c.colliders.push_back(Entity(v));
+}
+
+esengine::ecs::SpringBone springboneFromJS(const SpringBoneJS& js) {
+    esengine::ecs::SpringBone c;
+    springboneApplyJS(c, js);
+    return c;
+}
+
+SpringBoneJS springboneToJS(const esengine::ecs::SpringBone& c) {
+    SpringBoneJS js;
+    js.enabled = c.enabled;
+    js.stiffness = c.stiffness;
+    js.drag = c.drag;
+    js.gravity = c.gravity;
+    js.endLength = c.endLength;
+    js.radius = c.radius;
+    js.weight = c.weight;
+    js.colliders.reserve(c.colliders.size());
+    for (auto e : c.colliders) js.colliders.push_back(static_cast<u32>(e));
+    return js;
+}
+
+struct SpringBoneColliderJS {
+    i32 shape;
+    f32 radius;
+    f32 height;
+    glm::vec3 offset;
+};
+
+void springbonecolliderApplyJS(esengine::ecs::SpringBoneCollider& c, const SpringBoneColliderJS& js) {
+    c.shape = static_cast<SpringBoneShape>(js.shape);
+    c.radius = js.radius;
+    c.height = js.height;
+    c.offset = js.offset;
+}
+
+esengine::ecs::SpringBoneCollider springbonecolliderFromJS(const SpringBoneColliderJS& js) {
+    esengine::ecs::SpringBoneCollider c;
+    springbonecolliderApplyJS(c, js);
+    return c;
+}
+
+SpringBoneColliderJS springbonecolliderToJS(const esengine::ecs::SpringBoneCollider& c) {
+    SpringBoneColliderJS js;
+    js.shape = static_cast<i32>(c.shape);
+    js.radius = c.radius;
+    js.height = c.height;
+    js.offset = c.offset;
+    return js;
+}
+
 struct SpriteJS {
     u32 texture;
     glm::vec4 color;
@@ -2052,6 +2129,22 @@ EMSCRIPTEN_BINDINGS(esengine_components) {
         .field("material", &esengine::ecs::SpineAnimation::material)
         .field("enabled", &esengine::ecs::SpineAnimation::enabled);
 
+    value_object<SpringBoneJS>("SpringBone")
+        .field("enabled", &SpringBoneJS::enabled)
+        .field("stiffness", &SpringBoneJS::stiffness)
+        .field("drag", &SpringBoneJS::drag)
+        .field("gravity", &SpringBoneJS::gravity)
+        .field("endLength", &SpringBoneJS::endLength)
+        .field("radius", &SpringBoneJS::radius)
+        .field("weight", &SpringBoneJS::weight)
+        .field("colliders", &SpringBoneJS::colliders);
+
+    value_object<SpringBoneColliderJS>("SpringBoneCollider")
+        .field("shape", &SpringBoneColliderJS::shape)
+        .field("radius", &SpringBoneColliderJS::radius)
+        .field("height", &SpringBoneColliderJS::height)
+        .field("offset", &SpringBoneColliderJS::offset);
+
     value_object<SpriteJS>("Sprite")
         .field("texture", &SpriteJS::texture)
         .field("color", &SpriteJS::color)
@@ -2249,6 +2342,8 @@ EMSCRIPTEN_BINDINGS(esengine_registry) {
             if (r.has<esengine::ecs::SortingGroup>(entity)) { if (!names.empty()) names += "|"; names += "SortingGroup"; }
             if (r.has<esengine::ecs::SphereCollider3D>(entity)) { if (!names.empty()) names += "|"; names += "SphereCollider3D"; }
             if (r.has<esengine::ecs::SpineAnimation>(entity)) { if (!names.empty()) names += "|"; names += "SpineAnimation"; }
+            if (r.has<esengine::ecs::SpringBone>(entity)) { if (!names.empty()) names += "|"; names += "SpringBone"; }
+            if (r.has<esengine::ecs::SpringBoneCollider>(entity)) { if (!names.empty()) names += "|"; names += "SpringBoneCollider"; }
             if (r.has<esengine::ecs::Sprite>(entity)) { if (!names.empty()) names += "|"; names += "Sprite"; }
             if (r.has<esengine::ecs::SpriteMask>(entity)) { if (!names.empty()) names += "|"; names += "SpriteMask"; }
             if (r.has<esengine::ecs::TilemapLayer>(entity)) { if (!names.empty()) names += "|"; names += "TilemapLayer"; }
@@ -2301,6 +2396,8 @@ EMSCRIPTEN_BINDINGS(esengine_registry) {
             if (name == "SortingGroup") return static_cast<int>(componentTypeId<esengine::ecs::SortingGroup>());
             if (name == "SphereCollider3D") return static_cast<int>(componentTypeId<esengine::ecs::SphereCollider3D>());
             if (name == "SpineAnimation") return static_cast<int>(componentTypeId<esengine::ecs::SpineAnimation>());
+            if (name == "SpringBone") return static_cast<int>(componentTypeId<esengine::ecs::SpringBone>());
+            if (name == "SpringBoneCollider") return static_cast<int>(componentTypeId<esengine::ecs::SpringBoneCollider>());
             if (name == "Sprite") return static_cast<int>(componentTypeId<esengine::ecs::Sprite>());
             if (name == "SpriteMask") return static_cast<int>(componentTypeId<esengine::ecs::SpriteMask>());
             if (name == "TilemapLayer") return static_cast<int>(componentTypeId<esengine::ecs::TilemapLayer>());
@@ -3149,6 +3246,54 @@ EMSCRIPTEN_BINDINGS(esengine_registry) {
             r.remove<esengine::ecs::SpineAnimation>(entity);
         }))
 
+        // SpringBone
+        .function("hasSpringBone", optional_override([](Registry& r, u32 e) {
+            return r.has<esengine::ecs::SpringBone>(static_cast<Entity>(e));
+        }))
+        .function("getSpringBone", optional_override([](Registry& r, u32 e) {
+            auto entity = static_cast<Entity>(e);
+            if (!r.valid(entity) || !r.has<esengine::ecs::SpringBone>(entity)) return SpringBoneJS{};
+            return springboneToJS(r.get<esengine::ecs::SpringBone>(entity));
+        }))
+        .function("addSpringBone", optional_override([](Registry& r, u32 e, const SpringBoneJS& js) {
+            auto entity = static_cast<Entity>(e);
+            if (!r.valid(entity)) return;
+            if (auto* existing = r.tryGet<esengine::ecs::SpringBone>(entity)) {
+                springboneApplyJS(*existing, js);
+                return;
+            }
+            r.emplaceOrReplace<esengine::ecs::SpringBone>(entity, springboneFromJS(js));
+        }))
+        .function("removeSpringBone", optional_override([](Registry& r, u32 e) {
+            auto entity = static_cast<Entity>(e);
+            if (!r.valid(entity) || !r.has<esengine::ecs::SpringBone>(entity)) return;
+            r.remove<esengine::ecs::SpringBone>(entity);
+        }))
+
+        // SpringBoneCollider
+        .function("hasSpringBoneCollider", optional_override([](Registry& r, u32 e) {
+            return r.has<esengine::ecs::SpringBoneCollider>(static_cast<Entity>(e));
+        }))
+        .function("getSpringBoneCollider", optional_override([](Registry& r, u32 e) {
+            auto entity = static_cast<Entity>(e);
+            if (!r.valid(entity) || !r.has<esengine::ecs::SpringBoneCollider>(entity)) return SpringBoneColliderJS{};
+            return springbonecolliderToJS(r.get<esengine::ecs::SpringBoneCollider>(entity));
+        }))
+        .function("addSpringBoneCollider", optional_override([](Registry& r, u32 e, const SpringBoneColliderJS& js) {
+            auto entity = static_cast<Entity>(e);
+            if (!r.valid(entity)) return;
+            if (auto* existing = r.tryGet<esengine::ecs::SpringBoneCollider>(entity)) {
+                springbonecolliderApplyJS(*existing, js);
+                return;
+            }
+            r.emplaceOrReplace<esengine::ecs::SpringBoneCollider>(entity, springbonecolliderFromJS(js));
+        }))
+        .function("removeSpringBoneCollider", optional_override([](Registry& r, u32 e) {
+            auto entity = static_cast<Entity>(e);
+            if (!r.valid(entity) || !r.has<esengine::ecs::SpringBoneCollider>(entity)) return;
+            r.remove<esengine::ecs::SpringBoneCollider>(entity);
+        }))
+
         // Sprite
         .function("hasSprite", optional_override([](Registry& r, u32 e) {
             return r.has<esengine::ecs::Sprite>(static_cast<Entity>(e));
@@ -3461,6 +3606,8 @@ emscripten::val esengineGetBuiltinComponentNames() {
     arr.set(i++, val(std::string("SortingGroup")));
     arr.set(i++, val(std::string("SphereCollider3D")));
     arr.set(i++, val(std::string("SpineAnimation")));
+    arr.set(i++, val(std::string("SpringBone")));
+    arr.set(i++, val(std::string("SpringBoneCollider")));
     arr.set(i++, val(std::string("Sprite")));
     arr.set(i++, val(std::string("SpriteMask")));
     arr.set(i++, val(std::string("TilemapLayer")));
@@ -3794,6 +3941,17 @@ static_assert(offsetof(esengine::ecs::SpineAnimation, layer) == 72, "ABI offset 
 static_assert(offsetof(esengine::ecs::SpineAnimation, skeletonScale) == 76, "ABI offset drift: esengine::ecs::SpineAnimation.skeletonScale (EHT expected 76)");
 static_assert(offsetof(esengine::ecs::SpineAnimation, material) == 80, "ABI offset drift: esengine::ecs::SpineAnimation.material (EHT expected 80)");
 static_assert(offsetof(esengine::ecs::SpineAnimation, enabled) == 84, "ABI offset drift: esengine::ecs::SpineAnimation.enabled (EHT expected 84)");
+static_assert(offsetof(esengine::ecs::SpringBone, enabled) == 0, "ABI offset drift: esengine::ecs::SpringBone.enabled (EHT expected 0)");
+static_assert(offsetof(esengine::ecs::SpringBone, stiffness) == 4, "ABI offset drift: esengine::ecs::SpringBone.stiffness (EHT expected 4)");
+static_assert(offsetof(esengine::ecs::SpringBone, drag) == 8, "ABI offset drift: esengine::ecs::SpringBone.drag (EHT expected 8)");
+static_assert(offsetof(esengine::ecs::SpringBone, gravity) == 12, "ABI offset drift: esengine::ecs::SpringBone.gravity (EHT expected 12)");
+static_assert(offsetof(esengine::ecs::SpringBone, endLength) == 24, "ABI offset drift: esengine::ecs::SpringBone.endLength (EHT expected 24)");
+static_assert(offsetof(esengine::ecs::SpringBone, radius) == 28, "ABI offset drift: esengine::ecs::SpringBone.radius (EHT expected 28)");
+static_assert(offsetof(esengine::ecs::SpringBone, weight) == 32, "ABI offset drift: esengine::ecs::SpringBone.weight (EHT expected 32)");
+static_assert(offsetof(esengine::ecs::SpringBoneCollider, shape) == 0, "ABI offset drift: esengine::ecs::SpringBoneCollider.shape (EHT expected 0)");
+static_assert(offsetof(esengine::ecs::SpringBoneCollider, radius) == 4, "ABI offset drift: esengine::ecs::SpringBoneCollider.radius (EHT expected 4)");
+static_assert(offsetof(esengine::ecs::SpringBoneCollider, height) == 8, "ABI offset drift: esengine::ecs::SpringBoneCollider.height (EHT expected 8)");
+static_assert(offsetof(esengine::ecs::SpringBoneCollider, offset) == 12, "ABI offset drift: esengine::ecs::SpringBoneCollider.offset (EHT expected 12)");
 static_assert(offsetof(esengine::ecs::Sprite, texture) == 0, "ABI offset drift: esengine::ecs::Sprite.texture (EHT expected 0)");
 static_assert(offsetof(esengine::ecs::Sprite, color) == 4, "ABI offset drift: esengine::ecs::Sprite.color (EHT expected 4)");
 static_assert(offsetof(esengine::ecs::Sprite, size) == 20, "ABI offset drift: esengine::ecs::Sprite.size (EHT expected 20)");
@@ -3906,7 +4064,7 @@ static_assert(offsetof(esengine::ecs::Velocity, angular) == 12, "ABI offset drif
 // ABI Hash -- runtime handshake against the SDK bundle
 // =============================================================================
 
-static const char* kEsAbiLayoutHash = "0161363c22733817";
+static const char* kEsAbiLayoutHash = "0683d80a6ccb5275";
 
 std::string esengineGetAbiLayoutHash() {
     return std::string(kEsAbiLayoutHash);

@@ -35,6 +35,7 @@
 #endif
 #include "../renderer/plugins/TrailPlugin.hpp"
 #include "../trail/TrailSystem.hpp"
+#include "../springbone/SpringBoneSystem.hpp"
 #ifdef ES_ENABLE_TILEMAP
 #include "../renderer/plugins/TilemapRenderPlugin.hpp"
 #include "../tilemap/TilemapSystem.hpp"
@@ -75,6 +76,7 @@ void EstellaContext::registerLogicSystems() {
     services_.getService<particle::ParticleSystem>()->reseedFrom(*services_.getService<RandomSource>());
 #endif
     services_.registerOwned<trail::TrailSystem>(makeUnique<trail::TrailSystem>());
+    services_.registerOwned<springbone::SpringBoneSystem>(makeUnique<springbone::SpringBoneSystem>());
 
 
     services_.registerOwned<ecs::TransformSystem>(makeUnique<ecs::TransformSystem>());

@@ -265,6 +265,8 @@ export interface NativeEngineApi {
     rm_trimTextureCache?(rm: unknown): number;
     rm_updateTextureSubregion?(rm: unknown, handleId: number, x: number, y: number, width: number, height: number, pixelsPtr: number, pixelsLen: number): void;
     rm_wrapDeviceTexture?(rm: unknown, textureId: number, width: number, height: number): number;
+    springbone_reset?(registry: unknown, entity: number): void;
+    springbone_update?(registry: unknown, dt: number): void;
     tilemap_advanceAnimations?(entity: number, dtMs: number): void;
     tilemap_clearTileAnimations?(entity: number): void;
     tilemap_destroyLayer?(entity: number): void;
@@ -581,6 +583,8 @@ export function createNativeEngineApi(
     bind('rm_trimTextureCache', 'es_rm_trimTextureCache', true);
     bind('rm_updateTextureSubregion', 'es_rm_updateTextureSubregion', true);
     bind('rm_wrapDeviceTexture', 'es_rm_wrapDeviceTexture', true);
+    bind('springbone_reset', 'es_springbone_reset', true);
+    bind('springbone_update', 'es_springbone_update', true);
     bind('tilemap_advanceAnimations', 'es_tilemap_advanceAnimations', false);
     bind('tilemap_clearTileAnimations', 'es_tilemap_clearTileAnimations', false);
     bind('tilemap_destroyLayer', 'es_tilemap_destroyLayer', false);

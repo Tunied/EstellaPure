@@ -1901,6 +1901,90 @@ export function createSpineAnimationData(): SpineAnimationPtrData {
     };
 }
 
+export interface SpringBonePtrData {
+    enabled: boolean;
+    stiffness: number;
+    drag: number;
+    gravity: Vec3;
+    endLength: number;
+    radius: number;
+    weight: number;
+}
+
+export function fillSpringBone(
+    f32: Float32Array, u32: Uint32Array, u8: Uint8Array,
+    ptr: number, out: SpringBonePtrData,
+): void {
+    out.enabled = u8[ptr] !== 0;
+    out.stiffness = f32[(ptr + 4) >> 2];
+    out.drag = f32[(ptr + 8) >> 2];
+    const gravity_ = out.gravity; gravity_.x = f32[(ptr + 12) >> 2]; gravity_.y = f32[((ptr + 12) >> 2) + 1]; gravity_.z = f32[((ptr + 12) >> 2) + 2];
+    out.endLength = f32[(ptr + 24) >> 2];
+    out.radius = f32[(ptr + 28) >> 2];
+    out.weight = f32[(ptr + 32) >> 2];
+}
+
+export function writeSpringBone(
+    f32: Float32Array, u32: Uint32Array, u8: Uint8Array,
+    ptr: number, data: SpringBonePtrData,
+): void {
+    u8[ptr] = data.enabled ? 1 : 0;
+    f32[(ptr + 4) >> 2] = data.stiffness;
+    f32[(ptr + 8) >> 2] = data.drag;
+    f32[(ptr + 12) >> 2] = data.gravity.x; f32[((ptr + 12) >> 2) + 1] = data.gravity.y; f32[((ptr + 12) >> 2) + 2] = data.gravity.z;
+    f32[(ptr + 24) >> 2] = data.endLength;
+    f32[(ptr + 28) >> 2] = data.radius;
+    f32[(ptr + 32) >> 2] = data.weight;
+}
+
+export function createSpringBoneData(): SpringBonePtrData {
+    return {
+        enabled: false,
+        stiffness: 0,
+        drag: 0,
+        gravity: { x: 0, y: 0, z: 0 },
+        endLength: 0,
+        radius: 0,
+        weight: 0,
+    };
+}
+
+export interface SpringBoneColliderPtrData {
+    shape: number;
+    radius: number;
+    height: number;
+    offset: Vec3;
+}
+
+export function fillSpringBoneCollider(
+    f32: Float32Array, u32: Uint32Array, u8: Uint8Array,
+    ptr: number, out: SpringBoneColliderPtrData,
+): void {
+    out.shape = u8[ptr];
+    out.radius = f32[(ptr + 4) >> 2];
+    out.height = f32[(ptr + 8) >> 2];
+    const offset_ = out.offset; offset_.x = f32[(ptr + 12) >> 2]; offset_.y = f32[((ptr + 12) >> 2) + 1]; offset_.z = f32[((ptr + 12) >> 2) + 2];
+}
+
+export function writeSpringBoneCollider(
+    f32: Float32Array, u32: Uint32Array, u8: Uint8Array,
+    ptr: number, data: SpringBoneColliderPtrData,
+): void {
+    u8[ptr] = data.shape;
+    f32[(ptr + 4) >> 2] = data.radius;
+    f32[(ptr + 8) >> 2] = data.height;
+    f32[(ptr + 12) >> 2] = data.offset.x; f32[((ptr + 12) >> 2) + 1] = data.offset.y; f32[((ptr + 12) >> 2) + 2] = data.offset.z;
+}
+
+export function createSpringBoneColliderData(): SpringBoneColliderPtrData {
+    return {
+        shape: 0,
+        radius: 0,
+        height: 0,
+        offset: { x: 0, y: 0, z: 0 },
+    };
+}
+
 export interface SpritePtrData {
     texture: number;
     color: Color;
@@ -2585,6 +2669,8 @@ export const PTR_ACCESSORS: Record<string, PtrAccessor<any>> = {
     SortingGroup: { fill: fillSortingGroup, write: writeSortingGroup, create: createSortingGroupData },
     SphereCollider3D: { fill: fillSphereCollider3D, write: writeSphereCollider3D, create: createSphereCollider3DData },
     SpineAnimation: { fill: fillSpineAnimation, write: writeSpineAnimation, create: createSpineAnimationData },
+    SpringBone: { fill: fillSpringBone, write: writeSpringBone, create: createSpringBoneData },
+    SpringBoneCollider: { fill: fillSpringBoneCollider, write: writeSpringBoneCollider, create: createSpringBoneColliderData },
     Sprite: { fill: fillSprite, write: writeSprite, create: createSpriteData },
     SpriteMask: { fill: fillSpriteMask, write: writeSpriteMask, create: createSpriteMaskData },
     TilemapLayer: { fill: fillTilemapLayer, write: writeTilemapLayer, create: createTilemapLayerData },

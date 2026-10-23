@@ -1,0 +1,58 @@
+---
+title: Spring bones
+description: Secondary motion for chains of bones (hair, tails, cords): a SpringBone on the chain's root, SpringBoneCollider shapes to keep it out of, and what it costs.
+---
+
+Hair, tails, scarves and cords move after the body does: they lag it, swing, and settle. **Spring bones** add that to a skeleton without an animator
+authoring it. A `SpringBone` on the **root** of a chain makes every entity below it a spring: the animation still says where each bone would be, and
+the chain trails that pose by inertia, falls with gravity, and is pulled back toward it. The root itself is not simulated; it is what the animation or
+the body drives.
+
+It is core, not an optional module, and it runs in C++ in the engine, so it costs the same on every target, including ones with no JIT.
+
+## The component
+
+Put a `SpringBone` on the top bone of a hair strand (its parent bone is the body; its children are the strand). Everything below it, down every branch,
+is simulated.
+
+| Field | What it does |
+|---|---|
+| `enabled` | Off leaves the chain exactly as the animation poses it. |
+| `stiffness` | How hard each bone is pulled back toward its animated pose, 0 to 1 a frame at 60 Hz. 0 hangs free. |
+| `drag` | How much of its speed a bone loses each frame, 0 to 1. Higher settles sooner; the default is damped enough not to ring. |
+| `gravity` | World units a second squared (world y is up). The default is a metre a hundred units. |
+| `endLength` | A leaf bone has no child to aim at; this gives it a tip that long. 0 leaves leaf bones unsimulated. |
+| `radius` | The thickness of the strand, kept clear of the colliders. |
+| `weight` | How much of the simulation is used, 0 to 1. 0 is the animation alone. |
+| `colliders` | Entities with a `SpringBoneCollider` the chain is kept out of. |
+
+A `SpringBoneCollider` is a sphere, or a capsule along its entity's own Y axis, placed by the entity's transform (and its `offset`). Put them on the head
+and shoulders bones so hair does not pass through the body.
+
+## What it does each frame
+
+The animation runs first and writes the bones' local rotations. Then, for each chain:
+
+1. The pose the animation gave is worked out down the chain from the root, using the animation's own rotations. (A bone this system turned last frame
+   and that nothing animated this frame is read as the animation had it, not as it was left, so a chain never springs toward its own last result.)
+2. The chain is stepped toward that pose: each bone keeps its velocity less drag, falls with gravity, is pulled toward its pose, is put back at its length
+   from its parent (parents first, so a bone cannot stretch), and is pushed out of the colliders. The time is split into steps of at most a 60 Hz frame.
+3. Each bone is turned to aim at where its child has got to. **Only rotations are written**; a bone's position is never changed, so it cannot leave its parent,
+   and skinning needs nothing else.
+
+A jump of the root by more than a few times the chain's length, or a stall of half a second, puts the chain back at its pose instead of whipping it.
+Switching the component off, or removing it, gives the bones back as the animation had them. `SpringBoneRes` (`app.getResource(SpringBoneRes)`) has
+`reset(root)` for a teleport you want to mark yourself.
+
+## Cost
+
+The solver is a few arithmetic operations per bone. Measured in the editor's play realm, in the wasm engine: **three hundred chains of six bones (2100 nodes)
+cost 0.28 ms an update.** The test is `springbone` in the editor checks; `test_springbone` is the C++ unit test of the solver and the system.
+
+## Limits
+
+- A bone with several children aims at its first child; the others follow by being children, and aim at their own.
+- Scale is taken from the bones' composed scale; non-uniform scale down a chain is not modelled.
+- Collision is bone against sphere or capsule: no collision between strands, no self-collision, and no collision with the world's physics shapes.
+- There is no wind yet, and no authoring in the viewport: chains and colliders are set up in the Details panel. A hair importer that finds the strands and makes the chains
+  from the model's bone names does not exist yet either.

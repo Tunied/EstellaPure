@@ -45,6 +45,8 @@ set(ESENGINE_SOURCES
     ${ESENGINE_ROOT}/src/esengine/renderer/plugins/MeshPlugin.cpp
     ${ESENGINE_ROOT}/src/esengine/renderer/plugins/TrailPlugin.cpp
     ${ESENGINE_ROOT}/src/esengine/trail/TrailSystem.cpp
+    ${ESENGINE_ROOT}/src/esengine/springbone/SpringBoneSolver.cpp
+    ${ESENGINE_ROOT}/src/esengine/springbone/SpringBoneSystem.cpp
     ${ESENGINE_ROOT}/src/esengine/platform/PathResolver.cpp
     ${ESENGINE_ROOT}/src/esengine/animation/TweenSystem.cpp
     ${ESENGINE_ROOT}/src/esengine/ui/UILayoutSystem.cpp

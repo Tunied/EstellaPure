@@ -32,6 +32,7 @@
 #include "esengine/ecs/components/ShapeRenderer.hpp"
 #include "esengine/ecs/components/SortingGroup.hpp"
 #include "esengine/ecs/components/SpineAnimation.hpp"
+#include "esengine/ecs/components/SpringBone.hpp"
 #include "esengine/ecs/components/Sprite.hpp"
 #include "esengine/ecs/components/SpriteMask.hpp"
 #include "esengine/ecs/components/TilemapLayer.hpp"
@@ -248,6 +249,16 @@ ComponentAt engineComponentAt(ecs::Registry& registry, const char* name) {
     if (std::strcmp(name, "SpineAnimation") == 0) {
         return [&registry](std::uint32_t raw) -> void* {
             return registry.tryGet<esengine::ecs::SpineAnimation>(Entity::fromRaw(raw));
+        };
+    }
+    if (std::strcmp(name, "SpringBone") == 0) {
+        return [&registry](std::uint32_t raw) -> void* {
+            return registry.tryGet<esengine::ecs::SpringBone>(Entity::fromRaw(raw));
+        };
+    }
+    if (std::strcmp(name, "SpringBoneCollider") == 0) {
+        return [&registry](std::uint32_t raw) -> void* {
+            return registry.tryGet<esengine::ecs::SpringBoneCollider>(Entity::fromRaw(raw));
         };
     }
     if (std::strcmp(name, "Sprite") == 0) {
@@ -494,6 +505,16 @@ CandidatesOf engineComponentCandidates(ecs::Registry& registry, const char* name
             return denseAsIds(registry.entitiesWith<esengine::ecs::SpineAnimation>());
         };
     }
+    if (std::strcmp(name, "SpringBone") == 0) {
+        return [&registry]() -> Candidates {
+            return denseAsIds(registry.entitiesWith<esengine::ecs::SpringBone>());
+        };
+    }
+    if (std::strcmp(name, "SpringBoneCollider") == 0) {
+        return [&registry]() -> Candidates {
+            return denseAsIds(registry.entitiesWith<esengine::ecs::SpringBoneCollider>());
+        };
+    }
     if (std::strcmp(name, "Sprite") == 0) {
         return [&registry]() -> Candidates {
             return denseAsIds(registry.entitiesWith<esengine::ecs::Sprite>());
@@ -590,6 +611,8 @@ bool isEngineComponent(const char* name) {
     if (std::strcmp(name, "SortingGroup") == 0) return true;
     if (std::strcmp(name, "SphereCollider3D") == 0) return true;
     if (std::strcmp(name, "SpineAnimation") == 0) return true;
+    if (std::strcmp(name, "SpringBone") == 0) return true;
+    if (std::strcmp(name, "SpringBoneCollider") == 0) return true;
     if (std::strcmp(name, "Sprite") == 0) return true;
     if (std::strcmp(name, "SpriteMask") == 0) return true;
     if (std::strcmp(name, "TilemapLayer") == 0) return true;

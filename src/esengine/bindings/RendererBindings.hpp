@@ -167,6 +167,10 @@ void particle_set_speed_lut(u32 entity, uintptr_t ptr, i32 count);
 #endif
 void trail_update(ecs::Registry& registry, f32 dt);
 void trail_clear(ecs::Registry& registry, u32 entity);
+/** Advances every SpringBone chain: call after the animation has posed the skeleton, before the frame is drawn. */
+void springbone_update(ecs::Registry& registry, f32 dt);
+/** Puts a chain back at its animated pose on its next frame (a teleport, a respawn). */
+void springbone_reset(ecs::Registry& registry, u32 entity);
 void renderer_setStage(i32 stage);
 u32 renderer_createTarget(u32 width, u32 height, i32 flags);
 u32 renderer_getTargetDepthTexture(u32 handle);

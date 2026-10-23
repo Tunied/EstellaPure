@@ -251,6 +251,11 @@ export enum SimulationSpace {
     Local = 1,
 }
 
+export enum SpringBoneShape {
+    Sphere = 0,
+    Capsule = 1,
+}
+
 /**
  * The engine's `SpriteDrawMode`, generated from the C++ enum.
  *
@@ -856,6 +861,24 @@ export interface SpineAnimation {
     enabled: boolean;
 }
 
+export interface SpringBone {
+    enabled: boolean;
+    stiffness: number;
+    drag: number;
+    gravity: Vec3;
+    endLength: number;
+    radius: number;
+    weight: number;
+    colliders: VectorEntity;
+}
+
+export interface SpringBoneCollider {
+    shape: number;
+    radius: number;
+    height: number;
+    offset: Vec3;
+}
+
 export interface Sprite {
     texture: number;
     color: Vec4;
@@ -1154,6 +1177,14 @@ export interface Registry {
     getSpineAnimation(entity: Entity): SpineAnimation;
     addSpineAnimation(entity: Entity, component: SpineAnimation): void;
     removeSpineAnimation(entity: Entity): void;
+    hasSpringBone(entity: Entity): boolean;
+    getSpringBone(entity: Entity): SpringBone;
+    addSpringBone(entity: Entity, component: SpringBone): void;
+    removeSpringBone(entity: Entity): void;
+    hasSpringBoneCollider(entity: Entity): boolean;
+    getSpringBoneCollider(entity: Entity): SpringBoneCollider;
+    addSpringBoneCollider(entity: Entity, component: SpringBoneCollider): void;
+    removeSpringBoneCollider(entity: Entity): void;
     hasSprite(entity: Entity): boolean;
     getSprite(entity: Entity): Sprite;
     addSprite(entity: Entity, component: Sprite): void;
@@ -1254,6 +1285,8 @@ export interface ESEngineModule {
     SortingGroup: new () => SortingGroup;
     SphereCollider3D: new () => SphereCollider3D;
     SpineAnimation: new () => SpineAnimation;
+    SpringBone: new () => SpringBone;
+    SpringBoneCollider: new () => SpringBoneCollider;
     Sprite: new () => Sprite;
     SpriteMask: new () => SpriteMask;
     TilemapLayer: new () => TilemapLayer;
