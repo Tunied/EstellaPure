@@ -28,7 +28,7 @@ program
 program
     .command('build')
     .description('Build ESEngine')
-    .option('-t, --target <target>', 'Build target (web, wechat, spine, spine21, spine38, spine41, spine43, dragonbones, physics, physics-wechat, spine-wechat, dragonbones-wechat, basis, basis-wechat, sdk, all)', 'web')
+    .option('-t, --target <target>', 'Build target (web, wechat, wechat-lite, spine, spine21, spine38, spine41, spine43, dragonbones, physics, physics-wechat, spine-wechat, dragonbones-wechat, basis, basis-wechat, sdk, all)', 'web')
     .option('-d, --debug', 'Debug build', false)
     .option('-r, --release', 'Release build (default)', true)
     .option('-c, --clean', 'Clean before build', false)

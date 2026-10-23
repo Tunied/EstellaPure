@@ -363,6 +363,10 @@ function readSizeVerdicts(reportPath) {
 for (const key of new Set(pairs.map((p) => JSON.stringify(ENGINE_OF(p.target))))) {
   const { dir, variant } = JSON.parse(key);
   requireCurrentEngine(ROOT, dir, process.argv, variant);
+  // A package picks the lite engine from the directory beside the WeChat one when its content allows, so that binary is
+  // judged too — a stale one boots, fails its ABI handshake and reads as the game being broken.
+  const lite = `${dir}-lite`;
+  if (variant === 'wechat' && existsSync(lite)) requireCurrentEngine(ROOT, lite, process.argv, 'wechat-lite');
 }
 
 const results = [];

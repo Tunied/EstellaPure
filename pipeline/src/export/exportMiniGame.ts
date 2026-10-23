@@ -31,6 +31,7 @@ import type { DebugChannelConfig } from 'esengine';
 import { packagedDebugChannel } from './debugChannel';
 import { packagedHotUpdate } from './hotUpdateConfig';
 import { loadEsbuild } from '../bundle/esbuildRuntime';
+import { liteEngineAnswer, scriptsMentionOmitted } from './liteEngine';
 import type { ProjectFeatures, ProjectPackaging } from '../project/format';
 import {
   DEFAULT_RUNTIME_CONFIG, packagedRuntimeFields, withAudioLoadTypes, type RuntimeProjectConfig,
@@ -328,10 +329,16 @@ export async function exportMiniGame(profile: MiniGameExportProfile, opts: {
       + 'build it with `node build-tools/cli.js build -t wechat-glx`, or turn EmscriptenGLX off in Project Settings → WeChat');
     return { ok: false, platform: profile.id, outDir: absOut, included: 0, warnings, errors };
   }
-  /** The engine's own files come from the GLX runtime when the project asked for it. */
+  // The engine without particles, post-processing and tilemaps, beside the full one: used when the content says it needs none
+  // (decided once the content has been read, below, and before any engine file is staged).
+  const liteDir = `${opts.wasmDir.replace(/[\/]+$/, '')}-lite`;
+  let lite = false;
+  /** The engine's own files come from the GLX runtime when the project asked for it, or the lite one when it can. */
   const runtimeFile = (name: string): string => {
     const fromGlx = path.join(glxDir, name);
-    return glx && existsSync(fromGlx) ? fromGlx : path.join(opts.wasmDir, name);
+    if (glx && existsSync(fromGlx)) return fromGlx;
+    const fromLite = path.join(liteDir, name);
+    return lite && existsSync(fromLite) ? fromLite : path.join(opts.wasmDir, name);
   };
   const engineGlueFile = profile.engineGlueCandidates
     .find((f) => existsSync(runtimeFile(f)));
@@ -533,6 +540,13 @@ export async function exportMiniGame(profile: MiniGameExportProfile, opts: {
     choices: moduleChoices(opts.features, opts.modulesByPlatform?.[profile.id]),
     debugChannel: !!debugChannel,
   });
+  // The lite engine, when this vendor has one and nothing in the content or the scripts reaches what it leaves out.
+  lite = !glx && liteEngineAnswer({
+    subsystems: usedSubsystems.keys(),
+    scriptsMention: await scriptsMentionOmitted(opts.root, opts.scriptsEntry),
+    choices: moduleChoices(opts.features, opts.modulesByPlatform?.[profile.id]),
+  }) && profile.engineGlueCandidates.some((f) => existsSync(path.join(liteDir, f)));
+  if (lite) progress({ phase: 'Choosing engine', detail: 'lite (no particles, post-processing or tilemaps in the content)' });
   // A package missing half a scene, with nothing saying which half, is worse than
   // one that refuses to be made.
   for (const r of plan.refused) {

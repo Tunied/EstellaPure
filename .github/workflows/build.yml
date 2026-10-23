@@ -55,6 +55,11 @@ jobs:
       with:
         name: wasm-wechat
         path: build/wasm/wechat/
+    - name: Download this commit's lite WeChat runtime
+      uses: actions/download-artifact@v8
+      with:
+        name: wasm-wechat-lite
+        path: build/wasm/wechat-lite/
     - name: Download this commit's compatibility mini-game runtime
       uses: actions/download-artifact@v8
       with:
@@ -250,6 +255,15 @@ jobs:
       with:
         name: wasm-wechat
         path: build/wasm/wechat/
+        retention-days: 3
+
+    # The engine without particles, post-processing and tilemaps, which a package whose content uses none of them ships
+    # (pipeline/src/export/liteEngine.ts). Without it the size gate judges the full engine against the 4 MB limit.
+    - name: Upload lite wechat wasm artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: wasm-wechat-lite
+        path: build/wasm/wechat-lite/
         retention-days: 3
 
     - name: Upload compatibility mini-game wasm artifact

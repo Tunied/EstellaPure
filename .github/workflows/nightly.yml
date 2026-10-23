@@ -85,6 +85,13 @@ jobs:
         path: build/wasm/wechat/
         retention-days: 3
 
+    - name: Upload lite wechat wasm artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: wasm-wechat-lite
+        path: build/wasm/wechat-lite/
+        retention-days: 3
+
     - name: Upload wechat GLX wasm artifact
       uses: actions/upload-artifact@v7
       with:

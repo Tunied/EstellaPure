@@ -73,12 +73,17 @@ export function initPostProcessAPI(engine: NonNullable<EngineApi>): void {
     if (!hdrPtr && typeof heap._malloc === 'function') hdrPtr = heap._malloc(4 * 4);
 }
 
+/** A core built without ES_ENABLE_POSTPROCESS (the lite mini-game engine) has none of these entry points: no chain, nothing to ask. */
+function hasPostProcessCore(core: PostProcessCore): boolean {
+    return typeof core.postprocess_isInitialized === 'function';
+}
+
 /** @internal Wired by the engine plugins — not part of the public API. */
 export function shutdownPostProcessAPI(): void {
     // Per-App state dies with its App; here we only tear down the shared module.
     if (module) {
         try {
-            if (module.postprocess_isInitialized()) module.postprocess_shutdown();
+            if (hasPostProcessCore(module) && module.postprocess_isInitialized()) module.postprocess_shutdown();
         } catch (e) {
             handleWasmError(e, 'PostProcess.shutdown');
         }
@@ -292,7 +297,7 @@ export class PostProcessAPI {
     }
 
     isInitialized(): boolean {
-        if (!module) return false;
+        if (!module || !hasPostProcessCore(module)) return false;
         try {
             return module.postprocess_isInitialized();
         } catch (e) {

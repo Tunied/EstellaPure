@@ -18,6 +18,7 @@ export default {
         web: { cmakeOpt: '-O2', wasmOpt: '-O2' },
         wechat: { cmakeOpt: '-O2', wasmOpt: '-O2' },
         'wechat-glx': { cmakeOpt: '-O2', wasmOpt: '-O2' },
+        'wechat-lite': { cmakeOpt: '-O2', wasmOpt: '-O2' },
         quickgame: { cmakeOpt: '-O2', wasmOpt: '-O2' },
     },
 
@@ -41,6 +42,19 @@ export default {
             outputs: {
                 'sdk/esengine.wxgame.js': 'wasm/wechat/esengine.wxgame.js',
                 'sdk/esengine.wxgame.wasm': 'wasm/wechat/esengine.wxgame.wasm',
+            },
+        },
+        // The WeChat engine without the particle, post-process and tilemap subsystems, for a package whose content uses none
+        // of them: the same binary otherwise, ~200 KB smaller against a 4 MB main package. The export picks it from the same
+        // evidence it picks the engine's lean entry by (pipeline/src/export/liteEngine.ts).
+        'wechat-lite': {
+            buildDir: 'build/cmake/wxgame-lite',
+            cmakeFlags: ['-DES_BUILD_WXGAME=ON', '-DES_BUILD_TESTS=OFF', '-DES_ENABLE_PARTICLES=OFF',
+                '-DES_ENABLE_POSTPROCESS=OFF', '-DES_ENABLE_TILEMAP=OFF'],
+            targets: ['esengine_wxgame'],
+            outputs: {
+                'sdk/esengine.wxgame.js': 'wasm/wechat-lite/esengine.wxgame.js',
+                'sdk/esengine.wxgame.wasm': 'wasm/wechat-lite/esengine.wxgame.wasm',
             },
         },
         // The WeChat engine with EmscriptenGLX linked in, for a project that turns it
@@ -262,6 +276,7 @@ export default {
             // would otherwise overwrite the web modules in desktop/public/wasm.
             'build/wasm/wechat': 'desktop/public/wasm-wechat',
             'build/wasm/wechat-glx': 'desktop/public/wasm-wechat-glx',
+            'build/wasm/wechat-lite': 'desktop/public/wasm-wechat-lite',
             'build/wasm/quickgame': 'desktop/public/wasm-quickgame',
         },
         sdk: {

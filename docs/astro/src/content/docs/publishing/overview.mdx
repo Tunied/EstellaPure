@@ -411,6 +411,11 @@ import { Tilemap } from 'esengine/tilemap';
 One subsystem has no subpath yet: a project using **Video** takes the whole engine, with
 every optional subsystem in it. Nothing else changes — the API is identical either way.
 
+The same goes for the engine binary on WeChat and Douyin. When no scene or prefab has a particle emitter, a post-process volume or a
+tilemap, and no script mentions them, the package carries the **lite engine**: the same engine without those three subsystems, about
+200 KB smaller against the 4 MB main package. A single mention in a script (`ParticleEmitter`, `PostProcess…`, `Tilemap…`) is enough to carry
+the full one, as is naming `esengine/tilemap` as **Include** in Project Settings; a doubt always ships everything.
+
 ### Limits
 
 Where a platform publishes a limit, the build is judged against it and the meter says

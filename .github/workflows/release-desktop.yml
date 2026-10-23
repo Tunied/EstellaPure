@@ -126,6 +126,7 @@ jobs:
             desktop/public/wasm
             desktop/public/wasm-wechat
             desktop/public/wasm-wechat-glx
+            desktop/public/wasm-wechat-lite
             desktop/public/wasm-quickgame
           retention-days: 3
 

@@ -734,6 +734,49 @@ describe('exportGame (wechat)', () => {
     expect(missing.errors.join('\n')).toContain('build -t wechat-glx');
   }, 60_000);
 
+  // The lite engine is the plain one without particles, post-processing and tilemaps, and it is only right for content
+  // that reaches none of them — by a component in a scene or by a word in a script.
+  it('ships the lite engine only when nothing in the content or the scripts reaches what it leaves out', async () => {
+    const base = path.join(root, '_wxwasm-l');
+    for (const [dir, bytes] of [[base, 'plainbytes'], [`${base}-lite`, 'litebytes']] as const) {
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(path.join(dir, 'esengine.js'), 'module.exports = () => Promise.resolve({});');
+      writeFileSync(path.join(dir, 'esengine.wasm'), bytes);
+    }
+    const scene = path.join(root, 'scenes', 'main.esscene');
+    const script = path.join(root, 'src', 'main.ts');
+    const sceneText = readFileSync(scene, 'utf8');
+    const scriptText = readFileSync(script, 'utf8');
+    const shipped = async (name: string): Promise<string> => {
+      const o = path.join(root, name);
+      const res = await exportGame({
+        root, entryScene: 'scenes/main.esscene', hostsDir: 'unused-for-wechat', packagesDir: OFFICIAL_PACKAGES,
+        scriptsEntry: 'src/main.ts', sdkDistDir: path.join(root, '_sdk'), wasmDir: base, outDir: o,
+        platform: 'wechat', miniGameAppid: 'wxTEST0123456789',
+        runtime: runtimeConfigOf({ designResolution: { width: 1280, height: 720 } }),
+      });
+      expect(res.ok).toBe(true);
+      return readFileSync(path.join(o, 'wasm', 'esengine.wasm'), 'utf8');
+    };
+    try {
+      expect(await shipped('dist-wx-lite-a')).toBe('litebytes');
+
+      const withEmitter = JSON.parse(sceneText);
+      withEmitter.entities.push({ id: 1, components: [{ type: 'ParticleEmitter', data: {} }] });
+      writeFileSync(scene, JSON.stringify(withEmitter));
+      expect(await shipped('dist-wx-lite-b')).toBe('plainbytes');
+
+      writeFileSync(scene, sceneText);
+      writeFileSync(script, `${scriptText}
+// builds a PostProcessVolume at run time
+`);
+      expect(await shipped('dist-wx-lite-c')).toBe('plainbytes');
+    } finally {
+      writeFileSync(scene, sceneText);
+      writeFileSync(script, scriptText);
+    }
+  }, 120_000);
+
   // Moving the binary out of the 4MB main package means four things must agree:
   // where it lands, what the loader is told, what game.json declares, and that
   // the entry asks the host for the 分包 before the engine is instantiated.
