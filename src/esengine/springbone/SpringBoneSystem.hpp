@@ -77,6 +77,7 @@ private:
         std::vector<Node> nodes;
         glm::vec3 rootPosition{0.0f};
         bool primed = false;
+        f32 clock = 0.0f;   ///< Seconds this chain has been simulated, which the wind's gusts are a function of.
         /// The animation's local rotation of each bone, the one this system last wrote there, and whether it has written one. A bone
         /// still holding what was written was not animated this frame, so the animation's own value is the one kept from before.
         std::vector<glm::quat> animated;

@@ -1906,6 +1906,9 @@ export interface SpringBonePtrData {
     stiffness: number;
     drag: number;
     gravity: Vec3;
+    wind: Vec3;
+    windGust: number;
+    windFrequency: number;
     endLength: number;
     radius: number;
     weight: number;
@@ -1919,9 +1922,12 @@ export function fillSpringBone(
     out.stiffness = f32[(ptr + 4) >> 2];
     out.drag = f32[(ptr + 8) >> 2];
     const gravity_ = out.gravity; gravity_.x = f32[(ptr + 12) >> 2]; gravity_.y = f32[((ptr + 12) >> 2) + 1]; gravity_.z = f32[((ptr + 12) >> 2) + 2];
-    out.endLength = f32[(ptr + 24) >> 2];
-    out.radius = f32[(ptr + 28) >> 2];
-    out.weight = f32[(ptr + 32) >> 2];
+    const wind_ = out.wind; wind_.x = f32[(ptr + 24) >> 2]; wind_.y = f32[((ptr + 24) >> 2) + 1]; wind_.z = f32[((ptr + 24) >> 2) + 2];
+    out.windGust = f32[(ptr + 36) >> 2];
+    out.windFrequency = f32[(ptr + 40) >> 2];
+    out.endLength = f32[(ptr + 44) >> 2];
+    out.radius = f32[(ptr + 48) >> 2];
+    out.weight = f32[(ptr + 52) >> 2];
 }
 
 export function writeSpringBone(
@@ -1932,9 +1938,12 @@ export function writeSpringBone(
     f32[(ptr + 4) >> 2] = data.stiffness;
     f32[(ptr + 8) >> 2] = data.drag;
     f32[(ptr + 12) >> 2] = data.gravity.x; f32[((ptr + 12) >> 2) + 1] = data.gravity.y; f32[((ptr + 12) >> 2) + 2] = data.gravity.z;
-    f32[(ptr + 24) >> 2] = data.endLength;
-    f32[(ptr + 28) >> 2] = data.radius;
-    f32[(ptr + 32) >> 2] = data.weight;
+    f32[(ptr + 24) >> 2] = data.wind.x; f32[((ptr + 24) >> 2) + 1] = data.wind.y; f32[((ptr + 24) >> 2) + 2] = data.wind.z;
+    f32[(ptr + 36) >> 2] = data.windGust;
+    f32[(ptr + 40) >> 2] = data.windFrequency;
+    f32[(ptr + 44) >> 2] = data.endLength;
+    f32[(ptr + 48) >> 2] = data.radius;
+    f32[(ptr + 52) >> 2] = data.weight;
 }
 
 export function createSpringBoneData(): SpringBonePtrData {
@@ -1943,6 +1952,9 @@ export function createSpringBoneData(): SpringBonePtrData {
         stiffness: 0,
         drag: 0,
         gravity: { x: 0, y: 0, z: 0 },
+        wind: { x: 0, y: 0, z: 0 },
+        windGust: 0,
+        windFrequency: 0,
         endLength: 0,
         radius: 0,
         weight: 0,

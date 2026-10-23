@@ -51,6 +51,18 @@ struct SpringBone {
     ES_PROPERTY(category=Motion, tooltip="Gravity on the chain, in world units a second squared (world y is up).")
     glm::vec3 gravity{0.0f, -980.0f, 0.0f};
 
+    /** @brief A steady wind on the chain, in world units a second squared. */
+    ES_PROPERTY(category=Wind, tooltip="A steady wind on the chain, in world units a second squared. Zero is still air.")
+    glm::vec3 wind{0.0f, 0.0f, 0.0f};
+
+    /** @brief How far gusts swing the wind's strength, 0 to 1. */
+    ES_PROPERTY(category=Wind, min=0, max=1, step=0.01, slider, tooltip="How far gusts swing the wind's strength. 0 is a steady wind, 1 takes it from calm to twice its strength.")
+    f32 windGust{0.0f};
+
+    /** @brief Gusts a second. */
+    ES_PROPERTY(category=Wind, min=0, step=0.05, tooltip="Gusts a second.")
+    f32 windFrequency{0.5f};
+
     /** @brief How far the last bones of a chain reach past themselves, in world units: a leaf has no child to aim at, so this gives it a tip. 0 leaves leaves unsimulated. */
     ES_PROPERTY(category=Chain, min=0, step=0.1, tooltip="Length of the tip past each end bone, in world units. 0 leaves the end bones unsimulated.")
     f32 endLength{0.0f};

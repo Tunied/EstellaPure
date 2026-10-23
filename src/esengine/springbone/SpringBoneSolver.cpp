@@ -54,9 +54,18 @@ bool pushOut(glm::vec3& p, const Collider& c, f32 extra) {
     return true;
 }
 
+f32 gustFactor(f32 time, f32 frequency, f32 gust, i32 index) {
+    if (gust <= 0.0f) return 1.0f;
+    constexpr f32 kTwoPi = 6.28318530718f;
+    // Two incommensurate sines: no beat repeats soon enough to read as a loop. The index lags the phase so each bone meets a gust a moment after the one above.
+    const f32 phase = time * frequency * kTwoPi - static_cast<f32>(index) * 0.35f;
+    const f32 n = 0.6f * std::sin(phase) + 0.4f * std::sin(phase * 2.37f + 1.3f);
+    return std::max(0.0f, 1.0f + std::clamp(gust, 0.0f, 1.0f) * n);
+}
+
 namespace {
 
-void substep(std::vector<Particle>& chain, const StepParams& params, const std::vector<Collider>& colliders, f32 h) {
+void substep(std::vector<Particle>& chain, const StepParams& params, const std::vector<Collider>& colliders, f32 h, f32 time) {
     // Stiffness and drag are quoted per 60 Hz frame; at another step they are the same decay over that time.
     const f32 frames = h / kReferenceStep;
     const f32 keep = std::pow(std::clamp(1.0f - params.drag, 0.0f, 1.0f), frames);
@@ -74,6 +83,7 @@ void substep(std::vector<Particle>& chain, const StepParams& params, const std::
         const glm::vec3 velocity = (p.position - p.previous) * keep;
         p.previous = p.position;
         p.position += velocity + fall;
+        if (glm::dot(params.wind, params.wind) > 0.0f) p.position += params.wind * (gustFactor(time, params.windFrequency, params.windGust, static_cast<i32>(i)) * h * h);
         p.position += (p.target - p.position) * pull;
     }
     // Parents first: a node's parent is already where it will be, so each node is put at its distance from it and the chain cannot stretch.
@@ -108,7 +118,7 @@ void step(std::vector<Particle>& chain, const StepParams& params, const std::vec
     dt = std::min(dt, kMaxStep);
     const i32 steps = std::max(1, static_cast<i32>(std::ceil(dt / kReferenceStep - 1e-4f)));
     const f32 h = dt / static_cast<f32>(steps);
-    for (i32 s = 0; s < steps; ++s) substep(chain, params, colliders, h);
+    for (i32 s = 0; s < steps; ++s) substep(chain, params, colliders, h, params.time + h * static_cast<f32>(s));
 }
 
 }  // namespace esengine::springbone

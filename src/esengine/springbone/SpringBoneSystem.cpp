@@ -241,7 +241,12 @@ void SpringBoneSystem::update(ecs::Registry& registry, ecs::TransformSystem* tra
         params.drag = sb.drag;
         params.gravity = sb.gravity;
         params.radius = sb.radius;
+        params.wind = sb.wind;
+        params.windGust = sb.windGust;
+        params.windFrequency = sb.windFrequency;
+        params.time = st.clock;
         step(st.particles, params, colliders_, dt);
+        st.clock += std::min(dt, springbone::kMaxStep);
         ++simulated_;
 
         // Write back: each bone is turned to aim at where its child's simulated point is, going down the chain so a bone's own position

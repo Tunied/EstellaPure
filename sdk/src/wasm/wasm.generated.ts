@@ -866,6 +866,9 @@ export interface SpringBone {
     stiffness: number;
     drag: number;
     gravity: Vec3;
+    wind: Vec3;
+    windGust: number;
+    windFrequency: number;
     endLength: number;
     radius: number;
     weight: number;

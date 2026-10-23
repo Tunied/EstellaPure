@@ -1275,6 +1275,9 @@ struct SpringBoneJS {
     f32 stiffness;
     f32 drag;
     glm::vec3 gravity;
+    glm::vec3 wind;
+    f32 windGust;
+    f32 windFrequency;
     f32 endLength;
     f32 radius;
     f32 weight;
@@ -1286,6 +1289,9 @@ void springboneApplyJS(esengine::ecs::SpringBone& c, const SpringBoneJS& js) {
     c.stiffness = js.stiffness;
     c.drag = js.drag;
     c.gravity = js.gravity;
+    c.wind = js.wind;
+    c.windGust = js.windGust;
+    c.windFrequency = js.windFrequency;
     c.endLength = js.endLength;
     c.radius = js.radius;
     c.weight = js.weight;
@@ -1305,6 +1311,9 @@ SpringBoneJS springboneToJS(const esengine::ecs::SpringBone& c) {
     js.stiffness = c.stiffness;
     js.drag = c.drag;
     js.gravity = c.gravity;
+    js.wind = c.wind;
+    js.windGust = c.windGust;
+    js.windFrequency = c.windFrequency;
     js.endLength = c.endLength;
     js.radius = c.radius;
     js.weight = c.weight;
@@ -2134,6 +2143,9 @@ EMSCRIPTEN_BINDINGS(esengine_components) {
         .field("stiffness", &SpringBoneJS::stiffness)
         .field("drag", &SpringBoneJS::drag)
         .field("gravity", &SpringBoneJS::gravity)
+        .field("wind", &SpringBoneJS::wind)
+        .field("windGust", &SpringBoneJS::windGust)
+        .field("windFrequency", &SpringBoneJS::windFrequency)
         .field("endLength", &SpringBoneJS::endLength)
         .field("radius", &SpringBoneJS::radius)
         .field("weight", &SpringBoneJS::weight)
@@ -3945,9 +3957,12 @@ static_assert(offsetof(esengine::ecs::SpringBone, enabled) == 0, "ABI offset dri
 static_assert(offsetof(esengine::ecs::SpringBone, stiffness) == 4, "ABI offset drift: esengine::ecs::SpringBone.stiffness (EHT expected 4)");
 static_assert(offsetof(esengine::ecs::SpringBone, drag) == 8, "ABI offset drift: esengine::ecs::SpringBone.drag (EHT expected 8)");
 static_assert(offsetof(esengine::ecs::SpringBone, gravity) == 12, "ABI offset drift: esengine::ecs::SpringBone.gravity (EHT expected 12)");
-static_assert(offsetof(esengine::ecs::SpringBone, endLength) == 24, "ABI offset drift: esengine::ecs::SpringBone.endLength (EHT expected 24)");
-static_assert(offsetof(esengine::ecs::SpringBone, radius) == 28, "ABI offset drift: esengine::ecs::SpringBone.radius (EHT expected 28)");
-static_assert(offsetof(esengine::ecs::SpringBone, weight) == 32, "ABI offset drift: esengine::ecs::SpringBone.weight (EHT expected 32)");
+static_assert(offsetof(esengine::ecs::SpringBone, wind) == 24, "ABI offset drift: esengine::ecs::SpringBone.wind (EHT expected 24)");
+static_assert(offsetof(esengine::ecs::SpringBone, windGust) == 36, "ABI offset drift: esengine::ecs::SpringBone.windGust (EHT expected 36)");
+static_assert(offsetof(esengine::ecs::SpringBone, windFrequency) == 40, "ABI offset drift: esengine::ecs::SpringBone.windFrequency (EHT expected 40)");
+static_assert(offsetof(esengine::ecs::SpringBone, endLength) == 44, "ABI offset drift: esengine::ecs::SpringBone.endLength (EHT expected 44)");
+static_assert(offsetof(esengine::ecs::SpringBone, radius) == 48, "ABI offset drift: esengine::ecs::SpringBone.radius (EHT expected 48)");
+static_assert(offsetof(esengine::ecs::SpringBone, weight) == 52, "ABI offset drift: esengine::ecs::SpringBone.weight (EHT expected 52)");
 static_assert(offsetof(esengine::ecs::SpringBoneCollider, shape) == 0, "ABI offset drift: esengine::ecs::SpringBoneCollider.shape (EHT expected 0)");
 static_assert(offsetof(esengine::ecs::SpringBoneCollider, radius) == 4, "ABI offset drift: esengine::ecs::SpringBoneCollider.radius (EHT expected 4)");
 static_assert(offsetof(esengine::ecs::SpringBoneCollider, height) == 8, "ABI offset drift: esengine::ecs::SpringBoneCollider.height (EHT expected 8)");
@@ -4064,7 +4079,7 @@ static_assert(offsetof(esengine::ecs::Velocity, angular) == 12, "ABI offset drif
 // ABI Hash -- runtime handshake against the SDK bundle
 // =============================================================================
 
-static const char* kEsAbiLayoutHash = "0683d80a6ccb5275";
+static const char* kEsAbiLayoutHash = "7403dd8de628613e";
 
 std::string esengineGetAbiLayoutHash() {
     return std::string(kEsAbiLayoutHash);

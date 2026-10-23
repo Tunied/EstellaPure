@@ -326,3 +326,70 @@ TEST_CASE("a collider entity keeps the simulated bones out") {
     REQUIRE(chain != nullptr);
     for (size_t i = 1; i < chain->size(); ++i) CHECK(glm::length((*chain)[i].position - glm::vec3(15.0f, -10.0f, 0.0f)) >= 7.9f);
 }
+
+TEST_CASE("a steady wind holds a chain out downwind of its pose") {
+    auto chain = hanging(5, 10.0f);
+    StepParams params;
+    params.gravity = glm::vec3(0.0f);
+    params.stiffness = 0.05f;
+    params.wind = glm::vec3(600.0f, 0.0f, 0.0f);
+    for (int i = 0; i < 240; ++i) {
+        params.time = static_cast<f32>(i) / 60.0f;
+        step(chain, params, {}, 1.0f / 60.0f);
+    }
+    CHECK(chain.back().position.x > 3.0f);
+    CHECK(std::abs(chain.back().position.z) < 1e-3f);
+    CHECK(stretch(chain) < 1e-2f);
+    // The root is what the body drives and the wind never moves it.
+    CHECK(chain[0].position.x == doctest::Approx(0.0f));
+}
+
+TEST_CASE("without a wind the chain is as it was, gusts or not") {
+    auto still = hanging(4, 10.0f);
+    auto gusty = hanging(4, 10.0f);
+    StepParams a;
+    StepParams b;
+    b.windGust = 1.0f;
+    for (int i = 0; i < 60; ++i) {
+        a.time = b.time = static_cast<f32>(i) / 60.0f;
+        step(still, a, {}, 1.0f / 60.0f);
+        step(gusty, b, {}, 1.0f / 60.0f);
+    }
+    for (size_t i = 0; i < still.size(); ++i) CHECK(glm::length(still[i].position - gusty[i].position) < 1e-5f);
+}
+
+TEST_CASE("gusts swing the wind's strength, within bounds and reproducibly") {
+    CHECK(gustFactor(1.7f, 0.5f, 0.0f, 3) == doctest::Approx(1.0f));
+    f32 lo = 10.0f, hi = -10.0f;
+    for (int i = 0; i < 400; ++i) {
+        const f32 f = gustFactor(static_cast<f32>(i) * 0.05f, 0.5f, 1.0f, 0);
+        lo = std::min(lo, f);
+        hi = std::max(hi, f);
+        CHECK(f >= 0.0f);
+        CHECK(f <= 2.0f);
+    }
+    CHECK(lo < 0.5f);
+    CHECK(hi > 1.5f);
+    CHECK(gustFactor(2.5f, 0.5f, 0.6f, 2) == gustFactor(2.5f, 0.5f, 0.6f, 2));
+    // A bone further down meets the same gust later: the strand ripples.
+    CHECK(gustFactor(2.5f, 0.5f, 1.0f, 0) != doctest::Approx(gustFactor(2.5f, 0.5f, 1.0f, 4)));
+}
+
+TEST_CASE("the chain's own clock makes a gusting chain repeatable") {
+    auto run = [] {
+        auto chain = hanging(5, 10.0f);
+        StepParams p;
+        p.gravity = glm::vec3(0.0f);
+        p.wind = glm::vec3(400.0f, 0.0f, 100.0f);
+        p.windGust = 0.8f;
+        for (int i = 0; i < 180; ++i) {
+            p.time = static_cast<f32>(i) / 60.0f;
+            step(chain, p, {}, 1.0f / 60.0f);
+        }
+        return chain.back().position;
+    };
+    const glm::vec3 first = run();
+    const glm::vec3 second = run();
+    CHECK(first.x == second.x);
+    CHECK(first.z == second.z);
+}

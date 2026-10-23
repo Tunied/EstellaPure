@@ -15,7 +15,7 @@ import type { AlignContent, AlignItems, AlignSelf, BodyType, CanvasScaleMode, Cl
  * getAbiLayoutHash(); BuiltinBridge.connect() compares them and refuses to
  * run on mismatch, because mismatched offsets read the wrong heap bytes.
  */
-export const ABI_LAYOUT_HASH = '0683d80a6ccb5275';
+export const ABI_LAYOUT_HASH = '7403dd8de628613e';
 
 /**
  * One asset-valued field of a component: which field, and what kind of
@@ -1022,6 +1022,9 @@ export const COMPONENT_META: Record<string, ComponentMetaEntry> = {
             stiffness: 0.1,
             drag: 0.5,
             gravity: { x: 0, y: -980, z: 0 },
+            wind: { x: 0, y: 0, z: 0 },
+            windGust: 0,
+            windFrequency: 0.5,
             endLength: 0,
             radius: 0,
             weight: 1,
@@ -1036,6 +1039,9 @@ export const COMPONENT_META: Record<string, ComponentMetaEntry> = {
             stiffness: { min: 0, max: 1, step: 0.01, slider: true, tooltip: "How hard each bone is pulled back toward its animated pose. 0 hangs free, 1 follows the animation exactly.", category: "Motion" },
             drag: { min: 0, max: 1, step: 0.01, slider: true, tooltip: "How much of its speed a bone loses each frame. Higher settles sooner.", category: "Motion" },
             gravity: { tooltip: "Gravity on the chain, in world units a second squared (world y is up).", category: "Motion" },
+            wind: { tooltip: "A steady wind on the chain, in world units a second squared. Zero is still air.", category: "Wind" },
+            windGust: { min: 0, max: 1, step: 0.01, slider: true, tooltip: "How far gusts swing the wind's strength. 0 is a steady wind, 1 takes it from calm to twice its strength.", category: "Wind" },
+            windFrequency: { min: 0, step: 0.05, tooltip: "Gusts a second.", category: "Wind" },
             endLength: { min: 0, step: 0.1, tooltip: "Length of the tip past each end bone, in world units. 0 leaves the end bones unsimulated.", category: "Chain" },
             radius: { min: 0, step: 0.1, tooltip: "Thickness of the strand, in world units, kept clear of the colliders.", category: "Chain" },
             weight: { min: 0, max: 1, step: 0.01, slider: true, tooltip: "How much of the simulation is used. 0 is the animation alone.", category: "Chain" },
@@ -1835,6 +1841,9 @@ export interface SpringBoneData {
     stiffness: number;
     drag: number;
     gravity: Vec3;
+    wind: Vec3;
+    windGust: number;
+    windFrequency: number;
     endLength: number;
     radius: number;
     weight: number;

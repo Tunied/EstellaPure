@@ -8916,6 +8916,9 @@ gravity: Vec3
 radius: number
 stiffness: number
 weight: number
+wind: Vec3
+windFrequency: number
+windGust: number
 ```
 
 ## SpringBoneParticle — interface @experimental

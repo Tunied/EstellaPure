@@ -21,6 +21,9 @@ is simulated.
 | `stiffness` | How hard each bone is pulled back toward its animated pose, 0 to 1 a frame at 60 Hz. 0 hangs free. |
 | `drag` | How much of its speed a bone loses each frame, 0 to 1. Higher settles sooner; the default is damped enough not to ring. |
 | `gravity` | World units a second squared (world y is up). The default is a metre a hundred units. |
+| `wind` | A steady wind on the chain, world units a second squared. Zero is still air. |
+| `windGust` | How far gusts swing the wind's strength, 0 to 1. 0 is steady; 1 takes it from calm to twice its strength. Each bone meets a gust a moment after the one above, so the strand ripples. |
+| `windFrequency` | Gusts a second. |
 | `endLength` | A leaf bone has no child to aim at; this gives it a tip that long. 0 leaves leaf bones unsimulated. |
 | `radius` | The thickness of the strand, kept clear of the colliders. |
 | `weight` | How much of the simulation is used, 0 to 1. 0 is the animation alone. |
@@ -28,6 +31,18 @@ is simulated.
 
 A `SpringBoneCollider` is a sphere, or a capsule along its entity's own Y axis, placed by the entity's transform (and its `offset`). Put them on the head
 and shoulders bones so hair does not pass through the body.
+
+## From a model
+
+Set a model's **Spring Bones** import setting to **By Bone Name** and the importer builds the chains from names the file already carries, so nobody sets up forty strands by hand:
+
+| Name | Becomes |
+| --- | --- |
+| `Hair_<region>_<chain>_00` (with bones below it) | a `SpringBone` on that bone; the rest of the strand is whatever hangs below it |
+| `SBC_Sphere_<name>_r<cm>` | a sphere `SpringBoneCollider`, radius in centimetres |
+| `SBC_Capsule_<name>_r<cm>_h<cm>` | a capsule, radius and the distance between its two end centres, along the node's local +Y |
+
+The region (`Ponytail`, `Temple_L`, `Fringe`, `Crest`, `Crown`) picks a starting stiffness and drag: a fringe is held close, a ponytail swings. Every chain is kept out of every collider the model has. Sizes are in the model's metres and follow the import scale, and gravity is Earth's in those metres. A capsule with no length, or a chain root with nothing below it, is skipped. A name is a convention, so look at what the import made in Details and adjust it there.
 
 ## In the editor
 
@@ -67,5 +82,5 @@ cost 0.28 ms an update.** The test is `springbone` in the editor checks; `test_s
 - A bone with several children aims at its first child; the others follow by being children, and aim at their own.
 - Scale is taken from the bones' composed scale; non-uniform scale down a chain is not modelled.
 - Collision is bone against sphere or capsule: no collision between strands, no self-collision, and no collision with the world's physics shapes.
-- There is no wind yet. A collider's radius, height and offset are typed in Details; the viewport has no handles to drag them. A hair importer that finds the strands and makes
-  the chains from the model's bone names does not exist yet either.
+- The wind is a field on each chain, not a force in the scene: there is no scene-wide wind source to set once for every chain. A collider's radius, height and offset are typed in Details; the viewport has no handles to drag them. Chains are made from names; the importer does not look at
+  the shape of the mesh, so a strand with no `Hair_` bone gets no motion.

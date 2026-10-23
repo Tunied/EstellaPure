@@ -37,7 +37,14 @@ struct StepParams {
     f32 drag = 0.5f;         ///< Share of speed lost per 60 Hz frame, 0 to 1.
     glm::vec3 gravity{0.0f, -980.0f, 0.0f};
     f32 radius = 0.0f;       ///< The strand's own thickness, kept clear of colliders.
+    glm::vec3 wind{0.0f};    ///< Steady wind acceleration, world units a second squared.
+    f32 windGust = 0.0f;     ///< How far gusts swing the wind's strength, 0 to 1: 0.5 takes it between half and one and a half times `wind`.
+    f32 windFrequency = 0.5f;///< Gusts a second.
+    f32 time = 0.0f;         ///< Seconds on the chain's own clock at the start of the call; gusts are a function of it, so a chain is repeatable.
 };
+
+/** @brief The factor gusts put on the wind's strength for a particle at a moment: a travelling wave down the chain, so the strand ripples instead of swaying as one. */
+f32 gustFactor(f32 time, f32 frequency, f32 gust, i32 index);
 
 /** @brief A collider in world space: a sphere when `a == b`, else a capsule from `a` to `b`. */
 struct Collider {

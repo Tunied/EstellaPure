@@ -5,7 +5,7 @@ Symbols: 115 public · 164 beta · 1768 experimental · 3 deprecated
 
 ## ABI_LAYOUT_HASH — const @experimental
 ```
-"0683d80a6ccb5275"
+"7403dd8de628613e"
 ```
 
 ## ANCHOR_AXES — const @experimental
@@ -9134,6 +9134,9 @@ gravity: Vec3
 radius: number
 stiffness: number
 weight: number
+wind: Vec3
+windFrequency: number
+windGust: number
 ```
 
 ## SpringBoneParticle — interface @experimental
