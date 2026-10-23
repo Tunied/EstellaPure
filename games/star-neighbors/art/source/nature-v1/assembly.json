@@ -1,0 +1,5882 @@
+[
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      -5,
+      -3,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-center-2m",
+    "positionZUp": [
+      -5,
+      -3,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      -5,
+      -3,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      -5,
+      -3,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      -5,
+      -1,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-center-2m",
+    "positionZUp": [
+      -5,
+      -1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      -5,
+      -1,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      -5,
+      -1,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      -5,
+      1,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-center-2m",
+    "positionZUp": [
+      -5,
+      1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      -5,
+      1,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      -5,
+      1,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      -5,
+      3,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-center-2m",
+    "positionZUp": [
+      -5,
+      3,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      -5,
+      3,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      -5,
+      3,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      -3,
+      -3,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-center-2m",
+    "positionZUp": [
+      -3,
+      -3,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      -3,
+      -3,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      -3,
+      -3,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      -3,
+      -1,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-center-2m",
+    "positionZUp": [
+      -3,
+      -1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      -3,
+      -1,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      -3,
+      -1,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      -3,
+      1,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-center-2m",
+    "positionZUp": [
+      -3,
+      1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      -3,
+      1,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      -3,
+      1,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      -3,
+      3,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-center-2m",
+    "positionZUp": [
+      -3,
+      3,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      -3,
+      3,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      -3,
+      3,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      -1,
+      -3,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-center-2m",
+    "positionZUp": [
+      -1,
+      -3,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      -1,
+      -3,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      -1,
+      -3,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      -1,
+      -1,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-center-2m",
+    "positionZUp": [
+      -1,
+      -1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      -1,
+      -1,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      -1,
+      -1,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      -1,
+      1,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-center-2m",
+    "positionZUp": [
+      -1,
+      1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      -1,
+      1,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      -1,
+      1,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      -1,
+      3,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-center-2m",
+    "positionZUp": [
+      -1,
+      3,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      -1,
+      3,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      -1,
+      3,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      1,
+      -3,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-center-2m",
+    "positionZUp": [
+      1,
+      -3,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      1,
+      -3,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      1,
+      -3,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      1,
+      -1,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-center-2m",
+    "positionZUp": [
+      1,
+      -1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      1,
+      -1,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      1,
+      -1,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/foundation-edge-2m",
+    "positionZUp": [
+      -5,
+      -4.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-edge-2m",
+    "positionZUp": [
+      -5,
+      -4.5,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/wall-window-2m",
+    "positionZUp": [
+      -5,
+      -4.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/foundation-edge-2m",
+    "positionZUp": [
+      -3,
+      -4.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-edge-2m",
+    "positionZUp": [
+      -3,
+      -4.5,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/wall-doorway-2m",
+    "positionZUp": [
+      -3,
+      -4.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/door-leaf-110",
+    "positionZUp": [
+      -3,
+      -4.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/foundation-edge-2m",
+    "positionZUp": [
+      -1,
+      -4.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-edge-2m",
+    "positionZUp": [
+      -1,
+      -4.5,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/wall-window-2m",
+    "positionZUp": [
+      -1,
+      -4.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/foundation-edge-2m",
+    "positionZUp": [
+      1,
+      -4.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-edge-2m",
+    "positionZUp": [
+      1,
+      -4.5,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/wall-window-2m",
+    "positionZUp": [
+      1,
+      -4.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/foundation-edge-2m",
+    "positionZUp": [
+      -5,
+      4.5,
+      0.6
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-edge-2m",
+    "positionZUp": [
+      -5,
+      4.5,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/wall-solid-2m",
+    "positionZUp": [
+      -5,
+      4.5,
+      0.8099999999999999
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/foundation-edge-2m",
+    "positionZUp": [
+      -3,
+      4.5,
+      0.6
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-edge-2m",
+    "positionZUp": [
+      -3,
+      4.5,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/wall-solid-2m",
+    "positionZUp": [
+      -3,
+      4.5,
+      0.8099999999999999
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/foundation-edge-2m",
+    "positionZUp": [
+      -1,
+      4.5,
+      0.6
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-edge-2m",
+    "positionZUp": [
+      -1,
+      4.5,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/wall-solid-2m",
+    "positionZUp": [
+      -1,
+      4.5,
+      0.8099999999999999
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/foundation-edge-2m",
+    "positionZUp": [
+      -6.5,
+      -3,
+      0.6
+    ],
+    "yawZ": 270,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-edge-2m",
+    "positionZUp": [
+      -6.5,
+      -3,
+      3.61
+    ],
+    "yawZ": 270,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/wall-solid-2m",
+    "positionZUp": [
+      -6.5,
+      -3,
+      0.8099999999999999
+    ],
+    "yawZ": 270,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/foundation-edge-2m",
+    "positionZUp": [
+      -6.5,
+      -1,
+      0.6
+    ],
+    "yawZ": 270,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-edge-2m",
+    "positionZUp": [
+      -6.5,
+      -1,
+      3.61
+    ],
+    "yawZ": 270,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/wall-solid-2m",
+    "positionZUp": [
+      -6.5,
+      -1,
+      0.8099999999999999
+    ],
+    "yawZ": 270,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/foundation-edge-2m",
+    "positionZUp": [
+      -6.5,
+      1,
+      0.6
+    ],
+    "yawZ": 270,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-edge-2m",
+    "positionZUp": [
+      -6.5,
+      1,
+      3.61
+    ],
+    "yawZ": 270,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/wall-solid-2m",
+    "positionZUp": [
+      -6.5,
+      1,
+      0.8099999999999999
+    ],
+    "yawZ": 270,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/foundation-edge-2m",
+    "positionZUp": [
+      -6.5,
+      3,
+      0.6
+    ],
+    "yawZ": 270,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-edge-2m",
+    "positionZUp": [
+      -6.5,
+      3,
+      3.61
+    ],
+    "yawZ": 270,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/wall-solid-2m",
+    "positionZUp": [
+      -6.5,
+      3,
+      0.8099999999999999
+    ],
+    "yawZ": 270,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/foundation-edge-2m",
+    "positionZUp": [
+      2.5,
+      -3,
+      0.6
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-edge-2m",
+    "positionZUp": [
+      2.5,
+      -3,
+      3.61
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/wall-window-2m",
+    "positionZUp": [
+      2.5,
+      -3,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/foundation-edge-2m",
+    "positionZUp": [
+      2.5,
+      -1,
+      0.6
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-edge-2m",
+    "positionZUp": [
+      2.5,
+      -1,
+      3.61
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/junction-frame-2m",
+    "positionZUp": [
+      2.5,
+      -1,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/dock-head-2m",
+    "positionZUp": [
+      2.5,
+      -1,
+      3.61
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/foundation-edge-2m",
+    "positionZUp": [
+      0.5,
+      3,
+      0.6
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-edge-2m",
+    "positionZUp": [
+      0.5,
+      3,
+      3.61
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/wall-window-2m",
+    "positionZUp": [
+      0.5,
+      3,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/foundation-corner-r050",
+    "positionZUp": [
+      2,
+      -4,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/wall-corner-r050",
+    "positionZUp": [
+      2,
+      -4,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-corner-r050",
+    "positionZUp": [
+      2,
+      -4,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/foundation-corner-r050",
+    "positionZUp": [
+      2,
+      0,
+      0.6
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/wall-corner-r050",
+    "positionZUp": [
+      2,
+      0,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-corner-r050",
+    "positionZUp": [
+      2,
+      0,
+      3.61
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/foundation-corner-r050",
+    "positionZUp": [
+      0,
+      4,
+      0.6
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/wall-corner-r050",
+    "positionZUp": [
+      0,
+      4,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-corner-r050",
+    "positionZUp": [
+      0,
+      4,
+      3.61
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/foundation-corner-r050",
+    "positionZUp": [
+      -6,
+      4,
+      0.6
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/wall-corner-r050",
+    "positionZUp": [
+      -6,
+      4,
+      0.8099999999999999
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-corner-r050",
+    "positionZUp": [
+      -6,
+      4,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/foundation-corner-r050",
+    "positionZUp": [
+      -6,
+      -4,
+      0.6
+    ],
+    "yawZ": 270,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/wall-corner-r050",
+    "positionZUp": [
+      -6,
+      -4,
+      0.8099999999999999
+    ],
+    "yawZ": 270,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-corner-r050",
+    "positionZUp": [
+      -6,
+      -4,
+      3.61
+    ],
+    "yawZ": 270,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/foundation-inner-corner-2m",
+    "positionZUp": [
+      0,
+      0,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/wall-inner-corner-2m",
+    "positionZUp": [
+      0,
+      0,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/roof-inner-corner-2m",
+    "positionZUp": [
+      0,
+      0,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-vent",
+    "positionZUp": [
+      -4,
+      2,
+      4.109999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-vent",
+    "positionZUp": [
+      -2,
+      2,
+      4.109999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/roof-vent",
+    "positionZUp": [
+      -1,
+      -2,
+      4.109999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/ceiling-beam-2m",
+    "positionZUp": [
+      -5,
+      0,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/ceiling-beam-2m",
+    "positionZUp": [
+      -3,
+      0,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/ceiling-beam-2m",
+    "positionZUp": [
+      -1,
+      0,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/ceiling-beam-end-050",
+    "positionZUp": [
+      -6.25,
+      0,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/support-column-2p8",
+    "positionZUp": [
+      -2,
+      0,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/support-column-2p8",
+    "positionZUp": [
+      0,
+      0,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      3.5,
+      -1,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/corridor-roof-2m",
+    "positionZUp": [
+      3.5,
+      -1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/corridor-wall-glass-2m",
+    "positionZUp": [
+      3.5,
+      -2,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/corridor-wall-glass-2m",
+    "positionZUp": [
+      3.5,
+      0,
+      0.8099999999999999
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      3.5,
+      -1,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      3.5,
+      -1,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      5.5,
+      -1,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/corridor-roof-2m",
+    "positionZUp": [
+      5.5,
+      -1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/corridor-wall-glass-2m",
+    "positionZUp": [
+      5.5,
+      -2,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/corridor-wall-glass-2m",
+    "positionZUp": [
+      5.5,
+      0,
+      0.8099999999999999
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      5.5,
+      -1,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      5.5,
+      -1,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/junction-frame-2m",
+    "positionZUp": [
+      6.5,
+      -1,
+      0.8099999999999999
+    ],
+    "yawZ": 270,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-floor-2m",
+    "positionZUp": [
+      7.5,
+      -3,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-floor-2m",
+    "positionZUp": [
+      9.5,
+      -3,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-wall-glass-2m",
+    "positionZUp": [
+      10.5,
+      -3,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-gutter-2m",
+    "positionZUp": [
+      10.5,
+      -3,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-wall-glass-2m",
+    "positionZUp": [
+      6.5,
+      -3,
+      0.8099999999999999
+    ],
+    "yawZ": 270,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-gutter-2m",
+    "positionZUp": [
+      6.5,
+      -3,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-roof-glass-half-2m",
+    "positionZUp": [
+      8.5,
+      -3,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-roof-glass-half-2m",
+    "positionZUp": [
+      8.5,
+      -3,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-ridge-2m",
+    "positionZUp": [
+      8.5,
+      -3,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-floor-2m",
+    "positionZUp": [
+      7.5,
+      -1,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-floor-2m",
+    "positionZUp": [
+      9.5,
+      -1,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-wall-glass-2m",
+    "positionZUp": [
+      10.5,
+      -1,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-gutter-2m",
+    "positionZUp": [
+      10.5,
+      -1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-gutter-2m",
+    "positionZUp": [
+      6.5,
+      -1,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-roof-glass-half-2m",
+    "positionZUp": [
+      8.5,
+      -1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/garden-link-roof-glass",
+    "positionZUp": [
+      8.5,
+      -1,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/garden-link-hood-2m",
+    "positionZUp": [
+      8.5,
+      -1,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-ridge-2m",
+    "positionZUp": [
+      8.5,
+      -1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-floor-2m",
+    "positionZUp": [
+      7.5,
+      1,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-floor-2m",
+    "positionZUp": [
+      9.5,
+      1,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-wall-glass-2m",
+    "positionZUp": [
+      10.5,
+      1,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-gutter-2m",
+    "positionZUp": [
+      10.5,
+      1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-wall-glass-2m",
+    "positionZUp": [
+      6.5,
+      1,
+      0.8099999999999999
+    ],
+    "yawZ": 270,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-gutter-2m",
+    "positionZUp": [
+      6.5,
+      1,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-roof-glass-half-2m",
+    "positionZUp": [
+      8.5,
+      1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-roof-glass-half-2m",
+    "positionZUp": [
+      8.5,
+      1,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-ridge-2m",
+    "positionZUp": [
+      8.5,
+      1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-arch-half-2m",
+    "positionZUp": [
+      8.5,
+      -4,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-arch-half-2m",
+    "positionZUp": [
+      8.5,
+      -4,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-arch-half-2m",
+    "positionZUp": [
+      8.5,
+      -2,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-arch-half-2m",
+    "positionZUp": [
+      8.5,
+      -2,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-arch-half-2m",
+    "positionZUp": [
+      8.5,
+      0,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-arch-half-2m",
+    "positionZUp": [
+      8.5,
+      0,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-arch-half-2m",
+    "positionZUp": [
+      8.5,
+      2,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-arch-half-2m",
+    "positionZUp": [
+      8.5,
+      2,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-wall-glass-2m",
+    "positionZUp": [
+      7.5,
+      -4,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "habitat/wall-doorway-2m",
+    "positionZUp": [
+      9.5,
+      -4,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-door-glass-120",
+    "positionZUp": [
+      9.5,
+      -4,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-roof-end-half-2m",
+    "positionZUp": [
+      8.5,
+      -4,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-roof-end-half-2m",
+    "positionZUp": [
+      8.5,
+      -4,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-corner-post",
+    "positionZUp": [
+      6.5,
+      -4,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-corner-post",
+    "positionZUp": [
+      10.5,
+      -4,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-wall-glass-2m",
+    "positionZUp": [
+      7.5,
+      2,
+      0.8099999999999999
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-wall-glass-2m",
+    "positionZUp": [
+      9.5,
+      2,
+      0.8099999999999999
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-roof-end-half-2m",
+    "positionZUp": [
+      8.5,
+      2,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-roof-end-half-2m",
+    "positionZUp": [
+      8.5,
+      2,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-corner-post",
+    "positionZUp": [
+      6.5,
+      2,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-corner-post",
+    "positionZUp": [
+      10.5,
+      2,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/growing-bed-2m",
+    "positionZUp": [
+      7.18,
+      -2.85,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/crop-tray-leafy",
+    "positionZUp": [
+      7.18,
+      -2.85,
+      1.487
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/growing-bed-2m",
+    "positionZUp": [
+      7.18,
+      0.8500000000000001,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/crop-tray-leafy",
+    "positionZUp": [
+      7.18,
+      0.8500000000000001,
+      1.487
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/growing-bed-2m",
+    "positionZUp": [
+      9.82,
+      -2.3,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/crop-tray-leafy",
+    "positionZUp": [
+      9.82,
+      -2.3,
+      1.487
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/growing-bed-2m",
+    "positionZUp": [
+      9.82,
+      -0.19999999999999996,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/crop-tray-leafy",
+    "positionZUp": [
+      9.82,
+      -0.19999999999999996,
+      1.487
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "garden/garden-irrigation-unit",
+    "positionZUp": [
+      8.5,
+      1.4500000000000002,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      7.5,
+      -3,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      7.5,
+      -3,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      7.5,
+      -1,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      7.5,
+      -1,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      7.5,
+      1,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      7.5,
+      1,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      9.5,
+      -3,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      9.5,
+      -3,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      9.5,
+      -1,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      9.5,
+      -1,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      9.5,
+      1,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      9.5,
+      1,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-floor-2m",
+    "positionZUp": [
+      9.5,
+      -5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-rail-2m",
+    "positionZUp": [
+      8.5,
+      -5,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-post-105",
+    "positionZUp": [
+      8.5,
+      -6,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-post-105",
+    "positionZUp": [
+      8.5,
+      -4,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-rail-2m",
+    "positionZUp": [
+      10.5,
+      -5,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-post-105",
+    "positionZUp": [
+      10.5,
+      -6,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-post-105",
+    "positionZUp": [
+      10.5,
+      -4,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      8.7,
+      -5.8,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      8.7,
+      -5.8,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      10.3,
+      -5.8,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      10.3,
+      -5.8,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/terrace-stair-081",
+    "positionZUp": [
+      9.5,
+      -6,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-floor-2m",
+    "positionZUp": [
+      -5,
+      -5.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      -5,
+      -5.5,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      -5,
+      -5.5,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-floor-2m",
+    "positionZUp": [
+      -5,
+      -7.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      -5,
+      -7.5,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      -5,
+      -7.5,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-floor-2m",
+    "positionZUp": [
+      -3,
+      -5.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      -3,
+      -5.5,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      -3,
+      -5.5,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-floor-2m",
+    "positionZUp": [
+      -3,
+      -7.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      -3,
+      -7.5,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      -3,
+      -7.5,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-floor-2m",
+    "positionZUp": [
+      -1,
+      -5.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      -1,
+      -5.5,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      -1,
+      -5.5,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-floor-2m",
+    "positionZUp": [
+      -1,
+      -7.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      -1,
+      -7.5,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      -1,
+      -7.5,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-floor-2m",
+    "positionZUp": [
+      1,
+      -5.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      1,
+      -5.5,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      1,
+      -5.5,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-floor-2m",
+    "positionZUp": [
+      1,
+      -7.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-foot-020",
+    "positionZUp": [
+      1,
+      -7.5,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/support-riser-040",
+    "positionZUp": [
+      1,
+      -7.5,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-edge-2m",
+    "positionZUp": [
+      -5,
+      -8.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-edge-2m",
+    "positionZUp": [
+      -3,
+      -8.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-edge-2m",
+    "positionZUp": [
+      -1,
+      -8.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-edge-2m",
+    "positionZUp": [
+      1,
+      -8.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-edge-2m",
+    "positionZUp": [
+      -6,
+      -5.5,
+      0.6
+    ],
+    "yawZ": 270,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-edge-2m",
+    "positionZUp": [
+      -6,
+      -7.5,
+      0.6
+    ],
+    "yawZ": 270,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-edge-2m",
+    "positionZUp": [
+      2,
+      -5.5,
+      0.6
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-edge-2m",
+    "positionZUp": [
+      2,
+      -7.5,
+      0.6
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-rail-2m",
+    "positionZUp": [
+      -5,
+      -8.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-rail-2m",
+    "positionZUp": [
+      -1,
+      -8.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-rail-2m",
+    "positionZUp": [
+      1,
+      -8.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-rail-2m",
+    "positionZUp": [
+      -6,
+      -5.5,
+      0.8099999999999999
+    ],
+    "yawZ": 270,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-rail-2m",
+    "positionZUp": [
+      -6,
+      -7.5,
+      0.8099999999999999
+    ],
+    "yawZ": 270,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-rail-2m",
+    "positionZUp": [
+      2,
+      -5.5,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-post-105",
+    "positionZUp": [
+      -6.0,
+      -8.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-post-105",
+    "positionZUp": [
+      -6.0,
+      -6.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-post-105",
+    "positionZUp": [
+      -6.0,
+      -4.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-post-105",
+    "positionZUp": [
+      -4.0,
+      -8.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-post-105",
+    "positionZUp": [
+      -2.0,
+      -8.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-post-105",
+    "positionZUp": [
+      0.0,
+      -8.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-post-105",
+    "positionZUp": [
+      2.0,
+      -8.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-post-105",
+    "positionZUp": [
+      2.0,
+      -6.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-post-105",
+    "positionZUp": [
+      2.0,
+      -4.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-corner-cap",
+    "positionZUp": [
+      -6,
+      -8.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-corner-cap",
+    "positionZUp": [
+      -6,
+      -4.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-corner-cap",
+    "positionZUp": [
+      2,
+      -8.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/deck-corner-cap",
+    "positionZUp": [
+      2,
+      -4.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/terrace-stair-081",
+    "positionZUp": [
+      -3,
+      -8.5,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/terrace-ramp-2m",
+    "positionZUp": [
+      5,
+      -7.5,
+      0
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/ramp-rail-2m",
+    "positionZUp": [
+      5,
+      -8.34,
+      0
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/ramp-rail-2m",
+    "positionZUp": [
+      5,
+      -6.66,
+      0
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/terrace-ramp-2m",
+    "positionZUp": [
+      3,
+      -7.5,
+      0.405
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/ramp-rail-2m",
+    "positionZUp": [
+      3,
+      -8.34,
+      0.405
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "connections/ramp-rail-2m",
+    "positionZUp": [
+      3,
+      -6.66,
+      0.405
+    ],
+    "yawZ": 90,
+    "zone": "architecture"
+  },
+  {
+    "asset": "living/sofa-seat-090",
+    "positionZUp": [
+      -5.050000190734863,
+      -6.849999904632568,
+      0.8100000023841858
+    ],
+    "yawZ": 90,
+    "zone": "outdoor-furniture"
+  },
+  {
+    "asset": "living/sofa-seat-090",
+    "positionZUp": [
+      -5.050000190734863,
+      -5.949999809265137,
+      0.8100000023841858
+    ],
+    "yawZ": 90,
+    "zone": "outdoor-furniture"
+  },
+  {
+    "asset": "living/sofa-seat-090",
+    "positionZUp": [
+      -5.050000190734863,
+      -5.049999713897705,
+      0.8100000023841858
+    ],
+    "yawZ": 90,
+    "zone": "outdoor-furniture"
+  },
+  {
+    "asset": "living/sofa-arm",
+    "positionZUp": [
+      -5.050000190734863,
+      -7.375,
+      0.8100000023841858
+    ],
+    "yawZ": 90,
+    "zone": "outdoor-furniture"
+  },
+  {
+    "asset": "living/sofa-arm",
+    "positionZUp": [
+      -5.050000190734863,
+      -4.524999618530273,
+      0.8100000023841858
+    ],
+    "yawZ": 90,
+    "zone": "outdoor-furniture"
+  },
+  {
+    "asset": "living/coffee-table-110",
+    "positionZUp": [
+      -4.05,
+      -5.95,
+      0.81
+    ],
+    "yawZ": 90,
+    "zone": "outdoor-furniture"
+  },
+  {
+    "asset": "living/mug",
+    "positionZUp": [
+      -4.05,
+      -6.2,
+      1.222
+    ],
+    "yawZ": 0,
+    "zone": "outdoor-furniture"
+  },
+  {
+    "asset": "living/kettle",
+    "positionZUp": [
+      -4.05,
+      -5.8,
+      1.222
+    ],
+    "yawZ": 0,
+    "zone": "outdoor-furniture"
+  },
+  {
+    "asset": "living/dining-table-180",
+    "positionZUp": [
+      0.1,
+      -5.75,
+      0.81
+    ],
+    "yawZ": 0,
+    "zone": "outdoor-furniture"
+  },
+  {
+    "asset": "living/dining-chair",
+    "positionZUp": [
+      -0.4000000059604645,
+      -6.599999904632568,
+      0.8100000023841858
+    ],
+    "yawZ": 180,
+    "zone": "outdoor-furniture"
+  },
+  {
+    "asset": "living/dining-chair",
+    "positionZUp": [
+      -0.4000000059604645,
+      -4.900000095367432,
+      0.8100000023841858
+    ],
+    "yawZ": 0,
+    "zone": "outdoor-furniture"
+  },
+  {
+    "asset": "living/dining-chair",
+    "positionZUp": [
+      0.6000000238418579,
+      -6.599999904632568,
+      0.8100000023841858
+    ],
+    "yawZ": 180,
+    "zone": "outdoor-furniture"
+  },
+  {
+    "asset": "living/dining-chair",
+    "positionZUp": [
+      0.6000000238418579,
+      -4.900000095367432,
+      0.8100000023841858
+    ],
+    "yawZ": 0,
+    "zone": "outdoor-furniture"
+  },
+  {
+    "asset": "living/dinner-plate",
+    "positionZUp": [
+      -0.4000000059604645,
+      -6.0,
+      1.5720000267028809
+    ],
+    "yawZ": 0,
+    "zone": "outdoor-furniture"
+  },
+  {
+    "asset": "living/mug",
+    "positionZUp": [
+      -0.20000001788139343,
+      -6.0,
+      1.5720000267028809
+    ],
+    "yawZ": 0,
+    "zone": "outdoor-furniture"
+  },
+  {
+    "asset": "living/dinner-plate",
+    "positionZUp": [
+      -0.4000000059604645,
+      -5.5,
+      1.5720000267028809
+    ],
+    "yawZ": 0,
+    "zone": "outdoor-furniture"
+  },
+  {
+    "asset": "living/mug",
+    "positionZUp": [
+      -0.20000001788139343,
+      -5.5,
+      1.5720000267028809
+    ],
+    "yawZ": 0,
+    "zone": "outdoor-furniture"
+  },
+  {
+    "asset": "living/dinner-plate",
+    "positionZUp": [
+      0.6000000238418579,
+      -6.0,
+      1.5720000267028809
+    ],
+    "yawZ": 0,
+    "zone": "outdoor-furniture"
+  },
+  {
+    "asset": "living/mug",
+    "positionZUp": [
+      0.800000011920929,
+      -6.0,
+      1.5720000267028809
+    ],
+    "yawZ": 0,
+    "zone": "outdoor-furniture"
+  },
+  {
+    "asset": "living/dinner-plate",
+    "positionZUp": [
+      0.6000000238418579,
+      -5.5,
+      1.5720000267028809
+    ],
+    "yawZ": 0,
+    "zone": "outdoor-furniture"
+  },
+  {
+    "asset": "living/mug",
+    "positionZUp": [
+      0.800000011920929,
+      -5.5,
+      1.5720000267028809
+    ],
+    "yawZ": 0,
+    "zone": "outdoor-furniture"
+  },
+  {
+    "asset": "living/gift-box-040",
+    "positionZUp": [
+      0.1,
+      -5.75,
+      1.572
+    ],
+    "yawZ": 0,
+    "zone": "outdoor-furniture"
+  },
+  {
+    "asset": "living/gift-lid-040",
+    "positionZUp": [
+      0.1,
+      -5.75,
+      1.897
+    ],
+    "yawZ": 0,
+    "zone": "outdoor-furniture"
+  },
+  {
+    "asset": "living/outdoor-lantern-160",
+    "positionZUp": [
+      -5.65,
+      -7.8,
+      0.81
+    ],
+    "yawZ": 0,
+    "zone": "outdoor-furniture"
+  },
+  {
+    "asset": "living/outdoor-lantern-160",
+    "positionZUp": [
+      1.55,
+      -5.0,
+      0.81
+    ],
+    "yawZ": 0,
+    "zone": "outdoor-furniture"
+  },
+  {
+    "asset": "living/wayfinding-post",
+    "positionZUp": [
+      -1.6,
+      -8.0,
+      0.81
+    ],
+    "yawZ": 0,
+    "zone": "outdoor-furniture"
+  },
+  {
+    "asset": "living/wayfinding-panel",
+    "positionZUp": [
+      -1.6,
+      -8.07,
+      2.09
+    ],
+    "yawZ": 0,
+    "zone": "outdoor-furniture"
+  },
+  {
+    "asset": "habitat/interior-planter",
+    "positionZUp": [
+      -5.55,
+      -4.8,
+      0.81
+    ],
+    "yawZ": 0,
+    "zone": "outdoor-furniture"
+  },
+  {
+    "asset": "habitat/interior-planter",
+    "positionZUp": [
+      1.55,
+      -6.1,
+      0.81
+    ],
+    "yawZ": 0,
+    "zone": "outdoor-furniture"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      -8,
+      -12,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      -8,
+      -8,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      -8,
+      -4,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      -8,
+      0,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-loam-4m",
+    "positionZUp": [
+      -8,
+      4,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      -8,
+      8,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      -4,
+      -12,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      -4,
+      -8,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      -4,
+      -4,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      -4,
+      0,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      -4,
+      4,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      -4,
+      8,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      0,
+      -12,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      0,
+      -8,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      0,
+      -4,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      0,
+      0,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      0,
+      4,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      0,
+      8,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      4,
+      -12,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      4,
+      -8,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      4,
+      -4,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      4,
+      0,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      4,
+      4,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      4,
+      8,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      8,
+      -12,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      8,
+      -8,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      8,
+      -4,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      8,
+      0,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-loam-4m",
+    "positionZUp": [
+      8,
+      4,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      8,
+      8,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      12,
+      -12,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      12,
+      -8,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-loam-4m",
+    "positionZUp": [
+      12,
+      -4,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      12,
+      0,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      12,
+      4,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "terrain-meadow-4m",
+    "positionZUp": [
+      12,
+      8,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrain"
+  },
+  {
+    "asset": "path-straight-2m",
+    "positionZUp": [
+      -5,
+      -11,
+      0
+    ],
+    "yawZ": 90,
+    "zone": "path"
+  },
+  {
+    "asset": "path-junction-2m",
+    "positionZUp": [
+      -3,
+      -11,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "path"
+  },
+  {
+    "asset": "path-straight-2m",
+    "positionZUp": [
+      -1,
+      -11,
+      0
+    ],
+    "yawZ": 90,
+    "zone": "path"
+  },
+  {
+    "asset": "path-straight-2m",
+    "positionZUp": [
+      1,
+      -11,
+      0
+    ],
+    "yawZ": 90,
+    "zone": "path"
+  },
+  {
+    "asset": "path-straight-2m",
+    "positionZUp": [
+      3,
+      -11,
+      0
+    ],
+    "yawZ": 90,
+    "zone": "path"
+  },
+  {
+    "asset": "path-junction-2m",
+    "positionZUp": [
+      5,
+      -11,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "path"
+  },
+  {
+    "asset": "path-straight-2m",
+    "positionZUp": [
+      7,
+      -11,
+      0
+    ],
+    "yawZ": 90,
+    "zone": "path"
+  },
+  {
+    "asset": "path-turn-2m",
+    "positionZUp": [
+      9,
+      -11,
+      0
+    ],
+    "yawZ": 180,
+    "zone": "path"
+  },
+  {
+    "asset": "path-straight-2m",
+    "positionZUp": [
+      5,
+      -9,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "path"
+  },
+  {
+    "asset": "path-straight-2m",
+    "positionZUp": [
+      9,
+      -9,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "path"
+  },
+  {
+    "asset": "stepping-stone-060",
+    "positionZUp": [
+      -3,
+      -10.03,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "landing-stone"
+  },
+  {
+    "asset": "stepping-stone-060",
+    "positionZUp": [
+      5.6,
+      -7.75,
+      0
+    ],
+    "yawZ": -24,
+    "zone": "landing-stone"
+  },
+  {
+    "asset": "stepping-stone-060",
+    "positionZUp": [
+      9.25,
+      -7.7,
+      0
+    ],
+    "yawZ": 25,
+    "zone": "landing-stone"
+  },
+  {
+    "asset": "stepping-stone-060",
+    "positionZUp": [
+      9.48,
+      -7.2,
+      0
+    ],
+    "yawZ": -14,
+    "zone": "landing-stone"
+  },
+  {
+    "asset": "tree-trunk-mature",
+    "positionZUp": [
+      -9.0,
+      3.6,
+      -0.008
+    ],
+    "yawZ": 14,
+    "zone": "tree-trunk"
+  },
+  {
+    "asset": "tree-crown-mature",
+    "positionZUp": [
+      -9.0,
+      3.6,
+      -0.008
+    ],
+    "yawZ": 14,
+    "zone": "tree-crown"
+  },
+  {
+    "asset": "tree-trunk-mature",
+    "positionZUp": [
+      -4.6,
+      7.7,
+      -0.008
+    ],
+    "yawZ": 104,
+    "zone": "tree-trunk"
+  },
+  {
+    "asset": "tree-crown-mature",
+    "positionZUp": [
+      -4.6,
+      7.7,
+      -0.008
+    ],
+    "yawZ": 104,
+    "zone": "tree-crown"
+  },
+  {
+    "asset": "tree-trunk-mature",
+    "positionZUp": [
+      3.0,
+      7.7,
+      -0.008
+    ],
+    "yawZ": 228,
+    "zone": "tree-trunk"
+  },
+  {
+    "asset": "tree-crown-mature",
+    "positionZUp": [
+      3.0,
+      7.7,
+      -0.008
+    ],
+    "yawZ": 228,
+    "zone": "tree-crown"
+  },
+  {
+    "asset": "tree-trunk-mature",
+    "positionZUp": [
+      11.8,
+      5.7,
+      -0.008
+    ],
+    "yawZ": 312,
+    "zone": "tree-trunk"
+  },
+  {
+    "asset": "tree-crown-mature",
+    "positionZUp": [
+      11.8,
+      5.7,
+      -0.008
+    ],
+    "yawZ": 312,
+    "zone": "tree-crown"
+  },
+  {
+    "asset": "tree-trunk-young",
+    "positionZUp": [
+      -8.3,
+      -4.2,
+      -0.008
+    ],
+    "yawZ": 88,
+    "zone": "tree-trunk"
+  },
+  {
+    "asset": "tree-crown-young",
+    "positionZUp": [
+      -8.3,
+      -4.2,
+      -0.008
+    ],
+    "yawZ": 88,
+    "zone": "tree-crown"
+  },
+  {
+    "asset": "tree-trunk-young",
+    "positionZUp": [
+      5.7,
+      4.9,
+      -0.008
+    ],
+    "yawZ": 185,
+    "zone": "tree-trunk"
+  },
+  {
+    "asset": "tree-crown-young",
+    "positionZUp": [
+      5.7,
+      4.9,
+      -0.008
+    ],
+    "yawZ": 185,
+    "zone": "tree-crown"
+  },
+  {
+    "asset": "tree-trunk-young",
+    "positionZUp": [
+      12,
+      -0.4,
+      -0.008
+    ],
+    "yawZ": 270,
+    "zone": "tree-trunk"
+  },
+  {
+    "asset": "tree-crown-young",
+    "positionZUp": [
+      12,
+      -0.4,
+      -0.008
+    ],
+    "yawZ": 270,
+    "zone": "tree-crown"
+  },
+  {
+    "asset": "tree-trunk-young",
+    "positionZUp": [
+      11.8,
+      -8.3,
+      -0.008
+    ],
+    "yawZ": 126,
+    "zone": "tree-trunk"
+  },
+  {
+    "asset": "tree-crown-young",
+    "positionZUp": [
+      11.8,
+      -8.3,
+      -0.008
+    ],
+    "yawZ": 126,
+    "zone": "tree-crown"
+  },
+  {
+    "asset": "boulder-large-250",
+    "positionZUp": [
+      -8.1,
+      6.5,
+      -0.008
+    ],
+    "yawZ": 18,
+    "zone": "rock"
+  },
+  {
+    "asset": "boulder-large-250",
+    "positionZUp": [
+      10.5,
+      7.8,
+      -0.008
+    ],
+    "yawZ": 112,
+    "zone": "rock"
+  },
+  {
+    "asset": "boulder-medium-120",
+    "positionZUp": [
+      -8.7,
+      -7.8,
+      -0.008
+    ],
+    "yawZ": 70,
+    "zone": "rock"
+  },
+  {
+    "asset": "boulder-medium-120",
+    "positionZUp": [
+      7.65,
+      -9.0,
+      -0.008
+    ],
+    "yawZ": 150,
+    "zone": "rock"
+  },
+  {
+    "asset": "boulder-medium-120",
+    "positionZUp": [
+      12.3,
+      -4.8,
+      -0.008
+    ],
+    "yawZ": 23,
+    "zone": "rock"
+  },
+  {
+    "asset": "rock-slab-160",
+    "positionZUp": [
+      7.1,
+      -12.6,
+      -0.008
+    ],
+    "yawZ": -10,
+    "zone": "rock"
+  },
+  {
+    "asset": "rock-slab-160",
+    "positionZUp": [
+      -7.8,
+      -0.2,
+      -0.008
+    ],
+    "yawZ": 55,
+    "zone": "rock"
+  },
+  {
+    "asset": "rock-slab-160",
+    "positionZUp": [
+      4.3,
+      5.6,
+      -0.008
+    ],
+    "yawZ": 9,
+    "zone": "rock"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      -7.144662893914173,
+      -7.705379045827629,
+      -0.008
+    ],
+    "yawZ": 105.37106430111852,
+    "zone": "understory"
+  },
+  {
+    "asset": "fern-clump-060",
+    "positionZUp": [
+      -0.2722096640224798,
+      5.599026500114114,
+      -0.008
+    ],
+    "yawZ": 281.70188880715654,
+    "zone": "understory"
+  },
+  {
+    "asset": "pebble-cluster-060",
+    "positionZUp": [
+      -2.148983284494527,
+      8.27747805647775,
+      -0.008
+    ],
+    "yawZ": 192.05641396398,
+    "zone": "understory"
+  },
+  {
+    "asset": "fern-clump-060",
+    "positionZUp": [
+      -6.049317899118621,
+      6.675278353382602,
+      -0.008
+    ],
+    "yawZ": 254.58883752042556,
+    "zone": "understory"
+  },
+  {
+    "asset": "pebble-cluster-060",
+    "positionZUp": [
+      -8.97692140662839,
+      4.995590038232503,
+      -0.008
+    ],
+    "yawZ": 68.29625733252618,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-amber-045",
+    "positionZUp": [
+      -3.10276211149327,
+      5.939812513759666,
+      -0.008
+    ],
+    "yawZ": 315.969220805505,
+    "zone": "understory"
+  },
+  {
+    "asset": "pebble-cluster-060",
+    "positionZUp": [
+      -8.444005724848225,
+      6.734076831880056,
+      -0.008
+    ],
+    "yawZ": 342.5829837306586,
+    "zone": "understory"
+  },
+  {
+    "asset": "alien-rosette-070",
+    "positionZUp": [
+      9.146886460089537,
+      3.4717877189457873,
+      -0.008
+    ],
+    "yawZ": 269.2007805042649,
+    "zone": "understory"
+  },
+  {
+    "asset": "pebble-cluster-060",
+    "positionZUp": [
+      12.97281560720899,
+      5.257447809211545,
+      -0.008
+    ],
+    "yawZ": 54.84514703713326,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      -8.659891567886175,
+      -3.5736858502714295,
+      -0.008
+    ],
+    "yawZ": 116.23771851540484,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-ivory-055",
+    "positionZUp": [
+      -3.8451718485459674,
+      6.793317982414056,
+      -0.008
+    ],
+    "yawZ": 118.16319047675749,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-amber-045",
+    "positionZUp": [
+      -6.263143787833682,
+      8.389764607937071,
+      -0.008
+    ],
+    "yawZ": 240.94305733481394,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      0.4599922540790189,
+      8.30249847613105,
+      -0.008
+    ],
+    "yawZ": 37.628305525437334,
+    "zone": "understory"
+  },
+  {
+    "asset": "fern-clump-060",
+    "positionZUp": [
+      -6.080178795159482,
+      -12.756922599027407,
+      -0.008
+    ],
+    "yawZ": 316.16107028323984,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-amber-045",
+    "positionZUp": [
+      2.152564552475013,
+      8.100956589209101,
+      -0.008
+    ],
+    "yawZ": 214.95490011626302,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      8.544194966744683,
+      3.5532676970422763,
+      -0.008
+    ],
+    "yawZ": 182.04894009994567,
+    "zone": "understory"
+  },
+  {
+    "asset": "alien-rosette-070",
+    "positionZUp": [
+      -0.2926475722454871,
+      7.8543827571191684,
+      -0.008
+    ],
+    "yawZ": 241.99812966052528,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      4.995048801929393,
+      2.3092132406191563,
+      -0.008
+    ],
+    "yawZ": 160.15013971375637,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      -1.4847652289423623,
+      -12.571671974237027,
+      -0.008
+    ],
+    "yawZ": 46.85623684534231,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      12.846252521882843,
+      -5.8187615687761305,
+      -0.008
+    ],
+    "yawZ": 140.38871300317567,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      12.349226005291992,
+      1.5421402232150534,
+      -0.008
+    ],
+    "yawZ": 209.44238683163027,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      11.701651948955277,
+      7.008756643262355,
+      -0.008
+    ],
+    "yawZ": 90.32773266463542,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      -5.7049291461627,
+      -12.655702376706731,
+      -0.008
+    ],
+    "yawZ": 135.3509674035605,
+    "zone": "understory"
+  },
+  {
+    "asset": "fern-clump-060",
+    "positionZUp": [
+      9.5189787346383,
+      8.574403245609513,
+      -0.008
+    ],
+    "yawZ": 87.96164756198954,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-ivory-055",
+    "positionZUp": [
+      9.167069063007322,
+      4.848215921441483,
+      -0.008
+    ],
+    "yawZ": 127.1737518744933,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      -8.434428217934196,
+      4.346560275054028,
+      -0.008
+    ],
+    "yawZ": 90.33743590799195,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-ivory-055",
+    "positionZUp": [
+      10.941886300276913,
+      -9.91679342626847,
+      -0.008
+    ],
+    "yawZ": 204.95067952603958,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      -0.7130137497468034,
+      8.242836898534783,
+      -0.008
+    ],
+    "yawZ": 69.63585305120336,
+    "zone": "understory"
+  },
+  {
+    "asset": "shrub-flowering-080",
+    "positionZUp": [
+      8.872242579056142,
+      8.439584385700211,
+      -0.008
+    ],
+    "yawZ": 193.8918436220118,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      -0.6149326651351057,
+      6.638500564641195,
+      -0.008
+    ],
+    "yawZ": 218.48716215369618,
+    "zone": "understory"
+  },
+  {
+    "asset": "alien-rosette-070",
+    "positionZUp": [
+      -7.7843147646844155,
+      7.211998290451088,
+      -0.008
+    ],
+    "yawZ": 299.0805405669438,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      4.313768327091831,
+      3.707382121130461,
+      -0.008
+    ],
+    "yawZ": 220.51344336700708,
+    "zone": "understory"
+  },
+  {
+    "asset": "fern-clump-060",
+    "positionZUp": [
+      10.362544281083462,
+      4.64202700721528,
+      -0.008
+    ],
+    "yawZ": 161.74818107609104,
+    "zone": "understory"
+  },
+  {
+    "asset": "fern-clump-060",
+    "positionZUp": [
+      11.579593783400476,
+      7.7833849866755145,
+      -0.008
+    ],
+    "yawZ": 1.89714473424067,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      3.6580433309302194,
+      -4.822112482431436,
+      -0.008
+    ],
+    "yawZ": 24.09088586036429,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-amber-045",
+    "positionZUp": [
+      7.881153030775497,
+      5.339038817685331,
+      -0.008
+    ],
+    "yawZ": 255.8644971609588,
+    "zone": "understory"
+  },
+  {
+    "asset": "fern-clump-060",
+    "positionZUp": [
+      -8.599137419357444,
+      -6.17499643719299,
+      -0.008
+    ],
+    "yawZ": 224.0573257563436,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      12.519120039177494,
+      2.8025185041188134,
+      -0.008
+    ],
+    "yawZ": 183.9180477380818,
+    "zone": "understory"
+  },
+  {
+    "asset": "shrub-flowering-080",
+    "positionZUp": [
+      0.5066923681979709,
+      5.806117351134091,
+      -0.008
+    ],
+    "yawZ": 198.96181393479281,
+    "zone": "understory"
+  },
+  {
+    "asset": "pebble-cluster-060",
+    "positionZUp": [
+      1.8405055479053587,
+      6.60654613912644,
+      -0.008
+    ],
+    "yawZ": 100.6991723855989,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      1.7640550420414929,
+      6.829507721175936,
+      -0.008
+    ],
+    "yawZ": 187.2873520307993,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      2.691301925319193,
+      7.541944375622272,
+      -0.008
+    ],
+    "yawZ": 21.78793331922199,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-amber-045",
+    "positionZUp": [
+      7.469914816647876,
+      3.56161332309161,
+      -0.008
+    ],
+    "yawZ": 155.79361548781628,
+    "zone": "understory"
+  },
+  {
+    "asset": "pebble-cluster-060",
+    "positionZUp": [
+      -8.937796439908302,
+      1.330422679129839,
+      -0.008
+    ],
+    "yawZ": 42.20839397944732,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      7.573172003818662,
+      -12.387956214794874,
+      -0.008
+    ],
+    "yawZ": 41.06982658481258,
+    "zone": "understory"
+  },
+  {
+    "asset": "shrub-rounded-090",
+    "positionZUp": [
+      -8.006041077150249,
+      -11.357020192675696,
+      -0.008
+    ],
+    "yawZ": 339.3945975495713,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      -4.309993163273006,
+      6.6168609216801535,
+      -0.008
+    ],
+    "yawZ": 332.0504949220434,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-amber-045",
+    "positionZUp": [
+      4.5040816696065935,
+      7.4969748705762385,
+      -0.008
+    ],
+    "yawZ": 47.44242520257408,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-amber-045",
+    "positionZUp": [
+      3.1077061482421566,
+      -12.61415216296896,
+      -0.008
+    ],
+    "yawZ": 215.3997771958896,
+    "zone": "understory"
+  },
+  {
+    "asset": "fern-clump-060",
+    "positionZUp": [
+      -8.469906697732261,
+      -7.901228960168308,
+      -0.008
+    ],
+    "yawZ": 74.94437469058741,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      10.563598300957143,
+      -11.09245394608263,
+      -0.008
+    ],
+    "yawZ": 91.4931752728224,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      12.315448470558405,
+      4.2247395705798745,
+      -0.008
+    ],
+    "yawZ": 7.99663403562211,
+    "zone": "understory"
+  },
+  {
+    "asset": "fern-clump-060",
+    "positionZUp": [
+      2.4239414888666193,
+      8.558270819834345,
+      -0.008
+    ],
+    "yawZ": 255.5233873597252,
+    "zone": "understory"
+  },
+  {
+    "asset": "shrub-rounded-090",
+    "positionZUp": [
+      3.86037318068219,
+      -4.154898438271463,
+      -0.008
+    ],
+    "yawZ": 174.50630095161736,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-ivory-055",
+    "positionZUp": [
+      4.444498243541883,
+      7.761375455792351,
+      -0.008
+    ],
+    "yawZ": 42.791784392902144,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-amber-045",
+    "positionZUp": [
+      11.617658191721695,
+      0.74072884496025,
+      -0.008
+    ],
+    "yawZ": 250.29928186283783,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-amber-045",
+    "positionZUp": [
+      2.322333010669862,
+      -12.441701911594768,
+      -0.008
+    ],
+    "yawZ": 133.97646503208463,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      12.971643604882779,
+      3.691553304743149,
+      -0.008
+    ],
+    "yawZ": 229.58004790370995,
+    "zone": "understory"
+  },
+  {
+    "asset": "pebble-cluster-060",
+    "positionZUp": [
+      7.228781407967986,
+      6.98584398774339,
+      -0.008
+    ],
+    "yawZ": 35.89167817433621,
+    "zone": "understory"
+  },
+  {
+    "asset": "shrub-rounded-090",
+    "positionZUp": [
+      7.64064007408583,
+      4.239588806275602,
+      -0.008
+    ],
+    "yawZ": 82.44321044935583,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      -8.37850940492242,
+      -3.8834150675226233,
+      -0.008
+    ],
+    "yawZ": 49.750960653191775,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      -8.52950172293825,
+      -12.825460004406404,
+      -0.008
+    ],
+    "yawZ": 154.876833497333,
+    "zone": "understory"
+  },
+  {
+    "asset": "pebble-cluster-060",
+    "positionZUp": [
+      9.52151270720832,
+      4.741349977253282,
+      -0.008
+    ],
+    "yawZ": 268.10917886383214,
+    "zone": "understory"
+  },
+  {
+    "asset": "pebble-cluster-060",
+    "positionZUp": [
+      -7.577855637526344,
+      -1.0918399967320163,
+      -0.008
+    ],
+    "yawZ": 357.44732169031226,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-amber-045",
+    "positionZUp": [
+      12.504532325279751,
+      -0.37469949060064955,
+      -0.008
+    ],
+    "yawZ": 263.252038407695,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      5.154490365418717,
+      7.600152745179205,
+      -0.008
+    ],
+    "yawZ": 324.2213517290819,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      -1.6588478693155366,
+      5.866401470709675,
+      -0.008
+    ],
+    "yawZ": 82.52614474724619,
+    "zone": "understory"
+  },
+  {
+    "asset": "fern-clump-060",
+    "positionZUp": [
+      0.20997758792998233,
+      8.272332795145996,
+      -0.008
+    ],
+    "yawZ": 324.558166227712,
+    "zone": "understory"
+  },
+  {
+    "asset": "fern-clump-060",
+    "positionZUp": [
+      -1.3342877418900603,
+      5.8964958030050205,
+      -0.008
+    ],
+    "yawZ": 69.96220584859468,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      7.392544250725525,
+      -6.830673553991809,
+      -0.008
+    ],
+    "yawZ": 288.82488420227924,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-amber-045",
+    "positionZUp": [
+      12.028138003517086,
+      8.004720442003602,
+      -0.008
+    ],
+    "yawZ": 173.8259532492212,
+    "zone": "understory"
+  },
+  {
+    "asset": "fern-clump-060",
+    "positionZUp": [
+      -4.2652157417993415,
+      -12.681686694656403,
+      -0.008
+    ],
+    "yawZ": 265.868292252444,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      -8.601048214012199,
+      -5.344047487560448,
+      -0.008
+    ],
+    "yawZ": 61.694389124173654,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-ivory-055",
+    "positionZUp": [
+      4.778443473994196,
+      6.731939258119635,
+      -0.008
+    ],
+    "yawZ": 103.94421215266343,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      -6.786485440391079,
+      -10.569762101403322,
+      -0.008
+    ],
+    "yawZ": 138.9303981181996,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      -7.551415489497959,
+      -3.801290139023557,
+      -0.008
+    ],
+    "yawZ": 207.8242628081838,
+    "zone": "understory"
+  },
+  {
+    "asset": "shrub-rounded-090",
+    "positionZUp": [
+      2.24045921142382,
+      -12.81389108949254,
+      -0.008
+    ],
+    "yawZ": 56.43454386420696,
+    "zone": "understory"
+  },
+  {
+    "asset": "shrub-rounded-090",
+    "positionZUp": [
+      -4.792960667754948,
+      6.02999095151451,
+      -0.008
+    ],
+    "yawZ": 198.90333266038365,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      -7.822963105177385,
+      6.954572587674761,
+      -0.008
+    ],
+    "yawZ": 343.4901291384399,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      8.892147368551115,
+      6.5015435336759495,
+      -0.008
+    ],
+    "yawZ": 344.643916895217,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-amber-045",
+    "positionZUp": [
+      10.70935313982891,
+      -11.573043507365451,
+      -0.008
+    ],
+    "yawZ": 216.9948188587223,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-ivory-055",
+    "positionZUp": [
+      10.954748809437909,
+      4.047762340663642,
+      -0.008
+    ],
+    "yawZ": 157.22936744241912,
+    "zone": "understory"
+  },
+  {
+    "asset": "pebble-cluster-060",
+    "positionZUp": [
+      -8.116058042991046,
+      2.70378294029938,
+      -0.008
+    ],
+    "yawZ": 321.5007366781057,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-amber-045",
+    "positionZUp": [
+      3.685997719304396,
+      -4.3519318268639395,
+      -0.008
+    ],
+    "yawZ": 260.23714310444865,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      4.084398358984215,
+      -12.976902330295129,
+      -0.008
+    ],
+    "yawZ": 183.03019026542628,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      8.922121898831865,
+      7.911124406919967,
+      -0.008
+    ],
+    "yawZ": 99.42168812121986,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-ivory-055",
+    "positionZUp": [
+      11.83558146930612,
+      -4.629345803837998,
+      -0.008
+    ],
+    "yawZ": 76.86256663044395,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      4.005502044192546,
+      4.807517730950703,
+      -0.008
+    ],
+    "yawZ": 70.09139047352926,
+    "zone": "understory"
+  },
+  {
+    "asset": "pebble-cluster-060",
+    "positionZUp": [
+      -4.19334660118354,
+      7.559653904407686,
+      -0.008
+    ],
+    "yawZ": 237.44698409355556,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-amber-045",
+    "positionZUp": [
+      -7.7183049140697655,
+      -4.559056483865133,
+      -0.008
+    ],
+    "yawZ": 197.50610041868333,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-amber-045",
+    "positionZUp": [
+      6.341961692817023,
+      8.33766013362829,
+      -0.008
+    ],
+    "yawZ": 269.672690323373,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-amber-045",
+    "positionZUp": [
+      12.22885152322323,
+      -4.959116960663055,
+      -0.008
+    ],
+    "yawZ": 12.589695918818311,
+    "zone": "understory"
+  },
+  {
+    "asset": "shrub-flowering-080",
+    "positionZUp": [
+      -7.649899942710996,
+      -8.597988325969398,
+      -0.008
+    ],
+    "yawZ": 333.923952229551,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      6.4262937807596625,
+      -5.155896080945483,
+      -0.008
+    ],
+    "yawZ": 205.66790549171293,
+    "zone": "understory"
+  },
+  {
+    "asset": "fern-clump-060",
+    "positionZUp": [
+      11.131299139336324,
+      -11.049294511034502,
+      -0.008
+    ],
+    "yawZ": 165.37781163802148,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      11.909187395561933,
+      -0.17126239553953937,
+      -0.008
+    ],
+    "yawZ": 155.1116971662985,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      8.054204773663859,
+      6.389985617460685,
+      -0.008
+    ],
+    "yawZ": 64.64703862712251,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      11.805032123129521,
+      2.479945771352579,
+      -0.008
+    ],
+    "yawZ": 268.594496740425,
+    "zone": "understory"
+  },
+  {
+    "asset": "shrub-rounded-090",
+    "positionZUp": [
+      7.399305845825598,
+      7.493632493740723,
+      -0.008
+    ],
+    "yawZ": 98.82180687302719,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      -8.463562125284561,
+      -10.930896950823819,
+      -0.008
+    ],
+    "yawZ": 233.12371905158554,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      5.320086338430649,
+      2.4417380816905396,
+      -0.008
+    ],
+    "yawZ": 16.019159541154636,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      -8.994334684289436,
+      -10.411675845816116,
+      -0.008
+    ],
+    "yawZ": 178.4927140385805,
+    "zone": "understory"
+  },
+  {
+    "asset": "fern-clump-060",
+    "positionZUp": [
+      5.7968295627621185,
+      6.041329870297346,
+      -0.008
+    ],
+    "yawZ": 17.842192200634027,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      -7.066009863268377,
+      8.772257449856678,
+      -0.008
+    ],
+    "yawZ": 26.39209125123037,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      -7.599048045533191,
+      -11.732397598847246,
+      -0.008
+    ],
+    "yawZ": 294.0207123506661,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      -4.216769516984301,
+      -12.664389764799768,
+      -0.008
+    ],
+    "yawZ": 58.04071174852901,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      -6.426898994076004,
+      -12.37344151633367,
+      -0.008
+    ],
+    "yawZ": 63.471500583287245,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      10.718544878196685,
+      -12.61607338704579,
+      -0.008
+    ],
+    "yawZ": 201.1407884772614,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      10.635555156109398,
+      4.770216603514399,
+      -0.008
+    ],
+    "yawZ": 56.534044560500554,
+    "zone": "understory"
+  },
+  {
+    "asset": "pebble-cluster-060",
+    "positionZUp": [
+      11.054230637144865,
+      -9.621322819426453,
+      -0.008
+    ],
+    "yawZ": 268.5302051577982,
+    "zone": "understory"
+  },
+  {
+    "asset": "fern-clump-060",
+    "positionZUp": [
+      -4.491784173805196,
+      7.652710097385178,
+      -0.008
+    ],
+    "yawZ": 279.9592913718821,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      0.10034353761030168,
+      -12.442451033010487,
+      -0.008
+    ],
+    "yawZ": 36.94383242552101,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      11.036707195222554,
+      7.105207314724375,
+      -0.008
+    ],
+    "yawZ": 183.99257159080335,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      7.018853817035474,
+      6.350876839660973,
+      -0.008
+    ],
+    "yawZ": 319.8012341978525,
+    "zone": "understory"
+  },
+  {
+    "asset": "shrub-rounded-090",
+    "positionZUp": [
+      11.778913122641043,
+      -12.24873530839413,
+      -0.008
+    ],
+    "yawZ": 326.001183795436,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      4.150454704629084,
+      -3.3611946389740446,
+      -0.008
+    ],
+    "yawZ": 342.68241362179805,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-amber-045",
+    "positionZUp": [
+      10.871890003347424,
+      -8.493280977038602,
+      -0.008
+    ],
+    "yawZ": 292.4050553441264,
+    "zone": "understory"
+  },
+  {
+    "asset": "shrub-rounded-090",
+    "positionZUp": [
+      11.978235767536596,
+      2.0020006401992916,
+      -0.008
+    ],
+    "yawZ": 337.4883686090594,
+    "zone": "understory"
+  },
+  {
+    "asset": "fern-clump-060",
+    "positionZUp": [
+      -8.07660658599162,
+      -5.272466391009461,
+      -0.008
+    ],
+    "yawZ": 277.7581267885905,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-amber-045",
+    "positionZUp": [
+      9.652168079826378,
+      6.8474762746987,
+      -0.008
+    ],
+    "yawZ": 84.03578712838828,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      12.327568408137296,
+      -9.660660655069387,
+      -0.008
+    ],
+    "yawZ": 183.98993179403672,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      11.386186905682859,
+      -8.640232666650284,
+      -0.008
+    ],
+    "yawZ": 111.68443679590689,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      12.217132523463569,
+      -11.31728330027954,
+      -0.008
+    ],
+    "yawZ": 97.58609409797806,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      -8.417436946716876,
+      -2.8499569369972857,
+      -0.008
+    ],
+    "yawZ": 149.8390371350023,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      -5.222343472232312,
+      -12.663008296695786,
+      -0.008
+    ],
+    "yawZ": 97.81882823282794,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      10.175362495963391,
+      -12.305781694109866,
+      -0.008
+    ],
+    "yawZ": 105.56093631061766,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-ivory-055",
+    "positionZUp": [
+      11.791441378889473,
+      -12.110446328931255,
+      -0.008
+    ],
+    "yawZ": 104.50766469165823,
+    "zone": "understory"
+  },
+  {
+    "asset": "fern-clump-060",
+    "positionZUp": [
+      -6.636711344070523,
+      -12.601619870150827,
+      -0.008
+    ],
+    "yawZ": 185.66450521141752,
+    "zone": "understory"
+  },
+  {
+    "asset": "fern-clump-060",
+    "positionZUp": [
+      10.706104896632961,
+      7.9355591806017,
+      -0.008
+    ],
+    "yawZ": 294.1718346969714,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-ivory-055",
+    "positionZUp": [
+      6.494835160092009,
+      -9.320598046705609,
+      -0.008
+    ],
+    "yawZ": 185.37870006106095,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      4.813643618313725,
+      -3.002695585840545,
+      -0.008
+    ],
+    "yawZ": 290.9140458590431,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      6.124904354166796,
+      -5.4911290796599825,
+      -0.008
+    ],
+    "yawZ": 211.05866398380908,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      12.820856538414517,
+      0.6270834896557993,
+      -0.008
+    ],
+    "yawZ": 245.00389310485946,
+    "zone": "understory"
+  },
+  {
+    "asset": "shrub-rounded-090",
+    "positionZUp": [
+      8.900873801516376,
+      5.7332918902050665,
+      -0.008
+    ],
+    "yawZ": 200.5741256196813,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      5.530099330211767,
+      -3.8768661299046414,
+      -0.008
+    ],
+    "yawZ": 12.37088197344618,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      -2.9187871173430313,
+      5.368476419069662,
+      -0.008
+    ],
+    "yawZ": 309.75443490062696,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      11.869689686561301,
+      -8.944940890964762,
+      -0.008
+    ],
+    "yawZ": 102.50990950357347,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      3.435429989573196,
+      2.816940170056567,
+      -0.008
+    ],
+    "yawZ": 26.694522628187386,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      12.370550189104865,
+      -0.7554826561755164,
+      -0.008
+    ],
+    "yawZ": 283.0099089194979,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-ivory-055",
+    "positionZUp": [
+      11.648108509656417,
+      -2.6346186070080186,
+      -0.008
+    ],
+    "yawZ": 289.10582637711997,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-amber-045",
+    "positionZUp": [
+      -7.9205655226874105,
+      -7.3740208338305875,
+      -0.008
+    ],
+    "yawZ": 252.33584640401386,
+    "zone": "understory"
+  },
+  {
+    "asset": "fern-clump-060",
+    "positionZUp": [
+      -6.210347792819232,
+      6.0352758120812275,
+      -0.008
+    ],
+    "yawZ": 28.63147525477781,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-amber-045",
+    "positionZUp": [
+      -7.825713895425462,
+      -9.362325291877442,
+      -0.008
+    ],
+    "yawZ": 260.1657633102982,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      -3.6968898198701208,
+      5.614193184257957,
+      -0.008
+    ],
+    "yawZ": 173.26238717551436,
+    "zone": "understory"
+  },
+  {
+    "asset": "shrub-flowering-080",
+    "positionZUp": [
+      4.542054988908843,
+      7.8743863137194765,
+      -0.008
+    ],
+    "yawZ": 233.1266637279831,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-amber-045",
+    "positionZUp": [
+      4.111078470519455,
+      -3.1372331479660396,
+      -0.008
+    ],
+    "yawZ": 142.16917881618457,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      1.4438512040431242,
+      -12.916269300799087,
+      -0.008
+    ],
+    "yawZ": 122.03481788068157,
+    "zone": "understory"
+  },
+  {
+    "asset": "fern-clump-060",
+    "positionZUp": [
+      -4.838187002790952,
+      7.327717490423154,
+      -0.008
+    ],
+    "yawZ": 81.38790469416867,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      7.4651987983181165,
+      -7.7997078055435045,
+      -0.008
+    ],
+    "yawZ": 183.45308338626725,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      5.402960603252442,
+      -3.6625870563093734,
+      -0.008
+    ],
+    "yawZ": 169.93700197907074,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-amber-045",
+    "positionZUp": [
+      11.703173326329111,
+      -7.585391273554304,
+      -0.008
+    ],
+    "yawZ": 17.635579833791724,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      8.459972598626099,
+      8.649237087664275,
+      -0.008
+    ],
+    "yawZ": 307.9387475074204,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      7.08071440931527,
+      -9.493774475463905,
+      -0.008
+    ],
+    "yawZ": 298.0071825399268,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      11.883227801930808,
+      -0.8577665658585687,
+      -0.008
+    ],
+    "yawZ": 249.7951043997532,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-amber-045",
+    "positionZUp": [
+      -7.536609667855282,
+      -11.257299868948017,
+      -0.008
+    ],
+    "yawZ": 317.20411720591045,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      7.54675053693046,
+      -9.684366207442546,
+      -0.008
+    ],
+    "yawZ": 93.11763230918653,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      3.966358141907401,
+      7.188572678068283,
+      -0.008
+    ],
+    "yawZ": 150.36702703520422,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      -7.66000729176502,
+      -1.404608908657499,
+      -0.008
+    ],
+    "yawZ": 158.45408631380704,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-amber-045",
+    "positionZUp": [
+      11.832887538957891,
+      2.0019518604127455,
+      -0.008
+    ],
+    "yawZ": 83.07281204074235,
+    "zone": "understory"
+  },
+  {
+    "asset": "fern-clump-060",
+    "positionZUp": [
+      1.5203182941025304,
+      8.478927371848837,
+      -0.008
+    ],
+    "yawZ": 88.11955464951059,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      2.32156743608242,
+      5.642059911726342,
+      -0.008
+    ],
+    "yawZ": 185.4037307193648,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-tuft-035",
+    "positionZUp": [
+      10.660215996074644,
+      -8.434907160132358,
+      -0.008
+    ],
+    "yawZ": 31.083528150858243,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      5.568733524080553,
+      -4.878238308339759,
+      -0.008
+    ],
+    "yawZ": 9.49741444270526,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      -8.233827348633035,
+      -7.004481918486212,
+      -0.008
+    ],
+    "yawZ": 322.5015772923408,
+    "zone": "understory"
+  },
+  {
+    "asset": "shrub-rounded-090",
+    "positionZUp": [
+      12.156562896478366,
+      -4.922436473913034,
+      -0.008
+    ],
+    "yawZ": 55.77920360568526,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-ivory-055",
+    "positionZUp": [
+      4.926836361409231,
+      6.942610753954604,
+      -0.008
+    ],
+    "yawZ": 105.2823698073652,
+    "zone": "understory"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      4.295319723264663,
+      -3.041269302674422,
+      -0.008
+    ],
+    "yawZ": 265.00352655288424,
+    "zone": "understory"
+  },
+  {
+    "asset": "pebble-cluster-060",
+    "positionZUp": [
+      -7.707636864754449,
+      -0.9232310223492846,
+      -0.008
+    ],
+    "yawZ": 214.20940262619092,
+    "zone": "understory"
+  },
+  {
+    "asset": "fern-clump-060",
+    "positionZUp": [
+      -8.975853228187091,
+      -0.8917561967624401,
+      -0.008
+    ],
+    "yawZ": 325.7487271145384,
+    "zone": "understory"
+  },
+  {
+    "asset": "flower-amber-045",
+    "positionZUp": [
+      -1.4788462807540377,
+      5.968233917634649,
+      -0.008
+    ],
+    "yawZ": 181.44933914612102,
+    "zone": "understory"
+  },
+  {
+    "asset": "ground-leaf-litter-080",
+    "positionZUp": [
+      -8.35,
+      3.6,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "litter"
+  },
+  {
+    "asset": "ground-leaf-litter-080",
+    "positionZUp": [
+      -9.478866624454689,
+      4.03953015366795,
+      0
+    ],
+    "yawZ": 55,
+    "zone": "litter"
+  },
+  {
+    "asset": "ground-leaf-litter-080",
+    "positionZUp": [
+      -8.944420787641144,
+      2.9523805506676246,
+      0
+    ],
+    "yawZ": 110,
+    "zone": "litter"
+  },
+  {
+    "asset": "ground-leaf-litter-080",
+    "positionZUp": [
+      -8.603025774967266,
+      4.114695506741278,
+      0
+    ],
+    "yawZ": 165,
+    "zone": "litter"
+  },
+  {
+    "asset": "moss-patch-100",
+    "positionZUp": [
+      -8.7,
+      3.4,
+      -0.008
+    ],
+    "yawZ": 43,
+    "zone": "moss"
+  },
+  {
+    "asset": "ground-leaf-litter-080",
+    "positionZUp": [
+      -3.9499999999999997,
+      7.7,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "litter"
+  },
+  {
+    "asset": "ground-leaf-litter-080",
+    "positionZUp": [
+      -5.0788666244546885,
+      8.13953015366795,
+      0
+    ],
+    "yawZ": 55,
+    "zone": "litter"
+  },
+  {
+    "asset": "ground-leaf-litter-080",
+    "positionZUp": [
+      -4.544420787641144,
+      7.052380550667625,
+      0
+    ],
+    "yawZ": 110,
+    "zone": "litter"
+  },
+  {
+    "asset": "ground-leaf-litter-080",
+    "positionZUp": [
+      -4.203025774967266,
+      8.214695506741277,
+      0
+    ],
+    "yawZ": 165,
+    "zone": "litter"
+  },
+  {
+    "asset": "moss-patch-100",
+    "positionZUp": [
+      -4.3,
+      7.5,
+      -0.008
+    ],
+    "yawZ": 43,
+    "zone": "moss"
+  },
+  {
+    "asset": "ground-leaf-litter-080",
+    "positionZUp": [
+      3.65,
+      7.7,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "litter"
+  },
+  {
+    "asset": "ground-leaf-litter-080",
+    "positionZUp": [
+      2.521133375545311,
+      8.13953015366795,
+      0
+    ],
+    "yawZ": 55,
+    "zone": "litter"
+  },
+  {
+    "asset": "ground-leaf-litter-080",
+    "positionZUp": [
+      3.0555792123588557,
+      7.052380550667625,
+      0
+    ],
+    "yawZ": 110,
+    "zone": "litter"
+  },
+  {
+    "asset": "ground-leaf-litter-080",
+    "positionZUp": [
+      3.3969742250327335,
+      8.214695506741277,
+      0
+    ],
+    "yawZ": 165,
+    "zone": "litter"
+  },
+  {
+    "asset": "moss-patch-100",
+    "positionZUp": [
+      3.3,
+      7.5,
+      -0.008
+    ],
+    "yawZ": 43,
+    "zone": "moss"
+  },
+  {
+    "asset": "ground-leaf-litter-080",
+    "positionZUp": [
+      12.450000000000001,
+      5.7,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "litter"
+  },
+  {
+    "asset": "ground-leaf-litter-080",
+    "positionZUp": [
+      11.321133375545312,
+      6.13953015366795,
+      0
+    ],
+    "yawZ": 55,
+    "zone": "litter"
+  },
+  {
+    "asset": "ground-leaf-litter-080",
+    "positionZUp": [
+      11.855579212358856,
+      5.052380550667625,
+      0
+    ],
+    "yawZ": 110,
+    "zone": "litter"
+  },
+  {
+    "asset": "ground-leaf-litter-080",
+    "positionZUp": [
+      12.196974225032735,
+      6.214695506741278,
+      0
+    ],
+    "yawZ": 165,
+    "zone": "litter"
+  },
+  {
+    "asset": "moss-patch-100",
+    "positionZUp": [
+      12.100000000000001,
+      5.5,
+      -0.008
+    ],
+    "yawZ": 43,
+    "zone": "moss"
+  },
+  {
+    "asset": "ground-leaf-litter-080",
+    "positionZUp": [
+      -7.65,
+      -4.2,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "litter"
+  },
+  {
+    "asset": "ground-leaf-litter-080",
+    "positionZUp": [
+      -8.77886662445469,
+      -3.76046984633205,
+      0
+    ],
+    "yawZ": 55,
+    "zone": "litter"
+  },
+  {
+    "asset": "ground-leaf-litter-080",
+    "positionZUp": [
+      -8.244420787641145,
+      -4.847619449332376,
+      0
+    ],
+    "yawZ": 110,
+    "zone": "litter"
+  },
+  {
+    "asset": "ground-leaf-litter-080",
+    "positionZUp": [
+      -7.903025774967267,
+      -3.6853044932587222,
+      0
+    ],
+    "yawZ": 165,
+    "zone": "litter"
+  },
+  {
+    "asset": "moss-patch-100",
+    "positionZUp": [
+      -8.0,
+      -4.4,
+      -0.008
+    ],
+    "yawZ": 43,
+    "zone": "moss"
+  },
+  {
+    "asset": "ground-leaf-litter-080",
+    "positionZUp": [
+      12.65,
+      -0.4,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "litter"
+  },
+  {
+    "asset": "ground-leaf-litter-080",
+    "positionZUp": [
+      11.521133375545311,
+      0.03953015366795015,
+      0
+    ],
+    "yawZ": 55,
+    "zone": "litter"
+  },
+  {
+    "asset": "ground-leaf-litter-080",
+    "positionZUp": [
+      12.055579212358856,
+      -1.0476194493323754,
+      0
+    ],
+    "yawZ": 110,
+    "zone": "litter"
+  },
+  {
+    "asset": "ground-leaf-litter-080",
+    "positionZUp": [
+      12.396974225032734,
+      0.11469550674127782,
+      0
+    ],
+    "yawZ": 165,
+    "zone": "litter"
+  },
+  {
+    "asset": "moss-patch-100",
+    "positionZUp": [
+      12.3,
+      -0.6000000000000001,
+      -0.008
+    ],
+    "yawZ": 43,
+    "zone": "moss"
+  },
+  {
+    "asset": "fern-clump-060",
+    "positionZUp": [
+      6.8,
+      -9.0,
+      -0.008
+    ],
+    "yawZ": 30,
+    "zone": "botanical-detail"
+  },
+  {
+    "asset": "flower-ivory-055",
+    "positionZUp": [
+      7.55,
+      -9.65,
+      -0.008
+    ],
+    "yawZ": 55,
+    "zone": "botanical-detail"
+  },
+  {
+    "asset": "flower-amber-045",
+    "positionZUp": [
+      6.9,
+      -9.65,
+      -0.008
+    ],
+    "yawZ": 14,
+    "zone": "botanical-detail"
+  },
+  {
+    "asset": "alien-rosette-070",
+    "positionZUp": [
+      8.8,
+      -12.6,
+      -0.008
+    ],
+    "yawZ": -20,
+    "zone": "botanical-detail"
+  },
+  {
+    "asset": "grass-clump-065",
+    "positionZUp": [
+      8,
+      -12.8,
+      -0.008
+    ],
+    "yawZ": 33,
+    "zone": "botanical-detail"
+  },
+  {
+    "asset": "moss-patch-100",
+    "positionZUp": [
+      7.7,
+      -9.1,
+      -0.008
+    ],
+    "yawZ": 0,
+    "zone": "botanical-detail"
+  }
+]

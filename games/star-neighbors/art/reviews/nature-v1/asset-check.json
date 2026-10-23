@@ -1,0 +1,1272 @@
+{
+  "status": "passed",
+  "scope": "Background Blender GLB import, geometry/UV/bounds checks and reassembled render; not engine acceptance",
+  "blender": "5.2.1 LTS",
+  "assets": 24,
+  "dependencies": 60,
+  "assemblyInstances": 588,
+  "trianglesUniqueKit": 253435,
+  "bytesGLB": 53615664,
+  "results": [
+    {
+      "asset": "terrain-meadow-4m",
+      "bytes": 557392,
+      "sha256": "5f8537b21e4117e9c1cace3733a18e99a203a2118e2a593f874df2f643cf6395",
+      "meshes": 1,
+      "triangles": 1038,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        4.0,
+        4.0,
+        0.16
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "terrain-loam-4m",
+      "bytes": 571668,
+      "sha256": "bb58bbb1b80c26997c1ab49ef0a3b7d7de40d1e14d3f7e1151809a6cc1054756",
+      "meshes": 3,
+      "triangles": 1356,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        4.0,
+        4.0,
+        0.1615
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "path-straight-2m",
+      "bytes": 1081196,
+      "sha256": "5cb915d1a61b03e7f4210f3c662b75e24df63a4d1b0ee7a9fd4bd4bf3e196ed9",
+      "meshes": 3,
+      "triangles": 200,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        1.6972,
+        2.0,
+        0.027
+      ],
+      "embeddedImages": 4,
+      "uvFinite": true
+    },
+    {
+      "asset": "path-turn-2m",
+      "bytes": 1081172,
+      "sha256": "2c2c5c79fa8a1b96d18b42ca11b047dd234240176011af3c76e7570f9838837d",
+      "meshes": 3,
+      "triangles": 200,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        1.83,
+        1.83,
+        0.027
+      ],
+      "embeddedImages": 4,
+      "uvFinite": true
+    },
+    {
+      "asset": "path-junction-2m",
+      "bytes": 1145528,
+      "sha256": "21b8eff7767e07913d0f732f262cdbdf3f6a70141270ce0f1704141088a644c7",
+      "meshes": 3,
+      "triangles": 2924,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        2.0,
+        1.85,
+        0.027
+      ],
+      "embeddedImages": 4,
+      "uvFinite": true
+    },
+    {
+      "asset": "stepping-stone-060",
+      "bytes": 23432,
+      "sha256": "18c72c93d5fe25478936eabc19bdb27946eec9249a3967f258098fde475c66ba",
+      "meshes": 1,
+      "triangles": 788,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.6441,
+        0.4976,
+        0.0983
+      ],
+      "embeddedImages": 0,
+      "uvFinite": true
+    },
+    {
+      "asset": "boulder-large-250",
+      "bytes": 598316,
+      "sha256": "c1dd5c61924e5dc416eb8f97548d97e1c1f58d7569d2ae99f07c505f7713a044",
+      "meshes": 2,
+      "triangles": 1784,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        2.7315,
+        2.0611,
+        1.5453
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "boulder-medium-120",
+      "bytes": 600416,
+      "sha256": "af7335fa3ae7afcf49cd9b4ab80b67104f51443ec7bb8f61e16ca5f1b25a5ed1",
+      "meshes": 2,
+      "triangles": 1802,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        1.2954,
+        0.9852,
+        0.7905
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "rock-slab-160",
+      "bytes": 603472,
+      "sha256": "00bf93bded711514d9195ffb9d2e39bbaccd270456601f689f5b7cb3e1f0f217",
+      "meshes": 2,
+      "triangles": 1920,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        1.7875,
+        1.2292,
+        0.368
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "pebble-cluster-060",
+      "bytes": 632124,
+      "sha256": "64ee5acdef35b8cfb7964b8079e1c65d44facd3aa30a920f646b802f2339dd37",
+      "meshes": 1,
+      "triangles": 2912,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.5356,
+        0.4481,
+        0.0797
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "tree-trunk-mature",
+      "bytes": 597184,
+      "sha256": "375e891173451172f60ae88b8e11d6104f8324ed01d571adc5e6d7a5bdbb8b5a",
+      "meshes": 1,
+      "triangles": 1410,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        3.0739,
+        2.4569,
+        5.1967
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "tree-crown-mature",
+      "bytes": 2370156,
+      "sha256": "06f78e5ae5c6c65640b32ce3c5deb470727f5c912c939b5f757582c618f33651",
+      "meshes": 4,
+      "triangles": 38016,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        4.6963,
+        3.8499,
+        2.7494
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "tree-trunk-young",
+      "bytes": 574888,
+      "sha256": "bba6455c44290a072a54b44af0c602c50fb34c50b618f67c67c85e8738332579",
+      "meshes": 1,
+      "triangles": 954,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        1.7432,
+        1.39,
+        3.2847
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "tree-crown-young",
+      "bytes": 1300528,
+      "sha256": "36401484717b10ac133e803bf56bc1e2754d188188c8c0f9e14a1b8db2367ff1",
+      "meshes": 4,
+      "triangles": 15840,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        2.8915,
+        2.3459,
+        2.0038
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "shrub-rounded-090",
+      "bytes": 661148,
+      "sha256": "3c621a15b6e7873d48bb6ceec8f7b82812ff56a04c988e55711530a5debcd8ca",
+      "meshes": 4,
+      "triangles": 3000,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        1.0088,
+        1.1401,
+        0.8682
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "shrub-flowering-080",
+      "bytes": 706556,
+      "sha256": "4015d29f2d86ad15384ced6becc6d6dc28417d527f937aa2288473efabf566e6",
+      "meshes": 6,
+      "triangles": 4120,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        1.207,
+        1.0889,
+        0.9148
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "fern-clump-060",
+      "bytes": 98984,
+      "sha256": "a0b2de93bac27031438ecd547f250a6d451546819903482f9be8b3d1604aa9d8",
+      "meshes": 1,
+      "triangles": 2540,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.9625,
+        1.1757,
+        0.6402
+      ],
+      "embeddedImages": 0,
+      "uvFinite": true
+    },
+    {
+      "asset": "grass-tuft-035",
+      "bytes": 21264,
+      "sha256": "9fe1801206d5758d0dcf0dff1f1a822b2032cfe2ee384dc7ff4a6f84fb209010",
+      "meshes": 2,
+      "triangles": 384,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.2755,
+        0.2995,
+        0.3195
+      ],
+      "embeddedImages": 0,
+      "uvFinite": true
+    },
+    {
+      "asset": "grass-clump-065",
+      "bytes": 97244,
+      "sha256": "bd1f545c469b5ccfd130591c41931c3acab742bc33783835e81a9281ba8a1663",
+      "meshes": 3,
+      "triangles": 1920,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.8088,
+        0.8425,
+        0.5878
+      ],
+      "embeddedImages": 0,
+      "uvFinite": true
+    },
+    {
+      "asset": "flower-amber-045",
+      "bytes": 59852,
+      "sha256": "4a3d3ad9718c1f67fc890a3ae9b261e3cb2eb81248b8bb66f996c2aefeb11ef0",
+      "meshes": 3,
+      "triangles": 1456,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.5007,
+        0.5256,
+        0.474
+      ],
+      "embeddedImages": 0,
+      "uvFinite": true
+    },
+    {
+      "asset": "flower-ivory-055",
+      "bytes": 59832,
+      "sha256": "3451d32b020bcf4e104c77107054ed8383641056ca2bee93666ebf543a404214",
+      "meshes": 3,
+      "triangles": 1456,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.4566,
+        0.5165,
+        0.561
+      ],
+      "embeddedImages": 0,
+      "uvFinite": true
+    },
+    {
+      "asset": "alien-rosette-070",
+      "bytes": 15860,
+      "sha256": "60ef03ee06d4736620aa212041c13d9d6e6206316879026300e087fb3ae6c595",
+      "meshes": 2,
+      "triangles": 312,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.9129,
+        0.9029,
+        0.344
+      ],
+      "embeddedImages": 0,
+      "uvFinite": true
+    },
+    {
+      "asset": "moss-patch-100",
+      "bytes": 100676,
+      "sha256": "53cf1e105477b5498563e74d85e957fd55ec899570abde0fffe70f9a4b4cad47",
+      "meshes": 1,
+      "triangles": 2160,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.9515,
+        0.7046,
+        0.0666
+      ],
+      "embeddedImages": 0,
+      "uvFinite": true
+    },
+    {
+      "asset": "ground-leaf-litter-080",
+      "bytes": 17444,
+      "sha256": "bc162d234b0f81a4fcd5c58fcb59eb88f2b63cb72681911fe856b051cff63410",
+      "meshes": 2,
+      "triangles": 420,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.6675,
+        0.7267,
+        0.0166
+      ],
+      "embeddedImages": 0,
+      "uvFinite": true
+    },
+    {
+      "asset": "habitat/floor-2m",
+      "bytes": 48832,
+      "sha256": "f7eda28670570c8e45336a52b905f0d9abd668414c2b769cc95805640f9f7aff",
+      "meshes": 3,
+      "triangles": 1304,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        2.0,
+        2.0,
+        0.215
+      ],
+      "embeddedImages": 0,
+      "uvFinite": true
+    },
+    {
+      "asset": "habitat/roof-center-2m",
+      "bytes": 688320,
+      "sha256": "4bd89947570b146eb7c1312584008be4830fedf4ccb67d4f3e0c485cc8ab6adb",
+      "meshes": 3,
+      "triangles": 752,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        2.0,
+        2.0,
+        0.224
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "connections/support-foot-020",
+      "bytes": 687468,
+      "sha256": "aea498eff15116a07af83b3237010efd3418b1d8123c8bdea745939354b83e8d",
+      "meshes": 3,
+      "triangles": 644,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.44,
+        0.44,
+        0.2
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "connections/support-riser-040",
+      "bytes": 693488,
+      "sha256": "4f5bc13583018ee2b9d66e597893c6cdf81e457ec1d757a9b431643e4c0c36e0",
+      "meshes": 3,
+      "triangles": 940,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.28,
+        0.28,
+        0.4
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "habitat/foundation-edge-2m",
+      "bytes": 694532,
+      "sha256": "0aa668a9d02e862cc7d9e99ea7a6a36fc502c7e170ff4de742b1a1cb58855e98",
+      "meshes": 4,
+      "triangles": 940,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        2.0,
+        0.5625,
+        0.21
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "habitat/roof-edge-2m",
+      "bytes": 714356,
+      "sha256": "64114b4ac696b846409025aeb477c00cd83e9aaabb162e772f1ce804c8e65dbd",
+      "meshes": 5,
+      "triangles": 1516,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        2.0,
+        0.577,
+        0.4998
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "habitat/wall-window-2m",
+      "bytes": 1044764,
+      "sha256": "9df21dbd80c6fe49995f446fb8332e86c5e25dac89a128bdfa43159bf2b4abc9",
+      "meshes": 9,
+      "triangles": 12388,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        1.988,
+        0.525,
+        2.8
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "habitat/wall-doorway-2m",
+      "bytes": 1057116,
+      "sha256": "335ccae4dcb5d803fc7bd95a1ec29410ff54be4de4e5f2edff6ed08bd09c2872",
+      "meshes": 9,
+      "triangles": 12828,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        1.988,
+        0.457,
+        2.84
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "habitat/door-leaf-110",
+      "bytes": 881824,
+      "sha256": "52c304db4d35403c38b919a97d15a21325aa16254e3e42bb3f1b93a55ac19d84",
+      "meshes": 8,
+      "triangles": 7260,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        1.235,
+        0.311,
+        2.27
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "habitat/wall-solid-2m",
+      "bytes": 1031952,
+      "sha256": "88a9b7324a46631ea24089821da931d9329924b86535cc52ec956e551d5157b5",
+      "meshes": 8,
+      "triangles": 10848,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        1.988,
+        0.3203,
+        2.8
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "connections/junction-frame-2m",
+      "bytes": 833352,
+      "sha256": "ebac1492c0e1c003e12de3a35d1d617c6e222446581349ac3c91c59f9ebf6681",
+      "meshes": 6,
+      "triangles": 5872,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        1.986,
+        0.38,
+        2.865
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "connections/dock-head-2m",
+      "bytes": 729252,
+      "sha256": "65a800d3900674289ca75bb316d8f70ddf3828d83170a5365b9b126d0965bdc0",
+      "meshes": 7,
+      "triangles": 1652,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        2.06,
+        0.7643,
+        0.515
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "habitat/foundation-corner-r050",
+      "bytes": 697712,
+      "sha256": "6d83f740f8b23bebdb9f778c1d8df943988c75765de41e7fcda2fbf895842137",
+      "meshes": 2,
+      "triangles": 1272,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.4999,
+        0.4999,
+        0.21
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "habitat/wall-corner-r050",
+      "bytes": 797616,
+      "sha256": "6554de2bbc91eca777bee2991a28d7c2bc180c3249bfe601f7e7032d227dcf4c",
+      "meshes": 4,
+      "triangles": 4840,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.5349,
+        0.5349,
+        2.8
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "habitat/roof-corner-r050",
+      "bytes": 805768,
+      "sha256": "70033be16a35cdae00b86634afcef4144c8e949b95a19a463473dc6e7b4f6ef6",
+      "meshes": 3,
+      "triangles": 5528,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.543,
+        0.543,
+        0.5015
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "connections/foundation-inner-corner-2m",
+      "bytes": 687372,
+      "sha256": "3708038792b67130e440443f90efa8b528f0fd51626a5568851f6321ccce9aa7",
+      "meshes": 3,
+      "triangles": 444,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        2.0,
+        2.0,
+        0.21
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "connections/wall-inner-corner-2m",
+      "bytes": 782428,
+      "sha256": "67366c2dabadb81cff37d162bbe278661bfc077ad7f273fa88c5f40c7b4ea6aa",
+      "meshes": 7,
+      "triangles": 2652,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        1.72,
+        1.72,
+        2.8
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "connections/roof-inner-corner-2m",
+      "bytes": 789928,
+      "sha256": "58ea6b868bbb4fb3dbdafa48f5e10116e6c90a8f9521d7ac06a6a20e86518b56",
+      "meshes": 3,
+      "triangles": 1978,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        2.0,
+        2.0,
+        0.5
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "habitat/roof-vent",
+      "bytes": 774116,
+      "sha256": "e6af31befd018a9e720daaafeda03a7f84d61f9921c15b6e32830715efca5c06",
+      "meshes": 6,
+      "triangles": 3008,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        1.38,
+        1.02,
+        0.4575
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "habitat/ceiling-beam-2m",
+      "bytes": 695876,
+      "sha256": "814409401ae223c54f0e7906eecdf73ec76407f4936ba22c6a6ed66f50ee9f09",
+      "meshes": 4,
+      "triangles": 940,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        2.0,
+        0.24,
+        0.2375
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "habitat/ceiling-beam-end-050",
+      "bytes": 681384,
+      "sha256": "46d92097aaaa00a6db6fb3bcbf6a500bd640cb73207d0fbc1b52c3a7d5baa302",
+      "meshes": 3,
+      "triangles": 564,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.5,
+        0.32,
+        0.28
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "habitat/support-column-2p8",
+      "bytes": 701192,
+      "sha256": "53ce3ab29d71f4644b77c23d75316685bf8b06c2da22bceb892274d7b5eabfc2",
+      "meshes": 4,
+      "triangles": 1128,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.32,
+        0.32,
+        2.8
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "connections/corridor-roof-2m",
+      "bytes": 701100,
+      "sha256": "9610b5847e024f11b7e4bccab0ba652135a17f857238f82a442193f524d2aa0b",
+      "meshes": 4,
+      "triangles": 1128,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        2.0,
+        2.0,
+        0.5495
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "connections/corridor-wall-glass-2m",
+      "bytes": 812748,
+      "sha256": "7bb023199269de2c82b87288587c26cd37bd54df73fbd2391bdcbc0e0f86c5fe",
+      "meshes": 6,
+      "triangles": 4712,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        1.986,
+        0.2603,
+        2.8
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "garden/garden-floor-2m",
+      "bytes": 161420,
+      "sha256": "596eb9ad7d09f84b78d0ad099ebfc866052856f4fe4b6da405cbb88c810391f4",
+      "meshes": 3,
+      "triangles": 4888,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        2.0,
+        2.0,
+        0.2235
+      ],
+      "embeddedImages": 0,
+      "uvFinite": true
+    },
+    {
+      "asset": "garden/garden-wall-glass-2m",
+      "bytes": 875460,
+      "sha256": "d7255ae726553a424029fac92b2120b1f2586904e39e4240da5744378b3bbd1e",
+      "meshes": 7,
+      "triangles": 6744,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        1.986,
+        0.325,
+        2.8
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "garden/garden-gutter-2m",
+      "bytes": 695868,
+      "sha256": "2676c2255a6f13c01c3e59aa7e9fe78cabf997e037519b8256775eaf0268906f",
+      "meshes": 4,
+      "triangles": 940,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.2245,
+        1.985,
+        0.265
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "garden/garden-roof-glass-half-2m",
+      "bytes": 37816,
+      "sha256": "72ef5d1bc15858dc229ba1b07552e2e7ef8107c7fd83de3ea71e97c97b57ade1",
+      "meshes": 2,
+      "triangles": 876,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        2.004,
+        1.956,
+        0.904
+      ],
+      "embeddedImages": 0,
+      "uvFinite": true
+    },
+    {
+      "asset": "garden/garden-ridge-2m",
+      "bytes": 689696,
+      "sha256": "6ed6c21ad20403e0afcddceace0cbdaa08e415f647f79172c54607eda18ae5b6",
+      "meshes": 4,
+      "triangles": 752,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.19,
+        1.984,
+        0.285
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "connections/garden-link-roof-glass",
+      "bytes": 39352,
+      "sha256": "7a5cfba79c744bfb1e6307d885b7ca39a83bcd066784bc9b3cb89fef8935839c",
+      "meshes": 2,
+      "triangles": 732,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        1.503,
+        1.956,
+        0.3186
+      ],
+      "embeddedImages": 0,
+      "uvFinite": true
+    },
+    {
+      "asset": "connections/garden-link-hood-2m",
+      "bytes": 683828,
+      "sha256": "62455995c72cfe5a682721ee0f68ce278338eb19801f8f4816f82e2c0e6deb2e",
+      "meshes": 3,
+      "triangles": 444,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.7795,
+        1.996,
+        0.647
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "garden/garden-arch-half-2m",
+      "bytes": 699268,
+      "sha256": "96bce8abb4334c85d3d6914a0356329cd94976b5bfd95415dc906912587f60dd",
+      "meshes": 3,
+      "triangles": 960,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        2.135,
+        0.17,
+        1.012
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "garden/garden-door-glass-120",
+      "bytes": 833892,
+      "sha256": "e56a06d0fb0c0a9a7f21dc9772ae3ce961e00721616aa8b0c8c30eaf6cf31af2",
+      "meshes": 7,
+      "triangles": 5568,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        1.235,
+        0.29,
+        2.27
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "garden/garden-roof-end-half-2m",
+      "bytes": 682952,
+      "sha256": "f92cb2fbfbe1b2637015600648bb735be1c10364dd93c21dab25bd941b27b52f",
+      "meshes": 2,
+      "triangles": 524,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        2.0,
+        0.13,
+        0.9225
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "garden/garden-corner-post",
+      "bytes": 686472,
+      "sha256": "de4ce3727f79d4aa2d72e8e0af7b772a51de620e06ede3bddb625b48ed546034",
+      "meshes": 3,
+      "triangles": 752,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.21,
+        0.21,
+        2.8
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "garden/growing-bed-2m",
+      "bytes": 776976,
+      "sha256": "cd899464d7dce745dbb0c9c4608c8d6fc0b4abdf449a94a87a83f5fcedee87b5",
+      "meshes": 7,
+      "triangles": 3092,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        1.9,
+        0.886,
+        0.708
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "garden/crop-tray-leafy",
+      "bytes": 239828,
+      "sha256": "61fd4aab3ddec5e294684dd21d08b40dee8b67d14ff93bb1931c3be776dcc7b0",
+      "meshes": 3,
+      "triangles": 6108,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        1.7526,
+        0.8958,
+        0.4827
+      ],
+      "embeddedImages": 0,
+      "uvFinite": true
+    },
+    {
+      "asset": "garden/garden-irrigation-unit",
+      "bytes": 755912,
+      "sha256": "7159637e298cab741befab710661a46fd2f8fd29c07ed4a3650eed4df6bc39ee",
+      "meshes": 6,
+      "triangles": 2540,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.64,
+        0.575,
+        1.16
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "connections/deck-floor-2m",
+      "bytes": 763332,
+      "sha256": "71e4c57401beb87f29f48a6dde80239f3bfd5a5031701f28f635aadfadb913e9",
+      "meshes": 3,
+      "triangles": 2772,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        2.0,
+        2.0,
+        0.214
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "connections/deck-rail-2m",
+      "bytes": 725920,
+      "sha256": "4befac62dfcf8ec285f8caf455f6ecf80908cdf50d1e5e18a01b5b7f066a332b",
+      "meshes": 5,
+      "triangles": 1952,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        1.89,
+        0.11,
+        0.915
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "connections/deck-post-105",
+      "bytes": 688360,
+      "sha256": "48926b5748fecf1dea670158fd564a876418aee1e3985f0ff2c5da7a6f11f437",
+      "meshes": 4,
+      "triangles": 752,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.2,
+        0.2,
+        1.09
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "connections/terrace-stair-081",
+      "bytes": 804824,
+      "sha256": "cdbca31934986fa6fa5ca6e148540a12ea79acf65c19e3bdf322348cc8d7f1f2",
+      "meshes": 4,
+      "triangles": 4124,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        1.7,
+        1.602,
+        1.8613
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "connections/deck-edge-2m",
+      "bytes": 706048,
+      "sha256": "ab89224c5aee74b48d4dcf9320c17d30e11bc3f3ce2f67de150e90f92dbfde17",
+      "meshes": 5,
+      "triangles": 1148,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        1.98,
+        0.126,
+        0.18
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "connections/deck-corner-cap",
+      "bytes": 674404,
+      "sha256": "1385ae1598876995feb2478c92a8d386faef75521f1abb4c4a3acad399500003",
+      "meshes": 2,
+      "triangles": 376,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.125,
+        0.125,
+        0.18
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "connections/terrace-ramp-2m",
+      "bytes": 743724,
+      "sha256": "3dec6dc77033cc04f0fff9fb7ff87fa2efda313dbfdf6e0546341ee31b07f920",
+      "meshes": 3,
+      "triangles": 2356,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        1.8,
+        2.0071,
+        0.5576
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "connections/ramp-rail-2m",
+      "bytes": 691276,
+      "sha256": "58ae47c03b0e8d470ffc3b508653e9f58830f584d16b6f295cb88e9aef90edac",
+      "meshes": 3,
+      "triangles": 744,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.13,
+        2.0159,
+        1.4671
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "living/sofa-seat-090",
+      "bytes": 793920,
+      "sha256": "df5608b074fad39768175a50bacc964fa9f240489f82d10fc5f1b6b61746288e",
+      "meshes": 7,
+      "triangles": 3584,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.9,
+        0.864,
+        0.975
+      ],
+      "embeddedImages": 3,
+      "uvFinite": true
+    },
+    {
+      "asset": "living/sofa-arm",
+      "bytes": 686732,
+      "sha256": "b91438bd4717655b9277706b7543c9051765fade38a16cc71ced42ff31997738",
+      "meshes": 3,
+      "triangles": 564,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.18,
+        0.845,
+        0.665
+      ],
+      "embeddedImages": 3,
+      "uvFinite": true
+    },
+    {
+      "asset": "living/coffee-table-110",
+      "bytes": 748500,
+      "sha256": "b8d7cd812aafecc95680b02468658fa6afe0f8b9f536ba481d2d9cb21fb276a1",
+      "meshes": 5,
+      "triangles": 2644,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        1.1,
+        0.65,
+        0.41
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "living/mug",
+      "bytes": 701008,
+      "sha256": "17ceb3a342dc07ec34d4d6677813526cced4054cec7e7e351817971a8a2111a6",
+      "meshes": 2,
+      "triangles": 1160,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.1412,
+        0.094,
+        0.108
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "living/kettle",
+      "bytes": 738344,
+      "sha256": "c4b47a0b82cc13611a426689954740b6dfa642074c245e9961479f5aebf23600",
+      "meshes": 4,
+      "triangles": 2212,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.26,
+        0.3502,
+        0.396
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "living/dining-table-180",
+      "bytes": 100100,
+      "sha256": "c18dc8815525adc392c36d200522c0dd87a98d7b9a0364bf78ac020ce686faf1",
+      "meshes": 5,
+      "triangles": 2948,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        1.8,
+        0.9,
+        0.762
+      ],
+      "embeddedImages": 0,
+      "uvFinite": true
+    },
+    {
+      "asset": "living/dining-chair",
+      "bytes": 805340,
+      "sha256": "7595a3012bbacbb0ea3eb89195cfc6584a31197d6af72d63bc44da68fe1dddd0",
+      "meshes": 7,
+      "triangles": 4004,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.5216,
+        0.5782,
+        0.8539
+      ],
+      "embeddedImages": 3,
+      "uvFinite": true
+    },
+    {
+      "asset": "living/dinner-plate",
+      "bytes": 773052,
+      "sha256": "140d95593fa5404e2b86fe04bc3da6392ccec9d0a677d42bbb16df274547c9c7",
+      "meshes": 2,
+      "triangles": 3740,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.29,
+        0.29,
+        0.0305
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "living/gift-box-040",
+      "bytes": 51016,
+      "sha256": "e2ce86990f53d664f04d546808a2b726ff80dddf5ebcdab759930ba10efa3483",
+      "meshes": 2,
+      "triangles": 1316,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.4,
+        0.41,
+        0.325
+      ],
+      "embeddedImages": 1,
+      "uvFinite": true
+    },
+    {
+      "asset": "living/gift-lid-040",
+      "bytes": 73000,
+      "sha256": "207d4b2f7023d1f0d0229dccc56dd037661cd7f0da999c23b357a4952b1dec8b",
+      "meshes": 3,
+      "triangles": 1820,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.44,
+        0.44,
+        0.125
+      ],
+      "embeddedImages": 1,
+      "uvFinite": true
+    },
+    {
+      "asset": "living/outdoor-lantern-160",
+      "bytes": 720444,
+      "sha256": "632846a2bc095fbdaa47f124ad237fc08bcc5fb9586dfefa5c6d136c1f8f6634",
+      "meshes": 5,
+      "triangles": 1500,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.264,
+        0.264,
+        1.595
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "living/wayfinding-post",
+      "bytes": 681940,
+      "sha256": "787123678750924e95bb065c8265ab73b3ad0e24988fae9bc1a963f8ac89f523",
+      "meshes": 3,
+      "triangles": 564,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.34,
+        0.3,
+        1.52
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "living/wayfinding-panel",
+      "bytes": 718824,
+      "sha256": "0ec474c0e555e1d7696f646e939c5e567b72db0d8d60f79cd537a02ac1faaa97",
+      "meshes": 4,
+      "triangles": 1601,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.72,
+        0.045,
+        0.25
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    },
+    {
+      "asset": "habitat/interior-planter",
+      "bytes": 757988,
+      "sha256": "96b81896d5927595155615c7aa1633be99eb78b7bb530a7bb6072651cfe60f6e",
+      "meshes": 4,
+      "triangles": 2584,
+      "collapsedTriangles": 0,
+      "dimensionsZUp": [
+        0.5836,
+        0.5242,
+        0.6635
+      ],
+      "embeddedImages": 2,
+      "uvFinite": true
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 
 日期：2026-10-22。用户明确要求“必须模块化”。本文件约束当前试作及后续扩展；已实现项和未来接口分别说明。
 
-当前新增的居住舱美术套件独立存放在 [habitat-v2](../art/source/habitat-v2/README.md)，包含 22 个 GLB、可编辑源文件与实际渲染，已制作 7×5 米与 13×9 米的同部件拼装对照。另有 [greenhouse-v1](../art/source/greenhouse-v1/README.md) 的 12 个温室模型、[connections-v1](../art/source/connections-v1/README.md) 的 20 个连接与室外平台模型，以及 [living-v1](../art/source/living-v1/README.md) 的 27 个生活与社交道具，共 81 个新版独立模型。建筑组合展示 L 形住宅、4 米连接走廊、温室及 8×4 米露台；最新家具剖视补充桌椅、床品、拼接沙发、柜架、厨房小件与社交道具。安装细节以各目录说明为准；尚未替换下述首版 Web 样区。依用户最新要求，当前工作只负责美术资产，程序由用户负责。
+当前新版美术按套件存放：[habitat-v2](../art/source/habitat-v2/README.md) 含 22 个居住舱模型与 7×5 米、13×9 米房间拼装对照；[greenhouse-v1](../art/source/greenhouse-v1/README.md) 含 12 个温室模型；[connections-v1](../art/source/connections-v1/README.md) 含 20 个连接与室外平台模型；[living-v1](../art/source/living-v1/README.md) 含 27 个生活与社交道具；最新 [nature-v1](../art/source/nature-v1/README.md) 含 24 个地表、小路、岩石与植物模块，共 105 个新版独立模型。自然环境组合在 24×24 米地块上复用住宅、温室与露台，并提供树干／树冠拆分和成人尺度对照。安装细节以各目录说明为准；尚未替换下述首版 Web 样区。依用户最新要求，当前工作只负责美术资产，程序由用户负责。
 
 ## 1. 当前交付
 
