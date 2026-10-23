@@ -792,6 +792,32 @@ void springbone_reset(ecs::Registry& registry, u32 entity) {
     g_springBoneSystem->reset(Entity::fromRaw(entity));
 }
 
+void springbone_release(ecs::Registry& registry, u32 entity) {
+    if (!g_springBoneSystem) return;
+    g_springBoneSystem->release(registry, Entity::fromRaw(entity));
+}
+
+static std::vector<f32>& springBoneSnapshot() {
+    static std::vector<f32> data;
+    return data;
+}
+
+u32 springbone_snapshot(ecs::Registry& registry, u32 entity) {
+    (void)registry;
+    auto& data = springBoneSnapshot();
+    if (!g_springBoneSystem) { data.clear(); return 0; }
+    g_springBoneSystem->snapshot(Entity::fromRaw(entity), data);
+    return static_cast<u32>(data.size() / 7);
+}
+
+u32 springbone_snapshotCount() {
+    return static_cast<u32>(springBoneSnapshot().size() / 7);
+}
+
+uintptr_t springbone_snapshotData() {
+    return reinterpret_cast<uintptr_t>(springBoneSnapshot().data());
+}
+
 void renderer_setStage(i32 stage) {
     if (!g_renderFrame) return;
     g_renderFrame->setStage(static_cast<RenderStage>(stage));

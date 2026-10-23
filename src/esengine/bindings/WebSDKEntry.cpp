@@ -747,6 +747,10 @@ EMSCRIPTEN_BINDINGS(esengine_renderer) {
     emscripten::function("trail_clear", &esengine::trail_clear);
     emscripten::function("springbone_update", &esengine::springbone_update);
     emscripten::function("springbone_reset", &esengine::springbone_reset);
+    emscripten::function("springbone_release", &esengine::springbone_release);
+    emscripten::function("springbone_snapshot", &esengine::springbone_snapshot);
+    emscripten::function("springbone_snapshotCount", &esengine::springbone_snapshotCount);
+    emscripten::function("springbone_snapshotData", &esengine::springbone_snapshotData);
     emscripten::function("renderer_setStage", &esengine::renderer_setStage);
     emscripten::function("renderer_createTarget", &esengine::renderer_createTarget);
     emscripten::function("renderer_releaseTarget", &esengine::renderer_releaseTarget);

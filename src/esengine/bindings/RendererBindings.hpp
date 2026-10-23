@@ -171,6 +171,13 @@ void trail_clear(ecs::Registry& registry, u32 entity);
 void springbone_update(ecs::Registry& registry, f32 dt);
 /** Puts a chain back at its animated pose on its next frame (a teleport, a respawn). */
 void springbone_reset(ecs::Registry& registry, u32 entity);
+/** Copies a chain's particles for the editor to draw and returns how many (seven floats each; see SpringBoneSystem::snapshot); read them at springbone_snapshotData(). */
+/** Gives a chain's bones back as the animation had them and forgets its state: what ends a preview. */
+void springbone_release(ecs::Registry& registry, u32 entity);
+u32 springbone_snapshot(ecs::Registry& registry, u32 entity);
+u32 springbone_snapshotCount();
+// @heapreturn esengine::springbone_snapshotCount() * 28
+uintptr_t springbone_snapshotData();
 void renderer_setStage(i32 stage);
 u32 renderer_createTarget(u32 width, u32 height, i32 flags);
 u32 renderer_getTargetDepthTexture(u32 handle);

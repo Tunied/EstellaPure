@@ -265,7 +265,11 @@ export interface NativeEngineApi {
     rm_trimTextureCache?(rm: unknown): number;
     rm_updateTextureSubregion?(rm: unknown, handleId: number, x: number, y: number, width: number, height: number, pixelsPtr: number, pixelsLen: number): void;
     rm_wrapDeviceTexture?(rm: unknown, textureId: number, width: number, height: number): number;
+    springbone_release?(registry: unknown, entity: number): void;
     springbone_reset?(registry: unknown, entity: number): void;
+    springbone_snapshot?(registry: unknown, entity: number): number;
+    springbone_snapshotCount?(): number;
+    springbone_snapshotData?(): number;
     springbone_update?(registry: unknown, dt: number): void;
     tilemap_advanceAnimations?(entity: number, dtMs: number): void;
     tilemap_clearTileAnimations?(entity: number): void;
@@ -583,7 +587,11 @@ export function createNativeEngineApi(
     bind('rm_trimTextureCache', 'es_rm_trimTextureCache', true);
     bind('rm_updateTextureSubregion', 'es_rm_updateTextureSubregion', true);
     bind('rm_wrapDeviceTexture', 'es_rm_wrapDeviceTexture', true);
+    bind('springbone_release', 'es_springbone_release', true);
     bind('springbone_reset', 'es_springbone_reset', true);
+    bind('springbone_snapshot', 'es_springbone_snapshot', true);
+    bind('springbone_snapshotCount', 'es_springbone_snapshotCount', false);
+    bind('springbone_snapshotData', 'es_springbone_snapshotData', false);
     bind('springbone_update', 'es_springbone_update', true);
     bind('tilemap_advanceAnimations', 'es_tilemap_advanceAnimations', false);
     bind('tilemap_clearTileAnimations', 'es_tilemap_clearTileAnimations', false);

@@ -772,6 +772,7 @@ export {
 export {
     SpringBoneRes,
     SpringBoneAPI,
+    type SpringBoneParticle,
     SpringBonePlugin,
     springBonePlugin,
 } from './springbone';

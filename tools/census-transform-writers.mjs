@@ -64,6 +64,10 @@ const SEAMS = [
         why: 'writes the local rotation of every bone it aimed and announces once after the pass; positions are never written',
     },
     {
+        file: 'src/esengine/springbone/SpringBoneSystem.cpp', fn: 'restoreBones', role: 'announces',
+        why: 'gives the bones of a chain the rotation the animation had, and announces for each one it gave back',
+    },
+    {
         file: 'src/esengine/bindings/EditorAPI.generated.cpp', fn: 'editor_setFloat', role: 'announces',
         why: 'emitted from WRITE_HOOKS; check-transform-seam holds which arms get it',
     },

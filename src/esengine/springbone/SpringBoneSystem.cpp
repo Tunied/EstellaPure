@@ -53,9 +53,36 @@ bool SpringBoneSystem::gatherColliders(ecs::Registry& registry, const std::vecto
     return !out.empty();
 }
 
+void SpringBoneSystem::restoreBones(ecs::Registry& registry, State& state) {
+    for (size_t i = 1; i < state.entities.size() && i < state.animated.size(); ++i) {
+        if (!registry.valid(state.entities[i])) continue;
+        auto* t = registry.tryGet<ecs::Transform>(state.entities[i]);
+        if (t && state.hasWritten[i] && t->rotation == state.written[i]) {
+            t->rotation = state.animated[i];
+            ecs::invalidateTransformComposition();
+        }
+    }
+}
+
+void SpringBoneSystem::release(ecs::Registry& registry, Entity root) {
+    const auto it = states_.find(root);
+    if (it == states_.end()) return;
+    restoreBones(registry, it->second);
+    states_.erase(it);
+}
+
 void SpringBoneSystem::reset(Entity root) {
     auto it = states_.find(root);
     if (it != states_.end()) it->second.primed = false;
+}
+
+void SpringBoneSystem::snapshot(Entity root, std::vector<f32>& out) const {
+    out.clear();
+    const auto it = states_.find(root);
+    if (it == states_.end()) return;
+    for (const Particle& p : it->second.particles) {
+        out.insert(out.end(), {p.position.x, p.position.y, p.position.z, p.target.x, p.target.y, p.target.z, static_cast<f32>(p.parent)});
+    }
 }
 
 const std::vector<Particle>* SpringBoneSystem::chain(Entity root) const {
@@ -76,16 +103,7 @@ void SpringBoneSystem::update(ecs::Registry& registry, ecs::TransformSystem* tra
         const Entity root = it->first;
         const auto* sb = registry.valid(root) ? registry.tryGet<ecs::SpringBone>(root) : nullptr;
         if (sb && sb->enabled && sb->weight > 0.0f) { ++it; continue; }
-        const auto& entities = it->second.entities;
-        State& gone = it->second;
-        for (size_t i = 1; i < entities.size() && i < gone.animated.size(); ++i) {
-            if (!registry.valid(entities[i])) continue;
-            auto* t = registry.tryGet<ecs::Transform>(entities[i]);
-            if (t && gone.hasWritten[i] && t->rotation == gone.written[i]) {
-                t->rotation = gone.animated[i];
-                ecs::invalidateTransformComposition();
-            }
-        }
+        restoreBones(registry, it->second);
         it = states_.erase(it);
     }
 

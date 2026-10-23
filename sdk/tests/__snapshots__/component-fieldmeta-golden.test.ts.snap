@@ -1301,9 +1301,11 @@ exports[`builtin FieldMeta (RC9-1 equivalence gate) > matches the golden snapsho
   },
   "SpringBone": {
     "colliders": {
+      "category": "Collision",
       "tooltip": "Entities with a SpringBoneCollider that this chain is kept out of (the head, the shoulders).",
     },
     "drag": {
+      "category": "Motion",
       "max": 1,
       "min": 0,
       "slider": true,
@@ -1314,19 +1316,23 @@ exports[`builtin FieldMeta (RC9-1 equivalence gate) > matches the golden snapsho
       "tooltip": "Off leaves the chain exactly as the animation poses it.",
     },
     "endLength": {
+      "category": "Chain",
       "min": 0,
       "step": 0.1,
       "tooltip": "Length of the tip past each end bone, in world units. 0 leaves the end bones unsimulated.",
     },
     "gravity": {
+      "category": "Motion",
       "tooltip": "Gravity on the chain, in world units a second squared (world y is up).",
     },
     "radius": {
+      "category": "Chain",
       "min": 0,
       "step": 0.1,
       "tooltip": "Thickness of the strand, in world units, kept clear of the colliders.",
     },
     "stiffness": {
+      "category": "Motion",
       "max": 1,
       "min": 0,
       "slider": true,
@@ -1334,6 +1340,7 @@ exports[`builtin FieldMeta (RC9-1 equivalence gate) > matches the golden snapsho
       "tooltip": "How hard each bone is pulled back toward its animated pose. 0 hangs free, 1 follows the animation exactly.",
     },
     "weight": {
+      "category": "Chain",
       "max": 1,
       "min": 0,
       "slider": true,
@@ -1343,6 +1350,7 @@ exports[`builtin FieldMeta (RC9-1 equivalence gate) > matches the golden snapsho
   },
   "SpringBoneCollider": {
     "height": {
+      "category": "Shape",
       "min": 0,
       "shownWhen": {
         "field": "shape",
@@ -1354,14 +1362,17 @@ exports[`builtin FieldMeta (RC9-1 equivalence gate) > matches the golden snapsho
       "tooltip": "A capsule's length between the centres of its end spheres, in world units before scale.",
     },
     "offset": {
+      "category": "Shape",
       "tooltip": "Where the centre of the shape is, in the entity's own space.",
     },
     "radius": {
+      "category": "Shape",
       "min": 0,
       "step": 0.1,
       "tooltip": "Radius in world units, before the entity's scale.",
     },
     "shape": {
+      "category": "Shape",
       "enum": [
         {
           "label": "Sphere",

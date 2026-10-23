@@ -29,6 +29,19 @@ is simulated.
 A `SpringBoneCollider` is a sphere, or a capsule along its entity's own Y axis, placed by the entity's transform (and its `offset`). Put them on the head
 and shoulders bones so hair does not pass through the body.
 
+## In the editor
+
+Details groups the chain's fields into **Motion** (stiffness, drag, gravity), **Chain** (end length, radius, weight) and **Collision** (colliders), and says on its first
+line how many bones the chain has below its entity and how many end tips, or, in the warning colour, that it has no child bones and so simulates nothing.
+
+Select a chain's root and the viewport draws it, and the colliders it keeps out of, in the **Spring bones** entry of the Gizmo menu: the bones as the animation poses them
+as amber lines, a ring at each joint the width of the strand's `radius` (a dot where it is 0), a tip where `endLength` gives one, and each collider as a wireframe sphere or
+capsule in the collider green. Select a `SpringBoneCollider` and its own shape is drawn. Nothing is drawn for what is not selected, so a character's hair does not fill the viewport.
+
+**View → Preview FX** (on in a fresh editor, the same switch particles and trails use) runs the chain in the edit viewport: drag the head, or change a field, and the
+hair swings. With it on, the simulated chain is drawn solid over the animated pose, dashed, so the difference you are tuning is the difference you see. Turning it off
+ends the simulation and gives the bones back as the scene has them. The simulation is the editor's own: it never writes into the scene file.
+
 ## What it does each frame
 
 The animation runs first and writes the bones' local rotations. Then, for each chain:
@@ -54,5 +67,5 @@ cost 0.28 ms an update.** The test is `springbone` in the editor checks; `test_s
 - A bone with several children aims at its first child; the others follow by being children, and aim at their own.
 - Scale is taken from the bones' composed scale; non-uniform scale down a chain is not modelled.
 - Collision is bone against sphere or capsule: no collision between strands, no self-collision, and no collision with the world's physics shapes.
-- There is no wind yet, and no authoring in the viewport: chains and colliders are set up in the Details panel. A hair importer that finds the strands and makes the chains
-  from the model's bone names does not exist yet either.
+- There is no wind yet. A collider's radius, height and offset are typed in Details; the viewport has no handles to drag them. A hair importer that finds the strands and makes
+  the chains from the model's bone names does not exist yet either.

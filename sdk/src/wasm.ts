@@ -616,6 +616,10 @@ export interface ESEngineModule {
     trail_clear?(registry: CppRegistry, entity: number): void;
     springbone_update?(registry: CppRegistry, dt: number): void;
     springbone_reset?(registry: CppRegistry, entity: number): void;
+    springbone_release?(registry: CppRegistry, entity: number): void;
+    springbone_snapshot?(registry: CppRegistry, entity: number): number;
+    springbone_snapshotCount?(): number;
+    springbone_snapshotData?(): number;
 
     // Tilemap API
     tilemap_initLayer?(entity: number, width: number, height: number,

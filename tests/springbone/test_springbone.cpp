@@ -274,6 +274,19 @@ TEST_CASE("switching the chain off gives the bones back as the animation had the
     CHECK(rig.system.chain(rig.root) == nullptr);
 }
 
+TEST_CASE("releasing a chain gives its bones back at once and forgets it") {
+    Rig rig;
+    rig.frame();
+    rig.moveRoot({60.0f, 0.0f, 0.0f});
+    rig.frame();
+    CHECK(rig.turned(rig.b1) > 0.05f);
+    rig.system.release(rig.registry, rig.root);
+    CHECK(rig.turned(rig.b1) < 1e-4f);
+    CHECK(rig.system.chain(rig.root) == nullptr);
+    // Releasing what is not there is nothing.
+    rig.system.release(rig.registry, rig.root);
+}
+
 TEST_CASE("weight blends between the animation and the simulation") {
     Rig full, half;
     half.registry.get<ecs::SpringBone>(half.root).weight = 0.5f;

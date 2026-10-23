@@ -5,6 +5,16 @@ import type { EngineApi } from '../ecs/bridge/engineApi';
 import type { Entity } from '../types';
 import { defineResource } from '../ecs/resource';
 
+/** One simulated point of a chain. */
+export interface SpringBoneParticle {
+    /** Where the simulation has it, in world units. */
+    position: [number, number, number];
+    /** Where the animation puts it. */
+    pose: [number, number, number];
+    /** The index of its parent particle, -1 for the chain's root. */
+    parent: number;
+}
+
 /**
  * Per-app secondary-motion API. Wraps the C++ registry-scoped spring-bone system, so two App instances (editor tabs) simulate
  * independent chains.
@@ -24,6 +34,33 @@ export class SpringBoneAPI {
     /** Advance every chain: step the springs toward the pose the animation gave, then turn the bones to match. */
     update(dt: number): void {
         this.module_.springbone_update?.(this.registry_, dt);
+    }
+
+    /**
+     * A chain as the engine has it now, for an editor to draw: each particle's simulated position, the position the animation gives it, and
+     * its parent's index (-1 for the root). Empty when the chain has not been stepped yet.
+     */
+    snapshot(root: Entity): SpringBoneParticle[] {
+        this.module_.springbone_snapshot?.(this.registry_, root as number);
+        const count = this.module_.springbone_snapshotCount?.() ?? 0;
+        const ptr = this.module_.springbone_snapshotData?.() ?? 0;
+        const heap = (this.module_ as { HEAPF32?: Float32Array }).HEAPF32;
+        if (count <= 0 || !ptr || !heap) return [];
+        const out: SpringBoneParticle[] = [];
+        for (let i = 0; i < count; i++) {
+            const k = ptr / 4 + i * 7;
+            out.push({
+                position: [heap[k]!, heap[k + 1]!, heap[k + 2]!],
+                pose: [heap[k + 3]!, heap[k + 4]!, heap[k + 5]!],
+                parent: heap[k + 6]!,
+            });
+        }
+        return out;
+    }
+
+    /** Give a chain's bones back as the animation had them and forget its state: what ends a preview in an editor. */
+    release(root: Entity): void {
+        this.module_.springbone_release?.(this.registry_, root as number);
     }
 
     /** Put a chain back at its animated pose on its next frame: a teleport, a respawn, a pose set by hand. */

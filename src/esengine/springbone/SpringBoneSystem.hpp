@@ -34,6 +34,12 @@ public:
     /** @brief Advance every enabled chain by `dt` seconds. Composes world transforms first if the animation moved any. */
     void update(ecs::Registry& registry, ecs::TransformSystem* transforms, f32 dt);
 
+    /**
+     * @brief Give a chain's bones back as the animation had them and forget its state: what stops a preview in the editor, where nothing animates the bones
+     *        and a chain left as the simulation last turned it would stay that way.
+     */
+    void release(ecs::Registry& registry, Entity root);
+
     /** @brief Forget a chain's state: it starts again from the animated pose on its next frame (a teleport, a respawn). */
     void reset(Entity root);
 
@@ -42,6 +48,12 @@ public:
 
     /** @brief The simulated world positions of a chain, root first, in the order its bones were found (tips last); null if it has no state. */
     const std::vector<Particle>* chain(Entity root) const;
+
+    /**
+     * @brief A chain's particles as flat floats for the editor to draw: seven a particle, the simulated position, the position the animation gives, then
+     *        the index of its parent (-1 for the root). Empty when the chain has no state.
+     */
+    void snapshot(Entity root, std::vector<f32>& out) const;
 
 private:
     /** @brief One bone (or a virtual tip) of a chain, beside its particle. */
@@ -87,6 +99,7 @@ private:
     // RAII: unregisters from the registry's onDestroy when this system is torn down.
     Connection destroyConn_;
 
+    void restoreBones(ecs::Registry& registry, State& state);
     void collectBones(ecs::Registry& registry, Entity root, std::vector<Entity>& out);
     bool gatherColliders(ecs::Registry& registry, const std::vector<Entity>& entities, std::vector<Collider>& out);
 };
