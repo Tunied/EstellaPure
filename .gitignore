@@ -190,3 +190,6 @@ tools/emsdk-glx/
 
 # Published corpora the checks fetch at a pinned revision (tools/corpora.mjs) — never commit
 .cache/
+
+# games/orbital-haven is its own repository (github.com/esengine/orbital-haven), cloned here.
+/games/orbital-haven/
