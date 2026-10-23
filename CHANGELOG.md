@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Fixed
+
+- **New Project keeps the wrong template name.** The New Project page no longer keeps the previous template's name when you pick another: the suggested name follows the template, and a name you typed stays.
+
 ### Changed
 
 - **A lite engine for mini-games.** A WeChat or Douyin package whose scenes and scripts use no particle emitter, post-process volume or tilemap now ships a lite engine, the same engine without those three subsystems and about 200 KB smaller, so a UI-only game has room under the 4 MB main-package limit. It is chosen from the same evidence as the lean SDK entry plus a scan of the project's scripts; any mention of one of the three carries the full engine. Build it with `node build-tools/cli.js build -t wechat-lite` (`-t all` includes it).

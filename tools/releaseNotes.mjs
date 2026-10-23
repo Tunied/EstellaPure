@@ -2535,6 +2535,8 @@ export const NOTED = {
     {"note":"The post-process effects' shaders are now three optional groups, esengine/fx-basic, esengine/fx-atmosphere and esengine/fx-lighting: a package carries a group when a PostProcessVolume names one of its effects (or a Weather or TimeOfDay component is in the content), and a game with no volumes ships none of them (about 180 KB less in a UI-only mini-game)."},
   "feat(export): a mini-game package whose content uses no particles, post-processing or tilemaps ships a lite engine":
     {"note":"A WeChat or Douyin package whose scenes and scripts use no particle emitter, post-process volume or tilemap now ships a lite engine, the same engine without those three subsystems and about 200 KB smaller, so a UI-only game has room under the 4 MB main-package limit."},
+  "fix(launcher): switching template renames the suggested project name, unless the user typed one":
+    {"note":"The New Project page no longer keeps the previous template's name when you pick another: the suggested name follows the template, and a name you typed stays."},
   "chore(tools): the gates run in parallel with --jobs, and the reds a full run gathered are cleared":
     {"internal":"tooling for the static gates, and fixes to checks that had drifted from the code they guard"},
   "fix(render): a wire narrower than a pixel is no longer painted over by the sky in dashes":
