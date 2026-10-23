@@ -42,6 +42,8 @@ export const NOTED = {
   'fix(render): a mesh with tangents and a normal map links its shadow program when the sun casts shadows':
     {"note":"A model with tangents and a normal map no longer stops its shadow program from linking when the sun casts shadows. The depth pass wrote no tangent varying while the fragment stage still read one, so the shader failed on WebGL2 and the logged error named no material; the depth variant now leaves the tangent frame out."},
   'fix(editor): the spring-bone note uses the inset token, and a model import passes the Spring Bones setting through': { internal: 'A theme token for a line of Details and the import setting passed through to the importer, both inside the spring-bone work that has its own notes.' },
+  'fix(pipeline): a fully opaque texture keeps its alpha through the mip chain, so a cutout material on it no longer vanishes at a distance':
+    {"note":"A texture whose alpha is fully opaque, used by a cutout material (a hair material or any alpha-cutoff one), no longer vanishes once it is minified. Coverage-preserving mip levels were scaling its alpha down onto the cutoff, so every level past the first was discarded; a level that already reaches the share it must keep is now left alone."},
   'fix: serialize binaryen optimization on windows': { internal: 'Uses one optimizer worker after wider builds reproduced heap corruption with four; release optimization flags stay unchanged.' },
   'feat: add budgeted 2d and 3d particle scene collisions': { note: 'Budgeted particle scene collisions.' },
   'feat(editor): add particle collision authoring and diagnostics': { note: 'Budgeted particle scene collisions.' },

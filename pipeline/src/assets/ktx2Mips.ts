@@ -94,10 +94,12 @@ export function alphaCoverage(rgba: Uint8Array, cutoff: number, scale = 1): numb
 /**
  * Scale @p rgba's alpha in place so the share of texels at or above @p cutoff is
  * @p coverage — what a mip level of a cutout needs, or averaging thins it level by
- * level until distant foliage has no leaves. The scale is found by bisection.
+ * level until distant foliage has no leaves. The scale is found by bisection. Only ever scales up: a level that already reaches the share is
+ * left alone, because for a fully opaque image the smallest scale that still reaches 100% is the cutoff itself, which would bring every texel's alpha down onto it.
  */
 export function preserveAlphaCoverage(rgba: Uint8Array, cutoff: number, coverage: number): void {
-    let lo = 0, hi = 4;
+    if (alphaCoverage(rgba, cutoff) >= coverage) return;
+    let lo = 1, hi = 4;
     for (let i = 0; i < 20; i++) {
         const mid = (lo + hi) / 2;
         if (alphaCoverage(rgba, cutoff, mid) < coverage) lo = mid; else hi = mid;

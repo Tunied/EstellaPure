@@ -127,6 +127,13 @@ describe('a cutout\'s mips keep its coverage', () => {
         expect(alphaCoverage(half.rgba, 0.5)).toBeGreaterThanOrEqual(0.25);
     });
 
+    it('leaves the alpha of a fully opaque image alone, so a cutout material on it still draws at every level', () => {
+        const opaque = new Uint8Array(8 * 8 * 4).fill(255);
+        const half = halveRgba(opaque, 8, 8, false);
+        preserveAlphaCoverage(half.rgba, 0.45, alphaCoverage(opaque, 0.45));
+        for (let i = 3; i < half.rgba.length; i += 4) expect(half.rgba[i]).toBe(255);
+    });
+
     it('joins single levels into one chain, and refuses a level of the wrong size', async () => {
         const at = async (side: number) => enc.encodeToKtx2({ type: enc.ImageType.RGBA, data: leaves(side), width: side, height: side },
             { mode: 'uastc', mipmaps: false });
