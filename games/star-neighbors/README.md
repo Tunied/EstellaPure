@@ -2,13 +2,15 @@
 
 项目暂名。多人合作、社交优先的未来卡通星球建造游戏：每个人拥有自己的星球，在持续扩展的共享宇宙里拜访朋友、寻找新家、共同建设。
 
-**当前工作聚焦美术资产：居住舱 22 个、温室 12 个、建筑连接与室外平台 20 个、生活与社交道具 27 个、自然环境 24 个、种植与采集 28 个，共 133 个新版独立模型，跨套件复用不重复计数。优先确认造型、材质与模块拼接。此前 3D 结构样区与原生 2D 建造界面保留；正式角色、联机、星球生成、存档与承载人数尚未实现或验收。**
+**当前工作聚焦美术资产：居住舱 22 个、温室 12 个、建筑连接与室外平台 20 个、生活与社交道具 27 个、自然环境 24 个、种植与采集 28 个、生产与能源设备 28 个，共 161 个新版独立模型，跨套件复用不重复计数。优先确认造型、材质与模块拼接。此前 3D 结构样区与原生 2D 建造界面保留；正式角色、联机、星球生成、存档与承载人数尚未实现或验收。**
 
 3D 星球、角色、建筑与环境承载主要游玩体验；2D 星图、界面、物品图标和社交反馈同步设计。当前样区使用 Estella，后续客户端及服务端能力按验收项逐步验证。
 
-![种植与采集模块的实际模型渲染](art/reviews/harvest-v1/01-harvest-garden.png)
+![生产与能源设备的实际模型渲染](art/reviews/utility-v1/01-workshop.png)
 
-最新交付：[种植与采集模块](art/source/harvest-v1/README.md)、[可编辑场景](art/source/harvest-v1/harvest-v1.blend)、[28 个新增独立模型](art/models/harvest-v1/)、[生长阶段](art/reviews/harvest-v1/02-growth-stages.png)、[拆件图](art/reviews/harvest-v1/03-harvest-modules.png)、[矿物与资源](art/reviews/harvest-v1/05-resource-detail.png)、[容器拆分与成人尺度](art/reviews/harvest-v1/06-container-assembly.png)。三类作物各有三个阶段，果实、种植盒、藤架、箱盖、矿脉和碎矿独立；这里只交付静态美术，不包含生长和采集程序。
+最新交付：[生产与能源设备](art/source/utility-v1/README.md)、[可编辑场景](art/source/utility-v1/utility-v1.blend)、[28 个新增独立模型](art/models/utility-v1/)、[生产设备近景](art/reviews/utility-v1/02-production-detail.png)、[拆件图](art/reviews/utility-v1/03-utility-modules.png)、[拆分装配与成人尺度](art/reviews/utility-v1/06-modular-assembly.png)、[管线接口与开盖水箱](art/reviews/utility-v1/07-service-connections.png)。工作台、制造机、精炼机、太阳能板、电池柜、水箱和管线分别拆件；保留柜门铰链、板体俯仰轴与安装接点，只交付静态美术与装配参考。
+
+种植与采集交付：[种植与采集模块](art/source/harvest-v1/README.md)、[可编辑场景](art/source/harvest-v1/harvest-v1.blend)、[28 个新增独立模型](art/models/harvest-v1/)、[生长阶段](art/reviews/harvest-v1/02-growth-stages.png)、[拆件图](art/reviews/harvest-v1/03-harvest-modules.png)、[矿物与资源](art/reviews/harvest-v1/05-resource-detail.png)、[容器拆分与成人尺度](art/reviews/harvest-v1/06-container-assembly.png)。三类作物各有三个阶段，果实、种植盒、藤架、箱盖、矿脉和碎矿独立；这里只交付静态美术，不包含生长和采集程序。
 
 自然环境交付：[自然环境模块](art/source/nature-v1/README.md)、[可编辑场景](art/source/nature-v1/nature-v1.blend)、[24 个新增独立模型](art/models/nature-v1/)、[拆件图](art/reviews/nature-v1/03-nature-modules.png)、[入口近景](art/reviews/nature-v1/02-garden-arrival.png)、[树木拆分与成人尺度](art/reviews/nature-v1/06-tree-assembly.png)。包含 4 米地表、2 米小路、岩石、两套树干／树冠、灌木和花草地被；这里只交付美术资产与静态景观组合。
 

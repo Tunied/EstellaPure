@@ -2,7 +2,7 @@
 
 日期：2026-10-22。用户明确要求“必须模块化”。本文件约束当前试作及后续扩展；已实现项和未来接口分别说明。
 
-当前新版美术按套件存放：[habitat-v2](../art/source/habitat-v2/README.md) 含 22 个居住舱模型与 7×5 米、13×9 米房间拼装对照；[greenhouse-v1](../art/source/greenhouse-v1/README.md) 含 12 个温室模型；[connections-v1](../art/source/connections-v1/README.md) 含 20 个连接与室外平台模型；[living-v1](../art/source/living-v1/README.md) 含 27 个生活与社交道具；[nature-v1](../art/source/nature-v1/README.md) 含 24 个地表、小路、岩石与植物模块；最新 [harvest-v1](../art/source/harvest-v1/README.md) 含 28 个作物阶段、产物、容器、矿物与资源模块，共 133 个新版独立模型。种植盒与温室种植床配合，果实、箱盖和矿脉独立；提供生长阶段、容器拆分及成人尺度对照。安装细节以各目录说明为准；尚未替换下述首版 Web 样区。依用户最新要求，当前工作只负责美术资产，程序由用户负责。
+当前新版美术按套件存放：[habitat-v2](../art/source/habitat-v2/README.md) 含 22 个居住舱模型与 7×5 米、13×9 米房间拼装对照；[greenhouse-v1](../art/source/greenhouse-v1/README.md) 含 12 个温室模型；[connections-v1](../art/source/connections-v1/README.md) 含 20 个连接与室外平台模型；[living-v1](../art/source/living-v1/README.md) 含 27 个生活与社交道具；[nature-v1](../art/source/nature-v1/README.md) 含 24 个地表、小路、岩石与植物模块；[harvest-v1](../art/source/harvest-v1/README.md) 含 28 个作物阶段、产物、容器、矿物与资源模块；最新 [utility-v1](../art/source/utility-v1/README.md) 含 28 个生产与能源设备模块，共 161 个新版独立模型。生产设备的基座、罩壳、机头、腔体和盖子独立；太阳能板、电池柜门、电池包、水箱和管线保留装配接点与所需旋转原点，提供拆分及成人尺度对照。安装细节以各目录说明为准；尚未替换下述首版 Web 样区。依用户最新要求，当前工作只负责美术资产，程序由用户负责。
 
 ## 1. 当前交付
 
