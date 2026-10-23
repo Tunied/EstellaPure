@@ -1557,6 +1557,11 @@ const SKIN = `#pragma shader "Skin"
 #pragma param u_normalMap texture default(flatnormal) texel(data)
 #pragma param u_ormMap texture default(white) texel(data)
 #pragma param u_occlusionStrength float default(1) range(0,1) ui(slider)
+// A second, fine normal map tiled over the surface (pores, creases) laid on the sharp normal the shine reads: how strongly, and how many times it repeats.
+// The soft diffuse normals do not carry it, as they do not carry the baked pores either. Import it with sRGB off and wrap repeat; 0 leaves it out.
+#pragma param u_detailMap texture default(flatnormal) texel(data)
+#pragma param u_detailStrength float default(0) range(0,2) ui(slider)
+#pragma param u_detailTile float default(16) range(1,128) ui(slider)
 // How rough the surface is (a scale on the map's own roughness), how much it shines, and the second, tighter lobe.
 #pragma param u_roughness float default(1) range(0,2) ui(slider)
 #pragma param u_specular float default(1) range(0,2) ui(slider)
@@ -1571,6 +1576,10 @@ const SKIN = `#pragma shader "Skin"
 // Light through thin places: how much, and how much of a surface's curvature counts as thin.
 #pragma param u_translucency float default(0.5) range(0,1) ui(slider)
 #pragma param u_thinness float default(0.5) range(0,1) ui(slider)
+// Pre-integrated scattering: the wrap past the terminator is taken per colour (red furthest) and widens where the surface turns sharply, which
+// is what makes a nose or an ear glow at its edge while a flat cheek stays crisp. u_curvature is how fast a turn counts as sharp, per world unit.
+#pragma param u_preIntegrate float default(0) range(0,1) ui(slider)
+#pragma param u_curvature float default(8) range(0,64) ui(slider)
 // The fine fuzz that lights a rim.
 #pragma param u_fuzz float default(0.1) range(0,1) ui(slider)
 // Marks the surface for the Subsurface Scattering effect, which spreads what is left of the light on a larger scale. Off by default.
@@ -1606,23 +1615,32 @@ vec3 skinNormalAt(float bias) {
     return normalize(texture(u_normalMap, v_texCoord, bias).xyz * 2.0 - 1.0);
 }
 
+// The baked normal with the detail's slope added to it, in the tangent frame both are read in.
+vec3 skinDetail(vec3 baked, vec2 detail) {
+    return normalize(vec3(baked.xy + detail * u_detailStrength, baked.z));
+}
+
 void main() {
+    // Taken before any branch: a derivative needs every fragment of its quad.
+    vec2 detail = texture(u_detailMap, v_texCoord * u_detailTile).xy * 2.0 - 1.0;
 #ifdef MESH_NORMALS
     highp vec3 Ng = normalize(v_worldNormal);
     highp vec3 P = v_worldXYZ;
     if (!gl_FrontFacing) Ng = -Ng;
-    highp vec3 N = perturbNormal(Ng, P, v_texCoord, skinNormalAt(0.0));
+    highp vec3 N = perturbNormal(Ng, P, v_texCoord, skinDetail(skinNormalAt(0.0), detail));
     highp vec3 Nmid = perturbNormal(Ng, P, v_texCoord, skinNormalAt(u_blurGreen));
     highp vec3 Nsoft = perturbNormal(Ng, P, v_texCoord, skinNormalAt(u_blurRed));
     // How fast the surface turns across a pixel, against how big a pixel is: the thin, strongly curved places.
     float turn = (length(dFdx(Ng)) + length(dFdy(Ng))) / max(length(dFdx(P)) + length(dFdy(P)), 1e-5);
     float thick = 1.0 - clamp(turn * 12.0 * u_thinness, 0.0, 1.0);
+    float curv = clamp(turn * u_curvature, 0.0, 1.0);
 #else
     highp vec3 P = vec3(v_worldPos, 0.0);
     highp vec3 N = vec3(0.0, 0.0, 1.0);
     highp vec3 Nmid = N;
     highp vec3 Nsoft = N;
     float thick = 1.0;
+    float curv = 0.0;
 #endif
     vec4 base = texture(u_textures[0], v_texCoord) * v_color * u_tint;
     vec4 orm = texture(u_ormMap, v_texCoord);
@@ -1633,7 +1651,7 @@ void main() {
     // The diffuse light, from two softnesses of normal, with the terminator warmed and light let through a thin place.
     SurfaceExt wrapped = surfaceExtNone(Nsoft);
     wrapped.scatter = vec4(u_sssColor.rgb * base.rgb * 1.4, u_sssWrap);
-    wrapped.trans = vec4(u_translucency, thick, 0.0, 0.0);
+    wrapped.trans = vec4(u_translucency, thick, curv, u_preIntegrate);
     vec3 soft = applyLightingSurface(base.rgb, Nsoft, P, viewDir, 0.0, 1.0, 0.0, ao, wrapped);
     SurfaceExt wrappedMid = surfaceExtNone(Nmid);
     wrappedMid.scatter = wrapped.scatter;
@@ -1685,7 +1703,9 @@ fn packNormal(n : vec3f) -> vec2f {
 #endif
     let base = textureSample(t0, s0, v.v_texCoord) * v.v_color * mc.u_tint;
     let orm = textureSample(u_ormMap, u_ormMap_s, v.v_texCoord);
-    let tangentSharp = normalize(textureSampleBias(u_normalMap, u_normalMap_s, v.v_texCoord, 0.0).xyz * 2.0 - vec3f(1.0));
+    let detail = textureSample(u_detailMap, u_detailMap_s, v.v_texCoord * mc.u_detailTile).xy * 2.0 - vec2f(1.0);
+    let bakedSharp = normalize(textureSampleBias(u_normalMap, u_normalMap_s, v.v_texCoord, 0.0).xyz * 2.0 - vec3f(1.0));
+    let tangentSharp = normalize(vec3f(bakedSharp.xy + detail * mc.u_detailStrength, bakedSharp.z));
     let tangentMid = normalize(textureSampleBias(u_normalMap, u_normalMap_s, v.v_texCoord, mc.u_blurGreen).xyz * 2.0 - vec3f(1.0));
     let tangentSoft = normalize(textureSampleBias(u_normalMap, u_normalMap_s, v.v_texCoord, mc.u_blurRed).xyz * 2.0 - vec3f(1.0));
 #ifdef MESH_NORMALS
@@ -1697,12 +1717,14 @@ fn packNormal(n : vec3f) -> vec2f {
     let Nsoft = perturbNormal(Ng, P, v.v_texCoord, tangentSoft);
     let turn = (length(dpdx(Ng)) + length(dpdy(Ng))) / max(length(dpdx(P)) + length(dpdy(P)), 1e-5);
     let thick = 1.0 - clamp(turn * 12.0 * mc.u_thinness, 0.0, 1.0);
+    let curv = clamp(turn * mc.u_curvature, 0.0, 1.0);
 #else
     let P = vec3f(v.v_worldPos.x, 0.0, v.v_worldPos.y);
     let N = vec3f(0.0, 0.0, 1.0);
     let Nmid = N;
     let Nsoft = N;
     let thick = 1.0;
+    let curv = 0.0;
 #endif
     let ao = mix(1.0, orm.r, mc.u_occlusionStrength);
     let rough = clamp(orm.g * mc.u_roughness, 0.05, 1.0);
@@ -1710,7 +1732,7 @@ fn packNormal(n : vec3f) -> vec2f {
 
     var wrapped = surfaceExtNone(Nsoft);
     wrapped.scatter = vec4f(mc.u_sssColor.rgb * base.rgb * 1.4, mc.u_sssWrap);
-    wrapped.trans = vec4f(mc.u_translucency, thick, 0.0, 0.0);
+    wrapped.trans = vec4f(mc.u_translucency, thick, curv, mc.u_preIntegrate);
     let soft = applyLightingSurface(base.rgb, Nsoft, P, viewDir, 0.0, 1.0, 0.0, ao, wrapped);
     var wrappedMid = surfaceExtNone(Nmid);
     wrappedMid.scatter = wrapped.scatter;
@@ -1761,6 +1783,11 @@ const EYE = `#pragma shader "Eye"
 #pragma param u_scleraRoughness float default(0.45) range(0.1,1) ui(slider)
 #pragma param u_specular float default(1) range(0,2) ui(slider)
 #pragma param u_scleraWrap float default(0.35) range(0,1) ui(slider)
+// The lids shade the eye they sit on. u_lidMap is an authored occlusion map (white where the eye is open); u_lidShadow also darkens, and fades the
+// cornea's reflections, where the surface faces up from u_lidStart (a dot with the world's up) to straight up: the upper lid, for an upright head.
+#pragma param u_lidMap texture default(white) texel(data)
+#pragma param u_lidShadow float default(0.5) range(0,1) ui(slider)
+#pragma param u_lidStart float default(0.2) range(-1,1) ui(slider)
 
 #pragma fragment
 precision highp float;
@@ -1792,6 +1819,7 @@ void main() {
     vec2 uv = v_texCoord;
     // Every sample that takes part in a derivative is taken here, before any branch.
     float h = texture(u_depthMap, uv).r;
+    float lid = texture(u_lidMap, uv).r;
     vec3 dome = normalize(texture(u_irisNormalMap, uv).xyz * 2.0 - 1.0);
 #ifdef MESH_NORMALS
     highp vec3 Ng = normalize(v_worldNormal);
@@ -1828,6 +1856,7 @@ void main() {
     vec3 albedo = mix(u_scleraColor.rgb, iris, irisMask) * painted.rgb;
 
     float ao = 1.0;
+    float lidShade = lid * (1.0 - u_lidShadow * smoothstep(u_lidStart, 1.0, Ng.y));
     vec3 Nd = normalize(mix(Ng, Ndome, 0.5 * surfaceMask));
     SurfaceExt body = surfaceExtNone(Nd);
     body.scatter = vec4(vec3(0.9, 0.5, 0.4) * albedo, u_scleraWrap * (1.0 - surfaceMask));
@@ -1840,7 +1869,7 @@ void main() {
     shine.coatN = vec4(Ng, 0.0);
     vec3 spec = applyLightingSurface(vec3(0.0), Nc, P, viewDir, 0.0, u_corneaRoughness, u_specular, ao, shine);
 
-    fragColor = vec4(diffuse + spec, 1.0);
+    fragColor = vec4((diffuse + spec) * lidShade, 1.0);
 #ifdef ES_GBUFFER
     fragSurface = vec4(packNormal(normalize(Nc)), u_corneaRoughness, 0.75);
 #endif
@@ -1876,6 +1905,7 @@ fn packNormal(n : vec3f) -> vec2f {
     let uv = v.v_texCoord;
     // Every sample is taken here, before any branch.
     let h = textureSample(u_depthMap, u_depthMap_s, uv).r;
+    let lid = textureSample(u_lidMap, u_lidMap_s, uv).r;
     let dome = normalize(textureSample(u_irisNormalMap, u_irisNormalMap_s, uv).xyz * 2.0 - vec3f(1.0));
 #ifdef MESH_NORMALS
     var Ng = normalize(v.v_worldNormal);
@@ -1910,6 +1940,7 @@ fn packNormal(n : vec3f) -> vec2f {
     let albedo = mix(mc.u_scleraColor.rgb, iris, irisMask) * painted.rgb;
 
     let ao = 1.0;
+    let lidShade = lid * (1.0 - mc.u_lidShadow * smoothstep(mc.u_lidStart, 1.0, Ng.y));
     let Nd = normalize(mix(Ng, Ndome, 0.5 * surfaceMask));
     var body = surfaceExtNone(Nd);
     body.scatter = vec4f(vec3f(0.9, 0.5, 0.4) * albedo, mc.u_scleraWrap * (1.0 - surfaceMask));
@@ -1923,11 +1954,11 @@ fn packNormal(n : vec3f) -> vec2f {
 
 #ifdef ES_GBUFFER
     var frag : FragOut;
-    frag.color = vec4f(diffuse + spec, 1.0);
+    frag.color = vec4f((diffuse + spec) * lidShade, 1.0);
     frag.surface = vec4f(packNormal(normalize(Nc)), mc.u_corneaRoughness, 0.75);
     return frag;
 #else
-    return vec4f(diffuse + spec, 1.0);
+    return vec4f((diffuse + spec) * lidShade, 1.0);
 #endif
 }
 #pragma end

@@ -1886,8 +1886,11 @@ fn shadeLight(pd : vec4f, col : vec4f, sp : vec4f, sh : vec4f, sm : vec4f, fo : 
                        * (distributionCharlie(max(dot(N, Hx), 0.0), sheenA) * visibilityNeubelt(NdotV, ndotl) * 3.14159265);
             }
             if (ext.scatter.a > 0.0) {
-                let wrapped = clamp((dot(N, L) + ext.scatter.a) / (1.0 + ext.scatter.a), 0.0, 1.0);
-                extra += irr * ext.scatter.rgb * max(wrapped - ndotl, 0.0);
+                // The wrap is per channel once trans.w asks for it: red travels furthest, and every channel further where the
+                // surface turns sharply (trans.z, a curvature 0..1), as a pre-integrated skin ramp would give.
+                let wrapWidth = vec3f(ext.scatter.a) * mix(vec3f(1.0), vec3f(1.0, 0.45, 0.25) * (0.3 + 1.7 * ext.trans.z), ext.trans.w);
+                let wrapped = clamp((vec3f(dot(N, L)) + wrapWidth) / (vec3f(1.0) + wrapWidth), vec3f(0.0), vec3f(1.0));
+                extra += irr * ext.scatter.rgb * max(wrapped - vec3f(ndotl), vec3f(0.0));
                 let Hb = normalize(L + N * 0.3);
                 extra += irr * ext.scatter.rgb
                        * (pow(clamp(dot(V, -Hb), 0.0, 1.0), 4.0) * ext.trans.x * (1.0 - ext.trans.y));
@@ -2772,7 +2775,8 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             //   coat    x strength, y perceptual roughness      coatN  the coat's own normal (the geometric one, not the bump map's)
             //   sheen   rgb colour, a perceptual roughness      aniso  xyz tangent (unit, across N), w strength -1..1
             //   scatter rgb colour scattered light takes, a wrap 0..1
-            //   trans   x light passing through, y thickness 0..1   film  x strength, y film index, z thickness in nm
+            //   trans   x light passing through, y thickness 0..1, z curvature 0..1, w how far the wrap is per channel and curvature-shaped
+            //   film    x strength, y film index, z thickness in nm
             //   misc    x dielectric reflectance at normal incidence (0.04 for an index of 1.5)
             "struct SurfaceExt {\n"
             "    highp vec4 coat;\n"
@@ -3011,8 +3015,9 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "                       * (distributionCharlie(max(dot(N, Hx), 0.0), sheenA) * visibilityNeubelt(NdotV, ndotl) * 3.14159265);\n"
             "            }\n"
             "            if (ext.scatter.a > 0.0) {\n"
-            "                highp float wrapped = clamp((dot(N, L) + ext.scatter.a) / (1.0 + ext.scatter.a), 0.0, 1.0);\n"
-            "                extra += irr * ext.scatter.rgb * max(wrapped - ndotl, 0.0);\n"
+            "                highp vec3 wrapWidth = vec3(ext.scatter.a) * mix(vec3(1.0), vec3(1.0, 0.45, 0.25) * (0.3 + 1.7 * ext.trans.z), ext.trans.w);\n"
+            "                highp vec3 wrapped = clamp((vec3(dot(N, L)) + wrapWidth) / (vec3(1.0) + wrapWidth), vec3(0.0), vec3(1.0));\n"
+            "                extra += irr * ext.scatter.rgb * max(wrapped - vec3(ndotl), vec3(0.0));\n"
             "                highp vec3 Hb = normalize(L + N * 0.3);\n"
             "                extra += irr * ext.scatter.rgb\n"
             "                       * (pow(clamp(dot(V, -Hb), 0.0, 1.0), 4.0) * ext.trans.x * (1.0 - ext.trans.y));\n"

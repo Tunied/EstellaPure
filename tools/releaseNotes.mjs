@@ -2545,6 +2545,12 @@ export const NOTED = {
     {"note":"A material whose alpha is coverage (`u_alphaCutoff` above 0, now also on the Hair shader) casts its cut-out shape into shadow maps instead of the rectangle it is drawn on, and Hair cards feather their edges with alpha-to-coverage."},
   "fix(editor): a selected plane seen from close by no longer draws its diagonal as an outline":
     {"note":"The selection outline of a mesh no longer draws a stray line across a large plane seen from close by: a triangle with a corner behind the camera was judged by a different rule than its neighbour, so their shared diagonal showed as an edge."},
+  "feat(render): the Skin shader takes a tiled detail normal map for pores and creases":
+    {"note":"The Skin shader has a detail normal layer: `u_detailMap` is a fine normal map tiled over the surface (`u_detailTile`) for pores and creases, laid on the sharp normal the shine reads by `u_detailStrength` (0 leaves it out) and not on the soft diffuse normals."},
+  "feat(render): the Skin shader shapes its scattering per colour and by curvature":
+    {"note":"The Skin shader can take its wrap past the terminator per colour and shape it by curvature: `u_preIntegrate` (red travels furthest, every colour further where the surface turns sharply) and `u_curvature`, so a nose or an ear glows at its edge while a flat cheek stays crisp. Off by default."},
+  "feat(render): the Eye shader takes a lid shadow, authored or from the surface facing up":
+    {"note":"The Eye shader shades the eye the lids sit on: `u_lidMap` is an authored occlusion map, and `u_lidShadow` darkens, and fades the cornea's reflections, where the surface faces up from `u_lidStart`, which is the upper lid on an upright head."},
   "chore(tools): the gates run in parallel with --jobs, and the reds a full run gathered are cleared":
     {"internal":"tooling for the static gates, and fixes to checks that had drifted from the code they guard"},
   "fix(render): a wire narrower than a pixel is no longer painted over by the sky in dashes":

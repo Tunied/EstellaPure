@@ -1,0 +1,17 @@
+{
+  "version": "1.0",
+  "type": "material",
+  "shader": "builtin:skin",
+  "blendMode": 0,
+  "depthTest": true,
+  "depthWrite": true,
+  "properties": {
+    "u_detailMap": "/scenes/skin-detail.png",
+    "u_detailStrength": 1,
+    "u_detailTile": 1,
+    "u_roughness": 0.35,
+    "u_specular": 0.6,
+    "u_lobe2": 0,
+    "u_fuzz": 0
+  }
+}
