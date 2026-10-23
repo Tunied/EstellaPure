@@ -1925,8 +1925,23 @@ void RenderFrame::buildShadowPlan(ecs::Registry& registry) {
         // behind the far plane is a camera nothing can be seen through.
         nearDist = std::max(nearDist, 1e-3f);
         farDist = std::max(farDist, nearDist * 1.001f);
-        if (shadow_distance_ > 0.0f && shadow_distance_ < farDist) {
-            const f32 limitedFar = std::max(shadow_distance_, nearDist * 1.001f);
+        // Nothing past the farthest piece of geometry in the scene can receive a shadow, so the cascades are spread over what is there and
+        // not over the whole view: a close shot of a character in a view that reaches fifty metres otherwise spends its first cascade on
+        // three. Rounded up by quarter octaves so the split moves a few times as the camera does, not every frame (a continuously
+        // changing split is shadow edges that swim).
+        f32 reach = shadow_distance_ > 0.0f ? shadow_distance_ : farDist;
+        if (haveBounds) {
+            f32 farthest = 0.0f;
+            for (u32 i = 0; i < 8; ++i) {
+                const glm::vec3 corner((i & 1) ? boundsMax.x : boundsMin.x, (i & 2) ? boundsMax.y : boundsMin.y,
+                                       (i & 4) ? boundsMax.z : boundsMin.z);
+                farthest = std::max(farthest, glm::length(corner - eyePos));
+            }
+            const f32 stepped = std::exp2(std::ceil(std::log2(std::max(farthest, 1e-3f)) * 4.0f) / 4.0f);
+            reach = std::min(reach, stepped);
+        }
+        if (reach < farDist) {
+            const f32 limitedFar = std::max(reach, nearDist * 1.001f);
             const f32 fraction = (limitedFar - nearDist) / (farDist - nearDist);
             for (u32 i = 0; i < 4; ++i) {
                 corners[i + 4] = corners[i] + (corners[i + 4] - corners[i]) * fraction;
