@@ -1,0 +1,83 @@
+{
+  "status": "passed",
+  "scope": "Source attachment geometry and art layout; no movement or structural simulation",
+  "assets": 20,
+  "dependencies": 30,
+  "assemblyInstances": 288,
+  "newModules": 20,
+  "homeCentralFloorSquareMetres": 56,
+  "terraceMetres": [
+    8,
+    4
+  ],
+  "floorDatumMetres": 0.81,
+  "corridorLengthMetres": 4,
+  "corridorNominalWidthMetres": 2,
+  "junctionClearStraightWidthMetres": 1.6,
+  "stairRiseMetres": 0.81,
+  "rampRunMetres": 4,
+  "checks": [
+    {
+      "check": "Inner wall to outward corner",
+      "gapMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Inner wall to straight window wall",
+      "gapMetres": 1e-07,
+      "passed": true
+    },
+    {
+      "check": "foundation-inner-corner-2m grid origin",
+      "gapMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "wall-inner-corner-2m grid origin",
+      "gapMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "roof-inner-corner-2m grid origin",
+      "gapMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Ramp section joint",
+      "gapMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Ramp upper to deck surface",
+      "gapMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Ramp lower to ground datum",
+      "gapMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Stair to deck surface",
+      "gapMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Garden link installation datum",
+      "gapMetres": 0.0,
+      "passed": true
+    },
+    {
+      "check": "Garden side doorway kept clear of west beds",
+      "clearIntervalYMetres": [
+        -1.8,
+        -0.2
+      ],
+      "passed": true
+    },
+    {
+      "check": "Assembly module scales all 1",
+      "passed": true
+    }
+  ]
+}

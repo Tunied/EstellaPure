@@ -2,11 +2,13 @@
 
 项目暂名。多人合作、社交优先的未来卡通星球建造游戏：每个人拥有自己的星球，在持续扩展的共享宇宙里拜访朋友、寻找新家、共同建设。
 
-**当前工作聚焦美术资产：居住舱第二版包含 22 个独立模型，温室包含 12 个新模型并复用 2 个居住舱部件。优先确认造型、材质与模块拼接。此前 3D 结构样区与原生 2D 建造界面保留；正式角色、联机、星球生成、存档与承载人数尚未实现或验收。**
+**当前工作聚焦美术资产：居住舱 22 个、温室 12 个、建筑连接与室外平台 20 个，共 54 个新版独立模型，跨套件复用不重复计数。优先确认造型、材质与模块拼接。此前 3D 结构样区与原生 2D 建造界面保留；正式角色、联机、星球生成、存档与承载人数尚未实现或验收。**
 
 3D 星球、角色、建筑与环境承载主要游玩体验；2D 星图、界面、物品图标和社交反馈同步设计。当前样区使用 Estella，后续客户端及服务端能力按验收项逐步验证。
 
-![居住舱第二版实际模型渲染](art/reviews/habitat-v2/01-assembled.png)
+![L 形住宅、连接走廊、温室与露台实际模型渲染](art/reviews/connections-v1/01-connected-home.png)
+
+最新交付：[建筑连接与室外平台](art/source/connections-v1/README.md)、[可编辑组合](art/source/connections-v1/connections-v1.blend)、[20 个新增独立模型](art/models/connections-v1/)、[拆件图](art/reviews/connections-v1/03-connection-modules.png)、[组合剖视](art/reviews/connections-v1/02-connected-cutaway.png)、[直段／转弯／T 形走廊](art/reviews/connections-v1/05-passage-recipes.png)。L 形转角、温室过渡屋面、露台栏杆与高差件均独立拆分。这里只交付美术资产和拼装参考。
 
 当前美术交付：[可编辑居住舱 Blender](art/source/habitat-v2/habitat-v2.blend)、[独立 GLB 模型](art/models/habitat-v2/)、[主要模块拆件图](art/reviews/habitat-v2/03-module-sheet.png)、[窗口细节](art/reviews/habitat-v2/02-window-detail.png)、[模块尺寸与交付说明](art/source/habitat-v2/README.md)。图为实际模型的离线渲染，尚未替换 Web 样区或通过最终美术验收。
 

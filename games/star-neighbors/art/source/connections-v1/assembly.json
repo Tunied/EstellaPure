@@ -1,0 +1,2882 @@
+[
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      -5,
+      -3,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-center-2m",
+    "positionZUp": [
+      -5,
+      -3,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      -5,
+      -3,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      -5,
+      -3,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      -5,
+      -1,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-center-2m",
+    "positionZUp": [
+      -5,
+      -1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      -5,
+      -1,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      -5,
+      -1,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      -5,
+      1,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-center-2m",
+    "positionZUp": [
+      -5,
+      1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      -5,
+      1,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      -5,
+      1,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      -5,
+      3,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-center-2m",
+    "positionZUp": [
+      -5,
+      3,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      -5,
+      3,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      -5,
+      3,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      -3,
+      -3,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-center-2m",
+    "positionZUp": [
+      -3,
+      -3,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      -3,
+      -3,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      -3,
+      -3,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      -3,
+      -1,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-center-2m",
+    "positionZUp": [
+      -3,
+      -1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      -3,
+      -1,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      -3,
+      -1,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      -3,
+      1,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-center-2m",
+    "positionZUp": [
+      -3,
+      1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      -3,
+      1,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      -3,
+      1,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      -3,
+      3,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-center-2m",
+    "positionZUp": [
+      -3,
+      3,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      -3,
+      3,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      -3,
+      3,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      -1,
+      -3,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-center-2m",
+    "positionZUp": [
+      -1,
+      -3,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      -1,
+      -3,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      -1,
+      -3,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      -1,
+      -1,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-center-2m",
+    "positionZUp": [
+      -1,
+      -1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      -1,
+      -1,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      -1,
+      -1,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      -1,
+      1,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-center-2m",
+    "positionZUp": [
+      -1,
+      1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      -1,
+      1,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      -1,
+      1,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      -1,
+      3,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-center-2m",
+    "positionZUp": [
+      -1,
+      3,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      -1,
+      3,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      -1,
+      3,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      1,
+      -3,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-center-2m",
+    "positionZUp": [
+      1,
+      -3,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      1,
+      -3,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      1,
+      -3,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      1,
+      -1,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-center-2m",
+    "positionZUp": [
+      1,
+      -1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      1,
+      -1,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      1,
+      -1,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "habitat/foundation-edge-2m",
+    "positionZUp": [
+      -5,
+      -4.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-edge-2m",
+    "positionZUp": [
+      -5,
+      -4.5,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "habitat/wall-window-2m",
+    "positionZUp": [
+      -5,
+      -4.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/foundation-edge-2m",
+    "positionZUp": [
+      -3,
+      -4.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-edge-2m",
+    "positionZUp": [
+      -3,
+      -4.5,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "habitat/wall-doorway-2m",
+    "positionZUp": [
+      -3,
+      -4.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/door-leaf-110",
+    "positionZUp": [
+      -3,
+      -4.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/foundation-edge-2m",
+    "positionZUp": [
+      -1,
+      -4.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-edge-2m",
+    "positionZUp": [
+      -1,
+      -4.5,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "habitat/wall-window-2m",
+    "positionZUp": [
+      -1,
+      -4.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/foundation-edge-2m",
+    "positionZUp": [
+      1,
+      -4.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-edge-2m",
+    "positionZUp": [
+      1,
+      -4.5,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "habitat/wall-window-2m",
+    "positionZUp": [
+      1,
+      -4.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/foundation-edge-2m",
+    "positionZUp": [
+      -5,
+      4.5,
+      0.6
+    ],
+    "yawZ": 180,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-edge-2m",
+    "positionZUp": [
+      -5,
+      4.5,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "habitat/wall-solid-2m",
+    "positionZUp": [
+      -5,
+      4.5,
+      0.8099999999999999
+    ],
+    "yawZ": 180,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/foundation-edge-2m",
+    "positionZUp": [
+      -3,
+      4.5,
+      0.6
+    ],
+    "yawZ": 180,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-edge-2m",
+    "positionZUp": [
+      -3,
+      4.5,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "habitat/wall-solid-2m",
+    "positionZUp": [
+      -3,
+      4.5,
+      0.8099999999999999
+    ],
+    "yawZ": 180,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/foundation-edge-2m",
+    "positionZUp": [
+      -1,
+      4.5,
+      0.6
+    ],
+    "yawZ": 180,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-edge-2m",
+    "positionZUp": [
+      -1,
+      4.5,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "habitat/wall-solid-2m",
+    "positionZUp": [
+      -1,
+      4.5,
+      0.8099999999999999
+    ],
+    "yawZ": 180,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/foundation-edge-2m",
+    "positionZUp": [
+      -6.5,
+      -3,
+      0.6
+    ],
+    "yawZ": 270,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-edge-2m",
+    "positionZUp": [
+      -6.5,
+      -3,
+      3.61
+    ],
+    "yawZ": 270,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "habitat/wall-solid-2m",
+    "positionZUp": [
+      -6.5,
+      -3,
+      0.8099999999999999
+    ],
+    "yawZ": 270,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/foundation-edge-2m",
+    "positionZUp": [
+      -6.5,
+      -1,
+      0.6
+    ],
+    "yawZ": 270,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-edge-2m",
+    "positionZUp": [
+      -6.5,
+      -1,
+      3.61
+    ],
+    "yawZ": 270,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "habitat/wall-solid-2m",
+    "positionZUp": [
+      -6.5,
+      -1,
+      0.8099999999999999
+    ],
+    "yawZ": 270,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/foundation-edge-2m",
+    "positionZUp": [
+      -6.5,
+      1,
+      0.6
+    ],
+    "yawZ": 270,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-edge-2m",
+    "positionZUp": [
+      -6.5,
+      1,
+      3.61
+    ],
+    "yawZ": 270,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "habitat/wall-solid-2m",
+    "positionZUp": [
+      -6.5,
+      1,
+      0.8099999999999999
+    ],
+    "yawZ": 270,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/foundation-edge-2m",
+    "positionZUp": [
+      -6.5,
+      3,
+      0.6
+    ],
+    "yawZ": 270,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-edge-2m",
+    "positionZUp": [
+      -6.5,
+      3,
+      3.61
+    ],
+    "yawZ": 270,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "habitat/wall-solid-2m",
+    "positionZUp": [
+      -6.5,
+      3,
+      0.8099999999999999
+    ],
+    "yawZ": 270,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/foundation-edge-2m",
+    "positionZUp": [
+      2.5,
+      -3,
+      0.6
+    ],
+    "yawZ": 90,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-edge-2m",
+    "positionZUp": [
+      2.5,
+      -3,
+      3.61
+    ],
+    "yawZ": 90,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "habitat/wall-window-2m",
+    "positionZUp": [
+      2.5,
+      -3,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/foundation-edge-2m",
+    "positionZUp": [
+      2.5,
+      -1,
+      0.6
+    ],
+    "yawZ": 90,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-edge-2m",
+    "positionZUp": [
+      2.5,
+      -1,
+      3.61
+    ],
+    "yawZ": 90,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "junction-frame-2m",
+    "positionZUp": [
+      2.5,
+      -1,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "home"
+  },
+  {
+    "asset": "dock-head-2m",
+    "positionZUp": [
+      2.5,
+      -1,
+      3.61
+    ],
+    "yawZ": 90,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "habitat/foundation-edge-2m",
+    "positionZUp": [
+      0.5,
+      3,
+      0.6
+    ],
+    "yawZ": 90,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-edge-2m",
+    "positionZUp": [
+      0.5,
+      3,
+      3.61
+    ],
+    "yawZ": 90,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "habitat/wall-window-2m",
+    "positionZUp": [
+      0.5,
+      3,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/foundation-corner-r050",
+    "positionZUp": [
+      2,
+      -4,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/wall-corner-r050",
+    "positionZUp": [
+      2,
+      -4,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-corner-r050",
+    "positionZUp": [
+      2,
+      -4,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "habitat/foundation-corner-r050",
+    "positionZUp": [
+      2,
+      0,
+      0.6
+    ],
+    "yawZ": 90,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/wall-corner-r050",
+    "positionZUp": [
+      2,
+      0,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-corner-r050",
+    "positionZUp": [
+      2,
+      0,
+      3.61
+    ],
+    "yawZ": 90,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "habitat/foundation-corner-r050",
+    "positionZUp": [
+      0,
+      4,
+      0.6
+    ],
+    "yawZ": 90,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/wall-corner-r050",
+    "positionZUp": [
+      0,
+      4,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-corner-r050",
+    "positionZUp": [
+      0,
+      4,
+      3.61
+    ],
+    "yawZ": 90,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "habitat/foundation-corner-r050",
+    "positionZUp": [
+      -6,
+      4,
+      0.6
+    ],
+    "yawZ": 180,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/wall-corner-r050",
+    "positionZUp": [
+      -6,
+      4,
+      0.8099999999999999
+    ],
+    "yawZ": 180,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-corner-r050",
+    "positionZUp": [
+      -6,
+      4,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "habitat/foundation-corner-r050",
+    "positionZUp": [
+      -6,
+      -4,
+      0.6
+    ],
+    "yawZ": 270,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/wall-corner-r050",
+    "positionZUp": [
+      -6,
+      -4,
+      0.8099999999999999
+    ],
+    "yawZ": 270,
+    "zone": "home"
+  },
+  {
+    "asset": "habitat/roof-corner-r050",
+    "positionZUp": [
+      -6,
+      -4,
+      3.61
+    ],
+    "yawZ": 270,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "foundation-inner-corner-2m",
+    "positionZUp": [
+      0,
+      0,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "home"
+  },
+  {
+    "asset": "wall-inner-corner-2m",
+    "positionZUp": [
+      0,
+      0,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "home"
+  },
+  {
+    "asset": "roof-inner-corner-2m",
+    "positionZUp": [
+      0,
+      0,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "habitat/roof-vent",
+    "positionZUp": [
+      -4,
+      2,
+      4.109999999999999
+    ],
+    "yawZ": 0,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "habitat/roof-vent",
+    "positionZUp": [
+      -2,
+      2,
+      4.109999999999999
+    ],
+    "yawZ": 0,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "habitat/roof-vent",
+    "positionZUp": [
+      -1,
+      -2,
+      4.109999999999999
+    ],
+    "yawZ": 0,
+    "zone": "home-roof"
+  },
+  {
+    "asset": "habitat/interior-bench-2m",
+    "positionZUp": [
+      -5,
+      3.75,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "furniture"
+  },
+  {
+    "asset": "habitat/interior-bench-2m",
+    "positionZUp": [
+      -3,
+      3.75,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "furniture"
+  },
+  {
+    "asset": "habitat/interior-bench-2m",
+    "positionZUp": [
+      -1,
+      3.75,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "furniture"
+  },
+  {
+    "asset": "habitat/interior-console",
+    "positionZUp": [
+      -5.2,
+      -1.3,
+      0.8099999999999999
+    ],
+    "yawZ": 270,
+    "zone": "furniture"
+  },
+  {
+    "asset": "habitat/interior-planter",
+    "positionZUp": [
+      -5.15,
+      -1.25,
+      1.73
+    ],
+    "yawZ": 0,
+    "zone": "furniture"
+  },
+  {
+    "asset": "habitat/ceiling-beam-2m",
+    "positionZUp": [
+      -5,
+      0,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "structure"
+  },
+  {
+    "asset": "habitat/ceiling-beam-2m",
+    "positionZUp": [
+      -3,
+      0,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "structure"
+  },
+  {
+    "asset": "habitat/ceiling-beam-2m",
+    "positionZUp": [
+      -1,
+      0,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "structure"
+  },
+  {
+    "asset": "habitat/ceiling-beam-end-050",
+    "positionZUp": [
+      -6.25,
+      0,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "structure"
+  },
+  {
+    "asset": "habitat/support-column-2p8",
+    "positionZUp": [
+      -2,
+      0,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "structure"
+  },
+  {
+    "asset": "habitat/support-column-2p8",
+    "positionZUp": [
+      0,
+      0,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "structure"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      3.5,
+      -1,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "passage"
+  },
+  {
+    "asset": "corridor-roof-2m",
+    "positionZUp": [
+      3.5,
+      -1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "passage-roof"
+  },
+  {
+    "asset": "corridor-wall-glass-2m",
+    "positionZUp": [
+      3.5,
+      -2,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "passage"
+  },
+  {
+    "asset": "corridor-wall-glass-2m",
+    "positionZUp": [
+      3.5,
+      0,
+      0.8099999999999999
+    ],
+    "yawZ": 180,
+    "zone": "passage"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      3.5,
+      -1,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      3.5,
+      -1,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "habitat/floor-2m",
+    "positionZUp": [
+      5.5,
+      -1,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "passage"
+  },
+  {
+    "asset": "corridor-roof-2m",
+    "positionZUp": [
+      5.5,
+      -1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "passage-roof"
+  },
+  {
+    "asset": "corridor-wall-glass-2m",
+    "positionZUp": [
+      5.5,
+      -2,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "passage"
+  },
+  {
+    "asset": "corridor-wall-glass-2m",
+    "positionZUp": [
+      5.5,
+      0,
+      0.8099999999999999
+    ],
+    "yawZ": 180,
+    "zone": "passage"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      5.5,
+      -1,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      5.5,
+      -1,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "junction-frame-2m",
+    "positionZUp": [
+      6.5,
+      -1,
+      0.8099999999999999
+    ],
+    "yawZ": 270,
+    "zone": "garden-link"
+  },
+  {
+    "asset": "garden/garden-floor-2m",
+    "positionZUp": [
+      7.5,
+      -3,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "garden"
+  },
+  {
+    "asset": "garden/garden-floor-2m",
+    "positionZUp": [
+      9.5,
+      -3,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "garden"
+  },
+  {
+    "asset": "garden/garden-wall-glass-2m",
+    "positionZUp": [
+      10.5,
+      -3,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "garden"
+  },
+  {
+    "asset": "garden/garden-gutter-2m",
+    "positionZUp": [
+      10.5,
+      -3,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "garden-roof"
+  },
+  {
+    "asset": "garden/garden-wall-glass-2m",
+    "positionZUp": [
+      6.5,
+      -3,
+      0.8099999999999999
+    ],
+    "yawZ": 270,
+    "zone": "garden"
+  },
+  {
+    "asset": "garden/garden-gutter-2m",
+    "positionZUp": [
+      6.5,
+      -3,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "garden-roof"
+  },
+  {
+    "asset": "garden/garden-roof-glass-half-2m",
+    "positionZUp": [
+      8.5,
+      -3,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "garden-roof"
+  },
+  {
+    "asset": "garden/garden-roof-glass-half-2m",
+    "positionZUp": [
+      8.5,
+      -3,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "garden-roof"
+  },
+  {
+    "asset": "garden/garden-ridge-2m",
+    "positionZUp": [
+      8.5,
+      -3,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "garden-roof"
+  },
+  {
+    "asset": "garden/garden-floor-2m",
+    "positionZUp": [
+      7.5,
+      -1,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "garden"
+  },
+  {
+    "asset": "garden/garden-floor-2m",
+    "positionZUp": [
+      9.5,
+      -1,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "garden"
+  },
+  {
+    "asset": "garden/garden-wall-glass-2m",
+    "positionZUp": [
+      10.5,
+      -1,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "garden"
+  },
+  {
+    "asset": "garden/garden-gutter-2m",
+    "positionZUp": [
+      10.5,
+      -1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "garden-roof"
+  },
+  {
+    "asset": "garden/garden-gutter-2m",
+    "positionZUp": [
+      6.5,
+      -1,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "garden-roof"
+  },
+  {
+    "asset": "garden/garden-roof-glass-half-2m",
+    "positionZUp": [
+      8.5,
+      -1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "garden-roof"
+  },
+  {
+    "asset": "garden-link-roof-glass",
+    "positionZUp": [
+      8.5,
+      -1,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "garden-roof"
+  },
+  {
+    "asset": "garden-link-hood-2m",
+    "positionZUp": [
+      8.5,
+      -1,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "garden-roof"
+  },
+  {
+    "asset": "garden/garden-ridge-2m",
+    "positionZUp": [
+      8.5,
+      -1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "garden-roof"
+  },
+  {
+    "asset": "garden/garden-floor-2m",
+    "positionZUp": [
+      7.5,
+      1,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "garden"
+  },
+  {
+    "asset": "garden/garden-floor-2m",
+    "positionZUp": [
+      9.5,
+      1,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "garden"
+  },
+  {
+    "asset": "garden/garden-wall-glass-2m",
+    "positionZUp": [
+      10.5,
+      1,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "garden"
+  },
+  {
+    "asset": "garden/garden-gutter-2m",
+    "positionZUp": [
+      10.5,
+      1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "garden-roof"
+  },
+  {
+    "asset": "garden/garden-wall-glass-2m",
+    "positionZUp": [
+      6.5,
+      1,
+      0.8099999999999999
+    ],
+    "yawZ": 270,
+    "zone": "garden"
+  },
+  {
+    "asset": "garden/garden-gutter-2m",
+    "positionZUp": [
+      6.5,
+      1,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "garden-roof"
+  },
+  {
+    "asset": "garden/garden-roof-glass-half-2m",
+    "positionZUp": [
+      8.5,
+      1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "garden-roof"
+  },
+  {
+    "asset": "garden/garden-roof-glass-half-2m",
+    "positionZUp": [
+      8.5,
+      1,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "garden-roof"
+  },
+  {
+    "asset": "garden/garden-ridge-2m",
+    "positionZUp": [
+      8.5,
+      1,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "garden-roof"
+  },
+  {
+    "asset": "garden/garden-arch-half-2m",
+    "positionZUp": [
+      8.5,
+      -4,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "garden-roof"
+  },
+  {
+    "asset": "garden/garden-arch-half-2m",
+    "positionZUp": [
+      8.5,
+      -4,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "garden-roof"
+  },
+  {
+    "asset": "garden/garden-arch-half-2m",
+    "positionZUp": [
+      8.5,
+      -2,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "garden-roof"
+  },
+  {
+    "asset": "garden/garden-arch-half-2m",
+    "positionZUp": [
+      8.5,
+      -2,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "garden-roof"
+  },
+  {
+    "asset": "garden/garden-arch-half-2m",
+    "positionZUp": [
+      8.5,
+      0,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "garden-roof"
+  },
+  {
+    "asset": "garden/garden-arch-half-2m",
+    "positionZUp": [
+      8.5,
+      0,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "garden-roof"
+  },
+  {
+    "asset": "garden/garden-arch-half-2m",
+    "positionZUp": [
+      8.5,
+      2,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "garden-roof"
+  },
+  {
+    "asset": "garden/garden-arch-half-2m",
+    "positionZUp": [
+      8.5,
+      2,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "garden-roof"
+  },
+  {
+    "asset": "garden/garden-wall-glass-2m",
+    "positionZUp": [
+      7.5,
+      -4,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "garden"
+  },
+  {
+    "asset": "habitat/wall-doorway-2m",
+    "positionZUp": [
+      9.5,
+      -4,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "garden"
+  },
+  {
+    "asset": "garden/garden-door-glass-120",
+    "positionZUp": [
+      9.5,
+      -4,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "garden"
+  },
+  {
+    "asset": "garden/garden-roof-end-half-2m",
+    "positionZUp": [
+      8.5,
+      -4,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "garden-roof"
+  },
+  {
+    "asset": "garden/garden-roof-end-half-2m",
+    "positionZUp": [
+      8.5,
+      -4,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "garden-roof"
+  },
+  {
+    "asset": "garden/garden-corner-post",
+    "positionZUp": [
+      6.5,
+      -4,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "garden"
+  },
+  {
+    "asset": "garden/garden-corner-post",
+    "positionZUp": [
+      10.5,
+      -4,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "garden"
+  },
+  {
+    "asset": "garden/garden-wall-glass-2m",
+    "positionZUp": [
+      7.5,
+      2,
+      0.8099999999999999
+    ],
+    "yawZ": 180,
+    "zone": "garden"
+  },
+  {
+    "asset": "garden/garden-wall-glass-2m",
+    "positionZUp": [
+      9.5,
+      2,
+      0.8099999999999999
+    ],
+    "yawZ": 180,
+    "zone": "garden"
+  },
+  {
+    "asset": "garden/garden-roof-end-half-2m",
+    "positionZUp": [
+      8.5,
+      2,
+      3.61
+    ],
+    "yawZ": 0,
+    "zone": "garden-roof"
+  },
+  {
+    "asset": "garden/garden-roof-end-half-2m",
+    "positionZUp": [
+      8.5,
+      2,
+      3.61
+    ],
+    "yawZ": 180,
+    "zone": "garden-roof"
+  },
+  {
+    "asset": "garden/garden-corner-post",
+    "positionZUp": [
+      6.5,
+      2,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "garden"
+  },
+  {
+    "asset": "garden/garden-corner-post",
+    "positionZUp": [
+      10.5,
+      2,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "garden"
+  },
+  {
+    "asset": "garden/growing-bed-2m",
+    "positionZUp": [
+      7.18,
+      -2.85,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "garden"
+  },
+  {
+    "asset": "garden/crop-tray-leafy",
+    "positionZUp": [
+      7.18,
+      -2.85,
+      1.487
+    ],
+    "yawZ": 90,
+    "zone": "garden"
+  },
+  {
+    "asset": "garden/growing-bed-2m",
+    "positionZUp": [
+      7.18,
+      0.8500000000000001,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "garden"
+  },
+  {
+    "asset": "garden/crop-tray-leafy",
+    "positionZUp": [
+      7.18,
+      0.8500000000000001,
+      1.487
+    ],
+    "yawZ": 90,
+    "zone": "garden"
+  },
+  {
+    "asset": "garden/growing-bed-2m",
+    "positionZUp": [
+      9.82,
+      -2.3,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "garden"
+  },
+  {
+    "asset": "garden/crop-tray-leafy",
+    "positionZUp": [
+      9.82,
+      -2.3,
+      1.487
+    ],
+    "yawZ": 90,
+    "zone": "garden"
+  },
+  {
+    "asset": "garden/growing-bed-2m",
+    "positionZUp": [
+      9.82,
+      -0.19999999999999996,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "garden"
+  },
+  {
+    "asset": "garden/crop-tray-leafy",
+    "positionZUp": [
+      9.82,
+      -0.19999999999999996,
+      1.487
+    ],
+    "yawZ": 90,
+    "zone": "garden"
+  },
+  {
+    "asset": "garden/garden-irrigation-unit",
+    "positionZUp": [
+      8.5,
+      1.4500000000000002,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "garden"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      7.5,
+      -3,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      7.5,
+      -3,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      7.5,
+      -1,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      7.5,
+      -1,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      7.5,
+      1,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      7.5,
+      1,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      9.5,
+      -3,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      9.5,
+      -3,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      9.5,
+      -1,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      9.5,
+      -1,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      9.5,
+      1,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      9.5,
+      1,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "deck-floor-2m",
+    "positionZUp": [
+      9.5,
+      -5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "garden-porch"
+  },
+  {
+    "asset": "deck-rail-2m",
+    "positionZUp": [
+      8.5,
+      -5,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "garden-porch"
+  },
+  {
+    "asset": "deck-post-105",
+    "positionZUp": [
+      8.5,
+      -6,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "garden-porch"
+  },
+  {
+    "asset": "deck-post-105",
+    "positionZUp": [
+      8.5,
+      -4,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "garden-porch"
+  },
+  {
+    "asset": "deck-rail-2m",
+    "positionZUp": [
+      10.5,
+      -5,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "garden-porch"
+  },
+  {
+    "asset": "deck-post-105",
+    "positionZUp": [
+      10.5,
+      -6,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "garden-porch"
+  },
+  {
+    "asset": "deck-post-105",
+    "positionZUp": [
+      10.5,
+      -4,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "garden-porch"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      8.7,
+      -5.8,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      8.7,
+      -5.8,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      10.3,
+      -5.8,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      10.3,
+      -5.8,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "terrace-stair-081",
+    "positionZUp": [
+      9.5,
+      -6,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "garden-porch"
+  },
+  {
+    "asset": "deck-floor-2m",
+    "positionZUp": [
+      -5,
+      -5.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "terrace"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      -5,
+      -5.5,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      -5,
+      -5.5,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "deck-floor-2m",
+    "positionZUp": [
+      -5,
+      -7.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "terrace"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      -5,
+      -7.5,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      -5,
+      -7.5,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "deck-floor-2m",
+    "positionZUp": [
+      -3,
+      -5.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "terrace"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      -3,
+      -5.5,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      -3,
+      -5.5,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "deck-floor-2m",
+    "positionZUp": [
+      -3,
+      -7.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "terrace"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      -3,
+      -7.5,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      -3,
+      -7.5,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "deck-floor-2m",
+    "positionZUp": [
+      -1,
+      -5.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "terrace"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      -1,
+      -5.5,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      -1,
+      -5.5,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "deck-floor-2m",
+    "positionZUp": [
+      -1,
+      -7.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "terrace"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      -1,
+      -7.5,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      -1,
+      -7.5,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "deck-floor-2m",
+    "positionZUp": [
+      1,
+      -5.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "terrace"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      1,
+      -5.5,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      1,
+      -5.5,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "deck-floor-2m",
+    "positionZUp": [
+      1,
+      -7.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "terrace"
+  },
+  {
+    "asset": "support-foot-020",
+    "positionZUp": [
+      1,
+      -7.5,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "support-riser-040",
+    "positionZUp": [
+      1,
+      -7.5,
+      0.2
+    ],
+    "yawZ": 0,
+    "zone": "support"
+  },
+  {
+    "asset": "deck-edge-2m",
+    "positionZUp": [
+      -5,
+      -8.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "terrace"
+  },
+  {
+    "asset": "deck-edge-2m",
+    "positionZUp": [
+      -3,
+      -8.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "terrace"
+  },
+  {
+    "asset": "deck-edge-2m",
+    "positionZUp": [
+      -1,
+      -8.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "terrace"
+  },
+  {
+    "asset": "deck-edge-2m",
+    "positionZUp": [
+      1,
+      -8.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "terrace"
+  },
+  {
+    "asset": "deck-edge-2m",
+    "positionZUp": [
+      -6,
+      -5.5,
+      0.6
+    ],
+    "yawZ": 270,
+    "zone": "terrace"
+  },
+  {
+    "asset": "deck-edge-2m",
+    "positionZUp": [
+      -6,
+      -7.5,
+      0.6
+    ],
+    "yawZ": 270,
+    "zone": "terrace"
+  },
+  {
+    "asset": "deck-edge-2m",
+    "positionZUp": [
+      2,
+      -5.5,
+      0.6
+    ],
+    "yawZ": 90,
+    "zone": "terrace"
+  },
+  {
+    "asset": "deck-edge-2m",
+    "positionZUp": [
+      2,
+      -7.5,
+      0.6
+    ],
+    "yawZ": 90,
+    "zone": "terrace"
+  },
+  {
+    "asset": "deck-rail-2m",
+    "positionZUp": [
+      -5,
+      -8.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "terrace"
+  },
+  {
+    "asset": "deck-rail-2m",
+    "positionZUp": [
+      -1,
+      -8.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "terrace"
+  },
+  {
+    "asset": "deck-rail-2m",
+    "positionZUp": [
+      1,
+      -8.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "terrace"
+  },
+  {
+    "asset": "deck-rail-2m",
+    "positionZUp": [
+      -6,
+      -5.5,
+      0.8099999999999999
+    ],
+    "yawZ": 270,
+    "zone": "terrace"
+  },
+  {
+    "asset": "deck-rail-2m",
+    "positionZUp": [
+      -6,
+      -7.5,
+      0.8099999999999999
+    ],
+    "yawZ": 270,
+    "zone": "terrace"
+  },
+  {
+    "asset": "deck-rail-2m",
+    "positionZUp": [
+      2,
+      -5.5,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "terrace"
+  },
+  {
+    "asset": "deck-post-105",
+    "positionZUp": [
+      -6.0,
+      -8.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "terrace"
+  },
+  {
+    "asset": "deck-post-105",
+    "positionZUp": [
+      -6.0,
+      -6.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "terrace"
+  },
+  {
+    "asset": "deck-post-105",
+    "positionZUp": [
+      -6.0,
+      -4.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "terrace"
+  },
+  {
+    "asset": "deck-post-105",
+    "positionZUp": [
+      -4.0,
+      -8.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "terrace"
+  },
+  {
+    "asset": "deck-post-105",
+    "positionZUp": [
+      -2.0,
+      -8.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "terrace"
+  },
+  {
+    "asset": "deck-post-105",
+    "positionZUp": [
+      0.0,
+      -8.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "terrace"
+  },
+  {
+    "asset": "deck-post-105",
+    "positionZUp": [
+      2.0,
+      -8.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "terrace"
+  },
+  {
+    "asset": "deck-post-105",
+    "positionZUp": [
+      2.0,
+      -6.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "terrace"
+  },
+  {
+    "asset": "deck-post-105",
+    "positionZUp": [
+      2.0,
+      -4.5,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "terrace"
+  },
+  {
+    "asset": "deck-corner-cap",
+    "positionZUp": [
+      -6,
+      -8.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "terrace"
+  },
+  {
+    "asset": "deck-corner-cap",
+    "positionZUp": [
+      -6,
+      -4.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "terrace"
+  },
+  {
+    "asset": "deck-corner-cap",
+    "positionZUp": [
+      2,
+      -8.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "terrace"
+  },
+  {
+    "asset": "deck-corner-cap",
+    "positionZUp": [
+      2,
+      -4.5,
+      0.6
+    ],
+    "yawZ": 0,
+    "zone": "terrace"
+  },
+  {
+    "asset": "terrace-stair-081",
+    "positionZUp": [
+      -3,
+      -8.5,
+      0
+    ],
+    "yawZ": 0,
+    "zone": "terrace"
+  },
+  {
+    "asset": "terrace-ramp-2m",
+    "positionZUp": [
+      5,
+      -7.5,
+      0
+    ],
+    "yawZ": 90,
+    "zone": "ramp"
+  },
+  {
+    "asset": "ramp-rail-2m",
+    "positionZUp": [
+      5,
+      -8.34,
+      0
+    ],
+    "yawZ": 90,
+    "zone": "ramp"
+  },
+  {
+    "asset": "ramp-rail-2m",
+    "positionZUp": [
+      5,
+      -6.66,
+      0
+    ],
+    "yawZ": 90,
+    "zone": "ramp"
+  },
+  {
+    "asset": "terrace-ramp-2m",
+    "positionZUp": [
+      3,
+      -7.5,
+      0.405
+    ],
+    "yawZ": 90,
+    "zone": "ramp"
+  },
+  {
+    "asset": "ramp-rail-2m",
+    "positionZUp": [
+      3,
+      -8.34,
+      0.405
+    ],
+    "yawZ": 90,
+    "zone": "ramp"
+  },
+  {
+    "asset": "ramp-rail-2m",
+    "positionZUp": [
+      3,
+      -6.66,
+      0.405
+    ],
+    "yawZ": 90,
+    "zone": "ramp"
+  },
+  {
+    "asset": "habitat/interior-bench-2m",
+    "positionZUp": [
+      -5.2,
+      -6.1,
+      0.8099999999999999
+    ],
+    "yawZ": 90,
+    "zone": "furniture"
+  },
+  {
+    "asset": "habitat/interior-bench-2m",
+    "positionZUp": [
+      0.6,
+      -5.9,
+      0.8099999999999999
+    ],
+    "yawZ": 270,
+    "zone": "furniture"
+  },
+  {
+    "asset": "habitat/interior-planter",
+    "positionZUp": [
+      -5.5,
+      -4.9,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "furniture"
+  },
+  {
+    "asset": "habitat/interior-planter",
+    "positionZUp": [
+      1.4,
+      -4.9,
+      0.8099999999999999
+    ],
+    "yawZ": 0,
+    "zone": "furniture"
+  }
+]
