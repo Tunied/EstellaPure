@@ -2537,6 +2537,10 @@ export const NOTED = {
     {"note":"A WeChat or Douyin package whose scenes and scripts use no particle emitter, post-process volume or tilemap now ships a lite engine, the same engine without those three subsystems and about 200 KB smaller, so a UI-only game has room under the 4 MB main-package limit."},
   "fix(launcher): switching template renames the suggested project name, unless the user typed one":
     {"note":"The New Project page no longer keeps the previous template's name when you pick another: the suggested name follows the template, and a name you typed stays."},
+  "feat(render): imported meshes carry a tangent frame, so a normal map is read against the frame it was baked in":
+    {"note":"Imported meshes now carry a tangent at each vertex (a glTF's own direction, or one made from the UVs), and normal maps on them are read against that frame instead of one derived per pixel, which was wrong at UV seams and on stretched textures. Re-import a model to get them; one imported before keeps its old shading."},
+  "feat(render): an Eye shader draws the iris behind a refracting cornea, with a pupil, a limbal ring and a catchlight":
+    {"note":"A new Eye shader (`builtin:eye`) draws an eye from a mask and a dome normal map: the iris sits behind a refracting cornea so it moves as the eye turns, with a pupil, fibres and a limbal ring, a white lit with wrapped light, and a near-mirror cornea that shows every light as a catchlight."},
   "chore(tools): the gates run in parallel with --jobs, and the reds a full run gathered are cleared":
     {"internal":"tooling for the static gates, and fixes to checks that had drifted from the code they guard"},
   "fix(render): a wire narrower than a pixel is no longer painted over by the sky in dashes":

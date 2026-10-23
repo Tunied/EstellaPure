@@ -67,7 +67,7 @@ void MaterialStore::clear() {
 
 u32 MaterialStore::meshProgram(u32 materialId, resource::ResourceManager& resources,
                                bool withNormals, bool skinned, bool envMapped,
-                               bool lightmapped, bool gbuffer) const {
+                               bool lightmapped, bool gbuffer, bool tangents) const {
     // Only for a shader that has something to write: one that never mentions the feature would
     // compile the same program twice and then be declared to write an output it does not have.
     if (gbuffer) {
@@ -81,11 +81,13 @@ u32 MaterialStore::meshProgram(u32 materialId, resource::ResourceManager& resour
                     | (skinned ? (1ull << 33) : 0ull)
                     | (envMapped ? (1ull << 34) : 0ull)
                     | (lightmapped ? (1ull << 36) : 0ull)
-                    | (gbuffer ? (1ull << 38) : 0ull);
+                    | (gbuffer ? (1ull << 38) : 0ull)
+                    | (tangents && withNormals ? (1ull << 39) : 0ull);
     std::vector<std::string> features{ "MESH" };
     if (withNormals) features.push_back("MESH_NORMALS");
     if (skinned) features.push_back("SKINNED");
     if (lightmapped) features.push_back("MESH_LIGHTMAP");
+    if (tangents && withNormals) features.push_back("MESH_TANGENTS");
     // Resident geometry carries the frame's shadow map on its own slot 2 and the
     // reflection on slot 3; the batch variant of the same material must not, which
     // is why these ride the mesh path.
@@ -101,10 +103,11 @@ u32 MaterialStore::meshProgram(u32 materialId, resource::ResourceManager& resour
 }
 
 u32 MaterialStore::shadowProgram(u32 materialId, resource::ResourceManager& resources,
-                                  bool withNormals, bool skinned) const {
+                                  bool withNormals, bool skinned, bool tangents) const {
     const MaterialRecord* rec = find(materialId);
     if (!rec || !rec->shaderRef.isValid()) return 0;
-    const u64 shape = (1ull << 37) | (withNormals ? (1ull << 32) : 0ull) | (skinned ? (1ull << 33) : 0ull);
+    const u64 shape = (1ull << 37) | (withNormals ? (1ull << 32) : 0ull) | (skinned ? (1ull << 33) : 0ull)
+                    | (tangents && withNormals ? (1ull << 39) : 0ull);
     auto& variants = mesh_programs_[rec->shaderRef.id()];
     auto cached = variants.find(shape);
     if (cached != variants.end()) {
@@ -132,6 +135,7 @@ u32 MaterialStore::shadowProgram(u32 materialId, resource::ResourceManager& reso
 
     std::vector<std::string> features;
     if (withNormals) features.emplace_back("MESH_NORMALS");
+    if (tangents && withNormals) features.emplace_back("MESH_TANGENTS");
     if (skinned) features.emplace_back("SKINNED");
     features.emplace_back("SHADOW_DEPTH");
     features.emplace_back("ES_MATERIAL_VERTEX");

@@ -213,6 +213,10 @@ std::string wgslCanonicalVSOut(bool lit) {
         "    @location(3) v_worldNormal : vec3f,\n"
         "    @location(4) v_worldXYZ : vec3f,\n"
         "#endif\n"
+        // The geometry's own tangent frame (xyz along +u, w the bitangent's handedness), when the mesh carries one.
+        "#ifdef MESH_TANGENTS\n"
+        "    @location(7) v_worldTangent : vec4f,\n"
+        "#endif\n"
         // mesh.esshader's twin of the same varying, carried through a material's
         // variant so the LAYOUT matches. What a material's fragment makes of it
         // is the material's, as all of its shading is.
@@ -272,6 +276,9 @@ std::string canonicalVertexStageWGSL(bool lit, const std::string& hook = {}) {
         "#endif\n"
         "#ifdef MESH_LIGHTMAP\n"
         "    @location(7) a_texCoord1 : vec2f,\n"
+        "#endif\n"
+        "#ifdef MESH_TANGENTS\n"
+        "    @location(4) a_tangent : vec4f,\n"
         "#endif\n"
         "#ifdef SKINNED\n"
         "    @location(5) a_joints : vec4u,\n"
@@ -355,6 +362,15 @@ std::string canonicalVertexStageWGSL(bool lit, const std::string& hook = {}) {
         "    out.v_worldNormal = esInstanceNormalMatrix() * localNormal;\n"
         "#endif\n"
         "    out.v_worldXYZ = world.xyz;\n"
+        "#ifdef MESH_TANGENTS\n"
+        "#ifdef SKINNED\n"
+        "    out.v_worldTangent = vec4f(mat3x3f(pose[0].xyz, pose[1].xyz, pose[2].xyz) * v.a_tangent.xyz, v.a_tangent.w);\n"
+        "#else\n"
+        "    let tangentModel = mat3x3f(esInstanceModel()[0].xyz, esInstanceModel()[1].xyz, esInstanceModel()[2].xyz);\n"
+        "    out.v_worldTangent = vec4f(tangentModel * v.a_tangent.xyz,\n"
+        "                               select(v.a_tangent.w, -v.a_tangent.w, determinant(tangentModel) < 0.0));\n"
+        "#endif\n"
+        "#endif\n"
         "#endif\n"
         "#ifdef MESH_LIGHTMAP\n"
         "    let lmRect = esInstanceLightmapRect();\n"
@@ -453,6 +469,9 @@ std::string canonicalVertexStage(bool lit, const std::string& hook = {}) {
         "#ifdef MESH_LIGHTMAP\n"
         "layout(location = 7) in vec2 a_texCoord1;\n"
         "#endif\n"
+        "#ifdef MESH_TANGENTS\n"
+        "layout(location = 4) in vec4 a_tangent;\n"
+        "#endif\n"
         "#ifdef SKINNED\n"
         "layout(location = 5) in uvec4 a_joints;\n"
         "layout(location = 6) in vec4 a_weights;\n"
@@ -492,6 +511,9 @@ std::string canonicalVertexStage(bool lit, const std::string& hook = {}) {
         "#ifdef MESH_NORMALS\n"
         "out highp vec3 v_worldNormal;\n"
         "out highp vec3 v_worldXYZ;\n"
+        "#ifdef MESH_TANGENTS\n"
+        "out highp vec4 v_worldTangent;\n"
+        "#endif\n"
         "#endif\n"
         "#ifdef MESH_LIGHTMAP\n"
         "out highp vec3 v_lightmap;\n"
@@ -564,6 +586,15 @@ std::string canonicalVertexStage(bool lit, const std::string& hook = {}) {
         "    v_worldNormal = esInstanceNormalMatrix() * localNormal;\n"
         "#endif\n"
         "    v_worldXYZ = world.xyz;\n"
+        "#ifdef MESH_TANGENTS\n"
+        "#ifdef SKINNED\n"
+        "    v_worldTangent = vec4(mat3(skin) * a_tangent.xyz, a_tangent.w);\n"
+        "#else\n"
+        "    mat3 tangentModel = mat3(esInstanceModel());\n"
+        // A mirrored placement turns the bitangent the other way round.
+        "    v_worldTangent = vec4(tangentModel * a_tangent.xyz, determinant(tangentModel) < 0.0 ? -a_tangent.w : a_tangent.w);\n"
+        "#endif\n"
+        "#endif\n"
         "#endif\n"
         "#ifdef MESH_LIGHTMAP\n"
         "    highp vec4 lmRect = esInstanceLightmapRect();\n"
@@ -1225,6 +1256,9 @@ struct PlanarConstants { planarProjection : mat4x4f, planarParams : vec4f };
 var<private> g_probeSlot : f32 = 0.0;
 // The GLSL twin's v_lightmap, handed over by the entry point like the slot above.
 var<private> g_lightmap : vec3f = vec3f(0.0);
+// The mesh's own tangent frame, handed over by the entry point like the slot above; zero where the shader never sets it, which
+// is what sends perturbNormal back to deriving a frame per pixel.
+var<private> g_worldTangent : vec4f = vec4f(0.0);
 fn packDepth(d : f32) -> vec3f {
     let enc = fract(d * vec3f(1.0, 255.0, 65025.0));
     return enc - enc.yzz * vec3f(1.0 / 255.0, 1.0 / 255.0, 0.0);
@@ -1386,6 +1420,7 @@ fn sampleNormalGrad(map : texture_2d<f32>, samp : sampler, uv : vec2f,
     return vec3f(xy, sqrt(max(0.0, 1.0 - dot(xy, xy))));
 }
 fn perturbNormal(N : vec3f, worldPos : vec3f, uv : vec2f, tangentNormal : vec3f) -> vec3f {
+    // The derivatives first: they are only valid in uniform control flow, and the choice below depends on a variable.
     let dp1 = dpdx(worldPos);
     // Negated: this backend's framebuffer y runs the other way, so dpdy answers
     // with the opposite sign to GLSL's dFdy. Left alone it flips T and B, and a
@@ -1393,6 +1428,12 @@ fn perturbNormal(N : vec3f, worldPos : vec3f, uv : vec2f, tangentNormal : vec3f)
     let dp2 = -dpdy(worldPos);
     let duv1 = dpdx(uv);
     let duv2 = -dpdy(uv);
+    // The frame the normal map was baked in, when the geometry carries it: the tangent made square to the interpolated normal.
+    if (dot(g_worldTangent.xyz, g_worldTangent.xyz) > 1e-8) {
+        let Tg = normalize(g_worldTangent.xyz - N * dot(N, g_worldTangent.xyz));
+        let Bg = cross(N, Tg) * g_worldTangent.w;
+        return normalize(mat3x3f(Tg, Bg, N) * tangentNormal);
+    }
     let dp2perp = cross(dp2, N);
     let dp1perp = cross(N, dp1);
     let T = dp2perp * duv1.x + dp1perp * duv2.x;
@@ -2070,6 +2111,12 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
         && std::find(features.begin(), features.end(), "ES_LINEAR") == features.end()) {
         features.push_back("ES_LINEAR");
     }
+    // A tangent frame arrives through a varying only a vertex stage that knows about it writes: the engine's own canonical one,
+    // or a shader that declares the feature. Any other keeps reading its frame from derivatives, as it always did.
+    if (!parsed.vertexIsCanonical
+        && std::find(parsed.features.begin(), parsed.features.end(), "MESH_TANGENTS") == parsed.features.end()) {
+        features.erase(std::remove(features.begin(), features.end(), std::string("MESH_TANGENTS")), features.end());
+    }
     if (target == ShaderTargetLanguage::WGSL) {
         return assembleWGSLStage(parsed, stage, features);
     }
@@ -2441,8 +2488,17 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             // Tangent frame from screen-space derivatives, so a tangent-space normal
             // lands in world space without the geometry carrying a tangent channel —
             // which most exported models do not. Degenerate UVs return N unchanged.
+            "#ifdef MESH_TANGENTS\n"
+            "in highp vec4 v_worldTangent;\n"
+            "#endif\n"
             "highp vec3 perturbNormal(in highp vec3 N, in highp vec3 worldPos,\n"
             "                         in highp vec2 uv, in highp vec3 tangentNormal) {\n"
+            "#ifdef MESH_TANGENTS\n"
+            // The frame the normal map was baked in: the tangent made square to the interpolated normal.
+            "    highp vec3 Tg = normalize(v_worldTangent.xyz - N * dot(N, v_worldTangent.xyz));\n"
+            "    highp vec3 Bg = cross(N, Tg) * v_worldTangent.w;\n"
+            "    return normalize(mat3(Tg, Bg, N) * tangentNormal);\n"
+            "#else\n"
             "    highp vec3 dp1 = dFdx(worldPos);\n"
             "    highp vec3 dp2 = dFdy(worldPos);\n"
             "    highp vec2 duv1 = dFdx(uv);\n"
@@ -2457,6 +2513,7 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "    highp float scale = max(dot(dp1, dp1), dot(dp2, dp2)) * max(dot(duv1, duv1), dot(duv2, duv2));\n"
             "    if (!(m > scale * 1e-6)) return N;\n"
             "    return normalize(mat3(T * inversesqrt(max(dot(T, T), 1e-20)), B * inversesqrt(max(dot(B, B), 1e-20)), N) * tangentNormal);\n"
+            "#endif\n"
             "}\n"
             // Where a world point lands in this camera's part of a screen-space mask.
             // Measured on the Z = 0 plane, which is the plane a 2D occluder hides things

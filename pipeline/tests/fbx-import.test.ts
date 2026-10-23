@@ -61,6 +61,15 @@ describe('fbx geometry', () => {
     expect(attribute(meshes[0]!, MeshChannel.Normal, 0, 3)).toEqual([0, 0, 1]);
   });
 
+  it('writes the tangent frame the uvs imply, beside the normals', async () => {
+    const { meshes } = await importFbxMeshes(texturedTriangle(), 'tri', 'tri.fbx');
+    // u grows along +X and v along +Y on a surface facing +Z: T = +X, and cross(N, T) = +Y is the way v grows.
+    for (let i = 0; i < 3; i++) {
+      const [x, y, z, w] = attribute(meshes[0]!, MeshChannel.Tangent, i, 4) as [number, number, number, number];
+      expect([Math.round(x), Math.round(y), Math.round(z), w]).toEqual([1, 0, 0, 1]);
+    }
+  });
+
   it('triangulates a quad', async () => {
     const { meshes } = await importFbxMeshes(skinnedBar(), 'bar', 'bar.fbx');
     expect(meshes[0]!.triangleCount).toBe(2);

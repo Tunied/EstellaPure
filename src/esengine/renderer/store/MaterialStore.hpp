@@ -195,7 +195,8 @@ public:
     /// caller falls back rather than drawing it wrong.
     u32 meshProgram(u32 materialId, resource::ResourceManager& resources,
                     bool withNormals = false, bool skinned = false,
-                    bool envMapped = false, bool lightmapped = false, bool gbuffer = false) const;
+                    bool envMapped = false, bool lightmapped = false, bool gbuffer = false,
+                    bool tangents = false) const;
 
     /// Whether @p programId is a variant that writes the surface record's second output — set when
     /// it was compiled for a pass that has one AND the material's shader has something to write
@@ -226,7 +227,7 @@ public:
     /// shadow of the bent shape. 0 when the source was never kept or the variant fails — the caller
     /// then casts the unbent shape, which is the old behaviour.
     u32 shadowProgram(u32 materialId, resource::ResourceManager& resources,
-                      bool withNormals, bool skinned) const;
+                      bool withNormals, bool skinned, bool tangents = false) const;
 
     /// The program that draws @p materialId on PARTICLE geometry — the instanced
     /// quad an emitter streams. Same source, same author's fragment, a different

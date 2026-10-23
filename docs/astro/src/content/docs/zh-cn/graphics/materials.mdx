@@ -67,6 +67,8 @@ std140 uniform 块,于是 CPU 能按名字设置、并安全地送到 GPU。一�
 
 **头发**(`builtin:hair`)把发丝当发丝来打光。`u_flowMap` 说明发丝朝哪个方向(红、绿是贴图上的一个方向),漫反射是 Kajiya-Kay(发丝被光照亮的程度取决于光离它的走向有多远),高光是两条沿发丝的窄高光,由 `u_shiftMap` 把它们错开(`u_shiftAmount`、`u_shiftTile`):一条白的靠近表面,一条带颜色的在下面(`u_secondaryTint`)。`u_roughness` 决定线条有多紧。光会从发丝背面透过来(`u_translucency`),`u_sharpen` 让发片上密布的细发丝在斜着看时不被冲淡,`u_rootDark` 按遮蔽图把发根压暗。头发模型通常是发片或发带而不是真正的发丝;这个着色器把发丝的明暗给了几何本身给不了的部分。
 
+**眼睛**(`builtin:eye`)用两张贴图和几个数值做出一只眼睛。`u_depthMap` 在虹膜和角膜穹顶上为白色,`u_irisNormalMap` 是这个穹顶的法线(两张都要以关闭 sRGB 的方式导入)。视线在角膜处折射(`u_ior`)再下行到虹膜(`u_irisDepth`),所以眼球转动时虹膜在表面后面移动。虹膜本身由 `u_irisColor` 到 `u_irisColor2` 绘制,带纤维纹理、深色角膜缘(`u_limbal`)和瞳孔(`u_pupilSize`),衬在眼白(`u_scleraColor`)上,眼白的光会绕过明暗交界线(`u_scleraWrap`)。角膜近似镜面(`u_corneaRoughness`、`u_specular`),所以每盏灯和天空都会变成一个眼神光。网格上画的眼睛贴图会与结果相乘。
+
 两者读的是和所有 Lit 着色器相同的光照核心,所以阴影、基于图像的光照和其他特效都适用。
 
 ## 着色层

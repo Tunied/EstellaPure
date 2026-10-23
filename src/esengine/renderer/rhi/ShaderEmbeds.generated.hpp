@@ -509,6 +509,9 @@ inline constexpr const char* MESH = R"esshader(#pragma shader "Mesh"
 #pragma feature MESH_LIGHTMAP
 
 
+#pragma feature MESH_TANGENTS
+
+
 
 
 
@@ -539,6 +542,9 @@ layout(location = 6) in vec4 a_weights;
 #endif
 #ifdef MESH_LIGHTMAP
 layout(location = 7) in vec2 a_texCoord1;
+#endif
+#ifdef MESH_TANGENTS
+layout(location = 4) in vec4 a_tangent;
 #endif
 
 
@@ -602,6 +608,9 @@ out highp vec3 v_worldNormal;
 
 
 out highp vec3 v_worldPos;
+#ifdef MESH_TANGENTS
+out highp vec4 v_worldTangent;
+#endif
 #endif
 #ifdef SHADOW_DEPTH
 
@@ -718,6 +727,15 @@ void main() {
     v_worldNormal = vec3(0.0, 0.0, 1.0);
 #endif
     v_worldPos = world.xyz;
+#ifdef MESH_TANGENTS
+#ifdef SKINNED
+    v_worldTangent = vec4(mat3(skin) * a_tangent.xyz, a_tangent.w);
+#else
+    mat3 tangentModel = mat3(esInstanceModel());
+
+    v_worldTangent = vec4(tangentModel * a_tangent.xyz, determinant(tangentModel) < 0.0 ? -a_tangent.w : a_tangent.w);
+#endif
+#endif
 #endif
 }
 #pragma end
@@ -844,6 +862,9 @@ struct VSIn {
 #ifdef MESH_LIGHTMAP
     @location(7) a_texCoord1 : vec2f,
 #endif
+#ifdef MESH_TANGENTS
+    @location(4) a_tangent : vec4f,
+#endif
 
     @builtin(vertex_index) vertexIndex : u32,
 };
@@ -854,6 +875,9 @@ struct VSOut {
 #ifdef LIT
     @location(2) v_worldNormal : vec3f,
     @location(3) v_worldPos : vec3f,
+#ifdef MESH_TANGENTS
+    @location(8) v_worldTangent : vec4f,
+#endif
 #endif
 #ifdef SHADOW_DEPTH
 
@@ -980,6 +1004,15 @@ fn esPrevBone(joint : u32) -> mat4x4f {
     out.v_worldNormal = vec3f(0.0, 0.0, 1.0);
 #endif
     out.v_worldPos = world.xyz;
+#ifdef MESH_TANGENTS
+#ifdef SKINNED
+    out.v_worldTangent = vec4f(mat3x3f(pose[0].xyz, pose[1].xyz, pose[2].xyz) * v.a_tangent.xyz, v.a_tangent.w);
+#else
+    let tangentModel = mat3x3f(esInstanceModel()[0].xyz, esInstanceModel()[1].xyz, esInstanceModel()[2].xyz);
+    out.v_worldTangent = vec4f(tangentModel * v.a_tangent.xyz,
+                               select(v.a_tangent.w, -v.a_tangent.w, determinant(tangentModel) < 0.0));
+#endif
+#endif
 #endif
     return out;
 }
@@ -1022,6 +1055,9 @@ struct VSOut {
 #ifdef LIT
     @location(2) v_worldNormal : vec3f,
     @location(3) v_worldPos : vec3f,
+#ifdef MESH_TANGENTS
+    @location(8) v_worldTangent : vec4f,
+#endif
 #endif
 #ifdef SHADOW_DEPTH
     @location(4) v_shadowClip : vec4f,
@@ -1062,6 +1098,11 @@ fn packNormal(n : vec3f) -> vec2f {
     g_probeSlot = v.v_probeSlot;
 #ifdef MESH_LIGHTMAP
     g_lightmap = v.v_lightmap;
+#endif
+#ifdef MESH_TANGENTS
+#ifdef LIT
+    g_worldTangent = v.v_worldTangent;
+#endif
 #endif
 #ifdef ES_VELOCITY
 

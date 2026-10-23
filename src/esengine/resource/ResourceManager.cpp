@@ -572,10 +572,12 @@ bool ResourceManager::realizeMesh(Mesh& mesh, ConstSpan<u8> vertexBytes, ConstSp
     bool hasNormals = false;
     bool skinned = false;
     bool lightmapUV = false;
+    bool tangentChannel = false;
     for (const GfxVertexAttribute& c : channels) {
         if (c.location == static_cast<u32>(MeshChannel::Normal)) hasNormals = true;
         if (c.location == static_cast<u32>(MeshChannel::Joints)) skinned = true;
         if (c.location == static_cast<u32>(MeshChannel::TexCoord1)) lightmapUV = true;
+        if (c.location == static_cast<u32>(MeshChannel::Tangent)) tangentChannel = true;
     }
     skinned = skinned && !inverseBind.empty();
     // Bones move a character and a bake cannot hold one still, so a skinned mesh
@@ -646,6 +648,8 @@ bool ResourceManager::realizeMesh(Mesh& mesh, ConstSpan<u8> vertexBytes, ConstSp
     mesh.indexCount = static_cast<u32>(indices.size());
     mesh.hasNormals = hasNormals;
     mesh.hasLightmapUV = lightmapped;
+    // A tangent frame is a frame OF the normal: one without a normal to square it to is not read.
+    mesh.hasTangents = tangentChannel && hasNormals;
     mesh.localMin = localMin;
     mesh.localMax = localMax;
     mesh.inverseBind.clear();

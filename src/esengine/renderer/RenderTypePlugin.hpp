@@ -153,6 +153,8 @@ struct MeshProgramFacts {
      *  set, and is not posed by bones. Whether it HAS one is the atlas rectangle
      *  in its record, which is a number rather than a program. */
     bool lightmapped = false;
+    /** Whether the geometry carries a tangent frame (with its normals): the program then declares and reads it. */
+    bool tangents = false;
     u32 materialId = 0;
 };
 
@@ -184,8 +186,8 @@ struct RenderPrewarmResult {
 
     /** @brief What a material program is asked for, as one comparable value. */
     static u64 materialKey(u32 materialId, bool normals, bool skinned, bool envMapped,
-                           bool lightmapped) {
-        return (static_cast<u64>(materialId) << 4) | (lightmapped ? 8u : 0u) | (normals ? 4u : 0u)
+                           bool lightmapped, bool tangents = false) {
+        return (static_cast<u64>(materialId) << 5) | (tangents ? 16u : 0u) | (lightmapped ? 8u : 0u) | (normals ? 4u : 0u)
              | (skinned ? 2u : 0u) | (envMapped ? 1u : 0u);
     }
 

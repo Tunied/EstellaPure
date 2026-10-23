@@ -14,6 +14,7 @@
 import { MESH_MAX_BONES, MeshChannel, MeshChannelType, packChannels,
          type MeshMorphTargets } from 'esengine';
 import { MeshoptDecoder } from 'meshoptimizer/decoder';
+import { generateTangents } from './meshTangents';
 import {
     ANIMATED_PATHS, alignQuaternionSigns, animationProductName, disambiguateNodes,
     nodeChildPaths, nodeNameFor, samplerKeyframes, timelineDocument,
@@ -1193,6 +1194,10 @@ export async function importGltfMeshes(
                 catch { warnings.push(`${label}: TEXCOORD_1 is declared and missing from the Draco blob`); }
                 const normalIndex = prim.attributes.NORMAL;
                 const normals = attribute('NORMAL', normalIndex);
+                // The baker's own tangents, where the file has them: their direction is kept, the handedness is re-derived.
+                let suppliedTangents: Float32Array | null = null;
+                try { suppliedTangents = attribute('TANGENT', prim.attributes.TANGENT); }
+                catch { warnings.push(`${label}: TANGENT is declared and missing from the Draco blob`); }
                 const colorsRaw = attribute('COLOR_0', colorIndex);
                 const colorComps = colorIndex !== undefined
                     ? TYPE_COMPONENTS[json.accessors?.[colorIndex]?.type ?? 'VEC4'] ?? 4 : 4;
@@ -1227,12 +1232,19 @@ export async function importGltfMeshes(
                         + ' — imported static');
                 }
 
+                // The frame the normal map was baked in, from the UVs as stored (V flipped below).
+                const tangents = normals && uvs && uvs.length >= vertexCount * 2
+                    ? generateTangents(positions, normals, Float32Array.from({ length: vertexCount * 2 },
+                        (_, k) => (k & 1 ? 1 - (uvs[k] ?? 0) : uvs[k] ?? 0)), indices, suppliedTangents) : null;
+
                 const { channels, vertexStride } = packChannels([
                     { semantic: MeshChannel.Position, components: 3, type: MeshChannelType.Float32 },
                     { semantic: MeshChannel.TexCoord0, components: 2, type: MeshChannelType.Float32 },
                     { semantic: MeshChannel.Color, components: 4, type: MeshChannelType.UNorm8 },
                     ...(normals ? [{ semantic: MeshChannel.Normal, components: 3,
                                      type: MeshChannelType.Float32 }] : []),
+                    ...(tangents ? [{ semantic: MeshChannel.Tangent, components: 4,
+                                      type: MeshChannelType.Float32 }] : []),
                     // Ahead of the skinning pair, which the two lines below find by position.
                     ...(uvs1 ? [{ semantic: MeshChannel.TexCoord1, components: 2,
                                   type: MeshChannelType.Float32 }] : []),
@@ -1244,6 +1256,7 @@ export async function importGltfMeshes(
                 const jointsChannel = skinned ? channels[channels.length - 2]! : null;
                 const weightsChannel = skinned ? channels[channels.length - 1]! : null;
                 const uv1Channel = channels.find(c => c.semantic === MeshChannel.TexCoord1) ?? null;
+                const tangentChannel = channels.find(c => c.semantic === MeshChannel.Tangent) ?? null;
 
                 const vertices = new Uint8Array(vertexCount * vertexStride);
                 const dv = new DataView(vertices.buffer);
@@ -1281,6 +1294,9 @@ export async function importGltfMeshes(
                         for (let c = 0; c < 3; c++) {
                             dv.setFloat32(at + channels[3].offset + c * 4, normals[i * 3 + c] ?? 0, true);
                         }
+                    }
+                    if (tangentChannel && tangents) {
+                        for (let c = 0; c < 4; c++) dv.setFloat32(at + tangentChannel.offset + c * 4, tangents[i * 4 + c] ?? 0, true);
                     }
                     if (jointsChannel && weightsChannel) {
                         for (let c = 0; c < 4; c++) {

@@ -71,7 +71,7 @@ export interface ImportedMaterial {
     /** The tint multiplied into the vertex colors. */
     baseColor: [number, number, number, number];
     baseColorTexture?: ImportedImageRef;
-    /** Tangent-space normal map; the engine derives its tangent frame per pixel. */
+    /** Tangent-space normal map, read against the mesh's own tangent frame where it has one (see meshTangents.ts). */
     normalTexture?: ImportedImageRef;
     /** Light the surface makes, unaffected by the scene's lights. */
     emissive?: [number, number, number];

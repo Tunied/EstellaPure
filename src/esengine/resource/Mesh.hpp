@@ -88,6 +88,10 @@ public:
      *  the geometry owns decides the record's shape and the variant. */
     bool hasLightmapUV = false;
 
+    /** Whether the vertices carry a tangent (xyz along +u, w the bitangent's handedness) beside the normal — the frame a
+     *  normal map was baked in. Without one the fragment derives a frame from screen-space derivatives. */
+    bool hasTangents = false;
+
     /** Local-space bounds of the vertices, for the frustum cull. */
     glm::vec3 localMin{0.0f, 0.0f, 0.0f};
     glm::vec3 localMax{0.0f, 0.0f, 0.0f};

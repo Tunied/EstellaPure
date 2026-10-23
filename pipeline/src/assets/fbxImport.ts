@@ -14,6 +14,7 @@
  * is the other half of that contract.
  */
 import { MESH_MAX_BONES, MeshChannel, MeshChannelType, packChannels } from 'esengine';
+import { generateTangents } from './meshTangents';
 import {
     alignQuaternionSigns, animationProductName, ANIMATED_PATHS, disambiguateNodes,
     nodeChildPaths, nodeNameFor, samplerKeyframes, timelineDocument,
@@ -480,12 +481,17 @@ function buildMesh(part: FbxMeshPart, name: string, payload: Uint8Array,
     }
     const skinned = !!(joints && weights && bones > 0 && bones <= MESH_MAX_BONES);
 
+    // The frame the normal map was baked in, from the UVs as stored.
+    const tangents = normals && uvs ? generateTangents(positions, normals, uvs, indices) : null;
+
     const { channels, vertexStride } = packChannels([
         { semantic: MeshChannel.Position, components: 3, type: MeshChannelType.Float32 },
         { semantic: MeshChannel.TexCoord0, components: 2, type: MeshChannelType.Float32 },
         { semantic: MeshChannel.Color, components: 4, type: MeshChannelType.UNorm8 },
         ...(normals ? [{ semantic: MeshChannel.Normal, components: 3,
                          type: MeshChannelType.Float32 }] : []),
+        ...(tangents ? [{ semantic: MeshChannel.Tangent, components: 4,
+                          type: MeshChannelType.Float32 }] : []),
         // Ahead of the skinning pair, which the two lines below find by position.
         ...(uvs1 ? [{ semantic: MeshChannel.TexCoord1, components: 2,
                       type: MeshChannelType.Float32 }] : []),
@@ -497,6 +503,7 @@ function buildMesh(part: FbxMeshPart, name: string, payload: Uint8Array,
     const jointsChannel = skinned ? channels[channels.length - 2]! : null;
     const weightsChannel = skinned ? channels[channels.length - 1]! : null;
     const uv1Channel = channels.find(c => c.semantic === MeshChannel.TexCoord1) ?? null;
+    const tangentChannel = channels.find(c => c.semantic === MeshChannel.Tangent) ?? null;
 
     const vertices = new Uint8Array(vertexCount * vertexStride);
     const dv = new DataView(vertices.buffer);
@@ -528,6 +535,9 @@ function buildMesh(part: FbxMeshPart, name: string, payload: Uint8Array,
             for (let c = 0; c < 3; c++) {
                 dv.setFloat32(at + channels[3].offset + c * 4, normals[i * 3 + c] ?? 0, true);
             }
+        }
+        if (tangentChannel && tangents) {
+            for (let c = 0; c < 4; c++) dv.setFloat32(at + tangentChannel.offset + c * 4, tangents[i * 4 + c] ?? 0, true);
         }
         if (jointsChannel && weightsChannel) {
             for (let c = 0; c < 4; c++) {

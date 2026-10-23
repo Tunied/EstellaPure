@@ -140,11 +140,10 @@ static constexpr u32 MORPH_TEXTURE_WIDTH = 2048;
 /// Beyond it the geometry draws unmorphed — a texture the device refuses is a
 /// mesh that does not draw at all.
 static constexpr u32 MORPH_MAX_TEXELS = MORPH_TEXTURE_WIDTH * MORPH_TEXTURE_WIDTH;
-/// Programs the resident-mesh shader has: one per combination of {normals, lit,
-/// normal-mapped, skinned, depth-only, env-mapped, lightmapped, weight-heat,
-/// writes-the-surface-record, writes-the-motion}. Ten bits, not one: the geometry, the draw, the frame
-/// and the pass each answer a different.
-static constexpr u32 MESH_VARIANTS = 1024;
+/// Programs the resident-mesh shader has: one per combination of {normals, lit, normal-mapped, skinned, depth-only,
+/// env-mapped, lightmapped, weight-heat, writes-the-surface-record, writes-the-motion, tangents}: eleven bits, because
+/// the geometry, the draw, the frame and the pass each answer a different one.
+static constexpr u32 MESH_VARIANTS = 2048;
 /**
  * @brief What a mesh vertex channel MEANS, and the attribute location it binds to.
  * @details One vocabulary for the file format, the layout and the shaders: a
@@ -167,13 +166,13 @@ enum class MeshChannel : u8 {
 
 /**
  * @brief Whether the mesh shaders READ a channel, as opposed to the file carrying it.
- * @details An attribute nothing reads spends a slot and a fetch per vertex, so a
- *          channel kept for its information stays out of the LAYOUT. TexCoord1
- *          left this list when a bake gave it a reader.
- *          check-mesh-shader-inputs holds this both ways.
+ * @details An attribute nothing reads spends a slot and a fetch per vertex, so a channel kept for its information
+ *          stays out of the LAYOUT. Every channel the format names is read now; the predicate stays so the next one can
+ *          wait for its reader. check-mesh-shader-inputs holds this both ways.
  */
 constexpr bool meshShaderReads(MeshChannel c) {
-    return c != MeshChannel::Tangent;
+    (void)c;
+    return true;
 }
 
 /**

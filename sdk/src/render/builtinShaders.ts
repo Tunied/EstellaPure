@@ -588,6 +588,9 @@ fn packNormal(n : vec3f) -> vec2f {
 #ifdef MESH_LIGHTMAP
     g_lightmap = v.v_lightmap;
 #endif
+#ifdef MESH_TANGENTS
+    g_worldTangent = v.v_worldTangent;
+#endif
     var base = textureSampleGrad(t0, s0, v.v_texCoord, duvx, duvy) * v.v_color * mc.u_tint;
     // Before any discard: a derivative needs every fragment of its quad.
     let edge = max(fwidth(base.a), 1e-4);
@@ -1481,6 +1484,9 @@ fn packNormal(n : vec3f) -> vec2f {
 #ifdef MESH_LIGHTMAP
     g_lightmap = v.v_lightmap;
 #endif
+#ifdef MESH_TANGENTS
+    g_worldTangent = v.v_worldTangent;
+#endif
     var base = textureSampleBias(t0, s0, v.v_texCoord, mc.u_sharpen) * v.v_color * mc.u_tint;
     let flowTex = textureSampleGrad(u_flowMap, u_flowMap_s, v.v_texCoord, duvx, duvy).rg * 2.0 - vec2f(1.0);
     let orm = textureSampleGrad(u_ormMap, u_ormMap_s, v.v_texCoord, duvx, duvy);
@@ -1657,6 +1663,9 @@ fn packNormal(n : vec3f) -> vec2f {
 #ifdef MESH_LIGHTMAP
     g_lightmap = v.v_lightmap;
 #endif
+#ifdef MESH_TANGENTS
+    g_worldTangent = v.v_worldTangent;
+#endif
     let base = textureSample(t0, s0, v.v_texCoord) * v.v_color * mc.u_tint;
     let orm = textureSample(u_ormMap, u_ormMap_s, v.v_texCoord);
     let tangentSharp = normalize(textureSampleBias(u_normalMap, u_normalMap_s, v.v_texCoord, 0.0).xyz * 2.0 - vec3f(1.0));
@@ -1712,6 +1721,201 @@ fn packNormal(n : vec3f) -> vec2f {
 #pragma end
 `;
 
+const EYE = `#pragma shader "Eye"
+#pragma version 300 es
+#pragma domain Lit
+#pragma param u_tint color default(1,1,1,1)
+// The iris is built from two maps and the numbers below: a mask that is white over the iris and the dome of the cornea
+// (u_depthMap), and that dome's normals (u_irisNormalMap). A painted eye texture on the mesh multiplies the result.
+#pragma param u_depthMap texture default(black) texel(data)
+#pragma param u_irisNormalMap texture default(flatnormal) texel(data)
+#pragma param u_scleraColor color default(0.92,0.9,0.87,1)
+// The iris from the pupil's edge out to the limbus, and how dark its rim is.
+#pragma param u_irisColor color default(0.22,0.4,0.52,1)
+#pragma param u_irisColor2 color default(0.08,0.17,0.22,1)
+#pragma param u_irisSize float default(0.42) range(0.1,0.6) ui(slider)
+#pragma param u_pupilSize float default(0.3) range(0,0.8) ui(slider)
+#pragma param u_limbal float default(0.7) range(0,1) ui(slider)
+// How far behind the cornea the iris lies (in uv), and the cornea's index of refraction, which bend what is seen of it.
+#pragma param u_irisDepth float default(0.06) range(0,0.2) ui(slider)
+#pragma param u_ior float default(1.336) range(1,1.6) ui(slider)
+// The wet cornea is nearly a mirror; the white of the eye is a duller sheen with light that wraps past the terminator.
+#pragma param u_corneaRoughness float default(0.04) range(0.01,0.3) ui(slider)
+#pragma param u_scleraRoughness float default(0.45) range(0.1,1) ui(slider)
+#pragma param u_specular float default(1) range(0,2) ui(slider)
+#pragma param u_scleraWrap float default(0.35) range(0,1) ui(slider)
+
+#pragma fragment
+precision highp float;
+
+in vec4 v_color;
+in vec2 v_texCoord;
+in highp vec2 v_worldPos;
+#ifdef MESH_NORMALS
+in highp vec3 v_worldNormal;
+in highp vec3 v_worldXYZ;
+#endif
+uniform sampler2D u_textures[1];
+
+#ifdef ES_GBUFFER
+layout(location = 0) out vec4 fragColor;
+layout(location = 1) out vec4 fragSurface;
+
+vec2 packNormal(vec3 n) {
+    n /= (abs(n.x) + abs(n.y) + abs(n.z));
+    vec2 sgn = vec2(n.x >= 0.0 ? 1.0 : -1.0, n.y >= 0.0 ? 1.0 : -1.0);
+    vec2 e = n.z >= 0.0 ? n.xy : (1.0 - abs(n.yx)) * sgn;
+    return e * 0.5 + 0.5;
+}
+#else
+out vec4 fragColor;
+#endif
+
+void main() {
+    vec2 uv = v_texCoord;
+    // Every sample that takes part in a derivative is taken here, before any branch.
+    float h = texture(u_depthMap, uv).r;
+    vec3 dome = normalize(texture(u_irisNormalMap, uv).xyz * 2.0 - 1.0);
+#ifdef MESH_NORMALS
+    highp vec3 Ng = normalize(v_worldNormal);
+    highp vec3 P = v_worldXYZ;
+    if (!gl_FrontFacing) Ng = -Ng;
+    highp vec3 T = perturbNormal(Ng, P, uv, vec3(1.0, 0.0, 0.0));
+    highp vec3 B = perturbNormal(Ng, P, uv, vec3(0.0, 1.0, 0.0));
+    highp vec3 Ndome = perturbNormal(Ng, P, uv, dome);
+#else
+    highp vec3 P = vec3(v_worldPos, 0.0);
+    highp vec3 Ng = vec3(0.0, 0.0, 1.0);
+    highp vec3 T = vec3(1.0, 0.0, 0.0);
+    highp vec3 B = vec3(0.0, 1.0, 0.0);
+    highp vec3 Ndome = Ng;
+#endif
+    vec3 viewDir = viewDirection(P);
+    // The ray from the eye, in the surface's own frame, bent into the cornea and carried down to the iris: that is where on
+    // the iris this pixel looks, which moves as the eye turns.
+    vec3 vt = normalize(vec3(dot(viewDir, T), dot(viewDir, B), max(dot(viewDir, Ng), 0.05)));
+    vec3 R = refract(-vt, dome, 1.0 / u_ior);
+    vec2 uvI = uv + R.xy * (u_irisDepth * h / max(-R.z, 0.2));
+    float m = texture(u_depthMap, uvI).r;
+    float irisMask = smoothstep(0.15, 0.85, m);
+    float surfaceMask = smoothstep(0.15, 0.85, h);
+
+    vec2 c = uvI - vec2(0.5);
+    float rr = length(c) / max(u_irisSize, 1e-3);
+    float ang = atan(c.y, c.x);
+    float fibers = 0.82 + 0.18 * sin(ang * 70.0 + sin(ang * 13.0 + rr * 9.0) * 2.0);
+    vec3 iris = mix(u_irisColor.rgb, u_irisColor2.rgb, smoothstep(0.2, 0.95, rr)) * fibers;
+    iris *= 1.0 - u_limbal * smoothstep(0.78, 1.0, rr);
+    iris *= smoothstep(u_pupilSize - 0.05, u_pupilSize + 0.03, rr);
+    vec4 painted = texture(u_textures[0], uv) * v_color * u_tint;
+    vec3 albedo = mix(u_scleraColor.rgb, iris, irisMask) * painted.rgb;
+
+    float ao = 1.0;
+    vec3 Nd = normalize(mix(Ng, Ndome, 0.5 * surfaceMask));
+    SurfaceExt body = surfaceExtNone(Nd);
+    body.scatter = vec4(vec3(0.9, 0.5, 0.4) * albedo, u_scleraWrap * (1.0 - surfaceMask));
+    vec3 diffuse = applyLightingSurface(albedo, Nd, P, viewDir, 0.0, 1.0, 0.0, ao, body);
+
+    // The cornea: a clear dome, so its normal is the dome's, and it shows every light and the sky as a small bright shape.
+    vec3 Nc = normalize(mix(Ng, Ndome, surfaceMask));
+    SurfaceExt shine = surfaceExtNone(Nc);
+    shine.coat = vec4(0.25 * (1.0 - surfaceMask), u_scleraRoughness, 0.0, 0.0);
+    shine.coatN = vec4(Ng, 0.0);
+    vec3 spec = applyLightingSurface(vec3(0.0), Nc, P, viewDir, 0.0, u_corneaRoughness, u_specular, ao, shine);
+
+    fragColor = vec4(diffuse + spec, 1.0);
+#ifdef ES_GBUFFER
+    fragSurface = vec4(packNormal(normalize(Nc)), u_corneaRoughness, 0.75);
+#endif
+}
+#pragma end
+
+#pragma fragment wgsl
+#ifdef ES_GBUFFER
+struct FragOut {
+    @location(0) color : vec4f,
+    @location(1) surface : vec4f,
+};
+
+fn packNormal(n : vec3f) -> vec2f {
+    let a = n / (abs(n.x) + abs(n.y) + abs(n.z));
+    let sgn = vec2f(select(-1.0, 1.0, a.x >= 0.0), select(-1.0, 1.0, a.y >= 0.0));
+    var e = a.xy;
+    if (a.z < 0.0) { e = (vec2f(1.0) - abs(a.yx)) * sgn; }
+    return e * 0.5 + 0.5;
+}
+
+@fragment fn fs_main(v : VSOut, @builtin(front_facing) front : bool) -> FragOut {
+#else
+@fragment fn fs_main(v : VSOut, @builtin(front_facing) front : bool) -> @location(0) vec4f {
+#endif
+    g_probeSlot = v.v_probeSlot;
+#ifdef MESH_LIGHTMAP
+    g_lightmap = v.v_lightmap;
+#endif
+#ifdef MESH_TANGENTS
+    g_worldTangent = v.v_worldTangent;
+#endif
+    let uv = v.v_texCoord;
+    // Every sample is taken here, before any branch.
+    let h = textureSample(u_depthMap, u_depthMap_s, uv).r;
+    let dome = normalize(textureSample(u_irisNormalMap, u_irisNormalMap_s, uv).xyz * 2.0 - vec3f(1.0));
+#ifdef MESH_NORMALS
+    var Ng = normalize(v.v_worldNormal);
+    let P = v.v_worldXYZ;
+    if (!front) { Ng = -Ng; }
+    let T = perturbNormal(Ng, P, uv, vec3f(1.0, 0.0, 0.0));
+    let B = perturbNormal(Ng, P, uv, vec3f(0.0, 1.0, 0.0));
+    let Ndome = perturbNormal(Ng, P, uv, dome);
+#else
+    let P = vec3f(v.v_worldPos.x, 0.0, v.v_worldPos.y);
+    let Ng = vec3f(0.0, 0.0, 1.0);
+    let T = vec3f(1.0, 0.0, 0.0);
+    let B = vec3f(0.0, 1.0, 0.0);
+    let Ndome = Ng;
+#endif
+    let viewDir = viewDirection(P);
+    let vt = normalize(vec3f(dot(viewDir, T), dot(viewDir, B), max(dot(viewDir, Ng), 0.05)));
+    let R = refract(-vt, dome, 1.0 / mc.u_ior);
+    let uvI = uv + R.xy * (mc.u_irisDepth * h / max(-R.z, 0.2));
+    let m = textureSample(u_depthMap, u_depthMap_s, uvI).r;
+    let irisMask = smoothstep(0.15, 0.85, m);
+    let surfaceMask = smoothstep(0.15, 0.85, h);
+
+    let c = uvI - vec2f(0.5);
+    let rr = length(c) / max(mc.u_irisSize, 1e-3);
+    let ang = atan2(c.y, c.x);
+    let fibers = 0.82 + 0.18 * sin(ang * 70.0 + sin(ang * 13.0 + rr * 9.0) * 2.0);
+    var iris = mix(mc.u_irisColor.rgb, mc.u_irisColor2.rgb, smoothstep(0.2, 0.95, rr)) * fibers;
+    iris = iris * (1.0 - mc.u_limbal * smoothstep(0.78, 1.0, rr));
+    iris = iris * smoothstep(mc.u_pupilSize - 0.05, mc.u_pupilSize + 0.03, rr);
+    let painted = textureSample(t0, s0, uv) * v.v_color * mc.u_tint;
+    let albedo = mix(mc.u_scleraColor.rgb, iris, irisMask) * painted.rgb;
+
+    let ao = 1.0;
+    let Nd = normalize(mix(Ng, Ndome, 0.5 * surfaceMask));
+    var body = surfaceExtNone(Nd);
+    body.scatter = vec4f(vec3f(0.9, 0.5, 0.4) * albedo, mc.u_scleraWrap * (1.0 - surfaceMask));
+    let diffuse = applyLightingSurface(albedo, Nd, P, viewDir, 0.0, 1.0, 0.0, ao, body);
+
+    let Nc = normalize(mix(Ng, Ndome, surfaceMask));
+    var shine = surfaceExtNone(Nc);
+    shine.coat = vec4f(0.25 * (1.0 - surfaceMask), mc.u_scleraRoughness, 0.0, 0.0);
+    shine.coatN = vec4f(Ng, 0.0);
+    let spec = applyLightingSurface(vec3f(0.0), Nc, P, viewDir, 0.0, mc.u_corneaRoughness, mc.u_specular, ao, shine);
+
+#ifdef ES_GBUFFER
+    var frag : FragOut;
+    frag.color = vec4f(diffuse + spec, 1.0);
+    frag.surface = vec4f(packNormal(normalize(Nc)), mc.u_corneaRoughness, 0.75);
+    return frag;
+#else
+    return vec4f(diffuse + spec, 1.0);
+#endif
+}
+#pragma end
+`;
+
 export const BUILTIN_SHADER_TEMPLATES: readonly BuiltinShaderTemplate[] = [
     template('sprite-unlit', 'Unlit', 'Texture × vertex color × tint, no lighting.', SPRITE_UNLIT),
     template('sprite-lit', 'Lit', 'Lit by the scene\'s 2D lights; optional normal map.', SPRITE_LIT),
@@ -1737,6 +1941,8 @@ export const BUILTIN_SHADER_TEMPLATES: readonly BuiltinShaderTemplate[] = [
         'Strand lighting: Kajiya-Kay diffuse, two shifted highlights along a flow map, and light through the strands.', HAIR),
     template('skin', 'Skin',
         'Soft diffuse by colour, a warm terminator, light through thin places, two shine lobes and a fuzz — without blurring the picture.', SKIN),
+    template('eye', 'Eye',
+        'A wet cornea over an iris that moves as the eye turns: refracted depth, a pupil, a dark limbal ring, and catchlights of every light.', EYE),
 ];
 
 export function builtinShaderTemplate(id: string): BuiltinShaderTemplate | undefined {

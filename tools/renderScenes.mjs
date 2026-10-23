@@ -755,6 +755,9 @@ export const SCENES = [
   // both halves take the same light. Its texels point -X and +X, so the lit half
   // and the unlit one are the tangent frame, derived per pixel from derivatives.
   { id: "mesh-normalmap", tier: "pr", webgpu: true, env: { ESTELLA_VERIFY_PREFAB: "/scenes/normalmap-quad.esprefab", ESTELLA_VERIFY_SCENE: "/scenes/mesh-normalmap.esscene", ESTELLA_VERIFY_MANIFEST: "/scenes/mesh-normalmap.textures.json", ESTELLA_VERIFY_W: "256", ESTELLA_VERIFY_H: "256", ESTELLA_VERIFY_STEPS: "4", ESTELLA_VERIFY_EXPECT: "[{\"x\":0.375,\"y\":0.5,\"rgb\":[180,180,180],\"tol\":45},{\"x\":0.625,\"y\":0.5,\"rgb\":[0,0,0],\"tol\":30}]" } },
+  // The quad of mesh-normalmap with a tangent a quarter turn from the one its UVs imply: read against the frame the mesh
+  // carries, both halves come out alike (33), where the derived frame lights them 180 and 0.
+  { id: "mesh-normalmap-tangent", tier: "pr", webgpu: true, env: { ESTELLA_VERIFY_PREFAB: "/scenes/normalmap-quad-tangent.esprefab", ESTELLA_VERIFY_SCENE: "/scenes/mesh-normalmap-tangent.esscene", ESTELLA_VERIFY_MANIFEST: "/scenes/mesh-normalmap-tangent.textures.json", ESTELLA_VERIFY_W: "256", ESTELLA_VERIFY_H: "256", ESTELLA_VERIFY_STEPS: "4", ESTELLA_VERIFY_EXPECT: "[{\"x\":0.375,\"y\":0.5,\"rgb\":[33,33,33],\"tol\":12},{\"x\":0.625,\"y\":0.5,\"rgb\":[33,33,33],\"tol\":12}]" } },
   // The same quad ten thousand times smaller, seen as large. A tangent frame from
   // derivatives shrinks with the fourth power of scale, so a degenerate-UV floor
   // fixed in world units switched normal maps off on anything small up close.

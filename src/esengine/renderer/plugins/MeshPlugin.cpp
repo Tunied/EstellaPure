@@ -97,6 +97,7 @@ MeshProgramFacts meshFactsFromDocument(RenderFrameContext& ctx, const MeshDocume
     }
     facts.skinned = resident && skinnedBy(*resident, row.jointCount, warnedBones) > 0;
     facts.lightmapped = resident && resident->hasLightmapUV;
+    facts.tangents = resident && resident->hasTangents;
     return facts;
 }
 
@@ -248,11 +249,11 @@ void reportLodAuthoring(const LodLevels& levels, bool& warned) {
 
 u32 meshVariant(bool normals, bool lit, bool normalMapped, bool skinned, bool depthOnly,
                 bool envMapped, bool lightmapped, bool weightHeat = false, bool gbuffer = false,
-                bool motion = false) {
+                bool motion = false, bool tangents = false) {
     return (normals ? 1u : 0u) | (lit ? 2u : 0u) | (normalMapped ? 4u : 0u)
          | (skinned ? 8u : 0u) | (depthOnly ? 16u : 0u) | (envMapped ? 32u : 0u)
          | (lightmapped ? 64u : 0u) | (weightHeat ? 128u : 0u) | (gbuffer ? 256u : 0u)
-         | (motion ? 512u : 0u);
+         | (motion ? 512u : 0u) | (tangents ? 1024u : 0u);
 }
 
 /**
@@ -303,9 +304,7 @@ struct MeshDrawKeys {
 
 u32 meshVariantFrom(const MeshProgramFacts& facts, bool envMapped, bool shadowDepth, bool weightHeat = false,
                     bool gbuffer = false) {
-    // `lightmapped` survives the shadow pass, unlike the three describing
-    // shading: it declares two vertex attributes, and a layout may not carry one
-    // the program ignores. The depth fragment simply never reads the atlas.
+    // `lightmapped` and `tangents` survive the shadow pass, unlike the three describing shading: each declares a vertex attribute.
     // Weights are read off the surface of a skinned draw and nothing else's: the colour is
     // the shade, so it asks for no light, no normal map and no depth pass of its own.
     const bool heat = weightHeat && facts.skinned && !shadowDepth;
@@ -313,7 +312,7 @@ u32 meshVariantFrom(const MeshProgramFacts& facts, bool envMapped, bool shadowDe
     // The surface record is for what takes light: an unlit surface has no normal worth recording.
     return meshVariant(facts.hasNormals, lit,
                        facts.normalTextureId != 0 && !shadowDepth && !heat, facts.skinned, shadowDepth,
-                       envMapped, facts.lightmapped, heat, gbuffer && lit);
+                       envMapped, facts.lightmapped, heat, gbuffer && lit, false, facts.tangents);
 }
 
 /** @brief The facts a LIVE entity answers with: its components and its mesh. */
@@ -332,6 +331,7 @@ MeshProgramFacts meshFactsFromEntity(RenderFrameContext& ctx, ecs::Registry& reg
     }
     facts.skinned = resident && skinJointCount(registry, entity, *resident, warnedBones) > 0;
     facts.lightmapped = resident && resident->hasLightmapUV;
+    facts.tangents = resident && resident->hasTangents;
     return facts;
 }
 
@@ -381,6 +381,7 @@ u32 MeshPlugin::meshProgram(RenderFrameContext& ctx, u32 variant) {
     const bool depthOnly = (variant & 16u) != 0, envMapped = (variant & 32u) != 0;
     const bool lightmapped = (variant & 64u) != 0, weightHeat = (variant & 128u) != 0;
     const bool gbuffer = (variant & 256u) != 0, motion = (variant & 512u) != 0;
+    const bool tangents = (variant & 1024u) != 0;
     if (mesh_compiled_[variant]) return mesh_programs_[variant];
     mesh_compiled_[variant] = true;
     // Counted because the cost of this function is entirely the times it does
@@ -396,6 +397,7 @@ u32 MeshPlugin::meshProgram(RenderFrameContext& ctx, u32 variant) {
     if (normalMapped) features.emplace_back("NORMAL_MAP");
     if (skinned) features.emplace_back("SKINNED");
     if (lightmapped) features.emplace_back("MESH_LIGHTMAP");
+    if (tangents && normals) features.emplace_back("MESH_TANGENTS");
     if (weightHeat) features.emplace_back("WEIGHT_HEAT");
     if (depthOnly) features.emplace_back("SHADOW_DEPTH");
     if (motion) features.emplace_back("ES_VELOCITY");
@@ -469,9 +471,9 @@ RenderPrewarmResult MeshPlugin::prewarmFacts(RenderFrameContext& ctx,
             ++out.materialAsks;
             out.addMaterialKey(RenderPrewarmResult::materialKey(
                 facts[i].materialId, facts[i].hasNormals, facts[i].skinned, envMapped,
-                facts[i].lightmapped));
+                facts[i].lightmapped, facts[i].tangents));
             ctx.materials->meshProgram(facts[i].materialId, ctx.resources, facts[i].hasNormals,
-                                       facts[i].skinned, envMapped, facts[i].lightmapped);
+                                       facts[i].skinned, envMapped, facts[i].lightmapped, false, facts[i].tangents);
         }
     }
     if (ctx.materials) {
@@ -708,7 +710,7 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
                 meshFactsFromEntity(ctx, registry, entity, mesh, resident, warned_bones_);
             // A palette of a different size than last frame's has no joint-for-joint past to follow.
             if (facts.skinned && pose->second.bonesPrevious.size() != pose->second.bonesCurrent.size()) continue;
-            keys = { meshVariant(facts.hasNormals, false, false, facts.skinned, false, false, false, false, false, true), 0 };
+            keys = { meshVariant(facts.hasNormals, false, false, facts.skinned, false, false, false, false, false, true, facts.tangents), 0 };
         } else {
             keys = meshDrawFor(ctx, registry, entity, mesh, resident, shadowDepth, warned_bones_, heated);
         }
@@ -909,7 +911,8 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
                                                                  resident->hasNormals, skinned,
                                                                  key.envTextureId != 0,
                                                                  resident->hasLightmapUV,
-                                                                 ctx.gbuffer && !shadowDepth);
+                                                                 ctx.gbuffer && !shadowDepth,
+                                                                 resident->hasTangents);
                     if (materialProgram == 0) {
                         if (!warned_material_) {
                             warned_material_ = true;
@@ -924,7 +927,7 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
                 // material's hook, and the draw keeps the material so its params are bound.
                 if (shadowDepth && material && ctx.materials && ctx.materials->hasVertexHook(mesh.material)) {
                     const u32 bentDepth = ctx.materials->shadowProgram(mesh.material, ctx.resources,
-                                                                       resident->hasNormals, skinned);
+                                                                       resident->hasNormals, skinned, resident->hasTangents);
                     if (bentDepth != 0) {
                         key.shaderId = bentDepth;
                         key.materialId = mesh.material;
