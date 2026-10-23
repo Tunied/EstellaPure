@@ -2543,6 +2543,8 @@ export const NOTED = {
     {"note":"A new Eye shader (`builtin:eye`) draws an eye from a mask and a dome normal map: the iris sits behind a refracting cornea so it moves as the eye turns, with a pupil, fibres and a limbal ring, a white lit with wrapped light, and a near-mirror cornea that shows every light as a catchlight."},
   "feat(render): a cutout material casts its cut-out shape into shadow maps, and Hair cards cut out by alpha":
     {"note":"A material whose alpha is coverage (`u_alphaCutoff` above 0, now also on the Hair shader) casts its cut-out shape into shadow maps instead of the rectangle it is drawn on, and Hair cards feather their edges with alpha-to-coverage."},
+  "fix(editor): a selected plane seen from close by no longer draws its diagonal as an outline":
+    {"note":"The selection outline of a mesh no longer draws a stray line across a large plane seen from close by: a triangle with a corner behind the camera was judged by a different rule than its neighbour, so their shared diagonal showed as an edge."},
   "chore(tools): the gates run in parallel with --jobs, and the reds a full run gathered are cleared":
     {"internal":"tooling for the static gates, and fixes to checks that had drifted from the code they guard"},
   "fix(render): a wire narrower than a pixel is no longer painted over by the sky in dashes":

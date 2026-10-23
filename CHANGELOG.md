@@ -16,6 +16,7 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Selection outline across a plane.** The selection outline of a mesh no longer draws a stray line across a large plane seen from close by: a triangle with a corner behind the camera was judged by a different rule than its neighbour, so their shared diagonal showed as an edge.
 - **Normal maps read against the frame they were baked in.** Imported meshes now carry a tangent at each vertex (a glTF's own direction, or one made from the UVs), and normal maps on them are read against that frame instead of one derived per pixel, which was wrong at UV seams and on stretched textures. Re-import a model to get them; one imported before keeps its old shading. A mesh whose vertices carry a tangent is drawn with an extra vertex attribute and one more varying; a shader of your own that calls `perturbNormal` picks the frame up with no change.
 - **New Project keeps the wrong template name.** The New Project page no longer keeps the previous template's name when you pick another: the suggested name follows the template, and a name you typed stays.
 
