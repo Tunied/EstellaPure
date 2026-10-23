@@ -779,23 +779,7 @@ export {
     StaticBatch, StaticBatching, StaticBatchingRes, StaticBatchPlugin, staticBatchPlugin,
     StaticBatchState, type StaticBatchData, type StaticBatchSummary,
 } from './render/staticBatchPlugin';
-export {
-    Terrain, Terrains, TerrainsRes, TerrainPlugin, terrainPlugin, paintWeights, type TerrainData,
-} from './terrain/terrainPlugin';
-export {
-    Foliage, FoliageField, FoliageRes, FoliagePlugin, foliagePlugin, type FoliageData,
-} from './foliage/foliagePlugin';
-export {
-    scatterCell, buildGrassMesh, buildInstancedMesh, buildBillboardMesh, rng,
-    type Plant, type Ground, type ScatterParams, type BladeParams, type CardRect,
-} from './foliage/builder';
-export {
-    heightfieldFromPixels, proceduralHeightfield, sampleHeight, terrainNormal,
-    type Heightfield, type ProceduralParams,
-} from './terrain/heightfield';
-export {
-    buildChunkMesh, cellsAtLod, chunkCenter, lodCount, type TerrainShape, type TerrainPaint,
-} from './terrain/mesh';
+// Terrain and Foliage are optional modules: `esengine/terrain` and `esengine/foliage`.
 export {
     mergeMeshes, planStaticBatches, STATIC_BATCH_DEFAULTS,
     type StaticBatchGroup, type StaticBatchLimits, type StaticBatchRefusal, type StaticBatchReport,

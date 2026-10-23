@@ -19,6 +19,12 @@ describe('the engine modules a package installs', () => {
             .toEqual({ lean: true, subpaths: ['esengine/ai', 'esengine/tilemap'], refused: [] });
     });
 
+    it('takes terrain and foliage from their components, so a game with neither carries neither', () => {
+        expect(engineInstalls({ subsystems: ['terrain', 'foliage'] }).subpaths)
+            .toEqual(['esengine/foliage', 'esengine/terrain']);
+        expect(engineInstalls({ subsystems: ['particles'] }).subpaths).toEqual([]);
+    });
+
     it('takes one a document names by asset rather than by component', () => {
         // Nothing in a scene says "script graph"; the .esgraph it references does.
         expect(engineInstalls({ assetPaths: ['assets/logic/Door.esgraph'] }).subpaths)

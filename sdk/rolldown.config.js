@@ -97,6 +97,8 @@ export default defineConfig([
             'physics3d/index': 'src/physics3d/index.ts',
             'spine/index': 'src/spine/index.ts',
             'tilemap/index': 'src/tilemap/index.ts',
+            'terrain/index': 'src/terrain/index.ts',
+            'foliage/index': 'src/foliage/index.ts',
             'logic/index': 'src/logic/index.ts',
             'debug-channel/index': 'src/debug-channel/index.ts',
             'ai/index': 'src/ai/index.ts',

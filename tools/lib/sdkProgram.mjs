@@ -59,6 +59,8 @@ export const ENTRIES = {
     'spine': 'src/spine/index.ts',
     'dragonbones': 'src/dragonbones/index.ts',
     'tilemap': 'src/tilemap/index.ts',
+    'terrain': 'src/terrain/index.ts',
+    'foliage': 'src/foliage/index.ts',
     'logic': 'src/logic/index.ts',
     'debug-channel': 'src/debug-channel/index.ts',
     'ai': 'src/ai/index.ts',

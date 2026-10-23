@@ -43,6 +43,10 @@ Each cell is built twice. Near, grass is a bent, tapered blade for every plant; 
 copied in full near, and far is two crossed cards a plant. The engine's own [level of detail](/docs/performance/level-of-detail/) picks between
 them by how much of the screen the cell covers, and drops the cell past `drawDistance`.
 
+## In a package
+
+Foliage is an optional module, like terrain: a package carries it when a scene has a `Foliage` component or a script imports `esengine/foliage`. It stands on a `Terrain` when the scene has one and needs no terrain module to stand on a flat floor.
+
 ## Limits
 
 - **Position only.** The area is taken to be unrotated and unscaled; the terrain's position and uniform scale are followed, a rotation is not.

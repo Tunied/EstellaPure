@@ -32,10 +32,12 @@ description: 一个 Terrain 组件,用高度图或噪声生成地面,按高度�
 
 ## 从代码里用
 
+地形是可选模块:场景里有 `Terrain`,或脚本导入了 `esengine/terrain`(如下),包里才会带上它;两者都没有的游戏不带任何地形代码。
+
 可以问地面某处有多高,用来把东西放上去:
 
 ```ts
-import { TerrainsRes } from 'esengine';
+import { TerrainsRes } from 'esengine/terrain';
 
 const terrains = app.getResource(TerrainsRes);
 const y = terrains.heightAt(x, z);       // 世界高度,没有地形的地方为 null

@@ -65,6 +65,8 @@ export const MODULES = {
     'esengine/spine': { disposition: 'native-subpath' },
     'esengine/dragonbones': { disposition: 'native-subpath' },
     'esengine/tilemap': { disposition: 'native-subpath' },
+    'esengine/terrain': { disposition: 'native-subpath' },
+    'esengine/foliage': { disposition: 'native-subpath' },
     'esengine/logic': { disposition: 'native-subpath' },
     'esengine/ai': { disposition: 'native-subpath' },
     'esengine/replication': { disposition: 'native-subpath' },

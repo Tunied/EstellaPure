@@ -17,6 +17,8 @@
     "./dist/dragonbones/index.js",
     "./dist/spine/index.js",
     "./dist/tilemap/index.js",
+    "./dist/terrain/index.js",
+    "./dist/foliage/index.js",
     "./dist/logic/index.js",
     "./dist/debug-channel/index.js",
     "./dist/ai/index.js",
@@ -70,6 +72,14 @@
     "./tilemap": {
       "import": "./dist/tilemap/index.js",
       "types": "./dist/tilemap/index.d.ts"
+    },
+    "./terrain": {
+      "import": "./dist/terrain/index.js",
+      "types": "./dist/terrain/index.d.ts"
+    },
+    "./foliage": {
+      "import": "./dist/foliage/index.js",
+      "types": "./dist/foliage/index.d.ts"
     },
     "./logic": {
       "import": "./dist/logic/index.js",

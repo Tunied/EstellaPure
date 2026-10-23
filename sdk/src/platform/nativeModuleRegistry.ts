@@ -24,6 +24,8 @@ import * as Physics3DModule from '../physics3d';
 import * as SpineModule from '../spine';
 import * as DragonBonesModule from '../dragonbones';
 import * as TilemapModule from '../tilemap';
+import * as TerrainModule from '../terrain';
+import * as FoliageModule from '../foliage';
 import * as ScriptGraphModule from '../logic';
 import * as AiModule from '../ai';
 import * as ReplicationModule from '../net/replication';
@@ -43,6 +45,8 @@ export const NATIVE_MODULE_NAMESPACES: Readonly<Record<string, unknown>> = {
     'esengine/spine': SpineModule,
     'esengine/dragonbones': DragonBonesModule,
     'esengine/tilemap': TilemapModule,
+    'esengine/terrain': TerrainModule,
+    'esengine/foliage': FoliageModule,
     'esengine/logic': ScriptGraphModule,
     'esengine/ai': AiModule,
     'esengine/replication': ReplicationModule,

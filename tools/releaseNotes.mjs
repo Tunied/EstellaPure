@@ -2527,6 +2527,8 @@ export const NOTED = {
     {"note":"Particle emitters can now simulate on the GPU: turn on gpuSimulation and a compute kernel advances every particle, so an emitter of a hundred thousand or a million particles costs a dispatch instead of a loop."},
   "feat(star-neighbors): add modular art and construction study":
     {"internal":"art source and review images of an in-development game under games/, which no creator using the engine or editor can observe"},
+  "feat(sdk): terrain and foliage are optional modules, so a package carries them only when its content does":
+    {"note":"Terrain and Foliage are now optional modules, esengine/terrain and esengine/foliage: a package carries them when a scene has a Terrain or Foliage component or a script imports the subpath, and a game with neither ships none of them (about 33 KB less in a UI-only mini-game)."},
   "chore(tools): the gates run in parallel with --jobs, and the reds a full run gathered are cleared":
     {"internal":"tooling for the static gates, and fixes to checks that had drifted from the code they guard"},
   "fix(render): a wire narrower than a pixel is no longer painted over by the sky in dashes":

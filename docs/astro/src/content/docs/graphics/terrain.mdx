@@ -43,10 +43,12 @@ at every level, so a chunk keeps its lighting as it coarsens and only its silhou
 
 ## From code
 
+Terrain is an optional module: a package carries it when a scene has a `Terrain`, or when a script imports `esengine/terrain` (as below). A game with neither ships none of it.
+
 The ground can be asked how high it is, for putting things on it:
 
 ```ts
-import { TerrainsRes } from 'esengine';
+import { TerrainsRes } from 'esengine/terrain';
 
 const terrains = app.getResource(TerrainsRes);
 const y = terrains.heightAt(x, z);       // world height, or null where there is no terrain
