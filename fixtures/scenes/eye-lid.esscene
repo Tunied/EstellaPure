@@ -1,0 +1,171 @@
+{
+  "version": 4,
+  "name": "EyeLid",
+  "entities": [
+    {
+      "id": 0,
+      "name": "Camera",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 0,
+              "y": 10,
+              "z": 0
+            },
+            "rotation": {
+              "x": -0.7071067811865476,
+              "y": 0,
+              "z": 0,
+              "w": 0.7071067811865476
+            }
+          }
+        },
+        {
+          "type": "Camera",
+          "data": {
+            "projectionType": 1,
+            "orthoSize": 300,
+            "isActive": true,
+            "priority": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "name": "Off",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -150,
+              "y": 0,
+              "z": 0
+            },
+            "scale": {
+              "x": 250,
+              "y": 250,
+              "z": 1
+            },
+            "rotation": {
+              "x": -0.7071067811865476,
+              "y": 0,
+              "z": 0,
+              "w": 0.7071067811865476
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "/scenes/shadow-quad.esmesh",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "enabled": true,
+            "material": "/scenes/eye-lid/off.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "On",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 150,
+              "y": 0,
+              "z": 0
+            },
+            "scale": {
+              "x": 250,
+              "y": 250,
+              "z": 1
+            },
+            "rotation": {
+              "x": -0.7071067811865476,
+              "y": 0,
+              "z": 0,
+              "w": 0.7071067811865476
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "/scenes/shadow-quad.esmesh",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "enabled": true,
+            "material": "/scenes/eye-lid/on.esmaterial"
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Sun",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "rotation": {
+              "x": -0.7071067811865476,
+              "y": 0,
+              "z": 0,
+              "w": 0.7071067811865476
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 1,
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "intensity": 0.35,
+            "meshShadows": false
+          }
+        }
+      ]
+    }
+  ]
+}

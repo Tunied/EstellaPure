@@ -1,0 +1,13 @@
+{
+  "version": "1.0",
+  "type": "material",
+  "shader": "builtin:eye",
+  "blendMode": 0,
+  "depthTest": true,
+  "depthWrite": true,
+  "cull": 0,
+  "properties": {
+    "u_lidShadow": 0,
+    "u_lidStart": 0.2
+  }
+}
