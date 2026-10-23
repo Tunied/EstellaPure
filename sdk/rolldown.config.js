@@ -103,6 +103,8 @@ export default defineConfig([
             'fx-atmosphere/index': 'src/postprocess/fxAtmosphere.ts',
             'fx-lighting/index': 'src/postprocess/fxLighting.ts',
             'foliage/index': 'src/foliage/index.ts',
+            'water/index': 'src/water/index.ts',
+            'spline/index': 'src/spline/index.ts',
             'logic/index': 'src/logic/index.ts',
             'debug-channel/index': 'src/debug-channel/index.ts',
             'ai/index': 'src/ai/index.ts',

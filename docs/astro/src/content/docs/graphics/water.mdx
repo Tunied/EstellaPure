@@ -159,6 +159,20 @@ It is a centripetal Catmull-Rom curve (it passes through every point, and does n
 measured by distance along it, so a place on it is `s` units from its start and not a parameter that runs fast where the points are close. Past either
 end of an open curve it is the end; a closed curve goes round. Splines are an optional module (`esengine/spline`).
 
+## In the editor
+
+Details shows a water body only what its form uses: a lake has its size, boundary and shore width, an ocean its cells and rings, a river its flow speed; the waves, ripples and
+look are common. A lake's **Boundary** row says how many points its outline has (or that it is the rectangle of its size) and resets it to the rectangle.
+
+Select a lake or a river and its points are handles in the viewport, the way a polygon collider's vertices are:
+
+- **Lake.** A square on each point of the outline and a circle in the middle of each edge. Drag a point to move it on the lake's own plane (the plane of its transform, so a tilted
+  lake is edited tilted); drag an edge's circle to insert a point there; press a point and release it in place to delete it. A lake keeps at least three points, and with none the
+  four corners of its rectangle are the points: pulling one turns the outline into a boundary of its own.
+- **River.** The same on the curve of its `Spline`, with a second handle at each point, offset across the river by half its width: drag it to set the width there. A river keeps at least two
+  points. The point last pressed shows its width in Details under the Spline, where it can be typed.
+- Each gesture is one undo step, and the points are written back as they are dragged, so the water follows. The handles are the **Water** entry of the Gizmo menu.
+
 ## Asking the surface
 
 `Waters.sample(x, y, z)` (the `WatersRes` resource) answers for the body that holds a point:
