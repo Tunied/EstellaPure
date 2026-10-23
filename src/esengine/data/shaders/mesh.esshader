@@ -42,6 +42,11 @@
 // land where its skinned self lands, and one copy of that is one that cannot drift.
 #pragma feature SHADOW_DEPTH
 
+// A caster cut out by its alpha: the shadow program of a material whose alpha is coverage discards where the
+// base texture is below the material's u_alphaCutoff, so a card of hair or a leaf casts its own shape and not
+// the rectangle it is drawn on.
+#pragma feature SHADOW_ALPHA
+
 // A skinned surface coloured by how much ONE joint moves each vertex: the weight a rig is
 // painted with, read off the surface instead of a table. The joint is the record's tint x
 // (a diagnostic draw has no tint to carry), the colour goes out through the same varying the
@@ -314,6 +319,9 @@ void main() {
     highp vec2 was = v_velPrev.xy / max(v_velPrev.w, 1e-6);
     fragColor = vec4((was - now) * 0.5, gl_FragCoord.z, v_velPrev.w > 1e-6 ? 1.0 : 0.0);
 #elif defined(SHADOW_DEPTH)
+#ifdef SHADOW_ALPHA
+    if (texture(u_texture, v_texCoord).a * v_color.a < u_alphaCutoff) discard;
+#endif
     // The expression the receiver evaluates on u_shadowMatrix, evaluated here on the
     // same matrix and at the same point: whatever each backend's clip z means, both
     // sides mean it alike.
@@ -635,6 +643,9 @@ fn packNormal(n : vec3f) -> vec2f {
     let was = v.v_velPrev.xy / max(v.v_velPrev.w, 1e-6);
     return vec4f((was - now) * 0.5, v.pos.z, select(0.0, 1.0, v.v_velPrev.w > 1e-6));
 #elif defined(SHADOW_DEPTH)
+#ifdef SHADOW_ALPHA
+    if (textureSampleLevel(t0, s0, v.v_texCoord, 0.0).a * v.v_color.a < mc.u_alphaCutoff) { discard; }
+#endif
     // The expression the receiver evaluates on u_shadowMatrix, evaluated here on the
     // same matrix and at the same point: whatever each backend's clip z means, both
     // sides mean it alike.

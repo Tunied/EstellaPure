@@ -222,6 +222,14 @@ public:
         return layout && layout->vertexHook;
     }
 
+    /// Whether @p materialId's caster has to be cut out by its alpha: its alpha is coverage now and the
+    /// coverage param is the one the depth shader reads.
+    bool castsCutoutShadow(u32 materialId) const {
+        const MaterialRecord* m = find(materialId);
+        const MaterialUniformLayout* layout = m ? layoutFor(m->shaderRef) : nullptr;
+        return layout && layout->coverageParam == "u_alphaCutoff" && alphaIsCoverage(materialId);
+    }
+
     /// The program that draws @p materialId's CASTER into a shadow map: the engine's depth shader for
     /// resident meshes with the material's vertex hook and params grafted on, so a bent mesh casts the
     /// shadow of the bent shape. 0 when the source was never kept or the variant fails — the caller

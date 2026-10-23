@@ -124,7 +124,9 @@ u32 MaterialStore::shadowProgram(u32 materialId, resource::ResourceManager& reso
     // material's own fragment is not used: a shadow map wants depth, not colour.
     const resource::ParsedShader material = resource::ShaderParser::parse(src->second.source);
     resource::ParsedShader depth = resource::ShaderParser::parse(ShaderEmbeds::MESH);
-    if (!material.valid || !depth.valid || material.vertexHook.empty()) {
+    const bool hooked = !material.vertexHook.empty();
+    const bool cutout = material.coverageParam == "u_alphaCutoff";
+    if (!material.valid || !depth.valid || (!hooked && !cutout)) {
         variants[shape] = {};
         return 0;
     }
@@ -138,7 +140,8 @@ u32 MaterialStore::shadowProgram(u32 materialId, resource::ResourceManager& reso
     if (tangents && withNormals) features.emplace_back("MESH_TANGENTS");
     if (skinned) features.emplace_back("SKINNED");
     features.emplace_back("SHADOW_DEPTH");
-    features.emplace_back("ES_MATERIAL_VERTEX");
+    if (hooked) features.emplace_back("ES_MATERIAL_VERTEX");
+    if (cutout) features.emplace_back("SHADOW_ALPHA");
     const auto target = resources.preferredShaderTarget();
     const std::string vert = resource::ShaderParser::assembleStage(depth, resource::ShaderStage::Vertex, "", features, target);
     const std::string frag = resource::ShaderParser::assembleStage(depth, resource::ShaderStage::Fragment, "", features, target);

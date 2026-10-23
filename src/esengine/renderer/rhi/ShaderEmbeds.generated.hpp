@@ -520,6 +520,11 @@ inline constexpr const char* MESH = R"esshader(#pragma shader "Mesh"
 
 
 
+#pragma feature SHADOW_ALPHA
+
+
+
+
 
 
 #pragma feature WEIGHT_HEAT
@@ -789,6 +794,9 @@ void main() {
     highp vec2 was = v_velPrev.xy / max(v_velPrev.w, 1e-6);
     fragColor = vec4((was - now) * 0.5, gl_FragCoord.z, v_velPrev.w > 1e-6 ? 1.0 : 0.0);
 #elif defined(SHADOW_DEPTH)
+#ifdef SHADOW_ALPHA
+    if (texture(u_texture, v_texCoord).a * v_color.a < u_alphaCutoff) discard;
+#endif
 
 
 
@@ -1110,6 +1118,9 @@ fn packNormal(n : vec3f) -> vec2f {
     let was = v.v_velPrev.xy / max(v.v_velPrev.w, 1e-6);
     return vec4f((was - now) * 0.5, v.pos.z, select(0.0, 1.0, v.v_velPrev.w > 1e-6));
 #elif defined(SHADOW_DEPTH)
+#ifdef SHADOW_ALPHA
+    if (textureSampleLevel(t0, s0, v.v_texCoord, 0.0).a * v.v_color.a < mc.u_alphaCutoff) { discard; }
+#endif
 
 
 

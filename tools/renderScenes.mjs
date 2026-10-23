@@ -205,6 +205,9 @@ export const SCENES = [
   // linear gates cast nothing and the other shadow gates are gamma. The atlas takes
   // the target away mid-frame; whether the capture is handed back is what this pins.
   { id: "mesh-shadow-linear", tier: "pr", webgpu: true, env: { ESTELLA_VERIFY_COLORSPACE: "linear", ESTELLA_VERIFY_SCENE: "/scenes/mesh-shadow.esscene", ESTELLA_VERIFY_W: "256", ESTELLA_VERIFY_H: "256", ESTELLA_VERIFY_STEPS: "2", ESTELLA_VERIFY_EXPECT: "[{\"x\":0.708,\"y\":0.5,\"rgb\":[0,0,0],\"tol\":20},{\"x\":0.167,\"y\":0.5,\"rgb\":[243,243,243],\"tol\":20},{\"x\":0.5,\"y\":0.5,\"rgb\":[243,243,243],\"tol\":20}]" } },
+  // A caster cut out by its alpha: the left half of the blocker is opaque and the right half clear, so only the left half casts. The floor
+  // at x=60 is in its shadow (and seen through the clear half), the floor at x=150 is where the right half would have shaded it.
+  { id: "mesh-shadow-cutout", tier: "pr", webgpu: true, env: { ESTELLA_VERIFY_SCENE: "/scenes/mesh-shadow-cutout.esscene", ESTELLA_VERIFY_MANIFEST: "/scenes/mesh-shadow-cutout.textures.json", ESTELLA_VERIFY_W: "256", ESTELLA_VERIFY_H: "256", ESTELLA_VERIFY_STEPS: "3", ESTELLA_VERIFY_EXPECT: "[{\"x\":0.6,\"y\":0.5,\"rgb\":[0,0,0],\"tol\":20},{\"x\":0.75,\"y\":0.5,\"rgb\":[228,228,228],\"tol\":20},{\"x\":0.167,\"y\":0.5,\"rgb\":[228,228,228],\"tol\":20}]" } },
   { id: "mesh-shadow-material", tier: "pr", webgpu: true, env: { ESTELLA_VERIFY_SCENE: "/scenes/mesh-shadow-material.esscene", ESTELLA_VERIFY_W: "256", ESTELLA_VERIFY_H: "256", ESTELLA_VERIFY_STEPS: "3", ESTELLA_VERIFY_EXPECT: "[{\"x\":0.5,\"y\":0.5,\"rgb\":[255,0,0],\"tol\":40},{\"x\":0.708,\"y\":0.5,\"rgb\":[0,0,0],\"tol\":20},{\"x\":0.167,\"y\":0.5,\"rgb\":[228,228,228],\"tol\":20}]" } },
 
   // The same question through a PERSPECTIVE camera, which is what a 3D scene uses:

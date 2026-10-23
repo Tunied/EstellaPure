@@ -1396,6 +1396,9 @@ const HAIR = `#pragma shader "Hair"
 #pragma param u_sharpen float default(-0.8) range(-3,1) ui(slider)
 // How much darker the roots are than the tips: the occlusion map's red, pushed.
 #pragma param u_rootDark float default(0.5) range(0,1) ui(slider)
+// A card's alpha cut at this level, and sharpened to about a texel so alpha-to-coverage feathers the edge of every strand instead of stair-stepping it; 0 keeps the card opaque.
+#pragma param u_alphaCutoff float default(0) range(0,1) ui(slider)
+#pragma coverage u_alphaCutoff
 
 #pragma fragment
 precision highp float;
@@ -1441,6 +1444,13 @@ void main() {
     highp vec3 T = vec3(0.0, 1.0, 0.0);
 #endif
     vec4 base = texture(u_textures[0], v_texCoord, u_sharpen) * v_color * u_tint;
+    // Before any discard: a derivative needs every fragment of its quad.
+    float alpha = 1.0;
+    if (u_alphaCutoff > 0.0) {
+        alpha = (base.a - u_alphaCutoff) / max(fwidth(base.a), 1e-4) + 0.5;
+        if (alpha <= 0.0) discard;
+        alpha = min(alpha, 1.0);
+    }
     float root = texture(u_ormMap, v_texCoord).r;
     float ao = mix(1.0, root, u_occlusionStrength);
     base.rgb *= mix(1.0, 0.35 + 0.65 * root, u_rootDark);
@@ -1452,7 +1462,7 @@ void main() {
     ext.trans = vec4(u_translucency, 0.25, 0.0, 0.0);
     vec3 viewDir = viewDirection(P);
     vec3 lit = applyLightingSurface(base.rgb, N, P, viewDir, 0.0, u_roughness, u_specular, ao, ext);
-    fragColor = vec4(lit, 1.0);
+    fragColor = vec4(lit, alpha);
 #ifdef ES_GBUFFER
     fragSurface = vec4(packNormal(normalize(N)), u_roughness, 0.75);
 #endif
@@ -1488,6 +1498,7 @@ fn packNormal(n : vec3f) -> vec2f {
     g_worldTangent = v.v_worldTangent;
 #endif
     var base = textureSampleBias(t0, s0, v.v_texCoord, mc.u_sharpen) * v.v_color * mc.u_tint;
+    let edge = max(abs(dpdx(base.a)) + abs(dpdy(base.a)), 1e-4);
     let flowTex = textureSampleGrad(u_flowMap, u_flowMap_s, v.v_texCoord, duvx, duvy).rg * 2.0 - vec2f(1.0);
     let orm = textureSampleGrad(u_ormMap, u_ormMap_s, v.v_texCoord, duvx, duvy);
     let shiftTex = textureSampleGrad(u_shiftMap, u_shiftMap_s, v.v_texCoord * mc.u_shiftTile, duvx * mc.u_shiftTile, duvy * mc.u_shiftTile).r;
@@ -1509,6 +1520,12 @@ fn packNormal(n : vec3f) -> vec2f {
     let N = vec3f(0.0, 0.0, 1.0);
     let T = vec3f(0.0, 1.0, 0.0);
 #endif
+    var alpha = 1.0;
+    if (mc.u_alphaCutoff > 0.0) {
+        alpha = (base.a - mc.u_alphaCutoff) / edge + 0.5;
+        if (alpha <= 0.0) { discard; }
+        alpha = min(alpha, 1.0);
+    }
     let ao = mix(1.0, orm.r, mc.u_occlusionStrength);
     base = vec4f(base.rgb * mix(1.0, 0.35 + 0.65 * orm.r, mc.u_rootDark), base.a);
     let noise = (shiftTex - 0.5) * mc.u_shiftAmount;
@@ -1521,11 +1538,11 @@ fn packNormal(n : vec3f) -> vec2f {
     let lit = applyLightingSurface(base.rgb, N, P, viewDir, 0.0, mc.u_roughness, mc.u_specular, ao, ext);
 #ifdef ES_GBUFFER
     var frag : FragOut;
-    frag.color = vec4f(lit, 1.0);
+    frag.color = vec4f(lit, alpha);
     frag.surface = vec4f(packNormal(normalize(N)), mc.u_roughness, 0.75);
     return frag;
 #else
-    return vec4f(lit, 1.0);
+    return vec4f(lit, alpha);
 #endif
 }
 #pragma end

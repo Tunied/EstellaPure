@@ -2541,6 +2541,8 @@ export const NOTED = {
     {"note":"Imported meshes now carry a tangent at each vertex (a glTF's own direction, or one made from the UVs), and normal maps on them are read against that frame instead of one derived per pixel, which was wrong at UV seams and on stretched textures. Re-import a model to get them; one imported before keeps its old shading."},
   "feat(render): an Eye shader draws the iris behind a refracting cornea, with a pupil, a limbal ring and a catchlight":
     {"note":"A new Eye shader (`builtin:eye`) draws an eye from a mask and a dome normal map: the iris sits behind a refracting cornea so it moves as the eye turns, with a pupil, fibres and a limbal ring, a white lit with wrapped light, and a near-mirror cornea that shows every light as a catchlight."},
+  "feat(render): a cutout material casts its cut-out shape into shadow maps, and Hair cards cut out by alpha":
+    {"note":"A material whose alpha is coverage (`u_alphaCutoff` above 0, now also on the Hair shader) casts its cut-out shape into shadow maps instead of the rectangle it is drawn on, and Hair cards feather their edges with alpha-to-coverage."},
   "chore(tools): the gates run in parallel with --jobs, and the reds a full run gathered are cleared":
     {"internal":"tooling for the static gates, and fixes to checks that had drifted from the code they guard"},
   "fix(render): a wire narrower than a pixel is no longer painted over by the sky in dashes":

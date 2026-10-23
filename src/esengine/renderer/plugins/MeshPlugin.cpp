@@ -923,9 +923,11 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
                     }
                 }
                 key.shaderId = materialProgram != 0 ? materialProgram : residentShader;
-                // A caster whose material bends it casts the bent shape: the depth program gets the
-                // material's hook, and the draw keeps the material so its params are bound.
-                if (shadowDepth && material && ctx.materials && ctx.materials->hasVertexHook(mesh.material)) {
+                // A caster whose material bends it casts the bent shape, and one whose alpha is coverage casts
+                // only where it is opaque: the depth program gets the material's hook and cutoff, and the draw
+                // keeps the material so its params are bound.
+                if (shadowDepth && material && ctx.materials
+                    && (ctx.materials->hasVertexHook(mesh.material) || ctx.materials->castsCutoutShadow(mesh.material))) {
                     const u32 bentDepth = ctx.materials->shadowProgram(mesh.material, ctx.resources,
                                                                        resident->hasNormals, skinned, resident->hasTangents);
                     if (bentDepth != 0) {
