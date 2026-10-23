@@ -37,6 +37,11 @@ export const NOTED = {
   'fix: restore gizmo hover CI and optimize 3d multi-selection': { note: 'Faster 3D multi-selection.' },
   'feat: add shared web runtime support for LAN device preview': { note: 'One-click LAN device preview.' },
   'feat(editor): add quick QR device preview beside Play': { note: 'One-click LAN device preview.' },
+  'feat(pipeline): a hair material\'s flow map, shift map and tip softness are read from the model\'s material extras':
+    {"note":"A hair material's strand-direction map, highlight-shift map and tip softness are now imported from the model: a glTF has no slot for them, so a material names them in its extras (flow_map, shift_map, suggested_tipSoftness) and the importer binds them to the Hair shader instead of leaving the highlight to be worked out from the surface."},
+  'fix(render): a mesh with tangents and a normal map links its shadow program when the sun casts shadows':
+    {"note":"A model with tangents and a normal map no longer stops its shadow program from linking when the sun casts shadows. The depth pass wrote no tangent varying while the fragment stage still read one, so the shader failed on WebGL2 and the logged error named no material; the depth variant now leaves the tangent frame out."},
+  'fix(editor): the spring-bone note uses the inset token, and a model import passes the Spring Bones setting through': { internal: 'A theme token for a line of Details and the import setting passed through to the importer, both inside the spring-bone work that has its own notes.' },
   'fix: serialize binaryen optimization on windows': { internal: 'Uses one optimizer worker after wider builds reproduced heap corruption with four; release optimization flags stay unchanged.' },
   'feat: add budgeted 2d and 3d particle scene collisions': { note: 'Budgeted particle scene collisions.' },
   'feat(editor): add particle collision authoring and diagnostics': { note: 'Budgeted particle scene collisions.' },

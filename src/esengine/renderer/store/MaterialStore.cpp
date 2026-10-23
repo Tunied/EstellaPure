@@ -139,7 +139,8 @@ u32 MaterialStore::shadowProgram(u32 materialId, resource::ResourceManager& reso
 
     std::vector<std::string> features;
     if (withNormals) features.emplace_back("MESH_NORMALS");
-    if (tangents && withNormals) features.emplace_back("MESH_TANGENTS");
+    // A depth pass has no use for a tangent frame, and the vertex stage of SHADOW_DEPTH does not write the varying the fragment prelude would then read.
+    // The variant is still keyed by `tangents` so a mesh with and without them keeps its own program.
     if (skinned) features.emplace_back("SKINNED");
     features.emplace_back("SHADOW_DEPTH");
     if (hooked) features.emplace_back("ES_MATERIAL_VERTEX");
