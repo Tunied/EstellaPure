@@ -749,7 +749,6 @@ void RenderFrame::end() {
                 copyDepth.execute = [this](const rg::PassContext&) { post_process_->grabDepth(); };
                 graph_.addPass(std::move(copyDepth));
             }
-#endif
             if (layered) {
                 graph_.addPass(std::move(blendedPass));
                 rg::PassDesc copyBlended;
@@ -766,6 +765,7 @@ void RenderFrame::end() {
                 restore.execute = [this](const rg::PassContext&) { post_process_->grabScene(); };
                 graph_.addPass(std::move(restore));
             }
+#endif
             graph_.addPass(std::move(glassPass));
             if (layered) graph_.addPass(std::move(overPass));
         }

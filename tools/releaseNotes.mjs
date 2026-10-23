@@ -52,6 +52,8 @@ export const NOTED = {
     {"note":"A directional light's shadow cascades are now spread over the geometry that is in the scene instead of over the whole view. A close shot of a character in a view that reaches fifty metres used to spend its first cascade on three metres and drew blocky, misplaced shadow edges; the cascades now end where the scene's geometry ends (rounded in quarter octaves, so the split does not swim as the camera moves), and the shadow lands where it should."},
   'fix(pipeline): an imported skin no longer blurs its diffuse light per colour channel':
     {"note":"An imported skin no longer blurs its diffuse light separately per colour channel, which put a red and cyan fringe along the edge of every shadow on it; like the rest of the scattering, it is written as off unless the source says otherwise."},
+  'fix(render): the lite engine builds compile again, with the layered water pass behind the post-process guard':
+    {"note":"The lite WeChat and mini-game engine builds compile again: the pass that puts the opaque scene back after water and glass named the post-process pipeline outside the guard that leaves it out of those builds, so every package without post-processing failed to build."},
   'fix: serialize binaryen optimization on windows': { internal: 'Uses one optimizer worker after wider builds reproduced heap corruption with four; release optimization flags stay unchanged.' },
   'feat: add budgeted 2d and 3d particle scene collisions': { note: 'Budgeted particle scene collisions.' },
   'feat(editor): add particle collision authoring and diagnostics': { note: 'Budgeted particle scene collisions.' },

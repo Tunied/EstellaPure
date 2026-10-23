@@ -50,6 +50,7 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Lite engine builds compile.** The lite WeChat and mini-game engine builds compile again: the pass that puts the opaque scene back after water and glass named the post-process pipeline outside the guard that leaves it out of those builds, so every package without post-processing failed to build.
 - **Shadow cascades fit the scene.** A directional light's shadow cascades are now spread over the geometry that is in the scene instead of over the whole view. A close shot of a character in a view that reaches fifty metres used to spend its first cascade on three metres and drew blocky, misplaced shadow edges; the cascades now end where the scene's geometry ends (rounded in quarter octaves, so the split does not swim as the camera moves), and the shadow lands where it should.
 - **Colour fringes on skin shadows.** An imported skin no longer blurs its diffuse light separately per colour channel, which put a red and cyan fringe along the edge of every shadow on it; like the rest of the scattering, it is written as off unless the source says otherwise.
 - **Opaque textures under a cutout material.** A texture whose alpha is fully opaque, used by a cutout material (a hair material or any alpha-cutoff one), no longer vanishes once it is minified. Coverage-preserving mip levels were scaling its alpha down onto the cutoff, so every level past the first was discarded; a level that already reaches the share it must keep is now left alone.
