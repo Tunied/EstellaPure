@@ -232,6 +232,14 @@ const MODEL: ImporterFieldSpec[] = [
       + 'take out for a swap to pay.',
   },
   {
+    key: 'characterMaterials', label: 'Character Materials', type: 'enum', default: 'off',
+    category: 'Import', advanced: true,
+    options: [{ label: 'Off', value: 'off' }, { label: 'By Material Name', value: 'auto' }],
+    tooltip: 'Give materials whose names say skin, face, head, hair or eye the engine\u0027s Skin, Hair and Eye '
+      + 'shaders instead of the Model shader, with the normal and occlusion/roughness maps bound to them, and hair '
+      + 'cut out and feathered by its alpha. A name is a convention, so check what it chose.',
+  },
+  {
     key: 'specularMap', label: 'Specular Map', type: 'enum', default: 'color',
     category: 'Import', advanced: true,
     options: [{ label: 'Specular Color', value: 'color' }, { label: 'Packed ORM', value: 'orm' }],

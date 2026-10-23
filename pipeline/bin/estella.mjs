@@ -739,10 +739,14 @@ if (opts.command === 'import-model' || opts.command === 'import-gltf') {
     // named once the project root is known; without one they are bare names.
     const root = opts.project ?? findProjectRoot(sourceDir);
     const projectRef = (abs) => path.relative(root, abs).split(path.sep).join('/');
+    let characters = false;
+    try {
+      characters = JSON.parse(readFileSync(`${opts.source}.meta`, 'utf8')).importer?.characterMaterials === 'auto';
+    } catch { /* no meta: the schema's default */ }
     const refs = root
       ? { prefix: projectRef(dir) ? `${projectRef(dir)}/` : '',
-          external: (uri) => projectRef(path.resolve(sourceDir, uri)) }
-      : {};
+          external: (uri) => projectRef(path.resolve(sourceDir, uri)), characters }
+      : { characters };
 
     const { meshes, textures, nodes, animations, warnings } = await reader.readModelSource(
       new Uint8Array(readFileSync(opts.source)), stem,

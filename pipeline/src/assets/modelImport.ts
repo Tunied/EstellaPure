@@ -522,6 +522,8 @@ export interface ProductRefs {
     prefix?: string;
     /** An external image uri (relative to the source) → the ref a component carries. */
     external?: (uri: string) => string;
+    /** Give a skin, hair or eye material the engine's character shader instead of the Model shader (see {@link characterShading}). */
+    characters?: boolean;
 }
 
 /** How the products go together. */
@@ -588,6 +590,51 @@ function needsMaterial(material: ImportedMaterial | undefined): material is Impo
         || MATERIAL_LAYER_PROPERTIES.some(([field]) => material[field] !== undefined));
 }
 
+/** The character shader a material's name asks for, when it names skin, hair or an eye. */
+export type CharacterShading = 'skin' | 'hair' | 'eye';
+
+const CHARACTER_TOKENS: readonly [CharacterShading, readonly string[]][] = [
+    ['eye', ['eye', 'eyes', 'eyeball', 'eyeballs', 'iris', 'cornea']],
+    ['hair', ['hair', 'hairs', 'ponytail', 'bangs', 'fringe']],
+    ['skin', ['skin', 'face', 'head', 'neck']],
+];
+
+/**
+ * What a material is, read from its name and its colour texture's file name, split into words (`T_C004_BodySkin` is c, body, skin):
+ * a word has to BE `eye` or `hair`, so `Eyelashes` and `Headband` are neither. A name is a convention and not a fact, which is why
+ * the import asks for this by setting and never assumes it.
+ */
+export function characterShading(material: ImportedMaterial): CharacterShading | undefined {
+    const file = material.baseColorTexture?.file ?? '';
+    const words = `${material.name} ${file.slice(file.lastIndexOf('/') + 1)}`
+        .replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase().split(/[^a-z]+/);
+    for (const [shading, names] of CHARACTER_TOKENS) {
+        if (words.some((word) => names.includes(word))) return shading;
+    }
+    return undefined;
+}
+
+/** Whether a material gets a product: it says something a MeshRenderer cannot, or its name asks for a character shader. */
+function hasProduct(material: ImportedMaterial, refs: ProductRefs): boolean {
+    return needsMaterial(material) || (!!refs.characters && characterShading(material) !== undefined);
+}
+
+/** What the character shaders read, from what the source says: the maps they share, and the cutout hair needs. */
+function characterProperties(shading: CharacterShading, material: ImportedMaterial, properties: Record<string, unknown>,
+                             bind: (name: string, image?: ImportedImageRef) => void): void {
+    // Skin and hair read the glTF packing (occlusion, roughness, metalness) as their `u_ormMap`; their roughness is a SCALE on it,
+    // so a factor of 0 (what an FBX without one writes) would be a mirror, and is left out.
+    const rough = material.roughness !== undefined && material.roughness > 0 ? material.roughness : undefined;
+    for (const key of ['u_metallic', 'u_roughness', 'u_metallicRoughnessMap', 'u_occlusionMap', 'u_occlusionStrength']) delete properties[key];
+    if (shading !== 'eye') {
+        bind('u_ormMap', material.metallicRoughnessTexture);
+        if (rough !== undefined && !material.metallicRoughnessTexture) properties.u_roughness = rough;
+    }
+    if (shading === 'hair') properties.u_alphaCutoff = material.alphaCutoff ?? 0.5;
+    else delete properties.u_alphaCutoff;
+    if (shading === 'eye') delete properties.u_normalMap;
+}
+
 /** `<stem>_m<source material index>` — the product a material becomes. */
 function materialName(stem: string, material: ImportedMaterial): string {
     return `${stem}_m${material.index}`;
@@ -626,8 +673,9 @@ export function materialProducts(meshes: ImportedMesh[], stem: string,
     const seen = new Set<number>();
     for (const mesh of meshes) {
         const material = mesh.material;
-        if (!needsMaterial(material) || seen.has(material.index)) continue;
+        if (!material || !hasProduct(material, refs) || seen.has(material.index)) continue;
         seen.add(material.index);
+        const shading = refs.characters ? characterShading(material) : undefined;
 
         const images: ImportedImageRef[] = [];
         const properties: Record<string, unknown> = {};
@@ -652,7 +700,8 @@ export function materialProducts(meshes: ImportedMesh[], stem: string,
             properties.u_occlusionStrength = material.occlusionStrength;
         }
         if (material.alphaCutoff !== undefined) properties.u_alphaCutoff = material.alphaCutoff;
-        for (const [field, parameter] of MATERIAL_LAYER_PROPERTIES) {
+        if (shading) characterProperties(shading, material, properties, bind);
+        else for (const [field, parameter] of MATERIAL_LAYER_PROPERTIES) {
             const value = material[field];
             if (value === undefined) continue;
             properties[parameter] = Array.isArray(value)
@@ -664,10 +713,11 @@ export function materialProducts(meshes: ImportedMesh[], stem: string,
             data: {
                 version: MATERIAL_FORMAT_VERSION,
                 type: 'material',
-                shader: 'builtin:model',
-                blendMode: material.opaque ? BlendMode.None : BlendMode.Normal,
-                depthTest: material.opaque,
-                depthWrite: material.opaque,
+                shader: shading ? `builtin:${shading}` : 'builtin:model',
+                // Hair is cut out and feathered by coverage, which only an unblended draw gets.
+                blendMode: material.opaque || shading === 'hair' ? BlendMode.None : BlendMode.Normal,
+                depthTest: material.opaque || shading === 'hair',
+                depthWrite: material.opaque || shading === 'hair',
                 cull: material.cullBackfaces ? CullMode.Back : CullMode.None,
                 properties,
             },
@@ -698,7 +748,7 @@ function meshComponent(mesh: ImportedMesh, stem: string, refs: ProductRefs): Com
     // Shading moves WHOLE to the material when there is one: a material shader
     // reads its own samplers, so a normal map left on the component would be a
     // map nothing samples.
-    const material = needsMaterial(mesh.material)
+    const material = mesh.material && hasProduct(mesh.material, refs)
         ? `${prefix}${materialName(stem, mesh.material)}.esmaterial` : null;
     // A normal map needs normals to perturb; without them the engine draws the
     // unlit variant and the map would be a reference to nothing.

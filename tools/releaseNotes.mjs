@@ -2551,6 +2551,8 @@ export const NOTED = {
     {"note":"The Skin shader can take its wrap past the terminator per colour and shape it by curvature: `u_preIntegrate` (red travels furthest, every colour further where the surface turns sharply) and `u_curvature`, so a nose or an ear glows at its edge while a flat cheek stays crisp. Off by default."},
   "feat(render): the Eye shader takes a lid shadow, authored or from the surface facing up":
     {"note":"The Eye shader shades the eye the lids sit on: `u_lidMap` is an authored occlusion map, and `u_lidShadow` darkens, and fades the cornea's reflections, where the surface faces up from `u_lidStart`, which is the upper lid on an upright head."},
+  "feat(import): a model can give its skin, hair and eye materials the character shaders":
+    {"note":"Importing a model can now give its character materials the right shader: turn on Character Materials in the model's import settings and a material whose name says skin, face, head, hair or eye gets the Skin, Hair or Eye shader with its normal and occlusion/roughness maps bound, and hair is cut out by its alpha and feathered by coverage. Off by default."},
   "chore(tools): the gates run in parallel with --jobs, and the reds a full run gathered are cleared":
     {"internal":"tooling for the static gates, and fixes to checks that had drifted from the code they guard"},
   "fix(render): a wire narrower than a pixel is no longer painted over by the sky in dashes":
