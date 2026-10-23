@@ -4,7 +4,9 @@ import type { App, Plugin } from '../app/app';
 import { Schedule } from '../ecs/system';
 import { Assets } from '../asset/AssetPlugin';
 import { PostProcess, PostProcessAPI } from './PostProcessAPI';
-import { postProcessVolumeSystem, cleanupVolumeSystem, setVolumeTextureResolver, PostProcessVolumeConfigResource } from './volumeSystem';
+import { postProcessVolumeSystem, cleanupVolumeSystem, setVolumeTextureResolver, setBuiltinTextureMaker, PostProcessVolumeConfigResource } from './volumeSystem';
+import { createTextureFromPixels } from '../runtime/runtimeAssets';
+import { TextureContent } from '../wasm';
 import { weatherSystem, resetWeatherSystem } from './weatherSystem';
 
 export class PostProcessPlugin implements Plugin {
@@ -24,6 +26,9 @@ export class PostProcessPlugin implements Plugin {
         // cache lookup by the time a volume applies.
         setVolumeTextureResolver((ref) =>
             app.hasResource(Assets) ? (app.getResource(Assets).getTexture(ref)?.handle ?? 0) : 0);
+        // Textures an effect brings itself (AgX's table): uploaded as data, linear, clamped, with this App's module.
+        setBuiltinTextureMaker((pixels) => createTextureFromPixels(app.wasmModule, pixels, TextureContent.Retained, false,
+            { srgb: false, filterMode: 'linear', wrapMode: 'clamp' }));
         // The weather first: the volumes read what it has decided.
         app.addSystemToSchedule(Schedule.PostUpdate, weatherSystem);
         app.addSystemToSchedule(Schedule.PostUpdate, postProcessVolumeSystem);

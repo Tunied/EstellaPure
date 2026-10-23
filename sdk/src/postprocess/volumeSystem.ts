@@ -52,6 +52,35 @@ function applyTextures(
     }
 }
 
+/** Uploads the pixels of a texture an effect brings itself: set by the plugin, which is the one that knows the App's module. */
+type BuiltinTextureMaker = (pixels: { width: number; height: number; pixels: Uint8Array }) => number;
+let builtinTextureMaker: BuiltinTextureMaker | null = null;
+
+export function setBuiltinTextureMaker(maker: BuiltinTextureMaker | null): void {
+    builtinTextureMaker = maker;
+}
+
+/** The textures an effect brings itself, made once per App from the pixels its source group installed. */
+const builtinTextureCache = new WeakMap<PostProcessAPI, Map<string, number>>();
+
+function applyBuiltinTextures(api: PostProcessAPI, stack: ReturnType<PostProcessAPI['createStack']>, passName: string,
+                              def: NonNullable<ReturnType<typeof getEffectDef>>, named: Map<string, string>): void {
+    if (!def.builtinTextures) return;
+    let cache = builtinTextureCache.get(api);
+    if (!cache) builtinTextureCache.set(api, cache = new Map());
+    for (const [uniformName, make] of Object.entries(def.builtinTextures)) {
+        if (named.has(uniformName)) continue;
+        const key = `${def.type}:${uniformName}`;
+        let handle = cache.get(key);
+        if (handle === undefined) {
+            if (!builtinTextureMaker) return;
+            handle = builtinTextureMaker(make());
+            cache.set(key, handle);
+        }
+        stack.setTexture(passName, uniformName, handle);
+    }
+}
+
 type ResolvedEffects = Map<string, BlendedEffect>;
 
 function applyColors(
@@ -202,6 +231,7 @@ function applyBlendedEffects(
                 stack.setUniform(effectType, uniformName, uniformValue);
             }
             applyTextures(stack, effectType, effectData.textures);
+            applyBuiltinTextures(api, stack, effectType, def, effectData.textures);
             applyColors(stack, effectType, effectData.colors);
         }
     }

@@ -17,6 +17,7 @@ Estella 通过 ping-pong 帧缓冲运行全屏后处理。加一个 `PostProcess
 | `tonemap` | ACES filmic 色调映射 | `exposure` |
 | `colorGrade` | 曝光 / 对比度 / 饱和度 / 白平衡 | `exposure`、`contrast`、`saturation`、`temperature`、`tint` |
 | `lutGrade` | 通过查找表纹理(LUT)调色 | `u_lut`(纹理)、`intensity` |
+| `agx` | Blender 使用的 AgX 视图变换:输入场景线性、输出显示线性,所以放在最后,输出变换保持 `none`。自带查找表 | `contrast`(观感:1 是 AgX Base,1.2 是 Medium High Contrast) |
 | `vignette` | 屏幕边缘变暗 | `intensity`、`softness` |
 | `chromaticAberration` | RGB 色散 | `intensity` |
 | `motionBlur` | 沿上一帧以来的运动抹开:相机的移动来自深度缓冲,运动网格自身的移动来自运动 pass | `intensity`(快门)、`maxBlur`、`objectMotion` |

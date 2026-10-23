@@ -96,6 +96,11 @@ export interface EffectDef {
     uniforms: EffectUniformDef[];
     /** Texture params, carried on the volume as serialized refs (`textures`). */
     textures?: EffectTextureDef[];
+    /**
+     * Textures the effect brings itself, by sampler uniform: made once per App from the pixels a source group installed and bound unless
+     * the volume names one. For data an effect is meaningless without (AgX's table), not for a choice an author makes.
+     */
+    builtinTextures?: Record<string, () => { width: number; height: number; pixels: Uint8Array }>;
     /** Colour params, carried on the volume as `colors`. */
     colors?: EffectColorDef[];
     multiPass?: EffectSubPass[];
@@ -712,6 +717,17 @@ registerEffect({
 });
 
 registerEffect({
+    type: 'agx',
+    label: 'AgX',
+    factory: () => postProcessEffects.createAgx(),
+    uniforms: [
+        // The look: 1 is AgX Base, 1.2 is the Medium High Contrast look Blender offers.
+        { name: 'u_contrast', label: 'Contrast (Look)', min: 0.5, max: 2, step: 0.01, defaultValue: 1, neutralValue: 1 },
+    ],
+    builtinTextures: { u_lut: () => postProcessEffects.agxLut() },
+});
+
+registerEffect({
     type: 'lutGrade',
     label: 'LUT Grade',
     factory: () => postProcessEffects.createLutGrade(),
@@ -725,7 +741,7 @@ registerEffect({
 
 const CATEGORIES: Record<EffectCategory, string[]> = {
     lens: ['bloom', 'depthOfField', 'motionBlur', 'lensFlare', 'filmGrain', 'chromaticAberration', 'lensDistortion', 'vignette', 'sharpen'],
-    color: ['tonemap', 'colorGrade', 'lutGrade', 'autoExposure', 'grayscale'],
+    color: ['tonemap', 'agx', 'colorGrade', 'lutGrade', 'autoExposure', 'grayscale'],
     light: ['ssao', 'gtao', 'ssgi', 'ssr', 'voxelGI', 'contactShadows', 'lightShafts', 'subsurface'],
     atmosphere: ['distanceFog', 'heightFog', 'skyAtmosphere', 'rain'],
     aa: ['fxaa', 'taa'],

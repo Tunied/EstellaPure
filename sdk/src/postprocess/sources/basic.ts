@@ -9,8 +9,108 @@ import { Material } from '../../render/material';
 import { registerEffectSources, registerComputeSource } from '../effectSources';
 import { SHARPEN_WGSL } from '../computeEffects';
 import { lensEffects } from '../lensEffects';
+import { AGX_LUT_BASE64, AGX_LUT_SIZE } from '../agxLut.generated';
+
+const BASE64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+/** The AgX table as the strip the shader reads (32 slices of 32x32 side by side, slice = blue), RGBA bytes. Decoded by hand: not every runtime has `atob`. */
+function agxStrip(): { width: number; height: number; pixels: Uint8Array } {
+    const n = AGX_LUT_SIZE;
+    const rgb = new Uint8Array(n * n * n * 3);
+    let bits = 0, held = 0, out = 0;
+    for (let i = 0; i < AGX_LUT_BASE64.length && out < rgb.length; i++) {
+        const v = BASE64.indexOf(AGX_LUT_BASE64[i]!);
+        if (v < 0) continue;
+        held = (held << 6) | v;
+        bits += 6;
+        if (bits >= 8) { bits -= 8; rgb[out++] = (held >> bits) & 0xff; }
+    }
+    const width = n * n, pixels = new Uint8Array(width * n * 4);
+    for (let b = 0; b < n; b++) {
+        for (let g = 0; g < n; g++) {
+            for (let r = 0; r < n; r++) {
+                const from = ((b * n + g) * n + r) * 3, to = (g * width + b * n + r) * 4;
+                pixels[to] = rgb[from]!; pixels[to + 1] = rgb[from + 1]!; pixels[to + 2] = rgb[from + 2]!; pixels[to + 3] = 255;
+            }
+        }
+    }
+    return { width, height: n, pixels };
+}
 
 export const basicEffects = {
+    /** The AgX table, for the effect to upload once (see `builtinTextures` on its definition). */
+    agxLut: agxStrip,
+    createAgx(): ShaderHandle {
+        // AgX, the view transform Blender uses, from the data Blender ships: a log2 encode of E-Gamut, a 32^3 table (agxLut.generated.ts)
+        // and the look's contrast about 0.4 (1 is AgX Base, 1.2 is Medium High Contrast). It writes display-linear, so it goes last and
+        // the project's output transform stays "none".
+        const source = `#pragma shader "PP AgX"
+#pragma version 300 es
+#pragma domain PostProcess
+#pragma param u_contrast float default(1) range(0.5,2)
+#pragma param u_lut texture default(white)
+
+#pragma fragment
+precision highp float;
+
+in vec2 v_texCoord;
+uniform sampler2D u_texture;
+out vec4 fragColor;
+
+// Scene-linear Rec.709 to FilmLight E-Gamut (Rec.709 to XYZ D65, then XYZ to E-Gamut).
+const mat3 TO_EGAMUT = mat3(0.5593711, 0.0762207, 0.0655267, 0.3047833, 0.7879718, 0.1645467, 0.1358455, 0.1358075, 0.7699265);
+
+vec3 sampleLut(vec3 t) {
+    const float size = 32.0;
+    float b = clamp(t.b, 0.0, 1.0) * (size - 1.0);
+    float slice0 = floor(b);
+    float slice1 = min(slice0 + 1.0, size - 1.0);
+    float u = (clamp(t.r, 0.0, 1.0) * (size - 1.0) + 0.5) / (size * size);
+    float v = (clamp(t.g, 0.0, 1.0) * (size - 1.0) + 0.5) / size;
+    vec3 a = texture(u_lut, vec2(u + slice0 / size, v)).rgb;
+    vec3 d = texture(u_lut, vec2(u + slice1 / size, v)).rgb;
+    return mix(a, d, b - slice0);
+}
+
+void main() {
+    vec4 color = texture(u_texture, v_texCoord);
+    vec3 e = TO_EGAMUT * max(color.rgb, vec3(0.0));
+    // log2 over -12.47393 .. +12.5260688 stops, then the look's contrast about 0.4, then the AgX table (Rec.1886 encoded).
+    vec3 t = clamp((log2(max(e, vec3(1e-10))) + 12.47393) / 25.0, 0.0, 1.0);
+    t = clamp((t - 0.4) * u_contrast + 0.4, 0.0, 1.0);
+    vec3 encoded = sampleLut(t);
+    // Back to display-linear: the blit that follows applies the display's own encode.
+    fragColor = vec4(pow(encoded, vec3(2.4)), color.a);
+}
+#pragma end
+
+#pragma fragment wgsl
+const TO_EGAMUT = mat3x3f(vec3f(0.5593711, 0.0762207, 0.0655267), vec3f(0.3047833, 0.7879718, 0.1645467), vec3f(0.1358455, 0.1358075, 0.7699265));
+
+fn sampleLut(t : vec3f) -> vec3f {
+    let size = 32.0;
+    let b = clamp(t.b, 0.0, 1.0) * (size - 1.0);
+    let slice0 = floor(b);
+    let slice1 = min(slice0 + 1.0, size - 1.0);
+    let u = (clamp(t.r, 0.0, 1.0) * (size - 1.0) + 0.5) / (size * size);
+    let v = (clamp(t.g, 0.0, 1.0) * (size - 1.0) + 0.5) / size;
+    let a = textureSampleLevel(u_lut, u_lut_s, vec2f(u + slice0 / size, v), 0.0).rgb;
+    let d = textureSampleLevel(u_lut, u_lut_s, vec2f(u + slice1 / size, v), 0.0).rgb;
+    return mix(a, d, b - slice0);
+}
+
+@fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
+    let color = textureSampleLevel(t0, s0, v.v_texCoord, 0.0);
+    let e = TO_EGAMUT * max(color.rgb, vec3f(0.0));
+    var t = clamp((log2(max(e, vec3f(1e-10))) + 12.47393) / 25.0, vec3f(0.0), vec3f(1.0));
+    t = clamp((t - 0.4) * mc.u_contrast + 0.4, vec3f(0.0), vec3f(1.0));
+    let encoded = sampleLut(t);
+    return vec4f(pow(encoded, vec3f(2.4)), color.a);
+}
+#pragma end
+`;
+        return Material.compileShader(source);
+    },
     createLutGrade(): ShaderHandle {
         // True LUT color grading: a 2D-packed 32^3 LUT (1024x32 — 32 slices of
         // 32x32 laid out along X; slice index = blue). Sampled twice around the

@@ -3593,6 +3593,7 @@ v: WorldAxis
 
 ## EffectDef — interface @experimental
 ```
+builtinTextures: Record<string, () => { width: number; height: number; pixels: Uint8Array; }> | undefined
 category: EffectCategory | undefined
 colors: EffectColorDef[] | undefined
 compute: ComputeEffectSource | undefined

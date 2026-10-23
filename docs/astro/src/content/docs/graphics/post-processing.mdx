@@ -18,6 +18,7 @@ several can stack in one frame at no extra target cost beyond the passes.
 | `tonemap` | ACES filmic tonemapping | `exposure` |
 | `colorGrade` | Exposure / contrast / saturation / white balance | `exposure`, `contrast`, `saturation`, `temperature`, `tint` |
 | `lutGrade` | Color grading through a lookup-table texture | `u_lut` (texture), `intensity` |
+| `agx` | The AgX view transform Blender uses: scene-linear in, display-linear out, so it goes last and the output transform stays `none`. Brings its own table | `contrast` (the look: 1 is AgX Base, 1.2 is Medium High Contrast) |
 | `vignette` | Darkened screen edges | `intensity`, `softness` |
 | `chromaticAberration` | RGB fringing | `intensity` |
 | `blur` | Gaussian blur | `intensity` |
@@ -474,7 +475,7 @@ package carries only when its content uses one:
 
 | Group | Subpath | Effects |
 |---|---|---|
-| Basic | `esengine/fx-basic` | blur, bloom, vignette, grayscale, colorGrade, lutGrade, chromaticAberration, tonemap, fxaa, sharpen, lensDistortion, pixelate, outline, depthOutline, filmGrain, motionBlur, lensFlare |
+| Basic | `esengine/fx-basic` | blur, bloom, vignette, grayscale, colorGrade, lutGrade, agx, chromaticAberration, tonemap, fxaa, sharpen, lensDistortion, pixelate, outline, depthOutline, filmGrain, motionBlur, lensFlare |
 | Atmosphere | `esengine/fx-atmosphere` | skyAtmosphere, heightFog, distanceFog, rain |
 | Lighting | `esengine/fx-lighting` | ssao, gtao, ssr, ssgi, voxelGI, contactShadows, lightShafts, autoExposure, depthOfField, subsurface, taa |
 
