@@ -25,6 +25,10 @@ describe('the engine modules a package installs', () => {
         expect(engineInstalls({ subsystems: ['particles'] }).subpaths).toEqual([]);
     });
 
+    it('takes water from a WaterBody, so a game without one carries none', () => {
+        expect(engineInstalls({ subsystems: ['water'] }).subpaths).toEqual(['esengine/water']);
+    });
+
     it('takes the effect groups a post-process volume names, and none for a volume with no effects', async () => {
         const { collectSubsystems } = await import('../src/project/targetSupport');
         const volume = (types: string[]) => ({ entities: [{ components: [{ type: 'PostProcessVolume', data: { effects: types.map((type) => ({ type })) } }] }] });

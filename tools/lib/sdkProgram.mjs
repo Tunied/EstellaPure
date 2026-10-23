@@ -65,6 +65,7 @@ export const ENTRIES = {
     'fx-atmosphere': 'src/postprocess/fxAtmosphere.ts',
     'fx-lighting': 'src/postprocess/fxLighting.ts',
     'foliage': 'src/foliage/index.ts',
+    'water': 'src/water/index.ts',
     'logic': 'src/logic/index.ts',
     'debug-channel': 'src/debug-channel/index.ts',
     'ai': 'src/ai/index.ts',

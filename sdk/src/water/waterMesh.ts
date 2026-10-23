@@ -1,0 +1,122 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
+/**
+ * @file    waterMesh.ts
+ * @brief   The geometry of a body of water: a flat grid for a lake, rings of coarsening grids for an ocean.
+ *
+ * @details Both lie in the body's xz plane facing up, with the uv the position itself (so the Water shader's body space is local x and
+ *          z), and the vertex colour's red the number of the ring the vertex is in, in sevenths (`cell * 2^(red * 7)` is its cell
+ *          size): the Water shader's vertex hook fades the waves a coarse ring cannot draw by it.
+ *
+ *          An ocean is rings, each a grid of the same number of cells with twice the cell size of the one inside it and a hole where that one
+ *          sits. Where two rings meet the coarse one has half the vertices along the edge, so the surfaces can part there by what the waves
+ *          do between its vertices; the fade keeps that to waves the coarse ring can already draw.
+ */
+import { MeshChannel, MeshChannelType, packChannels, type MeshData } from '../asset/meshFormat';
+
+/** One grid of water: its half-extent, its cell size, the hole in its middle (half-extent, 0 for none) and its ring number. */
+interface Grid {
+    half: number;
+    cell: number;
+    hole: number;
+    ring: number;
+}
+
+/** A flat rectangle of water, `sizeX` by `sizeZ`, centred on its origin. */
+export function buildRectMesh(sizeX: number, sizeZ: number, cellSize: number): MeshData {
+    const cellsX = Math.max(1, Math.round(sizeX / cellSize)), cellsZ = Math.max(1, Math.round(sizeZ / cellSize));
+    const positions: number[] = [], colors: number[] = [];
+    for (let j = 0; j <= cellsZ; j++) {
+        for (let i = 0; i <= cellsX; i++) {
+            positions.push(-sizeX / 2 + (i / cellsX) * sizeX, 0, -sizeZ / 2 + (j / cellsZ) * sizeZ);
+            colors.push(0, 0, 0, 1);
+        }
+    }
+    const indices: number[] = [];
+    const at = (i: number, j: number): number => j * (cellsX + 1) + i;
+    for (let j = 0; j < cellsZ; j++) {
+        for (let i = 0; i < cellsX; i++) quad(indices, at(i, j), at(i, j + 1), at(i + 1, j), at(i + 1, j + 1));
+    }
+    return pack(positions, colors, indices);
+}
+
+/**
+ * An ocean of `rings` rings of `cells` cells a side (a multiple of four), the innermost with `cellSize` cells. It reaches
+ * `cells * cellSize * 2^(rings - 1) / 2` out from its centre.
+ */
+export function buildOceanMesh(cells: number, rings: number, cellSize: number): MeshData {
+    const n = Math.max(4, Math.round(cells / 4) * 4);
+    const levels = Math.min(8, Math.max(1, Math.floor(rings)));
+    const grids: Grid[] = [];
+    for (let ring = 0; ring < levels; ring++) {
+        const cell = cellSize * 2 ** ring;
+        grids.push({ half: (n * cell) / 2, cell, hole: ring === 0 ? 0 : (n * cell) / 4, ring });
+    }
+    const positions: number[] = [], colors: number[] = [], indices: number[] = [];
+    for (const grid of grids) {
+        const base = positions.length / 3;
+        const stride = n + 1;
+        for (let j = 0; j <= n; j++) {
+            for (let i = 0; i <= n; i++) {
+                positions.push(-grid.half + i * grid.cell, 0, -grid.half + j * grid.cell);
+                colors.push(grid.ring / 7, 0, 0, 1);
+            }
+        }
+        for (let j = 0; j < n; j++) {
+            for (let i = 0; i < n; i++) {
+                // A cell whose middle is in the hole belongs to the finer ring inside.
+                const cx = -grid.half + (i + 0.5) * grid.cell, cz = -grid.half + (j + 0.5) * grid.cell;
+                if (grid.hole > 0 && Math.abs(cx) < grid.hole && Math.abs(cz) < grid.hole) continue;
+                quad(indices, base + j * stride + i, base + (j + 1) * stride + i, base + j * stride + i + 1, base + (j + 1) * stride + i + 1);
+            }
+        }
+    }
+    return pack(positions, colors, indices);
+}
+
+/** The outer half-extent of an ocean built with these numbers. */
+export function oceanReach(cells: number, rings: number, cellSize: number): number {
+    const n = Math.max(4, Math.round(cells / 4) * 4);
+    return (n * cellSize * 2 ** (Math.min(8, Math.max(1, Math.floor(rings))) - 1)) / 2;
+}
+
+/** The cell size of the coarsest ring: the lattice an ocean follows its camera on, so every ring stays aligned. */
+export function oceanSnap(rings: number, cellSize: number): number {
+    return cellSize * 2 ** (Math.min(8, Math.max(1, Math.floor(rings))) - 1);
+}
+
+/** Two triangles over a cell, facing up (+y) for the vertex order `p00, p01 (+z), p10 (+x), p11`. */
+function quad(indices: number[], p00: number, p01: number, p10: number, p11: number): void {
+    indices.push(p00, p01, p10, p10, p01, p11);
+}
+
+function pack(positions: number[], colors: number[], indices: number[]): MeshData {
+    const { channels, vertexStride } = packChannels([
+        { semantic: MeshChannel.Position, components: 3, type: MeshChannelType.Float32 },
+        { semantic: MeshChannel.TexCoord0, components: 2, type: MeshChannelType.Float32 },
+        { semantic: MeshChannel.Color, components: 4, type: MeshChannelType.UNorm8 },
+        { semantic: MeshChannel.Normal, components: 3, type: MeshChannelType.Float32 },
+    ]);
+    const vertexCount = positions.length / 3;
+    const vertices = new Uint8Array(vertexCount * vertexStride);
+    const view = new DataView(vertices.buffer);
+    const posAt = channels[0]!.offset, uvAt = channels[1]!.offset, colorAt = channels[2]!.offset, normalAt = channels[3]!.offset;
+    const min: [number, number, number] = [Infinity, Infinity, Infinity];
+    const max: [number, number, number] = [-Infinity, -Infinity, -Infinity];
+    for (let i = 0; i < vertexCount; i++) {
+        const base = i * vertexStride;
+        for (let k = 0; k < 3; k++) {
+            const value = positions[i * 3 + k]!;
+            view.setFloat32(base + posAt + k * 4, value, true);
+            if (value < min[k]!) min[k] = value;
+            if (value > max[k]!) max[k] = value;
+        }
+        view.setFloat32(base + normalAt, 0, true);
+        view.setFloat32(base + normalAt + 4, 1, true);
+        view.setFloat32(base + normalAt + 8, 0, true);
+        view.setFloat32(base + uvAt, positions[i * 3]!, true);
+        view.setFloat32(base + uvAt + 4, positions[i * 3 + 2]!, true);
+        for (let k = 0; k < 4; k++) view.setUint8(base + colorAt + k, Math.round(Math.min(Math.max(colors[i * 4 + k]!, 0), 1) * 255));
+    }
+    return { channels, vertexStride, vertexCount, vertices, indices: new Uint32Array(indices), aabbMin: min, aabbMax: max };
+}

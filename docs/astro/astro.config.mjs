@@ -225,6 +225,7 @@ export default defineConfig({
             { label: 'Post-processing', translations: { 'zh-CN': '后处理' }, slug: 'graphics/post-processing' },
             { label: 'Terrain', translations: { 'zh-CN': '地形' }, slug: 'graphics/terrain' },
             { label: 'Foliage', translations: { 'zh-CN': '植被' }, slug: 'graphics/foliage' },
+            { label: 'Water', translations: { 'zh-CN': '水' }, slug: 'graphics/water' },
             { label: 'Weather', translations: { 'zh-CN': '天气' }, slug: 'graphics/weather' },
             { label: 'Time of Day', translations: { 'zh-CN': '昼夜' }, slug: 'graphics/time-of-day' },
             { label: 'Custom Drawing', translations: { 'zh-CN': '自定义绘制' }, slug: 'graphics/drawing' },

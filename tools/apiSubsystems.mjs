@@ -326,6 +326,16 @@ export const SUBSYSTEMS = [
         entry: ['Terrain', 'Foliage'],
     },
     {
+        id: 'water',
+        title: 'Water',
+        titleZh: '水体',
+        source: ['water'],
+        tier: 'experimental',
+        why: 'the surface draws and its waves are shared with the CPU, but only an ocean and a rectangular lake exist so far, and nothing floats or swims in it yet',
+        whyZh: '水面能画出来，波浪也和 CPU 共用同一个公式，但目前只有海洋和矩形湖泊，还没有东西能漂浮或游泳',
+        entry: ['WaterBody', 'Waters'],
+    },
+    {
         id: 'decal',
         title: 'Decals',
         titleZh: '贴花',

@@ -23,6 +23,7 @@
     "./dist/fx-atmosphere/index.js",
     "./dist/fx-lighting/index.js",
     "./dist/foliage/index.js",
+    "./dist/water/index.js",
     "./dist/logic/index.js",
     "./dist/debug-channel/index.js",
     "./dist/ai/index.js",
@@ -100,6 +101,10 @@
     "./foliage": {
       "import": "./dist/foliage/index.js",
       "types": "./dist/foliage/index.d.ts"
+    },
+    "./water": {
+      "import": "./dist/water/index.js",
+      "types": "./dist/water/index.d.ts"
     },
     "./logic": {
       "import": "./dist/logic/index.js",

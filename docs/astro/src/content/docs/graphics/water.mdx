@@ -1,0 +1,94 @@
+---
+title: Water
+description: A WaterBody component that builds an ocean or a lake, lifts its geometry with waves the CPU can read back, follows its own up when tilted, and the Water shader that draws it.
+---
+
+Water has two halves. The **Water shader** (`builtin:water`) is the look: refraction, depth, reflection, foam. The **`WaterBody` component** is the
+body: it builds the geometry, lifts it with waves, and answers questions about its surface from the code, so what a script reads is what is drawn.
+This chapter is both, and what is not there yet.
+
+Water is an optional module: a package takes it only when a scene authors a `WaterBody` (or a script imports `esengine/water`), so a 2D game
+carries none of it.
+
+## The component
+
+Add a `WaterBody` to an entity. The entity places and tilts the water; its child is the mesh, made when the scene runs and rebuilt when the shape
+changes.
+
+| Field | What it does |
+|---|---|
+| `form` | **Ocean**: without an edge, follows the camera. **Lake**: a rectangle of `sizeX` by `sizeZ` centred on the entity. |
+| `material` | A material on the Water shader. Empty uses the stock water. |
+| `cellSize` | The cell size of the finest ring of geometry. |
+| `cells`, `rings` | An ocean's rings: cells along a ring's side, and how many rings. |
+| `waveHeight`, `waveLength`, `waveSpeed`, `waveDirection` | The waves (below). |
+
+The body writes its waves, its cell size and its position in space into its own copy of the material every frame, so editing a field moves the
+water at once and several bodies can share one material asset.
+
+## Waves
+
+Four peaked sines (`exp(sin(theta) - 1)`: a crest narrower than its trough) a few directions apart, each with a length, a height and a speed
+that are shares of the four numbers on the component. They **move the geometry**: the shader lifts each vertex by the wave height, and the
+fragment takes the slope per pixel from the same formula, so the lit surface is the one that is drawn and the silhouette against the sky rises
+and falls with the waves.
+
+The waves are measured in the body's own space, along its surface and up its own up, so a tilted body is tilted water. Parameters are in world
+units: a scene in metres wants the defaults, one in centimetres wants the lengths scaled.
+
+## Geometry
+
+A **lake** is a grid of `cellSize` cells. An **ocean** is rings of the same number of cells, each twice as coarse as the one inside it with a hole
+where that one sits, so it reaches far and spends its triangles near. It follows the camera on a lattice all its rings line up on, and the
+material's origin moves by as much, so the waves stay put in the world while the mesh moves under them.
+
+A coarse ring cannot draw a short wave: below three cells to a wavelength it would alias, so its vertices fade out the waves shorter than six of
+its cells (the shading still shows them, per pixel). Where two rings meet, the coarse one has half the vertices along the edge, and the surfaces
+can part by what the waves do between them; keep `waveLength` at least six of the coarsest visible ring's cells and there is no seam to see.
+
+## Asking the surface
+
+`Waters.sample(x, y, z)` (the `WatersRes` resource) answers for the body that holds a point:
+
+- `depth`: how far the point is above the surface along the body's up (negative under it), in world units;
+- `normal`: the surface's normal there, in world space;
+- `surface`: the world position on the surface straight above or below the point;
+- `inside`: whether the point is over the body's extent.
+
+It reads the same formula the shader draws, at the time of the frame. The body's position, rotation and uniform scale are taken into account.
+`Waters.heightAt(x, z)` is the short form for an untilted body. A point over no water answers `null`.
+
+The surface the code reads is the full wave sum; a coarse far ring of an ocean draws less of it (see above), so near the horizon the two can
+differ by the short waves, which are small.
+
+## The Water shader
+
+`builtin:water` also works on its own, on any mesh, which is how a flat plane of water was made before the component. With `u_waveSpace` at its
+default (0) the waves are measured on the world's xz plane, nothing is lifted and the surface is taken to lie flat. The component turns it to 1 (the
+mesh's uv is its local x and z) for the body's own space.
+
+- **Waves.** `u_waveLength`, `u_waveHeight`, `u_waveSpeed`, `u_waveDirection`; small ripples (`u_rippleStrength`, `u_rippleLength`) ride on them and
+  fade out with distance, so far water is calm rather than aliased.
+- **Refraction and depth.** What is under the water is the picture of the opaque scene, shifted by the waves in proportion to how much water there
+  is. The depth is **measured**: before the water is drawn the frame takes a copy of how far each pixel of the scene is from the eye, so the water at
+  a pixel is the difference between that and the water's own distance. The light is absorbed along that column, red first (`u_absorption`,
+  `u_density`), and the water gives back its own colour, from `u_shallowColor` to `u_deepColor` as it deepens.
+- **Reflection.** The sky, the lights and the environment reflect off it with a Fresnel term (water is 1.333), so it is clear looking down and
+  mirror-like at a grazing angle. Add Screen Space Reflections to the volume for reflections of the scene itself.
+- **Foam.** Where the column is shallower than `u_foamWidth` (the shore, a rock, a pier's legs) and on the crests of the waves (`u_foamCrest`),
+  broken up by moving noise.
+
+## Limits
+
+What is not there yet, so nobody is surprised:
+
+- It needs the same engine-copied scene as glass (a post-process chain is running) and a device whose render targets can hold floats for the depth.
+  Without the chain the water is drawn over the scene as a translucent surface; without float targets the depth is `u_fallbackDepth` everywhere, so
+  there is no shore foam and no change of colour with depth.
+- Like glass, it refracts the opaque scene only: a boat's hull seen through it is, but another transparent surface is not.
+- A lake is a rectangle; a boundary of your own shape, lakes that fill a terrain basin, rivers along a curve, flow, and the waves' breaking at a
+  shore are not built yet.
+- Nothing floats on it or swims in it yet: `Waters.sample` gives what a buoyancy force needs, but there is no force.
+- A camera under the surface sees the water turned over, and nothing else changes: no underwater fog or tint.
+- It does not react to what moves through it: no ripples, no wake.
+- The waves are the four peaked sines, not a spectrum, and they lift the surface without pushing it sideways.

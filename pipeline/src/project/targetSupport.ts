@@ -27,7 +27,7 @@ import { NATIVE_PLATFORMS, type ExportPlatform } from './platforms';
 
 /** An engine subsystem a build target may lack. */
 export type Subsystem =
-    | 'text' | 'tilemap' | 'terrain' | 'foliage' | 'timeline' | 'fxBasic' | 'fxAtmosphere' | 'fxLighting' | 'particles' | 'postprocess' | 'physics' | 'physics3d'
+    | 'text' | 'tilemap' | 'terrain' | 'foliage' | 'water' | 'timeline' | 'fxBasic' | 'fxAtmosphere' | 'fxLighting' | 'particles' | 'postprocess' | 'physics' | 'physics3d'
     | 'spine' | 'dragonbones' | 'video' | 'ai' | 'logic' | 'replication' | 'gameplay';
 
 /**
@@ -46,6 +46,7 @@ export const SUBSYSTEM_COMPONENTS: Readonly<Record<Subsystem, readonly string[]>
     fxAtmosphere: ['Weather', 'TimeOfDay'],
     fxLighting: [],
     foliage: ['Foliage'],
+    water: ['WaterBody'],
     particles: ['ParticleEmitter', 'ParticleForceField'],
     postprocess: ['PostProcessVolume'],
     physics: [
@@ -97,6 +98,7 @@ export const SUBSYSTEM_LABEL: Readonly<Record<Subsystem, string>> = {
     fxAtmosphere: 'Post-process effects (sky, fog, rain)',
     fxLighting: 'Post-process effects (occlusion, reflections, exposure)',
     foliage: 'Foliage',
+    water: 'Water',
     particles: 'Particles',
     postprocess: 'Post-processing',
     physics: 'Physics (Box2D)',
@@ -127,6 +129,7 @@ export const SUBSYSTEM_INSTALL: Readonly<Record<Subsystem, string>> = {
     fxAtmosphere: 'esengine/fx-atmosphere',
     fxLighting: 'esengine/fx-lighting',
     foliage: 'esengine/foliage',
+    water: 'esengine/water',
     physics: 'esengine/physics',
     physics3d: 'esengine/physics3d',
     spine: 'esengine/spine',

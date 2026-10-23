@@ -2557,6 +2557,8 @@ export const NOTED = {
     {"note":"The Hair shader can draw the soft outer band of its cards: `u_tipSoftness` is how far below the cutoff alpha a second, blended pass draws each strand's tip fading out, sorted with the other blended draws, so tips are not stair-stepped by coverage. A model imported with Character Materials also has its hair triangles put in the order that pass wants, the cards nearest the middle of the hair first. Off by default."},
   "feat(examples): Cyber Rooftop gets a wet roof, a rain sky and a fuller HUD":
     {"note":"Cyber Rooftop gets a rebuilt rooftop model and textures, a wet roof material with a planar reflection under a rain sky, rain, fog and bloom in the scene, a larger set of HUD icons and inventory art, and a wider build footprint."},
+  "feat(water): a WaterBody builds an ocean or a lake whose waves lift the geometry and can be read from code":
+    {"note":"Water gets a component and a chapter of its own. A WaterBody builds an ocean (without an edge, following the camera, in rings that coarsen with distance) or a rectangular lake, lifts its geometry with the waves, follows its own up when it is tilted, and answers for its surface from code (`Waters.sample`) with the same formula the shader draws. Water is an optional module (`esengine/water`): a 2D game carries none of it."},
   "chore(tools): the gates run in parallel with --jobs, and the reds a full run gathered are cleared":
     {"internal":"tooling for the static gates, and fixes to checks that had drifted from the code they guard"},
   "fix(render): a wire narrower than a pixel is no longer painted over by the sky in dashes":

@@ -7030,6 +7030,104 @@
       ]
     },
     {
+      "name": "WaterBody",
+      "source": "ts",
+      "fields": [
+        {
+          "key": "form",
+          "type": "enum",
+          "default": "Lake",
+          "doc": "An ocean is without edge and follows the camera; a lake is a rectangle of its own size.",
+          "values": [
+            "Ocean",
+            "Lake"
+          ]
+        },
+        {
+          "key": "material",
+          "type": "Asset<material>",
+          "default": "none",
+          "doc": "A material on the Water shader. Empty uses the stock water."
+        },
+        {
+          "key": "sizeX",
+          "type": "number",
+          "default": "100",
+          "doc": "A lake's size along x.",
+          "range": "≥ 1"
+        },
+        {
+          "key": "sizeZ",
+          "type": "number",
+          "default": "100",
+          "doc": "A lake's size along z.",
+          "range": "≥ 1"
+        },
+        {
+          "key": "cellSize",
+          "type": "number",
+          "default": "1",
+          "doc": "The cell size of the finest ring. Waves shorter than six cells are not drawn as geometry there (the shading still shows them).",
+          "range": "≥ 0.05"
+        },
+        {
+          "key": "cells",
+          "type": "number",
+          "default": "64",
+          "doc": "Cells along a ring's side (an ocean).",
+          "range": "4–256, step 4"
+        },
+        {
+          "key": "rings",
+          "type": "number",
+          "default": "5",
+          "doc": "Rings of an ocean, each twice as coarse as the one inside it.",
+          "range": "1–8, step 1"
+        },
+        {
+          "key": "waveHeight",
+          "type": "number",
+          "default": "0.3",
+          "doc": "The height of the tallest wave, in world units.",
+          "range": "0–8"
+        },
+        {
+          "key": "waveLength",
+          "type": "number",
+          "default": "14",
+          "doc": "The length of the longest wave.",
+          "range": "0.5–300"
+        },
+        {
+          "key": "waveSpeed",
+          "type": "number",
+          "default": "1",
+          "doc": "A multiplier on how fast the waves travel.",
+          "range": "0–4"
+        },
+        {
+          "key": "waveDirection",
+          "type": "number",
+          "default": "30",
+          "doc": "The heading of the waves, in degrees.",
+          "range": "0–360"
+        }
+      ],
+      "animatable": [
+        "form",
+        "material",
+        "sizeX",
+        "sizeZ",
+        "cellSize",
+        "cells",
+        "rings",
+        "waveHeight",
+        "waveLength",
+        "waveSpeed",
+        "waveDirection"
+      ]
+    },
+    {
       "name": "Weather",
       "source": "ts",
       "fields": [

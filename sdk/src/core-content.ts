@@ -787,6 +787,12 @@ export {
 export {
     Foliage, FoliageField, FoliageRes, FoliagePlugin, foliagePlugin, type FoliageData,
 } from './foliage/foliagePlugin';
+// Water is an optional module too (`esengine/water`).
+export {
+    WaterBody, WaterForm, Waters, WatersRes, WaterPlugin, waterPlugin, type WaterBodyData, type WaterSample,
+} from './water/waterPlugin';
+export { WAVE_SET, waveFade, waveHeight, waveSlope, type WaveParams } from './water/waves';
+export { buildOceanMesh, buildRectMesh, oceanReach, oceanSnap } from './water/waterMesh';
 export {
     scatterCell, buildGrassMesh, buildInstancedMesh, buildBillboardMesh, rng,
     type Plant, type Ground, type ScatterParams, type BladeParams, type CardRect,
