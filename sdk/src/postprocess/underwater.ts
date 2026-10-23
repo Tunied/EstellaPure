@@ -26,6 +26,14 @@ export interface UnderwaterState {
     density: number;
     /** The colour the water gives back, at the camera's depth, before the light fades with depth. */
     scatter: [number, number, number];
+    /** The surface at the camera: its normal (out of the water) and the offset along it (`dot(normal, p) = offset` on the surface). A pixel is under water where its place on the camera's near plane is. */
+    plane: [number, number, number, number];
+    /** How soft the waterline across the lens is, in world units. */
+    band: number;
+    /** The Water material's caustics, so the light the camera sees is the light the surface draws. */
+    causticStrength: number;
+    causticScale: number;
+    causticSpeed: number;
 }
 
 let current: UnderwaterState | null = null;
@@ -58,16 +66,23 @@ export function applyUnderwaterToEffects(effects: Map<string, BlendedEffect>, st
         effect.colors.set('u_absorption', colour(state.absorption));
         effect.colors.set('u_scatterColor', colour(state.scatter));
         effect.uniforms.set('u_density', state.density);
+        effect.uniforms.set('u_causticStrength', state.causticStrength);
+        effect.uniforms.set('u_causticScale', state.causticScale);
+        effect.uniforms.set('u_causticSpeed', state.causticSpeed);
     }
     effect.uniforms.set('u_amount', Math.min(Math.max(state.amount, 0), 1) * (effect.uniforms.get('u_amount') ?? 1));
     effect.uniforms.set('u_cameraDepth', state.depth);
+    effect.uniforms.set('u_planeNx', state.plane[0]);
+    effect.uniforms.set('u_planeNy', state.plane[1]);
+    effect.uniforms.set('u_planeNz', state.plane[2]);
+    effect.uniforms.set('u_planeD', state.plane[3]);
+    effect.uniforms.set('u_band', state.band);
 }
 
 /**
- * How wholly a camera `depth` under a surface is under it: 0 at the surface, 1 from `fade` down. `depth` is positive under the surface; a camera above it
- * is not under it at all.
+ * How far above a surface a camera may be and still have part of its lens under it: its near plane reaches this far ahead of it, and a camera looking down
+ * puts the lower edge of that plane below it. Past this the whole lens is in the air.
  */
-export function submersion(depth: number, fade: number): number {
-    if (!(depth > 0)) return 0;
-    return Math.min(depth / Math.max(fade, 1e-6), 1);
+export function lensReach(nearPlane: number): number {
+    return Math.max(nearPlane, 0) * 2.5;
 }

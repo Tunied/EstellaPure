@@ -104,12 +104,23 @@ and the post-process volume system adds an **Underwater** effect for as long as 
   through, `u_range`), and the water takes it out colour by colour, red first, by the same `u_absorption` and `u_density` the surface's material draws with, and gives back
   its own colour. A white wall under water is blue-green, and a far one more than a near one.
 - **Dimmer with depth.** The colour the water gives back dims with how far down the camera is (`u_lightFalloff`), as the light that reaches it comes from above.
-- **No pop.** The effect ramps in over the first stretch below the surface (half the wave height, at least one unit), so crossing it is a fade and not a cut.
+- **A waterline across the lens.** Each pixel is asked whether its place on the camera's near plane is below the surface at the camera, so a camera with its lens half in the water has
+  a dry upper half and a wet lower half with a soft line between them (`u_band`, a twelfth of the near plane), and crossing the surface is the line sliding up the lens and not a cut.
+  The effect is on from a couple of near planes above the surface down.
+- **The sun through the waves.** What the camera sees is lit by the web of bright threads the waves focus the sun into: the same pattern the surface draws from above (`u_causticStrength`,
+  `u_causticScale`, `u_causticSpeed` on the Water material, which the effect is given), on what faces the sun and is not in its shadow, less the further the sun's light went through
+  the water to reach it. It follows the first directional light, and its shadow map where there is one.
+- **Light shafts.** The water along each ray scatters the sun toward the camera: the pattern is marched along the ray in 24 steps, each lit where the shadow map says the sun reaches it
+  and as much as the water above it lets through, which is what makes shafts (`u_shaftStrength`, `u_shaftRange`). It costs 24 taps a pixel in the water.
 - **Yours if you wrote it.** A scene that authors an `underwater` effect in a volume keeps its numbers; only the camera's depth and how wholly it is under are filled in.
 
 The surface itself, seen from below, is turned over and light goes the other way through it: from out of the water rays past the critical angle (about 49 degrees) are reflected
 whole, so the water above is a window of sky overhead in a mirror, and the Fresnel term follows. The window's edge is not drawn as a circle on its own: it is where the
-refraction runs out.
+refraction runs out. What the mirror shows is the world below it: the reflected ray is followed through the picture of the scene the frame copied (20 steps, growing), and the colour of
+what it meets is what the water reflects, so a box on the bottom appears in the surface above it. Where the ray meets nothing on screen the mirror is the water's own dark colour.
+
+Seen from above, the same caustics light what is under the water through the surface: the Water shader finds where the refracted ray ends, where the sun's ray to that place crossed the
+surface, and lights it by the pattern there (and by the shadow map), so the web bends with the ripples that refract it.
 
 ## Splines
 
@@ -150,6 +161,8 @@ differ by the short waves, which are small.
 default (0) the waves are measured on the world's xz plane, nothing is lifted and the surface is taken to lie flat. The component turns it to 1 (the
 mesh's uv is its local x and z) for the body's own space.
 
+- **Caustics.** `u_causticStrength` (0 turns them off), `u_causticScale` (the size of one cell, in world units) and `u_causticSpeed` shape the web of light on what is under the water, seen from
+  above and, through the effect, from below.
 - **Waves.** `u_waveLength`, `u_waveHeight`, `u_waveSpeed`, `u_waveDirection`; small ripples (`u_rippleStrength`, `u_rippleLength`) ride on them and
   fade out with distance, so far water is calm rather than aliased.
 - **Refraction and depth.** What is under the water is the picture of the opaque scene, shifted by the waves in proportion to how much water there
@@ -172,7 +185,9 @@ What is not there yet, so nobody is surprised:
 - A river does not carve the ground, rapids and falls are not foamed by how fast or steep the water runs, and two bodies do not blend where they meet.
   A lake's outline is a polygon on a plane: it does not follow a curved shore, and the waves die toward the shore without breaking on it.
 - Things float (see [Floating](#floating)); nothing swims yet, and a body in the water makes no ripple or wake.
-- Under the surface there is fog and tint but no light: no caustics on what lies below, no shafts of sun through the surface, and the surface seen from below mirrors the fog, not the
-  water's own picture of itself. Each camera is under or not as a whole: there is no waterline across the lens.
+- Caustics and shafts follow the first directional light only, from a pattern and not a simulation: the web does not respond to the actual shape of the waves. From above the caustics
+  take what is under the water to face up (the picture holds no normals there), so a wall under the surface is lit as a floor would be.
+- The mirror from below is screen-space: it shows only what the frame has on screen, and a ray that leaves the picture or meets nothing finds the water's own colour.
+- The body of water a camera is under is the first the surface query finds at the camera's place: a camera under two overlapping bodies takes the numbers of the first.
 - It does not react to what moves through it: no ripples, no wake.
 - The waves are the four peaked sines, not a spectrum, and they lift the surface without pushing it sideways.

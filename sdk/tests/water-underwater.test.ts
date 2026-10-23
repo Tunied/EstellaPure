@@ -1,21 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import { describe, expect, it } from 'vitest';
-import { applyUnderwaterToEffects, setUnderwaterState, currentUnderwater, submersion, type UnderwaterState } from '../src/postprocess/underwater';
+import { applyUnderwaterToEffects, setUnderwaterState, currentUnderwater, lensReach, type UnderwaterState } from '../src/postprocess/underwater';
 import type { BlendedEffect } from '../src/postprocess/volumeBlending';
 
 const state = (extra: Partial<UnderwaterState> = {}): UnderwaterState => ({
-    amount: 1, depth: 40, absorption: [0.4, 0.1, 0.05], density: 0.02, scatter: [0.02, 0.2, 0.3], ...extra,
+    amount: 1, depth: 40, absorption: [0.4, 0.1, 0.05], density: 0.02, scatter: [0.02, 0.2, 0.3],
+    plane: [0, 1, 0, 5], band: 0.4, causticStrength: 0.6, causticScale: 2, causticSpeed: 0.35, ...extra,
 });
 const blank = (): BlendedEffect => ({ enabled: true, uniforms: new Map(), textures: new Map(), colors: new Map() });
 
-describe('submersion', () => {
-    it('is none above the surface and at it, and whole from the fade down', () => {
-        expect(submersion(-5, 2)).toBe(0);
-        expect(submersion(0, 2)).toBe(0);
-        expect(submersion(1, 2)).toBe(0.5);
-        expect(submersion(2, 2)).toBe(1);
-        expect(submersion(50, 2)).toBe(1);
+describe('lensReach', () => {
+    it('is a few near planes: how high above the surface part of the lens can still be in it', () => {
+        expect(lensReach(1)).toBe(2.5);
+        expect(lensReach(0.1)).toBeCloseTo(0.25, 10);
+        expect(lensReach(-3)).toBe(0);
     });
 });
 
@@ -37,6 +36,11 @@ describe('applyUnderwaterToEffects', () => {
         expect(e.uniforms.get('u_cameraDepth')).toBe(40);
         expect(e.colors.get('u_absorption')).toEqual({ r: 0.4, g: 0.1, b: 0.05, a: 1 });
         expect(e.colors.get('u_scatterColor')).toEqual({ r: 0.02, g: 0.2, b: 0.3, a: 1 });
+        // The waterline: where the surface is at the camera, and how soft the line across the lens is.
+        expect([e.uniforms.get('u_planeNx'), e.uniforms.get('u_planeNy'), e.uniforms.get('u_planeNz'), e.uniforms.get('u_planeD')]).toEqual([0, 1, 0, 5]);
+        expect(e.uniforms.get('u_band')).toBe(0.4);
+        // The surface's caustics, so the camera sees the light the surface draws.
+        expect([e.uniforms.get('u_causticStrength'), e.uniforms.get('u_causticScale'), e.uniforms.get('u_causticSpeed')]).toEqual([0.6, 2, 0.35]);
     });
 
     it('keeps the numbers a scene authored, and only fills in the depth and the amount', () => {
