@@ -1,0 +1,23 @@
+{
+  "version": "1.0",
+  "type": "material",
+  "shader": "builtin:skin",
+  "blendMode": 0,
+  "depthTest": true,
+  "depthWrite": true,
+  "properties": {
+    "u_sssWrap": 0.5,
+    "u_sssColor": {
+      "r": 0.95,
+      "g": 0.4,
+      "b": 0.3,
+      "a": 1
+    },
+    "u_specular": 0,
+    "u_lobe2": 0,
+    "u_fuzz": 0,
+    "u_translucency": 0,
+    "u_preIntegrate": 0,
+    "u_curvature": 64
+  }
+}
