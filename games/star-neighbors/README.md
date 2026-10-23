@@ -2,13 +2,15 @@
 
 项目暂名。多人合作、社交优先的未来卡通星球建造游戏：每个人拥有自己的星球，在持续扩展的共享宇宙里拜访朋友、寻找新家、共同建设。
 
-**当前工作聚焦美术资产：居住舱 22 个、温室 12 个、建筑连接与室外平台 20 个、生活与社交道具 27 个、自然环境 24 个，共 105 个新版独立模型，跨套件复用不重复计数。优先确认造型、材质与模块拼接。此前 3D 结构样区与原生 2D 建造界面保留；正式角色、联机、星球生成、存档与承载人数尚未实现或验收。**
+**当前工作聚焦美术资产：居住舱 22 个、温室 12 个、建筑连接与室外平台 20 个、生活与社交道具 27 个、自然环境 24 个、种植与采集 28 个，共 133 个新版独立模型，跨套件复用不重复计数。优先确认造型、材质与模块拼接。此前 3D 结构样区与原生 2D 建造界面保留；正式角色、联机、星球生成、存档与承载人数尚未实现或验收。**
 
 3D 星球、角色、建筑与环境承载主要游玩体验；2D 星图、界面、物品图标和社交反馈同步设计。当前样区使用 Estella，后续客户端及服务端能力按验收项逐步验证。
 
-![自然环境模块与住宅、温室、露台的实际模型渲染](art/reviews/nature-v1/01-landscaped-home.png)
+![种植与采集模块的实际模型渲染](art/reviews/harvest-v1/01-harvest-garden.png)
 
-最新交付：[自然环境模块](art/source/nature-v1/README.md)、[可编辑场景](art/source/nature-v1/nature-v1.blend)、[24 个新增独立模型](art/models/nature-v1/)、[拆件图](art/reviews/nature-v1/03-nature-modules.png)、[入口近景](art/reviews/nature-v1/02-garden-arrival.png)、[树木拆分与成人尺度](art/reviews/nature-v1/06-tree-assembly.png)。包含 4 米地表、2 米小路、岩石、两套树干／树冠、灌木和花草地被；这里只交付美术资产与静态景观组合。
+最新交付：[种植与采集模块](art/source/harvest-v1/README.md)、[可编辑场景](art/source/harvest-v1/harvest-v1.blend)、[28 个新增独立模型](art/models/harvest-v1/)、[生长阶段](art/reviews/harvest-v1/02-growth-stages.png)、[拆件图](art/reviews/harvest-v1/03-harvest-modules.png)、[矿物与资源](art/reviews/harvest-v1/05-resource-detail.png)、[容器拆分与成人尺度](art/reviews/harvest-v1/06-container-assembly.png)。三类作物各有三个阶段，果实、种植盒、藤架、箱盖、矿脉和碎矿独立；这里只交付静态美术，不包含生长和采集程序。
+
+自然环境交付：[自然环境模块](art/source/nature-v1/README.md)、[可编辑场景](art/source/nature-v1/nature-v1.blend)、[24 个新增独立模型](art/models/nature-v1/)、[拆件图](art/reviews/nature-v1/03-nature-modules.png)、[入口近景](art/reviews/nature-v1/02-garden-arrival.png)、[树木拆分与成人尺度](art/reviews/nature-v1/06-tree-assembly.png)。包含 4 米地表、2 米小路、岩石、两套树干／树冠、灌木和花草地被；这里只交付美术资产与静态景观组合。
 
 生活道具交付：[生活与社交道具](art/source/living-v1/README.md)、[可编辑组合](art/source/living-v1/living-v1.blend)、[27 个新增独立模型](art/models/living-v1/)、[拆件图](art/reviews/living-v1/03-living-modules.png)、[露台近景](art/reviews/living-v1/02-terrace-social.png)、[模块化与成人比例](art/reviews/living-v1/06-modularity-and-scale.png)。沙发座与扶手、柜体与门抽、层架、床品、礼盒盖均独立拆分。
 

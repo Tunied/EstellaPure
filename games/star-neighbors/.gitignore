@@ -1,3 +1,5 @@
 art/source/*.blend1
 art/source/**/*.blend1
 __pycache__/
+
+.esengine/
