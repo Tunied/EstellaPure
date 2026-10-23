@@ -173,6 +173,22 @@ Select a lake or a river and its points are handles in the viewport, the way a p
   points. The point last pressed shows its width in Details under the Spline, where it can be typed.
 - Each gesture is one undo step, and the points are written back as they are dragged, so the water follows. The handles are the **Water** entry of the Gizmo menu.
 
+## Quality levels
+
+Water spends what the project's quality level says it may. The five fields are in each level's profile (`project.esproject`, `features.rendering.quality.profiles`), and a project can change what a level means:
+
+| Field | Low | Medium | High | What it does |
+|---|---|---|---|---|
+| `waterWaves` | 2 | 3 | 4 | How many of the four waves are summed: in the geometry, the shading, and what `Waters.sample` answers. |
+| `waterRippleCells` | 32 | 64 | 128 | The most cells along a side of the ripple grid; a body's own `ripples` is held to it, and 0 keeps none. |
+| `waterDisplacement` | off | on | on | Whether the waves lift the geometry. Off is the **lite water**: a flat surface whose waves are in the shading only. |
+| `waterMirror` | off | on | on | Whether the surface seen from below mirrors the world under it (the screen-space march). |
+| `waterCaustics` | off | on | on | Whether the sun's web of light is drawn on what lies under the water, and, seen from under it, the shafts. |
+
+What code reads follows what is drawn: at a level without displacement the surface is flat for `Waters.sample`, floating things sit on the rest plane, and fewer waves is fewer
+waves for both. With a quality policy running, the active level decides; with none, a **minigame** gets the Low profile's water (the least it has to spend), and anything else gets all of it.
+The lite water costs no vertex work for the waves, and the shading still moves, so it reads as water at a distance.
+
 ## Asking the surface
 
 `Waters.sample(x, y, z)` (the `WatersRes` resource) answers for the body that holds a point:

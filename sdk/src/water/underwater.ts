@@ -324,6 +324,7 @@ export class UnderwaterPlugin implements Plugin {
                 causticStrength: single(instance, 'u_causticStrength', 0.6),
                 causticScale: single(instance, 'u_causticScale', 2),
                 causticSpeed: single(instance, 'u_causticSpeed', 0.35),
+                light: waters.quality.caustics,
             });
         }, { name: 'UnderwaterSystem' }));
     }

@@ -34,6 +34,8 @@ export interface UnderwaterState {
     causticStrength: number;
     causticScale: number;
     causticSpeed: number;
+    /** Whether the sun's light is drawn through the water (the web on what is seen, the shafts). The quality level turns it off; absent is on. */
+    light?: boolean;
 }
 
 let current: UnderwaterState | null = null;
@@ -69,6 +71,10 @@ export function applyUnderwaterToEffects(effects: Map<string, BlendedEffect>, st
         effect.uniforms.set('u_causticStrength', state.causticStrength);
         effect.uniforms.set('u_causticScale', state.causticScale);
         effect.uniforms.set('u_causticSpeed', state.causticSpeed);
+    }
+    if (state.light === false) {
+        effect.uniforms.set('u_causticStrength', 0);
+        effect.uniforms.set('u_shaftStrength', 0);
     }
     effect.uniforms.set('u_amount', Math.min(Math.max(state.amount, 0), 1) * (effect.uniforms.get('u_amount') ?? 1));
     effect.uniforms.set('u_cameraDepth', state.depth);

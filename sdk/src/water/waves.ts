@@ -30,6 +30,8 @@ export interface WaveParams {
     speed: number;
     /** The base heading, in degrees. */
     direction: number;
+    /** How many of the set's waves are summed, 1 to 4 (the quality level's); all of them when absent. */
+    count?: number;
 }
 
 const TAU = Math.PI * 2;
@@ -44,11 +46,18 @@ export function waveFade(length: number, cell: number): number {
     return Math.min(Math.max((length / cell - 3) / 3, 0), 1);
 }
 
+/** How many waves of the set a body sums: its count, held to the set. */
+export function waveCount(p: WaveParams): number {
+    return Math.min(Math.max(Math.round(p.count ?? WAVE_SET.length), 1), WAVE_SET.length);
+}
+
 /** The surface's height above the body's rest plane at (x, z), `time` seconds in. */
 export function waveHeight(p: WaveParams, x: number, z: number, time: number, cell = 0): number {
     let height = 0;
     const base = p.direction * Math.PI / 180;
+    let used = waveCount(p);
     for (const [heading, lengthShare, heightShare, speedShare] of WAVE_SET) {
+        if (used-- <= 0) break;
         const length = p.length * lengthShare;
         const k = TAU / length;
         const a = base + heading * Math.PI / 180;
@@ -63,7 +72,9 @@ export function waveHeight(p: WaveParams, x: number, z: number, time: number, ce
 export function waveSlope(p: WaveParams, x: number, z: number, time: number): [number, number] {
     let sx = 0, sz = 0;
     const base = p.direction * Math.PI / 180;
+    let used = waveCount(p);
     for (const [heading, lengthShare, heightShare, speedShare] of WAVE_SET) {
+        if (used-- <= 0) break;
         const k = TAU / (p.length * lengthShare);
         const a = base + heading * Math.PI / 180;
         const dx = Math.sin(a), dz = Math.cos(a);

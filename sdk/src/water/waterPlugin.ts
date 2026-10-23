@@ -37,6 +37,9 @@ import { buildRiverMesh, currentShare } from './riverMesh';
 import { Spline, type SplineData } from '../spline/splinePlugin';
 import { SplineCurve } from '../spline/curve';
 import { RippleField } from './ripples';
+import { Quality } from '../render/qualityRuntime';
+import { defaultQualityProfile, type QualityProfile } from '../render/quality';
+import { isMiniGame } from '../platform';
 
 /** What a body of water is. A river follows the `Spline` on its own entity. */
 export const WaterForm = { Ocean: 0, Lake: 1, River: 2 } as const;
@@ -124,6 +127,28 @@ export interface WaterSample {
     inside: boolean;
 }
 
+/** What the quality level lets water spend: waves summed, the ripple grid's side, whether waves lift the geometry, the mirror from below, the sun's light through it. */
+export interface WaterQuality {
+    waves: number;
+    rippleCells: number;
+    displacement: boolean;
+    mirror: boolean;
+    caustics: boolean;
+}
+
+/** Everything on: a project with no quality policy, off a minigame. */
+export const FULL_WATER: WaterQuality = { waves: 4, rippleCells: 256, displacement: true, mirror: true, caustics: true };
+
+/**
+ * What water is allowed: the active quality profile when the project has a quality policy running; else the low profile on a minigame, which has the least to spend and
+ * gets the lite water (flat geometry, no mirror, no web of light) without anyone asking; else everything.
+ */
+export function waterQualityOf(profile: Readonly<QualityProfile> | null, miniGame: boolean): WaterQuality {
+    const p = profile ?? (miniGame ? defaultQualityProfile('low') : null);
+    if (!p) return FULL_WATER;
+    return { waves: p.waterWaves, rippleCells: p.waterRippleCells, displacement: p.waterDisplacement, mirror: p.waterMirror, caustics: p.waterCaustics };
+}
+
 /** What the plugin knows about one body it has built. */
 interface Built {
     signature: string;
@@ -149,6 +174,8 @@ interface Built {
 export class Waters {
     /** @internal */ readonly built_ = new Map<Entity, Built>();
     /** @internal */ app_: App | null = null;
+    /** What the quality level allows now; the plugin refreshes it each frame, and what is drawn and what is answered both follow it. */
+    quality: WaterQuality = FULL_WATER;
 
     /**
      * The surface of the body that holds `(x, y, z)`: how far above it the point is (negative under), the surface's normal and the point on
@@ -184,10 +211,11 @@ export class Waters {
             }
             const inside = d.form === WaterForm.Ocean || (field ? field.inside(q[0], q[2]) : false);
             if (!inside) continue;
-            const params = paramsOf(d);
+            const params = { ...paramsOf(d), count: this.quality.waves };
             // The waves a lake keeps toward its shore are the ones its mesh was built with.
             const damp = field ? field.damp(q[0], q[2]) : 1;
-            const h = waveHeight(params, q[0], q[2], time) * damp + (built.ripples ? built.ripples.heightAt(q[0], q[2]) : 0);
+            // The lite water is flat: its waves are in the shading, so the height code reads is the rest plane's.
+            const h = (this.quality.displacement ? waveHeight(params, q[0], q[2], time) * damp : 0) + (built.ripples ? built.ripples.heightAt(q[0], q[2]) : 0);
             const [rx, rz] = waveSlope(params, q[0], q[2], time);
             const sx = rx * damp, sz = rz * damp;
             const len = Math.hypot(sx, 1, sz);
@@ -295,13 +323,19 @@ export class WaterPlugin implements Plugin {
     private stock_ = 0;
     private stockPending_ = false;
 
+    /** The resource this plugin installed, for the parts of it that read the quality level. */
+    private waters_: Waters = new Waters();
+
     build(app: App): void {
         const waters = new Waters();
+        this.waters_ = waters;
         waters.app_ = app;
         app.insertResource(WatersRes, waters);
 
         app.addSystemToSchedule(Schedule.Update, defineSystem([], () => {
             this.sweep(app, waters);
+            const policy = app.hasResource(Quality) ? app.getResource(Quality) : null;
+            waters.quality = waterQualityOf(policy && policy.enabled ? policy.profile : null, isMiniGame());
             // What a body IS (its outline and shore, its curve) needs no renderer: it is built here whether or not anything is drawn, so a
             // server or a test that never draws can still ask the surface where it is. What is DRAWN waits for the asset layer.
             const rendering = app.hasResource(Assets);
@@ -471,8 +505,9 @@ export class WaterPlugin implements Plugin {
      */
     private ripple(app: App, entity: Entity, built: Built, eye: [number, number, number] | null, dt: number): void {
         const d = built.data;
-        if (d.ripples <= 0) { this.dropRipples(built); return; }
-        const n = Math.max(8, Math.floor(d.ripples)), size = Math.max(d.rippleSize, 1e-3);
+        if (d.ripples <= 0 || this.waters_.quality.rippleCells <= 0) { this.dropRipples(built); return; }
+        // The level holds the grid to its own side; a body that asks for more gets the level's.
+        const n = Math.max(8, Math.floor(Math.min(d.ripples, this.waters_.quality.rippleCells))), size = Math.max(d.rippleSize, 1e-3);
         if (!built.ripples || built.ripples.n !== n || built.ripples.size !== size) {
             this.dropRipples(built);
             built.ripples = new RippleField(n, size);
@@ -544,11 +579,15 @@ export class WaterPlugin implements Plugin {
             app.world.insert(built.child, Transform, { ...child, position: { x: ox, y: 0, z: oz } });
         }
         const set = (name: string, value: number | { x: number; y: number }): void => { Material.setUniform(built.instance, name, value); };
+        const q = this.waters_.quality;
+        set('u_waveCount', q.waves);
+        set('u_mirror', q.mirror ? 1 : 0);
+        set('u_causticOn', q.caustics ? 1 : 0);
         set('u_waveSpace', 1);
         set('u_origin', { x: ox, y: oz });
         set('u_cellSize', d.cellSize);
         set('u_flowSpeed', d.form === WaterForm.River ? d.flowSpeed : 0);
-        set('u_geoWaves', d.form === WaterForm.River ? 0 : 1);
+        set('u_geoWaves', d.form === WaterForm.River || !q.displacement ? 0 : 1);
         set('u_waveHeight', d.waveHeight);
         set('u_waveLength', d.waveLength);
         set('u_waveSpeed', d.waveSpeed);

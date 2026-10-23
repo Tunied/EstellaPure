@@ -751,6 +751,11 @@ const WATER = `#pragma shader "Water"
 #pragma param u_causticStrength float default(0.6) range(0,3) ui(slider)
 #pragma param u_causticScale float default(2) range(0.05,2000) ui(slider)
 #pragma param u_causticSpeed float default(0.35) range(0,4) ui(slider)
+// What the quality level allows (the WaterBody component writes these): how many of the four waves are summed, whether the surface seen from below mirrors the world under it,
+// and whether the sun's web of light is drawn on what lies under the water.
+#pragma param u_waveCount float default(4) range(1,4) ui(slider)
+#pragma param u_mirror float default(1) range(0,1) ui(slider)
+#pragma param u_causticOn float default(1) range(0,1) ui(slider)
 // The disturbance the water keeps (WaterBody ripples): a window of the body's xz plane, red the height of the ripples (0.5 at rest, u_rippleRange above or below at 1 and 0)
 // and green the foam they left, as the CPU stepped them. u_rippleSize is the window's side, u_rippleTexel one texel of it.
 #pragma param u_rippleOn float default(0) range(0,1) ui(slider)
@@ -770,6 +775,7 @@ float waterWaveHeight(vec2 p, float time, float cell) {
     float height = 0.0;
     float base = radians(u_waveDirection);
     for (int i = 0; i < 4; ++i) {
+        if (float(i) >= u_waveCount) break;
         float length_ = u_waveLength * SET[i].y;
         float k = 6.2831853 / length_;
         float a = base + radians(SET[i].x);
@@ -794,6 +800,7 @@ fn waterWaveHeight(p : vec2f, time : f32, cell : f32) -> f32 {
     var height = 0.0;
     let base = radians(mc.u_waveDirection);
     for (var i : i32 = 0; i < 4; i = i + 1) {
+        if (f32(i) >= mc.u_waveCount) { break; }
         let spec = wave[i];
         let span = mc.u_waveLength * spec.y;
         let k = 6.2831853 / span;
@@ -868,6 +875,7 @@ vec2 waveSlope(vec2 p, float time, float dist, out float crest) {
     float weightSum = 0.0;
     float base = radians(u_waveDirection);
     for (int i = 0; i < 4; ++i) {
+        if (float(i) >= u_waveCount) break;
         float length_ = u_waveLength * SET[i].y;
         float k = 6.2831853 / length_;
         float a = base + radians(SET[i].x);
@@ -1044,7 +1052,7 @@ void main() {
         behind = texture(u_sceneColor, uv1).rgb;
         column = max(dist1 - waterDist, 0.0);
         // The sun through the waves lights what is under them in a web of bright threads, where the sun reaches it and as much as the water between lets through.
-        if (!below && haveDepth && u_causticStrength > 0.0) {
+        if (!below && haveDepth && u_causticStrength > 0.0 && u_causticOn > 0.5) {
             vec4 sunDir, sunColor;
             ivec2 sunTiles;
             waterSun(sunDir, sunColor, sunTiles);
@@ -1096,7 +1104,7 @@ void main() {
     vec3 seen = behind * transmit * (1.0 - fresnel) * (1.0 - foam);
     // From below the water is a mirror past the critical angle, and what it mirrors is the world under it: the picture, followed along the reflected ray.
     vec3 mirror = vec3(0.0);
-    if (below && fresnel > 0.02 && haveColor && haveDepth) {
+    if (below && fresnel > 0.02 && haveColor && haveDepth && u_mirror > 0.5) {
         vec4 met = waterReflect(P, reflect(-viewDir, N), waterDist);
         mirror = met.a > 0.5 ? met.rgb : mix(u_shallowColor.rgb, u_deepColor.rgb, 0.5) * 0.25;
     }
@@ -1152,6 +1160,7 @@ fn waveSlope(p : vec2f, time : f32, dist : f32) -> Waves {
     var weightSum = 0.0;
     let base = radians(mc.u_waveDirection);
     for (var i : i32 = 0; i < 4; i = i + 1) {
+        if (f32(i) >= mc.u_waveCount) { break; }
         let spec = wave[i];
         let span = mc.u_waveLength * spec.y;
         let k = 6.2831853 / span;
@@ -1336,7 +1345,7 @@ fn waterSurface(p : vec2f, time : f32, dist : f32) -> vec3f {
         if (dist1 < waterDist) { uv1 = clamp(uv0, vec2f(0.001), vec2f(0.999)); dist1 = behindDist; }
         behind = textureSampleLevel(u_sceneColor, u_sceneColor_s, uv1, 0.0).rgb;
         column = max(dist1 - waterDist, 0.0);
-        if (!below && haveDepth && mc.u_causticStrength > 0.0) {
+        if (!below && haveDepth && mc.u_causticStrength > 0.0 && mc.u_causticOn > 0.5) {
             let sun = waterSun();
             let cosUp = dot(sun.dir.xyz, Ngeo);
             if (sun.dir.w > 0.5 && cosUp > 0.05) {
@@ -1382,7 +1391,7 @@ fn waterSurface(p : vec2f, time : f32, dist : f32) -> vec3f {
     }
     var seen = behind * transmit * (1.0 - fresnel) * (1.0 - foam);
     var mirror = vec3f(0.0);
-    if (below && fresnel > 0.02 && haveColor && haveDepth) {
+    if (below && fresnel > 0.02 && haveColor && haveDepth && mc.u_mirror > 0.5) {
         let met = waterReflect(P, reflect(-viewDir, N), waterDist);
         if (met.w > 0.5) { mirror = met.xyz; } else { mirror = mix(mc.u_shallowColor.rgb, mc.u_deepColor.rgb, vec3f(0.5)) * 0.25; }
     }

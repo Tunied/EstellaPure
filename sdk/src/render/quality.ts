@@ -26,6 +26,16 @@ export interface QualityProfile {
     planarReflectionUpdatesPerSecond: number;
     postProcess: boolean;
     ssao: boolean;
+    /** How many of a body of water's four waves are summed: in the geometry, the shading and what the surface answers for code. 1 to 4. */
+    waterWaves: number;
+    /** The most cells along a side of the ripple grid a body of water keeps; the body's own `ripples` is held to it. 0 keeps none. */
+    waterRippleCells: number;
+    /** Whether the waves lift the water's geometry. Off is the lite water: a flat surface whose waves are in the shading only, and which code reads as flat. */
+    waterDisplacement: boolean;
+    /** Whether the surface seen from below mirrors the world under it (a screen-space march per pixel). */
+    waterMirror: boolean;
+    /** Whether the sun's web of light is drawn on what is under the water, and through the surface as shafts. */
+    waterCaustics: boolean;
     /**
      * Post-process effects this level leaves out, each named by its effect type (`ssr`, `taa`, `depthOfField`,
      * `lightShafts`, `autoExposure` …), compared without regard to case. An effect is all of its passes: a
@@ -60,6 +70,7 @@ const PROFILES: Record<QualityLevel, QualityProfile> = {
         shadowAtlasSize: 1024, shadowCellSize: 256, shadowCascades: 2,
         planarReflectionScale: 0.25, planarReflectionMaxSize: 512, planarReflectionUpdatesPerSecond: 0,
         shadowDistance: 0, particleLimit: 1000, postProcess: true, ssao: false,
+        waterWaves: 2, waterRippleCells: 32, waterDisplacement: false, waterMirror: false, waterCaustics: false,
         skipEffects: ['ssr', 'taa', 'depthOfField', 'lightShafts', 'motionBlur', 'lensFlare', 'gtao', 'subsurface', 'voxelGI'],
     },
     medium: {
@@ -67,6 +78,7 @@ const PROFILES: Record<QualityLevel, QualityProfile> = {
         shadowAtlasSize: 2048, shadowCellSize: 512, shadowCascades: 3,
         planarReflectionScale: 0.5, planarReflectionMaxSize: 1024, planarReflectionUpdatesPerSecond: 0,
         shadowDistance: 0, particleLimit: 5000, postProcess: true, ssao: true,
+        waterWaves: 3, waterRippleCells: 64, waterDisplacement: true, waterMirror: true, waterCaustics: true,
         skipEffects: ['ssr', 'depthOfField'],
     },
     high: {
@@ -74,6 +86,7 @@ const PROFILES: Record<QualityLevel, QualityProfile> = {
         shadowAtlasSize: 2048, shadowCellSize: 512, shadowCascades: 4,
         planarReflectionScale: 1, planarReflectionMaxSize: 2048, planarReflectionUpdatesPerSecond: 0,
         shadowDistance: 0, particleLimit: 20000, postProcess: true, ssao: true,
+        waterWaves: 4, waterRippleCells: 128, waterDisplacement: true, waterMirror: true, waterCaustics: true,
         skipEffects: [],
     },
 };
@@ -147,6 +160,11 @@ function resolveProfile(level: QualityLevel, value: unknown): QualityProfile {
         planarReflectionUpdatesPerSecond: finite(r.planarReflectionUpdatesPerSecond, base.planarReflectionUpdatesPerSecond, 0, 120),
         postProcess: typeof r.postProcess === 'boolean' ? r.postProcess : base.postProcess,
         ssao: typeof r.ssao === 'boolean' ? r.ssao : base.ssao,
+        waterWaves: Math.round(finite(r.waterWaves, base.waterWaves, 1, 4)),
+        waterRippleCells: Math.round(finite(r.waterRippleCells, base.waterRippleCells, 0, 256)),
+        waterDisplacement: typeof r.waterDisplacement === 'boolean' ? r.waterDisplacement : base.waterDisplacement,
+        waterMirror: typeof r.waterMirror === 'boolean' ? r.waterMirror : base.waterMirror,
+        waterCaustics: typeof r.waterCaustics === 'boolean' ? r.waterCaustics : base.waterCaustics,
         skipEffects: Array.isArray(r.skipEffects)
             ? r.skipEffects.filter((e): e is string => typeof e === 'string' && e.trim() !== '')
                 .map((e) => e.trim()).slice(0, 32)
