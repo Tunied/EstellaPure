@@ -703,7 +703,18 @@ function hasProduct(material: ImportedMaterial, refs: ProductRefs): boolean {
     return needsMaterial(material) || (!!refs.characters && characterShading(material) !== undefined);
 }
 
-/** What the character shaders read, from what the source says: the maps they share, and the cutout hair needs. */
+/**
+ * How much of the Hair shader's `u_specular` one unit of a glTF specular factor is. The factor scales a Fresnel reflectance of 0.04; the engine's
+ * strand highlight is an authored lobe with a peak of about half the light, so the same factor is far too bright without this. Measured against
+ * Blender's Principled at roughness 0.43 and a specular level of 0.3 (tools/render-align in the star-neighbors game).
+ */
+const HAIR_SPECULAR_PER_GLTF = 0.07;
+
+/**
+ * What the character shaders read, from what the source says: the maps they share, and the cutout hair needs. What a glTF does not say it
+ * does not have: it carries no subsurface scattering and no second strand highlight, so those are written as off (they stay on the shader
+ * for a hand-made material), and the import shades like the Principled shader the model was authored against.
+ */
 function characterProperties(shading: CharacterShading, material: ImportedMaterial, properties: Record<string, unknown>,
                              bind: (name: string, image?: ImportedImageRef) => void): void {
     // Skin and hair read the glTF packing (occlusion, roughness, metalness) as their `u_ormMap`; their roughness is a SCALE on it,
@@ -714,7 +725,13 @@ function characterProperties(shading: CharacterShading, material: ImportedMateri
         bind('u_ormMap', material.metallicRoughnessTexture);
         if (rough !== undefined && !material.metallicRoughnessTexture) properties.u_roughness = rough;
     }
+    if (shading === 'skin') {
+        properties.u_sssWrap = 0; properties.u_translucency = 0; properties.u_lobe2 = 0; properties.u_fuzz = 0;
+    }
     if (shading === 'hair') {
+        properties.u_translucency = 0; properties.u_shiftAmount = 0; properties.u_rootDark = 0;
+        properties.u_secondaryTint = { r: 0, g: 0, b: 0, a: 1 };
+        properties.u_specular = (material.specular ?? 1) * HAIR_SPECULAR_PER_GLTF;
         properties.u_alphaCutoff = material.alphaCutoff ?? 0.5;
         bind('u_flowMap', material.flowTexture);
         bind('u_shiftMap', material.shiftTexture);
