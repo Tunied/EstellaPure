@@ -95,6 +95,22 @@ It needs the 3D physics module, and a build of it with the force functions (`_ph
 floats nothing. Floating is one rigid body in one fluid: there is no added mass, no lift from the shape of a hull, and a body that is wholly under is not pushed
 toward anything but by the current.
 
+## Under the surface
+
+When the active camera is under a body of water the picture is the water's. The water module reports where the camera is each frame (from [`Waters.sample`](#asking-the-surface))
+and the post-process volume system adds an **Underwater** effect for as long as it is, the way a weather adds its rain:
+
+- **Fog by water crossed.** The light of each pixel has crossed the distance from the eye to what it came from (the sky, which has no surface, the longest the water is seen
+  through, `u_range`), and the water takes it out colour by colour, red first, by the same `u_absorption` and `u_density` the surface's material draws with, and gives back
+  its own colour. A white wall under water is blue-green, and a far one more than a near one.
+- **Dimmer with depth.** The colour the water gives back dims with how far down the camera is (`u_lightFalloff`), as the light that reaches it comes from above.
+- **No pop.** The effect ramps in over the first stretch below the surface (half the wave height, at least one unit), so crossing it is a fade and not a cut.
+- **Yours if you wrote it.** A scene that authors an `underwater` effect in a volume keeps its numbers; only the camera's depth and how wholly it is under are filled in.
+
+The surface itself, seen from below, is turned over and light goes the other way through it: from out of the water rays past the critical angle (about 49 degrees) are reflected
+whole, so the water above is a window of sky overhead in a mirror, and the Fresnel term follows. The window's edge is not drawn as a circle on its own: it is where the
+refraction runs out.
+
 ## Splines
 
 `Spline` is data and nothing draws it: `points` (each an `x`, `y`, `z` in the entity's own space and a `width`) and `closed`. A river reads the one on its
@@ -156,6 +172,7 @@ What is not there yet, so nobody is surprised:
 - A river does not carve the ground, rapids and falls are not foamed by how fast or steep the water runs, and two bodies do not blend where they meet.
   A lake's outline is a polygon on a plane: it does not follow a curved shore, and the waves die toward the shore without breaking on it.
 - Things float (see [Floating](#floating)); nothing swims yet, and a body in the water makes no ripple or wake.
-- A camera under the surface sees the water turned over, and nothing else changes: no underwater fog or tint.
+- Under the surface there is fog and tint but no light: no caustics on what lies below, no shafts of sun through the surface, and the surface seen from below mirrors the fog, not the
+  water's own picture of itself. Each camera is under or not as a whole: there is no waterline across the lens.
 - It does not react to what moves through it: no ripples, no wake.
 - The waves are the four peaked sines, not a spectrum, and they lift the surface without pushing it sideways.

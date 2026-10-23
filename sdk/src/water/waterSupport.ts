@@ -8,8 +8,11 @@
 import { addEntryPlugin } from '../runtime/entryPlugins';
 import { WaterPlugin } from './waterPlugin';
 import { FloatingPlugin } from './floating';
+import { UnderwaterPlugin, registerUnderwaterEffect } from './underwater';
 
 export function registerWaterSupport(): void {
     addEntryPlugin('water', () => new WaterPlugin());
     addEntryPlugin('floating', () => new FloatingPlugin());
+    addEntryPlugin('underwater', () => new UnderwaterPlugin());
+    registerUnderwaterEffect();
 }

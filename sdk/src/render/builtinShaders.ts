@@ -928,8 +928,9 @@ void main() {
         N = perturbNormal(Ngeo, P, v_texCoord, normalize(vec3(-slope.x, -slope.y, 1.0)));
     }
 #endif
-    // Seen from below, the surface turns over.
-    if (dot(viewDir, Ngeo) < 0.0) { N = -N; Ngeo = -Ngeo; }
+    // Seen from below, the surface turns over, and light goes the other way through it: out of the water, into the air.
+    bool below = dot(viewDir, Ngeo) < 0.0;
+    if (below) { N = -N; Ngeo = -Ngeo; }
 
     // What is behind the water: the picture and the distance, where the frame took them.
     bool haveColor = texture(u_sceneColor, vec2(0.5)).a < 0.75;
@@ -940,9 +941,11 @@ void main() {
     float column0 = max(behindDist - waterDist, 0.0);
 
     // Bent by the waves: the ray through the tilted surface against the ray through a flat one, over as much water as there is.
-    const float RATIO = 1.0 / 1.333;
+    float RATIO = below ? 1.333 : 1.0 / 1.333;
     vec3 bentWave = refract(-viewDir, N, RATIO);
     vec3 bentFlat = refract(-viewDir, Ngeo, RATIO);
+    // Past the critical angle (about 49 degrees) nothing gets out of the water: refract gives nothing, and the surface is a mirror.
+    if (below && (dot(bentWave, bentWave) < 0.5 || dot(bentFlat, bentFlat) < 0.5)) { bentWave = bentFlat = vec3(0.0); }
     float reach = min(column0, u_distortionRange) * u_refractionStrength;
     vec4 clip1 = u_projection * vec4(P + (bentWave - bentFlat) * reach, 1.0);
     vec2 uv1 = clip1.xy / max(clip1.w, 1e-4) * 0.5 + 0.5;
@@ -959,6 +962,8 @@ void main() {
 
     // The water in between takes the light out of it, red first, and gives back its own colour: more of it the deeper it goes.
     vec3 transmit = exp(-u_absorption.rgb * (u_density * column));
+    // From below the water between the eye and the surface is the camera's own medium (the underwater effect fogs it), not a column behind the surface.
+    if (below) transmit = vec3(1.0);
     float murk = 1.0 - dot(transmit, vec3(1.0 / 3.0));
     vec3 scatterColor = mix(u_shallowColor.rgb, u_deepColor.rgb, 1.0 - exp(-column * u_density * 0.5));
 
@@ -982,6 +987,12 @@ void main() {
     vec3 lit = applyLightingSurface(albedo, N, P, viewDir, 0.0, roughness, 1.0, 1.0, ext);
     float cosV = clamp(dot(N, viewDir), 0.0, 1.0);
     float fresnel = 0.0204 + (1.0 - 0.0204) * pow(1.0 - cosV, 5.0);
+    if (below) {
+        // Out of the water the glancing rays are reflected whole: Snell's window, a cone of sky overhead in a mirror of the water below it.
+        float sinT = 1.333 * sqrt(max(1.0 - cosV * cosV, 0.0));
+        float cosT = sqrt(max(1.0 - sinT * sinT, 0.0));
+        fresnel = sinT >= 1.0 ? 1.0 : 0.0204 + (1.0 - 0.0204) * pow(1.0 - cosT, 5.0);
+    }
     vec3 seen = behind * transmit * (1.0 - fresnel) * (1.0 - foam);
     // Outside the lake's outline there is no water.
     if (u_shoreOn > 0.5 && shoreDist < 0.0) discard;
@@ -1114,7 +1125,8 @@ fn waterSurface(p : vec2f, time : f32, dist : f32) -> vec3f {
         N = perturbNormal(Ngeo, P, v.v_texCoord, normalize(vec3f(-slope.x, -slope.y, 1.0)));
     }
 #endif
-    if (dot(viewDir, Ngeo) < 0.0) { N = -N; Ngeo = -Ngeo; }
+    let below = dot(viewDir, Ngeo) < 0.0;
+    if (below) { N = -N; Ngeo = -Ngeo; }
 
     let haveColor = textureSampleLevel(u_sceneColor, u_sceneColor_s, vec2f(0.5), 0.0).a < 0.75;
     let haveDepth = haveColor && textureSampleLevel(u_sceneDepthMap, u_sceneDepthMap_s, vec2f(0.5), 0.0).a < 0.75;
@@ -1126,9 +1138,11 @@ fn waterSurface(p : vec2f, time : f32, dist : f32) -> vec3f {
     if (haveDepth) { behindDist = textureSampleLevel(u_sceneDepthMap, u_sceneDepthMap_s, clamp(uv0, vec2f(0.001), vec2f(0.999)), 0.0).r; }
     let column0 = max(behindDist - waterDist, 0.0);
 
-    let ratio = 1.0 / 1.333;
-    let bentWave = refract(-viewDir, N, ratio);
-    let bentFlat = refract(-viewDir, Ngeo, ratio);
+    var ratio = 1.0 / 1.333;
+    if (below) { ratio = 1.333; }
+    var bentWave = refract(-viewDir, N, ratio);
+    var bentFlat = refract(-viewDir, Ngeo, ratio);
+    if (below && (dot(bentWave, bentWave) < 0.5 || dot(bentFlat, bentFlat) < 0.5)) { bentWave = vec3f(0.0); bentFlat = vec3f(0.0); }
     let reach = min(column0, mc.u_distortionRange) * mc.u_refractionStrength;
     let clip1 = frame.projection * vec4f(P + (bentWave - bentFlat) * reach, 1.0);
     let w1 = max(clip1.w, 1e-4);
@@ -1144,7 +1158,8 @@ fn waterSurface(p : vec2f, time : f32, dist : f32) -> vec3f {
         column = max(dist1 - waterDist, 0.0);
     }
 
-    let transmit = exp(-mc.u_absorption.rgb * (mc.u_density * column));
+    var transmit = exp(-mc.u_absorption.rgb * (mc.u_density * column));
+    if (below) { transmit = vec3f(1.0); }
     let murk = 1.0 - dot(transmit, vec3f(1.0 / 3.0));
     let scatterColor = mix(mc.u_shallowColor.rgb, mc.u_deepColor.rgb, vec3f(1.0 - exp(-column * mc.u_density * 0.5)));
 
@@ -1167,7 +1182,12 @@ fn waterSurface(p : vec2f, time : f32, dist : f32) -> vec3f {
     let roughness = mix(mc.u_roughness, 0.7, foam);
     let lit = applyLightingSurface(albedo, N, P, viewDir, 0.0, roughness, 1.0, 1.0, ext);
     let cosV = clamp(dot(N, viewDir), 0.0, 1.0);
-    let fresnel = 0.0204 + (1.0 - 0.0204) * pow(1.0 - cosV, 5.0);
+    var fresnel = 0.0204 + (1.0 - 0.0204) * pow(1.0 - cosV, 5.0);
+    if (below) {
+        let sinT = 1.333 * sqrt(max(1.0 - cosV * cosV, 0.0));
+        let cosT = sqrt(max(1.0 - sinT * sinT, 0.0));
+        if (sinT >= 1.0) { fresnel = 1.0; } else { fresnel = 0.0204 + (1.0 - 0.0204) * pow(1.0 - cosT, 5.0); }
+    }
     let seen = behind * transmit * (1.0 - fresnel) * (1.0 - foam);
     var alpha = 0.85;
     if (haveColor) { alpha = 1.0; }

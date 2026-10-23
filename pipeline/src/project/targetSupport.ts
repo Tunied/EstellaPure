@@ -87,6 +87,7 @@ export const POST_PROCESS_EFFECT_GROUP: Readonly<Record<string, Subsystem>> = {
     voxelGI: 'fxLighting', ssgi: 'fxLighting', contactShadows: 'fxLighting', lightShafts: 'fxLighting',
     autoExposure: 'fxLighting', depthOfField: 'fxLighting', ssao: 'fxLighting', subsurface: 'fxLighting',
     gtao: 'fxLighting', ssr: 'fxLighting', taa: 'fxLighting',
+    underwater: 'water',
 };
 
 /** Human name, for a message someone packaging a game has to act on. */

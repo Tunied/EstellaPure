@@ -67,7 +67,7 @@ export const presentationBasePlugins = (): Plugin[] => [
  */
 export const PLUGIN_BUILD_ORDER: readonly string[] = [
     'Diagnostics', 'timer', 'velocity', 'lifecycle', 'animation', 'audio', 'video',
-    'particle', 'trail', 'meshRenderer', 'staticBatch', 'terrain', 'foliage', 'spline', 'water', 'floating', 'tilemap', 'postProcess', 'timeline',
+    'particle', 'trail', 'meshRenderer', 'staticBatch', 'terrain', 'foliage', 'spline', 'water', 'floating', 'underwater', 'tilemap', 'postProcess', 'timeline',
     'gameplay',
     'perception', 'fsm', 'bt', 'scriptGraph', 'nav', 'eventBinding', 'replication',
     'services',
