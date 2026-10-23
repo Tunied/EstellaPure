@@ -6,8 +6,11 @@
  * A call, not a file's side effect — see tilemap/tilemapSupport.ts.
  */
 import { addEntryPlugin } from '../runtime/entryPlugins';
+import { registerBuiltinShaderTemplate } from '../render/builtinShaders';
+import { FOLIAGE_SHADER_TEMPLATE } from './foliageShader';
 import { FoliagePlugin } from './foliagePlugin';
 
 export function registerFoliageSupport(): void {
+    registerBuiltinShaderTemplate(FOLIAGE_SHADER_TEMPLATE);
     addEntryPlugin('foliage', () => new FoliagePlugin());
 }

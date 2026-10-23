@@ -20,6 +20,7 @@ export const ESENGINE_SUBPATHS: Readonly<Record<string, string>> = {
   'esengine/foliage': 'foliage/index.js',
   'esengine/water': 'water/index.js',
   'esengine/spline': 'spline/index.js',
+  'esengine/character-shaders': 'character-shaders/index.js',
   'esengine/logic': 'logic/index.js',
   'esengine/debug-channel': 'debug-channel/index.js',
   'esengine/ai': 'ai/index.js',

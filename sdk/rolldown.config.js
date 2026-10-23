@@ -105,6 +105,7 @@ export default defineConfig([
             'foliage/index': 'src/foliage/index.ts',
             'water/index': 'src/water/index.ts',
             'spline/index': 'src/spline/index.ts',
+            'character-shaders/index': 'src/character/index.ts',
             'logic/index': 'src/logic/index.ts',
             'debug-channel/index': 'src/debug-channel/index.ts',
             'ai/index': 'src/ai/index.ts',

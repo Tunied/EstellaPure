@@ -1,0 +1,731 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
+/**
+ * @file  waterShader.ts
+ * @brief The Water built-in shader: waves, refraction, reflection, caustics, foam.
+ *
+ * The shader source lives with the module that installs it, not in the core's list of built-in shaders: a package that does not install the module carries none of it.
+ */
+import { makeBuiltinShaderTemplate } from '../render/builtinShaders';
+import { CAUSTICS_GLSL, CAUSTICS_WGSL } from '../render/waterCaustics';
+
+// A horizontal body of water: waves that travel, the scene seen through it bent and tinted by how much water lies in front of it, the sky
+// and the lights reflected off it, and foam where it meets what it lies on and on the crests. It reads the picture of the opaque scene
+// behind it and how far each pixel of that is from the eye, which the frame takes before it draws a material that declares them, so
+// the depth of the water at a pixel is what is measured, not a number the author guessed. Where the device cannot hold the distances
+// (no float target) it falls back to `u_fallbackDepth` as the depth everywhere.
+const WATER = `#pragma shader "Water"
+#pragma version 300 es
+#pragma domain Lit
+// The colour the water scatters back: lighter where it is shallow, darker where it is deep.
+#pragma param u_shallowColor color default(0.10,0.42,0.46,1)
+#pragma param u_deepColor color default(0.01,0.08,0.15,1)
+// How fast each colour is absorbed along the way through the water (red goes first), and how thick the water is, per world unit.
+#pragma param u_absorption color default(0.45,0.09,0.05,1)
+#pragma param u_density float default(0.12) range(0,4) ui(slider)
+// The waves: height, length of the longest, how sharp their crests are drawn, how fast they travel and which way (degrees).
+#pragma param u_waveHeight float default(0.3) range(0,8) ui(slider)
+#pragma param u_waveLength float default(14) range(0.5,300) ui(slider)
+#pragma param u_waveSpeed float default(1) range(0,4) ui(slider)
+#pragma param u_waveDirection float default(30) range(0,360) ui(slider)
+// The small ripples the long waves carry: how steep and how long each is.
+#pragma param u_rippleStrength float default(0.3) range(0,1) ui(slider)
+#pragma param u_rippleLength float default(2.5) range(0.1,40) ui(slider)
+#pragma param u_roughness float default(0.04) range(0,1) ui(slider)
+// How far what is seen through the water is shifted by its waves, and the depth of water at which that stops growing.
+#pragma param u_refractionStrength float default(1) range(0,4) ui(slider)
+#pragma param u_distortionRange float default(12) range(0.1,200) ui(slider)
+// Foam: its colour, how deep the water is where it begins at the shore (world units), and how much of the wave crests carry it.
+#pragma param u_foamColor color default(0.95,0.97,1,1)
+#pragma param u_foamWidth float default(1.2) range(0,20) ui(slider)
+#pragma param u_foamCrest float default(0.5) range(0,1) ui(slider)
+// The depth taken where the device could not measure one.
+#pragma param u_fallbackDepth float default(4) range(0,200) ui(slider)
+// Where the waves are measured. 0 is the world's xz plane, which is what a flat plane of water wants. 1 is the body's own space: the mesh's uv is its
+// local x and z (plus u_origin, which a body that follows the camera moves so the waves stay put), and the waves then lift the geometry and follow the
+// body's tilt, which is what the WaterBody component builds.
+#pragma param u_waveSpace float default(0) range(0,1) ui(slider)
+#pragma param u_origin vec2 default(0,0)
+// The cell size of the mesh's finest ring, for a body the WaterBody component built: a vertex in a coarser ring (its colour's red says which) fades the
+// waves it cannot draw, those shorter than six of its cells. 0 draws every wave at every vertex.
+#pragma param u_cellSize float default(0) range(0,100) ui(slider)
+// A lake's shore, baked by the WaterBody component over its box: red the signed distance to its outline (0.5 at the edge), green how deep the water is,
+// blue the share of the waves kept, all over u_shoreRange. The pixels outside the outline are cut, the waves die toward the shore, and it foams there.
+#pragma param u_shoreOn float default(0) range(0,1) ui(slider)
+#pragma param u_shoreMap texture default(white) texel(data)
+#pragma param u_shoreOrigin vec2 default(0,0)
+#pragma param u_shoreSize vec2 default(1,1)
+#pragma param u_shoreRange float default(16) range(0.01,10000) ui(slider)
+// A river's current: how fast it runs (world units a second, 0 for still water) along the direction the mesh's vertex colour gives (red and green) at the speed
+// its blue says (half is the nominal), and how long, in seconds, each of the two copies of the surface the shader carries downstream lives before the other takes over.
+#pragma param u_flowSpeed float default(0) range(0,50) ui(slider)
+#pragma param u_flowCycle float default(2) range(0.2,20) ui(slider)
+// How much of the waves lifts the geometry: 1 for a lake or an ocean, 0 for a river, whose surface is drawn flat and moved only in the shading.
+#pragma param u_geoWaves float default(1) range(0,1) ui(slider)
+// The net of light the waves throw on what is under the water: how strong it is, how large one cell of it is (world units), and how fast it swims. The Underwater
+// effect draws the same one from below, with these numbers, so the two halves of the picture agree.
+#pragma param u_causticStrength float default(0.6) range(0,3) ui(slider)
+#pragma param u_causticScale float default(2) range(0.05,2000) ui(slider)
+#pragma param u_causticSpeed float default(0.35) range(0,4) ui(slider)
+// What the quality level allows (the WaterBody component writes these): how many of the four waves are summed, whether the surface seen from below mirrors the world under it,
+// and whether the sun's web of light is drawn on what lies under the water.
+#pragma param u_waveCount float default(4) range(1,4) ui(slider)
+#pragma param u_mirror float default(1) range(0,1) ui(slider)
+#pragma param u_causticOn float default(1) range(0,1) ui(slider)
+// The disturbance the water keeps (WaterBody ripples): a window of the body's xz plane, red the height of the ripples (0.5 at rest, u_rippleRange above or below at 1 and 0)
+// and green the foam they left, as the CPU stepped them. u_rippleSize is the window's side, u_rippleTexel one texel of it.
+#pragma param u_rippleOn float default(0) range(0,1) ui(slider)
+#pragma param u_rippleMap texture default(white) texel(data)
+#pragma param u_rippleOrigin vec2 default(0,0)
+#pragma param u_rippleSize float default(64) range(0.01,100000) ui(slider)
+#pragma param u_rippleTexel float default(0.0156) range(0,1) ui(slider)
+#pragma param u_rippleRange float default(1) range(0.0001,1000) ui(slider)
+#pragma param u_sceneColor texture default(white)
+#pragma param u_sceneDepthMap texture default(white) texel(data)
+
+#pragma vertexbounds 16
+#pragma vertexoffset
+// The height of the waves at p: the same four peaked sines the fragment takes its slope from, so the surface that is lit is the one that is drawn.
+float waterWaveHeight(vec2 p, float time, float cell) {
+    const vec4 SET[4] = vec4[4](vec4(0.0, 1.0, 1.0, 1.0), vec4(28.0, 0.62, 0.55, 1.1), vec4(-37.0, 0.37, 0.3, 1.2), vec4(71.0, 0.21, 0.15, 1.35));
+    float height = 0.0;
+    float base = radians(u_waveDirection);
+    for (int i = 0; i < 4; ++i) {
+        if (float(i) >= u_waveCount) break;
+        float length_ = u_waveLength * SET[i].y;
+        float k = 6.2831853 / length_;
+        float a = base + radians(SET[i].x);
+        vec2 d = vec2(sin(a), cos(a));
+        float omega = sqrt(9.8 * k) * u_waveSpeed * SET[i].w;
+        float fade = cell > 0.0 ? clamp((length_ / cell - 3.0) / 3.0, 0.0, 1.0) : 1.0;
+        height += u_waveHeight * SET[i].z * exp(sin(k * dot(d, p) - omega * time) - 1.0) * fade;
+    }
+    return height;
+}
+void esMaterialVertex(inout vec3 local, inout vec3 localNormal, in vec2 uv) {
+    if (u_waveSpace < 0.5) return;
+    float cell = u_cellSize > 0.0 ? u_cellSize * exp2(es_vertexColor.r * 7.0) : 0.0;
+    float damp = u_shoreOn > 0.5 ? es_vertexColor.g : 1.0;
+    local.y += waterWaveHeight(uv + u_origin, u_time.x, cell) * damp * u_geoWaves;
+}
+#pragma end
+
+#pragma vertexoffset wgsl
+fn waterWaveHeight(p : vec2f, time : f32, cell : f32) -> f32 {
+    var wave = array<vec4f, 4>(vec4f(0.0, 1.0, 1.0, 1.0), vec4f(28.0, 0.62, 0.55, 1.1), vec4f(-37.0, 0.37, 0.3, 1.2), vec4f(71.0, 0.21, 0.15, 1.35));
+    var height = 0.0;
+    let base = radians(mc.u_waveDirection);
+    for (var i : i32 = 0; i < 4; i = i + 1) {
+        if (f32(i) >= mc.u_waveCount) { break; }
+        let spec = wave[i];
+        let span = mc.u_waveLength * spec.y;
+        let k = 6.2831853 / span;
+        let a = base + radians(spec.x);
+        let d = vec2f(sin(a), cos(a));
+        let omega = sqrt(9.8 * k) * mc.u_waveSpeed * spec.w;
+        var fade = 1.0;
+        if (cell > 0.0) { fade = clamp((span / cell - 3.0) / 3.0, 0.0, 1.0); }
+        height = height + mc.u_waveHeight * spec.z * exp(sin(k * dot(d, p) - omega * time) - 1.0) * fade;
+    }
+    return height;
+}
+fn esMaterialVertex(local : ptr<function, vec3f>, localNormal : ptr<function, vec3f>, uv : vec2f) {
+    if (mc.u_waveSpace < 0.5) { return; }
+    var cell = 0.0;
+    if (mc.u_cellSize > 0.0) { cell = mc.u_cellSize * exp2(es_vertexColor.r * 7.0); }
+    var damp = 1.0;
+    if (mc.u_shoreOn > 0.5) { damp = es_vertexColor.g; }
+    (*local).y = (*local).y + waterWaveHeight(uv + mc.u_origin, tc.u_time.x, cell) * damp * mc.u_geoWaves;
+}
+#pragma end
+
+#pragma fragment
+precision highp float;
+
+in vec4 v_color;
+in vec2 v_texCoord;
+in highp vec2 v_worldPos;
+#ifdef MESH_NORMALS
+in highp vec3 v_worldNormal;
+in highp vec3 v_worldXYZ;
+#endif
+
+#ifdef ES_GBUFFER
+layout(location = 0) out vec4 fragColor;
+layout(location = 1) out vec4 fragSurface;
+
+vec2 packNormal(vec3 n) {
+    n /= (abs(n.x) + abs(n.y) + abs(n.z));
+    vec2 sgn = vec2(n.x >= 0.0 ? 1.0 : -1.0, n.y >= 0.0 ? 1.0 : -1.0);
+    vec2 e = n.z >= 0.0 ? n.xy : (1.0 - abs(n.yx)) * sgn;
+    return e * 0.5 + 0.5;
+}
+#else
+out vec4 fragColor;
+#endif
+
+float waterHash(vec2 p) {
+    p = fract(p * vec2(0.1031, 0.1030));
+    p += dot(p, p.yx + 33.33);
+    return fract((p.x + p.y) * p.x);
+}
+float waterNoise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(waterHash(i), waterHash(i + vec2(1.0, 0.0)), f.x),
+               mix(waterHash(i + vec2(0.0, 1.0)), waterHash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+/// The ripples' height at p: two layers of noise drifting in different directions.
+float ripples(vec2 p, float time) {
+    return waterNoise(p / u_rippleLength + vec2(0.31, 0.12) * time) * 0.6
+         + waterNoise(p / (u_rippleLength * 0.43) - vec2(0.17, 0.4) * time) * 0.4;
+}
+
+/// The slope of the water's surface at p (d height / d x, d height / d z) and how near the waves are to a crest, 0 to 1.
+/// Four waves a few directions apart, each a peaked sine (exp(sin - 1)) whose crests are narrower than its troughs.
+vec2 waveSlope(vec2 p, float time, float dist, out float crest) {
+    const vec4 SET[4] = vec4[4](vec4(0.0, 1.0, 1.0, 1.0), vec4(28.0, 0.62, 0.55, 1.1), vec4(-37.0, 0.37, 0.3, 1.2), vec4(71.0, 0.21, 0.15, 1.35));
+    vec2 slope = vec2(0.0);
+    float crestSum = 0.0;
+    float weightSum = 0.0;
+    float base = radians(u_waveDirection);
+    for (int i = 0; i < 4; ++i) {
+        if (float(i) >= u_waveCount) break;
+        float length_ = u_waveLength * SET[i].y;
+        float k = 6.2831853 / length_;
+        float a = base + radians(SET[i].x);
+        vec2 d = vec2(sin(a), cos(a));
+        float omega = sqrt(9.8 * k) * u_waveSpeed * SET[i].w;
+        float theta = k * dot(d, p) - omega * time;
+        float e = exp(sin(theta) - 1.0);
+        // A wave much shorter than a pixel is noise, not a wave: it fades out with distance.
+        float seen = clamp(1.0 - dist / (length_ * 220.0), 0.0, 1.0);
+        slope += d * (u_waveHeight * SET[i].z * e * cos(theta) * k * seen);
+        crestSum += e * SET[i].z;
+        weightSum += SET[i].z;
+    }
+    crest = crestSum / weightSum;
+    return slope;
+}
+
+${CAUSTICS_GLSL}
+/// The first directional light that shines: xyz is where it stands in the sky, w 1 if there is one, color its colour and strength, tiles its place in the shadow atlas.
+void waterSun(out vec4 dir, out vec4 color, out ivec2 tiles) {
+    dir = vec4(0.0);
+    color = vec4(0.0);
+    tiles = ivec2(0);
+    for (int i = 0; i < 16; ++i) {
+        Light l = u_lights[i];
+        if (l.posDir.z > 0.5 && l.posDir.z < 1.5 && l.color.a > 0.0) {
+            dir = vec4(-normalize(vec3(l.posDir.x, l.posDir.y, l.posDir.w)), 1.0);
+            color = l.color;
+            tiles = ivec2(int(l.shadowMap.x), int(l.shadowMap.y));
+            return;
+        }
+    }
+}
+
+/// Whether the sun reaches a point: one tap of the shadow map, 1 where there is none.
+float waterSunVisibility(vec3 worldPos, int first, int count) {
+#ifdef ES_RECEIVE_SHADOW
+    if (u_shadowParams.x < 0.5 || count <= 0) return 1.0;
+    for (int k = 0; k < 16; ++k) {
+        if (k >= count) break;
+        int t = first + k;
+        vec4 c = u_shadowMatrix[t] * vec4(worldPos, 1.0);
+        if (c.w <= 0.0) continue;
+        vec3 proj = c.xyz / c.w;
+        vec2 uv = proj.xy * 0.5 + 0.5;
+        if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0 || proj.z < 0.0 || proj.z > 1.0) continue;
+        vec4 rect = u_shadowTile[t];
+        vec2 at = rect.xy + uv * rect.z;
+        vec2 lo = rect.xy + u_shadowParams.y * 0.5;
+        vec2 hi = rect.xy + rect.z - u_shadowParams.y * 0.5;
+        float d = unpackDepth(textureLod(u_shadowMap, clamp(at, lo, hi), 0.0).rgb);
+        return d < clamp(proj.z * 0.5 + 0.5, 0.0, 1.0) - 0.0025 ? 0.0 : 1.0;
+    }
+#endif
+    return 1.0;
+}
+
+/// What a ray from p along r meets in the picture of the scene the frame copied, as a colour with alpha 1, or alpha 0 where it meets nothing on screen.
+vec4 waterReflect(vec3 p, vec3 r, float eyeDist) {
+    float stride = max(0.5, eyeDist * 0.03);
+    float travelled = stride;
+    for (int i = 0; i < 20; ++i) {
+        vec3 q = p + r * travelled;
+        vec4 clip = u_projection * vec4(q, 1.0);
+        if (clip.w <= 1e-4) break;
+        vec2 uv = clip.xy / clip.w * 0.5 + 0.5;
+        if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) break;
+        float qDist = u_camera.w > 0.5 ? length(q - u_camera.xyz) : -dot(q, u_camera.xyz);
+        float sceneDist = textureLod(u_sceneDepthMap, uv, 0.0).r;
+        // The ray has gone behind something the picture holds: that is what it met, if it did not skip clean through a thin one.
+        if (sceneDist < qDist && qDist - sceneDist < stride * 2.0 + 1.0) return vec4(textureLod(u_sceneColor, uv, 0.0).rgb, 1.0);
+        stride *= 1.25;
+        travelled += stride;
+    }
+    return vec4(0.0);
+}
+
+/// The slope of the surface at p and how near it is to a crest: the waves, and the ripples they carry, flattened with distance.
+vec2 waterSurface(vec2 p, float time, float dist, out float crest) {
+    vec2 slope = waveSlope(p, time, dist, crest);
+    float rippleFade = clamp(1.0 - dist / (u_rippleLength * 180.0), 0.0, 1.0);
+    float e = u_rippleLength * 0.1;
+    vec2 ripple = vec2(ripples(p + vec2(e, 0.0), time) - ripples(p - vec2(e, 0.0), time),
+                       ripples(p + vec2(0.0, e), time) - ripples(p - vec2(0.0, e), time)) / (2.0 * e);
+    return slope + ripple * (u_rippleStrength * u_rippleLength * rippleFade);
+}
+
+void main() {
+#ifdef MESH_NORMALS
+    highp vec3 P = v_worldXYZ;
+#else
+    highp vec3 P = vec3(v_worldPos.x, 0.0, v_worldPos.y);
+#endif
+    float time = u_time.x;
+    vec3 viewDir = viewDirection(P);
+    float waterDist = u_camera.w > 0.5 ? length(P - u_camera.xyz) : -dot(P, u_camera.xyz);
+
+    // The surface: the long waves, then the ripples they carry, flattened with distance so the far water is calm rather than aliased.
+    vec2 wp = u_waveSpace > 0.5 ? v_texCoord + u_origin : P.xz;
+    // The lake's shore at this pixel (a texture read, taken before any branch).
+    vec4 shoreTex = texture(u_shoreMap, clamp((v_texCoord - u_shoreOrigin) / max(u_shoreSize, vec2(1e-4)), vec2(0.0), vec2(1.0)));
+    float shoreDist = (shoreTex.r - 0.5) * 2.0 * u_shoreRange;
+    float shoreDepth = shoreTex.g * u_shoreRange;
+    float damp = u_shoreOn > 0.5 ? shoreTex.b : 1.0;
+    // The ripples at this pixel: their height on four sides gives the slope they add, and the foam is what they left (reads taken before any branch).
+    vec2 ripUv = (wp - u_rippleOrigin) / max(u_rippleSize, 1e-4);
+    vec4 ripC = texture(u_rippleMap, ripUv);
+    vec2 ripStep = vec2(u_rippleTexel);
+    float ripCell = max(u_rippleSize * u_rippleTexel, 1e-5);
+    float ripL = texture(u_rippleMap, ripUv - vec2(ripStep.x, 0.0)).r, ripR = texture(u_rippleMap, ripUv + vec2(ripStep.x, 0.0)).r;
+    float ripD = texture(u_rippleMap, ripUv - vec2(0.0, ripStep.y)).r, ripU = texture(u_rippleMap, ripUv + vec2(0.0, ripStep.y)).r;
+    bool ripIn = u_rippleOn > 0.5 && u_waveSpace > 0.5 && all(greaterThanEqual(ripUv, vec2(0.0))) && all(lessThanEqual(ripUv, vec2(1.0)));
+    vec2 ripSlope = ripIn ? vec2(ripR - ripL, ripU - ripD) * u_rippleRange / ripCell : vec2(0.0);
+    float ripFoam = ripIn ? ripC.g : 0.0;
+    float crest;
+    vec2 slope;
+    if (u_flowSpeed > 0.0) {
+        // A river: the surface rides the current. Two copies of it are carried downstream a cycle at a time, each fading in as the other fades
+        // out, so the moment one is put back at its start is hidden by the other.
+        vec2 flow = (v_color.rg * 2.0 - 1.0) * (v_color.b * 2.0) * u_flowSpeed;
+        float cycle = max(u_flowCycle, 0.1);
+        float ph0 = fract(time / cycle);
+        float ph1 = fract(time / cycle + 0.5);
+        float w0 = 1.0 - abs(2.0 * ph0 - 1.0);
+        float crest0, crest1;
+        vec2 s0 = waterSurface(wp - flow * (ph0 * cycle), time, waterDist, crest0);
+        vec2 s1 = waterSurface(wp - flow * (ph1 * cycle), time, waterDist, crest1);
+        slope = mix(s1, s0, w0);
+        crest = mix(crest1, crest0, w0);
+    } else {
+        slope = waterSurface(wp, time, waterDist, crest);
+    }
+    slope *= damp;
+    crest *= damp;
+    slope += ripSlope;
+    vec3 N = normalize(vec3(-slope.x, 1.0, -slope.y));
+    vec3 Ngeo = vec3(0.0, 1.0, 0.0);
+#ifdef MESH_NORMALS
+    if (u_waveSpace > 0.5) {
+        // The body's own frame: the mesh's normal is its up (the hook lifts the vertices and leaves it alone), and the slope leans along
+        // its uv axes, which are its local x and z.
+        Ngeo = normalize(v_worldNormal);
+        N = perturbNormal(Ngeo, P, v_texCoord, normalize(vec3(-slope.x, -slope.y, 1.0)));
+    }
+#endif
+    // Seen from below, the surface turns over, and light goes the other way through it: out of the water, into the air.
+    bool below = dot(viewDir, Ngeo) < 0.0;
+    if (below) { N = -N; Ngeo = -Ngeo; }
+
+    // What is behind the water: the picture and the distance, where the frame took them.
+    bool haveColor = texture(u_sceneColor, vec2(0.5)).a < 0.75;
+    bool haveDepth = haveColor && texture(u_sceneDepthMap, vec2(0.5)).a < 0.75;
+    vec4 clip0 = u_projection * vec4(P, 1.0);
+    vec2 uv0 = clip0.xy / max(clip0.w, 1e-4) * 0.5 + 0.5;
+    float behindDist = haveDepth ? texture(u_sceneDepthMap, clamp(uv0, vec2(0.001), vec2(0.999))).r : waterDist + u_fallbackDepth;
+    float column0 = max(behindDist - waterDist, 0.0);
+
+    // Bent by the waves: the ray through the tilted surface against the ray through a flat one, over as much water as there is.
+    float RATIO = below ? 1.333 : 1.0 / 1.333;
+    vec3 bentWave = refract(-viewDir, N, RATIO);
+    vec3 bentFlat = refract(-viewDir, Ngeo, RATIO);
+    // Past the critical angle (about 49 degrees) nothing gets out of the water: refract gives nothing, and the surface is a mirror.
+    if (below && (dot(bentWave, bentWave) < 0.5 || dot(bentFlat, bentFlat) < 0.5)) { bentWave = bentFlat = vec3(0.0); }
+    float reach = min(column0, u_distortionRange) * u_refractionStrength;
+    vec4 clip1 = u_projection * vec4(P + (bentWave - bentFlat) * reach, 1.0);
+    vec2 uv1 = clip1.xy / max(clip1.w, 1e-4) * 0.5 + 0.5;
+    vec3 behind = vec3(0.0);
+    float column = column0;
+    if (haveColor) {
+        uv1 = clamp(uv1, vec2(0.001), vec2(0.999));
+        float dist1 = haveDepth ? texture(u_sceneDepthMap, uv1).r : behindDist;
+        // Something standing in front of the water cannot be what is seen through it: keep the straight-through lookup.
+        if (dist1 < waterDist) { uv1 = clamp(uv0, vec2(0.001), vec2(0.999)); dist1 = behindDist; }
+        behind = texture(u_sceneColor, uv1).rgb;
+        column = max(dist1 - waterDist, 0.0);
+        // The sun through the waves lights what is under them in a web of bright threads, where the sun reaches it and as much as the water between lets through.
+        if (!below && haveDepth && u_causticStrength > 0.0 && u_causticOn > 0.5) {
+            vec4 sunDir, sunColor;
+            ivec2 sunTiles;
+            waterSun(sunDir, sunColor, sunTiles);
+            float cosUp = dot(sunDir.xyz, Ngeo);
+            if (sunDir.w > 0.5 && cosUp > 0.05) {
+                vec3 seabed = P + bentWave * column;
+                float depthBelow = max(dot(P - seabed, Ngeo), 0.0);
+                vec3 onSurface = seabed + sunDir.xyz * (depthBelow / max(cosUp, 0.15));
+                float c = causticPattern(onSurface.xz / u_causticScale, time * u_causticSpeed);
+                float reachSun = exp(-dot(u_absorption.rgb, vec3(1.0 / 3.0)) * u_density * depthBelow / max(cosUp, 0.15));
+                behind *= 1.0 + u_causticStrength * c * cosUp * waterSunVisibility(seabed, sunTiles.x, sunTiles.y) * reachSun * min(sunColor.a, 2.0) * 0.5;
+            }
+        }
+    }
+
+    // The water in between takes the light out of it, red first, and gives back its own colour: more of it the deeper it goes.
+    vec3 transmit = exp(-u_absorption.rgb * (u_density * column));
+    // From below the water between the eye and the surface is the camera's own medium (the underwater effect fogs it), not a column behind the surface.
+    if (below) transmit = vec3(1.0);
+    float murk = 1.0 - dot(transmit, vec3(1.0 / 3.0));
+    vec3 scatterColor = mix(u_shallowColor.rgb, u_deepColor.rgb, 1.0 - exp(-column * u_density * 0.5));
+
+    // Foam: along the shore, where the water is shallow, broken by noise that moves; and on the crests of the waves.
+    float vertical = column * max(abs(viewDir.y), 0.15);
+    float foamScale = 1.0 / (u_rippleLength * 1.2);
+    float breakup = waterNoise(wp * foamScale + vec2(time * 0.07, time * 0.05)) * 0.6 + waterNoise(wp * foamScale * 3.0 - vec2(time * 0.13, 0.0)) * 0.4;
+    float pulse = 0.65 + 0.35 * sin(time * 0.9 + breakup * 6.0);
+    float shore = haveDepth && u_foamWidth > 0.0 ? clamp((1.0 - vertical / (u_foamWidth * pulse)) * 1.5 - breakup * 0.8, 0.0, 1.0) : 0.0;
+    // The baked shore foams too, where the depth buffer cannot say (no chain, no float targets) and along the lake's outline.
+    if (u_shoreOn > 0.5 && u_foamWidth > 0.0) {
+        shore = max(shore, clamp((1.0 - min(shoreDist, shoreDepth) / (u_foamWidth * pulse)) * 1.5 - breakup * 0.8, 0.0, 1.0));
+    }
+    float onCrest = u_foamCrest > 0.0 ? smoothstep(1.0 - 0.3 * u_foamCrest, 1.0, crest) * smoothstep(0.35, 0.75, breakup) : 0.0;
+    float foam = clamp(max(max(shore, onCrest * u_foamCrest), ripFoam * (0.55 + 0.45 * breakup)), 0.0, 1.0);
+
+    SurfaceExt ext = surfaceExtNone(N);
+    ext.misc.x = 0.0204;
+    vec3 albedo = mix(scatterColor * murk, u_foamColor.rgb, foam);
+    float roughness = mix(u_roughness, 0.7, foam);
+    vec3 lit = applyLightingSurface(albedo, N, P, viewDir, 0.0, roughness, 1.0, 1.0, ext);
+    float cosV = clamp(dot(N, viewDir), 0.0, 1.0);
+    float fresnel = 0.0204 + (1.0 - 0.0204) * pow(1.0 - cosV, 5.0);
+    if (below) {
+        // Out of the water the glancing rays are reflected whole: Snell's window, a cone of sky overhead in a mirror of the water below it.
+        float sinT = 1.333 * sqrt(max(1.0 - cosV * cosV, 0.0));
+        float cosT = sqrt(max(1.0 - sinT * sinT, 0.0));
+        fresnel = sinT >= 1.0 ? 1.0 : 0.0204 + (1.0 - 0.0204) * pow(1.0 - cosT, 5.0);
+    }
+    vec3 seen = behind * transmit * (1.0 - fresnel) * (1.0 - foam);
+    // From below the water is a mirror past the critical angle, and what it mirrors is the world under it: the picture, followed along the reflected ray.
+    vec3 mirror = vec3(0.0);
+    if (below && fresnel > 0.02 && haveColor && haveDepth && u_mirror > 0.5) {
+        vec4 met = waterReflect(P, reflect(-viewDir, N), waterDist);
+        mirror = met.a > 0.5 ? met.rgb : mix(u_shallowColor.rgb, u_deepColor.rgb, 0.5) * 0.25;
+    }
+    seen += mirror * fresnel * (1.0 - foam);
+    // Outside the lake's outline there is no water.
+    if (u_shoreOn > 0.5 && shoreDist < 0.0) discard;
+    fragColor = vec4(lit + seen, haveColor ? 1.0 : 0.85);
+#ifdef ES_GBUFFER
+    fragSurface = vec4(packNormal(normalize(N)), roughness, 0.75);
+#endif
+}
+#pragma end
+
+#pragma fragment wgsl
+#ifdef ES_GBUFFER
+struct FragOut {
+    @location(0) color : vec4f,
+    @location(1) surface : vec4f,
+};
+
+fn packNormal(n : vec3f) -> vec2f {
+    let a = n / (abs(n.x) + abs(n.y) + abs(n.z));
+    let sgn = vec2f(select(-1.0, 1.0, a.x >= 0.0), select(-1.0, 1.0, a.y >= 0.0));
+    var e = a.xy;
+    if (a.z < 0.0) { e = (vec2f(1.0) - abs(a.yx)) * sgn; }
+    return e * 0.5 + 0.5;
+}
+#endif
+
+fn waterHash(p0 : vec2f) -> f32 {
+    var p = fract(p0 * vec2f(0.1031, 0.1030));
+    p = p + dot(p, p.yx + 33.33);
+    return fract((p.x + p.y) * p.x);
+}
+fn waterNoise(p : vec2f) -> f32 {
+    let i = floor(p);
+    var f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(waterHash(i), waterHash(i + vec2f(1.0, 0.0)), f.x),
+               mix(waterHash(i + vec2f(0.0, 1.0)), waterHash(i + vec2f(1.0, 1.0)), f.x), f.y);
+}
+fn ripples(p : vec2f, time : f32) -> f32 {
+    return waterNoise(p / mc.u_rippleLength + vec2f(0.31, 0.12) * time) * 0.6
+         + waterNoise(p / (mc.u_rippleLength * 0.43) - vec2f(0.17, 0.4) * time) * 0.4;
+}
+
+struct Waves { slope : vec2f, crest : f32 };
+
+fn waveSlope(p : vec2f, time : f32, dist : f32) -> Waves {
+    var wave = array<vec4f, 4>(vec4f(0.0, 1.0, 1.0, 1.0), vec4f(28.0, 0.62, 0.55, 1.1), vec4f(-37.0, 0.37, 0.3, 1.2), vec4f(71.0, 0.21, 0.15, 1.35));
+    var slope = vec2f(0.0);
+    var crestSum = 0.0;
+    var weightSum = 0.0;
+    let base = radians(mc.u_waveDirection);
+    for (var i : i32 = 0; i < 4; i = i + 1) {
+        if (f32(i) >= mc.u_waveCount) { break; }
+        let spec = wave[i];
+        let span = mc.u_waveLength * spec.y;
+        let k = 6.2831853 / span;
+        let a = base + radians(spec.x);
+        let d = vec2f(sin(a), cos(a));
+        let omega = sqrt(9.8 * k) * mc.u_waveSpeed * spec.w;
+        let theta = k * dot(d, p) - omega * time;
+        let e = exp(sin(theta) - 1.0);
+        let seen = clamp(1.0 - dist / (span * 220.0), 0.0, 1.0);
+        slope = slope + d * (mc.u_waveHeight * spec.z * e * cos(theta) * k * seen);
+        crestSum = crestSum + e * spec.z;
+        weightSum = weightSum + spec.z;
+    }
+    var out : Waves;
+    out.slope = slope;
+    out.crest = crestSum / weightSum;
+    return out;
+}
+
+${CAUSTICS_WGSL}
+struct WaterSun { dir : vec4f, color : vec4f, tiles : vec2i };
+/// The first directional light that shines: dir.xyz is where it stands in the sky, dir.w 1 if there is one.
+fn waterSun() -> WaterSun {
+    var s : WaterSun;
+    s.dir = vec4f(0.0);
+    s.color = vec4f(0.0);
+    s.tiles = vec2i(0, 0);
+    for (var i = 0; i < 16; i++) {
+        let l = lc.u_lights[i];
+        if (l.posDir.z > 0.5 && l.posDir.z < 1.5 && l.color.a > 0.0) {
+            s.dir = vec4f(-normalize(vec3f(l.posDir.x, l.posDir.y, l.posDir.w)), 1.0);
+            s.color = l.color;
+            s.tiles = vec2i(i32(l.shadowMap.x), i32(l.shadowMap.y));
+            return s;
+        }
+    }
+    return s;
+}
+
+fn waterSunVisibility(worldPos : vec3f, first : i32, count : i32) -> f32 {
+    if (lc.u_shadowParams.x < 0.5 || count <= 0) { return 1.0; }
+    for (var k = 0; k < 16; k++) {
+        if (k >= count) { break; }
+        let t = first + k;
+        let c = lc.u_shadowMatrix[t] * vec4f(worldPos, 1.0);
+        if (c.w <= 0.0) { continue; }
+        let proj = c.xyz / c.w;
+        let uv = proj.xy * 0.5 + 0.5;
+        if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0 || proj.z < 0.0 || proj.z > 1.0) { continue; }
+        let rect = lc.u_shadowTile[t];
+        let base = vec2f(rect.x, 1.0 - rect.y - rect.z);
+        let at = base + vec2f(uv.x, 1.0 - uv.y) * rect.z;
+        let lo = base + lc.u_shadowParams.y * 0.5;
+        let hi = base + rect.z - lc.u_shadowParams.y * 0.5;
+        let d = unpackDepth(textureSampleLevel(t2, s2, clamp(at, lo, hi), 0.0).rgb);
+        return select(1.0, 0.0, d < clamp(proj.z * 0.5 + 0.5, 0.0, 1.0) - 0.0025);
+    }
+    return 1.0;
+}
+
+/// What a ray from p along r meets in the picture of the scene the frame copied: the colour (xyz) and 1 (w), or w 0 where it meets nothing on screen.
+fn waterReflect(p : vec3f, r : vec3f, eyeDist : f32) -> vec4f {
+    var stride = max(0.5, eyeDist * 0.03);
+    var travelled = stride;
+    for (var i = 0; i < 20; i++) {
+        let q = p + r * travelled;
+        let clip = frame.projection * vec4f(q, 1.0);
+        if (clip.w <= 1e-4) { break; }
+        let uv = vec2f(clip.x / clip.w * 0.5 + 0.5, 0.5 - clip.y / clip.w * 0.5);
+        if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) { break; }
+        var qDist = -dot(q, frame.camera.xyz);
+        if (frame.camera.w > 0.5) { qDist = length(q - frame.camera.xyz); }
+        let sceneDist = textureSampleLevel(u_sceneDepthMap, u_sceneDepthMap_s, uv, 0.0).r;
+        if (sceneDist < qDist && qDist - sceneDist < stride * 2.0 + 1.0) { return vec4f(textureSampleLevel(u_sceneColor, u_sceneColor_s, uv, 0.0).rgb, 1.0); }
+        stride = stride * 1.25;
+        travelled = travelled + stride;
+    }
+    return vec4f(0.0);
+}
+
+/// The slope of the surface at p (x, y) and how near it is to a crest (z): the waves, and the ripples they carry, flattened with distance.
+fn waterSurface(p : vec2f, time : f32, dist : f32) -> vec3f {
+    let waves = waveSlope(p, time, dist);
+    let rippleFade = clamp(1.0 - dist / (mc.u_rippleLength * 180.0), 0.0, 1.0);
+    let eps = mc.u_rippleLength * 0.1;
+    let ripple = vec2f(ripples(p + vec2f(eps, 0.0), time) - ripples(p - vec2f(eps, 0.0), time),
+                       ripples(p + vec2f(0.0, eps), time) - ripples(p - vec2f(0.0, eps), time)) / (2.0 * eps);
+    return vec3f(waves.slope + ripple * (mc.u_rippleStrength * mc.u_rippleLength * rippleFade), waves.crest);
+}
+
+#ifdef ES_GBUFFER
+@fragment fn fs_main(v : VSOut) -> FragOut {
+#else
+@fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
+#endif
+    g_probeSlot = v.v_probeSlot;
+#ifdef MESH_LIGHTMAP
+    g_lightmap = v.v_lightmap;
+#endif
+#ifdef MESH_NORMALS
+    let P = v.v_worldXYZ;
+#else
+    let P = vec3f(v.v_worldPos.x, 0.0, v.v_worldPos.y);
+#endif
+    let time = tc.u_time.x;
+    let viewDir = viewDirection(P);
+    var waterDist = -dot(P, frame.camera.xyz);
+    if (frame.camera.w > 0.5) { waterDist = length(P - frame.camera.xyz); }
+
+    var wp = P.xz;
+    if (mc.u_waveSpace > 0.5) { wp = v.v_texCoord + mc.u_origin; }
+    let shoreTex = textureSample(u_shoreMap, u_shoreMap_s, clamp((v.v_texCoord - mc.u_shoreOrigin) / max(mc.u_shoreSize, vec2f(1e-4)), vec2f(0.0), vec2f(1.0)));
+    let shoreDist = (shoreTex.r - 0.5) * 2.0 * mc.u_shoreRange;
+    let shoreDepth = shoreTex.g * mc.u_shoreRange;
+    var damp = 1.0;
+    if (mc.u_shoreOn > 0.5) { damp = shoreTex.b; }
+    // The ripples at this pixel: their height on four sides gives the slope they add, and the foam is what they left (taken in uniform control flow).
+    let ripUv = (wp - mc.u_rippleOrigin) / max(mc.u_rippleSize, 1e-4);
+    let ripC = textureSample(u_rippleMap, u_rippleMap_s, ripUv);
+    let ripCell = max(mc.u_rippleSize * mc.u_rippleTexel, 1e-5);
+    let ripL = textureSample(u_rippleMap, u_rippleMap_s, ripUv - vec2f(mc.u_rippleTexel, 0.0)).r;
+    let ripR = textureSample(u_rippleMap, u_rippleMap_s, ripUv + vec2f(mc.u_rippleTexel, 0.0)).r;
+    let ripD = textureSample(u_rippleMap, u_rippleMap_s, ripUv - vec2f(0.0, mc.u_rippleTexel)).r;
+    let ripU = textureSample(u_rippleMap, u_rippleMap_s, ripUv + vec2f(0.0, mc.u_rippleTexel)).r;
+    let ripIn = mc.u_rippleOn > 0.5 && mc.u_waveSpace > 0.5 && all(ripUv >= vec2f(0.0)) && all(ripUv <= vec2f(1.0));
+    var ripSlope = vec2f(0.0);
+    var ripFoam = 0.0;
+    if (ripIn) { ripSlope = vec2f(ripR - ripL, ripU - ripD) * mc.u_rippleRange / ripCell; ripFoam = ripC.g; }
+    var surface = vec3f(0.0);
+    if (mc.u_flowSpeed > 0.0) {
+        // A river: two copies of the surface carried downstream a cycle at a time, each fading in as the other fades out.
+        let flow = (v.v_color.rg * 2.0 - vec2f(1.0)) * (v.v_color.b * 2.0) * mc.u_flowSpeed;
+        let cycle = max(mc.u_flowCycle, 0.1);
+        let ph0 = fract(time / cycle);
+        let ph1 = fract(time / cycle + 0.5);
+        let w0 = 1.0 - abs(2.0 * ph0 - 1.0);
+        let s0 = waterSurface(wp - flow * (ph0 * cycle), time, waterDist);
+        let s1 = waterSurface(wp - flow * (ph1 * cycle), time, waterDist);
+        surface = mix(s1, s0, w0);
+    } else {
+        surface = waterSurface(wp, time, waterDist);
+    }
+    var waves : Waves;
+    waves.crest = surface.z * damp;
+    var slope = surface.xy * damp + ripSlope;
+    var N = normalize(vec3f(-slope.x, 1.0, -slope.y));
+    var Ngeo = vec3f(0.0, 1.0, 0.0);
+#ifdef MESH_NORMALS
+    if (mc.u_waveSpace > 0.5) {
+        Ngeo = normalize(v.v_worldNormal);
+        N = perturbNormal(Ngeo, P, v.v_texCoord, normalize(vec3f(-slope.x, -slope.y, 1.0)));
+    }
+#endif
+    let below = dot(viewDir, Ngeo) < 0.0;
+    if (below) { N = -N; Ngeo = -Ngeo; }
+
+    let haveColor = textureSampleLevel(u_sceneColor, u_sceneColor_s, vec2f(0.5), 0.0).a < 0.75;
+    let haveDepth = haveColor && textureSampleLevel(u_sceneDepthMap, u_sceneDepthMap_s, vec2f(0.5), 0.0).a < 0.75;
+    let clip0 = frame.projection * vec4f(P, 1.0);
+    let w0 = max(clip0.w, 1e-4);
+    // This device's rows run down the texture, so clip y is flipped on the way to a uv.
+    let uv0 = vec2f(clip0.x / w0 * 0.5 + 0.5, 0.5 - clip0.y / w0 * 0.5);
+    var behindDist = waterDist + mc.u_fallbackDepth;
+    if (haveDepth) { behindDist = textureSampleLevel(u_sceneDepthMap, u_sceneDepthMap_s, clamp(uv0, vec2f(0.001), vec2f(0.999)), 0.0).r; }
+    let column0 = max(behindDist - waterDist, 0.0);
+
+    var ratio = 1.0 / 1.333;
+    if (below) { ratio = 1.333; }
+    var bentWave = refract(-viewDir, N, ratio);
+    var bentFlat = refract(-viewDir, Ngeo, ratio);
+    if (below && (dot(bentWave, bentWave) < 0.5 || dot(bentFlat, bentFlat) < 0.5)) { bentWave = vec3f(0.0); bentFlat = vec3f(0.0); }
+    let reach = min(column0, mc.u_distortionRange) * mc.u_refractionStrength;
+    let clip1 = frame.projection * vec4f(P + (bentWave - bentFlat) * reach, 1.0);
+    let w1 = max(clip1.w, 1e-4);
+    var uv1 = vec2f(clip1.x / w1 * 0.5 + 0.5, 0.5 - clip1.y / w1 * 0.5);
+    var behind = vec3f(0.0);
+    var column = column0;
+    if (haveColor) {
+        uv1 = clamp(uv1, vec2f(0.001), vec2f(0.999));
+        var dist1 = behindDist;
+        if (haveDepth) { dist1 = textureSampleLevel(u_sceneDepthMap, u_sceneDepthMap_s, uv1, 0.0).r; }
+        if (dist1 < waterDist) { uv1 = clamp(uv0, vec2f(0.001), vec2f(0.999)); dist1 = behindDist; }
+        behind = textureSampleLevel(u_sceneColor, u_sceneColor_s, uv1, 0.0).rgb;
+        column = max(dist1 - waterDist, 0.0);
+        if (!below && haveDepth && mc.u_causticStrength > 0.0 && mc.u_causticOn > 0.5) {
+            let sun = waterSun();
+            let cosUp = dot(sun.dir.xyz, Ngeo);
+            if (sun.dir.w > 0.5 && cosUp > 0.05) {
+                let seabed = P + bentWave * column;
+                let depthBelow = max(dot(P - seabed, Ngeo), 0.0);
+                let onSurface = seabed + sun.dir.xyz * (depthBelow / max(cosUp, 0.15));
+                let c = causticPattern(onSurface.xz / mc.u_causticScale, time * mc.u_causticSpeed);
+                let reachSun = exp(-dot(mc.u_absorption.rgb, vec3f(1.0 / 3.0)) * mc.u_density * depthBelow / max(cosUp, 0.15));
+                behind = behind * (1.0 + mc.u_causticStrength * c * cosUp * waterSunVisibility(seabed, sun.tiles.x, sun.tiles.y) * reachSun * min(sun.color.a, 2.0) * 0.5);
+            }
+        }
+    }
+
+    var transmit = exp(-mc.u_absorption.rgb * (mc.u_density * column));
+    if (below) { transmit = vec3f(1.0); }
+    let murk = 1.0 - dot(transmit, vec3f(1.0 / 3.0));
+    let scatterColor = mix(mc.u_shallowColor.rgb, mc.u_deepColor.rgb, vec3f(1.0 - exp(-column * mc.u_density * 0.5)));
+
+    let vertical = column * max(abs(viewDir.y), 0.15);
+    let foamScale = 1.0 / (mc.u_rippleLength * 1.2);
+    let breakup = waterNoise(wp * foamScale + vec2f(time * 0.07, time * 0.05)) * 0.6 + waterNoise(wp * foamScale * 3.0 - vec2f(time * 0.13, 0.0)) * 0.4;
+    let pulse = 0.65 + 0.35 * sin(time * 0.9 + breakup * 6.0);
+    var shore = 0.0;
+    if (haveDepth && mc.u_foamWidth > 0.0) { shore = clamp((1.0 - vertical / (mc.u_foamWidth * pulse)) * 1.5 - breakup * 0.8, 0.0, 1.0); }
+    if (mc.u_shoreOn > 0.5 && mc.u_foamWidth > 0.0) {
+        shore = max(shore, clamp((1.0 - min(shoreDist, shoreDepth) / (mc.u_foamWidth * pulse)) * 1.5 - breakup * 0.8, 0.0, 1.0));
+    }
+    var onCrest = 0.0;
+    if (mc.u_foamCrest > 0.0) { onCrest = smoothstep(1.0 - 0.3 * mc.u_foamCrest, 1.0, waves.crest) * smoothstep(0.35, 0.75, breakup); }
+    let foam = clamp(max(max(shore, onCrest * mc.u_foamCrest), ripFoam * (0.55 + 0.45 * breakup)), 0.0, 1.0);
+
+    var ext = surfaceExtNone(N);
+    ext.misc.x = 0.0204;
+    let albedo = mix(scatterColor * murk, mc.u_foamColor.rgb, vec3f(foam));
+    let roughness = mix(mc.u_roughness, 0.7, foam);
+    let lit = applyLightingSurface(albedo, N, P, viewDir, 0.0, roughness, 1.0, 1.0, ext);
+    let cosV = clamp(dot(N, viewDir), 0.0, 1.0);
+    var fresnel = 0.0204 + (1.0 - 0.0204) * pow(1.0 - cosV, 5.0);
+    if (below) {
+        let sinT = 1.333 * sqrt(max(1.0 - cosV * cosV, 0.0));
+        let cosT = sqrt(max(1.0 - sinT * sinT, 0.0));
+        if (sinT >= 1.0) { fresnel = 1.0; } else { fresnel = 0.0204 + (1.0 - 0.0204) * pow(1.0 - cosT, 5.0); }
+    }
+    var seen = behind * transmit * (1.0 - fresnel) * (1.0 - foam);
+    var mirror = vec3f(0.0);
+    if (below && fresnel > 0.02 && haveColor && haveDepth && mc.u_mirror > 0.5) {
+        let met = waterReflect(P, reflect(-viewDir, N), waterDist);
+        if (met.w > 0.5) { mirror = met.xyz; } else { mirror = mix(mc.u_shallowColor.rgb, mc.u_deepColor.rgb, vec3f(0.5)) * 0.25; }
+    }
+    seen = seen + mirror * fresnel * (1.0 - foam);
+    var alpha = 0.85;
+    if (haveColor) { alpha = 1.0; }
+    if (mc.u_shoreOn > 0.5 && shoreDist < 0.0) { discard; }
+#ifdef ES_GBUFFER
+    var frag : FragOut;
+    frag.color = vec4f(lit + seen, alpha);
+    frag.surface = vec4f(packNormal(normalize(N)), roughness, 0.75);
+    return frag;
+#else
+    return vec4f(lit + seen, alpha);
+#endif
+}
+#pragma end
+`;
+
+export const WATER_SHADER_TEMPLATE = makeBuiltinShaderTemplate('water', 'Water',
+    'Waves, refraction, reflection, depth absorption and foam for a horizontal body of water.', WATER);

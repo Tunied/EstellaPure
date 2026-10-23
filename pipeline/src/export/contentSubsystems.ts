@@ -21,7 +21,8 @@ export async function contentSubsystems(
   const usage = new Map<Subsystem, string[]>();
   for (const rel of includedPaths) {
     const ext = path.extname(rel).toLowerCase();
-    if (ext !== '.esscene' && ext !== '.esprefab') continue;
+    // A material is read too: its shader may be one a module ships, with nothing in any scene to say so.
+    if (ext !== '.esscene' && ext !== '.esprefab' && ext !== '.esmaterial') continue;
     let doc: unknown;
     try {
       doc = JSON.parse(await readFile(path.join(root, rel), 'utf8'));

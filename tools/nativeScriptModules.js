@@ -73,6 +73,7 @@ export const MODULES = {
     'esengine/foliage': { disposition: 'native-subpath' },
     'esengine/water': { disposition: 'native-subpath' },
     'esengine/spline': { disposition: 'native-subpath' },
+    'esengine/character-shaders': { disposition: 'native-subpath' },
     'esengine/logic': { disposition: 'native-subpath' },
     'esengine/ai': { disposition: 'native-subpath' },
     'esengine/replication': { disposition: 'native-subpath' },

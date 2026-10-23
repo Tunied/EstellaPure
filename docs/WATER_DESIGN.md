@@ -191,7 +191,8 @@ WaterBody {
 | web 的 sdk 目录 | 1,513,617 | 1,530,867 | +17,250 字节 |
 | wechat 的 game-bundle.js | 1,095,783 | 1,118,163 | +22,380 字节(2.0%) |
 
-含水时才带 `esengine/water` 模块(导出里出现 `sdk/water`),不含水的包没有它。**发现:**`builtin:water` 的着色器源码(约 38 KB)和 Terrain、Foliage、Hair、Skin、Eye 的(各 6 到 10 KB)一样放在核心的 `builtinShaders.ts` 里,所以不含水的包也带着这 38 KB 字符串,压缩不动字符串。要让它们跟模块走,得改着色器模板表的注册方式(编辑器的着色器目录、管线的数据纹理审计、加载器都读这张表),是一件单独的事,这里没做。
+含水时才带 `esengine/water` 模块(导出里出现 `sdk/water`),不含水的包没有它。**发现及处理:**`builtin:water` 的着色器源码(约 38 KB)和 Terrain、Foliage、Hair、Skin、Eye 的(各 6 到 10 KB)原先都放在核心的 `builtinShaders.ts` 里,所以不含水的包也带着这些字符串,压缩不动字符串。已改成各模块安装时注册自己的模板(`registerBuiltinShaderTemplate`):水、地形、植被各随自己的模块,Hair、Skin、Eye 是新的 `esengine/character-shaders` 模块;导出时由材质的 `shader: 'builtin:…'` 决定带哪个模块。改后空白项目导出:web 的 sdk 目录 1,513,617 → 1,433,641 字节(−80 KB),WeChat 的 game-bundle.js 1,095,783 → 1,015,282 字节(−7.3%);含水的项目 wechat 1,118,163 → 1,078,127。完整入口(编辑器、node)仍然安装全部模块,所以它们的着色器目录不变。
+**仍留在核心的水:**`core-content` 重新导出了水的组件与插件代码(`WaterBody`、`WaterPlugin` 等,让脚本能从 `esengine` 取到它们),所以不含水的包还带着这部分 JS(量级几十 KB 以内,未单独量)。
 另一条发现:`esengine/water` 和 `esengine/spline` 子路径在 W8 之前一直没有被构建进 `dist`(`package.json` 写了出口,但 rolldown 与 rollup 的入口里没有它们),W8 已补上。
 
 ## 10. 需要你确认的

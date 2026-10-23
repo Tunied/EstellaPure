@@ -27,7 +27,7 @@ import { NATIVE_PLATFORMS, type ExportPlatform } from './platforms';
 
 /** An engine subsystem a build target may lack. */
 export type Subsystem =
-    | 'text' | 'tilemap' | 'terrain' | 'foliage' | 'water' | 'spline' | 'timeline' | 'fxBasic' | 'fxAtmosphere' | 'fxLighting' | 'particles' | 'postprocess' | 'physics' | 'physics3d'
+    | 'text' | 'tilemap' | 'terrain' | 'foliage' | 'water' | 'spline' | 'characterShaders' | 'timeline' | 'fxBasic' | 'fxAtmosphere' | 'fxLighting' | 'particles' | 'postprocess' | 'physics' | 'physics3d'
     | 'spine' | 'dragonbones' | 'video' | 'ai' | 'logic' | 'replication' | 'gameplay';
 
 /**
@@ -48,6 +48,8 @@ export const SUBSYSTEM_COMPONENTS: Readonly<Record<Subsystem, readonly string[]>
     foliage: ['Foliage'],
     water: ['WaterBody', 'Floating'],
     spline: ['Spline'],
+    // Hair, Skin and Eye are shaders, not components: a character's materials are what name them (see SHADER_SUBSYSTEM).
+    characterShaders: [],
     particles: ['ParticleEmitter', 'ParticleForceField'],
     postprocess: ['PostProcessVolume'],
     physics: [
@@ -90,6 +92,15 @@ export const POST_PROCESS_EFFECT_GROUP: Readonly<Record<string, Subsystem>> = {
     underwater: 'water',
 };
 
+/**
+ * Which module carries each built-in shader that is not the core's. A material names its shader by `shader: 'builtin:<id>'`, so a project that authors one
+ * uses the module that ships it — with no component in a scene to say so (a Water material on a plain mesh, a character's Hair).
+ */
+export const SHADER_SUBSYSTEM: Readonly<Record<string, Subsystem>> = {
+    'builtin:water': 'water', 'builtin:terrain': 'terrain', 'builtin:foliage': 'foliage',
+    'builtin:hair': 'characterShaders', 'builtin:skin': 'characterShaders', 'builtin:eye': 'characterShaders',
+};
+
 /** Human name, for a message someone packaging a game has to act on. */
 export const SUBSYSTEM_LABEL: Readonly<Record<Subsystem, string>> = {
     text: 'Text',
@@ -102,6 +113,7 @@ export const SUBSYSTEM_LABEL: Readonly<Record<Subsystem, string>> = {
     foliage: 'Foliage',
     water: 'Water',
     spline: 'Splines',
+    characterShaders: 'Character shaders (hair, skin, eye)',
     particles: 'Particles',
     postprocess: 'Post-processing',
     physics: 'Physics (Box2D)',
@@ -134,6 +146,7 @@ export const SUBSYSTEM_INSTALL: Readonly<Record<Subsystem, string>> = {
     foliage: 'esengine/foliage',
     water: 'esengine/water',
     spline: 'esengine/spline',
+    characterShaders: 'esengine/character-shaders',
     physics: 'esengine/physics',
     physics3d: 'esengine/physics3d',
     spine: 'esengine/spine',
@@ -215,6 +228,11 @@ export function collectSubsystems(doc: unknown, into: Set<Subsystem> = new Set()
     if (typeof rec.type === 'string') {
         const subsystem = COMPONENT_SUBSYSTEM.get(rec.type);
         if (subsystem) into.add(subsystem);
+        // A material names the built-in shader it is made from.
+        if (rec.type === 'material' && typeof rec.shader === 'string') {
+            const shaderSubsystem = SHADER_SUBSYSTEM[rec.shader];
+            if (shaderSubsystem) into.add(shaderSubsystem);
+        }
         // A volume's effects are named in its data, and each is carried by one group.
         if (rec.type === 'PostProcessVolume') collectEffectGroups(rec.data, into);
     }

@@ -67,6 +67,7 @@ export const ENTRIES = {
     'foliage': 'src/foliage/index.ts',
     'water': 'src/water/index.ts',
     'spline': 'src/spline/index.ts',
+    'character-shaders': 'src/character/index.ts',
     'logic': 'src/logic/index.ts',
     'debug-channel': 'src/debug-channel/index.ts',
     'ai': 'src/ai/index.ts',

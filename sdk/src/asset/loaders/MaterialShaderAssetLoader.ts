@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import type { AssetLoader, LoadContext } from '../AssetLoader';
 import { BUILTIN_REF_PREFIX, isBuiltinAssetRef } from '../documentRef';
-import { builtinShaderTemplate } from '../../render/builtinShaders';
+import { builtinShaderTemplate, BUILTIN_SHADER_MODULE } from '../../render/builtinShaders';
 import { Material, type ShaderHandle } from '../../render/material';
 import { disposeAll } from '../../util/disposeAll';
 
@@ -36,7 +36,13 @@ export class MaterialShaderAssetLoader implements AssetLoader<MaterialShaderSour
         let source: string;
         if (isBuiltinAssetRef(path)) {
             const template = builtinShaderTemplate(path.slice(BUILTIN_REF_PREFIX.length));
-            if (!template) throw new Error(`Unknown built-in shader: ${path}`);
+            if (!template) {
+                const id = path.slice(BUILTIN_REF_PREFIX.length);
+                const module = BUILTIN_SHADER_MODULE[id];
+                throw new Error(module
+                    ? `The built-in shader ${path} ships in ${module}, which this package did not install: import '${module}'.`
+                    : `Unknown built-in shader: ${path}`);
+            }
             source = template.source;
         } else {
             source = ctx.readSource ? await ctx.readSource(path) : await ctx.loadText(ctx.catalog.getBuildPath(path));

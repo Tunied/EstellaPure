@@ -11,7 +11,7 @@
 import { describe, it, expect } from 'vitest';
 import { engineInstalls, forcedSideModules, moduleChoices, moduleForAsset } from '../src/bundle/engineInstalls';
 import { ENGINE_MODULES, ESENGINE_SUBPATHS, NOT_A_MODULE } from '../src/bundle/engineSubpaths';
-import { POST_PROCESS_EFFECT_GROUP, SUBSYSTEM_COMPONENTS, SUBSYSTEM_INSTALL, type Subsystem } from '../src/project/targetSupport';
+import { POST_PROCESS_EFFECT_GROUP, SHADER_SUBSYSTEM, SUBSYSTEM_COMPONENTS, SUBSYSTEM_INSTALL, type Subsystem } from '../src/project/targetSupport';
 
 describe('the engine modules a package installs', () => {
     it('takes a subsystem from the components its content authored', () => {
@@ -27,6 +27,19 @@ describe('the engine modules a package installs', () => {
 
     it('takes water from a WaterBody, so a game without one carries none', () => {
         expect(engineInstalls({ subsystems: ['water'] }).subpaths).toEqual(['esengine/water']);
+    });
+
+    it('takes the module of a built-in shader from the material that names it, with no component in a scene to say so', async () => {
+        const { collectSubsystems } = await import('../src/project/targetSupport');
+        const material = (shader: string) => ({ version: '1.0', type: 'material', shader, properties: {} });
+        expect([...collectSubsystems(material('builtin:water'))]).toEqual(['water']);
+        expect([...collectSubsystems(material('builtin:terrain'))]).toEqual(['terrain']);
+        expect([...collectSubsystems(material('builtin:foliage'))]).toEqual(['foliage']);
+        for (const id of ['hair', 'skin', 'eye']) expect([...collectSubsystems(material(`builtin:${id}`))]).toEqual(['characterShaders']);
+        // A core shader and a project's own shader carry nothing extra.
+        expect([...collectSubsystems(material('builtin:model'))]).toEqual([]);
+        expect([...collectSubsystems(material('assets/shaders/custom.esshader'))]).toEqual([]);
+        expect(engineInstalls({ subsystems: ['characterShaders'] }).subpaths).toEqual(['esengine/character-shaders']);
     });
 
     it('takes splines from a Spline, so a game without one carries none', () => {
@@ -232,6 +245,8 @@ describe('every module a project can refuse', () => {
         }
         // …and a post-process effect group is found by the effects a volume names.
         for (const group of Object.values(POST_PROCESS_EFFECT_GROUP)) byComponent.add(SUBSYSTEM_INSTALL[group]);
+        // …and a module that ships built-in shaders is found by the materials that name them.
+        for (const shader of Object.values(SHADER_SUBSYSTEM)) byComponent.add(SUBSYSTEM_INSTALL[shader]);
         expect(ENGINE_MODULES.filter((m) => !byComponent.has(m))).toEqual([]);
     });
 });

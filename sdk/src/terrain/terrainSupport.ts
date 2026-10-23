@@ -6,8 +6,11 @@
  * A call, not a file's side effect — see tilemap/tilemapSupport.ts.
  */
 import { addEntryPlugin } from '../runtime/entryPlugins';
+import { registerBuiltinShaderTemplate } from '../render/builtinShaders';
+import { TERRAIN_SHADER_TEMPLATE } from './terrainShader';
 import { TerrainPlugin } from './terrainPlugin';
 
 export function registerTerrainSupport(): void {
+    registerBuiltinShaderTemplate(TERRAIN_SHADER_TEMPLATE);
     addEntryPlugin('terrain', () => new TerrainPlugin());
 }
