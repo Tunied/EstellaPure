@@ -326,6 +326,16 @@ export const SUBSYSTEMS = [
         entry: ['Terrain', 'Foliage'],
     },
     {
+        id: 'spline',
+        title: 'Splines',
+        titleZh: '样条',
+        source: ['spline'],
+        tier: 'experimental',
+        why: 'the curve and its measuring by distance are checked, but the only thing that follows one so far is a river, and the editor has no tool to draw it',
+        whyZh: '曲线和按距离度量已经有检查，但目前只有河流会沿着它走，编辑器里也还没有绘制它的工具',
+        entry: ['Spline', 'SplineCurve'],
+    },
+    {
         id: 'water',
         title: 'Water',
         titleZh: '水体',

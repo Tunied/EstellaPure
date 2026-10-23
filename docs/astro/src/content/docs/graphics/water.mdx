@@ -17,7 +17,8 @@ changes.
 
 | Field | What it does |
 |---|---|
-| `form` | **Ocean**: without an edge, follows the camera. **Lake**: a rectangle of `sizeX` by `sizeZ` centred on the entity, or the outline in `boundary`. |
+| `form` | **Ocean**: without an edge, follows the camera. **Lake**: a rectangle of `sizeX` by `sizeZ` centred on the entity, or the outline in `boundary`. **River**: follows the `Spline` on the same entity. |
+| `flowSpeed` | A river's current, in world units a second where it is as wide as its widest. |
 | `boundary` | A lake's outline: three points or more round it on its own xz plane. Empty is the rectangle. |
 | `shoreWidth` | How far in from the edge, and how deep, the waves take to come to full height. 0 leaves them whole to the edge. |
 | `material` | A material on the Water shader. Empty uses the stock water. |
@@ -59,6 +60,37 @@ With a `Terrain` in the scene and the lake level, the ground under it is the ter
 cross it (the depth test does that), and the waves die out as it shallows. The field is rebuilt when the terrain changes or the lake moves; a tilted
 lake, or one over no terrain, is as deep as it likes. The outline should not cross itself.
 
+## Rivers
+
+A river is a ribbon laid along the `Spline` on its own entity ([Splines](#splines)): a row of vertices across the water every `cellSize` along the curve,
+as wide as the curve says there, at the height of the curve under it, so a river runs downhill. Put a `Spline` and a `WaterBody` with `form` River on one
+entity and the river is built when the scene runs.
+
+- **The current.** `flowSpeed` is how fast the water runs where the river is as wide as its widest; a narrower reach runs faster and a wider one slower,
+  within a quarter and double of it, as the same water through a different width does. The direction is the curve's.
+- **The surface rides it.** The shader carries the waves and ripples downstream: two copies of the surface are moved along the current a cycle at a time, each
+  fading in as the other fades out, so the moment one is put back at its start is hidden by the other, and the surface does not stretch where the river bends.
+- **Flat geometry.** A river's geometry is not lifted by the waves (its surface is drawn flat and moved only in the shading), so a river has no waves to read
+  back: `Waters.sample` gives its curve's height, a normal of up, and the current in `flow` (world units a second, along the river; zero elsewhere).
+- **Banks.** The edge is the ribbon's own, so it is as crisp as the geometry. Foam where it meets the ground comes from the depth of the scene, as at any shore.
+
+## Splines
+
+`Spline` is data and nothing draws it: `points` (each an `x`, `y`, `z` in the entity's own space and a `width`) and `closed`. A river reads the one on its
+entity; anything else that follows a path can read it with `SplineCurve`:
+
+```ts
+const curve = new SplineCurve(spline.points, spline.closed);
+curve.position(s);   // the point a distance s along it
+curve.tangent(s);    // the direction of travel there
+curve.width(s);      // the width there, eased from one point's to the next's
+curve.nearest(x, z); // the nearest place on it in the xz plane: s, how far, which side
+```
+
+It is a centripetal Catmull-Rom curve (it passes through every point, and does not loop or cusp where they are close at one end and far at the other)
+measured by distance along it, so a place on it is `s` units from its start and not a parameter that runs fast where the points are close. Past either
+end of an open curve it is the end; a closed curve goes round. Splines are an optional module (`esengine/spline`).
+
 ## Asking the surface
 
 `Waters.sample(x, y, z)` (the `WatersRes` resource) answers for the body that holds a point:
@@ -66,7 +98,8 @@ lake, or one over no terrain, is as deep as it likes. The outline should not cro
 - `depth`: how far the point is above the surface along the body's up (negative under it), in world units;
 - `normal`: the surface's normal there, in world space;
 - `surface`: the world position on the surface straight above or below the point;
-- `inside`: whether the point is over the body's extent: inside a lake's outline (an ocean has none, so it is always).
+- `inside`: whether the point is over the body's extent: inside a lake's outline or a river's banks (an ocean has none, so it is always);
+- `flow`: how the water moves there, in world units a second (a river's current; still water is zero).
 
 It reads the same formula the shader draws, at the time of the frame. The body's position, rotation and uniform scale are taken into account.
 `Waters.heightAt(x, z)` is the short form for an untilted body. A point over no water answers `null`.
@@ -99,8 +132,8 @@ What is not there yet, so nobody is surprised:
   Without the chain the water is drawn over the scene as a translucent surface; without float targets the depth is `u_fallbackDepth` everywhere, so
   there is no shore foam and no change of colour with depth.
 - Like glass, it refracts the opaque scene only: a boat's hull seen through it is, but another transparent surface is not.
-- Rivers along a curve and flow are not built yet. A lake's outline is a polygon on a plane: it does not follow a curved shore, and the waves die
-  toward the shore without breaking on it.
+- A river does not carve the ground, rapids and falls are not foamed by how fast or steep the water runs, and two bodies do not blend where they meet.
+  A lake's outline is a polygon on a plane: it does not follow a curved shore, and the waves die toward the shore without breaking on it.
 - Nothing floats on it or swims in it yet: `Waters.sample` gives what a buoyancy force needs, but there is no force.
 - A camera under the surface sees the water turned over, and nothing else changes: no underwater fog or tint.
 - It does not react to what moves through it: no ripples, no wake.

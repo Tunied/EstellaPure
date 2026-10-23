@@ -739,6 +739,12 @@ const WATER = `#pragma shader "Water"
 #pragma param u_shoreOrigin vec2 default(0,0)
 #pragma param u_shoreSize vec2 default(1,1)
 #pragma param u_shoreRange float default(16) range(0.01,10000) ui(slider)
+// A river's current: how fast it runs (world units a second, 0 for still water) along the direction the mesh's vertex colour gives (red and green) at the speed
+// its blue says (half is the nominal), and how long, in seconds, each of the two copies of the surface the shader carries downstream lives before the other takes over.
+#pragma param u_flowSpeed float default(0) range(0,50) ui(slider)
+#pragma param u_flowCycle float default(2) range(0.2,20) ui(slider)
+// How much of the waves lifts the geometry: 1 for a lake or an ocean, 0 for a river, whose surface is drawn flat and moved only in the shading.
+#pragma param u_geoWaves float default(1) range(0,1) ui(slider)
 #pragma param u_sceneColor texture default(white)
 #pragma param u_sceneDepthMap texture default(white) texel(data)
 
@@ -764,7 +770,7 @@ void esMaterialVertex(inout vec3 local, inout vec3 localNormal, in vec2 uv) {
     if (u_waveSpace < 0.5) return;
     float cell = u_cellSize > 0.0 ? u_cellSize * exp2(es_vertexColor.r * 7.0) : 0.0;
     float damp = u_shoreOn > 0.5 ? es_vertexColor.g : 1.0;
-    local.y += waterWaveHeight(uv + u_origin, u_time.x, cell) * damp;
+    local.y += waterWaveHeight(uv + u_origin, u_time.x, cell) * damp * u_geoWaves;
 }
 #pragma end
 
@@ -792,7 +798,7 @@ fn esMaterialVertex(local : ptr<function, vec3f>, localNormal : ptr<function, ve
     if (mc.u_cellSize > 0.0) { cell = mc.u_cellSize * exp2(es_vertexColor.r * 7.0); }
     var damp = 1.0;
     if (mc.u_shoreOn > 0.5) { damp = es_vertexColor.g; }
-    (*local).y = (*local).y + waterWaveHeight(uv + mc.u_origin, tc.u_time.x, cell) * damp;
+    (*local).y = (*local).y + waterWaveHeight(uv + mc.u_origin, tc.u_time.x, cell) * damp * mc.u_geoWaves;
 }
 #pragma end
 
@@ -865,6 +871,16 @@ vec2 waveSlope(vec2 p, float time, float dist, out float crest) {
     return slope;
 }
 
+/// The slope of the surface at p and how near it is to a crest: the waves, and the ripples they carry, flattened with distance.
+vec2 waterSurface(vec2 p, float time, float dist, out float crest) {
+    vec2 slope = waveSlope(p, time, dist, crest);
+    float rippleFade = clamp(1.0 - dist / (u_rippleLength * 180.0), 0.0, 1.0);
+    float e = u_rippleLength * 0.1;
+    vec2 ripple = vec2(ripples(p + vec2(e, 0.0), time) - ripples(p - vec2(e, 0.0), time),
+                       ripples(p + vec2(0.0, e), time) - ripples(p - vec2(0.0, e), time)) / (2.0 * e);
+    return slope + ripple * (u_rippleStrength * u_rippleLength * rippleFade);
+}
+
 void main() {
 #ifdef MESH_NORMALS
     highp vec3 P = v_worldXYZ;
@@ -883,13 +899,25 @@ void main() {
     float shoreDepth = shoreTex.g * u_shoreRange;
     float damp = u_shoreOn > 0.5 ? shoreTex.b : 1.0;
     float crest;
-    vec2 slope = waveSlope(wp, time, waterDist, crest) * damp;
+    vec2 slope;
+    if (u_flowSpeed > 0.0) {
+        // A river: the surface rides the current. Two copies of it are carried downstream a cycle at a time, each fading in as the other fades
+        // out, so the moment one is put back at its start is hidden by the other.
+        vec2 flow = (v_color.rg * 2.0 - 1.0) * (v_color.b * 2.0) * u_flowSpeed;
+        float cycle = max(u_flowCycle, 0.1);
+        float ph0 = fract(time / cycle);
+        float ph1 = fract(time / cycle + 0.5);
+        float w0 = 1.0 - abs(2.0 * ph0 - 1.0);
+        float crest0, crest1;
+        vec2 s0 = waterSurface(wp - flow * (ph0 * cycle), time, waterDist, crest0);
+        vec2 s1 = waterSurface(wp - flow * (ph1 * cycle), time, waterDist, crest1);
+        slope = mix(s1, s0, w0);
+        crest = mix(crest1, crest0, w0);
+    } else {
+        slope = waterSurface(wp, time, waterDist, crest);
+    }
+    slope *= damp;
     crest *= damp;
-    float rippleFade = clamp(1.0 - waterDist / (u_rippleLength * 180.0), 0.0, 1.0);
-    float e = u_rippleLength * 0.1;
-    vec2 ripple = vec2(ripples(wp + vec2(e, 0.0), time) - ripples(wp - vec2(e, 0.0), time),
-                       ripples(wp + vec2(0.0, e), time) - ripples(wp - vec2(0.0, e), time)) / (2.0 * e);
-    slope += ripple * (u_rippleStrength * u_rippleLength * rippleFade);
     vec3 N = normalize(vec3(-slope.x, 1.0, -slope.y));
     vec3 Ngeo = vec3(0.0, 1.0, 0.0);
 #ifdef MESH_NORMALS
@@ -1025,6 +1053,16 @@ fn waveSlope(p : vec2f, time : f32, dist : f32) -> Waves {
     return out;
 }
 
+/// The slope of the surface at p (x, y) and how near it is to a crest (z): the waves, and the ripples they carry, flattened with distance.
+fn waterSurface(p : vec2f, time : f32, dist : f32) -> vec3f {
+    let waves = waveSlope(p, time, dist);
+    let rippleFade = clamp(1.0 - dist / (mc.u_rippleLength * 180.0), 0.0, 1.0);
+    let eps = mc.u_rippleLength * 0.1;
+    let ripple = vec2f(ripples(p + vec2f(eps, 0.0), time) - ripples(p - vec2f(eps, 0.0), time),
+                       ripples(p + vec2f(0.0, eps), time) - ripples(p - vec2f(0.0, eps), time)) / (2.0 * eps);
+    return vec3f(waves.slope + ripple * (mc.u_rippleStrength * mc.u_rippleLength * rippleFade), waves.crest);
+}
+
 #ifdef ES_GBUFFER
 @fragment fn fs_main(v : VSOut) -> FragOut {
 #else
@@ -1051,14 +1089,23 @@ fn waveSlope(p : vec2f, time : f32, dist : f32) -> Waves {
     let shoreDepth = shoreTex.g * mc.u_shoreRange;
     var damp = 1.0;
     if (mc.u_shoreOn > 0.5) { damp = shoreTex.b; }
-    var waves = waveSlope(wp, time, waterDist);
-    waves.crest = waves.crest * damp;
-    var slope = waves.slope * damp;
-    let rippleFade = clamp(1.0 - waterDist / (mc.u_rippleLength * 180.0), 0.0, 1.0);
-    let eps = mc.u_rippleLength * 0.1;
-    let ripple = vec2f(ripples(wp + vec2f(eps, 0.0), time) - ripples(wp - vec2f(eps, 0.0), time),
-                       ripples(wp + vec2f(0.0, eps), time) - ripples(wp - vec2f(0.0, eps), time)) / (2.0 * eps);
-    slope = slope + ripple * (mc.u_rippleStrength * mc.u_rippleLength * rippleFade);
+    var surface = vec3f(0.0);
+    if (mc.u_flowSpeed > 0.0) {
+        // A river: two copies of the surface carried downstream a cycle at a time, each fading in as the other fades out.
+        let flow = (v.v_color.rg * 2.0 - vec2f(1.0)) * (v.v_color.b * 2.0) * mc.u_flowSpeed;
+        let cycle = max(mc.u_flowCycle, 0.1);
+        let ph0 = fract(time / cycle);
+        let ph1 = fract(time / cycle + 0.5);
+        let w0 = 1.0 - abs(2.0 * ph0 - 1.0);
+        let s0 = waterSurface(wp - flow * (ph0 * cycle), time, waterDist);
+        let s1 = waterSurface(wp - flow * (ph1 * cycle), time, waterDist);
+        surface = mix(s1, s0, w0);
+    } else {
+        surface = waterSurface(wp, time, waterDist);
+    }
+    var waves : Waves;
+    waves.crest = surface.z * damp;
+    var slope = surface.xy * damp;
     var N = normalize(vec3f(-slope.x, 1.0, -slope.y));
     var Ngeo = vec3f(0.0, 1.0, 0.0);
 #ifdef MESH_NORMALS

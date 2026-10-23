@@ -27,6 +27,7 @@ import { registerTimelineSupport } from '../timeline/timelineSupport';
 import { registerTerrainSupport } from '../terrain/terrainSupport';
 import { registerFoliageSupport } from '../foliage/foliageSupport';
 import { registerWaterSupport } from '../water/waterSupport';
+import { registerSplineSupport } from '../spline/splineSupport';
 import { registerScriptGraphSupport } from '../logic/logicSupport';
 import { registerAiSupport } from '../ai/aiSupport';
 import { registerReplicationSupport } from '../net/replication/replicationSupport';
@@ -46,6 +47,7 @@ export function installOptionalPlugins(): void {
     registerTerrainSupport();
     registerFoliageSupport();
     registerWaterSupport();
+    registerSplineSupport();
     registerScriptGraphSupport();
     registerAiSupport();
     registerReplicationSupport();

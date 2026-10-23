@@ -4647,6 +4647,24 @@
       ]
     },
     {
+      "name": "Spline",
+      "source": "ts",
+      "fields": [
+        {
+          "key": "points",
+          "type": "object[]",
+          "default": "[{\"x\":-10,\"y\":0,\"z\":0,\"width\":4},{\"x\":10,\"y\":0,\"z\":0,\"width\":4}]",
+          "doc": "The points the curve passes through, in order, in the entity's own space. Each carries the width of whatever follows the curve there."
+        },
+        {
+          "key": "closed",
+          "type": "boolean",
+          "default": "false",
+          "doc": "Join the end of the curve to its start (three points or more)."
+        }
+      ]
+    },
+    {
       "name": "Sprite",
       "source": "cpp",
       "fields": [
@@ -7037,10 +7055,11 @@
           "key": "form",
           "type": "enum",
           "default": "Lake",
-          "doc": "An ocean is without edge and follows the camera; a lake is a rectangle of its own size.",
+          "doc": "An ocean is without edge and follows the camera; a lake is a rectangle or an outline of its own; a river follows the Spline on the same entity.",
           "values": [
             "Ocean",
-            "Lake"
+            "Lake",
+            "River"
           ]
         },
         {
@@ -7098,6 +7117,13 @@
           "range": "1–8, step 1"
         },
         {
+          "key": "flowSpeed",
+          "type": "number",
+          "default": "2",
+          "doc": "A river's current, in world units a second where it is as wide as its widest. A narrower reach runs faster.",
+          "range": "0–50"
+        },
+        {
           "key": "waveHeight",
           "type": "number",
           "default": "0.3",
@@ -7135,6 +7161,7 @@
         "cellSize",
         "cells",
         "rings",
+        "flowSpeed",
         "waveHeight",
         "waveLength",
         "waveSpeed",

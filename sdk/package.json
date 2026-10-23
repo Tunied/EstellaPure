@@ -24,6 +24,7 @@
     "./dist/fx-lighting/index.js",
     "./dist/foliage/index.js",
     "./dist/water/index.js",
+    "./dist/spline/index.js",
     "./dist/logic/index.js",
     "./dist/debug-channel/index.js",
     "./dist/ai/index.js",
@@ -105,6 +106,10 @@
     "./water": {
       "import": "./dist/water/index.js",
       "types": "./dist/water/index.d.ts"
+    },
+    "./spline": {
+      "import": "./dist/spline/index.js",
+      "types": "./dist/spline/index.d.ts"
     },
     "./logic": {
       "import": "./dist/logic/index.js",

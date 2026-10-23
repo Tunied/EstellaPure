@@ -33,8 +33,11 @@ import type { Entity } from '../types';
 import { waveHeight, waveSlope, type WaveParams } from './waves';
 import { buildBoxMesh, buildOceanMesh, oceanSnap } from './waterMesh';
 import { ShoreField, type Point2 } from './shore';
+import { buildRiverMesh, currentShare } from './riverMesh';
+import { Spline, type SplineData } from '../spline/splinePlugin';
+import { SplineCurve } from '../spline/curve';
 
-/** What a body of water is. River arrives with the spline it follows. */
+/** What a body of water is. A river follows the `Spline` on its own entity. */
 export const WaterForm = { Ocean: 0, Lake: 1, River: 2 } as const;
 
 /** The fields of the `WaterBody` component. @experimental */
@@ -54,6 +57,8 @@ export interface WaterBodyData {
     cellSize: number;
     cells: number;
     rings: number;
+    /** A river's current, in world units a second where the river is as wide as its widest; a narrower reach runs faster. */
+    flowSpeed: number;
     /** The waves: the height of the tallest, the length of the longest, a multiplier on their speed, and the heading in degrees. */
     waveHeight: number;
     waveLength: number;
@@ -67,12 +72,13 @@ export interface WaterBodyData {
  * @experimental
  */
 export const WaterBody: ComponentDef<WaterBodyData> = defineComponent<WaterBodyData>('WaterBody', {
-    form: WaterForm.Lake, material: 0, sizeX: 100, sizeZ: 100, boundary: [] as Point2[], shoreWidth: 3, cellSize: 1, cells: 64, rings: 5,
+    form: WaterForm.Lake, material: 0, sizeX: 100, sizeZ: 100, boundary: [] as Point2[], shoreWidth: 3, cellSize: 1, cells: 64, rings: 5, flowSpeed: 2,
     waveHeight: 0.3, waveLength: 14, waveSpeed: 1, waveDirection: 30,
 }, {
     assetFields: [{ field: 'material', type: 'material' }],
     fields: {
-        form: { enum: [{ label: 'Ocean', value: WaterForm.Ocean }, { label: 'Lake', value: WaterForm.Lake }], category: 'Shape', tooltip: 'An ocean is without edge and follows the camera; a lake is a rectangle of its own size.' },
+        form: { enum: [{ label: 'Ocean', value: WaterForm.Ocean }, { label: 'Lake', value: WaterForm.Lake }, { label: 'River', value: WaterForm.River }], category: 'Shape', tooltip: 'An ocean is without edge and follows the camera; a lake is a rectangle or an outline of its own; a river follows the Spline on the same entity.' },
+        flowSpeed: { min: 0, max: 50, category: 'Waves', tooltip: 'A river\'s current, in world units a second where it is as wide as its widest. A narrower reach runs faster.' },
         material: { category: 'Look', tooltip: 'A material on the Water shader. Empty uses the stock water.' },
         sizeX: { min: 1, category: 'Shape', tooltip: 'A lake\'s size along x.' },
         sizeZ: { min: 1, category: 'Shape', tooltip: 'A lake\'s size along z.' },
@@ -96,6 +102,8 @@ export interface WaterSample {
     depth: number;
     /** The surface's normal at the point, in world space. */
     normal: [number, number, number];
+    /** How the water moves there, in world units a second (a river's current; still water is zero). */
+    flow: [number, number, number];
     /** The world position of the surface above or below the point. */
     surface: [number, number, number];
     /** Whether the point is over the body's extent (an ocean has none, so it is always). */
@@ -109,6 +117,9 @@ interface Built {
     mesh: number;
     /** A lake's baked shore, and the texture the shader reads it from. */
     field: ShoreField | null;
+    /** A river's curve, the width it is drawn at its widest, and the shoreless texture it does not have. */
+    curve: SplineCurve | null;
+    widest: number;
     shoreTexture: number;
     child: Entity;
     instance: number;
@@ -138,6 +149,21 @@ export class Waters {
             const q = toLocal(t, x, y, z, scale);
             const d = built.data;
             const field = built.field;
+            if (d.form === WaterForm.River) {
+                const curve = built.curve;
+                if (!curve) continue;
+                const near = curve.nearest(q[0], q[2]);
+                const half = curve.width(near.s) / 2;
+                if (near.distance > half) continue;
+                // A river's surface is the curve's own height and its normal is up; what moves is the water.
+                const level = curve.position(near.s)[1];
+                const tangent = curve.tangent(near.s);
+                const run = Math.hypot(tangent[0], tangent[2]) || 1;
+                const speed = d.flowSpeed * currentShare(half * 2, built.widest) * 2;
+                const flow = rotate(t.worldRotation, (tangent[0] / run) * speed * scale, 0, (tangent[2] / run) * speed * scale);
+                const normal = rotate(t.worldRotation, 0, 1, 0);
+                return { entity, depth: (q[1] - level) * scale, normal, flow, surface: fromLocal(t, q[0], level, q[2], scale), inside: true };
+            }
             const inside = d.form === WaterForm.Ocean || (field ? field.inside(q[0], q[2]) : false);
             if (!inside) continue;
             const params = paramsOf(d);
@@ -149,7 +175,7 @@ export class Waters {
             const len = Math.hypot(sx, 1, sz);
             const normal = rotate(t.worldRotation, -sx / len, 1 / len, -sz / len);
             const onSurface = fromLocal(t, q[0], h, q[2], scale);
-            return { entity, depth: (q[1] - h) * scale, normal, surface: onSurface, inside };
+            return { entity, depth: (q[1] - h) * scale, normal, flow: [0, 0, 0], surface: onSurface, inside };
         }
         return null;
     }
@@ -202,8 +228,8 @@ function fromLocal(t: TransformData, x: number, y: number, z: number, scale: num
 }
 
 /** What shapes the geometry: when it changes the child is rebuilt; the waves and the material are not part of it. */
-function signatureOf(d: WaterBodyData, ground: string): string {
-    return JSON.stringify([d.form, d.sizeX, d.sizeZ, d.boundary, d.shoreWidth, d.cellSize, d.cells, d.rings, d.material, ground]);
+function signatureOf(d: WaterBodyData, ground: string, spline: SplineData | null): string {
+    return JSON.stringify([d.form, d.sizeX, d.sizeZ, d.boundary, d.shoreWidth, d.cellSize, d.cells, d.rings, d.material, ground, d.form === WaterForm.River ? spline : null]);
 }
 
 export class WaterPlugin implements Plugin {
@@ -225,11 +251,12 @@ export class WaterPlugin implements Plugin {
             const eye = this.eye(app);
             for (const entity of app.world.getEntitiesWithComponents([WaterBody, Transform])) {
                 const data = app.world.get(entity, WaterBody) as WaterBodyData;
-                const signature = signatureOf(data, this.groundKey(app, entity, data));
+                const spline = data.form === WaterForm.River ? app.world.tryGet(entity, Spline) as SplineData | null : null;
+                const signature = signatureOf(data, this.groundKey(app, entity, data), spline);
                 let built = waters.built_.get(entity);
                 if (!built || built.signature !== signature) {
                     if (built) this.destroy(app, built);
-                    built = { signature, data: { ...data }, mesh: 0, field: null, shoreTexture: 0, child: 0 as Entity, instance: 0, epoch: (built?.epoch ?? 0) + 1, pending: false };
+                    built = { signature, data: { ...data }, mesh: 0, field: null, curve: null, widest: 0, shoreTexture: 0, child: 0 as Entity, instance: 0, epoch: (built?.epoch ?? 0) + 1, pending: false };
                     waters.built_.set(entity, built);
                 }
                 built.data = { ...data };
@@ -284,6 +311,14 @@ export class WaterPlugin implements Plugin {
             let mesh: number;
             if (d.form === WaterForm.Ocean) {
                 mesh = assets.createMesh(buildOceanMesh(d.cells, d.rings, d.cellSize));
+            } else if (d.form === WaterForm.River) {
+                // A river: the Spline on its entity, laid as a ribbon.
+                const spline = app.world.tryGet(entity, Spline) as SplineData | null;
+                if (!spline || spline.points.length < 2) { log.warn('water', 'a river needs a Spline of two points or more on its entity'); return; }
+                built.curve = new SplineCurve(spline.points, spline.closed);
+                for (let i = 0; i <= 64; i++) built.widest = Math.max(built.widest, built.curve.width((i / 64) * built.curve.length));
+                const across = Math.min(64, Math.max(2, Math.ceil(built.widest / Math.max(d.cellSize, 0.05))));
+                mesh = assets.createMesh(buildRiverMesh(built.curve, d.cellSize, across));
             } else {
                 // A lake: its outline (or its rectangle), the ground under it, and what the two say about the waves and the shore.
                 const poly = outlineOf(d);
@@ -375,6 +410,8 @@ export class WaterPlugin implements Plugin {
         set('u_waveSpace', 1);
         set('u_origin', { x: ox, y: oz });
         set('u_cellSize', d.cellSize);
+        set('u_flowSpeed', d.form === WaterForm.River ? d.flowSpeed : 0);
+        set('u_geoWaves', d.form === WaterForm.River ? 0 : 1);
         set('u_waveHeight', d.waveHeight);
         set('u_waveLength', d.waveLength);
         set('u_waveSpeed', d.waveSpeed);
@@ -389,6 +426,8 @@ export class WaterPlugin implements Plugin {
         if (built.shoreTexture) getResourceManager()?.releaseTexture(built.shoreTexture);
         built.shoreTexture = 0;
         built.field = null;
+        built.curve = null;
+        built.widest = 0;
         if (built.mesh && app.hasResource(Assets)) app.getResource(Assets).releaseBuiltMesh(built.mesh);
         built.child = 0 as Entity;
         built.instance = 0;

@@ -787,11 +787,14 @@ export {
 export {
     Foliage, FoliageField, FoliageRes, FoliagePlugin, foliagePlugin, type FoliageData,
 } from './foliage/foliagePlugin';
-// Water is an optional module too (`esengine/water`).
+// Splines and water are optional modules too (`esengine/spline`, `esengine/water`).
+export { Spline, SplinePlugin, splinePlugin, type SplineData } from './spline/splinePlugin';
+export { SplineCurve, type SplinePoint, type SplineNearest } from './spline/curve';
 export {
     WaterBody, WaterForm, Waters, WatersRes, WaterPlugin, waterPlugin, type WaterBodyData, type WaterSample,
 } from './water/waterPlugin';
 export { WAVE_SET, waveFade, waveHeight, waveSlope, type WaveParams } from './water/waves';
+export { buildRiverMesh, currentShare } from './water/riverMesh';
 export { buildBoxMesh, buildOceanMesh, buildRectMesh, oceanReach, oceanSnap, type RectOptions } from './water/waterMesh';
 export { ShoreField, UNKNOWN_DEPTH, polygonSdf, shoreDamp, type GroundDepth, type Point2 } from './water/shore';
 export {

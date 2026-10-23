@@ -31,6 +31,7 @@ import * as FxAtmosphereModule from '../postprocess/fxAtmosphere';
 import * as FxLightingModule from '../postprocess/fxLighting';
 import * as FoliageModule from '../foliage';
 import * as WaterModule from '../water';
+import * as SplineModule from '../spline';
 import * as ScriptGraphModule from '../logic';
 import * as AiModule from '../ai';
 import * as ReplicationModule from '../net/replication';
@@ -57,6 +58,7 @@ export const NATIVE_MODULE_NAMESPACES: Readonly<Record<string, unknown>> = {
     'esengine/fx-lighting': FxLightingModule,
     'esengine/foliage': FoliageModule,
     'esengine/water': WaterModule,
+    'esengine/spline': SplineModule,
     'esengine/logic': ScriptGraphModule,
     'esengine/ai': AiModule,
     'esengine/replication': ReplicationModule,
