@@ -1,0 +1,1617 @@
+{
+  "stage": "art-review",
+  "units": "metres",
+  "sourceUp": "Z",
+  "glbUp": "Y",
+  "assets": [
+    {
+      "id": "dining-table-180",
+      "nominal": [
+        1.8,
+        0.9,
+        0.76
+      ],
+      "sourceDimensionsXYZ": [
+        1.8,
+        0.9,
+        0.762
+      ],
+      "triangles": 2948,
+      "drawMeshes": 5,
+      "editablePieces": 15,
+      "sourceSockets": {
+        "top": [
+          0,
+          0,
+          0.76
+        ],
+        "floor": [
+          0,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/living-v1/dining-table-180.glb",
+      "sourceBoundsXYZ": {
+        "min": [
+          -0.8999999761581421,
+          -0.44999998807907104,
+          0.0
+        ],
+        "max": [
+          0.8999999761581421,
+          0.44999998807907104,
+          0.7619999647140503
+        ]
+      }
+    },
+    {
+      "id": "dining-chair",
+      "nominal": [
+        0.5,
+        0.56,
+        0.86
+      ],
+      "sourceDimensionsXYZ": [
+        0.5216,
+        0.57821,
+        0.85393
+      ],
+      "triangles": 4004,
+      "drawMeshes": 7,
+      "editablePieces": 16,
+      "sourceSockets": {
+        "seat": [
+          0,
+          -0.01,
+          0.48
+        ],
+        "floor": [
+          0,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/living-v1/dining-chair.glb",
+      "sourceBoundsXYZ": {
+        "min": [
+          -0.26080000400543213,
+          -0.26080000400543213,
+          0.0
+        ],
+        "max": [
+          0.26080000400543213,
+          0.31741052865982056,
+          0.8539265394210815
+        ]
+      }
+    },
+    {
+      "id": "coffee-table-110",
+      "nominal": [
+        1.1,
+        0.65,
+        0.41
+      ],
+      "sourceDimensionsXYZ": [
+        1.1,
+        0.65,
+        0.41
+      ],
+      "triangles": 2644,
+      "drawMeshes": 5,
+      "editablePieces": 11,
+      "sourceSockets": {
+        "top": [
+          0,
+          0,
+          0.41
+        ]
+      },
+      "glb": "art/models/living-v1/coffee-table-110.glb",
+      "sourceBoundsXYZ": {
+        "min": [
+          -0.550000011920929,
+          -0.32499998807907104,
+          0.0
+        ],
+        "max": [
+          0.550000011920929,
+          0.32499998807907104,
+          0.4100000262260437
+        ]
+      }
+    },
+    {
+      "id": "sofa-seat-090",
+      "nominal": [
+        0.9,
+        0.86,
+        0.98
+      ],
+      "sourceDimensionsXYZ": [
+        0.9,
+        0.864,
+        0.975
+      ],
+      "triangles": 3584,
+      "drawMeshes": 7,
+      "editablePieces": 17,
+      "sourceSockets": {
+        "left": [
+          -0.45,
+          0,
+          0
+        ],
+        "right": [
+          0.45,
+          0,
+          0
+        ],
+        "seat": [
+          0,
+          -0.052,
+          0.47
+        ]
+      },
+      "glb": "art/models/living-v1/sofa-seat-090.glb",
+      "sourceBoundsXYZ": {
+        "min": [
+          -0.44999998807907104,
+          -0.4339999854564667,
+          0.0
+        ],
+        "max": [
+          0.44999998807907104,
+          0.4300000071525574,
+          0.9749999642372131
+        ]
+      }
+    },
+    {
+      "id": "sofa-arm",
+      "nominal": [
+        0.18,
+        0.83,
+        0.665
+      ],
+      "sourceDimensionsXYZ": [
+        0.18,
+        0.845,
+        0.665
+      ],
+      "triangles": 564,
+      "drawMeshes": 3,
+      "editablePieces": 3,
+      "sourceSockets": {
+        "mount": [
+          0,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/living-v1/sofa-arm.glb",
+      "sourceBoundsXYZ": {
+        "min": [
+          -0.09000000357627869,
+          -0.42000001668930054,
+          0.0
+        ],
+        "max": [
+          0.09000000357627869,
+          0.42499998211860657,
+          0.6650000214576721
+        ]
+      }
+    },
+    {
+      "id": "bed-frame-160",
+      "nominal": [
+        1.76,
+        2.18,
+        1.045
+      ],
+      "sourceDimensionsXYZ": [
+        1.76,
+        2.188,
+        1.045
+      ],
+      "triangles": 2616,
+      "drawMeshes": 8,
+      "editablePieces": 18,
+      "sourceSockets": {
+        "mattress": [
+          0,
+          0,
+          0.3
+        ]
+      },
+      "glb": "art/models/living-v1/bed-frame-160.glb",
+      "sourceBoundsXYZ": {
+        "min": [
+          -0.8799999952316284,
+          -1.097999930381775,
+          0.0
+        ],
+        "max": [
+          0.8799999952316284,
+          1.090000033378601,
+          1.0449999570846558
+        ]
+      }
+    },
+    {
+      "id": "mattress-160",
+      "nominal": [
+        1.6,
+        2,
+        0.2
+      ],
+      "sourceDimensionsXYZ": [
+        1.6,
+        2.0,
+        0.2
+      ],
+      "triangles": 2876,
+      "drawMeshes": 2,
+      "editablePieces": 3,
+      "sourceSockets": {
+        "bottom": [
+          0,
+          0,
+          0
+        ],
+        "top": [
+          0,
+          0,
+          0.2
+        ]
+      },
+      "glb": "art/models/living-v1/mattress-160.glb",
+      "sourceBoundsXYZ": {
+        "min": [
+          -0.800000011920929,
+          -1.0,
+          0.0
+        ],
+        "max": [
+          0.800000011920929,
+          1.0,
+          0.20000000298023224
+        ]
+      }
+    },
+    {
+      "id": "bed-quilt-160",
+      "nominal": [
+        1.72,
+        1.66,
+        0.16
+      ],
+      "sourceDimensionsXYZ": [
+        1.72,
+        1.66,
+        0.18613
+      ],
+      "triangles": 19184,
+      "drawMeshes": 2,
+      "editablePieces": 9,
+      "sourceSockets": {
+        "bed-install": [
+          0,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/living-v1/bed-quilt-160.glb",
+      "sourceBoundsXYZ": {
+        "min": [
+          -0.8600000143051147,
+          -1.0800000429153442,
+          -0.024390650913119316
+        ],
+        "max": [
+          0.8600000143051147,
+          0.5799999833106995,
+          0.16174237430095673
+        ]
+      }
+    },
+    {
+      "id": "bed-pillow",
+      "nominal": [
+        0.65,
+        0.43,
+        0.136
+      ],
+      "sourceDimensionsXYZ": [
+        0.65,
+        0.43,
+        0.136
+      ],
+      "triangles": 1532,
+      "drawMeshes": 2,
+      "editablePieces": 2,
+      "sourceSockets": {
+        "bottom": [
+          0,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/living-v1/bed-pillow.glb",
+      "sourceBoundsXYZ": {
+        "min": [
+          -0.32499998807907104,
+          -0.2150000035762787,
+          0.0
+        ],
+        "max": [
+          0.32499998807907104,
+          0.2150000035762787,
+          0.13600000739097595
+        ]
+      }
+    },
+    {
+      "id": "cabinet-frame-100",
+      "nominal": [
+        1,
+        0.6,
+        0.86
+      ],
+      "sourceDimensionsXYZ": [
+        1.0,
+        0.6,
+        0.86
+      ],
+      "triangles": 2052,
+      "drawMeshes": 6,
+      "editablePieces": 15,
+      "sourceSockets": {
+        "top": [
+          0,
+          0,
+          0.86
+        ],
+        "door-left": [
+          -0.25,
+          -0.327,
+          0.18
+        ],
+        "door-right": [
+          0.25,
+          -0.327,
+          0.18
+        ],
+        "drawer": [
+          0,
+          -0.315,
+          0.63
+        ],
+        "left": [
+          -0.5,
+          0,
+          0
+        ],
+        "right": [
+          0.5,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/living-v1/cabinet-frame-100.glb",
+      "sourceBoundsXYZ": {
+        "min": [
+          -0.5,
+          -0.30000001192092896,
+          0.0
+        ],
+        "max": [
+          0.5,
+          0.30000001192092896,
+          0.8600000143051147
+        ]
+      }
+    },
+    {
+      "id": "cabinet-door-050",
+      "nominal": [
+        0.475,
+        0.066,
+        0.645
+      ],
+      "sourceDimensionsXYZ": [
+        0.475,
+        0.088,
+        0.645
+      ],
+      "triangles": 752,
+      "drawMeshes": 4,
+      "editablePieces": 4,
+      "sourceSockets": {
+        "left-hinge": [
+          -0.2375,
+          0,
+          0.3225
+        ],
+        "right-hinge": [
+          0.2375,
+          0,
+          0.3225
+        ]
+      },
+      "glb": "art/models/living-v1/cabinet-door-050.glb",
+      "sourceBoundsXYZ": {
+        "min": [
+          -0.23749999701976776,
+          -0.06549999862909317,
+          0.0
+        ],
+        "max": [
+          0.23749999701976776,
+          0.02250000089406967,
+          0.6449999809265137
+        ]
+      }
+    },
+    {
+      "id": "cabinet-drawer-100",
+      "nominal": [
+        0.944,
+        0.51,
+        0.2
+      ],
+      "sourceDimensionsXYZ": [
+        0.944,
+        0.5505,
+        0.2
+      ],
+      "triangles": 1316,
+      "drawMeshes": 4,
+      "editablePieces": 7,
+      "sourceSockets": {
+        "pull-direction": [
+          0,
+          -1,
+          0
+        ]
+      },
+      "glb": "art/models/living-v1/cabinet-drawer-100.glb",
+      "sourceBoundsXYZ": {
+        "min": [
+          -0.47200000286102295,
+          -0.06300000101327896,
+          0.0
+        ],
+        "max": [
+          0.47200000286102295,
+          0.48749998211860657,
+          0.20000000298023224
+        ]
+      }
+    },
+    {
+      "id": "shelf-upright-180",
+      "nominal": [
+        0.1,
+        0.54,
+        1.8
+      ],
+      "sourceDimensionsXYZ": [
+        0.1,
+        0.54,
+        1.8
+      ],
+      "triangles": 2632,
+      "drawMeshes": 4,
+      "editablePieces": 14,
+      "sourceSockets": {
+        "bottom": [
+          0,
+          0,
+          0
+        ],
+        "shelf1": [
+          0,
+          0,
+          0.2675
+        ],
+        "shelf2": [
+          0,
+          0,
+          0.6675
+        ],
+        "shelf3": [
+          0,
+          0,
+          1.0675
+        ],
+        "shelf4": [
+          0,
+          0,
+          1.4675
+        ]
+      },
+      "glb": "art/models/living-v1/shelf-upright-180.glb",
+      "sourceBoundsXYZ": {
+        "min": [
+          -0.05000000074505806,
+          -0.27000001072883606,
+          0.0
+        ],
+        "max": [
+          0.05000000074505806,
+          0.27000001072883606,
+          1.7999999523162842
+        ]
+      }
+    },
+    {
+      "id": "shelf-board-090",
+      "nominal": [
+        0.9,
+        0.452,
+        0.04
+      ],
+      "sourceDimensionsXYZ": [
+        0.9,
+        0.45,
+        0.04
+      ],
+      "triangles": 376,
+      "drawMeshes": 2,
+      "editablePieces": 2,
+      "sourceSockets": {
+        "left": [
+          -0.45,
+          0,
+          0
+        ],
+        "right": [
+          0.45,
+          0,
+          0
+        ],
+        "top": [
+          0,
+          0,
+          0.04
+        ]
+      },
+      "glb": "art/models/living-v1/shelf-board-090.glb",
+      "sourceBoundsXYZ": {
+        "min": [
+          -0.44999998807907104,
+          -0.23000000417232513,
+          0.0
+        ],
+        "max": [
+          0.44999998807907104,
+          0.2199999988079071,
+          0.03999999910593033
+        ]
+      }
+    },
+    {
+      "id": "kitchen-counter-100",
+      "nominal": [
+        1,
+        0.65,
+        0.14
+      ],
+      "sourceDimensionsXYZ": [
+        1.0,
+        0.65,
+        0.14
+      ],
+      "triangles": 376,
+      "drawMeshes": 2,
+      "editablePieces": 2,
+      "sourceSockets": {
+        "counter": [
+          0,
+          0,
+          0.04
+        ],
+        "left": [
+          -0.5,
+          0,
+          0
+        ],
+        "right": [
+          0.5,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/living-v1/kitchen-counter-100.glb",
+      "sourceBoundsXYZ": {
+        "min": [
+          -0.5,
+          -0.32499998807907104,
+          0.0
+        ],
+        "max": [
+          0.5,
+          0.32499998807907104,
+          0.14000000059604645
+        ]
+      }
+    },
+    {
+      "id": "kitchen-sink-top-100",
+      "nominal": [
+        1,
+        0.65,
+        0.53
+      ],
+      "sourceDimensionsXYZ": [
+        1.0,
+        0.65,
+        0.5457
+      ],
+      "triangles": 5116,
+      "drawMeshes": 4,
+      "editablePieces": 15,
+      "sourceSockets": {
+        "counter": [
+          0,
+          0,
+          0.04
+        ],
+        "left": [
+          -0.5,
+          0,
+          0
+        ],
+        "right": [
+          0.5,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/living-v1/kitchen-sink-top-100.glb",
+      "sourceBoundsXYZ": {
+        "min": [
+          -0.5,
+          -0.32499998807907104,
+          -0.1574999988079071
+        ],
+        "max": [
+          0.5,
+          0.32499998807907104,
+          0.3881964683532715
+        ]
+      }
+    },
+    {
+      "id": "induction-hob",
+      "nominal": [
+        0.6,
+        0.46,
+        0.037
+      ],
+      "sourceDimensionsXYZ": [
+        0.6,
+        0.46,
+        0.0367
+      ],
+      "triangles": 5548,
+      "drawMeshes": 4,
+      "editablePieces": 7,
+      "sourceSockets": {
+        "bottom": [
+          0,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/living-v1/induction-hob.glb",
+      "sourceBoundsXYZ": {
+        "min": [
+          -0.30000001192092896,
+          -0.23000000417232513,
+          0.0
+        ],
+        "max": [
+          0.30000001192092896,
+          0.23000000417232513,
+          0.03669999912381172
+        ]
+      }
+    },
+    {
+      "id": "kettle",
+      "nominal": [
+        0.27,
+        0.34,
+        0.4
+      ],
+      "sourceDimensionsXYZ": [
+        0.26,
+        0.35016,
+        0.39598
+      ],
+      "triangles": 2212,
+      "drawMeshes": 4,
+      "editablePieces": 7,
+      "sourceSockets": {
+        "bottom": [
+          0,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/living-v1/kettle.glb",
+      "sourceBoundsXYZ": {
+        "min": [
+          -0.12999999523162842,
+          -0.22016412019729614,
+          0.0
+        ],
+        "max": [
+          0.12999999523162842,
+          0.12999999523162842,
+          0.3959836959838867
+        ]
+      }
+    },
+    {
+      "id": "mug",
+      "nominal": [
+        0.14,
+        0.094,
+        0.108
+      ],
+      "sourceDimensionsXYZ": [
+        0.14124,
+        0.094,
+        0.108
+      ],
+      "triangles": 1160,
+      "drawMeshes": 2,
+      "editablePieces": 2,
+      "sourceSockets": {
+        "bottom": [
+          0,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/living-v1/mug.glb",
+      "sourceBoundsXYZ": {
+        "min": [
+          -0.04699999839067459,
+          -0.04699999839067459,
+          0.0
+        ],
+        "max": [
+          0.09423844516277313,
+          0.04699999839067459,
+          0.1080000028014183
+        ]
+      }
+    },
+    {
+      "id": "dinner-plate",
+      "nominal": [
+        0.29,
+        0.29,
+        0.031
+      ],
+      "sourceDimensionsXYZ": [
+        0.29,
+        0.29,
+        0.0305
+      ],
+      "triangles": 3740,
+      "drawMeshes": 2,
+      "editablePieces": 2,
+      "sourceSockets": {
+        "bottom": [
+          0,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/living-v1/dinner-plate.glb",
+      "sourceBoundsXYZ": {
+        "min": [
+          -0.14499999582767487,
+          -0.14499999582767487,
+          0.0
+        ],
+        "max": [
+          0.14499999582767487,
+          0.14499999582767487,
+          0.030500000342726707
+        ]
+      }
+    },
+    {
+      "id": "storage-basket-040",
+      "nominal": [
+        0.414,
+        0.334,
+        0.287
+      ],
+      "sourceDimensionsXYZ": [
+        0.40648,
+        0.336,
+        0.287
+      ],
+      "triangles": 3036,
+      "drawMeshes": 3,
+      "editablePieces": 10,
+      "sourceSockets": {
+        "bottom": [
+          0,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/living-v1/storage-basket-040.glb",
+      "sourceBoundsXYZ": {
+        "min": [
+          -0.20323941111564636,
+          -0.1679999977350235,
+          0.0
+        ],
+        "max": [
+          0.20323941111564636,
+          0.1679999977350235,
+          0.28700000047683716
+        ]
+      }
+    },
+    {
+      "id": "outdoor-lantern-160",
+      "nominal": [
+        0.264,
+        0.264,
+        1.595
+      ],
+      "sourceDimensionsXYZ": [
+        0.264,
+        0.264,
+        1.595
+      ],
+      "triangles": 1500,
+      "drawMeshes": 5,
+      "editablePieces": 9,
+      "sourceSockets": {
+        "floor": [
+          0,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/living-v1/outdoor-lantern-160.glb",
+      "sourceBoundsXYZ": {
+        "min": [
+          -0.13199999928474426,
+          -0.13199999928474426,
+          0.0
+        ],
+        "max": [
+          0.13199999928474426,
+          0.13199999928474426,
+          1.5950000286102295
+        ]
+      }
+    },
+    {
+      "id": "wayfinding-post",
+      "nominal": [
+        0.34,
+        0.3,
+        1.52
+      ],
+      "sourceDimensionsXYZ": [
+        0.34,
+        0.3,
+        1.52
+      ],
+      "triangles": 564,
+      "drawMeshes": 3,
+      "editablePieces": 3,
+      "sourceSockets": {
+        "upper-panel": [
+          0,
+          -0.07,
+          1.28
+        ],
+        "lower-panel": [
+          0,
+          -0.07,
+          0.94
+        ]
+      },
+      "glb": "art/models/living-v1/wayfinding-post.glb",
+      "sourceBoundsXYZ": {
+        "min": [
+          -0.17000000178813934,
+          -0.15000000596046448,
+          0.0
+        ],
+        "max": [
+          0.17000000178813934,
+          0.15000000596046448,
+          1.5199999809265137
+        ]
+      }
+    },
+    {
+      "id": "wayfinding-panel",
+      "nominal": [
+        0.72,
+        0.036,
+        0.25
+      ],
+      "sourceDimensionsXYZ": [
+        0.72,
+        0.045,
+        0.25
+      ],
+      "triangles": 1601,
+      "drawMeshes": 4,
+      "editablePieces": 4,
+      "sourceSockets": {
+        "post": [
+          0,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/living-v1/wayfinding-panel.glb",
+      "sourceBoundsXYZ": {
+        "min": [
+          -0.36000001430511475,
+          -0.027000000700354576,
+          -0.125
+        ],
+        "max": [
+          0.36000001430511475,
+          0.017999999225139618,
+          0.125
+        ]
+      }
+    },
+    {
+      "id": "gift-box-040",
+      "nominal": [
+        0.4,
+        0.41,
+        0.325
+      ],
+      "sourceDimensionsXYZ": [
+        0.4,
+        0.41,
+        0.325
+      ],
+      "triangles": 1316,
+      "drawMeshes": 2,
+      "editablePieces": 7,
+      "sourceSockets": {
+        "lid": [
+          0,
+          0,
+          0.325
+        ]
+      },
+      "glb": "art/models/living-v1/gift-box-040.glb",
+      "sourceBoundsXYZ": {
+        "min": [
+          -0.20000000298023224,
+          -0.20500001311302185,
+          0.0
+        ],
+        "max": [
+          0.20000000298023224,
+          0.20500001311302185,
+          0.32499998807907104
+        ]
+      }
+    },
+    {
+      "id": "gift-lid-040",
+      "nominal": [
+        0.44,
+        0.44,
+        0.14
+      ],
+      "sourceDimensionsXYZ": [
+        0.44,
+        0.44,
+        0.125
+      ],
+      "triangles": 1820,
+      "drawMeshes": 3,
+      "editablePieces": 11,
+      "sourceSockets": {
+        "box": [
+          0,
+          0,
+          0
+        ],
+        "inner-opening-half": [
+          0.207,
+          0.207,
+          0
+        ]
+      },
+      "glb": "art/models/living-v1/gift-lid-040.glb",
+      "sourceBoundsXYZ": {
+        "min": [
+          -0.2199999988079071,
+          -0.2199999988079071,
+          -0.024000000208616257
+        ],
+        "max": [
+          0.2199999988079071,
+          0.2199999988079071,
+          0.10100000351667404
+        ]
+      }
+    },
+    {
+      "id": "woven-rug-240",
+      "nominal": [
+        2.47,
+        1.65,
+        0.014
+      ],
+      "sourceDimensionsXYZ": [
+        2.466,
+        1.65,
+        0.014
+      ],
+      "triangles": 2732,
+      "drawMeshes": 3,
+      "editablePieces": 69,
+      "sourceSockets": {
+        "floor": [
+          0,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/living-v1/woven-rug-240.glb",
+      "sourceBoundsXYZ": {
+        "min": [
+          -1.2330001592636108,
+          -0.824999988079071,
+          0.0
+        ],
+        "max": [
+          1.2330001592636108,
+          0.824999988079071,
+          0.014000000432133675
+        ]
+      }
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "habitat/floor-2m",
+      "nominal": [
+        2,
+        2,
+        0.21
+      ],
+      "sourceDimensionsXYZ": [
+        2.0,
+        2.0,
+        0.215
+      ],
+      "triangles": 1304,
+      "drawMeshes": 3,
+      "editablePieces": 10,
+      "sourceSockets": {
+        "top": [
+          0,
+          0,
+          0.21
+        ],
+        "left": [
+          -1,
+          0,
+          0
+        ],
+        "right": [
+          1,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/habitat-v2/floor-2m.glb"
+    },
+    {
+      "id": "connections/support-foot-020",
+      "nominal": [
+        0.44,
+        0.44,
+        0.2
+      ],
+      "sourceDimensionsXYZ": [
+        0.44,
+        0.44,
+        0.2
+      ],
+      "triangles": 644,
+      "drawMeshes": 3,
+      "editablePieces": 7,
+      "sourceSockets": {
+        "ground": [
+          0,
+          0,
+          0
+        ],
+        "riser": [
+          0,
+          0,
+          0.2
+        ]
+      },
+      "glb": "art/models/connections-v1/support-foot-020.glb"
+    },
+    {
+      "id": "connections/support-riser-040",
+      "nominal": [
+        0.28,
+        0.28,
+        0.4
+      ],
+      "sourceDimensionsXYZ": [
+        0.28,
+        0.28,
+        0.4
+      ],
+      "triangles": 940,
+      "drawMeshes": 3,
+      "editablePieces": 5,
+      "sourceSockets": {
+        "base": [
+          0,
+          0,
+          0
+        ],
+        "top": [
+          0,
+          0,
+          0.4
+        ]
+      },
+      "glb": "art/models/connections-v1/support-riser-040.glb"
+    },
+    {
+      "id": "habitat/foundation-edge-2m",
+      "nominal": [
+        2,
+        0.5,
+        0.21
+      ],
+      "sourceDimensionsXYZ": [
+        2.0,
+        0.5625,
+        0.21
+      ],
+      "triangles": 940,
+      "drawMeshes": 4,
+      "editablePieces": 5,
+      "sourceSockets": {
+        "wall": [
+          0,
+          0,
+          0.21
+        ],
+        "floor": [
+          0,
+          0.5,
+          0
+        ]
+      },
+      "glb": "art/models/habitat-v2/foundation-edge-2m.glb"
+    },
+    {
+      "id": "habitat/wall-solid-2m",
+      "nominal": [
+        2,
+        0.22,
+        2.8
+      ],
+      "sourceDimensionsXYZ": [
+        1.988,
+        0.3203,
+        2.8
+      ],
+      "triangles": 10848,
+      "drawMeshes": 8,
+      "editablePieces": 51,
+      "sourceSockets": {
+        "left": [
+          -1.0,
+          0,
+          0
+        ],
+        "right": [
+          1.0,
+          0,
+          0
+        ],
+        "roof": [
+          0,
+          0,
+          2.8
+        ]
+      },
+      "glb": "art/models/habitat-v2/wall-solid-2m.glb"
+    },
+    {
+      "id": "habitat/foundation-corner-r050",
+      "nominal": [
+        0.5,
+        0.5,
+        0.21
+      ],
+      "sourceDimensionsXYZ": [
+        0.4999,
+        0.4999,
+        0.21
+      ],
+      "triangles": 1272,
+      "drawMeshes": 2,
+      "editablePieces": 2,
+      "sourceSockets": {
+        "front": [
+          0,
+          -0.5,
+          0.21
+        ],
+        "side": [
+          0.5,
+          0,
+          0.21
+        ]
+      },
+      "glb": "art/models/habitat-v2/foundation-corner-r050.glb"
+    },
+    {
+      "id": "habitat/wall-corner-r050",
+      "nominal": [
+        0.5,
+        0.5,
+        2.8
+      ],
+      "sourceDimensionsXYZ": [
+        0.5349,
+        0.5349,
+        2.8
+      ],
+      "triangles": 4840,
+      "drawMeshes": 4,
+      "editablePieces": 6,
+      "sourceSockets": {
+        "front": [
+          0,
+          -0.5,
+          0
+        ],
+        "side": [
+          0.5,
+          0,
+          0
+        ],
+        "roof": [
+          0,
+          0,
+          2.8
+        ]
+      },
+      "glb": "art/models/habitat-v2/wall-corner-r050.glb"
+    },
+    {
+      "id": "connections/foundation-inner-corner-2m",
+      "nominal": [
+        2,
+        2,
+        0.21
+      ],
+      "sourceDimensionsXYZ": [
+        2.0,
+        2.0,
+        0.21
+      ],
+      "triangles": 444,
+      "drawMeshes": 3,
+      "editablePieces": 3,
+      "sourceSockets": {
+        "front": [
+          2,
+          0.5,
+          0
+        ],
+        "side": [
+          0.5,
+          2,
+          0
+        ],
+        "gridCorner": [
+          0,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/connections-v1/foundation-inner-corner-2m.glb"
+    },
+    {
+      "id": "connections/deck-floor-2m",
+      "nominal": [
+        2,
+        2,
+        0.21
+      ],
+      "sourceDimensionsXYZ": [
+        2.0,
+        2.0,
+        0.214
+      ],
+      "triangles": 2772,
+      "drawMeshes": 3,
+      "editablePieces": 27,
+      "sourceSockets": {
+        "north": [
+          0,
+          1,
+          0
+        ],
+        "south": [
+          0,
+          -1,
+          0
+        ],
+        "east": [
+          1,
+          0,
+          0
+        ],
+        "west": [
+          -1,
+          0,
+          0
+        ],
+        "top": [
+          0,
+          0,
+          0.21
+        ]
+      },
+      "glb": "art/models/connections-v1/deck-floor-2m.glb"
+    },
+    {
+      "id": "connections/deck-edge-2m",
+      "nominal": [
+        2,
+        0.1,
+        0.19
+      ],
+      "sourceDimensionsXYZ": [
+        1.98,
+        0.126,
+        0.18
+      ],
+      "triangles": 1148,
+      "drawMeshes": 5,
+      "editablePieces": 9,
+      "sourceSockets": {
+        "left": [
+          -1,
+          0,
+          0
+        ],
+        "right": [
+          1,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/connections-v1/deck-edge-2m.glb"
+    },
+    {
+      "id": "connections/deck-rail-2m",
+      "nominal": [
+        2,
+        0.11,
+        1.08
+      ],
+      "sourceDimensionsXYZ": [
+        1.89,
+        0.11,
+        0.915
+      ],
+      "triangles": 1952,
+      "drawMeshes": 5,
+      "editablePieces": 8,
+      "sourceSockets": {
+        "left": [
+          -1,
+          0,
+          0
+        ],
+        "right": [
+          1,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/connections-v1/deck-rail-2m.glb"
+    },
+    {
+      "id": "connections/deck-post-105",
+      "nominal": [
+        0.2,
+        0.2,
+        1.09
+      ],
+      "sourceDimensionsXYZ": [
+        0.2,
+        0.2,
+        1.09
+      ],
+      "triangles": 752,
+      "drawMeshes": 4,
+      "editablePieces": 4,
+      "sourceSockets": {
+        "base": [
+          0,
+          0,
+          0
+        ],
+        "rail": [
+          0,
+          0,
+          1.035
+        ]
+      },
+      "glb": "art/models/connections-v1/deck-post-105.glb"
+    },
+    {
+      "id": "connections/deck-corner-cap",
+      "nominal": [
+        0.13,
+        0.13,
+        0.18
+      ],
+      "sourceDimensionsXYZ": [
+        0.125,
+        0.125,
+        0.18
+      ],
+      "triangles": 376,
+      "drawMeshes": 2,
+      "editablePieces": 2,
+      "sourceSockets": {
+        "corner": [
+          0,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/connections-v1/deck-corner-cap.glb"
+    },
+    {
+      "id": "connections/terrace-stair-081",
+      "nominal": [
+        1.7,
+        1.6,
+        1.87
+      ],
+      "sourceDimensionsXYZ": [
+        1.7,
+        1.602,
+        1.8613
+      ],
+      "triangles": 4124,
+      "drawMeshes": 4,
+      "editablePieces": 25,
+      "sourceSockets": {
+        "landing": [
+          0,
+          0,
+          0.81
+        ],
+        "ground": [
+          0,
+          -1.6,
+          0
+        ]
+      },
+      "glb": "art/models/connections-v1/terrace-stair-081.glb"
+    },
+    {
+      "id": "connections/terrace-ramp-2m",
+      "nominal": [
+        1.8,
+        2,
+        0.54
+      ],
+      "sourceDimensionsXYZ": [
+        1.8,
+        2.0071,
+        0.5576
+      ],
+      "triangles": 2356,
+      "drawMeshes": 3,
+      "editablePieces": 15,
+      "sourceSockets": {
+        "lower": [
+          0,
+          -1,
+          0
+        ],
+        "upper": [
+          0,
+          1,
+          0.405
+        ]
+      },
+      "glb": "art/models/connections-v1/terrace-ramp-2m.glb"
+    },
+    {
+      "id": "connections/ramp-rail-2m",
+      "nominal": [
+        0.13,
+        2,
+        1.48
+      ],
+      "sourceDimensionsXYZ": [
+        0.13,
+        2.0159,
+        1.4671
+      ],
+      "triangles": 744,
+      "drawMeshes": 3,
+      "editablePieces": 6,
+      "sourceSockets": {
+        "lower": [
+          0,
+          -1,
+          0
+        ],
+        "upper": [
+          0,
+          1,
+          0.405
+        ]
+      },
+      "glb": "art/models/connections-v1/ramp-rail-2m.glb"
+    },
+    {
+      "id": "habitat/interior-planter",
+      "nominal": [
+        0.8,
+        0.8,
+        0.85
+      ],
+      "sourceDimensionsXYZ": [
+        0.5836,
+        0.5242,
+        0.6635
+      ],
+      "triangles": 2584,
+      "drawMeshes": 4,
+      "editablePieces": 29,
+      "sourceSockets": {
+        "support": [
+          0,
+          0,
+          0
+        ]
+      },
+      "glb": "art/models/habitat-v2/interior-planter.glb"
+    }
+  ],
+  "assembly": "Roof and south/east wall cutaway of the existing house and terrace. Furniture uses adult dimensions; all instance scales 1.",
+  "scope": "Editable art modules, materials and static layout only. No game logic, animation or engine acceptance."
+}

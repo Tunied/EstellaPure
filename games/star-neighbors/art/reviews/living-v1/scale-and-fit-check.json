@@ -1,0 +1,147 @@
+{
+  "status": "passed",
+  "scope": "Art geometry, static furniture layout and dimensions only. No collision, animation or gameplay acceptance.",
+  "assets": 27,
+  "assemblyInstances": 218,
+  "checks": [
+    {
+      "check": "Chair seat height",
+      "passed": true,
+      "metres": 0.48
+    },
+    {
+      "check": "Table working height",
+      "passed": true,
+      "metres": 0.76
+    },
+    {
+      "check": "Table to chair height difference",
+      "passed": true,
+      "metres": 0.28
+    },
+    {
+      "check": "Actual chair top bound",
+      "passed": true,
+      "metres": 0.8539265394210815
+    },
+    {
+      "check": "Mattress adult length and width",
+      "passed": true,
+      "metres": [
+        1.6,
+        2.0
+      ]
+    },
+    {
+      "check": "Bed platform joins mattress bottom",
+      "passed": true,
+      "metres": 0.3
+    },
+    {
+      "check": "Kitchen working surface",
+      "passed": true,
+      "metres": 0.9
+    },
+    {
+      "check": "Sink counter matches worktop",
+      "passed": true
+    },
+    {
+      "check": "Sofa repeated seat pitch",
+      "passed": true,
+      "metres": 0.9
+    },
+    {
+      "check": "Shelf bay matches board span",
+      "passed": true,
+      "metres": 0.9
+    },
+    {
+      "check": "Gift lid installation",
+      "passed": true,
+      "metres": 0.325
+    },
+    {
+      "check": "Gift lid clears box and wrapping",
+      "passed": true,
+      "minimumSideClearanceMetres": 0.002
+    },
+    {
+      "check": "All scene modules at true scale",
+      "passed": true
+    },
+    {
+      "check": "Entry to interior clear route",
+      "passed": true,
+      "rectangleXYMetres": [
+        -3.5,
+        -2.5,
+        -8.35,
+        0
+      ],
+      "blockers": []
+    },
+    {
+      "check": "Ramp arrival clear route",
+      "passed": true,
+      "rectangleXYMetres": [
+        0.4,
+        2.0,
+        -8.2,
+        -7.1
+      ],
+      "blockers": []
+    },
+    {
+      "check": "Shelf content clears next board / storage-basket-040 instance",
+      "passed": true,
+      "topMetres": 1.4045,
+      "nextBoardMetres": 1.4775
+    },
+    {
+      "check": "Shelf content clears next board / storage-basket-040 instance.001",
+      "passed": true,
+      "topMetres": 1.8045,
+      "nextBoardMetres": 1.8775
+    },
+    {
+      "check": "Shelf content clears next board / storage-basket-040 instance.002",
+      "passed": true,
+      "topMetres": 1.4045,
+      "nextBoardMetres": 1.4775
+    },
+    {
+      "check": "Shelf content clears next board / storage-basket-040 instance.003",
+      "passed": true,
+      "topMetres": 1.8045,
+      "nextBoardMetres": 1.8775
+    },
+    {
+      "check": "Shelf content clears next board / habitat/interior-planter instance",
+      "passed": true,
+      "topMetres": 2.981,
+      "nextBoardMetres": null
+    },
+    {
+      "check": "Shelf content clears next board / gift-box-040 instance",
+      "passed": true,
+      "topMetres": 2.6425,
+      "nextBoardMetres": null
+    },
+    {
+      "check": "Shelf content clears next board / gift-lid-040 instance",
+      "passed": true,
+      "topMetres": 2.7435,
+      "nextBoardMetres": null
+    },
+    {
+      "check": "Door hinge preserved in open study",
+      "passed": true
+    },
+    {
+      "check": "Existing adult mannequin height",
+      "passed": true,
+      "metres": 1.78
+    }
+  ]
+}

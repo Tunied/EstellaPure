@@ -1,0 +1,428 @@
+{
+  "sourceUp": "Z",
+  "units": "metres",
+  "instances": [
+    {
+      "group": "adult table and chairs",
+      "asset": "dining-table-180",
+      "positionZUp": [
+        -4.8,
+        2.3,
+        0
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "adult table and chairs",
+      "asset": "dining-chair",
+      "positionZUp": [
+        -5.3,
+        1.45,
+        0
+      ],
+      "yawZ": 180
+    },
+    {
+      "group": "adult table and chairs",
+      "asset": "dining-chair",
+      "positionZUp": [
+        -5.3,
+        3.15,
+        0
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "adult table and chairs",
+      "asset": "dining-chair",
+      "positionZUp": [
+        -4.3,
+        1.45,
+        0
+      ],
+      "yawZ": 180
+    },
+    {
+      "group": "adult table and chairs",
+      "asset": "dining-chair",
+      "positionZUp": [
+        -4.3,
+        3.15,
+        0
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "bed layers",
+      "asset": "bed-frame-160",
+      "positionZUp": [
+        -0.5,
+        2.3,
+        0
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "bed layers",
+      "asset": "mattress-160",
+      "positionZUp": [
+        -0.5,
+        2.3,
+        0.3
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "bed layers",
+      "asset": "bed-quilt-160",
+      "positionZUp": [
+        -0.5,
+        2.3,
+        0.4
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "bed layers",
+      "asset": "bed-pillow",
+      "positionZUp": [
+        -0.9,
+        3.01,
+        0.5
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "bed layers",
+      "asset": "bed-pillow",
+      "positionZUp": [
+        -0.1,
+        3.01,
+        0.5
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "two shelf bays",
+      "asset": "shelf-upright-180",
+      "positionZUp": [
+        2.6,
+        2.4,
+        0
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "two shelf bays",
+      "asset": "shelf-upright-180",
+      "positionZUp": [
+        3.5,
+        2.4,
+        0
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "two shelf bays",
+      "asset": "shelf-upright-180",
+      "positionZUp": [
+        4.4,
+        2.4,
+        0
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "two shelf bays",
+      "asset": "shelf-board-090",
+      "positionZUp": [
+        3.05,
+        2.4,
+        0.2675
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "two shelf bays",
+      "asset": "shelf-board-090",
+      "positionZUp": [
+        3.05,
+        2.4,
+        0.6675
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "two shelf bays",
+      "asset": "shelf-board-090",
+      "positionZUp": [
+        3.05,
+        2.4,
+        1.0675
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "two shelf bays",
+      "asset": "shelf-board-090",
+      "positionZUp": [
+        3.05,
+        2.4,
+        1.4675
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "two shelf bays",
+      "asset": "storage-basket-040",
+      "positionZUp": [
+        3.05,
+        2.4,
+        0.7075
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "two shelf bays",
+      "asset": "shelf-board-090",
+      "positionZUp": [
+        3.95,
+        2.4,
+        0.2675
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "two shelf bays",
+      "asset": "shelf-board-090",
+      "positionZUp": [
+        3.95,
+        2.4,
+        0.6675
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "two shelf bays",
+      "asset": "shelf-board-090",
+      "positionZUp": [
+        3.95,
+        2.4,
+        1.0675
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "two shelf bays",
+      "asset": "shelf-board-090",
+      "positionZUp": [
+        3.95,
+        2.4,
+        1.4675
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "two shelf bays",
+      "asset": "storage-basket-040",
+      "positionZUp": [
+        3.95,
+        2.4,
+        0.7075
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "cabinet variants",
+      "asset": "cabinet-frame-100",
+      "positionZUp": [
+        -5.3,
+        -1.75,
+        0
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "cabinet variants",
+      "asset": "kitchen-counter-100",
+      "positionZUp": [
+        -5.3,
+        -1.75,
+        0.86
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "cabinet variants",
+      "asset": "cabinet-frame-100",
+      "positionZUp": [
+        -4.05,
+        -1.75,
+        0
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "cabinet variants",
+      "asset": "kitchen-counter-100",
+      "positionZUp": [
+        -4.05,
+        -1.75,
+        0.86
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "cabinet variants",
+      "asset": "cabinet-door-050",
+      "positionZUp": [
+        -5.55,
+        -2.077,
+        0.18
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "cabinet open leaf",
+      "asset": "cabinet-door-050",
+      "positionZUp": [
+        -4.912871837615967,
+        -2.292248010635376,
+        0.18000000715255737
+      ],
+      "yawZ": 65
+    },
+    {
+      "group": "cabinet open drawer",
+      "asset": "cabinet-drawer-100",
+      "positionZUp": [
+        -4.05,
+        -2.285,
+        0.63
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "repeatable sofa",
+      "asset": "sofa-seat-090",
+      "positionZUp": [
+        -0.8,
+        -1.8,
+        0
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "independent arm",
+      "asset": "sofa-arm",
+      "positionZUp": [
+        -1.3250000000000002,
+        -1.8,
+        0
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "independent arm",
+      "asset": "sofa-arm",
+      "positionZUp": [
+        -0.275,
+        -1.8,
+        0
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "repeatable sofa",
+      "asset": "sofa-seat-090",
+      "positionZUp": [
+        0.8,
+        -1.8,
+        0
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "repeatable sofa",
+      "asset": "sofa-seat-090",
+      "positionZUp": [
+        1.7,
+        -1.8,
+        0
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "independent arm",
+      "asset": "sofa-arm",
+      "positionZUp": [
+        0.275,
+        -1.8,
+        0
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "independent arm",
+      "asset": "sofa-arm",
+      "positionZUp": [
+        2.225,
+        -1.8,
+        0
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "gift separated lid",
+      "asset": "gift-box-040",
+      "positionZUp": [
+        4.0,
+        -1.9,
+        0
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "gift separated lid",
+      "asset": "gift-lid-040",
+      "positionZUp": [
+        4.0,
+        -1.9,
+        0.6
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "social props",
+      "asset": "outdoor-lantern-160",
+      "positionZUp": [
+        5.0,
+        -1.8,
+        0
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "social props",
+      "asset": "wayfinding-post",
+      "positionZUp": [
+        3.0,
+        -1.8,
+        0
+      ],
+      "yawZ": 0
+    },
+    {
+      "group": "social props",
+      "asset": "wayfinding-panel",
+      "positionZUp": [
+        3.0,
+        -1.87,
+        1.28
+      ],
+      "yawZ": 0
+    }
+  ],
+  "mannequinReference": "assets/models/scale-mannequin.glb",
+  "note": "Floating gift lid and open door/drawer are static art demonstrations, not animation clips."
+}
