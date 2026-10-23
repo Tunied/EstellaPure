@@ -1,0 +1,155 @@
+{
+  "version": 4,
+  "name": "HairTips",
+  "entities": [
+    {
+      "id": 0,
+      "name": "Camera",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 10
+            }
+          }
+        },
+        {
+          "type": "Camera",
+          "data": {
+            "projectionType": 1,
+            "orthoSize": 300,
+            "isActive": true,
+            "priority": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "name": "Off",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": -150,
+              "y": 0,
+              "z": 0
+            },
+            "scale": {
+              "x": 250,
+              "y": 250,
+              "z": 1
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "/scenes/shadow-quad.esmesh",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "enabled": true,
+            "material": "/scenes/hair-tips/off.esmaterial",
+            "texture": "@uuid:7c3e9a41-2b5d-4e8f-a1c6-9d0f4b2e7a56"
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "On",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 150,
+              "y": 0,
+              "z": 0
+            },
+            "scale": {
+              "x": 250,
+              "y": 250,
+              "z": 1
+            }
+          }
+        },
+        {
+          "type": "MeshRenderer",
+          "data": {
+            "mesh": "/scenes/shadow-quad.esmesh",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "lit": true,
+            "opaque": true,
+            "enabled": true,
+            "material": "/scenes/hair-tips/on.esmaterial",
+            "texture": "@uuid:7c3e9a41-2b5d-4e8f-a1c6-9d0f4b2e7a56"
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Sun",
+      "parent": null,
+      "children": [],
+      "visible": true,
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "rotation": {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "w": 1
+            }
+          }
+        },
+        {
+          "type": "Light",
+          "data": {
+            "type": 1,
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            },
+            "intensity": 0.8,
+            "meshShadows": false
+          }
+        }
+      ]
+    }
+  ]
+}

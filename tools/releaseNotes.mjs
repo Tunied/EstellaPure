@@ -2553,6 +2553,8 @@ export const NOTED = {
     {"note":"The Eye shader shades the eye the lids sit on: `u_lidMap` is an authored occlusion map, and `u_lidShadow` darkens, and fades the cornea's reflections, where the surface faces up from `u_lidStart`, which is the upper lid on an upright head."},
   "feat(import): a model can give its skin, hair and eye materials the character shaders":
     {"note":"Importing a model can now give its character materials the right shader: turn on Character Materials in the model's import settings and a material whose name says skin, face, head, hair or eye gets the Skin, Hair or Eye shader with its normal and occlusion/roughness maps bound, and hair is cut out by its alpha and feathered by coverage. Off by default."},
+  "feat(render): Hair cards draw a soft blended tip pass below their cutoff":
+    {"note":"The Hair shader can draw the soft outer band of its cards: `u_tipSoftness` is how far below the cutoff alpha a second, blended pass draws each strand's tip fading out, sorted with the other blended draws, so tips are not stair-stepped by coverage. A model imported with Character Materials also has its hair triangles put in the order that pass wants, the cards nearest the middle of the hair first. Off by default."},
   "chore(tools): the gates run in parallel with --jobs, and the reds a full run gathered are cleared":
     {"internal":"tooling for the static gates, and fixes to checks that had drifted from the code they guard"},
   "fix(render): a wire narrower than a pixel is no longer painted over by the sky in dashes":

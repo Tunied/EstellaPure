@@ -152,6 +152,10 @@ struct ParsedShader {
     /// output alpha is coverage (a cutout sharpened to one texel), so an opaque draw
     /// may turn it into multisample coverage instead of a hard edge.
     std::string coverageParam;
+    /// `#pragma tips <param>`: while that float param is above zero, the shader draws a second, blended
+    /// pass (compiled with ES_TIP_PASS) over the opaque one: the soft outer band of a cutout that
+    /// coverage alone would stair-step.
+    std::string tipParam;
     /// `#pragma gbuffer`: a post-process shader reads the scene's surface record (normal, roughness,
     /// metalness) at unit kGBufferUnit, so the frame must draw one for it.
     bool usesGBuffer = false;

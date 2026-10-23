@@ -944,6 +944,21 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
                 const bool wire = shading == ShadingMode::Wireframe;
                 if (wire) key.depthBias = kWireFillBias;
                 pushBatchDraw(draw_list, clips, instOffset, 0, 0, resident->indexCount, key);
+                // A cutout that asks for tips gets its soft outer band as a second, blended draw of the same
+                // instance: no depth written, sorted with the other blended draws, and no surface record.
+                if (!depthPass && !wire && key.materialId != 0 && ctx.materials && ctx.materials->hasTipPass(key.materialId)) {
+                    const u32 tipProgram = ctx.materials->meshProgram(key.materialId, ctx.resources, resident->hasNormals, skinned,
+                                                                      key.envTextureId != 0, resident->hasLightmapUV, false,
+                                                                      resident->hasTangents, true);
+                    if (tipProgram != 0) {
+                        BatchDrawKey tips = key;
+                        tips.shaderId = tipProgram;
+                        tips.stage = RenderStage::Transparent;
+                        tips.blend = BlendMode::Normal;
+                        tips.depthWrite = false;
+                        pushBatchDraw(draw_list, clips, instOffset, 0, 0, resident->indexCount, tips);
+                    }
+                }
                 // The edges, as a second draw of the same instance with its own ink: same
                 // vertices, the mesh's line list, tested against the surface just drawn.
                 if (wire && resident->hasEdges()) {

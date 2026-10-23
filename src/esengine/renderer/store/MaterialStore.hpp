@@ -92,6 +92,8 @@ struct MaterialUniformLayout {
     /// The param whose value above zero makes output alpha coverage (see
     /// ParsedShader::coverageParam); empty when the shader declares none.
     std::string coverageParam;
+    /// The float param that turns the shader's blended tip pass on (see ParsedShader::tipParam).
+    std::string tipParam;
     /// The shader reads the scene's surface record (ParsedShader::usesGBuffer).
     bool usesGBuffer = false;
     /// The shader reads the frame's light block and shadow atlas (ParsedShader::usesLights).
@@ -196,7 +198,7 @@ public:
     u32 meshProgram(u32 materialId, resource::ResourceManager& resources,
                     bool withNormals = false, bool skinned = false,
                     bool envMapped = false, bool lightmapped = false, bool gbuffer = false,
-                    bool tangents = false) const;
+                    bool tangents = false, bool tipPass = false) const;
 
     /// Whether @p programId is a variant that writes the surface record's second output — set when
     /// it was compiled for a pass that has one AND the material's shader has something to write
@@ -354,6 +356,19 @@ public:
         const MaterialUniformLayout* layout = m ? layoutFor(m->shaderRef) : nullptr;
         if (!layout || layout->coverageParam.empty()) return false;
         const MaterialParamSlot* slot = layout->find(layout->coverageParam);
+        if (!slot || slot->offset + sizeof(f32) > m->uboBytes.size()) return false;
+        f32 value = 0.0f;
+        std::memcpy(&value, m->uboBytes.data() + slot->offset, sizeof(f32));
+        return value > 0.0f;
+    }
+
+    /// Whether @p materialId draws a blended pass over its opaque one: its shader names a tip param and this
+    /// material holds it above zero.
+    bool hasTipPass(u32 materialId) const {
+        const MaterialRecord* m = find(materialId);
+        const MaterialUniformLayout* layout = m ? layoutFor(m->shaderRef) : nullptr;
+        if (!layout || layout->tipParam.empty()) return false;
+        const MaterialParamSlot* slot = layout->find(layout->tipParam);
         if (!slot || slot->offset + sizeof(f32) > m->uboBytes.size()) return false;
         f32 value = 0.0f;
         std::memcpy(&value, m->uboBytes.data() + slot->offset, sizeof(f32));

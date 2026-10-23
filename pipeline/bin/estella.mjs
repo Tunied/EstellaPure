@@ -761,6 +761,7 @@ if (opts.command === 'import-model' || opts.command === 'import-gltf') {
     );
     if (lightmapUVFor(opts)) warnings.push(...importer.applyLightmapUV(meshes));
     warnings.push(...await importer.generateLods(meshes, lodSettingsFor(opts)));
+    if (characters) importer.orderHairTriangles(meshes);
     for (const w of warnings) console.warn(`  ! ${w}`);
     if (!root && meshes.length > 0) {
       console.warn('  ! no project found above the source — refs are bare file names'

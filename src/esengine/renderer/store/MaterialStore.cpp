@@ -67,7 +67,7 @@ void MaterialStore::clear() {
 
 u32 MaterialStore::meshProgram(u32 materialId, resource::ResourceManager& resources,
                                bool withNormals, bool skinned, bool envMapped,
-                               bool lightmapped, bool gbuffer, bool tangents) const {
+                               bool lightmapped, bool gbuffer, bool tangents, bool tipPass) const {
     // Only for a shader that has something to write: one that never mentions the feature would
     // compile the same program twice and then be declared to write an output it does not have.
     if (gbuffer) {
@@ -82,7 +82,8 @@ u32 MaterialStore::meshProgram(u32 materialId, resource::ResourceManager& resour
                     | (envMapped ? (1ull << 34) : 0ull)
                     | (lightmapped ? (1ull << 36) : 0ull)
                     | (gbuffer ? (1ull << 38) : 0ull)
-                    | (tangents && withNormals ? (1ull << 39) : 0ull);
+                    | (tangents && withNormals ? (1ull << 39) : 0ull)
+                    | (tipPass ? (1ull << 40) : 0ull);
     std::vector<std::string> features{ "MESH" };
     if (withNormals) features.push_back("MESH_NORMALS");
     if (skinned) features.push_back("SKINNED");
@@ -97,6 +98,7 @@ u32 MaterialStore::meshProgram(u32 materialId, resource::ResourceManager& resour
     // positional light is read from where it is rather than from the plane.
     features.push_back("ES_SURFACE_3D");
     if (gbuffer) features.push_back("ES_GBUFFER");
+    if (tipPass) features.push_back("ES_TIP_PASS");
     const u32 program = variantProgram(materialId, resources, shape, features, "resident geometry");
     if (gbuffer && program != 0) gbuffer_programs_.insert(program);
     return program;

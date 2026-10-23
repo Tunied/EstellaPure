@@ -11,7 +11,7 @@
  *        second set of rules for what a model IS in this engine.
  */
 import {
-    MeshChannel, encodeMesh, unwrapLightmapUV, PREFAB_FORMAT_VERSION, TIMELINE_FORMAT_VERSION,
+    MeshChannel, MeshChannelType, encodeMesh, unwrapLightmapUV, PREFAB_FORMAT_VERSION, TIMELINE_FORMAT_VERSION,
     MATERIAL_FORMAT_VERSION, BlendMode, CullMode,
     type MeshData, type MaterialAssetData, type PrefabData, type PrefabEntityData,
     type PrefabComponentData as ComponentData,
@@ -612,6 +612,59 @@ export function characterShading(material: ImportedMaterial): CharacterShading |
         if (words.some((word) => names.includes(word))) return shading;
     }
     return undefined;
+}
+
+/**
+ * Put the triangles of every hair mesh in the order a blended draw wants them: the ones nearest the middle of the hair first, the outermost
+ * last. A hair model is a shell of cards around a head, and seen from outside a card nearer the middle is behind one further out, from
+ * whichever side the camera looks, so one fixed order is the back-to-front order for all of them. Draws go through the index buffer in
+ * order, which is what makes this an ordering at all. It is an approximation and says so: a ponytail that leaves the shell is not ordered
+ * by it. Only meshes whose material {@link characterShading} calls hair; the levels of detail are ordered too.
+ */
+export function orderHairTriangles(meshes: ImportedMesh[]): void {
+    for (const mesh of meshes) {
+        if (!mesh.material || characterShading(mesh.material) !== 'hair') continue;
+        const centre = hairCentre(mesh.data);
+        if (!centre) continue;
+        sortTriangles(mesh.data, centre);
+        for (const lod of mesh.lods ?? []) sortTriangles(lod.data, centre);
+    }
+}
+
+function positionsOf(data: MeshData): Float32Array | undefined {
+    const channel = data.channels.find((c) => c.semantic === MeshChannel.Position && c.type === MeshChannelType.Float32 && c.components >= 3);
+    if (!channel) return undefined;
+    const view = new DataView(data.vertices.buffer, data.vertices.byteOffset, data.vertices.byteLength);
+    const out = new Float32Array(data.vertexCount * 3);
+    for (let i = 0; i < data.vertexCount; i++) {
+        for (let k = 0; k < 3; k++) out[i * 3 + k] = view.getFloat32(i * data.vertexStride + channel.offset + k * 4, true);
+    }
+    return out;
+}
+
+/** The middle of the mesh's bounding box. */
+function hairCentre(data: MeshData): [number, number, number] | undefined {
+    const [lx, ly, lz] = data.aabbMin, [hx, hy, hz] = data.aabbMax;
+    return [(lx + hx) / 2, (ly + hy) / 2, (lz + hz) / 2];
+}
+
+function sortTriangles(data: MeshData, centre: [number, number, number]): void {
+    const positions = positionsOf(data);
+    const count = Math.floor(data.indices.length / 3);
+    if (!positions || count < 2) return;
+    const key = new Float64Array(count);
+    for (let t = 0; t < count; t++) {
+        let x = 0, y = 0, z = 0;
+        for (let k = 0; k < 3; k++) {
+            const v = data.indices[t * 3 + k]! * 3;
+            x += positions[v]!; y += positions[v + 1]!; z += positions[v + 2]!;
+        }
+        key[t] = Math.hypot(x / 3 - centre[0], y / 3 - centre[1], z / 3 - centre[2]);
+    }
+    const order = Array.from({ length: count }, (_, t) => t).sort((a, b) => key[a]! - key[b]! || a - b);
+    const sorted = new Uint32Array(data.indices.length);
+    order.forEach((from, to) => { sorted.set(data.indices.subarray(from * 3, from * 3 + 3), to * 3); });
+    data.indices = sorted;
 }
 
 /** Whether a material gets a product: it says something a MeshRenderer cannot, or its name asks for a character shader. */

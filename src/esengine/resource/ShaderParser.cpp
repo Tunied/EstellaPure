@@ -727,6 +727,11 @@ ParsedShader ShaderParser::parse(const std::string& source, const ShaderIncludeR
             continue;
         }
 
+        if (directive == "tips") {
+            result.tipParam = argument;
+            continue;
+        }
+
         if (directive == "gbuffer") {
             result.usesGBuffer = true;
             continue;

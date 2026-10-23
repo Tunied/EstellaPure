@@ -2,7 +2,8 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import { describe, expect, it } from 'vitest';
 import { BlendMode } from 'esengine';
-import { characterShading, materialProducts, type ImportedImageRef, type ImportedMaterial, type ImportedMesh } from '../src/assets/modelImport';
+import { MeshChannel, MeshChannelType } from 'esengine';
+import { characterShading, materialProducts, orderHairTriangles, type ImportedImageRef, type ImportedMaterial, type ImportedMesh } from '../src/assets/modelImport';
 
 const image = (file: string, data = false): ImportedImageRef => ({ file, external: true, ...(data ? { settings: { sRGB: false } } : {}) } as ImportedImageRef);
 
@@ -51,5 +52,37 @@ describe('materialProducts with character materials', () => {
         expect(by.nitro_m1!.blendMode).toBe(BlendMode.None);
         expect(by.nitro_m2!.shader).toBe('builtin:eye');
         expect(by.nitro_m3!.shader).toBe('builtin:model');
+    });
+});
+
+describe('orderHairTriangles', () => {
+    // Three triangles at distances 1, 3 and 2 from the middle of the box, written outermost-first.
+    function hairMesh(name: string): ImportedMesh {
+        const ring = [[3, 0, 0], [1, 0, 0], [2, 0, 0]];
+        const positions: number[] = [];
+        for (const [x] of ring) positions.push(x!, 0, 0, x! + 0.1, 0.1, 0, x!, 0.1, 0.1);
+        const vertices = new Uint8Array(positions.length * 4);
+        new Float32Array(vertices.buffer).set(positions);
+        return {
+            name, vertexCount: 9, triangleCount: 3, material: material(0, name),
+            data: {
+                channels: [{ semantic: MeshChannel.Position, components: 3, type: MeshChannelType.Float32, offset: 0 }],
+                vertexStride: 12, vertexCount: 9, vertices, indices: new Uint32Array([0, 1, 2, 3, 4, 5, 6, 7, 8]),
+                aabbMin: [-2, 0, 0], aabbMax: [2, 0, 0],
+            },
+        } as ImportedMesh;
+    }
+
+    it('puts the triangles nearest the middle of the hair first', () => {
+        const hair = hairMesh('Hair');
+        orderHairTriangles([hair]);
+        // Distances from x=0: 3.03 (tri 0), 1.03 (tri 1), 2.03 (tri 2) -> 1, 2, 0.
+        expect(Array.from(hair.data.indices)).toEqual([3, 4, 5, 6, 7, 8, 0, 1, 2]);
+    });
+
+    it('leaves a mesh that is not hair alone', () => {
+        const cloth = hairMesh('Jacket');
+        orderHairTriangles([cloth]);
+        expect(Array.from(cloth.data.indices)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
     });
 });

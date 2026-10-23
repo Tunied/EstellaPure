@@ -1,0 +1,14 @@
+{
+  "version": "1.0",
+  "type": "material",
+  "shader": "builtin:hair",
+  "blendMode": 9,
+  "depthTest": true,
+  "depthWrite": true,
+  "cull": 0,
+  "properties": {
+    "u_alphaCutoff": 0.6,
+    "u_tipSoftness": 0.3,
+    "u_specular": 0
+  }
+}

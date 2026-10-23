@@ -47,6 +47,7 @@ static MaterialUniformLayout buildMaterialLayout(const resource::ParsedShader& p
     MaterialUniformLayout layout;
     layout.blockSize = parsed.materialBlockSize;
     layout.coverageParam = parsed.coverageParam;
+    layout.tipParam = parsed.tipParam;
     layout.usesGBuffer = parsed.usesGBuffer;
     layout.usesLights = parsed.usesLights;
     layout.highPrecision = parsed.highPrecision;

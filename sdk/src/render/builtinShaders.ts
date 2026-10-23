@@ -1399,6 +1399,10 @@ const HAIR = `#pragma shader "Hair"
 // A card's alpha cut at this level, and sharpened to about a texel so alpha-to-coverage feathers the edge of every strand instead of stair-stepping it; 0 keeps the card opaque.
 #pragma param u_alphaCutoff float default(0) range(0,1) ui(slider)
 #pragma coverage u_alphaCutoff
+// The soft outer band of a card: where its alpha falls from the cutoff down by this much, a second, blended pass draws the strand's tip fading out
+// (the opaque pass keeps what is above the cutoff, feathered by coverage). Sorted with the other blended draws; 0 leaves it out.
+#pragma param u_tipSoftness float default(0) range(0,0.5) ui(slider)
+#pragma tips u_tipSoftness
 
 #pragma fragment
 precision highp float;
@@ -1446,11 +1450,18 @@ void main() {
     vec4 base = texture(u_textures[0], v_texCoord, u_sharpen) * v_color * u_tint;
     // Before any discard: a derivative needs every fragment of its quad.
     float alpha = 1.0;
+#ifdef ES_TIP_PASS
+    // The band below the cutoff, fading in toward it, and a texel past it so it meets the opaque card without a gap.
+    alpha = (base.a - (u_alphaCutoff - u_tipSoftness)) / max(u_tipSoftness, 1e-4);
+    if (base.a >= u_alphaCutoff + fwidth(base.a) || alpha <= 0.0) discard;
+    alpha = min(alpha, 1.0);
+#else
     if (u_alphaCutoff > 0.0) {
         alpha = (base.a - u_alphaCutoff) / max(fwidth(base.a), 1e-4) + 0.5;
         if (alpha <= 0.0) discard;
         alpha = min(alpha, 1.0);
     }
+#endif
     float root = texture(u_ormMap, v_texCoord).r;
     float ao = mix(1.0, root, u_occlusionStrength);
     base.rgb *= mix(1.0, 0.35 + 0.65 * root, u_rootDark);
@@ -1521,11 +1532,17 @@ fn packNormal(n : vec3f) -> vec2f {
     let T = vec3f(0.0, 1.0, 0.0);
 #endif
     var alpha = 1.0;
+#ifdef ES_TIP_PASS
+    alpha = (base.a - (mc.u_alphaCutoff - mc.u_tipSoftness)) / max(mc.u_tipSoftness, 1e-4);
+    if (base.a >= mc.u_alphaCutoff + edge || alpha <= 0.0) { discard; }
+    alpha = min(alpha, 1.0);
+#else
     if (mc.u_alphaCutoff > 0.0) {
         alpha = (base.a - mc.u_alphaCutoff) / edge + 0.5;
         if (alpha <= 0.0) { discard; }
         alpha = min(alpha, 1.0);
     }
+#endif
     let ao = mix(1.0, orm.r, mc.u_occlusionStrength);
     base = vec4f(base.rgb * mix(1.0, 0.35 + 0.65 * orm.r, mc.u_rootDark), base.a);
     let noise = (shiftTex - 0.5) * mc.u_shiftAmount;
