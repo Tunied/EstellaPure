@@ -269,18 +269,52 @@ function rewriteCalls(src, fname, mapArgs) {
 const VARYING_DECL = /^([ \t]*)(flat\s+)?(out|in)\s+((?:highp\s+)?(?:float|int|uint|[iu]?vec[234]|mat[234]))\s+(\w+)\s*;/gm;
 
 /**
+ * Whether the text at an offset is live under the permutation being translated, given the toggles it switches on. Only `#ifdef` / `#ifndef` / `#else` / `#endif` are
+ * read, and a name that is not one of the permutation's own is undefined, as it is to glslang later: the engine's fragment prelude declares a varying inside an
+ * `#ifdef` for a vertex stage that may not write it, and a declaration that conditional is not a varying of this program. A conditional it cannot read counts as live.
+ */
+export function liveAt(src, defined) {
+  const edges = [];   // [offset, live] from each directive on, in order
+  const stack = [];
+  let live = true;
+  let offset = 0;
+  for (const line of src.split('\n')) {
+    const m = /^\s*#\s*(ifdef|ifndef|else|endif)\b\s*(\w+)?/.exec(line);
+    if (m) {
+      if (m[1] === 'ifdef' || m[1] === 'ifndef') {
+        stack.push({ outer: live, cond: m[1] === 'ifdef' ? defined.has(m[2]) : !defined.has(m[2]) });
+        live = stack[stack.length - 1].outer && stack[stack.length - 1].cond;
+      } else if (m[1] === 'else' && stack.length > 0) {
+        const top = stack[stack.length - 1];
+        live = top.outer && !top.cond;
+      } else if (m[1] === 'endif' && stack.length > 0) {
+        live = stack.pop().outer;
+      }
+      edges.push([offset + line.length + 1, live]);
+    }
+    offset += line.length + 1;
+  }
+  return (at) => {
+    let state = true;
+    for (const [from, value] of edges) { if (from > at) break; state = value; }
+    return state;
+  };
+}
+
+/**
  * Assign explicit, name-stable varying locations across both stages: glslang's
  * --auto-map-locations numbers each stage independently by declaration order,
  * which silently mismatches when the fragment lists varyings in another order.
  */
-function assignVaryingLocations(vert, frag) {
+function assignVaryingLocations(vert, frag, defined = new Set()) {
   const order = [];
-  const vertOut = vert.replace(VARYING_DECL, (m, ws, flat, dir, type, name) => {
-    if (dir !== 'out') return m;
+  const vertLive = liveAt(vert, defined);
+  const vertOut = vert.replace(VARYING_DECL, (m, ws, flat, dir, type, name, at) => {
+    if (dir !== 'out' || !vertLive(at)) return m;
     order.push(name);
     return `${ws}layout(location = ${order.length - 1}) ${flat ?? ''}out ${type} ${name};`;
   });
-  return { vert: vertOut, frag: locateFragmentVaryings(frag, new Map(order.map((n, i) => [n, i]))) };
+  return { vert: vertOut, frag: locateFragmentVaryings(frag, new Map(order.map((n, i) => [n, i])), defined) };
 }
 
 /** The locations of the engine's WGSL varying struct, by name. */
@@ -289,9 +323,10 @@ export function varyingLocations(struct) {
     .map((m) => [m[2], Number(m[1])]));
 }
 
-function locateFragmentVaryings(frag, locations) {
-  const fragIn = frag.replace(VARYING_DECL, (m, ws, flat, dir, type, name) => {
-    if (dir !== 'in') return m;
+function locateFragmentVaryings(frag, locations, defined = new Set()) {
+  const fragLive = liveAt(frag, defined);
+  const fragIn = frag.replace(VARYING_DECL, (m, ws, flat, dir, type, name, at) => {
+    if (dir !== 'in' || !fragLive(at)) return m;
     const loc = locations.get(name);
     if (loc === undefined) throw new Error(`fragment varying '${name}' has no matching vertex output`);
     return `${ws}layout(location = ${loc}) ${flat ?? ''}in ${type} ${name};`;
@@ -446,13 +481,14 @@ export async function processFile(module, file, opts) {
       // permutations reuse it in turn rather than each taking a name of its own.
       if (engineVertex) {
         const located = locateFragmentVaryings(
-          adaptGlsl(cooked.fragGlsl, textures), varyingLocations(info.canonicalVaryings));
+          adaptGlsl(cooked.fragGlsl, textures), varyingLocations(info.canonicalVaryings), new Set(on));
         frag.set(key, await glslToWgsl(located, 'frag', 'fs_main', workDir));
         continue;
       }
       const adapted = assignVaryingLocations(
         adaptGlsl(cooked.vertGlsl, textures),
         adaptGlsl(cooked.fragGlsl, textures),
+        new Set(on),
       );
       vert.set(key, await glslToWgsl(adapted.vert, 'vert', 'vs_main', workDir));
       frag.set(key, await glslToWgsl(adapted.frag, 'frag', 'fs_main', workDir));

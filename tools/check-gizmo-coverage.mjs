@@ -62,6 +62,8 @@ const NUMERIC = /^(number|Vec2|Vec3|Vec4)$/;
 const DISPOSITION = {
   // A region of world nothing renders — the viewport has to outline it.
   'BoxCollider2D.halfExtents': 'extent',
+  'WaterBody.sizeX': 'extent',
+  'WaterBody.sizeZ': 'extent',
   'Hunter.attackRange': 'extent',
   'Perceiver.range': 'extent',
   'ThirdPersonCamera.distance': 'extent',
@@ -120,8 +122,6 @@ const DISPOSITION = {
   'Foliage.heightMax': ['no-place', 'a band of world heights plants grow in, not a region round the entity'],
   'Foliage.lodDistance': ['no-place', 'a distance from the camera past which the far version is drawn'],
   'Foliage.drawDistance': ['no-place', 'a distance from the camera past which nothing is drawn'],
-  'WaterBody.sizeX': ['owed', 'the lake extent is not outlined in the viewport yet; the lake tools will draw its boundary'],
-  'WaterBody.sizeZ': ['owed', 'the lake extent is not outlined in the viewport yet; the lake tools will draw its boundary'],
   'WaterBody.shoreWidth': ['no-place', 'a distance in from a lake edge over which the waves come to full height, not a region of the entity'],
   'Floating.radius': ['no-place', 'how deep under the surface a point of the body is wholly wet, not a region of the entity'],
   'WaterBody.cellSize': ['no-place', 'the cell size of the finest ring of geometry, not a region of the entity'],

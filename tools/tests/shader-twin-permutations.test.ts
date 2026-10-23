@@ -7,7 +7,7 @@
  */
 import { describe, it, expect } from 'vitest';
 // @ts-expect-error — a repo tool, shipped as .mjs with no declarations
-import { needsTwin, permutationsOf, composePermutations, varyingLocations } from '../gen-shader-twins.mjs';
+import { needsTwin, permutationsOf, composePermutations, varyingLocations, liveAt } from '../gen-shader-twins.mjs';
 
 const GLSL_ONLY = '#pragma shader "X"\n#pragma switch USE_GREEN default(off)\n#pragma fragment\nvoid main() {}\n#pragma end\n';
 
@@ -59,5 +59,37 @@ describe('varyingLocations', () => {
             + '#ifdef MESH_NORMALS\n    @location(3) v_worldNormal : vec3f,\n#endif\n'
             + '    @location(6) @interpolate(flat) v_probeSlot : f32,\n};\n';
         expect([...varyingLocations(struct)]).toEqual([['v_color', 0], ['v_worldNormal', 3], ['v_probeSlot', 6]]);
+    });
+});
+
+describe('liveAt', () => {
+    const lines = ['in vec2 a;', '#ifdef MESH_TANGENTS', 'in vec4 b;', '#else', 'in vec4 c;', '#endif', '#ifndef OTHER', 'in vec4 d;', '#endif', 'in vec4 e;', ''];
+    const src = lines.join('\n');
+    const at = (name: string) => src.indexOf(` ${name};`);
+
+    it('reads a declaration under an #ifdef as not there when the permutation does not define it', () => {
+        const live = liveAt(src, new Set());
+        expect(live(at('a'))).toBe(true);
+        expect(live(at('b'))).toBe(false);
+        expect(live(at('c'))).toBe(true);
+        expect(live(at('d'))).toBe(true);
+        expect(live(at('e'))).toBe(true);
+    });
+
+    it('reads it as there when the permutation switches that name on, and the #else as not', () => {
+        const live = liveAt(src, new Set(['MESH_TANGENTS', 'OTHER']));
+        expect(live(at('b'))).toBe(true);
+        expect(live(at('c'))).toBe(false);
+        expect(live(at('d'))).toBe(false);
+        expect(live(at('e'))).toBe(true);
+    });
+
+    it('counts nested conditionals together', () => {
+        const nested = ['#ifdef A', '#ifdef B', 'in vec4 x;', '#endif', 'in vec4 y;', '#endif', ''].join('\n');
+        const x = nested.indexOf(' x;'), y = nested.indexOf(' y;');
+        expect(liveAt(nested, new Set(['A']))(x)).toBe(false);
+        expect(liveAt(nested, new Set(['A']))(y)).toBe(true);
+        expect(liveAt(nested, new Set(['A', 'B']))(x)).toBe(true);
+        expect(liveAt(nested, new Set(['B']))(y)).toBe(false);
     });
 });
