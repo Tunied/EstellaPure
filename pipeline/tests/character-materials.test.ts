@@ -55,6 +55,28 @@ describe('materialProducts with character materials', () => {
     });
 });
 
+describe('hair maps a material states in its extras', () => {
+    const hair = material(0, 'hair_cards', {
+        normalTexture: image('n.png', true), metallicRoughnessTexture: image('orm.png', true), alphaCutoff: 0.45,
+        flowTexture: image('textures/flow.png', true), shiftTexture: image('textures/shift.png', true), tipSoftness: 0.1,
+    });
+
+    it('binds the strand-direction and shift maps and the tip softness of a hair material', () => {
+        const [product] = materialProducts([meshOf(hair)], 'girl', { characters: true });
+        expect(product!.data.shader).toBe('builtin:hair');
+        expect(product!.data.properties).toMatchObject({
+            u_flowMap: expect.stringContaining('flow.png'), u_shiftMap: expect.stringContaining('shift.png'), u_tipSoftness: 0.1, u_alphaCutoff: 0.45,
+        });
+    });
+
+    it('does not put them on a material that is not hair', () => {
+        const skin = material(0, 'skin_face', { normalTexture: image('n.png', true), metallicRoughnessTexture: image('orm.png', true), flowTexture: image('f.png', true), tipSoftness: 0.2 });
+        const [product] = materialProducts([meshOf(skin)], 'girl', { characters: true });
+        expect(product!.data.properties).not.toHaveProperty('u_flowMap');
+        expect(product!.data.properties).not.toHaveProperty('u_tipSoftness');
+    });
+});
+
 describe('orderHairTriangles', () => {
     // Three triangles at distances 1, 3 and 2 from the middle of the box, written outermost-first.
     function hairMesh(name: string): ImportedMesh {

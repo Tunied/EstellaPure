@@ -143,6 +143,7 @@ interface GltfJson {
         emissiveTexture?: GltfTextureRef; emissiveFactor?: number[];
         alphaMode?: string; alphaCutoff?: number; doubleSided?: boolean;
         extensions?: Record<string, unknown>;
+        extras?: Record<string, unknown>;
     }[];
     textures?: { source?: number; sampler?: number }[];
     samplers?: { magFilter?: number; minFilter?: number; wrapS?: number; wrapT?: number }[];
@@ -617,6 +618,14 @@ function readMaterial(ctx: MaterialContext, textureCache: Map<number, ImportedIm
     // rough metal, and writing that out is what makes a product say so.
     const metallic = pbr.metallicFactor ?? 1;
     const roughness = pbr.roughnessFactor ?? 1;
+    // Data maps a material names in its extras: files on disk, read as linear data and referenced where they lie.
+    const extraMap = (key: string): ImportedImageRef | null => {
+        const uri = src.extras?.[key];
+        return typeof uri === 'string' && uri !== '' && !uri.startsWith('data:')
+            ? { file: decodeURIComponent(uri), external: true, settings: { sRGB: false } } : null;
+    };
+    const flow = extraMap('flow_map'), shift = extraMap('shift_map');
+    const tipSoftness = src.extras?.suggested_tipSoftness;
     return {
         index,
         name: src.name ?? `material_${index}`,
@@ -641,6 +650,9 @@ function readMaterial(ctx: MaterialContext, textureCache: Map<number, ImportedIm
         roughness,
         ...(metalRoughMap ? { metallicRoughnessTexture: metalRoughMap } : {}),
         ...(src.alphaMode === 'MASK' ? { alphaCutoff: src.alphaCutoff ?? 0.5 } : {}),
+        ...(flow ? { flowTexture: flow } : {}),
+        ...(shift ? { shiftTexture: shift } : {}),
+        ...(typeof tipSoftness === 'number' && tipSoftness >= 0 ? { tipSoftness } : {}),
         ...layers,
     };
 }

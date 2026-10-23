@@ -78,6 +78,11 @@ export interface ImportedMaterial {
     emissiveTexture?: ImportedImageRef;
     /** Ambient occlusion in the map's red channel, scaled by @ref occlusionStrength. */
     occlusionTexture?: ImportedImageRef;
+    /** Hair's strand-direction and highlight-shift maps, which glTF has no slot for: a material states them in its extras (`flow_map`, `shift_map`, paths from the model). */
+    flowTexture?: ImportedImageRef;
+    shiftTexture?: ImportedImageRef;
+    /** How far in from the cutoff a hair card's edge fades (`extras.suggested_tipSoftness`). */
+    tipSoftness?: number;
     occlusionStrength?: number;
     /** How metal and how rough the surface is, as constants. */
     metallic?: number;
@@ -709,8 +714,12 @@ function characterProperties(shading: CharacterShading, material: ImportedMateri
         bind('u_ormMap', material.metallicRoughnessTexture);
         if (rough !== undefined && !material.metallicRoughnessTexture) properties.u_roughness = rough;
     }
-    if (shading === 'hair') properties.u_alphaCutoff = material.alphaCutoff ?? 0.5;
-    else delete properties.u_alphaCutoff;
+    if (shading === 'hair') {
+        properties.u_alphaCutoff = material.alphaCutoff ?? 0.5;
+        bind('u_flowMap', material.flowTexture);
+        bind('u_shiftMap', material.shiftTexture);
+        if (material.tipSoftness !== undefined) properties.u_tipSoftness = material.tipSoftness;
+    } else delete properties.u_alphaCutoff;
     if (shading === 'eye') delete properties.u_normalMap;
 }
 
@@ -737,7 +746,7 @@ export function importedImageSettings(meshes: ImportedMesh[]):
     for (const mesh of meshes) {
         const m = mesh.material;
         for (const image of [m?.baseColorTexture, m?.normalTexture, m?.emissiveTexture,
-            m?.occlusionTexture, m?.metallicRoughnessTexture]) {
+            m?.occlusionTexture, m?.metallicRoughnessTexture, m?.flowTexture, m?.shiftTexture]) {
             if (!image) continue;
             const seen = out.get(image.file);
             out.set(image.file, { external: image.external, settings: { ...image.settings, ...seen?.settings } });
