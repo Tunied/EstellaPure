@@ -2531,6 +2531,8 @@ export const NOTED = {
     {"note":"Terrain and Foliage are now optional modules, esengine/terrain and esengine/foliage: a package carries them when a scene has a Terrain or Foliage component or a script imports the subpath, and a game with neither ships none of them (about 33 KB less in a UI-only mini-game)."},
   "feat(sdk): timelines are an optional module, installed by a TimelinePlayer or an .estimeline":
     {"note":"Timelines are now an optional module, esengine/timeline: a package carries the timeline runtime and its loader when a scene has a TimelinePlayer, the content has an .estimeline, or a script imports the subpath, and a game with none of them ships neither."},
+  "feat(sdk): post-process effect shaders come in three optional groups, so a package carries only the effects its content uses":
+    {"note":"The post-process effects' shaders are now three optional groups, esengine/fx-basic, esengine/fx-atmosphere and esengine/fx-lighting: a package carries a group when a PostProcessVolume names one of its effects (or a Weather or TimeOfDay component is in the content), and a game with no volumes ships none of them (about 180 KB less in a UI-only mini-game)."},
   "chore(tools): the gates run in parallel with --jobs, and the reds a full run gathered are cleared":
     {"internal":"tooling for the static gates, and fixes to checks that had drifted from the code they guard"},
   "fix(render): a wire narrower than a pixel is no longer painted over by the sky in dashes":

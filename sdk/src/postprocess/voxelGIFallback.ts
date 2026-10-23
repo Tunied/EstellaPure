@@ -23,10 +23,10 @@
  */
 import type { ShaderHandle } from '../render/material';
 import { Material } from '../render/material';
-import { SSAO_GLSL, GBUFFER_GLSL } from './postProcessEffects';
+import { SSAO_GLSL, GBUFFER_GLSL } from './sources/shared';
 
-/** The atlas, and where the engine is told to make the memory it keeps for the pass that writes it. */
-export const VOXEL_ATLAS = { width: 2048, height: 1024 } as const;
+export { VOXEL_ATLAS } from './voxelAtlas';
+import { VOXEL_ATLAS } from './voxelAtlas';
 
 const COMMON = `
 const ivec3 DIMS = ivec3(128, 64, 128);

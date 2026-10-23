@@ -14,6 +14,14 @@ import {
 } from '../src/postprocess';
 import { syncStackToWasm } from '../src/postprocess/PostProcessAPI';
 import type { ESEngineModule } from '../src/wasm';
+import { registerBasicEffectSources } from '../src/postprocess/sources/basic';
+import { registerAtmosphereEffectSources } from '../src/postprocess/sources/atmosphere';
+import { registerLightingEffectSources } from '../src/postprocess/sources/lighting';
+
+// The effects' shaders are installed by group: a package that uses them imports the group; these tests use them all.
+registerBasicEffectSources();
+registerAtmosphereEffectSources();
+registerLightingEffectSources();
 
 function mockCore(withCompute: boolean) {
     const mock: Record<string, unknown> = {

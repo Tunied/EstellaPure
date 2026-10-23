@@ -12,6 +12,14 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { PostProcessAPI, PostProcessStack, postProcessEffects, initPostProcessAPI, shutdownPostProcessAPI, getEffectDef } from '../src/postprocess';
 import { Material } from '../src/render/material';
 import type { ESEngineModule } from '../src/wasm';
+import { registerBasicEffectSources } from '../src/postprocess/sources/basic';
+import { registerAtmosphereEffectSources } from '../src/postprocess/sources/atmosphere';
+import { registerLightingEffectSources } from '../src/postprocess/sources/lighting';
+
+// The effects' shaders are installed by group: a package that uses them imports the group; these tests use them all.
+registerBasicEffectSources();
+registerAtmosphereEffectSources();
+registerLightingEffectSources();
 
 // =============================================================================
 // Mock WASM module for PostProcess API

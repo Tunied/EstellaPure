@@ -27,7 +27,7 @@ import { NATIVE_PLATFORMS, type ExportPlatform } from './platforms';
 
 /** An engine subsystem a build target may lack. */
 export type Subsystem =
-    | 'text' | 'tilemap' | 'terrain' | 'foliage' | 'timeline' | 'particles' | 'postprocess' | 'physics' | 'physics3d'
+    | 'text' | 'tilemap' | 'terrain' | 'foliage' | 'timeline' | 'fxBasic' | 'fxAtmosphere' | 'fxLighting' | 'particles' | 'postprocess' | 'physics' | 'physics3d'
     | 'spine' | 'dragonbones' | 'video' | 'ai' | 'logic' | 'replication' | 'gameplay';
 
 /**
@@ -41,6 +41,10 @@ export const SUBSYSTEM_COMPONENTS: Readonly<Record<Subsystem, readonly string[]>
     tilemap: ['Tilemap', 'TilemapLayer'],
     terrain: ['Terrain'],
     timeline: ['TimelinePlayer'],
+    // Effects are named by the volume that carries them, not by a component: see {@link POST_PROCESS_EFFECT_GROUP}.
+    fxBasic: [],
+    fxAtmosphere: ['Weather', 'TimeOfDay'],
+    fxLighting: [],
     foliage: ['Foliage'],
     particles: ['ParticleEmitter', 'ParticleForceField'],
     postprocess: ['PostProcessVolume'],
@@ -68,12 +72,30 @@ export const SUBSYSTEM_COMPONENTS: Readonly<Record<Subsystem, readonly string[]>
     ],
 };
 
+/**
+ * Which group carries the shaders of each built-in post-process effect. A `PostProcessVolume` names its effects by `type`, so this
+ * is the evidence a scene gives; an effect a script adds by code is reached by importing the group's subpath.
+ */
+export const POST_PROCESS_EFFECT_GROUP: Readonly<Record<string, Subsystem>> = {
+    blur: 'fxBasic', bloom: 'fxBasic', vignette: 'fxBasic', grayscale: 'fxBasic', colorGrade: 'fxBasic',
+    chromaticAberration: 'fxBasic', tonemap: 'fxBasic', fxaa: 'fxBasic', lensDistortion: 'fxBasic', pixelate: 'fxBasic',
+    outline: 'fxBasic', depthOutline: 'fxBasic', lutGrade: 'fxBasic', sharpen: 'fxBasic', filmGrain: 'fxBasic',
+    motionBlur: 'fxBasic', lensFlare: 'fxBasic',
+    distanceFog: 'fxAtmosphere', skyAtmosphere: 'fxAtmosphere', heightFog: 'fxAtmosphere', rain: 'fxAtmosphere',
+    voxelGI: 'fxLighting', ssgi: 'fxLighting', contactShadows: 'fxLighting', lightShafts: 'fxLighting',
+    autoExposure: 'fxLighting', depthOfField: 'fxLighting', ssao: 'fxLighting', subsurface: 'fxLighting',
+    gtao: 'fxLighting', ssr: 'fxLighting', taa: 'fxLighting',
+};
+
 /** Human name, for a message someone packaging a game has to act on. */
 export const SUBSYSTEM_LABEL: Readonly<Record<Subsystem, string>> = {
     text: 'Text',
     tilemap: 'Tilemaps',
     terrain: 'Terrain',
     timeline: 'Timelines',
+    fxBasic: 'Post-process effects (colour, lens, edges)',
+    fxAtmosphere: 'Post-process effects (sky, fog, rain)',
+    fxLighting: 'Post-process effects (occlusion, reflections, exposure)',
     foliage: 'Foliage',
     particles: 'Particles',
     postprocess: 'Post-processing',
@@ -101,6 +123,9 @@ export const SUBSYSTEM_INSTALL: Readonly<Record<Subsystem, string>> = {
     tilemap: 'esengine/tilemap',
     terrain: 'esengine/terrain',
     timeline: 'esengine/timeline',
+    fxBasic: 'esengine/fx-basic',
+    fxAtmosphere: 'esengine/fx-atmosphere',
+    fxLighting: 'esengine/fx-lighting',
     foliage: 'esengine/foliage',
     physics: 'esengine/physics',
     physics3d: 'esengine/physics3d',
@@ -183,9 +208,21 @@ export function collectSubsystems(doc: unknown, into: Set<Subsystem> = new Set()
     if (typeof rec.type === 'string') {
         const subsystem = COMPONENT_SUBSYSTEM.get(rec.type);
         if (subsystem) into.add(subsystem);
+        // A volume's effects are named in its data, and each is carried by one group.
+        if (rec.type === 'PostProcessVolume') collectEffectGroups(rec.data, into);
     }
     for (const value of Object.values(rec)) collectSubsystems(value, into);
     return into;
+}
+
+function collectEffectGroups(data: unknown, into: Set<Subsystem>): void {
+    const effects = (data as { effects?: unknown } | null)?.effects;
+    if (!Array.isArray(effects)) return;
+    for (const effect of effects) {
+        const type = (effect as { type?: unknown } | null)?.type;
+        const group = typeof type === 'string' ? POST_PROCESS_EFFECT_GROUP[type] : undefined;
+        if (group) into.add(group);
+    }
 }
 
 /** How many source files a warning names before it summarizes the rest. */

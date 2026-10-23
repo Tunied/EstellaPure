@@ -11,7 +11,7 @@
 import { describe, it, expect } from 'vitest';
 import { engineInstalls, forcedSideModules, moduleChoices, moduleForAsset } from '../src/bundle/engineInstalls';
 import { ENGINE_MODULES, ESENGINE_SUBPATHS, NOT_A_MODULE } from '../src/bundle/engineSubpaths';
-import { SUBSYSTEM_COMPONENTS, SUBSYSTEM_INSTALL, type Subsystem } from '../src/project/targetSupport';
+import { POST_PROCESS_EFFECT_GROUP, SUBSYSTEM_COMPONENTS, SUBSYSTEM_INSTALL, type Subsystem } from '../src/project/targetSupport';
 
 describe('the engine modules a package installs', () => {
     it('takes a subsystem from the components its content authored', () => {
@@ -23,6 +23,16 @@ describe('the engine modules a package installs', () => {
         expect(engineInstalls({ subsystems: ['terrain', 'foliage'] }).subpaths)
             .toEqual(['esengine/foliage', 'esengine/terrain']);
         expect(engineInstalls({ subsystems: ['particles'] }).subpaths).toEqual([]);
+    });
+
+    it('takes the effect groups a post-process volume names, and none for a volume with no effects', async () => {
+        const { collectSubsystems } = await import('../src/project/targetSupport');
+        const volume = (types: string[]) => ({ entities: [{ components: [{ type: 'PostProcessVolume', data: { effects: types.map((type) => ({ type })) } }] }] });
+        expect([...collectSubsystems(volume(['bloom', 'ssao', 'skyAtmosphere']))].sort())
+            .toEqual(['fxAtmosphere', 'fxBasic', 'fxLighting', 'postprocess']);
+        expect([...collectSubsystems(volume([]))]).toEqual(['postprocess']);
+        expect(engineInstalls({ subsystems: ['fxBasic', 'fxLighting'] }).subpaths).toEqual(['esengine/fx-basic', 'esengine/fx-lighting']);
+        expect([...collectSubsystems({ components: [{ type: 'Weather', data: {} }] })]).toEqual(['fxAtmosphere']);
     });
 
     it('takes timelines from a TimelinePlayer or from the .estimeline it plays', () => {
@@ -212,6 +222,8 @@ describe('every module a project can refuse', () => {
         for (const ext of ['.esgraph', '.esfsm', '.esbt']) {
             for (const s of engineInstalls({ assetPaths: [`x${ext}`] }).subpaths) byComponent.add(s);
         }
+        // …and a post-process effect group is found by the effects a volume names.
+        for (const group of Object.values(POST_PROCESS_EFFECT_GROUP)) byComponent.add(SUBSYSTEM_INSTALL[group]);
         expect(ENGINE_MODULES.filter((m) => !byComponent.has(m))).toEqual([]);
     });
 });

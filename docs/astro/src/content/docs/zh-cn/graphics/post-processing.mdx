@@ -355,6 +355,20 @@ stack.addPass('lutGrade', getEffectDef('lutGrade')!.factory())
      .setUniform('lutGrade', 'u_intensity', 1);
 ```
 
+## 在包里
+
+效果的定义(名字和参数)每个包都带;它的着色器才是大头,所以分成三组,包里只带内容用到的那几组:
+
+| 组 | 子路径 | 效果 |
+|---|---|---|
+| 基础 | `esengine/fx-basic` | blur、bloom、vignette、grayscale、colorGrade、lutGrade、chromaticAberration、tonemap、fxaa、sharpen、lensDistortion、pixelate、outline、depthOutline、filmGrain、motionBlur、lensFlare |
+| 大气 | `esengine/fx-atmosphere` | skyAtmosphere、heightFog、distanceFog、rain |
+| 光照 | `esengine/fx-lighting` | ssao、gtao、ssr、ssgi、voxelGI、contactShadows、lightShafts、autoExposure、depthOfField、subsurface、taa |
+
+导出会读 `PostProcessVolume` 里写了哪些效果(以及驱动大气组的 `Weather`、`TimeOfDay` 组件),并导入它们需要的组。**从脚本里**加的效果——
+`PostProcess.add('bloom')`——在内容里没有痕迹,所以要自己导入对应的组(`import 'esengine/fx-basic'`),或在项目设置里把该模块设为**包含**;否则这个效果第一次
+被用到时会告诉你它需要哪一组。编辑器和任何非精简入口三组都带。
+
 ## 最佳实践
 
 - **顺序有讲究**——pass 按你加入的顺序运行(或在体积上按其 `effects[]` 的顺序)并共享缓冲,

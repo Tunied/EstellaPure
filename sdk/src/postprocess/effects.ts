@@ -1,12 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import type { ShaderHandle } from '../render/material';
-import { postProcessEffects } from './postProcessEffects';
-import { lensEffects } from './lensEffects';
-import { gtaoPasses } from './gtao';
-import { subsurfacePasses } from './subsurface';
-import { voxelGIFallback, VOXEL_ATLAS } from './voxelGIFallback';
-import { SHARPEN_WGSL } from './computeEffects';
+import { effectSourcesOf, computeSourceOf } from './effectSources';
+import type { basicEffects } from './sources/basic';
+import type { atmosphereEffects } from './sources/atmosphere';
+import type { lightingEffects } from './sources/lighting';
+import type { lensEffects as LensEffects } from './lensEffects';
+import type { gtaoPasses as GtaoPasses } from './gtao';
+import type { subsurfacePasses as SubsurfacePasses } from './subsurface';
+import type { voxelGIFallback as VoxelGIFallback } from './voxelGIFallback';
+import { VOXEL_ATLAS } from './voxelAtlas';
+
+// The effect shaders are installed by group (see effectSources.ts). These read like the objects they stand for.
+/** The factories of the built-in effects' shaders. Calling one needs the group that carries it installed. */
+export const postProcessEffects = effectSourcesOf<typeof basicEffects & typeof atmosphereEffects & typeof lightingEffects>();
+const lensEffects = effectSourcesOf<typeof LensEffects>();
+const gtaoPasses = effectSourcesOf<typeof GtaoPasses>();
+const subsurfacePasses = effectSourcesOf<typeof SubsurfacePasses>();
+const voxelGIFallback = effectSourcesOf<typeof VoxelGIFallback>();
 
 export interface EffectUniformDef {
     name: string;
@@ -350,7 +361,7 @@ registerEffect({
 registerEffect({
     type: 'sharpen',
     label: 'Sharpen',
-    compute: { source: SHARPEN_WGSL },
+    compute: { get source() { return computeSourceOf('sharpen'); } },
     uniforms: [
         // How hard a pixel is pushed away from the mean of its neighbours. 0 leaves the picture alone.
         { name: 'u_intensity', label: 'Intensity', min: 0, max: 2, step: 0.01, defaultValue: 0.5, neutralValue: 0 },

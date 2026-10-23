@@ -16,6 +16,7 @@ published separately; it ships inside the editor.
 
 ### Changed
 
+- **Post-process effects are optional groups.** The post-process effects' shaders are now three optional groups, esengine/fx-basic, esengine/fx-atmosphere and esengine/fx-lighting: a package carries a group when a PostProcessVolume names one of its effects (or a Weather or TimeOfDay component is in the content), and a game with no volumes ships none of them (about 180 KB less in a UI-only mini-game). An effect a script adds by code needs its group imported (`esengine/fx-basic` and the others) or the module set to Include; the editor and a non-lean entry carry all three.
 - **Timelines are an optional module.** Timelines are now an optional module, esengine/timeline: a package carries the timeline runtime and its loader when a scene has a TimelinePlayer, the content has an .estimeline, or a script imports the subpath, and a game with none of them ships neither. The API is unchanged and still reachable from `esengine`.
 - **Terrain and Foliage are optional modules.** Terrain and Foliage are now optional modules, esengine/terrain and esengine/foliage: a package carries them when a scene has a Terrain or Foliage component or a script imports the subpath, and a game with neither ships none of them (about 33 KB less in a UI-only mini-game). The API is unchanged and still reachable from `esengine`; the export installs the module for a scene that uses either component.
 

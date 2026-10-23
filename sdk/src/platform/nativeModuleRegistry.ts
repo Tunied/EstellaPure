@@ -26,6 +26,9 @@ import * as DragonBonesModule from '../dragonbones';
 import * as TilemapModule from '../tilemap';
 import * as TerrainModule from '../terrain';
 import * as TimelineModule from '../timeline/entry';
+import * as FxBasicModule from '../postprocess/fxBasic';
+import * as FxAtmosphereModule from '../postprocess/fxAtmosphere';
+import * as FxLightingModule from '../postprocess/fxLighting';
 import * as FoliageModule from '../foliage';
 import * as ScriptGraphModule from '../logic';
 import * as AiModule from '../ai';
@@ -48,6 +51,9 @@ export const NATIVE_MODULE_NAMESPACES: Readonly<Record<string, unknown>> = {
     'esengine/tilemap': TilemapModule,
     'esengine/terrain': TerrainModule,
     'esengine/timeline': TimelineModule,
+    'esengine/fx-basic': FxBasicModule,
+    'esengine/fx-atmosphere': FxAtmosphereModule,
+    'esengine/fx-lighting': FxLightingModule,
     'esengine/foliage': FoliageModule,
     'esengine/logic': ScriptGraphModule,
     'esengine/ai': AiModule,

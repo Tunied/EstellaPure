@@ -5,7 +5,7 @@ export type { PassConfig } from './PostProcessStack';
 export { PostProcess, PostProcessAPI, initPostProcessAPI, shutdownPostProcessAPI, syncStackToWasm } from './PostProcessAPI';
 export { outputTransformCode } from './PostProcessAPI';
 export type { OutputTransform, HdrFormat } from './PostProcessAPI';
-export { postProcessEffects } from './postProcessEffects';
+export { postProcessEffects } from './effects';
 export { POSTPROCESS_VERTEX } from './shaders';
 export {
     type EffectDef,

@@ -19,6 +19,9 @@
     "./dist/tilemap/index.js",
     "./dist/terrain/index.js",
     "./dist/timeline/index.js",
+    "./dist/fx-basic/index.js",
+    "./dist/fx-atmosphere/index.js",
+    "./dist/fx-lighting/index.js",
     "./dist/foliage/index.js",
     "./dist/logic/index.js",
     "./dist/debug-channel/index.js",
@@ -73,6 +76,18 @@
     "./tilemap": {
       "import": "./dist/tilemap/index.js",
       "types": "./dist/tilemap/index.d.ts"
+    },
+    "./fx-basic": {
+      "import": "./dist/fx-basic/index.js",
+      "types": "./dist/fx-basic/index.d.ts"
+    },
+    "./fx-atmosphere": {
+      "import": "./dist/fx-atmosphere/index.js",
+      "types": "./dist/fx-atmosphere/index.d.ts"
+    },
+    "./fx-lighting": {
+      "import": "./dist/fx-lighting/index.js",
+      "types": "./dist/fx-lighting/index.d.ts"
     },
     "./timeline": {
       "import": "./dist/timeline/index.js",

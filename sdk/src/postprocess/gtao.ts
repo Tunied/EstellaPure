@@ -12,7 +12,7 @@
  */
 import type { ShaderHandle } from '../render/material';
 import { Material } from '../render/material';
-import { SSAO_GLSL, SSAO_WGSL } from './postProcessEffects';
+import { SSAO_GLSL, SSAO_WGSL } from './sources/shared';
 
 export const gtaoPasses = {
     createGtaoAo(): ShaderHandle {
