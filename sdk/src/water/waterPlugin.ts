@@ -245,10 +245,12 @@ export class WaterPlugin implements Plugin {
         app.insertResource(WatersRes, waters);
 
         app.addSystemToSchedule(Schedule.Update, defineSystem([], () => {
-            if (!app.hasResource(Assets)) return;
             this.sweep(app, waters);
+            // What a body IS (its outline and shore, its curve) needs no renderer: it is built here whether or not anything is drawn, so a
+            // server or a test that never draws can still ask the surface where it is. What is DRAWN waits for the asset layer.
+            const rendering = app.hasResource(Assets);
             const time = app.getResource(Time).elapsed;
-            const eye = this.eye(app);
+            const eye = rendering ? this.eye(app) : null;
             for (const entity of app.world.getEntitiesWithComponents([WaterBody, Transform])) {
                 const data = app.world.get(entity, WaterBody) as WaterBodyData;
                 const spline = data.form === WaterForm.River ? app.world.tryGet(entity, Spline) as SplineData | null : null;
@@ -258,8 +260,10 @@ export class WaterPlugin implements Plugin {
                     if (built) this.destroy(app, built);
                     built = { signature, data: { ...data }, mesh: 0, field: null, curve: null, widest: 0, shoreTexture: 0, child: 0 as Entity, instance: 0, epoch: (built?.epoch ?? 0) + 1, pending: false };
                     waters.built_.set(entity, built);
+                    this.surface(app, entity, built);
                 }
                 built.data = { ...data };
+                if (!rendering) continue;
                 if (!built.child && !built.pending) void this.build_(app, entity, built);
                 if (built.child && built.instance) this.update(app, entity, built, eye, time);
             }
@@ -312,20 +316,14 @@ export class WaterPlugin implements Plugin {
             if (d.form === WaterForm.Ocean) {
                 mesh = assets.createMesh(buildOceanMesh(d.cells, d.rings, d.cellSize));
             } else if (d.form === WaterForm.River) {
-                // A river: the Spline on its entity, laid as a ribbon.
-                const spline = app.world.tryGet(entity, Spline) as SplineData | null;
-                if (!spline || spline.points.length < 2) { log.warn('water', 'a river needs a Spline of two points or more on its entity'); return; }
-                built.curve = new SplineCurve(spline.points, spline.closed);
-                for (let i = 0; i <= 64; i++) built.widest = Math.max(built.widest, built.curve.width((i / 64) * built.curve.length));
+                // A river: the curve of the Spline on its entity, laid as a ribbon.
+                if (!built.curve) return;
                 const across = Math.min(64, Math.max(2, Math.ceil(built.widest / Math.max(d.cellSize, 0.05))));
                 mesh = assets.createMesh(buildRiverMesh(built.curve, d.cellSize, across));
             } else {
-                // A lake: its outline (or its rectangle), the ground under it, and what the two say about the waves and the shore.
-                const poly = outlineOf(d);
-                const reach = Math.max(...poly.map((p) => Math.abs(p.x)), ...poly.map((p) => Math.abs(p.y)));
-                const res = Math.min(256, Math.max(32, Math.ceil((reach * 2) / Math.max(d.cellSize * 0.5, 0.05))));
-                built.field = new ShoreField(poly, res, d.shoreWidth, this.groundUnder(app, entity));
+                // A lake: cut to its outline, calmer toward its shore.
                 const field = built.field;
+                if (!field) return;
                 mesh = assets.createMesh(buildBoxMesh(field.minX, field.minZ, field.minX + field.sizeX, field.minZ + field.sizeZ, d.cellSize, {
                     damp: (x, z) => field.damp(x, z),
                     keep: (x, z, cell) => field.distance(x, z) > -cell,
@@ -348,6 +346,25 @@ export class WaterPlugin implements Plugin {
             log.error('water', 'building the water failed', e);
         } finally {
             built.pending = false;
+        }
+    }
+
+    /** What a body is, apart from how it is drawn: a lake's outline with its shore and depth, a river's curve with its widest reach. */
+    private surface(app: App, entity: Entity, built: Built): void {
+        const d = built.data;
+        built.field = null;
+        built.curve = null;
+        built.widest = 0;
+        if (d.form === WaterForm.River) {
+            const spline = app.world.tryGet(entity, Spline) as SplineData | null;
+            if (!spline || spline.points.length < 2) { log.warn('water', 'a river needs a Spline of two points or more on its entity'); return; }
+            built.curve = new SplineCurve(spline.points, spline.closed);
+            for (let i = 0; i <= 64; i++) built.widest = Math.max(built.widest, built.curve.width((i / 64) * built.curve.length));
+        } else if (d.form === WaterForm.Lake) {
+            const poly = outlineOf(d);
+            const reach = Math.max(...poly.map((p) => Math.abs(p.x)), ...poly.map((p) => Math.abs(p.y)));
+            const res = Math.min(256, Math.max(32, Math.ceil((reach * 2) / Math.max(d.cellSize * 0.5, 0.05))));
+            built.field = new ShoreField(poly, res, d.shoreWidth, this.groundUnder(app, entity));
         }
     }
 
@@ -425,9 +442,6 @@ export class WaterPlugin implements Plugin {
         if (built.instance) Material.release(built.instance);
         if (built.shoreTexture) getResourceManager()?.releaseTexture(built.shoreTexture);
         built.shoreTexture = 0;
-        built.field = null;
-        built.curve = null;
-        built.widest = 0;
         if (built.mesh && app.hasResource(Assets)) app.getResource(Assets).releaseBuiltMesh(built.mesh);
         built.child = 0 as Entity;
         built.instance = 0;

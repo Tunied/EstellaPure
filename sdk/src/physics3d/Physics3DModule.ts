@@ -61,6 +61,12 @@ export interface Physics3DWasmModule {
                             qx: number, qy: number, qz: number, qw: number): void;
     _physics3d_setLinearVelocity(bodyId: number, vx: number, vy: number, vz: number): void;
     _physics3d_getBodyState(bodyId: number): number;
+    /** Writes (mass, wx, wy, wz) to the query buffer; 0 when the body is gone or does not move. */
+    _physics3d_getBodyDynamics?(bodyId: number): number;
+    /** A force in newtons at a world point, over the next step. */
+    _physics3d_addForce?(bodyId: number, fx: number, fy: number, fz: number, px: number, py: number, pz: number): void;
+    /** A torque in newton metres, over the next step. */
+    _physics3d_addTorque?(bodyId: number, tx: number, ty: number, tz: number): void;
 
     _physics3d_addCharacter(entity: number, radius: number, halfHeight: number,
                             px: number, py: number, pz: number,

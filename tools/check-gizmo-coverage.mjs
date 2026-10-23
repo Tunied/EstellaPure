@@ -123,6 +123,7 @@ const DISPOSITION = {
   'WaterBody.sizeX': ['owed', 'the lake extent is not outlined in the viewport yet; the lake tools will draw its boundary'],
   'WaterBody.sizeZ': ['owed', 'the lake extent is not outlined in the viewport yet; the lake tools will draw its boundary'],
   'WaterBody.shoreWidth': ['no-place', 'a distance in from a lake edge over which the waves come to full height, not a region of the entity'],
+  'Floating.radius': ['no-place', 'how deep under the surface a point of the body is wholly wet, not a region of the entity'],
   'WaterBody.cellSize': ['no-place', 'the cell size of the finest ring of geometry, not a region of the entity'],
   'WaterBody.waveHeight': ['no-place', 'the height of the tallest wave, not a region of the entity'],
   'Sprite.size': ['renders', 'the sprite drawn at it is the outline'],

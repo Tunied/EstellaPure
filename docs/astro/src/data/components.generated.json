@@ -1588,6 +1588,44 @@
       ]
     },
     {
+      "name": "Floating",
+      "source": "ts",
+      "fields": [
+        {
+          "key": "buoyancy",
+          "type": "number",
+          "default": "2",
+          "doc": "The water's density against the body's. 1 holds it up exactly when it is wholly under; 2 floats it half under.",
+          "range": "0–20"
+        },
+        {
+          "key": "drag",
+          "type": "number",
+          "default": "1",
+          "doc": "How hard the water resists the body moving through it, per second.",
+          "range": "0–20"
+        },
+        {
+          "key": "radius",
+          "type": "number",
+          "default": "50",
+          "doc": "How deep under the surface, in world units, a point of the body is wholly wet.",
+          "range": "≥ 0.01"
+        },
+        {
+          "key": "points",
+          "type": "array",
+          "default": "empty",
+          "doc": "Points of the body, in its own space, the water is asked about: spread them (the corners of a hull) and waves tip it. Empty is the one at its origin."
+        }
+      ],
+      "animatable": [
+        "buoyancy",
+        "drag",
+        "radius"
+      ]
+    },
+    {
       "name": "Focusable",
       "source": "ts",
       "fields": [

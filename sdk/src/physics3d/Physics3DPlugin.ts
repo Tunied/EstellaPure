@@ -32,11 +32,13 @@ export interface Physics3DRuntime {
     characters: Map<Entity, number>;
     /** Entity -> the joint it declared, with the bodies it was built between. */
     joints: Joint3DMap;
+    /** The world's configuration (gravity, the scale of a world unit), for what applies forces to it. Null until the plugin is built. */
+    config: Physics3DConfig | null;
 }
 
 export const Physics3DRuntime = defineResource<Physics3DRuntime>(
     { module: null, initPromise: null, bodies: new Map(), characters: new Map(),
-      joints: new Map() },
+      joints: new Map(), config: null },
     'Physics3DRuntime',
 );
 
@@ -57,7 +59,7 @@ export class Physics3DPlugin implements Plugin {
     build(app: App): void {
         const runtime: Physics3DRuntime = {
             module: null, initPromise: null, bodies: new Map(), characters: new Map(),
-            joints: new Map(),
+            joints: new Map(), config: this.config_,
         };
         const events: Physics3DEventsData = {
             contactEnters: [], contactExits: [], sensorEnters: [], sensorExits: [],

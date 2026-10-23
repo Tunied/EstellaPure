@@ -286,6 +286,7 @@ static prototype: Physics3DQueries
 ```
 bodies: Map<number, number>
 characters: Map<number, number>
+config: Physics3DConfig | null
 initPromise: Promise<unknown> | null
 joints: Joint3DMap
 module: Physics3DWasmModule | null
@@ -303,6 +304,7 @@ _physics3d_addCharacter: (entity: number, radius: number, halfHeight: number, px
 _physics3d_addConvexBody: (entity: number, vertexPtr: number, vertexCount: number, px: number, py: number, pz: number, qx: number, qy: number, qz: number, qw: number, motion: number, gravityScale: number, linearDamping: number, angularDamping: number, fixedRotation: number, layer: number, continuous: number, friction: number, restitution: number, isSensor: number) => number
 _physics3d_addDistanceJoint: (entity: number, bodyA: number, bodyB: number, ax: number, ay: number, az: number, bx: number, by: number, bz: number, minLength: number, maxLength: number, frequency: number, damping: number, collideConnected: number) => number
 _physics3d_addFixedJoint: (entity: number, bodyA: number, bodyB: number, collideConnected: number) => number
+_physics3d_addForce: ((bodyId: number, fx: number, fy: number, fz: number, px: number, py: number, pz: number) => void) | undefined
 _physics3d_addHingeJoint: (entity: number, bodyA: number, bodyB: number, px: number, py: number, pz: number, ax: number, ay: number, az: number, enableLimit: number, lower: number, upper: number, enableMotor: number, motorSpeed: number, maxTorque: number, collideConnected: number) => number
 _physics3d_addMeshBody: (entity: number, vertexPtr: number, vertexCount: number, indexPtr: number, indexCount: number, px: number, py: number, pz: number, qx: number, qy: number, qz: number, qw: number, layer: number, friction: number, restitution: number) => number
 _physics3d_addPointJoint: (entity: number, bodyA: number, bodyB: number, px: number, py: number, pz: number, collideConnected: number) => number
@@ -310,10 +312,12 @@ _physics3d_addSixDOFJoint: (entity: number, bodyA: number, bodyB: number, px: nu
 _physics3d_addSliderJoint: (entity: number, bodyA: number, bodyB: number, px: number, py: number, pz: number, ax: number, ay: number, az: number, enableLimit: number, lower: number, upper: number, enableMotor: number, motorSpeed: number, maxForce: number, collideConnected: number) => number
 _physics3d_addSphere: (entity: number, radius: number, px: number, py: number, pz: number, qx: number, qy: number, qz: number, qw: number, motion: number, gravityScale: number, linearDamping: number, angularDamping: number, fixedRotation: number, layer: number, continuous: number, friction: number, restitution: number, isSensor: number) => number
 _physics3d_addSwingTwistJoint: (entity: number, bodyA: number, bodyB: number, px: number, py: number, pz: number, ax: number, ay: number, az: number, nx: number, ny: number, nz: number, normalHalf: number, planeHalf: number, twistMin: number, twistMax: number, collideConnected: number) => number
+_physics3d_addTorque: ((bodyId: number, tx: number, ty: number, tz: number) => void) | undefined
 _physics3d_contactEnters: () => number
 _physics3d_contactEntersBytes: () => number
 _physics3d_contactExits: () => number
 _physics3d_contactExitsBytes: () => number
+_physics3d_getBodyDynamics: ((bodyId: number) => number) | undefined
 _physics3d_getBodyState: (bodyId: number) => number
 _physics3d_init: (gx: number, gy: number, gz: number, maxBodies: number) => void
 _physics3d_isReady: () => number

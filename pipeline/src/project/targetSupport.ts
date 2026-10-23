@@ -46,7 +46,7 @@ export const SUBSYSTEM_COMPONENTS: Readonly<Record<Subsystem, readonly string[]>
     fxAtmosphere: ['Weather', 'TimeOfDay'],
     fxLighting: [],
     foliage: ['Foliage'],
-    water: ['WaterBody'],
+    water: ['WaterBody', 'Floating'],
     spline: ['Spline'],
     particles: ['ParticleEmitter', 'ParticleForceField'],
     postprocess: ['PostProcessVolume'],

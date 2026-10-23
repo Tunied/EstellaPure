@@ -4,6 +4,7 @@ export {
     WaterBody, WaterForm, Waters, WatersRes, WaterPlugin, waterPlugin, type WaterBodyData, type WaterSample,
 } from './waterPlugin';
 export { WAVE_SET, waveFade, waveHeight, waveSlope, type WaveParams } from './waves';
+export { Floating, FloatingPlugin, floatingForce, type FloatingBody, type FloatingData, type FloatingForce } from './floating';
 export { buildRiverMesh, currentShare } from './riverMesh';
 export { buildBoxMesh, buildOceanMesh, buildRectMesh, oceanReach, oceanSnap, type RectOptions } from './waterMesh';
 export { ShoreField, UNKNOWN_DEPTH, polygonSdf, shoreDamp, type GroundDepth, type Point2 } from './shore';

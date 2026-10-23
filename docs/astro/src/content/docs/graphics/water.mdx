@@ -74,6 +74,27 @@ entity and the river is built when the scene runs.
   back: `Waters.sample` gives its curve's height, a normal of up, and the current in `flow` (world units a second, along the river; zero elsewhere).
 - **Banks.** The edge is the ribbon's own, so it is as crisp as the geometry. Foam where it meets the ground comes from the depth of the scene, as at any shore.
 
+## Floating
+
+Put a `Floating` component on an entity with a `RigidBody3D` and a collider and the water holds it up and carries it along. It works through forces on the
+rigid body, from asking the water's surface ([Asking the surface](#asking-the-surface)) where it is under a few points of the body, so it needs no renderer:
+a server, a test or a build that draws nothing floats things the same.
+
+| Field | What it does |
+|---|---|
+| `buoyancy` | The water's density against the body's. 1 holds it up exactly when it is wholly under; 2 floats it half under. |
+| `drag` | How hard the water resists the body moving through it, per second. It brings a body to rest in still water and carries it with a river's current. |
+| `radius` | How deep, in world units, a point of the body has to be under the surface to be wholly wet. |
+| `points` | Points of the body, in its own space and world units, the water is asked about. Spread them (the corners of a hull) and the waves tip it. Empty is the one at its origin. |
+
+At each point the share of it under water (0 at the surface, 1 from `radius` down) gives a buoyant force against gravity of `mass * g * buoyancy * share / points`,
+applied at the point, and a drag against the point's velocity relative to the water (the body's own and what its turning adds there, less the current). The forces are
+applied every fixed step before the world steps. A body with `buoyancy` 2 and one point settles with its centre `radius / 2` under the surface.
+
+It needs the 3D physics module, and a build of it with the force functions (`_physics3d_addForce`, `_physics3d_getBodyDynamics`); one without them warns once and
+floats nothing. Floating is one rigid body in one fluid: there is no added mass, no lift from the shape of a hull, and a body that is wholly under is not pushed
+toward anything but by the current.
+
 ## Splines
 
 `Spline` is data and nothing draws it: `points` (each an `x`, `y`, `z` in the entity's own space and a `width`) and `closed`. A river reads the one on its
@@ -134,7 +155,7 @@ What is not there yet, so nobody is surprised:
 - Like glass, it refracts the opaque scene only: a boat's hull seen through it is, but another transparent surface is not.
 - A river does not carve the ground, rapids and falls are not foamed by how fast or steep the water runs, and two bodies do not blend where they meet.
   A lake's outline is a polygon on a plane: it does not follow a curved shore, and the waves die toward the shore without breaking on it.
-- Nothing floats on it or swims in it yet: `Waters.sample` gives what a buoyancy force needs, but there is no force.
+- Things float (see [Floating](#floating)); nothing swims yet, and a body in the water makes no ripple or wake.
 - A camera under the surface sees the water turned over, and nothing else changes: no underwater fog or tint.
 - It does not react to what moves through it: no ripples, no wake.
 - The waves are the four peaked sines, not a spectrum, and they lift the surface without pushing it sideways.

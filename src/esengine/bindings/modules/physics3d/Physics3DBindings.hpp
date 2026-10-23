@@ -72,6 +72,11 @@ void physics3d_setTransform(uint32_t bodyId, float px, float py, float pz,
                             float qx, float qy, float qz, float qw);
 void physics3d_setLinearVelocity(uint32_t bodyId, float vx, float vy, float vz);
 int physics3d_getBodyState(uint32_t bodyId);
+// What a force needs to know of a body: its mass and how it is turning.
+int physics3d_getBodyDynamics(uint32_t bodyId);
+// Forces, held until the next step and applied over it: at a world point (so it turns the body as well as pushing it), and as a torque.
+void physics3d_addForce(uint32_t bodyId, float fx, float fy, float fz, float px, float py, float pz);
+void physics3d_addTorque(uint32_t bodyId, float tx, float ty, float tz);
 
 // Characters — swept rather than solved, and not bodies.
 uint32_t physics3d_addCharacter(uint32_t entity, float radius, float halfHeight,

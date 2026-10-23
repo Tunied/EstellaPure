@@ -462,6 +462,36 @@ int physics3d_getBodyState(uint32_t bodyId) {
     return 1;
 }
 
+/// Writes (mass, wx,wy,wz) into the query buffer: the body's mass in kilograms and its angular velocity in radians a
+/// second, world space. 0 when the body is gone or does not move (a static or kinematic body has no mass to push).
+EMSCRIPTEN_KEEPALIVE
+int physics3d_getBodyDynamics(uint32_t bodyId) {
+    if (!g().isValid() || bodyId == 0) return 0;
+    const BodyLockRead lock(g().system->GetBodyLockInterface(), BodyID(bodyId));
+    if (!lock.Succeeded() || !lock.GetBody().IsDynamic()) return 0;
+    const Body& body = lock.GetBody();
+    const float inverseMass = body.GetMotionProperties()->GetInverseMass();
+    if (!(inverseMass > 0.0f)) return 0;
+    const Vec3 spin = body.GetAngularVelocity();
+    g().queryBuffer = { 1.0f / inverseMass, spin.GetX(), spin.GetY(), spin.GetZ() };
+    return 1;
+}
+
+/// A force of (fx, fy, fz) newtons at the world point (px, py, pz), over the next step. It turns the body as well as pushing it,
+/// by as much as the point is off the centre of mass; and it wakes a body that has gone to sleep.
+EMSCRIPTEN_KEEPALIVE
+void physics3d_addForce(uint32_t bodyId, float fx, float fy, float fz, float px, float py, float pz) {
+    if (!g().isValid() || bodyId == 0) return;
+    g().system->GetBodyInterface().AddForce(BodyID(bodyId), Vec3(fx, fy, fz), RVec3(px, py, pz));
+}
+
+/// A torque of (tx, ty, tz) newton metres, over the next step.
+EMSCRIPTEN_KEEPALIVE
+void physics3d_addTorque(uint32_t bodyId, float tx, float ty, float tz) {
+    if (!g().isValid() || bodyId == 0) return;
+    g().system->GetBodyInterface().AddTorque(BodyID(bodyId), Vec3(tx, ty, tz));
+}
+
 // Characters
 
 /**

@@ -700,6 +700,44 @@ check('parallel reference axes are rejected', m._physics3d_addSwingTwistJoint(15
 const invalidSix = [...sixArgs]; invalidSix[0] = 157; invalidSix[14] = 2;
 check('reversed limited bounds are rejected', m._physics3d_addSixDOFJoint(...invalidSix) === 0);
 
+// Forces: a floating body is held up by a force the SDK applies each step, so the force has to do what its units say.
+// A dynamic sphere of known size and density has a mass the solver reports; with gravity off, a force of F newtons over t seconds
+// makes a speed of F * t / mass, and a force off the centre makes it spin.
+const FORCE = 6100;
+const pushed = m._physics3d_addSphere(FORCE, 0.5, 5000, 50, 0, ...IDENTITY, ...FREE(DYNAMIC), 0.5, 0, 0);
+const dynamics = () => {
+    if (!m._physics3d_getBodyDynamics(pushed)) return null;
+    const base = m._physics3d_queryResult() >> 2;
+    return { mass: m.HEAPF32[base], wx: m.HEAPF32[base + 1], wy: m.HEAPF32[base + 2], wz: m.HEAPF32[base + 3] };
+};
+const before = dynamics();
+// A sphere of radius 0.5 at the default density of 1000 kg a cubic metre.
+check('a dynamic body reports its mass', !!before && near(before.mass, (4 / 3) * Math.PI * 0.125 * 1000, 1), JSON.stringify(before));
+check('a body that is not dynamic has none to report', m._physics3d_getBodyDynamics(pushed + 99999) === 0);
+if (before) {
+    // Gravity is on in this world, so cancel it with a force of the body's weight and add a push along +x: it should speed up along +x and not fall.
+    const weight = before.mass * 9.81;
+    const v0 = bodyState(pushed);
+    for (let i = 0; i < 60; i++) {
+        const at = bodyState(pushed);
+        m._physics3d_addForce(pushed, 2000, weight, 0, at.x, at.y, at.z);
+        m._physics3d_step(1 / 60, 1);
+    }
+    const v1 = bodyState(pushed);
+    check('a force at the centre of mass pushes by F / mass', near(v1.vx, 2000 / before.mass, 0.1), `vx ${v1.vx.toFixed(3)}, expected ${(2000 / before.mass).toFixed(3)}`);
+    check('a force that is the body\'s weight holds it up', Math.abs(v1.vy - v0.vy) < 0.1, `vy ${v1.vy.toFixed(3)}`);
+    const spin0 = dynamics();
+    for (let i = 0; i < 30; i++) {
+        const at = bodyState(pushed);
+        m._physics3d_addForce(pushed, 0, weight + 20, 0, at.x + 0.4, at.y, at.z);
+        m._physics3d_step(1 / 60, 1);
+    }
+    const spin1 = dynamics();
+    check('a force off the centre turns the body', Math.abs(spin1.wz) > Math.abs(spin0.wz) + 0.05, `wz ${spin1.wz.toFixed(3)}`);
+    for (let i = 0; i < 30; i++) { m._physics3d_addTorque(pushed, 0, 0, 5); m._physics3d_step(1 / 60, 1); }
+    check('a torque turns it too', dynamics().wz !== spin1.wz, `wz ${dynamics().wz.toFixed(3)}`);
+}
+
 m._physics3d_shutdown();
 check('the world reports itself gone', m._physics3d_isReady() === 0);
 
