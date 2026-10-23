@@ -740,13 +740,16 @@ if (opts.command === 'import-model' || opts.command === 'import-gltf') {
     const root = opts.project ?? findProjectRoot(sourceDir);
     const projectRef = (abs) => path.relative(root, abs).split(path.sep).join('/');
     let characters = false;
+    let springBones = false;
     try {
-      characters = JSON.parse(readFileSync(`${opts.source}.meta`, 'utf8')).importer?.characterMaterials === 'auto';
+      const importerMeta = JSON.parse(readFileSync(`${opts.source}.meta`, 'utf8')).importer;
+      characters = importerMeta?.characterMaterials === 'auto';
+      springBones = importerMeta?.springBones === 'auto';
     } catch { /* no meta: the schema's default */ }
     const refs = root
       ? { prefix: projectRef(dir) ? `${projectRef(dir)}/` : '',
-          external: (uri) => projectRef(path.resolve(sourceDir, uri)), characters }
-      : { characters };
+          external: (uri) => projectRef(path.resolve(sourceDir, uri)), characters, springBones }
+      : { characters, springBones };
 
     const { meshes, textures, nodes, animations, warnings } = await reader.readModelSource(
       new Uint8Array(readFileSync(opts.source)), stem,

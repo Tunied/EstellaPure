@@ -524,6 +524,8 @@ export interface ProductRefs {
     external?: (uri: string) => string;
     /** Give a skin, hair or eye material the engine's character shader instead of the Model shader (see {@link characterShading}). */
     characters?: boolean;
+    /** Turn the bones a model names as hair chains, and the empties it names as colliders, into SpringBone and SpringBoneCollider (see {@link springBoneComponents}). */
+    springBones?: boolean;
 }
 
 /** How the products go together. */
@@ -895,6 +897,54 @@ function entity(id: string, name: string, parent: string | null,
     return { prefabEntityId: id, name, parent, children: [], visible: true, components };
 }
 
+/** A hair chain's root bone: `Hair_<region>_<chain>_00`, the joint the body or the animation drives and the chain hangs from. */
+const HAIR_CHAIN_ROOT = /^Hair_([A-Za-z]+(?:_[A-Za-z]+)*)_(\d{2})_00$/;
+/** A collider an artist left in the model: `SBC_Sphere_<name>_r<cm>` or `SBC_Capsule_<name>_r<cm>_h<cm>`; the node's own transform places it, a capsule runs along its local +Y. */
+const SPRING_COLLIDER = /^SBC_(Sphere|Capsule)_(.+?)_r(\d+)(?:_h(\d+))?$/;
+
+/** How loose each kind of strand hangs. A fringe is held close, a ponytail swings; the numbers are the starting point an artist adjusts in Details, not a claim about hair. */
+const HAIR_FEEL: Record<string, { stiffness: number; drag: number }> = {
+    Ponytail: { stiffness: 0.06, drag: 0.35 },
+    Temple: { stiffness: 0.12, drag: 0.4 },
+    Fringe: { stiffness: 0.2, drag: 0.45 },
+    Crest: { stiffness: 0.15, drag: 0.3 },
+    Crown: { stiffness: 0.2, drag: 0.5 },
+};
+
+/**
+ * Builds hair motion from names: a `Hair_<region>_<chain>_00` bone with a child is a SpringBone, an `SBC_` node a SpringBoneCollider,
+ * and every chain is kept out of every collider the model has. Sizes are the model's metres times the import scale; gravity is Earth's.
+ * Returns the counts it made.
+ */
+export function springBoneComponents(entities: PrefabEntityData[], scale = 1): { chains: number; colliders: number } {
+    const colliders: string[] = [];
+    for (const e of entities) {
+        const m = SPRING_COLLIDER.exec(e.name);
+        if (!m) continue;
+        const radius = Number(m[3]) / 100;
+        const capsule = m[1] === 'Capsule';
+        if (capsule && m[4] === undefined) continue;
+        e.components.push({ type: 'SpringBoneCollider', data: {
+            shape: capsule ? 1 : 0, radius, ...(capsule ? { height: Number(m[4]) / 100 } : {}),
+        } });
+        colliders.push(e.prefabEntityId);
+    }
+    let chains = 0;
+    for (const e of entities) {
+        const m = HAIR_CHAIN_ROOT.exec(e.name);
+        if (!m || e.children.length === 0) continue;
+        const feel = HAIR_FEEL[m[1]!.split('_')[0]!] ?? { stiffness: 0.1, drag: 0.5 };
+        e.components.push({ type: 'SpringBone', data: {
+            stiffness: feel.stiffness, drag: feel.drag,
+            gravity: { x: 0, y: -9.8 * scale, z: 0 },
+            endLength: 0.04 * scale, radius: 0.005 * scale,
+            colliders: [...colliders],
+        } });
+        chains++;
+    }
+    return { chains, colliders: colliders.length };
+}
+
 /**
  * The import's assembly: where each piece of geometry sits, and which image and
  * tint it is drawn with. The products are separate files and nothing else
@@ -954,6 +1004,7 @@ export function assembleModelPrefab(name: string, meshes: ImportedMesh[],
                                   ...lodComponent(mesh, refs)]));
         });
     }
+    if (refs.springBones) springBoneComponents(entities, options.scale ?? 1);
     // The player rides the root, which is the entity a clip's childPaths are
     // resolved from — the same root the tracks were addressed against.
     if (options.timeline && entities[0]) {
