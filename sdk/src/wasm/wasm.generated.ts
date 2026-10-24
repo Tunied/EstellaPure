@@ -664,6 +664,7 @@ export interface MeshRenderer {
     opaque: boolean;
     cullBackfaces: boolean;
     lit: boolean;
+    castShadows: boolean;
     parallax: Vec2;
     material: number;
     enabled: boolean;

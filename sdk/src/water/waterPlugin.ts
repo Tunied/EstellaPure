@@ -551,7 +551,8 @@ export class WaterPlugin implements Plugin {
             const entity = app.world.spawn('Water');
             app.world.insert(entity, Transform, { position: { x: 0, y: 0, z: 0 } });
             app.world.insert(entity, MeshRenderer, {
-                mesh, material: instance, lit: true, opaque: false, cullBackfaces: false, color: { r: 1, g: 1, b: 1, a: 1 },
+                // Light goes through water: the sun lights what is under it, through the caustics, and no shadow of the surface.
+                mesh, material: instance, lit: true, opaque: false, cullBackfaces: false, castShadows: false, color: { r: 1, g: 1, b: 1, a: 1 },
             } as Partial<MeshRendererData>);
             s.entity = entity;
         } catch (e) {

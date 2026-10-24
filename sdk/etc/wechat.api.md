@@ -5683,6 +5683,7 @@ static prototype: MeshRendererAPI
 
 ## MeshRendererData — interface @experimental
 ```
+castShadows: boolean
 color: Color
 cullBackfaces: boolean
 enabled: boolean

@@ -2618,6 +2618,12 @@
           "doc": "Receive 2D lights: Light entities light this mesh (flat normal). A custom material overrides this."
         },
         {
+          "key": "castShadows",
+          "type": "boolean",
+          "default": "true",
+          "doc": "Cast shadows: whether this mesh blocks the light. Water and other surfaces light passes through say no."
+        },
+        {
           "key": "parallax",
           "type": "Vec2",
           "default": "(1, 1)",
@@ -5265,7 +5271,7 @@
           "key": "provider",
           "type": "string",
           "default": "\"estella:noise\"",
-          "doc": "The generator ground without end is made by: estella:noise, or one the game registers. The same provider, world, seed and version are the same ground on every machine."
+          "doc": "The generator the ground is made by, without end or (with no heightmap) in an area: estella:noise, or one the game registers. The same provider, world, seed and version are the same ground on every machine, and two areas side by side join."
         },
         {
           "key": "world",

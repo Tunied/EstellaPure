@@ -290,6 +290,7 @@ export const PTR_LAYOUTS: Record<string, PtrLayout> = {
             { name: 'opaque', type: 'bool', offset: 28 },
             { name: 'cullBackfaces', type: 'bool', offset: 29 },
             { name: 'lit', type: 'bool', offset: 30 },
+            { name: 'castShadows', type: 'bool', offset: 31 },
             { name: 'parallax', type: 'vec2', offset: 32 },
             { name: 'material', type: 'u32', offset: 40 },
             { name: 'enabled', type: 'bool', offset: 44 },

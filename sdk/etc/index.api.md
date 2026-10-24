@@ -5,7 +5,7 @@ Symbols: 115 public · 159 beta · 1830 experimental · 3 deprecated
 
 ## ABI_LAYOUT_HASH — const @experimental
 ```
-"7403dd8de628613e"
+"7cf803aca319cd32"
 ```
 
 ## ANCHOR_AXES — const @experimental
@@ -5681,6 +5681,7 @@ static prototype: MeshRendererAPI
 
 ## MeshRendererData — interface @experimental
 ```
+castShadows: boolean
 color: Color
 cullBackfaces: boolean
 enabled: boolean

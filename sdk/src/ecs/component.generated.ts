@@ -15,7 +15,7 @@ import type { AlignContent, AlignItems, AlignSelf, BodyType, CanvasScaleMode, Cl
  * getAbiLayoutHash(); BuiltinBridge.connect() compares them and refuses to
  * run on mismatch, because mismatched offsets read the wrong heap bytes.
  */
-export const ABI_LAYOUT_HASH = '7403dd8de628613e';
+export const ABI_LAYOUT_HASH = '7cf803aca319cd32';
 
 /**
  * One asset-valued field of a component: which field, and what kind of
@@ -589,6 +589,7 @@ export const COMPONENT_META: Record<string, ComponentMetaEntry> = {
             opaque: false,
             cullBackfaces: false,
             lit: false,
+            castShadows: true,
             parallax: { x: 1, y: 1 },
             material: 0,
             enabled: true,
@@ -606,6 +607,7 @@ export const COMPONENT_META: Record<string, ComponentMetaEntry> = {
             opaque: { tooltip: "Opaque: no blending; writes and tests depth, so meshes occlude each other." },
             cullBackfaces: { tooltip: "Cull back faces: triangles facing away from the camera are skipped." },
             lit: { tooltip: "Receive 2D lights: Light entities light this mesh (flat normal). A custom material overrides this." },
+            castShadows: { tooltip: "Cast shadows: whether this mesh blocks the light. Water and other surfaces light passes through say no." },
             parallax: { tooltip: "Parallax scroll factor (1 = with world, <1 = slower, 0 = locked to camera).", advanced: true },
             material: { advanced: true },
         },
@@ -1597,6 +1599,7 @@ export interface MeshRendererData {
     opaque: boolean;
     cullBackfaces: boolean;
     lit: boolean;
+    castShadows: boolean;
     parallax: Vec2;
     material: number;
     enabled: boolean;

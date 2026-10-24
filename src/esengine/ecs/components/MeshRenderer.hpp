@@ -77,6 +77,11 @@ struct MeshRenderer {
     ES_PROPERTY(tooltip="Receive 2D lights: Light entities light this mesh (flat normal). A custom material overrides this.")
     bool lit{false};
 
+    /** @brief Whether it stands in the light's way: drawn into the shadow maps (and what shelters from rain). A surface light
+     *         passes through, like water, says no. */
+    ES_PROPERTY(tooltip="Cast shadows: whether this mesh blocks the light. Water and other surfaces light passes through say no.")
+    bool castShadows{true};
+
     /** @brief Parallax scroll factor per axis. 1 = moves with the world (default, no
      *         parallax); <1 = scrolls slower than the camera (appears farther, e.g. a
      *         background); 0 = locked to the camera (e.g. a sky). The renderer offsets

@@ -2786,4 +2786,6 @@ export const NOTED = {
     {"note":"An area without a heightmap is a window on its provider's ground."},
   "fix(water): rain rings out on the surface instead of denting the ripples, wind ripples are waves not noise, and storms raise sheltered water less":
     {"note":"Rain and storms on water."},
+  "fix(water): water casts no shadow, a lake holds a river that runs into it, and the surf's slope fades on the ridge between shores":
+    {"note":"A river runs into a lake cleanly, and water casts no shadow."},
 };

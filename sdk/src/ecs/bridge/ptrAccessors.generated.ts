@@ -1029,6 +1029,7 @@ export interface MeshRendererPtrData {
     opaque: boolean;
     cullBackfaces: boolean;
     lit: boolean;
+    castShadows: boolean;
     parallax: Vec2;
     material: number;
     enabled: boolean;
@@ -1046,6 +1047,7 @@ export function fillMeshRenderer(
     out.opaque = u8[ptr + 28] !== 0;
     out.cullBackfaces = u8[ptr + 29] !== 0;
     out.lit = u8[ptr + 30] !== 0;
+    out.castShadows = u8[ptr + 31] !== 0;
     const parallax_ = out.parallax; parallax_.x = f32[(ptr + 32) >> 2]; parallax_.y = f32[((ptr + 32) >> 2) + 1];
     out.material = u32[(ptr + 40) >> 2];
     out.enabled = u8[ptr + 44] !== 0;
@@ -1063,6 +1065,7 @@ export function writeMeshRenderer(
     u8[ptr + 28] = data.opaque ? 1 : 0;
     u8[ptr + 29] = data.cullBackfaces ? 1 : 0;
     u8[ptr + 30] = data.lit ? 1 : 0;
+    u8[ptr + 31] = data.castShadows ? 1 : 0;
     f32[(ptr + 32) >> 2] = data.parallax.x; f32[((ptr + 32) >> 2) + 1] = data.parallax.y;
     u32[(ptr + 40) >> 2] = data.material;
     u8[ptr + 44] = data.enabled ? 1 : 0;
@@ -1078,6 +1081,7 @@ export function createMeshRendererData(): MeshRendererPtrData {
         opaque: false,
         cullBackfaces: false,
         lit: false,
+        castShadows: false,
         parallax: { x: 0, y: 0 },
         material: 0,
         enabled: false,

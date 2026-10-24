@@ -514,6 +514,9 @@ void main() {
     float surfStep = max(u_zoneSize.x / float(textureSize(u_zoneField, 0).x), 1e-3);
     vec2 toSea = vec2(waterZoneField(wp + vec2(surfStep, 0.0)).x - waterZoneField(wp - vec2(surfStep, 0.0)).x,
                       waterZoneField(wp + vec2(0.0, surfStep)).x - waterZoneField(wp - vec2(0.0, surfStep)).x) / (2.0 * surfStep);
+    // A distance to the shore climbs one unit a unit everywhere but on the ridge between two shores, where it turns back: there the way to
+    // the shore is no one way, and the surf's slope fades out rather than flipping on a line.
+    toSea *= smoothstep(0.55, 0.9, length(toSea));
     vec2 surf = waterSurf(shoreDist, surfH, time);
     float surfRise = (waterSurf(shoreDist + surfStep * 0.5, surfH, time).x - waterSurf(shoreDist - surfStep * 0.5, surfH, time).x) / surfStep;
     // The ripples at this pixel: their height on four sides gives the slope they add, and the foam is what they left (reads taken before any branch).
@@ -931,8 +934,9 @@ fn waterSurface(p : vec2f, time : f32, dist : f32, amp : f32, calm : f32) -> vec
     var surfH = 0.0;
     if (zoneOn) { surfH = mc.u_surfHeight * mc.u_waveHeight * zone.z * zone.w * still; }
     let surfStep = max(mc.u_zoneSize.x / f32(textureDimensions(u_zoneField, 0).x), 1e-3);
-    let toSea = vec2f(waterZoneField(wp + vec2f(surfStep, 0.0)).x - waterZoneField(wp - vec2f(surfStep, 0.0)).x,
-                      waterZoneField(wp + vec2f(0.0, surfStep)).x - waterZoneField(wp - vec2f(0.0, surfStep)).x) / (2.0 * surfStep);
+    let toSeaRaw = vec2f(waterZoneField(wp + vec2f(surfStep, 0.0)).x - waterZoneField(wp - vec2f(surfStep, 0.0)).x,
+                         waterZoneField(wp + vec2f(0.0, surfStep)).x - waterZoneField(wp - vec2f(0.0, surfStep)).x) / (2.0 * surfStep);
+    let toSea = toSeaRaw * smoothstep(0.55, 0.9, length(toSeaRaw));
     let surf = waterSurf(shoreDist, surfH, time);
     let surfRise = (waterSurf(shoreDist + surfStep * 0.5, surfH, time).x - waterSurf(shoreDist - surfStep * 0.5, surfH, time).x) / surfStep;
     // The ripples at this pixel: their height on four sides gives the slope they add, and the foam is what they left (taken in uniform control flow).

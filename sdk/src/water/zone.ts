@@ -184,7 +184,7 @@ export class WaterField {
     /**
      * Bakes `bodies` over `grid`. Each texel takes every body's say (its height, its distance to its own shore, its waves and current) and
      * weighs them by how far inside each it is, over a texel and a half, so where two bodies meet the values run from one to the other.
-     * The lakes and rivers come first; the ocean has what they leave. A texel no body holds keeps the height of the nearest water, so the
+     * The lakes come first, then the rivers have what they leave (a river runs into a lake and is the lake there), and the ocean what both leave. A texel no body holds keeps the height of the nearest water, so the
      * surface's vertices there (which the shore cuts away) do not pull the water's edge down to nothing.
      */
     static bake(grid: ZoneGrid, bodies: readonly ZoneBody[], ground?: ZoneGround): WaterField {
@@ -201,7 +201,8 @@ export class WaterField {
         const field = new WaterField(grid, ocean);
         const texel = Math.max(grid.sizeX / Math.max(grid.nx - 1, 1), grid.sizeZ / Math.max(grid.nz - 1, 1));
         const blend = texel * 1.5;
-        const bounded = bodies.filter((b) => b.kind !== 'ocean') as (ZoneLake | ZoneRiver)[];
+        // Lakes before rivers: a river that runs into a lake is the lake's there, as both are the ocean's betters.
+        const bounded = [...bodies.filter((b) => b.kind === 'lake'), ...bodies.filter((b) => b.kind === 'river')] as (ZoneLake | ZoneRiver)[];
         const boxes = bounded.map((b) => boundsOf(b));
         const grounds = new Float64Array(grid.nx * grid.nz).fill(Number.NaN);
         for (let j = 0; j < grid.nz; j++) {
@@ -220,14 +221,16 @@ export class WaterField {
                 const x = grid.minX + (i / Math.max(grid.nx - 1, 1)) * grid.sizeX;
                 const z = grid.minZ + (j / Math.max(grid.nz - 1, 1)) * grid.sizeZ;
                 const g = Number.isNaN(grounds[k]!) ? null : grounds[k]!;
-                let w = 0, h = 0, a = 0, c = 0, sw = 0, ex = 0, fx = 0, fz = 0, best = -Infinity, owner = -1, ownerW = 0, held = 0;
+                let w = 0, h = 0, a = 0, c = 0, sw = 0, ex = 0, fx = 0, fz = 0, best = -Infinity, owner = -1, ownerW = 0, held = 0, lakeHeld = 0;
                 for (let b = 0; b < bounded.length; b++) {
                     const box = boxes[b]!;
                     if (x < box[0] - blend || x > box[2] + blend || z < box[1] - blend || z > box[3] + blend) continue;
                     const say = sayOf(bounded[b]!, x, z, g);
                     if (!say) continue;
                     best = Math.max(best, say.shore);
-                    const weight = smooth(-blend, blend, say.shore);
+                    const inside = smooth(-blend, blend, say.shore);
+                    const weight = bounded[b]!.kind === 'river' ? inside * (1 - lakeHeld) : inside;
+                    if (bounded[b]!.kind === 'lake') lakeHeld = Math.max(lakeHeld, inside);
                     if (weight <= 0) continue;
                     held = Math.max(held, weight);
                     w += weight; h += say.height * weight; a += say.amp * weight; c += say.calm * weight; sw += bounded[b]!.waveHeight * weight; fx += say.fx * weight; fz += say.fz * weight;

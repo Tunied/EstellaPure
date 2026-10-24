@@ -797,6 +797,7 @@ struct MeshRendererJS {
     bool opaque;
     bool cullBackfaces;
     bool lit;
+    bool castShadows;
     glm::vec2 parallax;
     u32 material;
     bool enabled;
@@ -811,6 +812,7 @@ void meshrendererApplyJS(esengine::ecs::MeshRenderer& c, const MeshRendererJS& j
     c.opaque = js.opaque;
     c.cullBackfaces = js.cullBackfaces;
     c.lit = js.lit;
+    c.castShadows = js.castShadows;
     c.parallax = js.parallax;
     c.material = js.material;
     c.enabled = js.enabled;
@@ -832,6 +834,7 @@ MeshRendererJS meshrendererToJS(const esengine::ecs::MeshRenderer& c) {
     js.opaque = c.opaque;
     js.cullBackfaces = c.cullBackfaces;
     js.lit = c.lit;
+    js.castShadows = c.castShadows;
     js.parallax = c.parallax;
     js.material = c.material;
     js.enabled = c.enabled;
@@ -1957,6 +1960,7 @@ EMSCRIPTEN_BINDINGS(esengine_components) {
         .field("opaque", &MeshRendererJS::opaque)
         .field("cullBackfaces", &MeshRendererJS::cullBackfaces)
         .field("lit", &MeshRendererJS::lit)
+        .field("castShadows", &MeshRendererJS::castShadows)
         .field("parallax", &MeshRendererJS::parallax)
         .field("material", &MeshRendererJS::material)
         .field("enabled", &MeshRendererJS::enabled)
@@ -3810,6 +3814,7 @@ static_assert(offsetof(esengine::ecs::MeshRenderer, layer) == 24, "ABI offset dr
 static_assert(offsetof(esengine::ecs::MeshRenderer, opaque) == 28, "ABI offset drift: esengine::ecs::MeshRenderer.opaque (EHT expected 28)");
 static_assert(offsetof(esengine::ecs::MeshRenderer, cullBackfaces) == 29, "ABI offset drift: esengine::ecs::MeshRenderer.cullBackfaces (EHT expected 29)");
 static_assert(offsetof(esengine::ecs::MeshRenderer, lit) == 30, "ABI offset drift: esengine::ecs::MeshRenderer.lit (EHT expected 30)");
+static_assert(offsetof(esengine::ecs::MeshRenderer, castShadows) == 31, "ABI offset drift: esengine::ecs::MeshRenderer.castShadows (EHT expected 31)");
 static_assert(offsetof(esengine::ecs::MeshRenderer, parallax) == 32, "ABI offset drift: esengine::ecs::MeshRenderer.parallax (EHT expected 32)");
 static_assert(offsetof(esengine::ecs::MeshRenderer, material) == 40, "ABI offset drift: esengine::ecs::MeshRenderer.material (EHT expected 40)");
 static_assert(offsetof(esengine::ecs::MeshRenderer, enabled) == 44, "ABI offset drift: esengine::ecs::MeshRenderer.enabled (EHT expected 44)");
@@ -4079,7 +4084,7 @@ static_assert(offsetof(esengine::ecs::Velocity, angular) == 12, "ABI offset drif
 // ABI Hash -- runtime handshake against the SDK bundle
 // =============================================================================
 
-static const char* kEsAbiLayoutHash = "7403dd8de628613e";
+static const char* kEsAbiLayoutHash = "7cf803aca319cd32";
 
 std::string esengineGetAbiLayoutHash() {
     return std::string(kEsAbiLayoutHash);

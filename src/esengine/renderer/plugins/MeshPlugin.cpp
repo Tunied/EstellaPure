@@ -619,6 +619,8 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
         // below, which bakes world space into vertices for the BATCH shader — a
         // shader that writes colour, not the depth this pass is here to collect.
         if (depthPass && !resident) continue;
+        // What light passes through (water) stands in no light's way.
+        if (shadowDepth && !mesh.castShadows) continue;
         // Only a surface that draws opaque and unblended has a motion worth writing: what is blended over
         // something has two, and the picture can follow one.
         if (motion && !mesh.opaque) continue;

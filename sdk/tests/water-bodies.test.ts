@@ -74,6 +74,21 @@ describe('a lake', () => {
     });
 });
 
+describe('a river that runs into a lake', () => {
+    it('is the lake\'s water inside the lake, at the lake\'s level, and its own outside it', () => {
+        const stations = [];
+        for (let x = -90; x <= 10; x += 1) stations.push({ x, z: 0, y: -3, half: 3, dx: 1, dz: 0, speed: 2 });
+        const river = { kind: 'river' as const, key: 2, waveHeight: 0.2, shoreWidth: 1, stations };
+        const field = WaterField.bake(grid, [river, lakeAt(20, 0, 30, 0)]);
+        // Well inside the lake, on the river's course: no trench where the river's lower surface would be.
+        expect(field.sample(20, 0)!.key).toBe(1);
+        expect(field.sample(20, 0)!.height).toBeCloseTo(0, 3);
+        expect(Math.hypot(field.sample(20, 0)!.flowX, field.sample(20, 0)!.flowZ)).toBeLessThan(1e-3);
+        expect(field.sample(-60, 0)!.key).toBe(2);
+        expect(field.sample(-60, 0)!.height).toBeCloseTo(-3, 3);
+    });
+});
+
 describe('basins and drainage', () => {
     it('finds each hollow, filled to where it runs over, and where that is', () => {
         const map = findBasins(grid, island, { minDepth: 0.5 });
