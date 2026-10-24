@@ -81,6 +81,11 @@ export interface CppResourceManager {
     /** `filterMode`: bit 0 is linear over nearest, bit 1 a mip chain (see `textureFilterCode`). */
     createTextureEx(width: number, height: number, pixels: number, pixelsLen: number, format: number, flipY: boolean, filterMode: number, wrapMode: number, content: TextureContent): number;
     /**
+     * A 2D texture array of `layers` RGBA8 layers, `pixelsLen` bytes back to back; `filterMode` and `wrapMode` are
+     * {@link createTextureEx}'s codes. Absent on an older wasm build.
+     */
+    createTextureArray?(width: number, height: number, layers: number, pixels: number, pixelsLen: number, format: number, filterMode: number, wrapMode: number, content: TextureContent): number;
+    /**
      * Module-free texture upload: take the RGBA bytes directly instead of a wasm
      * heap pointer. Present ONLY on the native ResourceManager (embedded Dawn, no
      * wasm heap to marshal into); the wasm embind object does not implement it, so

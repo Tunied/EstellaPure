@@ -88,6 +88,8 @@ struct TextureSpecification {
     TextureWrap wrapT = TextureWrap::Repeat;
     /** @brief Generate mipmaps automatically */
     bool generateMips = true;
+    /** @brief Above 1, a 2D texture array of this many layers (see TextureDesc::layers) */
+    u32 layers = 1;
 };
 
 // =============================================================================
@@ -166,6 +168,14 @@ public:
      *        target's colour plane), without taking it over.
      */
     static Unique<Texture> borrow(GfxDevice& device, TextureHandle texture, u32 width, u32 height);
+
+    /**
+     * @brief Creates a 2D texture array from `spec.layers` layers of `spec.width` x `spec.height`.
+     * @param pixels The layers back to back, layer 0 first, rows bottom-up as the engine samples them;
+     *        `spec.width * spec.height * bpp * spec.layers` bytes. Its contents are fixed: setData is refused.
+     */
+    static Unique<Texture> createArray(GfxDevice& device, GfxContent content, const TextureSpecification& spec,
+                                       const void* pixels);
 
     /**
      * @brief Takes @p from's pixels behind this texture's handle; @p from is empty afterwards.

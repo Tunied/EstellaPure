@@ -109,6 +109,9 @@ struct ShaderProperty {
     i32 std140Offset = -1;
     /// Sampler unit for a texture param (>= MATERIAL_TEXTURE_UNIT_BASE), or -1 otherwise.
     i32 textureUnit = -1;
+    /// A texture param declared `textureArray`: a 2D texture array, declared `sampler2DArray` /
+    /// `texture_2d_array<f32>` and sampled with a layer index. Everything else is as for `texture`.
+    bool layered = false;
 
     /// Optional editor metadata (range slider bounds, UI hint). Drives the inspector panel;
     /// not used in codegen. hasRange == false leaves the field a plain numeric input.

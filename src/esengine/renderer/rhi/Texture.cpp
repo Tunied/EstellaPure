@@ -89,6 +89,16 @@ Unique<Texture> Texture::create(GfxDevice& device, GfxContent content, const Tex
     return texture;
 }
 
+Unique<Texture> Texture::createArray(GfxDevice& device, GfxContent content, const TextureSpecification& spec,
+                                      const void* pixels) {
+    auto texture = makeUnique<Texture>();
+    texture->device_ = &device;
+    if (!texture->initialize(spec, content, pixels, false)) {
+        return nullptr;
+    }
+    return texture;
+}
+
 Unique<Texture> Texture::create(GfxDevice& device, GfxContent content, u32 width, u32 height,
                                  std::span<const u8> pixels, TextureFormat format, bool flipY) {
     [[maybe_unused]] u32 expectedSize = width * height * bytesPerPixel(format);
@@ -200,6 +210,7 @@ bool Texture::initialize(const TextureSpecification& spec, GfxContent content, c
     desc.wrapT = spec.wrapT;
     desc.mipmaps = spec.generateMips;
     desc.flipY = flipY;
+    desc.layers = spec.layers ? spec.layers : 1;
 
     handle_ = device_->createTexture(desc, content, pixels);
     if (handle_ == TextureHandle::Invalid) {

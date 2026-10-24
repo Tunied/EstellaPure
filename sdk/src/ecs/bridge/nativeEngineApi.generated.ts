@@ -239,6 +239,7 @@ export interface NativeEngineApi {
     rm_createLabelAtlasFont?(rm: unknown, textureHandle: number, texWidth: number, texHeight: number, chars: string, charWidth: number, charHeight: number): number;
     rm_createShader?(rm: unknown, vertSrc: string, fragSrc: string): number;
     rm_createTexture?(rm: unknown, width: number, height: number, pixelsPtr: number, pixelsLen: number, format: number, flipY: boolean, content: number): number;
+    rm_createTextureArray?(rm: unknown, width: number, height: number, layers: number, pixelsPtr: number, pixelsLen: number, format: number, filterMode: number, wrapMode: number, content: number): number;
     rm_createTextureEx?(rm: unknown, width: number, height: number, pixelsPtr: number, pixelsLen: number, format: number, flipY: boolean, filterMode: number, wrapMode: number, content: number): number;
     rm_forgoTextureContent?(rm: unknown, handle: number): void;
     rm_getBitmapFontRefCount?(rm: unknown, handleId: number): number;
@@ -561,6 +562,7 @@ export function createNativeEngineApi(
     bind('rm_createLabelAtlasFont', 'es_rm_createLabelAtlasFont', true);
     bind('rm_createShader', 'es_rm_createShader', true);
     bind('rm_createTexture', 'es_rm_createTexture', true);
+    bind('rm_createTextureArray', 'es_rm_createTextureArray', true);
     bind('rm_createTextureEx', 'es_rm_createTextureEx', true);
     bind('rm_forgoTextureContent', 'es_rm_forgoTextureContent', true);
     bind('rm_getBitmapFontRefCount', 'es_rm_getBitmapFontRefCount', true);

@@ -1132,7 +1132,7 @@ std::string wgslMaterialTextureDecls(const ParsedShader& parsed, const std::stri
         if (only && only->find(p.name) == std::string::npos) continue;
         const u32 unit = static_cast<u32>(p.textureUnit);
         src += "@group(1) @binding(" + std::to_string(unit + 8) + ") var " + p.name +
-               " : texture_2d<f32>;\n";
+               (p.layered ? " : texture_2d_array<f32>;\n" : " : texture_2d<f32>;\n");
         if (body.find(p.name + "_s") == std::string::npos) continue;
         src += "@group(1) @binding(" + std::to_string(unit + 16) + ") var " + p.name +
                "_s : sampler;\n";
@@ -2348,7 +2348,7 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
     }
     for (const auto& p : parsed.properties) {
         if (p.fromParam && p.type == ShaderPropertyType::Texture) {
-            assembled << "uniform highp sampler2D " << p.name << ";\n";
+            assembled << (p.layered ? "uniform highp sampler2DArray " : "uniform highp sampler2D ") << p.name << ";\n";
             ++headerLines;
         }
     }
@@ -3460,7 +3460,8 @@ ShaderProperty ShaderParser::parseParamDirective(const std::string& argument) {
         prop.name.clear();  // signal invalid → caller drops it
         return prop;
     }
-    prop.type = stringToPropertyType(typeStr);
+    prop.layered = typeStr == "textureArray";
+    prop.type = prop.layered ? ShaderPropertyType::Texture : stringToPropertyType(typeStr);
 
     // Extract the contents of a `key(...)` clause from the directive argument.
     auto clause = [&](const char* key) -> std::optional<std::string> {

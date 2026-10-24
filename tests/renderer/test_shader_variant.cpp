@@ -192,6 +192,47 @@ void main() { fragColor = vec4(1.0); }
 #pragma end
 )";
 
+// A `textureArray` param is a texture param in every respect but its declared type.
+static const char* TEXTURE_ARRAY_PARAM = R"(#pragma shader "Layers"
+#pragma version 300 es
+#pragma domain Unlit
+#pragma param u_mask texture default(white)
+#pragma param u_layers textureArray
+
+#pragma fragment
+precision mediump float;
+in vec2 v_texCoord;
+out vec4 fragColor;
+void main() { fragColor = texture(u_layers, vec3(v_texCoord, 1.0)) * texture(u_mask, v_texCoord); }
+#pragma end
+
+#pragma fragment wgsl
+@fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
+    return textureSample(u_layers, u_layers_s, v.v_texCoord, 1) * textureSample(u_mask, u_mask_s, v.v_texCoord);
+}
+#pragma end
+)";
+
+static void testTextureArrayParam() {
+    ParsedShader p = ShaderParser::parse(TEXTURE_ARRAY_PARAM);
+    CHECK(p.valid, "textureArray shader parses");
+    const ShaderProperty* layers = nullptr;
+    for (const auto& prop : p.properties) if (prop.name == "u_layers") layers = &prop;
+    CHECK(layers && layers->type == ShaderPropertyType::Texture && layers->layered && layers->textureUnit == 9,
+          "textureArray is a layered texture param on the next material unit");
+
+    const std::string frag = ShaderParser::assembleStage(p, ShaderStage::Fragment);
+    CHECK(frag.find("uniform highp sampler2DArray u_layers;") != std::string::npos &&
+          frag.find("uniform highp sampler2D u_mask;") != std::string::npos,
+          "GLSL declares the array param as sampler2DArray and the plain one as sampler2D");
+
+    const std::string wgsl = ShaderParser::assembleStage(p, ShaderStage::Fragment, "", {}, ShaderTargetLanguage::WGSL);
+    CHECK(wgsl.find("@group(1) @binding(17) var u_layers : texture_2d_array<f32>;") != std::string::npos &&
+          wgsl.find("@group(1) @binding(25) var u_layers_s : sampler;") != std::string::npos &&
+          wgsl.find("@group(1) @binding(16) var u_mask : texture_2d<f32>;") != std::string::npos,
+          "WGSL declares the array param as texture_2d_array at its unit's bindings");
+}
+
 static void testWGSLEmission() {
     const auto wgsl = [](const ParsedShader& p, ShaderStage s,
                          const std::vector<std::string>& features = {}) {
@@ -662,6 +703,7 @@ int main() {
     testFragmentOnly();
     testHandWrittenFrameBlock();
     testWGSLEmission();
+    testTextureArrayParam();
     testSystemValuesTrailAttributes();
     testVertexHook();
     testShadowGraft();

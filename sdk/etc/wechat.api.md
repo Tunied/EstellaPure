@@ -4045,6 +4045,8 @@ flowZ: number
 height: number
 key: number
 shore: number
+still: number
+surf: number
 swell: number
 ```
 
@@ -8702,6 +8704,7 @@ number
 default: number[]
 defaultTexture: string | undefined
 displayName: string
+layered: true | undefined
 name: string
 range: { min: number; max: number; } | undefined
 texel: "data" | undefined
@@ -11786,9 +11789,12 @@ owner: Int32Array<ArrayBufferLike>
 ranges: (shoreReach?: number) => ZoneRanges
 sample: (x: number, z: number) => FieldSample | null
 shore: Float32Array<ArrayBufferLike>
+steep: Float32Array<ArrayBufferLike>
+still: Float32Array<ArrayBufferLike>
+surf: Float32Array<ArrayBufferLike>
 swell: Float32Array<ArrayBufferLike>
-static bake: (grid: ZoneGrid, bodies: readonly ZoneBody[], ground?: ZoneGround) => WaterField
-static baking: (grid: ZoneGrid, bodies: readonly ZoneBody[], ground?: ZoneGround) => Generator<number, WaterField, void>
+static bake: (grid: ZoneGrid, bodies: readonly ZoneBody[], ground?: ZoneGround, surfLength?: number) => WaterField
+static baking: (grid: ZoneGrid, bodies: readonly ZoneBody[], ground?: ZoneGround, surfLength?: number) => Generator<number, WaterField, void>
 static new (grid: ZoneGrid, ocean: ZoneOcean | null): WaterField
 static prototype: WaterField
 ```

@@ -235,6 +235,25 @@ TextureHandle ResourceManager::createTexture(ResourceContent content, u32 width,
     return textures_.add(std::move(texture), "", bytes);
 }
 
+TextureHandle ResourceManager::createTextureArray(ResourceContent content, const TextureSpecification& spec,
+                                                  ConstSpan<u8> pixels) {
+    if (!device_) return {};
+    const bool rgba = spec.format == TextureFormat::RGBA8 || spec.format == TextureFormat::SRGB8A8;
+    const usize layerBytes = static_cast<usize>(spec.width) * spec.height * 4;
+    const usize bytes = layerBytes * spec.layers;
+    if (!rgba || spec.layers < 1 || layerBytes == 0 || pixels.size() != bytes) {
+        ES_LOG_ERROR("createTextureArray: {} bytes for {} RGBA8 layers of {}x{} (expected {})",
+                     pixels.size(), spec.layers, spec.width, spec.height, bytes);
+        return TextureHandle();
+    }
+    auto texture = Texture::createArray(*device_, toGfxContent(content), spec, pixels.data());
+    if (!texture) {
+        ES_LOG_ERROR("Failed to create texture array");
+        return TextureHandle();
+    }
+    return textures_.add(std::move(texture), "", bytes);
+}
+
 TextureHandle ResourceManager::createCompressedTexture(ResourceContent content, u32 width, u32 height,
                                                        GfxCompressedFormat format, ConstSpan<u8> data,
                                                        u32 mipLevels) {

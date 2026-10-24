@@ -2822,4 +2822,6 @@ export const NOTED = {
     {"note":"Foam is where waves burst, not along every shore."},
   "fix(water): a gentle beach keeps less of the breakers' white than rock does":
     {"note":"Foam is where waves burst, not along every shore."},
+  "feat(render): 2D texture arrays, created from layers and sampled by textureArray material params":
+    {"internal":"Groundwork for the terrain's layer arrays: a game has no public call that makes an array yet, so the terrain change that uses it carries the note."},
 };

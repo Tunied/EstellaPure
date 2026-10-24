@@ -252,7 +252,7 @@ bool glExtensionPresent(const char* name) {
  * floor, a hair card or a sleeve seen edge-on washes out; with this the sampler takes extra samples along the long side instead.
  * WebGL2 has it as an extension and an extension may be absent, so it is asked once and left alone where it is not there.
  */
-void setAnisotropy(const TextureDesc& desc, bool mipped) {
+void setAnisotropy(const TextureDesc& desc, bool mipped, GLenum target = GL_TEXTURE_2D) {
     static const GLfloat kMax = [] {
         constexpr GLenum kMaxAnisotropy = 0x84FF;  // GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT
         if (!(glExtensionPresent("GL_EXT_texture_filter_anisotropic") || glExtensionPresent("EXT_texture_filter_anisotropic"))) return 1.0f;
@@ -263,7 +263,7 @@ void setAnisotropy(const TextureDesc& desc, bool mipped) {
     if (kMax <= 1.0f) return;
     constexpr GLenum kTextureMaxAnisotropy = 0x84FE;  // GL_TEXTURE_MAX_ANISOTROPY_EXT
     const bool linear = desc.minFilter != TextureFilter::Nearest && desc.magFilter != TextureFilter::Nearest;
-    glTexParameterf(GL_TEXTURE_2D, kTextureMaxAnisotropy, (mipped && linear) ? (kMax < 16.0f ? kMax : 16.0f) : 1.0f);
+    glTexParameterf(target, kTextureMaxAnisotropy, (mipped && linear) ? (kMax < 16.0f ? kMax : 16.0f) : 1.0f);
 }
 
 std::string readShaderInfoLog(GLuint shader) {
@@ -381,6 +381,7 @@ bool GLDevice::recreateDevice() {
     // behind its id; nothing here survives but the maps' shape.
     buffer_names_.clear();
     texture_names_.clear();
+    array_names_.clear();
     program_names_.clear();
     framebuffer_names_.clear();
     query_names_.clear();
@@ -749,6 +750,7 @@ GfxUniformType fromGLUniformType(GLenum type) {
     case GL_FLOAT_MAT4:   return GfxUniformType::Mat4;
     case GL_SAMPLER_2D:   return GfxUniformType::Sampler2D;
     case GL_SAMPLER_CUBE: return GfxUniformType::SamplerCube;
+    case GL_SAMPLER_2D_ARRAY: return GfxUniformType::Sampler2DArray;
     default:              return GfxUniformType::Unknown;
     }
 }
@@ -1107,11 +1109,16 @@ void GLDevice::drawElementsInstanced(u32 indexCount, GfxDataType indexType, u32 
 // Textures
 // =============================================================================
 
+u32 GLDevice::textureTarget(u32 name) const {
+    return !array_names_.empty() && array_names_.count(name) ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D;
+}
+
+// A unit holds a 2D and an array binding side by side; the sampler type of the program decides which is read.
 void GLDevice::bindTexture(u32 slot, TextureHandle texture) {
     const u32 name = nameOf(texture_names_, static_cast<u32>(texture));
     if (slot >= kTextureSlots) {  // beyond the cache — bind directly
         glActiveTexture(GL_TEXTURE0 + slot);
-        glBindTexture(GL_TEXTURE_2D, name);
+        glBindTexture(textureTarget(name), name);
         return;
     }
     if (bound_texture_[slot] == name) return;  // already bound to this sampler unit
@@ -1119,12 +1126,12 @@ void GLDevice::bindTexture(u32 slot, TextureHandle texture) {
         glActiveTexture(GL_TEXTURE0 + slot);
         active_texture_unit_ = slot;
     }
-    glBindTexture(GL_TEXTURE_2D, name);
+    glBindTexture(textureTarget(name), name);
     bound_texture_[slot] = name;
 }
 
 void GLDevice::bindTextureForEdit(u32 name) {
-    glBindTexture(GL_TEXTURE_2D, name);
+    glBindTexture(textureTarget(name), name);
     if (active_texture_unit_ < kTextureSlots) bound_texture_[active_texture_unit_] = name;
 }
 
@@ -1136,7 +1143,7 @@ void GLDevice::evictSamplerBinding(u32 name) {
             glActiveTexture(GL_TEXTURE0 + slot);
             active_texture_unit_ = slot;
         }
-        glBindTexture(GL_TEXTURE_2D, 0);
+        glBindTexture(textureTarget(name), 0);
         bound_texture_[slot] = 0;
     }
 }
@@ -1165,6 +1172,22 @@ bool GLDevice::backendCreateTexture(u32 id, const TextureDesc& desc, const void*
     setName(texture_names_, id, name);
 
     auto gl = toGLPixelFormat(desc.format);
+    if (desc.layers > 1) {
+        // WebGL2 refuses UNPACK_FLIP_Y for a 3D upload, so the layers go up in the rows given.
+        array_names_.insert(name);
+        bindTextureForEdit(name);
+        const TightRowScope rows(desc.format, desc.width);
+        glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, static_cast<GLint>(gl.internalFormat),
+                     static_cast<GLsizei>(desc.width), static_cast<GLsizei>(desc.height),
+                     static_cast<GLsizei>(desc.layers), 0, gl.format, gl.type, pixels);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, toGLMinFilter(desc));
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, toGLFilter(desc.magFilter));
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, toGLWrap(desc.wrapS));
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, toGLWrap(desc.wrapT));
+        setAnisotropy(desc, desc.mipmaps, GL_TEXTURE_2D_ARRAY);
+        if (desc.mipmaps && pixels) glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
+        return true;
+    }
     bindTextureForEdit(name);
     const TightRowScope rows(desc.format, desc.width);
     if (pixels && desc.flipY) glPixelStorei(GL_UNPACK_FLIP_Y_WEBGL, GL_TRUE);
@@ -1236,6 +1259,7 @@ void GLDevice::backendDeleteTexture(u32 id) {
     } else {
         evictSamplerBinding(name);
         glDeleteTextures(1, &name);
+        array_names_.erase(name);
     }
     setName(texture_names_, id, 0);
 }
@@ -1260,19 +1284,23 @@ void GLDevice::backendUpdateTexture(u32 id, i32 x, i32 y, u32 width, u32 height,
 }
 
 void GLDevice::backendSetTextureParams(u32 id, const TextureDesc& desc) {
-    bindTextureForEdit(nameOf(texture_names_, id));
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, toGLMinFilter(desc));
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, toGLFilter(desc.magFilter));
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, toGLWrap(desc.wrapS));
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, toGLWrap(desc.wrapT));
-    setAnisotropy(desc, desc.mipmaps);
+    const u32 name = nameOf(texture_names_, id);
+    const GLenum target = textureTarget(name);
+    bindTextureForEdit(name);
+    glTexParameteri(target, GL_TEXTURE_MIN_FILTER, toGLMinFilter(desc));
+    glTexParameteri(target, GL_TEXTURE_MAG_FILTER, toGLFilter(desc.magFilter));
+    glTexParameteri(target, GL_TEXTURE_WRAP_S, toGLWrap(desc.wrapS));
+    glTexParameteri(target, GL_TEXTURE_WRAP_T, toGLWrap(desc.wrapT));
+    setAnisotropy(desc, desc.mipmaps, target);
 }
 
 void GLDevice::backendGenerateMipmaps(u32 id) {
-    bindTextureForEdit(nameOf(texture_names_, id));
-    glGenerateMipmap(GL_TEXTURE_2D);
+    const u32 name = nameOf(texture_names_, id);
+    const GLenum target = textureTarget(name);
+    bindTextureForEdit(name);
+    glGenerateMipmap(target);
     if (const TextureDesc* desc = textureDesc(TextureHandle{id})) {
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, toGLMinFilter(*desc));
+        glTexParameteri(target, GL_TEXTURE_MIN_FILTER, toGLMinFilter(*desc));
     }
 }
 

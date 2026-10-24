@@ -168,6 +168,17 @@ TEST_CASE("binding-mask scan mirrors the declarations an explicit layout carries
     CHECK(scanWGSLBindingMask("no bindings here", 0) == 0u);
 }
 
+TEST_CASE("an array texture declaration is told apart from a 2D one by its own binding") {
+    const char* mixed = R"(
+@group(1) @binding(16) var u_albedo : texture_2d_array<f32>;
+@group(1) @binding(17) var u_mask : texture_2d<f32>;
+@group(1) @binding(24) var u_albedo_s : sampler;
+)";
+    CHECK(scanWGSLArrayTextureMask(mixed, 1) == (1u << 16));
+    CHECK(scanWGSLArrayTextureMask(mixed, 0) == 0u);
+    CHECK(scanWGSLDepthTextureMask(mixed, 1) == 0u);
+}
+
 TEST_CASE("colour formats that a pass validates apart get variant slots apart") {
     // WebGPU validates a pipeline's colour format against the pass and rejects
     // the command buffer when they differ. A surface is BGRA and a render target

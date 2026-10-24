@@ -18,6 +18,7 @@
  *
  *          Grammar (matches ShaderParser):
  *            #pragma param <name> <type> [default(csv)] [range(min,max)] [ui(hint)] [texel(data)]
+ *            (<type> `textureArray` reads as a `texture` param with `layered` set)
  *            #pragma domain <Unlit|Lit|PostProcess|UI>
  */
 
@@ -41,6 +42,12 @@ export interface ShaderParam {
      * packed roughness), which sRGB decode would bend. Absent means colour.
      */
     texel?: 'data';
+    /**
+     * Declared `textureArray`: a 2D texture array, sampled with a layer index
+     * (`texture(u_x, vec3(uv, layer))`). Set it with `Material.tex` on a handle from
+     * `createTextureArrayFromPixels`. Absent means a plain 2D texture.
+     */
+    layered?: true;
 }
 
 export interface ShaderReflection {
@@ -79,10 +86,12 @@ function parseParam(arg: string): ShaderParam | null {
     const tokens = arg.trim().split(/\s+/);
     const name = tokens[0];
     const typeStr = tokens[1];
-    if (!name || !typeStr || !TYPES.has(typeStr as ShaderParamType)) return null;
-    const type = typeStr as ShaderParamType;
+    const layered = typeStr === 'textureArray';
+    if (!name || !typeStr || (!layered && !TYPES.has(typeStr as ShaderParamType))) return null;
+    const type: ShaderParamType = layered ? 'texture' : (typeStr as ShaderParamType);
 
     const param: ShaderParam = { name, type, displayName: displayNameFor(name), default: defaultForType(type) };
+    if (layered) param.layered = true;
 
     const def = clause(arg, 'default');
     if (def !== undefined) {

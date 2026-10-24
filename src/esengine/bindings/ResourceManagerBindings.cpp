@@ -32,6 +32,22 @@ TextureFormat boundaryTextureFormat(i32 format) {
     return format == 2 ? TextureFormat::SRGB8A8 : TextureFormat::RGBA8;
 }
 
+/** Bit 0 of the filter code picks linear over nearest; bit 1 asks for a mip chain, which the device rebuilds whenever
+ *  the pixels change. A negative code is linear without mips. */
+void applySamplingCodes(TextureSpecification& spec, i32 filterMode, i32 wrapMode) {
+    const bool coded = filterMode >= 0;
+    spec.generateMips = coded && (filterMode & 2) != 0;
+    spec.minFilter = (coded && (filterMode & 1) == 0) ? TextureFilter::Nearest : TextureFilter::Linear;
+    spec.magFilter = spec.minFilter;
+
+    switch (wrapMode) {
+        case 0: spec.wrapS = TextureWrap::Repeat; spec.wrapT = TextureWrap::Repeat; break;
+        case 1: spec.wrapS = TextureWrap::ClampToEdge; spec.wrapT = TextureWrap::ClampToEdge; break;
+        case 2: spec.wrapS = TextureWrap::MirroredRepeat; spec.wrapT = TextureWrap::MirroredRepeat; break;
+        default: spec.wrapS = TextureWrap::ClampToEdge; spec.wrapT = TextureWrap::ClampToEdge; break;
+    }
+}
+
 }  // namespace
 
 u32 rm_createTexture(resource::ResourceManager& rm, u32 width, u32 height,
@@ -57,19 +73,7 @@ u32 rm_createTextureEx(resource::ResourceManager& rm, u32 width, u32 height,
     spec.width = width;
     spec.height = height;
     spec.format = texFormat;
-    // Bit 0 of the filter code picks linear over nearest; bit 1 asks for a mip
-    // chain, which the device rebuilds whenever the pixels change.
-    const bool coded = filterMode >= 0;
-    spec.generateMips = coded && (filterMode & 2) != 0;
-    spec.minFilter = (coded && (filterMode & 1) == 0) ? TextureFilter::Nearest : TextureFilter::Linear;
-    spec.magFilter = spec.minFilter;
-
-    switch (wrapMode) {
-        case 0: spec.wrapS = TextureWrap::Repeat; spec.wrapT = TextureWrap::Repeat; break;
-        case 1: spec.wrapS = TextureWrap::ClampToEdge; spec.wrapT = TextureWrap::ClampToEdge; break;
-        case 2: spec.wrapS = TextureWrap::MirroredRepeat; spec.wrapT = TextureWrap::MirroredRepeat; break;
-        default: spec.wrapS = TextureWrap::ClampToEdge; spec.wrapT = TextureWrap::ClampToEdge; break;
-    }
+    applySamplingCodes(spec, filterMode, wrapMode);
 
     auto handle = rm.createTexture(static_cast<resource::ResourceContent>(content), spec);
     if (!handle.isValid()) {
@@ -87,6 +91,22 @@ u32 rm_createTextureEx(resource::ResourceManager& rm, u32 width, u32 height,
         }
     }
 
+    return handle.id();
+}
+
+u32 rm_createTextureArray(resource::ResourceManager& rm, u32 width, u32 height, u32 layers,
+                          uintptr_t pixelsPtr, u32 pixelsLen, i32 format,
+                          i32 filterMode, i32 wrapMode, u32 content) {
+    const u8* pixels = boundarySpan<u8>(pixelsPtr, pixelsLen, "rm_createTextureArray");
+    if (!pixels) return 0;
+    TextureSpecification spec;
+    spec.width = width;
+    spec.height = height;
+    spec.layers = layers;
+    spec.format = format == 2 ? TextureFormat::SRGB8A8 : TextureFormat::RGBA8;
+    applySamplingCodes(spec, filterMode, wrapMode);
+    auto handle = rm.createTextureArray(static_cast<resource::ResourceContent>(content), spec,
+                                        ConstSpan<u8>(pixels, pixelsLen));
     return handle.id();
 }
 

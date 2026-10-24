@@ -227,6 +227,7 @@ void WebGPUDevice::releaseDeviceObjects() {
     dummy_ubo_ = BufferRec{};
     releaseTexture(dummy_texture_);
     releaseTexture(dummy_depth_texture_);
+    releaseTexture(dummy_array_texture_);
 
     // GPU timing resources.
     if (timestamp_qset_) { wgpuQuerySetRelease(timestamp_qset_); timestamp_qset_ = nullptr; }
@@ -719,7 +720,8 @@ u64 WebGPUDevice::estimatedGpuBytes() const {
         return size * wgpuTextureGetDepthOrArrayLayers(texture);
     };
     for (const auto& [id, texture] : textures_) bytes += textureBytes(texture.texture);
-    bytes += textureBytes(dummy_texture_.texture) + textureBytes(dummy_depth_texture_.texture);
+    bytes += textureBytes(dummy_texture_.texture) + textureBytes(dummy_depth_texture_.texture)
+             + textureBytes(dummy_array_texture_.texture);
     bytes += textureBytes(surface_depth_texture_) + textureBytes(surface_msaa_texture_);
     return bytes;
 }
@@ -887,10 +889,11 @@ bool WebGPUDevice::makeTexture(const TextureDesc& desc, const void* pixels, Text
         return false;
     }
 
+    const u32 layers = desc.layers > 1 ? desc.layers : 1;
     WGPUTextureDescriptor td{};
     td.dimension = WGPUTextureDimension_2D;
     td.format = toWGPUTextureFormat(desc.format);
-    td.size = WGPUExtent3D{desc.width, desc.height, 1};
+    td.size = WGPUExtent3D{desc.width, desc.height, layers};
     td.sampleCount = desc.samples > 1 ? kMsaaSamples : 1;
     td.mipLevelCount = 1;
     if (desc.mipmaps && td.sampleCount == 1 && !isDepthFormat(td.format)) {
@@ -925,7 +928,16 @@ bool WebGPUDevice::makeTexture(const TextureDesc& desc, const void* pixels, Text
     }
 
     WGPUTextureView view = nullptr;
-    if (td.mipLevelCount > 1) {
+    if (layers > 1) {
+        // Never an attachment, so the one view is the sampled one: every layer, every level.
+        WGPUTextureViewDescriptor vd{};
+        vd.format = td.format;
+        vd.dimension = WGPUTextureViewDimension_2DArray;
+        vd.mipLevelCount = td.mipLevelCount;
+        vd.arrayLayerCount = layers;
+        vd.aspect = WGPUTextureAspect_All;
+        view = wgpuTextureCreateView(texture, &vd);
+    } else if (td.mipLevelCount > 1) {
         WGPUTextureViewDescriptor vd{};
         vd.format = td.format;
         vd.dimension = WGPUTextureViewDimension_2D;
@@ -953,7 +965,7 @@ bool WebGPUDevice::makeTexture(const TextureDesc& desc, const void* pixels, Text
         vd.arrayLayerCount = 1;
         vd.aspect = WGPUTextureAspect_DepthOnly;
         sampleView = wgpuTextureCreateView(texture, &vd);
-    } else if (td.mipLevelCount > 1) {
+    } else if (td.mipLevelCount > 1 && layers == 1) {
         sampleView = wgpuTextureCreateView(texture, nullptr);
     }
 
@@ -962,8 +974,17 @@ bool WebGPUDevice::makeTexture(const TextureDesc& desc, const void* pixels, Text
                      packSamplerKey(desc.minFilter, desc.magFilter, desc.wrapS, desc.wrapT),
                      td.sampleCount, td.mipLevelCount};
     out.storage = storage;
+    out.layers = layers;
 
-    if (pixels && !isDepthFormat(td.format)) {
+    if (pixels && !isDepthFormat(td.format) && layers > 1) {
+        // An array takes its layers in the rows given, as GL does (which cannot flip a 3D upload).
+        const usize layerBytes = static_cast<usize>(desc.width) * desc.height * gfxBytesPerPixel(desc.format);
+        for (u32 layer = 0; layer < layers; ++layer) {
+            writeTexture(out, 0, 0, desc.width, desc.height,
+                         static_cast<const u8*>(pixels) + layerBytes * layer, false, layer);
+        }
+        if (out.mipLevels > 1) buildMipChain(out);
+    } else if (pixels && !isDepthFormat(td.format)) {
         // desc.flipY, not false: the caller's orientation request has to reach the
         // upload, which is where the row reversal happens (see writeTexture).
         writeTexture(out, 0, 0, desc.width, desc.height, pixels, desc.flipY);
@@ -1082,7 +1103,7 @@ void WebGPUDevice::backendUpdateTexture(u32 id, i32 x, i32 y, u32 width, u32 hei
 }
 
 void WebGPUDevice::writeTexture(const TextureRec& rec, i32 x, i32 y, u32 width, u32 height,
-                                const void* pixels, bool flipY) {
+                                const void* pixels, bool flipY, u32 layer) {
     if (!pixels || !queue_ || !rec.texture) return;
     if (isDepthFormat(rec.format)) {
         ES_LOG_ERROR("WebGPUDevice::updateTexture: depth-stencil textures are attachment-only");
@@ -1090,7 +1111,7 @@ void WebGPUDevice::writeTexture(const TextureRec& rec, i32 x, i32 y, u32 width, 
     }
     WGPUTexelCopyTextureInfo dst{};
     dst.texture = rec.texture;
-    dst.origin = WGPUOrigin3D{static_cast<u32>(x), static_cast<u32>(y), 0};
+    dst.origin = WGPUOrigin3D{static_cast<u32>(x), static_cast<u32>(y), layer};
 
     // Source rows are what the caller allocated; destination rows are the texel
     // size WebGPU stores. They differ for RGB8, which has no WebGPU format and so
@@ -1232,6 +1253,8 @@ bool WebGPUDevice::backendCreateProgram(u32 id, const GfxShaderSource& source,
                      scanWGSLBindingMask(source.fragmentSrc, 1);
     rec.group1DepthMask = scanWGSLDepthTextureMask(source.vertexSrc, 1) |
                           scanWGSLDepthTextureMask(source.fragmentSrc, 1);
+    rec.group1ArrayMask = scanWGSLArrayTextureMask(source.vertexSrc, 1) |
+                          scanWGSLArrayTextureMask(source.fragmentSrc, 1);
     // What the VERTEX stage declares, on its own: a sampled texture is visible
     // to the fragment stage alone unless the layout says otherwise, and reading
     // one it was not given is a pipeline WebGPU rejects with nothing named.
@@ -1337,7 +1360,8 @@ WGPURenderPipeline WebGPUDevice::ensurePipeline(u32 id) {
     // holds by identity.
     pd.layout = pipelineLayoutFor(progIt->second.group0Mask, progIt->second.group1Mask,
                                   progIt->second.group1DepthMask,
-                                  progIt->second.group1VertexMask);
+                                  progIt->second.group1VertexMask,
+                                  progIt->second.group1ArrayMask);
     pd.vertex.module = progIt->second.vertex;
     pd.vertex.entryPoint = sv("vs_main");
     pd.vertex.bufferCount = slotCount;
@@ -1589,22 +1613,28 @@ void WebGPUDevice::buildMipChain(const TextureRec& rec) {
     // frame, and the frame's encoder may have a pass open.
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(device_, nullptr);
     if (!encoder) return;
+    // Each layer of an array is its own chain: views[layer * mipLevels + level] is one level of one layer.
     std::vector<WGPUTextureView> views;
     std::vector<WGPUBindGroup> groups;
-    for (u32 level = 0; level < rec.mipLevels; ++level) {
-        WGPUTextureViewDescriptor vd{};
-        vd.format = rec.format;
-        vd.dimension = WGPUTextureViewDimension_2D;
-        vd.baseMipLevel = level;
-        vd.mipLevelCount = 1;
-        vd.arrayLayerCount = 1;
-        vd.aspect = WGPUTextureAspect_All;
-        views.push_back(wgpuTextureCreateView(rec.texture, &vd));
+    for (u32 layer = 0; layer < rec.layers; ++layer) {
+        for (u32 level = 0; level < rec.mipLevels; ++level) {
+            WGPUTextureViewDescriptor vd{};
+            vd.format = rec.format;
+            vd.dimension = WGPUTextureViewDimension_2D;
+            vd.baseMipLevel = level;
+            vd.mipLevelCount = 1;
+            vd.baseArrayLayer = layer;
+            vd.arrayLayerCount = 1;
+            vd.aspect = WGPUTextureAspect_All;
+            views.push_back(wgpuTextureCreateView(rec.texture, &vd));
+        }
     }
-    for (u32 level = 1; level < rec.mipLevels; ++level) {
+    for (u32 step = 0; step < rec.layers * rec.mipLevels; ++step) {
+        const u32 level = step % rec.mipLevels;
+        if (level == 0) continue;
         WGPUBindGroupEntry entries[2]{};
         entries[0].binding = 0;
-        entries[0].textureView = views[level - 1];
+        entries[0].textureView = views[step - 1];
         entries[1].binding = 1;
         entries[1].sampler = mip_sampler_;
         WGPUBindGroupDescriptor bgd{};
@@ -1616,7 +1646,7 @@ void WebGPUDevice::buildMipChain(const TextureRec& rec) {
         groups.push_back(group);
 
         WGPURenderPassColorAttachment color{};
-        color.view = views[level];
+        color.view = views[step];
         color.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
         color.loadOp = WGPULoadOp_Clear;
         color.storeOp = WGPUStoreOp_Store;
@@ -1844,13 +1874,10 @@ void WebGPUDevice::drawInternalClear(bool color, bool depth, bool stencil,
 }
 
 WGPUBindGroupLayout WebGPUDevice::groupLayoutFor(u32 group, u32 mask, u32 depthMask,
-                                                u32 vertexMask) {
-    // depthMask is part of the key: the same bindings sampled as depth are a
-    // DIFFERENT layout, and sharing one entry would bind a float texture under a
-    // depth declaration. vertexMask likewise — visibility is part of an entry.
-    const u64 key = (static_cast<u64>(group) << 32) | mask
-                    ^ (static_cast<u64>(depthMask) << 48)
-                    ^ (static_cast<u64>(vertexMask) << 16);
+                                                u32 vertexMask, u32 arrayMask) {
+    // Every mask is part of the key: the same bindings sampled as depth or as an
+    // array are a DIFFERENT layout, and visibility is part of an entry too.
+    const std::array<u32, 5> key{group, mask, depthMask, vertexMask, arrayMask};
     auto cached = group_layouts_.find(key);
     if (cached != group_layouts_.end()) return cached->second;
     if (!device_) return nullptr;
@@ -1893,7 +1920,8 @@ WGPUBindGroupLayout WebGPUDevice::groupLayoutFor(u32 group, u32 mask, u32 depthM
                     (depthMask & (1u << tb))  ? WGPUTextureSampleType_Depth
                     : (mask & (1u << sb))     ? WGPUTextureSampleType_Float
                                               : WGPUTextureSampleType_UnfilterableFloat;
-                e.texture.viewDimension = WGPUTextureViewDimension_2D;
+                e.texture.viewDimension = (arrayMask & (1u << tb)) ? WGPUTextureViewDimension_2DArray
+                                                                   : WGPUTextureViewDimension_2D;
                 entries[count++] = e;
             }
             if (mask & (1u << sb)) {
@@ -1915,12 +1943,11 @@ WGPUBindGroupLayout WebGPUDevice::groupLayoutFor(u32 group, u32 mask, u32 depthM
 }
 
 WGPUPipelineLayout WebGPUDevice::pipelineLayoutFor(u32 group0Mask, u32 group1Mask,
-                                                   u32 group1DepthMask, u32 group1VertexMask) {
-    // The depth and visibility masks change the group-1 layout under this
+                                                   u32 group1DepthMask, u32 group1VertexMask,
+                                                   u32 group1ArrayMask) {
+    // The depth, visibility and array masks change the group-1 layout under this
     // pipeline, so they have to reach the key here too — see groupLayoutFor.
-    const u64 key = ((static_cast<u64>(group1Mask) << 32) | group0Mask)
-                    ^ (static_cast<u64>(group1DepthMask) << 16)
-                    ^ (static_cast<u64>(group1VertexMask) << 8);
+    const std::array<u32, 5> key{group0Mask, group1Mask, group1DepthMask, group1VertexMask, group1ArrayMask};
     auto cached = pipeline_layouts_.find(key);
     if (cached != pipeline_layouts_.end()) return cached->second;
     if (!device_) return nullptr;
@@ -1931,7 +1958,7 @@ WGPUPipelineLayout WebGPUDevice::pipelineLayoutFor(u32 group0Mask, u32 group1Mas
     u32 count = 0;
     if (group0Mask != 0 || group1Mask != 0) bgls[count++] = groupLayoutFor(0, group0Mask);
     if (group1Mask != 0) {
-        bgls[count++] = groupLayoutFor(1, group1Mask, group1DepthMask, group1VertexMask);
+        bgls[count++] = groupLayoutFor(1, group1Mask, group1DepthMask, group1VertexMask, group1ArrayMask);
     }
 
     WGPUPipelineLayoutDescriptor pld{};
@@ -1960,6 +1987,12 @@ void WebGPUDevice::ensureDummies() {
         TextureDesc td{};
         td.format = GfxPixelFormat::Depth24Stencil8;
         makeTexture(td, nullptr, dummy_depth_texture_);
+    }
+    if (!dummy_array_texture_.texture) {
+        const u8 white[8] = {255, 255, 255, 255, 255, 255, 255, 255};
+        TextureDesc td{};
+        td.layers = 2;
+        makeTexture(td, white, dummy_array_texture_);
     }
 }
 
@@ -2050,6 +2083,7 @@ void WebGPUDevice::flushBindGroup() {
     if (prog->group1Mask != 0) {
         const TextureRec* dummy = dummy_texture_.texture ? &dummy_texture_ : nullptr;
         const TextureRec* depthDummy = dummy_depth_texture_.texture ? &dummy_depth_texture_ : nullptr;
+        const TextureRec* arrayDummy = dummy_array_texture_.texture ? &dummy_array_texture_ : nullptr;
 
         WGPUBindGroupEntry texEntries[kTextureSlots * 2];
         u32 texCount = 0;
@@ -2070,8 +2104,13 @@ void WebGPUDevice::flushBindGroup() {
                 // unit is unbound: the white dummy under `sampleType = Depth` is
                 // a validation error, not a blank sample.
                 const bool wantsDepth = (prog->group1DepthMask & (1u << tb)) != 0;
+                // The view's dimension must be the declaration's: an array where a
+                // 2D texture is declared, or the reverse, is the dummy of the right kind.
+                const bool wantsArray = (prog->group1ArrayMask & (1u << tb)) != 0;
                 const TextureRec* src = rec;
                 if (wantsDepth && !isDepthFormat(src->format)) src = depthDummy;
+                else if (wantsArray && src->layers == 1) src = arrayDummy;
+                else if (!wantsArray && src->layers > 1) src = dummy;
                 if (!src) continue;
                 WGPUBindGroupEntry e{};
                 e.binding = tb;
@@ -2088,7 +2127,7 @@ void WebGPUDevice::flushBindGroup() {
 
         WGPUBindGroupDescriptor tgd{};
         tgd.layout = groupLayoutFor(1, prog->group1Mask, prog->group1DepthMask,
-                                    prog->group1VertexMask);
+                                    prog->group1VertexMask, prog->group1ArrayMask);
         tgd.entryCount = texCount;
         tgd.entries = texEntries;
         u64 tids[kTextureSlots * 2];

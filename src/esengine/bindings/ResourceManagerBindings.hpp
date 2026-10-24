@@ -24,6 +24,13 @@ u32 rm_createTexture(resource::ResourceManager& rm, u32 width, u32 height,
 u32 rm_createTextureEx(resource::ResourceManager& rm, u32 width, u32 height,
                         uintptr_t pixelsPtr, u32 pixelsLen, i32 format, bool flipY,
                         i32 filterMode, i32 wrapMode, u32 content);
+/**
+ * A 2D texture array of `layers` RGBA8 layers, `pixelsLen` bytes of them back to back. `filterMode` and `wrapMode`
+ * are createTextureEx's codes; there is no flipY, the layers are taken in the rows given.
+ */
+u32 rm_createTextureArray(resource::ResourceManager& rm, u32 width, u32 height, u32 layers,
+                          uintptr_t pixelsPtr, u32 pixelsLen, i32 format,
+                          i32 filterMode, i32 wrapMode, u32 content);
 u32 rm_createShader(resource::ResourceManager& rm,
                      const std::string& vertSrc, const std::string& fragSrc);
 /** Whether the active backend samples this compressed format. */

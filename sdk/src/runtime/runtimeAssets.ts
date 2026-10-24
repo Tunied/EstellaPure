@@ -182,6 +182,38 @@ export function createTextureFromPixels(
 }
 
 /**
+ * A 2D texture array of same-size RGBA8 layers, for a `textureArray` material param (`Material.tex(handle)`).
+ * Layers go up in the rows given, never flipped, and are fixed: there is no sub-rectangle update. Pass
+ * `TextureContent.Retained` for an array that must survive a device loss. Returns 0 when the engine refuses it.
+ */
+export function createTextureArrayFromPixels(
+    module: ESEngineModule | null,
+    source: { width: number; height: number; layers: readonly Uint8Array[] },
+    content: TextureContent,
+    params?: TextureParams,
+    owner?: CppResourceManager,
+): number {
+    const { width, height, layers } = source;
+    const layerBytes = width * height * 4;
+    if (layers.length === 0 || layers.some((layer) => layer.length !== layerBytes)) {
+        throw new Error(`createTextureArrayFromPixels: every layer must be ${width}x${height} RGBA8 (${layerBytes} bytes)`);
+    }
+    const rm = owner ?? requireResourceManager();
+    if (!rm.createTextureArray || !module) {
+        throw new Error('createTextureArrayFromPixels: needs the wasm ResourceManager and its heap');
+    }
+    const format = samplesAsSrgb(params?.srgb) ? 2 : 1;
+    const filter = params ? textureFilterCode(params) : -1;
+    const wrap = WRAP_MODE_MAP[params?.wrapMode ?? 'clamp'] ?? 1;
+    const total = layerBytes * layers.length;
+    return withMalloc(module, total, ptr => {
+        if (!ptr) return 0;
+        layers.forEach((layer, i) => module.HEAPU8.set(layer, ptr + i * layerBytes));
+        return rm.createTextureArray!(width, height, layers.length, ptr, total, format, filter, wrap, content);
+    });
+}
+
+/**
  * Upload pixels into a sub-rectangle of an existing texture. Lets the dynamic
  * glyph atlas pack glyphs individually instead of re-uploading
  * the whole atlas. `pixels` must match the texture's format (RGBA8) and the

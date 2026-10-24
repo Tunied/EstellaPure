@@ -399,7 +399,7 @@ struct BufferDesc {
 };
 
 /**
- * @brief Immutable creation parameters of a 2D texture.
+ * @brief Immutable creation parameters of a 2D texture or 2D texture array.
  * @details `flipY` applies to the initial pixel upload only (WebGL upload state;
  *          native backends flip CPU-side at load time).
  */
@@ -420,6 +420,10 @@ struct TextureDesc {
     /// Writable from a compute shader as a storage texture. RGBA8, RGBA16F and RGBA32F only, and only on a device
     /// that supportsCompute(); a texture asked for this elsewhere is created without it.
     bool storage = false;
+    /// Above 1 the texture is a 2D ARRAY of this many layers, sampled through `sampler2DArray` /
+    /// `texture_2d_array`. Its pixels are the layers back to back, each width * height texels. Colour, single-sample
+    /// and sampled only: never an attachment, a storage target or compressed, and `flipY` does not apply.
+    u32 layers = 1;
 };
 
 /**
@@ -720,6 +724,7 @@ enum class GfxUniformType : u8 {
     Mat4,
     Sampler2D,
     SamplerCube,
+    Sampler2DArray,
 };
 
 struct GfxUniformInfo {

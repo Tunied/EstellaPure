@@ -381,13 +381,10 @@ inline constexpr u32 kGroup1TextureUnits = WGSL_MAX_TEXTURE_UNITS;
 // the shader assembler EMITS what this backend reads back, so one of them owns the rule.
 
 /**
- * @brief Bit mask of the group's bindings a WGSL source declares as DEPTH textures.
- * @details A `texture_depth_2d` binding needs `sampleType = Depth` in its layout
- *          entry and a depth-aspect view under it; bound as an ordinary float
- *          texture WebGPU rejects the pipeline. Same source scan as
- *          {@link scanWGSLBindingMask}, reading the declaration that follows.
+ * @brief Bit mask of the group's bindings whose declaration names the type `kind`.
+ * @details Same source scan as {@link scanWGSLBindingMask}, reading the declaration that follows each binding.
  */
-inline u32 scanWGSLDepthTextureMask(const char* source, u32 group) {
+inline u32 scanWGSLTextureKindMask(const char* source, u32 group, const char* kind) {
     if (!source) return 0;
     u32 mask = 0;
     for (const char* p = source; (p = std::strstr(p, "@group(")) != nullptr;) {
@@ -404,12 +401,30 @@ inline u32 scanWGSLDepthTextureMask(const char* source, u32 group) {
         if (end == b) continue;
         p = end;
         // The declaration this binding attributes: up to the `;` that ends it,
-        // so a `texture_depth_2d` further down the file cannot be read as this one's.
+        // so a matching type further down the file cannot be read as this one's.
         const char* semi = std::strchr(p, ';');
-        const char* depth = std::strstr(p, "texture_depth_2d");
-        if (idx < 32 && depth && (!semi || depth < semi)) mask |= (1u << idx);
+        const char* type = std::strstr(p, kind);
+        if (idx < 32 && type && (!semi || type < semi)) mask |= (1u << idx);
     }
     return mask;
+}
+
+/**
+ * @brief Bit mask of the group's bindings a WGSL source declares as DEPTH textures.
+ * @details A `texture_depth_2d` binding needs `sampleType = Depth` in its layout
+ *          entry and a depth-aspect view under it; bound as an ordinary float
+ *          texture WebGPU rejects the pipeline.
+ */
+inline u32 scanWGSLDepthTextureMask(const char* source, u32 group) {
+    return scanWGSLTextureKindMask(source, group, "texture_depth_2d");
+}
+
+/**
+ * @brief Bit mask of the group's bindings a WGSL source declares as `texture_2d_array`.
+ * @details Such a binding's layout entry is `viewDimension = 2DArray`, and only an array view binds under it.
+ */
+inline u32 scanWGSLArrayTextureMask(const char* source, u32 group) {
+    return scanWGSLTextureKindMask(source, group, "texture_2d_array");
 }
 
 /// WriteBuffer's size (and offset) must be a 4-byte multiple; buffers are allocated

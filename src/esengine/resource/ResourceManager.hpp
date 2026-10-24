@@ -257,6 +257,15 @@ public:
                                  TextureFormat format, bool flipY = false);
 
     /**
+     * @brief Creates a 2D texture array from `spec.layers` same-size RGBA8 (or SRGB8A8) layers.
+     * @param pixels The layers back to back, layer 0 first; exactly
+     *        `spec.width * spec.height * 4 * spec.layers` bytes, or nothing is made.
+     * @return Handle to the texture, or invalid handle on failure
+     */
+    TextureHandle createTextureArray(ResourceContent content, const TextureSpecification& spec,
+                                     ConstSpan<u8> pixels);
+
+    /**
      * @brief Creates a block-compressed texture (KTX2 → ETC2/ASTC/BC), uploading
      *        the pre-compressed blocks for mip level 0. Tracked like any texture;
      *        its residency cost is the real (compressed) byte size.

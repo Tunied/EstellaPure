@@ -22,6 +22,13 @@ void main() {}
 `;
 
 describe('reflectEsshader', () => {
+  it('reads a textureArray param as a layered texture param', () => {
+    const r = reflectEsshader('#pragma param u_layers textureArray default(white) texel(data)\n#pragma param u_plain texture\n');
+    const [layers, plain] = r.params;
+    expect(layers).toMatchObject({ name: 'u_layers', type: 'texture', layered: true, defaultTexture: 'white', texel: 'data' });
+    expect(plain!.layered).toBeUndefined();
+  });
+
   it('parses domain and all params', () => {
     const r = reflectEsshader(SRC);
     expect(r.domain).toBe('Unlit');
