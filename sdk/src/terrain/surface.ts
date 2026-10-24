@@ -80,6 +80,41 @@ export class TerrainSurface {
         return { x0: tx * n * this.cell, z0: tz * n * this.cell, positions, indices };
     }
 
+    /**
+     * Where the ray from (ox, oy, oz) along (dx, dy, dz) first meets the ground, within `maxDistance` (along the direction, normalised):
+     * the distance, the point and the triangle's normal; null where it meets none (or crosses ground not known yet). Exact against the
+     * triangles: it walks the lattice cell by cell under the ray and meets each cell's two.
+     */
+    raycast(ox: number, oy: number, oz: number, dx: number, dy: number, dz: number, maxDistance: number):
+        { distance: number; point: [number, number, number]; normal: [number, number, number] } | null {
+        const len = Math.hypot(dx, dy, dz);
+        if (len <= 0) return null;
+        dx /= len; dy /= len; dz /= len;
+        const c = this.cell;
+        // Over the cells the ray's shadow on the ground crosses, in order (Amanatides and Woo).
+        let i = Math.floor(ox / c), k = Math.floor(oz / c);
+        const si = dx > 0 ? 1 : -1, sk = dz > 0 ? 1 : -1;
+        const tdi = dx !== 0 ? Math.abs(c / dx) : Infinity, tdk = dz !== 0 ? Math.abs(c / dz) : Infinity;
+        let ti = dx !== 0 ? ((dx > 0 ? (i + 1) * c : i * c) - ox) / dx : Infinity;
+        let tk = dz !== 0 ? ((dz > 0 ? (k + 1) * c : k * c) - oz) / dz : Infinity;
+        let t = 0;
+        for (let steps = 0; steps < 1_000_000 && t <= maxDistance; steps++) {
+            const a = this.node(i, k), b = this.node(i + 1, k), cc = this.node(i, k + 1), d = this.node(i + 1, k + 1);
+            if (a === null || b === null || cc === null || d === null) return null;
+            const x0 = i * c, z0 = k * c;
+            // The cell's two triangles, cut from its (1, 0) corner to its (0, 1) corner, as the patch is.
+            for (const tri of [[[x0, a, z0], [x0, cc, z0 + c], [x0 + c, b, z0]], [[x0 + c, b, z0], [x0, cc, z0 + c], [x0 + c, d, z0 + c]]] as const) {
+                const hit = rayTriangle(ox, oy, oz, dx, dy, dz, tri[0], tri[1], tri[2]);
+                if (hit && hit.t <= maxDistance && this.covers(ox + dx * hit.t, oz + dz * hit.t)) {
+                    return { distance: hit.t, point: [ox + dx * hit.t, oy + dy * hit.t, oz + dz * hit.t], normal: hit.n };
+                }
+            }
+            if (ti < tk) { t = ti; ti += tdi; i += si; } else { t = tk; tk += tdk; k += sk; }
+            if (dx === 0 && dz === 0) break;
+        }
+        return null;
+    }
+
     /** The four corners of the cell under (x, z) and where in it the point is, or null. */
     private corners(x: number, z: number): [number, number, number, number, number, number] | null {
         if (!this.covers(x, z)) return null;
@@ -89,4 +124,27 @@ export class TerrainSurface {
         if (a === null || b === null || c === null || d === null) return null;
         return [a, b, c, d, u - i, v - k];
     }
+}
+
+/** Where a ray (unit direction) meets a triangle from either side, and the triangle's upward normal; null where it misses. */
+function rayTriangle(ox: number, oy: number, oz: number, dx: number, dy: number, dz: number,
+                     p0: readonly number[], p1: readonly number[], p2: readonly number[]): { t: number; n: [number, number, number] } | null {
+    const e1x = p1[0]! - p0[0]!, e1y = p1[1]! - p0[1]!, e1z = p1[2]! - p0[2]!;
+    const e2x = p2[0]! - p0[0]!, e2y = p2[1]! - p0[1]!, e2z = p2[2]! - p0[2]!;
+    const px = dy * e2z - dz * e2y, py = dz * e2x - dx * e2z, pz = dx * e2y - dy * e2x;
+    const det = e1x * px + e1y * py + e1z * pz;
+    if (Math.abs(det) < 1e-12) return null;
+    const inv = 1 / det;
+    const sx = ox - p0[0]!, sy = oy - p0[1]!, sz = oz - p0[2]!;
+    const u = (sx * px + sy * py + sz * pz) * inv;
+    if (u < -1e-9 || u > 1 + 1e-9) return null;
+    const qx = sy * e1z - sz * e1y, qy = sz * e1x - sx * e1z, qz = sx * e1y - sy * e1x;
+    const v = (dx * qx + dy * qy + dz * qz) * inv;
+    if (v < -1e-9 || u + v > 1 + 1e-9) return null;
+    const t = (e2x * qx + e2y * qy + e2z * qz) * inv;
+    if (t < 0) return null;
+    let nx = e1y * e2z - e1z * e2y, ny = e1z * e2x - e1x * e2z, nz = e1x * e2y - e1y * e2x;
+    if (ny < 0) { nx = -nx; ny = -ny; nz = -nz; }
+    const l = Math.hypot(nx, ny, nz) || 1;
+    return { t, n: [nx / l, ny / l, nz / l] };
 }

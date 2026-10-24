@@ -2788,4 +2788,6 @@ export const NOTED = {
     {"note":"Rain and storms on water."},
   "fix(water): water casts no shadow, a lake holds a river that runs into it, and the surf's slope fades on the ridge between shores":
     {"note":"A river runs into a lake cleanly, and water casts no shadow."},
+  "feat(terrain): a ray meets the ground's triangles anywhere, with no physics and no collision tile there":
+    {"note":"Rays against the terrain, anywhere."},
 };

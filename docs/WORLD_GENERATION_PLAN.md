@@ -27,7 +27,7 @@
 
 - 需要：地形碰撞（先桥接静态 `MeshCollider3D`，再评估专用高度场碰撞）；碰撞精度有自己稳定的规则，不随摄像机 LOD 变化；高度/法线查询、射线、碰撞与三角面在约定精度内吻合。
 - 已知差异：`sampleHeight` 双线性插值，渲染为两片三角形（3×3 合成例中对角线中点 0.5 对 1.0）。新 CDLOD 渲染按页样本插值并在细节级之间形变，同样需要与查询统一定义。
-- 当前状态：已完成第一步。统一定义见 `sdk/src/terrain/surface.ts`：`cellSize` 格点、节点高度取数据源、每格沿 (1,0)–(0,1) 对角线切分，与最细一级渲染补丁同一三角面（差异仅 GPU 16 位高度编码）；`heightAt`/`normalAt`（三角面法线）读它；碰撞按 32 格分块，在每个运动刚体与角色周围 `collisionDistance` 内构建，经通用的 `CollisionGeometry` 资源（`sdk/src/runtime/collisionGeometry.ts`）交给 3D 物理，每块一个静态网格刚体；重建期间旧块保留到新块覆盖；`Terrains.collisionReadyAt` 供游戏等待。测试 `sdk/tests/terrain-surface.test.ts`（含真实 Jolt：射线跨块缝与 `heightAt` 吻合到 1e-3、落球静止在地面上）。仍欠：专用高度场形状（Jolt HeightFieldShape，省内存）评估；远处没有运动物体的位置无碰撞（远程射线需走 `heightAt`）；分块驻留尚未归 T-03 的统一预算。
+- 当前状态：已完成第一步。统一定义见 `sdk/src/terrain/surface.ts`：`cellSize` 格点、节点高度取数据源、每格沿 (1,0)–(0,1) 对角线切分，与最细一级渲染补丁同一三角面（差异仅 GPU 16 位高度编码）；`heightAt`/`normalAt`（三角面法线）读它；碰撞按 32 格分块，在每个运动刚体与角色周围 `collisionDistance` 内构建，经通用的 `CollisionGeometry` 资源（`sdk/src/runtime/collisionGeometry.ts`）交给 3D 物理，每块一个静态网格刚体；重建期间旧块保留到新块覆盖；`Terrains.collisionReadyAt` 供游戏等待。测试 `sdk/tests/terrain-surface.test.ts`（含真实 Jolt：射线跨块缝与 `heightAt` 吻合到 1e-3、落球静止在地面上）。后续已定：不用 Jolt HeightFieldShape（按块 8 位量化样本、对角线方向固定，会破坏"查询 = 碰撞 = 所画三角面"；网格分块每块约 37KB，内存不是瓶颈）；远处无运动物体时用 `Terrains.raycast` 对同一组三角面精确求交（测试中与 Jolt 射线逐点一致）；分块驻留已归 T-03 的 `ProceduralChunks`。
 - 验收：机器人离地高度稳定；建筑四角支撑不悬空；LOD 切换、跨块、重载不掉落；掉落物、障碍、设备有真实碰撞。
 
 ### T-03 程序化区块的驻留与统一预算

@@ -272,6 +272,32 @@ export class Terrains {
         return true;
     }
 
+    /**
+     * Where a ray meets the ground, anywhere and whether or not anything collides there: exact against the same triangles collision and
+     * `heightAt` use. `maxDistance` is along the direction. Null where it meets no terrain within it.
+     */
+    raycast(origin: { x: number; y: number; z: number }, direction: { x: number; y: number; z: number }, maxDistance: number):
+        { distance: number; point: { x: number; y: number; z: number }; normal: { x: number; y: number; z: number }; entity: Entity } | null {
+        const world = this.app_?.world;
+        if (!world) return null;
+        let best: { distance: number; point: { x: number; y: number; z: number }; normal: { x: number; y: number; z: number }; entity: Entity } | null = null;
+        for (const [entity, built] of this.built_) {
+            if (!built.surface || !world.valid(entity)) continue;
+            const t = world.tryGet(entity, Transform) as TransformData | null;
+            if (!t) continue;
+            const at = t.worldPosition;
+            const hit = built.surface.raycast(origin.x - at.x, origin.y - at.y, origin.z - at.z, direction.x, direction.y, direction.z,
+                best ? best.distance : maxDistance);
+            if (!hit) continue;
+            best = {
+                distance: hit.distance, entity,
+                point: { x: hit.point[0] + at.x, y: hit.point[1] + at.y, z: hit.point[2] + at.z },
+                normal: { x: hit.normal[0], y: hit.normal[1], z: hit.normal[2] },
+            };
+        }
+        return best;
+    }
+
     /** Whether the ground under (x, z) is built for collision: what a game waits on before it drops something there. */
     collisionReadyAt(x: number, z: number): boolean {
         const app = this.app_;

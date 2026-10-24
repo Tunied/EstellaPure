@@ -93,6 +93,30 @@ describe('the surface', () => {
     });
 });
 
+describe('a ray against the surface', () => {
+    const surface = new TerrainSurface(new NoiseSource(params), 2);
+
+    it('meets the ground where heightAt says it is, straight down or slanting, and faces the way normalAt does', () => {
+        for (const [x, z] of [[3.3, 7.9], [-120.5, 44.25], [999.1, -12.6]] as const) {
+            const down = surface.raycast(x, 500, z, 0, -1, 0, 1000)!;
+            expect(down.point[1]).toBeCloseTo(surface.height(x, z)!, 6);
+            const slant = surface.raycast(x, 300, z, 0.4, -1, 0.3, 2000)!;
+            expect(slant.point[1]).toBeCloseTo(surface.height(slant.point[0], slant.point[2])!, 5);
+            const n = surface.normal(slant.point[0], slant.point[2])!;
+            for (let c = 0; c < 3; c++) expect(slant.normal[c]).toBeCloseTo(n[c]!, 3);
+        }
+    });
+
+    it('finds a hillside far along a low ray, and nothing past its reach or pointing at the sky', () => {
+        const ground = surface.height(0, 0)!;
+        const far = surface.raycast(0, ground + 1, 0, 1, 0, 0.2, 20000);
+        expect(far).not.toBeNull();
+        expect(far!.distance).toBeGreaterThan(1);
+        expect(surface.raycast(0, ground + 1, 0, 1, 0, 0.2, 0.5)).toBeNull();
+        expect(surface.raycast(0, ground + 1, 0, 0, 1, 0, 1000)).toBeNull();
+    });
+});
+
 describe('collision tiles', () => {
     const boot = (): App => {
         setDefaultContext(new AppContext());
@@ -216,6 +240,23 @@ describe.skipIf(!HAS_WASM || !hasSideModule('physics3d'))('the ground in the 3D 
             const hit = physics.raycast({ x, y: 200, z }, { x: 0, y: -400, z: 0 });
             expect(hit?.entity).toBe(terrain);
             expect(hit!.y).toBeCloseTo(terrains.heightAt(x, z)!, 3);
+        }
+    });
+
+    it('a ray through the physics world and a ray against the surface meet the ground at the same point', async () => {
+        const { app } = await world();
+        const e = app.world.spawn();
+        app.world.insert(e, Transform, { position: { x: 30, y: 80, z: 30 } });
+        app.world.insert(e, RigidBody3D, { bodyType: 1 });
+        await app.stepFrames(6, 1 / 60);
+        const physics = app.getResource(Physics3D)!, terrains = app.getResource(TerrainsRes);
+        for (const [x, z] of [[30, 30], [41.3, 17.8]] as const) {
+            const origin = { x, y: 200, z }, dir = { x: 0.2, y: -1, z: 0.1 };
+            const viaPhysics = physics.raycast(origin, { x: dir.x * 400, y: dir.y * 400, z: dir.z * 400 })!;
+            const viaSurface = terrains.raycast(origin, dir, 1000)!;
+            expect(viaSurface.point.x).toBeCloseTo(viaPhysics.x, 2);
+            expect(viaSurface.point.y).toBeCloseTo(viaPhysics.y, 2);
+            expect(viaSurface.point.z).toBeCloseTo(viaPhysics.z, 2);
         }
     });
 

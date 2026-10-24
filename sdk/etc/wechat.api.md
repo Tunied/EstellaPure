@@ -10089,6 +10089,7 @@ heightAt: (x: number, z: number) => number | null
 loading: boolean
 normalAt: (x: number, z: number) => [number, number, number] | null
 pending: number
+raycast: (origin: { x: number; y: number; z: number; }, direction: { x: number; y: number; z: number; }, maxDistance: number) => { distance: number; point: { x: number; y: number; z: number; }; normal: { x: number; y: number; z: number; }; entity: Entity; } | null
 repaint: () => void
 setPaint: (paint: Repaint | null) => void
 status: (entity: Entity) => TerrainStatus | null

@@ -143,8 +143,12 @@ that moves and every character: the tile under one at once, the rest a few a fra
 Each tile is a static mesh body owned by the terrain entity, so a ray or a contact that hits the ground reports the terrain. While a
 terrain is rebuilt its old tiles stay until the new ones replace them, so nothing standing on it falls.
 `terrains.collisionReadyAt(x, z)` says whether the ground under a point is built, for a game to wait on before it drops something
-there (a provider that answers later builds a tile once its samples are in). Far from anything that moves there is nothing to hit:
-ask `heightAt` there instead.
+there (a provider that answers later builds a tile once its samples are in). Far from anything that moves there is nothing in the
+physics world to hit; `terrains.raycast(origin, direction, maxDistance)` meets the same triangles anywhere, with no physics, for a
+long line of sight, a pick or a landing spot.
+
+The tiles are meshes rather than a compressed heightfield shape on purpose: a heightfield shape quantizes its samples and cuts its
+cells its own way, and the ground that is collided with would no longer be the ground that is drawn and queried.
 
 The tiles go through the `CollisionGeometry` resource (`esengine`), which any system that makes static geometry as the game runs can
 use; the 3D physics world keeps one static body for each piece in it.
