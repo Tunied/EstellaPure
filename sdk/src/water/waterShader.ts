@@ -612,10 +612,8 @@ void main() {
         float thin = max(smoothstep(0.0, u_edgeSoftness, column0 * max(abs(viewDir.y), 0.15)), surfFoam);
         color = mix(textureLod(u_sceneColor, clamp(uv0, vec2(0.001), vec2(0.999)), 0.0).rgb, color, thin);
     }
-    // Past the shore there is no water, but for the surf running up dry ground (where the ground is no lower than the water: the depth test
-    // then cuts it where the ground rises above it).
-    // The surf over dry ground is a film just above the water's rest height: a fragment far from it is the mesh stretched up a wall
-    // between two waters' heights, not water.
+    // Past the shore only the surf's film is water: over ground no lower than the water, within its height of the rest level (further off
+    // it is the mesh stretched between two waters' heights); the depth test cuts it where the ground rises above it.
     bool film = abs(P.y - zone.x) <= surf.x + u_waveHeight * zone.z + 1e-3;
     if (shoreDist < 0.0 && (surf.x <= 0.0 || shoreDepth > 1e-3 || !film)) discard;
     fragColor = vec4(color, haveColor ? 1.0 : 0.85);
