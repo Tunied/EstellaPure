@@ -2816,4 +2816,8 @@ export const NOTED = {
     {"note":"A river gives way where it runs into the sea or a lake."},
   "fix(water): surf crests come in from open water as lines instead of tracing every turn of the shore":
     {"note":"Surf comes in from open water as lines."},
+  "docs(water): surfHeight's comment within the prose limit":
+    {"internal":"Comment length only."},
+  "feat(water): foam bursts on steep shores and washes thinly up beaches, by how steep the shore is and how exposed the water":
+    {"note":"Foam is where waves burst, not along every shore."},
 };

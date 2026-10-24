@@ -96,7 +96,7 @@ export function waveSlope(p: WaveParams, x: number, z: number, time: number): [n
 export function surfHeight(shore: number, height: number, length: number, speed: number, time: number, phase = shore): number {
     if (height <= 0 || length <= 0) return 0;
     const reach = length * 4;
-    if (shore > reach || shore < -reach * 0.2) return 0;
+    if (shore > reach || shore < -reach * 0.05) return 0;
     const celerity = Math.sqrt(GRAVITY * length / TAU) * speed;
     const u = fract(phase / length + (celerity * time) / length);
     // Seaward of a crest the water falls away slowly; shoreward its face is steep.
@@ -108,7 +108,7 @@ export function surfHeight(shore: number, height: number, length: number, speed:
 /** How much of the surf stands at `shore`: none out past its reach, rising as the water shoals, and dying as it runs up the ground. */
 export function surfEnvelope(shore: number, reach: number): number {
     const shoal = 1 - smooth01((shore - reach * 0.25) / (reach * 0.75));
-    const runUp = shore >= 0 ? 1 : 1 - smooth01(-shore / (reach * 0.2));
+    const runUp = shore >= 0 ? 1 : 1 - smooth01(-shore / (reach * 0.05));
     return shoal * runUp;
 }
 

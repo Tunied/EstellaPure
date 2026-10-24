@@ -204,3 +204,15 @@ describe('the distance the surf runs in by', () => {
         expect(field.sample(0, -50)!.shore).toBeGreaterThan(0);
     });
 });
+
+describe('how steep the shore is', () => {
+    it('is a beach where the ground shelves gently and rock where it drops away', () => {
+        // The sea to +z; west of x = 0 the ground shelves 1 in 20, east of it a cliff drops 2 in 1.
+        const g: ZoneGrid = { minX: -100, minZ: -50, sizeX: 200, sizeZ: 100, nx: 201, nz: 101 };
+        const ground = (x: number, z: number): number => (x < 0 ? -z * 0.05 : -z * 2);
+        const field = WaterField.bake(g, [{ kind: 'ocean', key: 3, level: 0, waveHeight: 2, shoreWidth: 6 }], ground, 20);
+        const at = (x: number, z: number): number => field.steep[Math.round(z - g.minZ) * g.nx + Math.round(x - g.minX)]!;
+        expect(at(-50, 2)).toBeLessThan(0.1);
+        expect(at(50, 2)).toBeGreaterThan(0.9);
+    });
+});

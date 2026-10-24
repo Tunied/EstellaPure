@@ -153,6 +153,8 @@ export function currentShare(width: number, widest: number): number {
 const DEEP = 1e6;
 /** The gentlest slope a depth is turned into a distance by: flatter ground than this is deep water or dry land a long way from a shore. */
 const MIN_SLOPE = 0.01;
+/** The slopes a shore goes from a beach (waves wash up it) to rock (they burst on it) over. */
+const STEEP_FROM = 0.25, STEEP_TO = 0.8;
 
 /** The baked water of a zone. */
 export class WaterField {
@@ -169,6 +171,8 @@ export class WaterField {
     readonly surf: Float32Array;
     /** How much of the surf a current leaves (see {@link FieldSample.still}). */
     readonly still: Float32Array;
+    /** How steep the shore is, 0 (a gentle beach) to 1 (rock, a cliff): where waves burst white rather than wash up. */
+    readonly steep: Float32Array;
     readonly exposure: Float32Array;
     /** The body that owns the most of each texel, as its key; -1 where there is no water. */
     readonly owner: Int32Array;
@@ -189,6 +193,7 @@ export class WaterField {
         this.depth = new Float32Array(n);
         this.surf = new Float32Array(n);
         this.still = new Float32Array(n).fill(1);
+        this.steep = new Float32Array(n);
         this.exposure = new Float32Array(n).fill(1);
         this.owner = new Int32Array(n);
     }
@@ -245,6 +250,7 @@ export class WaterField {
                 const z = grid.minZ + (j / Math.max(grid.nz - 1, 1)) * grid.sizeZ;
                 const g = Number.isNaN(grounds[k]!) ? null : grounds[k]!;
                 const slope = g === null ? MIN_SLOPE : slopeAt(i, j);
+                field.steep[k] = smooth(STEEP_FROM, STEEP_TO, slope);
                 let w = 0, h = 0, a = 0, c = 0, sw = 0, ex = 0, fx = 0, fz = 0, best = -Infinity, owner = -1, ownerW = 0, held = 0, lakeShore = -Infinity, riverW = 0;
                 // Ground below the sea's level that the open sea does not reach is a dry basin: as far above the sea as a texel.
                 const seaDeep = !ocean ? -DEEP : g === null ? DEEP : g < ocean.level && !sea![k] ? -texel : (ocean.level - g) / slope;
@@ -302,6 +308,9 @@ export class WaterField {
         yield* levelShore(field, texel);
         yield* fillDry(field);
         surfDistance(field, rivers, texel, surfLength);
+        // The water beside a steep shore takes its steepness: a cliff's foot is a texel or two out in the water.
+        blur(field.steep, grid.nx, grid.nz, 2);
+        for (let k = 0; k < field.steep.length; k++) field.steep[k] = Math.min(field.steep[k]! * 2, 1);
         return field;
     }
 
@@ -363,7 +372,7 @@ export class WaterField {
     /**
      * The field as two RGBA8 images, rows from minZ. heights (read texel by texel: filtered bytes are no number): rg the height, high byte
      * first; b the depth, as its square root (fine where the water is shallow, where the shore is drawn by it); a the swell (the body's waves' height). field (filtered): r the shore distance (0.5 at it, a signed square root); gb the current (0.5 still); a the calm.
-     * exposure (filtered): r how open the water is to the wind; g the distance the surf runs in by; b how much surf a current leaves. Each over its range in `r`.
+     * exposure (filtered): r how open the water is to the wind; g the distance the surf runs in by; b how much surf a current leaves; a how steep the shore is. Each over its range in `r`.
      */
     encode(r: ZoneRanges): { heights: Uint8Array; field: Uint8Array; exposure: Uint8Array } {
         const n = this.height.length;
@@ -386,7 +395,7 @@ export class WaterField {
             const surf = Math.max(Math.min(this.surf[k]! / r.shore, 1), -1);
             exposure[k * 4 + 1] = byte(Math.sign(surf) * Math.sqrt(Math.abs(surf)) / 2 + 0.5);
             exposure[k * 4 + 2] = byte(this.still[k]!);
-            exposure[k * 4 + 3] = 255;
+            exposure[k * 4 + 3] = byte(this.steep[k]!);
         }
         return { heights, field, exposure };
     }

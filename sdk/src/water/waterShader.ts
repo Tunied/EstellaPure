@@ -161,17 +161,22 @@ float waterZoneStill(vec2 p) {
     vec2 uv = (p - u_zoneOrigin) / max(u_zoneSize, vec2(1e-4));
     return textureLod(u_zoneExposure, clamp(uv, 0.0, 1.0), 0.0).b;
 }
+// How steep the shore is at p: 0 a gentle beach (waves wash up it), 1 rock or a cliff (they burst white on it).
+float waterZoneSteep(vec2 p) {
+    vec2 uv = (p - u_zoneOrigin) / max(u_zoneSize, vec2(1e-4));
+    return textureLod(u_zoneExposure, clamp(uv, 0.0, 1.0), 0.0).a;
+}
 // The surf (waves.ts surfHeight): its crests are lines of phase (the distance the surf runs in by), and it rises, breaks and runs up by
 // shore, the real distance to the shore. x its height, y how broken it is (white water on and behind a breaking crest).
 vec2 waterSurf(float phase, float shore, float height, float time) {
     if (height <= 0.0 || u_surfLength <= 0.0) return vec2(0.0);
     float reach = u_surfLength * 4.0;
-    if (shore > reach || shore < -reach * 0.2) return vec2(0.0);
+    if (shore > reach || shore < -reach * 0.05) return vec2(0.0);
     float celerity = sqrt(9.8 * u_surfLength / 6.2831853) * u_surfSpeed;
     float u = fract(phase / u_surfLength + celerity * time / u_surfLength);
     float g = u > 0.8 ? smoothstep(0.0, 1.0, (u - 0.8) / 0.2) : 1.0 - smoothstep(0.0, 1.0, u / 0.8);
     float shoal = 1.0 - smoothstep(0.0, 1.0, (shore - reach * 0.25) / (reach * 0.75));
-    float runUp = shore >= 0.0 ? 1.0 : 1.0 - smoothstep(0.0, 1.0, -shore / (reach * 0.2));
+    float runUp = shore >= 0.0 ? 1.0 : 1.0 - smoothstep(0.0, 1.0, -shore / (reach * 0.05));
     float env = shoal * runUp;
     // It breaks in the inner third: the crest whitens, and the water behind it stays white a while.
     float breaking = 1.0 - smoothstep(reach * 0.15, reach * 0.4, shore);
@@ -259,17 +264,22 @@ fn waterZoneStill(p : vec2f) -> f32 {
     let uv = (p - mc.u_zoneOrigin) / max(mc.u_zoneSize, vec2f(1e-4));
     return textureSampleLevel(u_zoneExposure, u_zoneExposure_s, clamp(uv, vec2f(0.0), vec2f(1.0)), 0.0).b;
 }
+// How steep the shore is at p: 0 a gentle beach (waves wash up it), 1 rock or a cliff (they burst white on it).
+fn waterZoneSteep(p : vec2f) -> f32 {
+    let uv = (p - mc.u_zoneOrigin) / max(mc.u_zoneSize, vec2f(1e-4));
+    return textureSampleLevel(u_zoneExposure, u_zoneExposure_s, clamp(uv, vec2f(0.0), vec2f(1.0)), 0.0).a;
+}
 fn waterSurf(phase : f32, shore : f32, height : f32, time : f32) -> vec2f {
     if (height <= 0.0 || mc.u_surfLength <= 0.0) { return vec2f(0.0); }
     let reach = mc.u_surfLength * 4.0;
-    if (shore > reach || shore < -reach * 0.2) { return vec2f(0.0); }
+    if (shore > reach || shore < -reach * 0.05) { return vec2f(0.0); }
     let celerity = sqrt(9.8 * mc.u_surfLength / 6.2831853) * mc.u_surfSpeed;
     let u = fract(phase / mc.u_surfLength + celerity * time / mc.u_surfLength);
     var g = 1.0 - smoothstep(0.0, 1.0, u / 0.8);
     if (u > 0.8) { g = smoothstep(0.0, 1.0, (u - 0.8) / 0.2); }
     let shoal = 1.0 - smoothstep(0.0, 1.0, (shore - reach * 0.25) / (reach * 0.75));
     var runUp = 1.0;
-    if (shore < 0.0) { runUp = 1.0 - smoothstep(0.0, 1.0, -shore / (reach * 0.2)); }
+    if (shore < 0.0) { runUp = 1.0 - smoothstep(0.0, 1.0, -shore / (reach * 0.05)); }
     let env = shoal * runUp;
     let breaking = 1.0 - smoothstep(reach * 0.15, reach * 0.4, shore);
     let steep = smoothstep(0.012, 0.045, height / mc.u_surfLength);
@@ -448,17 +458,22 @@ float waterZoneStill(vec2 p) {
     vec2 uv = (p - u_zoneOrigin) / max(u_zoneSize, vec2(1e-4));
     return textureLod(u_zoneExposure, clamp(uv, 0.0, 1.0), 0.0).b;
 }
+// How steep the shore is at p: 0 a gentle beach (waves wash up it), 1 rock or a cliff (they burst white on it).
+float waterZoneSteep(vec2 p) {
+    vec2 uv = (p - u_zoneOrigin) / max(u_zoneSize, vec2(1e-4));
+    return textureLod(u_zoneExposure, clamp(uv, 0.0, 1.0), 0.0).a;
+}
 // The surf (waves.ts surfHeight): its crests are lines of phase (the distance the surf runs in by), and it rises, breaks and runs up by
 // shore, the real distance to the shore. x its height, y how broken it is (white water on and behind a breaking crest).
 vec2 waterSurf(float phase, float shore, float height, float time) {
     if (height <= 0.0 || u_surfLength <= 0.0) return vec2(0.0);
     float reach = u_surfLength * 4.0;
-    if (shore > reach || shore < -reach * 0.2) return vec2(0.0);
+    if (shore > reach || shore < -reach * 0.05) return vec2(0.0);
     float celerity = sqrt(9.8 * u_surfLength / 6.2831853) * u_surfSpeed;
     float u = fract(phase / u_surfLength + celerity * time / u_surfLength);
     float g = u > 0.8 ? smoothstep(0.0, 1.0, (u - 0.8) / 0.2) : 1.0 - smoothstep(0.0, 1.0, u / 0.8);
     float shoal = 1.0 - smoothstep(0.0, 1.0, (shore - reach * 0.25) / (reach * 0.75));
-    float runUp = shore >= 0.0 ? 1.0 : 1.0 - smoothstep(0.0, 1.0, -shore / (reach * 0.2));
+    float runUp = shore >= 0.0 ? 1.0 : 1.0 - smoothstep(0.0, 1.0, -shore / (reach * 0.05));
     float env = shoal * runUp;
     // It breaks in the inner third: the crest whitens, and the water behind it stays white a while.
     float breaking = 1.0 - smoothstep(reach * 0.15, reach * 0.4, shore);
@@ -682,9 +697,15 @@ void main() {
         // With the picture's depth the shallows foam by it, pixel by pixel; the baked depth then adds only the traced outline, not its texels.
         float baked = haveDepth ? shoreDist : min(shoreDist, shoreDepth);
         shore = max(shore, clamp((1.0 - baked / (u_foamWidth * pulse)) * 1.25 - breakup * 1.15, 0.0, 1.0));
+        // How the shore takes its waves: against rock or a cliff they burst white; up a gentle beach they wash in a thin line only; and the
+        // less room the wind has to raise them (a sheltered lake), the less of either.
+        float pound = waterZoneSteep(wp);
+        float swash = 1.0 - smoothstep(0.0, surfStep * 1.5, shoreDist);
+        shore *= mix(swash * 0.6, 1.0, pound) * mix(0.3, 1.0, zone.w);
     }
     float onCrest = u_foamCrest > 0.0 ? smoothstep(1.0 - 0.3 * u_foamCrest, 1.0, crest) * smoothstep(0.35, 0.75, breakup) : 0.0;
-    float surfFoam = surf.y * smoothstep(0.15, 0.6, breakup + surf.y * 0.4);
+    // A breaker whitens as much on a beach as the waves are big, but bursts whitest on rock.
+    float surfFoam = surf.y * smoothstep(0.15, 0.6, breakup + surf.y * 0.4) * mix(0.45, 1.0, zoneOn ? waterZoneSteep(wp) : 1.0);
     float foam = clamp(max(max(max(shore, onCrest * u_foamCrest), ripFoam * (0.55 + 0.45 * breakup)), surfFoam), 0.0, 1.0);
     // Foam floats on top: from under the water it is a thin shadow on the light, not a white sheet.
     if (below) foam *= 0.2;
@@ -886,17 +907,22 @@ fn waterZoneStill(p : vec2f) -> f32 {
     let uv = (p - mc.u_zoneOrigin) / max(mc.u_zoneSize, vec2f(1e-4));
     return textureSampleLevel(u_zoneExposure, u_zoneExposure_s, clamp(uv, vec2f(0.0), vec2f(1.0)), 0.0).b;
 }
+// How steep the shore is at p: 0 a gentle beach (waves wash up it), 1 rock or a cliff (they burst white on it).
+fn waterZoneSteep(p : vec2f) -> f32 {
+    let uv = (p - mc.u_zoneOrigin) / max(mc.u_zoneSize, vec2f(1e-4));
+    return textureSampleLevel(u_zoneExposure, u_zoneExposure_s, clamp(uv, vec2f(0.0), vec2f(1.0)), 0.0).a;
+}
 fn waterSurf(phase : f32, shore : f32, height : f32, time : f32) -> vec2f {
     if (height <= 0.0 || mc.u_surfLength <= 0.0) { return vec2f(0.0); }
     let reach = mc.u_surfLength * 4.0;
-    if (shore > reach || shore < -reach * 0.2) { return vec2f(0.0); }
+    if (shore > reach || shore < -reach * 0.05) { return vec2f(0.0); }
     let celerity = sqrt(9.8 * mc.u_surfLength / 6.2831853) * mc.u_surfSpeed;
     let u = fract(phase / mc.u_surfLength + celerity * time / mc.u_surfLength);
     var g = 1.0 - smoothstep(0.0, 1.0, u / 0.8);
     if (u > 0.8) { g = smoothstep(0.0, 1.0, (u - 0.8) / 0.2); }
     let shoal = 1.0 - smoothstep(0.0, 1.0, (shore - reach * 0.25) / (reach * 0.75));
     var runUp = 1.0;
-    if (shore < 0.0) { runUp = 1.0 - smoothstep(0.0, 1.0, -shore / (reach * 0.2)); }
+    if (shore < 0.0) { runUp = 1.0 - smoothstep(0.0, 1.0, -shore / (reach * 0.05)); }
     let env = shoal * runUp;
     let breaking = 1.0 - smoothstep(reach * 0.15, reach * 0.4, shore);
     let steep = smoothstep(0.012, 0.045, height / mc.u_surfLength);
@@ -1120,10 +1146,18 @@ fn waterSurface(p : vec2f, time : f32, dist : f32, amp : f32, calm : f32) -> vec
         var baked = min(shoreDist, shoreDepth);
         if (haveDepth) { baked = shoreDist; }
         shore = max(shore, clamp((1.0 - baked / (mc.u_foamWidth * pulse)) * 1.25 - breakup * 1.15, 0.0, 1.0));
+        // How the shore takes its waves: against rock or a cliff they burst white; up a gentle beach they wash in a thin line only; and the
+        // less room the wind has to raise them (a sheltered lake), the less of either.
+        let pound = waterZoneSteep(wp);
+        let swash = 1.0 - smoothstep(0.0, surfStep * 1.5, shoreDist);
+        shore = shore * mix(swash * 0.6, 1.0, pound) * mix(0.3, 1.0, zone.w);
     }
     var onCrest = 0.0;
     if (mc.u_foamCrest > 0.0) { onCrest = smoothstep(1.0 - 0.3 * mc.u_foamCrest, 1.0, waves.crest) * smoothstep(0.35, 0.75, breakup); }
-    let surfFoam = surf.y * smoothstep(0.15, 0.6, breakup + surf.y * 0.4);
+    // A breaker whitens as much on a beach as the waves are big, but bursts whitest on rock.
+    var steepHere = 1.0;
+    if (zoneOn) { steepHere = waterZoneSteep(wp); }
+    let surfFoam = surf.y * smoothstep(0.15, 0.6, breakup + surf.y * 0.4) * mix(0.45, 1.0, steepHere);
     var foam = clamp(max(max(max(shore, onCrest * mc.u_foamCrest), ripFoam * (0.55 + 0.45 * breakup)), surfFoam), 0.0, 1.0);
     if (below) { foam = foam * 0.2; }
 
