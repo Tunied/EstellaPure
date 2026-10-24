@@ -8,6 +8,10 @@
  *          can say what for. So such work is a job: a generator that yields how far along it is, stepped each frame for as long as
  *          the frame can spare. Every job running is listed with its label and progress, which the editor shows in its status bar
  *          and a game can put on a loading screen.
+ *
+ *          The frame's budget is one, and it is here: the jobs and the work stepped elsewhere (pages made, chunks of the world built)
+ *          spend the same milliseconds. The jobs run first each frame; when the rest could not finish the frame before, the jobs leave
+ *          them half of it.
  */
 import type { App } from '../app/app';
 import { defineResource } from '../ecs/resource';
@@ -32,8 +36,14 @@ interface Running {
 
 /** The jobs an App is running. Read {@link Bakes.active} for what to show. */
 export class Bakes {
-    /** How long, in milliseconds, the jobs may take of a frame between them. */
+    /** How long, in milliseconds, all the work spread over frames may take of one frame between it. */
     budgetMs = 8;
+    /** When this frame's budget runs out, on the clock `step` was given. */
+    private deadline_ = -Infinity;
+    private clock_: () => number = () => performance.now();
+    /** Whether work stepped elsewhere ran out of time, this frame and the one before. */
+    private starved_ = false;
+    private starvedBefore_ = false;
     private readonly running_ = new Set<Running>();
     private readonly marks_ = new Map<object, { label: string; progress: number }>();
 
@@ -71,10 +81,25 @@ export class Bakes {
         return out;
     }
 
-    /** Steps the jobs for the frame's budget, oldest first; a job that finishes or throws settles its promise. */
+    /**
+     * Whether work stepped elsewhere may go on this frame. Such work does what it must at once (what stands right by the player)
+     * whatever this says, and stops when it says no; saying no is remembered, so the jobs leave it more of the next frame.
+     */
+    hasTime(): boolean {
+        if (this.clock_() < this.deadline_) return true;
+        this.starved_ = true;
+        return false;
+    }
+
+    /** Starts the frame's budget and steps the jobs for their part of it, oldest first; a job that finishes or throws settles its promise. */
     step(now: () => number = () => performance.now()): void {
+        this.clock_ = now;
+        this.starvedBefore_ = this.starved_;
+        this.starved_ = false;
+        const start = now();
+        this.deadline_ = start + this.budgetMs;
         if (this.running_.size === 0) return;
-        const end = now() + this.budgetMs;
+        const end = start + (this.starvedBefore_ ? this.budgetMs / 2 : this.budgetMs);
         for (const r of [...this.running_]) {
             // Every job advances at least once a frame, so a long one cannot starve those behind it.
             do {

@@ -29,3 +29,7 @@ export {
     prefabRootOf, resolvePrefabRoots, type CutWorld,
 } from './cutWorld';
 export { registryEntityFields } from './componentRefs';
+export {
+    ProceduralChunks, ProceduralChunksRes, chunksOf, streamingSourcesOf,
+    type ChunkLayer, type ChunkSource, type ChunkState, type ChunkLayerStatus,
+} from './chunks';

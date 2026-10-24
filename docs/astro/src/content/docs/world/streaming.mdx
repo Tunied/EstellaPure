@@ -131,6 +131,39 @@ enemy at 25 health that you walk away from comes back at full health. What does
 survive is the entity's authored identity, which is what a save system will be
 built on later.
 
+## Procedural chunks
+
+What a game makes as it runs (the ground's collision round what moves, plants round the eye, and whatever a game generates itself) is
+not a cooked cell but a chunk of a **layer**, and `ProceduralChunks` is the one owner of their lifetime, as the streamer is of cells. A
+layer says how it is cut, how far round its sources it is wanted and how one chunk is made, published and released:
+
+```typescript
+import { chunksOf } from 'esengine';
+
+chunksOf(app).set('ruins', {
+    label: 'Placing ruins',
+    originX: 0, originZ: 0, sizeX: 64, sizeZ: 64, extent: null,
+    loadRadius: 256, unloadRadius: 320,
+    generation: `${planet}:${generatorVersion}`,     // what the chunks are made from
+    make: (cx, cz, signal) => generateRuins(cx, cz, signal), // a value, null for "not yet", or a promise
+    publish: (cx, cz, ruins) => spawnRuins(ruins),
+    release: (cx, cz, ruins) => despawnRuins(ruins),
+});
+```
+
+- **One set of sources.** A layer is wanted round the same `WorldStreamingSource`s the streamer reads (or the eye, where there are
+  none), unless it names its own: terrain collision follows every moving 3D body and character.
+- **One budget.** Every frame the wanted chunks of every layer are made nearest first: the ones a source stands in at once, the rest
+  while the frame's budget lasts. The budget is `Bakes.budgetMs`, shared with the bakes and the terrain's pages.
+- **Bounded.** A chunk past every source's `unloadRadius` is released, with everything it published, so walking for ever holds a fixed
+  number; stepping back and forth inside the band makes nothing again.
+- **Generations.** `generation` names a layer's inputs. When it changes every chunk is made again, and its old version stays published
+  until the new one replaces it, so nothing standing on it falls. An answer that arrives for an older generation (a teleport to another
+  planet while a worker was still busy with the last) is thrown away, and the chunk's `AbortSignal` is aborted.
+- **Readable.** `status(id)` counts a layer's chunks (ready, stale, pending, making, failed, with the first failure's reason), and
+  `stateAt(id, x, z)` says where the chunk at a point stands. Layers still making chunks show with their progress in the editor's status
+  bar, through the same list as the bakes.
+
 ## Reading what is resident
 
 ```typescript

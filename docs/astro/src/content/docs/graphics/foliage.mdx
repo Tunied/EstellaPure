@@ -9,8 +9,11 @@ hundred draws that culling can drop whole, and each cell is built at the detail 
 
 ## The component
 
-Add a `Foliage` component to an entity. The area is centred on it, and its children are the cells, made when the scene runs (and in the
-editor's scene view) and made again when a field changes. Nothing is baked.
+Add a `Foliage` component to an entity. The area is centred on it, and its children are the cells. They are
+[procedural chunks](/docs/world/streaming/#procedural-chunks): grown round the streaming sources (or the eye, in a game without any, and in
+the editor's scene view) out to `drawDistance`, nearest first, and let go with their meshes past it, so a large area holds only the cells
+near what looks at it. When a field, the ground or the water changes they are grown again, each old cell staying until its new one
+replaces it. Nothing is baked.
 
 | Field | What it does |
 |---|---|
@@ -53,4 +56,4 @@ Foliage is an optional module, like terrain: a package carries it when a scene h
 - **No collision and no interaction.** Plants do not bend away from a character; the wind is the only thing that moves them.
 - **The far version of a mesh is a card, not an impostor.** It shows the rectangle of the plant's texture you name, from every side the same; a
   tree whose texture has no such picture shows its texture there.
-- **Cells are built a few a frame**, so a large field appears over a moment.
+- **Cells are grown within the frame's budget**, nearest first, so the distance fills in over a moment.

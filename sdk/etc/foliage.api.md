@@ -53,6 +53,7 @@ waterDepth: number
 
 ## FoliageField — class @experimental
 ```
+@internal app_: App | null
 @internal authoredWind_: Map<number, number>
 @internal built_: Map<number, BuiltFoliage>
 cellCount: number

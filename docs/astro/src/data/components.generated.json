@@ -5325,6 +5325,35 @@
           "range": "≥ 1"
         },
         {
+          "key": "collision",
+          "type": "boolean",
+          "default": "true",
+          "doc": "Whether 3D bodies and characters collide with the ground: the finest level's triangles, wherever the camera is."
+        },
+        {
+          "key": "collisionDistance",
+          "type": "number",
+          "default": "64",
+          "doc": "How far round each moving body and character the ground is built for collision, in world units.",
+          "range": "≥ 1"
+        },
+        {
+          "key": "collisionLayer",
+          "type": "number",
+          "default": "0",
+          "doc": "The collision layer the ground is in (0 to 15).",
+          "range": "0–15, step 1",
+          "advanced": true
+        },
+        {
+          "key": "friction",
+          "type": "number",
+          "default": "0.6",
+          "doc": "How much the ground holds what slides on it.",
+          "range": "≥ 0",
+          "advanced": true
+        },
+        {
           "key": "seed",
           "type": "number",
           "default": "1",
@@ -5434,6 +5463,9 @@
         "cellSize",
         "detail",
         "drawDistance",
+        "collisionDistance",
+        "collisionLayer",
+        "friction",
         "seed",
         "frequency",
         "octaves",

@@ -112,6 +112,30 @@ main.esscene ──cook──▶ main.esscene          持久世界
 内容重建。你走开时只剩 25 点血的敌人,回来时是满血的。真正留下来的是实体的编排身份,
 以后的存档系统会建在它上面。
 
+## 程序化区块
+
+游戏在运行中生成的东西(运动物体周围的地面碰撞、视点周围的植被、游戏自己生成的任何东西)不是 cook 出来的格子,而是某个**层**的区块,`ProceduralChunks` 是它们生命周期的唯一所有者,就像流送器之于格子。一个层说明自己怎么切分、在它的源周围多远内需要、一个区块怎么生成、发布和释放:
+
+```typescript
+import { chunksOf } from 'esengine';
+
+chunksOf(app).set('ruins', {
+    label: 'Placing ruins',
+    originX: 0, originZ: 0, sizeX: 64, sizeZ: 64, extent: null,
+    loadRadius: 256, unloadRadius: 320,
+    generation: `${planet}:${generatorVersion}`,     // 区块由什么生成
+    make: (cx, cz, signal) => generateRuins(cx, cz, signal), // 一个值、表示"还不行"的 null,或一个 Promise
+    publish: (cx, cz, ruins) => spawnRuins(ruins),
+    release: (cx, cz, ruins) => despawnRuins(ruins),
+});
+```
+
+- **同一组源。** 层围绕流送器读取的同一批 `WorldStreamingSource`(没有时是视点)被需要,除非它指定自己的源:地形碰撞跟随每个运动的 3D 刚体和角色。
+- **同一份预算。** 每帧所有层需要的区块由近及远生成:源所在的区块立刻生成,其余在本帧预算内生成。预算是 `Bakes.budgetMs`,与烘焙作业和地形页共用。
+- **有上限。** 超出所有源 `unloadRadius` 的区块连同它发布的一切被释放,所以一直走下去持有的区块数是固定的;在带内来回走不会重复生成。
+- **代次。** `generation` 标识层的输入。它变化时每个区块重新生成,旧版本保留发布直到新版本替换它,站在上面的东西不会掉下去。为旧代次返回的结果(worker 还在算上一个星球时就传送到了另一个星球)被丢弃,区块的 `AbortSignal` 被中止。
+- **可查询。** `status(id)` 统计一个层的区块(ready、stale、pending、making、failed,以及第一个失败的原因),`stateAt(id, x, z)` 说明某点所在区块的状态。仍在生成区块的层会和烘焙作业一起、带着进度显示在编辑器状态栏里。
+
 ## 读取当前常驻状态
 
 ```typescript

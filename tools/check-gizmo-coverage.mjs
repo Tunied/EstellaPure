@@ -119,6 +119,7 @@ const DISPOSITION = {
   'Foliage.sizeZ': ['owed', 'the area plants grow in is not outlined in the viewport yet'],
   'Terrain.cellSize': ['no-place', 'the finest cell of the ground\'s mesh near the eye, not a region of the entity'],
   'Terrain.drawDistance': ['no-place', 'how far from the eye ground without end is drawn, not a region of the entity'],
+  'Terrain.collisionDistance': ['no-place', 'how far round each moving body the ground is built for collision, not a region of the entity'],
   'Foliage.cellSize': ['no-place', 'the square the area is cut into for drawing, not a region of the entity'],
   'Foliage.bladeWidth': ['renders', 'the blades drawn at it are the picture'],
   'Foliage.bladeHeight': ['renders', 'the blades drawn at it are the picture'],

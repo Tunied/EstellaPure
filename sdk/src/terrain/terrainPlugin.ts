@@ -42,8 +42,9 @@ import { levelRange, nodeKey, parentOf, selectNodes, type QuadtreeParams, type T
 import { makePage, PageTable, PAGE_SIDE, PAGE_TEXELS, PATCH_CELLS, type PageImage } from './pages';
 import { noiseProvider, ProviderSource, terrainProvider, TerrainUnavailable } from './provider';
 import { buildPatchMesh } from './patch';
-import { TerrainSurface, TILE_CELLS } from './surface';
+import { TerrainSurface, TILE_CELLS, type SurfaceTile } from './surface';
 import { collisionGeometryOf } from '../runtime/collisionGeometry';
+import { chunksOf, ProceduralChunksRes, type ChunkSource } from '../residency/chunks';
 import { CharacterController3D, RigidBody3D, type RigidBody3DData } from '../physics3d/Physics3DComponents';
 
 /** The engine's own provider of ground without end: seeded noise of the world's position. */
@@ -176,13 +177,12 @@ export function paintWeights(h: number, ny: number, t: Pick<TerrainData, 'rockSl
 
 /** The side of the atlases the pages are kept in, in texels: 900 pages of 67 by 67. */
 const ATLAS_SIZE = 2048;
-/** Collision tiles built a frame beyond the ones under something that moves, which are built at once. */
-const TILE_BUDGET = 4;
-
+/** The chunk layer a terrain's collision is, and the key of one tile's piece of collision geometry. */
+const collisionLayerOf = (entity: Entity): string => `terrain-collision:${entity}`;
 const tileKey = (entity: Entity, tx: number, tz: number): string => `terrain:${entity}:${tx}:${tz}`;
 
-/** How long a frame may spend making pages, in milliseconds; at least one is made a frame while any is wanted. */
-const PAGE_BUDGET_MS = 5;
+/** Pages asked at once of a provider that answers later. */
+const PAGES_IN_FLIGHT = 16;
 
 /** What the plugin knows about one terrain it has built. */
 interface Built {
@@ -191,11 +191,6 @@ interface Built {
     source: TerrainSource | null;
     /** The triangles of the finest level, which queries and collision read. */
     surface: TerrainSurface | null;
-    /** The collision tiles built from this source, by key, and the settings they were built with. */
-    tiles: Set<string>;
-    /** Tiles of the ground this one replaced, kept until its own are built over them or nothing is near them. */
-    stale: Set<string>;
-    tileSettings: string;
     /** Bumped on every rebuild so an answer that arrives for an older one is thrown away. */
     epoch: number;
     loading: boolean;
@@ -260,17 +255,14 @@ export class Terrains {
 
     /** Whether the ground under (x, z) is built for collision: what a game waits on before it drops something there. */
     collisionReadyAt(x: number, z: number): boolean {
-        const world = this.app_?.world;
-        if (!world) return false;
+        const app = this.app_;
+        if (!app?.hasResource(ProceduralChunksRes)) return false;
+        const chunks = app.getResource(ProceduralChunksRes);
         for (const [entity, built] of this.built_) {
-            const surface = built.surface;
-            if (!surface || !world.valid(entity)) continue;
-            const t = world.tryGet(entity, Transform) as TransformData | null;
-            if (!t) continue;
-            const lx = x - t.worldPosition.x, lz = z - t.worldPosition.z;
-            if (!surface.covers(lx, lz)) continue;
-            const span = TILE_CELLS * surface.cell;
-            return built.tiles.has(tileKey(entity, Math.floor(lx / span), Math.floor(lz / span)));
+            const t = app.world.valid(entity) ? app.world.tryGet(entity, Transform) as TransformData | null : null;
+            if (!t || !built.surface?.covers(x - t.worldPosition.x, z - t.worldPosition.z)) continue;
+            const state = chunks.stateAt(collisionLayerOf(entity), x, z);
+            return state === 'ready' || state === 'stale';
         }
         return false;
     }
@@ -310,6 +302,24 @@ function signatureOf(data: TerrainData): string {
     return JSON.stringify(shape);
 }
 
+/** Where what collides with the ground is: every moving 3D body and every character. */
+function movers(app: App): ChunkSource[] {
+    const world = app.world;
+    world.ensureTransformsComposed();
+    const out: ChunkSource[] = [];
+    for (const e of world.getEntitiesWithComponents([RigidBody3D, Transform])) {
+        const body = world.get(e, RigidBody3D) as RigidBody3DData;
+        if (!body.enabled || body.bodyType === 0) continue;
+        const p = (world.get(e, Transform) as TransformData).worldPosition;
+        out.push({ x: p.x, z: p.z });
+    }
+    for (const e of world.getEntitiesWithComponents([CharacterController3D, Transform])) {
+        const p = (world.get(e, Transform) as TransformData).worldPosition;
+        out.push({ x: p.x, z: p.z });
+    }
+    return out;
+}
+
 export class TerrainPlugin implements Plugin {
     name = 'terrain';
 
@@ -330,11 +340,9 @@ export class TerrainPlugin implements Plugin {
                 const signature = signatureOf(data);
                 let built = terrains.built_.get(entity);
                 if (!built || built.signature !== signature) {
-                    // The old ground's collision tiles stay until the new ground's replace them, so nothing on it falls while it rebuilds.
-                    const kept = built?.tiles ?? new Set<string>();
                     if (built) this.destroy(app, built);
                     built = {
-                        signature, data: { ...data }, source: null, surface: null, tiles: new Set(), stale: kept, tileSettings: '', epoch: (built?.epoch ?? 0) + 1, loading: true, cancel: null,
+                        signature, data: { ...data }, source: null, surface: null, epoch: (built?.epoch ?? 0) + 1, loading: true, cancel: null,
                         table: new PageTable(ATLAS_SIZE), heights: 0, paint: 0, mesh: 0, instance: 0,
                         nodes: new Map(), spare: [], wanted: new Map(), asked: new Set(), pending: false, failure: null,
                     };
@@ -343,10 +351,8 @@ export class TerrainPlugin implements Plugin {
                     continue;
                 }
                 built.data = { ...data };
-                if (built.failure) this.dropCollision(app, entity, built);
-                if (built.loading || !built.source) continue;
                 this.collide(app, entity, built);
-                if (!rendering) continue;
+                if (built.loading || !built.source || !rendering) continue;
                 if (!built.instance) {
                     if (!built.pending) void this.prepare(app, built);
                     continue;
@@ -360,7 +366,7 @@ export class TerrainPlugin implements Plugin {
         if (!app?.hasResource(TerrainsRes)) return;
         const terrains = app.getResource(TerrainsRes);
         for (const [entity, built] of terrains.built_) {
-            this.dropCollision(app, entity, built);
+            if (app.hasResource(ProceduralChunksRes)) app.getResource(ProceduralChunksRes).remove(collisionLayerOf(entity));
             this.destroy(app, built);
         }
         terrains.built_.clear();
@@ -484,80 +490,43 @@ export class TerrainPlugin implements Plugin {
     }
 
     /**
-     * Builds the collision tiles within `collisionDistance` of every moving 3D body and character, the ones under them at once and
-     * the rest a few a frame, nearest first; lets go of tiles nothing has come within a tile of that distance.
+     * The terrain's collision as a layer of procedural chunks: a tile within `collisionDistance` of every moving 3D body and character,
+     * made when one comes near, let go when none is, and made again (the old tile kept till then) when the ground changes.
      */
     private collide(app: App, entity: Entity, built: Built): void {
-        const d = built.data, surface = built.surface;
-        if (!d.collision || !surface) { this.dropCollision(app, entity, built); return; }
+        const id = collisionLayerOf(entity);
+        const d = built.data;
+        if (!d.collision || built.failure) {
+            if (app.hasResource(ProceduralChunksRes)) app.getResource(ProceduralChunksRes).remove(id);
+            return;
+        }
+        const chunks = chunksOf(app);
+        const at = (app.world.get(entity, Transform) as TransformData).worldPosition;
+        const cell = Math.max(d.cellSize, 1e-3), span = TILE_CELLS * cell;
+        const bounds = built.source?.bounds ?? (d.extent === TerrainExtent.Area ? [-d.sizeX / 2, -d.sizeZ / 2, d.sizeX / 2, d.sizeZ / 2] : null);
         const geometry = collisionGeometryOf(app);
-        // Where things are now, not where they were when transforms were last composed: O(1) when nothing moved.
-        app.world.ensureTransformsComposed();
-        const t = app.world.get(entity, Transform) as TransformData;
-        const at = t.worldPosition;
-        // A tile is placed where the terrain was when it was built: moving the terrain, or another layer or friction, builds them again.
-        const settings = `${d.collisionLayer}:${d.friction}:${at.x}:${at.y}:${at.z}`;
-        if (settings !== built.tileSettings) {
-            for (const k of built.tiles) built.stale.add(k);
-            built.tiles.clear();
-            built.tileSettings = settings;
-        }
-        const span = TILE_CELLS * surface.cell, reach = Math.max(d.collisionDistance, 0), keep = reach + span;
-        const bounds = surface.source.bounds;
-        const near = new Map<string, { tx: number; tz: number; dist: number }>();
-        const visit = (x: number, z: number): void => {
-            const lx = x - at.x, lz = z - at.z;
-            for (let tz = Math.floor((lz - keep) / span); tz <= Math.floor((lz + keep) / span); tz++) {
-                for (let tx = Math.floor((lx - keep) / span); tx <= Math.floor((lx + keep) / span); tx++) {
-                    const x0 = tx * span, z0 = tz * span;
-                    if (bounds && (x0 >= bounds[2] || z0 >= bounds[3] || x0 + span <= bounds[0] || z0 + span <= bounds[1])) continue;
-                    const dist = Math.hypot(Math.max(x0 - lx, 0, lx - x0 - span), Math.max(z0 - lz, 0, lz - z0 - span));
-                    if (dist > keep) continue;
-                    const key = tileKey(entity, tx, tz);
-                    const had = near.get(key);
-                    if (!had || dist < had.dist) near.set(key, { tx, tz, dist });
-                }
-            }
-        };
-        for (const e of app.world.getEntitiesWithComponents([RigidBody3D, Transform])) {
-            const body = app.world.get(e, RigidBody3D) as RigidBody3DData;
-            if (!body.enabled || body.bodyType === 0) continue;
-            const p = (app.world.get(e, Transform) as TransformData).worldPosition;
-            visit(p.x, p.z);
-        }
-        for (const e of app.world.getEntitiesWithComponents([CharacterController3D, Transform])) {
-            const p = (app.world.get(e, Transform) as TransformData).worldPosition;
-            visit(p.x, p.z);
-        }
-
-        const missing = [...near].filter(([key, n]) => n.dist <= reach && !built.tiles.has(key)).sort((a, b) => a[1].dist - b[1].dist);
-        let budget = TILE_BUDGET;
-        for (const [key, n] of missing) {
-            if (n.dist > 0 && budget <= 0) break;
-            const tile = surface.tile(n.tx, n.tz);
-            // A provider that answers later has been asked for the samples; the tile is built once they are in.
-            if (!tile) continue;
-            if (n.dist > 0) budget--;
-            geometry.set(key, {
-                owner: entity, origin: [at.x + tile.x0, at.y, at.z + tile.z0], positions: tile.positions, indices: tile.indices,
-                friction: d.friction, restitution: 0, layer: d.collisionLayer,
-            });
-            built.tiles.add(key);
-            built.stale.delete(key);
-        }
-        for (const key of built.tiles) if (!near.has(key)) { geometry.delete(key); built.tiles.delete(key); }
-        for (const key of built.stale) if (!near.has(key)) { geometry.delete(key); built.stale.delete(key); }
-    }
-
-    /** Takes a terrain's collision tiles out of the world, its own and those of the ground it replaced. */
-    private dropCollision(app: App, entity: Entity, built: Built): void {
-        if (built.tiles.size === 0 && built.stale.size === 0) return;
-        const geometry = collisionGeometryOf(app);
-        for (const key of built.tiles) geometry.delete(key);
-        for (const key of built.stale) geometry.delete(key);
-        built.tiles.clear();
-        built.stale.clear();
-        built.tileSettings = '';
+        chunks.set<{ key: string; tile: SurfaceTile }>(id, {
+            label: 'Building the ground\'s collision',
+            originX: at.x, originZ: at.z, sizeX: span, sizeZ: span,
+            extent: bounds && [Math.floor(bounds[0] / span), Math.floor(bounds[1] / span), Math.ceil(bounds[2] / span), Math.ceil(bounds[3] / span)],
+            loadRadius: Math.max(d.collisionDistance, 0),
+            unloadRadius: Math.max(d.collisionDistance, 0) + span,
+            // The ground (rebuilt under a new epoch), where it stands, and the layer and friction its tiles were made with.
+            generation: `${built.epoch}:${at.x}:${at.y}:${at.z}:${d.collisionLayer}:${d.friction}`,
+            sources: () => movers(app),
+            make: (tx, tz) => {
+                // The ground is not known yet (still loading, or a provider still answering): asked again next frame.
+                const tile = built.surface?.tile(tx, tz);
+                return tile ? { key: tileKey(entity, tx, tz), tile } : null;
+            },
+            publish: (_tx, _tz, { key, tile }) => {
+                geometry.set(key, {
+                    owner: entity, origin: [at.x + tile.x0, at.y, at.z + tile.z0], positions: tile.positions, indices: tile.indices,
+                    friction: d.friction, restitution: 0, layer: d.collisionLayer,
+                });
+            },
+            release: (_tx, _tz, { key }) => geometry.delete(key),
+        });
     }
 
     /** Where the eye is, in the terrain's space: the active camera, or the editor's own eye while it looks at the scene in 3D. */
@@ -644,7 +613,6 @@ export class TerrainPlugin implements Plugin {
         if (built.wanted.size === 0) { bakes.mark(built, 'Building the terrain', 1); return; }
         const order = [...built.wanted.values()].sort((a, b) => b.level - a.level
             || Math.hypot(a.x0 + a.size / 2 - eye[0], a.z0 + a.size / 2 - eye[2]) - Math.hypot(b.x0 + b.size / 2 - eye[0], b.z0 + b.size / 2 - eye[2]));
-        const until = performance.now() + PAGE_BUDGET_MS;
         let made = 0;
         const store = (key: string, image: PageImage): boolean => {
             const page = built.table.claim(key, image.min, image.max);
@@ -658,6 +626,7 @@ export class TerrainPlugin implements Plugin {
         for (const node of order) {
             const key = nodeKey(node.level, node.ix, node.iz);
             if (built.asked.has(key)) continue;
+            if (source.region && built.asked.size >= PAGES_IN_FLIGHT) break;
             const image = makePage(source, node.x0, node.z0, node.size);
             if (image instanceof Promise) {
                 // A provider answering later: its page is stored when it lands, if the terrain is still the one that asked.
@@ -674,7 +643,8 @@ export class TerrainPlugin implements Plugin {
             if (!store(key, image)) break;
             built.wanted.delete(key);
             made++;
-            if (performance.now() >= until) break;
+            // The frame's one budget, shared with the bakes and the chunks of the world; at least one page a frame.
+            if (!bakes.hasTime()) break;
         }
         bakes.mark(built, 'Building the terrain', made === 0 ? 0 : 1 - built.wanted.size / (built.wanted.size + made));
     }
@@ -748,7 +718,7 @@ export class TerrainPlugin implements Plugin {
     private sweep(app: App, terrains: Terrains): void {
         for (const [entity, built] of terrains.built_) {
             if (app.world.valid(entity) && app.world.has(entity, Terrain)) continue;
-            this.dropCollision(app, entity, built);
+            chunksOf(app).remove(collisionLayerOf(entity));
             this.destroy(app, built);
             terrains.built_.delete(entity);
             terrains.revision_++;

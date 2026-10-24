@@ -4,8 +4,10 @@
  * @file    foliagePlugin.ts
  * @brief   Grass and trees across an area, drawn a cell at a time and swaying in the wind.
  *
- * @details The `Foliage` component says what grows where; this grows it. The entity stays as authored and the cells are its children,
- *          made when the scene runs (and in the editor's scene view) and made again when a field changes, so nothing is baked.
+ * @details The `Foliage` component says what grows where; this grows it. The entity stays as authored and the cells are its children.
+ *          The cells are a layer of procedural chunks (residency/chunks.ts): grown round the streaming sources (or the eye) out to
+ *          `drawDistance`, nearest first within the frame's budget, let go with their meshes past it, and grown again when a field or
+ *          the ground changes, each old cell staying until its new one replaces it, so nothing is baked and nothing blinks out.
  *          Each cell is a MeshRenderer with a LODGroup (see builder.ts for what each level is), so culling and the choice of level are
  *          the engine's. If there is a Terrain, plants stand on it, avoid what is too steep and wait for it to be built.
  */
@@ -19,7 +21,7 @@ import {
 import { Assets } from '../asset/AssetPlugin';
 import type { MeshData } from '../asset/meshFormat';
 import { log } from '../util/logger';
-import { bakesOf } from '../runtime/bakes';
+import { chunksOf, ProceduralChunksRes, type ChunkLayerStatus } from '../residency/chunks';
 import type { Entity } from '../types';
 import { TerrainsRes } from '../terrain/terrainPlugin';
 import { Material } from '../render/material';
@@ -109,17 +111,13 @@ export const Foliage: ComponentDef<FoliageData> = defineComponent<FoliageData>('
 interface BuiltFoliage {
     signature: string;
     data: FoliageData;
-    cells: Entity[];
-    handles: number[];
-    queue: [number, number][];
     source: MeshData | null;
     loading: boolean;
     epoch: number;
-    /** What the terrain was when this was grown. */
-    terrainRevision: number;
-    /** The cells to grow in all, for the progress shown while they are. */
-    total: number;
 }
+
+/** One grown cell: its entity (none where nothing grew) and the meshes it owns. */
+interface GrownCell { entity: Entity | null; handles: number[] }
 
 /** The water, as foliage asks it (the water module is optional: read by name, not imported). */
 interface WaterQuery { depthAt(x: number, z: number, y: number): number | null; revision_: number; baking: boolean }
@@ -129,8 +127,8 @@ function waterOf(app: App): WaterQuery | null {
     return w && typeof w.depthAt === 'function' ? w as WaterQuery : null;
 }
 
-/** How long a frame may spend growing cells, in milliseconds; at least one is grown a frame. */
-const CELL_BUDGET_MS = 5;
+/** The chunk layer a Foliage's cells are. */
+const layerOf = (entity: Entity): string => `foliage:${entity}`;
 
 /** Run-time facts about the foliage the plugin has grown. */
 export class FoliageField {
@@ -138,18 +136,28 @@ export class FoliageField {
     /** @internal The u_windStrength each material had before the weather's wind scaled it, to put back. */
     readonly authoredWind_ = new Map<number, number>();
 
-    /** How many cells across every field are still waiting to be built. */
+    /** @internal */ app_: App | null = null;
+
+    /** How many cells near enough to be drawn, across every field, are still waiting to be grown. */
     get pending(): number {
         let n = 0;
-        for (const b of this.built_.values()) n += b.queue.length + (b.loading ? 1 : 0);
+        for (const [entity, b] of this.built_) n += (this.statusOf_(entity)?.pending ?? 0) + (b.loading ? 1 : 0);
         return n;
     }
 
-    /** How many plants stand in the cells built so far, across every field. */
+    /** How many cells are grown and standing now, across every field. */
     get cellCount(): number {
         let n = 0;
-        for (const b of this.built_.values()) n += b.cells.length;
+        for (const entity of this.built_.keys()) {
+            const s = this.statusOf_(entity);
+            if (s) n += s.ready + s.stale;
+        }
         return n;
+    }
+
+    private statusOf_(entity: Entity): ChunkLayerStatus | null {
+        const app = this.app_;
+        return app?.hasResource(ProceduralChunksRes) ? app.getResource(ProceduralChunksRes).status(layerOf(entity)) : null;
     }
 }
 
@@ -161,6 +169,7 @@ export class FoliagePlugin implements Plugin {
 
     build(app: App): void {
         const field = new FoliageField();
+        field.app_ = app;
         app.insertResource(FoliageRes, field);
 
         app.addSystemToSchedule(Schedule.Update, defineSystem([], () => {
@@ -168,37 +177,21 @@ export class FoliagePlugin implements Plugin {
             const terrains = app.hasResource(TerrainsRes) ? app.getResource(TerrainsRes) : null;
             this.sweep(app, field);
             this.blow(app, field);
-            // What stands on the ground waits for it: a plant placed before its terrain is read would stand on nothing.
-            if (terrains?.loading) return;
-            // Plants are grown again when the ground they stand on or the water they keep out of changes.
+            // Plants are grown again when the ground they stand on or the water they keep out of changes, and wait while either is
+            // being made: a plant placed before its terrain is read would stand on nothing.
             const water = waterOf(app);
             const revision = (terrains?.revision_ ?? 0) * 100003 + (water?.revision_ ?? 0);
+            const waiting = !!terrains?.loading || !!water?.baking;
             for (const entity of app.world.getEntitiesWithComponents([Foliage, Transform])) {
                 const data = app.world.get(entity, Foliage) as FoliageData;
                 const signature = JSON.stringify(data);
                 let built = field.built_.get(entity);
-                if (!built || built.signature !== signature || built.terrainRevision !== revision) {
-                    if (built) this.destroy(app, built);
-                    built = {
-                        signature, data: { ...data }, cells: [], handles: [], queue: [], source: null, loading: true,
-                        epoch: (built?.epoch ?? 0) + 1, terrainRevision: revision, total: 0,
-                    };
+                if (!built || built.signature !== signature) {
+                    built = { signature, data: { ...data }, source: null, loading: true, epoch: (built?.epoch ?? 0) + 1 };
                     field.built_.set(entity, built);
-                    void this.start(app, entity, built);
-                    continue;
+                    void this.start(app, built);
                 }
-                if (built.loading) continue;
-                // Plants stand on the ground: while a terrain's heights are still being made, growing them would be done again once they are.
-                const terrains = app.hasResource(TerrainsRes) ? app.getResource(TerrainsRes) : null;
-                if (terrains?.loading) continue;
-                if (water?.baking) continue;
-                const until = performance.now() + CELL_BUDGET_MS;
-                while (built.queue.length > 0) {
-                    const [cx, cz] = built.queue.shift()!;
-                    this.buildCell(app, entity, built, cx, cz);
-                    if (performance.now() >= until) break;
-                }
-                bakesOf(app).mark(built, 'Growing the plants', built.total ? 1 - built.queue.length / built.total : 1);
+                this.layer(app, entity, built, revision, waiting);
             }
         }, { name: 'FoliageSystem' }));
     }
@@ -240,30 +233,52 @@ export class FoliagePlugin implements Plugin {
     cleanup(app?: App): void {
         if (!app?.hasResource(FoliageRes)) return;
         const field = app.getResource(FoliageRes);
-        for (const built of field.built_.values()) this.destroy(app, built);
+        for (const entity of field.built_.keys()) {
+            if (app.hasResource(ProceduralChunksRes)) app.getResource(ProceduralChunksRes).remove(layerOf(entity));
+        }
         field.built_.clear();
     }
 
-    /** Reads the plant's geometry, if it has one, then queues the cells. */
-    private async start(app: App, entity: Entity, built: BuiltFoliage): Promise<void> {
-        const epoch = built.epoch;
+    /** Reads the plant's geometry, if it has one; the cells wait for it. */
+    private async start(app: App, built: BuiltFoliage): Promise<void> {
         const data = built.data;
         try {
             if (data.mesh) {
-                const source = await app.getResource(Assets).readMeshData(data.mesh);
-                if (built.epoch !== epoch) return;
-                built.source = source;
-                if (!source) log.warn('foliage', `the geometry of mesh ${data.mesh} cannot be read, so its plants are grass instead`);
+                built.source = await app.getResource(Assets).readMeshData(data.mesh);
+                if (!built.source) log.warn('foliage', `the geometry of mesh ${data.mesh} cannot be read, so its plants are grass instead`);
             }
-            if (!app.world.valid(entity)) return;
-            const cells = this.cellsAcross(data);
-            for (let cz = 0; cz < cells.z; cz++) for (let cx = 0; cx < cells.x; cx++) built.queue.push([cx, cz]);
-            built.total = built.queue.length;
         } catch (e) {
             log.error('foliage', 'growing the foliage failed', e);
         } finally {
-            if (built.epoch === epoch) built.loading = false;
+            built.loading = false;
         }
+    }
+
+    /**
+     * The field's cells as a layer of chunks: the area's grid, wanted out to `drawDistance` round the streaming sources, grown again
+     * (each old cell kept till its new one stands) when a field, the ground or the water changes.
+     */
+    private layer(app: App, entity: Entity, built: BuiltFoliage, revision: number, waiting: boolean): void {
+        const t = app.world.get(entity, Transform) as TransformData;
+        const data = built.data, cells = this.cellsAcross(data);
+        const sx = t.worldScale.x || 1, sz = t.worldScale.z || 1;
+        const assets = app.getResource(Assets);
+        chunksOf(app).set<GrownCell>(layerOf(entity), {
+            label: 'Growing the plants',
+            originX: t.worldPosition.x - data.sizeX / 2 * sx, originZ: t.worldPosition.z - data.sizeZ / 2 * sz,
+            sizeX: data.sizeX / cells.x * sx, sizeZ: data.sizeZ / cells.z * sz,
+            extent: [0, 0, cells.x, cells.z],
+            loadRadius: data.drawDistance,
+            unloadRadius: data.drawDistance + Math.max(1, data.cellSize) * 1.5,
+            generation: `${built.epoch}:${revision}:${t.worldPosition.x}:${t.worldPosition.y}:${t.worldPosition.z}:${sx}:${sz}`,
+            // Plants stand on the ground and keep out of the water: while either is still being made, they wait.
+            make: (cx, cz) => (waiting || built.loading ? null : this.grow(app, entity, built, cx, cz)),
+            publish: (_cx, _cz, cell) => { if (cell.entity !== null) app.world.setParent(cell.entity, entity); },
+            release: (_cx, _cz, cell) => {
+                if (cell.entity !== null && app.world.valid(cell.entity)) app.world.despawn(cell.entity);
+                for (const handle of cell.handles) assets.releaseBuiltMesh(handle);
+            },
+        });
     }
 
     private cellsAcross(data: FoliageData): { x: number; z: number } {
@@ -271,14 +286,15 @@ export class FoliagePlugin implements Plugin {
         return { x: Math.min(200, Math.max(1, Math.ceil(data.sizeX / side))), z: Math.min(200, Math.max(1, Math.ceil(data.sizeZ / side))) };
     }
 
-    private buildCell(app: App, parent: Entity, built: BuiltFoliage, cx: number, cz: number): void {
+    /** Grows cell (cx, cz): its plants, their meshes and the entity that draws them, not yet in the world (its parent is set on publishing). */
+    private grow(app: App, parent: Entity, built: BuiltFoliage, cx: number, cz: number): GrownCell | null {
         const world = app.world;
-        if (!world.valid(parent)) return;
+        if (!world.valid(parent)) return null;
         const data = built.data;
         const assets = app.getResource(Assets);
         const terrains = app.hasResource(TerrainsRes) ? app.getResource(TerrainsRes) : null;
         const t = world.tryGet(parent, Transform) as TransformData | null;
-        if (!t) return;
+        if (!t) return null;
         const side = Math.max(1, data.cellSize);
         const cells = this.cellsAcross(data);
         // The cell's centre in the entity's own space, then in the world's (the ground is answered in the world's).
@@ -306,7 +322,7 @@ export class FoliagePlugin implements Plugin {
             cellKey: cz * 1000 + cx, minScale: data.minScale, maxScale: data.maxScale, minUp: data.minUp,
             heightMin: data.heightMin, heightMax: data.heightMax,
         }, ground);
-        if (plants.length === 0) return;
+        if (plants.length === 0) return { entity: null, handles: [] };
         // The cell stands at its centre, on the entity's own base height; the plants carry the ground's height relative to that.
         for (const p of plants) p.y -= t.worldPosition.y;
 
@@ -329,11 +345,10 @@ export class FoliagePlugin implements Plugin {
             if (handle === 0) {
                 log.warn('foliage', `the engine refused the geometry of cell ${cx},${cz}`);
                 for (const h of handles) assets.releaseBuiltMesh(h);
-                return;
+                throw new Error(`the engine refused the geometry of cell ${cx},${cz}`);
             }
             handles.push(handle);
         }
-        built.handles.push(...handles);
 
         const cell = world.spawn(`FoliageCell ${cx},${cz}`);
         world.insert(cell, Transform, { position: { x: localX, y: 0, z: localZ } });
@@ -351,25 +366,13 @@ export class FoliagePlugin implements Plugin {
                 lod1Size: sizeAt(data.lodDistance), lod2Size: 0, lod3Size: 0, cullSize: sizeAt(data.drawDistance), hysteresis: 0.1, enabled: true,
             });
         }
-        world.setParent(cell, parent);
-        built.cells.push(cell);
-    }
-
-    private destroy(app: App, built: BuiltFoliage): void {
-        built.epoch++;
-        built.queue.length = 0;
-        bakesOf(app).clear(built);
-        const assets = app.hasResource(Assets) ? app.getResource(Assets) : null;
-        for (const cell of built.cells) if (app.world.valid(cell)) app.world.despawn(cell);
-        for (const handle of built.handles) assets?.releaseBuiltMesh(handle);
-        built.cells.length = 0;
-        built.handles.length = 0;
+        return { entity: cell, handles };
     }
 
     private sweep(app: App, field: FoliageField): void {
-        for (const [entity, built] of field.built_) {
+        for (const entity of field.built_.keys()) {
             if (app.world.valid(entity) && app.world.has(entity, Foliage)) continue;
-            this.destroy(app, built);
+            if (app.hasResource(ProceduralChunksRes)) app.getResource(ProceduralChunksRes).remove(layerOf(entity));
             field.built_.delete(entity);
         }
     }

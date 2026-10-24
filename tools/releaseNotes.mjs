@@ -2768,4 +2768,6 @@ export const NOTED = {
     {"note":"Terrain collision, the same ground that is drawn."},
   "fix(editor): the running game has a resolution picker you can actually reach":
     {"note":"The running game's resolution can be chosen."},
+  "feat(residency): procedural chunks have one owner and the frame one budget; terrain collision and foliage cells are chunk layers":
+    {"note":"Procedural chunks, with one owner and one budget."},
 };

@@ -348,6 +348,8 @@ export {
     type PrefabRoot,
     type WorldPartition,
     type CutWorld,
+    ProceduralChunks, ProceduralChunksRes, chunksOf, streamingSourcesOf,
+    type ChunkLayer, type ChunkSource, type ChunkState, type ChunkLayerStatus,
 } from './residency/index';
 
 export {
