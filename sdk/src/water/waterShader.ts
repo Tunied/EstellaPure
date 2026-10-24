@@ -705,7 +705,7 @@ void main() {
     }
     float onCrest = u_foamCrest > 0.0 ? smoothstep(1.0 - 0.3 * u_foamCrest, 1.0, crest) * smoothstep(0.35, 0.75, breakup) : 0.0;
     // A breaker whitens as much on a beach as the waves are big, but bursts whitest on rock.
-    float surfFoam = surf.y * smoothstep(0.15, 0.6, breakup + surf.y * 0.4) * mix(0.45, 1.0, zoneOn ? waterZoneSteep(wp) : 1.0);
+    float surfFoam = surf.y * smoothstep(0.15, 0.6, breakup + surf.y * 0.4) * mix(0.2, 1.0, zoneOn ? waterZoneSteep(wp) : 1.0);
     float foam = clamp(max(max(max(shore, onCrest * u_foamCrest), ripFoam * (0.55 + 0.45 * breakup)), surfFoam), 0.0, 1.0);
     // Foam floats on top: from under the water it is a thin shadow on the light, not a white sheet.
     if (below) foam *= 0.2;
@@ -1157,7 +1157,7 @@ fn waterSurface(p : vec2f, time : f32, dist : f32, amp : f32, calm : f32) -> vec
     // A breaker whitens as much on a beach as the waves are big, but bursts whitest on rock.
     var steepHere = 1.0;
     if (zoneOn) { steepHere = waterZoneSteep(wp); }
-    let surfFoam = surf.y * smoothstep(0.15, 0.6, breakup + surf.y * 0.4) * mix(0.45, 1.0, steepHere);
+    let surfFoam = surf.y * smoothstep(0.15, 0.6, breakup + surf.y * 0.4) * mix(0.2, 1.0, steepHere);
     var foam = clamp(max(max(max(shore, onCrest * mc.u_foamCrest), ripFoam * (0.55 + 0.45 * breakup)), surfFoam), 0.0, 1.0);
     if (below) { foam = foam * 0.2; }
 

@@ -2820,4 +2820,6 @@ export const NOTED = {
     {"internal":"Comment length only."},
   "feat(water): foam bursts on steep shores and washes thinly up beaches, by how steep the shore is and how exposed the water":
     {"note":"Foam is where waves burst, not along every shore."},
+  "fix(water): a gentle beach keeps less of the breakers' white than rock does":
+    {"note":"Foam is where waves burst, not along every shore."},
 };
