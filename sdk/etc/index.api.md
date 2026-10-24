@@ -3889,6 +3889,7 @@ flowZ: number
 height: number
 key: number
 shore: number
+swell: number
 ```
 
 ## FillMethod — enum @beta
@@ -11242,9 +11243,10 @@ grid: ZoneGrid
 height: Float32Array<ArrayBufferLike>
 ocean: ZoneOcean | null
 owner: Int32Array<ArrayBufferLike>
-ranges: () => ZoneRanges
+ranges: (shoreReach?: number) => ZoneRanges
 sample: (x: number, z: number) => FieldSample | null
 shore: Float32Array<ArrayBufferLike>
+swell: Float32Array<ArrayBufferLike>
 static bake: (grid: ZoneGrid, bodies: readonly ZoneBody[], ground?: ZoneGround) => WaterField
 static new (grid: ZoneGrid, ocean: ZoneOcean | null): WaterField
 static prototype: WaterField
@@ -11293,6 +11295,8 @@ rippleSpeed: number
 ripples: number
 sizeX: number
 sizeZ: number
+surf: number
+surfLength: number
 waveDirection: number
 waveLength: number
 waveSpeed: number

@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { WaterField, currentShare, type RiverStation, type ZoneBody, type ZoneGrid, type ZoneLake, type ZoneOcean, type ZoneRiver } from '../src/water/zone';
 import { polygonSdf, shoreDamp, type Point2 } from '../src/water/shore';
+import { surfEnvelope, surfHeight } from '../src/water/waves';
 
 // A square lake 40 across round the origin, its surface at y = 0.
 const square: Point2[] = [{ x: -20, y: -20 }, { x: 20, y: -20 }, { x: 20, y: 20 }, { x: -20, y: 20 }];
@@ -146,5 +147,36 @@ describe('a river\'s current', () => {
         expect(currentShare(2, 6)).toBe(1);
         expect(currentShare(6, 6)).toBe(0.5);
         expect(currentShare(60, 6)).toBe(0.125);
+    });
+});
+
+describe('the shore distance', () => {
+    it('is how far across the ground the water\'s edge is, for an ocean over a gentle beach as for a lake', () => {
+        // The beach rises one unit in twenty from x = 0: at x = -20 the sea is one deep and twenty from its edge.
+        const field = bake([ocean(0)], (x) => x * 0.05);
+        expect(field.sample(-20, 0)!.shore).toBeCloseTo(20, 0);
+        expect(field.at(10, 0)!.shore).toBeCloseTo(-10, 0);
+    });
+});
+
+describe('the surf', () => {
+    const at = (shore: number, t: number): number => surfHeight(shore, 1, 10, 1, t);
+
+    it('runs in toward the shore', () => {
+        // The crest nearest the shore, found at two moments: it has come closer.
+        const crest = (t: number): number => {
+            let best = -1, where = 0;
+            for (let d = 0; d <= 20; d += 0.05) { const h = at(d, t); if (h > best) { best = h; where = d; } }
+            return where;
+        };
+        const t0 = 0.3;
+        expect(crest(t0 + 0.2)).toBeLessThan(crest(t0));
+    });
+
+    it('is none past four lengths out or far up the ground, and stands highest as it shoals', () => {
+        expect(surfEnvelope(45, 40)).toBe(0);
+        expect(surfEnvelope(-9, 40)).toBe(0);
+        expect(surfEnvelope(5, 40)).toBe(1);
+        for (let t = 0; t < 3; t += 0.37) expect(at(41, t)).toBe(0);
     });
 });

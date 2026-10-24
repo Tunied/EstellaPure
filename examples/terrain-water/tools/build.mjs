@@ -458,7 +458,7 @@ function scene() {
   add('Water', [
     { type: 'Transform', data: {} },
     { type: 'WaterZone', data: { sizeX: WORLD.size, sizeZ: WORLD.size, resolution: 1024, material: 'assets/materials/water.esmaterial',
-      waveLength: 1600, waveSpeed: 1, waveDirection: 200, cellSize: 100, cells: 64, rings: 7,
+      waveLength: 1600, waveSpeed: 1, waveDirection: 200, surf: 0.8, surfLength: 700, cellSize: 100, cells: 64, rings: 7,
       ripples: 128, rippleSize: 6000, rippleSpeed: 600, rippleDamping: 0.8, foamFade: 0.4 } },
   ]);
   add('Sea', [

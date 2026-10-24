@@ -2720,4 +2720,6 @@ export const NOTED = {
     {"internal":"The editor half of the wind note: a Weather added in Details drives the wind with the rest."},
   "feat(editor): the viewport outlines a WaterZone, and the water checks author their water in one":
     {"internal":"The editor half of Water zones, which carries the note."},
+  "feat(water): surf runs in toward the shore, breaks white and runs up the ground":
+    {"note":"Surf on the shore."},
 };

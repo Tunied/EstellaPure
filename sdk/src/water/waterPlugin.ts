@@ -31,7 +31,7 @@ import { TerrainsRes } from '../terrain/terrainPlugin';
 import { BlendMode } from '../render/blend';
 import { log } from '../util/logger';
 import type { Entity } from '../types';
-import { waveHeight, waveSlope, type WaveParams } from './waves';
+import { surfHeight, waveHeight, waveSlope, type WaveParams } from './waves';
 import { buildOceanMesh, oceanReach, oceanSnap } from './waterMesh';
 import { type Point2 } from './shore';
 import { Spline, type SplineData } from '../spline/splinePlugin';
@@ -150,8 +150,11 @@ export class Waters {
         if (!s) return null;
         const time = this.app_.getResource(Time).elapsed;
         const params = this.waves(s.amp);
+        const zone = this.zone_;
+        const still = 1 - Math.min(Math.hypot(s.flowX, s.flowZ) / Math.max(field.ranges().flow * 0.25, 1e-4), 1);
+        const surf = surfHeight(s.shore, zone.surf * weatherWaves() * s.swell * still, zone.surfLength, zone.waveSpeed, time);
         // The lite water is flat: its waves are in the shading, so the height code reads is the rest plane's.
-        const h = s.height + (this.quality.displacement ? waveHeight(params, x, z, time) : 0) + (this.ripples_?.heightAt(x, z) ?? 0);
+        const h = s.height + (this.quality.displacement ? waveHeight(params, x, z, time) + surf : 0) + (this.ripples_?.heightAt(x, z) ?? 0);
         const [sx, sz] = waveSlope(params, x, z, time);
         const len = Math.hypot(sx, 1, sz);
         return {
@@ -415,7 +418,7 @@ export class WaterPlugin implements Plugin {
         }
         const terrain = app.hasResource(TerrainsRes) ? app.getResource(TerrainsRes) : null;
         const ground = terrain && terrain.built_.size > 0 ? terrain.revision_ : -1;
-        return { bodies, grid, zone, key: JSON.stringify([keyParts, grid, ground]) };
+        return { bodies, grid, zone, key: JSON.stringify([keyParts, grid, ground, zone.surfLength]) };
     }
 
     /** The world height of the ground, where a terrain is built. */
@@ -483,7 +486,7 @@ export class WaterPlugin implements Plugin {
     /** Puts the baked field where the shader reads it: the heights texel by texel, the rest filtered. */
     private upload(app: App, s: Surface, field: WaterField): void {
         this.dropFieldTextures(s);
-        const ranges = field.ranges();
+        const ranges = field.ranges(this.waters_.zone_.surfLength * 4);
         const { heights, field: rest } = field.encode(ranges);
         const { nx, nz, minX, minZ, sizeX, sizeZ } = field.grid;
         const empty = nx < 2 || nz < 2;
@@ -530,6 +533,9 @@ export class WaterPlugin implements Plugin {
         set('u_oceanOn', ocean ? 1 : 0);
         set('u_oceanLevel', ocean ? ocean.level : 0);
         set('u_oceanWaves', ocean ? ocean.waveHeight : 0);
+        set('u_surfHeight', zone.surf);
+        set('u_surfLength', zone.surfLength);
+        set('u_surfSpeed', zone.waveSpeed);
     }
 
     /**

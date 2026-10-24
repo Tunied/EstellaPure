@@ -7327,6 +7327,20 @@
           "range": "0–360"
         },
         {
+          "key": "surf",
+          "type": "number",
+          "default": "0.6",
+          "doc": "How high the surf breaking on a shore stands against its body's waves. 0 draws none. A current carries none.",
+          "range": "0–4"
+        },
+        {
+          "key": "surfLength",
+          "type": "number",
+          "default": "8",
+          "doc": "The length of the surf's waves, in world units. They run in over four lengths of water, break, and run up the ground past the shore.",
+          "range": "0.1–100000"
+        },
+        {
           "key": "cellSize",
           "type": "number",
           "default": "1",
@@ -7391,6 +7405,8 @@
         "waveLength",
         "waveSpeed",
         "waveDirection",
+        "surf",
+        "surfLength",
         "cellSize",
         "cells",
         "rings",

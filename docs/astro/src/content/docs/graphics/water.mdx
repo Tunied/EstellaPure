@@ -37,6 +37,7 @@ A `WaterZone` says where the water is drawn, how finely, and what every body sha
 | `resolution` | Texels along the region's longer side: how finely shores and rivers are traced. |
 | `material` | A material on the Water shader for the whole surface. Empty uses the stock water. |
 | `waveLength`, `waveSpeed`, `waveDirection` | The waves every body shares ([Waves](#waves)). |
+| `surf`, `surfLength` | The surf breaking on the shores: how high a breaker stands against its body's waves (0 draws none), and the length of the surf's waves ([Surf](#surf)). |
 | `cellSize`, `cells`, `rings` | The surface's mesh: the cell size of its finest ring, cells along a ring's side, and how many rings ([Geometry](#geometry)). |
 | `ripples`, `rippleSize`, `rippleSpeed`, `rippleDamping`, `foamFade` | The ripples the zone keeps ([Ripples](#ripples)). |
 
@@ -69,6 +70,16 @@ the silhouette against the sky rises and falls with the waves.
 
 The waves are measured on the world's xz plane and lift the surface straight up. Parameters are in world units: a scene in metres wants the defaults, one in
 centimetres wants the lengths scaled.
+
+## Surf
+
+Where water meets the ground, waves run in toward the shore. The zone measures how far each place is from the nearest shore across the ground (the same
+for an ocean over a beach as for a lake), and over the last four `surfLength`s of water the surf stands up on that distance: waves with a steep face toward
+the shore and a long back, travelling in at the speed of a deep-water wave of their length times `waveSpeed`. They grow as the water shoals, whiten where
+they break in the inner part of that band and stay white behind the crest a while, and past the shore they run up the ground: the surface is drawn there
+too, a little above the water's rest height, and the depth test cuts it where the ground rises above it, so the waterline climbs a beach and falls back.
+A breaker stands `surf` times the body's `waveHeight` (with the weather's waves in); a current carries none, so a river and its mouth stay calm.
+`Waters.sample` adds the same surf, so what floats near a beach rides it.
 
 ## Geometry
 

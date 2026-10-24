@@ -264,6 +264,8 @@
       "waveLength": 1600,
       "waveSpeed": 1,
       "waveDirection": 200,
+      "surf": 0.8,
+      "surfLength": 700,
       "cellSize": 100,
       "cells": 64,
       "rings": 7,

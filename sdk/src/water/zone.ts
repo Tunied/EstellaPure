@@ -35,6 +35,9 @@ export interface WaterZoneData {
     waveLength: number;
     waveSpeed: number;
     waveDirection: number;
+    /** The surf: how high a breaker stands against its body's waves (0 draws none), and how long the surf's waves are, in world units. */
+    surf: number;
+    surfLength: number;
     /** The surface's mesh: the cell size of its finest ring, cells along a ring's side, and how many rings (each twice as coarse) follow the camera. */
     cellSize: number;
     cells: number;
@@ -56,7 +59,7 @@ export interface WaterZoneData {
  */
 export const WaterZone: ComponentDef<WaterZoneData> = defineComponent<WaterZoneData>('WaterZone', {
     sizeX: 200, sizeZ: 200, resolution: 256, material: 0,
-    waveLength: 14, waveSpeed: 1, waveDirection: 30,
+    waveLength: 14, waveSpeed: 1, waveDirection: 30, surf: 0.6, surfLength: 8,
     cellSize: 1, cells: 64, rings: 5,
     ripples: 0, rippleSize: 64, rippleSpeed: 6, rippleDamping: 0.8, foamFade: 0.4,
 }, {
@@ -69,6 +72,8 @@ export const WaterZone: ComponentDef<WaterZoneData> = defineComponent<WaterZoneD
         waveLength: { min: 0.5, max: 3000, category: 'Waves', tooltip: 'The length of the longest wave. Every body shares the waves; each sets how high they stand.' },
         waveSpeed: { min: 0, max: 4, category: 'Waves', tooltip: 'A multiplier on how fast the waves travel.' },
         waveDirection: { min: 0, max: 360, category: 'Waves', tooltip: 'The heading of the waves, in degrees.' },
+        surf: { min: 0, max: 4, category: 'Waves', tooltip: 'How high the surf breaking on a shore stands against its body\'s waves. 0 draws none. A current carries none.' },
+        surfLength: { min: 0.1, max: 100000, category: 'Waves', tooltip: 'The length of the surf\'s waves, in world units. They run in over four lengths of water, break, and run up the ground past the shore.' },
         cellSize: { min: 0.05, category: 'Detail', tooltip: 'The cell size of the finest ring of the surface. Waves shorter than six cells are not drawn as geometry there (the shading still shows them).' },
         cells: { min: 4, max: 256, step: 4, category: 'Detail', tooltip: 'Cells along a ring\'s side.' },
         rings: { min: 1, max: 10, step: 1, category: 'Detail', tooltip: 'Rings of the surface, each twice as coarse as the one inside it.' },
@@ -117,6 +122,8 @@ export interface FieldSample {
     height: number;
     amp: number;
     calm: number;
+    /** The height its body's waves stand to away from any shore: what the surf breaking on the shore is measured against. */
+    swell: number;
     flowX: number;
     flowZ: number;
     /** The signed distance to the nearest shore (positive on the water) and how deep the water is over the ground. */
@@ -139,6 +146,7 @@ export class WaterField {
     readonly shore: Float32Array;
     readonly amp: Float32Array;
     readonly calm: Float32Array;
+    readonly swell: Float32Array;
     readonly flowX: Float32Array;
     readonly flowZ: Float32Array;
     readonly depth: Float32Array;
@@ -155,6 +163,7 @@ export class WaterField {
         this.shore = new Float32Array(n);
         this.amp = new Float32Array(n);
         this.calm = new Float32Array(n);
+        this.swell = new Float32Array(n);
         this.flowX = new Float32Array(n);
         this.flowZ = new Float32Array(n);
         this.depth = new Float32Array(n);
@@ -180,7 +189,7 @@ export class WaterField {
                 const x = grid.minX + (i / Math.max(grid.nx - 1, 1)) * grid.sizeX;
                 const z = grid.minZ + (j / Math.max(grid.nz - 1, 1)) * grid.sizeZ;
                 const g = ground ? ground(x, z) : null;
-                let w = 0, h = 0, a = 0, c = 0, fx = 0, fz = 0, best = -Infinity, owner = -1, ownerW = 0, held = 0;
+                let w = 0, h = 0, a = 0, c = 0, sw = 0, fx = 0, fz = 0, best = -Infinity, owner = -1, ownerW = 0, held = 0;
                 for (let b = 0; b < bounded.length; b++) {
                     const box = boxes[b]!;
                     if (x < box[0] - blend || x > box[2] + blend || z < box[1] - blend || z > box[3] + blend) continue;
@@ -190,7 +199,7 @@ export class WaterField {
                     const weight = smooth(-blend, blend, say.shore);
                     if (weight <= 0) continue;
                     held = Math.max(held, weight);
-                    w += weight; h += say.height * weight; a += say.amp * weight; c += say.calm * weight; fx += say.fx * weight; fz += say.fz * weight;
+                    w += weight; h += say.height * weight; a += say.amp * weight; c += say.calm * weight; sw += bounded[b]!.waveHeight * weight; fx += say.fx * weight; fz += say.fz * weight;
                     if (weight > ownerW) { ownerW = weight; owner = bounded[b]!.key; }
                 }
                 if (ocean) {
@@ -199,7 +208,7 @@ export class WaterField {
                     const weight = smooth(-blend, blend, deep) * (1 - held);
                     if (weight > 0) {
                         const calm = shoreDamp(deep, ocean.shoreWidth);
-                        w += weight; h += ocean.level * weight; a += ocean.waveHeight * calm * weight; c += calm * weight;
+                        w += weight; h += ocean.level * weight; a += ocean.waveHeight * calm * weight; c += calm * weight; sw += ocean.waveHeight * weight;
                         if (weight > ownerW) { ownerW = weight; owner = ocean.key; }
                     }
                 }
@@ -209,6 +218,7 @@ export class WaterField {
                     field.height[k] = h / w;
                     field.amp[k] = a / w;
                     field.calm[k] = c / w;
+                    field.swell[k] = sw / w;
                     field.flowX[k] = fx / w;
                     field.flowZ[k] = fz / w;
                 } else {
@@ -217,6 +227,7 @@ export class WaterField {
                 field.depth[k] = g === null ? DEEP : Math.max(0, (w > 0 ? h / w : 0) - g);
             }
         }
+        levelShore(field, texel);
         fillDry(field);
         return field;
     }
@@ -237,7 +248,7 @@ export class WaterField {
         };
         const near = (j + (tz > 0.5 ? 1 : 0)) * nx + i + (tx > 0.5 ? 1 : 0);
         return {
-            key: this.owner[near]!, height: lerp2(this.height), amp: lerp2(this.amp), calm: lerp2(this.calm), flowX: lerp2(this.flowX), flowZ: lerp2(this.flowZ),
+            key: this.owner[near]!, height: lerp2(this.height), amp: lerp2(this.amp), calm: lerp2(this.calm), swell: lerp2(this.swell), flowX: lerp2(this.flowX), flowZ: lerp2(this.flowZ),
             shore: lerp2(this.shore), depth: lerp2(this.depth),
         };
     }
@@ -251,16 +262,23 @@ export class WaterField {
         if (inside) return inside.shore > 0 ? inside : null;
         const o = this.ocean;
         if (!o) return null;
-        return { key: o.key, height: o.level, amp: o.waveHeight, calm: 1, flowX: 0, flowZ: 0, shore: DEEP, depth: DEEP };
+        return { key: o.key, height: o.level, amp: o.waveHeight, calm: 1, swell: o.waveHeight, flowX: 0, flowZ: 0, shore: DEEP, depth: DEEP };
     }
 
-    /** The ranges the encoding spans, from what the field holds. */
-    ranges(): ZoneRanges {
+    /** The ranges the encoding spans, from what the field holds; the shore distance reaches `shoreReach` at least (as far out as the surf is drawn). */
+    ranges(shoreReach = 0): ZoneRanges {
+        const r = this.ranges_ ??= this.measure();
+        return { ...r, shore: Math.max(r.shore, shoreReach * 1.25) };
+    }
+
+    private ranges_: ZoneRanges | null = null;
+
+    private measure(): ZoneRanges {
         let lo = Infinity, hi = -Infinity, amp = 0, flow = 0;
         for (let k = 0; k < this.height.length; k++) {
             const h = this.height[k]!;
             if (Number.isFinite(h)) { lo = Math.min(lo, h); hi = Math.max(hi, h); }
-            amp = Math.max(amp, this.amp[k]!);
+            amp = Math.max(amp, this.swell[k]!);
             flow = Math.max(flow, Math.abs(this.flowX[k]!), Math.abs(this.flowZ[k]!));
         }
         if (this.ocean) { lo = Math.min(lo, this.ocean.level); hi = Math.max(hi, this.ocean.level); amp = Math.max(amp, this.ocean.waveHeight); }
@@ -271,7 +289,7 @@ export class WaterField {
 
     /**
      * The field as two RGBA8 images, rows from minZ. heights (read texel by texel: filtered bytes are no number): rg the height, high byte
-     * first; b the depth; a the waves' height. field (filtered): r the shore distance (0.5 at it); gb the current (0.5 still); a the calm.
+     * first; b the depth; a the swell (the body's waves' height). field (filtered): r the shore distance (0.5 at it); gb the current (0.5 still); a the calm.
      * Each over its range in `r`.
      */
     encode(r: ZoneRanges): { heights: Uint8Array; field: Uint8Array } {
@@ -283,7 +301,7 @@ export class WaterField {
             heights[k * 4] = h >> 8;
             heights[k * 4 + 1] = h & 255;
             heights[k * 4 + 2] = byte(this.depth[k]! / r.depth);
-            heights[k * 4 + 3] = byte(this.amp[k]! / r.amp);
+            heights[k * 4 + 3] = byte(this.swell[k]! / r.amp);
             field[k * 4] = byte(this.shore[k]! / (2 * r.shore) + 0.5);
             field[k * 4 + 1] = byte(this.flowX[k]! / (2 * r.flow) + 0.5);
             field[k * 4 + 2] = byte(this.flowZ[k]! / (2 * r.flow) + 0.5);
@@ -347,6 +365,52 @@ function boundsOf(body: ZoneLake | ZoneRiver): [number, number, number, number] 
         minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
     }
     return [minX, minZ, maxX, maxZ];
+}
+
+/**
+ * The shore distance made one measure everywhere: how far across the ground the nearest edge of ANY water is, the sign the bodies gave. A body's
+ * own say is exact only near its edge (an ocean's is its depth, a lake's ends at its outline even where a river carries the water on), so the
+ * texels on either side of an edge keep it, held to a texel, and every other texel is that plus how far it is from the nearest of them
+ * (each texel carries its nearest edge texel, two sweeps).
+ */
+function levelShore(field: WaterField, texel: number): void {
+    const { nx, nz, sizeX, sizeZ } = field.grid;
+    const n = nx * nz;
+    if (nx < 2 || nz < 2) return;
+    const dx = sizeX / (nx - 1), dz = sizeZ / (nz - 1);
+    const wet = (k: number): boolean => field.shore[k]! > 0;
+    const seed = new Int32Array(n).fill(-1);
+    const offset = new Float32Array(n);
+    const dist = new Float32Array(n).fill(Infinity);
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+        const k = j * nx + i, w = wet(k);
+        const edge = (i > 0 && wet(k - 1) !== w) || (i < nx - 1 && wet(k + 1) !== w) || (j > 0 && wet(k - nx) !== w) || (j < nz - 1 && wet(k + nx) !== w);
+        if (!edge) continue;
+        seed[k] = k;
+        offset[k] = Math.min(Math.abs(field.shore[k]!), texel);
+        dist[k] = offset[k]!;
+    }
+    const relax = (k: number, from: number): void => {
+        const s = seed[from]!;
+        if (s < 0) return;
+        const ex = ((k % nx) - (s % nx)) * dx, ez = (Math.floor(k / nx) - Math.floor(s / nx)) * dz;
+        const d = Math.hypot(ex, ez) + offset[s]!;
+        if (d < dist[k]!) { dist[k] = d; seed[k] = s; }
+    };
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+        const k = j * nx + i;
+        if (i > 0) relax(k, k - 1);
+        if (j > 0) { relax(k, k - nx); if (i > 0) relax(k, k - nx - 1); if (i < nx - 1) relax(k, k - nx + 1); }
+    }
+    for (let j = nz - 1; j >= 0; j--) for (let i = nx - 1; i >= 0; i--) {
+        const k = j * nx + i;
+        if (i < nx - 1) relax(k, k + 1);
+        if (j < nz - 1) { relax(k, k + nx); if (i < nx - 1) relax(k, k + nx + 1); if (i > 0) relax(k, k + nx - 1); }
+    }
+    for (let k = 0; k < n; k++) {
+        if (!Number.isFinite(dist[k]!)) continue;
+        field.shore[k] = wet(k) ? dist[k]! : -dist[k]!;
+    }
 }
 
 /** A texel no body holds takes the height of the nearest that one does: two passes of a chamfer sweep over which texel is nearest. */

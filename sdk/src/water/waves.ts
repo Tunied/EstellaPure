@@ -86,3 +86,37 @@ export function waveSlope(p: WaveParams, x: number, z: number, time: number): [n
     }
     return [sx, sz];
 }
+
+/**
+ * The surf: waves that run in toward the shore across the last `4 * length` of water, steepen and break on it, and run up the ground past
+ * it. `shore` is the distance to the shore (above zero on the water), `height` how high a breaker stands at most. Each has a steep face
+ * toward the shore and a long back, and they travel at the speed of a deep-water wave of their length times `speed`. The Water shader
+ * draws the same.
+ */
+export function surfHeight(shore: number, height: number, length: number, speed: number, time: number): number {
+    if (height <= 0 || length <= 0) return 0;
+    const reach = length * 4;
+    if (shore > reach || shore < -reach * 0.2) return 0;
+    const celerity = Math.sqrt(GRAVITY * length / TAU) * speed;
+    const u = fract(shore / length + (celerity * time) / length);
+    // Seaward of a crest the water falls away slowly; shoreward its face is steep.
+    const face = 0.2;
+    const g = u > 1 - face ? smooth01((u - (1 - face)) / face) : 1 - smooth01(u / (1 - face));
+    return height * g * g * surfEnvelope(shore, reach);
+}
+
+/** How much of the surf stands at `shore`: none out past its reach, rising as the water shoals, and dying as it runs up the ground. */
+export function surfEnvelope(shore: number, reach: number): number {
+    const shoal = 1 - smooth01((shore - reach * 0.25) / (reach * 0.75));
+    const runUp = shore >= 0 ? 1 : 1 - smooth01(-shore / (reach * 0.2));
+    return shoal * runUp;
+}
+
+function fract(x: number): number {
+    return x - Math.floor(x);
+}
+
+function smooth01(t: number): number {
+    const c = Math.min(Math.max(t, 0), 1);
+    return c * c * (3 - 2 * c);
+}
