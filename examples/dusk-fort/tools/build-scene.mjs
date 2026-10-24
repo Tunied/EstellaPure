@@ -11,7 +11,8 @@
  *
  *   node examples/dusk-fort/tools/build-scene.mjs
  */
-import { readFileSync, writeFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -154,4 +155,10 @@ for (const e of door.entities.filter((x) => x.prefabEntityId !== 'root')) {
 }
 
 writeFileSync(path.join(ROOT, 'assets/scenes/main.esscene'), JSON.stringify({ version: 4, name: 'Main', entities }, null, 2));
+// The scene is an asset like any other: without its .meta it has no id, an export reaches nothing from it, and the
+// package boots to "asset not found". Kept when it exists, so a rebuild does not change what refers to it.
+const meta = path.join(ROOT, 'assets/scenes/main.esscene.meta');
+if (!existsSync(meta)) {
+  writeFileSync(meta, `${JSON.stringify({ uuid: randomUUID(), version: '2.0', type: 'scene', importer: {} }, null, 2)}\n`);
+}
 console.log(`wrote ${entities.length} entities`);
