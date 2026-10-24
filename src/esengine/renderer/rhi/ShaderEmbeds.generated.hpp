@@ -798,7 +798,14 @@ void main() {
     fragColor = vec4((was - now) * 0.5, gl_FragCoord.z, v_velPrev.w > 1e-6 ? 1.0 : 0.0);
 #elif defined(SHADOW_DEPTH)
 #ifdef SHADOW_ALPHA
-    if (texture(u_texture, v_texCoord).a * v_color.a < u_alphaCutoff) discard;
+
+
+
+    highp vec2 mapSize = vec2(textureSize(u_texture, 0));
+    highp float texels = max(length(dFdx(v_texCoord) * mapSize), length(dFdy(v_texCoord) * mapSize));
+    highp float minified = clamp(log2(max(texels, 1e-4)), 0.0, 1.0);
+    highp float noise = fract(52.9829189 * fract(dot(floor(gl_FragCoord.xy), vec2(0.06711056, 0.00583715))));
+    if (texture(u_texture, v_texCoord).a * v_color.a < mix(u_alphaCutoff, noise, minified)) discard;
 #endif
 
 
@@ -1122,7 +1129,15 @@ fn packNormal(n : vec3f) -> vec2f {
     return vec4f((was - now) * 0.5, v.pos.z, select(0.0, 1.0, v.v_velPrev.w > 1e-6));
 #elif defined(SHADOW_DEPTH)
 #ifdef SHADOW_ALPHA
-    if (textureSampleLevel(t0, s0, v.v_texCoord, 0.0).a * v.v_color.a < mc.u_alphaCutoff) { discard; }
+
+
+    let duvx = dpdx(v.v_texCoord);
+    let duvy = dpdy(v.v_texCoord);
+    let mapSize = vec2f(textureDimensions(t0));
+    let texels = max(length(duvx * mapSize), length(duvy * mapSize));
+    let minified = clamp(log2(max(texels, 1e-4)), 0.0, 1.0);
+    let noise = fract(52.9829189 * fract(dot(floor(v.pos.xy), vec2f(0.06711056, 0.00583715))));
+    if (textureSampleGrad(t0, s0, v.v_texCoord, duvx, duvy).a * v.v_color.a < mix(mc.u_alphaCutoff, noise, minified)) { discard; }
 #endif
 
 

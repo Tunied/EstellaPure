@@ -320,7 +320,14 @@ void main() {
     fragColor = vec4((was - now) * 0.5, gl_FragCoord.z, v_velPrev.w > 1e-6 ? 1.0 : 0.0);
 #elif defined(SHADOW_DEPTH)
 #ifdef SHADOW_ALPHA
-    if (texture(u_texture, v_texCoord).a * v_color.a < u_alphaCutoff) discard;
+    // A cut-out's shadow keeps the share of the light its texture lets through. Where the map is seen smaller than a texel a texel of the
+    // shadow map (a hair card from the light), the cut moves to a per-texel threshold, so a card that covers 60% writes 60% of the texels it
+    // falls on and the receiver's filter turns that into a shadow 60% deep; a cut at the cutoff closed every gap and drew the card as a slab.
+    highp vec2 mapSize = vec2(textureSize(u_texture, 0));
+    highp float texels = max(length(dFdx(v_texCoord) * mapSize), length(dFdy(v_texCoord) * mapSize));
+    highp float minified = clamp(log2(max(texels, 1e-4)), 0.0, 1.0);
+    highp float noise = fract(52.9829189 * fract(dot(floor(gl_FragCoord.xy), vec2(0.06711056, 0.00583715))));
+    if (texture(u_texture, v_texCoord).a * v_color.a < mix(u_alphaCutoff, noise, minified)) discard;
 #endif
     // The expression the receiver evaluates on u_shadowMatrix, evaluated here on the
     // same matrix and at the same point: whatever each backend's clip z means, both
@@ -644,7 +651,15 @@ fn packNormal(n : vec3f) -> vec2f {
     return vec4f((was - now) * 0.5, v.pos.z, select(0.0, 1.0, v.v_velPrev.w > 1e-6));
 #elif defined(SHADOW_DEPTH)
 #ifdef SHADOW_ALPHA
-    if (textureSampleLevel(t0, s0, v.v_texCoord, 0.0).a * v.v_color.a < mc.u_alphaCutoff) { discard; }
+    // See the GLSL twin: through the mip chain (level 0 alone left a card's shadow a different shape from WebGL2's), and a per-texel threshold
+    // where the map is minified, so the shadow keeps the share of light the card lets through.
+    let duvx = dpdx(v.v_texCoord);
+    let duvy = dpdy(v.v_texCoord);
+    let mapSize = vec2f(textureDimensions(t0));
+    let texels = max(length(duvx * mapSize), length(duvy * mapSize));
+    let minified = clamp(log2(max(texels, 1e-4)), 0.0, 1.0);
+    let noise = fract(52.9829189 * fract(dot(floor(v.pos.xy), vec2f(0.06711056, 0.00583715))));
+    if (textureSampleGrad(t0, s0, v.v_texCoord, duvx, duvy).a * v.v_color.a < mix(mc.u_alphaCutoff, noise, minified)) { discard; }
 #endif
     // The expression the receiver evaluates on u_shadowMatrix, evaluated here on the
     // same matrix and at the same point: whatever each backend's clip z means, both
