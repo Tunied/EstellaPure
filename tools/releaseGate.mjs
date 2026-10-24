@@ -60,15 +60,18 @@ export const CRITERIA = [
   },
   {
     id: 'a-character-may-only-do-what-the-world-allows',
+    host: 'macos',
+    why: 'it judges a web package booted in Electron, which says nothing about Linux; a Linux runner has no GPU, and a package rasterised in software boots past the launch timeout often enough that the reading was of a game nobody drove',
     says: 'a packaged third-person character climbs, is stopped, and lands where its world says',
-    // 29 launches over 2440 rendered frames — the arena costs about 1.4 s a frame
-    // on a runner with no GPU, so this is a nightly question. It sat in the push
+    // 29 launches over 2440 rendered frames — a nightly question, on the runner with a GPU. It sat in the push
     // gate behind a step that always failed first, and never once ran there.
     answeredBy: 'node tools/verify-third-person.mjs',
     needs: ['tools/verify-third-person.mjs', 'examples/third-person-3d/project.esproject'],
   },
   {
     id: 'a-streamed-place-is-ready-before-it-is-seen',
+    host: 'macos',
+    why: 'it judges a web package booted in Electron, which says nothing about Linux; a Linux runner has no GPU, and a package rasterised in software boots past the launch timeout often enough that the reading was of a game nobody drove',
     says: 'a streamed place pays its own shader requirements while it is being prepared,'
       + ' not on the frame the player first sees it',
     // The same command as above, deliberately under its own name: deleting the
@@ -197,6 +200,8 @@ export const CRITERIA = [
   },
   {
     id: 'compiled-game-packages-and-draws',
+    host: 'macos',
+    why: 'it judges a web package booted in Electron, which says nothing about Linux; a Linux runner has no GPU, and a package rasterised in software boots past the launch timeout often enough that the reading was of a game nobody drove',
     says: 'a game whose systems were compiled packages, boots and draws the game it drew interpreted',
     // Not "the same pixels": the loop is wall-clock, so two launches of ONE
     // package already differ by more than a wrong field offset does (the file

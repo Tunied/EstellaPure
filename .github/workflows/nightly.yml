@@ -206,13 +206,10 @@ jobs:
           # Four launches of a streamed world, which alone has taken twenty minutes.
           - shard: streamed
             criteria: --only streamed-world-comes-and-goes
-          # 29 launches of the third-person package: 15 of its checks took 56 minutes
-          # on a runner, so the whole list needs a window of its own.
-          - shard: third-person
-            criteria: --only a-character-may-only-do-what-the-world-allows,a-streamed-place-is-ready-before-it-is-seen
-            timeout: 150
+          # The third-person package and the compiled-game parity run on the macOS job: they judge web packages,
+          # and here, with no GPU, a package often boots past its launch timeout (releaseGate.mjs says why).
           - shard: rest
-            criteria: --except flagship-plays-through,golden-packages,performance-ceilings,static-gates,streamed-world-comes-and-goes,a-character-may-only-do-what-the-world-allows,a-streamed-place-is-ready-before-it-is-seen
+            criteria: --except flagship-plays-through,golden-packages,performance-ceilings,static-gates,streamed-world-comes-and-goes
     env:
       ESTELLA_NATIVE_TEMPLATES: ${{ github.workspace }}/.native-templates
       # Empty outside the golden shards, where verify-golden takes the whole tier.
@@ -318,7 +315,8 @@ jobs:
     name: Exit criteria (macos)
     runs-on: macos-latest
     needs: build-emscripten
-    timeout-minutes: 90
+    # The pixel gates, plus the third-person package's 29 launches and the compiled-game parity.
+    timeout-minutes: 120
 
     steps:
     - uses: actions/checkout@v7
@@ -333,6 +331,13 @@ jobs:
     - uses: ./.github/actions/setup
     - uses: ./.github/actions/render-host
     - uses: ./.github/actions/editor-host
+    # The compiled-game parity builds its systems module with emcc.
+    - name: Setup Emscripten
+      uses: mymindstorm/setup-emsdk@v16
+      with:
+        version: 5.0.0
+        actions-cache-folder: .emsdk-ci
+        cache-key: emsdk-5.0.0-${{ runner.os }}-${{ runner.arch }}
 
     - name: Run the exit criteria
       run: node tools/run-release-gate.mjs --host macos

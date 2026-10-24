@@ -34,7 +34,7 @@ const ONLY = flag('only')?.split(',').map((s) => s.trim()).filter(Boolean) ?? nu
 // a criterion added tomorrow lands here rather than in no job at all.
 const EXCEPT = flag('except')?.split(',').map((s) => s.trim()).filter(Boolean) ?? null;
 // Where this runner is standing. A criterion says which host can answer it; the
-// default is a plain Linux runner, which is 27 of the 31.
+// default is a plain Linux runner, which answers most of them.
 const HOST = flag('host') ?? 'linux';
 
 const runnable = CRITERIA.filter((c) => c.answeredBy);
