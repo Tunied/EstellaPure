@@ -1456,7 +1456,9 @@ fn shadowFactor3D(worldPos : vec3f, N : vec3f, L : vec3f, source : vec2f,
     return 1.0;
 #endif
 }
-// The coverage a cut-out's alpha gives this pixel. Magnified, the cut is sharpened to about a texel so alpha-to-coverage feathers its edge.
+)"
+// Split again for the same cap; the WGSL is unchanged.
+R"(// The coverage a cut-out's alpha gives this pixel. Magnified, the cut is sharpened to about a texel so alpha-to-coverage feathers its edge.
 // Minified, the edges are finer than the pixel and the map's own alpha, averaged by its mips, already is the share of the pixel the cut-out
 // covers: under multisampling it is that coverage as it is, and without it the cut moves to a per-pixel threshold so the share holds on
 // average. `texels` is how many texels of the map one pixel spans, `samples` the multisampling of the pass (u_time.w).
