@@ -2812,4 +2812,6 @@ export const NOTED = {
     {"note":"The distance to the shore is a distance."},
   "fix(water): water meets the shore along a smooth line, not the zone's texel steps":
     {"note":"Water meets the shore along a smooth line."},
+  "fix(water): a river fades into the sea or lake it runs into, so the surf is not cut along its sides":
+    {"note":"A river gives way where it runs into the sea or a lake."},
 };
