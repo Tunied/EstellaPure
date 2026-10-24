@@ -170,6 +170,11 @@ for (const g of subjects) {
           : line || 'launch failed';
       results.push({ id, stage: `launch-${kind}`, ok: false, why });
       console.log(`✗ ${id} ${kind} — ${why}`);
+      // The launcher's own account follows its verdict (how far the boot got, the canvas, the last log lines):
+      // without it a red lane says only "painted=false", which names no place to look.
+      const lines = (r.stdout || '').split('\n');
+      const at = lines.findIndex((l) => l === line);
+      for (const l of at >= 0 ? lines.slice(at + 1) : []) if (l.trim()) console.log(`  ${l}`);
       broke = true;
       break;
     }
