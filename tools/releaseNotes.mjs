@@ -2776,4 +2776,6 @@ export const NOTED = {
     {"internal":"Declaration bundling: a second shared chunk named index was written as index.d2.ts, which TypeScript does not read as declarations."},
   "feat(worldgen): biomes, zones and layered recipes lay a world out as it is explored, with stable ids and kept changes":
     {"note":"Generated worlds."},
+  "feat(editor): a WorldZone's circle or turned box is drawn on the ground":
+    {"note":"Generated worlds."},
 };
