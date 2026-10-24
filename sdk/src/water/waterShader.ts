@@ -39,6 +39,9 @@ const WATER = `#pragma shader "Water"
 #pragma param u_foamColor color default(0.95,0.97,1,1)
 #pragma param u_foamWidth float default(1.2) range(0,20) ui(slider)
 #pragma param u_foamCrest float default(0.5) range(0,1) ui(slider)
+// How deep, in world units, the water is where it has thinned to nothing at its edge: over that last depth the ground behind shows through
+// more and more, so the water meets it along a soft line. 0 keeps a hard edge.
+#pragma param u_edgeSoftness float default(0.3) range(0,1000) ui(slider)
 // The depth taken where the device could not measure one.
 #pragma param u_fallbackDepth float default(4) range(0,200) ui(slider)
 // Where the waves are measured. 0 is the world's xz plane, which is what a plain mesh of water wants. 1 is the surface a WaterZone draws: the mesh's uv
@@ -564,10 +567,10 @@ void main() {
     float foamScale = 1.0 / (u_rippleLength * 1.2);
     float breakup = waterNoise(wp * foamScale + vec2(time * 0.07, time * 0.05)) * 0.6 + waterNoise(wp * foamScale * 3.0 - vec2(time * 0.13, 0.0)) * 0.4;
     float pulse = 0.65 + 0.35 * sin(time * 0.9 + breakup * 6.0);
-    float shore = haveDepth && u_foamWidth > 0.0 ? clamp((1.0 - vertical / (u_foamWidth * pulse)) * 1.5 - breakup * 0.8, 0.0, 1.0) : 0.0;
+    float shore = haveDepth && u_foamWidth > 0.0 ? clamp((1.0 - vertical / (u_foamWidth * pulse)) * 1.25 - breakup * 1.15, 0.0, 1.0) : 0.0;
     // The baked shore foams too, where the depth buffer cannot say (no chain, no float targets) and along the outline the zone traced.
     if (zoneOn && u_foamWidth > 0.0) {
-        shore = max(shore, clamp((1.0 - min(shoreDist, shoreDepth) / (u_foamWidth * pulse)) * 1.5 - breakup * 0.8, 0.0, 1.0));
+        shore = max(shore, clamp((1.0 - min(shoreDist, shoreDepth) / (u_foamWidth * pulse)) * 1.25 - breakup * 1.15, 0.0, 1.0));
     }
     float onCrest = u_foamCrest > 0.0 ? smoothstep(1.0 - 0.3 * u_foamCrest, 1.0, crest) * smoothstep(0.35, 0.75, breakup) : 0.0;
     float surfFoam = surf.y * smoothstep(0.15, 0.6, breakup + surf.y * 0.4);
@@ -603,9 +606,18 @@ void main() {
         vec4 met = waterReflect(P, reflect(-viewDir, N), waterDist);
         color = mix(color, met.rgb, met.a * fresnel * (1.0 - foam) * 0.9);
     }
+    // At its edge the water thins to nothing: over the last u_edgeSoftness of depth the ground behind shows through more and more, so the
+    // water meets the shore along a soft line and not the zone's texel steps. The surf's white stays, riding up the sand.
+    if (!below && haveColor && haveDepth && u_edgeSoftness > 0.0) {
+        float thin = max(smoothstep(0.0, u_edgeSoftness, column0 * max(abs(viewDir.y), 0.15)), surfFoam);
+        color = mix(textureLod(u_sceneColor, clamp(uv0, vec2(0.001), vec2(0.999)), 0.0).rgb, color, thin);
+    }
     // Past the shore there is no water, but for the surf running up dry ground (where the ground is no lower than the water: the depth test
     // then cuts it where the ground rises above it).
-    if (shoreDist < 0.0 && (surf.x <= 0.0 || shoreDepth > 1e-3)) discard;
+    // The surf over dry ground is a film just above the water's rest height: a fragment far from it is the mesh stretched up a wall
+    // between two waters' heights, not water.
+    bool film = abs(P.y - zone.x) <= surf.x + u_waveHeight * zone.z + 1e-3;
+    if (shoreDist < 0.0 && (surf.x <= 0.0 || shoreDepth > 1e-3 || !film)) discard;
     fragColor = vec4(color, haveColor ? 1.0 : 0.85);
 #ifdef ES_GBUFFER
     // 0.72: a surface, and water (see readSurface): what lands on it is the water's, not a wet floor's.
@@ -930,9 +942,9 @@ fn waterSurface(p : vec2f, time : f32, dist : f32, amp : f32, calm : f32) -> vec
     let breakup = waterNoise(wp * foamScale + vec2f(time * 0.07, time * 0.05)) * 0.6 + waterNoise(wp * foamScale * 3.0 - vec2f(time * 0.13, 0.0)) * 0.4;
     let pulse = 0.65 + 0.35 * sin(time * 0.9 + breakup * 6.0);
     var shore = 0.0;
-    if (haveDepth && mc.u_foamWidth > 0.0) { shore = clamp((1.0 - vertical / (mc.u_foamWidth * pulse)) * 1.5 - breakup * 0.8, 0.0, 1.0); }
+    if (haveDepth && mc.u_foamWidth > 0.0) { shore = clamp((1.0 - vertical / (mc.u_foamWidth * pulse)) * 1.25 - breakup * 1.15, 0.0, 1.0); }
     if (zoneOn && mc.u_foamWidth > 0.0) {
-        shore = max(shore, clamp((1.0 - min(shoreDist, shoreDepth) / (mc.u_foamWidth * pulse)) * 1.5 - breakup * 0.8, 0.0, 1.0));
+        shore = max(shore, clamp((1.0 - min(shoreDist, shoreDepth) / (mc.u_foamWidth * pulse)) * 1.25 - breakup * 1.15, 0.0, 1.0));
     }
     var onCrest = 0.0;
     if (mc.u_foamCrest > 0.0) { onCrest = smoothstep(1.0 - 0.3 * mc.u_foamCrest, 1.0, waves.crest) * smoothstep(0.35, 0.75, breakup); }
@@ -964,9 +976,14 @@ fn waterSurface(p : vec2f, time : f32, dist : f32, amp : f32, calm : f32) -> vec
         let met = waterReflect(P, reflect(-viewDir, N), waterDist);
         color = mix(color, met.xyz, met.w * fresnel * (1.0 - foam) * 0.9);
     }
+    if (!below && haveColor && haveDepth && mc.u_edgeSoftness > 0.0) {
+        let thin = max(smoothstep(0.0, mc.u_edgeSoftness, column0 * max(abs(viewDir.y), 0.15)), surfFoam);
+        color = mix(textureSampleLevel(u_sceneColor, u_sceneColor_s, clamp(uv0, vec2f(0.001), vec2f(0.999)), 0.0).rgb, color, vec3f(thin));
+    }
     var alpha = 0.85;
     if (haveColor) { alpha = 1.0; }
-    if (shoreDist < 0.0 && (surf.x <= 0.0 || shoreDepth > 1e-3)) { discard; }
+    let film = abs(P.y - zone.x) <= surf.x + mc.u_waveHeight * zone.z + 1e-3;
+    if (shoreDist < 0.0 && (surf.x <= 0.0 || shoreDepth > 1e-3 || !film)) { discard; }
 #ifdef ES_GBUFFER
     var frag : FragOut;
     frag.color = vec4f(color, alpha);
