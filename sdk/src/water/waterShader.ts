@@ -149,7 +149,9 @@ vec2 waterSurf(float shore, float height, float time) {
     float env = shoal * runUp;
     // It breaks in the inner third: the crest whitens, and the water behind it stays white a while.
     float breaking = 1.0 - smoothstep(reach * 0.15, reach * 0.4, shore);
-    float white = breaking * max(smoothstep(0.75, 1.0, g), (1.0 - smoothstep(0.0, 0.35, u)) * 0.8) * env;
+    // A wave breaks only when it is steep for its length: a lake's small surf laps, the sea's breaks white.
+    float steep = smoothstep(0.012, 0.045, height / u_surfLength);
+    float white = breaking * steep * max(smoothstep(0.75, 1.0, g), (1.0 - smoothstep(0.0, 0.35, u)) * 0.8) * env;
     return vec2(height * g * g * env, white);
 }
 void esMaterialVertex(inout vec3 local, inout vec3 localNormal, in vec2 uv) {
@@ -225,7 +227,8 @@ fn waterSurf(shore : f32, height : f32, time : f32) -> vec2f {
     if (shore < 0.0) { runUp = 1.0 - smoothstep(0.0, 1.0, -shore / (reach * 0.2)); }
     let env = shoal * runUp;
     let breaking = 1.0 - smoothstep(reach * 0.15, reach * 0.4, shore);
-    let white = breaking * max(smoothstep(0.75, 1.0, g), (1.0 - smoothstep(0.0, 0.35, u)) * 0.8) * env;
+    let steep = smoothstep(0.012, 0.045, height / mc.u_surfLength);
+    let white = breaking * steep * max(smoothstep(0.75, 1.0, g), (1.0 - smoothstep(0.0, 0.35, u)) * 0.8) * env;
     return vec2f(height * g * g * env, white);
 }
 fn esMaterialVertex(local : ptr<function, vec3f>, localNormal : ptr<function, vec3f>, uv : vec2f) {
@@ -351,7 +354,9 @@ vec2 waterSurf(float shore, float height, float time) {
     float env = shoal * runUp;
     // It breaks in the inner third: the crest whitens, and the water behind it stays white a while.
     float breaking = 1.0 - smoothstep(reach * 0.15, reach * 0.4, shore);
-    float white = breaking * max(smoothstep(0.75, 1.0, g), (1.0 - smoothstep(0.0, 0.35, u)) * 0.8) * env;
+    // A wave breaks only when it is steep for its length: a lake's small surf laps, the sea's breaks white.
+    float steep = smoothstep(0.012, 0.045, height / u_surfLength);
+    float white = breaking * steep * max(smoothstep(0.75, 1.0, g), (1.0 - smoothstep(0.0, 0.35, u)) * 0.8) * env;
     return vec2(height * g * g * env, white);
 }
 /// The first directional light that shines: xyz is where it stands in the sky, w 1 if there is one, color its colour and strength, tiles its place in the shadow atlas.
@@ -406,7 +411,9 @@ vec4 waterReflect(vec3 p, vec3 r, float eyeDist) {
         float qDist = u_camera.w > 0.5 ? length(q - u_camera.xyz) : -dot(q, u_camera.xyz);
         float sceneDist = textureLod(u_sceneDepthMap, uv, 0.0).r;
         // The ray has gone behind something the picture holds: that is what it met, if it did not skip clean through a thin one.
-        if (sceneDist < qDist && qDist - sceneDist < stride * 2.0 + 1.0) return vec4(textureLod(u_sceneColor, uv, 0.0).rgb, 1.0);
+        // Fading toward the picture's edge: a reflection that runs off screen thins away instead of stopping on a line.
+        vec2 edge = min(uv, 1.0 - uv);
+        if (sceneDist < qDist && qDist - sceneDist < stride * 2.0 + 1.0) return vec4(textureLod(u_sceneColor, uv, 0.0).rgb, smoothstep(0.0, 0.08, min(edge.x, edge.y)));
         stride *= 1.25;
         travelled += stride;
     }
@@ -465,8 +472,11 @@ void main() {
     float ripL = texture(u_rippleMap, ripUv - vec2(ripStep.x, 0.0)).r, ripR = texture(u_rippleMap, ripUv + vec2(ripStep.x, 0.0)).r;
     float ripD = texture(u_rippleMap, ripUv - vec2(0.0, ripStep.y)).r, ripU = texture(u_rippleMap, ripUv + vec2(0.0, ripStep.y)).r;
     bool ripIn = u_rippleOn > 0.5 && u_waveSpace > 0.5 && all(greaterThanEqual(ripUv, vec2(0.0))) && all(lessThanEqual(ripUv, vec2(1.0)));
-    vec2 ripSlope = ripIn ? vec2(ripR - ripL, ripU - ripD) * u_rippleRange / ripCell : vec2(0.0);
-    float ripFoam = ripIn ? ripC.g : 0.0;
+    // The window follows the camera: its edge fades out, so where it ends the ripples thin away instead of stopping on a line.
+    vec2 ripEdge = min(ripUv, 1.0 - ripUv);
+    float ripFade = smoothstep(0.0, 0.15, min(ripEdge.x, ripEdge.y));
+    vec2 ripSlope = ripIn ? vec2(ripR - ripL, ripU - ripD) * u_rippleRange / ripCell * ripFade : vec2(0.0);
+    float ripFoam = ripIn ? ripC.g * ripFade : 0.0;
     float crest;
     vec2 slope;
     if (dot(flow, flow) > 1e-6) {
@@ -562,6 +572,8 @@ void main() {
     float onCrest = u_foamCrest > 0.0 ? smoothstep(1.0 - 0.3 * u_foamCrest, 1.0, crest) * smoothstep(0.35, 0.75, breakup) : 0.0;
     float surfFoam = surf.y * smoothstep(0.15, 0.6, breakup + surf.y * 0.4);
     float foam = clamp(max(max(max(shore, onCrest * u_foamCrest), ripFoam * (0.55 + 0.45 * breakup)), surfFoam), 0.0, 1.0);
+    // Foam floats on top: from under the water it is a thin shadow on the light, not a white sheet.
+    if (below) foam *= 0.2;
 
     SurfaceExt ext = surfaceExtNone(N);
     ext.misc.x = 0.0204;
@@ -581,13 +593,20 @@ void main() {
     vec3 mirror = vec3(0.0);
     if (below && fresnel > 0.02 && haveColor && haveDepth && u_mirror > 0.5) {
         vec4 met = waterReflect(P, reflect(-viewDir, N), waterDist);
-        mirror = met.a > 0.5 ? met.rgb : mix(u_shallowColor.rgb, u_deepColor.rgb, 0.5) * 0.25;
+        mirror = mix(mix(u_shallowColor.rgb, u_deepColor.rgb, 0.5) * 0.25, met.rgb, met.a);
     }
     seen += mirror * fresnel * (1.0 - foam);
+    vec3 color = lit + seen;
+    // From above, what the surface mirrors is the world as well as the sky: the reflected ray followed through the picture. Where it meets
+    // something on screen that takes the reflected share's place; where it leaves the screen, the sky the lighting gave stays.
+    if (!below && fresnel > 0.03 && haveColor && haveDepth && u_mirror > 0.5) {
+        vec4 met = waterReflect(P, reflect(-viewDir, N), waterDist);
+        color = mix(color, met.rgb, met.a * fresnel * (1.0 - foam) * 0.9);
+    }
     // Past the shore there is no water, but for the surf running up dry ground (where the ground is no lower than the water: the depth test
     // then cuts it where the ground rises above it).
     if (shoreDist < 0.0 && (surf.x <= 0.0 || shoreDepth > 1e-3)) discard;
-    fragColor = vec4(lit + seen, haveColor ? 1.0 : 0.85);
+    fragColor = vec4(color, haveColor ? 1.0 : 0.85);
 #ifdef ES_GBUFFER
     // 0.72: a surface, and water (see readSurface): what lands on it is the water's, not a wet floor's.
     fragSurface = vec4(packNormal(normalize(N)), roughness, 0.72);
@@ -698,7 +717,8 @@ fn waterSurf(shore : f32, height : f32, time : f32) -> vec2f {
     if (shore < 0.0) { runUp = 1.0 - smoothstep(0.0, 1.0, -shore / (reach * 0.2)); }
     let env = shoal * runUp;
     let breaking = 1.0 - smoothstep(reach * 0.15, reach * 0.4, shore);
-    let white = breaking * max(smoothstep(0.75, 1.0, g), (1.0 - smoothstep(0.0, 0.35, u)) * 0.8) * env;
+    let steep = smoothstep(0.012, 0.045, height / mc.u_surfLength);
+    let white = breaking * steep * max(smoothstep(0.75, 1.0, g), (1.0 - smoothstep(0.0, 0.35, u)) * 0.8) * env;
     return vec2f(height * g * g * env, white);
 }
 struct WaterSun { dir : vec4f, color : vec4f, tiles : vec2i };
@@ -754,7 +774,8 @@ fn waterReflect(p : vec3f, r : vec3f, eyeDist : f32) -> vec4f {
         var qDist = -dot(q, frame.camera.xyz);
         if (frame.camera.w > 0.5) { qDist = length(q - frame.camera.xyz); }
         let sceneDist = textureSampleLevel(u_sceneDepthMap, u_sceneDepthMap_s, uv, 0.0).r;
-        if (sceneDist < qDist && qDist - sceneDist < stride * 2.0 + 1.0) { return vec4f(textureSampleLevel(u_sceneColor, u_sceneColor_s, uv, 0.0).rgb, 1.0); }
+        let edge = min(uv, vec2f(1.0) - uv);
+        if (sceneDist < qDist && qDist - sceneDist < stride * 2.0 + 1.0) { return vec4f(textureSampleLevel(u_sceneColor, u_sceneColor_s, uv, 0.0).rgb, smoothstep(0.0, 0.08, min(edge.x, edge.y))); }
         stride = stride * 1.25;
         travelled = travelled + stride;
     }
@@ -827,7 +848,9 @@ fn waterSurface(p : vec2f, time : f32, dist : f32, amp : f32, calm : f32) -> vec
     let ripIn = mc.u_rippleOn > 0.5 && mc.u_waveSpace > 0.5 && all(ripUv >= vec2f(0.0)) && all(ripUv <= vec2f(1.0));
     var ripSlope = vec2f(0.0);
     var ripFoam = 0.0;
-    if (ripIn) { ripSlope = vec2f(ripR - ripL, ripU - ripD) * mc.u_rippleRange / ripCell; ripFoam = ripC.g; }
+    let ripEdge = min(ripUv, vec2f(1.0) - ripUv);
+    let ripFade = smoothstep(0.0, 0.15, min(ripEdge.x, ripEdge.y));
+    if (ripIn) { ripSlope = vec2f(ripR - ripL, ripU - ripD) * mc.u_rippleRange / ripCell * ripFade; ripFoam = ripC.g * ripFade; }
     var surface = vec3f(0.0);
     if (dot(flow, flow) > 1e-6) {
         // A current: two copies of the surface carried downstream a cycle at a time, each fading in as the other fades out.
@@ -914,7 +937,8 @@ fn waterSurface(p : vec2f, time : f32, dist : f32, amp : f32, calm : f32) -> vec
     var onCrest = 0.0;
     if (mc.u_foamCrest > 0.0) { onCrest = smoothstep(1.0 - 0.3 * mc.u_foamCrest, 1.0, waves.crest) * smoothstep(0.35, 0.75, breakup); }
     let surfFoam = surf.y * smoothstep(0.15, 0.6, breakup + surf.y * 0.4);
-    let foam = clamp(max(max(max(shore, onCrest * mc.u_foamCrest), ripFoam * (0.55 + 0.45 * breakup)), surfFoam), 0.0, 1.0);
+    var foam = clamp(max(max(max(shore, onCrest * mc.u_foamCrest), ripFoam * (0.55 + 0.45 * breakup)), surfFoam), 0.0, 1.0);
+    if (below) { foam = foam * 0.2; }
 
     var ext = surfaceExtNone(N);
     ext.misc.x = 0.0204;
@@ -932,19 +956,24 @@ fn waterSurface(p : vec2f, time : f32, dist : f32, amp : f32, calm : f32) -> vec
     var mirror = vec3f(0.0);
     if (below && fresnel > 0.02 && haveColor && haveDepth && mc.u_mirror > 0.5) {
         let met = waterReflect(P, reflect(-viewDir, N), waterDist);
-        if (met.w > 0.5) { mirror = met.xyz; } else { mirror = mix(mc.u_shallowColor.rgb, mc.u_deepColor.rgb, vec3f(0.5)) * 0.25; }
+        mirror = mix(mix(mc.u_shallowColor.rgb, mc.u_deepColor.rgb, vec3f(0.5)) * 0.25, met.xyz, vec3f(met.w));
     }
     seen = seen + mirror * fresnel * (1.0 - foam);
+    var color = lit + seen;
+    if (!below && fresnel > 0.03 && haveColor && haveDepth && mc.u_mirror > 0.5) {
+        let met = waterReflect(P, reflect(-viewDir, N), waterDist);
+        color = mix(color, met.xyz, met.w * fresnel * (1.0 - foam) * 0.9);
+    }
     var alpha = 0.85;
     if (haveColor) { alpha = 1.0; }
     if (shoreDist < 0.0 && (surf.x <= 0.0 || shoreDepth > 1e-3)) { discard; }
 #ifdef ES_GBUFFER
     var frag : FragOut;
-    frag.color = vec4f(lit + seen, alpha);
+    frag.color = vec4f(color, alpha);
     frag.surface = vec4f(packNormal(normalize(N)), roughness, 0.72);
     return frag;
 #else
-    return vec4f(lit + seen, alpha);
+    return vec4f(color, alpha);
 #endif
 }
 #pragma end

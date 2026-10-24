@@ -1735,6 +1735,13 @@
           "doc": "The highest world height plants grow at."
         },
         {
+          "key": "waterDepth",
+          "type": "number",
+          "default": "0",
+          "doc": "How deep under water a plant may stand. 0 keeps them on dry ground; reeds stand in the shallows.",
+          "range": "≥ 0"
+        },
+        {
           "key": "bladeHeight",
           "type": "number",
           "default": "14",
@@ -1807,6 +1814,7 @@
         "minUp",
         "heightMin",
         "heightMax",
+        "waterDepth",
         "bladeHeight",
         "bladeWidth",
         "lodDistance",
@@ -5337,6 +5345,20 @@
           "range": "17–2049, step 1"
         },
         {
+          "key": "warp",
+          "type": "number",
+          "default": "0",
+          "doc": "How far the noise is bent by noise of its own: winding valleys and bent ridges instead of round hills.",
+          "range": "0–1, step 0.01"
+        },
+        {
+          "key": "erosion",
+          "type": "number",
+          "default": "0",
+          "doc": "How much rain wears the ground (a heightmap's too): gullies down the slopes, silt in the valleys, and dirt painted where the water ran. 0 leaves it as made.",
+          "range": "0–4, step 0.05"
+        },
+        {
           "key": "rockSlope",
           "type": "number",
           "default": "0.35",
@@ -5395,6 +5417,8 @@
         "persistence",
         "ridged",
         "resolution",
+        "warp",
+        "erosion",
         "rockSlope",
         "dirtHeight",
         "snowHeight",

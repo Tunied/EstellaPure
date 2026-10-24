@@ -177,6 +177,15 @@ export class WaterField {
      * surface's vertices there (which the shore cuts away) do not pull the water's edge down to nothing.
      */
     static bake(grid: ZoneGrid, bodies: readonly ZoneBody[], ground?: ZoneGround): WaterField {
+        const job = WaterField.baking(grid, bodies, ground);
+        for (;;) {
+            const next = job.next();
+            if (next.done) return next.value;
+        }
+    }
+
+    /** {@link WaterField.bake} as a job that yields its progress (0 to 1) every few rows, for spreading over frames. */
+    static *baking(grid: ZoneGrid, bodies: readonly ZoneBody[], ground?: ZoneGround): Generator<number, WaterField, void> {
         const ocean = (bodies.find((b) => b.kind === 'ocean') as ZoneOcean | undefined) ?? null;
         const field = new WaterField(grid, ocean);
         const texel = Math.max(grid.sizeX / Math.max(grid.nx - 1, 1), grid.sizeZ / Math.max(grid.nz - 1, 1));
@@ -184,6 +193,7 @@ export class WaterField {
         const bounded = bodies.filter((b) => b.kind !== 'ocean') as (ZoneLake | ZoneRiver)[];
         const boxes = bounded.map((b) => boundsOf(b));
         for (let j = 0; j < grid.nz; j++) {
+            if (j % 16 === 0) yield 0.8 * (j / grid.nz);
             for (let i = 0; i < grid.nx; i++) {
                 const k = j * grid.nx + i;
                 const x = grid.minX + (i / Math.max(grid.nx - 1, 1)) * grid.sizeX;
@@ -227,8 +237,8 @@ export class WaterField {
                 field.depth[k] = g === null ? DEEP : Math.max(0, (w > 0 ? h / w : 0) - g);
             }
         }
-        levelShore(field, texel);
-        fillDry(field);
+        yield* levelShore(field, texel);
+        yield* fillDry(field);
         return field;
     }
 
@@ -373,7 +383,7 @@ function boundsOf(body: ZoneLake | ZoneRiver): [number, number, number, number] 
  * texels on either side of an edge keep it, held to a texel, and every other texel is that plus how far it is from the nearest of them
  * (each texel carries its nearest edge texel, two sweeps).
  */
-function levelShore(field: WaterField, texel: number): void {
+function* levelShore(field: WaterField, texel: number): Generator<number, void, void> {
     const { nx, nz, sizeX, sizeZ } = field.grid;
     const n = nx * nz;
     if (nx < 2 || nz < 2) return;
@@ -382,6 +392,7 @@ function levelShore(field: WaterField, texel: number): void {
     const seed = new Int32Array(n).fill(-1);
     const offset = new Float32Array(n);
     const dist = new Float32Array(n).fill(Infinity);
+    yield 0.85;
     for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
         const k = j * nx + i, w = wet(k);
         const edge = (i > 0 && wet(k - 1) !== w) || (i < nx - 1 && wet(k + 1) !== w) || (j > 0 && wet(k - nx) !== w) || (j < nz - 1 && wet(k + nx) !== w);
@@ -397,11 +408,13 @@ function levelShore(field: WaterField, texel: number): void {
         const d = Math.hypot(ex, ez) + offset[s]!;
         if (d < dist[k]!) { dist[k] = d; seed[k] = s; }
     };
+    yield 0.85;
     for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
         const k = j * nx + i;
         if (i > 0) relax(k, k - 1);
         if (j > 0) { relax(k, k - nx); if (i > 0) relax(k, k - nx - 1); if (i < nx - 1) relax(k, k - nx + 1); }
     }
+    yield 0.92;
     for (let j = nz - 1; j >= 0; j--) for (let i = nx - 1; i >= 0; i--) {
         const k = j * nx + i;
         if (i < nx - 1) relax(k, k + 1);
@@ -414,7 +427,7 @@ function levelShore(field: WaterField, texel: number): void {
 }
 
 /** A texel no body holds takes the height of the nearest that one does: two passes of a chamfer sweep over which texel is nearest. */
-function fillDry(field: WaterField): void {
+function* fillDry(field: WaterField): Generator<number, void, void> {
     const { nx, nz } = field.grid;
     const n = nx * nz;
     const src = new Int32Array(n).fill(-1);
@@ -425,6 +438,7 @@ function fillDry(field: WaterField): void {
         dist[k] = dist[from]! + step;
         src[k] = src[from]!;
     };
+    yield 0.85;
     for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
         const k = j * nx + i;
         if (i > 0) relax(k, k - 1, 1);
@@ -432,6 +446,7 @@ function fillDry(field: WaterField): void {
         if (i > 0 && j > 0) relax(k, k - nx - 1, Math.SQRT2);
         if (i < nx - 1 && j > 0) relax(k, k - nx + 1, Math.SQRT2);
     }
+    yield 0.92;
     for (let j = nz - 1; j >= 0; j--) for (let i = nx - 1; i >= 0; i--) {
         const k = j * nx + i;
         if (i < nx - 1) relax(k, k + 1, 1);

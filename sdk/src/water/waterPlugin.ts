@@ -30,6 +30,7 @@ import { TextureContent } from '../wasm';
 import { TerrainsRes } from '../terrain/terrainPlugin';
 import { BlendMode } from '../render/blend';
 import { log } from '../util/logger';
+import { bakesOf } from '../runtime/bakes';
 import type { Entity } from '../types';
 import { surfHeight, waveHeight, waveSlope, type WaveParams } from './waves';
 import { buildOceanMesh, oceanReach, oceanSnap } from './waterMesh';
@@ -138,6 +139,16 @@ export class Waters {
     ripples_: RippleField | null = null;
     /** The material instance the surface is drawn with, for what draws the same water (the underwater effect). @internal */
     instance_ = 0;
+    /** Bumped each time a new bake lands, so what is placed by the water (plants kept out of it) knows to place again. @internal */
+    revision_ = 0;
+    /** Whether a bake is in hand: what is placed by the water waits for it. */
+    baking = false;
+
+    /** How deep the water stands at rest over the world height `y` at (x, z): above zero under water, null where there is none. */
+    depthAt(x: number, z: number, y: number): number | null {
+        const s = this.field_?.sample(x, z);
+        return s ? s.height - y : null;
+    }
 
     /**
      * The surface over or under `(x, y, z)`: how far above it the point is (negative under), the surface's normal, the current, and the point
@@ -310,6 +321,8 @@ export class WaterPlugin implements Plugin {
     private key_ = '';
     private surface_: Surface | null = null;
     private epoch_ = 0;
+    /** The bake in hand, for the inputs `key` names; the field drawn until it lands is the last one baked. */
+    private baking_: { key: string; cancel: () => void } | null = null;
 
     build(app: App): void {
         const waters = new Waters();
@@ -325,16 +338,32 @@ export class WaterPlugin implements Plugin {
             const inputs = this.gather(app);
             waters.zone_ = inputs.zone;
             if (inputs.bodies.length === 0) {
+                this.baking_?.cancel();
+                this.baking_ = null;
+                waters.baking = false;
                 waters.field_ = null;
                 this.key_ = '';
                 this.dropRipples();
                 this.dropSurface(app);
                 return;
             }
-            if (inputs.key !== this.key_ || !waters.field_) {
-                this.key_ = inputs.key;
-                waters.field_ = WaterField.bake(inputs.grid, inputs.bodies, this.ground(app));
+            if (inputs.key !== this.key_ && this.baking_?.key !== inputs.key) {
+                // A big zone is a second or more of work: it is spread over frames and shown while it runs.
+                this.baking_?.cancel();
+                const key = inputs.key;
+                const job = bakesOf(app).run('Baking the water', WaterField.baking(inputs.grid, inputs.bodies, this.ground(app)));
+                this.baking_ = { key, cancel: job.cancel };
+                waters.baking = true;
+                void job.done.then((field) => {
+                    if (this.baking_?.key !== key) return;
+                    this.baking_ = null;
+                    waters.baking = false;
+                    this.key_ = key;
+                    waters.field_ = field;
+                    waters.revision_++;
+                }, (e) => { log.error('water', 'baking the water failed', e); });
             }
+            if (!waters.field_) return;
             const eye = this.eye(app);
             this.ripple(app, inputs.zone, eye, app.getResource(Time).delta);
             if (!app.hasResource(Assets)) return;
@@ -345,6 +374,9 @@ export class WaterPlugin implements Plugin {
 
     cleanup(app?: App): void {
         if (!app?.hasResource(WatersRes)) return;
+        this.baking_?.cancel();
+        this.baking_ = null;
+        app.getResource(WatersRes).baking = false;
         this.dropRipples();
         this.dropSurface(app);
         const waters = app.getResource(WatersRes);

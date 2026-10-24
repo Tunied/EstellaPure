@@ -126,6 +126,7 @@ sample: (x: number, z: number) => FieldSample | null
 shore: Float32Array<ArrayBufferLike>
 swell: Float32Array<ArrayBufferLike>
 static bake: (grid: ZoneGrid, bodies: readonly ZoneBody[], ground?: ZoneGround) => WaterField
+static baking: (grid: ZoneGrid, bodies: readonly ZoneBody[], ground?: ZoneGround) => Generator<number, WaterField, void>
 static new (grid: ZoneGrid, ocean: ZoneOcean | null): WaterField
 static prototype: WaterField
 ```
@@ -185,8 +186,11 @@ waveSpeed: number
 @internal app_: App | null
 @internal field_: WaterField | null
 @internal instance_: number
+@internal revision_: number
 @internal ripples_: RippleField | null
 @internal zone_: WaterZoneData
+baking: boolean
+depthAt: (x: number, z: number, y: number) => number | null
 disturb: (x: number, y: number, z: number, radius: number, strength: number) => boolean
 heightAt: (x: number, z: number) => number | null
 quality: WaterQuality

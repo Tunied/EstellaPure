@@ -48,6 +48,7 @@ minUp: number
 seed: number
 sizeX: number
 sizeZ: number
+waterDepth: number
 ```
 
 ## FoliageField — class @experimental
