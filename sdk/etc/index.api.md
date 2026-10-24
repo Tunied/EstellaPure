@@ -11750,6 +11750,7 @@ ComponentDef<WaterBodyData>
 
 ## WaterBodyData — interface @experimental
 ```
+bedDepth: number
 bodyId: string
 boundary: Point2[]
 flowSpeed: number

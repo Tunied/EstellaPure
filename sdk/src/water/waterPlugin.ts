@@ -14,6 +14,7 @@
  *          The waves are the ones the Water shader draws: `waves.ts` is the same formula, and {@link Waters.sample} answers from the same field, so
  *          a floating object, a camera under the surface and a splash all read the surface that is on the screen.
  */
+import { riverBedModifiers } from './riverBed';
 import type { App, Plugin } from '../app/app';
 import { defineSystem, Schedule } from '../ecs/system';
 import { defineResource, Time } from '../ecs/resource';
@@ -67,6 +68,8 @@ export interface WaterBodyData {
     flowSpeed: number;
     /** The height of the tallest wave, in world units. Their length, speed and heading are the zone's, which every body shares. */
     waveHeight: number;
+    /** How deep a river cuts its bed into the terrain under its surface, at its middle; 0 leaves the ground as it is. */
+    bedDepth: number;
 }
 
 /**
@@ -75,7 +78,7 @@ export interface WaterBodyData {
  * @experimental
  */
 export const WaterBody: ComponentDef<WaterBodyData> = defineComponent<WaterBodyData>('WaterBody', {
-    form: WaterForm.Lake, bodyId: '', sizeX: 100, sizeZ: 100, boundary: [] as Point2[], shoreWidth: 3, flowSpeed: 2, waveHeight: 0.3,
+    form: WaterForm.Lake, bodyId: '', sizeX: 100, sizeZ: 100, boundary: [] as Point2[], shoreWidth: 3, flowSpeed: 2, waveHeight: 0.3, bedDepth: 0,
 }, {
     fields: {
         form: { enum: [{ label: 'Ocean', value: WaterForm.Ocean }, { label: 'Lake', value: WaterForm.Lake }, { label: 'River', value: WaterForm.River }], category: 'Shape', tooltip: 'An ocean is without edge: everywhere at its height where the ground is lower; a lake is a rectangle or an outline of its own; a river follows the Spline on the same entity.' },
@@ -85,6 +88,7 @@ export const WaterBody: ComponentDef<WaterBodyData> = defineComponent<WaterBodyD
         boundary: { category: 'Shape', tooltip: 'The outline of a lake: points round it on its own xz plane. Empty is the rectangle of its size.', shownWhen: { field: 'form', values: [WaterForm.Lake] } },
         shoreWidth: { min: 0, category: 'Shape', tooltip: 'How far in from the shore, and how deep, the waves take to come to full height. 0 leaves them whole to the edge.' },
         flowSpeed: { min: 0, max: 5000, category: 'Waves', tooltip: 'A river\'s current, in world units a second where it is as wide as its widest. A narrower reach runs faster.', shownWhen: { field: 'form', values: [WaterForm.River] } },
+        bedDepth: { min: 0, category: 'Shape', tooltip: 'How deep the river cuts its bed into the terrain under its surface, at its middle, its banks blending back into the ground. 0 leaves the ground as it is.', shownWhen: { field: 'form', values: [WaterForm.River] } },
         waveHeight: { min: 0, max: 800, category: 'Waves', tooltip: 'The height of the tallest wave, in world units. Their length, speed and heading are the zone\'s.' },
     },
 });
@@ -341,8 +345,12 @@ export function riverStations(curve: SplineCurve, flowSpeed: number, toWorld: (x
     return stations;
 }
 
+/** A river whose bed is cut into the terrain. */
+interface Bed { key: number; stations: readonly RiverStation[]; depth: number }
+
 /** Everything the zone is baked from, as the scene says it now. */
 interface Inputs {
+    beds: Bed[];
     bodies: ZoneBody[];
     grid: ZoneGrid;
     zone: WaterZoneData;
@@ -380,6 +388,8 @@ export class WaterPlugin implements Plugin {
     private epoch_ = 0;
     /** The bake in hand, for the inputs `key` names; the field drawn until it lands is the last one baked. */
     private baking_: { key: string; cancel: () => void } | null = null;
+    /** The beds cut into the terrain, by river: what they were cut from, and the ids of their modifiers. */
+    private beds_ = new Map<number, { signature: string; ids: string[] }>();
 
     build(app: App): void {
         const waters = new Waters();
@@ -393,6 +403,7 @@ export class WaterPlugin implements Plugin {
             // What the water IS (the baked field) needs no renderer: it is baked here whether or not anything is drawn, so a server or a test
             // that never draws can still ask the surface where it is. What is DRAWN waits for the asset layer.
             const inputs = this.gather(app);
+            this.carve(app, inputs.beds);
             waters.zone_ = inputs.zone;
             if (inputs.bodies.length === 0) {
                 this.baking_?.cancel();
@@ -430,6 +441,7 @@ export class WaterPlugin implements Plugin {
     }
 
     cleanup(app?: App): void {
+        if (app) this.carve(app, []);
         if (!app?.hasResource(WatersRes)) return;
         this.baking_?.cancel();
         this.baking_ = null;
@@ -465,6 +477,7 @@ export class WaterPlugin implements Plugin {
      */
     private gather(app: App): Inputs {
         const bodies: ZoneBody[] = [];
+        const beds: Bed[] = [];
         const keyParts: unknown[] = [];
         for (const entity of app.world.getEntitiesWithComponents([WaterBody, Transform])) {
             const d = app.world.get(entity, WaterBody) as WaterBodyData;
@@ -488,6 +501,7 @@ export class WaterPlugin implements Plugin {
                 const curve = new SplineCurve(spline.points, spline.closed);
                 const stations = riverStations(curve, d.flowSpeed, (x, y, z) => fromLocal(t, x, y, z, scale), (x, y, z) => rotate(t.worldRotation, x, y, z), scale);
                 bodies.push({ kind: 'river', key, waveHeight: d.waveHeight, shoreWidth: d.shoreWidth * scale, stations });
+                if (d.bedDepth > 0) beds.push({ key, stations, depth: d.bedDepth * scale });
                 keyParts.push([key, d.form, spline.points, spline.closed, d.flowSpeed, d.waveHeight, d.shoreWidth, t.worldPosition, t.worldRotation, scale]);
             }
         }
@@ -508,7 +522,32 @@ export class WaterPlugin implements Plugin {
         for (const b of bodies) b.exposure = exposureOf(b, zone.waveLength);
         const terrain = app.hasResource(TerrainsRes) ? app.getResource(TerrainsRes) : null;
         const ground = terrain && terrain.built_.size > 0 ? terrain.revision_ : -1;
-        return { bodies, grid, zone, key: JSON.stringify([keyParts, grid, ground, zone.surfLength, zone.waveLength]) };
+        return { bodies, beds, grid, zone, key: JSON.stringify([keyParts, grid, ground, zone.surfLength, zone.waveLength]) };
+    }
+
+    /**
+     * Cuts each river's bed into the terrain, and gives the ground back where a river stops cutting or is gone. A bed is laid again only
+     * when the river it is cut from changes: the water baked over the cut ground does not cut it again.
+     */
+    private carve(app: App, beds: readonly Bed[]): void {
+        if (beds.length === 0 && this.beds_.size === 0) return;
+        const terrains = app.hasResource(TerrainsRes) ? app.getResource(TerrainsRes) : null;
+        const seen = new Set<number>();
+        for (const bed of beds) {
+            seen.add(bed.key);
+            const signature = JSON.stringify([bed.depth, bed.stations]);
+            const had = this.beds_.get(bed.key);
+            if (had?.signature === signature || !terrains) continue;
+            for (const id of had?.ids ?? []) terrains.deleteModifier(id);
+            const modifiers = riverBedModifiers(`river-bed:${bed.key}:`, bed.stations, bed.depth);
+            for (const m of modifiers) terrains.setModifier(m);
+            this.beds_.set(bed.key, { signature, ids: modifiers.map((m) => m.id) });
+        }
+        for (const [key, had] of this.beds_) {
+            if (seen.has(key)) continue;
+            if (terrains) for (const id of had.ids) terrains.deleteModifier(id);
+            this.beds_.delete(key);
+        }
     }
 
     /** The world height of the ground, where a terrain is built. */

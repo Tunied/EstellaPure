@@ -7370,6 +7370,13 @@
           "default": "0.3",
           "doc": "The height of the tallest wave, in world units. Their length, speed and heading are the zone's.",
           "range": "0–800"
+        },
+        {
+          "key": "bedDepth",
+          "type": "number",
+          "default": "0",
+          "doc": "How deep the river cuts its bed into the terrain under its surface, at its middle, its banks blending back into the ground. 0 leaves the ground as it is.",
+          "range": "≥ 0"
         }
       ],
       "animatable": [
@@ -7378,7 +7385,8 @@
         "sizeZ",
         "shoreWidth",
         "flowSpeed",
-        "waveHeight"
+        "waveHeight",
+        "bedDepth"
       ]
     },
     {

@@ -138,6 +138,7 @@ const DISPOSITION = {
   'WaterZone.rippleSize': ['no-place', 'the side of a window of ripples that follows the camera, not a region of the entity'],
   'Floating.radius': ['no-place', 'how deep under the surface a point of the body is wholly wet, not a region of the entity'],
   'WaterBody.waveHeight': ['no-place', 'the height of the tallest wave, not a region of the entity'],
+  'WaterBody.bedDepth': ['renders', 'a river\'s bed is cut into the terrain, which draws it'],
   'SpringBone.radius': ['no-place', 'the thickness of the strand, kept clear of the colliders; a margin on each bone, not a region of the root'],
   'Sprite.size': ['renders', 'the sprite drawn at it is the outline'],
   'Sprite.tileSize': ['renders', 'the repeat of a drawn sprite'],

@@ -24,6 +24,7 @@ into one surface. The entity places the body; it may be turned about its up, not
 | `shoreWidth` | How far in from the shore, and how deep, the waves take to come to full height, for every form. 0 leaves them whole to the edge. |
 | `flowSpeed` | A river's current, in world units a second where it is as wide as its widest. |
 | `waveHeight` | The height of the tallest wave, in world units. The waves' length, speed and heading are the zone's, which every body shares. |
+| `bedDepth` | How deep a river cuts its bed into the terrain under its surface, at its middle. 0 leaves the ground as it is. |
 
 Moving a body, editing its fields, its outline or its spline, or changing the terrain under it rebakes the zone, so the water follows at once.
 
@@ -140,6 +141,11 @@ so a river runs downhill. Put a `Spline` and a `WaterBody` with `form` River on 
   fading in as the other fades out, so the moment one is put back at its start is hidden by the other, and the surface does not stretch where the river bends.
 - **Waves.** A river has its own `waveHeight`, calmed toward its banks over `shoreWidth`, like any body. `Waters.sample` gives the current in `flow`
   (world units a second, along the river; zero elsewhere).
+- **Its bed.** With `bedDepth` above zero the river cuts its bed into the terrain: a trough `bedDepth` under the surface at its middle and at
+  the surface at its edge, its banks rising on at the same slope until they meet the ground, two widths out at most. It is laid as
+  [terrain modifiers](/docs/graphics/terrain/#modifiers) a stretch of the river each, so the drawn ground, its queries and collision all
+  follow, editing the spline remakes only the ground along it, and ground already lower than the bed is left alone. Ground a game carves
+  itself (a heightmap made with its rivers in it) leaves `bedDepth` at 0.
 - **Banks and mouths.** A bank is where the field's shore distance crosses zero, traced at the zone's resolution. Where a river runs into a lake, the sea or
   another river, the two are blended over a texel and a half, so there is no seam, no shore across the mouth and no step in height.
 

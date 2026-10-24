@@ -2804,4 +2804,6 @@ export const NOTED = {
     {"note":"World rules as a file, with an editor."},
   "feat(terrain): findPath asks whether a place can be walked to under a slope limit":
     {"note":"Whether a place can be walked to."},
+  "feat(water): rivers cut their beds into the terrain":
+    {"note":"Rivers cut their beds."},
 };
