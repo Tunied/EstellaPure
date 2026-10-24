@@ -85,7 +85,10 @@ export const WaterZone: ComponentDef<WaterZoneData> = defineComponent<WaterZoneD
     },
 });
 
-/** An ocean, as the zone takes it: everywhere at `level`, where the ground (if known) is below it. */
+/**
+ * An ocean, as the zone takes it: at `level` wherever the ground is below it and joined to the open sea, which is past the region's
+ * edge. A basin below the sea's level that no low ground joins to the edge is dry land, not sea.
+ */
 export interface ZoneOcean { kind: 'ocean'; key: number; level: number; waveHeight: number; shoreWidth: number }
 
 /** A lake: its outline on its own plane at world height `level`, and how a world point is put into the outline's space. */
@@ -192,13 +195,23 @@ export class WaterField {
         const blend = texel * 1.5;
         const bounded = bodies.filter((b) => b.kind !== 'ocean') as (ZoneLake | ZoneRiver)[];
         const boxes = bounded.map((b) => boundsOf(b));
+        const grounds = new Float64Array(grid.nx * grid.nz).fill(Number.NaN);
         for (let j = 0; j < grid.nz; j++) {
-            if (j % 16 === 0) yield 0.8 * (j / grid.nz);
+            if (j % 32 === 0) yield 0.3 * (j / grid.nz);
+            for (let i = 0; i < grid.nx; i++) {
+                const x = grid.minX + (i / Math.max(grid.nx - 1, 1)) * grid.sizeX;
+                const z = grid.minZ + (j / Math.max(grid.nz - 1, 1)) * grid.sizeZ;
+                grounds[j * grid.nx + i] = ground?.(x, z) ?? Number.NaN;
+            }
+        }
+        const sea = ocean ? openSea(grid, grounds, ocean.level) : null;
+        for (let j = 0; j < grid.nz; j++) {
+            if (j % 16 === 0) yield 0.3 + 0.5 * (j / grid.nz);
             for (let i = 0; i < grid.nx; i++) {
                 const k = j * grid.nx + i;
                 const x = grid.minX + (i / Math.max(grid.nx - 1, 1)) * grid.sizeX;
                 const z = grid.minZ + (j / Math.max(grid.nz - 1, 1)) * grid.sizeZ;
-                const g = ground ? ground(x, z) : null;
+                const g = Number.isNaN(grounds[k]!) ? null : grounds[k]!;
                 let w = 0, h = 0, a = 0, c = 0, sw = 0, fx = 0, fz = 0, best = -Infinity, owner = -1, ownerW = 0, held = 0;
                 for (let b = 0; b < bounded.length; b++) {
                     const box = boxes[b]!;
@@ -213,7 +226,8 @@ export class WaterField {
                     if (weight > ownerW) { ownerW = weight; owner = bounded[b]!.key; }
                 }
                 if (ocean) {
-                    const deep = g === null ? DEEP : ocean.level - g;
+                    // Ground below the sea's level that the open sea does not reach is a dry basin: as far above the sea as a texel.
+                    const deep = g === null ? DEEP : g < ocean.level && !sea![k] ? -texel : ocean.level - g;
                     best = Math.max(best, deep);
                     const weight = smooth(-blend, blend, deep) * (1 - held);
                     if (weight > 0) {
@@ -326,9 +340,10 @@ function sayOf(body: ZoneLake | ZoneRiver, x: number, z: number, g: number | nul
     { height: number; shore: number; amp: number; calm: number; fx: number; fz: number } | null {
     if (body.kind === 'lake') {
         const [lx, lz] = body.toLocal(x, z);
-        const shore = polygonSdf(body.outline, lx, lz);
         const deep = g === null ? DEEP : body.level - g;
-        const calm = shoreDamp(Math.min(shore, deep), body.shoreWidth);
+        // Water only where its outline is and its surface is over the ground: land inside the outline, above the water, is land.
+        const shore = Math.min(polygonSdf(body.outline, lx, lz), deep);
+        const calm = shoreDamp(shore, body.shoreWidth);
         return { height: body.level, shore, amp: body.waveHeight * calm, calm, fx: 0, fz: 0 };
     }
     const st = body.stations;
@@ -349,14 +364,37 @@ function sayOf(body: ZoneLake | ZoneRiver, x: number, z: number, g: number | nul
     let dx = mix(a.dx, b.dx), dz = mix(a.dz, b.dz);
     const len = Math.hypot(dx, dz) || 1;
     dx /= len; dz /= len;
-    const shore = half - best;
+    const deep = g === null ? DEEP : y - g;
+    // Within its banks and over its bed: a bank inside the river's width that stands above its surface is dry.
+    const shore = Math.min(half - best, deep);
     // The current fades in over a width from the spring and out over a width into whatever it runs into.
     const along = (at + t) / (st.length - 1);
     const length = st.reduce((n, p, i) => (i ? n + Math.hypot(p.x - st[i - 1]!.x, p.z - st[i - 1]!.z) : 0), 0);
     const run = smooth(0, 2 * half, along * length) * smooth(0, 2 * half, (1 - along) * length);
-    const deep = g === null ? DEEP : y - g;
-    const calm = shoreDamp(Math.min(shore, deep), body.shoreWidth);
+    const calm = shoreDamp(shore, body.shoreWidth);
     return { height: y, shore, amp: body.waveHeight * calm, calm, fx: dx * speed * run, fz: dz * speed * run };
+}
+
+/**
+ * Which texels the open sea reaches: those whose ground is below `level` (or unknown) and joined, through such texels, to the region's
+ * edge, past which the sea goes on.
+ */
+function openSea(grid: ZoneGrid, grounds: Float64Array, level: number): Uint8Array {
+    const { nx, nz } = grid;
+    const sea = new Uint8Array(nx * nz);
+    const low = (k: number): boolean => { const g = grounds[k]!; return Number.isNaN(g) || g < level; };
+    const queue: number[] = [];
+    const reach = (k: number): void => { if (!sea[k] && low(k)) { sea[k] = 1; queue.push(k); } };
+    for (let i = 0; i < nx; i++) { reach(i); reach((nz - 1) * nx + i); }
+    for (let j = 0; j < nz; j++) { reach(j * nx); reach(j * nx + nx - 1); }
+    for (let q = 0; q < queue.length; q++) {
+        const k = queue[q]!, i = k % nx;
+        if (i > 0) reach(k - 1);
+        if (i < nx - 1) reach(k + 1);
+        if (k >= nx) reach(k - nx);
+        if (k < (nz - 1) * nx) reach(k + nx);
+    }
+    return sea;
 }
 
 /** A body's box on the world's xz plane, [minX, minZ, maxX, maxZ]. */

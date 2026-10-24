@@ -54,6 +54,8 @@ export const WaterForm = { Ocean: 0, Lake: 1, River: 2 } as const;
 export interface WaterBodyData {
     /** {@link WaterForm}. */
     form: number;
+    /** What the game calls the body, the same in every session (an entity's number is not): what a query names the water by. */
+    bodyId: string;
     /** A lake's extent along x and z, centred on its entity, when it has no outline of its own. An ocean has none: it goes on past the zone. */
     sizeX: number;
     sizeZ: number;
@@ -73,10 +75,11 @@ export interface WaterBodyData {
  * @experimental
  */
 export const WaterBody: ComponentDef<WaterBodyData> = defineComponent<WaterBodyData>('WaterBody', {
-    form: WaterForm.Lake, sizeX: 100, sizeZ: 100, boundary: [] as Point2[], shoreWidth: 3, flowSpeed: 2, waveHeight: 0.3,
+    form: WaterForm.Lake, bodyId: '', sizeX: 100, sizeZ: 100, boundary: [] as Point2[], shoreWidth: 3, flowSpeed: 2, waveHeight: 0.3,
 }, {
     fields: {
         form: { enum: [{ label: 'Ocean', value: WaterForm.Ocean }, { label: 'Lake', value: WaterForm.Lake }, { label: 'River', value: WaterForm.River }], category: 'Shape', tooltip: 'An ocean is without edge: everywhere at its height where the ground is lower; a lake is a rectangle or an outline of its own; a river follows the Spline on the same entity.' },
+        bodyId: { category: 'Shape', tooltip: 'What the game calls this body, the same in every session: what a query names the water by. Empty is named by its entity.' },
         sizeX: { min: 1, category: 'Shape', tooltip: 'A lake\'s size along x.', shownWhen: { field: 'form', values: [WaterForm.Lake] } },
         sizeZ: { min: 1, category: 'Shape', tooltip: 'A lake\'s size along z.', shownWhen: { field: 'form', values: [WaterForm.Lake] } },
         boundary: { category: 'Shape', tooltip: 'The outline of a lake: points round it on its own xz plane. Empty is the rectangle of its size.', shownWhen: { field: 'form', values: [WaterForm.Lake] } },
@@ -88,8 +91,9 @@ export const WaterBody: ComponentDef<WaterBodyData> = defineComponent<WaterBodyD
 
 /** What {@link Waters.sample} answers. */
 export interface WaterSample {
-    /** The entity of the body that holds the most of the water there. */
+    /** The entity of the body that holds the most of the water there, and what the game calls it (its `bodyId`). */
     entity: Entity;
+    bodyId: string;
     /** How far the point is above the surface (negative under it), in world units. */
     depth: number;
     /** The surface's normal at the point, in world space. */
@@ -169,7 +173,7 @@ export class Waters {
         const [sx, sz] = waveSlope(params, x, z, time);
         const len = Math.hypot(sx, 1, sz);
         return {
-            entity: s.key as Entity, depth: y - h, normal: [-sx / len, 1 / len, -sz / len], flow: [s.flowX, 0, s.flowZ], surface: [x, h, z], inside: true,
+            entity: s.key as Entity, bodyId: this.bodyIdOf(s.key as Entity), depth: y - h, normal: [-sx / len, 1 / len, -sz / len], flow: [s.flowX, 0, s.flowZ], surface: [x, h, z], inside: true,
         };
     }
 
@@ -186,6 +190,25 @@ export class Waters {
     /** The height the ripples add to the surface at the world point, where the zone keeps them; 0 elsewhere. */
     rippleAt(x: number, _y: number, z: number): number {
         return this.ripples_?.heightAt(x, z) ?? 0;
+    }
+
+    /**
+     * The body of water at (x, z) and its surface at rest, or null where there is none: which water a place belongs to, for what a game
+     * keeps per body (a fishing spot, a level it raises) and a placement that keeps by the shore.
+     */
+    bodyAt(x: number, z: number): { entity: Entity; bodyId: string; form: number; level: number } | null {
+        const s = this.field_?.sample(x, z);
+        const world = this.app_?.world;
+        if (!s || !world || s.key < 0) return null;
+        const entity = s.key as Entity;
+        const body = world.valid(entity) && world.has(entity, WaterBody) ? world.get(entity, WaterBody) as WaterBodyData : null;
+        return { entity, bodyId: body?.bodyId || `entity:${entity}`, form: body?.form ?? WaterForm.Ocean, level: s.height };
+    }
+
+    private bodyIdOf(entity: Entity): string {
+        const world = this.app_?.world;
+        const body = world?.valid(entity) && world.has(entity, WaterBody) ? world.get(entity, WaterBody) as WaterBodyData : null;
+        return body?.bodyId || `entity:${entity}`;
     }
 
     /** The world height of the surface above or below (x, z), or null where there is none. */

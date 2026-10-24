@@ -7319,6 +7319,12 @@
           ]
         },
         {
+          "key": "bodyId",
+          "type": "string",
+          "default": "empty",
+          "doc": "What the game calls this body, the same in every session: what a query names the water by. Empty is named by its entity."
+        },
+        {
           "key": "sizeX",
           "type": "number",
           "default": "100",

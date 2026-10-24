@@ -1,0 +1,133 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
+/**
+ * @file  Which water a place is: the sea only where it reaches, a lake only over its own ground, the same whatever order bodies come in;
+ *        and the basins and drainage a game decides its lakes and rivers by.
+ */
+import { describe, expect, it } from 'vitest';
+import { WaterField, type ZoneGrid, type ZoneLake, type ZoneOcean } from '../src/water/zone';
+import { drainPath, findBasins } from '../src/water/basins';
+import type { Point2 } from '../src/water/shore';
+import { App } from '../src/app/app';
+import { AppContext, setDefaultContext } from '../src/ecs/context';
+import { setEditorMode, setPlayMode } from '../src/ecs/env';
+import { Transform } from '../src/ecs/component';
+import { createMockModule } from './mocks/wasm';
+import { WaterBody, WaterForm, WaterPlugin, WatersRes } from '../src/water/waterPlugin';
+import { WaterZone } from '../src/water/zone';
+
+const grid: ZoneGrid = { minX: -100, minZ: -100, sizeX: 200, sizeZ: 200, nx: 201, nz: 201 };
+const ocean: ZoneOcean = { kind: 'ocean', key: 3, level: 0, waveHeight: 1, shoreWidth: 4 };
+const square = (half: number): Point2[] => [{ x: -half, y: -half }, { x: half, y: -half }, { x: half, y: half }, { x: -half, y: half }];
+const lakeAt = (cx: number, cz: number, half: number, level: number, key = 1): ZoneLake => ({
+    kind: 'lake', key, level, waveHeight: 0.2, shoreWidth: 2, outline: square(half),
+    toLocal: (x, z) => [x - cx, z - cz], toWorld: (x, z) => [x + cx, z + cz],
+});
+
+/**
+ * An island rising from the sea, with two hollows in it below the sea's level: one walled off (a dry basin), one with a channel cut
+ * through the island's rim out to the sea.
+ */
+function island(x: number, z: number): number {
+    const r = Math.hypot(x, z);
+    let h = 20 - r * 0.3;                                       // a cone, its shore about 67 out
+    const pit = (cx: number, cz: number, depth: number, radius: number) => depth * Math.max(0, 1 - Math.hypot(x - cx, z - cz) / radius);
+    h -= pit(-25, 0, 40, 15);                                   // walled off: its bottom about 6 below the sea
+    h -= pit(30, 0, 42, 15);                                    // the second hollow
+    if (x > 30 && Math.abs(z) < 4) h = Math.min(h, -3);        // and its channel out to the sea
+    return h;
+}
+
+describe('the sea', () => {
+    const field = WaterField.bake(grid, [ocean], island);
+
+    it('fills low ground joined to it, and leaves a basin below its level that nothing joins to it dry', () => {
+        expect(island(-25, 0)).toBeLessThan(0);
+        expect(field.sample(-25, 0)).toBeNull();
+        expect(field.sample(30, 0)?.key).toBe(3);
+        expect(field.sample(90, 90)?.key).toBe(3);
+        expect(field.sample(0, 0)).toBeNull();
+    });
+});
+
+describe('a lake', () => {
+    it('is water only where its surface is over its ground: a hill inside its outline is land', () => {
+        const ground = (x: number, z: number) => (Math.hypot(x, z) < 6 ? 5 : -4);
+        const field = WaterField.bake(grid, [lakeAt(0, 0, 30, 0)], ground);
+        expect(field.sample(15, 15)?.key).toBe(1);
+        expect(field.sample(0, 0)).toBeNull();
+    });
+
+    it('above the sea keeps its own water, and the bodies\' order changes nothing', () => {
+        // A lake held up in the island's walled-off hollow, at 2 over the sea.
+        const high = lakeAt(-25, 0, 12, 2, 7);
+        const a = WaterField.bake(grid, [ocean, high], island), b = WaterField.bake(grid, [high, ocean], island);
+        expect(a.sample(-25, 0)?.key).toBe(7);
+        expect(a.sample(-25, 0)!.height).toBeCloseTo(2, 3);
+        for (const name of ['height', 'shore', 'owner', 'depth'] as const) {
+            const x = a[name], y = b[name];
+            for (let k = 0; k < x.length; k += 97) {
+                if (Number.isNaN(x[k]!)) expect(Number.isNaN(y[k]!)).toBe(true);
+                else expect(y[k]).toBe(x[k]);
+            }
+        }
+    });
+});
+
+describe('basins and drainage', () => {
+    it('finds each hollow, filled to where it runs over, and where that is', () => {
+        const map = findBasins(grid, island, { minDepth: 0.5 });
+        const walled = map.basins.find((b) => Math.hypot(b.deepest.x + 25, b.deepest.z) < 3)!;
+        expect(walled).toBeDefined();
+        expect(walled.deepest.y).toBeLessThan(0);
+        // It fills to the lowest point of its rim, and runs over there.
+        expect(walled.level).toBeGreaterThan(walled.deepest.y + 10);
+        expect(walled.outlet.y).toBeCloseTo(walled.level, 0);
+        expect(Math.hypot(walled.outlet.x + 25, walled.outlet.z)).toBeLessThan(20);
+    });
+
+    it('with a sea level, takes the hollow the sea reaches for sea, and keeps the walled-off one a basin', () => {
+        const map = findBasins(grid, island, { seaLevel: 0, minDepth: 0.5 });
+        const k = (x: number, z: number) => (z + 100) * grid.nx + (x + 100);
+        expect(map.sea[k(30, 0)]).toBe(1);
+        expect(map.sea[k(-25, 0)]).toBe(0);
+        expect(map.basin[k(-25, 0)]).toBeGreaterThanOrEqual(0);
+        expect(map.basin[k(30, 0)]).toBe(-1);
+    });
+
+    it('drains every place to the edge, gathering as it goes', () => {
+        const map = findBasins(grid, island);
+        const path = drainPath(map, 10, 10);
+        expect(path.length).toBeGreaterThan(2);
+        const last = path[path.length - 1]!;
+        expect(Math.max(Math.abs(last.x), Math.abs(last.z))).toBeCloseTo(100, 6);
+        // Water only goes down (or level, across a filled basin) along its course.
+        for (let i = 1; i < path.length; i++) expect(path[i]!.y).toBeLessThanOrEqual(path[i - 1]!.y + 1e-4);
+        const total = map.accumulation.reduce((s, v, k) => (map.downstream[k] === -1 ? s + v : s), 0);
+        expect(total).toBe(grid.nx * grid.nz);
+    });
+});
+
+describe('the water in a running app with no renderer', () => {
+    it('names the body a place belongs to by the id the game gave it, the same in every session', async () => {
+        setDefaultContext(new AppContext());
+        setEditorMode(false);
+        setPlayMode(false);
+        const app = App.new();
+        const module = createMockModule();
+        app.connectCpp(module.getRegistry(), module);
+        app.addPlugin(new WaterPlugin());
+        const zone = app.world.spawn();
+        app.world.insert(zone, Transform, { position: { x: 0, y: 0, z: 0 }, worldPosition: { x: 0, y: 0, z: 0 } });
+        app.world.insert(zone, WaterZone, { ...WaterZone._default, sizeX: 200, sizeZ: 200 });
+        const lake = app.world.spawn();
+        app.world.insert(lake, Transform, { position: { x: 0, y: 2, z: 0 }, worldPosition: { x: 0, y: 2, z: 0 } });
+        app.world.insert(lake, WaterBody, { ...WaterBody._default, form: WaterForm.Lake, bodyId: 'mirror-lake', sizeX: 60, sizeZ: 60 });
+        for (let i = 0; i < 40; i++) { app.tick(1 / 60); await new Promise((r) => setTimeout(r, 0)); }
+        const waters = app.getResource(WatersRes);
+        expect(waters.bodyAt(0, 0)).toMatchObject({ entity: lake, bodyId: 'mirror-lake', form: WaterForm.Lake });
+        expect(waters.bodyAt(0, 0)!.level).toBeCloseTo(2, 3);
+        expect(waters.sample(0, 0, 0)?.bodyId).toBe('mirror-lake');
+        expect(waters.bodyAt(90, 90)).toBeNull();
+    });
+});

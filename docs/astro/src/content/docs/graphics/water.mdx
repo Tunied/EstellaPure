@@ -17,7 +17,8 @@ into one surface. The entity places the body; it may be turned about its up, not
 
 | Field | What it does |
 |---|---|
-| `form` | **Ocean**: without an edge, at the entity's height everywhere the ground is lower, and on past the zone. **Lake**: a rectangle of `sizeX` by `sizeZ` centred on the entity, or the outline in `boundary`, at the entity's height. **River**: follows the `Spline` on the same entity. |
+| `form` | **Ocean**: without an edge, at the entity's height wherever the ground is lower and joined to the open sea, and on past the zone. **Lake**: a rectangle of `sizeX` by `sizeZ` centred on the entity, or the outline in `boundary`, at the entity's height. **River**: follows the `Spline` on the same entity. |
+| `bodyId` | What the game calls the body, the same in every session (an entity's number is not): what a query names the water by. Empty is named by its entity. |
 | `sizeX`, `sizeZ` | A lake's size, when it has no outline of its own. |
 | `boundary` | A lake's outline: three points or more round it on its own xz plane. Empty is the rectangle. |
 | `shoreWidth` | How far in from the shore, and how deep, the waves take to come to full height, for every form. 0 leaves them whole to the edge. |
@@ -99,11 +100,28 @@ A lake is its outline at its entity's height. The zone takes the signed distance
 and from the two the share of the waves a point keeps (none at the edge or where the water is not deep, all from `shoreWidth` in). The surface is cut where the
 outline is (traced at the zone's resolution, not at the mesh's cells), the geometry and the shading calm toward the shore, and the shore foams along it.
 
-The water fills the low ground and meets the hills where they cross it (the depth test does that), and the waves die out as it shallows. Over no terrain a lake is
-as deep as it likes. The outline should not cross itself.
+The water fills the low ground and meets the hills where they cross it, and the waves die out as it shallows. A body is water only where its surface is over
+its ground: a hill or a bank inside a lake's outline or a river's width that stands above the water is land, for what is drawn and for what is asked. Over no
+terrain a lake is as deep as it likes. The outline should not cross itself.
 
 An ocean takes its shore from the terrain the same way: inside the zone it is cut where the ground stands above its level, and its waves calm over `shoreWidth`
-of depth. Past the zone it is everywhere at its level with its waves whole.
+of depth. It is the open sea, which lies past the zone's edge: low ground is sea only where low ground joins it to that edge, so a hollow below the sea's level
+walled off by higher ground stays dry (or holds a lake of its own, at its own level). Past the zone it is everywhere at its level with its waves whole.
+
+Where bodies overlap, a lake or a river holds the water over the ocean, and which body a place belongs to does not depend on the order the bodies were added.
+
+### Basins and drainage
+
+Deciding where a world's lakes and rivers go is a game's (or its generator's) work; `findBasins(grid, ground, { seaLevel })` gives it the ground's side of it,
+from one priority flood over a grid:
+
+- `basins`: each hollow, with the `level` water would fill it to (the lowest point of its rim), its `deepest` point and its `outlet`, where it runs over;
+- `filled`: the height water would stand at over each texel; `basin`: which basin a texel is in;
+- `downstream` and `accumulation`: where each texel drains to, down to the region's edge, and how much drains through it, which is where rivers run;
+  `drainPath(map, x, z)` follows it from a point;
+- `sea`: with a sea level, the low ground the sea reaches from the edge.
+
+A lake placed at a basin's `level` over its outline fills it to the brim; a river from its `outlet` down `drainPath` runs where the water would.
 
 ## Rivers
 
@@ -244,7 +262,7 @@ The lite water costs no vertex work for the waves, and the shading still moves, 
 
 `Waters.sample(x, y, z)` (the `WatersRes` resource) answers from the zone's field, the same numbers the surface is drawn from:
 
-- `entity`: the body that owns most of the water there (where two meet, the one the point is further inside);
+- `entity`: the body that owns most of the water there (where two meet, the one the point is further inside), and `bodyId`, what the game calls it;
 - `depth`: how far the point is above the surface (negative under it), in world units;
 - `normal`: the surface's normal there, in world space;
 - `surface`: the world position on the surface straight above or below the point;
@@ -252,7 +270,8 @@ The lite water costs no vertex work for the waves, and the shading still moves, 
 - `flow`: how the water moves there, in world units a second (a river's current; still water is zero).
 
 It reads the same formula the shader draws, at the time of the frame, with the height the waves stand to there and the ripples. `Waters.heightAt(x, z)` is the
-surface's height alone. A point over no water (outside every shore, or past the zone with no ocean) answers `null`.
+surface's height alone. A point over no water (outside every shore, or past the zone with no ocean) answers `null`. `Waters.bodyAt(x, z)` says which body a
+place belongs to: its entity, its `bodyId`, its form and its level at rest.
 
 The surface the code reads is the full wave sum; a coarse far ring draws less of it (see above), so near the horizon the two can
 differ by the short waves, which are small.

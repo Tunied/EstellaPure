@@ -2778,4 +2778,6 @@ export const NOTED = {
     {"note":"Generated worlds."},
   "feat(editor): a WorldZone's circle or turned box is drawn on the ground":
     {"note":"Generated worlds."},
+  "feat(water): the sea fills only what joins it, a body is water only over its ground, bodies carry stable ids, and basins show where water gathers":
+    {"note":"Which water a place is."},
 };

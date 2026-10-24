@@ -10,6 +10,7 @@ export { Floating, FloatingPlugin, floatingForce, wakeStrength, type FloatingBod
 export { WaterZone, WaterField, currentShare, type WaterZoneData, type FieldSample } from './zone';
 export { buildOceanMesh, oceanReach, oceanSnap } from './waterMesh';
 export { polygonSdf, shoreDamp, type Point2 } from './shore';
+export { findBasins, drainPath, type Basin, type BasinMap, type BasinOptions } from './basins';
 
 // Importing this subpath INSTALLS water — see tilemap/index.ts.
 import { registerWaterSupport } from './waterSupport';
