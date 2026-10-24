@@ -286,19 +286,59 @@ function texture(name, seed, shade) {
   meta(`assets/textures/${name}.png`, 'texture', { wrapMode: 'repeat' });
 }
 
+/** Cellular noise that wraps every `period` cells: the distance to the nearest and the second-nearest feature point, for stones and cracks. */
+function cells(u, v, period, seed) {
+  const x = u * period, y = v * period;
+  const ix = Math.floor(x), iy = Math.floor(y);
+  let d1 = 9, d2 = 9, id = 0;
+  for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
+    const cx = ix + i, cy = iy + j;
+    const wx = ((cx % period) + period) % period, wy = ((cy % period) + period) % period;
+    const px = cx + hash(wx, wy, seed), py = cy + hash(wx, wy, seed + 1);
+    const d = Math.hypot(px - x, py - y);
+    if (d < d1) { d2 = d1; d1 = d; id = hash(wx, wy, seed + 2); } else if (d < d2) d2 = d;
+  }
+  return { d1, d2, id };
+}
+
 function textures() {
+  // Grass: a meadow seen from standing height. Patches of fresh and dry grass, clumps darker at their roots, blades as short strokes, a little earth between.
   texture('grass', 1, (u, v, n) => {
-    const broad = n(0, 4, 3), fine = n(40, 5, 24), blade = n(80, 2, 96);
-    return mix(mix([52, 82, 30], [104, 140, 52], broad), [70, 108, 38], fine * 0.6).map((c) => c * (0.8 + 0.42 * blade));
+    const patch = n(0, 4, 2), dry = smooth(0.55, 0.8, n(10, 3, 3)), clump = n(20, 4, 12);
+    const blade = tiled(u * 160, v * 40, 160, 91) * 0.5 + tiled(u * 40, v * 160, 40, 92) * 0.5;
+    const earth = smooth(0.78, 0.9, n(30, 3, 20)) * (1 - clump);
+    let c = mix([46, 78, 26], [92, 134, 44], patch);
+    c = mix(c, [146, 140, 70], dry * 0.7);
+    c = mix(c, [86, 70, 44], earth);
+    return c.map((x) => x * (0.62 + 0.38 * clump) * (0.82 + 0.3 * blade));
   });
+  // Sand: low ripples the wind combed across it, running one way and only gently bent (a contour of noise reads as rings), fading
+  // in and out in patches; pebbles and broken shell scattered over.
   texture('sand', 2, (u, v, n) => {
-    const broad = n(0, 4, 3), fine = n(30, 5, 32), pebble = n(70, 2, 64);
-    return mix([168, 150, 116], [214, 196, 158], broad).map((c) => c * (0.88 + 0.2 * fine) * (pebble > 0.72 ? 0.84 : 1));
+    const bend = (n(0, 2, 2) - 0.5) * 0.6;
+    const ripple = (Math.sin((v * 24 + u * 3 + bend) * Math.PI * 2) * 0.5 + 0.5) * smooth(0.35, 0.7, n(50, 3, 3));
+    const grain = hash(Math.floor(u * 512), Math.floor(v * 512), 5);
+    const stones = cells(u, v, 18, 21);
+    const pebble = 1 - smooth(0.12, 0.2, stones.d1);
+    let c = mix([170, 150, 114], [222, 204, 164], n(10, 4, 4));
+    c = c.map((x) => x * (0.93 + 0.07 * ripple) * (0.93 + 0.1 * grain));
+    return mix(c, mix([110, 104, 96], [196, 188, 172], stones.id), pebble * (stones.id > 0.55 ? 1 : 0));
   });
-  texture('snow', 3, (u, v, n) => mix([222, 228, 238], [250, 252, 255], n(0, 4, 8)));
+  // Snow: windblown, bluish in its hollows, with the odd glint.
+  texture('snow', 3, (u, v, n) => {
+    const drift = n(0, 4, 4), sparkle = hash(Math.floor(u * 512), Math.floor(v * 512), 7) > 0.985 ? 1.08 : 1;
+    return mix([196, 210, 230], [252, 253, 255], smooth(0.2, 0.75, drift)).map((x) => Math.min(255, x * sparkle));
+  });
+  // Rock: strata running across it, cracks between blocks, weathered lighter on the faces, lichen in patches.
   texture('rock', 4, (u, v, n) => {
-    const broad = n(0, 4, 4), ridge = 1 - Math.abs(n(20, 5, 6) * 2 - 1), fine = n(60, 4, 32);
-    return mix([62, 64, 68], [112, 114, 118], broad * 0.7 + ridge * 0.4).map((c) => c * (0.82 + 0.36 * fine));
+    const block = cells(u, v, 6, 31);
+    const crack = smooth(0.0, 0.06, block.d2 - block.d1);
+    const strata = Math.sin((v * 9 + n(0, 3, 3) * 1.6) * Math.PI * 2) * 0.5 + 0.5;
+    const face = n(10, 5, 8);
+    const lichen = smooth(0.62, 0.75, n(40, 4, 6));
+    let c = mix([70, 68, 66], [138, 134, 126], face * 0.6 + strata * 0.25 + block.id * 0.25);
+    c = mix(c, [118, 124, 82], lichen * 0.55);
+    return c.map((x) => x * (0.35 + 0.65 * crack) * (0.85 + 0.25 * n(60, 3, 64)));
   });
   // The pine's colour: bark at the foot, then needles that darken toward the shade under each tier.
   const strip = png(8, 128, (x, y) => {
@@ -379,10 +419,11 @@ function materials() {
   material('ground', 'builtin:terrain', {
     u_layer0: 'assets/textures/grass.png', u_layer1: 'assets/textures/sand.png', u_layer2: 'assets/textures/snow.png', u_layer3: 'assets/textures/rock.png',
     u_tint0: white, u_tint1: white, u_tint2: white, u_tint3: white,
-    u_tile0: 900, u_tile1: 700, u_tile2: 1100, u_tile3: 1400, u_macroVariation: 0.45, u_sharpness: 2, u_roughness: 0.95,
+    u_tile0: 900, u_tile1: 700, u_tile2: 1100, u_tile3: 1400, u_macroVariation: 0.45, u_sharpness: 2, u_roughness: 0.95, u_heightBlend: 0.8, u_antiTile: 0.7, u_relief: 8,
+    u_wetLevel: WORLD.sea, u_wetBand: 60,
   });
   // The stock water, scaled from metres to this world's centimetres: the same colours, absorbed over a hundred times the distance.
-  const water = { u_density: 0.0011, u_rippleLength: 220, u_rippleStrength: 0.3, u_distortionRange: 900, u_foamWidth: 45, u_foamCrest: 0.4,
+  const water = { u_density: 0.0011, u_rippleLength: 220, u_rippleStrength: 0.3, u_distortionRange: 300, u_refractionStrength: 0.6, u_foamWidth: 45, u_foamCrest: 0.4,
     u_fallbackDepth: 400, u_causticScale: 220, u_roughness: 0.04 };
   material('water', 'builtin:water', water);
   material('crate', 'builtin:model', { u_metallic: 0, u_roughness: 0.8 });
@@ -444,6 +485,8 @@ function scene() {
     { type: 'Camera', data: { projectionType: 0, fov: 55, nearPlane: 10, farPlane: 120000, isActive: true, priority: 0 } },
     { type: 'PostProcessVolume', data: { isGlobal: true, priority: 0, weight: 1, effects: post } },
   ]);
+  // The HUD's canvas: the keys and what the scene is doing are drawn on it by the script.
+  add('Canvas', [{ type: 'Transform', data: {} }, { type: 'Canvas', data: { designResolution: { x: 1480, y: 920 }, scaleMode: 2 } }, { type: 'UINode', data: {} }]);
   add('Clock', [{ type: 'Transform', data: {} }, { type: 'TimeOfDay', data: { hour: 15.5, daySeconds: 0, latitude: 40, declination: 15, north: 180, drive: 31 } }]);
   add('Sun', [{ type: 'Transform', data: {} },
     { type: 'Light', data: { type: 1, color: white, intensity: 3, enabled: true, meshShadows: true, shadowExtent: 16000, shadowStrength: 1, sourceAngle: 0.5 } }]);
@@ -492,7 +535,7 @@ function scene() {
   plants('Meadow', 'assets/materials/meadow.esmaterial', { count: 1100, heightMin: WORLD.lake.level + 160, heightMax: WORLD.snow - 600, bladeHeight: 55, bladeWidth: 6 });
   plants('Flowers', 'assets/materials/flowers.esmaterial', { count: 70, seed: 11, heightMin: WORLD.lake.level + 200, heightMax: 2200, bladeHeight: 45, bladeWidth: 9 });
   plants('Reeds', 'assets/materials/reeds.esmaterial', { count: 600, seed: 5, minUp: 0.75, heightMin: WORLD.lake.level - 40, heightMax: WORLD.lake.level + 140,
-    bladeHeight: 150, bladeWidth: 4 });
+    bladeHeight: 150, bladeWidth: 4, waterDepth: 60 });
   add('Pines', [
     { type: 'Transform', data: { position: { x: 0, y: 0, z: -3000 } } },
     { type: 'Foliage', data: {

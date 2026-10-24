@@ -13,7 +13,10 @@
   "features": {
     "rendering": {
       "colorSpace": "linear",
-      "outputTransform": "neutral"
+      "outputTransform": "neutral",
+      "quality": {
+        "mode": "high"
+      }
     }
   }
 }

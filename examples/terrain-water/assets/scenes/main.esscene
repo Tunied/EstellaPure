@@ -129,6 +129,33 @@
   },
   {
    "id": 1,
+   "name": "Canvas",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "Canvas",
+     "data": {
+      "designResolution": {
+       "x": 1480,
+       "y": 920
+      },
+      "scaleMode": 2
+     }
+    },
+    {
+     "type": "UINode",
+     "data": {}
+    }
+   ]
+  },
+  {
+   "id": 2,
    "name": "Clock",
    "parent": null,
    "children": [],
@@ -152,7 +179,7 @@
    ]
   },
   {
-   "id": 2,
+   "id": 3,
    "name": "Sun",
    "parent": null,
    "children": [],
@@ -183,7 +210,7 @@
    ]
   },
   {
-   "id": 3,
+   "id": 4,
    "name": "Sky",
    "parent": null,
    "children": [],
@@ -210,7 +237,7 @@
    ]
   },
   {
-   "id": 4,
+   "id": 5,
    "name": "Ground",
    "parent": null,
    "children": [],
@@ -244,7 +271,7 @@
    ]
   },
   {
-   "id": 5,
+   "id": 6,
    "name": "Water",
    "parent": null,
    "children": [],
@@ -279,7 +306,7 @@
    ]
   },
   {
-   "id": 6,
+   "id": 7,
    "name": "Sea",
    "parent": null,
    "children": [],
@@ -306,7 +333,7 @@
    ]
   },
   {
-   "id": 7,
+   "id": 8,
    "name": "Lake",
    "parent": null,
    "children": [],
@@ -529,7 +556,7 @@
    ]
   },
   {
-   "id": 8,
+   "id": 9,
    "name": "River In",
    "parent": null,
    "children": [],
@@ -595,7 +622,7 @@
    ]
   },
   {
-   "id": 9,
+   "id": 10,
    "name": "River Out",
    "parent": null,
    "children": [],
@@ -661,7 +688,7 @@
    ]
   },
   {
-   "id": 10,
+   "id": 11,
    "name": "Weather",
    "parent": null,
    "children": [],
@@ -686,7 +713,7 @@
    ]
   },
   {
-   "id": 11,
+   "id": 12,
    "name": "Meadow",
    "parent": null,
    "children": [],
@@ -725,7 +752,7 @@
    ]
   },
   {
-   "id": 12,
+   "id": 13,
    "name": "Flowers",
    "parent": null,
    "children": [],
@@ -764,7 +791,7 @@
    ]
   },
   {
-   "id": 13,
+   "id": 14,
    "name": "Reeds",
    "parent": null,
    "children": [],
@@ -797,13 +824,14 @@
       "heightMin": 660,
       "heightMax": 840,
       "bladeHeight": 150,
-      "bladeWidth": 4
+      "bladeWidth": 4,
+      "waterDepth": 60
      }
     }
    ]
   },
   {
-   "id": 14,
+   "id": 15,
    "name": "Pines",
    "parent": null,
    "children": [],
@@ -846,7 +874,7 @@
    ]
   },
   {
-   "id": 15,
+   "id": 16,
    "name": "Crate 1",
    "parent": null,
    "children": [],
@@ -942,7 +970,7 @@
    ]
   },
   {
-   "id": 16,
+   "id": 17,
    "name": "Crate 2",
    "parent": null,
    "children": [],
@@ -1038,7 +1066,7 @@
    ]
   },
   {
-   "id": 17,
+   "id": 18,
    "name": "Crate 3",
    "parent": null,
    "children": [],
@@ -1134,7 +1162,7 @@
    ]
   },
   {
-   "id": 18,
+   "id": 19,
    "name": "Crate 4",
    "parent": null,
    "children": [],
@@ -1230,7 +1258,7 @@
    ]
   },
   {
-   "id": 19,
+   "id": 20,
    "name": "Crate 5",
    "parent": null,
    "children": [],
@@ -1326,7 +1354,7 @@
    ]
   },
   {
-   "id": 20,
+   "id": 21,
    "name": "Crate 6",
    "parent": null,
    "children": [],
@@ -1422,7 +1450,7 @@
    ]
   },
   {
-   "id": 21,
+   "id": 22,
    "name": "Crate 7",
    "parent": null,
    "children": [],
@@ -1518,7 +1546,7 @@
    ]
   },
   {
-   "id": 22,
+   "id": 23,
    "name": "Crate 8",
    "parent": null,
    "children": [],
@@ -1614,7 +1642,7 @@
    ]
   },
   {
-   "id": 23,
+   "id": 24,
    "name": "Crate 9",
    "parent": null,
    "children": [],

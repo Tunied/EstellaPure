@@ -41,6 +41,11 @@
     "u_tile3": 1400,
     "u_macroVariation": 0.45,
     "u_sharpness": 2,
-    "u_roughness": 0.95
+    "u_roughness": 0.95,
+    "u_heightBlend": 0.8,
+    "u_antiTile": 0.7,
+    "u_relief": 8,
+    "u_wetLevel": 0,
+    "u_wetBand": 60
   }
 }
