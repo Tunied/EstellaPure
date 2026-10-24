@@ -70,8 +70,13 @@ function reading(stdout, label) {
  */
 function launch(args, label) {
     const r = runElectron([LAUNCHER, ...args], { encoding: 'utf8', cwd: ROOT });
-    if (!reading(r.stdout, label)) {
-        console.error(`✗ third-person: a launch printed no ${label} reading, so no game ran to judge`);
+    // The launcher drives input only once the package has painted, and reads the world either way: an unpainted
+    // launch reads a character nobody touched, and judging that reported every behaviour as broken.
+    const unpainted = /painted=false/.test(r.stdout ?? '');
+    if (!reading(r.stdout, label) || unpainted) {
+        console.error(unpainted
+            ? `✗ third-person: the package did not paint before the launch's timeout, so no input reached it and no game ran to judge`
+            : `✗ third-person: a launch printed no ${label} reading, so no game ran to judge`);
         for (const l of `${r.stderr ?? ''}${r.stdout ?? ''}`.trim().split('\n').slice(-12)) {
             console.error(`    ${l}`);
         }
