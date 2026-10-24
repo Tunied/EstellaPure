@@ -25,10 +25,17 @@ export interface TerrainSource {
     /** The least and the most the height can be: what the pages encode their heights over. */
     readonly minHeight: number;
     readonly maxHeight: number;
-    /** The height at (x, z), or null off the area. */
+    /** The height at (x, z), or null off the area (or where a provider has not answered yet). */
     height(x: number, z: number): number | null;
+    /** The ground's unit normal at (x, z), or null where the height is not known. */
+    normal(x: number, z: number): [number, number, number] | null;
     /** The weights of the four layers (grass, dirt, snow, rock) at (x, z), where the ground there is `h` high and faces `ny` up. */
     paint(x: number, z: number, h: number, ny: number): [number, number, number, number];
+    /**
+     * The ground over a grid of `count` by `count` samples `spacing` apart from (x0, z0), when the source samples whole regions (a
+     * provider, which may answer later); without it the pages read `height` and `paint` point by point.
+     */
+    region?(x0: number, z0: number, spacing: number, count: number): { heights: Float32Array; paint?: Float32Array } | Promise<{ heights: Float32Array; paint?: Float32Array }>;
 }
 
 /** The pixels of a splatmap, as the terrain read them. */

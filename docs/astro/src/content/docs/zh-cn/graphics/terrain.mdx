@@ -12,7 +12,7 @@ description: 一个 Terrain 组件,用高度图或噪声生成地面,可以是�
 地面有两种,由 `extent` 选择:
 
 - **Area(区域)**:以实体为中心、`sizeX` 乘 `sizeZ` 的一片地面,来自高度图或一次性生成的噪声。可以被雨水侵蚀,也可以用 splatmap 上色。
-- **Infinite(无限)**:在世界中任意一点读取的噪声,所以地面没有边缘。同一个种子在任何地方都是同一片地面,编辑器里、游戏里、服务器上都一样。它围绕视点绘制到 `drawDistance` 为止。
+- **Infinite(无限)**:由一个生成器(provider,见下)在世界中任意一点读取的地面,所以没有边缘。同一个生成器、世界、种子和版本在任何地方都是同一片地面,编辑器里、游戏里、服务器上都一样。它围绕视点绘制到 `drawDistance` 为止。
 
 | 字段 | 作用 |
 |---|---|
@@ -22,6 +22,7 @@ description: 一个 Terrain 组件,用高度图或噪声生成地面,可以是�
 | `cellSize` | 地面网格最细的格子,以世界单位计:视点近处地面按它绘制。再远一些,格子逐级加倍。 |
 | `detail` | 最细格子在地面变粗之前能延伸多远的倍率。大于 1 时远处更细,三角形也更多。 |
 | `drawDistance` | 仅无限地面。地面从视点向外绘制多远。 |
+| `provider`、`world`、`generatorVersion` | 仅无限。生成地面的生成器(`estella:noise` 为引擎自带噪声,或游戏注册的生成器)、游戏给这个世界起的名字,以及这个世界生成时用的生成器版本。 |
 | `seed`、`frequency`、`octaves`、`persistence`、`ridged` | 噪声:换一个种子就是另一片地面;`frequency` 是横跨有几座山丘;`ridged` 从起伏的丘陵到尖锐的山脊。 |
 | `resolution` | 仅区域。区域噪声地面每边的采样数。 |
 | `warp` | 0 到 1:噪声被它自己的另一层噪声扭曲多远,得到蜿蜒的山谷和弯折的山脊,而不是圆圆的山丘。 |
@@ -90,7 +91,31 @@ const y = terrains.heightAt(x, z);       // 世界高度,没有地形的地方�
 const n = terrains.normalAt(x, z);       // 那里的单位法线,或 null
 ```
 
-它们读的是生成页所用的同一个来源(区域的场,或无限的噪声),所以和画出来的一致,而且任何一点都能立刻回答,不管那里的页做没做好。无限地面处处都有高度。区域的图读完、侵蚀做完之前,`heightAt` 返回 null,`terrains.loading` 为 true。
+它们读的是生成页所用的同一个来源(区域的场,或生成器),所以和画出来的一致,而且任何一点都能回答,不管那里的页做没做好。区域的图读完、侵蚀做完之前,`heightAt` 返回 null,`terrains.loading` 为 true。稍后才应答的生成器,在某点周围的样本到达之前,该点返回 null。
+
+`terrains.status(entity)` 说明地形所处的状态:`loading`、`ready`,或带 `reason` 的 `failed`。高度图读不到、生成器没注册、或生成器已没有所要的版本时,地形失败:什么都不画,查询返回 null,而不是在游戏期待自己地面的地方长出噪声。
+
+### 生成器与版本
+
+无限地面由生成器生成:一个关于世界位置的函数,在每台机器上都一样。它被要求采样一个区域(世界、种子和版本、以世界单位计的起点、间距和每边样本数),返回那里的高度;如果它自己给地面上色,还返回每个样本四个图层权重。每个区域都是同一个函数在不同点上的读数,所以相邻页共享边上的样本,粗页和细页在样本重合处一致,页生成的先后不改变任何东西。位置是世界的,不是地形的:同一个世界上分开摆放的两个地形是同一片地面。
+
+```ts
+import { registerTerrainProvider, type TerrainProvider } from 'esengine/terrain';
+
+const planet: TerrainProvider = {
+    id: 'mygame:planet',
+    versions: [1, 2],                          // 存档里的世界可能仍会指名的每个版本
+    range: (seed, version) => [-200, 900],     // 最低与最高高度,GPU 按它编码高度
+    sample({ world, seed, version, x0, z0, spacing, count }) {
+        const heights = new Float32Array(count * count);
+        // ... heights[j * count + i] 位于 (x0 + i * spacing, z0 + j * spacing)
+        return { heights };                    // 也可以是 Promise,来自 worker 或服务器
+    },
+};
+registerTerrainProvider(planet);
+```
+
+一个版本永久对应一种算法。存档的世界保留 `generatorVersion`;算法改变时新增一个版本并保留旧版本,这样建在旧地面上的东西仍立在原处。引擎的噪声是 `estella:noise` 版本 1。带 `heightAt` 的生成器能立刻回答单点;没有它时,单点从按最细格子采样的小块里回答。
 
 ## 限制
 

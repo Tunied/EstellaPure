@@ -794,7 +794,7 @@ export {
 // Terrain and Foliage are optional modules (`esengine/terrain`, `esengine/foliage` install them). Their API stays reachable from
 // here: a shared chunk is side-effect-free, so what nothing uses is not bundled.
 export {
-    Terrain, TerrainExtent, Terrains, TerrainsRes, TerrainPlugin, terrainPlugin, paintWeights, type TerrainData,
+    Terrain, TerrainExtent, Terrains, TerrainsRes, TerrainPlugin, terrainPlugin, paintWeights, NOISE_PROVIDER, type TerrainData, type TerrainStatus,
 } from './terrain/terrainPlugin';
 export {
     Foliage, FoliageField, FoliageRes, FoliagePlugin, foliagePlugin, type FoliageData,
@@ -822,6 +822,10 @@ export { FieldSource, NoiseSource, noised, type NoiseParams, type Splat, type Te
 export { boxDistance, levelRange, nodeKey, parentOf, selectNodes, type QuadtreeParams, type TerrainNode } from './terrain/quadtree';
 export { makePage, PageTable, PAGE_SIDE, PAGE_TEXELS, PATCH_CELLS, type Page, type PageImage } from './terrain/pages';
 export { buildPatchMesh } from './terrain/patch';
+export {
+    noiseProvider, ProviderSource, registerTerrainProvider, terrainProvider, TerrainUnavailable,
+    type TerrainProvider, type TerrainRegion, type TerrainSamples,
+} from './terrain/provider';
 export {
     mergeMeshes, planStaticBatches, STATIC_BATCH_DEFAULTS,
     type StaticBatchGroup, type StaticBatchLimits, type StaticBatchRefusal, type StaticBatchReport,

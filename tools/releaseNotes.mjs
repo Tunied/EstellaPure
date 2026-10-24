@@ -2762,4 +2762,6 @@ export const NOTED = {
     {"internal":"The generated embed of a shader change that has its own note."},
   "docs: the procedural world plan records what the engine owes, where each part stands and how it is accepted":
     {"internal":"A planning document; nothing a creator can use yet."},
+  "feat(terrain): ground without end comes from a versioned provider the game names, and a terrain that cannot get its ground fails":
+    {"note":"Terrain from a generator the game names, versioned."},
 };

@@ -16,8 +16,9 @@ The ground is one of two kinds, chosen by `extent`:
 
 - **Area**: ground `sizeX` by `sizeZ`, centred on the entity, from a heightmap or from noise made once. It may be worn by rain and
   painted by a splatmap.
-- **Infinite**: noise read at any point in the world, so the ground has no edge. The same seed is the same ground everywhere, in the
-  editor, in a game and on a server. It is drawn round the eye out to `drawDistance`.
+- **Infinite**: ground made by a provider (below) read at any point in the world, so it has no edge. The same provider, world, seed
+  and version are the same ground everywhere, in the editor, in a game and on a server. It is drawn round the eye out to
+  `drawDistance`.
 
 | Field | What it does |
 |---|---|
@@ -27,6 +28,7 @@ The ground is one of two kinds, chosen by `extent`:
 | `cellSize` | The finest cell of the ground's mesh, in world units: what the ground is drawn at near the eye. Further off the cells double, level by level. |
 | `detail` | A multiplier on how far the finest cells reach before the ground coarsens. Above 1 is finer at a distance and costs more triangles. |
 | `drawDistance` | Infinite only. How far from the eye the ground is drawn. |
+| `provider`, `world`, `generatorVersion` | Infinite only. The generator the ground is made by (`estella:noise`, the engine's noise, or one the game registers), the world it belongs to as the game names it, and the generator version that world was made with. |
 | `seed`, `frequency`, `octaves`, `persistence`, `ridged` | The noise: another seed is another ground; `frequency` is how many hills across; `ridged` goes from rolling hills to sharp ridges. |
 | `resolution` | Area only. Samples along each side of an area's noise ground. |
 | `warp` | 0 to 1: how far the noise is bent by noise of its own, which gives winding valleys and bent ridges instead of round hills. |
@@ -120,9 +122,41 @@ const y = terrains.heightAt(x, z);       // world height, or null where there is
 const n = terrains.normalAt(x, z);       // the unit normal there, or null
 ```
 
-These read the same source the pages are made from (the area's field, or the infinite noise), so they agree with what is drawn, and
-they answer at once for any point, whether or not its page has been made. Infinite ground has a height everywhere. Until an area's
-images are read and its erosion is done, `heightAt` returns null and `terrains.loading` is true.
+These read the same source the pages are made from (the area's field, or the provider), so they agree with what is drawn, and they
+answer for any point whether or not its page has been made. Until an area's images are read and its erosion is done, `heightAt`
+returns null and `terrains.loading` is true. A provider that answers later leaves a point null until the samples round it come in.
+
+`terrains.status(entity)` says where a terrain stands: `loading`, `ready`, or `failed` with a `reason`. A terrain whose heightmap
+cannot be read, whose provider is not registered, or whose version its provider no longer has fails: it draws nothing and answers
+null, rather than growing noise where the game expected its own ground.
+
+### Providers and versions
+
+Ground without end is made by a provider: one function of the world position, the same on every machine. It is asked for a region
+(the world, seed and version, a corner in world units, a spacing and a count of samples a side) and answers the heights there, and,
+if it paints the ground, four layer weights a sample. Every region is the same function read at other points, so neighbouring pages
+share their edge's samples, a coarse page and a fine one agree where their samples meet, and the order pages are made in changes
+nothing. Positions are the world's, not the terrain's: two terrains placed apart over one world are the same ground.
+
+```ts
+import { registerTerrainProvider, type TerrainProvider } from 'esengine/terrain';
+
+const planet: TerrainProvider = {
+    id: 'mygame:planet',
+    versions: [1, 2],                          // every version a saved world may still name
+    range: (seed, version) => [-200, 900],     // the least and most height, which the GPU encodes over
+    sample({ world, seed, version, x0, z0, spacing, count }) {
+        const heights = new Float32Array(count * count);
+        // ... heights[j * count + i] at (x0 + i * spacing, z0 + j * spacing)
+        return { heights };                    // or a Promise, from a worker or a server
+    },
+};
+registerTerrainProvider(planet);
+```
+
+A version names an algorithm for good. A saved world keeps `generatorVersion`; when the algorithm changes, add a version and keep
+the old one, so what was built on the old ground still stands on it. The engine's noise is `estella:noise`, version 1. A provider
+with `heightAt` answers a point at once; without it a point is answered from small sampled tiles at the finest cell size.
 
 ## Limits
 

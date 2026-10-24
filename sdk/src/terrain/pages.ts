@@ -35,19 +35,30 @@ export interface PageImage { heights: Uint8Array; paint: Uint8Array; min: number
 
 /**
  * Samples a node's page from `source`: square (x0, z0) to (x0 + size, z0 + size) in the terrain's space. Heights are encoded over
- * the source's range. Off an area's edge the ground is its nearest edge's, so the pages there are whole.
+ * the source's range. Off an area's edge the ground is its nearest edge's, so the pages there are whole. A source that samples regions
+ * (a provider) is asked for the page's whole grid at once, and may answer later.
  */
-export function makePage(source: TerrainSource, x0: number, z0: number, size: number): PageImage {
+export function makePage(source: TerrainSource, x0: number, z0: number, size: number): PageImage | Promise<PageImage> {
     const n = PAGE_SIDE, step = size / PAGE_TEXELS;
+    if (source.region) {
+        const got = source.region(x0 - step, z0 - step, step, n);
+        return got instanceof Promise ? got.then((r) => encodePage(source, x0, z0, step, r.heights, r.paint)) : encodePage(source, x0, z0, step, got.heights, got.paint);
+    }
     const h = new Float32Array(n * n);
     const [bx0, bz0, bx1, bz1] = source.bounds ?? [-Infinity, -Infinity, Infinity, Infinity];
-    let min = Infinity, max = -Infinity;
     for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
         const x = Math.min(Math.max(x0 + (i - 1) * step, bx0), bx1), z = Math.min(Math.max(z0 + (j - 1) * step, bz0), bz1);
-        const v = source.height(x, z) ?? source.minHeight;
-        h[j * n + i] = v;
-        if (i >= 1 && i <= n - 2 && j >= 1 && j <= n - 2) { min = Math.min(min, v); max = Math.max(max, v); }
+        h[j * n + i] = source.height(x, z) ?? source.minHeight;
     }
+    return encodePage(source, x0, z0, step, h);
+}
+
+/** Encodes a page's samples (row by row, one past each edge): heights and normals into one image, the paint into the other. */
+function encodePage(source: TerrainSource, x0: number, z0: number, step: number, h: Float32Array, given?: Float32Array): PageImage {
+    const n = PAGE_SIDE;
+    const [bx0, bz0, bx1, bz1] = source.bounds ?? [-Infinity, -Infinity, Infinity, Infinity];
+    let min = Infinity, max = -Infinity;
+    for (let j = 1; j <= n - 2; j++) for (let i = 1; i <= n - 2; i++) { const v = h[j * n + i]!; min = Math.min(min, v); max = Math.max(max, v); }
     const span = Math.max(source.maxHeight - source.minHeight, 1e-6);
     const heights = new Uint8Array(n * n * 4), paint = new Uint8Array(n * n * 4);
     for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
@@ -63,7 +74,7 @@ export function makePage(source: TerrainSource, x0: number, z0: number, size: nu
         heights[k * 4 + 2] = Math.round((nx * 0.5 + 0.5) * 255);
         heights[k * 4 + 3] = Math.round((nz * 0.5 + 0.5) * 255);
         const x = Math.min(Math.max(x0 + (i - 1) * step, bx0), bx1), z = Math.min(Math.max(z0 + (j - 1) * step, bz0), bz1);
-        const w = source.paint(x, z, h[k]!, ny);
+        const w = given ? [given[k * 4]!, given[k * 4 + 1]!, given[k * 4 + 2]!, given[k * 4 + 3]!] : source.paint(x, z, h[k]!, ny);
         for (let c = 0; c < 4; c++) paint[k * 4 + c] = Math.round(Math.min(Math.max(w[c]!, 0), 1) * 255);
     }
     return { heights, paint, min: Number.isFinite(min) ? min : source.minHeight, max: Number.isFinite(max) ? max : source.maxHeight };

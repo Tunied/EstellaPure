@@ -5246,10 +5246,29 @@
           ]
         },
         {
+          "key": "provider",
+          "type": "string",
+          "default": "\"estella:noise\"",
+          "doc": "The generator ground without end is made by: estella:noise, or one the game registers. The same provider, world, seed and version are the same ground on every machine."
+        },
+        {
+          "key": "world",
+          "type": "string",
+          "default": "empty",
+          "doc": "The world (a planet, a level) the ground belongs to, as the game names it; handed to the provider."
+        },
+        {
+          "key": "generatorVersion",
+          "type": "number",
+          "default": "1",
+          "doc": "The generator version the world was made with. A version the provider no longer has fails the terrain rather than growing other ground under what was built.",
+          "range": "≥ 1, step 1"
+        },
+        {
           "key": "heightmap",
           "type": "Asset<texture>",
           "default": "none",
-          "doc": "A heightmap image: red is the height. Empty makes the ground from noise."
+          "doc": "A heightmap image: red is the height. Empty makes the ground from noise; a heightmap that cannot be read fails the terrain instead."
         },
         {
           "key": "splatmap",
@@ -5405,6 +5424,7 @@
       ],
       "animatable": [
         "extent",
+        "generatorVersion",
         "heightmap",
         "splatmap",
         "material",

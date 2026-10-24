@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 export {
-    Terrain, TerrainExtent, Terrains, TerrainsRes, TerrainPlugin, terrainPlugin, paintWeights, type TerrainData,
+    Terrain, TerrainExtent, Terrains, TerrainsRes, TerrainPlugin, terrainPlugin, paintWeights, NOISE_PROVIDER, type TerrainData, type TerrainStatus,
 } from './terrainPlugin';
 export {
     erodeHeightfield, erosionJob, heightfieldFromPixels, proceduralHeightfield, sampleHeight, terrainNormal,
@@ -11,6 +11,10 @@ export { FieldSource, NoiseSource, noised, type NoiseParams, type Splat, type Te
 export { boxDistance, levelRange, nodeKey, parentOf, selectNodes, type QuadtreeParams, type TerrainNode } from './quadtree';
 export { makePage, PageTable, PAGE_SIDE, PAGE_TEXELS, PATCH_CELLS, type Page, type PageImage } from './pages';
 export { buildPatchMesh } from './patch';
+export {
+    noiseProvider, ProviderSource, registerTerrainProvider, terrainProvider, TerrainUnavailable,
+    type TerrainProvider, type TerrainRegion, type TerrainSamples,
+} from './provider';
 
 // Importing this subpath INSTALLS terrain — see tilemap/index.ts.
 import { registerTerrainSupport } from './terrainSupport';

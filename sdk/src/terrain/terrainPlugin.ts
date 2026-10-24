@@ -33,18 +33,29 @@ import { log } from '../util/logger';
 import { bakesOf } from '../runtime/bakes';
 import type { Color, Entity } from '../types';
 import { erosionJob, heightfieldFromPixels, proceduralHeightfield } from './heightfield';
-import { FieldSource, NoiseSource, type TerrainSource } from './source';
+import { FieldSource, type TerrainSource } from './source';
 import { levelRange, nodeKey, parentOf, selectNodes, type QuadtreeParams, type TerrainNode } from './quadtree';
-import { makePage, PageTable, PAGE_SIDE, PAGE_TEXELS, PATCH_CELLS } from './pages';
+import { makePage, PageTable, PAGE_SIDE, PAGE_TEXELS, PATCH_CELLS, type PageImage } from './pages';
+import { noiseProvider, ProviderSource, terrainProvider, TerrainUnavailable } from './provider';
 import { buildPatchMesh } from './patch';
+
+/** The engine's own provider of ground without end: seeded noise of the world's position. */
+export const NOISE_PROVIDER = 'estella:noise';
 
 /** How far the ground goes: an area of its own size, or for ever. */
 export const TerrainExtent = { Area: 0, Infinite: 1 } as const;
 
 /** The fields of the `Terrain` component. @experimental */
 export interface TerrainData {
-    /** {@link TerrainExtent}: an area `sizeX` by `sizeZ`, or ground that goes on for ever (noise read anywhere, the same for a seed). */
+    /** {@link TerrainExtent}: an area `sizeX` by `sizeZ`, or ground that goes on for ever (from a provider, read anywhere). */
     extent: number;
+    /**
+     * Ground without end: the provider it is made by (`estella:noise`, the engine's noise, or one a game registers with
+     * registerTerrainProvider), the world it belongs to as the game names it, and the generator version that world was made with.
+     */
+    provider: string;
+    world: string;
+    generatorVersion: number;
     /** A heightmap image: red is the height (green, if it is not just grey, its low byte). Empty makes the ground from noise. */
     heightmap: number;
     /** An image whose four channels are the weights of the four layers; empty paints by height and slope. */
@@ -92,7 +103,7 @@ const rgb = (r: number, g: number, b: number): Color => ({ r, g, b, a: 1 });
  * @experimental
  */
 export const Terrain: ComponentDef<TerrainData> = defineComponent<TerrainData>('Terrain', {
-    extent: TerrainExtent.Area, heightmap: 0, splatmap: 0, material: 0,
+    extent: TerrainExtent.Area, provider: NOISE_PROVIDER, world: '', generatorVersion: 1, heightmap: 0, splatmap: 0, material: 0,
     sizeX: 1000, sizeZ: 1000, height: 150, cellSize: 2, detail: 1, drawDistance: 4000,
     seed: 1, frequency: 3, octaves: 5, persistence: 0.5, ridged: 0.35, resolution: 257, warp: 0, erosion: 0,
     rockSlope: 0.35, dirtHeight: 0.62, snowHeight: 0.88,
@@ -101,7 +112,10 @@ export const Terrain: ComponentDef<TerrainData> = defineComponent<TerrainData>('
     assetFields: [{ field: 'heightmap', type: 'texture' }, { field: 'splatmap', type: 'texture' }, { field: 'material', type: 'material' }],
     fields: {
         extent: { enum: [{ label: 'Area', value: TerrainExtent.Area }, { label: 'Infinite', value: TerrainExtent.Infinite }], category: 'Shape', tooltip: 'An area of its own size, from a heightmap or noise; or ground that goes on for ever, from noise read anywhere (the same seed is the same ground).' },
-        heightmap: { tooltip: 'A heightmap image: red is the height. Empty makes the ground from noise.', category: 'Shape', shownWhen: { field: 'extent', values: [TerrainExtent.Area] } },
+        provider: { category: 'Shape', tooltip: 'The generator ground without end is made by: estella:noise, or one the game registers. The same provider, world, seed and version are the same ground on every machine.', shownWhen: { field: 'extent', values: [TerrainExtent.Infinite] } },
+        world: { category: 'Shape', tooltip: 'The world (a planet, a level) the ground belongs to, as the game names it; handed to the provider.', shownWhen: { field: 'extent', values: [TerrainExtent.Infinite] } },
+        generatorVersion: { min: 1, step: 1, category: 'Shape', tooltip: 'The generator version the world was made with. A version the provider no longer has fails the terrain rather than growing other ground under what was built.', shownWhen: { field: 'extent', values: [TerrainExtent.Infinite] } },
+        heightmap: { tooltip: 'A heightmap image: red is the height. Empty makes the ground from noise; a heightmap that cannot be read fails the terrain instead.', category: 'Shape', shownWhen: { field: 'extent', values: [TerrainExtent.Area] } },
         splatmap: { tooltip: 'An image whose red, green, blue and alpha are the weights of grass, dirt, snow and rock.', category: 'Layers', shownWhen: { field: 'extent', values: [TerrainExtent.Area] } },
         material: { tooltip: 'A material on the Terrain shader. Empty draws the layer colours onto the ground.', category: 'Layers' },
         sizeX: { min: 1, category: 'Shape', tooltip: 'An area\'s size along x; for ground without end, the span its hills are spread over.' },
@@ -168,8 +182,15 @@ interface Built {
     spare: Entity[];
     /** Pages wanted and not made yet, by key. */
     wanted: Map<string, TerrainNode>;
+    /** Pages asked of a provider that answers later, by key: the frame's budget is not spent waiting for them. */
+    asked: Set<string>;
     pending: boolean;
+    /** Why the ground could not be made, once it could not: nothing is drawn or answered for it. */
+    failure: string | null;
 }
+
+/** Where a terrain's ground stands: still being made, ready, or failed (with why). */
+export interface TerrainStatus { state: 'loading' | 'ready' | 'failed'; reason?: string }
 
 /** Run-time access to the ground: how high it is anywhere, for putting things on it. */
 export class Terrains {
@@ -203,12 +224,18 @@ export class Terrains {
             const t = world.tryGet(entity, Transform) as TransformData | null;
             if (!t) continue;
             const lx = x - t.worldPosition.x, lz = z - t.worldPosition.z;
-            if (source instanceof FieldSource || source instanceof NoiseSource) {
-                const n = source.normal(lx, lz);
-                if (n) return n;
-            }
+            const n = source.normal(lx, lz);
+            if (n) return n;
         }
         return null;
+    }
+
+    /** Where a terrain's ground stands. A failed one draws and answers nothing, and says why. */
+    status(entity: Entity): TerrainStatus | null {
+        const built = this.built_.get(entity);
+        if (!built) return null;
+        if (built.failure) return { state: 'failed', reason: built.failure };
+        return { state: built.loading || !built.source ? 'loading' : 'ready' };
     }
 
     /** @internal Bumped whenever a terrain's ground changes, so what stands on it knows to stand again. */
@@ -249,7 +276,8 @@ export class TerrainPlugin implements Plugin {
         app.insertResource(TerrainsRes, terrains);
 
         app.addSystemToSchedule(Schedule.Update, defineSystem([], () => {
-            if (!app.hasResource(Assets)) return;
+            // What the ground IS needs no renderer: a server or a test without one still makes the source and answers from it.
+            const rendering = app.hasResource(Assets);
             this.sweep(app, terrains);
             for (const entity of app.world.getEntitiesWithComponents([Terrain, Transform])) {
                 const data = app.world.get(entity, Terrain) as TerrainData;
@@ -260,14 +288,14 @@ export class TerrainPlugin implements Plugin {
                     built = {
                         signature, data: { ...data }, source: null, epoch: (built?.epoch ?? 0) + 1, loading: true, cancel: null,
                         table: new PageTable(ATLAS_SIZE), heights: 0, paint: 0, mesh: 0, instance: 0,
-                        nodes: new Map(), spare: [], wanted: new Map(), pending: false,
+                        nodes: new Map(), spare: [], wanted: new Map(), asked: new Set(), pending: false, failure: null,
                     };
                     terrains.built_.set(entity, built);
                     void this.load(app, entity, built);
                     continue;
                 }
                 built.data = { ...data };
-                if (built.loading || !built.source) continue;
+                if (built.loading || !built.source || !rendering) continue;
                 if (!built.instance) {
                     if (!built.pending) void this.prepare(app, built);
                     continue;
@@ -292,9 +320,15 @@ export class TerrainPlugin implements Plugin {
         const data = built.data;
         try {
             if (data.extent === TerrainExtent.Infinite) {
-                built.source = new NoiseSource(data);
+                const t = app.world.get(entity, Transform) as TransformData;
+                const provider = data.provider === NOISE_PROVIDER ? noiseProvider(() => data) : terrainProvider(data.provider);
+                if (!provider) throw new TerrainUnavailable(`no terrain provider ${data.provider} is registered`);
+                built.source = new ProviderSource(provider, data.world, data.seed, data.generatorVersion, t.worldPosition.x, t.worldPosition.z,
+                    Math.max(data.cellSize, 1e-3) / 2, (h, ny) => paintWeights(h / Math.max(provider.range(data.seed, data.generatorVersion)[1], 1e-6), ny, data));
             } else {
+                // A heightmap named and not read is a failure: a world built on that ground must not quietly get other ground.
                 const height = await this.pixelsOf(app, data.heightmap);
+                if (data.heightmap && !height) throw new TerrainUnavailable(`the heightmap (texture ${data.heightmap}) could not be read`);
                 const splat = await this.pixelsOf(app, data.splatmap);
                 if (built.epoch !== epoch || !app.world.valid(entity)) return;
                 const made = height
@@ -319,6 +353,7 @@ export class TerrainPlugin implements Plugin {
             }
             app.getResource(TerrainsRes).revision_++;
         } catch (e) {
+            if (built.epoch === epoch) built.failure = e instanceof Error ? e.message : String(e);
             log.error('terrain', 'building the terrain failed', e);
         } finally {
             if (built.epoch === epoch) built.loading = false;
@@ -326,10 +361,10 @@ export class TerrainPlugin implements Plugin {
     }
 
     private async pixelsOf(app: App, handle: number): Promise<{ width: number; height: number; pixels: Uint8Array } | null> {
-        if (!handle) return null;
+        if (!handle || !app.hasResource(Assets)) return null;
         const assets = app.getResource(Assets);
         const path = assets.pathForHandle('texture', handle);
-        if (!path) { log.warn('terrain', `no source image is known for texture ${handle}; the terrain falls back to its noise`); return null; }
+        if (!path) { log.warn('terrain', `no source image is known for texture ${handle}`); return null; }
         try {
             // The bytes the asset layer would load, decoded unmodified (no premultiply, no colour conversion): a height is data.
             if (typeof createImageBitmap === 'function' && typeof Blob !== 'undefined') {
@@ -479,14 +514,32 @@ export class TerrainPlugin implements Plugin {
             || Math.hypot(a.x0 + a.size / 2 - eye[0], a.z0 + a.size / 2 - eye[2]) - Math.hypot(b.x0 + b.size / 2 - eye[0], b.z0 + b.size / 2 - eye[2]));
         const until = performance.now() + PAGE_BUDGET_MS;
         let made = 0;
-        for (const node of order) {
-            const key = nodeKey(node.level, node.ix, node.iz);
-            const image = makePage(source, node.x0, node.z0, node.size);
+        const store = (key: string, image: PageImage): boolean => {
             const page = built.table.claim(key, image.min, image.max);
-            if (!page) break;
+            if (!page) return false;
             const [ox, oy] = built.table.origin(page.slot);
             updateTextureSubregion(app.wasmModule, built.heights, ox, oy, PAGE_SIDE, PAGE_SIDE, image.heights);
             updateTextureSubregion(app.wasmModule, built.paint, ox, oy, PAGE_SIDE, PAGE_SIDE, image.paint);
+            return true;
+        };
+        const epoch = built.epoch;
+        for (const node of order) {
+            const key = nodeKey(node.level, node.ix, node.iz);
+            if (built.asked.has(key)) continue;
+            const image = makePage(source, node.x0, node.z0, node.size);
+            if (image instanceof Promise) {
+                // A provider answering later: its page is stored when it lands, if the terrain is still the one that asked.
+                built.asked.add(key);
+                void image.then((img) => {
+                    built.asked.delete(key);
+                    if (built.epoch === epoch && built.heights) store(key, img);
+                }, (e) => {
+                    built.asked.delete(key);
+                    log.warn('terrain', `the provider failed a page (${key})`, e);
+                });
+                continue;
+            }
+            if (!store(key, image)) break;
             built.wanted.delete(key);
             made++;
             if (performance.now() >= until) break;
