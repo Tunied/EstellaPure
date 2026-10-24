@@ -1617,12 +1617,20 @@
           "type": "array",
           "default": "empty",
           "doc": "Points of the body, in its own space, the water is asked about: spread them (the corners of a hull) and waves tip it. Empty is the one at its origin."
+        },
+        {
+          "key": "wake",
+          "type": "number",
+          "default": "1",
+          "doc": "How much of a ripple the body makes in water that keeps ripples (WaterBody Ripples). 0 makes none.",
+          "range": "0–10"
         }
       ],
       "animatable": [
         "buoyancy",
         "drag",
-        "radius"
+        "radius",
+        "wake"
       ]
     },
     {
@@ -4703,6 +4711,121 @@
       ]
     },
     {
+      "name": "SpringBone",
+      "source": "cpp",
+      "fields": [
+        {
+          "key": "enabled",
+          "type": "boolean",
+          "default": "true",
+          "doc": "Off leaves the chain exactly as the animation poses it."
+        },
+        {
+          "key": "stiffness",
+          "type": "number",
+          "default": "0.1",
+          "doc": "How hard each bone is pulled back toward its animated pose. 0 hangs free, 1 follows the animation exactly.",
+          "range": "0–1, step 0.01"
+        },
+        {
+          "key": "drag",
+          "type": "number",
+          "default": "0.5",
+          "doc": "How much of its speed a bone loses each frame. Higher settles sooner.",
+          "range": "0–1, step 0.01"
+        },
+        {
+          "key": "gravity",
+          "type": "Vec3",
+          "default": "(0, -980, 0)",
+          "doc": "Gravity on the chain, in world units a second squared (world y is up)."
+        },
+        {
+          "key": "wind",
+          "type": "Vec3",
+          "default": "(0, 0, 0)",
+          "doc": "A steady wind on the chain, in world units a second squared. Zero is still air."
+        },
+        {
+          "key": "windGust",
+          "type": "number",
+          "default": "0",
+          "doc": "How far gusts swing the wind's strength. 0 is a steady wind, 1 takes it from calm to twice its strength.",
+          "range": "0–1, step 0.01"
+        },
+        {
+          "key": "windFrequency",
+          "type": "number",
+          "default": "0.5",
+          "doc": "Gusts a second.",
+          "range": "≥ 0, step 0.05"
+        },
+        {
+          "key": "endLength",
+          "type": "number",
+          "default": "0",
+          "doc": "Length of the tip past each end bone, in world units. 0 leaves the end bones unsimulated.",
+          "range": "≥ 0, step 0.1"
+        },
+        {
+          "key": "radius",
+          "type": "number",
+          "default": "0",
+          "doc": "Thickness of the strand, in world units, kept clear of the colliders.",
+          "range": "≥ 0, step 0.1"
+        },
+        {
+          "key": "weight",
+          "type": "number",
+          "default": "1",
+          "doc": "How much of the simulation is used. 0 is the animation alone.",
+          "range": "0–1, step 0.01"
+        },
+        {
+          "key": "colliders",
+          "type": "Entity",
+          "default": "",
+          "doc": "Entities with a SpringBoneCollider that this chain is kept out of (the head, the shoulders)."
+        }
+      ]
+    },
+    {
+      "name": "SpringBoneCollider",
+      "source": "cpp",
+      "fields": [
+        {
+          "key": "shape",
+          "type": "enum",
+          "default": "Sphere",
+          "doc": "Sphere, or a capsule along the entity's own Y axis.",
+          "values": [
+            "Sphere",
+            "Capsule"
+          ]
+        },
+        {
+          "key": "radius",
+          "type": "number",
+          "default": "10",
+          "doc": "Radius in world units, before the entity's scale.",
+          "range": "≥ 0, step 0.1"
+        },
+        {
+          "key": "height",
+          "type": "number",
+          "default": "20",
+          "doc": "A capsule's length between the centres of its end spheres, in world units before scale.",
+          "range": "≥ 0, step 0.1"
+        },
+        {
+          "key": "offset",
+          "type": "Vec3",
+          "default": "(0, 0, 0)",
+          "doc": "Where the centre of the shape is, in the entity's own space."
+        }
+      ]
+    },
+    {
       "name": "Sprite",
       "source": "cpp",
       "fields": [
@@ -7188,6 +7311,41 @@
           "default": "30",
           "doc": "The heading of the waves, in degrees.",
           "range": "0–360"
+        },
+        {
+          "key": "ripples",
+          "type": "number",
+          "default": "0",
+          "doc": "Cells along a side of the grid that keeps what disturbs the water: bodies moving in it, and what a script disturbs. 0 keeps none.",
+          "range": "0–256, step 8"
+        },
+        {
+          "key": "rippleSize",
+          "type": "number",
+          "default": "64",
+          "doc": "The side of the window the ripples are kept in, in world units. It follows the camera.",
+          "range": "≥ 4"
+        },
+        {
+          "key": "rippleSpeed",
+          "type": "number",
+          "default": "6",
+          "doc": "How fast a ripple spreads, in world units a second.",
+          "range": "0.1–40"
+        },
+        {
+          "key": "rippleDamping",
+          "type": "number",
+          "default": "0.8",
+          "doc": "How much of its height a ripple loses each second.",
+          "range": "0–10"
+        },
+        {
+          "key": "foamFade",
+          "type": "number",
+          "default": "0.4",
+          "doc": "How fast the foam a disturbance leaves fades, a second.",
+          "range": "0–10"
         }
       ],
       "animatable": [
@@ -7203,7 +7361,12 @@
         "waveHeight",
         "waveLength",
         "waveSpeed",
-        "waveDirection"
+        "waveDirection",
+        "ripples",
+        "rippleSize",
+        "rippleSpeed",
+        "rippleDamping",
+        "foamFade"
       ]
     },
     {

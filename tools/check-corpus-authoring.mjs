@@ -126,6 +126,8 @@ const DISPOSITION = {
   Floating: ['owed', 'no example floats anything yet; the first boat or buoy goes into one'],
   Spline: ['owed', 'no example carries a spline yet; the first river, with a spline tool in the editor, goes into one'],
   WaterBody: ['owed', 'no example carries a body of water yet; the first of the water work that is shown off (rivers, with the spline) goes into one'],
+  SpringBone: ['owed', 'no example carries a rigged character with hair or a tail yet; the first one imported with its chains goes into one'],
+  SpringBoneCollider: ['owed', 'no example has a spring-bone chain to keep out of anything; it arrives with the first SpringBone'],
   Replicated: ['code-only', 'multiplayer-arena declares its replicated set beside the server systems that own it; the wire table is a contract both ends compile against, not scene content'],
 
   // — owed: a creator-facing component nothing in the shipped corpus authors.

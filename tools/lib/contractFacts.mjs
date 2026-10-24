@@ -347,4 +347,6 @@ export const RE_EXPORTS = {
 export const NOT_CONTRACT = {
     'sdk/etc/perf.snapshot.json':
         'a measured baseline, not a derivation — accepted with `perf-guard --update`.',
+    'sdk/src/postprocess/agxLut.generated.ts':
+        "a table baked once from Blender's AgX .cube by tools/gen-agx-lut.py — third-party data, nothing in the engine it must agree with.",
 };

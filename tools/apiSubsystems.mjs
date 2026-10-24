@@ -202,7 +202,7 @@ export const SUBSYSTEMS = [
         id: 'animation',
         title: 'Animation & timeline',
         titleZh: '动画与时间轴',
-        source: ['animation', 'timeline'],
+        source: ['animation', 'timeline', 'springbone'],
         tier: 'beta',
         why: 'sprite-animation now certifies it end to end, but the corpus reaches two of eighty animation symbols and the timeline half of them is untouched',
         whyZh: 'sprite-animation 现在端到端认证了它，但语料只触到 80 个动画符号里的 2 个，而其中时间轴那一半完全没被碰过',
@@ -288,7 +288,7 @@ export const SUBSYSTEMS = [
         id: 'rendering',
         title: 'Materials, lighting, post-processing',
         titleZh: '材质、光照、后处理',
-        source: ['render', 'postprocess'],
+        source: ['render', 'postprocess', 'character'],
         tier: 'experimental',
         why: 'as AI — a game is built OUT of the layers under this one and they freeze first; '
             + 'the render graph it was waiting on has settled',
