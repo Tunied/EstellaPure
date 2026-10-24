@@ -9,60 +9,9 @@
 import { makeBuiltinShaderTemplate } from '../render/builtinShaders';
 
 
-// Ground painted by four layers (grass, dirt, snow, rock), their weights read from the Terrain's paint pages (or, on a plain mesh, its
-// vertex colour). Each layer is a texture laid by world position without repeat, and the rock is projected from three sides on a cliff.
-const TERRAIN = `#pragma shader "Terrain"
-#pragma version 300 es
-#pragma domain Lit
-#pragma param u_layer0 texture default(white)
-#pragma param u_layer1 texture default(white)
-#pragma param u_layer2 texture default(white)
-#pragma param u_layer3 texture default(white)
-// Each layer's colour, which multiplies its texture, and how many world units one repeat of it covers.
-#pragma param u_tint0 color default(0.28,0.46,0.2,1)
-#pragma param u_tint1 color default(0.45,0.36,0.24,1)
-#pragma param u_tint2 color default(0.93,0.95,0.98,1)
-#pragma param u_tint3 color default(0.4,0.38,0.36,1)
-#pragma param u_tile0 float default(24) range(1,800) ui(slider)
-#pragma param u_tile1 float default(24) range(1,800) ui(slider)
-#pragma param u_tile2 float default(24) range(1,800) ui(slider)
-#pragma param u_tile3 float default(40) range(1,800) ui(slider)
-// How much a layer with more weight takes over from the others at the seam: 1 is a plain blend, higher a harder edge.
-#pragma param u_sharpness float default(1.6) range(1,8) ui(slider)
-// How much the seams follow the layers' own relief (their brightness): rock shows through the gaps in the grass before the grass gives way,
-// and sand fills the low places between stones. 0 is a plain blend of the weights.
-#pragma param u_heightBlend float default(0.7) range(0,1) ui(slider)
-// How much each layer's weight is broken up by slow noise of its own before the strongest wins: the line where grass meets sand wanders
-// instead of following the paint's smooth gradient.
-#pragma param u_blendNoise float default(0.5) range(0,1) ui(slider)
-// From the middle distance on, each layer is also read on a tile u_farScale times as wide and mixed in, so its repeat is lost far off.
-#pragma param u_farScale float default(4.3) range(1,32) ui(slider)
-// How strongly each layer is read without repeat near the eye (hex tiling: every hexagonal cell shifted and turned at random), so no tile is seen.
-#pragma param u_antiTile float default(0.6) range(0,1) ui(slider)
-// The wide, slow variation in brightness laid over every layer so a big meadow is not one colour.
-#pragma param u_macroVariation float default(0.35) range(0,1) ui(slider)
-// How deep, in world units, the layers' relief is drawn into the light (their brightness taken as height); 0 leaves the ground smooth.
-#pragma param u_relief float default(0.05) range(0,100000) ui(slider)
-// Ground at the water: below u_wetLevel + u_wetBand (world heights) it darkens and shines, most at the waterline. A band of 0 draws none.
-#pragma param u_wetLevel float default(0) range(-100000,100000) ui(slider)
-#pragma param u_wetBand float default(0) range(0,100000) ui(slider)
-#pragma param u_roughness float default(0.92) range(0,1) ui(slider)
-// The ground in pages (pages.ts; the Terrain component writes these): heights and normals, and the paint, in two atlases; heights over
-// u_heightRange above u_terrainOrigin; level 0 drawn out to u_lodRange0, each level twice as far; nothing off u_terrainBounds.
-// u_terrainEye is the eye the nodes were chosen for: every pass (a shadow's too) slides the vertices by it, so all draw one ground.
-#pragma param u_terrainPages float default(0) range(0,1) ui(slider)
-#pragma param u_heightPages texture default(white) texel(data)
-#pragma param u_paintPages texture default(white) texel(data)
-#pragma param u_atlasTexels float default(2048) range(1,16384) ui(slider)
-#pragma param u_pageTexels float default(64) range(1,1024) ui(slider)
-#pragma param u_patchCells float default(32) range(1,512) ui(slider)
-#pragma param u_heightRange vec2 default(0,1)
-#pragma param u_lodRange0 float default(100) range(0,1000000) ui(slider)
-#pragma param u_terrainOrigin vec4 default(0,0,0,0)
-#pragma param u_terrainEye vec4 default(0,0,0,0)
-#pragma param u_terrainBounds vec4 default(-1000000000,-1000000000,1000000000,1000000000)
-
-#pragma vertexoffset
+// The ground's vertices from its pages (pages.ts), shared by both terrain shaders: a node's patch placed and sized by its instance, its
+// heights read from the atlas, and each vertex slid onto the coarser level's grid toward the end of its range.
+const TERRAIN_VERTEX = `#pragma vertexoffset
 // The node's page (pages.ts): its height decoded texel by texel and blended (a filtered pair of bytes is no number).
 float tnPageHeight(vec2 texel) {
     vec2 f = texel - 0.5;
@@ -142,7 +91,62 @@ fn esMaterialVertex(local : ptr<function, vec3f>, localNormal : ptr<function, ve
 }
 #pragma end
 
-#pragma fragment
+`;
+
+// Ground painted by four layers (grass, dirt, snow, rock), their weights read from the Terrain's paint pages (or, on a plain mesh, its
+// vertex colour). Each layer is a texture laid by world position without repeat, and the rock is projected from three sides on a cliff.
+const TERRAIN = `#pragma shader "Terrain"
+#pragma version 300 es
+#pragma domain Lit
+#pragma param u_layer0 texture default(white)
+#pragma param u_layer1 texture default(white)
+#pragma param u_layer2 texture default(white)
+#pragma param u_layer3 texture default(white)
+// Each layer's colour, which multiplies its texture, and how many world units one repeat of it covers.
+#pragma param u_tint0 color default(0.28,0.46,0.2,1)
+#pragma param u_tint1 color default(0.45,0.36,0.24,1)
+#pragma param u_tint2 color default(0.93,0.95,0.98,1)
+#pragma param u_tint3 color default(0.4,0.38,0.36,1)
+#pragma param u_tile0 float default(24) range(1,800) ui(slider)
+#pragma param u_tile1 float default(24) range(1,800) ui(slider)
+#pragma param u_tile2 float default(24) range(1,800) ui(slider)
+#pragma param u_tile3 float default(40) range(1,800) ui(slider)
+// How much a layer with more weight takes over from the others at the seam: 1 is a plain blend, higher a harder edge.
+#pragma param u_sharpness float default(1.6) range(1,8) ui(slider)
+// How much the seams follow the layers' own relief (their brightness): rock shows through the gaps in the grass before the grass gives way,
+// and sand fills the low places between stones. 0 is a plain blend of the weights.
+#pragma param u_heightBlend float default(0.7) range(0,1) ui(slider)
+// How much each layer's weight is broken up by slow noise of its own before the strongest wins: the line where grass meets sand wanders
+// instead of following the paint's smooth gradient.
+#pragma param u_blendNoise float default(0.5) range(0,1) ui(slider)
+// From the middle distance on, each layer is also read on a tile u_farScale times as wide and mixed in, so its repeat is lost far off.
+#pragma param u_farScale float default(4.3) range(1,32) ui(slider)
+// How strongly each layer is read without repeat near the eye (hex tiling: every hexagonal cell shifted and turned at random), so no tile is seen.
+#pragma param u_antiTile float default(0.6) range(0,1) ui(slider)
+// The wide, slow variation in brightness laid over every layer so a big meadow is not one colour.
+#pragma param u_macroVariation float default(0.35) range(0,1) ui(slider)
+// How deep, in world units, the layers' relief is drawn into the light (their brightness taken as height); 0 leaves the ground smooth.
+#pragma param u_relief float default(0.05) range(0,100000) ui(slider)
+// Ground at the water: below u_wetLevel + u_wetBand (world heights) it darkens and shines, most at the waterline. A band of 0 draws none.
+#pragma param u_wetLevel float default(0) range(-100000,100000) ui(slider)
+#pragma param u_wetBand float default(0) range(0,100000) ui(slider)
+#pragma param u_roughness float default(0.92) range(0,1) ui(slider)
+// The ground in pages (pages.ts; the Terrain component writes these): heights and normals, and the paint, in two atlases; heights over
+// u_heightRange above u_terrainOrigin; level 0 drawn out to u_lodRange0, each level twice as far; nothing off u_terrainBounds.
+// u_terrainEye is the eye the nodes were chosen for: every pass (a shadow's too) slides the vertices by it, so all draw one ground.
+#pragma param u_terrainPages float default(0) range(0,1) ui(slider)
+#pragma param u_heightPages texture default(white) texel(data)
+#pragma param u_paintPages texture default(white) texel(data)
+#pragma param u_atlasTexels float default(2048) range(1,16384) ui(slider)
+#pragma param u_pageTexels float default(64) range(1,1024) ui(slider)
+#pragma param u_patchCells float default(32) range(1,512) ui(slider)
+#pragma param u_heightRange vec2 default(0,1)
+#pragma param u_lodRange0 float default(100) range(0,1000000) ui(slider)
+#pragma param u_terrainOrigin vec4 default(0,0,0,0)
+#pragma param u_terrainEye vec4 default(0,0,0,0)
+#pragma param u_terrainBounds vec4 default(-1000000000,-1000000000,1000000000,1000000000)
+
+${TERRAIN_VERTEX}#pragma fragment
 precision highp float;
 
 in vec4 v_color;
@@ -468,3 +472,448 @@ fn packNormal(n : vec3f) -> vec2f {
 
 export const TERRAIN_SHADER_TEMPLATE = makeBuiltinShaderTemplate('terrain', 'Terrain',
     'Four texture layers (grass, dirt, snow, rock) weighted by the Terrain component, tiled by world position.', TERRAIN);
+
+// Ground painted by up to eight layers (layers.ts), each an albedo, a normal map and a mask (occlusion, roughness, height) in three
+// texture arrays, their weights read from the Terrain's two paint atlases. Where layers meet the higher one shows; near the eye each is
+// read without repeat; on a slope it is projected from the sides as well, so a cliff is not stretched.
+const TERRAIN_LAYERS = `#pragma shader "Terrain Layers"
+#pragma version 300 es
+#pragma domain Lit
+#pragma param u_albedoLayers textureArray default(white)
+#pragma param u_normalLayers textureArray default(white) texel(data)
+#pragma param u_maskLayers textureArray default(white) texel(data)
+// How many layers there are, and how many world units one repeat of each covers (layers 1 to 4, then 5 to 8).
+#pragma param u_layerCount float default(0) range(0,8) ui(slider)
+#pragma param u_tiles0 vec4 default(4,4,4,4)
+#pragma param u_tiles1 vec4 default(4,4,4,4)
+// How much a layer with more weight takes over from the others at the seam: 1 is a plain blend, higher a harder edge.
+#pragma param u_sharpness float default(1.6) range(1,8) ui(slider)
+// How much the seams follow the layers' heights (their masks' blue): rock shows through the gaps in the grass before the grass gives
+// way, and sand fills the low places between stones. 0 is a plain blend of the weights.
+#pragma param u_heightBlend float default(0.8) range(0,1) ui(slider)
+// How much each layer's weight is broken up by slow noise of its own before the strongest wins.
+#pragma param u_blendNoise float default(0.5) range(0,1) ui(slider)
+// From the middle distance on, each layer is also read on a tile u_farScale times as wide and mixed in, so its repeat is lost far off.
+#pragma param u_farScale float default(4.3) range(1,32) ui(slider)
+// How strongly each layer is read without repeat near the eye (hex tiling), so no tile is seen.
+#pragma param u_antiTile float default(0.6) range(0,1) ui(slider)
+// The wide, slow variation in brightness laid over every layer so a big meadow is not one colour.
+#pragma param u_macroVariation float default(0.25) range(0,1) ui(slider)
+// How steep the ground must be (1 minus its normal's up) before the layers are also projected from the sides.
+#pragma param u_triplanarFrom float default(0.15) range(0,1) ui(slider)
+// Ground at the water: below u_wetLevel + u_wetBand (world heights) it darkens and shines, most at the waterline. A band of 0 draws none.
+#pragma param u_wetLevel float default(0) range(-100000,100000) ui(slider)
+#pragma param u_wetBand float default(0) range(0,100000) ui(slider)
+// The ground in pages, as the Terrain shader has them, with the paint of layers 5 to 8 in an atlas of its own.
+#pragma param u_terrainPages float default(0) range(0,1) ui(slider)
+#pragma param u_heightPages texture default(white) texel(data)
+#pragma param u_paintPages texture default(white) texel(data)
+#pragma param u_paintPages2 texture default(black) texel(data)
+#pragma param u_atlasTexels float default(2048) range(1,16384) ui(slider)
+#pragma param u_pageTexels float default(64) range(1,1024) ui(slider)
+#pragma param u_patchCells float default(32) range(1,512) ui(slider)
+#pragma param u_heightRange vec2 default(0,1)
+#pragma param u_lodRange0 float default(100) range(0,1000000) ui(slider)
+#pragma param u_terrainOrigin vec4 default(0,0,0,0)
+#pragma param u_terrainEye vec4 default(0,0,0,0)
+#pragma param u_terrainBounds vec4 default(-1000000000,-1000000000,1000000000,1000000000)
+
+${TERRAIN_VERTEX}#pragma fragment
+precision highp float;
+precision highp sampler2DArray;
+
+in vec4 v_color;
+in vec2 v_texCoord;
+in highp vec2 v_worldPos;
+#ifdef MESH_NORMALS
+in highp vec3 v_worldNormal;
+in highp vec3 v_worldXYZ;
+#endif
+
+#ifdef ES_GBUFFER
+layout(location = 0) out vec4 fragColor;
+layout(location = 1) out vec4 fragSurface;
+
+vec2 packNormal(vec3 n) {
+    n /= (abs(n.x) + abs(n.y) + abs(n.z));
+    vec2 sgn = vec2(n.x >= 0.0 ? 1.0 : -1.0, n.y >= 0.0 ? 1.0 : -1.0);
+    vec2 e = n.z >= 0.0 ? n.xy : (1.0 - abs(n.yx)) * sgn;
+    return e * 0.5 + 0.5;
+}
+#else
+out vec4 fragColor;
+#endif
+
+float tnHash(vec2 p) {
+    p = fract(p * vec2(0.1031, 0.1030));
+    p += dot(p, p.yx + 33.33);
+    return fract((p.x + p.y) * p.x);
+}
+float tnNoise(vec2 p) {
+    vec2 i = floor(p), f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(tnHash(i), tnHash(i + vec2(1.0, 0.0)), f.x), mix(tnHash(i + vec2(0.0, 1.0)), tnHash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+vec2 tnHash2(vec2 p) {
+    return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453);
+}
+float tnTile(int i) { return i < 4 ? u_tiles0[i] : u_tiles1[i - 4]; }
+
+// One layer read at uv (in repeats) on one plane: its albedo, its tangent normal's slope (x, y) and its mask, from the gradients given.
+struct TnTap { vec3 albedo; vec2 slope; vec3 mask; };
+TnTap tnPlain(vec2 uv, float layer, vec2 gx, vec2 gy) {
+    vec3 at = vec3(uv, layer);
+    TnTap t;
+    t.albedo = textureGrad(u_albedoLayers, at, gx, gy).rgb;
+    t.slope = textureGrad(u_normalLayers, at, gx, gy).rg * 2.0 - 1.0;
+    t.mask = textureGrad(u_maskLayers, at, gx, gy).rgb;
+    return t;
+}
+// The same in one hex cell: shifted and turned by the cell's random numbers; the normal's slope turned back with it.
+TnTap tnHexTap(vec2 uv, float layer, vec2 cell, vec2 gx, vec2 gy) {
+    vec2 r = tnHash2(cell);
+    float a = r.x * 6.2831853;
+    mat2 turn = mat2(cos(a), -sin(a), sin(a), cos(a));
+    TnTap t = tnPlain(turn * uv + r, layer, turn * gx, turn * gy);
+    t.slope = t.slope * turn;
+    return t;
+}
+// A layer read without repeat (hex tiling, Mikkelsen 2022): three cells about a point blended by nearness, the higher reading winning.
+TnTap tnHex(vec2 uv, float layer, vec2 gx, vec2 gy, float strength) {
+    vec2 skewed = mat2(1.0, 0.0, -0.57735027, 1.15470054) * (uv * 3.4641016);
+    vec2 base = floor(skewed);
+    vec3 f = vec3(fract(skewed), 0.0);
+    f.z = 1.0 - f.x - f.y;
+    float s = step(0.0, -f.z), s2 = 2.0 * s - 1.0;
+    vec3 w = vec3(-f.z * s2, s - f.y * s2, s - f.x * s2);
+    TnTap c1 = tnHexTap(uv, layer, base + vec2(s, s), gx, gy);
+    TnTap c2 = tnHexTap(uv, layer, base + vec2(s, 1.0 - s), gx, gy);
+    TnTap c3 = tnHexTap(uv, layer, base + vec2(1.0 - s, s), gx, gy);
+    vec3 h = vec3(c1.mask.b, c2.mask.b, c3.mask.b);
+    w = pow(max(w * mix(vec3(1.0), 0.4 + h, strength), vec3(1e-4)), vec3(7.0));
+    w /= dot(w, vec3(1.0));
+    TnTap t;
+    t.albedo = c1.albedo * w.x + c2.albedo * w.y + c3.albedo * w.z;
+    t.slope = c1.slope * w.x + c2.slope * w.y + c3.slope * w.z;
+    t.mask = c1.mask * w.x + c2.mask * w.y + c3.mask * w.z;
+    return t;
+}
+// A tangent normal's slope laid on a plane whose texture runs along T and B, about the surface's normal N.
+vec3 tnBend(vec2 slope, vec3 T, vec3 B, vec3 N) {
+    T = normalize(T - N * dot(N, T));
+    B = normalize(B - N * dot(N, B));
+    return slope.x * T + slope.y * B;
+}
+
+void main() {
+#ifdef MESH_NORMALS
+    highp vec3 P = v_worldXYZ;
+    highp vec3 N = normalize(v_worldNormal);
+#else
+    highp vec3 P = vec3(v_worldPos.x, 0.0, v_worldPos.y);
+    highp vec3 N = vec3(0.0, 1.0, 0.0);
+#endif
+    vec4 paintA = v_color, paintB = vec4(0.0);
+    if (u_terrainPages > 0.5) {
+        vec2 lp = P.xz - u_terrainOrigin.xz;
+        if (lp.x < u_terrainBounds.x || lp.y < u_terrainBounds.y || lp.x > u_terrainBounds.z || lp.y > u_terrainBounds.w) discard;
+        paintA = texture(u_paintPages, v_color.xy);
+        paintB = texture(u_paintPages2, v_color.xy);
+        vec2 nxz = texture(u_heightPages, v_color.xy).ba * 2.0 - 1.0;
+        N = normalize(vec3(nxz.x, sqrt(max(1.0 - dot(nxz, nxz), 0.0)), nxz.y));
+    }
+    int count = int(u_layerCount + 0.5);
+    float w[8];
+    float sum = 0.0;
+    for (int i = 0; i < 8; i++) {
+        float raw = i < 4 ? paintA[i] : paintB[i - 4];
+        // Each layer's say wanders by slow noise of its own, so where two meet the edge is ragged, not the paint's gradient.
+        float wander = tnNoise(P.xz / (tnTile(i) * 2.3) + float(i) * 11.0 + 3.0);
+        w[i] = i < count ? max(raw, 0.0) * mix(1.0, 0.35 + 1.3 * wander, u_blendNoise) : 0.0;
+        sum += w[i];
+    }
+    float sharp = 0.0;
+    for (int i = 0; i < 8; i++) { w[i] = pow(w[i] / max(sum, 1e-4), u_sharpness); sharp += w[i]; }
+    for (int i = 0; i < 8; i++) w[i] /= max(sharp, 1e-4);
+
+    // Gradients taken here, where every lane runs. Near the eye a layer is read without repeat, far off a wider tile is mixed in.
+    vec3 dpx = dFdx(P), dpy = dFdy(P);
+    float eye = u_camera.w > 0.5 ? length(P - u_camera.xyz) : 0.0;
+    float scale = tnTile(0);
+    float near = (1.0 - smoothstep(scale * 20.0, scale * 45.0, eye)) * u_antiTile;
+    float far = smoothstep(scale * 6.0, scale * 40.0, eye) * 0.65;
+    // How much of each plane a slope is seen from: the top alone on gentle ground, the sides too from u_triplanarFrom.
+    vec3 axis = pow(abs(N), vec3(4.0));
+    axis /= dot(axis, vec3(1.0));
+    float side = smoothstep(u_triplanarFrom, u_triplanarFrom + 0.15, 1.0 - abs(N.y));
+    vec3 planes = mix(vec3(0.0, 1.0, 0.0), axis, side);
+
+    vec3 albedo[8];
+    vec3 bend[8];
+    vec3 mask[8];
+    for (int i = 0; i < 8; i++) {
+        albedo[i] = vec3(0.0); bend[i] = vec3(0.0); mask[i] = vec3(1.0, 1.0, 0.0);
+        if (w[i] <= 1e-3) continue;
+        float layer = float(i), tile = tnTile(i);
+        // WebGL takes no ?: between structures.
+        TnTap top;
+        if (near > 0.01) top = tnHex(P.xz / tile, layer, dpx.xz / tile, dpy.xz / tile, near);
+        else top = tnPlain(P.xz / tile, layer, dpx.xz / tile, dpy.xz / tile);
+        if (far > 0.01) {
+            float big = tile * u_farScale;
+            TnTap wide = tnPlain(P.xz / big + 0.21, layer, dpx.xz / big, dpy.xz / big);
+            top.albedo = mix(top.albedo, wide.albedo, far);
+            top.mask = mix(top.mask, wide.mask, far);
+        }
+        albedo[i] = top.albedo * planes.y;
+        mask[i] = top.mask * planes.y;
+        bend[i] = tnBend(top.slope, vec3(1.0, 0.0, 0.0), vec3(0.0, 0.0, 1.0), N) * planes.y;
+        if (planes.x > 0.02) {
+            TnTap x = tnPlain(P.zy / tile, layer, dpx.zy / tile, dpy.zy / tile);
+            albedo[i] += x.albedo * planes.x; mask[i] += x.mask * planes.x;
+            bend[i] += tnBend(x.slope, vec3(0.0, 0.0, 1.0), vec3(0.0, 1.0, 0.0), N) * planes.x;
+        }
+        if (planes.z > 0.02) {
+            TnTap z = tnPlain(P.xy / tile, layer, dpx.xy / tile, dpy.xy / tile);
+            albedo[i] += z.albedo * planes.z; mask[i] += z.mask * planes.z;
+            bend[i] += tnBend(z.slope, vec3(1.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), N) * planes.z;
+        }
+    }
+    // Then by height: each layer stands as high as its mask says, and where two meet the higher one shows.
+    float top = -1.0;
+    for (int i = 0; i < 8; i++) if (w[i] > 1e-3) top = max(top, mask[i].b + w[i] * 1.5);
+    float hsum = 0.0;
+    float hw[8];
+    for (int i = 0; i < 8; i++) { hw[i] = w[i] > 1e-3 ? max(mask[i].b + w[i] * 1.5 - (top - 0.35), 0.0) : 0.0; hsum += hw[i]; }
+    vec3 colour = vec3(0.0), slope = vec3(0.0), surface = vec3(0.0);
+    for (int i = 0; i < 8; i++) {
+        float k = mix(w[i], hw[i] / max(hsum, 1e-4), u_heightBlend);
+        colour += albedo[i] * k; slope += bend[i] * k; surface += mask[i] * k;
+    }
+    float broad = tnNoise(P.xz / (scale * 7.3)) * 0.6 + tnNoise(P.xz / (scale * 29.0) + 5.0) * 0.4;
+    colour *= mix(1.0, 0.7 + 0.6 * broad, u_macroVariation);
+    N = normalize(N + slope);
+
+    // Wet at the water: darker, and smooth enough to shine.
+    float wet = u_wetBand > 0.0 ? 1.0 - smoothstep(u_wetLevel, u_wetLevel + u_wetBand, P.y) : 0.0;
+    colour *= mix(1.0, 0.55, wet);
+    float roughness = mix(surface.g, 0.3, wet);
+
+    SurfaceExt ext = surfaceExtNone(N);
+    vec3 viewDir = viewDirection(P);
+    vec3 lit = applyLightingSurface(colour, N, P, viewDir, 0.0, roughness, 0.5, surface.r, ext);
+    fragColor = vec4(lit, 1.0);
+#ifdef ES_GBUFFER
+    fragSurface = vec4(packNormal(N), roughness, 0.75);
+#endif
+}
+#pragma end
+
+#pragma fragment wgsl
+fn tnHash(p0 : vec2f) -> f32 {
+    var p = fract(p0 * vec2f(0.1031, 0.1030));
+    p = p + dot(p, p.yx + 33.33);
+    return fract((p.x + p.y) * p.x);
+}
+fn tnNoise(p : vec2f) -> f32 {
+    let i = floor(p);
+    var f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(tnHash(i), tnHash(i + vec2f(1.0, 0.0)), f.x), mix(tnHash(i + vec2f(0.0, 1.0)), tnHash(i + vec2f(1.0, 1.0)), f.x), f.y);
+}
+fn tnHash2(p : vec2f) -> vec2f {
+    return fract(sin(vec2f(dot(p, vec2f(127.1, 311.7)), dot(p, vec2f(269.5, 183.3)))) * 43758.5453);
+}
+fn tnTile(i : i32) -> f32 {
+    if (i < 4) { return mc.u_tiles0[i]; }
+    return mc.u_tiles1[i - 4];
+}
+struct TnTap { albedo : vec3f, slope : vec2f, mask : vec3f };
+fn tnPlain(uv : vec2f, layer : i32, gx : vec2f, gy : vec2f) -> TnTap {
+    var t : TnTap;
+    t.albedo = textureSampleGrad(u_albedoLayers, u_albedoLayers_s, uv, layer, gx, gy).rgb;
+    t.slope = textureSampleGrad(u_normalLayers, u_normalLayers_s, uv, layer, gx, gy).rg * 2.0 - vec2f(1.0);
+    t.mask = textureSampleGrad(u_maskLayers, u_maskLayers_s, uv, layer, gx, gy).rgb;
+    return t;
+}
+fn tnHexTap(uv : vec2f, layer : i32, cell : vec2f, gx : vec2f, gy : vec2f) -> TnTap {
+    let r = tnHash2(cell);
+    let a = r.x * 6.2831853;
+    let turn = mat2x2f(cos(a), -sin(a), sin(a), cos(a));
+    var t = tnPlain(turn * uv + r, layer, turn * gx, turn * gy);
+    t.slope = t.slope * turn;
+    return t;
+}
+fn tnHex(uv : vec2f, layer : i32, gx : vec2f, gy : vec2f, strength : f32) -> TnTap {
+    let skewed = mat2x2f(1.0, 0.0, -0.57735027, 1.15470054) * (uv * 3.4641016);
+    let base = floor(skewed);
+    let fr = fract(skewed);
+    let fz = 1.0 - fr.x - fr.y;
+    let s = step(0.0, -fz);
+    let s2 = 2.0 * s - 1.0;
+    var w = vec3f(-fz * s2, s - fr.y * s2, s - fr.x * s2);
+    let c1 = tnHexTap(uv, layer, base + vec2f(s, s), gx, gy);
+    let c2 = tnHexTap(uv, layer, base + vec2f(s, 1.0 - s), gx, gy);
+    let c3 = tnHexTap(uv, layer, base + vec2f(1.0 - s, s), gx, gy);
+    let h = vec3f(c1.mask.b, c2.mask.b, c3.mask.b);
+    w = pow(max(w * mix(vec3f(1.0), vec3f(0.4) + h, vec3f(strength)), vec3f(1e-4)), vec3f(7.0));
+    w = w / dot(w, vec3f(1.0));
+    var t : TnTap;
+    t.albedo = c1.albedo * w.x + c2.albedo * w.y + c3.albedo * w.z;
+    t.slope = c1.slope * w.x + c2.slope * w.y + c3.slope * w.z;
+    t.mask = c1.mask * w.x + c2.mask * w.y + c3.mask * w.z;
+    return t;
+}
+fn tnBend(slope : vec2f, T0 : vec3f, B0 : vec3f, N : vec3f) -> vec3f {
+    let T = normalize(T0 - N * dot(N, T0));
+    let B = normalize(B0 - N * dot(N, B0));
+    return slope.x * T + slope.y * B;
+}
+
+#ifdef ES_GBUFFER
+struct FragOut {
+    @location(0) color : vec4f,
+    @location(1) surface : vec4f,
+};
+
+fn packNormal(n : vec3f) -> vec2f {
+    let a = n / (abs(n.x) + abs(n.y) + abs(n.z));
+    let sgn = vec2f(select(-1.0, 1.0, a.x >= 0.0), select(-1.0, 1.0, a.y >= 0.0));
+    var e = a.xy;
+    if (a.z < 0.0) { e = (vec2f(1.0) - abs(a.yx)) * sgn; }
+    return e * 0.5 + 0.5;
+}
+
+@fragment fn fs_main(v : VSOut) -> FragOut {
+#else
+@fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
+#endif
+    g_probeSlot = v.v_probeSlot;
+#ifdef MESH_LIGHTMAP
+    g_lightmap = v.v_lightmap;
+#endif
+#ifdef MESH_NORMALS
+    let P = v.v_worldXYZ;
+    var N = normalize(v.v_worldNormal);
+#else
+    let P = vec3f(v.v_worldPos.x, 0.0, v.v_worldPos.y);
+    var N = vec3f(0.0, 1.0, 0.0);
+#endif
+    let pageA = textureSample(u_paintPages, u_paintPages_s, v.v_color.xy);
+    let pageB = textureSample(u_paintPages2, u_paintPages2_s, v.v_color.xy);
+    let pageNormal = textureSample(u_heightPages, u_heightPages_s, v.v_color.xy).ba * 2.0 - vec2f(1.0);
+    var paintA = v.v_color;
+    var paintB = vec4f(0.0);
+    if (mc.u_terrainPages > 0.5) {
+        let lp = P.xz - mc.u_terrainOrigin.xz;
+        if (lp.x < mc.u_terrainBounds.x || lp.y < mc.u_terrainBounds.y || lp.x > mc.u_terrainBounds.z || lp.y > mc.u_terrainBounds.w) { discard; }
+        paintA = pageA;
+        paintB = pageB;
+        N = normalize(vec3f(pageNormal.x, sqrt(max(1.0 - dot(pageNormal, pageNormal), 0.0)), pageNormal.y));
+    }
+    let count = i32(mc.u_layerCount + 0.5);
+    var w : array<f32, 8>;
+    var sum = 0.0;
+    for (var i = 0; i < 8; i = i + 1) {
+        var raw = 0.0;
+        if (i < 4) { raw = paintA[i]; } else { raw = paintB[i - 4]; }
+        let wander = tnNoise(P.xz / (tnTile(i) * 2.3) + vec2f(f32(i) * 11.0 + 3.0));
+        w[i] = 0.0;
+        if (i < count) { w[i] = max(raw, 0.0) * mix(1.0, 0.35 + 1.3 * wander, mc.u_blendNoise); }
+        sum = sum + w[i];
+    }
+    var sharp = 0.0;
+    for (var i = 0; i < 8; i = i + 1) { w[i] = pow(w[i] / max(sum, 1e-4), mc.u_sharpness); sharp = sharp + w[i]; }
+    for (var i = 0; i < 8; i = i + 1) { w[i] = w[i] / max(sharp, 1e-4); }
+
+    let dpx = dpdx(P);
+    let dpy = dpdy(P);
+    var eye = 0.0;
+    if (frame.camera.w > 0.5) { eye = length(P - frame.camera.xyz); }
+    let scale = tnTile(0);
+    let near = (1.0 - smoothstep(scale * 20.0, scale * 45.0, eye)) * mc.u_antiTile;
+    let far = smoothstep(scale * 6.0, scale * 40.0, eye) * 0.65;
+    var axis = pow(abs(N), vec3f(4.0));
+    axis = axis / dot(axis, vec3f(1.0));
+    let side = smoothstep(mc.u_triplanarFrom, mc.u_triplanarFrom + 0.15, 1.0 - abs(N.y));
+    let planes = mix(vec3f(0.0, 1.0, 0.0), axis, vec3f(side));
+
+    var albedo : array<vec3f, 8>;
+    var bend : array<vec3f, 8>;
+    var mask : array<vec3f, 8>;
+    for (var i = 0; i < 8; i = i + 1) {
+        albedo[i] = vec3f(0.0);
+        bend[i] = vec3f(0.0);
+        mask[i] = vec3f(1.0, 1.0, 0.0);
+        if (w[i] <= 1e-3) { continue; }
+        let tile = tnTile(i);
+        var top : TnTap;
+        if (near > 0.01) { top = tnHex(P.xz / tile, i, dpx.xz / tile, dpy.xz / tile, near); }
+        else { top = tnPlain(P.xz / tile, i, dpx.xz / tile, dpy.xz / tile); }
+        if (far > 0.01) {
+            let big = tile * mc.u_farScale;
+            let wide = tnPlain(P.xz / big + vec2f(0.21), i, dpx.xz / big, dpy.xz / big);
+            top.albedo = mix(top.albedo, wide.albedo, vec3f(far));
+            top.mask = mix(top.mask, wide.mask, vec3f(far));
+        }
+        albedo[i] = top.albedo * planes.y;
+        mask[i] = top.mask * planes.y;
+        bend[i] = tnBend(top.slope, vec3f(1.0, 0.0, 0.0), vec3f(0.0, 0.0, 1.0), N) * planes.y;
+        if (planes.x > 0.02) {
+            let x = tnPlain(P.zy / tile, i, dpx.zy / tile, dpy.zy / tile);
+            albedo[i] = albedo[i] + x.albedo * planes.x;
+            mask[i] = mask[i] + x.mask * planes.x;
+            bend[i] = bend[i] + tnBend(x.slope, vec3f(0.0, 0.0, 1.0), vec3f(0.0, 1.0, 0.0), N) * planes.x;
+        }
+        if (planes.z > 0.02) {
+            let z = tnPlain(P.xy / tile, i, dpx.xy / tile, dpy.xy / tile);
+            albedo[i] = albedo[i] + z.albedo * planes.z;
+            mask[i] = mask[i] + z.mask * planes.z;
+            bend[i] = bend[i] + tnBend(z.slope, vec3f(1.0, 0.0, 0.0), vec3f(0.0, 1.0, 0.0), N) * planes.z;
+        }
+    }
+    var top = -1.0;
+    for (var i = 0; i < 8; i = i + 1) { if (w[i] > 1e-3) { top = max(top, mask[i].b + w[i] * 1.5); } }
+    var hsum = 0.0;
+    var hw : array<f32, 8>;
+    for (var i = 0; i < 8; i = i + 1) {
+        hw[i] = 0.0;
+        if (w[i] > 1e-3) { hw[i] = max(mask[i].b + w[i] * 1.5 - (top - 0.35), 0.0); }
+        hsum = hsum + hw[i];
+    }
+    var colour = vec3f(0.0);
+    var slope = vec3f(0.0);
+    var surface = vec3f(0.0);
+    for (var i = 0; i < 8; i = i + 1) {
+        let k = mix(w[i], hw[i] / max(hsum, 1e-4), mc.u_heightBlend);
+        colour = colour + albedo[i] * k;
+        slope = slope + bend[i] * k;
+        surface = surface + mask[i] * k;
+    }
+    let broad = tnNoise(P.xz / (scale * 7.3)) * 0.6 + tnNoise(P.xz / (scale * 29.0) + vec2f(5.0)) * 0.4;
+    colour = colour * mix(1.0, 0.7 + 0.6 * broad, mc.u_macroVariation);
+    N = normalize(N + slope);
+
+    var wet = 0.0;
+    if (mc.u_wetBand > 0.0) { wet = 1.0 - smoothstep(mc.u_wetLevel, mc.u_wetLevel + mc.u_wetBand, P.y); }
+    colour = colour * mix(1.0, 0.55, wet);
+    let roughness = mix(surface.g, 0.3, wet);
+
+    let ext = surfaceExtNone(N);
+    let viewDir = viewDirection(P);
+    let lit = applyLightingSurface(colour, N, P, viewDir, 0.0, roughness, 0.5, surface.r, ext);
+#ifdef ES_GBUFFER
+    var frag : FragOut;
+    frag.color = vec4f(lit, 1.0);
+    frag.surface = vec4f(packNormal(N), roughness, 0.75);
+    return frag;
+#else
+    return vec4f(lit, 1.0);
+#endif
+}
+#pragma end
+`;
+
+export const TERRAIN_LAYERS_SHADER_TEMPLATE = makeBuiltinShaderTemplate('terrain-layers', 'Terrain Layers',
+    'Up to eight terrain layers (albedo, normal and mask arrays) weighted by the Terrain component, blended by height, projected on slopes.',
+    TERRAIN_LAYERS);

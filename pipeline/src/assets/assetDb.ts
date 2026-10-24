@@ -234,7 +234,7 @@ const JSON_REF_TYPES = new Set([
   'scene', 'prefab', 'material', 'tileset', 'tilemap', 'animclip', 'animation', 'statemachine', 'behaviortree',
   'scriptgraph',
   'environment', 'animatorcontroller', 'avatar',
-  'json', 'sound-event', 'world-rules',
+  'json', 'sound-event', 'world-rules', 'terrain-layer',
 ]);
 
 /**

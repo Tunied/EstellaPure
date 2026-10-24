@@ -32,8 +32,8 @@ export interface BiomeDef {
     weight?: number;
     /** How far its edge wanders, in world units. */
     transition?: number;
-    /** How the ground is painted where it holds: grass, dirt, snow, rock; and how much of the ground's own paint it replaces. */
-    paint?: readonly [number, number, number, number];
+    /** How the ground is painted where it holds: the weight of each of the terrain's layers (four, or up to eight), and how much of the ground's own paint it replaces. */
+    paint?: readonly number[];
     paintStrength?: number;
     recipes: readonly BiomeRecipe[];
 }

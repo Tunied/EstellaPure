@@ -834,7 +834,8 @@ export {
     erodeHeightfield, erosionJob, heightfieldFromPixels, HeightmapFormat, proceduralHeightfield, sampleHeight, terrainNormal,
     type Eroded, type ErosionParams, type Heightfield, type ProceduralParams,
 } from './terrain/heightfield';
-export { FieldSource, NoiseSource, ModifiedSource, flattenModifier, noised, type NoiseParams, type Splat, type TerrainSource, type TerrainModifier } from './terrain/source';
+export { FieldSource, NoiseSource, ModifiedSource, flattenModifier, noised, type LayerWeights, type NoiseParams, type Splat, type TerrainRegionSamples, type TerrainSource, type TerrainModifier } from './terrain/source';
+export { packLayers, parseTerrainLayer, TerrainLayerAssetLoader, type LayerImage, type LayerSource, type PackedLayers, type TerrainLayerDef } from './terrain/layers';
 export { boxDistance, levelRange, nodeKey, parentOf, selectNodes, type QuadtreeParams, type TerrainNode } from './terrain/quadtree';
 export { makePage, PageTable, PAGE_SIDE, PAGE_TEXELS, PATCH_CELLS, type Page, type PageImage } from './terrain/pages';
 export { buildPatchMesh } from './terrain/patch';

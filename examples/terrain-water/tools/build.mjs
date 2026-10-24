@@ -274,16 +274,50 @@ function splatmap() {
 
 const mix = (a, b, t) => a.map((c, i) => c + (b[i] - c) * t);
 
-function texture(name, seed, shade) {
+function texture(name, seed, shade, layer) {
   const size = 512;
-  const image = png(size, size, (x, y) => {
+  const rgb = new Float64Array(size * size * 3);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
     const u = x / size, v = y / size;
-    const rgb = shade(u, v, (s, o, b) => fractal(u, v, seed + s, o, b));
-    return [rgb[0], rgb[1], rgb[2], 255];
-  });
+    const c = shade(u, v, (s, o, b) => fractal(u, v, seed + s, o, b));
+    rgb.set([c[0], c[1], c[2]], (y * size + x) * 3);
+  }
+  const image = png(size, size, (x, y) => { const k = (y * size + x) * 3; return [rgb[k], rgb[k + 1], rgb[k + 2], 255]; });
   write(`assets/textures/${name}.png`, image);
   // Tiled by world position across the whole ground: it must repeat, or every texel past the first tile is its edge stretched.
   meta(`assets/textures/${name}.png`, 'texture', { wrapMode: 'repeat' });
+  if (layer) terrainLayer(name, size, rgb, layer);
+}
+
+/**
+ * The textures of a terrain layer made from its colour: its relief taken as how bright it is (stones stand up, cracks sink), the normal
+ * map from that relief's slope, and the mask (occlusion deeper in the low places, the layer's roughness varied a little, the relief as
+ * height). And the `.esterrainlayer` file that names them.
+ */
+function terrainLayer(name, size, rgb, { tile, roughness, relief }) {
+  const h = new Float64Array(size * size);
+  for (let k = 0; k < size * size; k++) h[k] = (rgb[k * 3] * 0.299 + rgb[k * 3 + 1] * 0.587 + rgb[k * 3 + 2] * 0.114) / 255;
+  const at = (x, y) => h[((y + size) % size) * size + ((x + size) % size)];
+  const normal = png(size, size, (x, y) => {
+    // Green up (OpenGL): +y in the texture is up the image, which is -y in rows.
+    const dx = (at(x + 1, y) - at(x - 1, y)) * relief, dy = (at(x, y - 1) - at(x, y + 1)) * relief;
+    const len = Math.hypot(dx, dy, 1);
+    return [(-dx / len * 0.5 + 0.5) * 255, (-dy / len * 0.5 + 0.5) * 255, (1 / len * 0.5 + 0.5) * 255, 255];
+  });
+  const mask = png(size, size, (x, y) => {
+    const v = at(x, y);
+    return [(0.55 + 0.45 * smooth(0.1, 0.6, v)) * 255, Math.min(1, roughness + (0.5 - v) * 0.1) * 255, v * 255, 255];
+  });
+  for (const [suffix, data] of [['normal', normal], ['mask', mask]]) {
+    write(`assets/textures/${name}_${suffix}.png`, data);
+    meta(`assets/textures/${name}_${suffix}.png`, 'texture', { wrapMode: 'repeat', sRGB: false });
+  }
+  const file = `assets/terrain/${name}.esterrainlayer`;
+  write(file, `${JSON.stringify({
+    albedo: `assets/textures/${name}.png`, normal: `assets/textures/${name}_normal.png`, mask: `assets/textures/${name}_mask.png`,
+    tile, tint: [1, 1, 1], roughness, normalStrength: 1,
+  }, null, 2)}\n`);
+  meta(file, 'terrain-layer');
 }
 
 /** Cellular noise that wraps every `period` cells: the distance to the nearest and the second-nearest feature point, for stones and cracks. */
@@ -311,7 +345,7 @@ function textures() {
     c = mix(c, [146, 140, 70], dry * 0.7);
     c = mix(c, [86, 70, 44], earth);
     return c.map((x) => x * (0.62 + 0.38 * clump) * (0.82 + 0.3 * blade));
-  });
+  }, { tile: 900, roughness: 0.95, relief: 3 });
   // Sand: low ripples the wind combed across it, running one way and only gently bent (a contour of noise reads as rings), fading
   // in and out in patches; pebbles and broken shell scattered over.
   texture('sand', 2, (u, v, n) => {
@@ -323,12 +357,12 @@ function textures() {
     let c = mix([170, 150, 114], [222, 204, 164], n(10, 4, 4));
     c = c.map((x) => x * (0.93 + 0.07 * ripple) * (0.93 + 0.1 * grain));
     return mix(c, mix([110, 104, 96], [196, 188, 172], stones.id), pebble * (stones.id > 0.55 ? 1 : 0));
-  });
+  }, { tile: 700, roughness: 0.85, relief: 4 });
   // Snow: windblown, bluish in its hollows, with the odd glint.
   texture('snow', 3, (u, v, n) => {
     const drift = n(0, 4, 4), sparkle = hash(Math.floor(u * 512), Math.floor(v * 512), 7) > 0.985 ? 1.08 : 1;
     return mix([196, 210, 230], [252, 253, 255], smooth(0.2, 0.75, drift)).map((x) => Math.min(255, x * sparkle));
-  });
+  }, { tile: 1100, roughness: 0.55, relief: 2 });
   // Rock: strata running across it, cracks between blocks, weathered lighter on the faces, lichen in patches.
   texture('rock', 4, (u, v, n) => {
     const block = cells(u, v, 6, 31);
@@ -339,7 +373,7 @@ function textures() {
     let c = mix([70, 68, 66], [138, 134, 126], face * 0.6 + strata * 0.25 + block.id * 0.25);
     c = mix(c, [118, 124, 82], lichen * 0.55);
     return c.map((x) => x * (0.35 + 0.65 * crack) * (0.85 + 0.25 * n(60, 3, 64)));
-  });
+  }, { tile: 1400, roughness: 0.75, relief: 6 });
   // The pine's colour: bark at the foot, then needles that darken toward the shade under each tier.
   const strip = png(8, 128, (x, y) => {
     const v = 1 - y / 127;
@@ -416,10 +450,9 @@ function material(name, shader, properties) {
 
 function materials() {
   const white = { r: 1, g: 1, b: 1, a: 1 };
-  material('ground', 'builtin:terrain', {
-    u_layer0: 'assets/textures/grass.png', u_layer1: 'assets/textures/sand.png', u_layer2: 'assets/textures/snow.png', u_layer3: 'assets/textures/rock.png',
-    u_tint0: white, u_tint1: white, u_tint2: white, u_tint3: white,
-    u_tile0: 900, u_tile1: 700, u_tile2: 1100, u_tile3: 1400, u_macroVariation: 0.45, u_sharpness: 1.4, u_blendNoise: 0.6, u_roughness: 0.95, u_heightBlend: 0.55, u_antiTile: 0.7, u_relief: 8,
+  // The ground's look: its layers (the Terrain's `layers`) are the textures, this how they meet and wear.
+  material('ground', 'builtin:terrain-layers', {
+    u_macroVariation: 0.45, u_sharpness: 1.4, u_blendNoise: 0.6, u_heightBlend: 0.8, u_antiTile: 0.7,
     u_wetLevel: WORLD.sea, u_wetBand: 60,
   });
   // The stock water, scaled from metres to this world's centimetres: the same colours, absorbed over a hundred times the distance.
@@ -495,7 +528,9 @@ function scene() {
     { type: 'Transform', data: { position: { x: 0, y: WORLD.base, z: 0 } } },
     { type: 'Terrain', data: {
       sizeX: WORLD.size, sizeZ: WORLD.size, height: WORLD.height, cellSize: 30, detail: 1,
-      heightmap: 'assets/textures/height.png', heightmapFormat: 1, splatmap: 'assets/textures/splat.png', material: 'assets/materials/ground.esmaterial' } },
+      heightmap: 'assets/textures/height.png', heightmapFormat: 1, splatmap: 'assets/textures/splat.png', material: 'assets/materials/ground.esmaterial',
+      // In the splatmap's order: grass, sand, snow, rock.
+      layers: ['grass', 'sand', 'snow', 'rock'].map((n) => `assets/terrain/${n}.esterrainlayer`) } },
   ]);
   // The water: one zone over the whole island, which the sea, the lake and the two rivers are baked into and drawn from as one surface.
   add('Water', [

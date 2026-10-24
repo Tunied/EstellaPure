@@ -29,7 +29,7 @@ import { decodeImagePixels } from '../asset/imageDecode';
 import { decodePngData } from '../asset/pngData';
 import { Material, MATERIAL_FORMAT_VERSION } from '../render/material';
 import { BlendMode } from '../render/blend';
-import { createTextureFromPixels, updateTextureSubregion } from '../runtime/runtimeAssets';
+import { createTextureArrayFromPixels, createTextureFromPixels, updateTextureSubregion } from '../runtime/runtimeAssets';
 import { getResourceManager, provideTextureContent, withdrawTextureContent } from '../wasm/resourceManager';
 import { TextureContent } from '../wasm';
 import { EditorView, editorViewEye } from '../camera/EditorView';
@@ -43,6 +43,8 @@ import { levelRange, nodeKey, parentOf, selectNodes, type QuadtreeParams, type T
 import { makePage, PageTable, PAGE_SIDE, PAGE_TEXELS, PATCH_CELLS, type PageImage, type Repaint } from './pages';
 import { noiseProvider, ProviderSource, terrainProvider, terrainProvidersRevision, TerrainUnavailable, type TerrainProvider } from './provider';
 import { buildPatchMesh } from './patch';
+import { isMiniGame } from '../platform';
+import { packLayers, type LayerImage, type LayerSource, type TerrainLayerDef } from './layers';
 import { TerrainSurface, TILE_CELLS, type SurfaceTile } from './surface';
 import { collisionGeometryOf } from '../runtime/collisionGeometry';
 import { chunksOf, ProceduralChunksRes, type ChunkSource } from '../residency/chunks';
@@ -70,8 +72,15 @@ export interface TerrainData {
     heightmap: number;
     /** How the heightmap holds its heights: a {@link HeightmapFormat}. */
     heightmapFormat: number;
-    /** An image whose four channels are the weights of the four layers; empty paints by height and slope. */
+    /** An image whose four channels are the weights of layers 1 to 4; empty paints by height and slope. */
     splatmap: number;
+    /** An image whose four channels are the weights of layers 5 to 8, read with the first. */
+    splatmap2: number;
+    /**
+     * The terrain layers (`.esterrainlayer` files, up to eight) the ground is drawn with, in the order the paint weighs them. With any,
+     * the ground is drawn on the Terrain Layers shader (its material, if one is named, must be on it); with none, by the four colours.
+     */
+    layers: string[];
     /** A material on the Terrain shader. Empty draws the layer colours onto the ground. */
     material: number;
     /** An area's size along x and z, centred on its entity; for ground without end, the span `frequency` hills are spread over. */
@@ -120,14 +129,14 @@ const rgb = (r: number, g: number, b: number): Color => ({ r, g, b, a: 1 });
  * @experimental
  */
 export const Terrain: ComponentDef<TerrainData> = defineComponent<TerrainData>('Terrain', {
-    extent: TerrainExtent.Area, provider: NOISE_PROVIDER, world: '', generatorVersion: 1, heightmap: 0, heightmapFormat: HeightmapFormat.Grey, splatmap: 0, material: 0,
+    extent: TerrainExtent.Area, provider: NOISE_PROVIDER, world: '', generatorVersion: 1, heightmap: 0, heightmapFormat: HeightmapFormat.Grey, splatmap: 0, splatmap2: 0, layers: [] as string[], material: 0,
     sizeX: 1000, sizeZ: 1000, height: 150, cellSize: 2, detail: 1, drawDistance: 4000,
     collision: true, collisionDistance: 64, collisionLayer: 0, friction: 0.6,
     seed: 1, frequency: 3, octaves: 5, persistence: 0.5, ridged: 0.35, resolution: 257, warp: 0, erosion: 0,
     rockSlope: 0.35, dirtHeight: 0.62, snowHeight: 0.88,
     layerColor0: rgb(0.28, 0.46, 0.2), layerColor1: rgb(0.45, 0.36, 0.24), layerColor2: rgb(0.93, 0.95, 0.98), layerColor3: rgb(0.4, 0.38, 0.36),
 }, {
-    assetFields: [{ field: 'heightmap', type: 'texture' }, { field: 'splatmap', type: 'texture' }, { field: 'material', type: 'material' }],
+    assetFields: [{ field: 'heightmap', type: 'texture' }, { field: 'splatmap', type: 'texture' }, { field: 'splatmap2', type: 'texture' }, { field: 'material', type: 'material' }],
     fields: {
         extent: { enum: [{ label: 'Area', value: TerrainExtent.Area }, { label: 'Infinite', value: TerrainExtent.Infinite }], category: 'Shape', tooltip: 'An area of its own size, from a heightmap or noise; or ground that goes on for ever, from noise read anywhere (the same seed is the same ground).' },
         provider: { category: 'Shape', tooltip: 'The generator the ground is made by, without end or (with no heightmap) in an area: estella:noise, or one the game registers. The same provider, world, seed and version are the same ground on every machine, and two areas side by side join.' },
@@ -136,7 +145,9 @@ export const Terrain: ComponentDef<TerrainData> = defineComponent<TerrainData>('
         heightmap: { tooltip: 'A heightmap image, read as data (shipped as the PNG it is). Empty makes the ground from noise; a heightmap that cannot be read fails the terrain instead.', category: 'Shape', shownWhen: { field: 'extent', values: [TerrainExtent.Area] } },
         heightmapFormat: { enum: [{ label: 'Grey (8 or 16 bit)', value: HeightmapFormat.Grey }, { label: 'Red + green (16 bit)', value: HeightmapFormat.RedGreen16 }], category: 'Shape', tooltip: 'How the heightmap holds its heights: grey (or red) at the depth of the file, 16 bits from a 16-bit PNG; or sixteen bits across red (high byte) and green (low byte) of an 8-bit image.', shownWhen: { field: 'extent', values: [TerrainExtent.Area] } },
         splatmap: { tooltip: 'An image whose red, green, blue and alpha are the weights of grass, dirt, snow and rock.', category: 'Layers', shownWhen: { field: 'extent', values: [TerrainExtent.Area] } },
-        material: { tooltip: 'A material on the Terrain shader. Empty draws the layer colours onto the ground.', category: 'Layers' },
+        splatmap2: { tooltip: 'An image whose red, green, blue and alpha are the weights of layers 5 to 8.', category: 'Layers', shownWhen: { field: 'extent', values: [TerrainExtent.Area] } },
+        layers: { tooltip: 'The terrain layers (.esterrainlayer, up to eight) the ground is drawn with, in the order the paint weighs them. Empty draws the four layer colours.', category: 'Layers' },
+        material: { tooltip: 'A material on the Terrain shader (on Terrain Layers when the ground has layers). Empty uses the stock one.', category: 'Layers' },
         sizeX: { min: 1, category: 'Shape', tooltip: 'An area\'s size along x; for ground without end, the span its hills are spread over.' },
         sizeZ: { min: 1, category: 'Shape', tooltip: 'An area\'s size along z.', shownWhen: { field: 'extent', values: [TerrainExtent.Area] } },
         height: { min: 0, category: 'Shape', tooltip: 'World height of the highest ground.' },
@@ -182,6 +193,8 @@ export function paintWeights(h: number, ny: number, t: Pick<TerrainData, 'rockSl
 
 /** The side of the atlases the pages are kept in, in texels: 900 pages of 67 by 67. */
 const ATLAS_SIZE = 2048;
+/** The most layers a terrain draws: two paint atlases of four weights. */
+const MAX_LAYERS = 8;
 /** The chunk layer a terrain's collision is, and the key of one tile's piece of collision geometry. */
 const collisionLayerOf = (entity: Entity): string => `terrain-collision:${entity}`;
 const tileKey = (entity: Entity, tx: number, tz: number): string => `terrain:${entity}:${tx}:${tz}`;
@@ -218,6 +231,12 @@ interface Built {
     failure: string | null;
     /** Bumped whenever modifiers change the ground under it: a page asked for before is thrown away when it lands. */
     edits: number;
+    /** The atlas of layers 5 to 8's paint, with layers. */
+    paint2: number;
+    /** The layers packed (albedo, normal and mask arrays), what they were packed from, and whether a packing is in hand. */
+    arrays: number[];
+    packed: string;
+    packing: boolean;
 }
 
 /** Where a terrain's ground stands: still being made, ready, or failed (with why). */
@@ -432,7 +451,9 @@ export const TerrainsRes = defineResource<Terrains>(new Terrains(), 'Terrains');
 /** What, changed, rebuilds the ground: everything but the colours, the detail and the collision, which are read each frame. */
 function signatureOf(data: TerrainData, at: { x: number; z: number }): string {
     const { layerColor0: _a, layerColor1: _b, layerColor2: _c, layerColor3: _d, detail: _e, drawDistance: _f,
-        collision: _g, collisionDistance: _h, collisionLayer: _i, friction: _j, ...shape } = data;
+        collision: _g, collisionDistance: _h, collisionLayer: _i, friction: _j, layers, ...rest } = data;
+    // Which layers are only what the arrays are packed from; whether there are any is which shader the ground is drawn with.
+    const shape = { ...rest, layered: (layers?.length ?? 0) > 0 };
     // Ground read from a provider is the world's where the terrain stands: moved, it is read again; and a game's own provider is read
     // again when one is registered under its name.
     const fromProvider = data.extent === TerrainExtent.Infinite || !data.heightmap;
@@ -490,8 +511,12 @@ function movers(app: App): ChunkSource[] {
 export class TerrainPlugin implements Plugin {
     name = 'terrain';
 
-    /** The stock material a terrain with none of its own is an instance of. */
+    /** The stock materials a terrain with none of its own is an instance of: without layers, and with. */
     private stock_ = 0;
+    private stockLayers_ = 0;
+    /** Bumped when an asset is edited and saved, so layers are packed again; and the listener that bumps it. */
+    private layerEdits_ = 0;
+    private watching_: (() => void) | null = null;
 
     build(app: App): void {
         const terrains = new Terrains();
@@ -512,6 +537,7 @@ export class TerrainPlugin implements Plugin {
                         signature, data: { ...data }, source: null, surface: null, epoch: (built?.epoch ?? 0) + 1, loading: true, cancel: null,
                         table: new PageTable(ATLAS_SIZE), heights: 0, paint: 0, mesh: 0, instance: 0,
                         nodes: new Map(), spare: [], wanted: new Map(), asked: new Set(), pending: false, failure: null, edits: 0,
+                        paint2: 0, arrays: [], packed: '', packing: false,
                     };
                     terrains.built_.set(entity, built);
                     void this.load(app, entity, built);
@@ -532,6 +558,7 @@ export class TerrainPlugin implements Plugin {
                     if (!built.pending) void this.prepare(app, built);
                     continue;
                 }
+                this.pack(app, built);
                 this.draw(app, entity, built);
             }
         }, { name: 'TerrainSystem' }));
@@ -547,6 +574,10 @@ export class TerrainPlugin implements Plugin {
         terrains.built_.clear();
         if (this.stock_) Material.release(this.stock_);
         this.stock_ = 0;
+        if (this.stockLayers_) Material.release(this.stockLayers_);
+        this.stockLayers_ = 0;
+        this.watching_?.();
+        this.watching_ = null;
     }
 
     /** Reads the images the terrain names (or makes its noise, and wears it), and makes its source. */
@@ -564,6 +595,7 @@ export class TerrainPlugin implements Plugin {
                 const height = await this.pixelsOf(app, data.heightmap);
                 if (data.heightmap && !height) throw new TerrainUnavailable(`the heightmap (texture ${data.heightmap}) could not be read: it is read as data, so it must ship as the PNG it is (not compressed)`);
                 const splat = await this.pixelsOf(app, data.splatmap);
+                const splat2 = await this.pixelsOf(app, data.splatmap2);
                 if (built.epoch !== epoch || !app.world.valid(entity)) return;
                 // Without a heightmap an area is a window on its provider's ground, read where it stands in the world: two areas side by
                 // side are one ground, and the area is the same ground the provider gives without end.
@@ -590,7 +622,7 @@ export class TerrainPlugin implements Plugin {
                     field = worn.field;
                     flow = worn.flow;
                 }
-                built.source = new FieldSource(field, data, splat, flow, range);
+                built.source = new FieldSource(field, data, splat, flow, range, splat2);
             }
             // The modifiers set on the ground (a plot levelled, a bed cut) are laid over it, for the pages, the queries and collision alike.
             const terrains = app.getResource(TerrainsRes);
@@ -607,9 +639,15 @@ export class TerrainPlugin implements Plugin {
 
     private async pixelsOf(app: App, handle: number): Promise<{ width: number; height: number; pixels: Uint8Array; wide?: Uint16Array } | null> {
         if (!handle || !app.hasResource(Assets)) return null;
-        const assets = app.getResource(Assets);
-        const path = assets.pathForHandle('texture', handle);
+        const path = app.getResource(Assets).pathForHandle('texture', handle);
         if (!path) { log.warn('terrain', `no source image is known for texture ${handle}`); return null; }
+        return this.pixelsAt(app, path);
+    }
+
+    /** An image file's pixels exactly as stored (no premultiply, no colour conversion), by its project path or reference. */
+    private async pixelsAt(app: App, path: string): Promise<{ width: number; height: number; pixels: Uint8Array; wide?: Uint16Array } | null> {
+        if (!app.hasResource(Assets)) return null;
+        const assets = app.getResource(Assets);
         try {
             // The bytes the asset layer would load, decoded unmodified (no premultiply, no colour conversion): a height is data.
             if (typeof createImageBitmap === 'function' && typeof Blob !== 'undefined') {
@@ -637,12 +675,92 @@ export class TerrainPlugin implements Plugin {
         return this.stock_;
     }
 
+    /** The stock material for ground with layers: the Terrain Layers shader, compiled once. */
+    private async stockLayers(app: App): Promise<number> {
+        if (this.stockLayers_) return this.stockLayers_;
+        const source = await app.getResource(Assets).load<MaterialShaderSource>('material-shader', 'builtin:terrain-layers');
+        const shader = source.compile([]);
+        if (this.stockLayers_) return this.stockLayers_;
+        this.stockLayers_ = Material.createFromAsset({
+            version: MATERIAL_FORMAT_VERSION, type: 'material', shader: 'builtin:terrain-layers', blendMode: BlendMode.None,
+            depthTest: true, depthWrite: true, cull: 0, properties: {},
+        }, shader);
+        return this.stockLayers_;
+    }
+
+    /**
+     * Packs the terrain's layers into the arrays its material reads, when what they name changed (or a layer file was saved): the
+     * ground keeps the arrays it has until the new ones are made.
+     */
+    private pack(app: App, built: Built): void {
+        const refs = built.data.layers ?? [];
+        if (refs.length === 0 || built.packing) return;
+        const assets = app.getResource(Assets);
+        const wanted = `${JSON.stringify(refs)}#${this.layerEdits_}`;
+        if (wanted === built.packed) return;
+        built.packing = true;
+        const epoch = built.epoch;
+        if (!this.watching_) {
+            // A layer file edited and saved, or a texture it names, is packed again.
+            this.watching_ = assets.onInvalidate(() => { this.layerEdits_++; });
+        }
+        void (async () => {
+            try {
+                if (refs.length > MAX_LAYERS) log.warn('terrain', `a terrain draws ${MAX_LAYERS} layers at most; it names ${refs.length}`);
+                const sources: LayerSource[] = [];
+                for (const ref of refs.slice(0, MAX_LAYERS)) {
+                    const def = await assets.load<TerrainLayerDef>('terrain-layer', ref);
+                    const image = async (path: string | undefined): Promise<LayerImage | null> => {
+                        if (!path) return null;
+                        const got = await this.pixelsAt(app, path);
+                        if (!got) log.warn('terrain', `the texture ${path} of terrain layer ${ref} could not be read`);
+                        return got;
+                    };
+                    sources.push({ def, albedo: await image(def.albedo), normal: await image(def.normal), mask: await image(def.mask) });
+                }
+                if (built.epoch !== epoch || !built.instance) return;
+                // A minigame's memory holds the layers at half the size.
+                const packed = packLayers(sources, isMiniGame() ? 512 : 1024);
+                const made = (layers: Uint8Array[], srgb: boolean): number => createTextureArrayFromPixels(app.wasmModule,
+                    { width: packed.size, height: packed.size, layers }, TextureContent.Retained,
+                    { filterMode: 'linear', wrapMode: 'repeat', mipmaps: true, srgb });
+                const arrays = [made(packed.albedo, true), made(packed.normal, false), made(packed.mask, false)];
+                if (arrays.some((h) => !h)) {
+                    log.warn('terrain', 'the engine refused the terrain layers\' texture arrays');
+                    this.releaseArrays(arrays);
+                    return;
+                }
+                this.releaseArrays(built.arrays);
+                built.arrays = arrays;
+                const set = (name: string, value: Parameters<typeof Material.setUniform>[2]): void => { Material.setUniform(built.instance, name, value); };
+                set('u_albedoLayers', Material.tex(arrays[0]!));
+                set('u_normalLayers', Material.tex(arrays[1]!));
+                set('u_maskLayers', Material.tex(arrays[2]!));
+                set('u_layerCount', packed.tiles.length);
+                const t = (i: number): number => packed.tiles[i] ?? 4;
+                set('u_tiles0', { x: t(0), y: t(1), z: t(2), w: t(3) });
+                set('u_tiles1', { x: t(4), y: t(5), z: t(6), w: t(7) });
+            } catch (e) {
+                log.error('terrain', 'packing the terrain layers failed', e);
+            } finally {
+                built.packed = wanted;
+                built.packing = false;
+            }
+        })();
+    }
+
+    private releaseArrays(arrays: readonly number[]): void {
+        const rm = getResourceManager();
+        for (const handle of arrays) if (handle) rm?.releaseTexture(handle);
+    }
+
     /** Makes what the ground is drawn with: the patch, the atlases and an instance of its material. */
     private async prepare(app: App, built: Built): Promise<void> {
         built.pending = true;
         const epoch = built.epoch;
         try {
-            const material = built.data.material || await this.stock(app);
+            const layered = (built.data.layers?.length ?? 0) > 0;
+            const material = built.data.material || (layered ? await this.stockLayers(app) : await this.stock(app));
             if (built.epoch !== epoch) return;
             const assets = app.getResource(Assets);
             built.mesh = assets.createMesh(buildPatchMesh(PATCH_CELLS));
@@ -650,8 +768,9 @@ export class TerrainPlugin implements Plugin {
             const params = { filterMode: 'linear', wrapMode: 'clamp', srgb: false } as const;
             built.heights = createTextureFromPixels(app.wasmModule, { width: ATLAS_SIZE, height: ATLAS_SIZE, pixels: blank }, TextureContent.Transient, false, params);
             built.paint = createTextureFromPixels(app.wasmModule, { width: ATLAS_SIZE, height: ATLAS_SIZE, pixels: blank }, TextureContent.Transient, false, params);
+            if (layered) built.paint2 = createTextureFromPixels(app.wasmModule, { width: ATLAS_SIZE, height: ATLAS_SIZE, pixels: blank }, TextureContent.Transient, false, params);
             // A device that lost the atlases has lost every page in them: they are made again as they are wanted.
-            for (const handle of [built.heights, built.paint]) {
+            for (const handle of [built.heights, built.paint, built.paint2].filter(Boolean)) {
                 provideTextureContent(handle, () => { built.table.clear(); return true; });
             }
             built.instance = Material.createInstance(material);
@@ -662,6 +781,17 @@ export class TerrainPlugin implements Plugin {
             const set = (name: string, value: Parameters<typeof Material.setUniform>[2]): void => { Material.setUniform(built.instance, name, value); };
             set('u_heightPages', Material.tex(built.heights));
             set('u_paintPages', Material.tex(built.paint));
+            if (built.paint2) {
+                set('u_paintPages2', Material.tex(built.paint2));
+                // Until the layers are packed the ground is one plain layer: an array left unset reads black on some devices.
+                const one = (rgba: number[], srgb: boolean): number => createTextureArrayFromPixels(app.wasmModule,
+                    { width: 1, height: 1, layers: [new Uint8Array(rgba)] }, TextureContent.Retained, { filterMode: 'linear', wrapMode: 'repeat', srgb });
+                built.arrays = [one([150, 150, 140, 255], true), one([128, 128, 255, 255], false), one([255, 230, 128, 255], false)];
+                set('u_albedoLayers', Material.tex(built.arrays[0]!));
+                set('u_normalLayers', Material.tex(built.arrays[1]!));
+                set('u_maskLayers', Material.tex(built.arrays[2]!));
+                set('u_layerCount', 1);
+            }
             set('u_terrainPages', 1);
             set('u_atlasTexels', ATLAS_SIZE);
             set('u_pageTexels', PAGE_TEXELS);
@@ -808,6 +938,7 @@ export class TerrainPlugin implements Plugin {
             const [ox, oy] = built.table.origin(page.slot);
             updateTextureSubregion(app.wasmModule, built.heights, ox, oy, PAGE_SIDE, PAGE_SIDE, image.heights);
             updateTextureSubregion(app.wasmModule, built.paint, ox, oy, PAGE_SIDE, PAGE_SIDE, image.paint);
+            if (built.paint2) updateTextureSubregion(app.wasmModule, built.paint2, ox, oy, PAGE_SIDE, PAGE_SIDE, image.paint2);
             return true;
         };
         const epoch = built.epoch, edits = built.edits;
@@ -889,12 +1020,15 @@ export class TerrainPlugin implements Plugin {
         built.spare.length = 0;
         built.wanted.clear();
         const rm = getResourceManager();
-        for (const handle of [built.heights, built.paint]) {
+        for (const handle of [built.heights, built.paint, built.paint2]) {
             if (!handle) continue;
             withdrawTextureContent(handle);
             rm?.releaseTexture(handle);
         }
-        built.heights = built.paint = 0;
+        built.heights = built.paint = built.paint2 = 0;
+        this.releaseArrays(built.arrays);
+        built.arrays = [];
+        built.packed = '';
         if (built.instance) Material.release(built.instance);
         built.instance = 0;
         if (built.mesh && app.hasResource(Assets)) app.getResource(Assets).releaseBuiltMesh(built.mesh);

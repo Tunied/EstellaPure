@@ -1,0 +1,13 @@
+{
+  "albedo": "assets/textures/grass.png",
+  "normal": "assets/textures/grass_normal.png",
+  "mask": "assets/textures/grass_mask.png",
+  "tile": 900,
+  "tint": [
+    1,
+    1,
+    1
+  ],
+  "roughness": 0.95,
+  "normalStrength": 1
+}

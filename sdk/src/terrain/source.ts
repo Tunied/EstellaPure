@@ -29,14 +29,20 @@ export interface TerrainSource {
     height(x: number, z: number): number | null;
     /** The ground's unit normal at (x, z), or null where the height is not known. */
     normal(x: number, z: number): [number, number, number] | null;
-    /** The weights of the four layers (grass, dirt, snow, rock) at (x, z), where the ground there is `h` high and faces `ny` up. */
-    paint(x: number, z: number, h: number, ny: number): [number, number, number, number];
+    /** The weights of the layers (up to eight; the first four by default grass, dirt, snow, rock) at (x, z), where the ground there is `h` high and faces `ny` up. */
+    paint(x: number, z: number, h: number, ny: number): LayerWeights;
     /**
      * The ground over a grid of `count` by `count` samples `spacing` apart from (x0, z0), when the source samples whole regions (a
      * provider, which may answer later); without it the pages read `height` and `paint` point by point.
      */
-    region?(x0: number, z0: number, spacing: number, count: number): { heights: Float32Array; paint?: Float32Array } | Promise<{ heights: Float32Array; paint?: Float32Array }>;
+    region?(x0: number, z0: number, spacing: number, count: number): TerrainRegionSamples | Promise<TerrainRegionSamples>;
 }
+
+/** A region's samples: heights, and the weights of layers 1 to 4 (`paint`) and 5 to 8 (`paint2`), four a sample. */
+export interface TerrainRegionSamples { heights: Float32Array; paint?: Float32Array; paint2?: Float32Array }
+
+/** The weights of a terrain's layers at a point, in order: four or eight of them (a missing one weighs nothing). */
+export type LayerWeights = readonly number[];
 
 /** The pixels of a splatmap, as the terrain read them. */
 export interface Splat { width: number; height: number; pixels: Uint8Array }
@@ -57,6 +63,7 @@ export class FieldSource implements TerrainSource {
         private readonly splat: Splat | null,
         private readonly flow: Float32Array | null,
         range: readonly [number, number] = [0, data.height],
+        private readonly splat2: Splat | null = null,
     ) {
         this.bounds = [-data.sizeX / 2, -data.sizeZ / 2, data.sizeX / 2, data.sizeZ / 2];
         [this.minHeight, this.maxHeight] = range;
@@ -79,22 +86,27 @@ export class FieldSource implements TerrainSource {
         return terrainNormal(this.field, u, v, this.data.sizeX, this.data.sizeZ, this.span);
     }
 
-    paint(x: number, z: number, h: number, ny: number): [number, number, number, number] {
+    paint(x: number, z: number, h: number, ny: number): LayerWeights {
         const u = Math.min(Math.max(x / this.data.sizeX + 0.5, 0), 1), v = Math.min(Math.max(z / this.data.sizeZ + 0.5, 0), 1);
-        let w = paintWeights((h - this.minHeight) / this.span, ny, this.data);
-        const splat = this.splat;
-        if (splat) {
+        let w: number[] = [...paintWeights((h - this.minHeight) / this.span, ny, this.data)];
+        // The splatmaps, where they say anything, say all of it: layers 1 to 4 from the first, 5 to 8 from the second.
+        const read = (splat: Splat | null): number[] => {
+            if (!splat) return [0, 0, 0, 0];
             const sx = Math.round(u * (splat.width - 1)), sy = Math.round(v * (splat.height - 1));
             const at = (sy * splat.width + sx) * 4;
-            const s: [number, number, number, number] = [splat.pixels[at]! / 255, splat.pixels[at + 1]! / 255, splat.pixels[at + 2]! / 255, splat.pixels[at + 3]! / 255];
-            const sum = s[0] + s[1] + s[2] + s[3];
-            if (sum > 0.001) w = [s[0] / sum, s[1] / sum, s[2] / sum, s[3] / sum];
+            return [splat.pixels[at]! / 255, splat.pixels[at + 1]! / 255, splat.pixels[at + 2]! / 255, splat.pixels[at + 3]! / 255];
+        };
+        if (this.splat || this.splat2) {
+            const s = [...read(this.splat), ...(this.splat2 ? read(this.splat2) : [])];
+            const sum = s.reduce((a, b) => a + b, 0);
+            if (sum > 0.001) w = s.map((c) => c / sum);
         }
         if (this.flow) {
-            // Where the rain ran it took the grass and left dirt; snow and rock stay as they are.
+            // Where the rain ran it took the grass and left dirt; the other layers stay as they are.
             const fx = Math.round(u * (this.field.width - 1)), fy = Math.round(v * (this.field.height - 1));
-            const channel = smooth(0.45, 0.85, this.flow[fy * this.field.width + fx]!) * 0.8 * w[0];
-            w = [w[0] - channel, w[1] + channel, w[2], w[3]];
+            const channel = smooth(0.45, 0.85, this.flow[fy * this.field.width + fx]!) * 0.8 * w[0]!;
+            w[0] = w[0]! - channel;
+            w[1] = w[1]! + channel;
         }
         return w;
     }
@@ -247,7 +259,7 @@ export class ModifiedSource implements TerrainSource {
         return [-sx / len, 1 / len, -sz / len];
     }
 
-    paint(x: number, z: number, h: number, ny: number): [number, number, number, number] {
+    paint(x: number, z: number, h: number, ny: number): LayerWeights {
         return this.base.paint(x, z, h, ny);
     }
 
@@ -256,7 +268,7 @@ export class ModifiedSource implements TerrainSource {
         if (!region) return undefined;
         return (x0, z0, spacing, count) => {
             const got = region(x0, z0, spacing, count);
-            const lay = (r: { heights: Float32Array; paint?: Float32Array }) => {
+            const lay = (r: TerrainRegionSamples) => {
                 if (!this.touched(x0, z0, x0 + spacing * (count - 1), z0 + spacing * (count - 1))) return r;
                 const heights = new Float32Array(r.heights);
                 for (let j = 0; j < count; j++) for (let i = 0; i < count; i++) {

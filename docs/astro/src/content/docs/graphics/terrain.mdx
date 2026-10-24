@@ -37,10 +37,12 @@ The ground is one of two kinds, chosen by `extent`:
 | `resolution` | Area only. Samples along each side of an area's noise ground. |
 | `warp` | 0 to 1: how far the noise is bent by noise of its own, which gives winding valleys and bent ridges instead of round hills. |
 | `erosion` | 0 to 4: how much rain wears the ground (below). 0 leaves it as made. |
-| `splatmap` | Area only. An image whose four channels are the weights of the four layers. Empty paints by height and slope. |
+| `splatmap` | Area only. An image whose four channels are the weights of layers 1 to 4. Empty paints by height and slope. |
+| `splatmap2` | Area only. The weights of layers 5 to 8, read with the first. |
+| `layers` | The [terrain layers](#terrain-layers) the ground is drawn with, up to eight, in the order the paint weighs them. Empty draws the four layer colours or the Terrain material's textures. |
 | `rockSlope`, `dirtHeight`, `snowHeight` | How steep ground must be to turn to rock, and the heights, as a share of `height`, where grass gives way to dirt and where snow begins. |
 | `layerColor0`–`3` | Grass, dirt, snow, rock: the colours the ground is drawn in when it has no material. |
-| `material` | A material on the **Terrain** shader (below). Empty draws the layer colours straight onto the ground. |
+| `material` | A material on the **Terrain** shader (below), or on **Terrain Layers** when the ground has layers. Empty uses the stock one. |
 
 Changing `detail`, `drawDistance` or a layer colour takes effect on the next frame. Changing any other field builds the ground again.
 
@@ -55,6 +57,34 @@ spread over frames and shown as it runs (see [Building over frames](#building-ov
 Infinite ground has no edge for rain to run off, so its erosion is the noise's own: each octave of the noise is damped where the
 octaves under it are already steep. That leaves smooth valleys between sharp ridges, much as rain would, at no cost beyond the noise.
 It paints no dirt channels.
+
+## Terrain layers
+
+A terrain layer (a `.esterrainlayer` file; **New → New Terrain Layer** in the editor) is one kind of ground — grass, a path's dirt,
+sand, rock — as the textures an artist made for it. A Terrain lists the layers it is drawn with (`layers`, up to eight), and its
+splatmaps weigh them: the first's red, green, blue and alpha are layers 1 to 4, the second's layers 5 to 8. Without splatmaps the
+first four are painted by height and slope as grass, dirt, snow and rock, and a [generated world](/docs/world/generation/)'s biomes can
+paint all eight.
+
+| Field | What it is |
+|---|---|
+| `albedo` | The colour, sRGB. Empty is white, coloured by the tint. |
+| `normal` | A tangent-space normal map, green up (the OpenGL convention). Empty is flat. |
+| `mask` | Red the ambient occlusion, green the roughness, blue the height. Empty: no occlusion, `roughness`, and the albedo's brightness as height. |
+| `tile` | How many world units one repeat of the textures covers. |
+| `tint` | Multiplies the albedo. |
+| `roughness` | The roughness where there is no mask. |
+| `normalStrength` | How strongly the normal map bends the light: 1 as drawn, 0 flat. |
+
+The ground is drawn by the **Terrain Layers** shader (`builtin:terrain-layers`). Every layer is read by world position without repeat
+near the eye, with a wider tile mixed in far off; where layers meet, the one whose mask stands higher shows (stones through grass, sand
+between stones); on a slope each is also projected from the sides, so a cliff is not stretched. The normal maps and the masks'
+occlusion and roughness light it. Its material sets how: `u_sharpness`, `u_heightBlend`, `u_blendNoise`, `u_antiTile`, `u_farScale`,
+`u_macroVariation`, `u_triplanarFrom` (how steep before the sides are read) and `u_wetLevel`/`u_wetBand`, as the Terrain shader's below.
+
+What an artist delivers, per layer: the three textures, square, a power of two (1024 is plenty; they are packed at the largest
+layer's size, at most 1024, 512 on a minigame), tiling seamlessly, the normal and mask saved as data (not colour-managed). A layer's
+textures are packed into texture arrays when the terrain is built, and again whenever a layer file or one of its textures is saved.
 
 ## Layers and the Terrain material
 

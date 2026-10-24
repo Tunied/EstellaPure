@@ -410,7 +410,7 @@ export class WorldGenPlugin implements Plugin {
 
     /** The ground's paint by a plan's biomes. */
     private painter(plan: WorldPlan) {
-        return (x: number, z: number, _h: number, _ny: number, w: [number, number, number, number]) => plan.paint(x, z, w);
+        return (x: number, z: number, _h: number, _ny: number, w: readonly number[]) => plan.paint(x, z, w);
     }
 
     /** Where the group of placement `id` is anchored, from the layer and grid cell its id names. */

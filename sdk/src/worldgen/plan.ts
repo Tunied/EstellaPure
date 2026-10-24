@@ -152,16 +152,20 @@ export class WorldPlan {
     }
 
     /** The ground's paint at (x, z): `base` (grass, dirt, snow, rock) pulled toward each biome's paint by its weight and strength. */
-    paint(x: number, z: number, base: readonly [number, number, number, number]): [number, number, number, number] {
-        const out: [number, number, number, number] = [base[0], base[1], base[2], base[3]];
-        for (const { biome, weight } of this.biomeWeights(x, z)) {
+    paint(x: number, z: number, base: readonly number[]): number[] {
+        // As many layers as the ground or any biome here names (four or eight); one a biome does not name it paints nothing of.
+        let n = base.length;
+        const here = this.biomeWeights(x, z);
+        for (const { biome } of here) n = Math.max(n, this.rules.biomes.find((d) => d.id === biome)?.paint?.length ?? 0);
+        const out = Array.from({ length: n }, (_, c) => base[c] ?? 0);
+        for (const { biome, weight } of here) {
             const b = this.rules.biomes.find((d) => d.id === biome);
             if (!b?.paint) continue;
             const k = weight * Math.min(Math.max(b.paintStrength ?? 1, 0), 1);
-            for (let c = 0; c < 4; c++) out[c] = out[c]! + (b.paint[c]! - base[c]!) * k;
+            for (let c = 0; c < n; c++) out[c] = out[c]! + ((b.paint[c] ?? 0) - (base[c] ?? 0)) * k;
         }
-        const sum = out[0] + out[1] + out[2] + out[3] || 1;
-        return [out[0] / sum, out[1] / sum, out[2] / sum, out[3] / sum];
+        const sum = out.reduce((a, b) => a + b, 0) || 1;
+        return out.map((v) => v / sum);
     }
 
     /** The groups of layer `layer` whose anchors stand in [x0, x1) by [z0, z1). */

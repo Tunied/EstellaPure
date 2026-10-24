@@ -1,0 +1,13 @@
+{
+  "albedo": "assets/textures/rock.png",
+  "normal": "assets/textures/rock_normal.png",
+  "mask": "assets/textures/rock_mask.png",
+  "tile": 1400,
+  "tint": [
+    1,
+    1,
+    1
+  ],
+  "roughness": 0.75,
+  "normalStrength": 1
+}

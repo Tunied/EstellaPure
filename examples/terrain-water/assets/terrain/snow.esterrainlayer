@@ -1,0 +1,13 @@
+{
+  "albedo": "assets/textures/snow.png",
+  "normal": "assets/textures/snow_normal.png",
+  "mask": "assets/textures/snow_mask.png",
+  "tile": 1100,
+  "tint": [
+    1,
+    1,
+    1
+  ],
+  "roughness": 0.55,
+  "normalStrength": 1
+}

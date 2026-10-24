@@ -9,7 +9,7 @@ export type AddressableAssetType =
 export type EditorAssetType =
     | 'texture' | 'material' | 'shader' | 'spine-atlas' | 'spine-skeleton'
     | 'dragonbones-atlas' | 'dragonbones-skeleton'
-    | 'bitmap-font' | 'font' | 'prefab' | 'json' | 'audio' | 'sound-event' | 'world-rules' | 'video' | 'scene' | 'anim-clip'
+    | 'bitmap-font' | 'font' | 'prefab' | 'json' | 'audio' | 'sound-event' | 'world-rules' | 'terrain-layer' | 'video' | 'scene' | 'anim-clip'
     | 'tilemap' | 'tileset' | 'timeline' | 'mesh'
     | 'unknown';
 
@@ -80,6 +80,8 @@ const ASSET_TYPE_REGISTRY: readonly AssetTypeEntry[] = [
     { extensions: ['esaudioevent'], contentType: 'json', editorType: 'sound-event', addressableType: 'json', wechatPackInclude: true, hasTransitiveDeps: true },
     // World rules (WorldRulesAssetLoader): biomes, recipes and layers as data, naming the meshes and materials they place by path.
     { extensions: ['esworld'], contentType: 'json', editorType: 'world-rules', addressableType: 'json', wechatPackInclude: true, hasTransitiveDeps: true },
+    // Terrain layers (TerrainLayerAssetLoader): one kind of ground, naming the albedo, normal and mask textures it is drawn with.
+    { extensions: ['esterrainlayer'], contentType: 'json', editorType: 'terrain-layer', addressableType: 'json', wechatPackInclude: true, hasTransitiveDeps: true },
     // Locale string table (LocaleAssetLoader → Localization.addCatalog) — one locale per file.
     { extensions: ['eslocale'], contentType: 'json', editorType: 'json', addressableType: 'json', wechatPackInclude: true, hasTransitiveDeps: false },
     // State machine (registerFsm / FsmAssetLoader) — data-driven FSM definition.

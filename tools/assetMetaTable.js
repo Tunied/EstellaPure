@@ -99,6 +99,7 @@ export const EXT_TO_TYPE = Object.freeze({
     '.eslocale': 'locale',
     '.esaudioevent': 'sound-event',
     '.esworld': 'world-rules',
+    '.esterrainlayer': 'terrain-layer',
     '.inputmap': 'inputmap',
     // Fonts
     '.fnt': 'bitmapFont',

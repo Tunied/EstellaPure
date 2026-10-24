@@ -15,7 +15,7 @@ min: number | undefined
 ```
 conditions: readonly BiomeCondition[]
 id: string
-paint: readonly [number, number, number, number] | undefined
+paint: readonly number[] | undefined
 paintStrength: number | undefined
 recipes: readonly BiomeRecipe[]
 transition: number | undefined
@@ -247,7 +247,7 @@ group: (li: number, gx: number, gz: number) => Group | Rejection
 groupsIn: (layer: string, x0: number, z0: number, x1: number, z1: number) => Group[]
 invalidate: () => void
 layerIndex: (id: string) => number
-paint: (x: number, z: number, base: readonly [number, number, number, number]) => [number, number, number, number]
+paint: (x: number, z: number, base: readonly number[]) => number[]
 placementsIn: (x0: number, z0: number, x1: number, z1: number, layers?: readonly string[]) => Placement[]
 rules: WorldRules
 seed: number

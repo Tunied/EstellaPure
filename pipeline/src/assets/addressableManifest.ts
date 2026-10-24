@@ -38,7 +38,7 @@ interface FlatManifest {
 const ADDRESSABLE_TYPE: Record<string, string> = {
   texture: 'texture', material: 'material', audio: 'audio', 'bitmap-font': 'bitmap-font',
   prefab: 'prefab', spine: 'spine',
-  scene: 'json', 'anim-clip': 'json', tilemap: 'json', timeline: 'json', json: 'json', 'sound-event': 'json', 'world-rules': 'json', shader: 'text',
+  scene: 'json', 'anim-clip': 'json', tilemap: 'json', timeline: 'json', json: 'json', 'sound-event': 'json', 'world-rules': 'json', 'terrain-layer': 'json', shader: 'text',
 };
 export const addrType = (editorType: string): string => ADDRESSABLE_TYPE[editorType] ?? 'binary';
 

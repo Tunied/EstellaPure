@@ -1,0 +1,13 @@
+{
+  "albedo": "assets/textures/sand.png",
+  "normal": "assets/textures/sand_normal.png",
+  "mask": "assets/textures/sand_mask.png",
+  "tile": 700,
+  "tint": [
+    1,
+    1,
+    1
+  ],
+  "roughness": 0.85,
+  "normalStrength": 1
+}

@@ -264,7 +264,13 @@
       "heightmap": "assets/textures/height.png",
       "heightmapFormat": 1,
       "splatmap": "assets/textures/splat.png",
-      "material": "assets/materials/ground.esmaterial"
+      "material": "assets/materials/ground.esmaterial",
+      "layers": [
+       "assets/terrain/grass.esterrainlayer",
+       "assets/terrain/sand.esterrainlayer",
+       "assets/terrain/snow.esterrainlayer",
+       "assets/terrain/rock.esterrainlayer"
+      ]
      }
     }
    ]

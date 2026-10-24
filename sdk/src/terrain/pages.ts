@@ -5,14 +5,14 @@
  * @brief   The ground's height, slope and paint in pages: one per quadtree node, made from the source and kept in two atlas textures.
  *
  * @details A page is a node's square sampled `PAGE_TEXELS` times along each side (two samples to a cell of its patch), with one sample
- *          more past each edge so the slope at the edge is known and a filtered read there stays inside the page. Its two images:
+ *          more past each edge so the slope at the edge is known and a filtered read there stays inside the page. Its three images:
  *            - heights: red and green the height over the source's range, high byte then low (read texel by texel and blended in the
  *              shader, as a filtered pair of bytes is no number); blue and alpha the normal's x and z (filtered);
- *            - paint: the weights of the four layers (filtered).
+ *            - paint and paint2: the weights of layers 1 to 4 and 5 to 8 (filtered).
  *          Pages are made as the tree asks for them, coarse ones first, within a time budget a frame, and the least recently drawn give
  *          their slot up when the atlas is full. A node whose page is not made yet is drawn by an ancestor's.
  */
-import type { TerrainSource } from './source';
+import type { LayerWeights, TerrainRegionSamples, TerrainSource } from './source';
 
 /** Cells along a patch's side, and samples along a page's (two to a cell). */
 export const PATCH_CELLS = 32;
@@ -31,7 +31,7 @@ export interface Page {
 }
 
 /** The pixels of one page. */
-export interface PageImage { heights: Uint8Array; paint: Uint8Array; min: number; max: number }
+export interface PageImage { heights: Uint8Array; paint: Uint8Array; paint2: Uint8Array; min: number; max: number }
 
 /**
  * Samples a node's page from `source`: square (x0, z0) to (x0 + size, z0 + size) in the terrain's space. Heights are encoded over
@@ -43,8 +43,8 @@ export function makePage(source: TerrainSource, x0: number, z0: number, size: nu
     const n = PAGE_SIDE, step = size / PAGE_TEXELS;
     if (source.region) {
         const got = source.region(x0 - step, z0 - step, step, n);
-        return got instanceof Promise ? got.then((r) => encodePage(source, x0, z0, step, r.heights, r.paint, repaint))
-            : encodePage(source, x0, z0, step, got.heights, got.paint, repaint);
+        return got instanceof Promise ? got.then((r) => encodePage(source, x0, z0, step, r.heights, r, repaint))
+            : encodePage(source, x0, z0, step, got.heights, got, repaint);
     }
     const h = new Float32Array(n * n);
     const [bx0, bz0, bx1, bz1] = source.bounds ?? [-Infinity, -Infinity, Infinity, Infinity];
@@ -56,16 +56,16 @@ export function makePage(source: TerrainSource, x0: number, z0: number, size: nu
 }
 
 /** The paint of a sample at (x, z) in the terrain's space, `h` high and facing `ny` up, from what it would otherwise be. */
-export type Repaint = (x: number, z: number, h: number, ny: number, w: [number, number, number, number]) => [number, number, number, number];
+export type Repaint = (x: number, z: number, h: number, ny: number, w: LayerWeights) => LayerWeights;
 
 /** Encodes a page's samples (row by row, one past each edge): heights and normals into one image, the paint into the other. */
-function encodePage(source: TerrainSource, x0: number, z0: number, step: number, h: Float32Array, given?: Float32Array, repaint?: Repaint): PageImage {
+function encodePage(source: TerrainSource, x0: number, z0: number, step: number, h: Float32Array, given?: TerrainRegionSamples, repaint?: Repaint): PageImage {
     const n = PAGE_SIDE;
     const [bx0, bz0, bx1, bz1] = source.bounds ?? [-Infinity, -Infinity, Infinity, Infinity];
     let min = Infinity, max = -Infinity;
     for (let j = 1; j <= n - 2; j++) for (let i = 1; i <= n - 2; i++) { const v = h[j * n + i]!; min = Math.min(min, v); max = Math.max(max, v); }
     const span = Math.max(source.maxHeight - source.minHeight, 1e-6);
-    const heights = new Uint8Array(n * n * 4), paint = new Uint8Array(n * n * 4);
+    const heights = new Uint8Array(n * n * 4), paint = new Uint8Array(n * n * 4), paint2 = new Uint8Array(n * n * 4);
     for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
         const k = j * n + i;
         const enc = Math.round(Math.min(Math.max((h[k]! - source.minHeight) / span, 0), 1) * 65535);
@@ -79,11 +79,17 @@ function encodePage(source: TerrainSource, x0: number, z0: number, step: number,
         heights[k * 4 + 2] = Math.round((nx * 0.5 + 0.5) * 255);
         heights[k * 4 + 3] = Math.round((nz * 0.5 + 0.5) * 255);
         const x = Math.min(Math.max(x0 + (i - 1) * step, bx0), bx1), z = Math.min(Math.max(z0 + (j - 1) * step, bz0), bz1);
-        let w: [number, number, number, number] = given ? [given[k * 4]!, given[k * 4 + 1]!, given[k * 4 + 2]!, given[k * 4 + 3]!] : source.paint(x, z, h[k]!, ny);
+        const p1 = given?.paint, p2 = given?.paint2;
+        let w: LayerWeights = p1
+            ? [p1[k * 4]!, p1[k * 4 + 1]!, p1[k * 4 + 2]!, p1[k * 4 + 3]!, ...(p2 ? [p2[k * 4]!, p2[k * 4 + 1]!, p2[k * 4 + 2]!, p2[k * 4 + 3]!] : [])]
+            : source.paint(x, z, h[k]!, ny);
         if (repaint) w = repaint(x, z, h[k]!, ny, w);
-        for (let c = 0; c < 4; c++) paint[k * 4 + c] = Math.round(Math.min(Math.max(w[c]!, 0), 1) * 255);
+        for (let c = 0; c < 4; c++) {
+            paint[k * 4 + c] = Math.round(Math.min(Math.max(w[c] ?? 0, 0), 1) * 255);
+            paint2[k * 4 + c] = Math.round(Math.min(Math.max(w[c + 4] ?? 0, 0), 1) * 255);
+        }
     }
-    return { heights, paint, min: Number.isFinite(min) ? min : source.minHeight, max: Number.isFinite(max) ? max : source.maxHeight };
+    return { heights, paint, paint2, min: Number.isFinite(min) ? min : source.minHeight, max: Number.isFinite(max) ? max : source.maxHeight };
 }
 
 /** Where the pages live: slots in a square atlas, given out and taken back by key. */

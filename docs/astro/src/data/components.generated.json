@@ -5309,10 +5309,22 @@
           "doc": "An image whose red, green, blue and alpha are the weights of grass, dirt, snow and rock."
         },
         {
+          "key": "splatmap2",
+          "type": "Asset<texture>",
+          "default": "none",
+          "doc": "An image whose red, green, blue and alpha are the weights of layers 5 to 8."
+        },
+        {
+          "key": "layers",
+          "type": "array",
+          "default": "empty",
+          "doc": "The terrain layers (.esterrainlayer, up to eight) the ground is drawn with, in the order the paint weighs them. Empty draws the four layer colours."
+        },
+        {
           "key": "material",
           "type": "Asset<material>",
           "default": "none",
-          "doc": "A material on the Terrain shader. Empty draws the layer colours onto the ground."
+          "doc": "A material on the Terrain shader (on Terrain Layers when the ground has layers). Empty uses the stock one."
         },
         {
           "key": "sizeX",
@@ -5489,6 +5501,7 @@
         "heightmap",
         "heightmapFormat",
         "splatmap",
+        "splatmap2",
         "material",
         "sizeX",
         "sizeZ",
