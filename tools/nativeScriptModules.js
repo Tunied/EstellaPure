@@ -71,6 +71,7 @@ export const MODULES = {
     'esengine/fx-atmosphere': { disposition: 'native-subpath' },
     'esengine/fx-lighting': { disposition: 'native-subpath' },
     'esengine/foliage': { disposition: 'native-subpath' },
+    'esengine/worldgen': { disposition: 'native-subpath' },
     'esengine/water': { disposition: 'native-subpath' },
     'esengine/spline': { disposition: 'native-subpath' },
     'esengine/character-shaders': { disposition: 'native-subpath' },

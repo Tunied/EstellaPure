@@ -1,0 +1,19 @@
+{
+  "formatVersion": "1",
+  "name": "Generated World",
+  "description": "A world laid out by rules as you look at it — biomes from moisture and stone, groves and rock groups composed by recipe, copper to mine, a home clearing and a road kept open.",
+  "tag": "3D",
+  "version": "0.1.0",
+  "defaultScene": "assets/scenes/main.esscene",
+  "designResolution": {
+    "width": 1480,
+    "height": 920
+  },
+  "spineVersion": "none",
+  "features": {
+    "rendering": {
+      "colorSpace": "linear",
+      "outputTransform": "neutral"
+    }
+  }
+}

@@ -27,7 +27,7 @@ import { NATIVE_PLATFORMS, type ExportPlatform } from './platforms';
 
 /** An engine subsystem a build target may lack. */
 export type Subsystem =
-    | 'text' | 'tilemap' | 'terrain' | 'foliage' | 'water' | 'spline' | 'characterShaders' | 'timeline' | 'fxBasic' | 'fxAtmosphere' | 'fxLighting' | 'particles' | 'postprocess' | 'physics' | 'physics3d'
+    | 'text' | 'tilemap' | 'terrain' | 'foliage' | 'worldgen' | 'water' | 'spline' | 'characterShaders' | 'timeline' | 'fxBasic' | 'fxAtmosphere' | 'fxLighting' | 'particles' | 'postprocess' | 'physics' | 'physics3d'
     | 'spine' | 'dragonbones' | 'video' | 'ai' | 'logic' | 'replication' | 'gameplay';
 
 /**
@@ -46,6 +46,7 @@ export const SUBSYSTEM_COMPONENTS: Readonly<Record<Subsystem, readonly string[]>
     fxAtmosphere: ['Weather', 'TimeOfDay'],
     fxLighting: [],
     foliage: ['Foliage'],
+    worldgen: ['WorldGen', 'WorldZone'],
     water: ['WaterBody', 'WaterZone', 'Floating'],
     spline: ['Spline'],
     // Hair, Skin and Eye are shaders, not components: a character's materials are what name them (see SHADER_SUBSYSTEM).
@@ -111,6 +112,7 @@ export const SUBSYSTEM_LABEL: Readonly<Record<Subsystem, string>> = {
     fxAtmosphere: 'Post-process effects (sky, fog, rain)',
     fxLighting: 'Post-process effects (occlusion, reflections, exposure)',
     foliage: 'Foliage',
+    worldgen: 'Generated worlds (biomes, zones, placement)',
     water: 'Water',
     spline: 'Splines',
     characterShaders: 'Character shaders (hair, skin, eye)',
@@ -144,6 +146,7 @@ export const SUBSYSTEM_INSTALL: Readonly<Record<Subsystem, string>> = {
     fxAtmosphere: 'esengine/fx-atmosphere',
     fxLighting: 'esengine/fx-lighting',
     foliage: 'esengine/foliage',
+    worldgen: 'esengine/worldgen',
     water: 'esengine/water',
     spline: 'esengine/spline',
     characterShaders: 'esengine/character-shaders',

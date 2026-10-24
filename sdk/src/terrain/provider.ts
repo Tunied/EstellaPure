@@ -53,10 +53,20 @@ export interface TerrainProvider {
 }
 
 const providers_ = new Map<string, TerrainProvider>();
+let revision_ = 0;
 
-/** Makes `provider` available to every Terrain that names it. A second provider under the same id replaces the first. */
+/**
+ * Makes `provider` available to every Terrain that names it. A second provider under the same id replaces the first. A terrain that
+ * named one not yet registered (a script registers it after the scene loaded) is made once it is.
+ */
 export function registerTerrainProvider(provider: TerrainProvider): void {
     providers_.set(provider.id, provider);
+    revision_++;
+}
+
+/** @internal Bumped on every registration, so a terrain whose provider was missing asks again. */
+export function terrainProvidersRevision(): number {
+    return revision_;
 }
 
 /** The provider registered under `id`, if any. */

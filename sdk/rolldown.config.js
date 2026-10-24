@@ -103,6 +103,7 @@ export default defineConfig([
             'fx-atmosphere/index': 'src/postprocess/fxAtmosphere.ts',
             'fx-lighting/index': 'src/postprocess/fxLighting.ts',
             'foliage/index': 'src/foliage/index.ts',
+            'worldgen/index': 'src/worldgen/index.ts',
             'water/index': 'src/water/index.ts',
             'spline/index': 'src/spline/index.ts',
             'character-shaders/index': 'src/character/index.ts',

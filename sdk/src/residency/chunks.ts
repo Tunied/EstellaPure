@@ -98,6 +98,9 @@ const MAX_IN_FLIGHT = 8;
 
 const keyOf = (cx: number, cz: number): string => `${cx},${cz}`;
 
+/** What a published chunk's generation is set to when it is made out of date by hand: no layer's generation. */
+const OUTDATED = Symbol('outdated') as unknown as string;
+
 /** The procedural chunks of every layer. Read {@link ProceduralChunks.status} for where they stand. */
 export class ProceduralChunks {
     private readonly layers_ = new Map<string, Layer<unknown>>();
@@ -150,6 +153,25 @@ export class ProceduralChunks {
         let n = 0;
         for (const layer of this.layers_.values()) n += pendingOf(layer);
         return n;
+    }
+
+    /**
+     * Makes the published chunks of layer `id` that touch the world square [x0, x1] by [z0, z1] again, each keeping its old version
+     * until the new one replaces it: what changed there (a zone, a felled tree) changed only them.
+     */
+    invalidate(id: string, x0: number, z0: number, x1: number, z1: number): void {
+        const layer = this.layers_.get(id);
+        if (!layer) return;
+        const d = layer.def;
+        const cx0 = Math.floor((x0 - d.originX) / d.sizeX), cx1 = Math.floor((x1 - d.originX) / d.sizeX);
+        const cz0 = Math.floor((z0 - d.originZ) / d.sizeZ), cz1 = Math.floor((z1 - d.originZ) / d.sizeZ);
+        for (const c of layer.chunks.values()) {
+            if (c.cx < cx0 || c.cx > cx1 || c.cz < cz0 || c.cz > cz1) continue;
+            if (c.value !== null) c.publishedFor = OUTDATED;
+            c.failedFor = null;
+            c.making?.abort.abort();
+            c.making = null;
+        }
     }
 
     /** Lets go of every chunk of every layer. */

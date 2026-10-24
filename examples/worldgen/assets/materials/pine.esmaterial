@@ -1,0 +1,32 @@
+{
+  "version": "1.0",
+  "type": "material",
+  "shader": "builtin:foliage",
+  "blendMode": 0,
+  "depthTest": true,
+  "depthWrite": true,
+  "cull": 0,
+  "properties": {
+    "u_albedo": "assets/textures/pine.png",
+    "u_useTexture": 1,
+    "u_baseColor": {
+      "r": 1,
+      "g": 1,
+      "b": 1,
+      "a": 1
+    },
+    "u_tipColor": {
+      "r": 1,
+      "g": 1,
+      "b": 1,
+      "a": 1
+    },
+    "u_windStrength": 0.9,
+    "u_windSpeed": 0.9,
+    "u_windDirection": 30,
+    "u_gustScale": 0.006,
+    "u_flutter": 0.1,
+    "u_translucency": 0.15,
+    "u_roughness": 0.9
+  }
+}

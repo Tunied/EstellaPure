@@ -801,6 +801,18 @@ export {
 export {
     Foliage, FoliageField, FoliageRes, FoliagePlugin, foliagePlugin, type FoliageData,
 } from './foliage/foliagePlugin';
+// Generated worlds are an optional module too (`esengine/worldgen`).
+export {
+    WorldGen, WorldZone, PlacedObject, ZoneShapeKind, WorldGens, WorldGenRes, WorldGenPlugin, worldGenPlugin,
+    type WorldGenData, type WorldZoneData, type PlacedObjectData, type WorldGenStatus,
+} from './worldgen/worldgenPlugin';
+export {
+    registerWorldRules, worldRules,
+    type WorldRules, type BiomeDef, type BiomeCondition, type BiomeRecipe, type Recipe, type RecipeMember, type PlacementLayer,
+} from './worldgen/rules';
+export { WorldPlan, type Placement, type Group, type Rejection } from './worldgen/plan';
+export { Zones, type ZoneDef, type ZoneShape } from './worldgen/zones';
+export { PlacementDiffs, type PlacementChange, type PlacementDiffsData } from './worldgen/diffs';
 // Splines and water are optional modules too (`esengine/spline`, `esengine/water`).
 export { Bakes, BakesRes, bakesOf, finish, type WorkJob, type BakeProgress } from './runtime/bakes';
 export { CollisionGeometry, CollisionGeometryRes, collisionGeometryOf, type CollisionPiece } from './runtime/collisionGeometry';

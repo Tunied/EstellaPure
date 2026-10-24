@@ -1,0 +1,15 @@
+{
+  "version": "1.0",
+  "groups": {
+    "recipe-models": {
+      "folder": "assets/models",
+      "mode": "local",
+      "alwaysInclude": true
+    },
+    "recipe-materials": {
+      "folder": "assets/materials",
+      "mode": "local",
+      "alwaysInclude": true
+    }
+  }
+}

@@ -41,6 +41,7 @@ for your own game.
 | **render-texture** | Rendering | Render-to-texture — a live minimap painted with the `Draw` API into a `RenderTexture`, resolution cycling on R. |
 | **drawing-demo** | Rendering | The three drawing tiers — immediate `Draw` radar overlay, retained `Graphics` vector star, procedural `Mesh2D` ribbon. |
 | **wilds** | Rendering | A lake under mountains at dusk — a generated `Terrain` from a heightmap, `Water` with measured depth and shore foam, `Foliage` grass and pines swaying in the wind, and clouds that cast shadows. Everything is made from numbers by `tools/build.mjs`. |
+| **worldgen** | Rendering | A world laid out by rules as you walk through it — `WorldGen` biomes, groves and rock groups composed by recipe, copper to mine, `WorldZone`s keeping a home and a road clear, over ground without end. |
 | **video-playback** | Rendering | Play a video on a Sprite with the declarative `Video` component — "a Sprite whose texture is alive". |
 | **tilemap-demo** | Tilemap | Two scenes: a Tiled `.tmj` import and an engine-native `.estileset` — multi-tileset, parallax, animated water, per-tile collision. |
 | **ui-controls** | UI | Every built-in widget, authored in the scene: button, toggle, toggle group, slider, progress, dropdown, text input, a modal and a scroll view. |

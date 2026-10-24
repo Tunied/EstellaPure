@@ -26,6 +26,7 @@ import { registerLightingEffectSources } from '../postprocess/sources/lighting';
 import { registerTimelineSupport } from '../timeline/timelineSupport';
 import { registerTerrainSupport } from '../terrain/terrainSupport';
 import { registerFoliageSupport } from '../foliage/foliageSupport';
+import { registerWorldGenSupport } from '../worldgen/worldgenSupport';
 import { registerWaterSupport } from '../water/waterSupport';
 import { registerSplineSupport } from '../spline/splineSupport';
 import { registerCharacterShaders } from '../character/characterSupport';
@@ -47,6 +48,7 @@ export function installOptionalPlugins(): void {
     registerLightingEffectSources();
     registerTerrainSupport();
     registerFoliageSupport();
+    registerWorldGenSupport();
     registerWaterSupport();
     registerSplineSupport();
     registerCharacterShaders();

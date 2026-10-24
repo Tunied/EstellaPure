@@ -276,12 +276,16 @@ static prototype: TerrainUnavailable
 ```
 @internal app_: App | null
 @internal built_: Map<number, Built>
+@internal paint_: Repaint | null
 @internal revision_: number
 collisionReadyAt: (x: number, z: number) => boolean
+groundKnownAt: (x: number, z: number) => boolean
 heightAt: (x: number, z: number) => number | null
 loading: boolean
 normalAt: (x: number, z: number) => [number, number, number] | null
 pending: number
+repaint: () => void
+setPaint: (paint: Repaint | null) => void
 status: (entity: Entity) => TerrainStatus | null
 static new (): Terrains
 static prototype: Terrains
@@ -324,7 +328,7 @@ ResourceDef<Terrains>
 
 ## makePage — function @experimental
 ```
-(source: TerrainSource, x0: number, z0: number, size: number): PageImage | Promise<PageImage>
+(source: TerrainSource, x0: number, z0: number, size: number, repaint?: Repaint): PageImage | Promise<PageImage>
 ```
 
 ## nodeKey — function @experimental

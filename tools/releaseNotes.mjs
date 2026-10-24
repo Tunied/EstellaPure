@@ -2770,4 +2770,10 @@ export const NOTED = {
     {"note":"The running game's resolution can be chosen."},
   "feat(residency): procedural chunks have one owner and the frame one budget; terrain collision and foliage cells are chunk layers":
     {"note":"Procedural chunks, with one owner and one budget."},
+  "fix(terrain): a ridge's crest is rounded, so ridged ground worn by its noise is continuous":
+    {"note":"Ridged ground without end has no steps."},
+  "build(sdk): a shared declaration chunk named after an index module carries its hash":
+    {"internal":"Declaration bundling: a second shared chunk named index was written as index.d2.ts, which TypeScript does not read as declarations."},
+  "feat(worldgen): biomes, zones and layered recipes lay a world out as it is explored, with stable ids and kept changes":
+    {"note":"Generated worlds."},
 };

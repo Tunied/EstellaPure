@@ -18,6 +18,7 @@ export const ESENGINE_SUBPATHS: Readonly<Record<string, string>> = {
   'esengine/fx-atmosphere': 'fx-atmosphere/index.js',
   'esengine/fx-lighting': 'fx-lighting/index.js',
   'esengine/foliage': 'foliage/index.js',
+  'esengine/worldgen': 'worldgen/index.js',
   'esengine/water': 'water/index.js',
   'esengine/spline': 'spline/index.js',
   'esengine/character-shaders': 'character-shaders/index.js',

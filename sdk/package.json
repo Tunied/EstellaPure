@@ -23,6 +23,7 @@
     "./dist/fx-atmosphere/index.js",
     "./dist/fx-lighting/index.js",
     "./dist/foliage/index.js",
+    "./dist/worldgen/index.js",
     "./dist/water/index.js",
     "./dist/spline/index.js",
     "./dist/character-shaders/index.js",
@@ -104,6 +105,10 @@
     "./foliage": {
       "import": "./dist/foliage/index.js",
       "types": "./dist/foliage/index.d.ts"
+    },
+    "./worldgen": {
+      "import": "./dist/worldgen/index.js",
+      "types": "./dist/worldgen/index.d.ts"
     },
     "./water": {
       "import": "./dist/water/index.js",

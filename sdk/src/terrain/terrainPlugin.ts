@@ -39,8 +39,8 @@ import type { Color, Entity } from '../types';
 import { erosionJob, heightfieldFromPixels, proceduralHeightfield } from './heightfield';
 import { FieldSource, type TerrainSource } from './source';
 import { levelRange, nodeKey, parentOf, selectNodes, type QuadtreeParams, type TerrainNode } from './quadtree';
-import { makePage, PageTable, PAGE_SIDE, PAGE_TEXELS, PATCH_CELLS, type PageImage } from './pages';
-import { noiseProvider, ProviderSource, terrainProvider, TerrainUnavailable } from './provider';
+import { makePage, PageTable, PAGE_SIDE, PAGE_TEXELS, PATCH_CELLS, type PageImage, type Repaint } from './pages';
+import { noiseProvider, ProviderSource, terrainProvider, terrainProvidersRevision, TerrainUnavailable } from './provider';
 import { buildPatchMesh } from './patch';
 import { TerrainSurface, TILE_CELLS, type SurfaceTile } from './surface';
 import { collisionGeometryOf } from '../runtime/collisionGeometry';
@@ -253,6 +253,24 @@ export class Terrains {
         return null;
     }
 
+    /**
+     * Whether the ground at (x, z) is known: false while a terrain that covers it is still being made, or its provider has not answered
+     * there yet; true where it is known, and where no terrain is (there is no ground to wait for).
+     */
+    groundKnownAt(x: number, z: number): boolean {
+        const world = this.app_?.world;
+        if (!world) return true;
+        for (const [entity, built] of this.built_) {
+            if (built.failure || !world.valid(entity)) continue;
+            if (built.loading || !built.surface) return false;
+            const t = world.tryGet(entity, Transform) as TransformData | null;
+            if (!t) continue;
+            const lx = x - t.worldPosition.x, lz = z - t.worldPosition.z;
+            if (built.surface.covers(lx, lz)) return built.surface.height(lx, lz) !== null;
+        }
+        return true;
+    }
+
     /** Whether the ground under (x, z) is built for collision: what a game waits on before it drops something there. */
     collisionReadyAt(x: number, z: number): boolean {
         const app = this.app_;
@@ -273,6 +291,24 @@ export class Terrains {
         if (!built) return null;
         if (built.failure) return { state: 'failed', reason: built.failure };
         return { state: built.loading || !built.source ? 'loading' : 'ready' };
+    }
+
+    /** @internal What has the last word on the ground's paint, in world space (a world's biomes), if anything does. */
+    paint_: Repaint | null = null;
+
+    /**
+     * Gives the ground's paint to `paint` (or back to the terrains, with null): at each sample, in world space, it is handed the paint
+     * the terrain made and returns the paint to draw. The pages already made are made again.
+     */
+    setPaint(paint: Repaint | null): void {
+        if (paint === this.paint_) return;
+        this.paint_ = paint;
+        this.repaint();
+    }
+
+    /** Makes every page again, for a paint that changed what it answers. */
+    repaint(): void {
+        for (const built of this.built_.values()) built.table.clear();
     }
 
     /** @internal Bumped whenever a terrain's ground changes, so what stands on it knows to stand again. */
@@ -299,7 +335,8 @@ export const TerrainsRes = defineResource<Terrains>(new Terrains(), 'Terrains');
 function signatureOf(data: TerrainData): string {
     const { layerColor0: _a, layerColor1: _b, layerColor2: _c, layerColor3: _d, detail: _e, drawDistance: _f,
         collision: _g, collisionDistance: _h, collisionLayer: _i, friction: _j, ...shape } = data;
-    return JSON.stringify(shape);
+    // A game's own provider is read again when one is registered under its name.
+    return `${JSON.stringify(shape)}${data.extent === TerrainExtent.Infinite && data.provider !== NOISE_PROVIDER ? `#${terrainProvidersRevision()}` : ''}`;
 }
 
 /** Where what collides with the ground is: every moving 3D body and every character. */
@@ -592,7 +629,7 @@ export class TerrainPlugin implements Plugin {
                 if (covered.has(nodeKey(up.level, up.ix, up.iz))) { drawn.delete(key); break; }
             }
         }
-        this.makePages(app, built, source, eyeAt);
+        this.makePages(app, built, source, eyeAt, t.worldPosition);
 
         const set = (name: string, value: Parameters<typeof Material.setUniform>[2]): void => { Material.setUniform(built.instance, name, value); };
         set('u_heightRange', { x: source.minHeight, y: Math.max(source.maxHeight - source.minHeight, 1e-6) });
@@ -608,7 +645,9 @@ export class TerrainPlugin implements Plugin {
     }
 
     /** Makes the wanted pages, coarse and near first, for as long as the frame can spare. */
-    private makePages(app: App, built: Built, source: TerrainSource, eye: [number, number, number]): void {
+    private makePages(app: App, built: Built, source: TerrainSource, eye: [number, number, number], at: { x: number; y: number; z: number }): void {
+        const paint = app.getResource(TerrainsRes).paint_;
+        const repaint: Repaint | undefined = paint ? (x, z, h, ny, w) => paint(x + at.x, z + at.z, h + at.y, ny, w) : undefined;
         const bakes = bakesOf(app);
         if (built.wanted.size === 0) { bakes.mark(built, 'Building the terrain', 1); return; }
         const order = [...built.wanted.values()].sort((a, b) => b.level - a.level
@@ -627,7 +666,7 @@ export class TerrainPlugin implements Plugin {
             const key = nodeKey(node.level, node.ix, node.iz);
             if (built.asked.has(key)) continue;
             if (source.region && built.asked.size >= PAGES_IN_FLIGHT) break;
-            const image = makePage(source, node.x0, node.z0, node.size);
+            const image = makePage(source, node.x0, node.z0, node.size, repaint);
             if (image instanceof Promise) {
                 // A provider answering later: its page is stored when it lands, if the terrain is still the one that asked.
                 built.asked.add(key);

@@ -1,0 +1,132 @@
+---
+title: 生成世界
+description: 按规则在探索时布置世界——由环境场得出群落、按配方成组、保留区留空、稳定身份,玩家的改变单独保存。
+---
+
+在随机点上散布出来的世界看起来像噪声:树、花、石头之间没有任何形状。`esengine/worldgen` 按设计师的方式布置世界——连续的群落、美术组合好的成组物件、留出的空地和道路、先大后小——并且在世界被探索时才生成,在每台机器上一样,不管各部分以什么顺序被请求。
+
+工作分三方。**引擎**采样环境场、计算群落权重、逐层放置成组物件、让保留区留空、给每个放置物稳定的身份,并按区块流送。**游戏**写规则:有哪些群落、群落里长什么、哪里留给家园或道路。**美术**做配方:一片树林、一组岩石、一条沿岸的芦苇带。
+
+## WorldGen 组件
+
+| 字段 | 作用 |
+|---|---|
+| `rules` | 布置这个世界的规则,即游戏用 `registerWorldRules` 注册的名字。 |
+| `version` | 这个世界生成时使用的规则版本。存档会保留它;规则里已没有这个版本时,世界失败(状态里说明原因),而不是布置出另一个世界。 |
+| `world`、`seed` | 游戏给这个世界(星球、关卡)起的名字,以及它的种子。换一个种子就是同一套规则下的另一个世界。 |
+| `paintGround` | 群落是否给地形上色。 |
+
+规则放置的东西作为这个实体的子实体发布,围绕[流送源](/docs/zh-cn/world/streaming/)(或摄像机):见[程序化区块](/docs/zh-cn/world/streaming/#程序化区块)。
+
+## 规则
+
+```ts
+import { registerWorldRules } from 'esengine/worldgen';
+
+registerWorldRules({
+    id: 'mygame:wilds',
+    versions: [1],
+    biomes: [
+        { id: 'forest', conditions: [{ field: 'moisture', min: 0.52, blend: 0.08 }, { field: 'up', min: 0.82, blend: 0.05 }],
+          transition: 120, paint: [0.55, 0.45, 0, 0], paintStrength: 0.5,
+          recipes: [{ recipe: 'grove', layer: 'groups', density: 0.75 }] },
+        // …
+    ],
+    recipes: [
+        { id: 'grove', version: 1, tags: ['tree'],
+          anchor: { id: 'elder', mesh: 'assets/models/pine.esmesh', material: 'assets/materials/pine.esmaterial', scale: [1.4, 1.8], footprint: 10, canopy: 35 },
+          members: [
+              { id: 'pine', mesh: 'assets/models/pine.esmesh', count: [3, 6], ring: [45, 110], scale: [0.9, 1.3], footprint: 8 },
+              { id: 'sapling', mesh: 'assets/models/pine.esmesh', count: [2, 5], ring: [110, 170], scale: [0.35, 0.6], footprint: 4, chance: 0.8 },
+          ] },
+    ],
+    layers: [
+        { id: 'groups', spacing: 260, drawDistance: 4200, chunkSize: 512 },
+        { id: 'detail', spacing: 90, drawDistance: 2400 },
+    ],
+});
+```
+
+### 环境场
+
+每个决定都来自**环境场**:在任意世界位置读到的数值。`height`、`up`(地面朝上的程度)和 `slope` 来自地形的地表,`waterDepth` 来自水体;`moisture`、`temperature` 和 `rock` 是带种子的噪声,在世界尺度上缓慢变化(尺度在规则的 `noise` 里设)。游戏可以用 `fields: { name: (x, z, at) => number }` 加入自己的场,并从 `at` 读取内置场。区域可以在它的范围内设置任意场的值。
+
+### 群落
+
+群落是环境场上的权重:每个条件是某个场的一段区间(`min`、`max`),边缘在 `blend` 范围内衰减,各条件相乘。几个群落同时成立时它们的权重混合——候选点按所在位置的权重选择群落,所以两个群落相接处是一条混合带而不是一条线——`transition` 让边缘按这么多世界单位的噪声摆动。`paint`(草、土、雪、岩)按群落权重和 `paintStrength` 把地形原本的上色拉向群落的上色。群落列出它的配方,以及每个配方所在的层和它占该层候选点的比例。
+
+### 配方
+
+配方是一个组:一个**锚点**和围绕它放置的**成员**。每个成员说明它的网格和材质(资源路径,或已加载的句柄)、数量(`count`)、离锚点多远和在什么角度(`ring`、`arc`)、`scale`、它在地面上占的范围(`footprint`:树干),与它在头顶伸展的范围(`canopy`:树冠)分开记录;它是直立还是随地面倾斜(`attach`)、允许多陡(`minUp`)和多深的水里站立(`waterDepth`),以及被放置的概率 `chance`。站不住的成员(没有地面、太陡、在水下、被区域排除、压在先放的东西上)会被省去,组仍然成立。
+
+`version` 是每个放置物 ID 的一部分:配方放置的东西变了就把它加一。
+
+### 层
+
+层是按顺序进行的几遍布置:先大后小。每层在间距为 `spacing` 的网格里每格取一个抖动后的候选点,并为它抽一个优先级。两个候选点的组会重叠时,优先级高的成立;每个候选点都避开前面各层的占地,所以蕨类不会长穿树干,石头不会嵌进巨石里。一层以 `chunkSize` 大小的区块发布到 `drawDistance`。`occupies: false` 让后面的层可以和它重叠(地被)。
+
+## 区域
+
+区域是手工规划的一块地方:家园、道路、落点、建筑占地、保留的视线。
+
+| 字段 | 作用 |
+|---|---|
+| `kind` | 它的用途,用游戏自己的词。 |
+| `shape`、`radius`、`sizeX`、`sizeZ` | 圆形,或随实体绕竖直轴旋转的矩形。编辑器会画出它的轮廓。 |
+| `falloff` | 在轮廓外多少世界单位内逐渐消失:被排除的东西在这里变稀,而不是停在一条线上。 |
+| `priority` | 区域重叠时,高的决定群落。 |
+| `excludes` | 它排除的东西的标签,逗号分隔:层、配方、配方或成员的标签、`decor`、`interactive`;`*` 表示全部。 |
+| `biome` | 它在范围内强制的群落。 |
+
+游戏在规划时和玩家建造时添加区域:
+
+```ts
+const gens = app.getResource(WorldGenRes);
+gens.zones().set({ id: 'house 1', kind: 'building', shape: { type: 'rect', x, z, halfX: 40, halfZ: 30, yaw },
+    falloff: 12, priority: 20, excludes: ['*'] });
+```
+
+只有区域触及的区块会重新生成,每个区块的旧版本保留到新版本替换它为止。
+
+## 可交互的放置物与变化
+
+带 `interactive`(如 `'ore'`、`'tree'`)的成员是独立的实体,带有记录放置 ID 与类型的 `PlacedObject`;其余都是装饰,按区块、按种类合并成一个网格绘制。`gens.objectOf(id)` 找到某个放置物对应的实体。
+
+ID 由层、网格坐标、配方和成员以及它们的版本组成(`groups@1:12,-3/grove@1/pine.2`)——从不是列表里的序号——所以它不随区块生成的顺序变化,之后新增层或配方时也不变。
+
+玩家做的改变与生成的世界分开保存,在显示任何东西之前叠加上去:
+
+```ts
+gens.diffs().remove(id);                  // 砍倒、开采:永久消失
+gens.diffs().change(id, { yaw: 1.2 });    // 移动、旋转、缩放
+save(gens.diffs().toJSON());              // 存档保存的内容
+gens.diffs().load(saved);                 // 以及读回
+```
+
+砍倒的树在它的区块被释放再生成后、以及存档读回后都保持砍倒。玩家建造的东西属于游戏自己:它占用的区域让生成避开那块地。
+
+## 查询规划
+
+`gens.plan()` 对任何地方都能回答,不管是否已加载,结果与发布出来的一致——服务器、小地图或放置检查读的就是它:
+
+- `placementsIn(x0, z0, x1, z1, layers?)`——组锚点位于该方块内的所有放置物。
+- `biomeAt(x, z)`、`biomeWeights(x, z)`——那里的群落,以及每个群落的权重。
+- `explain(x, z)`——决定那里站着什么的一切:环境场、群落、区域,以及每层在那一格的候选点和它被拒绝的原因(`noBiome`、`density`、`noGround`、`slope`、`water`、`zone`、`occupied`、`conflict`)。
+- `stats(layer, x0, z0, x1, z1)`——多少候选点成立,其余为什么没有。
+
+## 打包
+
+配方在代码里按路径引用网格和材质,场景不引用它们,所以打包时会被剔除。在 `.esengine/asset-groups.json` 里把它们所在的文件夹声明为始终包含:
+
+```json
+{ "version": "1.0", "groups": { "recipes": { "folder": "assets/models", "mode": "local", "alwaysInclude": true } } }
+```
+
+## 限制
+
+- **还不能整地。** 区域让生成避开它的地面,但不会把地面压平。
+- **陆地上没有离岸距离。** `waterDepth` 说明水有多深;干燥的地方离水多远,目前由游戏自己提供场。
+- **装饰完整绘制到 `drawDistance`。** 它没有远景版本,随地面倾斜的装饰按直立绘制。
+- **规则是代码。** 配方是普通数据,可以从 JSON 读取,但还没有编辑器。
+
+参见 **Generated World** 示例(`examples/worldgen`)。

@@ -3627,6 +3627,22 @@
       "tag": true
     },
     {
+      "name": "PlacedObject",
+      "source": "ts",
+      "fields": [
+        {
+          "key": "id",
+          "type": "string",
+          "default": "empty"
+        },
+        {
+          "key": "kind",
+          "type": "string",
+          "default": "empty"
+        }
+      ]
+    },
+    {
       "name": "PlanarReflection",
       "source": "cpp",
       "fields": [
@@ -7669,6 +7685,48 @@
       ]
     },
     {
+      "name": "WorldGen",
+      "source": "ts",
+      "fields": [
+        {
+          "key": "rules",
+          "type": "string",
+          "default": "empty",
+          "doc": "The rules the world is laid out by, as the game registered them with registerWorldRules."
+        },
+        {
+          "key": "version",
+          "type": "number",
+          "default": "1",
+          "doc": "The version of the rules the world was made with. A version the rules no longer have fails the world rather than laying out another one.",
+          "range": "≥ 1, step 1"
+        },
+        {
+          "key": "world",
+          "type": "string",
+          "default": "empty",
+          "doc": "The world (a planet, a level) as the game names it."
+        },
+        {
+          "key": "seed",
+          "type": "number",
+          "default": "1",
+          "doc": "Another seed lays out another world by the same rules.",
+          "range": "step 1"
+        },
+        {
+          "key": "paintGround",
+          "type": "boolean",
+          "default": "true",
+          "doc": "Whether the biomes paint the terrain."
+        }
+      ],
+      "animatable": [
+        "version",
+        "seed"
+      ]
+    },
+    {
       "name": "WorldPersistent",
       "source": "ts",
       "fields": [],
@@ -7709,6 +7767,82 @@
         "prefetchRadius",
         "loadRadius",
         "unloadRadius"
+      ]
+    },
+    {
+      "name": "WorldZone",
+      "source": "ts",
+      "fields": [
+        {
+          "key": "kind",
+          "type": "string",
+          "default": "\"reserve\"",
+          "doc": "What the zone is for (home, road, landing, building, resource, view): the game's own words."
+        },
+        {
+          "key": "shape",
+          "type": "enum",
+          "default": "Circle",
+          "values": [
+            "Circle",
+            "Box"
+          ]
+        },
+        {
+          "key": "radius",
+          "type": "number",
+          "default": "10",
+          "doc": "The circle's radius, in world units.",
+          "range": "≥ 0"
+        },
+        {
+          "key": "sizeX",
+          "type": "number",
+          "default": "20",
+          "doc": "The box's size along its own x.",
+          "range": "≥ 0"
+        },
+        {
+          "key": "sizeZ",
+          "type": "number",
+          "default": "20",
+          "doc": "The box's size along its own z.",
+          "range": "≥ 0"
+        },
+        {
+          "key": "falloff",
+          "type": "number",
+          "default": "4",
+          "doc": "Over how many world units past the outline the zone fades out: what it keeps out thins there.",
+          "range": "≥ 0"
+        },
+        {
+          "key": "priority",
+          "type": "number",
+          "default": "0",
+          "doc": "Where zones overlap, the higher priority holds the biome.",
+          "range": "step 1"
+        },
+        {
+          "key": "excludes",
+          "type": "string",
+          "default": "\"*\"",
+          "doc": "The tags of what the zone keeps out, separated by commas (a layer, a recipe, its tags, decor, interactive); * keeps out everything; empty keeps nothing out."
+        },
+        {
+          "key": "biome",
+          "type": "string",
+          "default": "empty",
+          "doc": "A biome the zone holds over its area; empty holds none."
+        }
+      ],
+      "animatable": [
+        "shape",
+        "radius",
+        "sizeX",
+        "sizeZ",
+        "falloff",
+        "priority"
       ]
     }
   ]

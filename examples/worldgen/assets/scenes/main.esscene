@@ -1,0 +1,409 @@
+{
+ "version": 4,
+ "name": "Generated World",
+ "entities": [
+  {
+   "id": 0,
+   "name": "Camera",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {
+      "position": {
+       "x": 40,
+       "y": 478.3989412207621,
+       "z": 620
+      },
+      "rotation": {
+       "x": -0.09983341664682815,
+       "y": 0,
+       "z": 0,
+       "w": 0.9950041652780257
+      }
+     }
+    },
+    {
+     "type": "Camera",
+     "data": {
+      "projectionType": 0,
+      "fov": 55,
+      "nearPlane": 2,
+      "farPlane": 20000,
+      "isActive": true,
+      "priority": 0
+     }
+    },
+    {
+     "type": "PostProcessVolume",
+     "data": {
+      "isGlobal": true,
+      "priority": 0,
+      "weight": 1,
+      "effects": [
+       {
+        "type": "skyAtmosphere",
+        "enabled": true,
+        "uniforms": {
+         "u_intensity": 1.05,
+         "u_haze": 1.1,
+         "u_sunBrightness": 40,
+         "u_clouds": 0.45,
+         "u_cloudShadow": 0.6,
+         "u_unitsPerKm": 1000,
+         "u_windSpeed": 0.03
+        }
+       },
+       {
+        "type": "gtao",
+        "enabled": true,
+        "uniforms": {
+         "u_radius": 60,
+         "u_intensity": 1
+        }
+       },
+       {
+        "type": "heightFog",
+        "enabled": true,
+        "colors": {
+         "u_fogColor": {
+          "r": 0.62,
+          "g": 0.72,
+          "b": 0.84,
+          "a": 1
+         },
+         "u_sunColor": {
+          "r": 1,
+          "g": 0.86,
+          "b": 0.62,
+          "a": 1
+         }
+        },
+        "uniforms": {
+         "u_density": 0.0001,
+         "u_heightFalloff": 0.0012,
+         "u_baseHeight": 0,
+         "u_inscatter": 0.6,
+         "u_skyFog": 0.5,
+         "u_volumetric": 0.4,
+         "u_volumeRange": 4000
+        }
+       },
+       {
+        "type": "taa",
+        "enabled": true,
+        "uniforms": {
+         "u_blend": 0.1
+        }
+       },
+       {
+        "type": "autoExposure",
+        "enabled": true,
+        "uniforms": {
+         "u_bias": -0.1,
+         "u_minEV": -2,
+         "u_maxEV": 2
+        }
+       },
+       {
+        "type": "colorGrade",
+        "enabled": true,
+        "uniforms": {
+         "u_contrast": 1.06,
+         "u_saturation": 1.1
+        }
+       },
+       {
+        "type": "fxaa",
+        "enabled": true,
+        "uniforms": {
+         "u_intensity": 1
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": 1,
+   "name": "Clock",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "TimeOfDay",
+     "data": {
+      "hour": 15.5,
+      "daySeconds": 0,
+      "latitude": 45,
+      "declination": 15,
+      "north": 0,
+      "drive": 31
+     }
+    }
+   ]
+  },
+  {
+   "id": 2,
+   "name": "Sun",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "Light",
+     "data": {
+      "type": 1,
+      "color": {
+       "r": 1,
+       "g": 1,
+       "b": 1,
+       "a": 1
+      },
+      "intensity": 3,
+      "enabled": true,
+      "meshShadows": true,
+      "shadowExtent": 2500,
+      "shadowStrength": 1,
+      "sourceAngle": 0.5
+     }
+    }
+   ]
+  },
+  {
+   "id": 3,
+   "name": "Sky",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "Light",
+     "data": {
+      "type": 2,
+      "color": {
+       "r": 0.8,
+       "g": 0.88,
+       "b": 1,
+       "a": 1
+      },
+      "intensity": 0.55,
+      "enabled": true
+     }
+    }
+   ]
+  },
+  {
+   "id": 4,
+   "name": "Ground",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "Terrain",
+     "data": {
+      "extent": 1,
+      "provider": "estella:noise",
+      "world": "demo",
+      "generatorVersion": 1,
+      "seed": 4,
+      "frequency": 3,
+      "octaves": 5,
+      "persistence": 0.5,
+      "ridged": 0.3,
+      "warp": 0.35,
+      "erosion": 1,
+      "sizeX": 4200,
+      "height": 520,
+      "rockSlope": 0.34,
+      "dirtHeight": 0.55,
+      "snowHeight": 0.86,
+      "cellSize": 4,
+      "detail": 1.4,
+      "drawDistance": 9000,
+      "material": "assets/materials/terrain.esmaterial"
+     }
+    }
+   ]
+  },
+  {
+   "id": 5,
+   "name": "World",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "WorldGen",
+     "data": {
+      "rules": "worldgen-demo:wilds",
+      "version": 1,
+      "world": "demo",
+      "seed": 7,
+      "paintGround": true
+     }
+    }
+   ]
+  },
+  {
+   "id": 6,
+   "name": "Home",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {
+      "position": {
+       "x": 0,
+       "y": 0,
+       "z": 0
+      }
+     }
+    },
+    {
+     "type": "WorldZone",
+     "data": {
+      "kind": "home",
+      "shape": 0,
+      "radius": 130,
+      "falloff": 70,
+      "priority": 10,
+      "excludes": "*",
+      "biome": "meadow"
+     }
+    }
+   ]
+  },
+  {
+   "id": 7,
+   "name": "Road",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {
+      "position": {
+       "x": 520,
+       "y": 0,
+       "z": -40
+      },
+      "rotation": {
+       "x": 0,
+       "y": 0.14943813247359922,
+       "z": 0,
+       "w": 0.9887710779360422
+      }
+     }
+    },
+    {
+     "type": "WorldZone",
+     "data": {
+      "kind": "road",
+      "shape": 1,
+      "sizeX": 900,
+      "sizeZ": 36,
+      "falloff": 24,
+      "priority": 5,
+      "excludes": "tree,rock",
+      "biome": ""
+     }
+    }
+   ]
+  },
+  {
+   "id": 9,
+   "name": "Canvas",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "Canvas",
+     "data": {
+      "designResolution": {
+       "x": 1480,
+       "y": 920
+      },
+      "scaleMode": 2
+     }
+    },
+    {
+     "type": "UINode",
+     "data": {}
+    }
+   ]
+  },
+  {
+   "id": 8,
+   "name": "Meadow",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {
+      "position": {
+       "x": 40,
+       "y": 0,
+       "z": 320
+      }
+     }
+    },
+    {
+     "type": "Foliage",
+     "data": {
+      "material": "assets/materials/grass.esmaterial",
+      "sizeX": 700,
+      "sizeZ": 700,
+      "cellSize": 35,
+      "count": 1300,
+      "seed": 3,
+      "minScale": 0.7,
+      "maxScale": 1.3,
+      "minUp": 0.8,
+      "heightMin": -1000,
+      "heightMax": 1000,
+      "bladeHeight": 40,
+      "bladeWidth": 4,
+      "lodDistance": 180,
+      "drawDistance": 520
+     }
+    }
+   ]
+  }
+ ]
+}

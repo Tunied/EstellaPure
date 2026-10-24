@@ -30,6 +30,7 @@ import * as FxBasicModule from '../postprocess/fxBasic';
 import * as FxAtmosphereModule from '../postprocess/fxAtmosphere';
 import * as FxLightingModule from '../postprocess/fxLighting';
 import * as FoliageModule from '../foliage';
+import * as WorldGenModule from '../worldgen';
 import * as WaterModule from '../water';
 import * as SplineModule from '../spline';
 import * as CharacterShadersModule from '../character';
@@ -58,6 +59,7 @@ export const NATIVE_MODULE_NAMESPACES: Readonly<Record<string, unknown>> = {
     'esengine/fx-atmosphere': FxAtmosphereModule,
     'esengine/fx-lighting': FxLightingModule,
     'esengine/foliage': FoliageModule,
+    'esengine/worldgen': WorldGenModule,
     'esengine/water': WaterModule,
     'esengine/spline': SplineModule,
     'esengine/character-shaders': CharacterShadersModule,
