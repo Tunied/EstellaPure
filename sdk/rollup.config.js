@@ -31,6 +31,7 @@ export default [
             'fx-atmosphere/index': 'src/postprocess/fxAtmosphere.ts',
             'fx-lighting/index': 'src/postprocess/fxLighting.ts',
             'foliage/index': 'src/foliage/index.ts',
+            'worldgen/index': 'src/worldgen/index.ts',
             'water/index': 'src/water/index.ts',
             'spline/index': 'src/spline/index.ts',
             'character-shaders/index': 'src/character/index.ts',
@@ -45,7 +46,9 @@ export default [
         output: {
             dir: 'dist',
             format: 'esm',
-            chunkFileNames: 'shared/[name].d.ts',
+            // Several shared chunks are named after an `index` module; the second would be deduplicated to `index.d2.ts`, which is
+            // not a declaration file to TypeScript. Those carry their hash instead.
+            chunkFileNames: (chunk) => (chunk.name === 'index' ? 'shared/[name]-[hash].d.ts' : 'shared/[name].d.ts'),
         },
         plugins: [dts()],
     },
