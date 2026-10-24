@@ -37,6 +37,15 @@ if lab.startswith('balls'):
         report('   core', disc(px, py, rpx * 0.5))
         ring = disc(px, py, rpx * 0.97) & ~disc(px, py, rpx * 0.8)
         report('   rim', ring)
+elif lab.startswith('cards'):
+    lin = lambda c: np.where(c / 255 <= 0.04045, c / 255 / 12.92, ((c / 255 + 0.055) / 1.055) ** 2.4)
+    for row, rough in enumerate((1.0, 0.5)):
+        for col, alb in enumerate(S.CARD_ALBEDOS):
+            px, py, z = S.project(S.card_centre(row, col), spec['cam'])
+            half = 0.1 / z / np.tan(np.radians(spec['cam'][2]) / 2) * S.SIZE[1] / 2
+            sl = (slice(int(py - half), int(py + half)), slice(int(px - half), int(px + half)))
+            r, e = lin(ref[sl][..., 1]).mean(), lin(eng[sl][..., 1]).mean()
+            print('rough %.1f albedo %.2f   blender %.4f   engine %.4f   engine-blender %+.4f' % (rough, alb, r, e, e - r))
 else:
     print('(whole frame only)')
 

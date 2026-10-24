@@ -138,6 +138,11 @@ elif lab.startswith('shadow'):
     flat_face('floor', [(-6, 0, -6), (-6, 0, 6), (6, 0, 6), (6, 0, -6)], ((0, 0), (0, 1), (1, 1), (1, 0)), principled('floor', (0.6, 0.6, 0.6), 0.0, 1.0))
     box('box', (-0.9, 0.5, 0.4), (1.0, 1.0, 1.0), principled('boxm', (0.8, 0.3, 0.25), 0.0, 0.8))
     sphere('ball', (1.1, 0.55, -0.3), 0.55, principled('ballm', (0.3, 0.55, 0.8), 0.0, 0.5))
+elif lab == 'cards':
+    # Flat cards facing the camera, a constant colour each: the top row rough (1.0), the bottom row 0.5; albedo 0, 0.05, 0.2, 0.5, 1 (linear).
+    for row, rough in enumerate((1.0, 0.5)):
+        for col, a in enumerate(S.CARD_ALBEDOS):
+            card('c%d%d' % (row, col), S.card_centre(row, col), 0.3, 0.3, principled('c%d%d' % (row, col), (a, a, a), 0.0, rough))
 elif lab == 'strands':
     n = 1024
     fine = hair_image('fine', n, True)

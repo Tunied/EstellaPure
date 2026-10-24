@@ -1308,10 +1308,22 @@ fn diskTap(i : i32, n : i32, radius : f32) -> vec2f {
     // way. A spiral is not its own mirror, so without this the two average other points.
     return radius * sqrt((f32(i) + 0.5) / f32(n)) * vec2f(cos(a), -sin(a));
 }
-// The widest disc the tap count below can average over: past it the samples sit further
-// apart than the texels they average, and a penumbra bands instead of blurring. It bounds
+// The same spiral turned by `spin` radians: a disc wider than the taps can cover without gaps between them bands where the same spiral
+// lands on every pixel, and turning it by an angle that differs from one point of the surface to the next makes that grain instead.
+fn diskTapSpun(i : i32, n : i32, radius : f32, spin : f32) -> vec2f {
+    let a = f32(i) * 2.3999632 + spin;
+    return radius * sqrt((f32(i) + 0.5) / f32(n)) * vec2f(cos(a), -sin(a));
+}
+// A turn for the spiral, fixed to the point of the surface (so it does not crawl as the camera moves).
+fn shadowSpin(worldPos : vec3f) -> f32 {
+    return 6.2831853 * fract(sin(dot(worldPos, vec3f(12.9898, 78.233, 37.719))) * 43758.5453);
+}
+// The widest disc a penumbra is averaged over, in texels of the map. It was 8, the widest the taps cover without gaps, which held a sun's
+// penumbra to sixteen texels: with a fine cascade (a millimetre or two a texel at a character) that is a hand's width less than the sun
+// throws, and the render lab measured an edge 60% as wide as Blender's. The spiral is turned point by point (diskTapSpun) so the wider
+// disc grains instead of banding. It bounds
 // the search too — a blocker outside it cannot widen an edge that cannot be drawn wider.
-const kShadowDisc = 8.0;
+const kShadowDisc = 24.0;
 fn shadowFactor3D(worldPos : vec3f, N : vec3f, L : vec3f, source : vec2f,
                   first : i32, count : i32) -> f32 {
 #ifndef ES_RECEIVE_SHADOW
@@ -1404,12 +1416,16 @@ fn shadowFactor3D(worldPos : vec3f, N : vec3f, L : vec3f, source : vec2f,
         // What blocks this fragment, over the whole disc an edge can reach across — and
         // against a depth that forgives that reach, since a tap r texels away lands r
         // texels along the surface and a one-texel bias would call the slope a blocker.
-        let reach = shadowDepth(m, worldPos + L * stepFor(texel, slope, kShadowDisc));
+        // Each tap forgives as far as it stands from the point: a disc this wide forgiven as a whole would let a blocker touching the
+        // surface (a box on a floor) through as lit for a hand's width round its foot.
+        let spin = shadowSpin(worldPos);
         var sum = 0.0;
         var hits = 0.0;
-        for (var i = 0; i < 8; i++) {
-            let at = clamp(at0 + diskTap(i, 8, kShadowDisc) * lc.u_shadowParams.y, lo, hi);
+        for (var i = 0; i < 16; i++) {
+            let off = diskTapSpun(i, 16, kShadowDisc, spin);
+            let at = clamp(at0 + off * lc.u_shadowParams.y, lo, hi);
             let d = unpackDepth(textureSampleLevel(t2, s2, at, 0.0).rgb);
+            let reach = shadowDepth(m, worldPos + L * stepFor(texel, slope, max(length(off), 1.0)));
             if (d < reach) { sum += d; hits += 1.0; }
         }
         if (hits < 0.5) { return 1.0; }
@@ -1433,7 +1449,7 @@ fn shadowFactor3D(worldPos : vec3f, N : vec3f, L : vec3f, source : vec2f,
         // makes it, and a penumbra averaged over too few taps bands instead of blurring.
         var soft = 0.0;
         for (var i = 0; i < 32; i++) {
-            soft += shadowTap(at0 + diskTap(i, 32, radius) * lc.u_shadowParams.y, lo, hi, wide);
+            soft += shadowTap(at0 + diskTapSpun(i, 32, radius, spin) * lc.u_shadowParams.y, lo, hi, wide);
         }
         return soft * (1.0 / 32.0);
     }
@@ -1532,14 +1548,42 @@ fn geometrySmith(NdotV : f32, NdotL : f32, roughness : f32) -> f32 {
     let k = (roughness + 1.0) * (roughness + 1.0) * 0.125;
     return (NdotV / (NdotV * (1.0 - k) + k)) * (NdotL / (NdotL * (1.0 - k) + k));
 }
+// Smith's masking-shadowing for GGX, height-correlated, folded with the 1 / (4 NdotV NdotL) of the microfacet BRDF (the visibility term),
+// at alpha = roughness^2: what the environment term above integrates and what Blender's GGX uses. The Schlick-GGX k = (r + 1)^2 / 8 it
+// replaces shadows too much at a grazing view and a high roughness, which left the rim of a rough metal a quarter darker under a lamp.
+fn visibilitySmithGGX(NdotV : f32, NdotL : f32, a : f32) -> f32 {
+    let a2 = a * a;
+    let gv = NdotL * sqrt(NdotV * NdotV * (1.0 - a2) + a2);
+    let gl = NdotV * sqrt(NdotL * NdotL * (1.0 - a2) + a2);
+    return 0.5 / max(gv + gl, 1e-5);
+}
 fn fresnelSchlick(VdotH : f32, F0 : vec3f) -> vec3f {
     return F0 + (vec3f(1.0) - F0) * pow(1.0 - VdotH, 5.0);
 }
+// The split-sum environment term of GGX (height-correlated Smith, alpha = roughness^2): the scale and bias of F0 over the hemisphere,
+// fitted to the integral by tools/gen-dfg-fit.py (worst 3%, mean under 0.6%; Karis' fit before it was 21% low for a metal at roughness 0.5).
 fn envBRDFApprox(NdotV : f32, roughness : f32) -> vec2f {
-    let r = roughness * vec4f(-1.0, -0.0275, -0.572, 0.022)
-          + vec4f(1.0, 0.0425, 1.04, -0.04);
-    let a = min(r.x * r.x, exp2(-9.28 * NdotV)) * r.x + r.y;
-    return vec2f(-1.04, 1.04) * a + r.zw;
+    let tx = (2.0 * (clamp(NdotV, 0.02, 1.0) - 0.02) / 0.98 - 1.0);
+    let ty = 2.0 * clamp(roughness, 0.0, 1.0) - 1.0;
+    let px0 = 1.0;
+    let px1 = tx;
+    let px2 = (3.0 * tx * px1 - 1.0 * px0) / 2.0;
+    let px3 = (5.0 * tx * px2 - 2.0 * px1) / 3.0;
+    let px4 = (7.0 * tx * px3 - 3.0 * px2) / 4.0;
+    let px5 = (9.0 * tx * px4 - 4.0 * px3) / 5.0;
+    let px6 = (11.0 * tx * px5 - 5.0 * px4) / 6.0;
+    let py0 = 1.0;
+    let py1 = ty;
+    let py2 = (3.0 * ty * py1 - 1.0 * py0) / 2.0;
+    let py3 = (5.0 * ty * py2 - 2.0 * py1) / 3.0;
+    let py4 = (7.0 * ty * py3 - 3.0 * py2) / 4.0;
+    let py5 = (9.0 * ty * py4 - 4.0 * py3) / 5.0;
+    let py6 = (11.0 * ty * py5 - 5.0 * py4) / 6.0;
+    let g = 1.0 / (clamp(NdotV, 0.02, 1.0) + 0.1);
+    let sumMetal = 0.7771111 * px0 * py0 - 0.2780760 * px0 * py1 - 0.0654304 * px0 * py2 - 0.0705640 * px0 * py3 + 0.0859185 * px0 * py4 + 0.0016314 * px0 * py5 - 0.0014479 * px0 * py6 + 0.0048182 * px1 * py0 - 0.1346961 * px1 * py1 - 0.1342442 * px1 * py2 + 0.1115811 * px1 * py3 - 0.0497620 * px1 * py4 - 0.0098451 * px1 * py5 - 0.0004214 * px1 * py6 + 0.0004797 * px2 * py0 + 0.0654544 * px2 * py1 + 0.0215100 * px2 * py2 - 0.0948616 * px2 * py3 + 0.0774489 * px2 * py4 + 0.0139819 * px2 * py5 - 0.0151021 * px2 * py6 + 0.0022918 * px3 * py0 - 0.0244567 * px3 * py1 + 0.0056279 * px3 * py2 + 0.0393924 * px3 * py3 - 0.0613759 * px3 * py4 + 0.0099383 * px3 * py5 + 0.0092971 * px3 * py6 - 0.0025728 * px4 * py0 + 0.0085869 * px4 * py1 - 0.0069877 * px4 * py2 - 0.0115072 * px4 * py3 + 0.0327063 * px4 * py4 - 0.0167796 * px4 * py5 + 0.0019107 * px4 * py6 + 0.0018089 * px5 * py0 - 0.0031015 * px5 * py1 + 0.0047701 * px5 * py2 + 0.0018675 * px5 * py3 - 0.0134691 * px5 * py4 + 0.0139776 * px5 * py5 - 0.0087024 * px5 * py6 - 0.0008609 * px6 * py0 + 0.0010956 * px6 * py1 - 0.0024048 * px6 * py2 + 0.0005262 * px6 * py3 + 0.0035639 * px6 * py4 - 0.0080487 * px6 * py5 + 0.0080563 * px6 * py6 + 0.0220605 * py0 * g + 0.0049886 * py1 * g - 0.0108884 * py2 * g + 0.0359254 * py3 * g - 0.0336876 * py4 * g;
+    let sumDielectric = 0.1105178 * px0 * py0 - 0.1470108 * px0 * py1 + 0.0706290 * px0 * py2 - 0.0048613 * px0 * py3 - 0.0190413 * px0 * py4 + 0.0038142 * px0 * py5 - 0.0002643 * px0 * py6 - 0.1400053 * px1 * py0 + 0.2220226 * px1 * py1 - 0.1204309 * px1 * py2 + 0.0033027 * px1 * py3 + 0.0348652 * px1 * py4 - 0.0115348 * px1 * py5 + 0.0015711 * px1 * py6 + 0.0993738 * px2 * py0 - 0.1696809 * px2 * py1 + 0.1055418 * px2 * py2 - 0.0166890 * px2 * py3 - 0.0245166 * px2 * py4 + 0.0153020 * px2 * py5 - 0.0048468 * px2 * py6 - 0.0363361 * px3 * py0 + 0.0724203 * px3 * py1 - 0.0631513 * px3 * py2 + 0.0261354 * px3 * py3 + 0.0041759 * px3 * py4 - 0.0092203 * px3 * py5 + 0.0054510 * px3 * py6 + 0.0046882 * px4 * py0 - 0.0144579 * px4 * py1 + 0.0238812 * px4 * py2 - 0.0200861 * px4 * py3 + 0.0078934 * px4 * py4 - 0.0001779 * px4 * py5 - 0.0024009 * px4 * py6 + 0.0013258 * px5 * py0 - 0.0006506 * px5 * py1 - 0.0049831 * px5 * py2 + 0.0084229 * px5 * py3 - 0.0075026 * px5 * py4 + 0.0046720 * px5 * py5 - 0.0007627 * px5 * py6 - 0.0005364 * px6 * py0 + 0.0008141 * px6 * py1 + 0.0002790 * px6 * py2 - 0.0016584 * px6 * py3 + 0.0027280 * px6 * py4 - 0.0028646 * px6 * py5 + 0.0010557 * px6 * py6 - 0.0075790 * py0 * g + 0.0243928 * py1 * g - 0.0212081 * py2 * g + 0.0063496 * py3 * g + 0.0036408 * py4 * g;
+    let scale = (sumMetal - sumDielectric) / 0.96;
+    return vec2f(scale, sumMetal - scale);
 }
 // One authority for the environment's orientation: every direction that asks the
 // environment anything comes through here, so a turned sky cannot disagree with a
@@ -1792,6 +1836,20 @@ fn applyLightingSurface(albedo : vec3f, N : vec3f, worldPos : vec3f, V : vec3f, 
         }
     }
     let ab = envBRDFApprox(NdotV, roughness);
+    // The light a rough microfacet surface loses to bounces between its facets, which single-scattering GGX leaves out (a metal at roughness
+    // 0.9 came out at half of Blender's brightness): Fdez-Aguera's term for the environment, and the same ratio on the lamps' highlight. What
+    // the specular reflects is light the diffuse under it does not get, as in the Principled shader. Hair keeps its own lobes as authored.
+    let Ess = ab.x + ab.y;
+    let FssEss = F0 * ab.x + vec3f(ab.y);
+    var FmsEms = vec3f(0.0);
+    var kd = vec3f(1.0);
+    if (ext.misc.y <= 0.0 || ext.strand.y > 0.0) {
+        let Ems = 1.0 - Ess;
+        let Favg = F0 + (vec3f(1.0) - F0) / 21.0;
+        FmsEms = FssEss * Favg * Ems / (vec3f(1.0) - Ems * Favg);
+        gloss *= vec3f(1.0) + F0 * (1.0 / max(Ess, 0.05) - 1.0);
+        kd = max(vec3f(1.0) - (FssEss + FmsEms) * specular, vec3f(0.0));
+    }
     var envR = reflect(-V, N);
     if (ext.aniso.w != 0.0 || ext.misc.y > 0.0) {
         let T = ext.aniso.xyz;
@@ -1802,11 +1860,11 @@ fn applyLightingSurface(albedo : vec3f, N : vec3f, worldPos : vec3f, V : vec3f, 
         if (ext.misc.y > 0.0) { bendBy = 0.55; }
         envR = reflect(-V, normalize(mix(N, bent, vec3f(bendBy))));
     }
-    var envF = F0 * ab.x + vec3f(ab.y);
+    var envF = FssEss + FmsEms;
     if (ext.film.x > 0.0) { envF = filmFresnel(envF, NdotV, ext.film); }
     gloss += envRadiance(envR, roughness, reflectionColumn(), worldPos) * (ao * specular)
            * envF;
-    let base = albedo * (1.0 - metallic) * lit + gloss;
+    let base = albedo * (1.0 - metallic) * lit * kd + gloss;
     var baseScale = 1.0;
     if (ext.coat.x > 0.0) {
         let coatNdotV = max(dot(ext.coatN.xyz, V), 1e-4);
@@ -1876,7 +1934,7 @@ fn shadeLight(pd : vec4f, col : vec4f, sp : vec4f, sh : vec4f, sm : vec4f, fo : 
         }
         let radiance = col.rgb * (col.a * ndotl * atten);
         lit += radiance;
-        if (specular > 0.0 && ext.misc.y > 0.0) {
+        if (specular > 0.0 && ext.misc.y > 0.0 && ext.strand.y <= 0.0) {
             // Two shifted, narrow lobes along the strand: a white one near the surface and a coloured one under it (scatter.rgb).
             let H = normalize(L + V);
             let primaryExp = clamp(2.0 / (a * a), 8.0, 900.0);
@@ -1891,7 +1949,17 @@ fn shadeLight(pd : vec4f, col : vec4f, sp : vec4f, sh : vec4f, sm : vec4f, fo : 
         } else if (specular > 0.0) {
             let H = normalize(L + V);
             var brdf : f32;
-            if (ext.aniso.w != 0.0) {
+            if (ext.misc.y > 0.0) {
+                // Hair shaded as the Principled shader shades a card with an anisotropy (strand.y): GGX stretched along the strand, as Blender
+                // stretches it (aspect sqrt(1 - 0.9 anisotropy)). The highlight runs across the strands as a band, the sheen a lock of hair has.
+                let T = ext.aniso.xyz;
+                let B = cross(N, T);
+                let aspect = sqrt(max(1.0 - 0.9 * ext.strand.y, 0.01));
+                let at = max(a / aspect, 0.002);
+                let ab = max(a * aspect, 0.002);
+                brdf = distributionGGXAniso(at, ab, dot(T, H), dot(B, H), max(dot(N, H), 0.0))
+                     * visibilityGGXAniso(at, ab, dot(T, V), dot(B, V), dot(T, L), dot(B, L), NdotV, ndotl);
+            } else if (ext.aniso.w != 0.0) {
                 let T = ext.aniso.xyz;
                 let B = cross(N, T);
                 let at = max(a * (1.0 + ext.aniso.w), 0.002);
@@ -1899,9 +1967,7 @@ fn shadeLight(pd : vec4f, col : vec4f, sp : vec4f, sh : vec4f, sm : vec4f, fo : 
                 brdf = distributionGGXAniso(at, ab, dot(T, H), dot(B, H), max(dot(N, H), 0.0))
                      * visibilityGGXAniso(at, ab, dot(T, V), dot(B, V), dot(T, L), dot(B, L), NdotV, ndotl);
             } else {
-                brdf = distributionGGX(max(dot(N, H), 0.0), a)
-                     * geometrySmith(NdotV, ndotl, roughness)
-                     / max(4.0 * NdotV * ndotl, 1e-4);
+                brdf = distributionGGX(max(dot(N, H), 0.0), a) * visibilitySmithGGX(NdotV, ndotl, a);
             }
             var F = fresnelSchlick(max(dot(V, H), 0.0), F0);
             if (ext.film.x > 0.0) { F = filmFresnel(F, max(dot(V, H), 0.0), ext.film); }
@@ -2396,7 +2462,7 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             // The widest disc the tap count below can average over: past it the samples
             // sit further apart than the texels they average, and a penumbra bands rather
             // than blurs. It bounds the search too, which can find no wider an edge.
-            "const highp float kShadowDisc = 8.0;\n"
+            "const highp float kShadowDisc = 24.0;\n"
             // Set by a hair shader before it lights: how much of the light a layer of strands takes, per world unit along it.
             "highp float g_hairShadow = 0.0;\n"
             // A spiral, not a table: the golden angle spreads any number of taps evenly
@@ -2404,6 +2470,14 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "highp vec2 diskTap(in int i, in int n, in highp float radius) {\n"
             "    highp float a = float(i) * 2.3999632;\n"
             "    return radius * sqrt((float(i) + 0.5) / float(n)) * vec2(cos(a), sin(a));\n"
+            "}\n"
+            // The spiral turned point by point, so a wide penumbra grains instead of banding: see the WGSL twin.
+            "highp vec2 diskTapSpun(in int i, in int n, in highp float radius, in highp float spin) {\n"
+            "    highp float a = float(i) * 2.3999632 + spin;\n"
+            "    return radius * sqrt((float(i) + 0.5) / float(n)) * vec2(cos(a), sin(a));\n"
+            "}\n"
+            "highp float shadowSpin(in highp vec3 worldPos) {\n"
+            "    return 6.2831853 * fract(sin(dot(worldPos, vec3(12.9898, 78.233, 37.719))) * 43758.5453);\n"
             "}\n"
             // Visibility of a world point from the light that rendered the map. Depth is
             // written and compared through the SAME matrix and expression, so the two
@@ -2498,12 +2572,15 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             // What blocks this fragment, over the whole disc an edge can reach across —
             // against a depth that forgives that reach, since a tap r texels out lands r
             // texels along the surface and a one-texel bias would call the slope one.
-            "        highp float reach = shadowDepth(m, worldPos + L * stepFor(texel, slope, kShadowDisc));\n"
+            // Each tap forgives as far as it stands from the point: see the WGSL twin.
+            "        highp float spin = shadowSpin(worldPos);\n"
             "        highp float sum = 0.0;\n"
             "        highp float hits = 0.0;\n"
-            "        for (int i = 0; i < 8; ++i) {\n"
-            "            highp vec2 at = clamp(at0 + diskTap(i, 8, kShadowDisc) * u_shadowParams.y, lo, hi);\n"
+            "        for (int i = 0; i < 16; ++i) {\n"
+            "            highp vec2 off = diskTapSpun(i, 16, kShadowDisc, spin);\n"
+            "            highp vec2 at = clamp(at0 + off * u_shadowParams.y, lo, hi);\n"
             "            highp float d = unpackDepth(texture(u_shadowMap, at).rgb);\n"
+            "            highp float reach = shadowDepth(m, worldPos + L * stepFor(texel, slope, max(length(off), 1.0)));\n"
             "            if (d < reach) { sum += d; hits += 1.0; }\n"
             "        }\n"
             "        if (hits < 0.5) return 1.0;\n"
@@ -2529,7 +2606,7 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             // than blurs.
             "        highp float soft = 0.0;\n"
             "        for (int i = 0; i < 32; ++i) {\n"
-            "            soft += shadowTap(at0 + diskTap(i, 32, radius) * u_shadowParams.y,\n"
+            "            soft += shadowTap(at0 + diskTapSpun(i, 32, radius, spin) * u_shadowParams.y,\n"
             "                              lo, hi, wide);\n"
             "        }\n"
             "        return soft * (1.0 / 32.0);\n"
@@ -2636,17 +2713,39 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "    highp float k = (roughness + 1.0) * (roughness + 1.0) * 0.125;\n"
             "    return (NdotV / (NdotV * (1.0 - k) + k)) * (NdotL / (NdotL * (1.0 - k) + k));\n"
             "}\n"
+            // Height-correlated Smith visibility for GGX: see the WGSL twin.
+            "highp float visibilitySmithGGX(in highp float NdotV, in highp float NdotL, in highp float a) {\n"
+            "    highp float a2 = a * a;\n"
+            "    highp float gv = NdotL * sqrt(NdotV * NdotV * (1.0 - a2) + a2);\n"
+            "    highp float gl = NdotV * sqrt(NdotL * NdotL * (1.0 - a2) + a2);\n"
+            "    return 0.5 / max(gv + gl, 1e-5);\n"
+            "}\n"
             "highp vec3 fresnelSchlick(in highp float VdotH, in highp vec3 F0) {\n"
             "    return F0 + (vec3(1.0) - F0) * pow(1.0 - VdotH, 5.0);\n"
             "}\n"
-            // The split-sum environment term, Karis' analytic fit: scale and bias for F0
-            // over a whole hemisphere. A lookup table is the usual carrier; the fit costs
-            // no texture unit and is within a value or two of one over the [0,1] range.
+            // The split-sum environment term of GGX, fitted to the integral by tools/gen-dfg-fit.py. See the WGSL twin.
             "highp vec2 envBRDFApprox(in highp float NdotV, in highp float roughness) {\n"
-            "    highp vec4 r = roughness * vec4(-1.0, -0.0275, -0.572, 0.022)\n"
-            "                 + vec4(1.0, 0.0425, 1.04, -0.04);\n"
-            "    highp float a = min(r.x * r.x, exp2(-9.28 * NdotV)) * r.x + r.y;\n"
-            "    return vec2(-1.04, 1.04) * a + r.zw;\n"
+            "    highp float tx = (2.0 * (clamp(NdotV, 0.02, 1.0) - 0.02) / 0.98 - 1.0);\n"
+            "    highp float ty = 2.0 * clamp(roughness, 0.0, 1.0) - 1.0;\n"
+            "    highp float px0 = 1.0;\n"
+            "    highp float px1 = tx;\n"
+            "    highp float px2 = (3.0 * tx * px1 - 1.0 * px0) / 2.0;\n"
+            "    highp float px3 = (5.0 * tx * px2 - 2.0 * px1) / 3.0;\n"
+            "    highp float px4 = (7.0 * tx * px3 - 3.0 * px2) / 4.0;\n"
+            "    highp float px5 = (9.0 * tx * px4 - 4.0 * px3) / 5.0;\n"
+            "    highp float px6 = (11.0 * tx * px5 - 5.0 * px4) / 6.0;\n"
+            "    highp float py0 = 1.0;\n"
+            "    highp float py1 = ty;\n"
+            "    highp float py2 = (3.0 * ty * py1 - 1.0 * py0) / 2.0;\n"
+            "    highp float py3 = (5.0 * ty * py2 - 2.0 * py1) / 3.0;\n"
+            "    highp float py4 = (7.0 * ty * py3 - 3.0 * py2) / 4.0;\n"
+            "    highp float py5 = (9.0 * ty * py4 - 4.0 * py3) / 5.0;\n"
+            "    highp float py6 = (11.0 * ty * py5 - 5.0 * py4) / 6.0;\n"
+            "    highp float g = 1.0 / (clamp(NdotV, 0.02, 1.0) + 0.1);\n"
+            "    highp float sumMetal = 0.7771111 * px0 * py0 - 0.2780760 * px0 * py1 - 0.0654304 * px0 * py2 - 0.0705640 * px0 * py3 + 0.0859185 * px0 * py4 + 0.0016314 * px0 * py5 - 0.0014479 * px0 * py6 + 0.0048182 * px1 * py0 - 0.1346961 * px1 * py1 - 0.1342442 * px1 * py2 + 0.1115811 * px1 * py3 - 0.0497620 * px1 * py4 - 0.0098451 * px1 * py5 - 0.0004214 * px1 * py6 + 0.0004797 * px2 * py0 + 0.0654544 * px2 * py1 + 0.0215100 * px2 * py2 - 0.0948616 * px2 * py3 + 0.0774489 * px2 * py4 + 0.0139819 * px2 * py5 - 0.0151021 * px2 * py6 + 0.0022918 * px3 * py0 - 0.0244567 * px3 * py1 + 0.0056279 * px3 * py2 + 0.0393924 * px3 * py3 - 0.0613759 * px3 * py4 + 0.0099383 * px3 * py5 + 0.0092971 * px3 * py6 - 0.0025728 * px4 * py0 + 0.0085869 * px4 * py1 - 0.0069877 * px4 * py2 - 0.0115072 * px4 * py3 + 0.0327063 * px4 * py4 - 0.0167796 * px4 * py5 + 0.0019107 * px4 * py6 + 0.0018089 * px5 * py0 - 0.0031015 * px5 * py1 + 0.0047701 * px5 * py2 + 0.0018675 * px5 * py3 - 0.0134691 * px5 * py4 + 0.0139776 * px5 * py5 - 0.0087024 * px5 * py6 - 0.0008609 * px6 * py0 + 0.0010956 * px6 * py1 - 0.0024048 * px6 * py2 + 0.0005262 * px6 * py3 + 0.0035639 * px6 * py4 - 0.0080487 * px6 * py5 + 0.0080563 * px6 * py6 + 0.0220605 * py0 * g + 0.0049886 * py1 * g - 0.0108884 * py2 * g + 0.0359254 * py3 * g - 0.0336876 * py4 * g;\n"
+            "    highp float sumDielectric = 0.1105178 * px0 * py0 - 0.1470108 * px0 * py1 + 0.0706290 * px0 * py2 - 0.0048613 * px0 * py3 - 0.0190413 * px0 * py4 + 0.0038142 * px0 * py5 - 0.0002643 * px0 * py6 - 0.1400053 * px1 * py0 + 0.2220226 * px1 * py1 - 0.1204309 * px1 * py2 + 0.0033027 * px1 * py3 + 0.0348652 * px1 * py4 - 0.0115348 * px1 * py5 + 0.0015711 * px1 * py6 + 0.0993738 * px2 * py0 - 0.1696809 * px2 * py1 + 0.1055418 * px2 * py2 - 0.0166890 * px2 * py3 - 0.0245166 * px2 * py4 + 0.0153020 * px2 * py5 - 0.0048468 * px2 * py6 - 0.0363361 * px3 * py0 + 0.0724203 * px3 * py1 - 0.0631513 * px3 * py2 + 0.0261354 * px3 * py3 + 0.0041759 * px3 * py4 - 0.0092203 * px3 * py5 + 0.0054510 * px3 * py6 + 0.0046882 * px4 * py0 - 0.0144579 * px4 * py1 + 0.0238812 * px4 * py2 - 0.0200861 * px4 * py3 + 0.0078934 * px4 * py4 - 0.0001779 * px4 * py5 - 0.0024009 * px4 * py6 + 0.0013258 * px5 * py0 - 0.0006506 * px5 * py1 - 0.0049831 * px5 * py2 + 0.0084229 * px5 * py3 - 0.0075026 * px5 * py4 + 0.0046720 * px5 * py5 - 0.0007627 * px5 * py6 - 0.0005364 * px6 * py0 + 0.0008141 * px6 * py1 + 0.0002790 * px6 * py2 - 0.0016584 * px6 * py3 + 0.0027280 * px6 * py4 - 0.0028646 * px6 * py5 + 0.0010557 * px6 * py6 - 0.0075790 * py0 * g + 0.0243928 * py1 * g - 0.0212081 * py2 * g + 0.0063496 * py3 * g + 0.0036408 * py4 * g;\n"
+            "    highp float scale = (sumMetal - sumDielectric) / 0.96;\n"
+            "    return vec2(scale, sumMetal - scale);\n"
             "}\n"
             // The WGSL twin's envDirection, for the same reason.
             "highp vec3 envDirection(in highp vec3 d) {\n"
@@ -2947,6 +3046,18 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             // radiance from every direction. A metal has no diffuse, so without a
             // reflection of it a metal is black wherever no light happens to point.
             "    highp vec2 ab = envBRDFApprox(NdotV, roughness);\n"
+            // Multiple scattering, and the diffuse under the specular: see the WGSL twin.
+            "    highp float Ess = ab.x + ab.y;\n"
+            "    highp vec3 FssEss = F0 * ab.x + ab.y;\n"
+            "    highp vec3 FmsEms = vec3(0.0);\n"
+            "    highp vec3 kd = vec3(1.0);\n"
+            "    if (ext.misc.y <= 0.0 || ext.strand.y > 0.0) {\n"
+            "        highp float Ems = 1.0 - Ess;\n"
+            "        highp vec3 Favg = F0 + (vec3(1.0) - F0) / 21.0;\n"
+            "        FmsEms = FssEss * Favg * Ems / (vec3(1.0) - Ems * Favg);\n"
+            "        gloss *= vec3(1.0) + F0 * (1.0 / max(Ess, 0.05) - 1.0);\n"
+            "        kd = max(vec3(1.0) - (FssEss + FmsEms) * specular, vec3(0.0));\n"
+            "    }\n"
             "    highp vec3 envR = reflect(-V, N);\n"
             "    if (ext.aniso.w != 0.0 || ext.misc.y > 0.0) {\n"
             "        highp vec3 T = ext.aniso.xyz;\n"
@@ -2954,12 +3065,12 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "        highp vec3 bent = normalize(cross(cross(grain, V), grain));\n"
             "        envR = reflect(-V, normalize(mix(N, bent, ext.misc.y > 0.0 ? 0.55 : abs(ext.aniso.w))));\n"
             "    }\n"
-            "    highp vec3 envF = F0 * ab.x + ab.y;\n"
+            "    highp vec3 envF = FssEss + FmsEms;\n"
             "    if (ext.film.x > 0.0) envF = filmFresnel(envF, NdotV, ext.film);\n"
             "    gloss += envRadiance(envR, roughness, reflectionColumn(), worldPos)\n"
             "           * (ao * specular)\n"
             "           * envF;\n"
-            "    highp vec3 base = albedo * (1.0 - metallic) * lit + gloss;\n"
+            "    highp vec3 base = albedo * (1.0 - metallic) * lit * kd + gloss;\n"
             "    highp float baseScale = 1.0;\n"
             "    if (ext.coat.x > 0.0) {\n"
             "        highp float coatNdotV = max(dot(ext.coatN.xyz, V), 1e-4);\n"
@@ -3036,7 +3147,7 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "        lit += radiance;\n"
             // A uniform branch: a surface that reflects nothing does not pay for the lobe. The pi turns the engine's light intensity
             // into the irradiance the BRDF wants (the diffuse side cancels it against albedo/pi). Hair has two narrow lobes of its own.
-            "        if (specular > 0.0 && ext.misc.y > 0.0) {\n"
+            "        if (specular > 0.0 && ext.misc.y > 0.0 && ext.strand.y <= 0.0) {\n"
             "            highp vec3 H = normalize(L + V);\n"
             "            highp float primaryExp = clamp(2.0 / (a * a), 8.0, 900.0);\n"
             "            highp vec3 t1 = normalize(ext.aniso.xyz + N * ext.misc.z);\n"
@@ -3049,8 +3160,17 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "            gloss += lightOn * (lobe1 * 0.55 + lobe2 * ext.scatter.rgb * 1.6) * (ext.misc.y * specular);\n"
             "        } else if (specular > 0.0) {\n"
             "            highp vec3 H = normalize(L + V);\n"
+            // Hair with an anisotropy: Principled's anisotropic GGX along the strand. See the WGSL twin.
             "            highp float brdf;\n"
-            "            if (ext.aniso.w != 0.0) {\n"
+            "            if (ext.misc.y > 0.0) {\n"
+            "                highp vec3 T = ext.aniso.xyz;\n"
+            "                highp vec3 B = cross(N, T);\n"
+            "                highp float aspect = sqrt(max(1.0 - 0.9 * ext.strand.y, 0.01));\n"
+            "                highp float at = max(a / aspect, 0.002);\n"
+            "                highp float ab = max(a * aspect, 0.002);\n"
+            "                brdf = distributionGGXAniso(at, ab, dot(T, H), dot(B, H), max(dot(N, H), 0.0))\n"
+            "                     * visibilityGGXAniso(at, ab, dot(T, V), dot(B, V), dot(T, L), dot(B, L), NdotV, ndotl);\n"
+            "            } else if (ext.aniso.w != 0.0) {\n"
             "                highp vec3 T = ext.aniso.xyz;\n"
             "                highp vec3 B = cross(N, T);\n"
             "                highp float at = max(a * (1.0 + ext.aniso.w), 0.002);\n"
@@ -3058,9 +3178,7 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "                brdf = distributionGGXAniso(at, ab, dot(T, H), dot(B, H), max(dot(N, H), 0.0))\n"
             "                     * visibilityGGXAniso(at, ab, dot(T, V), dot(B, V), dot(T, L), dot(B, L), NdotV, ndotl);\n"
             "            } else {\n"
-            "                brdf = distributionGGX(max(dot(N, H), 0.0), a)\n"
-            "                     * geometrySmith(NdotV, ndotl, roughness)\n"
-            "                     / max(4.0 * NdotV * ndotl, 1e-4);\n"
+            "                brdf = distributionGGX(max(dot(N, H), 0.0), a) * visibilitySmithGGX(NdotV, ndotl, a);\n"
             "            }\n"
             "            highp vec3 F = fresnelSchlick(max(dot(V, H), 0.0), F0);\n"
             "            if (ext.film.x > 0.0) F = filmFresnel(F, max(dot(V, H), 0.0), ext.film);\n"

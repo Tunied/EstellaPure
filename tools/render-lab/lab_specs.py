@@ -20,6 +20,9 @@ LABS = {
     # A floor, a box and a sphere under a sun: the position and the edge of a shadow.
     'shadow': dict(cam=((0.0, 3.4, -6.2), (0.0, 0.2, 0.0), 32.0), sun=dict(dir=(0.45, -0.7, 0.55), intensity=1.0, angle=0.0), ambient=0.0),
     'shadow_soft': dict(cam=((0.0, 3.4, -6.2), (0.0, 0.2, 0.0), 32.0), sun=dict(dir=(0.45, -0.7, 0.55), intensity=1.0, angle=3.4), ambient=0.0),
+    # Constant-colour cards under a uniform white sky: what a surface of a known albedo shows, with and without the light its specular takes.
+    'cards': dict(cam=((0.0, 0.0, -4.0), (0.0, 0.0, 0.0), 20.0), sun=None, ambient=1.0),
+    'cards_sun': dict(cam=((0.0, 0.0, -4.0), (0.0, 0.0, 0.0), 20.0), sun=dict(dir=(0.3, -0.3, 0.9), intensity=1.0, angle=0.0), ambient=0.0),
     # Three cards of fine stripes seen from a distance that shrinks them below a texel a pixel: a cut-out card, an opaque one, and a smooth ramp.
     'strands': dict(cam=((0.0, 0.0, -3.0), (0.0, 0.0, 0.0), 20.0), sun=None, ambient=1.0),
     # The middle card seen from close enough that one texel covers about a pixel: what the card averages to without the mip chain.
@@ -97,3 +100,10 @@ for row, (y, base, metal) in enumerate(((1.4, (0.8, 0.8, 0.8), 0.0), (-1.4, (0.9
     for col, rough in enumerate((0.15, 0.45, 0.9)):
         BALLS.append(((-3.0 + 3.0 * col, y, 0.0), base, metal, rough))
 BALL_RADIUS = 0.5
+
+
+CARD_ALBEDOS = (0.0, 0.05, 0.2, 0.5, 1.0)
+
+
+def card_centre(row, col):
+    return (0.8 - 0.4 * col, 0.25 - 0.5 * row, 0.0)
