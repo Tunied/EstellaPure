@@ -19,7 +19,7 @@ export const gtaoPasses = {
         const source = `#pragma shader "PP GTAO"
 #pragma version 300 es
 #pragma domain PostProcess
-#pragma param u_radius float default(80) range(1,500)
+#pragma param u_radius float default(80) range(0.01,500)
 #pragma param u_intensity float default(1) range(0,2)
 #pragma param u_power float default(1.4) range(0.5,4)
 #pragma param u_thickness float default(0.5) range(0,1)

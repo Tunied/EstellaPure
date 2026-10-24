@@ -566,7 +566,7 @@ registerEffect({
     uniforms: [
         // A WORLD length: positions come back in world space, so this is "how far
         // around a point counts as its neighbourhood", not a pixel count.
-        { name: 'u_radius', label: 'Radius', min: 1, max: 400, step: 1, defaultValue: 60 },
+        { name: 'u_radius', label: 'Radius', min: 0.01, max: 400, step: 0.01, defaultValue: 60 },
         { name: 'u_intensity', label: 'Intensity', min: 0, max: 2, step: 0.01, defaultValue: 1 },
         // How far above the tangent plane a sample must sit to count. This is
         // what keeps a flat floor from occluding itself into grey.
@@ -614,7 +614,7 @@ registerEffect({
     // The horizon-based estimator in place of the ring of samples: no bias to tune against a surface occluding itself,
     // so a flat floor stays white and a crease darkens by how closed it really is. The blur and the composite are SSAO's.
     uniforms: [
-        { name: 'u_radius', label: 'Radius', min: 1, max: 500, step: 1, defaultValue: 80 },
+        { name: 'u_radius', label: 'Radius', min: 0.01, max: 500, step: 0.01, defaultValue: 80 },
         { name: 'u_intensity', label: 'Intensity', min: 0, max: 2, step: 0.01, defaultValue: 1 },
         { name: 'u_power', label: 'Power', min: 0.5, max: 4, step: 0.05, defaultValue: 1.4, neutralValue: 1 },
         // 0 trusts every occluder to be as tall as it looks; 1 lets a thin one (a railing, a leaf) be seen past.

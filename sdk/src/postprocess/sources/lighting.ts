@@ -1490,7 +1490,7 @@ ${WGSL}
         const source = `#pragma shader "PP SSAO"
 #pragma version 300 es
 #pragma domain PostProcess
-#pragma param u_radius float default(60) range(1,400)
+#pragma param u_radius float default(60) range(0.01,400)
 #pragma param u_intensity float default(1) range(0,2)
 #pragma param u_bias float default(0.12) range(0,0.6)
 #pragma param u_power float default(1.6) range(0.5,4)
