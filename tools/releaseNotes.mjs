@@ -2760,4 +2760,6 @@ export const NOTED = {
     {"internal":"Documentation of features with their own notes."},
   "build(render): the embedded mesh shader carries the vertex-hook colour":
     {"internal":"The generated embed of a shader change that has its own note."},
+  "docs: the procedural world plan records what the engine owes, where each part stands and how it is accepted":
+    {"internal":"A planning document; nothing a creator can use yet."},
 };
