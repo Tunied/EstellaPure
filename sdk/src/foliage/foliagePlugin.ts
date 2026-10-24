@@ -19,6 +19,7 @@ import {
 import { Assets } from '../asset/AssetPlugin';
 import type { MeshData } from '../asset/meshFormat';
 import { log } from '../util/logger';
+import { bakesOf } from '../runtime/bakes';
 import type { Entity } from '../types';
 import { TerrainsRes } from '../terrain/terrainPlugin';
 import { Material } from '../render/material';
@@ -49,6 +50,8 @@ export interface FoliageData {
     /** The band of heights, in world units, plants grow in. */
     heightMin: number;
     heightMax: number;
+    /** How deep under water, in world units, a plant may stand: 0 keeps them on dry ground; reeds stand in the shallows. */
+    waterDepth: number;
     /** Grass: how tall and how wide a blade is, at scale 1. */
     bladeHeight: number;
     bladeWidth: number;
@@ -72,7 +75,7 @@ export interface FoliageData {
 export const Foliage: ComponentDef<FoliageData> = defineComponent<FoliageData>('Foliage', {
     mesh: 0, material: 0,
     sizeX: 400, sizeZ: 400, cellSize: 40, count: 500, seed: 1,
-    minScale: 0.8, maxScale: 1.25, minUp: 0.7, heightMin: -100000, heightMax: 100000,
+    minScale: 0.8, maxScale: 1.25, minUp: 0.7, heightMin: -100000, heightMax: 100000, waterDepth: 0,
     bladeHeight: 14, bladeWidth: 1.6, lodDistance: 140, drawDistance: 420,
     cardU0: 0, cardV0: 0, cardU1: 1, cardV1: 1, cardTent: 0,
 }, {
@@ -90,6 +93,7 @@ export const Foliage: ComponentDef<FoliageData> = defineComponent<FoliageData>('
         minUp: { min: 0, max: 1, step: 0.01, category: 'Placement', tooltip: 'The least a place may face up and still grow something. Lower lets plants onto slopes.' },
         heightMin: { category: 'Placement', tooltip: 'The lowest world height plants grow at.' },
         heightMax: { category: 'Placement', tooltip: 'The highest world height plants grow at.' },
+        waterDepth: { min: 0, category: 'Placement', tooltip: 'How deep under water a plant may stand. 0 keeps them on dry ground; reeds stand in the shallows.' },
         bladeHeight: { min: 0.1, category: 'Grass', tooltip: 'Height of a blade at scale 1.' },
         bladeWidth: { min: 0.01, category: 'Grass', tooltip: 'Width of a blade at its base, at scale 1.' },
         lodDistance: { min: 1, category: 'Distance', tooltip: 'Past this a cell is drawn as its far version: fewer, broader blades, or a tree as crossed cards.' },
@@ -113,9 +117,20 @@ interface BuiltFoliage {
     epoch: number;
     /** What the terrain was when this was grown. */
     terrainRevision: number;
+    /** The cells to grow in all, for the progress shown while they are. */
+    total: number;
 }
 
-const CELLS_PER_FRAME = 3;
+/** The water, as foliage asks it (the water module is optional: read by name, not imported). */
+interface WaterQuery { depthAt(x: number, z: number, y: number): number | null; revision_: number; baking: boolean }
+
+function waterOf(app: App): WaterQuery | null {
+    const w = (app as unknown as { getResourceByName?: (name: string) => unknown }).getResourceByName?.('Waters') as Partial<WaterQuery> | undefined;
+    return w && typeof w.depthAt === 'function' ? w as WaterQuery : null;
+}
+
+/** How long a frame may spend growing cells, in milliseconds; at least one is grown a frame. */
+const CELL_BUDGET_MS = 5;
 
 /** Run-time facts about the foliage the plugin has grown. */
 export class FoliageField {
@@ -155,7 +170,9 @@ export class FoliagePlugin implements Plugin {
             this.blow(app, field);
             // What stands on the ground waits for it: a plant placed before its terrain is read would stand on nothing.
             if (terrains?.loading) return;
-            const revision = terrains?.revision_ ?? 0;
+            // Plants are grown again when the ground they stand on or the water they keep out of changes.
+            const water = waterOf(app);
+            const revision = (terrains?.revision_ ?? 0) * 100003 + (water?.revision_ ?? 0);
             for (const entity of app.world.getEntitiesWithComponents([Foliage, Transform])) {
                 const data = app.world.get(entity, Foliage) as FoliageData;
                 const signature = JSON.stringify(data);
@@ -164,17 +181,24 @@ export class FoliagePlugin implements Plugin {
                     if (built) this.destroy(app, built);
                     built = {
                         signature, data: { ...data }, cells: [], handles: [], queue: [], source: null, loading: true,
-                        epoch: (built?.epoch ?? 0) + 1, terrainRevision: revision,
+                        epoch: (built?.epoch ?? 0) + 1, terrainRevision: revision, total: 0,
                     };
                     field.built_.set(entity, built);
                     void this.start(app, entity, built);
                     continue;
                 }
                 if (built.loading) continue;
-                for (let i = 0; i < CELLS_PER_FRAME && built.queue.length > 0; i++) {
+                // Plants stand on the ground: while a terrain is still being made, growing them would be done again once it is.
+                const terrains = app.hasResource(TerrainsRes) ? app.getResource(TerrainsRes) : null;
+                if (terrains && (terrains.loading || terrains.pending > 0)) continue;
+                if (water?.baking) continue;
+                const until = performance.now() + CELL_BUDGET_MS;
+                while (built.queue.length > 0) {
                     const [cx, cz] = built.queue.shift()!;
                     this.buildCell(app, entity, built, cx, cz);
+                    if (performance.now() >= until) break;
                 }
+                bakesOf(app).mark(built, 'Growing the plants', built.total ? 1 - built.queue.length / built.total : 1);
             }
         }, { name: 'FoliageSystem' }));
     }
@@ -234,6 +258,7 @@ export class FoliagePlugin implements Plugin {
             if (!app.world.valid(entity)) return;
             const cells = this.cellsAcross(data);
             for (let cz = 0; cz < cells.z; cz++) for (let cx = 0; cx < cells.x; cx++) built.queue.push([cx, cz]);
+            built.total = built.queue.length;
         } catch (e) {
             log.error('foliage', 'growing the foliage failed', e);
         } finally {
@@ -262,14 +287,20 @@ export class FoliagePlugin implements Plugin {
         const sx = t.worldScale.x || 1, sz = t.worldScale.z || 1;
         const worldX = t.worldPosition.x + localX * sx, worldZ = t.worldPosition.z + localZ * sz;
         const hasTerrain = !!terrains && terrains.built_.size > 0;
+        const water = waterOf(app);
         const ground: Ground = (x, z) => {
             // With a terrain, a plant stands where there is ground and nowhere else; with none, the area is flat at the entity's height.
-            if (!hasTerrain) return { y: t.worldPosition.y, up: 1 };
-            const y = terrains!.heightAt(x, z);
+            const y = hasTerrain ? terrains!.heightAt(x, z) : t.worldPosition.y;
             if (y === null) return null;
+            // Nor under water deeper than it may stand in.
+            const depth = water?.depthAt(x, z, y);
+            if (depth != null && depth > data.waterDepth) return null;
+            if (!hasTerrain) return { y, up: 1 };
             const n = terrains!.normalAt(x, z);
             return { y, up: n ? n[1] : 1 };
         };
+        // Grass thins toward where its cells turn to their far version, so a near cell beside a far one is not three times as thick.
+        if (data.material && !built.source) Material.setUniform(data.material, 'u_thinDistance', data.lodDistance);
         const plants: Plant[] = scatterCell({
             centerX: worldX, centerZ: worldZ, size: Math.min(side, data.sizeX / cells.x), count: Math.floor(data.count), seed: data.seed,
             cellKey: cz * 1000 + cx, minScale: data.minScale, maxScale: data.maxScale, minUp: data.minUp,
@@ -327,6 +358,7 @@ export class FoliagePlugin implements Plugin {
     private destroy(app: App, built: BuiltFoliage): void {
         built.epoch++;
         built.queue.length = 0;
+        bakesOf(app).clear(built);
         const assets = app.hasResource(Assets) ? app.getResource(Assets) : null;
         for (const cell of built.cells) if (app.world.valid(cell)) app.world.despawn(cell);
         for (const handle of built.handles) assets?.releaseBuiltMesh(handle);

@@ -31,6 +31,9 @@ const FOLIAGE = `#pragma shader "Foliage"
 #pragma param u_windDirection float default(40) range(0,360) ui(slider)
 #pragma param u_gustScale float default(0.02) range(0.001,0.5) ui(slider)
 #pragma param u_flutter float default(0.4) range(0,4) ui(slider)
+// Grass thins out toward the distance its cells switch to their far version (the Foliage component writes it; 0 thins nothing): each blade
+// by its own random key, down to the third the far version keeps, so a near cell beside a far one is not three times as dense.
+#pragma param u_thinDistance float default(0) range(0,1000000) ui(slider)
 #pragma vertexbounds 30
 #pragma vertexoffset
 void esMaterialVertex(inout vec3 local, inout vec3 localNormal, in vec2 uv) {
@@ -47,6 +50,13 @@ void esMaterialVertex(inout vec3 local, inout vec3 localNormal, in vec2 uv) {
     local.xz += dir * bend;
     // The length is kept: what the sideways bend takes from the height it gives back by lowering the tip.
     local.y -= abs(bend) * 0.35 * weight;
+    if (u_thinDistance > 0.0 && u_camera.w > 0.5) {
+        // Measured from the cell's centre, so every vertex of a blade agrees on whether it is kept.
+        vec3 cell = (esInstanceModel() * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+        float keep = mix(1.0, 0.34, smoothstep(u_thinDistance * 0.55, u_thinDistance, length(cell - u_camera.xyz)));
+        // Every vertex of a blade left out goes to one point: its triangles have no area and draw nothing.
+        if (es_vertexColor.g > keep) local = vec3(0.0);
+    }
 }
 #pragma end
 
@@ -65,6 +75,11 @@ fn esMaterialVertex(local : ptr<function, vec3f>, localNormal : ptr<function, ve
     (*local).x = (*local).x + dir.x * bend;
     (*local).z = (*local).z + dir.y * bend;
     (*local).y = (*local).y - abs(bend) * 0.35 * weight;
+    if (mc.u_thinDistance > 0.0 && frame.camera.w > 0.5) {
+        let cell = (esInstanceModel() * vec4f(0.0, 0.0, 0.0, 1.0)).xyz;
+        let keep = mix(1.0, 0.34, smoothstep(mc.u_thinDistance * 0.55, mc.u_thinDistance, length(cell - frame.camera.xyz)));
+        if (es_vertexColor.g > keep) { *local = vec3f(0.0); }
+    }
 }
 #pragma end
 

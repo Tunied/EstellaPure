@@ -124,6 +124,7 @@ const DISPOSITION = {
   'Foliage.heightMax': ['no-place', 'a band of world heights plants grow in, not a region round the entity'],
   'Foliage.lodDistance': ['no-place', 'a distance from the camera past which the far version is drawn'],
   'Foliage.drawDistance': ['no-place', 'a distance from the camera past which nothing is drawn'],
+  'Foliage.waterDepth': ['no-place', 'how deep under the water a plant may stand, not a region of the entity'],
   'WaterBody.shoreWidth': ['no-place', 'a distance in from a body\'s shore over which the waves come to full height, not a region of the entity'],
   'WaterZone.sizeX': 'extent',
   'WaterZone.sizeZ': 'extent',
