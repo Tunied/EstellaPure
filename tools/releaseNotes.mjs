@@ -2748,4 +2748,10 @@ export const NOTED = {
     {"note":"Terrain skirts and surf films no longer show as streaks."},
   "fix(examples): Terrain & Water's viewpoints look at the lake, the river mouths and the river in the hills":
     {"internal":"An example's own camera poses."},
+  "feat(render): a material's vertex hook hands the fragment the colour it leaves":
+    {"note":"A vertex hook can hand the fragment a colour."},
+  "feat(terrain): the ground is a CDLOD quadtree of one instanced patch read from height pages, and can go on for ever":
+    {"note":"Terrain without cracks, and without end."},
+  "test(editor): the terrain, foliage and water checks cut the ground by its cell size":
+    {"internal":"Editor checks follow the Terrain fields that replaced chunks; they draw nothing new."},
 };
