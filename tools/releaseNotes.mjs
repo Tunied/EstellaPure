@@ -2792,4 +2792,6 @@ export const NOTED = {
     {"note":"Rays against the terrain, anywhere."},
   "feat(worldgen): decoration has a far version past its layer's lodDistance, and leans with the ground when it is aligned":
     {"note":"Far versions for generated decoration."},
+  "feat(terrain): modifiers change the ground for every reader and remake only what they reach, and a zone can level its plot":
+    {"note":"Terrain modifiers, and zones that level their ground."},
 };

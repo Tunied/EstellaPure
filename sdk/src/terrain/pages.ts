@@ -130,6 +130,15 @@ export class PageTable {
         return page;
     }
 
+    /** Forgets the pages `test` names (the ground changed under them): they are made again as they are wanted. */
+    forget(test: (key: string) => boolean): void {
+        for (const [key, page] of this.pages_) {
+            if (!test(key)) continue;
+            this.pages_.delete(key);
+            this.free_.push(page.slot);
+        }
+    }
+
     /** Forgets every page (the device lost the atlas, or the ground changed). */
     clear(): void {
         this.pages_.clear();

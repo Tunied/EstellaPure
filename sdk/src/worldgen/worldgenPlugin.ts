@@ -28,7 +28,8 @@ import { Assets } from '../asset/AssetPlugin';
 import type { MeshData } from '../asset/meshFormat';
 import { log } from '../util/logger';
 import type { Entity } from '../types';
-import { TerrainsRes } from '../terrain/terrainPlugin';
+import { Terrains, TerrainsRes } from '../terrain/terrainPlugin';
+import { flattenModifier, type TerrainModifier } from '../terrain/source';
 import { buildBillboardMesh, buildInstancedMesh, type Plant } from '../foliage/builder';
 import { chunksOf, ProceduralChunksRes, type ChunkLayerStatus } from '../residency/chunks';
 import { Environment } from './fields';
@@ -84,6 +85,8 @@ export interface WorldZoneData {
     excludes: string;
     /** A biome it holds over its area; empty holds none. */
     biome: string;
+    /** Whether it levels the terrain under it to the ground's height at its centre. */
+    flatten: boolean;
 }
 
 /**
@@ -93,7 +96,7 @@ export interface WorldZoneData {
  * @experimental
  */
 export const WorldZone: ComponentDef<WorldZoneData> = defineComponent<WorldZoneData>('WorldZone', {
-    kind: 'reserve', shape: ZoneShapeKind.Circle, radius: 10, sizeX: 20, sizeZ: 20, falloff: 4, priority: 0, excludes: '*', biome: '',
+    kind: 'reserve', shape: ZoneShapeKind.Circle, radius: 10, sizeX: 20, sizeZ: 20, falloff: 4, priority: 0, excludes: '*', biome: '', flatten: false,
 }, {
     fields: {
         kind: { tooltip: 'What the zone is for (home, road, landing, building, resource, view): the game\'s own words.' },
@@ -105,6 +108,7 @@ export const WorldZone: ComponentDef<WorldZoneData> = defineComponent<WorldZoneD
         priority: { step: 1, tooltip: 'Where zones overlap, the higher priority holds the biome.' },
         excludes: { tooltip: 'The tags of what the zone keeps out, separated by commas (a layer, a recipe, its tags, decor, interactive); * keeps out everything; empty keeps nothing out.' },
         biome: { tooltip: 'A biome the zone holds over its area; empty holds none.' },
+        flatten: { tooltip: 'Level the terrain under the zone to the ground\'s height at its centre, blending back over its falloff: a plot to build on.' },
     },
 });
 
@@ -140,6 +144,8 @@ interface BuiltWorld {
     ground: string;
     /** The zones' revision the authored zones were last synced at. */
     authored: Set<string>;
+    /** Zones that level their ground and wait for it to be known. */
+    levelling: Set<string>;
 }
 
 /** A chunk of a layer: what it places (its decoration merged by mesh, its interactive placements), and what it put in the world. */
@@ -250,7 +256,7 @@ export class WorldGenPlugin implements Plugin {
 
     /** A WorldGen's rules and plan, or why it has none. */
     private make(app: App, gens: WorldGens, entity: Entity, data: WorldGenData, had: BuiltWorld | undefined): BuiltWorld {
-        const built: BuiltWorld = { signature: `${JSON.stringify(data)}#${worldRulesRevision()}`, data: { ...data }, rules: null, plan: null, failure: null, ground: '', authored: had?.authored ?? new Set() };
+        const built: BuiltWorld = { signature: `${JSON.stringify(data)}#${worldRulesRevision()}`, data: { ...data }, rules: null, plan: null, failure: null, ground: '', authored: had?.authored ?? new Set(), levelling: new Set() };
         const rules = worldRules(data.rules);
         if (!rules) built.failure = `no world rules ${data.rules || '(none named)'} are registered`;
         else if (!rules.versions.includes(data.version)) built.failure = `the world rules ${rules.id} have no version ${data.version} (they have ${rules.versions.join(', ')})`;
@@ -334,12 +340,29 @@ export class WorldGenPlugin implements Plugin {
             }
             // A zone that holds a biome or sets a field changes the ground's paint under it.
             if (terrains && data.paintGround && (zone.biome || zone.fields)) terrains.repaint();
+            // One that levels its ground lays a modifier on the terrain, and takes it off when it goes or stops levelling.
+            if (terrains) {
+                const now = zones.get(zone.id);
+                if (now?.flatten !== undefined) this.level(terrains, built, now);
+                else {
+                    built.levelling.delete(zone.id);
+                    if (terrains.modifiers_.has(`zone:${zone.id}`)) terrains.deleteModifier(`zone:${zone.id}`);
+                }
+            }
         };
         gens.diffs(data.world).onChange = (id) => {
             const at = this.anchorOf(plan, id);
             if (at) chunksOf(app).invalidate(layerIdOf(entity, at.layer), at.x, at.z, at.x, at.z);
         };
         if (terrains) terrains.setPaint(data.paintGround ? this.painter(plan) : null);
+        // Zones that were there before the plan was made level their ground now.
+        if (terrains) for (const zone of zones.all()) if (zone.flatten !== undefined) this.level(terrains, built, zone);
+    }
+
+    /** Levels a zone's ground, or (the ground under its centre not known yet) keeps it to level once it is. */
+    private level(terrains: Terrains, built: BuiltWorld, zone: ZoneDef): void {
+        const modifier = levelling(terrains, zone);
+        if (modifier) { terrains.setModifier(modifier); built.levelling.delete(zone.id); } else built.levelling.add(zone.id);
     }
 
     /** The ground's paint by a plan's biomes. */
@@ -373,6 +396,7 @@ export class WorldGenPlugin implements Plugin {
                     : { type: 'circle', x: p.x, z: p.z, radius: z.radius },
                 excludes: z.excludes.split(',').map((s) => s.trim()).filter(Boolean),
                 ...(z.biome ? { biome: z.biome } : {}),
+                ...(z.flatten ? { flatten: 'ground' as const } : {}),
             };
             zones.set(def);
             seen.add(def.id);
@@ -391,6 +415,12 @@ export class WorldGenPlugin implements Plugin {
         const ground = `${terrains?.revision_ ?? 0}:${water?.revision_ ?? 0}`;
         if (ground !== built.ground) { plan.invalidate(); built.ground = ground; }
         const waiting = !!terrains?.loading || !!water?.baking;
+        if (terrains) {
+            for (const id of [...built.levelling]) {
+                const zone = gens.zones(built.data.world).get(id);
+                if (zone?.flatten !== undefined) this.level(terrains, built, zone); else built.levelling.delete(id);
+            }
+        }
         const diffs = gens.diffs(built.data.world);
         const rendering = app.hasResource(Assets);
         const chunks = chunksOf(app);
@@ -545,6 +575,13 @@ export class WorldGenPlugin implements Plugin {
             this.drop(app, gens, entity);
         }
     }
+}
+
+/** The modifier a levelling zone lays on the terrain: its outline, to its height or the ground's at its centre, over its falloff. */
+function levelling(terrains: Terrains, zone: ZoneDef): TerrainModifier | null {
+    const s = zone.shape;
+    const height = zone.flatten === 'ground' ? terrains.heightBeneathAt(s.x, s.z) : zone.flatten!;
+    return height === null || height === undefined ? null : flattenModifier(`zone:${zone.id}`, s, height, zone.falloff);
 }
 
 /** The meshes and materials a rule set's recipes name by path. */

@@ -31,6 +31,11 @@ export interface ZoneDef {
     biome?: string;
     /** Fields it sets over its area. */
     fields?: Readonly<Record<string, number>>;
+    /**
+     * Levels the terrain under it: to this world height, or ('ground') to the ground's height at its centre as the ground was made,
+     * blending back over its falloff. What it levels is the terrain's for good, until the zone goes.
+     */
+    flatten?: number | 'ground';
 }
 
 /** How far (x, z) is outside a zone's outline: negative inside. */

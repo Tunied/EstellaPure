@@ -11,7 +11,7 @@ import {
     noiseProvider, ProviderSource, registerTerrainProvider, TerrainUnavailable, type TerrainProvider, type TerrainRegion,
 } from '../src/terrain/provider';
 import { makePage, PAGE_SIDE, PAGE_TEXELS, type PageImage } from '../src/terrain/pages';
-import type { NoiseParams } from '../src/terrain/source';
+import { flattenModifier, type NoiseParams } from '../src/terrain/source';
 
 const params: NoiseParams = { seed: 7, frequency: 3, octaves: 5, persistence: 0.5, ridged: 0.35, warp: 0.3, erosion: 1, sizeX: 2000, height: 300,
     rockSlope: 0.35, dirtHeight: 0.62, snowHeight: 0.88 };
@@ -187,5 +187,43 @@ describe('a Terrain with no renderer (a server)', () => {
         expect(terrains.status(e)!.state).toBe('failed');
         expect(terrains.status(e)!.reason).toMatch(/heightmap/);
         expect(terrains.heightAt(0, 0)).toBeNull();
+    });
+});
+
+describe('modifiers on the ground', () => {
+    const boot = (): App => {
+        setDefaultContext(new AppContext());
+        setEditorMode(false);
+        setPlayMode(false);
+        const app = App.new();
+        const module = createMockModule();
+        app.connectCpp(module.getRegistry(), module);
+        app.addPlugin(new TerrainPlugin());
+        return app;
+    };
+    const settle = async (app: App) => { for (let i = 0; i < 4; i++) { app.tick(1 / 60); await new Promise((r) => setTimeout(r, 0)); } };
+
+    it('level a plot for every reader, blend back at its edge, and leave the ground as it was when taken off', async () => {
+        const app = boot();
+        const e = app.world.spawn();
+        app.world.insert(e, Transform, { position: { x: 0, y: 0, z: 0 }, worldPosition: { x: 0, y: 0, z: 0 } });
+        app.world.insert(e, Terrain, { ...Terrain._default, extent: TerrainExtent.Infinite, ...params });
+        await settle(app);
+        const terrains = app.getResource(TerrainsRes);
+        const before = [terrains.heightAt(0, 0)!, terrains.heightAt(60, 0)!, terrains.heightAt(200, 0)!];
+        const revision = terrains.revision_;
+        terrains.setModifier(flattenModifier('plot', { type: 'circle', x: 0, z: 0, radius: 40 }, 123, 30));
+        expect(terrains.heightAt(0, 0)).toBeCloseTo(123, 6);
+        expect(terrains.heightAt(20, -20)).toBeCloseTo(123, 6);
+        expect(terrains.normalAt(10, 10)![1]).toBeCloseTo(1, 6);
+        // Halfway through its edge, between the plot and the ground; past it, the ground untouched.
+        const mid = terrains.heightAt(55, 0)!;
+        expect(Math.min(123, terrains.heightBeneathAt(55, 0)!) - 1e-6).toBeLessThanOrEqual(mid);
+        expect(terrains.heightAt(200, 0)).toBeCloseTo(before[2]!, 9);
+        expect(terrains.heightBeneathAt(0, 0)).toBeCloseTo(before[0]!, 9);
+        expect(terrains.revision_).toBeGreaterThan(revision);
+        terrains.deleteModifier('plot');
+        expect(terrains.heightAt(0, 0)).toBeCloseTo(before[0]!, 9);
+        expect(terrains.heightAt(60, 0)).toBeCloseTo(before[1]!, 9);
     });
 });

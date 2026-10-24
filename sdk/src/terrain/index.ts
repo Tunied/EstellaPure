@@ -7,7 +7,7 @@ export {
     erodeHeightfield, erosionJob, heightfieldFromPixels, proceduralHeightfield, sampleHeight, terrainNormal,
     type Eroded, type ErosionParams, type Heightfield, type ProceduralParams,
 } from './heightfield';
-export { FieldSource, NoiseSource, noised, type NoiseParams, type Splat, type TerrainSource } from './source';
+export { FieldSource, NoiseSource, ModifiedSource, flattenModifier, noised, type NoiseParams, type Splat, type TerrainSource, type TerrainModifier } from './source';
 export { boxDistance, levelRange, nodeKey, parentOf, selectNodes, type QuadtreeParams, type TerrainNode } from './quadtree';
 export { makePage, PageTable, PAGE_SIDE, PAGE_TEXELS, PATCH_CELLS, type Page, type PageImage } from './pages';
 export { buildPatchMesh } from './patch';

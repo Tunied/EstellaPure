@@ -153,6 +153,25 @@ cells its own way, and the ground that is collided with would no longer be the g
 The tiles go through the `CollisionGeometry` resource (`esengine`), which any system that makes static geometry as the game runs can
 use; the 3D physics world keeps one static body for each piece in it.
 
+### Modifiers
+
+A game changes the ground where it needs to (a plot levelled to build on, a pad, a road's bed) with modifiers: functions of the world
+position and the height the ground has there, each over a square of the world. They are laid over whatever the terrain's ground is,
+in the order they were set, and every reader follows them: what is drawn, `heightAt` and `normalAt`, rays and collision. Only the
+pages and collision tiles a modifier reaches are made again, and what stands on the ground (plants, water, a generated world) is placed
+again.
+
+```ts
+import { flattenModifier } from 'esengine/terrain';
+
+const terrains = app.getResource(TerrainsRes);
+const level = terrains.heightBeneathAt(x, z)!;          // the ground as it was made, under every modifier
+terrains.setModifier(flattenModifier('plot 1', { type: 'rect', x, z, halfX: 40, halfZ: 30, yaw }, level, 12));
+terrains.deleteModifier('plot 1');                         // the ground comes back
+```
+
+A `WorldZone` with `flatten` levels its ground this way.
+
 ### Providers and versions
 
 Ground without end is made by a provider: one function of the world position, the same on every machine. It is asked for a region

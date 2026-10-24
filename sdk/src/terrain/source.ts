@@ -202,3 +202,118 @@ function smooth(a: number, b: number, x: number): number {
     const t = Math.min(Math.max((x - a) / (b - a || 1e-6), 0), 1);
     return t * t * (3 - 2 * t);
 }
+
+/**
+ * A change made to the ground over part of the world (a building's plot levelled, a riverbed cut): in world space, a height in and a
+ * height out. Modifiers are applied in the order they were set, inside their bounds only.
+ */
+export interface TerrainModifier {
+    readonly id: string;
+    /** The world square it can change, [minX, minZ, maxX, maxZ], its edge included. */
+    readonly bounds: readonly [number, number, number, number];
+    /** The world height at world (x, z), given the height the ground has there. */
+    apply(x: number, z: number, h: number): number;
+}
+
+/** A source with the modifiers laid over it: what the pages, the queries and collision all read. */
+export class ModifiedSource implements TerrainSource {
+    readonly infinite: boolean;
+    readonly bounds: TerrainSource['bounds'];
+    readonly minHeight: number;
+    readonly maxHeight: number;
+    /** The terrain's world position: its space is this far from the world's. Kept current by the terrain. */
+    origin: { x: number; y: number; z: number };
+
+    constructor(readonly base: TerrainSource, private readonly modifiers: () => Iterable<TerrainModifier>,
+                origin: { x: number; y: number; z: number }, private readonly step: number) {
+        this.infinite = base.infinite;
+        this.bounds = base.bounds;
+        this.minHeight = base.minHeight;
+        this.maxHeight = base.maxHeight;
+        this.origin = { ...origin };
+    }
+
+    height(x: number, z: number): number | null {
+        const h = this.base.height(x, z);
+        return h === null ? null : this.modify(x, z, h);
+    }
+
+    normal(x: number, z: number): [number, number, number] | null {
+        if (!this.touched(x - this.step, z - this.step, x + this.step, z + this.step)) return this.base.normal(x, z);
+        const e = this.step;
+        const l = this.height(x - e, z), r = this.height(x + e, z), d = this.height(x, z - e), u = this.height(x, z + e);
+        if (l === null || r === null || d === null || u === null) return null;
+        const sx = (r - l) / (2 * e), sz = (u - d) / (2 * e), len = Math.hypot(sx, 1, sz);
+        return [-sx / len, 1 / len, -sz / len];
+    }
+
+    paint(x: number, z: number, h: number, ny: number): [number, number, number, number] {
+        return this.base.paint(x, z, h, ny);
+    }
+
+    get region(): TerrainSource['region'] {
+        const region = this.base.region?.bind(this.base);
+        if (!region) return undefined;
+        return (x0, z0, spacing, count) => {
+            const got = region(x0, z0, spacing, count);
+            const lay = (r: { heights: Float32Array; paint?: Float32Array }) => {
+                if (!this.touched(x0, z0, x0 + spacing * (count - 1), z0 + spacing * (count - 1))) return r;
+                const heights = new Float32Array(r.heights);
+                for (let j = 0; j < count; j++) for (let i = 0; i < count; i++) {
+                    heights[j * count + i] = this.modify(x0 + i * spacing, z0 + j * spacing, heights[j * count + i]!);
+                }
+                return { ...r, heights };
+            };
+            return got instanceof Promise ? got.then(lay) : lay(got);
+        };
+    }
+
+    /** Whether any modifier can change something in the square [x0, x1] by [z0, z1] of the terrain's space. */
+    touched(x0: number, z0: number, x1: number, z1: number): boolean {
+        const ox = this.origin.x, oz = this.origin.z;
+        for (const m of this.modifiers()) {
+            const b = m.bounds;
+            if (b[0] <= x1 + ox && b[2] >= x0 + ox && b[1] <= z1 + oz && b[3] >= z0 + oz) return true;
+        }
+        return false;
+    }
+
+    private modify(x: number, z: number, h: number): number {
+        const wx = x + this.origin.x, wz = z + this.origin.z, oy = this.origin.y;
+        let out = h + oy;
+        for (const m of this.modifiers()) {
+            const b = m.bounds;
+            if (wx < b[0] || wx > b[2] || wz < b[1] || wz > b[3]) continue;
+            out = m.apply(wx, wz, out);
+        }
+        return Math.min(Math.max(out - oy, this.minHeight), this.maxHeight);
+    }
+}
+
+/**
+ * Levels the ground to world height `height` over a circle or a turned rectangle, blending back to the ground over `falloff` world
+ * units past its outline: a plot built on, a landing pad, a road's bed.
+ */
+export function flattenModifier(id: string, shape:
+    | { type: 'circle'; x: number; z: number; radius: number }
+    | { type: 'rect'; x: number; z: number; halfX: number; halfZ: number; yaw?: number }, height: number, falloff: number): TerrainModifier {
+    const reach = (shape.type === 'circle' ? shape.radius : Math.hypot(shape.halfX, shape.halfZ)) + Math.max(falloff, 0);
+    const outside = (x: number, z: number): number => {
+        if (shape.type === 'circle') return Math.hypot(x - shape.x, z - shape.z) - shape.radius;
+        const c = Math.cos(-(shape.yaw ?? 0)), s = Math.sin(-(shape.yaw ?? 0));
+        const dx = x - shape.x, dz = z - shape.z;
+        const lx = Math.abs(dx * c - dz * s) - shape.halfX, lz = Math.abs(dx * s + dz * c) - shape.halfZ;
+        return Math.hypot(Math.max(lx, 0), Math.max(lz, 0)) + Math.min(Math.max(lx, lz), 0);
+    };
+    return {
+        id,
+        bounds: [shape.x - reach, shape.z - reach, shape.x + reach, shape.z + reach],
+        apply(x, z, h) {
+            const d = outside(x, z);
+            if (d <= 0) return height;
+            if (falloff <= 0 || d >= falloff) return h;
+            const t = 1 - d / falloff, w = t * t * (3 - 2 * t);
+            return h + (height - h) * w;
+        },
+    };
+}

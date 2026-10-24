@@ -278,6 +278,7 @@ ComponentDef<WorldZoneData>
 biome: string
 excludes: string
 falloff: number
+flatten: boolean
 kind: string
 priority: number
 radius: number
@@ -292,6 +293,7 @@ biome: string | undefined
 excludes: readonly string[]
 falloff: number
 fields: Readonly<Record<string, number>> | undefined
+flatten: number | "ground" | undefined
 id: string
 kind: string
 priority: number

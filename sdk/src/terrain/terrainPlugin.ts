@@ -37,7 +37,7 @@ import { log } from '../util/logger';
 import { bakesOf } from '../runtime/bakes';
 import type { Color, Entity } from '../types';
 import { erosionJob, heightfieldFromPixels, type Heightfield } from './heightfield';
-import { FieldSource, type TerrainSource } from './source';
+import { FieldSource, ModifiedSource, type TerrainModifier, type TerrainSource } from './source';
 import { levelRange, nodeKey, parentOf, selectNodes, type QuadtreeParams, type TerrainNode } from './quadtree';
 import { makePage, PageTable, PAGE_SIDE, PAGE_TEXELS, PATCH_CELLS, type PageImage, type Repaint } from './pages';
 import { noiseProvider, ProviderSource, terrainProvider, terrainProvidersRevision, TerrainUnavailable, type TerrainProvider } from './provider';
@@ -212,6 +212,8 @@ interface Built {
     pending: boolean;
     /** Why the ground could not be made, once it could not: nothing is drawn or answered for it. */
     failure: string | null;
+    /** Bumped whenever modifiers change the ground under it: a page asked for before is thrown away when it lands. */
+    edits: number;
 }
 
 /** Where a terrain's ground stands: still being made, ready, or failed (with why). */
@@ -234,6 +236,22 @@ export class Terrains {
             const t = world.tryGet(entity, Transform) as TransformData | null;
             if (!t) continue;
             const h = built.surface.height(x - t.worldPosition.x, z - t.worldPosition.z);
+            if (h !== null) return t.worldPosition.y + h;
+        }
+        return null;
+    }
+
+    /** The world height of the ground at (x, z) as it was made, under every modifier laid over it: what a plot is levelled from. */
+    heightBeneathAt(x: number, z: number): number | null {
+        const world = this.app_?.world;
+        if (!world) return null;
+        for (const [entity, built] of this.built_) {
+            const source = built.source;
+            if (!source || !world.valid(entity)) continue;
+            const t = world.tryGet(entity, Transform) as TransformData | null;
+            if (!t) continue;
+            const base = source instanceof ModifiedSource ? source.base : source;
+            const h = base.height(x - t.worldPosition.x, z - t.worldPosition.z);
             if (h !== null) return t.worldPosition.y + h;
         }
         return null;
@@ -318,6 +336,46 @@ export class Terrains {
         if (!built) return null;
         if (built.failure) return { state: 'failed', reason: built.failure };
         return { state: built.loading || !built.source ? 'loading' : 'ready' };
+    }
+
+    /** @internal The modifiers laid over every terrain's ground, by id, in the order they were set. */
+    readonly modifiers_ = new Map<string, TerrainModifier>();
+
+    /**
+     * Lays `modifier` over the ground (or replaces the one with its id): the drawn ground, its queries and its collision all follow it,
+     * and only what it reaches is made again.
+     */
+    setModifier(modifier: TerrainModifier): void {
+        const had = this.modifiers_.get(modifier.id);
+        this.modifiers_.set(modifier.id, modifier);
+        if (had) this.remake_(had.bounds);
+        this.remake_(modifier.bounds);
+    }
+
+    /** Takes a modifier off the ground. */
+    deleteModifier(id: string): void {
+        const had = this.modifiers_.get(id);
+        if (!had) return;
+        this.modifiers_.delete(id);
+        this.remake_(had.bounds);
+    }
+
+    /** @internal Makes again what the world square `b` reaches: its pages and its collision, and what stands on the ground. */
+    remake_(b: readonly [number, number, number, number]): void {
+        const app = this.app_;
+        for (const [entity, built] of this.built_) {
+            const source = built.source;
+            if (!(source instanceof ModifiedSource)) continue;
+            const o = source.origin, leaf = PATCH_CELLS * Math.max(built.data.cellSize, 1e-3);
+            built.table.forget((key) => {
+                const [level, ix, iz] = key.split(':').map(Number) as [number, number, number];
+                const size = leaf * 2 ** level, x0 = ix * size + o.x, z0 = iz * size + o.z;
+                return x0 <= b[2] && x0 + size >= b[0] && z0 <= b[3] && z0 + size >= b[1];
+            });
+            built.edits++;
+            if (app?.hasResource(ProceduralChunksRes)) app.getResource(ProceduralChunksRes).invalidate(collisionLayerOf(entity), b[0], b[1], b[2], b[3]);
+        }
+        this.revision_++;
     }
 
     /** @internal What has the last word on the ground's paint, in world space (a world's biomes), if anything does. */
@@ -440,13 +498,21 @@ export class TerrainPlugin implements Plugin {
                     built = {
                         signature, data: { ...data }, source: null, surface: null, epoch: (built?.epoch ?? 0) + 1, loading: true, cancel: null,
                         table: new PageTable(ATLAS_SIZE), heights: 0, paint: 0, mesh: 0, instance: 0,
-                        nodes: new Map(), spare: [], wanted: new Map(), asked: new Set(), pending: false, failure: null,
+                        nodes: new Map(), spare: [], wanted: new Map(), asked: new Set(), pending: false, failure: null, edits: 0,
                     };
                     terrains.built_.set(entity, built);
                     void this.load(app, entity, built);
                     continue;
                 }
                 built.data = { ...data };
+                // Modifiers are the world's: a terrain moved stands under them somewhere else, so what they reached is made again.
+                if (built.source instanceof ModifiedSource) {
+                    const at = (app.world.get(entity, Transform) as TransformData).worldPosition, o = built.source.origin;
+                    if (at.x !== o.x || at.y !== o.y || at.z !== o.z) {
+                        built.source.origin = { x: at.x, y: at.y, z: at.z };
+                        for (const m of terrains.modifiers_.values()) terrains.remake_(m.bounds);
+                    }
+                }
                 this.collide(app, entity, built);
                 if (built.loading || !built.source || !rendering) continue;
                 if (!built.instance) {
@@ -513,6 +579,9 @@ export class TerrainPlugin implements Plugin {
                 }
                 built.source = new FieldSource(field, data, splat, flow, range);
             }
+            // The modifiers set on the ground (a plot levelled, a bed cut) are laid over it, for the pages, the queries and collision alike.
+            const terrains = app.getResource(TerrainsRes);
+            built.source = new ModifiedSource(built.source, () => terrains.modifiers_.values(), t.worldPosition, Math.max(data.cellSize, 1e-3));
             built.surface = new TerrainSurface(built.source, Math.max(data.cellSize, 1e-3));
             app.getResource(TerrainsRes).revision_++;
         } catch (e) {
@@ -728,7 +797,7 @@ export class TerrainPlugin implements Plugin {
             updateTextureSubregion(app.wasmModule, built.paint, ox, oy, PAGE_SIDE, PAGE_SIDE, image.paint);
             return true;
         };
-        const epoch = built.epoch;
+        const epoch = built.epoch, edits = built.edits;
         for (const node of order) {
             const key = nodeKey(node.level, node.ix, node.iz);
             if (built.asked.has(key)) continue;
@@ -739,7 +808,7 @@ export class TerrainPlugin implements Plugin {
                 built.asked.add(key);
                 void image.then((img) => {
                     built.asked.delete(key);
-                    if (built.epoch === epoch && built.heights) store(key, img);
+                    if (built.epoch === epoch && built.edits === edits && built.heights) store(key, img);
                 }, (e) => {
                     built.asked.delete(key);
                     log.warn('terrain', `the provider failed a page (${key})`, e);

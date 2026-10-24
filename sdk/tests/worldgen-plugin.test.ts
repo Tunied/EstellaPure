@@ -16,6 +16,7 @@ import {
 } from '../src/worldgen/worldgenPlugin';
 import { registerWorldRules, type WorldRules } from '../src/worldgen/rules';
 import type { Entity } from '../src/types';
+import { Terrain, TerrainExtent, TerrainPlugin, TerrainsRes } from '../src/terrain/terrainPlugin';
 
 const rules: WorldRules = {
     id: 'test:ores', versions: [1],
@@ -123,5 +124,27 @@ describe('a generated world with no renderer', () => {
         expect(gens.status(gen)).toMatchObject({ state: 'failed' });
         expect(gens.status(old)!.reason).toMatch(/version 7/);
         expect(objects(app)).toHaveLength(0);
+    });
+});
+
+describe('a zone that levels its ground', () => {
+    it('lays the terrain flat under it at the height the ground had at its centre, and gives it back when it goes', async () => {
+        const app = boot();
+        app.addPlugin(new TerrainPlugin());
+        const ground = app.world.spawn();
+        app.world.insert(ground, Transform, placed(0, 0, 0));
+        app.world.insert(ground, Terrain, { ...Terrain._default, extent: TerrainExtent.Infinite, height: 80, sizeX: 600 });
+        world(app);
+        const plot = app.world.spawn();
+        app.world.insert(plot, Transform, placed(30, 0, -20));
+        app.world.insert(plot, WorldZone, { ...WorldZone._default, kind: 'building', shape: ZoneShapeKind.Box, sizeX: 30, sizeZ: 20, falloff: 10, flatten: true });
+        await tick(app, 20);
+        const terrains = app.getResource(TerrainsRes);
+        const level = terrains.heightBeneathAt(30, -20)!;
+        for (const [x, z] of [[30, -20], [20, -15], [44, -27]] as const) expect(terrains.heightAt(x, z)).toBeCloseTo(level, 6);
+        app.world.despawn(plot);
+        await tick(app, 5);
+        // On a lattice node the surface is the ground's own sample.
+        expect(terrains.heightAt(20, -16)).toBeCloseTo(terrains.heightBeneathAt(20, -16)!, 9);
     });
 });

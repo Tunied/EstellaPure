@@ -123,8 +123,8 @@ addPlugin({
             if (gens && input.isKeyPressed('KeyB')) {
                 const at = { x: x + fx * 260, z: z + fz * 260 };
                 gens.zones().set({ id: `house ${++built}`, kind: 'building', shape: { type: 'rect', x: at.x, z: at.z, halfX: 40, halfZ: 30, yaw },
-                    falloff: 12, priority: 20, excludes: ['*'] });
-                say(`House ${built} built: the wild is kept out of its ground`, now);
+                    falloff: 12, priority: 20, excludes: ['*'], flatten: 'ground' });
+                say(`House ${built} built: its plot levelled and the wild kept out of it`, now);
             }
 
             if (status !== null && plan) {

@@ -104,6 +104,21 @@ const n = terrains.normalAt(x, z);       // 那里的单位法线,或 null
 
 这些块经由 `CollisionGeometry` 资源(`esengine`)交出,任何在游戏运行中生成静态几何的系统都可以用它;3D 物理世界为其中每一片保留一个静态刚体。
 
+### 修改器
+
+游戏在需要的地方修改地面(压平一块地基、一个停机坪、一段路基)用的是修改器:以世界位置和该处地面高度为输入的函数,各自作用于世界中的一块方形范围。它们按设置的先后叠加在地形的地面上,所有读取方都跟随它们:画出来的地面、`heightAt` 和 `normalAt`、射线和碰撞。只有修改器触及的页和碰撞块会重做,立在地面上的东西(植被、水、生成世界)会重新放置。
+
+```ts
+import { flattenModifier } from 'esengine/terrain';
+
+const terrains = app.getResource(TerrainsRes);
+const level = terrains.heightBeneathAt(x, z)!;          // 地面生成时的高度,不含任何修改器
+terrains.setModifier(flattenModifier('plot 1', { type: 'rect', x, z, halfX: 40, halfZ: 30, yaw }, level, 12));
+terrains.deleteModifier('plot 1');                         // 地面恢复原样
+```
+
+带 `flatten` 的 `WorldZone` 就是这样压平它的地面的。
+
 ### 生成器与版本
 
 无限地面由生成器生成:一个关于世界位置的函数,在每台机器上都一样。它被要求采样一个区域(世界、种子和版本、以世界单位计的起点、间距和每边样本数),返回那里的高度;如果它自己给地面上色,还返回每个样本四个图层权重。每个区域都是同一个函数在不同点上的读数,所以相邻页共享边上的样本,粗页和细页在样本重合处一致,页生成的先后不改变任何东西。位置是世界的,不是地形的:同一个世界上分开摆放的两个地形是同一片地面。

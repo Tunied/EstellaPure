@@ -98,6 +98,7 @@ A zone plans an area by hand: a home, a road, a landing site, a building's footp
 | `priority` | Where zones overlap, the higher holds the biome. |
 | `excludes` | The tags of what it keeps out, separated by commas: a layer, a recipe, a recipe's or member's tags, `decor`, `interactive`; `*` is everything. |
 | `biome` | A biome it holds over its area. |
+| `flatten` | Levels the terrain under it to the ground's height at its centre, blending back over `falloff`: a plot to build on. In code, `flatten` is a world height or `'ground'`. |
 
 A game adds zones as it plans and as the player builds:
 
@@ -150,7 +151,6 @@ Declare the folders they live in always included, in `.esengine/asset-groups.jso
 
 ## Limits
 
-- **No terraforming yet.** A zone keeps generation out of its ground; it does not flatten it.
 - **No distance from the shore on land.** `waterDepth` says how deep water stands; a field of how far a dry place is from water is a
   game's own for now.
 - **Decoration is merged a chunk at a time, not GPU-instanced.** The renderer's instance records are written each frame, which for a
