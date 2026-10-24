@@ -652,11 +652,15 @@ fn packNormal(n : vec3f) -> vec2f {
     return vec4f(packDepth(clamp(v.v_shadowClip.z / v.v_shadowClip.w * 0.5 + 0.5,
                                  0.0, 1.0)), 1.0);
 #else
-    let base = textureSampleLevel(t0, s0, v.v_texCoord, 0.0) * v.v_color;
+    // Through the mip chain, as the GLSL twin's texture() is: level 0 alone shimmers on anything seen smaller than its texture, and
+    // the gradients are taken here, before any branch, where every fragment of the quad still runs.
+    let duvx = dpdx(v.v_texCoord);
+    let duvy = dpdy(v.v_texCoord);
+    let base = textureSampleGrad(t0, s0, v.v_texCoord, duvx, duvy) * v.v_color;
 #ifdef LIT
     var N = normalize(v.v_worldNormal);
 #ifdef NORMAL_MAP
-    N = perturbNormal(N, v.v_worldPos, v.v_texCoord, sampleNormal(t1, s1, v.v_texCoord));
+    N = perturbNormal(N, v.v_worldPos, v.v_texCoord, sampleNormalGrad(t1, s1, v.v_texCoord, duvx, duvy));
 #endif
     if (!front) { N = -N; }
     // A rough dielectric, and the position it really has: a shadow is cast on a

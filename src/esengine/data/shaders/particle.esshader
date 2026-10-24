@@ -25,7 +25,8 @@ void main() {
 // vertex stage — declaring them here would declare them twice.
 #pragma fragment wgsl
 @fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
-    let texColor = textureSampleLevel(t0, s0, v.v_texCoord, 0.0);
+    // Through the mip chain, as the GLSL twin's texture() is.
+    let texColor = textureSampleGrad(t0, s0, v.v_texCoord, dpdx(v.v_texCoord), dpdy(v.v_texCoord));
     return texColor * v.v_color;
 }
 #pragma end

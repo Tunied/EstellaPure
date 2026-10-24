@@ -192,19 +192,22 @@ struct VSOut {
 #endif
 };
 
-// textureSampleLevel(…, 0) keeps sampling uniform-flow-legal inside the
-// constant branch chain; 2D sprites sample mip 0.
+// The gradients are taken before the branch chain, where every fragment of the quad runs, and each branch samples through the mip
+// chain with them, as the GLSL twin's texture() does: a sprite drawn smaller than its texture reads the level that fits instead of
+// shimmering from level 0, and one drawn at its size reads level 0 as before.
 @fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
     let idx = i32(v.v_texIndex + 0.5);
+    let duvx = dpdx(v.v_texCoord);
+    let duvy = dpdy(v.v_texCoord);
     var texColor : vec4f;
-    if (idx == 0) { texColor = textureSampleLevel(t0, s0, v.v_texCoord, 0.0); }
-    else if (idx == 1) { texColor = textureSampleLevel(t1, s1, v.v_texCoord, 0.0); }
-    else if (idx == 2) { texColor = textureSampleLevel(t2, s2, v.v_texCoord, 0.0); }
-    else if (idx == 3) { texColor = textureSampleLevel(t3, s3, v.v_texCoord, 0.0); }
-    else if (idx == 4) { texColor = textureSampleLevel(t4, s4, v.v_texCoord, 0.0); }
-    else if (idx == 5) { texColor = textureSampleLevel(t5, s5, v.v_texCoord, 0.0); }
-    else if (idx == 6) { texColor = textureSampleLevel(t6, s6, v.v_texCoord, 0.0); }
-    else { texColor = textureSampleLevel(t7, s7, v.v_texCoord, 0.0); }
+    if (idx == 0) { texColor = textureSampleGrad(t0, s0, v.v_texCoord, duvx, duvy); }
+    else if (idx == 1) { texColor = textureSampleGrad(t1, s1, v.v_texCoord, duvx, duvy); }
+    else if (idx == 2) { texColor = textureSampleGrad(t2, s2, v.v_texCoord, duvx, duvy); }
+    else if (idx == 3) { texColor = textureSampleGrad(t3, s3, v.v_texCoord, duvx, duvy); }
+    else if (idx == 4) { texColor = textureSampleGrad(t4, s4, v.v_texCoord, duvx, duvy); }
+    else if (idx == 5) { texColor = textureSampleGrad(t5, s5, v.v_texCoord, duvx, duvy); }
+    else if (idx == 6) { texColor = textureSampleGrad(t6, s6, v.v_texCoord, duvx, duvy); }
+    else { texColor = textureSampleGrad(t7, s7, v.v_texCoord, duvx, duvy); }
 #ifdef ES_LINEAR
     var tint = vec4f(srgbToLinear(v.v_color.rgb), v.v_color.a);
 #else

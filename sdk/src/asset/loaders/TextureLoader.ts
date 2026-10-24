@@ -318,12 +318,10 @@ export class TextureLoader implements AssetLoader<TextureResult> {
             this.lastDecision_ = compressedUploadDecision(target, t !== null);
             if (target && t) {
                 const code = engineFormatCode(target, srgb);
-                // Level 0 first, packed, as the device unpacks them; a WebGPU copy
-                // refuses a level that is not whole blocks, so the chain stops there.
-                const all = t.levels ?? [t];
-                let count = 1;
-                while (count < all.length && all[count].width % 4 === 0 && all[count].height % 4 === 0) count++;
-                const levels = all.slice(0, count);
+                // Level 0 first, packed, as the device unpacks them, every level of the chain: the device copies each as whole blocks
+                // (its physical size), so a level whose side is not a multiple of four is uploaded too. Stopping at the first such level
+                // left a 1240x1268 hair atlas with level 0 alone, sampled unfiltered at any distance.
+                const levels = t.levels ?? [t];
                 const size = levels.reduce((n, l) => n + l.data.length, 0);
                 const handle = withMalloc(module, size, (ptr) => {
                     let at = ptr;

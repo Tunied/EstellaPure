@@ -198,17 +198,20 @@ struct VSOut {
 
 
 
+
 @fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
     let idx = i32(v.v_texIndex + 0.5);
+    let duvx = dpdx(v.v_texCoord);
+    let duvy = dpdy(v.v_texCoord);
     var texColor : vec4f;
-    if (idx == 0) { texColor = textureSampleLevel(t0, s0, v.v_texCoord, 0.0); }
-    else if (idx == 1) { texColor = textureSampleLevel(t1, s1, v.v_texCoord, 0.0); }
-    else if (idx == 2) { texColor = textureSampleLevel(t2, s2, v.v_texCoord, 0.0); }
-    else if (idx == 3) { texColor = textureSampleLevel(t3, s3, v.v_texCoord, 0.0); }
-    else if (idx == 4) { texColor = textureSampleLevel(t4, s4, v.v_texCoord, 0.0); }
-    else if (idx == 5) { texColor = textureSampleLevel(t5, s5, v.v_texCoord, 0.0); }
-    else if (idx == 6) { texColor = textureSampleLevel(t6, s6, v.v_texCoord, 0.0); }
-    else { texColor = textureSampleLevel(t7, s7, v.v_texCoord, 0.0); }
+    if (idx == 0) { texColor = textureSampleGrad(t0, s0, v.v_texCoord, duvx, duvy); }
+    else if (idx == 1) { texColor = textureSampleGrad(t1, s1, v.v_texCoord, duvx, duvy); }
+    else if (idx == 2) { texColor = textureSampleGrad(t2, s2, v.v_texCoord, duvx, duvy); }
+    else if (idx == 3) { texColor = textureSampleGrad(t3, s3, v.v_texCoord, duvx, duvy); }
+    else if (idx == 4) { texColor = textureSampleGrad(t4, s4, v.v_texCoord, duvx, duvy); }
+    else if (idx == 5) { texColor = textureSampleGrad(t5, s5, v.v_texCoord, duvx, duvy); }
+    else if (idx == 6) { texColor = textureSampleGrad(t6, s6, v.v_texCoord, duvx, duvy); }
+    else { texColor = textureSampleGrad(t7, s7, v.v_texCoord, duvx, duvy); }
 #ifdef ES_LINEAR
     var tint = vec4f(srgbToLinear(v.v_color.rgb), v.v_color.a);
 #else
@@ -1127,11 +1130,15 @@ fn packNormal(n : vec3f) -> vec2f {
     return vec4f(packDepth(clamp(v.v_shadowClip.z / v.v_shadowClip.w * 0.5 + 0.5,
                                  0.0, 1.0)), 1.0);
 #else
-    let base = textureSampleLevel(t0, s0, v.v_texCoord, 0.0) * v.v_color;
+
+
+    let duvx = dpdx(v.v_texCoord);
+    let duvy = dpdy(v.v_texCoord);
+    let base = textureSampleGrad(t0, s0, v.v_texCoord, duvx, duvy) * v.v_color;
 #ifdef LIT
     var N = normalize(v.v_worldNormal);
 #ifdef NORMAL_MAP
-    N = perturbNormal(N, v.v_worldPos, v.v_texCoord, sampleNormal(t1, s1, v.v_texCoord));
+    N = perturbNormal(N, v.v_worldPos, v.v_texCoord, sampleNormalGrad(t1, s1, v.v_texCoord, duvx, duvy));
 #endif
     if (!front) { N = -N; }
 
@@ -1188,7 +1195,8 @@ void main() {
 
 #pragma fragment wgsl
 @fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
-    let texColor = textureSampleLevel(t0, s0, v.v_texCoord, 0.0);
+
+    let texColor = textureSampleGrad(t0, s0, v.v_texCoord, dpdx(v.v_texCoord), dpdy(v.v_texCoord));
     return texColor * v.v_color;
 }
 #pragma end

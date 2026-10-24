@@ -1025,7 +1025,9 @@ bool WebGPUDevice::backendCreateCompressedTexture(u32 id, const TextureDesc& des
         WGPUTexelCopyBufferLayout layout{};
         layout.bytesPerRow = blocksX * bi.bytesPerBlock;
         layout.rowsPerImage = blocksY;
-        WGPUExtent3D extent{lw, lh, 1};
+        // The level's physical size, whole blocks: a level 634 texels tall is stored as 636, and a copy must name whole blocks. Its last
+        // block row holds texels past the edge, which the sampler never reads.
+        WGPUExtent3D extent{blocksX * bi.blockWidth, blocksY * bi.blockHeight, 1};
         wgpuQueueWriteTexture(queue_, &dst, ptr, levelBytes, &layout, &extent);
         ptr += levelBytes;
     }
