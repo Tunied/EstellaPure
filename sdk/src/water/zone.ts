@@ -339,7 +339,7 @@ export class WaterField {
 
     /**
      * The field as two RGBA8 images, rows from minZ. heights (read texel by texel: filtered bytes are no number): rg the height, high byte
-     * first; b the depth; a the swell (the body's waves' height). field (filtered): r the shore distance (0.5 at it); gb the current (0.5 still); a the calm.
+     * first; b the depth, as its square root (fine where the water is shallow, where the shore is drawn by it); a the swell (the body's waves' height). field (filtered): r the shore distance (0.5 at it, a signed square root); gb the current (0.5 still); a the calm.
      * exposure (filtered): r how open the water is to the wind. Each over its range in `r`.
      */
     encode(r: ZoneRanges): { heights: Uint8Array; field: Uint8Array; exposure: Uint8Array } {
@@ -350,9 +350,11 @@ export class WaterField {
             const h = Math.round(Math.min(Math.max((this.height[k]! - r.heightMin) / r.heightSpan, 0), 1) * 65535);
             heights[k * 4] = h >> 8;
             heights[k * 4 + 1] = h & 255;
-            heights[k * 4 + 2] = byte(this.depth[k]! / r.depth);
+            heights[k * 4 + 2] = byte(Math.sqrt(Math.max(this.depth[k]! / r.depth, 0)));
             heights[k * 4 + 3] = byte(this.swell[k]! / r.amp);
-            field[k * 4] = byte(this.shore[k]! / (2 * r.shore) + 0.5);
+            // As a signed square root: a byte across the whole reach of the surf is coarse, and the shore is drawn where it crosses zero.
+            const across = Math.max(Math.min(this.shore[k]! / r.shore, 1), -1);
+            field[k * 4] = byte(Math.sign(across) * Math.sqrt(Math.abs(across)) / 2 + 0.5);
             field[k * 4 + 1] = byte(this.flowX[k]! / (2 * r.flow) + 0.5);
             field[k * 4 + 2] = byte(this.flowZ[k]! / (2 * r.flow) + 0.5);
             field[k * 4 + 3] = byte(this.calm[k]!);

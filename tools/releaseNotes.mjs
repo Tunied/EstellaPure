@@ -2810,4 +2810,6 @@ export const NOTED = {
     {"note":"Heightmaps say how they hold their heights."},
   "fix(water): the shore distance near the edge is a distance across the ground, not the water's depth":
     {"note":"The distance to the shore is a distance."},
+  "fix(water): water meets the shore along a smooth line, not the zone's texel steps":
+    {"note":"Water meets the shore along a smooth line."},
 };

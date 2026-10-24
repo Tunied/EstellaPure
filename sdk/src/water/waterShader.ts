@@ -55,7 +55,7 @@ const WATER = `#pragma shader "Water"
 // than six of its cells. 0 draws every wave at every vertex.
 #pragma param u_cellSize float default(0) range(0,100) ui(slider)
 // A WaterZone's baked water (zone.ts encode): heights texel by texel (rg height over u_zoneHeight, b depth, a waves' height), field filtered
-// (r shore distance, 0.5 at it; gb current; a calm share), over u_zoneRange (shore, waves, current, depth). Below the shore there is no
+// (r shore distance, 0.5 at it, as a signed square root so it is fine near the shore; gb current; a calm share), over u_zoneRange (shore, waves, current, depth). Below the shore there is no
 // water; past the region there is the ocean where u_oceanOn says so.
 #pragma param u_zoneOn float default(0) range(0,1) ui(slider)
 #pragma param u_zoneHeights texture default(white) texel(data)
@@ -131,7 +131,8 @@ vec4 waterZoneAt(vec2 p) {
     vec4 c = texelFetch(u_zoneHeights, i + ivec2(0, 1), 0), d = texelFetch(u_zoneHeights, i + ivec2(1, 1), 0);
     vec4 ha = vec4(a.r * 65280.0 + a.g * 255.0, b.r * 65280.0 + b.g * 255.0, c.r * 65280.0 + c.g * 255.0, d.r * 65280.0 + d.g * 255.0) / 65535.0;
     float h = mix(mix(ha.x, ha.y, t.x), mix(ha.z, ha.w, t.x), t.y);
-    vec2 da = mix(mix(a.ba, b.ba, t.x), mix(c.ba, d.ba, t.x), t.y);
+    // The depth is stored as its square root, so the shallows (where it draws the shore) are fine: squared before blending.
+    vec2 da = mix(mix(a.ba * vec2(a.b, 1.0), b.ba * vec2(b.b, 1.0), t.x), mix(c.ba * vec2(c.b, 1.0), d.ba * vec2(d.b, 1.0), t.x), t.y);
     // The weather (u_waveHeight) raises a body's waves only as far as the wind has room to: w is that share, and z is put so that
     // u_waveHeight times it is the waves' height there.
     float e = textureLod(u_zoneExposure, clamp(uv, 0.0, 1.0), 0.0).r;
@@ -144,7 +145,8 @@ vec4 waterZoneField(vec2 p) {
     vec4 f = textureLod(u_zoneField, clamp(uv, 0.0, 1.0), 0.0);
     bool inside = all(greaterThanEqual(uv, vec2(0.0))) && all(lessThanEqual(uv, vec2(1.0)));
     if (!inside) return u_oceanOn > 0.5 ? vec4(1e6, 0.0, 0.0, 1.0) : vec4(-1.0, 0.0, 0.0, 0.0);
-    return vec4((f.r - 0.5) * 2.0 * u_zoneRange.x, (f.gb - 0.5) * 2.0 * u_zoneRange.z, f.a);
+    float e = (f.r - 0.5) * 2.0;
+    return vec4(e * abs(e) * u_zoneRange.x, (f.gb - 0.5) * 2.0 * u_zoneRange.z, f.a);
 }
 // The surf at a shore distance (waves.ts surfHeight): x its height, y how broken it is (white water on and behind a breaking crest).
 vec2 waterSurf(float shore, float height, float time) {
@@ -210,7 +212,8 @@ fn waterZoneAt(p : vec2f) -> vec4f {
     let d = textureLoad(u_zoneHeights, i + vec2i(1, 1), 0);
     let ha = vec4f(a.r * 65280.0 + a.g * 255.0, b.r * 65280.0 + b.g * 255.0, c.r * 65280.0 + c.g * 255.0, d.r * 65280.0 + d.g * 255.0) / 65535.0;
     let h = mix(mix(ha.x, ha.y, t.x), mix(ha.z, ha.w, t.x), t.y);
-    let da = mix(mix(a.ba, b.ba, t.x), mix(c.ba, d.ba, t.x), t.y);
+    // The depth is stored as its square root, so the shallows (where it draws the shore) are fine: squared before blending.
+    let da = mix(mix(a.ba * vec2f(a.b, 1.0), b.ba * vec2f(b.b, 1.0), t.x), mix(c.ba * vec2f(c.b, 1.0), d.ba * vec2f(d.b, 1.0), t.x), t.y);
     let e = textureSampleLevel(u_zoneExposure, u_zoneExposure_s, clamp(uv, vec2f(0.0), vec2f(1.0)), 0.0).r;
     if (!inside && mc.u_oceanOn > 0.5) { return vec4f(mc.u_oceanLevel, 1e6, mc.u_oceanWaves, 1.0); }
     return vec4f(mc.u_zoneHeight.x + h * mc.u_zoneHeight.y, da.x * mc.u_zoneRange.w,
@@ -224,7 +227,8 @@ fn waterZoneField(p : vec2f) -> vec4f {
         if (mc.u_oceanOn > 0.5) { return vec4f(1e6, 0.0, 0.0, 1.0); }
         return vec4f(-1.0, 0.0, 0.0, 0.0);
     }
-    return vec4f((f.r - 0.5) * 2.0 * mc.u_zoneRange.x, (f.gb - vec2f(0.5)) * 2.0 * mc.u_zoneRange.z, f.a);
+    let e = (f.r - 0.5) * 2.0;
+    return vec4f(e * abs(e) * mc.u_zoneRange.x, (f.gb - vec2f(0.5)) * 2.0 * mc.u_zoneRange.z, f.a);
 }
 fn waterSurf(shore : f32, height : f32, time : f32) -> vec2f {
     if (height <= 0.0 || mc.u_surfLength <= 0.0) { return vec2f(0.0); }
@@ -382,7 +386,8 @@ vec4 waterZoneAt(vec2 p) {
     vec4 c = texelFetch(u_zoneHeights, i + ivec2(0, 1), 0), d = texelFetch(u_zoneHeights, i + ivec2(1, 1), 0);
     vec4 ha = vec4(a.r * 65280.0 + a.g * 255.0, b.r * 65280.0 + b.g * 255.0, c.r * 65280.0 + c.g * 255.0, d.r * 65280.0 + d.g * 255.0) / 65535.0;
     float h = mix(mix(ha.x, ha.y, t.x), mix(ha.z, ha.w, t.x), t.y);
-    vec2 da = mix(mix(a.ba, b.ba, t.x), mix(c.ba, d.ba, t.x), t.y);
+    // The depth is stored as its square root, so the shallows (where it draws the shore) are fine: squared before blending.
+    vec2 da = mix(mix(a.ba * vec2(a.b, 1.0), b.ba * vec2(b.b, 1.0), t.x), mix(c.ba * vec2(c.b, 1.0), d.ba * vec2(d.b, 1.0), t.x), t.y);
     // The weather (u_waveHeight) raises a body's waves only as far as the wind has room to: w is that share, and z is put so that
     // u_waveHeight times it is the waves' height there.
     float e = textureLod(u_zoneExposure, clamp(uv, 0.0, 1.0), 0.0).r;
@@ -395,7 +400,8 @@ vec4 waterZoneField(vec2 p) {
     vec4 f = textureLod(u_zoneField, clamp(uv, 0.0, 1.0), 0.0);
     bool inside = all(greaterThanEqual(uv, vec2(0.0))) && all(lessThanEqual(uv, vec2(1.0)));
     if (!inside) return u_oceanOn > 0.5 ? vec4(1e6, 0.0, 0.0, 1.0) : vec4(-1.0, 0.0, 0.0, 0.0);
-    return vec4((f.r - 0.5) * 2.0 * u_zoneRange.x, (f.gb - 0.5) * 2.0 * u_zoneRange.z, f.a);
+    float e = (f.r - 0.5) * 2.0;
+    return vec4(e * abs(e) * u_zoneRange.x, (f.gb - 0.5) * 2.0 * u_zoneRange.z, f.a);
 }
 // The surf at a shore distance (waves.ts surfHeight): x its height, y how broken it is (white water on and behind a breaking crest).
 vec2 waterSurf(float shore, float height, float time) {
@@ -502,7 +508,8 @@ void main() {
     vec4 zone = waterZoneAt(wp);
     bool zoneIn = all(greaterThanEqual(zoneUv, vec2(0.0))) && all(lessThanEqual(zoneUv, vec2(1.0)));
     bool zoneOn = u_zoneOn > 0.5 && u_waveSpace > 0.5;
-    float shoreDist = !zoneOn ? 1e6 : zoneIn ? (zoneTex.r - 0.5) * 2.0 * u_zoneRange.x : u_oceanOn > 0.5 ? 1e6 : -1.0;
+    float shoreE = (zoneTex.r - 0.5) * 2.0;
+    float shoreDist = !zoneOn ? 1e6 : zoneIn ? shoreE * abs(shoreE) * u_zoneRange.x : u_oceanOn > 0.5 ? 1e6 : -1.0;
     float shoreDepth = zoneOn ? zone.y : 1e6;
     // How high the waves stand (a multiple of u_waveHeight), and the share of them kept toward the shore, which calms the small ripples and the crests too.
     float calm = !zoneOn ? 1.0 : zoneIn ? zoneTex.a : 1.0;
@@ -624,7 +631,9 @@ void main() {
     float shore = haveDepth && u_foamWidth > 0.0 ? clamp((1.0 - vertical / (u_foamWidth * pulse)) * 1.25 - breakup * 1.15, 0.0, 1.0) : 0.0;
     // The baked shore foams too, where the depth buffer cannot say (no chain, no float targets) and along the outline the zone traced.
     if (zoneOn && u_foamWidth > 0.0) {
-        shore = max(shore, clamp((1.0 - min(shoreDist, shoreDepth) / (u_foamWidth * pulse)) * 1.25 - breakup * 1.15, 0.0, 1.0));
+        // With the picture's depth the shallows foam by it, pixel by pixel; the baked depth then adds only the traced outline, not its texels.
+        float baked = haveDepth ? shoreDist : min(shoreDist, shoreDepth);
+        shore = max(shore, clamp((1.0 - baked / (u_foamWidth * pulse)) * 1.25 - breakup * 1.15, 0.0, 1.0));
     }
     float onCrest = u_foamCrest > 0.0 ? smoothstep(1.0 - 0.3 * u_foamCrest, 1.0, crest) * smoothstep(0.35, 0.75, breakup) : 0.0;
     float surfFoam = surf.y * smoothstep(0.15, 0.6, breakup + surf.y * 0.4);
@@ -670,7 +679,10 @@ void main() {
     // Past the shore only the surf's film is water: over ground no lower than the water, within its height of the rest level (further off
     // it is the mesh stretched between two waters' heights); the depth test cuts it where the ground rises above it.
     bool film = abs(P.y - zone.x) <= surf.x + u_waveHeight * zone.z + 1e-3;
-    if (shoreDist < 0.0 && (surf.x <= 0.0 || shoreDepth > 1e-3 || !film)) discard;
+    // Ground lower than the water there (a dry basin) takes no film. The picture's depth says it of this very pixel; the baked depth only
+    // of whole texels (dry is 0 and any wet one beside it raises the blend), which would cut the film in the texels' steps.
+    float under = haveDepth ? column0 * abs(viewDir.y) - 2.0 * (surf.x + u_waveHeight * zone.z) - 1.0 : shoreDepth - 1e-3;
+    if (shoreDist < 0.0 && (surf.x <= 0.0 || under > 0.0 || !film)) discard;
     fragColor = vec4(color, haveColor ? 1.0 : 0.85);
 #ifdef ES_GBUFFER
     // 0.72: a surface, and water (see readSurface): what lands on it is the water's, not a wet floor's.
@@ -793,7 +805,8 @@ fn waterZoneAt(p : vec2f) -> vec4f {
     let d = textureLoad(u_zoneHeights, i + vec2i(1, 1), 0);
     let ha = vec4f(a.r * 65280.0 + a.g * 255.0, b.r * 65280.0 + b.g * 255.0, c.r * 65280.0 + c.g * 255.0, d.r * 65280.0 + d.g * 255.0) / 65535.0;
     let h = mix(mix(ha.x, ha.y, t.x), mix(ha.z, ha.w, t.x), t.y);
-    let da = mix(mix(a.ba, b.ba, t.x), mix(c.ba, d.ba, t.x), t.y);
+    // The depth is stored as its square root, so the shallows (where it draws the shore) are fine: squared before blending.
+    let da = mix(mix(a.ba * vec2f(a.b, 1.0), b.ba * vec2f(b.b, 1.0), t.x), mix(c.ba * vec2f(c.b, 1.0), d.ba * vec2f(d.b, 1.0), t.x), t.y);
     let e = textureSampleLevel(u_zoneExposure, u_zoneExposure_s, clamp(uv, vec2f(0.0), vec2f(1.0)), 0.0).r;
     if (!inside && mc.u_oceanOn > 0.5) { return vec4f(mc.u_oceanLevel, 1e6, mc.u_oceanWaves, 1.0); }
     return vec4f(mc.u_zoneHeight.x + h * mc.u_zoneHeight.y, da.x * mc.u_zoneRange.w,
@@ -807,7 +820,8 @@ fn waterZoneField(p : vec2f) -> vec4f {
         if (mc.u_oceanOn > 0.5) { return vec4f(1e6, 0.0, 0.0, 1.0); }
         return vec4f(-1.0, 0.0, 0.0, 0.0);
     }
-    return vec4f((f.r - 0.5) * 2.0 * mc.u_zoneRange.x, (f.gb - vec2f(0.5)) * 2.0 * mc.u_zoneRange.z, f.a);
+    let e = (f.r - 0.5) * 2.0;
+    return vec4f(e * abs(e) * mc.u_zoneRange.x, (f.gb - vec2f(0.5)) * 2.0 * mc.u_zoneRange.z, f.a);
 }
 fn waterSurf(shore : f32, height : f32, time : f32) -> vec2f {
     if (height <= 0.0 || mc.u_surfLength <= 0.0) { return vec2f(0.0); }
@@ -926,7 +940,7 @@ fn waterSurface(p : vec2f, time : f32, dist : f32, amp : f32, calm : f32) -> vec
     var flow = vec2f(0.0);
     if (zoneOn) {
         shoreDepth = zone.y;
-        if (zoneIn) { shoreDist = (zoneTex.r - 0.5) * 2.0 * mc.u_zoneRange.x; flow = (zoneTex.gb - vec2f(0.5)) * 2.0 * mc.u_zoneRange.z; calm = zoneTex.a; }
+        if (zoneIn) { let shoreE = (zoneTex.r - 0.5) * 2.0; shoreDist = shoreE * abs(shoreE) * mc.u_zoneRange.x; flow = (zoneTex.gb - vec2f(0.5)) * 2.0 * mc.u_zoneRange.z; calm = zoneTex.a; }
         else if (mc.u_oceanOn < 0.5) { shoreDist = -1.0; }
         damp = zone.z * calm;
     }
@@ -1035,7 +1049,10 @@ fn waterSurface(p : vec2f, time : f32, dist : f32, amp : f32, calm : f32) -> vec
     var shore = 0.0;
     if (haveDepth && mc.u_foamWidth > 0.0) { shore = clamp((1.0 - vertical / (mc.u_foamWidth * pulse)) * 1.25 - breakup * 1.15, 0.0, 1.0); }
     if (zoneOn && mc.u_foamWidth > 0.0) {
-        shore = max(shore, clamp((1.0 - min(shoreDist, shoreDepth) / (mc.u_foamWidth * pulse)) * 1.25 - breakup * 1.15, 0.0, 1.0));
+        // With the picture's depth the shallows foam by it, pixel by pixel; the baked depth then adds only the traced outline, not its texels.
+        var baked = min(shoreDist, shoreDepth);
+        if (haveDepth) { baked = shoreDist; }
+        shore = max(shore, clamp((1.0 - baked / (mc.u_foamWidth * pulse)) * 1.25 - breakup * 1.15, 0.0, 1.0));
     }
     var onCrest = 0.0;
     if (mc.u_foamCrest > 0.0) { onCrest = smoothstep(1.0 - 0.3 * mc.u_foamCrest, 1.0, waves.crest) * smoothstep(0.35, 0.75, breakup); }
@@ -1074,7 +1091,11 @@ fn waterSurface(p : vec2f, time : f32, dist : f32, amp : f32, calm : f32) -> vec
     var alpha = 0.85;
     if (haveColor) { alpha = 1.0; }
     let film = abs(P.y - zone.x) <= surf.x + mc.u_waveHeight * zone.z + 1e-3;
-    if (shoreDist < 0.0 && (surf.x <= 0.0 || shoreDepth > 1e-3 || !film)) { discard; }
+    // Ground lower than the water there (a dry basin) takes no film. The picture's depth says it of this very pixel; the baked depth only
+    // of whole texels (dry is 0 and any wet one beside it raises the blend), which would cut the film in the texels' steps.
+    var under = shoreDepth - 1e-3;
+    if (haveDepth) { under = column0 * abs(viewDir.y) - 2.0 * (surf.x + mc.u_waveHeight * zone.z) - 1.0; }
+    if (shoreDist < 0.0 && (surf.x <= 0.0 || under > 0.0 || !film)) { discard; }
 #ifdef ES_GBUFFER
     var frag : FragOut;
     frag.color = vec4f(color, alpha);

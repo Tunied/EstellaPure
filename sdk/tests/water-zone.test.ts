@@ -132,7 +132,9 @@ describe('the field as the shader reads it', () => {
         const h = r.heightMin + ((heights[k * 4]! * 256 + heights[k * 4 + 1]!) / 65535) * r.heightSpan;
         expect(h).toBeCloseTo(field.height[k]!, 3);
         expect((rest[k * 4 + 1]! / 255 - 0.5) * 2 * r.flow).toBeCloseTo(field.flowX[k]!, 1);
-        expect((rest[k * 4]! / 255 - 0.5) * 2 * r.shore).toBeCloseTo(Math.max(-r.shore, Math.min(r.shore, field.shore[k]!)), 0);
+        // The shore as a signed square root: squared back, it is within a byte's step there (finer the nearer the shore).
+        const e = (rest[k * 4]! / 255 - 0.5) * 2, want = Math.max(-r.shore, Math.min(r.shore, field.shore[k]!));
+        expect(Math.abs(e * Math.abs(e) * r.shore - want)).toBeLessThanOrEqual(r.shore * (2 * Math.sqrt(Math.abs(want) / r.shore) / 255 + 1 / 65025) + 1e-6);
     });
 
     it('is nothing over an ocean alone: there is no region, and every point is the ocean', () => {
