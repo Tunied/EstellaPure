@@ -67,6 +67,65 @@ function constantColor(p: Pixels): number[] | null {
     return [d[0] ?? 0, d[1] ?? 0, d[2] ?? 0, d[3] ?? 0];
 }
 
+/**
+ * A cut-out's colour carried into its clear texels: each texel's colour is pulled toward that of the solid texels nearest it, as far as it is
+ * clear (push-pull over a pyramid of alpha-weighted colour). What a painter leaves under alpha 0 is usually whatever was behind the strokes,
+ * a skin tone under eyelashes, white under a leaf; a mip averages it in with the strands, and seen from a distance the card drew a veil of
+ * that colour over what it covers (the render lab's probe eye came out pink). A texel that is solid keeps its colour exactly.
+ */
+export function bleedCutoutColor(p: Pixels): Uint8Array {
+    const levels: { w: number; h: number; c: Float32Array; a: Float32Array }[] = [];
+    let w = p.width, h = p.height;
+    let c = new Float32Array(w * h * 3), a = new Float32Array(w * h);
+    for (let i = 0; i < w * h; i++) {
+        const alpha = p.rgba[i * 4 + 3]! / 255;
+        a[i] = alpha;
+        for (let k = 0; k < 3; k++) c[i * 3 + k] = p.rgba[i * 4 + k]! * alpha;
+    }
+    levels.push({ w, h, c, a });
+    while (w > 1 || h > 1) {
+        const nw = Math.max(1, w >> 1), nh = Math.max(1, h >> 1);
+        const nc = new Float32Array(nw * nh * 3), na = new Float32Array(nw * nh);
+        for (let y = 0; y < nh; y++) {
+            for (let x = 0; x < nw; x++) {
+                const o = y * nw + x;
+                for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]] as const) {
+                    const sx = Math.min(w - 1, x * 2 + dx), sy = Math.min(h - 1, y * 2 + dy);
+                    const i = sy * w + sx;
+                    na[o] += a[i]!;
+                    for (let k = 0; k < 3; k++) nc[o * 3 + k] += c[i * 3 + k]!;
+                }
+            }
+        }
+        w = nw; h = nh; c = nc; a = na;
+        levels.push({ w, h, c, a });
+    }
+    const out = new Uint8Array(p.rgba);
+    for (let y = 0; y < p.height; y++) {
+        for (let x = 0; x < p.width; x++) {
+            const i = y * p.width + x;
+            const alpha = p.rgba[i * 4 + 3]! / 255;
+            if (alpha >= 1) continue;
+            // The colour of the nearest solid neighbourhood: the first level up whose cell holds any.
+            let fill: [number, number, number] | null = null;
+            for (let l = 1; l < levels.length; l++) {
+                const L = levels[l]!;
+                const lx = Math.min(L.w - 1, x >> l), ly = Math.min(L.h - 1, y >> l);
+                const o = ly * L.w + lx;
+                if (L.a[o]! > 1e-3) {
+                    fill = [L.c[o * 3]! / L.a[o]!, L.c[o * 3 + 1]! / L.a[o]!, L.c[o * 3 + 2]! / L.a[o]!];
+                    break;
+                }
+            }
+            if (!fill) continue;
+            for (let k = 0; k < 3; k++) {
+                out[i * 4 + k] = Math.round(p.rgba[i * 4 + k]! * alpha + fill[k]! * (1 - alpha));
+            }
+        }
+    }
+    return out;
+}
+
 function redIsZero(p: Pixels): boolean {
     for (let i = 0; i < p.rgba.length; i += 4) if (p.rgba[i] !== 0) return false;
     return true;
@@ -164,6 +223,8 @@ export function prepareModelImages(result: ModelImportResult,
     };
 
     const noticed = new Set<string>();
+    // Base colours by file: whether every material that reads one cuts it out (only then is its clear colour never seen up close).
+    const bases = new Map<string, { pixels: Pixels; ref: ImportedImageRef; cutoutOnly: boolean; users: ImportedMaterial[] }>();
     const materials = new Set<ImportedMaterial>();
     for (const mesh of result.meshes) if (mesh.material) materials.add(mesh.material);
     for (const material of materials) {
@@ -181,6 +242,11 @@ export function prepareModelImages(result: ModelImportResult,
             const settings = DATA_SLOTS.has(slot) ? { ...ref.settings, sRGB: false } : ref.settings;
             material[slot] = settings ? { ...converted, settings } : converted;
             if (!pixels) continue;
+            if (slot === 'baseColorTexture' && converted.external === false) {
+                const entry = bases.get(converted.file) ?? { pixels, ref: converted, cutoutOnly: true, users: [] };
+                entry.users.push(material);
+                bases.set(converted.file, entry);
+            }
             // A format with no alpha mode (FBX) leaves the base colour's alpha to say it.
             if (slot === 'baseColorTexture' && options.alphaFromBaseColor
                 && material.opaque && material.alphaCutoff === undefined) {
@@ -204,11 +270,19 @@ export function prepareModelImages(result: ModelImportResult,
                     + ` ${pixels.width}x${pixels.height} — a material constant would say the same`);
             }
         }
-        // A cutout's mips keep its coverage at the cutoff it tests, or it thins with distance.
+        // A cutout's mips hold the share of texels its cut keeps (mipCoverage: see halveCoverage), which is what its shaders read as the
+        // coverage of a minified pixel.
         const base = material.baseColorTexture;
         if (base && material.alphaCutoff !== undefined && material.alphaCutoff > 0) {
             material.baseColorTexture = { ...base, settings: { ...base.settings, mipCoverage: material.alphaCutoff } };
         }
+    }
+    for (const entry of bases.values()) {
+        entry.cutoutOnly = entry.users.every(m => m.alphaCutoff !== undefined && m.alphaCutoff > 0);
+        if (!entry.cutoutOnly) continue;
+        const texture = embedded.get(entry.ref.file);
+        if (!texture) continue;
+        texture.bytes = encodeRgbaPng(entry.pixels.width, entry.pixels.height, bleedCutoutColor(entry.pixels));
     }
 
     const converted = new Set([...seen.entries()].filter(([k]) => k.startsWith('x:') && isDdsName(k.slice(2)))

@@ -136,6 +136,42 @@ export function halveRgba(rgba: Uint8Array, width: number, height: number, srgb:
 }
 
 /**
+ * The next level down of a cut-out's chain, whose alpha is COVERAGE: the share of the texels under each new texel that the cut keeps.
+ * Read at the first step from the image itself (`cutoff` given: a texel counts when its alpha reaches it), and from there on by averaging
+ * shares, which is exact. Colour is weighted the same way, so a level is the colour of what the cut keeps and not of what it throws away.
+ *
+ * A plain average of alpha is the share only for a mask that is 0 or 1; a soft one (a painted band of lashes fading out, a strand's
+ * antialiased edge) averages to more than the cut keeps, and a shader taking the minified alpha as coverage drew the faint parts the
+ * source never shows. Coverage-preserving rescaling (preserveAlphaCoverage) is the answer for a shader that cuts every level at the
+ * cutoff; the engine's cut-out shaders read a minified level as the share it is (cutoutCoverage), so this chain gives them the share.
+ */
+export function halveCoverage(rgba: Uint8Array, width: number, height: number, srgb: boolean, cutoff: number | null): {
+    rgba: Uint8Array; width: number; height: number;
+} {
+    const w = Math.max(1, width >> 1), h = Math.max(1, height >> 1);
+    const out = new Uint8Array(w * h * 4);
+    const threshold = cutoff === null ? 0 : cutoff * 255;
+    for (let y = 0; y < h; y++) {
+        const y0 = Math.min(height - 1, y * 2), y1 = Math.min(height - 1, y * 2 + 1);
+        for (let x = 0; x < w; x++) {
+            const x0 = Math.min(width - 1, x * 2), x1 = Math.min(width - 1, x * 2 + 1);
+            const taps = [(y0 * width + x0) * 4, (y0 * width + x1) * 4, (y1 * width + x0) * 4, (y1 * width + x1) * 4];
+            const weights = taps.map(t => (cutoff === null ? rgba[t + 3]! / 255 : (rgba[t + 3]! >= threshold ? 1 : 0)));
+            const total = weights.reduce((n, v) => n + v, 0);
+            const o = (y * w + x) * 4;
+            for (let c = 0; c < 3; c++) {
+                const mean = (f: (t: number) => number) => (total > 0
+                    ? taps.reduce((n, t, i) => n + f(t) * weights[i]!, 0) / total
+                    : taps.reduce((n, t) => n + f(t), 0) / 4);
+                out[o + c] = srgb ? toSrgbByte(mean(t => toLinear[rgba[t + c]!]!)) : Math.round(mean(t => rgba[t + c]!));
+            }
+            out[o + 3] = Math.round(total / 4 * 255);
+        }
+    }
+    return { rgba: out, width: w, height: h };
+}
+
+/**
  * `base`'s level 0 over every level of `below` (encoded from the half-size
  * image, so its level 0 is the base's level 1), as one KTX2 with `base`'s
  * header and descriptors. Throws when the two cannot be one file.
