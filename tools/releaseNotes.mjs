@@ -90,6 +90,8 @@ export const NOTED = {
     {"note": "Cut-outs are glTF's MASK at every distance."},
   "fix(examples): Dusk Fort's scene carries its .meta, so its package reaches the fort instead of booting to asset not found":
     {"note": "Dusk Fort exports."},
+  "fix(sdk): terrain, timeline, the fx modules, foliage and wechat ship their type declarations":
+    {"note": "Types for every SDK subpath."},
   "fix(examples): Neon Ascension's camera drops a backgroundColor it never had, which every boot warned about":
     {"internal": "Camera has no backgroundColor; the field was never read, so the frame is unchanged and only the boot warning goes."},
   'fix: serialize binaryen optimization on windows': { internal: 'Uses one optimizer worker after wider builds reproduced heap corruption with four; release optimization flags stay unchanged.' },

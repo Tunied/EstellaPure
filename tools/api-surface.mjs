@@ -117,9 +117,16 @@ if (mode === '--check-baseline') {
 // re-printed by a declaration bundler. Comparing rendered types across two
 // programs compares their printers, not the API.
 const fromDts = mode === '--check-dts';
+// Where a consumer's resolver lands: the `types` package.json names for the entry, not the source path mirrored
+// into dist (`src/postprocess/fxBasic.ts` ships as `dist/fx-basic/index.d.ts`).
+const exportsMap = JSON.parse(readFileSync(join(SDK, 'package.json'), 'utf8')).exports;
+const typesOf = (name) => {
+    const types = exportsMap[name === 'index' ? '.' : `./${name.replace(/^index\./, '')}`]?.types;
+    if (!types) throw new Error(`api-surface: package.json exports no types for the "${name}" entry`);
+    return types.replace(/^\.\//, '');
+};
 const entryPaths = fromDts
-    ? Object.fromEntries(Object.entries(ENTRIES)
-        .map(([name, p]) => [name, p.replace(/^src\//, 'dist/').replace(/\.ts$/, '.d.ts')]))
+    ? Object.fromEntries(Object.keys(ENTRIES).map((name) => [name, typesOf(name)]))
     : ENTRIES;
 
 const { program, checker } = createSdkProgram(entryPaths, { strictLibCheck: fromDts });

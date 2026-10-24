@@ -54,7 +54,8 @@
       "types": "./dist/wasm.d.ts"
     },
     "./wechat": {
-      "import": "./dist/index.wechat.js"
+      "import": "./dist/index.wechat.js",
+      "types": "./dist/index.wechat.d.ts"
     },
     "./minigame": {
       "import": "./dist/index.minigame.js",
