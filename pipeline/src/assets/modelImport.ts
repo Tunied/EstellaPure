@@ -761,7 +761,20 @@ function characterProperties(shading: CharacterShading, material: ImportedMateri
         bind('u_shiftMap', material.shiftTexture);
         if (material.tipSoftness !== undefined) properties.u_tipSoftness = material.tipSoftness;
     } else delete properties.u_alphaCutoff;
-    if (shading === 'eye') delete properties.u_normalMap;
+    if (shading === 'eye') {
+        delete properties.u_normalMap;
+        // What a glTF says of an eye is a painted texture and a roughness: the Principled shader it was authored against. So the Eye shader's
+        // own additions are written as off (a tinted white, light wrapping past the terminator in a warm colour, which turned a painted iris
+        // red, and lids darkening it), and both its glossy layers take the source's roughness instead of a near-mirror cornea. An eye given
+        // a depth map and an iris normal map by hand gets them back by setting these.
+        properties.u_scleraColor = { r: 1, g: 1, b: 1, a: 1 };
+        properties.u_scleraWrap = 0;
+        properties.u_lidShadow = 0;
+        const eyeRough = rough ?? 0.5;
+        properties.u_corneaRoughness = Math.max(eyeRough, 0.01);
+        properties.u_scleraRoughness = Math.max(eyeRough, 0.1);
+        properties.u_specular = material.specular ?? 1;
+    }
 }
 
 /** `<stem>_m<source material index>` — the product a material becomes. */
