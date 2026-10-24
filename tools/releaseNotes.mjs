@@ -2764,4 +2764,6 @@ export const NOTED = {
     {"internal":"A planning document; nothing a creator can use yet."},
   "feat(terrain): ground without end comes from a versioned provider the game names, and a terrain that cannot get its ground fails":
     {"note":"Terrain from a generator the game names, versioned."},
+  "feat(terrain): bodies collide with the ground drawn near the eye, built in tiles round what moves, and queries answer from the same triangles":
+    {"note":"Terrain collision, the same ground that is drawn."},
 };

@@ -28,6 +28,7 @@ The ground is one of two kinds, chosen by `extent`:
 | `cellSize` | The finest cell of the ground's mesh, in world units: what the ground is drawn at near the eye. Further off the cells double, level by level. |
 | `detail` | A multiplier on how far the finest cells reach before the ground coarsens. Above 1 is finer at a distance and costs more triangles. |
 | `drawDistance` | Infinite only. How far from the eye the ground is drawn. |
+| `collision`, `collisionDistance` | Whether 3D bodies and characters collide with the ground, and how far round each one that moves the ground is built for it. `collisionLayer` and `friction` (advanced) are the ground's layer and grip. |
 | `provider`, `world`, `generatorVersion` | Infinite only. The generator the ground is made by (`estella:noise`, the engine's noise, or one the game registers), the world it belongs to as the game names it, and the generator version that world was made with. |
 | `seed`, `frequency`, `octaves`, `persistence`, `ridged` | The noise: another seed is another ground; `frequency` is how many hills across; `ridged` goes from rolling hills to sharp ridges. |
 | `resolution` | Area only. Samples along each side of an area's noise ground. |
@@ -122,13 +123,29 @@ const y = terrains.heightAt(x, z);       // world height, or null where there is
 const n = terrains.normalAt(x, z);       // the unit normal there, or null
 ```
 
-These read the same source the pages are made from (the area's field, or the provider), so they agree with what is drawn, and they
+These read the surface: the lattice of `cellSize` cells, each node as high as the source says there, each cell cut in two along the
+diagonal from its (1, 0) corner to its (0, 1) corner. That is exactly the finest level the ground is drawn at near the eye and what
+bodies collide with, so a query, a ray and the drawn triangles agree (to the GPU's 16-bit height encoding, a few millimetres for a
+few hundred units of height), and the answer does not change with the camera. `normalAt` is the normal of the triangle there. They
 answer for any point whether or not its page has been made. Until an area's images are read and its erosion is done, `heightAt`
 returns null and `terrains.loading` is true. A provider that answers later leaves a point null until the samples round it come in.
 
 `terrains.status(entity)` says where a terrain stands: `loading`, `ready`, or `failed` with a `reason`. A terrain whose heightmap
 cannot be read, whose provider is not registered, or whose version its provider no longer has fails: it draws nothing and answers
 null, rather than growing noise where the game expected its own ground.
+
+### Collision
+
+With `collision` on, the ground is built for the 3D physics world in tiles of 32 cells within `collisionDistance` of every 3D body
+that moves and every character: the tile under one at once, the rest a few a frame, nearest first, and let go once nothing is near.
+Each tile is a static mesh body owned by the terrain entity, so a ray or a contact that hits the ground reports the terrain. While a
+terrain is rebuilt its old tiles stay until the new ones replace them, so nothing standing on it falls.
+`terrains.collisionReadyAt(x, z)` says whether the ground under a point is built, for a game to wait on before it drops something
+there (a provider that answers later builds a tile once its samples are in). Far from anything that moves there is nothing to hit:
+ask `heightAt` there instead.
+
+The tiles go through the `CollisionGeometry` resource (`esengine`), which any system that makes static geometry as the game runs can
+use; the 3D physics world keeps one static body for each piece in it.
 
 ### Providers and versions
 
@@ -160,8 +177,8 @@ with `heightAt` answers a point at once; without it a point is answered from sma
 
 ## Limits
 
-- **No collision.** The ground is drawn, not simulated: `heightAt` is the way to stand something on it, and a physics body falls through it
-  unless the project adds its own collider.
+- **Collision is the finest level.** Far off the ground is drawn coarser than it collides, which is unseen from where anything collides
+  with it; only what moves gets ground to hit, within `collisionDistance`.
 - **Paint is as fine as the pages.** Layer weights are sampled with the heights, two to a cell, so a splatmap finer than that near the
   eye is averaged, and far off it is coarser still.
 - **No holes, caves or overhangs.** A heightfield has one height at each place. Caves and bridges are meshes placed with it.

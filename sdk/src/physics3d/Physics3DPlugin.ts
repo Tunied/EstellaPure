@@ -13,9 +13,10 @@ import {
     type Physics3DWasmModule, type Physics3DEventsData,
 } from './Physics3DModule';
 import {
-    stepPhysics3D, DEFAULT_PHYSICS3D_CONFIG, type Physics3DConfig,
+    stepPhysics3D, DEFAULT_PHYSICS3D_CONFIG, type Physics3DConfig, type PieceMap,
 } from './Physics3DSystem';
 import { Physics3DQueries } from './Physics3DQueries';
+import { CollisionGeometryRes } from '../runtime/collisionGeometry';
 import { setupPhysics3DDebugDraw } from './Physics3DDebugDraw';
 import type { Joint3DMap } from './Physics3DJoints';
 
@@ -32,13 +33,15 @@ export interface Physics3DRuntime {
     characters: Map<Entity, number>;
     /** Entity -> the joint it declared, with the bodies it was built between. */
     joints: Joint3DMap;
+    /** Key -> the body built for that piece of the app's collision geometry. */
+    pieces: PieceMap;
     /** The world's configuration (gravity, the scale of a world unit), for what applies forces to it. Null until the plugin is built. */
     config: Physics3DConfig | null;
 }
 
 export const Physics3DRuntime = defineResource<Physics3DRuntime>(
     { module: null, initPromise: null, bodies: new Map(), characters: new Map(),
-      joints: new Map(), config: null },
+      joints: new Map(), pieces: new Map(), config: null },
     'Physics3DRuntime',
 );
 
@@ -59,7 +62,7 @@ export class Physics3DPlugin implements Plugin {
     build(app: App): void {
         const runtime: Physics3DRuntime = {
             module: null, initPromise: null, bodies: new Map(), characters: new Map(),
-            joints: new Map(), config: this.config_,
+            joints: new Map(), pieces: new Map(), config: this.config_,
         };
         const events: Physics3DEventsData = {
             contactEnters: [], contactExits: [], sensorEnters: [], sensorExits: [],
@@ -84,7 +87,8 @@ export class Physics3DPlugin implements Plugin {
                 module, this.config_.pixelsPerUnit, runtime.characters));
             app.addSystemToSchedule(Schedule.FixedUpdate, defineSystem([], () => {
                 stepPhysics3D(app, module, runtime.bodies, this.config_,
-                              runtime.characters, events, runtime.joints);
+                              runtime.characters, events, runtime.joints, runtime.pieces,
+                              app.hasResource(CollisionGeometryRes) ? app.getResource(CollisionGeometryRes) : null);
             }));
             // Installed with the world, drawn only once a game turns the resource
             // on — a scene that never asks for it pays a resource and nothing else.

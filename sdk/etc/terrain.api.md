@@ -165,12 +165,16 @@ ComponentDef<TerrainData>
 ## TerrainData — interface @experimental
 ```
 cellSize: number
+collision: boolean
+collisionDistance: number
+collisionLayer: number
 detail: number
 dirtHeight: number
 drawDistance: number
 erosion: number
 extent: number
 frequency: number
+friction: number
 generatorVersion: number
 height: number
 heightmap: number
@@ -273,6 +277,7 @@ static prototype: TerrainUnavailable
 @internal app_: App | null
 @internal built_: Map<number, Built>
 @internal revision_: number
+collisionReadyAt: (x: number, z: number) => boolean
 heightAt: (x: number, z: number) => number | null
 loading: boolean
 normalAt: (x: number, z: number) => [number, number, number] | null

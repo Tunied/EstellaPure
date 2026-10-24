@@ -29,6 +29,7 @@ import { syncJoints3D, type Joint3DMap } from './Physics3DJoints';
 import type { Entity } from '../types';
 import type { Physics3DWasmModule, Physics3DEventsData } from './Physics3DModule';
 import { PHYSICS3D_TRANSFORM_STRIDE, drainPhysics3DEvents } from './Physics3DModule';
+import type { CollisionGeometry, CollisionPiece } from '../runtime/collisionGeometry';
 
 /** Body kinds, in the order the module reads them. */
 const MOTION = { Static: 0, Kinematic: 1, Dynamic: 2 } as const;
@@ -54,6 +55,9 @@ export const DEFAULT_PHYSICS3D_CONFIG: Physics3DConfig = {
 
 /** Which body an entity owns, so a removed component takes its body with it. */
 type BodyMap = Map<Entity, number>;
+
+/** The body each piece of collision geometry was built as, by its key, and the piece it was built from. */
+export type PieceMap = Map<string, { piece: CollisionPiece; id: number }>;
 
 /** Ground states, as CharacterVirtual reports them. */
 const ON_GROUND = 0;
@@ -226,7 +230,16 @@ function addMeshBody(module: Physics3DWasmModule, entity: Entity,
                      ppu: number, layer: number): number {
     const geometry = getMeshCollision(collider.mesh);
     if (!geometry) return 0;
-    const { positions, indices } = geometry;
+    return addTriangles(module, entity, geometry.positions, geometry.indices, px, py, pz, r, ppu, layer,
+                        collider.friction, collider.restitution);
+}
+
+/** Triangles in world units, scaled into metres on the module's heap, as one static body at (px, py, pz) in metres. */
+function addTriangles(module: Physics3DWasmModule, entity: Entity,
+                      positions: Float32Array, indices: Uint32Array,
+                      px: number, py: number, pz: number,
+                      r: { x: number; y: number; z: number; w: number },
+                      ppu: number, layer: number, friction: number, restitution: number): number {
     const vertexPtr = module._malloc(positions.length * 4);
     const indexPtr = module._malloc(indices.length * 4);
     try {
@@ -235,11 +248,34 @@ function addMeshBody(module: Physics3DWasmModule, entity: Entity,
         module.HEAPU32.set(indices, indexPtr >> 2);
         return module._physics3d_addMeshBody(
             entity as number, vertexPtr, positions.length / 3, indexPtr, indices.length,
-            px, py, pz, r.x, r.y, r.z, r.w, layer,
-            collider.friction, collider.restitution);
+            px, py, pz, r.x, r.y, r.z, r.w, layer, friction, restitution);
     } finally {
         module._free(vertexPtr);
         module._free(indexPtr);
+    }
+}
+
+/** Follows the app's collision geometry: a static mesh body a piece, built again when its piece is replaced, removed with it. */
+function syncPieces(module: Physics3DWasmModule, geometry: CollisionGeometry | null, pieces: PieceMap, ppu: number): void {
+    if (!geometry && pieces.size === 0) return;
+    const live = new Set<string>();
+    if (geometry) {
+        for (const [key, piece] of geometry.entries()) {
+            live.add(key);
+            const had = pieces.get(key);
+            if (had?.piece === piece) continue;
+            if (had) module._physics3d_removeBody(had.id);
+            const [ox, oy, oz] = piece.origin;
+            const id = addTriangles(module, piece.owner, piece.positions, piece.indices,
+                ox / ppu, oy / ppu, oz / ppu, { x: 0, y: 0, z: 0, w: 1 }, ppu, piece.layer, piece.friction, piece.restitution);
+            if (id !== 0) pieces.set(key, { piece, id });
+            else pieces.delete(key);
+        }
+    }
+    for (const [key, had] of pieces) {
+        if (live.has(key)) continue;
+        module._physics3d_removeBody(had.id);
+        pieces.delete(key);
     }
 }
 
@@ -276,7 +312,9 @@ export function stepPhysics3D(app: App, module: Physics3DWasmModule,
                               bodies: BodyMap, config: Physics3DConfig,
                               characters: BodyMap = new Map(),
                               events?: Physics3DEventsData,
-                              joints: Joint3DMap = new Map()): void {
+                              joints: Joint3DMap = new Map(),
+                              pieces: PieceMap = new Map(),
+                              geometry: CollisionGeometry | null = null): void {
     const ppu = config.pixelsPerUnit;
     // Both directions read a parent's COMPOSED transform — the pose a body is
     // created at, and the local pose its answer is turned back into — so the
@@ -306,6 +344,8 @@ export function stepPhysics3D(app: App, module: Physics3DWasmModule,
         module._physics3d_removeBody(bodies.get(entity)!);
         bodies.delete(entity);
     }
+
+    syncPieces(module, geometry, pieces, ppu);
 
     // Characters have just written local poses of their own, and a body may be
     // parented to one.

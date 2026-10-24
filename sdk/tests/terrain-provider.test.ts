@@ -113,7 +113,8 @@ describe('a Terrain with no renderer (a server)', () => {
         await settle(app);
         const terrains = app.getResource(TerrainsRes);
         expect(terrains.status(e)).toEqual({ state: 'ready' });
-        expect(terrains.heightAt(321, -654)).toBeCloseTo(ground(noiseProvider(() => params)).height(321, -654)!, 6);
+        // On a lattice node the surface is the provider's sample itself.
+        expect(terrains.heightAt(322, -654)).toBeCloseTo(ground(noiseProvider(() => params)).height(322, -654)!, 6);
     });
 
     it('fails, and answers nothing, when its provider is not registered or its version is gone', async () => {

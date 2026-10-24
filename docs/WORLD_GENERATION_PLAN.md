@@ -20,14 +20,14 @@
 
 - 需要：程序化区块数据入口，接收 `generateChunk(seed, algoVersion, cx, cz)` 或同职责的 provider；输入含星球/区块身份、生成器版本、世界坐标原点、采样间距、高度与群落权重；渲染、碰撞、放置、服务端共用同一数据。不替换已保存星球的旧算法。
 - 失败处理：高度数据缺失或加载失败时，持久星球报告失败并保持旧数据或等待，不得悄悄回退为噪声。
-- 当前状态：地形已改为“数据源”（`TerrainSource`）驱动：`FieldSource`（区域高度场）、`NoiseSource`（世界坐标、按种子、无限）。尚缺：外部 provider 接口、生成器版本、区块身份、区域噪声仍按局部 0..1 归一化、缺图时仍回退噪声。
+- 当前状态：已完成（e4937e148）。`TerrainProvider`（`sdk/src/terrain/provider.ts`）按区域采样（世界、种子、版本、世界坐标起点、间距、样本数），可异步；`registerTerrainProvider` 注册游戏自己的生成器，引擎噪声为 `estella:noise` 版本 1；`Terrain.provider/world/generatorVersion`；未注册、版本不存在、高度图读不到 → `Terrains.status` 为 failed 并给出原因，不回退噪声。测试 `sdk/tests/terrain-provider.test.ts`。仍欠：区域（Area）噪声仍按局部归一化，不用于连续世界；地形实体移动后 provider 原点不更新。
 - 验收：同版本/种子/坐标在客户端与服务端结果相同；不同加载顺序一致；共享边高度与法线一致；缺失数据不改变旧星球。
 
 ### T-02 碰撞、贴地查询与可视表面一致
 
 - 需要：地形碰撞（先桥接静态 `MeshCollider3D`，再评估专用高度场碰撞）；碰撞精度有自己稳定的规则，不随摄像机 LOD 变化；高度/法线查询、射线、碰撞与三角面在约定精度内吻合。
 - 已知差异：`sampleHeight` 双线性插值，渲染为两片三角形（3×3 合成例中对角线中点 0.5 对 1.0）。新 CDLOD 渲染按页样本插值并在细节级之间形变，同样需要与查询统一定义。
-- 当前状态：未开始。
+- 当前状态：已完成第一步。统一定义见 `sdk/src/terrain/surface.ts`：`cellSize` 格点、节点高度取数据源、每格沿 (1,0)–(0,1) 对角线切分，与最细一级渲染补丁同一三角面（差异仅 GPU 16 位高度编码）；`heightAt`/`normalAt`（三角面法线）读它；碰撞按 32 格分块，在每个运动刚体与角色周围 `collisionDistance` 内构建，经通用的 `CollisionGeometry` 资源（`sdk/src/runtime/collisionGeometry.ts`）交给 3D 物理，每块一个静态网格刚体；重建期间旧块保留到新块覆盖；`Terrains.collisionReadyAt` 供游戏等待。测试 `sdk/tests/terrain-surface.test.ts`（含真实 Jolt：射线跨块缝与 `heightAt` 吻合到 1e-3、落球静止在地面上）。仍欠：专用高度场形状（Jolt HeightFieldShape，省内存）评估；远处没有运动物体的位置无碰撞（远程射线需走 `heightAt`）；分块驻留尚未归 T-03 的统一预算。
 - 验收：机器人离地高度稳定；建筑四角支撑不悬空；LOD 切换、跨块、重载不掉落；掉落物、障碍、设备有真实碰撞。
 
 ### T-03 程序化区块的驻留与统一预算

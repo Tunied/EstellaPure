@@ -801,6 +801,7 @@ export {
 } from './foliage/foliagePlugin';
 // Splines and water are optional modules too (`esengine/spline`, `esengine/water`).
 export { Bakes, BakesRes, bakesOf, finish, type WorkJob, type BakeProgress } from './runtime/bakes';
+export { CollisionGeometry, CollisionGeometryRes, collisionGeometryOf, type CollisionPiece } from './runtime/collisionGeometry';
 export { Spline, SplinePlugin, splinePlugin, type SplineData } from './spline/splinePlugin';
 export { SplineCurve, type SplinePoint, type SplineNearest } from './spline/curve';
 export {

@@ -290,6 +290,7 @@ config: Physics3DConfig | null
 initPromise: Promise<unknown> | null
 joints: Joint3DMap
 module: Physics3DWasmModule | null
+pieces: PieceMap
 ```
 
 ## Physics3DWasmModule — interface @experimental
@@ -530,6 +531,6 @@ twistMinAngle: number
 
 ## stepPhysics3D — function @experimental
 ```
-(app: App, module: Physics3DWasmModule, bodies: BodyMap, config: Physics3DConfig, characters?: BodyMap, events?: Physics3DEventsData, joints?: Joint3DMap): void
+(app: App, module: Physics3DWasmModule, bodies: BodyMap, config: Physics3DConfig, characters?: BodyMap, events?: Physics3DEventsData, joints?: Joint3DMap, pieces?: PieceMap, geometry?: CollisionGeometry | null): void
 ```
 
