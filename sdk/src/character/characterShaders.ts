@@ -106,6 +106,8 @@ void main() {
 #endif
     vec4 base = texture(u_textures[0], v_texCoord, u_sharpen) * v_color * u_tint;
     // Before any discard: a derivative needs every fragment of its quad.
+    vec2 mapSize = vec2(textureSize(u_textures[0], 0));
+    float texels = max(length(dFdx(v_texCoord) * mapSize), length(dFdy(v_texCoord) * mapSize));
     float alpha = 1.0;
 #ifdef ES_TIP_PASS
     // The band below the cutoff, fading in toward it, and a texel past it so it meets the opaque card without a gap.
@@ -114,7 +116,7 @@ void main() {
     alpha = min(alpha, 1.0);
 #else
     if (u_alphaCutoff > 0.0) {
-        alpha = (base.a - u_alphaCutoff) / max(fwidth(base.a), 1e-4) + 0.5;
+        alpha = cutoutCoverage(base.a, u_alphaCutoff, fwidth(base.a), texels, gl_FragCoord.xy, u_time.w);
         if (alpha <= 0.0) discard;
         alpha = min(alpha, 1.0);
     }
@@ -178,6 +180,8 @@ fn packNormal(n : vec3f) -> vec2f {
 #endif
     var base = textureSampleBias(t0, s0, v.v_texCoord, mc.u_sharpen) * v.v_color * mc.u_tint;
     let edge = max(abs(dpdx(base.a)) + abs(dpdy(base.a)), 1e-4);
+    let mapSize = vec2f(textureDimensions(t0));
+    let texels = max(length(duvx * mapSize), length(duvy * mapSize));
     let flowTex = textureSampleGrad(u_flowMap, u_flowMap_s, v.v_texCoord, duvx, duvy).rg * 2.0 - vec2f(1.0);
     let orm = textureSampleGrad(u_ormMap, u_ormMap_s, v.v_texCoord, duvx, duvy);
     let shiftTex = textureSampleGrad(u_shiftMap, u_shiftMap_s, v.v_texCoord * mc.u_shiftTile, duvx * mc.u_shiftTile, duvy * mc.u_shiftTile).r;
@@ -206,7 +210,7 @@ fn packNormal(n : vec3f) -> vec2f {
     alpha = min(alpha, 1.0);
 #else
     if (mc.u_alphaCutoff > 0.0) {
-        alpha = (base.a - mc.u_alphaCutoff) / edge + 0.5;
+        alpha = cutoutCoverage(base.a, mc.u_alphaCutoff, edge, texels, v.pos.xy, tc.u_time.w);
         if (alpha <= 0.0) { discard; }
         alpha = min(alpha, 1.0);
     }

@@ -191,6 +191,13 @@ public:
      *        exp2(0) = 1, an exact no-op.
      */
     void setViewExposure(f32 ev) { viewExposure_ = ev; }
+
+    /**
+     * @brief The multisampling the scene is drawn with, carried to every shader in u_time.w: a cut-out's minified alpha is coverage
+     *        where there are samples to cover, and a per-pixel threshold where there are none (cutoutCoverage). Uploaded with the
+     *        next frame's clock, so a change reaches the shaders a frame late.
+     */
+    void setCoverageSamples(u32 samples) { coverageSamples_ = static_cast<f32>(samples > 0 ? samples : 1); }
     f32 viewExposure() const { return viewExposure_; }
 
     /**
@@ -263,6 +270,7 @@ public:
 private:
     f32 lastElapsed_ = 0.0f;
     f32 viewExposure_ = 0.0f;
+    f32 coverageSamples_ = 1.0f;
     MaterialStore materials_;
     LightStore lights_;
     ProbeStore probes_;

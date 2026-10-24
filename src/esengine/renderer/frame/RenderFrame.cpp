@@ -246,7 +246,10 @@ void RenderFrame::drawScene(DrawList::Phase phase) {
     // sub-pixel amount each frame, so its history samples what a single frame cannot.
     // The scene only: the overlay and the shadow maps are drawn with constants of their own.
     glm::vec2 jitter{0.0f};
+    u32 coverageSamples = 1;
 #ifdef ES_ENABLE_POSTPROCESS
+    // The scene's multisampling, chain or not: with no chain it draws to a surface given the same count.
+    if (post_process_) coverageSamples = post_process_->sceneSamples();
     // The atlas the meshes reflect, for an effect that adds a reflection of its own where the scene's ray found none.
     if (post_process_) post_process_->setEnvironmentTexture(environment_texture_id_);
     if (phase == DrawList::Phase::SceneColorOnly || phase == DrawList::Phase::BlendedOnly) {
@@ -260,6 +263,7 @@ void RenderFrame::drawScene(DrawList::Phase phase) {
     }
 #endif
     scene_jitter_ = jitter;
+    context_.setCoverageSamples(coverageSamples);
     context_.updateCameraConstants(view_projection_, jitter);
     // Where THIS camera's pixels sit inside the 2D shadow mask. Per camera because the
     // mask is screen space: two cameras drew into two parts of one target, and a

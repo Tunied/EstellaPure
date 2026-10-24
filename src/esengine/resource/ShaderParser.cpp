@@ -1440,6 +1440,16 @@ fn shadowFactor3D(worldPos : vec3f, N : vec3f, L : vec3f, source : vec2f,
     return 1.0;
 #endif
 }
+// The coverage a cut-out's alpha gives this pixel. Magnified, the cut is sharpened to about a texel so alpha-to-coverage feathers its edge.
+// Minified, the edges are finer than the pixel and the map's own alpha, averaged by its mips, already is the share of the pixel the cut-out
+// covers: under multisampling it is that coverage as it is, and without it the cut moves to a per-pixel threshold so the share holds on
+// average. `texels` is how many texels of the map one pixel spans, `samples` the multisampling of the pass (u_time.w).
+fn cutoutCoverage(a : f32, cutoff : f32, edge : f32, texels : f32, pixel : vec2f, samples : f32) -> f32 {
+    let minified = clamp(log2(max(texels, 1e-4)), 0.0, 1.0);
+    if (samples > 1.5) { return mix((a - cutoff) / max(edge, 1e-4) + 0.5, a, minified); }
+    let noise = fract(52.9829189 * fract(dot(floor(pixel), vec2f(0.06711056, 0.00583715))));
+    return (a - mix(cutoff, noise, minified)) / max(edge, 1e-4) + 0.5;
+}
 fn sampleNormal(map : texture_2d<f32>, samp : sampler, uv : vec2f) -> vec3f {
     let xy = textureSampleLevel(map, samp, uv, 0.0).xy * 2.0 - 1.0;
     return vec3f(xy, sqrt(max(0.0, 1.0 - dot(xy, xy))));
@@ -2530,6 +2540,15 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             // The one normal-map unpack: X and Y from RG, Z rebuilt to unit length, so a
             // two-channel map (BC5, or B left at 0) lights like the three-channel one. 2D
             // applies it screen-space; a flat surface uses vec3(0,0,1).
+            // The coverage a cut-out's alpha gives this pixel: sharpened to a texel where the map is magnified, and the map's own (mip-averaged)
+            // alpha where it is minified, as coverage under multisampling and against a per-pixel threshold without it. See the WGSL twin.
+            "highp float cutoutCoverage(in highp float a, in highp float cutoff, in highp float edge, in highp float texels,\n"
+            "                           in highp vec2 pixel, in highp float samples) {\n"
+            "    highp float minified = clamp(log2(max(texels, 1e-4)), 0.0, 1.0);\n"
+            "    if (samples > 1.5) return mix((a - cutoff) / max(edge, 1e-4) + 0.5, a, minified);\n"
+            "    highp float noise = fract(52.9829189 * fract(dot(floor(pixel), vec2(0.06711056, 0.00583715))));\n"
+            "    return (a - mix(cutoff, noise, minified)) / max(edge, 1e-4) + 0.5;\n"
+            "}\n"
             "highp vec3 sampleNormal(in highp sampler2D map, in highp vec2 uv) {\n"
             "    highp vec2 xy = texture(map, uv).xy * 2.0 - 1.0;\n"
             "    return vec3(xy, sqrt(max(0.0, 1.0 - dot(xy, xy))));\n"

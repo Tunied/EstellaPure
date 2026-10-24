@@ -85,7 +85,7 @@ inline constexpr const char* FRAME_CONSTANTS_BLOCK = "FrameConstants";
 
 /**
  * @brief CPU mirror of the injected TimeConstants block (std140).
- * @details u_time = (elapsed s, delta s, view exposure EV, 0); u_viewport = (w, h, 1/w, 1/h) of the
+ * @details u_time = (elapsed s, delta s, view exposure EV, the scene's multisampling); u_viewport = (w, h, 1/w, 1/h) of the
  *          canvas in pixels. Engine-owned: ShaderParser injects the block into every
  *          assembled stage — shaders never declare it.
  */
