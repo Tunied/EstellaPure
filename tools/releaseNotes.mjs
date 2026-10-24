@@ -2754,4 +2754,8 @@ export const NOTED = {
     {"note":"Terrain without cracks, and without end."},
   "test(editor): the terrain, foliage and water checks cut the ground by its cell size":
     {"internal":"Editor checks follow the Terrain fields that replaced chunks; they draw nothing new."},
+  "feat(terrain): layers are read with hex tiling and a wide far reading, and their weights wander, so ground shows no repeat or ruled edge":
+    {"note":"Terrain layers without repeat, and with natural edges."},
+  "docs(terrain): the terrain pages describe the CDLOD ground, its pages, infinite extent and erosion":
+    {"internal":"Documentation of features with their own notes."},
 };
