@@ -800,6 +800,7 @@ export {
     Foliage, FoliageField, FoliageRes, FoliagePlugin, foliagePlugin, type FoliageData,
 } from './foliage/foliagePlugin';
 // Splines and water are optional modules too (`esengine/spline`, `esengine/water`).
+export { Bakes, BakesRes, bakesOf, finish, type WorkJob, type BakeProgress } from './runtime/bakes';
 export { Spline, SplinePlugin, splinePlugin, type SplineData } from './spline/splinePlugin';
 export { SplineCurve, type SplinePoint, type SplineNearest } from './spline/curve';
 export {
@@ -814,8 +815,8 @@ export {
     type Plant, type Ground, type ScatterParams, type BladeParams, type CardRect,
 } from './foliage/builder';
 export {
-    heightfieldFromPixels, proceduralHeightfield, sampleHeight, terrainNormal,
-    type Heightfield, type ProceduralParams,
+    erodeHeightfield, erosionJob, heightfieldFromPixels, proceduralHeightfield, sampleHeight, terrainNormal,
+    type Eroded, type ErosionParams, type Heightfield, type ProceduralParams,
 } from './terrain/heightfield';
 export {
     buildChunkMesh, cellsAtLod, chunkCenter, lodCount, type TerrainShape, type TerrainPaint,

@@ -63,18 +63,30 @@ export interface ProceduralParams {
     persistence: number;
     /** 0 is rolling hills; 1 is sharp ridges, the way eroded mountains look. */
     ridged: number;
+    /** How far the noise is pushed about by noise of its own before it is read, 0 to 1: bent ridges and winding valleys instead of round hills. */
+    warp?: number;
 }
 
 /** Fractal noise as a heightfield, scaled to span 0 to 1 so the terrain's height is its true range. */
 export function proceduralHeightfield(p: ProceduralParams): Heightfield {
     const n = Math.max(2, Math.floor(p.resolution));
     const data = new Float32Array(n * n);
+    const warp = Math.min(Math.max(p.warp ?? 0, 0), 1);
     let min = Infinity, max = -Infinity;
     for (let j = 0; j < n; j++) {
         for (let i = 0; i < n; i++) {
+            let x = i / (n - 1), y = j / (n - 1);
+            if (warp > 0) {
+                // Two octaves of noise at the biggest hills' scale move the point up to half a hill before it is read.
+                const f = p.frequency;
+                const wx = valueNoise(x * f + 5.2, y * f + 1.3, p.seed + 7001) + 0.5 * valueNoise(x * f * 2 + 2.8, y * f * 2 + 9.1, p.seed + 7002);
+                const wy = valueNoise(x * f + 8.3, y * f + 2.8, p.seed + 7003) + 0.5 * valueNoise(x * f * 2 + 4.4, y * f * 2 + 6.6, p.seed + 7004);
+                x += ((wx / 1.5) * 2 - 1) * warp * 0.5 / f;
+                y += ((wy / 1.5) * 2 - 1) * warp * 0.5 / f;
+            }
             let amplitude = 1, frequency = p.frequency, sum = 0, norm = 0;
             for (let o = 0; o < Math.max(1, Math.min(8, Math.floor(p.octaves))); o++) {
-                let v = valueNoise(i / (n - 1) * frequency, j / (n - 1) * frequency, p.seed + o * 101);
+                let v = valueNoise(x * frequency, y * frequency, p.seed + o * 101);
                 v = v * (1 - p.ridged) + (1 - Math.abs(v * 2 - 1)) * p.ridged;
                 sum += v * amplitude;
                 norm += amplitude;
@@ -113,4 +125,129 @@ export function terrainNormal(
     const dz = (sampleHeight(field, u, v + dv) - sampleHeight(field, u, v - dv)) * heightScale / (2 * dv * sizeZ);
     const len = Math.hypot(dx, 1, dz);
     return [-dx / len, 1 / len, -dz / len];
+}
+
+/** What {@link erodeHeightfield} wears the ground with. */
+export interface ErosionParams {
+    /** How much rain falls, 0 to 1: at 1, a drop for every sample of the field. */
+    amount: number;
+    seed: number;
+    /** The field's world size along x and z, and its world height: erosion works in the ground's own proportions. */
+    sizeX: number;
+    sizeZ: number;
+    height: number;
+}
+
+/** The ground after the rain, and where the water ran: `flow` is 0 to 1 per sample, the share of the busiest channel's water that passed. */
+export interface Eroded { field: Heightfield; flow: Float32Array }
+
+/**
+ * Hydraulic erosion: drops of rain fall at random over the field, each runs downhill carrying what it can for its speed and the water in it,
+ * cuts the ground where it carries less than it could, lays it down where it carries more or slows (in a hollow, on a flat, as it dries),
+ * and evaporates as it goes. What is left has gullies down the slopes, sharper ridges between them and silt in the valleys, and where the water
+ * ran is kept as `flow`. The same seed wears the same ground everywhere.
+ */
+export function erodeHeightfield(field: Heightfield, p: ErosionParams): Eroded {
+    const job = erosionJob(field, p);
+    for (;;) {
+        const next = job.next();
+        if (next.done) return next.value;
+    }
+}
+
+/** {@link erodeHeightfield} as a job that yields its progress (0 to 1) every few thousand drops, for spreading over frames. */
+export function* erosionJob(field: Heightfield, p: ErosionParams): Generator<number, Eroded, void> {
+    const w = field.width, h = field.height;
+    const drops = Math.min(600_000, Math.floor(Math.min(Math.max(p.amount, 0), 4) * w * h));
+    if (drops === 0 || w < 3 || h < 3) return { field, flow: new Float32Array(field.data.length) };
+    const cell = Math.max(p.sizeX / Math.max(w - 1, 1), p.sizeZ / Math.max(h - 1, 1), 1e-6);
+    // Heights in cells, so slopes and capacities mean the same on any terrain.
+    const scale = p.height / cell;
+    const H = new Float32Array(field.data.length);
+    for (let k = 0; k < H.length; k++) H[k] = field.data[k]! * scale;
+    const flow = new Float32Array(field.data.length);
+    const random = mulberry32(p.seed * 7919 + 17);
+    const INERTIA = 0.05, CAPACITY = 4, MIN_SLOPE = 0.01, DEPOSIT = 0.3, ERODE = 0.3, EVAPORATE = 0.02, GRAVITY = 4, LIFE = 40;
+    // A drop wears the ground over the cells about it, the nearer the more.
+    const RADIUS = 2;
+    const brush: [number, number, number][] = [];
+    let total = 0;
+    for (let dy = -RADIUS; dy <= RADIUS; dy++) for (let dx = -RADIUS; dx <= RADIUS; dx++) {
+        const d = Math.hypot(dx, dy);
+        if (d > RADIUS) continue;
+        brush.push([dx, dy, 1 - d / RADIUS]);
+        total += 1 - d / RADIUS;
+    }
+    for (const b of brush) b[2] /= total;
+    const gradient = (x: number, y: number): [number, number, number] => {
+        const ix = Math.min(Math.floor(x), w - 2), iy = Math.min(Math.floor(y), h - 2);
+        const fx = x - ix, fy = y - iy;
+        const k = iy * w + ix;
+        const a = H[k]!, b = H[k + 1]!, c = H[k + w]!, d = H[k + w + 1]!;
+        return [(b - a) * (1 - fy) + (d - c) * fy, (c - a) * (1 - fx) + (d - b) * fx, a * (1 - fx) * (1 - fy) + b * fx * (1 - fy) + c * (1 - fx) * fy + d * fx * fy];
+    };
+    for (let n = 0; n < drops; n++) {
+        if (n % 2000 === 0) yield n / drops;
+        let x = random() * (w - 1), y = random() * (h - 1);
+        let dx = 0, dy = 0, speed = 1, water = 1, sediment = 0;
+        for (let life = 0; life < LIFE; life++) {
+            const ix = Math.floor(x), iy = Math.floor(y);
+            const fx = x - ix, fy = y - iy;
+            const [gx, gy, here] = gradient(x, y);
+            dx = dx * INERTIA - gx * (1 - INERTIA);
+            dy = dy * INERTIA - gy * (1 - INERTIA);
+            const len = Math.hypot(dx, dy);
+            if (len < 1e-9) break;
+            dx /= len; dy /= len;
+            const nx = x + dx, ny = y + dy;
+            if (nx < 0 || nx > w - 1.001 || ny < 0 || ny > h - 1.001) break;
+            const fall = gradient(nx, ny)[2] - here;
+            const capacity = Math.max(-fall * speed * water * CAPACITY, MIN_SLOPE);
+            const k = iy * w + ix;
+            flow[k] = flow[k]! + water;
+            if (sediment > capacity || fall > 0) {
+                // Uphill, fill the hollow it is leaving (no more than it is deep); else lay down what it cannot carry.
+                const put = fall > 0 ? Math.min(fall, sediment) : (sediment - capacity) * DEPOSIT;
+                sediment -= put;
+                H[k] = H[k]! + put * (1 - fx) * (1 - fy);
+                H[k + 1] = H[k + 1]! + put * fx * (1 - fy);
+                H[k + w] = H[k + w]! + put * (1 - fx) * fy;
+                H[k + w + 1] = H[k + w + 1]! + put * fx * fy;
+            } else {
+                const take = Math.min((capacity - sediment) * ERODE, -fall);
+                for (const [bx, by, weight] of brush) {
+                    const cx = ix + bx, cy = iy + by;
+                    if (cx < 0 || cy < 0 || cx >= w || cy >= h) continue;
+                    const c = cy * w + cx;
+                    const cut = Math.min(H[c]!, take * weight);
+                    H[c] = H[c]! - cut;
+                    sediment += cut;
+                }
+            }
+            speed = Math.sqrt(Math.max(speed * speed - fall * GRAVITY, 0));
+            water *= 1 - EVAPORATE;
+            x = nx; y = ny;
+        }
+    }
+    const data = new Float32Array(H.length);
+    let busiest = 0;
+    for (let k = 0; k < H.length; k++) {
+        data[k] = Math.min(Math.max(H[k]! / scale, 0), 1);
+        busiest = Math.max(busiest, flow[k]!);
+    }
+    // Channels are told apart over orders of magnitude: the share is taken on a log scale.
+    const top = Math.log1p(busiest);
+    for (let k = 0; k < flow.length; k++) flow[k] = top > 0 ? Math.log1p(flow[k]!) / top : 0;
+    return { field: { width: w, height: h, data }, flow };
+}
+
+/** A small seeded random number generator: the same seed gives the same sequence on every host. */
+function mulberry32(seed: number): () => number {
+    let a = seed >>> 0;
+    return () => {
+        a = (a + 0x6d2b79f5) | 0;
+        let t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
 }

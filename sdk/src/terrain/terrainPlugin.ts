@@ -25,9 +25,10 @@ import { platformLoadImagePixels } from '../platform/base';
 import { decodeImagePixels } from '../asset/imageDecode';
 import { decodePngData } from '../asset/pngData';
 import { log } from '../util/logger';
+import { bakesOf } from '../runtime/bakes';
 import type { Color, Entity } from '../types';
 import {
-    heightfieldFromPixels, proceduralHeightfield, sampleHeight, terrainNormal, type Heightfield,
+    erosionJob, heightfieldFromPixels, proceduralHeightfield, sampleHeight, terrainNormal, type Heightfield,
 } from './heightfield';
 import { buildChunkMesh, chunkCenter, lodCount, type TerrainPaint, type TerrainShape } from './mesh';
 
@@ -59,6 +60,10 @@ export interface TerrainData {
     persistence: number;
     ridged: number;
     resolution: number;
+    /** How far the noise is bent by noise of its own, 0 to 1: winding valleys and bent ridges instead of round hills. */
+    warp: number;
+    /** How much rain wears the ground, 0 to 4 (a heightmap's too): gullies down the slopes, silt in the valleys, and dirt where the water ran. */
+    erosion: number;
     /** Painting: how steep ground must be to turn to rock (0 flat, 1 sheer), and the heights, 0 to 1, where dirt and snow start. */
     rockSlope: number;
     dirtHeight: number;
@@ -81,7 +86,7 @@ export const Terrain: ComponentDef<TerrainData> = defineComponent<TerrainData>('
     heightmap: 0, splatmap: 0, material: 0,
     sizeX: 1000, sizeZ: 1000, height: 150,
     chunks: 8, chunkCells: 32, lodLevels: 4, detail: 1,
-    seed: 1, frequency: 3, octaves: 5, persistence: 0.5, ridged: 0.35, resolution: 257,
+    seed: 1, frequency: 3, octaves: 5, persistence: 0.5, ridged: 0.35, resolution: 257, warp: 0, erosion: 0,
     rockSlope: 0.35, dirtHeight: 0.62, snowHeight: 0.88,
     layerColor0: rgb(0.28, 0.46, 0.2), layerColor1: rgb(0.45, 0.36, 0.24), layerColor2: rgb(0.93, 0.95, 0.98), layerColor3: rgb(0.4, 0.38, 0.36),
 }, {
@@ -103,6 +108,8 @@ export const Terrain: ComponentDef<TerrainData> = defineComponent<TerrainData>('
         persistence: { min: 0, max: 1, step: 0.01, category: 'Noise', tooltip: 'How much of its height each finer layer keeps. Lower is smoother.' },
         ridged: { min: 0, max: 1, step: 0.01, category: 'Noise', tooltip: '0 is rolling hills; 1 is sharp ridges.' },
         resolution: { min: 17, max: 2049, step: 1, category: 'Noise', tooltip: 'Samples along each side of the noise ground.' },
+        warp: { min: 0, max: 1, step: 0.01, category: 'Noise', tooltip: 'How far the noise is bent by noise of its own: winding valleys and bent ridges instead of round hills.' },
+        erosion: { min: 0, max: 4, step: 0.05, category: 'Shape', tooltip: 'How much rain wears the ground (a heightmap\'s too): gullies down the slopes, silt in the valleys, and dirt painted where the water ran. 0 leaves it as made.' },
         rockSlope: { min: 0, max: 1, step: 0.01, category: 'Layers', tooltip: 'How steep ground must be to turn to rock. 0 is flat, 1 is sheer.' },
         dirtHeight: { min: 0, max: 1, step: 0.01, category: 'Layers', tooltip: 'The height, as a share of the terrain, where grass gives way to dirt.' },
         snowHeight: { min: 0, max: 1, step: 0.01, category: 'Layers', tooltip: 'The height, as a share of the terrain, where snow begins.' },
@@ -137,14 +144,19 @@ interface Built {
     chunks: Entity[];
     queue: [number, number][];
     splat: { width: number; height: number; pixels: Uint8Array } | null;
+    /** Where the rain ran when the ground was worn (erodeHeightfield), 0 to 1 per sample of the field; null when it was not. */
+    flow: Float32Array | null;
     materialHandle: number;
     /** Bumped on every rebuild so an answer that arrives for an older one is thrown away. */
     epoch: number;
     loading: boolean;
+    /** The chunks to build in all, for the progress shown while they are; and the erosion in hand, to stop if the terrain is rebuilt. */
+    total: number;
+    cancel: (() => void) | null;
 }
 
-/** Chunks built per frame: enough that a terrain appears quickly, few enough that no frame is a stall. */
-const CHUNKS_PER_FRAME = 4;
+/** How long a frame may spend building chunks, in milliseconds: a terrain appears quickly, and no frame is a stall. At least one is built a frame. */
+const CHUNK_BUDGET_MS = 6;
 
 /** Run-time access to the ground: how high it is anywhere, for putting things on it. */
 export class Terrains {
@@ -237,18 +249,21 @@ export class TerrainPlugin implements Plugin {
                 if (!built || built.signature !== signature) {
                     if (built) this.destroy(app, built);
                     built = {
-                        signature, field: null, data: { ...data }, handles: [], chunks: [], queue: [], splat: null,
-                        materialHandle: data.material, epoch: (built?.epoch ?? 0) + 1, loading: true,
+                        signature, field: null, data: { ...data }, handles: [], chunks: [], queue: [], splat: null, flow: null,
+                        materialHandle: data.material, epoch: (built?.epoch ?? 0) + 1, loading: true, total: 0, cancel: null,
                     };
                     terrains.built_.set(entity, built);
                     void this.load(app, entity, built);
                     continue;
                 }
                 if (built.loading) continue;
-                for (let i = 0; i < CHUNKS_PER_FRAME && built.queue.length > 0; i++) {
+                const until = performance.now() + CHUNK_BUDGET_MS;
+                while (built.queue.length > 0) {
                     const [cx, cz] = built.queue.shift()!;
                     this.buildChunk(app, entity, built, cx, cz);
+                    if (performance.now() >= until) break;
                 }
+                bakesOf(app).mark(built, 'Building the terrain', built.total ? 1 - built.queue.length / built.total : 1);
             }
         }, { name: 'TerrainSystem' }));
     }
@@ -287,16 +302,30 @@ export class TerrainPlugin implements Plugin {
             const height = await pixelsOf(data.heightmap);
             const splat = await pixelsOf(data.splatmap);
             if (built.epoch !== epoch || !app.world.valid(entity)) return;
-            built.field = height
+            const made = height
                 ? heightfieldFromPixels(height.width, height.height, height.pixels)
                 : proceduralHeightfield({
                     resolution: Math.min(2049, Math.max(17, Math.floor(data.resolution))), seed: data.seed, frequency: data.frequency,
-                    octaves: data.octaves, persistence: data.persistence, ridged: data.ridged,
+                    octaves: data.octaves, persistence: data.persistence, ridged: data.ridged, warp: data.warp,
                 });
+            if (data.erosion > 0) {
+                // Rain over a big field is seconds of work: it is spread over frames, and shown while it runs.
+                const job = bakesOf(app).run('Eroding the terrain',
+                    erosionJob(made, { amount: data.erosion, seed: data.seed, sizeX: data.sizeX, sizeZ: data.sizeZ, height: data.height }));
+                built.cancel = job.cancel;
+                const worn = await job.done;
+                built.cancel = null;
+                if (built.epoch !== epoch || !app.world.valid(entity)) return;
+                built.field = worn.field;
+                built.flow = worn.flow;
+            } else {
+                built.field = made;
+            }
             built.splat = splat;
             app.getResource(TerrainsRes).revision_++;
             const shape = shapeOf(data);
             for (let cz = 0; cz < shape.chunks; cz++) for (let cx = 0; cx < shape.chunks; cx++) built.queue.push([cx, cz]);
+            built.total = built.queue.length;
         } catch (e) {
             log.error('terrain', 'building the terrain failed', e);
         } finally {
@@ -308,6 +337,7 @@ export class TerrainPlugin implements Plugin {
         const data = built.data;
         const colors = [data.layerColor0, data.layerColor1, data.layerColor2, data.layerColor3];
         const splat = built.splat;
+        const flow = built.flow, field = built.field;
         const textured = built.materialHandle !== 0;
         return (u, v, h, ny) => {
             let w = paintWeights(h, ny, data);
@@ -318,6 +348,13 @@ export class TerrainPlugin implements Plugin {
                 const s: [number, number, number, number] = [splat.pixels[at]! / 255, splat.pixels[at + 1]! / 255, splat.pixels[at + 2]! / 255, splat.pixels[at + 3]! / 255];
                 const sum = s[0] + s[1] + s[2] + s[3];
                 if (sum > 0.001) w = [s[0] / sum, s[1] / sum, s[2] / sum, s[3] / sum];
+            }
+            if (flow && field) {
+                // Where the rain ran it took the grass and left dirt; snow and rock stay as they are.
+                const x = Math.min(field.width - 1, Math.max(0, Math.round(u * (field.width - 1))));
+                const y = Math.min(field.height - 1, Math.max(0, Math.round(v * (field.height - 1))));
+                const channel = smooth(0.45, 0.85, flow[y * field.width + x]!) * 0.8 * w[0];
+                w = [w[0] - channel, w[1] + channel, w[2], w[3]];
             }
             // A material reads the weights; with none the colours are mixed here and the ground is drawn in them.
             if (textured) return w;
@@ -370,6 +407,9 @@ export class TerrainPlugin implements Plugin {
     private destroy(app: App, built: Built): void {
         built.epoch++;
         built.queue.length = 0;
+        built.cancel?.();
+        built.cancel = null;
+        bakesOf(app).clear(built);
         const assets = app.hasResource(Assets) ? app.getResource(Assets) : null;
         for (const chunk of built.chunks) if (app.world.valid(chunk)) app.world.despawn(chunk);
         for (const handle of built.handles) assets?.releaseBuiltMesh(handle);
