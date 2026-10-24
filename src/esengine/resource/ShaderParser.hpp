@@ -156,6 +156,11 @@ struct ParsedShader {
     /// pass (compiled with ES_TIP_PASS) over the opaque one: the soft outer band of a cutout that
     /// coverage alone would stair-step.
     std::string tipParam;
+    /// `#pragma hairshadow <param>`: while that float param is above zero, meshes drawn with the material are hair —
+    /// the frame fits a shadow cascade to them alone (so their layers are not lost in a texel of the view's own
+    /// cascades), and the shader reads the shadow as a density along the light (a strand layer lets part of the
+    /// light through) in place of a hard compare. The value is the density, in opacity per world unit.
+    std::string hairShadowParam;
     /// `#pragma gbuffer`: a post-process shader reads the scene's surface record (normal, roughness,
     /// metalness) at unit kGBufferUnit, so the frame must draw one for it.
     bool usesGBuffer = false;

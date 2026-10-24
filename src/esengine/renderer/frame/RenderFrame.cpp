@@ -1800,6 +1800,27 @@ bool RenderFrame::meshWorldBounds(ecs::Registry& registry, glm::vec3& outMin, gl
     return any;
 }
 
+bool RenderFrame::hairWorldBounds(ecs::Registry& registry, glm::vec3& outMin, glm::vec3& outMax) {
+    auto meshes = registry.activeView<ecs::Transform, ecs::MeshRenderer>();
+    bool any = false;
+    for (auto entity : meshes) {
+        const auto& mesh = meshes.get<ecs::MeshRenderer>(entity);
+        if (!mesh.enabled || !mesh.mesh.isValid() || mesh.material == 0) continue;
+        if (context_.materials().hairShadowDensity(mesh.material) <= 0.0f) continue;
+        const Mesh* resident = resource_manager_.getMesh(mesh.mesh);
+        if (!resident) continue;
+        auto& transform = meshes.get<ecs::Transform>(entity);
+        transform.ensureDecomposed();
+        glm::vec3 centre(0.0f), half(0.0f);
+        orientedWorldAabb(transform.worldPosition, transform.worldRotation, transform.worldScale,
+                          resident->localMin, resident->localMax, centre, half);
+        outMin = any ? glm::min(outMin, centre - half) : centre - half;
+        outMax = any ? glm::max(outMax, centre + half) : centre + half;
+        any = true;
+    }
+    return any;
+}
+
 /// The camera frustum's eight world corners, near plane first (GL clip z in [-1,1],
 /// which both backends' shared projection helpers write).
 static void frustumCorners(const glm::mat4& invVP, glm::vec3 out[8]) {
@@ -1915,6 +1936,11 @@ void RenderFrame::buildShadowPlan(ecs::Registry& registry) {
     frustumCorners(invVP, corners);
     glm::vec3 boundsMin(0.0f), boundsMax(0.0f);
     const bool haveBounds = meshWorldBounds(registry, boundsMin, boundsMax);
+    // Hair is layers of cards a few millimetres apart, which a cascade spread over the view cannot tell apart: its texel is as wide as the gap.
+    // So a perspective sun with cascades of its own also gets one fitted to the hair alone, first in its list (the nearest tile covering a
+    // fragment wins), and everything that falls inside it, the face under a fringe included, is shadowed at that resolution.
+    glm::vec3 hairMin(0.0f), hairMax(0.0f);
+    const bool haveHair = perspective && hairWorldBounds(registry, hairMin, hairMax);
 
     f32 nearDist = 0.0f, farDist = 1.0f;
     if (perspective) {
@@ -1975,7 +2001,8 @@ void RenderFrame::buildShadowPlan(ecs::Registry& registry) {
         if (caster.shape != ShadowShape::Box) continue;
         // A fixed reach is the author saying what the map covers; splitting it would
         // hand the rest of the atlas to slices they never asked for.
-        const u32 want = (perspective && caster.extent <= 0.0f) ? shadow_cascades_ : 1;
+        const bool focus = haveHair && caster.extent <= 0.0f;
+        const u32 want = (perspective && caster.extent <= 0.0f) ? shadow_cascades_ + (focus ? 1u : 0u) : 1;
         i32 at = -1;
         const ShadowGrant grant = claimTiles(shadow_atlas_, caster.light, want,
                                              kShadowCascadeCells, at);
@@ -2003,6 +2030,9 @@ void RenderFrame::buildShadowPlan(ecs::Registry& registry) {
         const TilePlan mine = plan[ci];
         if (mine.count == 0) continue;
         u32 plannedTiles = 0;
+        // The first tile of a perspective sun with cascades is the hair's, when there is hair; the cascades follow it.
+        const bool hasFocus = haveHair && caster.shape == ShadowShape::Box && caster.extent <= 0.0f && mine.count > 1;
+        const u32 cascadeCount = mine.count - (hasFocus ? 1u : 0u);
 
         for (u32 c = 0; c < mine.count; ++c) {
             const u32 tileIndex = mine.first + c;
@@ -2036,11 +2066,23 @@ void RenderFrame::buildShadowPlan(ecs::Registry& registry) {
                     radius = caster.extent > 0.0f ? caster.extent : std::max(fitted, 1.0f);
                     centre = haveBounds ? (boundsMin + boundsMax) * 0.5f
                                         : glm::vec3(view.center.x, view.center.y, 0.0f);
+                } else if (hasFocus && c == 0) {
+                    // The hair, as a sphere a little wider than its box so the face under it is inside, its radius stepped by quarter octaves
+                    // so the texel does not change every frame, and the centre snapped to the map's grid so the edges do not crawl.
+                    centre = (hairMin + hairMax) * 0.5f;
+                    const f32 wanted = std::max(0.5f * glm::length(hairMax - hairMin) * 1.25f, 0.02f);
+                    radius = std::exp2(std::ceil(std::log2(wanted) * 4.0f) / 4.0f);
+                    const f32 texel = (radius * 2.0f) / static_cast<f32>(tile.size);
+                    glm::vec3 inLight = glm::vec3(lightRot * glm::vec4(centre, 1.0f));
+                    inLight.x = std::floor(inLight.x / texel) * texel;
+                    inLight.y = std::floor(inLight.y / texel) * texel;
+                    centre = glm::vec3(lightRotInv * glm::vec4(inLight, 1.0f));
                 } else {
                     // This slice of the view, as a sphere: a box would grow and shrink as
                     // the light turns, and the texel density with it.
-                    const f32 t0 = splitFraction(c, mine.count, nearDist, farDist);
-                    const f32 t1 = splitFraction(c + 1, mine.count, nearDist, farDist);
+                    const u32 slot = hasFocus ? c - 1 : c;
+                    const f32 t0 = splitFraction(slot, cascadeCount, nearDist, farDist);
+                    const f32 t1 = splitFraction(slot + 1, cascadeCount, nearDist, farDist);
                     glm::vec3 slice[8];
                     for (u32 i = 0; i < 4; ++i) {
                         const glm::vec3 ray = corners[i + 4] - corners[i];

@@ -709,8 +709,9 @@ function hasProduct(material: ImportedMaterial, refs: ProductRefs): boolean {
  * half the light, so under a lamp it is far too bright unless it is turned down on its own. Measured against Blender's Principled at roughness
  * 0.43 and a specular level of 0.3 (tools/render-align in the star-neighbors game).
  */
-const HAIR_LOBE_GAIN = 0.28;
+const HAIR_LOBE_GAIN = 0.1;
 const HAIR_ENV_GAIN = 0.65;
+const HAIR_SHADOW_DENSITY = 400;
 
 /**
  * What the character shaders read, from what the source says: the maps they share, and the cutout hair needs. What a glTF does not say it
@@ -735,13 +736,16 @@ function characterProperties(shading: CharacterShading, material: ImportedMateri
         // A little of the shader's own strand character is kept (a per-strand shift of the highlight and a tinted second lobe, at a third of their
         // strength): without it the cards read as plates, not locks of hair.
         properties.u_translucency = 0; properties.u_shiftAmount = 0.3; properties.u_rootDark = 0;
-        properties.u_secondaryTint = { r: 0.25, g: 0.15, b: 0.08, a: 1 };
+        properties.u_secondaryTint = { r: 0.12, g: 0.07, b: 0.04, a: 1 };
         // The Hair shader has no use for the packed roughness (a strand's width is its own), so the factor is the whole answer.
         if (rough !== undefined) properties.u_roughness = rough;
         // Principled reflects F0 = 0.04 x the factor; the Hair shader's F0 is 0.046, so u_specular is the ratio, and its reflection of the environment at
         // this roughness comes out about half as bright again as Blender's, which HAIR_ENV_GAIN takes back.
         properties.u_specular = ((material.specular ?? 1) * 0.04 / 0.046) * HAIR_ENV_GAIN;
         properties.u_lobeGain = HAIR_LOBE_GAIN;
+        // The Principled shader's diffuse, which goes dark where a card turns from the light (the strand's own diffuse keeps it lit edge-on and flattens the locks), and
+        // a density of hair for the light to pass through, with the cascade the frame fits to it: what Blender gets from tracing the layers.
+        properties.u_strandDiffuse = 0; properties.u_hairShadow = HAIR_SHADOW_DENSITY;
         // Cards cut from one strand texture read as combed plates; drawing them as a few locks, each a little lighter or darker with its own break in the highlight
         // and a shadowed seam, gives the layers the depth Blender gets from hundreds of overlapping cards.
         properties.u_clumpCount = 7; properties.u_clumpTone = 0.4; properties.u_clumpShift = 0.5; properties.u_clumpGap = 0.55;

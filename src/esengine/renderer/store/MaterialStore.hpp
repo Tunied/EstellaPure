@@ -94,6 +94,8 @@ struct MaterialUniformLayout {
     std::string coverageParam;
     /// The float param that turns the shader's blended tip pass on (see ParsedShader::tipParam).
     std::string tipParam;
+    /// The float param that makes the shader's meshes hair for shadows (see ParsedShader::hairShadowParam).
+    std::string hairShadowParam;
     /// The shader reads the scene's surface record (ParsedShader::usesGBuffer).
     bool usesGBuffer = false;
     /// The shader reads the frame's light block and shadow atlas (ParsedShader::usesLights).
@@ -373,6 +375,18 @@ public:
         f32 value = 0.0f;
         std::memcpy(&value, m->uboBytes.data() + slot->offset, sizeof(f32));
         return value > 0.0f;
+    }
+
+    /// The hair shadow density @p materialId holds (see ParsedShader::hairShadowParam), 0 when its shader has none or it is off.
+    f32 hairShadowDensity(u32 materialId) const {
+        const MaterialRecord* m = find(materialId);
+        const MaterialUniformLayout* layout = m ? layoutFor(m->shaderRef) : nullptr;
+        if (!layout || layout->hairShadowParam.empty()) return 0.0f;
+        const MaterialParamSlot* slot = layout->find(layout->hairShadowParam);
+        if (!slot || slot->offset + sizeof(f32) > m->uboBytes.size()) return 0.0f;
+        f32 value = 0.0f;
+        std::memcpy(&value, m->uboBytes.data() + slot->offset, sizeof(f32));
+        return value > 0.0f ? value : 0.0f;
     }
 
     /// The registered #pragma-param layout for a shader program, or nullptr.

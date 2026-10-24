@@ -732,6 +732,11 @@ ParsedShader ShaderParser::parse(const std::string& source, const ShaderIncludeR
             continue;
         }
 
+        if (directive == "hairshadow") {
+            result.hairShadowParam = argument;
+            continue;
+        }
+
         if (directive == "gbuffer") {
             result.usesGBuffer = true;
             continue;
@@ -1259,6 +1264,8 @@ struct PlanarConstants { planarProjection : mat4x4f, planarParams : vec4f };
 // varying, so the entry point hands it over — the GLSL twin reads the varying
 // straight, which is the one place the two stages differ in shape.
 var<private> g_probeSlot : f32 = 0.0;
+// Set by a hair shader before it lights: how much of the light a layer of strands takes, per world unit along it (0 = a surface, a hard compare).
+var<private> g_hairShadow : f32 = 0.0;
 // The GLSL twin's v_lightmap, handed over by the entry point like the slot above.
 var<private> g_lightmap : vec3f = vec3f(0.0);
 // The mesh's own tangent frame, handed over by the entry point like the slot above; zero where the shader never sets it, which
@@ -1357,6 +1364,25 @@ fn shadowFactor3D(worldPos : vec3f, N : vec3f, L : vec3f, source : vec2f,
         // the tangent of the angle it subtends where its w is 1 everywhere.
         let hasEye = length(vec3f(m[0].w, m[1].w, m[2].w)) > 0.5;
         let src = select(source.y, source.x, hasEye);
+        // Hair: layers of strand cards a few millimetres apart are not a wall. The light left after a depth of them falls off with that depth, from the
+        // nearest card (what the map holds) to this one, the way a deep shadow map reads it. A blocker within a couple of texels toward the light is
+        // this card's own surface and does not count.
+        if (g_hairShadow > 0.0) {
+            let reachHair = shadowDepth(m, worldPos + L * stepFor(texel, slope, 2.0));
+            var sumHair = 0.0;
+            var hitsHair = 0.0;
+            for (var i = 0; i < 8; i++) {
+                let at = clamp(at0 + diskTap(i, 8, 2.0) * lc.u_shadowParams.y, lo, hi);
+                let d = unpackDepth(textureSampleLevel(t2, s2, at, 0.0).rgb);
+                if (d < reachHair) { sumHair += d; hitsHair += 1.0; }
+            }
+            if (hitsHair < 0.5) { return 1.0; }
+            let Ah = length(vec3f(m[0].z, m[1].z, m[2].z));
+            let zbh = 2.0 * (sumHair / hitsHair) - 1.0;
+            var spanHair = (proj.z - zbh) / max(Ah, 1e-9);
+            if (hasEye) { spanHair = lcp.w - lcp.w * (Ah - proj.z) / max(Ah - zbh, 1e-6); }
+            return mix(1.0, exp(-g_hairShadow * max(spanHair, 0.0)), hitsHair * 0.125);
+        }
         // A source with no size throws one edge: a tent over the 3x3 texels around the
         // point, weighted by where it falls among them. Equal weights step at every
         // texel and the map's grid shows along the edge; a 2x2 still stair-steps it.
@@ -1683,10 +1709,10 @@ fn distanceFalloff(dist : f32, reach : f32, fo : vec4f) -> f32 {
 }
 )"
 // Split again for the same reason: the surface layers and the lighting that reads them.
-R"(struct SurfaceExt { coat : vec4f, coatN : vec4f, sheen : vec4f, aniso : vec4f, scatter : vec4f, trans : vec4f, film : vec4f, misc : vec4f };
+R"(struct SurfaceExt { coat : vec4f, coatN : vec4f, sheen : vec4f, aniso : vec4f, scatter : vec4f, trans : vec4f, film : vec4f, misc : vec4f, strand : vec4f };
 fn surfaceExtNone(N : vec3f) -> SurfaceExt {
     return SurfaceExt(vec4f(0.0), vec4f(N, 0.0), vec4f(0.0), vec4f(0.0), vec4f(0.0), vec4f(0.0), vec4f(0.0),
-                      vec4f(0.04, 0.0, 0.0, 0.0));
+                      vec4f(0.04, 0.0, 0.0, 0.0), vec4f(0.6, 0.0, 0.0, 0.0));
 }
 fn distributionCharlie(NdotH : f32, a : f32) -> f32 {
     let invA = 1.0 / max(a, 1e-3);
@@ -1836,7 +1862,7 @@ fn shadeLight(pd : vec4f, col : vec4f, sp : vec4f, sh : vec4f, sm : vec4f, fo : 
         // Hair (misc.y above zero; aniso.xyz is the strand): Kajiya-Kay diffuse, which lights a strand by how far light is from along it.
         if (ext.misc.y > 0.0) {
             let along = dot(ext.aniso.xyz, L);
-            ndotl = mix(ndotl, sqrt(max(1.0 - along * along, 0.0)) * clamp(dot(N, L) * 0.5 + 0.65, 0.0, 1.0), 0.6);
+            ndotl = mix(ndotl, sqrt(max(1.0 - along * along, 0.0)) * clamp(dot(N, L) * 0.5 + 0.65, 0.0, 1.0), ext.strand.x);
         }
         let radiance = col.rgb * (col.a * ndotl * atten);
         lit += radiance;
@@ -2361,6 +2387,8 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             // sit further apart than the texels they average, and a penumbra bands rather
             // than blurs. It bounds the search too, which can find no wider an edge.
             "const highp float kShadowDisc = 8.0;\n"
+            // Set by a hair shader before it lights: how much of the light a layer of strands takes, per world unit along it.
+            "highp float g_hairShadow = 0.0;\n"
             // A spiral, not a table: the golden angle spreads any number of taps evenly
             // over a disc, so the pattern follows the count instead of sitting beside it.
             "highp vec2 diskTap(in int i, in int n, in highp float radius) {\n"
@@ -2420,6 +2448,24 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             // the tangent of the angle it subtends where its w is 1 everywhere.
             "        bool hasEye = length(vec3(m[0][3], m[1][3], m[2][3])) > 0.5;\n"
             "        highp float src = hasEye ? source.x : source.y;\n"
+            // Hair: the light left after a depth of strand layers falls off with that depth, from the nearest card (what the map holds) to this one.
+            // A blocker within a couple of texels toward the light is this card's own surface and does not count.
+            "        if (g_hairShadow > 0.0) {\n"
+            "            highp float reachHair = shadowDepth(m, worldPos + L * stepFor(texel, slope, 2.0));\n"
+            "            highp float sumHair = 0.0;\n"
+            "            highp float hitsHair = 0.0;\n"
+            "            for (int i = 0; i < 8; ++i) {\n"
+            "                highp vec2 at = clamp(at0 + diskTap(i, 8, 2.0) * u_shadowParams.y, lo, hi);\n"
+            "                highp float d = unpackDepth(texture(u_shadowMap, at).rgb);\n"
+            "                if (d < reachHair) { sumHair += d; hitsHair += 1.0; }\n"
+            "            }\n"
+            "            if (hitsHair < 0.5) return 1.0;\n"
+            "            highp float Ah = length(vec3(m[0][2], m[1][2], m[2][2]));\n"
+            "            highp float zbh = 2.0 * (sumHair / hitsHair) - 1.0;\n"
+            "            highp float spanHair = (proj.z - zbh) / max(Ah, 1e-9);\n"
+            "            if (hasEye) spanHair = lc.w - lc.w * (Ah - proj.z) / max(Ah - zbh, 1e-6);\n"
+            "            return mix(1.0, exp(-g_hairShadow * max(spanHair, 0.0)), hitsHair * 0.125);\n"
+            "        }\n"
             // A source with no size throws one edge: a tent over the 3x3 texels around the
             // point, weighted by where it falls among them. Equal weights step at every
             // texel and the map's grid shows along the edge; a 2x2 still stair-steps it.
@@ -2792,10 +2838,11 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "    highp vec4 trans;\n"
             "    highp vec4 film;\n"
             "    highp vec4 misc;\n"
+            "    highp vec4 strand;\n"
             "};\n"
             "SurfaceExt surfaceExtNone(in highp vec3 N) {\n"
             "    return SurfaceExt(vec4(0.0), vec4(N, 0.0), vec4(0.0), vec4(0.0), vec4(0.0), vec4(0.0), vec4(0.0),\n"
-            "                      vec4(0.04, 0.0, 0.0, 0.0));\n"
+            "                      vec4(0.04, 0.0, 0.0, 0.0), vec4(0.6, 0.0, 0.0, 0.0));\n"
             "}\n"
             "highp float distributionCharlie(in highp float NdotH, in highp float a) {\n"
             "    highp float invA = 1.0 / max(a, 1e-3);\n"
@@ -2964,7 +3011,7 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             // Hair (misc.y above zero; aniso.xyz is the strand): Kajiya-Kay diffuse, which lights a strand by how far light is from along it.
             "        if (ext.misc.y > 0.0) {\n"
             "            highp float along = dot(ext.aniso.xyz, L);\n"
-            "            ndotl = mix(ndotl, sqrt(max(1.0 - along * along, 0.0)) * clamp(dot(N, L) * 0.5 + 0.65, 0.0, 1.0), 0.6);\n"
+            "            ndotl = mix(ndotl, sqrt(max(1.0 - along * along, 0.0)) * clamp(dot(N, L) * 0.5 + 0.65, 0.0, 1.0), ext.strand.x);\n"
             "        }\n"
             "        highp vec3 radiance = col.rgb * (col.a * ndotl * atten);\n"
             "        lit += radiance;\n"

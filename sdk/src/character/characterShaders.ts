@@ -35,6 +35,9 @@ const HAIR = `#pragma shader "Hair"
 #pragma param u_secondaryTint color default(0.75,0.45,0.25,1)
 // Light that comes through the strands from behind.
 #pragma param u_translucency float default(0.4) range(0,1) ui(slider)
+// How much of the diffuse is the strand's own (Kajiya-Kay: how far the light is from along the strand, with a soft wrap) against a surface's N dot L: 0 is the Principled
+// shader's diffuse, which goes dark where a card turns from the light; more keeps a card lit edge-on, which flattens locks into one tone.
+#pragma param u_strandDiffuse float default(0.6) range(0,1) ui(slider)
 // A negative bias on the colour's mip level keeps the fine strands a hair card is covered in from washing out at a slant, which they do at once.
 #pragma param u_sharpen float default(-0.8) range(-3,1) ui(slider)
 // How much darker the roots are than the tips: the occlusion map's red, pushed.
@@ -52,6 +55,11 @@ const HAIR = `#pragma shader "Hair"
 #pragma param u_clumpTone float default(0.25) range(0,0.6) ui(slider)
 #pragma param u_clumpShift float default(0.3) range(0,1) ui(slider)
 #pragma param u_clumpGap float default(0.3) range(0,1) ui(slider)
+// How much of the light a layer of strands takes, per world unit along it (an opacity density; 0 shades like any surface, with a hard shadow). Above zero
+// the frame also gives the hair a shadow cascade fitted to it alone, so the layers of cards a few millimetres apart are told apart, and the light left
+// after them falls off with the depth of hair it passed through.
+#pragma param u_hairShadow float default(0) range(0,2000) ui(slider)
+#pragma hairshadow u_hairShadow
 
 #pragma fragment
 precision highp float;
@@ -127,9 +135,11 @@ void main() {
     SurfaceExt ext = surfaceExtNone(N);
     ext.aniso = vec4(T, 0.0);
     ext.misc = vec4(0.046, max(u_lobeGain, 0.001), u_shiftPrimary + noise, u_shiftSecondary + noise);
+    ext.strand = vec4(u_strandDiffuse, 0.0, 0.0, 0.0);
     ext.scatter = vec4(base.rgb * u_secondaryTint.rgb * 1.6, 0.35);
     ext.trans = vec4(u_translucency, 0.25, 0.0, 0.0);
     vec3 viewDir = viewDirection(P);
+    g_hairShadow = u_hairShadow;
     vec3 lit = applyLightingSurface(base.rgb, N, P, viewDir, 0.0, u_roughness, u_specular, ao, ext);
     fragColor = vec4(lit, alpha);
 #ifdef ES_GBUFFER
@@ -216,9 +226,11 @@ fn packNormal(n : vec3f) -> vec2f {
     var ext = surfaceExtNone(N);
     ext.aniso = vec4f(T, 0.0);
     ext.misc = vec4f(0.046, max(mc.u_lobeGain, 0.001), mc.u_shiftPrimary + noise, mc.u_shiftSecondary + noise);
+    ext.strand = vec4f(mc.u_strandDiffuse, 0.0, 0.0, 0.0);
     ext.scatter = vec4f(base.rgb * mc.u_secondaryTint.rgb * 1.6, 0.35);
     ext.trans = vec4f(mc.u_translucency, 0.25, 0.0, 0.0);
     let viewDir = viewDirection(P);
+    g_hairShadow = mc.u_hairShadow;
     let lit = applyLightingSurface(base.rgb, N, P, viewDir, 0.0, mc.u_roughness, mc.u_specular, ao, ext);
 #ifdef ES_GBUFFER
     var frag : FragOut;
