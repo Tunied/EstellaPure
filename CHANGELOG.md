@@ -54,6 +54,7 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Dusk Fort exports.** The Dusk Fort example's scene had no `.meta`, so an export of the project reached nothing from it: the package carried no assets and booted to "asset not found: assets/scenes/main.esscene". The scene now has its id, and the script that composes it writes one when it is missing.
 - **Normal maps along a triangle's edge on WebGPU.** On WebGPU with multisampling, every pixel a triangle only partly covers lost its normal map: on Metal the screen-space derivatives that build the frame were moved behind the branch that picks it, where those pixels have no neighbours to difference against. A normal-mapped quad drew a dotted line down its diagonal and round its rim, and the Skin shader's detail layer left those pixels without their highlight.
 - **Cut-out colour in its clear texels.** An imported cut-out's clear texels take the colour of the solid ones nearest them, so a mip, whether the cook makes it or the GPU does, no longer averages in what the painter left under alpha 0.
 - **Cut-out shadows.** A cut-out's shadow is the same shape on both backends: the shadow pass read a card's alpha at level 0 on WebGPU and through its mips on WebGL2. Both now read the mips and cut at the cutoff, as the cut-out itself is cut.

@@ -88,6 +88,10 @@ export const NOTED = {
     {"note": "Normal maps along a triangle's edge on WebGPU."},
   "fix(render): a cut-out is glTF's MASK at every distance, its mips keeping their coverage both ways":
     {"note": "Cut-outs are glTF's MASK at every distance."},
+  "fix(examples): Dusk Fort's scene carries its .meta, so its package reaches the fort instead of booting to asset not found":
+    {"note": "Dusk Fort exports."},
+  "fix(examples): Neon Ascension's camera drops a backgroundColor it never had, which every boot warned about":
+    {"internal": "Camera has no backgroundColor; the field was never read, so the frame is unchanged and only the boot warning goes."},
   'fix: serialize binaryen optimization on windows': { internal: 'Uses one optimizer worker after wider builds reproduced heap corruption with four; release optimization flags stay unchanged.' },
   'feat: add budgeted 2d and 3d particle scene collisions': { note: 'Budgeted particle scene collisions.' },
   'feat(editor): add particle collision authoring and diagnostics': { note: 'Budgeted particle scene collisions.' },
