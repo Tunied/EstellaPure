@@ -83,7 +83,9 @@ const PROFILES: Record<QualityLevel, QualityProfile> = {
     },
     high: {
         renderScale: 1, minRenderScale: 0.75, msaaSamples: 4,
-        shadowAtlasSize: 2048, shadowCellSize: 512, shadowCascades: 4,
+        // A face is millimetres of relief: at 512 texels a cascade, a skin-hugging card (a brow, a hairline) falls inside one texel of the skin and the
+        // shadow speckles it with dirt. 1024 is the cell that clears it for a character at arm's length.
+        shadowAtlasSize: 4096, shadowCellSize: 1024, shadowCascades: 4,
         planarReflectionScale: 1, planarReflectionMaxSize: 2048, planarReflectionUpdatesPerSecond: 0,
         shadowDistance: 0, particleLimit: 20000, postProcess: true, ssao: true,
         waterWaves: 4, waterRippleCells: 128, waterDisplacement: true, waterMirror: true, waterCaustics: true,
