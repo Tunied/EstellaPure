@@ -1,45 +1,110 @@
 ---
 title: Terrain
-description: A Terrain component that makes ground from a heightmap or noise, paints it by height and slope, and draws it in chunks that coarsen with distance.
+description: A Terrain component that makes ground from a heightmap or noise, over an area or without end, paints it by height and slope, and draws it as a quadtree of one patch that coarsens with distance.
 ---
 
 Ground is the largest thing most 3D scenes draw and the thing a mesh is worst at: too many triangles near the camera
-and too few where it matters. The `Terrain` component makes it from a grid of heights and cuts it into chunks, each built at
-several levels of detail, so a hill underfoot is drawn finely and the same hill on the horizon is a few hundred triangles.
+and too few where it matters. The `Terrain` component draws it as a quadtree of squares round the eye, every square the same small
+patch, so a hill underfoot is drawn in fine cells and the same hill on the horizon in cells many times as large.
 
 ## The component
 
-Add a `Terrain` component to an entity. It is centred on that entity; its children are the chunks, made when the scene runs
-(and in the editor's scene view) and rebuilt when a field changes. Nothing is baked and nothing is saved besides the component.
+Add a `Terrain` component to an entity. It is placed at that entity; its children are the quadtree's nodes, made when the scene runs
+(and in the editor's scene view) and moved as the eye moves. Nothing is baked into the scene and nothing is saved besides the component.
+
+The ground is one of two kinds, chosen by `extent`:
+
+- **Area**: ground `sizeX` by `sizeZ`, centred on the entity, from a heightmap or from noise made once. It may be worn by rain and
+  painted by a splatmap.
+- **Infinite**: noise read at any point in the world, so the ground has no edge. The same seed is the same ground everywhere, in the
+  editor, in a game and on a server. It is drawn round the eye out to `drawDistance`.
 
 | Field | What it does |
 |---|---|
-| `heightmap` | An image: the red channel is the height. If the green channel is not just grey it is taken as the low byte of a 16-bit height, so a 16-bit map exported into an 8-bit-per-channel PNG keeps its precision. Empty makes the ground from noise. |
-| `sizeX`, `sizeZ`, `height` | World size of the terrain and the world height of its highest ground. |
-| `chunks` | Chunks along each side. Each is culled and drawn on its own, so more chunks cull better and cost more draws. |
-| `chunkCells` | Cells along a chunk's side at its finest level. |
-| `lodLevels`, `detail` | How many levels each chunk has (each half as fine as the one before) and a multiplier on how far the finer levels reach. |
-| `seed`, `frequency`, `octaves`, `persistence`, `ridged`, `resolution` | The noise ground: another seed is another ground; `ridged` goes from rolling hills to sharp ridges. |
-| `splatmap` | An image whose four channels are the weights of the four layers. Empty paints by height and slope. |
-| `rockSlope`, `dirtHeight`, `snowHeight` | How steep ground must be to turn to rock, and the heights where grass gives way to dirt and where snow begins. |
+| `extent` | `Area` or `Infinite`, as above. |
+| `heightmap` | Area only. An image: the red channel is the height. If the green channel is not just grey it is taken as the low byte of a 16-bit height, so a 16-bit map exported into an 8-bit-per-channel PNG keeps its precision. Empty makes the ground from noise. |
+| `sizeX`, `sizeZ`, `height` | An area's world size and the world height of its highest ground. For infinite ground `sizeX` is the span that `frequency` hills are spread over, and `sizeZ` is not used. |
+| `cellSize` | The finest cell of the ground's mesh, in world units: what the ground is drawn at near the eye. Further off the cells double, level by level. |
+| `detail` | A multiplier on how far the finest cells reach before the ground coarsens. Above 1 is finer at a distance and costs more triangles. |
+| `drawDistance` | Infinite only. How far from the eye the ground is drawn. |
+| `seed`, `frequency`, `octaves`, `persistence`, `ridged` | The noise: another seed is another ground; `frequency` is how many hills across; `ridged` goes from rolling hills to sharp ridges. |
+| `resolution` | Area only. Samples along each side of an area's noise ground. |
+| `warp` | 0 to 1: how far the noise is bent by noise of its own, which gives winding valleys and bent ridges instead of round hills. |
+| `erosion` | 0 to 4: how much rain wears the ground (below). 0 leaves it as made. |
+| `splatmap` | Area only. An image whose four channels are the weights of the four layers. Empty paints by height and slope. |
+| `rockSlope`, `dirtHeight`, `snowHeight` | How steep ground must be to turn to rock, and the heights, as a share of `height`, where grass gives way to dirt and where snow begins. |
 | `layerColor0`–`3` | Grass, dirt, snow, rock: the colours the ground is drawn in when it has no material. |
 | `material` | A material on the **Terrain** shader (below). Empty draws the layer colours straight onto the ground. |
 
+Changing `detail`, `drawDistance` or a layer colour takes effect on the next frame. Changing any other field builds the ground again.
+
+### Erosion
+
+On an area, `erosion` runs rain over the field drop by drop, one drop for every sample of the field at 1: each drop runs downhill,
+cuts the ground where it can carry more than it does and lays it down where it slows, which leaves gullies down the slopes, sharper
+ridges between them and silt in the valleys. The same seed wears the same ground. It works on a heightmap's field as well as a noise one. Where the water
+ran the grass is taken and dirt is painted in its place, so the channels show. Rain over a large field is seconds of work, so it is
+spread over frames and shown as it runs (see [Building over frames](#building-over-frames)).
+
+Infinite ground has no edge for rain to run off, so its erosion is the noise's own: each octave of the noise is damped where the
+octaves under it are already steep. That leaves smooth valleys between sharp ridges, much as rain would, at no cost beyond the noise.
+It paints no dirt channels.
+
 ## Layers and the Terrain material
 
-The four layers are grass, dirt, snow and rock. Each vertex is given its weight of every layer, from the splatmap or from how high
-and how steep the ground is there, and the **Terrain** shader (`builtin:terrain`) draws them: `u_layer0`–`3` are the textures,
-`u_tint0`–`3` their colours and `u_tile0`–`3` how many world units one repeat covers. The textures are tiled by *world position*, so a
-layer runs unbroken from one chunk to the next, and the rock is projected from three sides so a cliff is not a smear. `u_sharpness`
-hardens the seams and `u_macroVariation` lays a slow variation over the grass so a meadow is not one repeated tile.
+The four layers are grass, dirt, snow and rock. Every point of ground has a weight of each layer, from the splatmap or from how high
+and how steep the ground is there, and the **Terrain** shader (`builtin:terrain`) draws them. The textures are tiled by *world position*,
+so a layer runs unbroken across the ground however it is cut, and the rock is projected from three sides so a cliff is not a smear.
 
-## How the levels of detail work
+| Parameter | What it does |
+|---|---|
+| `u_layer0`–`3` | The layers' textures: grass, dirt, snow, rock. |
+| `u_tint0`–`3` | Each layer's colour, which multiplies its texture. |
+| `u_tile0`–`3` | How many world units one repeat of each layer covers. |
+| `u_sharpness` | How much the layer with more weight takes over at a seam: 1 is a plain blend, higher a harder edge. |
+| `u_heightBlend` | How much the seams follow the layers' own relief (their brightness): rock shows through the gaps in the grass before the grass gives way, and sand fills the low places between stones. 0 is a plain blend of the weights. |
+| `u_antiTile` | How much of each layer is read a second time, turned and on a wider tile, and blended in by slow noise, so no repeat is seen across a field. It fades out with distance, where a repeat is too small to see. |
+| `u_macroVariation` | A wide, slow variation in brightness laid over every layer so a big meadow is not one colour. |
+| `u_relief` | How deep, in world units, the layers' relief is drawn into the light (their brightness taken as height). 0 leaves the ground smooth. |
+| `u_wetLevel`, `u_wetBand` | Ground at the water: below `u_wetLevel + u_wetBand` (world heights) it darkens and shines, most at `u_wetLevel`. A band of 0 draws none. |
+| `u_roughness` | The ground's roughness where it is dry. |
 
-Each chunk is a grid of `chunkCells` cells a side, built again at half that, a quarter, and so on down to two cells. The engine's own
-[level of detail](/docs/performance/level-of-detail/) picks among them by how large the chunk is on screen. Two neighbours at different levels
-have different numbers of vertices along their shared edge, which would leave a crack; each chunk therefore has a **skirt**, a wall let
-down from its edges, so a chunk is built alone and may change level without rebuilding anyone else. Heights and normals are read from the one field
-at every level, so a chunk keeps its lighting as it coarsens and only its silhouette changes.
+The shader's other parameters (`u_heightPages`, `u_lodRange0` and the like) are written by the `Terrain` component every frame;
+a material leaves them alone.
+
+## How the ground is drawn
+
+The ground is cut by a quadtree. Every node of the tree, at every level, is drawn with the same patch of 32 by 32 cells, scaled to the
+node's square: a level-0 node is `32 * cellSize` across, and each level up is twice as wide, so its cells are twice as large. Each
+level has a range from the eye. Level 0's is `2.5 * 32 * cellSize * detail`, and each level's is twice the one below's. A node nearer
+the eye than the range of the level below it is split into its four children, so the ground is finest round the eye and coarsens level
+by level with distance. An area has enough levels for a top node to be as wide as the area; infinite ground has enough for the top level's range
+to reach `drawDistance`.
+
+The nodes are ordinary `MeshRenderer` children of the terrain entity, all of one mesh and one material, which the renderer draws
+as instances: the whole ground is a handful of draws. The patch itself is flat. The Terrain shader lifts each vertex to the ground's
+height, read from the node's page (below), and gives it the ground's normal from the same page.
+
+Toward the end of its level's range, the shader slides each vertex onto the grid of the level above (geomorphing). By the edge of the
+range every vertex of a fine node lies where the coarser node beside it has one, so two levels meet along the same line: there are no
+cracks and nothing to hide them with, and nothing pops as the eye moves.
+
+### Pages
+
+The heights a node is drawn with are kept in a **page**: the node's square sampled 64 times along each side (two samples to a patch
+cell), with one more past each edge so the slope at the edge is known. A page holds the height in 16 bits over the ground's range
+and the normal, in one atlas texture, and the weights of the four layers in another; each atlas is 2048 by 2048 and holds 900 pages.
+A coarse node's page covers more ground at the same 64 samples, so its detail falls off with its cells.
+
+Pages are made as the tree asks for them, a few each frame within a time budget, coarse and near ones first. Until a node's page is
+made, the node is drawn by its nearest ancestor that has one, so the ground is there at once and sharpens as the pages come in. When
+the atlas is full, the page drawn least recently gives up its place.
+
+### Building over frames
+
+Making pages and wearing an area by rain are spread over frames rather than done in one, so neither holds up a frame. While they run
+they are listed with their progress ("Building the terrain", "Eroding the terrain") in the editor's status bar, and a game can read
+the same list to show a loading screen.
 
 ## From code
 
@@ -55,11 +120,19 @@ const y = terrains.heightAt(x, z);       // world height, or null where there is
 const n = terrains.normalAt(x, z);       // the unit normal there, or null
 ```
 
+These read the same source the pages are made from (the area's field, or the infinite noise), so they agree with what is drawn, and
+they answer at once for any point, whether or not its page has been made. Infinite ground has a height everywhere. Until an area's
+images are read and its erosion is done, `heightAt` returns null and `terrains.loading` is true.
+
 ## Limits
 
 - **No collision.** The ground is drawn, not simulated: `heightAt` is the way to stand something on it, and a physics body falls through it
   unless the project adds its own collider.
-- **Heights are one field.** Splat weights are per vertex, at the finest level's resolution, so they are as fine as the grid is.
+- **Paint is as fine as the pages.** Layer weights are sampled with the heights, two to a cell, so a splatmap finer than that near the
+  eye is averaged, and far off it is coarser still.
 - **No holes, caves or overhangs.** A heightfield has one height at each place. Caves and bridges are meshes placed with it.
-- **No rotation in `heightAt`.** The terrain's position and uniform scale are taken into account, a rotation about y is not.
-- **Chunks are built a few a frame**, so a large terrain appears over a moment rather than stalling one frame.
+- **Position only.** The terrain follows its entity's position; its rotation and scale are not taken into account, by `heightAt` or by
+  the shader that lifts the ground. Keep the entity unrotated and unscaled, and set the ground's size with `sizeX`, `sizeZ` and `height`.
+- **An infinite ground is noise only.** It takes no heightmap or splatmap, and its erosion paints no dirt.
+- **Pages are made a few a frame**, so on the first frames, or after a jump of the eye, the ground is drawn coarse for a moment and
+  sharpens rather than stalling a frame.
