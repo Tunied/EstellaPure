@@ -25,6 +25,7 @@ published separately; it ships inside the editor.
 - **Eroded and warped terrain.** `Terrain.erosion` wears the ground with rain (a heightmap's as well as the noise's): gullies down the slopes, sharper ridges, silt in the valleys, and dirt painted where the water ran; the same seed wears the same ground. `Terrain.warp` bends the noise by noise of its own for winding valleys and bent ridges. `erodeHeightfield` and `erosionJob` do the same for a tool.
 - **A richer Terrain shader.** Layers meet by their relief (`u_heightBlend`), each is read twice and blended by slow noise so no repeat is seen (`u_antiTile`), every layer gets the broad variation, their brightness is drawn into the light as relief (`u_relief`), and ground below `u_wetLevel + u_wetBand` darkens and shines at the waterline.
 - **Water mirrors the world.** Seen from above the surface now reflects what is on screen (hills, trees, the far shore) along its reflected ray, not only the sky, fading at the picture's edge; the quality level's mirror switch covers it.
+- **Soft water edges.** Where the water thins out at a shore the ground behind shows through more and more over the last `u_edgeSoftness` of depth, so the water meets it along a soft line instead of the zone's texel steps, and the shore's foam is broken up rather than drawn as an outline.
 - **Plants keep out of the water.** A `Foliage` area grows nothing under water unless `waterDepth` lets it stand that deep (reeds in the shallows), and is grown again when the water changes. Grass thins out blade by blade toward the distance its cells turn to their far version, so a near cell beside a far one is no longer three times as thick.
 
 ### Changed
@@ -33,6 +34,7 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Terrain skirts and surf films no longer show as streaks.** The skirt under a terrain chunk's edge, seen where two levels of detail part, took the relief bump meant for the ground and lit as a bright line; it now draws without it. The surf running up dry ground no longer stretches into a wall between two waters' heights.
 - **Ripples and surf on calm water.** The ripples a zone keeps fade out toward the edge of their window instead of stopping on a line across a lake, a breaker only whitens when it is steep for its length (a lake laps, the sea breaks), and foam seen from under the water is a faint shadow instead of a white sheet.
 - **Water reads its data textures as numbers.** The textures the water's field, shore and ripples are read from were decoded as sRGB colour, which bent their values.
 - **A mesh on a material records its surface.** An opaque mesh whose material has a blend mode of Normal (the default) was drawn blended, so it wrote no surface record, and the effects that read it (screen-space reflections, rain, contact shadows) passed over it, and alpha-to-coverage cut-outs on it had no coverage. It is now drawn opaque. Water and refracting glass write their own record where the device can blend one target and not another (WebGPU, and WebGL2 with `OES_draw_buffers_indexed`).

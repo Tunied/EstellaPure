@@ -2742,4 +2742,10 @@ export const NOTED = {
     {"note":"A richer Terrain shader."},
   "perf(examples): Terrain & Water grows its plants in fewer, larger cells and draws its ground at a lower detail":
     {"internal":"An example's own settings."},
+  "feat(water): the water thins out at its edge into the ground behind, and its shore foam is broken up":
+    {"note":"Soft water edges."},
+  "fix(terrain): a chunk's skirt draws without the ground's relief, and the surf over dry ground stays a film":
+    {"note":"Terrain skirts and surf films no longer show as streaks."},
+  "fix(examples): Terrain & Water's viewpoints look at the lake, the river mouths and the river in the hills":
+    {"internal":"An example's own camera poses."},
 };
