@@ -782,7 +782,8 @@ void PostProcessPipeline::renderPass(PostProcessPass& pass, const rg::PassContex
     if (glsl) {
         // Engine sampler seeding is a GLSL concept; the WGSL twins read the
         // input/scene as the t0/s0 and t1/s1 bind-group pairs.
-        shader->setUniform("u_texture", 0);
+        // An effect that makes its picture rather than reading one (the sky) has no input to seat.
+        if (shader->hasUniform("u_texture")) shader->setUniform("u_texture", 0);
         if (shader->hasUniform("u_sceneTexture")) shader->setUniform("u_sceneTexture", 1);
         if (shader->hasUniform("u_sceneDepth")) {
             shader->setUniform("u_sceneDepth", static_cast<i32>(kSceneDepthUnit));
@@ -1023,7 +1024,7 @@ void PostProcessPipeline::grabScene() {
     Shader* shader = resourceManager_.getShader(copyShader_);
     if (!shader) return;
     applyPassPipeline(*shader);
-    shader->setUniform("u_texture", 0);
+    if (shader->hasUniform("u_texture")) shader->setUniform("u_texture", 0);
     shader->commitParams();
     drawScreenQuad();
 }
@@ -1043,7 +1044,7 @@ void PostProcessPipeline::grabDepth() {
     Shader* shader = resourceManager_.getShader(copyDepthShader_);
     if (!shader) return;
     applyPassPipeline(*shader);
-    shader->setUniform("u_texture", 0);
+    if (shader->hasUniform("u_texture")) shader->setUniform("u_texture", 0);
     if (shader->hasUniform("u_sceneDepth")) shader->setUniform("u_sceneDepth", static_cast<i32>(kSceneDepthUnit));
     shader->commitParams();
     device_.bindTexture(kSceneDepthUnit, graph_ ? graph_->depthTextureOf(sceneResource_) : TextureHandle::Invalid);
@@ -1062,7 +1063,7 @@ void PostProcessPipeline::blitPass() {
     }
 
     applyPassPipeline(*shader);
-    shader->setUniform("u_texture", 0);
+    if (shader->hasUniform("u_texture")) shader->setUniform("u_texture", 0);
     shader->commitParams();
 
     drawScreenQuad();

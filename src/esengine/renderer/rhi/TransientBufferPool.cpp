@@ -390,7 +390,8 @@ void TransientBufferPool::growVertexStaging(Stream& s, u32 requiredBytes) {
         newSize = newSize * 2;
     }
     s.vertex_staging.resize(newSize);
-    ES_LOG_WARN("TransientBufferPool: vertex staging grown to {}KB", newSize / 1024);
+    // Growing to fit a frame is what the pool is for, not a fault.
+    ES_LOG_DEBUG("TransientBufferPool: vertex staging grown to {}KB", newSize / 1024);
 }
 
 void TransientBufferPool::growIndexStaging(Stream& s, u32 requiredCount) {
@@ -400,7 +401,7 @@ void TransientBufferPool::growIndexStaging(Stream& s, u32 requiredCount) {
         newSize = newSize * 2;
     }
     s.index_staging.resize(newSize);
-    ES_LOG_WARN("TransientBufferPool: index staging grown to {} indices", newSize);
+    ES_LOG_DEBUG("TransientBufferPool: index staging grown to {} indices", newSize);
 }
 
 }  // namespace esengine

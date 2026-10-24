@@ -2734,4 +2734,8 @@ export const NOTED = {
     {"internal":"An example's own script, scene and textures; what it shows is in the engine notes."},
   "feat(editor): the status bar shows what the engine is baking, with its progress":
     {"note":"Bakes run over frames, with progress."},
+  "fix(editor): Play fetches the open data context only when the project has one, and the frame debugger lists each entity once":
+    {"internal":"Console noise in the editor (a 404 and a duplicate-key warning); nothing a game does changes."},
+  "fix(render): buffers growing to fit a frame log at debug, and a pass seats an input only where it reads one":
+    {"internal":"Log levels and a guarded uniform write: the console no longer warns about normal buffer growth or a sky pass with no input texture; nothing drawn changes."},
 };
