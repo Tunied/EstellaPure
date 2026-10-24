@@ -746,6 +746,13 @@ function characterProperties(shading: CharacterShading, material: ImportedMateri
         // The Principled shader's diffuse, which goes dark where a card turns from the light (the strand's own diffuse keeps it lit edge-on and flattens the locks), and
         // a density of hair for the light to pass through, with the cascade the frame fits to it: what Blender gets from tracing the layers.
         properties.u_strandDiffuse = 0; properties.u_hairShadow = HAIR_SHADOW_DENSITY;
+        // A card the source gave an anisotropy (KHR_materials_anisotropy, which Blender exports from its Principled anisotropy) keeps the
+        // highlight it was authored with: Principled's GGX stretched along the strand, the specular factor as F0 = 0.04 x it. The strand lobes
+        // above are what a card without one gets.
+        if (material.anisotropy !== undefined && material.anisotropy > 0) {
+            properties.u_anisotropy = material.anisotropy;
+            properties.u_specular = material.specular ?? 1;
+        }
         // Cards cut from one strand texture read as combed plates; drawing them as a few locks, each a little lighter or darker with its own break in the highlight
         // and a shadowed seam, gives the layers the depth Blender gets from hundreds of overlapping cards.
         properties.u_clumpCount = 7; properties.u_clumpTone = 0.4; properties.u_clumpShift = 0.5; properties.u_clumpGap = 0.55;

@@ -38,6 +38,9 @@ const HAIR = `#pragma shader "Hair"
 // How much of the diffuse is the strand's own (Kajiya-Kay: how far the light is from along the strand, with a soft wrap) against a surface's N dot L: 0 is the Principled
 // shader's diffuse, which goes dark where a card turns from the light; more keeps a card lit edge-on, which flattens locks into one tone.
 #pragma param u_strandDiffuse float default(0.6) range(0,1) ui(slider)
+// Above zero, the highlight is the Principled shader's instead of the two strand lobes: GGX stretched along the strand by this anisotropy
+// (Blender's), with u_specular as the specular factor (F0 = 0.04 x it). A card authored in Blender with an anisotropy shades as it did there.
+#pragma param u_anisotropy float default(0) range(0,1) ui(slider)
 // A negative bias on the colour's mip level keeps the fine strands a hair card is covered in from washing out at a slant, which they do at once.
 #pragma param u_sharpen float default(-0.8) range(-3,1) ui(slider)
 // How much darker the roots are than the tips: the occlusion map's red, pushed.
@@ -136,13 +139,14 @@ void main() {
     }
     SurfaceExt ext = surfaceExtNone(N);
     ext.aniso = vec4(T, 0.0);
-    ext.misc = vec4(0.046, max(u_lobeGain, 0.001), u_shiftPrimary + noise, u_shiftSecondary + noise);
-    ext.strand = vec4(u_strandDiffuse, 0.0, 0.0, 0.0);
+    float principled = step(1e-4, u_anisotropy);
+    ext.misc = vec4(mix(0.046, 0.04 * u_specular, principled), max(u_lobeGain, 0.001), u_shiftPrimary + noise, u_shiftSecondary + noise);
+    ext.strand = vec4(u_strandDiffuse, u_anisotropy, 0.0, 0.0);
     ext.scatter = vec4(base.rgb * u_secondaryTint.rgb * 1.6, 0.35);
     ext.trans = vec4(u_translucency, 0.25, 0.0, 0.0);
     vec3 viewDir = viewDirection(P);
     g_hairShadow = u_hairShadow;
-    vec3 lit = applyLightingSurface(base.rgb, N, P, viewDir, 0.0, u_roughness, u_specular, ao, ext);
+    vec3 lit = applyLightingSurface(base.rgb, N, P, viewDir, 0.0, u_roughness, mix(u_specular, 1.0, principled), ao, ext);
     fragColor = vec4(lit, alpha);
 #ifdef ES_GBUFFER
     fragSurface = vec4(packNormal(normalize(N)), u_roughness, 0.75);
@@ -229,13 +233,14 @@ fn packNormal(n : vec3f) -> vec2f {
     }
     var ext = surfaceExtNone(N);
     ext.aniso = vec4f(T, 0.0);
-    ext.misc = vec4f(0.046, max(mc.u_lobeGain, 0.001), mc.u_shiftPrimary + noise, mc.u_shiftSecondary + noise);
-    ext.strand = vec4f(mc.u_strandDiffuse, 0.0, 0.0, 0.0);
+    let principled = step(1e-4, mc.u_anisotropy);
+    ext.misc = vec4f(mix(0.046, 0.04 * mc.u_specular, principled), max(mc.u_lobeGain, 0.001), mc.u_shiftPrimary + noise, mc.u_shiftSecondary + noise);
+    ext.strand = vec4f(mc.u_strandDiffuse, mc.u_anisotropy, 0.0, 0.0);
     ext.scatter = vec4f(base.rgb * mc.u_secondaryTint.rgb * 1.6, 0.35);
     ext.trans = vec4f(mc.u_translucency, 0.25, 0.0, 0.0);
     let viewDir = viewDirection(P);
     g_hairShadow = mc.u_hairShadow;
-    let lit = applyLightingSurface(base.rgb, N, P, viewDir, 0.0, mc.u_roughness, mc.u_specular, ao, ext);
+    let lit = applyLightingSurface(base.rgb, N, P, viewDir, 0.0, mc.u_roughness, mix(mc.u_specular, 1.0, principled), ao, ext);
 #ifdef ES_GBUFFER
     var frag : FragOut;
     frag.color = vec4f(lit, alpha);
