@@ -11,7 +11,7 @@
  *
  * It needs the SDK built (`node build-tools/cli.js sdk`), for the mesh format and the terrain's own noise.
  */
-import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -34,9 +34,11 @@ function write(rel, data) {
   writeFileSync(file, data);
 }
 
-/** The `.meta` an asset carries once the editor has seen it: a stable name for the file. */
+/** The `.meta` an asset carries once the editor has seen it: a stable name for the file, kept when it has one already. */
 function meta(rel, type, importer = {}) {
-  write(`${rel}.meta`, `${JSON.stringify({ uuid: randomUUID(), version: '2.0', type, importer }, null, 2)}\n`);
+  const file = path.join(PROJECT, `${rel}.meta`);
+  const uuid = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')).uuid : randomUUID();
+  write(`${rel}.meta`, `${JSON.stringify({ uuid, version: '2.0', type, importer }, null, 2)}\n`);
 }
 
 /** One of the Wilds' assets, with its import settings. */
