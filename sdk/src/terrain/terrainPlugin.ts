@@ -23,6 +23,7 @@ import {
 import { Assets } from '../asset/AssetPlugin';
 import { platformLoadImagePixels } from '../platform/base';
 import { decodeImagePixels } from '../asset/imageDecode';
+import { decodePngData } from '../asset/pngData';
 import { log } from '../util/logger';
 import type { Color, Entity } from '../types';
 import {
@@ -270,8 +271,10 @@ export class TerrainPlugin implements Plugin {
             if (!path) { log.warn('terrain', `no source image is known for texture ${handle}; the terrain falls back to its noise`); return null; }
             try {
                 // The bytes the asset layer would load, decoded unmodified (no premultiply, no colour conversion): a height is data.
+                // A PNG is read as stored first: through a canvas, a splatmap's zero alpha erased the other three weights.
                 if (typeof createImageBitmap === 'function' && typeof Blob !== 'undefined') {
-                    return await decodeImagePixels(new Blob([await assets.fetchBinary(path)]));
+                    const bytes = new Uint8Array(await assets.fetchBinary(path));
+                    return await decodePngData(bytes) ?? await decodeImagePixels(new Blob([bytes]));
                 }
                 const image = await platformLoadImagePixels(assets.resolveLoadPath(path));
                 return { width: image.width, height: image.height, pixels: image.pixels };
