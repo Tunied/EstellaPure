@@ -685,7 +685,12 @@ void main() {
 #endif
     gl_Position = u_projection * world;
     v_texCoord = a_texCoord;
+
+#ifdef ES_MATERIAL_VERTEX
+    v_color = es_vertexColor * esInstanceTint();
+#else
     v_color = a_color * esInstanceTint();
+#endif
 #if defined(WEIGHT_HEAT) && defined(SKINNED)
     {
         uint chosen = uint(esInstanceTint().x);
@@ -965,7 +970,11 @@ fn esPrevBone(joint : u32) -> mat4x4f {
     var out : VSOut;
     out.pos = frame.projection * world;
     out.v_texCoord = v.a_texCoord;
+#ifdef ES_MATERIAL_VERTEX
+    out.v_color = es_vertexColor * esInstanceTint();
+#else
     out.v_color = v.a_color * esInstanceTint();
+#endif
 #ifdef WEIGHT_HEAT
 #ifdef SKINNED
     {

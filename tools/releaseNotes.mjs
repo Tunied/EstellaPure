@@ -2758,4 +2758,6 @@ export const NOTED = {
     {"note":"Terrain layers without repeat, and with natural edges."},
   "docs(terrain): the terrain pages describe the CDLOD ground, its pages, infinite extent and erosion":
     {"internal":"Documentation of features with their own notes."},
+  "build(render): the embedded mesh shader carries the vertex-hook colour":
+    {"internal":"The generated embed of a shader change that has its own note."},
 };
