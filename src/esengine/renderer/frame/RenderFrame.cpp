@@ -2268,6 +2268,9 @@ void RenderFrame::executeShadowPass(ecs::Registry& registry) {
                                         list, ctx,
                                         computeCameraView(view.view_projection)};
         collectCtx.screen_ui = screen_domain_;
+        // A shadow is part of the camera's picture: what the camera culled by its level of detail (grass past its distance)
+        // does not cast, and what it draws coarse casts coarse.
+        collectCtx.lod = {view_id_, &lod_view_state_, nullptr, true};
         for (auto& plugin : plugins_) {
             if (plugin->castsShadows()) plugin->collect(collectCtx);
         }

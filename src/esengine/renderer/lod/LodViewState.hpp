@@ -52,6 +52,15 @@ public:
         return it == entries_.end() ? 0 : it->second.level;
     }
 
+    /** @brief The level @p view drew @p entity at within the last @p frames frames, or false when it has not drawn it
+     *         that lately (it is off that view's screen, or new). What a view culled reads as @ref kCulled. */
+    bool recent(u32 view, Entity entity, u64 frames, u8& outLevel) const {
+        const auto it = entries_.find(key(view, entity));
+        if (it == entries_.end() || frame_ - it->second.stamp > frames) return false;
+        outLevel = it->second.level;
+        return true;
+    }
+
     /**
      * @brief Record a decision: what was chosen, what the bare thresholds asked
      *        for, how many stand-ins were reachable, and the size all of it read.

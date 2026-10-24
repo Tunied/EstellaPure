@@ -339,6 +339,9 @@ struct RenderCollectContext {
         u32 view = 0;
         lod::LodViewState* state = nullptr;
         lod::SelectionCounts* counts = nullptr;
+        /** @brief Read the level @ref view settled on instead of choosing one: what a shadow cast for that view's picture is
+         *         cast by. What the view culled casts nothing; what it has not looked at lately casts at its finest. */
+        bool follow = false;
     };
     LodView lod;
 

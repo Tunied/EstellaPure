@@ -668,7 +668,16 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
 
         // Nothing visible is worth measuring precisely, so the cull runs first; what
         // survives it is measured on the sphere the whole group shares.
-        if (group) {
+        if (group && collect_ctx.lod.follow) {
+            // Cast by what the view draws: the level it settled on last frame (this frame's camera collect comes after the
+            // shadows), nothing where it culled, the finest where it has not looked lately.
+            u8 settled = 0;
+            const auto& state = *collect_ctx.lod.state;
+            if (!state.recent(collect_ctx.lod.view, entity, 2, settled)) settled = 0;
+            const u8 shown = settled == lod::kCulled ? settled : state.drawn(collect_ctx.lod.view, entity, settled, levels.set.count);
+            if (shown == lod::kCulled) { ++collect_ctx.culled; tick(2); continue; }
+            resident = levels.mesh[shown];
+        } else if (group) {
             glm::vec3 centre(0.0f);
             f32 radius = 0.0f;
             lod::boundingSphere(position, rotation, scale, localMin, localMax, centre, radius);

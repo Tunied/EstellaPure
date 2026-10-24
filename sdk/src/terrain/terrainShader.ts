@@ -49,6 +49,7 @@ const TERRAIN = `#pragma shader "Terrain"
 #pragma param u_roughness float default(0.92) range(0,1) ui(slider)
 // The ground in pages (pages.ts; the Terrain component writes these): heights and normals, and the paint, in two atlases; heights over
 // u_heightRange above u_terrainOrigin; level 0 drawn out to u_lodRange0, each level twice as far; nothing off u_terrainBounds.
+// u_terrainEye is the eye the nodes were chosen for: every pass (a shadow's too) slides the vertices by it, so all draw one ground.
 #pragma param u_terrainPages float default(0) range(0,1) ui(slider)
 #pragma param u_heightPages texture default(white) texel(data)
 #pragma param u_paintPages texture default(white) texel(data)
@@ -58,6 +59,7 @@ const TERRAIN = `#pragma shader "Terrain"
 #pragma param u_heightRange vec2 default(0,1)
 #pragma param u_lodRange0 float default(100) range(0,1000000) ui(slider)
 #pragma param u_terrainOrigin vec4 default(0,0,0,0)
+#pragma param u_terrainEye vec4 default(0,0,0,0)
 #pragma param u_terrainBounds vec4 default(-1000000000,-1000000000,1000000000,1000000000)
 
 #pragma vertexoffset
@@ -86,7 +88,7 @@ void esMaterialVertex(inout vec3 local, inout vec3 localNormal, in vec2 uv) {
     vec2 g = uv * u_patchCells;
     float h0 = tnPageHeight(page + uv * u_pageTexels + 0.5);
     float range = u_lodRange0 * exp2(level);
-    float dist = distance(u_camera.xyz, vec3(corner.x + uv.x * size, h0, corner.z + uv.y * size));
+    float dist = distance(u_terrainEye.xyz, vec3(corner.x + uv.x * size, h0, corner.z + uv.y * size));
     float k = clamp((dist - range * 0.7) / (range * 0.3), 0.0, 1.0);
     g -= fract(g * 0.5) * 2.0 * k;
     vec2 at = g / u_patchCells;
@@ -126,7 +128,7 @@ fn esMaterialVertex(local : ptr<function, vec3f>, localNormal : ptr<function, ve
     var g = uv * mc.u_patchCells;
     let h0 = tnPageHeight(page + uv * mc.u_pageTexels + vec2f(0.5));
     let range = mc.u_lodRange0 * exp2(level);
-    let dist = distance(frame.camera.xyz, vec3f(corner.x + uv.x * size, h0, corner.z + uv.y * size));
+    let dist = distance(mc.u_terrainEye.xyz, vec3f(corner.x + uv.x * size, h0, corner.z + uv.y * size));
     let k = clamp((dist - range * 0.7) / (range * 0.3), 0.0, 1.0);
     g = g - fract(g * 0.5) * 2.0 * k;
     let at = g / mc.u_patchCells;

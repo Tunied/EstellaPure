@@ -635,6 +635,8 @@ export class TerrainPlugin implements Plugin {
         set('u_heightRange', { x: source.minHeight, y: Math.max(source.maxHeight - source.minHeight, 1e-6) });
         set('u_lodRange0', tree.range0);
         set('u_terrainOrigin', { x: t.worldPosition.x, y: t.worldPosition.y, z: t.worldPosition.z, w: 0 });
+        // Not the pass's camera: a shadow is drawn from the light, and its ground must be the one the eye sees.
+        set('u_terrainEye', { x: eyeAt[0] + t.worldPosition.x, y: eyeAt[1] + t.worldPosition.y, z: eyeAt[2] + t.worldPosition.z, w: 1 });
         const b = source.bounds;
         set('u_terrainBounds', b ? { x: b[0], y: b[1], z: b[2], w: b[3] } : { x: -1e9, y: -1e9, z: 1e9, w: 1e9 });
         if (!built.data.material) {

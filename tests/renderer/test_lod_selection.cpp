@@ -226,6 +226,22 @@ static void testPreviewOwnership() {
           "a preview past the last stand-in is ignored, not clamped to the last one");
 }
 
+// A shadow cast for a view's picture reads what that view settled on: culled casts nothing, and what it has not drawn lately is
+// not taken from an old answer.
+static void testRecentForShadows() {
+    lod::LodViewState state;
+    const Entity grass = Entity::make(9, 1);
+    const u32 camera = 3;
+    state.beginFrame();
+    u8 level = 7;
+    CHECK(!state.recent(camera, grass, 2, level), "a view that never drew it has nothing recent to say");
+    state.remember(camera, grass, lod::kCulled, lod::kCulled, 1, 0.001f);
+    state.beginFrame();
+    CHECK(state.recent(camera, grass, 2, level) && level == lod::kCulled, "the view culled it last frame: it reads as culled");
+    for (int i = 0; i < 3; ++i) state.beginFrame();
+    CHECK(!state.recent(camera, grass, 2, level), "three frames on, the answer is no longer this view's");
+}
+
 int main() {
     testProjection();
     testBoundingSphere();
@@ -234,6 +250,7 @@ int main() {
     testViewOwnership();
     testDecisionRecorded();
     testPreviewOwnership();
+    testRecentForShadows();
     std::printf(g_failures ? "\n%d failure(s)\n" : "\nall LOD selection claims hold\n",
                 g_failures);
     return g_failures ? 1 : 0;

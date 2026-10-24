@@ -2780,4 +2780,6 @@ export const NOTED = {
     {"note":"Generated worlds."},
   "feat(water): the sea fills only what joins it, a body is water only over its ground, bodies carry stable ids, and basins show where water gathers":
     {"note":"Which water a place is."},
+  "fix(render): a shadow is cast by what the camera's level of detail draws, and the terrain slides its vertices by the eye in every pass":
+    {"note":"Shadows follow what the camera draws."},
 };

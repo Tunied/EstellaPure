@@ -43,6 +43,7 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Shadows follow what the camera draws.** A mesh the camera's level of detail culls (grass past its draw distance) no longer casts a shadow, and one drawn coarse casts coarse; seen from high up, a field of grass no longer laid an unseen square of shadow on the ground. The terrain's vertices slide between levels by the eye the ground was chosen for in every pass, so a shadow's ground is the ground that is seen, under an orthographic camera too.
 - **Ridged ground without end has no steps.** Infinite noise ground that was both ridged and worn broke into terraces with sheer walls where a ridge's fold turned; the crest is now rounded over a few hundredths, so the ground is continuous.
 - **The running game's resolution can be chosen.** A picker beside Play shows the target screen and stays usable while the game runs (it used to sit in a menu that was disabled in Play), with Free Aspect, the project's design resolution, the device presets and portrait or landscape; the choice is kept per project. ([#100](https://github.com/esengine/estella/issues/100))
 - **Terrain skirts and surf films no longer show as streaks.** The skirt under a terrain chunk's edge, seen where two levels of detail part, took the relief bump meant for the ground and lit as a bright line; it now draws without it. The surf running up dry ground no longer stretches into a wall between two waters' heights.
