@@ -138,7 +138,7 @@ function landHeight(u, v) {
   return Math.min(1, Math.max(h, h + (rim - h) * wall));
 }
 
-/** The heightmap: sixteen bits across red (high) and green (low), which the Terrain component reads back as one number. */
+/** The heightmap: sixteen bits across red (high) and green (low), which the Terrain reads back as one number (its format RedGreen16). */
 function heightmap() {
   const n = WORLD.resolution;
   const image = png(n, n, (x, y) => {
@@ -350,7 +350,7 @@ function scene() {
       { type: 'Transform', data: {} },
       { type: 'Terrain', data: {
         sizeX: WORLD.size, sizeZ: WORLD.size, height: WORLD.height, cellSize: 4, detail: 1.4,
-        heightmap: 'assets/textures/height.png', rockSlope: 0.34, dirtHeight: 0.5, snowHeight: 0.84, material: 'assets/materials/terrain.esmaterial' } },
+        heightmap: 'assets/textures/height.png', heightmapFormat: 1, rockSlope: 0.34, dirtHeight: 0.5, snowHeight: 0.84, material: 'assets/materials/terrain.esmaterial' } },
     ]),
     entity(5, 'Lake', [
       { type: 'Transform', data: { position: { x: 0, y: waterY, z: 0 }, scale: { x: WORLD.size / 100, y: 1, z: WORLD.size / 100 } } },

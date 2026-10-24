@@ -4,7 +4,7 @@ export {
     Terrain, TerrainExtent, Terrains, TerrainsRes, TerrainPlugin, terrainPlugin, paintWeights, NOISE_PROVIDER, type TerrainData, type TerrainStatus,
 } from './terrainPlugin';
 export {
-    erodeHeightfield, erosionJob, heightfieldFromPixels, proceduralHeightfield, sampleHeight, terrainNormal,
+    erodeHeightfield, erosionJob, heightfieldFromPixels, HeightmapFormat, proceduralHeightfield, sampleHeight, terrainNormal,
     type Eroded, type ErosionParams, type Heightfield, type ProceduralParams,
 } from './heightfield';
 export { FieldSource, NoiseSource, ModifiedSource, flattenModifier, noised, type NoiseParams, type Splat, type TerrainSource, type TerrainModifier } from './source';

@@ -257,7 +257,8 @@
       "rockSlope": 0.34,
       "dirtHeight": 0.5,
       "snowHeight": 0.84,
-      "material": "assets/materials/terrain.esmaterial"
+      "material": "assets/materials/terrain.esmaterial",
+      "heightmapFormat": 1
      }
     }
    ]

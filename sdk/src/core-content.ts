@@ -831,7 +831,7 @@ export {
     type Plant, type Ground, type ScatterParams, type BladeParams, type CardRect,
 } from './foliage/builder';
 export {
-    erodeHeightfield, erosionJob, heightfieldFromPixels, proceduralHeightfield, sampleHeight, terrainNormal,
+    erodeHeightfield, erosionJob, heightfieldFromPixels, HeightmapFormat, proceduralHeightfield, sampleHeight, terrainNormal,
     type Eroded, type ErosionParams, type Heightfield, type ProceduralParams,
 } from './terrain/heightfield';
 export { FieldSource, NoiseSource, ModifiedSource, flattenModifier, noised, type NoiseParams, type Splat, type TerrainSource, type TerrainModifier } from './terrain/source';

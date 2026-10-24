@@ -54,4 +54,23 @@ describe('a PNG read as data', () => {
     it('declines what it does not read, so the image path decodes it', async () => {
         expect(await decodePngData(new Uint8Array([1, 2, 3]))).toBeNull();
     });
+
+    it('reads a 16-bit grey PNG at its full depth, keeping each high byte in the RGBA bytes', async () => {
+        const values = [0, 0x1234, 0xffff, 0x8001];
+        const raw: number[] = [];
+        for (let y = 0; y < 2; y++) { raw.push(0); for (let x = 0; x < 2; x++) { const v = values[y * 2 + x]!; raw.push(v >> 8, v & 255); } }
+        const chunk = (name: string, data: Uint8Array): number[] => {
+            const len = [data.length >>> 24, (data.length >>> 16) & 255, (data.length >>> 8) & 255, data.length & 255];
+            return [...len, ...Array.from(name, (ch) => ch.charCodeAt(0)), ...data, 0, 0, 0, 0];
+        };
+        const ihdr = new Uint8Array(13);
+        new DataView(ihdr.buffer).setUint32(0, 2);
+        new DataView(ihdr.buffer).setUint32(4, 2);
+        ihdr[8] = 16; ihdr[9] = 0;
+        const bytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, ...chunk('IHDR', ihdr), ...chunk('IDAT', deflateSync(Buffer.from(raw))), ...chunk('IEND', new Uint8Array())]);
+        const out = await decodePngData(bytes);
+        expect(Array.from(out!.wide!)).toEqual(values);
+        expect(out!.pixels[4]).toBe(0x12);
+        expect(out!.pixels[7]).toBe(255);
+    });
 });

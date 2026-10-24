@@ -17,19 +17,27 @@ export interface Heightfield {
 }
 
 /**
- * A heightfield from an RGBA image: the red channel is the height. 8 bits is 256 steps, which on a tall terrain
- * reads as terraces, so a green channel that is not all zero is taken as the low byte of a 16-bit height
- * (red is the high one), the way an exported 16-bit map is usually packed into an 8-bit-per-channel PNG.
+ * How a heightmap image holds its heights. The file says how deep its channels are; this says what they mean, so an image is never
+ * read one way or another by what its pixels happen to hold.
+ * @experimental
  */
-export function heightfieldFromPixels(width: number, height: number, pixels: ArrayLike<number>): Heightfield {
+export const HeightmapFormat = {
+    /** The grey (or red) channel is the height, at the depth the file has: 16 bits from a 16-bit PNG, 8 (256 steps) from any other. */
+    Grey: 0,
+    /** Sixteen bits across two 8-bit channels: red is the high byte, green the low one. */
+    RedGreen16: 1,
+} as const;
+
+/**
+ * A heightfield from an RGBA image read as data, 0 at its lowest and 1 at its highest, by `format`. `wide` is the first channel at 16
+ * bits, for an image whose file holds 16 bits a channel.
+ */
+export function heightfieldFromPixels(width: number, height: number, pixels: ArrayLike<number>, format: number = HeightmapFormat.Grey,
+    wide?: ArrayLike<number>): Heightfield {
     const data = new Float32Array(width * height);
-    let wide = false;
     for (let i = 0; i < width * height; i++) {
-        if (pixels[i * 4 + 1]! !== 0 && pixels[i * 4 + 1]! !== pixels[i * 4]!) { wide = true; break; }
-    }
-    for (let i = 0; i < width * height; i++) {
-        const hi = pixels[i * 4]!;
-        data[i] = wide ? (hi * 256 + pixels[i * 4 + 1]!) / 65535 : hi / 255;
+        data[i] = format === HeightmapFormat.RedGreen16 ? (pixels[i * 4]! * 256 + pixels[i * 4 + 1]!) / 65535
+            : wide ? wide[i]! / 65535 : pixels[i * 4]! / 255;
     }
     return { width, height, data };
 }

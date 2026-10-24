@@ -276,3 +276,16 @@ describe.skipIf(!HAS_WASM || !hasSideModule('physics3d'))('the ground in the 3D 
         expect(p.y).toBeLessThan(under + 1.2);
     });
 });
+
+describe('heightfieldFromPixels', () => {
+    it('reads heights as its format says, never by what the pixels hold', async () => {
+        const { heightfieldFromPixels, HeightmapFormat } = await import('../src/terrain/heightfield');
+        // Two texels whose green happens to differ from red: grey reads red alone, red+green reads both.
+        const pixels = [0x80, 0x40, 0, 255, 0xff, 0xff, 0, 255];
+        const grey = heightfieldFromPixels(2, 1, pixels).data, wide = heightfieldFromPixels(2, 1, pixels, HeightmapFormat.RedGreen16).data;
+        expect(grey[0]).toBeCloseTo(0x80 / 255, 6);
+        expect(wide[0]).toBeCloseTo(0x8040 / 65535, 6);
+        expect([grey[1], wide[1]]).toEqual([1, 1]);
+        expect(heightfieldFromPixels(2, 1, pixels, HeightmapFormat.Grey, [0x8001, 0]).data[0]).toBeCloseTo(0x8001 / 65535, 6);
+    });
+});

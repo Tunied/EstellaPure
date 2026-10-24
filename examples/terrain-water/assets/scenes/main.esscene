@@ -263,7 +263,8 @@
       "detail": 1,
       "heightmap": "assets/textures/height.png",
       "splatmap": "assets/textures/splat.png",
-      "material": "assets/materials/ground.esmaterial"
+      "material": "assets/materials/ground.esmaterial",
+      "heightmapFormat": 1
      }
     }
    ]

@@ -495,7 +495,7 @@ function scene() {
     { type: 'Transform', data: { position: { x: 0, y: WORLD.base, z: 0 } } },
     { type: 'Terrain', data: {
       sizeX: WORLD.size, sizeZ: WORLD.size, height: WORLD.height, cellSize: 30, detail: 1,
-      heightmap: 'assets/textures/height.png', splatmap: 'assets/textures/splat.png', material: 'assets/materials/ground.esmaterial' } },
+      heightmap: 'assets/textures/height.png', heightmapFormat: 1, splatmap: 'assets/textures/splat.png', material: 'assets/materials/ground.esmaterial' } },
   ]);
   // The water: one zone over the whole island, which the sea, the lake and the two rivers are baked into and drawn from as one surface.
   add('Water', [

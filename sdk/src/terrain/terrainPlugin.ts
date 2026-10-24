@@ -36,7 +36,7 @@ import { EditorView, editorViewEye } from '../camera/EditorView';
 import { log } from '../util/logger';
 import { bakesOf } from '../runtime/bakes';
 import type { Color, Entity } from '../types';
-import { erosionJob, heightfieldFromPixels, type Heightfield } from './heightfield';
+import { erosionJob, heightfieldFromPixels, HeightmapFormat, type Heightfield } from './heightfield';
 import { findGroundPath, type ReachOptions, type ReachResult } from './reach';
 import { FieldSource, ModifiedSource, type TerrainModifier, type TerrainSource } from './source';
 import { levelRange, nodeKey, parentOf, selectNodes, type QuadtreeParams, type TerrainNode } from './quadtree';
@@ -66,8 +66,10 @@ export interface TerrainData {
     provider: string;
     world: string;
     generatorVersion: number;
-    /** A heightmap image: red is the height (green, if it is not just grey, its low byte). Empty makes the ground from noise. */
+    /** A heightmap image, read as {@link heightmapFormat} says. Empty makes the ground from noise. */
     heightmap: number;
+    /** How the heightmap holds its heights: a {@link HeightmapFormat}. */
+    heightmapFormat: number;
     /** An image whose four channels are the weights of the four layers; empty paints by height and slope. */
     splatmap: number;
     /** A material on the Terrain shader. Empty draws the layer colours onto the ground. */
@@ -118,7 +120,7 @@ const rgb = (r: number, g: number, b: number): Color => ({ r, g, b, a: 1 });
  * @experimental
  */
 export const Terrain: ComponentDef<TerrainData> = defineComponent<TerrainData>('Terrain', {
-    extent: TerrainExtent.Area, provider: NOISE_PROVIDER, world: '', generatorVersion: 1, heightmap: 0, splatmap: 0, material: 0,
+    extent: TerrainExtent.Area, provider: NOISE_PROVIDER, world: '', generatorVersion: 1, heightmap: 0, heightmapFormat: HeightmapFormat.Grey, splatmap: 0, material: 0,
     sizeX: 1000, sizeZ: 1000, height: 150, cellSize: 2, detail: 1, drawDistance: 4000,
     collision: true, collisionDistance: 64, collisionLayer: 0, friction: 0.6,
     seed: 1, frequency: 3, octaves: 5, persistence: 0.5, ridged: 0.35, resolution: 257, warp: 0, erosion: 0,
@@ -131,7 +133,8 @@ export const Terrain: ComponentDef<TerrainData> = defineComponent<TerrainData>('
         provider: { category: 'Shape', tooltip: 'The generator the ground is made by, without end or (with no heightmap) in an area: estella:noise, or one the game registers. The same provider, world, seed and version are the same ground on every machine, and two areas side by side join.' },
         world: { category: 'Shape', tooltip: 'The world (a planet, a level) the ground belongs to, as the game names it; handed to the provider.' },
         generatorVersion: { min: 1, step: 1, category: 'Shape', tooltip: 'The generator version the world was made with. A version the provider no longer has fails the terrain rather than growing other ground under what was built.' },
-        heightmap: { tooltip: 'A heightmap image: red is the height. Empty makes the ground from noise; a heightmap that cannot be read fails the terrain instead.', category: 'Shape', shownWhen: { field: 'extent', values: [TerrainExtent.Area] } },
+        heightmap: { tooltip: 'A heightmap image, read as data (shipped as the PNG it is). Empty makes the ground from noise; a heightmap that cannot be read fails the terrain instead.', category: 'Shape', shownWhen: { field: 'extent', values: [TerrainExtent.Area] } },
+        heightmapFormat: { enum: [{ label: 'Grey (8 or 16 bit)', value: HeightmapFormat.Grey }, { label: 'Red + green (16 bit)', value: HeightmapFormat.RedGreen16 }], category: 'Shape', tooltip: 'How the heightmap holds its heights: grey (or red) at the depth of the file, 16 bits from a 16-bit PNG; or sixteen bits across red (high byte) and green (low byte) of an 8-bit image.', shownWhen: { field: 'extent', values: [TerrainExtent.Area] } },
         splatmap: { tooltip: 'An image whose red, green, blue and alpha are the weights of grass, dirt, snow and rock.', category: 'Layers', shownWhen: { field: 'extent', values: [TerrainExtent.Area] } },
         material: { tooltip: 'A material on the Terrain shader. Empty draws the layer colours onto the ground.', category: 'Layers' },
         sizeX: { min: 1, category: 'Shape', tooltip: 'An area\'s size along x; for ground without end, the span its hills are spread over.' },
@@ -559,7 +562,7 @@ export class TerrainPlugin implements Plugin {
             } else {
                 // A heightmap named and not read is a failure: a world built on that ground must not quietly get other ground.
                 const height = await this.pixelsOf(app, data.heightmap);
-                if (data.heightmap && !height) throw new TerrainUnavailable(`the heightmap (texture ${data.heightmap}) could not be read`);
+                if (data.heightmap && !height) throw new TerrainUnavailable(`the heightmap (texture ${data.heightmap}) could not be read: it is read as data, so it must ship as the PNG it is (not compressed)`);
                 const splat = await this.pixelsOf(app, data.splatmap);
                 if (built.epoch !== epoch || !app.world.valid(entity)) return;
                 // Without a heightmap an area is a window on its provider's ground, read where it stands in the world: two areas side by
@@ -567,7 +570,7 @@ export class TerrainPlugin implements Plugin {
                 let range: [number, number] = [0, data.height];
                 let made: Heightfield;
                 if (height) {
-                    made = heightfieldFromPixels(height.width, height.height, height.pixels);
+                    made = heightfieldFromPixels(height.width, height.height, height.pixels, data.heightmapFormat, height.wide);
                 } else {
                     const provider = providerOf({ ...data, erosion: 0 });
                     const checked = new ProviderSource(provider, data.world, data.seed, data.generatorVersion, 0, 0, 1, paintBy(provider, data));
@@ -602,7 +605,7 @@ export class TerrainPlugin implements Plugin {
         }
     }
 
-    private async pixelsOf(app: App, handle: number): Promise<{ width: number; height: number; pixels: Uint8Array } | null> {
+    private async pixelsOf(app: App, handle: number): Promise<{ width: number; height: number; pixels: Uint8Array; wide?: Uint16Array } | null> {
         if (!handle || !app.hasResource(Assets)) return null;
         const assets = app.getResource(Assets);
         const path = assets.pathForHandle('texture', handle);

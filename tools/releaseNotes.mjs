@@ -2806,4 +2806,6 @@ export const NOTED = {
     {"note":"Whether a place can be walked to."},
   "feat(water): rivers cut their beds into the terrain":
     {"note":"Rivers cut their beds."},
+  "feat(terrain): heightmaps name their format, and 16-bit grey PNGs are read at full depth":
+    {"note":"Heightmaps say how they hold their heights."},
 };
