@@ -439,6 +439,15 @@ public:
     virtual bool supportsFloatTargets() = 0;
 
     /**
+     * @brief Whether a blended draw can write the surface record's second attachment unblended.
+     * @details The surface record is never blended: a normal averaged with the one under it is neither's. A draw that
+     *          composes the scene behind itself (water, glass reading the scene's colour) is still blended into the
+     *          first attachment, and owns the pixel's record all the same. WebGPU sets blend per target; WebGL2 needs
+     *          OES_draw_buffers_indexed. Where this is false such a draw leaves the record as the opaque scene wrote it.
+     */
+    virtual bool supportsUnblendedSurfaceTarget() const { return false; }
+
+    /**
      * @brief Most samples an offscreen colour attachment may carry; 1 = none.
      * @details The engine owns its own multisampling: a target the scene draws
      *          into is created with this many samples and resolves itself. Ask

@@ -120,6 +120,8 @@ public:
     bool supportsCompressedFormat(GfxCompressedFormat format) override;
     // Float-target rendering is a WebGPU core capability.
     bool supportsFloatTargets() override { return true; }
+    /** The surface record's target carries no blend state of its own (see createPipeline). */
+    bool supportsUnblendedSurfaceTarget() const override { return true; }
     u32 maxSamples() override;
     /** Colour resolves in the pass; depth is resolved by a pass of our own
      *  ({@link resolveDepthAttachment}), since WebGPU's depth attachment has no

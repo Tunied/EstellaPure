@@ -757,7 +757,10 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
         if (mesh.material != 0) {
             if (const MaterialRecord* m = material) {
                 key.shaderId = (m->shader != 0) ? m->shader : ctx.batch_shader_id;
-                key.blend = m->blend;
+                // An opaque mesh is drawn unblended whatever its material's blend says: the material's 0 is Normal, which
+                // every material file names by default, and it left every opaque material surface blending — so it wrote
+                // no surface record (screen-space reflections and rain read nothing) and a cut-out lost its alpha-to-coverage.
+                key.blend = mesh.opaque ? BlendMode::None : m->blend;
                 key.materialId = mesh.material;
                 key.depthTest = m->depthTest;
                 key.depthWrite = m->depthWrite;

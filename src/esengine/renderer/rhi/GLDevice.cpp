@@ -227,6 +227,16 @@ GLenum toGLCompressedFormat(GfxCompressedFormat fmt) {
 
 // GLES3-correct extension probe (glGetString(GL_EXTENSIONS) returns null on a
 // core profile). Emscripten exposes WebGL extensions here under GL-style names.
+#ifdef __EMSCRIPTEN__
+// OES_draw_buffers_indexed is not in Emscripten's GL layer: the one call it is needed for goes to the context directly.
+EM_JS(void, es_gl_surface_blend, (int off), {
+    var ctx = GLctx;
+    var ext = ctx && (ctx.esIndexedBlend || (ctx.esIndexedBlend = ctx.getExtension('OES_draw_buffers_indexed')));
+    if (!ext) return;
+    if (off) ext.disableiOES(ctx.BLEND, 1); else ext.enableiOES(ctx.BLEND, 1);
+});
+#endif
+
 bool glExtensionPresent(const char* name) {
     GLint count = 0;
     glGetIntegerv(GL_NUM_EXTENSIONS, &count);
@@ -303,6 +313,8 @@ void GLDevice::captureDeviceIdentity() {
     // extension that must be enabled before its enums resolve.
     constexpr GLenum UNMASKED_VENDOR = 0x9245;
     constexpr GLenum UNMASKED_RENDERER = 0x9246;
+    // A composing draw (water, glass) writes the surface record unblended while it blends its colour: see applySurfaceBlend.
+    indexed_blend_ = emscripten_webgl_enable_extension(emscripten_webgl_get_current_context(), "OES_draw_buffers_indexed") ? 1 : 0;
     if (emscripten_webgl_enable_extension(emscripten_webgl_get_current_context(),
                                           "WEBGL_debug_renderer_info")) {
         const char* v = reinterpret_cast<const char*>(glGetString(UNMASKED_VENDOR));
@@ -403,6 +415,7 @@ void GLDevice::resetStateCache() {
     scissor_test_ = -1;
     current_depth_bias_ = 0;
     alpha_to_coverage_ = -1;
+    surface_blend_off_ = false;
     current_framebuffer_ = 0;
     timer_query_state_ = 0;
 }
@@ -485,6 +498,8 @@ void GLDevice::clear(bool color, bool depth, bool stencil) {
 
 void GLDevice::setBlendEnabled(bool enabled) {
     setCapability(GL_BLEND, enabled);
+    // Enable/Disable without an index sets every draw buffer: the surface record's own state is gone with it.
+    surface_blend_off_ = false;
 }
 
 void GLDevice::setBlendMode(BlendMode mode) {
@@ -1004,6 +1019,7 @@ void GLDevice::backendSetPipeline(u32 id, const PipelineDesc& desc) {
     }
 
     if (current_fbo_has_gbuffer_) applyDrawBuffers(desc.gbuffer);
+    applySurfaceBlend(desc.blendEnabled && desc.gbuffer && current_fbo_has_gbuffer_);
 
     current_pipeline_id_ = id;
     current_topology_ = desc.topology;
@@ -1439,6 +1455,14 @@ void GLDevice::beginRenderPass(const RenderPassDesc& desc) {
         glClearBufferfv(GL_COLOR, 1, zero);
     }
     if (scoped) setScissorTest(false);
+}
+
+void GLDevice::applySurfaceBlend(bool off) {
+    if (off == surface_blend_off_ || indexed_blend_ != 1) return;
+#ifdef __EMSCRIPTEN__
+    es_gl_surface_blend(off ? 1 : 0);
+#endif
+    surface_blend_off_ = off;
 }
 
 void GLDevice::applyDrawBuffers(bool gbuffer) {

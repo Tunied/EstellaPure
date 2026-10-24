@@ -388,6 +388,8 @@ void DrawList::execute(GfxDevice& device, TransientBufferPool& buffers,
                        FrameCapture* capture, const PerDrawBlockSet& blocks, Phase phase) {
     PipelineDesc lastDesc{};
     PipelineHandle lastHandle = PipelineHandle::Invalid;
+    // The draws of this phase read the scene's colour and compose it under themselves.
+    const bool composes = phase == Phase::SceneColorOnly;
 
     // Once for the pass, not once per draw: every resident mesh reads the same
     // texture. Rebound each pass because growing it mints a new handle.
@@ -440,9 +442,11 @@ void DrawList::execute(GfxDevice& device, TransientBufferPool& buffers,
         desc.depthBias = cmd.depth_bias;
         desc.topology = cmd.topology;
         desc.alphaToCoverage = !desc.blendEnabled && materials.alphaIsCoverage(cmd.material_id);
-        // What a surface is is recorded only for what replaces what was behind it: a blended
-        // surface is no one thing, and a normal averaged with the one under it is neither's.
-        desc.gbuffer = gbuffer_pass_ && !desc.blendEnabled && materials.programWritesGBuffer(cmd.shader_id);
+        // Only what replaces what was behind it records a surface (a blended normal is no one's), except a
+        // draw that composes the scene behind it (water, refracting glass): it IS the pixel, so it owns its
+        // record, written unblended where the device can say so per target.
+        desc.gbuffer = gbuffer_pass_ && materials.programWritesGBuffer(cmd.shader_id)
+                    && (!desc.blendEnabled || (composes && device.supportsUnblendedSurfaceTarget()));
 
         if (lastHandle == PipelineHandle::Invalid || !(desc == lastDesc)) {
             lastHandle = device.createPipeline(desc);

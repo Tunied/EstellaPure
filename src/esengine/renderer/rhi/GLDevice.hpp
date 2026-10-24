@@ -57,6 +57,7 @@ public:
     void bindTexture(u32 slot, TextureHandle texture) override;
     bool supportsCompressedFormat(GfxCompressedFormat format) override;
     bool supportsFloatTargets() override;
+    bool supportsUnblendedSurfaceTarget() const override { return indexed_blend_ == 1; }
     u32 maxSamples() override;
     /** A GL blit resolves depth as well as colour. */
     bool resolvesDepth() const override { return true; }
@@ -233,6 +234,11 @@ private:
     bool current_fbo_has_gbuffer_ = false;
     i8 draw_buffers_ = -1;
     void applyDrawBuffers(bool gbuffer);
+    /// OES_draw_buffers_indexed: 1 enabled, 0 absent (asked once at init).
+    i8 indexed_blend_ = 0;
+    /// Blending is off on the second draw buffer while the first blends (a composing draw writing the surface record).
+    bool surface_blend_off_ = false;
+    void applySurfaceBlend(bool off);
     int scissor_test_ = -1;  // tri-state: -1 unknown, 0 disabled, 1 enabled
 
     struct VaoCache {
