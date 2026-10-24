@@ -89,11 +89,15 @@ export const WaterZone: ComponentDef<WaterZoneData> = defineComponent<WaterZoneD
  * An ocean, as the zone takes it: at `level` wherever the ground is below it and joined to the open sea, which is past the region's
  * edge. A basin below the sea's level that no low ground joins to the edge is dry land, not sea.
  */
-export interface ZoneOcean { kind: 'ocean'; key: number; level: number; waveHeight: number; shoreWidth: number }
+export interface ZoneOcean {
+    kind: 'ocean'; key: number; level: number; waveHeight: number; shoreWidth: number;
+    /** How open the water is to the wind, 0 to 1 (its fetch): how far the weather raises its waves. Open sea, 1 when absent. */
+    exposure?: number;
+}
 
 /** A lake: its outline on its own plane at world height `level`, and how a world point is put into the outline's space. */
 export interface ZoneLake {
-    kind: 'lake'; key: number; level: number; waveHeight: number; shoreWidth: number;
+    kind: 'lake'; key: number; level: number; waveHeight: number; shoreWidth: number; exposure?: number;
     outline: readonly Point2[];
     /** A world (x, z) in the outline's own space, and back. */
     toLocal(x: number, z: number): [number, number];
@@ -104,7 +108,7 @@ export interface ZoneLake {
 export interface RiverStation { x: number; z: number; y: number; half: number; dx: number; dz: number; speed: number }
 
 /** A river, as the stations along it (a few to a width), in order downstream. */
-export interface ZoneRiver { kind: 'river'; key: number; waveHeight: number; shoreWidth: number; stations: readonly RiverStation[] }
+export interface ZoneRiver { kind: 'river'; key: number; waveHeight: number; shoreWidth: number; exposure?: number; stations: readonly RiverStation[] }
 
 export type ZoneBody = ZoneOcean | ZoneLake | ZoneRiver;
 
@@ -132,6 +136,8 @@ export interface FieldSample {
     /** The signed distance to the nearest shore (positive on the water) and how deep the water is over the ground. */
     shore: number;
     depth: number;
+    /** How open it is to the wind, 0 to 1: how far the weather raises its waves (see {@link ZoneOcean.exposure}). */
+    exposure: number;
 }
 
 /** What the current is at a reach this wide against the river's widest, against its nominal speed (half): a narrow reach is quick and a wide one slow. */
@@ -153,6 +159,7 @@ export class WaterField {
     readonly flowX: Float32Array;
     readonly flowZ: Float32Array;
     readonly depth: Float32Array;
+    readonly exposure: Float32Array;
     /** The body that owns the most of each texel, as its key; -1 where there is no water. */
     readonly owner: Int32Array;
     /** The ocean, which goes on past the region: what a point outside it is. */
@@ -170,6 +177,7 @@ export class WaterField {
         this.flowX = new Float32Array(n);
         this.flowZ = new Float32Array(n);
         this.depth = new Float32Array(n);
+        this.exposure = new Float32Array(n).fill(1);
         this.owner = new Int32Array(n);
     }
 
@@ -212,7 +220,7 @@ export class WaterField {
                 const x = grid.minX + (i / Math.max(grid.nx - 1, 1)) * grid.sizeX;
                 const z = grid.minZ + (j / Math.max(grid.nz - 1, 1)) * grid.sizeZ;
                 const g = Number.isNaN(grounds[k]!) ? null : grounds[k]!;
-                let w = 0, h = 0, a = 0, c = 0, sw = 0, fx = 0, fz = 0, best = -Infinity, owner = -1, ownerW = 0, held = 0;
+                let w = 0, h = 0, a = 0, c = 0, sw = 0, ex = 0, fx = 0, fz = 0, best = -Infinity, owner = -1, ownerW = 0, held = 0;
                 for (let b = 0; b < bounded.length; b++) {
                     const box = boxes[b]!;
                     if (x < box[0] - blend || x > box[2] + blend || z < box[1] - blend || z > box[3] + blend) continue;
@@ -223,6 +231,7 @@ export class WaterField {
                     if (weight <= 0) continue;
                     held = Math.max(held, weight);
                     w += weight; h += say.height * weight; a += say.amp * weight; c += say.calm * weight; sw += bounded[b]!.waveHeight * weight; fx += say.fx * weight; fz += say.fz * weight;
+                    ex += (bounded[b]!.exposure ?? 1) * weight;
                     if (weight > ownerW) { ownerW = weight; owner = bounded[b]!.key; }
                 }
                 if (ocean) {
@@ -233,6 +242,7 @@ export class WaterField {
                     if (weight > 0) {
                         const calm = shoreDamp(deep, ocean.shoreWidth);
                         w += weight; h += ocean.level * weight; a += ocean.waveHeight * calm * weight; c += calm * weight; sw += ocean.waveHeight * weight;
+                        ex += (ocean.exposure ?? 1) * weight;
                         if (weight > ownerW) { ownerW = weight; owner = ocean.key; }
                     }
                 }
@@ -243,6 +253,7 @@ export class WaterField {
                     field.amp[k] = a / w;
                     field.calm[k] = c / w;
                     field.swell[k] = sw / w;
+                    field.exposure[k] = ex / w;
                     field.flowX[k] = fx / w;
                     field.flowZ[k] = fz / w;
                 } else {
@@ -273,7 +284,7 @@ export class WaterField {
         const near = (j + (tz > 0.5 ? 1 : 0)) * nx + i + (tx > 0.5 ? 1 : 0);
         return {
             key: this.owner[near]!, height: lerp2(this.height), amp: lerp2(this.amp), calm: lerp2(this.calm), swell: lerp2(this.swell), flowX: lerp2(this.flowX), flowZ: lerp2(this.flowZ),
-            shore: lerp2(this.shore), depth: lerp2(this.depth),
+            shore: lerp2(this.shore), depth: lerp2(this.depth), exposure: lerp2(this.exposure),
         };
     }
 
@@ -286,7 +297,7 @@ export class WaterField {
         if (inside) return inside.shore > 0 ? inside : null;
         const o = this.ocean;
         if (!o) return null;
-        return { key: o.key, height: o.level, amp: o.waveHeight, calm: 1, swell: o.waveHeight, flowX: 0, flowZ: 0, shore: DEEP, depth: DEEP };
+        return { key: o.key, height: o.level, amp: o.waveHeight, calm: 1, swell: o.waveHeight, flowX: 0, flowZ: 0, shore: DEEP, depth: DEEP, exposure: o.exposure ?? 1 };
     }
 
     /** The ranges the encoding spans, from what the field holds; the shore distance reaches `shoreReach` at least (as far out as the surf is drawn). */
@@ -314,11 +325,11 @@ export class WaterField {
     /**
      * The field as two RGBA8 images, rows from minZ. heights (read texel by texel: filtered bytes are no number): rg the height, high byte
      * first; b the depth; a the swell (the body's waves' height). field (filtered): r the shore distance (0.5 at it); gb the current (0.5 still); a the calm.
-     * Each over its range in `r`.
+     * exposure (filtered): r how open the water is to the wind. Each over its range in `r`.
      */
-    encode(r: ZoneRanges): { heights: Uint8Array; field: Uint8Array } {
+    encode(r: ZoneRanges): { heights: Uint8Array; field: Uint8Array; exposure: Uint8Array } {
         const n = this.height.length;
-        const heights = new Uint8Array(n * 4), field = new Uint8Array(n * 4);
+        const heights = new Uint8Array(n * 4), field = new Uint8Array(n * 4), exposure = new Uint8Array(n * 4);
         const byte = (v: number): number => Math.round(Math.min(Math.max(v, 0), 1) * 255);
         for (let k = 0; k < n; k++) {
             const h = Math.round(Math.min(Math.max((this.height[k]! - r.heightMin) / r.heightSpan, 0), 1) * 65535);
@@ -330,8 +341,10 @@ export class WaterField {
             field[k * 4 + 1] = byte(this.flowX[k]! / (2 * r.flow) + 0.5);
             field[k * 4 + 2] = byte(this.flowZ[k]! / (2 * r.flow) + 0.5);
             field[k * 4 + 3] = byte(this.calm[k]!);
+            exposure[k * 4] = byte(this.exposure[k]!);
+            exposure[k * 4 + 3] = 255;
         }
-        return { heights, field };
+        return { heights, field, exposure };
     }
 }
 
@@ -464,7 +477,10 @@ function* levelShore(field: WaterField, texel: number): Generator<number, void, 
     }
 }
 
-/** A texel no body holds takes the height of the nearest that one does: two passes of a chamfer sweep over which texel is nearest. */
+/**
+ * A texel no body holds takes the height (and how open it is to the wind) of the nearest that one does: two passes of a chamfer sweep over
+ * which texel is nearest. The shore's filtered reads then see the water's own, not the dry land's.
+ */
 function* fillDry(field: WaterField): Generator<number, void, void> {
     const { nx, nz } = field.grid;
     const n = nx * nz;
@@ -496,6 +512,7 @@ function* fillDry(field: WaterField): Generator<number, void, void> {
     for (let k = 0; k < n; k++) {
         if (Number.isFinite(field.height[k]!)) continue;
         field.height[k] = src[k]! >= 0 ? field.height[src[k]!]! : fallback;
+        if (src[k]! >= 0) field.exposure[k] = field.exposure[src[k]!]!;
     }
 }
 

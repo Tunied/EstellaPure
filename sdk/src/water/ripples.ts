@@ -25,8 +25,6 @@ export class RippleField {
     /** World size of one cell. */
     readonly cell: number;
     /** The window's minimum corner in the body's xz plane. */
-    /** Drops of rain owed to the window: the weather asks for a rate, a frame takes whole drops and carries the rest. */
-    rainOwed = 0;
     originX = 0;
     originZ = 0;
     /** The most height a cell may hold, either way: disturbances that go on (a body moving) saturate here instead of piling up. */

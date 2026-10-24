@@ -164,10 +164,11 @@ export class Waters {
         const s = field.sample(x, z);
         if (!s) return null;
         const time = this.app_.getResource(Time).elapsed;
-        const params = this.waves(s.amp);
+        const params = this.waves(s.amp, s.exposure);
         const zone = this.zone_;
         const still = 1 - Math.min(Math.hypot(s.flowX, s.flowZ) / Math.max(field.ranges().flow * 0.25, 1e-4), 1);
-        const surf = surfHeight(s.shore, zone.surf * weatherWaves() * s.swell * still, zone.surfLength, zone.waveSpeed, time);
+        // Surf is swell come in from open water: sheltered water has as little of it as it is sheltered.
+        const surf = surfHeight(s.shore, zone.surf * grown(s.exposure) * s.swell * s.exposure * still, zone.surfLength, zone.waveSpeed, time);
         // The lite water is flat: its waves are in the shading, so the height code reads is the rest plane's.
         const h = s.height + (this.quality.displacement ? waveHeight(params, x, z, time) + surf : 0) + (this.ripples_?.heightAt(x, z) ?? 0);
         const [sx, sz] = waveSlope(params, x, z, time);
@@ -216,9 +217,9 @@ export class Waters {
         return this.sample(x, 0, z)?.surface[1] ?? null;
     }
 
-    /** The waves as they stand where the zone says they are `amp` high: the zone's, at that height, scaled by the weather. */
-    private waves(amp: number): WaveParams {
-        return { ...waveParamsOf(this.zone_), height: amp * weatherWaves(), count: this.quality.waves };
+    /** The waves as they stand where the zone says they are `amp` high: the zone's, at that height, raised by the weather as far as the water is open to it. */
+    private waves(amp: number, exposure = 1): WaveParams {
+        return { ...waveParamsOf(this.zone_), height: amp * grown(exposure), count: this.quality.waves };
     }
 }
 
@@ -238,6 +239,33 @@ function weatherWaves(): number {
     return w && (currentWeatherDrive() & WeatherDrive.Wind) ? w.waves : 1;
 }
 
+/** How far the weather raises the waves of water `exposure` open to the wind: all the way on open sea, little on a sheltered pond. */
+/** @internal */
+export function grown(exposure: number): number {
+    return 1 + (weatherWaves() - 1) * Math.min(Math.max(exposure, 0), 1);
+}
+
+/**
+ * How open a body is to the wind, 0 to 1: wind waves grow with the water they blow over (their fetch), so the weather raises them fully
+ * on the sea and the more on a lake the wider it is, against eight of the zone's wave lengths; a river's fetch is its width.
+ */
+/** @internal */
+export function exposureOf(body: ZoneBody, waveLength: number): number {
+    if (body.kind === 'ocean') return 1;
+    let fetch: number;
+    if (body.kind === 'lake') {
+        let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
+        for (const p of body.outline) {
+            const [x, z] = body.toWorld(p.x, p.y);
+            minX = Math.min(minX, x); maxX = Math.max(maxX, x); minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+        }
+        fetch = Math.min(maxX - minX, maxZ - minZ);
+    } else {
+        fetch = body.stations.reduce((n, s) => n + s.half * 2, 0) / Math.max(body.stations.length, 1);
+    }
+    return Math.min(Math.max(fetch / Math.max(waveLength * 8, 1e-6), 0.1), 1);
+}
+
 /** How hard it rains on the water now (the weather's rain level), 0 with none or one that does not drive the rain. */
 function weatherRain(): number {
     const w = currentWeather();
@@ -250,18 +278,11 @@ export function waveParamsOf(zone: Pick<WaterZoneData, 'waveLength' | 'waveSpeed
 }
 
 /**
- * Rain on water that keeps ripples: drops over its window, as many a second as the weather's rain asks (110 at the rain preset's 1.1),
- * each a dip a cell and a half across and a third of a cell deep, so a shower is a field of small rings whatever the window's scale.
+ * How hard it rains on the water: the weather's rain, which the Water shader rings out as drops on the surface (`u_rain`). Rain is
+ * drawn, not simulated: it puts nothing in the ripples a zone keeps, and no foam.
  */
-export function rainOnRipples(field: RippleField, dt: number): void {
-    const rain = weatherRain();
-    if (rain <= 0 || dt <= 0) return;
-    field.rainOwed += rain * 100 * dt;
-    const cell = field.size / field.n;
-    for (; field.rainOwed >= 1; field.rainOwed--) {
-        const x = field.originX + Math.random() * field.size, z = field.originZ + Math.random() * field.size;
-        field.disturb(x, z, cell * 1.5, -cell / 3);
-    }
+export function rainOnWater(): number {
+    return weatherRain();
 }
 
 type Quat = { x: number; y: number; z: number; w: number };
@@ -326,6 +347,7 @@ interface Surface {
     material: number;
     heights: number;
     field: number;
+    exposure: number;
     /** Which bake the textures hold. */
     baked: WaterField | null;
     ripple: number;
@@ -471,9 +493,10 @@ export class WaterPlugin implements Plugin {
             const reach = oceanReach(zone.cells, zone.rings, zone.cellSize), need = Math.max(grid.sizeX, grid.sizeZ);
             if (reach < need) zone = { ...zone, cellSize: zone.cellSize * (need / reach) };
         }
+        for (const b of bodies) b.exposure = exposureOf(b, zone.waveLength);
         const terrain = app.hasResource(TerrainsRes) ? app.getResource(TerrainsRes) : null;
         const ground = terrain && terrain.built_.size > 0 ? terrain.revision_ : -1;
-        return { bodies, grid, zone, key: JSON.stringify([keyParts, grid, ground, zone.surfLength]) };
+        return { bodies, grid, zone, key: JSON.stringify([keyParts, grid, ground, zone.surfLength, zone.waveLength]) };
     }
 
     /** The world height of the ground, where a terrain is built. */
@@ -504,7 +527,7 @@ export class WaterPlugin implements Plugin {
         let s = this.surface_;
         if (s && (s.meshKey !== meshKey || s.material !== zone.material)) { this.dropSurface(app); s = null; }
         if (!s) {
-            s = { entity: 0 as Entity, mesh: 0, meshKey, instance: 0, material: zone.material, heights: 0, field: 0, baked: null, ripple: 0, rippleBytes: null, epoch: ++this.epoch_, pending: false };
+            s = { entity: 0 as Entity, mesh: 0, meshKey, instance: 0, material: zone.material, heights: 0, field: 0, exposure: 0, baked: null, ripple: 0, rippleBytes: null, epoch: ++this.epoch_, pending: false };
             this.surface_ = s;
         }
         if (!s.entity && !s.pending) void this.build_(app, s, zone);
@@ -542,7 +565,7 @@ export class WaterPlugin implements Plugin {
     private upload(app: App, s: Surface, field: WaterField): void {
         this.dropFieldTextures(s);
         const ranges = field.ranges(this.waters_.zone_.surfLength * 4);
-        const { heights, field: rest } = field.encode(ranges);
+        const { heights, field: rest, exposure } = field.encode(ranges);
         const { nx, nz, minX, minZ, sizeX, sizeZ } = field.grid;
         const empty = nx < 2 || nz < 2;
         const w = empty ? 2 : nx, h = empty ? 2 : nz;
@@ -550,10 +573,13 @@ export class WaterPlugin implements Plugin {
             { filterMode: 'nearest', wrapMode: 'clamp', srgb: false });
         s.field = createTextureFromPixels(app.wasmModule, { width: w, height: h, pixels: empty ? new Uint8Array(16) : rest }, TextureContent.Retained, false,
             { filterMode: 'linear', wrapMode: 'clamp', srgb: false });
+        s.exposure = createTextureFromPixels(app.wasmModule, { width: w, height: h, pixels: empty ? new Uint8Array(16).fill(255) : exposure }, TextureContent.Retained, false,
+            { filterMode: 'linear', wrapMode: 'clamp', srgb: false });
         s.baked = field;
         const set = (name: string, value: Parameters<typeof Material.setUniform>[2]): void => { Material.setUniform(s.instance, name, value); };
         set('u_zoneHeights', Material.tex(s.heights));
         set('u_zoneField', Material.tex(s.field));
+        set('u_zoneExposure', Material.tex(s.exposure));
         // A region of nothing is put where no point is: everything is past it, which is the ocean.
         set('u_zoneOrigin', empty ? { x: 1e9, y: 1e9 } : { x: minX, y: minZ });
         set('u_zoneSize', empty ? { x: 1e-4, y: 1e-4 } : { x: sizeX, y: sizeZ });
@@ -582,6 +608,7 @@ export class WaterPlugin implements Plugin {
         set('u_cellSize', zone.cellSize);
         set('u_geoWaves', q.displacement ? 1 : 0);
         set('u_waveHeight', waves.height);
+        set('u_rain', rainOnWater());
         set('u_waveLength', waves.length);
         set('u_waveSpeed', waves.speed);
         set('u_waveDirection', waves.direction);
@@ -611,7 +638,6 @@ export class WaterPlugin implements Plugin {
         const field = waters.ripples_;
         if (eye) field.recenter(eye[0], eye[2]);
         const step = Math.min(Math.max(dt, 0), 0.1);
-        rainOnRipples(field, step);
         field.step(step, zone.rippleSpeed, zone.rippleDamping, zone.foamFade);
         const s = this.surface_;
         if (!s || !s.instance || !app.hasResource(Assets)) return;
@@ -659,8 +685,10 @@ export class WaterPlugin implements Plugin {
         const rm = getResourceManager();
         if (s.heights) rm?.releaseTexture(s.heights);
         if (s.field) rm?.releaseTexture(s.field);
+        if (s.exposure) rm?.releaseTexture(s.exposure);
         s.heights = 0;
         s.field = 0;
+        s.exposure = 0;
         s.baked = null;
     }
 

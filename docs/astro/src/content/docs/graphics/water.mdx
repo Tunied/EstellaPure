@@ -65,7 +65,9 @@ terrain changes, at a cost of the texels times the bodies.
 
 Four peaked sines (`exp(sin(theta) - 1)`: a crest narrower than its trough) a few directions apart, each with a length, a height and a speed
 that are shares of the zone's `waveLength`, `waveSpeed` and `waveDirection`. Every body shares them; how high they stand at a place is that place's in the
-field: its body's `waveHeight`, times the share the shore leaves, times the weather's (a `Weather` that drives the wind scales every wave). They **move the geometry**:
+field: its body's `waveHeight`, times the share the shore leaves, times the weather's (a `Weather` that drives the wind scales the waves as far as the water
+is open to it: wind waves grow with the water they blow over, so the sea takes the weather whole, a lake the more the wider it is against eight `waveLength`s,
+and a river hardly at all). They **move the geometry**:
 the shader lifts each vertex by the wave height, and the fragment takes the slope per pixel from the same formula, so the lit surface is the one that is drawn and
 the silhouette against the sky rises and falls with the waves.
 
@@ -79,7 +81,8 @@ for an ocean over a beach as for a lake), and over the last four `surfLength`s o
 the shore and a long back, travelling in at the speed of a deep-water wave of their length times `waveSpeed`. They grow as the water shoals, whiten where
 they break in the inner part of that band and stay white behind the crest a while, and past the shore they run up the ground: the surface is drawn there
 too, a little above the water's rest height, and the depth test cuts it where the ground rises above it, so the waterline climbs a beach and falls back.
-A breaker stands `surf` times the body's `waveHeight` (with the weather's waves in); a current carries none, so a river and its mouth stay calm.
+A breaker stands `surf` times the body's `waveHeight` (with the weather's waves in), times how open the water is: surf is swell come in from open water, so a
+lake's shore laps where the sea's breaks; a current carries none, so a river and its mouth stay calm.
 `Waters.sample` adds the same surf, so what floats near a beach rides it.
 
 ## Geometry
@@ -169,7 +172,6 @@ at `foamFade` a second, so a splash leaves white water that lingers and thins an
 
 - **Who disturbs.** A script calls `Waters.disturb(x, y, z, radius, strength)` (`strength` is a height in world units, negative is a dip; it does nothing where there is no water),
   and a `Floating` body does it itself: what goes down into the water, comes up out of it or moves along its surface pushes the water by its speed (`wake` multiplies it).
-  When a `Weather` drives the rain, rain falls on the window as drops: small dips a cell and a half across, as many a second as the rain asks.
 - **What it changes.** The shader reads the grid as a texture: the slope of the ripples bends the normal, which is what the light, the reflection and the refraction see, and the foam
   whitens the surface. The geometry is not lifted by it. The surface the code reads does carry them: `Waters.sample` adds the ripple's height to the surface, and `Waters.rippleAt(x, y, z)`
   gives it alone, so a floating ball is lifted by the ring that passes under it.
@@ -284,8 +286,11 @@ is its x and z, `u_origin` is where the mesh was moved to as it follows the came
 
 - **Caustics.** `u_causticStrength` (0 turns them off), `u_causticScale` (the size of one cell, in world units) and `u_causticSpeed` shape the web of light on what is under the water, seen from
   above and, through the effect, from below.
-- **Waves.** `u_waveLength`, `u_waveHeight`, `u_waveSpeed`, `u_waveDirection`; small ripples (`u_rippleStrength`, `u_rippleLength`) ride on them and
-  fade out with distance, so far water is calm rather than aliased. On a zone's surface the zone writes the four every frame (its own length, speed and heading, and
+- **Waves.** `u_waveLength`, `u_waveHeight`, `u_waveSpeed`, `u_waveDirection`; the ripples the wind raises (`u_rippleStrength`, `u_rippleLength`) ride
+  on them: six short waves around the wind's heading, from `u_rippleLength` down to a fifth of it, each fading out with distance before it would shimmer.
+- **Rain.** When a `Weather` drives the rain, drops ring out on the surface (`u_rain`, written by the zone): rings that spread and die, a few to every
+  `u_rippleLength`, more of them the harder it rains, and the surface a little less sharp. They are drawn, not simulated: they put nothing in the zone's ripples
+  and make no foam, and they fade out with distance. On a zone's surface the zone writes the four every frame (its own length, speed and heading, and
   the weather's share as the height, which each place's height in the field multiplies), so the material's values for them are not used there.
 - **Refraction and depth.** What is under the water is the picture of the opaque scene, shifted by the waves in proportion to how much water there
   is. The depth is **measured**: before the water is drawn the frame takes a copy of how far each pixel of the scene is from the eye, so the water at

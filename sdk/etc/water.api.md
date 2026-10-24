@@ -36,6 +36,7 @@ seaLevel: number | undefined
 amp: number
 calm: number
 depth: number
+exposure: number
 flowX: number
 flowZ: number
 height: number
@@ -98,7 +99,6 @@ n: number
 originX: number
 originZ: number
 peak: () => number
-rainOwed: number
 recenter: (x: number, z: number) => boolean
 size: number
 step: (dt: number, speed: number, damping: number, foamFade: number) => void
@@ -143,7 +143,8 @@ amp: Float32Array<ArrayBufferLike>
 at: (x: number, z: number) => FieldSample | null
 calm: Float32Array<ArrayBufferLike>
 depth: Float32Array<ArrayBufferLike>
-encode: (r: ZoneRanges) => { heights: Uint8Array; field: Uint8Array; }
+encode: (r: ZoneRanges) => { heights: Uint8Array; field: Uint8Array; exposure: Uint8Array; }
+exposure: Float32Array<ArrayBufferLike>
 flowX: Float32Array<ArrayBufferLike>
 flowZ: Float32Array<ArrayBufferLike>
 grid: ZoneGrid

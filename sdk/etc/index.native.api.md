@@ -4052,6 +4052,7 @@ unit: string | undefined
 amp: number
 calm: number
 depth: number
+exposure: number
 flowX: number
 flowZ: number
 height: number
@@ -11941,7 +11942,8 @@ amp: Float32Array<ArrayBufferLike>
 at: (x: number, z: number) => FieldSample | null
 calm: Float32Array<ArrayBufferLike>
 depth: Float32Array<ArrayBufferLike>
-encode: (r: ZoneRanges) => { heights: Uint8Array; field: Uint8Array; }
+encode: (r: ZoneRanges) => { heights: Uint8Array; field: Uint8Array; exposure: Uint8Array; }
+exposure: Float32Array<ArrayBufferLike>
 flowX: Float32Array<ArrayBufferLike>
 flowZ: Float32Array<ArrayBufferLike>
 grid: ZoneGrid

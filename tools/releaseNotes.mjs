@@ -2784,4 +2784,6 @@ export const NOTED = {
     {"note":"Shadows follow what the camera draws."},
   "feat(terrain): an area without a heightmap is a window on its provider's ground, and ground read from a provider stays the world's when its terrain moves":
     {"note":"An area without a heightmap is a window on its provider's ground."},
+  "fix(water): rain rings out on the surface instead of denting the ripples, wind ripples are waves not noise, and storms raise sheltered water less":
+    {"note":"Rain and storms on water."},
 };

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import { afterEach, describe, expect, it } from 'vitest';
-import { waveParamsOf, rainOnRipples } from '../src/water/waterPlugin';
-import { WaterZone } from '../src/water/zone';
+import { waveParamsOf, rainOnWater, grown, exposureOf } from '../src/water/waterPlugin';
+import { WaterField, WaterZone, type ZoneLake } from '../src/water/zone';
 import { RippleField } from '../src/water/ripples';
 import {
     blendWeather, setCurrentWeather, WeatherDrive, WEATHER_CLEAR, WEATHER_MIST, WEATHER_RAIN, WEATHER_STORM, WEATHER_NONE,
@@ -48,36 +48,51 @@ describe('the waves under a weather', () => {
     });
 });
 
-describe('rain on water that keeps ripples', () => {
-    const disturbed = (field: RippleField): number => {
-        let n = 0;
-        for (let i = 0; i < 64; i++) for (let j = 0; j < 64; j++) if (field.heightAt((i + 0.5) / 64 * field.size, (j + 0.5) / 64 * field.size) !== 0) n++;
-        return n;
-    };
-
-    it('falls as drops over the window while it rains', () => {
-        const field = new RippleField(64, 64);
+describe('rain on the water', () => {
+    it('is the weather\'s rain, and none under a clear sky or a weather that does not drive the rain', () => {
         under(WEATHER_RAIN);
-        rainOnRipples(field, 0.5);
-        expect(disturbed(field)).toBeGreaterThan(0);
-    });
-
-    it('is none under a clear sky, or when the weather does not drive the rain', () => {
-        const clear = new RippleField(64, 64);
+        expect(rainOnWater()).toBeGreaterThan(0);
         under(WEATHER_CLEAR);
-        rainOnRipples(clear, 1);
-        expect(disturbed(clear)).toBe(0);
-        const off = new RippleField(64, 64);
+        expect(rainOnWater()).toBe(0);
         under(WEATHER_STORM, WeatherDrive.All & ~WeatherDrive.Rain);
-        rainOnRipples(off, 1);
-        expect(disturbed(off)).toBe(0);
+        expect(rainOnWater()).toBe(0);
     });
 
-    it('carries part of a drop from one frame to the next, so a slow frame rate rains as hard', () => {
+    it('is drawn, not simulated: a storm puts nothing in the ripples a zone keeps', () => {
+        under(WEATHER_STORM);
         const field = new RippleField(64, 64);
-        under(WEATHER_RAIN);
-        for (let k = 0; k < 10; k++) rainOnRipples(field, 0.001);
-        expect(field.rainOwed).toBeGreaterThan(0);
-        expect(field.rainOwed).toBeLessThan(1.5);
+        field.step(1, 10, 0.5, 1);
+        expect(field.peak()).toBe(0);
+    });
+});
+
+describe('how open water is to the wind', () => {
+    const lake = (half: number, exposure?: number): ZoneLake => ({
+        kind: 'lake', key: 1, level: 0, waveHeight: 1, shoreWidth: 1, exposure,
+        outline: [{ x: -half, y: -half }, { x: half, y: -half }, { x: half, y: half }, { x: -half, y: half }],
+        toLocal: (x, z) => [x, z], toWorld: (x, z) => [x, z],
+    });
+
+    it('is whole on the sea, and on a lake the more the wider it is', () => {
+        expect(exposureOf({ kind: 'ocean', key: 3, level: 0, waveHeight: 1, shoreWidth: 1 }, 100)).toBe(1);
+        const pond = exposureOf(lake(20), 100), mere = exposureOf(lake(200), 100);
+        expect(pond).toBeLessThan(mere);
+        expect(mere).toBeLessThanOrEqual(1);
+        expect(pond).toBeGreaterThan(0);
+    });
+
+    it('lets a storm raise a sheltered lake\'s waves less than the sea\'s, and changes nothing in calm weather', () => {
+        under(WEATHER_CLEAR);
+        expect(grown(0.2)).toBe(1);
+        under(WEATHER_STORM);
+        expect(grown(1)).toBeCloseTo(blendWeather(WEATHER_STORM, WEATHER_NONE, 0).waves, 6);
+        expect(grown(0.2)).toBeLessThan(grown(1));
+        expect(grown(0.2)).toBeGreaterThan(1);
+    });
+
+    it('is baked with the water, and the dry ground by a lake keeps the lake\'s, so its shore is not read as open sea', () => {
+        const field = WaterField.bake({ minX: -40, minZ: -40, sizeX: 80, sizeZ: 80, nx: 81, nz: 81 }, [lake(20, 0.3)]);
+        expect(field.sample(0, 0)!.exposure).toBeCloseTo(0.3, 3);
+        expect(field.at(30, 0)!.exposure).toBeCloseTo(0.3, 3);
     });
 });
