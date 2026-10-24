@@ -34,13 +34,7 @@
             "farPlane": 40000,
             "isActive": true,
             "priority": 0,
-            "clearFlags": 1,
-            "backgroundColor": {
-              "r": 0.02,
-              "g": 0.03,
-              "b": 0.05,
-              "a": 1
-            }
+            "clearFlags": 1
           }
         },
         {
