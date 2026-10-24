@@ -220,6 +220,10 @@ where one meets a voxel that faces it, that voxel's radiance is the light it bri
 Because the cache is the world's and not the screen's, a bright wall that has left the picture still tints the floor beside it, a surface lit
 only by another is lit, and a moving light lights its surroundings — the three things the screen-space bounce (`ssgi`) cannot do.
 
+The defaults are tuned for a world measured in pixels. In a 3D scene where a world unit is a metre, scale the lengths to match: for a character
+shot a `voxelSize` of 0.03 (a cache about four metres across) with a `range` of 48 voxels, and for `ssgi` a `radius` of 0.4 and a `thickness` of
+0.15. Both accept values down to a centimetre.
+
 It is **not a trace of the scene's geometry**, and it says so:
 
 - the cache holds the surfaces the camera has *seen*, at the voxel's size — a surface it has not seen yet sends no light, and a thin one is as thick as a cell;

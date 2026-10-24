@@ -526,8 +526,8 @@ fn cosineDirection(N : vec3f, u : f32, v : f32) -> vec3f {
         const source = `#pragma shader "PP SSGI Gather"
 #pragma version 300 es
 #pragma domain PostProcess
-#pragma param u_radius float default(150) range(10,1500)
-#pragma param u_thickness float default(30) range(1,300)
+#pragma param u_radius float default(150) range(0.05,1500)
+#pragma param u_thickness float default(30) range(0.01,300)
 #pragma param u_maxBounce float default(3) range(0.5,16)
 #pragma gbuffer
 #pragma highprecision

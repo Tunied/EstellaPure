@@ -54,6 +54,8 @@ export const NOTED = {
     {"note":"An imported skin no longer blurs its diffuse light separately per colour channel, which put a red and cyan fringe along the edge of every shadow on it; like the rest of the scattering, it is written as off unless the source says otherwise."},
   'fix(render): the lite engine builds compile again, with the layered water pass behind the post-process guard':
     {"note":"The lite WeChat and mini-game engine builds compile again: the pass that puts the opaque scene back after water and glass named the post-process pipeline outside the guard that leaves it out of those builds, so every package without post-processing failed to build."},
+  'fix(postprocess): voxelGI and ssgi take voxel sizes, radii and thicknesses down to a centimetre':
+    {"note":"The global-illumination effects accept lengths down to a centimetre: the voxel size of voxelGI, and the radius and thickness of ssgi, used to stop at four, ten and one world units, so a 3D scene measured in metres could not set them small enough to do anything. Against Blender's render of the same frame, a character lit by one sun gets its soft bounce light in the shadows once they are set to metre-scale values."},
   'fix: serialize binaryen optimization on windows': { internal: 'Uses one optimizer worker after wider builds reproduced heap corruption with four; release optimization flags stay unchanged.' },
   'feat: add budgeted 2d and 3d particle scene collisions': { note: 'Budgeted particle scene collisions.' },
   'feat(editor): add particle collision authoring and diagnostics': { note: 'Budgeted particle scene collisions.' },

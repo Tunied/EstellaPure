@@ -344,7 +344,7 @@ registerEffect({
         // Rays per surface point: more is smoother and costs in proportion.
         { name: 'u_rays', label: 'Rays', min: 1, max: 32, step: 1, defaultValue: 8 },
         // The world size of a voxel: the cache is 128 x 64 x 128 of them around the camera, so this sets how far it reaches and how finely.
-        { name: 'u_voxelSize', label: 'Voxel Size', min: 4, max: 400, step: 1, defaultValue: 40 },
+        { name: 'u_voxelSize', label: 'Voxel Size', min: 0.01, max: 400, step: 0.01, defaultValue: 40 },
         // How far a ray looks, in voxels.
         { name: 'u_range', label: 'Range', min: 4, max: 90, step: 1, defaultValue: 48 },
         // Brighter than this a surface does not give out, so one lamp does not light the street from a single pixel.
@@ -418,9 +418,9 @@ registerEffect({
         // How much of the bounced light is added: 1 is what the surfaces gave out, scaled by the receiver's colour.
         { name: 'u_intensity', label: 'Intensity', min: 0, max: 4, step: 0.01, defaultValue: 1, neutralValue: 0 },
         // A WORLD length: how far from a surface the rays look for something to bounce light from.
-        { name: 'u_radius', label: 'Radius', min: 10, max: 1500, step: 5, defaultValue: 150 },
+        { name: 'u_radius', label: 'Radius', min: 0.05, max: 1500, step: 0.05, defaultValue: 150 },
         // A WORLD length: how thick a thing the rays can land on, so a far wall is not taken for the one beside it.
-        { name: 'u_thickness', label: 'Thickness', min: 1, max: 300, step: 1, defaultValue: 30 },
+        { name: 'u_thickness', label: 'Thickness', min: 0.01, max: 300, step: 0.01, defaultValue: 30 },
         // Brighter than this a surface does not bounce, so one lamp does not light the street from a single pixel.
         { name: 'u_maxBounce', label: 'Max Bounce', min: 0.5, max: 16, step: 0.5, defaultValue: 3 },
     ],

@@ -50,7 +50,7 @@ export const voxelGIFallback = {
 #pragma domain PostProcess
 #pragma highprecision
 #pragma gbuffer
-#pragma param u_voxelSize float default(40) range(4,400)
+#pragma param u_voxelSize float default(40) range(0.01,400)
 #pragma param u_decay float default(0.93) range(0,0.99)
 #pragma param u_maxBounce float default(3) range(0.5,16)
 #pragma param u_feedback texture default(black)
@@ -152,7 +152,7 @@ void main() {
 #pragma domain PostProcess
 #pragma highprecision
 #pragma gbuffer
-#pragma param u_voxelSize float default(40) range(4,400)
+#pragma param u_voxelSize float default(40) range(0.01,400)
 #pragma param u_rays float default(8) range(1,32)
 #pragma param u_range float default(48) range(4,90)
 #pragma param u_bias float default(1.2) range(0,4)
