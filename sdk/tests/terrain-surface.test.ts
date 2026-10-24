@@ -42,6 +42,19 @@ function onPiece(piece: CollisionPiece, x: number, z: number): number | null {
     return null;
 }
 
+describe('ground without end', () => {
+    it('is continuous where its ridges are worn: no step, however finely it is read', () => {
+        const worn = new NoiseSource({ ...params, ridged: 1, erosion: 2, warp: 0.35 });
+        const steepest = (step: number) => {
+            let w = 0;
+            for (let x = -3000; x < 3000; x += step) w = Math.max(w, Math.abs(worn.height(x + step, 300) - worn.height(x, 300)) / step);
+            return w;
+        };
+        // A step would show as a slope that grows as the reading gets finer.
+        expect(steepest(0.02)).toBeLessThan(steepest(0.5) * 1.05);
+    });
+});
+
 describe('the surface', () => {
     const surface = new TerrainSurface(new NoiseSource(params), 2);
 

@@ -146,11 +146,13 @@ export class NoiseSource implements TerrainSource {
             const [n, nx, nz] = noised(u * freq, v * freq, p.seed + o * 101);
             let value = n, ddx = nx * freq, ddz = nz * freq;
             if (p.ridged > 0) {
-                // Folded about its middle, a sharp crest where it turns.
-                const s = n * 2 - 1, sign = s >= 0 ? 1 : -1;
-                value = n * (1 - p.ridged) + (1 - Math.abs(s)) * p.ridged;
-                ddx = ddx * (1 - p.ridged) - 2 * sign * ddx * p.ridged;
-                ddz = ddz * (1 - p.ridged) - 2 * sign * ddz * p.ridged;
+                // Folded about its middle into a crest, rounded over its last few hundredths: a slope that turned there at once would
+                // jump the wear the octaves after it take from it, and with it the ground.
+                const s = n * 2 - 1, root = Math.sqrt(s * s + RIDGE_ROUND * RIDGE_ROUND);
+                const fold = (root - RIDGE_ROUND) / RIDGE_SPAN, turn = (s / root / RIDGE_SPAN) * 2;
+                value = n * (1 - p.ridged) + (1 - fold) * p.ridged;
+                ddx = ddx * (1 - p.ridged) - turn * ddx * p.ridged;
+                ddz = ddz * (1 - p.ridged) - turn * ddz * p.ridged;
             }
             gx += ddx * amp; gz += ddz * amp;
             const damp = wear > 0 ? 1 / (1 + wear * (gx * gx + gz * gz) * 0.25) : 1;
@@ -163,6 +165,10 @@ export class NoiseSource implements TerrainSource {
         return [sum / norm, (dx / norm) * scale, (dz / norm) * scale];
     }
 }
+
+/** How round a ridge's crest is, in the noise's own 0 to 1 (folded, -1 to 1), and what the rounded fold reaches at the ends. */
+const RIDGE_ROUND = 0.06;
+const RIDGE_SPAN = Math.sqrt(1 + RIDGE_ROUND * RIDGE_ROUND) - RIDGE_ROUND;
 
 /** A 32-bit integer hash, stable across hosts, so a seed makes the same ground everywhere. */
 function hash2(x: number, y: number, seed: number): number {
