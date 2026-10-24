@@ -2738,4 +2738,8 @@ export const NOTED = {
     {"internal":"Console noise in the editor (a 404 and a duplicate-key warning); nothing a game does changes."},
   "fix(render): buffers growing to fit a frame log at debug, and a pass seats an input only where it reads one":
     {"internal":"Log levels and a guarded uniform write: the console no longer warns about normal buffer growth or a sky pass with no input texture; nothing drawn changes."},
+  "perf(terrain): the Terrain shader reads only the layers the ground has, and the turned second reading only near the eye":
+    {"note":"A richer Terrain shader."},
+  "perf(examples): Terrain & Water grows its plants in fewer, larger cells and draws its ground at a lower detail":
+    {"internal":"An example's own settings."},
 };
