@@ -149,3 +149,11 @@ describe('placement diffs', () => {
         expect(told).toEqual(['groups@1:3,4/grove@1/oak.0', 'detail@1:9,9/ore@1/copper.0']);
     });
 });
+
+describe('the environment', () => {
+    it('reads how far a place is from the water, and none where no water is known', () => {
+        const env = new Environment({ seed: 1, ground: () => ({ y: 0, up: 1 }), shoreDistance: (x) => (x > 0 ? x : null) });
+        expect(env.sample(12, 0).shoreDistance).toBe(12);
+        expect(env.sample(-5, 0).shoreDistance).toBe(Infinity);
+    });
+});

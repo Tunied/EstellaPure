@@ -144,5 +144,8 @@ describe('the water in a running app with no renderer', () => {
         expect(waters.bodyAt(0, 0)!.level).toBeCloseTo(2, 3);
         expect(waters.sample(0, 0, 0)?.bodyId).toBe('mirror-lake');
         expect(waters.bodyAt(90, 90)).toBeNull();
+        // How far from the water's edge: across the dry ground beside it, and in from the shore on it.
+        expect(waters.shoreAt(45, 0)).toBeCloseTo(15, -0.5);
+        expect(waters.shoreAt(0, 0)).toBeLessThan(-20);
     });
 });

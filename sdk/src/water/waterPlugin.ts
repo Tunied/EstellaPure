@@ -206,6 +206,18 @@ export class Waters {
         return { entity, bodyId: body?.bodyId || `entity:${entity}`, form: body?.form ?? WaterForm.Ocean, level: s.height };
     }
 
+    /**
+     * How far (x, z) is from the water's edge, across the ground: above zero on dry land (how far to the nearest water), below it on the
+     * water (how far in from its shore). Past the zone's region it is the open sea's, deep in; null where no water is baked at all.
+     */
+    shoreAt(x: number, z: number): number | null {
+        const field = this.field_;
+        if (!field) return null;
+        const at = field.at(x, z);
+        if (at) return -at.shore;
+        return field.ocean ? -1e6 : null;
+    }
+
     private bodyIdOf(entity: Entity): string {
         const world = this.app_?.world;
         const body = world?.valid(entity) && world.has(entity, WaterBody) ? world.get(entity, WaterBody) as WaterBodyData : null;

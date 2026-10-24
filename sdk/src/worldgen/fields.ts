@@ -4,7 +4,8 @@
  * @file    fields.ts
  * @brief   The environment a world is laid out by: numbers read anywhere in it, the same for the same seed on every machine.
  *
- * @details A field is a function of the world position. The ground's (`height`, `up`, `slope`) and the water's (`waterDepth`) are
+ * @details A field is a function of the world position. The ground's (`height`, `up`, `slope`) and the water's (`waterDepth`, and
+ *          `shoreDistance`: how far a dry place is from the water's edge, negative in the water) are
  *          read from the terrain and the water; `moisture`, `temperature` and `rock` are seeded noise, slow across the world; a game
  *          adds fields of its own. A zone may set a field over its area, blended in by its weight, so a designer can make a wet hollow
  *          or a dry clearing by hand. Nothing here depends on what is loaded or in what order it was asked.
@@ -27,6 +28,8 @@ export interface EnvironmentInputs {
     ground(x: number, z: number): { y: number; up: number; normal?: [number, number, number] } | null;
     /** How deep water stands over the world height `y` at (x, z): above zero under water, null where there is none. */
     waterDepth?(x: number, z: number, y: number): number | null;
+    /** How far (x, z) is from the water's edge across the ground: above zero on land, below in the water, null where no water is known. */
+    shoreDistance?(x: number, z: number): number | null;
     /** The noise fields; absent ones keep their defaults (moisture 900, temperature 2400, rock 500 world units). */
     noise?: Partial<Record<string, NoiseField>>;
     /** Fields of the game's own. */
@@ -91,6 +94,7 @@ export class Environment {
             up: g ? g.up : 1,
             slope: g ? 1 - g.up : 0,
             waterDepth: g && this.inputs.waterDepth ? this.inputs.waterDepth(x, z, g.y) ?? -Infinity : -Infinity,
+            shoreDistance: this.inputs.shoreDistance?.(x, z) ?? Infinity,
         };
         for (const [name, f] of Object.entries(this.noise_)) {
             at[name] = fbm(x / Math.max(f.scale, 1e-6), z / Math.max(f.scale, 1e-6), this.seeds_[name]!, Math.max(1, f.octaves ?? 3));

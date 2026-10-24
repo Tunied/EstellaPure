@@ -275,7 +275,8 @@ The lite water costs no vertex work for the waves, and the shading still moves, 
 
 It reads the same formula the shader draws, at the time of the frame, with the height the waves stand to there and the ripples. `Waters.heightAt(x, z)` is the
 surface's height alone. A point over no water (outside every shore, or past the zone with no ocean) answers `null`. `Waters.bodyAt(x, z)` says which body a
-place belongs to: its entity, its `bodyId`, its form and its level at rest.
+place belongs to: its entity, its `bodyId`, its form and its level at rest. `Waters.shoreAt(x, z)` is how far a place is from the water's edge
+across the ground: above zero on dry land, below it on the water.
 
 The surface the code reads is the full wave sum; a coarse far ring draws less of it (see above), so near the horizon the two can
 differ by the short waves, which are small.

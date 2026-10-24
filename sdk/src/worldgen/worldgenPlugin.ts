@@ -158,7 +158,7 @@ interface PlacedChunk {
 }
 
 /** The water, as worldgen asks it (the water module is optional: read by name, not imported). */
-interface WaterQuery { depthAt(x: number, z: number, y: number): number | null; revision_: number; baking: boolean }
+interface WaterQuery { depthAt(x: number, z: number, y: number): number | null; shoreAt?(x: number, z: number): number | null; revision_: number; baking: boolean }
 
 function waterOf(app: App): WaterQuery | null {
     const w = (app as unknown as { getResourceByName?: (name: string) => unknown }).getResourceByName?.('Waters') as Partial<WaterQuery> | undefined;
@@ -321,6 +321,7 @@ export class WorldGenPlugin implements Plugin {
                 return { y: t?.worldPosition.y ?? 0, up: 1, normal: [0, 1, 0] };
             },
             waterDepth: (x, z, y) => waterOf(app)?.depthAt(x, z, y) ?? null,
+            shoreDistance: (x, z) => waterOf(app)?.shoreAt?.(x, z) ?? null,
             overrides: (x, z) => {
                 const out: { field: string; value: number; weight: number }[] = [];
                 for (const { zone, weight } of zones.at(x, z)) for (const [field, value] of Object.entries(zone.fields ?? {})) out.push({ field, value, weight });

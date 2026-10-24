@@ -44,6 +44,7 @@ ground: (x: number, z: number) => { y: number; up: number; normal?: [number, num
 noise: Partial<Record<string, NoiseField>> | undefined
 overrides: ((x: number, z: number) => { field: string; value: number; weight: number; }[]) | undefined
 seed: number
+shoreDistance: ((x: number, z: number) => number | null) | undefined
 waterDepth: ((x: number, z: number, y: number) => number | null) | undefined
 ```
 

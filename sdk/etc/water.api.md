@@ -228,6 +228,7 @@ heightAt: (x: number, z: number) => number | null
 quality: WaterQuality
 rippleAt: (x: number, _y: number, z: number) => number
 sample: (x: number, y: number, z: number) => WaterSample | null
+shoreAt: (x: number, z: number) => number | null
 static new (): Waters
 static prototype: Waters
 ```

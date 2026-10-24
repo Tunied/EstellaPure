@@ -2794,4 +2794,6 @@ export const NOTED = {
     {"note":"Far versions for generated decoration."},
   "feat(terrain): modifiers change the ground for every reader and remake only what they reach, and a zone can level its plot":
     {"note":"Terrain modifiers, and zones that level their ground."},
+  "feat(water): how far a dry place is from the water's edge, as a query and a field generated worlds read":
+    {"note":"How far a place is from the water."},
 };

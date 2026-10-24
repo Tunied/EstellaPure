@@ -55,7 +55,7 @@ registerWorldRules({
 ### Fields
 
 Every decision is made from **fields**: numbers read at any world position. `height`, `up` (how much the ground faces up) and `slope`
-come from the terrain's surface, `waterDepth` from the water; `moisture`, `temperature` and `rock` are seeded noise, slow across the
+come from the terrain's surface, `waterDepth` and `shoreDistance` (how far a dry place is from the water's edge, negative on the water) from the water; `moisture`, `temperature` and `rock` are seeded noise, slow across the
 world (their scales are the rules' `noise`). A game adds fields of its own with `fields: { name: (x, z, at) => number }`, reading the
 built-in ones from `at`. A zone can set any field over its area.
 
@@ -151,8 +151,6 @@ Declare the folders they live in always included, in `.esengine/asset-groups.jso
 
 ## Limits
 
-- **No distance from the shore on land.** `waterDepth` says how deep water stands; a field of how far a dry place is from water is a
-  game's own for now.
 - **Decoration is merged a chunk at a time, not GPU-instanced.** The renderer's instance records are written each frame, which for a
   field of thousands of plants would upload megabytes a frame; merged static meshes upload nothing, and the chunks bound their memory.
 - **Rules are code.** Recipes are plain data and can be read from JSON, but there is no editor for them yet.
