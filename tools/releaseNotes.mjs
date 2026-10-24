@@ -2722,4 +2722,16 @@ export const NOTED = {
     {"internal":"The editor half of Water zones, which carries the note."},
   "feat(water): surf runs in toward the shore, breaks white and runs up the ground":
     {"note":"Surf on the shore."},
+  "feat(terrain): rain erodes the ground and its noise is warped, baked over frames with their progress":
+    {"note":"Eroded and warped terrain."},
+  "feat(terrain): the Terrain shader meets its layers by relief, hides their tiling and wets the waterline":
+    {"note":"A richer Terrain shader."},
+  "feat(water): the surface mirrors the world, and ripples, surf and foam behave on calm water":
+    {"note":"Water mirrors the world."},
+  "feat(foliage): plants keep out of the water and grass thins toward its far cells":
+    {"note":"Plants keep out of the water."},
+  "feat(examples): Terrain & Water has a HUD, a beach view and quality levels":
+    {"internal":"An example's own script, scene and textures; what it shows is in the engine notes."},
+  "feat(editor): the status bar shows what the engine is baking, with its progress":
+    {"note":"Bakes run over frames, with progress."},
 };
