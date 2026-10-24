@@ -40,6 +40,7 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **The running game's resolution can be chosen.** A picker beside Play shows the target screen and stays usable while the game runs (it used to sit in a menu that was disabled in Play), with Free Aspect, the project's design resolution, the device presets and portrait or landscape; the choice is kept per project. ([#100](https://github.com/esengine/estella/issues/100))
 - **Terrain skirts and surf films no longer show as streaks.** The skirt under a terrain chunk's edge, seen where two levels of detail part, took the relief bump meant for the ground and lit as a bright line; it now draws without it. The surf running up dry ground no longer stretches into a wall between two waters' heights.
 - **Ripples and surf on calm water.** The ripples a zone keeps fade out toward the edge of their window instead of stopping on a line across a lake, a breaker only whitens when it is steep for its length (a lake laps, the sea breaks), and foam seen from under the water is a faint shadow instead of a white sheet.
 - **Water reads its data textures as numbers.** The textures the water's field, shore and ripples are read from were decoded as sRGB colour, which bent their values.

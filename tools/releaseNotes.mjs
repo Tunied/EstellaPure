@@ -2766,4 +2766,6 @@ export const NOTED = {
     {"note":"Terrain from a generator the game names, versioned."},
   "feat(terrain): bodies collide with the ground drawn near the eye, built in tiles round what moves, and queries answer from the same triangles":
     {"note":"Terrain collision, the same ground that is drawn."},
+  "fix(editor): the running game has a resolution picker you can actually reach":
+    {"note":"The running game's resolution can be chosen."},
 };
