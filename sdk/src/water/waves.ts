@@ -88,11 +88,10 @@ export function waveSlope(p: WaveParams, x: number, z: number, time: number): [n
 }
 
 /**
- * The surf: waves that run in toward the shore across the last `4 * length` of water, steepen and break on it, and run up the ground past
- * it. `shore` is the distance to the shore (above zero on the water), `height` how high a breaker stands at most; the crests are lines
- * of `phase` (by default the shore distance; a zone's is that smoothed, so they come in straight from open water). Each has a steep face
- * toward the shore and a long back, and they travel at the speed of a deep-water wave of their length times `speed`. The Water shader
- * draws the same.
+ * The surf: waves that run in across the last `4 * length` of water, break on the shore and run up past it. `shore` is the distance to
+ * the shore (above zero on the water), `height` a breaker's most; the crests are lines of `phase` (a zone's is the shore's, smoothed,
+ * so they come in straight). Each has a steep face shoreward and a long back, at a deep-water wave's speed for their length times
+ * `speed`. The Water shader draws the same.
  */
 export function surfHeight(shore: number, height: number, length: number, speed: number, time: number, phase = shore): number {
     if (height <= 0 || length <= 0) return 0;
