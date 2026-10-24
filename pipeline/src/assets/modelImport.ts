@@ -742,6 +742,9 @@ function characterProperties(shading: CharacterShading, material: ImportedMateri
         // this roughness comes out about half as bright again as Blender's, which HAIR_ENV_GAIN takes back.
         properties.u_specular = ((material.specular ?? 1) * 0.04 / 0.046) * HAIR_ENV_GAIN;
         properties.u_lobeGain = HAIR_LOBE_GAIN;
+        // Cards cut from one strand texture read as combed plates; drawing them as a few locks, each a little lighter or darker with its own break in the highlight
+        // and a shadowed seam, gives the layers the depth Blender gets from hundreds of overlapping cards.
+        properties.u_clumpCount = 7; properties.u_clumpTone = 0.4; properties.u_clumpShift = 0.5; properties.u_clumpGap = 0.55;
         properties.u_alphaCutoff = material.alphaCutoff ?? 0.5;
         bind('u_flowMap', material.flowTexture);
         bind('u_shiftMap', material.shiftTexture);

@@ -46,6 +46,12 @@ const HAIR = `#pragma shader "Hair"
 // (the opaque pass keeps what is above the cutoff, feathered by coverage). Sorted with the other blended draws; 0 leaves it out.
 #pragma param u_tipSoftness float default(0) range(0,0.5) ui(slider)
 #pragma tips u_tipSoftness
+// A card's strands are drawn as locks: this many across the card's width (0 leaves the card as authored), each lock lighter or darker than the next by
+// u_clumpTone, its highlight pushed along the strand by u_clumpShift so it breaks from lock to lock, and darkened toward the seam between locks by u_clumpGap.
+#pragma param u_clumpCount float default(0) range(0,200) ui(slider)
+#pragma param u_clumpTone float default(0.25) range(0,0.6) ui(slider)
+#pragma param u_clumpShift float default(0.3) range(0,1) ui(slider)
+#pragma param u_clumpGap float default(0.3) range(0,1) ui(slider)
 
 #pragma fragment
 precision highp float;
@@ -109,6 +115,15 @@ void main() {
     float ao = mix(1.0, root, u_occlusionStrength);
     base.rgb *= mix(1.0, 0.35 + 0.65 * root, u_rootDark);
     float noise = (texture(u_shiftMap, v_texCoord * u_shiftTile).r - 0.5) * u_shiftAmount;
+    if (u_clumpCount > 0.0) {
+        float cu = v_texCoord.x * u_clumpCount;
+        float cr = fract(sin(floor(cu) * 127.1 + 311.7) * 43758.5453);
+        float cf = fract(cu);
+        float seam = smoothstep(0.0, 0.35, cf) * smoothstep(0.0, 0.35, 1.0 - cf);
+        base.rgb *= 1.0 + (cr - 0.5) * 2.0 * u_clumpTone;
+        ao *= mix(1.0 - u_clumpGap, 1.0, seam);
+        noise += (cr - 0.5) * u_clumpShift;
+    }
     SurfaceExt ext = surfaceExtNone(N);
     ext.aniso = vec4(T, 0.0);
     ext.misc = vec4(0.046, max(u_lobeGain, 0.001), u_shiftPrimary + noise, u_shiftSecondary + noise);
@@ -186,9 +201,18 @@ fn packNormal(n : vec3f) -> vec2f {
         alpha = min(alpha, 1.0);
     }
 #endif
-    let ao = mix(1.0, orm.r, mc.u_occlusionStrength);
+    var ao = mix(1.0, orm.r, mc.u_occlusionStrength);
     base = vec4f(base.rgb * mix(1.0, 0.35 + 0.65 * orm.r, mc.u_rootDark), base.a);
-    let noise = (shiftTex - 0.5) * mc.u_shiftAmount;
+    var noise = (shiftTex - 0.5) * mc.u_shiftAmount;
+    if (mc.u_clumpCount > 0.0) {
+        let cu = v.v_texCoord.x * mc.u_clumpCount;
+        let cr = fract(sin(floor(cu) * 127.1 + 311.7) * 43758.5453);
+        let cf = fract(cu);
+        let seam = smoothstep(0.0, 0.35, cf) * smoothstep(0.0, 0.35, 1.0 - cf);
+        base = vec4f(base.rgb * (1.0 + (cr - 0.5) * 2.0 * mc.u_clumpTone), base.a);
+        ao = ao * mix(1.0 - mc.u_clumpGap, 1.0, seam);
+        noise = noise + (cr - 0.5) * mc.u_clumpShift;
+    }
     var ext = surfaceExtNone(N);
     ext.aniso = vec4f(T, 0.0);
     ext.misc = vec4f(0.046, max(mc.u_lobeGain, 0.001), mc.u_shiftPrimary + noise, mc.u_shiftSecondary + noise);
