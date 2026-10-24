@@ -160,7 +160,8 @@ function texture(name, seed, shade) {
     return [rgb[0], rgb[1], rgb[2], 255];
   });
   write(`assets/textures/${name}.png`, image);
-  meta(`assets/textures/${name}.png`, 'texture');
+  // Tiled by world position across the whole ground: it must repeat, or every texel past the first tile is its edge stretched.
+  meta(`assets/textures/${name}.png`, 'texture', { wrapMode: 'repeat' });
 }
 
 function textures() {

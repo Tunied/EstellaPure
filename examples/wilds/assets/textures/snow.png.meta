@@ -2,5 +2,7 @@
   "uuid": "d7b144bf-06ad-41d2-997f-a45bea7ece63",
   "version": "2.0",
   "type": "texture",
-  "importer": {}
+  "importer": {
+    "wrapMode": "repeat"
+  }
 }
