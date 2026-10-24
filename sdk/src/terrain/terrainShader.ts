@@ -9,9 +9,8 @@
 import { makeBuiltinShaderTemplate } from '../render/builtinShaders';
 
 
-// Ground painted by four layers. The Terrain component writes how much of each layer a point of ground has into the vertex colour
-// (red, green, blue, alpha: grass, dirt, snow, rock), and this shader draws them: each layer is a texture tiled by world position so
-// it runs unbroken from one chunk to the next, and the rock is projected from three sides so a cliff is not a smear.
+// Ground painted by four layers (grass, dirt, snow, rock), their weights read from the Terrain's paint pages (or, on a plain mesh, its
+// vertex colour). Each layer is a texture laid by world position without repeat, and the rock is projected from three sides on a cliff.
 const TERRAIN = `#pragma shader "Terrain"
 #pragma version 300 es
 #pragma domain Lit
@@ -33,7 +32,12 @@ const TERRAIN = `#pragma shader "Terrain"
 // How much the seams follow the layers' own relief (their brightness): rock shows through the gaps in the grass before the grass gives way,
 // and sand fills the low places between stones. 0 is a plain blend of the weights.
 #pragma param u_heightBlend float default(0.7) range(0,1) ui(slider)
-// How much of each layer is read a second time, turned and on a wider tile, and blended in by slow noise, so no repeat of it is seen across a field.
+// How much each layer's weight is broken up by slow noise of its own before the strongest wins: the line where grass meets sand wanders
+// instead of following the paint's smooth gradient.
+#pragma param u_blendNoise float default(0.5) range(0,1) ui(slider)
+// From the middle distance on, each layer is also read on a tile u_farScale times as wide and mixed in, so its repeat is lost far off.
+#pragma param u_farScale float default(4.3) range(1,32) ui(slider)
+// How strongly each layer is read without repeat near the eye (hex tiling: every hexagonal cell shifted and turned at random), so no tile is seen.
 #pragma param u_antiTile float default(0.6) range(0,1) ui(slider)
 // The wide, slow variation in brightness laid over every layer so a big meadow is not one colour.
 #pragma param u_macroVariation float default(0.35) range(0,1) ui(slider)
@@ -176,12 +180,38 @@ vec2 tnTurned(vec2 p, float tile) { return mat2(0.8, -0.6, 0.6, 0.8) * p / (tile
 float tnLuma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
 // A layer at p on its tile, with the second turned reading mixed in by t. The gradients are the ones taken where every lane runs,
 // so a layer can be read only where it is used.
-vec3 tnRead(sampler2D layer, vec2 p, float tile, float t, vec2 gx, vec2 gy) {
-    vec3 c = textureGrad(layer, p / tile, gx / tile, gy / tile).rgb;
-    if (t > 0.01) {
-        mat2 turn = mat2(0.8, -0.6, 0.6, 0.8);
-        float wide = tile * 1.37;
-        c = mix(c, textureGrad(layer, tnTurned(p, tile), turn * gx / wide, turn * gy / wide).rgb, t);
+vec2 tnHash2(vec2 p) {
+    return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453);
+}
+// One reading of a layer in a hex cell: shifted and turned by the cell's own random numbers (the gradients turn with it).
+vec3 tnHexTap(sampler2D layer, vec2 uv, vec2 cell, vec2 gx, vec2 gy) {
+    vec2 r = tnHash2(cell);
+    float a = r.x * 6.2831853;
+    mat2 turn = mat2(cos(a), -sin(a), sin(a), cos(a));
+    return textureGrad(layer, turn * uv + r, turn * gx, turn * gy).rgb;
+}
+// A layer read without repeat (hex tiling, Mikkelsen 2022): the plane is cut into hexagons, each takes the layer shifted and turned
+// at random, and the three cells about a point are blended by how near it is to each, the brighter reading winning where they meet.
+vec3 tnHex(sampler2D layer, vec2 uv, vec2 gx, vec2 gy, float strength) {
+    vec2 skewed = mat2(1.0, 0.0, -0.57735027, 1.15470054) * (uv * 3.4641016);
+    vec2 base = floor(skewed);
+    vec3 f = vec3(fract(skewed), 0.0);
+    f.z = 1.0 - f.x - f.y;
+    float s = step(0.0, -f.z), s2 = 2.0 * s - 1.0;
+    vec3 w = vec3(-f.z * s2, s - f.y * s2, s - f.x * s2);
+    vec3 c1 = tnHexTap(layer, uv, base + vec2(s, s), gx, gy);
+    vec3 c2 = tnHexTap(layer, uv, base + vec2(s, 1.0 - s), gx, gy);
+    vec3 c3 = tnHexTap(layer, uv, base + vec2(1.0 - s, s), gx, gy);
+    vec3 lum = vec3(tnLuma(c1), tnLuma(c2), tnLuma(c3));
+    w = pow(max(w * mix(vec3(1.0), 0.4 + lum, strength), vec3(1e-4)), vec3(7.0));
+    w /= dot(w, vec3(1.0));
+    return c1 * w.x + c2 * w.y + c3 * w.z;
+}
+vec3 tnRead(sampler2D layer, vec2 p, float tile, float t, float far, vec2 gx, vec2 gy) {
+    vec3 c = t > 0.01 ? tnHex(layer, p / tile, gx / tile, gy / tile, t) : textureGrad(layer, p / tile, gx / tile, gy / tile).rgb;
+    if (far > 0.01) {
+        float big = tile * u_farScale;
+        c = mix(c, textureGrad(layer, p / big + 0.21, gx / big, gy / big).rgb, far);
     }
     return c;
 }
@@ -205,6 +235,11 @@ void main() {
     }
     vec4 w = max(paint, vec4(0.0));
     w /= max(dot(w, vec4(1.0)), 1e-4);
+    // Each layer's say wanders by slow noise of its own, so where two meet the edge is ragged, not the paint's gradient.
+    vec4 wander = vec4(tnNoise(P.xz / (u_tile0 * 2.3) + 3.0), tnNoise(P.xz / (u_tile1 * 2.3) + 11.0),
+                       tnNoise(P.xz / (u_tile2 * 2.3) + 23.0), tnNoise(P.xz / (u_tile3 * 2.3) + 37.0));
+    w *= mix(vec4(1.0), 0.35 + 1.3 * wander, u_blendNoise);
+    w /= max(dot(w, vec4(1.0)), 1e-4);
     // The strongest layer wins its seam more cleanly the higher the sharpness.
     w = pow(w, vec4(u_sharpness));
     w /= max(dot(w, vec4(1.0)), 1e-4);
@@ -213,17 +248,18 @@ void main() {
     // and blended by slow noise of its own tile's scale, so no repeat is seen; far off, where a repeat is too small to see, it is not.
     vec3 dpx = dFdx(P), dpy = dFdy(P);
     float eye = u_camera.w > 0.5 ? length(P - u_camera.xyz) : 0.0;
-    float near = (1.0 - smoothstep(u_tile0 * 12.0, u_tile0 * 30.0, eye)) * u_antiTile;
+    float near = (1.0 - smoothstep(u_tile0 * 20.0, u_tile0 * 45.0, eye)) * u_antiTile;
+    float far = smoothstep(u_tile0 * 6.0, u_tile0 * 40.0, eye) * 0.65;
     vec3 s0 = vec3(0.0), s1 = vec3(0.0), s2 = vec3(0.0), s3 = vec3(0.0);
-    if (w.x > 1e-3) s0 = tnRead(u_layer0, P.xz, u_tile0, smoothstep(0.3, 0.7, tnNoise(P.xz / (u_tile0 * 9.0))) * near, dpx.xz, dpy.xz);
-    if (w.y > 1e-3) s1 = tnRead(u_layer1, P.xz, u_tile1, smoothstep(0.3, 0.7, tnNoise(P.xz / (u_tile1 * 9.0) + 17.0)) * near, dpx.xz, dpy.xz);
-    if (w.z > 1e-3) s2 = tnRead(u_layer2, P.xz, u_tile2, smoothstep(0.3, 0.7, tnNoise(P.xz / (u_tile2 * 9.0) + 31.0)) * near, dpx.xz, dpy.xz);
+    if (w.x > 1e-3) s0 = tnRead(u_layer0, P.xz, u_tile0, near, far, dpx.xz, dpy.xz);
+    if (w.y > 1e-3) s1 = tnRead(u_layer1, P.xz, u_tile1, near, far, dpx.xz, dpy.xz);
+    if (w.z > 1e-3) s2 = tnRead(u_layer2, P.xz, u_tile2, near, far, dpx.xz, dpy.xz);
     if (w.w > 1e-3) {
         // Rock is seen from three sides, in proportion to how the ground faces them, so a sheer face is not stretched; a side that
         // carries almost none of it is not read.
         vec3 axis = pow(abs(N), vec3(4.0));
         axis /= dot(axis, vec3(1.0));
-        s3 = tnRead(u_layer3, P.xz, u_tile3, smoothstep(0.3, 0.7, tnNoise(P.xz / (u_tile3 * 9.0) + 47.0)) * near, dpx.xz, dpy.xz) * axis.y;
+        s3 = tnRead(u_layer3, P.xz, u_tile3, near, far, dpx.xz, dpy.xz) * axis.y;
         if (axis.x > 0.02) s3 += textureGrad(u_layer3, P.zy / u_tile3, dpx.zy / u_tile3, dpy.zy / u_tile3).rgb * axis.x;
         if (axis.z > 0.02) s3 += textureGrad(u_layer3, P.xy / u_tile3, dpx.xy / u_tile3, dpy.xy / u_tile3).rgb * axis.z;
     }
@@ -247,8 +283,7 @@ void main() {
     vec3 surfGrad = sign(det) * (dhx * r1 + dhy * r2);
     float fine = 1.0 - smoothstep(0.02, 0.2, length(dpx) / max(u_tile0, 1e-4));
     vec3 Nb = normalize(abs(det) * N - surfGrad * fine);
-    // Not on a wall: the skirt hung under a chunk's edge (seen where two levels of detail part) stands upright, and a bump drawn on it
-    // from the ground's derivatives lights it as a bright streak.
+    // Not on a face that stands upright: a bump drawn there from the ground's derivatives lights it as a bright streak.
     bool upright = abs(normalize(cross(dpx, dpy)).y) > 0.5;
     if (abs(det) > 1e-12 && u_relief > 0.0 && upright) N = Nb;
 
@@ -281,12 +316,38 @@ fn tnNoise(p : vec2f) -> f32 {
 }
 fn tnTurned(p : vec2f, tile : f32) -> vec2f { return mat2x2f(0.8, -0.6, 0.6, 0.8) * p / (tile * 1.37) + vec2f(0.37, 0.71); }
 fn tnLuma(c : vec3f) -> f32 { return dot(c, vec3f(0.299, 0.587, 0.114)); }
-fn tnRead(layer : texture_2d<f32>, smp : sampler, p : vec2f, tile : f32, t : f32, gx : vec2f, gy : vec2f) -> vec3f {
-    var c = textureSampleGrad(layer, smp, p / tile, gx / tile, gy / tile).rgb;
-    if (t > 0.01) {
-        let turn = mat2x2f(0.8, -0.6, 0.6, 0.8);
-        let wide = tile * 1.37;
-        c = mix(c, textureSampleGrad(layer, smp, tnTurned(p, tile), turn * gx / wide, turn * gy / wide).rgb, vec3f(t));
+fn tnHash2(p : vec2f) -> vec2f {
+    return fract(sin(vec2f(dot(p, vec2f(127.1, 311.7)), dot(p, vec2f(269.5, 183.3)))) * 43758.5453);
+}
+fn tnHexTap(layer : texture_2d<f32>, smp : sampler, uv : vec2f, cell : vec2f, gx : vec2f, gy : vec2f) -> vec3f {
+    let r = tnHash2(cell);
+    let a = r.x * 6.2831853;
+    let turn = mat2x2f(cos(a), -sin(a), sin(a), cos(a));
+    return textureSampleGrad(layer, smp, turn * uv + r, turn * gx, turn * gy).rgb;
+}
+fn tnHex(layer : texture_2d<f32>, smp : sampler, uv : vec2f, gx : vec2f, gy : vec2f, strength : f32) -> vec3f {
+    let skewed = mat2x2f(1.0, 0.0, -0.57735027, 1.15470054) * (uv * 3.4641016);
+    let base = floor(skewed);
+    let fr = fract(skewed);
+    let fz = 1.0 - fr.x - fr.y;
+    let s = step(0.0, -fz);
+    let s2 = 2.0 * s - 1.0;
+    var w = vec3f(-fz * s2, s - fr.y * s2, s - fr.x * s2);
+    let c1 = tnHexTap(layer, smp, uv, base + vec2f(s, s), gx, gy);
+    let c2 = tnHexTap(layer, smp, uv, base + vec2f(s, 1.0 - s), gx, gy);
+    let c3 = tnHexTap(layer, smp, uv, base + vec2f(1.0 - s, s), gx, gy);
+    let lum = vec3f(tnLuma(c1), tnLuma(c2), tnLuma(c3));
+    w = pow(max(w * mix(vec3f(1.0), vec3f(0.4) + lum, vec3f(strength)), vec3f(1e-4)), vec3f(7.0));
+    w = w / dot(w, vec3f(1.0));
+    return c1 * w.x + c2 * w.y + c3 * w.z;
+}
+fn tnRead(layer : texture_2d<f32>, smp : sampler, p : vec2f, tile : f32, t : f32, far : f32, gx : vec2f, gy : vec2f) -> vec3f {
+    var c = vec3f(0.0);
+    if (t > 0.01) { c = tnHex(layer, smp, p / tile, gx / tile, gy / tile, t); }
+    else { c = textureSampleGrad(layer, smp, p / tile, gx / tile, gy / tile).rgb; }
+    if (far > 0.01) {
+        let big = tile * mc.u_farScale;
+        c = mix(c, textureSampleGrad(layer, smp, p / big + vec2f(0.21), gx / big, gy / big).rgb, vec3f(far));
     }
     return c;
 }
@@ -331,6 +392,10 @@ fn packNormal(n : vec3f) -> vec2f {
     }
     var w = max(paint, vec4f(0.0));
     w = w / max(dot(w, vec4f(1.0)), 1e-4);
+    let wander = vec4f(tnNoise(P.xz / (mc.u_tile0 * 2.3) + 3.0), tnNoise(P.xz / (mc.u_tile1 * 2.3) + 11.0),
+                       tnNoise(P.xz / (mc.u_tile2 * 2.3) + 23.0), tnNoise(P.xz / (mc.u_tile3 * 2.3) + 37.0));
+    w = w * mix(vec4f(1.0), vec4f(0.35) + 1.3 * wander, vec4f(mc.u_blendNoise));
+    w = w / max(dot(w, vec4f(1.0)), 1e-4);
     w = pow(w, vec4f(mc.u_sharpness));
     w = w / max(dot(w, vec4f(1.0)), 1e-4);
 
@@ -339,18 +404,19 @@ fn packNormal(n : vec3f) -> vec2f {
     let dpy = dpdy(P);
     var eye = 0.0;
     if (frame.camera.w > 0.5) { eye = length(P - frame.camera.xyz); }
-    let near = (1.0 - smoothstep(mc.u_tile0 * 12.0, mc.u_tile0 * 30.0, eye)) * mc.u_antiTile;
+    let near = (1.0 - smoothstep(mc.u_tile0 * 20.0, mc.u_tile0 * 45.0, eye)) * mc.u_antiTile;
+    let far = smoothstep(mc.u_tile0 * 6.0, mc.u_tile0 * 40.0, eye) * 0.65;
     var s0 = vec3f(0.0);
     var s1 = vec3f(0.0);
     var s2 = vec3f(0.0);
     var s3 = vec3f(0.0);
-    if (w.x > 1e-3) { s0 = tnRead(u_layer0, u_layer0_s, P.xz, mc.u_tile0, smoothstep(0.3, 0.7, tnNoise(P.xz / (mc.u_tile0 * 9.0))) * near, dpx.xz, dpy.xz); }
-    if (w.y > 1e-3) { s1 = tnRead(u_layer1, u_layer1_s, P.xz, mc.u_tile1, smoothstep(0.3, 0.7, tnNoise(P.xz / (mc.u_tile1 * 9.0) + 17.0)) * near, dpx.xz, dpy.xz); }
-    if (w.z > 1e-3) { s2 = tnRead(u_layer2, u_layer2_s, P.xz, mc.u_tile2, smoothstep(0.3, 0.7, tnNoise(P.xz / (mc.u_tile2 * 9.0) + 31.0)) * near, dpx.xz, dpy.xz); }
+    if (w.x > 1e-3) { s0 = tnRead(u_layer0, u_layer0_s, P.xz, mc.u_tile0, near, far, dpx.xz, dpy.xz); }
+    if (w.y > 1e-3) { s1 = tnRead(u_layer1, u_layer1_s, P.xz, mc.u_tile1, near, far, dpx.xz, dpy.xz); }
+    if (w.z > 1e-3) { s2 = tnRead(u_layer2, u_layer2_s, P.xz, mc.u_tile2, near, far, dpx.xz, dpy.xz); }
     if (w.w > 1e-3) {
         var axis = pow(abs(N), vec3f(4.0));
         axis = axis / dot(axis, vec3f(1.0));
-        s3 = tnRead(u_layer3, u_layer3_s, P.xz, mc.u_tile3, smoothstep(0.3, 0.7, tnNoise(P.xz / (mc.u_tile3 * 9.0) + 47.0)) * near, dpx.xz, dpy.xz) * axis.y;
+        s3 = tnRead(u_layer3, u_layer3_s, P.xz, mc.u_tile3, near, far, dpx.xz, dpy.xz) * axis.y;
         if (axis.x > 0.02) { s3 = s3 + textureSampleGrad(u_layer3, u_layer3_s, P.zy / mc.u_tile3, dpx.zy / mc.u_tile3, dpy.zy / mc.u_tile3).rgb * axis.x; }
         if (axis.z > 0.02) { s3 = s3 + textureSampleGrad(u_layer3, u_layer3_s, P.xy / mc.u_tile3, dpx.xy / mc.u_tile3, dpy.xy / mc.u_tile3).rgb * axis.z; }
     }

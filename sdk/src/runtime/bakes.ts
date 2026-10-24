@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 /**
  * @file    bakes.ts
- * @brief   Work the engine spreads over frames (a terrain worn by rain, a water zone baked, chunks built), and how far along it is.
+ * @brief   Work the engine spreads over frames (a terrain worn by rain, a water zone baked, pages made), and how far along it is.
  *
  * @details A bake that runs in one go holds the frame until it is done: the editor freezes, a game's first frame waits, and nobody
  *          can say what for. So such work is a job: a generator that yields how far along it is, stepped each frame for as long as
@@ -51,7 +51,7 @@ export class Bakes {
     }
 
     /**
-     * Shows work that is stepped elsewhere (chunks built a few a frame) under `label` while `progress` is below 1; `owner` names it,
+     * Shows work that is stepped elsewhere (pages made a few a frame) under `label` while `progress` is below 1; `owner` names it,
      * so a later mark replaces it. Mark it 1, or `clear` it, when it is done.
      */
     mark(owner: object, label: string, progress: number): void {

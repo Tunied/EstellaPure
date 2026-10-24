@@ -419,7 +419,7 @@ function materials() {
   material('ground', 'builtin:terrain', {
     u_layer0: 'assets/textures/grass.png', u_layer1: 'assets/textures/sand.png', u_layer2: 'assets/textures/snow.png', u_layer3: 'assets/textures/rock.png',
     u_tint0: white, u_tint1: white, u_tint2: white, u_tint3: white,
-    u_tile0: 900, u_tile1: 700, u_tile2: 1100, u_tile3: 1400, u_macroVariation: 0.45, u_sharpness: 2, u_roughness: 0.95, u_heightBlend: 0.8, u_antiTile: 0.7, u_relief: 8,
+    u_tile0: 900, u_tile1: 700, u_tile2: 1100, u_tile3: 1400, u_macroVariation: 0.45, u_sharpness: 1.4, u_blendNoise: 0.6, u_roughness: 0.95, u_heightBlend: 0.55, u_antiTile: 0.7, u_relief: 8,
     u_wetLevel: WORLD.sea, u_wetBand: 60,
   });
   // The stock water, scaled from metres to this world's centimetres: the same colours, absorbed over a hundred times the distance.

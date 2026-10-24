@@ -456,7 +456,7 @@ export class TerrainPlugin implements Plugin {
                 if (covered.has(nodeKey(up.level, up.ix, up.iz))) { drawn.delete(key); break; }
             }
         }
-        this.makePages(app, built, source, tree, eyeAt);
+        this.makePages(app, built, source, eyeAt);
 
         const set = (name: string, value: Parameters<typeof Material.setUniform>[2]): void => { Material.setUniform(built.instance, name, value); };
         set('u_heightRange', { x: source.minHeight, y: Math.max(source.maxHeight - source.minHeight, 1e-6) });
@@ -472,7 +472,7 @@ export class TerrainPlugin implements Plugin {
     }
 
     /** Makes the wanted pages, coarse and near first, for as long as the frame can spare. */
-    private makePages(app: App, built: Built, source: TerrainSource, tree: QuadtreeParams, eye: [number, number, number]): void {
+    private makePages(app: App, built: Built, source: TerrainSource, eye: [number, number, number]): void {
         const bakes = bakesOf(app);
         if (built.wanted.size === 0) { bakes.mark(built, 'Building the terrain', 1); return; }
         const order = [...built.wanted.values()].sort((a, b) => b.level - a.level
@@ -492,7 +492,6 @@ export class TerrainPlugin implements Plugin {
             if (performance.now() >= until) break;
         }
         bakes.mark(built, 'Building the terrain', made === 0 ? 0 : 1 - built.wanted.size / (built.wanted.size + made));
-        void tree;
     }
 
     /** Puts a node entity on each node drawn (reusing the ones it had), and takes the rest away. */
