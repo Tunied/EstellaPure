@@ -423,7 +423,7 @@ function materials() {
     u_wetLevel: WORLD.sea, u_wetBand: 60,
   });
   // The stock water, scaled from metres to this world's centimetres: the same colours, absorbed over a hundred times the distance.
-  const water = { u_density: 0.0011, u_rippleLength: 220, u_rippleStrength: 0.3, u_distortionRange: 300, u_refractionStrength: 0.6, u_foamWidth: 45, u_foamCrest: 0.4,
+  const water = { u_density: 0.0011, u_rippleLength: 220, u_rippleStrength: 0.3, u_distortionRange: 300, u_refractionStrength: 0.6, u_edgeSoftness: 35, u_foamWidth: 45, u_foamCrest: 0.4,
     u_fallbackDepth: 400, u_causticScale: 220, u_roughness: 0.04 };
   material('water', 'builtin:water', water);
   material('crate', 'builtin:model', { u_metallic: 0, u_roughness: 0.8 });

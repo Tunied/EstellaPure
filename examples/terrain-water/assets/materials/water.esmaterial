@@ -12,6 +12,7 @@
     "u_rippleStrength": 0.3,
     "u_distortionRange": 300,
     "u_refractionStrength": 0.6,
+    "u_edgeSoftness": 35,
     "u_foamWidth": 45,
     "u_foamCrest": 0.4,
     "u_fallbackDepth": 400,

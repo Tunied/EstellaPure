@@ -20,10 +20,10 @@ const WEATHER_NAMES = ['Clear', 'Mist', 'Overcast', 'Rain', 'Storm'];
 
 /** The other places to look from; the first viewpoint is the scene's own camera. */
 const VIEWS: { name: string; pose: Pose }[] = [
-    { name: 'Above the lake', pose: pose(5600, 2100, 700, 1.25, -0.2) },
-    { name: 'Up the river', pose: pose(-700, 3000, -4300, 0.35, -0.16) },
-    { name: 'On the beach', pose: pose(-2600, 260, 7400, 0.6, -0.05) },
-];
+    { name: 'By the lake', pose: pose(-1200, 1500, 1800, 0.25, -0.15) },
+    { name: 'The lake and the river mouths', pose: pose(4200, 2600, -2500, 1.9, -0.18) },
+    { name: 'Up the river', pose: pose(-3600, 3000, -6200, -0.15, -0.12) },
+]
 
 const KEYS = [
     'W   next weather (clear, mist, overcast, rain, storm)',
