@@ -36,11 +36,11 @@ import { EditorView, editorViewEye } from '../camera/EditorView';
 import { log } from '../util/logger';
 import { bakesOf } from '../runtime/bakes';
 import type { Color, Entity } from '../types';
-import { erosionJob, heightfieldFromPixels, proceduralHeightfield } from './heightfield';
+import { erosionJob, heightfieldFromPixels, type Heightfield } from './heightfield';
 import { FieldSource, type TerrainSource } from './source';
 import { levelRange, nodeKey, parentOf, selectNodes, type QuadtreeParams, type TerrainNode } from './quadtree';
 import { makePage, PageTable, PAGE_SIDE, PAGE_TEXELS, PATCH_CELLS, type PageImage, type Repaint } from './pages';
-import { noiseProvider, ProviderSource, terrainProvider, terrainProvidersRevision, TerrainUnavailable } from './provider';
+import { noiseProvider, ProviderSource, terrainProvider, terrainProvidersRevision, TerrainUnavailable, type TerrainProvider } from './provider';
 import { buildPatchMesh } from './patch';
 import { TerrainSurface, TILE_CELLS, type SurfaceTile } from './surface';
 import { collisionGeometryOf } from '../runtime/collisionGeometry';
@@ -58,8 +58,9 @@ export interface TerrainData {
     /** {@link TerrainExtent}: an area `sizeX` by `sizeZ`, or ground that goes on for ever (from a provider, read anywhere). */
     extent: number;
     /**
-     * Ground without end: the provider it is made by (`estella:noise`, the engine's noise, or one a game registers with
-     * registerTerrainProvider), the world it belongs to as the game names it, and the generator version that world was made with.
+     * Ground read from a provider (without end, or an area with no heightmap, a window on it where the area stands): the provider
+     * (`estella:noise`, the engine's noise, or one a game registers with registerTerrainProvider), the world it belongs to as the game
+     * names it, and the generator version that world was made with.
      */
     provider: string;
     world: string;
@@ -126,9 +127,9 @@ export const Terrain: ComponentDef<TerrainData> = defineComponent<TerrainData>('
     assetFields: [{ field: 'heightmap', type: 'texture' }, { field: 'splatmap', type: 'texture' }, { field: 'material', type: 'material' }],
     fields: {
         extent: { enum: [{ label: 'Area', value: TerrainExtent.Area }, { label: 'Infinite', value: TerrainExtent.Infinite }], category: 'Shape', tooltip: 'An area of its own size, from a heightmap or noise; or ground that goes on for ever, from noise read anywhere (the same seed is the same ground).' },
-        provider: { category: 'Shape', tooltip: 'The generator ground without end is made by: estella:noise, or one the game registers. The same provider, world, seed and version are the same ground on every machine.', shownWhen: { field: 'extent', values: [TerrainExtent.Infinite] } },
-        world: { category: 'Shape', tooltip: 'The world (a planet, a level) the ground belongs to, as the game names it; handed to the provider.', shownWhen: { field: 'extent', values: [TerrainExtent.Infinite] } },
-        generatorVersion: { min: 1, step: 1, category: 'Shape', tooltip: 'The generator version the world was made with. A version the provider no longer has fails the terrain rather than growing other ground under what was built.', shownWhen: { field: 'extent', values: [TerrainExtent.Infinite] } },
+        provider: { category: 'Shape', tooltip: 'The generator the ground is made by, without end or (with no heightmap) in an area: estella:noise, or one the game registers. The same provider, world, seed and version are the same ground on every machine, and two areas side by side join.' },
+        world: { category: 'Shape', tooltip: 'The world (a planet, a level) the ground belongs to, as the game names it; handed to the provider.' },
+        generatorVersion: { min: 1, step: 1, category: 'Shape', tooltip: 'The generator version the world was made with. A version the provider no longer has fails the terrain rather than growing other ground under what was built.' },
         heightmap: { tooltip: 'A heightmap image: red is the height. Empty makes the ground from noise; a heightmap that cannot be read fails the terrain instead.', category: 'Shape', shownWhen: { field: 'extent', values: [TerrainExtent.Area] } },
         splatmap: { tooltip: 'An image whose red, green, blue and alpha are the weights of grass, dirt, snow and rock.', category: 'Layers', shownWhen: { field: 'extent', values: [TerrainExtent.Area] } },
         material: { tooltip: 'A material on the Terrain shader. Empty draws the layer colours onto the ground.', category: 'Layers' },
@@ -332,11 +333,43 @@ export class Terrains {
 export const TerrainsRes = defineResource<Terrains>(new Terrains(), 'Terrains');
 
 /** What, changed, rebuilds the ground: everything but the colours, the detail and the collision, which are read each frame. */
-function signatureOf(data: TerrainData): string {
+function signatureOf(data: TerrainData, at: { x: number; z: number }): string {
     const { layerColor0: _a, layerColor1: _b, layerColor2: _c, layerColor3: _d, detail: _e, drawDistance: _f,
         collision: _g, collisionDistance: _h, collisionLayer: _i, friction: _j, ...shape } = data;
-    // A game's own provider is read again when one is registered under its name.
-    return `${JSON.stringify(shape)}${data.extent === TerrainExtent.Infinite && data.provider !== NOISE_PROVIDER ? `#${terrainProvidersRevision()}` : ''}`;
+    // Ground read from a provider is the world's where the terrain stands: moved, it is read again; and a game's own provider is read
+    // again when one is registered under its name.
+    const fromProvider = data.extent === TerrainExtent.Infinite || !data.heightmap;
+    const where = fromProvider ? `@${at.x},${at.z}` : '';
+    const late = fromProvider && data.provider !== NOISE_PROVIDER ? `#${terrainProvidersRevision()}` : '';
+    return `${JSON.stringify(shape)}${where}${late}`;
+}
+
+/** The provider a terrain names, or why it cannot have it. */
+function providerOf(data: TerrainData): TerrainProvider {
+    const provider = data.provider === NOISE_PROVIDER ? noiseProvider(() => data) : terrainProvider(data.provider);
+    if (!provider) throw new TerrainUnavailable(`no terrain provider ${data.provider} is registered`);
+    return provider;
+}
+
+/** The ground's paint by height (over the provider's range) and slope, for a provider that does not paint. */
+function paintBy(provider: TerrainProvider, data: TerrainData): (h: number, ny: number) => [number, number, number, number] {
+    const [lo, hi] = provider.range(data.seed, data.generatorVersion);
+    return (h, ny) => paintWeights((h - lo) / Math.max(hi - lo, 1e-6), ny, data);
+}
+
+/** An area's window on its provider's ground: `resolution` samples along its longer side, over the provider's range. */
+async function windowOf(provider: TerrainProvider, data: TerrainData, cx: number, cz: number, range: [number, number]): Promise<Heightfield> {
+    const res = Math.min(2049, Math.max(17, Math.floor(data.resolution)));
+    const spacing = Math.max(data.sizeX, data.sizeZ) / (res - 1);
+    const nx = Math.max(2, Math.round(data.sizeX / spacing) + 1), nz = Math.max(2, Math.round(data.sizeZ / spacing) + 1);
+    const count = Math.max(nx, nz);
+    const got = await provider.sample({
+        world: data.world, seed: data.seed, version: data.generatorVersion, x0: cx - data.sizeX / 2, z0: cz - data.sizeZ / 2, spacing, count,
+    });
+    const span = Math.max(range[1] - range[0], 1e-6);
+    const out = new Float32Array(nx * nz);
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) out[j * nx + i] = (got.heights[j * count + i]! - range[0]) / span;
+    return { width: nx, height: nz, data: out };
 }
 
 /** Where what collides with the ground is: every moving 3D body and every character. */
@@ -374,7 +407,7 @@ export class TerrainPlugin implements Plugin {
             this.sweep(app, terrains);
             for (const entity of app.world.getEntitiesWithComponents([Terrain, Transform])) {
                 const data = app.world.get(entity, Terrain) as TerrainData;
-                const signature = signatureOf(data);
+                const signature = signatureOf(data, (app.world.get(entity, Transform) as TransformData).worldPosition);
                 let built = terrains.built_.get(entity);
                 if (!built || built.signature !== signature) {
                     if (built) this.destroy(app, built);
@@ -416,29 +449,35 @@ export class TerrainPlugin implements Plugin {
         const epoch = built.epoch;
         const data = built.data;
         try {
+            const t = app.world.get(entity, Transform) as TransformData;
             if (data.extent === TerrainExtent.Infinite) {
-                const t = app.world.get(entity, Transform) as TransformData;
-                const provider = data.provider === NOISE_PROVIDER ? noiseProvider(() => data) : terrainProvider(data.provider);
-                if (!provider) throw new TerrainUnavailable(`no terrain provider ${data.provider} is registered`);
+                const provider = providerOf(data);
                 built.source = new ProviderSource(provider, data.world, data.seed, data.generatorVersion, t.worldPosition.x, t.worldPosition.z,
-                    Math.max(data.cellSize, 1e-3), (h, ny) => paintWeights(h / Math.max(provider.range(data.seed, data.generatorVersion)[1], 1e-6), ny, data));
+                    Math.max(data.cellSize, 1e-3), paintBy(provider, data));
             } else {
                 // A heightmap named and not read is a failure: a world built on that ground must not quietly get other ground.
                 const height = await this.pixelsOf(app, data.heightmap);
                 if (data.heightmap && !height) throw new TerrainUnavailable(`the heightmap (texture ${data.heightmap}) could not be read`);
                 const splat = await this.pixelsOf(app, data.splatmap);
                 if (built.epoch !== epoch || !app.world.valid(entity)) return;
-                const made = height
-                    ? heightfieldFromPixels(height.width, height.height, height.pixels)
-                    : proceduralHeightfield({
-                        resolution: Math.min(2049, Math.max(17, Math.floor(data.resolution))), seed: data.seed, frequency: data.frequency,
-                        octaves: data.octaves, persistence: data.persistence, ridged: data.ridged, warp: data.warp,
-                    });
+                // Without a heightmap an area is a window on its provider's ground, read where it stands in the world: two areas side by
+                // side are one ground, and the area is the same ground the provider gives without end.
+                let range: [number, number] = [0, data.height];
+                let made: Heightfield;
+                if (height) {
+                    made = heightfieldFromPixels(height.width, height.height, height.pixels);
+                } else {
+                    const provider = providerOf({ ...data, erosion: 0 });
+                    const checked = new ProviderSource(provider, data.world, data.seed, data.generatorVersion, 0, 0, 1, paintBy(provider, data));
+                    range = [checked.minHeight, checked.maxHeight];
+                    made = await windowOf(provider, data, t.worldPosition.x, t.worldPosition.z, range);
+                    if (built.epoch !== epoch || !app.world.valid(entity)) return;
+                }
                 let field = made, flow: Float32Array | null = null;
                 if (data.erosion > 0) {
                     // Rain over a big field is seconds of work: it is spread over frames, and shown while it runs.
                     const job = bakesOf(app).run('Eroding the terrain',
-                        erosionJob(made, { amount: data.erosion, seed: data.seed, sizeX: data.sizeX, sizeZ: data.sizeZ, height: data.height }));
+                        erosionJob(made, { amount: data.erosion, seed: data.seed, sizeX: data.sizeX, sizeZ: data.sizeZ, height: range[1] - range[0] }));
                     built.cancel = job.cancel;
                     const worn = await job.done;
                     built.cancel = null;
@@ -446,7 +485,7 @@ export class TerrainPlugin implements Plugin {
                     field = worn.field;
                     flow = worn.flow;
                 }
-                built.source = new FieldSource(field, data, splat, flow);
+                built.source = new FieldSource(field, data, splat, flow, range);
             }
             built.surface = new TerrainSurface(built.source, Math.max(data.cellSize, 1e-3));
             app.getResource(TerrainsRes).revision_++;

@@ -20,7 +20,7 @@
 
 - 需要：程序化区块数据入口，接收 `generateChunk(seed, algoVersion, cx, cz)` 或同职责的 provider；输入含星球/区块身份、生成器版本、世界坐标原点、采样间距、高度与群落权重；渲染、碰撞、放置、服务端共用同一数据。不替换已保存星球的旧算法。
 - 失败处理：高度数据缺失或加载失败时，持久星球报告失败并保持旧数据或等待，不得悄悄回退为噪声。
-- 当前状态：已完成（e4937e148）。`TerrainProvider`（`sdk/src/terrain/provider.ts`）按区域采样（世界、种子、版本、世界坐标起点、间距、样本数），可异步；`registerTerrainProvider` 注册游戏自己的生成器，引擎噪声为 `estella:noise` 版本 1；`Terrain.provider/world/generatorVersion`；未注册、版本不存在、高度图读不到 → `Terrains.status` 为 failed 并给出原因，不回退噪声。测试 `sdk/tests/terrain-provider.test.ts`。仍欠：区域（Area）噪声仍按局部归一化，不用于连续世界；地形实体移动后 provider 原点不更新。
+- 当前状态：已完成（e4937e148）。`TerrainProvider`（`sdk/src/terrain/provider.ts`）按区域采样（世界、种子、版本、世界坐标起点、间距、样本数），可异步；`registerTerrainProvider` 注册游戏自己的生成器，引擎噪声为 `estella:noise` 版本 1；`Terrain.provider/world/generatorVersion`；未注册、版本不存在、高度图读不到 → `Terrains.status` 为 failed 并给出原因，不回退噪声。测试 `sdk/tests/terrain-provider.test.ts`。后续已补：无高度图的区域改为在世界坐标向其生成器取样（区域即生成器地面的窗口，相邻同尺寸区域无缝，可用游戏自定义生成器）；以生成器取样的地形在实体移动后重建、世界地面不变。
 - 验收：同版本/种子/坐标在客户端与服务端结果相同；不同加载顺序一致；共享边高度与法线一致；缺失数据不改变旧星球。
 
 ### T-02 碰撞、贴地查询与可视表面一致

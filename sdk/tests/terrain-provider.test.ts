@@ -131,6 +131,52 @@ describe('a Terrain with no renderer (a server)', () => {
         expect(terrains.heightAt(0, 0)).toBeNull();
     });
 
+    it('reads an area with no heightmap from its provider where it stands, so areas side by side are one ground', async () => {
+        const app = boot();
+        const area = (x: number) => {
+            const e = app.world.spawn();
+            app.world.insert(e, Transform, { position: { x, y: 0, z: 0 }, worldPosition: { x, y: 0, z: 0 } });
+            app.world.insert(e, Terrain, { ...Terrain._default, ...params, erosion: 0, sizeX: 1000, sizeZ: 1000, resolution: 257, cellSize: 2 });
+            return e;
+        };
+        const west = area(-500), east = area(500);
+        const endless = app.world.spawn();
+        app.world.insert(endless, Transform, { position: { x: 0, y: 0, z: 9000 }, worldPosition: { x: 0, y: 0, z: 9000 } });
+        await settle(app);
+        const terrains = app.getResource(TerrainsRes);
+        expect(terrains.status(west)!.state).toBe('ready');
+        expect(terrains.status(east)!.state).toBe('ready');
+        // Either side of the seam, and the same ground the provider gives there without end (its hills spread over the areas' size).
+        const noise = ground(noiseProvider(() => ({ ...params, erosion: 0, sizeX: 1000 })));
+        for (const z of [-300, 0, 220]) {
+            const a = terrains.heightAt(-0.001, z)!, b = terrains.heightAt(0.001, z)!;
+            expect(Math.abs(a - b)).toBeLessThan(0.5);
+            expect(a).toBeCloseTo(noise.height(0, z)!, -1);
+        }
+    });
+
+    it('stands on the same world ground when it is moved', async () => {
+        const app = boot();
+        const e = app.world.spawn();
+        app.world.insert(e, Transform, { position: { x: 0, y: 0, z: 0 }, worldPosition: { x: 0, y: 0, z: 0 } });
+        app.world.insert(e, Terrain, { ...Terrain._default, extent: TerrainExtent.Infinite, ...params });
+        await settle(app);
+        const terrains = app.getResource(TerrainsRes);
+        const before = terrains.heightAt(1234, -566)!;
+        app.world.insert(e, Transform, { position: { x: 700, y: 0, z: -300 }, worldPosition: { x: 700, y: 0, z: -300 } });
+        await settle(app);
+        expect(terrains.heightAt(1234, -566)).toBeCloseTo(before, 6);
+    });
+
+    it('fails an area with no heightmap whose provider has not the version asked for', async () => {
+        const app = boot();
+        const e = app.world.spawn();
+        app.world.insert(e, Transform, {});
+        app.world.insert(e, Terrain, { ...Terrain._default, generatorVersion: 4 });
+        await settle(app);
+        expect(app.getResource(TerrainsRes).status(e)!.reason).toMatch(/version 4/);
+    });
+
     it('fails when its heightmap cannot be read, instead of growing noise in its place', async () => {
         const app = boot();
         const e = app.world.spawn();

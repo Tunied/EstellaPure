@@ -4054,10 +4054,10 @@ field: Heightfield
 height: (x: number, z: number) => number | null
 infinite: false
 maxHeight: number
-minHeight: 0
+minHeight: number
 normal: (x: number, z: number) => [number, number, number] | null
 paint: (x: number, z: number, h: number, ny: number) => [number, number, number, number]
-static new (field: Heightfield, data: Pick<TerrainData, "sizeX" | "sizeZ" | "height" | "rockSlope" | "dirtHeight" | "snowHeight">, splat: Splat | null, flow: Float32Array | null): FieldSource
+static new (field: Heightfield, data: Pick<TerrainData, "sizeX" | "sizeZ" | "height" | "rockSlope" | "dirtHeight" | "snowHeight">, splat: Splat | null, flow: Float32Array | null, range?: readonly [number, number]): FieldSource
 static prototype: FieldSource
 ```
 

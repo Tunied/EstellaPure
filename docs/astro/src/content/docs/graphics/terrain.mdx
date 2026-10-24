@@ -14,7 +14,9 @@ Add a `Terrain` component to an entity. It is placed at that entity; its childre
 
 The ground is one of two kinds, chosen by `extent`:
 
-- **Area**: ground `sizeX` by `sizeZ`, centred on the entity, from a heightmap or from noise made once. It may be worn by rain and
+- **Area**: ground `sizeX` by `sizeZ`, centred on the entity, from a heightmap or, without one, a window on its provider's ground
+  read where the area stands in the world (so two areas of the same size and noise side by side join, and an area is the same
+  ground its provider gives without end; moving it moves the window, not the ground). It may be worn by rain and
   painted by a splatmap.
 - **Infinite**: ground made by a provider (below) read at any point in the world, so it has no edge. The same provider, world, seed
   and version are the same ground everywhere, in the editor, in a game and on a server. It is drawn round the eye out to
@@ -29,7 +31,7 @@ The ground is one of two kinds, chosen by `extent`:
 | `detail` | A multiplier on how far the finest cells reach before the ground coarsens. Above 1 is finer at a distance and costs more triangles. |
 | `drawDistance` | Infinite only. How far from the eye the ground is drawn. |
 | `collision`, `collisionDistance` | Whether 3D bodies and characters collide with the ground, and how far round each one that moves the ground is built for it. `collisionLayer` and `friction` (advanced) are the ground's layer and grip. |
-| `provider`, `world`, `generatorVersion` | Infinite only. The generator the ground is made by (`estella:noise`, the engine's noise, or one the game registers), the world it belongs to as the game names it, and the generator version that world was made with. |
+| `provider`, `world`, `generatorVersion` | Infinite, or an area with no heightmap. The generator the ground is made by (`estella:noise`, the engine's noise, or one the game registers), the world it belongs to as the game names it, and the generator version that world was made with. |
 | `seed`, `frequency`, `octaves`, `persistence`, `ridged` | The noise: another seed is another ground; `frequency` is how many hills across; `ridged` goes from rolling hills to sharp ridges. |
 | `resolution` | Area only. Samples along each side of an area's noise ground. |
 | `warp` | 0 to 1: how far the noise is bent by noise of its own, which gives winding valleys and bent ridges instead of round hills. |

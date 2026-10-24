@@ -2782,4 +2782,6 @@ export const NOTED = {
     {"note":"Which water a place is."},
   "fix(render): a shadow is cast by what the camera's level of detail draws, and the terrain slides its vertices by the eye in every pass":
     {"note":"Shadows follow what the camera draws."},
+  "feat(terrain): an area without a heightmap is a window on its provider's ground, and ground read from a provider stays the world's when its terrain moves":
+    {"note":"An area without a heightmap is a window on its provider's ground."},
 };

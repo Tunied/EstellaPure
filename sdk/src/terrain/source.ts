@@ -41,11 +41,14 @@ export interface TerrainSource {
 /** The pixels of a splatmap, as the terrain read them. */
 export interface Splat { width: number; height: number; pixels: Uint8Array }
 
-/** An area's ground: a field of heights `height` tall, centred on the terrain, with its splatmap and where its rain ran. */
+/**
+ * An area's ground: a field of heights (0 to 1 over `range`, from 0 to `height` by default), centred on the terrain, with its splatmap
+ * and where its rain ran.
+ */
 export class FieldSource implements TerrainSource {
     readonly infinite = false;
     readonly bounds: readonly [number, number, number, number];
-    readonly minHeight = 0;
+    readonly minHeight: number;
     readonly maxHeight: number;
 
     constructor(
@@ -53,27 +56,32 @@ export class FieldSource implements TerrainSource {
         private readonly data: Pick<TerrainData, 'sizeX' | 'sizeZ' | 'height' | 'rockSlope' | 'dirtHeight' | 'snowHeight'>,
         private readonly splat: Splat | null,
         private readonly flow: Float32Array | null,
+        range: readonly [number, number] = [0, data.height],
     ) {
         this.bounds = [-data.sizeX / 2, -data.sizeZ / 2, data.sizeX / 2, data.sizeZ / 2];
-        this.maxHeight = data.height;
+        [this.minHeight, this.maxHeight] = range;
+    }
+
+    private get span(): number {
+        return Math.max(this.maxHeight - this.minHeight, 1e-6);
     }
 
     height(x: number, z: number): number | null {
         const u = x / this.data.sizeX + 0.5, v = z / this.data.sizeZ + 0.5;
         if (u < 0 || u > 1 || v < 0 || v > 1) return null;
-        return sampleHeight(this.field, u, v) * this.data.height;
+        return this.minHeight + sampleHeight(this.field, u, v) * this.span;
     }
 
     /** The ground's normal at (x, z), or null off the area. */
     normal(x: number, z: number): [number, number, number] | null {
         const u = x / this.data.sizeX + 0.5, v = z / this.data.sizeZ + 0.5;
         if (u < 0 || u > 1 || v < 0 || v > 1) return null;
-        return terrainNormal(this.field, u, v, this.data.sizeX, this.data.sizeZ, this.data.height);
+        return terrainNormal(this.field, u, v, this.data.sizeX, this.data.sizeZ, this.span);
     }
 
     paint(x: number, z: number, h: number, ny: number): [number, number, number, number] {
         const u = Math.min(Math.max(x / this.data.sizeX + 0.5, 0), 1), v = Math.min(Math.max(z / this.data.sizeZ + 0.5, 0), 1);
-        let w = paintWeights(h / Math.max(this.data.height, 1e-6), ny, this.data);
+        let w = paintWeights((h - this.minHeight) / this.span, ny, this.data);
         const splat = this.splat;
         if (splat) {
             const sx = Math.round(u * (splat.width - 1)), sy = Math.round(v * (splat.height - 1));
