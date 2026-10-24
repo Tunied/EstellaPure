@@ -119,6 +119,23 @@ terrains.deleteModifier('plot 1');                         // 地面恢复原样
 
 带 `flatten` 的 `WorldZone` 就是这样压平它的地面的。
 
+### 能否走到
+
+`findPath` 在地面上搜索从一个地方到另一个地方、受坡度限制的步行者能走的路:游戏在信任一个生成的世界之前,用它检查出生点、任务目标或村庄是否可达。它在搜索经过的地方读取地面(包括修改器),不需要预先烘焙,无限地形上也能用。
+
+```ts
+const terrains = app.getResource(TerrainsRes);
+const waters = app.getResource(WatersRes);
+const way = terrains.findPath(spawn, village, {
+    maxSlope: 32,                                         // 度;更缓的斜面步行者可以斜着之字形爬上去
+    step: 8,                                              // 搜索格子的边长,世界单位
+    blocked: (x, z) => (waters.shoreAt(x, z) ?? 1) < 0,   // 不涉水
+});
+if (way.state !== 'reached') regenerate();              // 'unreachable'、'exhausted'(用完 maxCells)或 'noGround'
+```
+
+返回的路径在能直线走通的地方被拉直,并给出沿地面的长度。它是用于检查和规划的查询,不适合每帧调用:几百米耗时几毫秒,`maxCells` 限制长距离搜索,用完时报告"用完了"而不是"没有路"。每帧行走的角色请用[导航](/docs/zh-cn/gameplay/ai/navigation/)。
+
 ### 生成器与版本
 
 无限地面由生成器生成:一个关于世界位置的函数,在每台机器上都一样。它被要求采样一个区域(世界、种子和版本、以世界单位计的起点、间距和每边样本数),返回那里的高度;如果它自己给地面上色,还返回每个样本四个图层权重。每个区域都是同一个函数在不同点上的读数,所以相邻页共享边上的样本,粗页和细页在样本重合处一致,页生成的先后不改变任何东西。位置是世界的,不是地形的:同一个世界上分开摆放的两个地形是同一片地面。

@@ -2800,4 +2800,8 @@ export const NOTED = {
     {"note":"World rules as a file, with an editor."},
   "feat(editor): world rules editor for .esworld files":
     {"note":"World rules as a file, with an editor."},
+  "fix(editor): world rules list selects like the folder tree":
+    {"note":"World rules as a file, with an editor."},
+  "feat(terrain): findPath asks whether a place can be walked to under a slope limit":
+    {"note":"Whether a place can be walked to."},
 };

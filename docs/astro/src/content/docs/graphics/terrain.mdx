@@ -172,6 +172,27 @@ terrains.deleteModifier('plot 1');                         // the ground comes b
 
 A `WorldZone` with `flatten` levels its ground this way.
 
+### Can it be walked to
+
+`findPath` searches the ground for a way from one place to another that a walker held to a slope can take: what a game checks a
+spawn, a quest's goal or a village against before it trusts a generated world. It reads the ground where the search goes (modifiers
+and all), so it needs nothing baked and works on ground without end.
+
+```ts
+const terrains = app.getResource(TerrainsRes);
+const waters = app.getResource(WatersRes);
+const way = terrains.findPath(spawn, village, {
+    maxSlope: 32,                                         // degrees; a walker switches back up anything gentler across
+    step: 8,                                              // the search's cell, in world units
+    blocked: (x, z) => (waters.shoreAt(x, z) ?? 1) < 0,   // no wading
+});
+if (way.state !== 'reached') regenerate();              // 'unreachable', 'exhausted' (ran out of maxCells) or 'noGround'
+```
+
+The way comes back pulled straight wherever a straight walk holds, with its length along the ground. It is a query for checks and
+plans, not for every frame: a few hundred metres cost milliseconds, and `maxCells` bounds a long one, which then says it ran out
+rather than that there is no way. Agents that walk every frame use [navigation](/docs/gameplay/ai/navigation/).
+
 ### Providers and versions
 
 Ground without end is made by a provider: one function of the world position, the same on every machine. It is asked for a region

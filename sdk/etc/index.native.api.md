@@ -10327,6 +10327,7 @@ static prototype: TerrainUnavailable
 @internal revision_: number
 collisionReadyAt: (x: number, z: number) => boolean
 deleteModifier: (id: string) => void
+findPath: (from: { x: number; z: number; }, to: { x: number; z: number; }, options?: ReachOptions) => ReachResult
 groundKnownAt: (x: number, z: number) => boolean
 heightAt: (x: number, z: number) => number | null
 heightBeneathAt: (x: number, z: number) => number | null

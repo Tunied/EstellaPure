@@ -37,6 +37,7 @@ import { log } from '../util/logger';
 import { bakesOf } from '../runtime/bakes';
 import type { Color, Entity } from '../types';
 import { erosionJob, heightfieldFromPixels, type Heightfield } from './heightfield';
+import { findGroundPath, type ReachOptions, type ReachResult } from './reach';
 import { FieldSource, ModifiedSource, type TerrainModifier, type TerrainSource } from './source';
 import { levelRange, nodeKey, parentOf, selectNodes, type QuadtreeParams, type TerrainNode } from './quadtree';
 import { makePage, PageTable, PAGE_SIDE, PAGE_TEXELS, PATCH_CELLS, type PageImage, type Repaint } from './pages';
@@ -314,6 +315,15 @@ export class Terrains {
             };
         }
         return best;
+    }
+
+    /**
+     * A way across the ground from one place to another that a walker held to `maxSlope` can take, or why there is none: what a game
+     * checks a spawn, a quest's goal or a village against. The ground is read where the search goes, modifiers and all, so nothing is
+     * baked first; ground still being made is no ground yet (see `groundKnownAt`).
+     */
+    findPath(from: { x: number; z: number }, to: { x: number; z: number }, options?: ReachOptions): ReachResult {
+        return findGroundPath(this, from.x, from.z, to.x, to.z, options);
     }
 
     /** Whether the ground under (x, z) is built for collision: what a game waits on before it drops something there. */
