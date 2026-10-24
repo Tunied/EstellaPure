@@ -1487,22 +1487,23 @@ fn perturbNormal(N : vec3f, worldPos : vec3f, uv : vec2f, tangentNormal : vec3f)
     let dp2 = -dpdy(worldPos);
     let duv1 = dpdx(uv);
     let duv2 = -dpdy(uv);
-    // The frame the normal map was baked in, when the geometry carries it: the tangent made square to the interpolated normal.
-    if (dot(g_worldTangent.xyz, g_worldTangent.xyz) > 1e-8) {
-        let Tg = normalize(g_worldTangent.xyz - N * dot(N, g_worldTangent.xyz));
-        let Bg = cross(N, Tg) * g_worldTangent.w;
-        return normalize(mat3x3f(Tg, Bg, N) * tangentNormal);
-    }
     let dp2perp = cross(dp2, N);
     let dp1perp = cross(N, dp1);
     let T = dp2perp * duv1.x + dp1perp * duv2.x;
     let B = dp2perp * duv1.y + dp1perp * duv2.y;
     let m = max(dot(T, T), dot(B, B));
     let scale = max(dot(dp1, dp1), dot(dp2, dp2)) * max(dot(duv1, duv1), dot(duv2, duv2));
-    if (!(m > scale * 1e-6)) { return N; }
     // Each axis to unit length on its own: a texture stretched more along one axis than the other (a face unwrapped into an atlas) has
     // a short T beside a long B, and scaling both by the longer one would leave the normal map flat along the short one.
-    return normalize(mat3x3f(T * inverseSqrt(max(dot(T, T), 1e-20)), B * inverseSqrt(max(dot(B, B), 1e-20)), N) * tangentNormal);
+    let derived = select(N, normalize(mat3x3f(T * inverseSqrt(max(dot(T, T), 1e-20)), B * inverseSqrt(max(dot(B, B), 1e-20)), N) * tangentNormal),
+                         m > scale * 1e-6);
+    // The frame the normal map was baked in, when the geometry carries it: the tangent made square to the interpolated normal.
+    // Chosen by select, not by returning early: behind a branch Metal sinks the derivatives above into it, where a quad the
+    // triangle only partly covers has lost its helpers, and every pixel along an edge lost its normal map (skin-detail).
+    let Tg = normalize(g_worldTangent.xyz - N * dot(N, g_worldTangent.xyz));
+    let Bg = cross(N, Tg) * g_worldTangent.w;
+    let baked = normalize(mat3x3f(Tg, Bg, N) * tangentNormal);
+    return select(derived, baked, dot(g_worldTangent.xyz, g_worldTangent.xyz) > 1e-8);
 }
 // Where a world point lands in this camera's part of a screen-space mask: on the Z = 0
 // plane, which is the plane a 2D occluder hides things in, and through this same camera
