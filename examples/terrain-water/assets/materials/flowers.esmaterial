@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "type": "material",
+  "shader": "builtin:foliage",
+  "blendMode": 0,
+  "depthTest": true,
+  "depthWrite": true,
+  "cull": 0,
+  "properties": {
+    "u_baseColor": {
+      "r": 0.12,
+      "g": 0.22,
+      "b": 0.06,
+      "a": 1
+    },
+    "u_tipColor": {
+      "r": 0.98,
+      "g": 0.84,
+      "b": 0.3,
+      "a": 1
+    },
+    "u_windStrength": 6,
+    "u_windSpeed": 1.2,
+    "u_windDirection": 30,
+    "u_gustScale": 0.0015,
+    "u_flutter": 0.35,
+    "u_translucency": 0.5
+  }
+}

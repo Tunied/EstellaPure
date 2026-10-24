@@ -806,9 +806,9 @@ export {
     WaterBody, WaterForm, Waters, WatersRes, WaterPlugin, waterPlugin, type WaterBodyData, type WaterSample,
 } from './water/waterPlugin';
 export { WAVE_SET, waveFade, waveHeight, waveSlope, type WaveParams } from './water/waves';
-export { buildRiverMesh, currentShare } from './water/riverMesh';
-export { buildBoxMesh, buildOceanMesh, buildRectMesh, oceanReach, oceanSnap, type RectOptions } from './water/waterMesh';
-export { ShoreField, UNKNOWN_DEPTH, polygonSdf, shoreDamp, type GroundDepth, type Point2 } from './water/shore';
+export { WaterZone, WaterField, currentShare, type WaterZoneData, type FieldSample } from './water/zone';
+export { buildOceanMesh, oceanReach, oceanSnap } from './water/waterMesh';
+export { polygonSdf, shoreDamp, type Point2 } from './water/shore';
 export {
     scatterCell, buildGrassMesh, buildInstancedMesh, buildBillboardMesh, rng,
     type Plant, type Ground, type ScatterParams, type BladeParams, type CardRect,

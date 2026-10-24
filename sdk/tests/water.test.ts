@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import { describe, expect, it } from 'vitest';
 import { WAVE_SET, waveFade, waveHeight, waveSlope, type WaveParams } from '../src/water/waves';
-import { buildOceanMesh, buildRectMesh, oceanReach, oceanSnap } from '../src/water/waterMesh';
+import { buildOceanMesh, oceanReach, oceanSnap } from '../src/water/waterMesh';
 import { MeshChannel } from '../src/asset/meshFormat';
 import type { MeshData } from '../src/asset/meshFormat';
 
@@ -68,31 +68,7 @@ describe('the waves', () => {
     });
 });
 
-describe('a lake\'s mesh', () => {
-    const mesh = buildRectMesh(20, 10, 2);
-    const p = positions(mesh);
-
-    it('covers its rectangle in cells of the size asked, facing up', () => {
-        expect(mesh.vertexCount).toBe(11 * 6);
-        expect(mesh.indices.length / 3).toBe(10 * 5 * 2);
-        expect(mesh.aabbMin).toEqual([-10, 0, -5]);
-        expect(mesh.aabbMax).toEqual([10, 0, 5]);
-        for (let t = 0; t < mesh.indices.length; t += 3) {
-            expect(facing(p, mesh.indices[t]!, mesh.indices[t + 1]!, mesh.indices[t + 2]!)).toBeGreaterThan(0);
-        }
-    });
-
-    it('takes its uv from its position, so the shader\'s body space is local x and z', () => {
-        const channel = mesh.channels.find((c) => c.semantic === MeshChannel.TexCoord0)!;
-        const view = new DataView(mesh.vertices.buffer, mesh.vertices.byteOffset);
-        for (const i of [0, 7, mesh.vertexCount - 1]) {
-            expect(view.getFloat32(i * mesh.vertexStride + channel.offset, true)).toBeCloseTo(p[i * 3]!, 6);
-            expect(view.getFloat32(i * mesh.vertexStride + channel.offset + 4, true)).toBeCloseTo(p[i * 3 + 2]!, 6);
-        }
-    });
-});
-
-describe('an ocean\'s mesh', () => {
+describe('the surface\'s mesh', () => {
     const cells = 16, rings = 4, cell = 1;
     const mesh = buildOceanMesh(cells, rings, cell);
     const p = positions(mesh);

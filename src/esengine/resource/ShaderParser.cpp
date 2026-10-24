@@ -1122,10 +1122,11 @@ std::string wgslReachedTextureDecls(const std::string& source, bool postProcess)
 // The sampler is declared only for a texture the stage samples through it. A texture read with textureLoad alone has
 // no sampler to bind, and that is what lets a 32-bit float one (the motion pass's) be its binding: a float32 texture
 // cannot be filtered, and a layout that pairs it with a filtering sampler is refused by the device.
-std::string wgslMaterialTextureDecls(const ParsedShader& parsed, const std::string& body) {
+std::string wgslMaterialTextureDecls(const ParsedShader& parsed, const std::string& body, const std::string* only = nullptr) {
     std::string src;
     for (const auto& p : parsed.properties) {
         if (!p.fromParam || p.type != ShaderPropertyType::Texture || p.textureUnit < 0) continue;
+        if (only && only->find(p.name) == std::string::npos) continue;
         const u32 unit = static_cast<u32>(p.textureUnit);
         src += "@group(1) @binding(" + std::to_string(unit + 8) + ") var " + p.name +
                " : texture_2d<f32>;\n";
@@ -2168,6 +2169,13 @@ ShaderParser::AssembledStage assembleWGSLStage(const ParsedShader& parsed,
                  "@group(0) @binding(1) var<uniform> mc : MaterialConstants;\n";
         inject(block);
     }
+    std::string bodyText = bodyIt->second;
+    if (stage == ShaderStage::Vertex && !parsed.wgslVertexHook.empty()) {
+        fillHook(bodyText, "@@ES_VERTEX_HOOK@@", parsed.wgslVertexHook);
+        // A material's vertex hook may read its textures too (a height field the surface is lifted by): the ones it names are declared
+        // for this stage as well, and the device then makes their bindings visible to it.
+        inject(wgslMaterialTextureDecls(parsed, bodyText, &parsed.wgslVertexHook));
+    }
     if (stage == ShaderStage::Fragment) {
         inject(wgslMaterialTextureDecls(parsed, bodyIt->second));
         if (lit) inject(kLitHeaderWGSL);
@@ -2184,10 +2192,6 @@ ShaderParser::AssembledStage assembleWGSLStage(const ParsedShader& parsed,
     inject(wgslReachedTextureDecls(assembled.str() + bodyIt->second,
                                    parsed.domain == "PostProcess"));
 
-    std::string bodyText = bodyIt->second;
-    if (stage == ShaderStage::Vertex && !parsed.wgslVertexHook.empty()) {
-        fillHook(bodyText, "@@ES_VERTEX_HOOK@@", parsed.wgslVertexHook);
-    }
     assembled << bodyText;
 
     result.source = preprocessConditionals(assembled.str(), features);

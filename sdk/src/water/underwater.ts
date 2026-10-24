@@ -304,8 +304,7 @@ export class UnderwaterPlugin implements Plugin {
             const sample = eye ? waters.sample(eye[0], eye[1], eye[2]) : null;
             // Under, or close enough above that part of the lens (the near plane ahead of the camera) can be: the effect decides pixel by pixel.
             if (!sample || !(sample.depth < lensReach(near))) { setUnderwaterState(null); return; }
-            const built = waters.built_.get(sample.entity);
-            const instance = built?.instance ?? 0;
+            const instance = waters.instance_;
             const depth = Math.max(-sample.depth, 0);
             const density = single(instance, 'u_density', 0.12);
             const shallow = triple(instance, 'u_shallowColor', [0.10, 0.42, 0.46]);

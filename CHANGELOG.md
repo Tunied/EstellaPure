@@ -14,6 +14,20 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Added
+
+- **Water zones.** Oceans, lakes and rivers are now drawn as one surface. A `WaterBody` says what water is where (its form, outline or Spline, shore width, current and how high its waves stand), and a new `WaterZone` bakes every body over its region into one field: the surface's height, the distance to the shore, the waves' height, the current and the depth over the terrain. One mesh of rings that follows the camera reads it, so a river runs into a lake or the sea at one height with its banks running on into the shore, its current fades into the still water, and no shore foams across its mouth; a lake or a river over the sea is the lake's, not the sea's, and the sea's waves calm and foam where it shallows over the terrain. The zone holds what the bodies share: the material, the waves' length, speed and heading, the mesh's detail and the ripples. A scene without one gets a zone over its lakes and rivers, and the ocean goes on past it. `Waters.sample` reads the same field, so what floats or looks out from under the water meets the surface that is drawn. In the editor the zone's region is outlined in the viewport.
+- **Wind and rain on the water.** The weather drives the wind: each preset has a wind and a wave strength (mist calms, a storm raises the waves to over twice their height), the Water Body's waves and the foliage's sway follow it in play, and a Weather that does not drive the wind (`WeatherDrive.Wind`) leaves them as authored. Rain falls on water that keeps ripples as rings, as hard as the weather rains, and the rain effect no longer lays a wet floor or puddles over the water itself.
+
+### Changed
+
+- **`WaterBody` keeps only what a body says.** Its `material`, `cellSize`, `cells`, `rings`, `waveLength`, `waveSpeed`, `waveDirection` and ripple fields have moved to the new `WaterZone`, which every body shares; `shoreWidth` now calms the waves toward the shore of an ocean and a river as well as a lake. A body of water is no longer tilted with its entity: it is turned about up only. `ShoreField`, `buildRectMesh`, `buildBoxMesh` and `buildRiverMesh` are gone from `esengine/water`.
+
+### Fixed
+
+- **A mesh on a material records its surface.** An opaque mesh whose material has a blend mode of Normal (the default) was drawn blended, so it wrote no surface record, and the effects that read it (screen-space reflections, rain, contact shadows) passed over it, and alpha-to-coverage cut-outs on it had no coverage. It is now drawn opaque. Water and refracting glass write their own record where the device can blend one target and not another (WebGPU, and WebGL2 with `OES_draw_buffers_indexed`).
+- **A terrain's splatmap keeps all four layers.** A splatmap whose fourth layer is in its alpha no longer erases the other three where that layer is thin: it is read as the numbers in the file, not as a colour the browser premultiplies by its alpha.
+
 ## [0.95.0] - 2026-10-24
 
 ### Added

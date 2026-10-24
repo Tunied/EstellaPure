@@ -2,16 +2,17 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 /**
  * @file    waterPlugin.ts
- * @brief   A body of water: a component that says what it is, a mesh the plugin builds for it, and the surface it answers questions about.
+ * @brief   Bodies of water, the zone they are baked into, the one surface drawn from it, and the surface they answer questions about.
  *
- * @details The `WaterBody` component names a form (an ocean, a lake) and the waves; this builds the geometry as a child entity, gives it a
- *          material instance of its own (the Water material with the waves, the body's space and its cell size written in), and keeps
- *          the instance in step with the component every frame, so editing a field moves the water at once.
+ * @details A `WaterBody` says what water is where: an ocean, a lake inside an outline, a river along a Spline, each with the height its waves
+ *          stand to and how far in from its shore they calm. It is not drawn on its own: the bodies are inputs to a zone (zone.ts), which bakes
+ *          them over its region into one field (the surface's height, the shore, the waves' height, the current) where rivers run into lakes and
+ *          lakes into the sea with no seam. One mesh of rings following the camera reads the field and is every body's surface; the zone's
+ *          `WaterZone` component (or, without one, a zone over every lake and river with its defaults) says where, how fine, the waves every
+ *          body shares and the material.
  *
- *          The waves are the ones the Water shader draws: `waves.ts` is the same formula, and {@link Waters.sample} answers from it in the body's
- *          own frame, so a floating object, a camera under the surface and a splash all read the surface that is on the screen. The body's
- *          transform places and tilts it (waves follow its up), and an ocean's mesh follows the camera on a lattice its rings line up on,
- *          with the material's origin moved by as much so the waves stay put in the world.
+ *          The waves are the ones the Water shader draws: `waves.ts` is the same formula, and {@link Waters.sample} answers from the same field, so
+ *          a floating object, a camera under the surface and a splash all read the surface that is on the screen.
  */
 import type { App, Plugin } from '../app/app';
 import { defineSystem, Schedule } from '../ecs/system';
@@ -31,13 +32,17 @@ import { BlendMode } from '../render/blend';
 import { log } from '../util/logger';
 import type { Entity } from '../types';
 import { waveHeight, waveSlope, type WaveParams } from './waves';
-import { buildBoxMesh, buildOceanMesh, oceanSnap } from './waterMesh';
-import { ShoreField, type Point2 } from './shore';
-import { buildRiverMesh, currentShare } from './riverMesh';
+import { buildOceanMesh, oceanReach, oceanSnap } from './waterMesh';
+import { type Point2 } from './shore';
 import { Spline, type SplineData } from '../spline/splinePlugin';
 import { SplineCurve } from '../spline/curve';
 import { RippleField } from './ripples';
+import {
+    WaterField, WaterZone, currentShare,
+    type RiverStation, type WaterZoneData, type ZoneBody, type ZoneGrid, type ZoneGround,
+} from './zone';
 import { Quality } from '../render/qualityRuntime';
+import { currentWeather, currentWeatherDrive, WeatherDrive } from '../postprocess/weather';
 import { defaultQualityProfile, type QualityProfile } from '../render/quality';
 import { isMiniGame } from '../platform';
 
@@ -48,74 +53,43 @@ export const WaterForm = { Ocean: 0, Lake: 1, River: 2 } as const;
 export interface WaterBodyData {
     /** {@link WaterForm}. */
     form: number;
-    /** A material on the Water shader. Empty uses the stock one. */
-    material: number;
-    /** A lake's extent along x and z, centred on its entity, when it has no outline of its own. An ocean has none: it follows the camera. */
+    /** A lake's extent along x and z, centred on its entity, when it has no outline of its own. An ocean has none: it goes on past the zone. */
     sizeX: number;
     sizeZ: number;
     /** A lake's outline: three points or more round it on its own xz plane (x, y is x, z). Empty is the rectangle of `sizeX` by `sizeZ`. */
     boundary: Point2[];
-    /** How far in from the edge, and how deep, the waves take to come to full height; 0 leaves them whole to the edge. */
+    /** How far in from the shore, and how deep, the waves take to come to full height; 0 leaves them whole to the edge. */
     shoreWidth: number;
-    /** The cell size of the finest ring, and (ocean) how many cells a ring has a side and how many rings there are. */
-    cellSize: number;
-    cells: number;
-    rings: number;
     /** A river's current, in world units a second where the river is as wide as its widest; a narrower reach runs faster. */
     flowSpeed: number;
-    /** The waves: the height of the tallest, the length of the longest, a multiplier on their speed, and the heading in degrees. */
+    /** The height of the tallest wave, in world units. Their length, speed and heading are the zone's, which every body shares. */
     waveHeight: number;
-    waveLength: number;
-    waveSpeed: number;
-    waveDirection: number;
-    /** Cells along a side of the ripple grid; 0 keeps no ripples. The grid is a window of `rippleSize` that follows the camera. */
-    ripples: number;
-    rippleSize: number;
-    /** How fast a ripple spreads (world units a second), how much of its height it loses a second, and how fast the foam it leaves fades a second. */
-    rippleSpeed: number;
-    rippleDamping: number;
-    foamFade: number;
 }
 
 /**
- * A body of water. Presence is the opt-in; its geometry is a child, rebuilt when the shape changes.
+ * A body of water. Presence is the opt-in; it is drawn as part of its zone's surface.
  *
  * @experimental
  */
 export const WaterBody: ComponentDef<WaterBodyData> = defineComponent<WaterBodyData>('WaterBody', {
-    form: WaterForm.Lake, material: 0, sizeX: 100, sizeZ: 100, boundary: [] as Point2[], shoreWidth: 3, cellSize: 1, cells: 64, rings: 5, flowSpeed: 2,
-    waveHeight: 0.3, waveLength: 14, waveSpeed: 1, waveDirection: 30,
-    ripples: 0, rippleSize: 64, rippleSpeed: 6, rippleDamping: 0.8, foamFade: 0.4,
+    form: WaterForm.Lake, sizeX: 100, sizeZ: 100, boundary: [] as Point2[], shoreWidth: 3, flowSpeed: 2, waveHeight: 0.3,
 }, {
-    assetFields: [{ field: 'material', type: 'material' }],
     fields: {
-        form: { enum: [{ label: 'Ocean', value: WaterForm.Ocean }, { label: 'Lake', value: WaterForm.Lake }, { label: 'River', value: WaterForm.River }], category: 'Shape', tooltip: 'An ocean is without edge and follows the camera; a lake is a rectangle or an outline of its own; a river follows the Spline on the same entity.' },
-        flowSpeed: { min: 0, max: 50, category: 'Waves', tooltip: 'A river\'s current, in world units a second where it is as wide as its widest. A narrower reach runs faster.', shownWhen: { field: 'form', values: [WaterForm.River] } },
-        material: { category: 'Look', tooltip: 'A material on the Water shader. Empty uses the stock water.' },
+        form: { enum: [{ label: 'Ocean', value: WaterForm.Ocean }, { label: 'Lake', value: WaterForm.Lake }, { label: 'River', value: WaterForm.River }], category: 'Shape', tooltip: 'An ocean is without edge: everywhere at its height where the ground is lower; a lake is a rectangle or an outline of its own; a river follows the Spline on the same entity.' },
         sizeX: { min: 1, category: 'Shape', tooltip: 'A lake\'s size along x.', shownWhen: { field: 'form', values: [WaterForm.Lake] } },
         sizeZ: { min: 1, category: 'Shape', tooltip: 'A lake\'s size along z.', shownWhen: { field: 'form', values: [WaterForm.Lake] } },
         boundary: { category: 'Shape', tooltip: 'The outline of a lake: points round it on its own xz plane. Empty is the rectangle of its size.', shownWhen: { field: 'form', values: [WaterForm.Lake] } },
-        shoreWidth: { min: 0, category: 'Shape', tooltip: 'How far in from the edge, and how deep, the waves take to come to full height. 0 leaves them whole to the edge.', shownWhen: { field: 'form', values: [WaterForm.Lake] } },
-        cellSize: { min: 0.05, category: 'Detail', tooltip: 'The cell size of the finest ring. Waves shorter than six cells are not drawn as geometry there (the shading still shows them).' },
-        cells: { min: 4, max: 256, step: 4, category: 'Detail', tooltip: 'Cells along a ring\'s side (an ocean).', shownWhen: { field: 'form', values: [WaterForm.Ocean] } },
-        rings: { min: 1, max: 8, step: 1, category: 'Detail', tooltip: 'Rings of an ocean, each twice as coarse as the one inside it.', shownWhen: { field: 'form', values: [WaterForm.Ocean] } },
-        waveHeight: { min: 0, max: 8, category: 'Waves', tooltip: 'The height of the tallest wave, in world units.' },
-        waveLength: { min: 0.5, max: 300, category: 'Waves', tooltip: 'The length of the longest wave.' },
-        waveSpeed: { min: 0, max: 4, category: 'Waves', tooltip: 'A multiplier on how fast the waves travel.' },
-        waveDirection: { min: 0, max: 360, category: 'Waves', tooltip: 'The heading of the waves, in degrees.' },
-        ripples: { min: 0, max: 256, step: 8, category: 'Ripples', tooltip: 'Cells along a side of the grid that keeps what disturbs the water: bodies moving in it, and what a script disturbs. 0 keeps none.' },
-        rippleSize: { min: 4, category: 'Ripples', tooltip: 'The side of the window the ripples are kept in, in world units. It follows the camera.' },
-        rippleSpeed: { min: 0.1, max: 40, category: 'Ripples', tooltip: 'How fast a ripple spreads, in world units a second.' },
-        rippleDamping: { min: 0, max: 10, category: 'Ripples', tooltip: 'How much of its height a ripple loses each second.' },
-        foamFade: { min: 0, max: 10, category: 'Ripples', tooltip: 'How fast the foam a disturbance leaves fades, a second.' },
+        shoreWidth: { min: 0, category: 'Shape', tooltip: 'How far in from the shore, and how deep, the waves take to come to full height. 0 leaves them whole to the edge.' },
+        flowSpeed: { min: 0, max: 5000, category: 'Waves', tooltip: 'A river\'s current, in world units a second where it is as wide as its widest. A narrower reach runs faster.', shownWhen: { field: 'form', values: [WaterForm.River] } },
+        waveHeight: { min: 0, max: 800, category: 'Waves', tooltip: 'The height of the tallest wave, in world units. Their length, speed and heading are the zone\'s.' },
     },
 });
 
 /** What {@link Waters.sample} answers. */
 export interface WaterSample {
-    /** The body's entity. */
+    /** The entity of the body that holds the most of the water there. */
     entity: Entity;
-    /** How far the point is above the surface along the body's up (negative under it), in world units. */
+    /** How far the point is above the surface (negative under it), in world units. */
     depth: number;
     /** The surface's normal at the point, in world space. */
     normal: [number, number, number];
@@ -123,7 +97,7 @@ export interface WaterSample {
     flow: [number, number, number];
     /** The world position of the surface above or below the point. */
     surface: [number, number, number];
-    /** Whether the point is over the body's extent (an ocean has none, so it is always). */
+    /** Whether the point is over water: always, for an answer that is not null. */
     inside: boolean;
 }
 
@@ -149,132 +123,65 @@ export function waterQualityOf(profile: Readonly<QualityProfile> | null, miniGam
     return { waves: p.waterWaves, rippleCells: p.waterRippleCells, displacement: p.waterDisplacement, mirror: p.waterMirror, caustics: p.waterCaustics };
 }
 
-/** What the plugin knows about one body it has built. */
-interface Built {
-    signature: string;
-    data: WaterBodyData;
-    mesh: number;
-    /** A lake's baked shore, and the texture the shader reads it from. */
-    field: ShoreField | null;
-    /** A river's curve, the width it is drawn at its widest, and the shoreless texture it does not have. */
-    curve: SplineCurve | null;
-    widest: number;
-    shoreTexture: number;
-    /** The ripples this body keeps, where `ripples` asks for them, and the texture the shader reads them from. */
-    ripples: RippleField | null;
-    rippleTexture: number;
-    rippleBytes: Uint8Array | null;
-    child: Entity;
-    instance: number;
-    epoch: number;
-    pending: boolean;
-}
+/** The zone a scene without a `WaterZone` is given: the component's defaults, over every lake and river. */
+const ZONE_DEFAULTS: WaterZoneData = { ...WaterZone._default };
 
 /** Run-time access to the water: where its surface is at a point, for what floats on it or swims in it. */
 export class Waters {
-    /** @internal */ readonly built_ = new Map<Entity, Built>();
     /** @internal */ app_: App | null = null;
     /** What the quality level allows now; the plugin refreshes it each frame, and what is drawn and what is answered both follow it. */
     quality: WaterQuality = FULL_WATER;
+    /** The baked water, and the zone it was baked by. @internal */
+    field_: WaterField | null = null;
+    /** @internal */ zone_: WaterZoneData = ZONE_DEFAULTS;
+    /** The ripples the zone keeps, where it asks for them. @internal */
+    ripples_: RippleField | null = null;
+    /** The material instance the surface is drawn with, for what draws the same water (the underwater effect). @internal */
+    instance_ = 0;
 
     /**
-     * The surface of the body that holds `(x, y, z)`: how far above it the point is (negative under), the surface's normal and the point on
-     * it straight above or below along the body's up. Null where there is no water. The body's position, rotation and uniform scale are taken
-     * into account, and the waves are read at the instant of the frame.
+     * The surface over or under `(x, y, z)`: how far above it the point is (negative under), the surface's normal, the current, and the point
+     * on it straight above or below. Null where there is no water. The waves are read at the instant of the frame.
      */
     sample(x: number, y: number, z: number): WaterSample | null {
-        const world = this.app_?.world;
-        if (!world) return null;
-        const time = this.app_!.getResource(Time).elapsed;
-        for (const [entity, built] of this.built_) {
-            if (!world.valid(entity)) continue;
-            const t = world.tryGet(entity, Transform) as TransformData | null;
-            if (!t) continue;
-            const scale = t.worldScale.y || 1;
-            const q = toLocal(t, x, y, z, scale);
-            const d = built.data;
-            const field = built.field;
-            if (d.form === WaterForm.River) {
-                const curve = built.curve;
-                if (!curve) continue;
-                const near = curve.nearest(q[0], q[2]);
-                const half = curve.width(near.s) / 2;
-                if (near.distance > half) continue;
-                // A river's surface is the curve's own height and its normal is up; what moves is the water.
-                const level = curve.position(near.s)[1];
-                const tangent = curve.tangent(near.s);
-                const run = Math.hypot(tangent[0], tangent[2]) || 1;
-                const speed = d.flowSpeed * currentShare(half * 2, built.widest) * 2;
-                const flow = rotate(t.worldRotation, (tangent[0] / run) * speed * scale, 0, (tangent[2] / run) * speed * scale);
-                const normal = rotate(t.worldRotation, 0, 1, 0);
-                return { entity, depth: (q[1] - level) * scale, normal, flow, surface: fromLocal(t, q[0], level, q[2], scale), inside: true };
-            }
-            const inside = d.form === WaterForm.Ocean || (field ? field.inside(q[0], q[2]) : false);
-            if (!inside) continue;
-            const params = { ...paramsOf(d), count: this.quality.waves };
-            // The waves a lake keeps toward its shore are the ones its mesh was built with.
-            const damp = field ? field.damp(q[0], q[2]) : 1;
-            // The lite water is flat: its waves are in the shading, so the height code reads is the rest plane's.
-            const h = (this.quality.displacement ? waveHeight(params, q[0], q[2], time) * damp : 0) + (built.ripples ? built.ripples.heightAt(q[0], q[2]) : 0);
-            const [rx, rz] = waveSlope(params, q[0], q[2], time);
-            const sx = rx * damp, sz = rz * damp;
-            const len = Math.hypot(sx, 1, sz);
-            const normal = rotate(t.worldRotation, -sx / len, 1 / len, -sz / len);
-            const onSurface = fromLocal(t, q[0], h, q[2], scale);
-            return { entity, depth: (q[1] - h) * scale, normal, flow: [0, 0, 0], surface: onSurface, inside };
-        }
-        return null;
+        const field = this.field_;
+        if (!field || !this.app_) return null;
+        const s = field.sample(x, z);
+        if (!s) return null;
+        const time = this.app_.getResource(Time).elapsed;
+        const params = this.waves(s.amp);
+        // The lite water is flat: its waves are in the shading, so the height code reads is the rest plane's.
+        const h = s.height + (this.quality.displacement ? waveHeight(params, x, z, time) : 0) + (this.ripples_?.heightAt(x, z) ?? 0);
+        const [sx, sz] = waveSlope(params, x, z, time);
+        const len = Math.hypot(sx, 1, sz);
+        return {
+            entity: s.key as Entity, depth: y - h, normal: [-sx / len, 1 / len, -sz / len], flow: [s.flowX, 0, s.flowZ], surface: [x, h, z], inside: true,
+        };
     }
 
     /**
      * Disturbs the water at the world point (x, y, z): a bump of `strength` world units (negative is a dip) over `radius`, which spreads as a ring and leaves foam.
-     * Goes to the body that holds the point, and does nothing where there is none or where the body keeps no ripples.
+     * Does nothing where there is no water or where the zone keeps no ripples.
      */
     disturb(x: number, y: number, z: number, radius: number, strength: number): boolean {
-        const world = this.app_?.world;
-        if (!world) return false;
-        for (const [entity, built] of this.built_) {
-            if (!world.valid(entity) || !built.ripples) continue;
-            const t = world.tryGet(entity, Transform) as TransformData | null;
-            if (!t) continue;
-            const scale = t.worldScale.y || 1;
-            const q = toLocal(t, x, y, z, scale);
-            const inside = built.data.form === WaterForm.Ocean || (built.field ? built.field.inside(q[0], q[2]) : false)
-                || (built.curve ? built.curve.nearest(q[0], q[2]).distance <= built.curve.width(built.curve.nearest(q[0], q[2]).s) / 2 : false);
-            if (!inside) continue;
-            built.ripples.disturb(q[0], q[2], radius / scale, strength / scale);
-            return true;
-        }
-        return false;
+        if (!this.ripples_ || !this.field_?.sample(x, z)) return false;
+        this.ripples_.disturb(x, z, radius, strength);
+        return true;
     }
 
-    /** The height the ripples add to the surface at the world point, for a body that keeps them; 0 elsewhere. */
-    rippleAt(x: number, y: number, z: number): number {
-        const world = this.app_?.world;
-        if (!world) return 0;
-        for (const [entity, built] of this.built_) {
-            if (!world.valid(entity) || !built.ripples) continue;
-            const t = world.tryGet(entity, Transform) as TransformData | null;
-            if (!t) continue;
-            const scale = t.worldScale.y || 1;
-            const q = toLocal(t, x, y, z, scale);
-            const h = built.ripples.heightAt(q[0], q[2]);
-            if (h !== 0) return h * scale;
-        }
-        return 0;
+    /** The height the ripples add to the surface at the world point, where the zone keeps them; 0 elsewhere. */
+    rippleAt(x: number, _y: number, z: number): number {
+        return this.ripples_?.heightAt(x, z) ?? 0;
     }
 
-    /** The world height of the surface above or below (x, z) for an untilted body, or null where there is none. */
+    /** The world height of the surface above or below (x, z), or null where there is none. */
     heightAt(x: number, z: number): number | null {
-        const world = this.app_?.world;
-        if (!world) return null;
-        for (const entity of this.built_.keys()) {
-            if (!world.valid(entity)) continue;
-            const t = world.tryGet(entity, Transform) as TransformData | null;
-            const s = t ? this.sample(x, t.worldPosition.y, z) : null;
-            if (s) return s.surface[1];
-        }
-        return null;
+        return this.sample(x, 0, z)?.surface[1] ?? null;
+    }
+
+    /** The waves as they stand where the zone says they are `amp` high: the zone's, at that height, scaled by the weather. */
+    private waves(amp: number): WaveParams {
+        return { ...waveParamsOf(this.zone_), height: amp * weatherWaves(), count: this.quality.waves };
     }
 }
 
@@ -288,8 +195,36 @@ function outlineOf(d: WaterBodyData): Point2[] {
     return [{ x: -hx, y: -hz }, { x: hx, y: -hz }, { x: hx, y: hz }, { x: -hx, y: hz }];
 }
 
-function paramsOf(d: WaterBodyData): WaveParams {
-    return { height: d.waveHeight, length: d.waveLength, speed: d.waveSpeed, direction: d.waveDirection };
+/** × the waves' height the weather asks for now: 1 with no weather, or one that does not drive the wind. */
+function weatherWaves(): number {
+    const w = currentWeather();
+    return w && (currentWeatherDrive() & WeatherDrive.Wind) ? w.waves : 1;
+}
+
+/** How hard it rains on the water now (the weather's rain level), 0 with none or one that does not drive the rain. */
+function weatherRain(): number {
+    const w = currentWeather();
+    return w && (currentWeatherDrive() & WeatherDrive.Rain) ? w.rain : 0;
+}
+
+/** The zone's waves at unit height, scaled by the weather: what is drawn and what the surface answers both read this, times each place's height. */
+export function waveParamsOf(zone: Pick<WaterZoneData, 'waveLength' | 'waveSpeed' | 'waveDirection'>): WaveParams {
+    return { height: weatherWaves(), length: zone.waveLength, speed: zone.waveSpeed, direction: zone.waveDirection };
+}
+
+/**
+ * Rain on water that keeps ripples: drops over its window, as many a second as the weather's rain asks (110 at the rain preset's 1.1),
+ * each a dip a cell and a half across and a third of a cell deep, so a shower is a field of small rings whatever the window's scale.
+ */
+export function rainOnRipples(field: RippleField, dt: number): void {
+    const rain = weatherRain();
+    if (rain <= 0 || dt <= 0) return;
+    field.rainOwed += rain * 100 * dt;
+    const cell = field.size / field.n;
+    for (; field.rainOwed >= 1; field.rainOwed--) {
+        const x = field.originX + Math.random() * field.size, z = field.originZ + Math.random() * field.size;
+        field.disturb(x, z, cell * 1.5, -cell / 3);
+    }
 }
 
 type Quat = { x: number; y: number; z: number; w: number };
@@ -311,20 +246,67 @@ function fromLocal(t: TransformData, x: number, y: number, z: number, scale: num
     return [r[0] + t.worldPosition.x, r[1] + t.worldPosition.y, r[2] + t.worldPosition.z];
 }
 
-/** What shapes the geometry: when it changes the child is rebuilt; the waves and the material are not part of it. */
-function signatureOf(d: WaterBodyData, ground: string, spline: SplineData | null): string {
-    return JSON.stringify([d.form, d.sizeX, d.sizeZ, d.boundary, d.shoreWidth, d.cellSize, d.cells, d.rings, d.material, ground, d.form === WaterForm.River ? spline : null]);
+/** A river's stations in the world: a few to its narrowest width along its curve, each with its height, half its width, its heading and its current. */
+export function riverStations(curve: SplineCurve, flowSpeed: number, toWorld: (x: number, y: number, z: number) => [number, number, number],
+    turn: (x: number, y: number, z: number) => [number, number, number], scale: number): RiverStation[] {
+    let widest = 0, narrowest = Infinity;
+    for (let i = 0; i <= 64; i++) {
+        const w = curve.width((i / 64) * curve.length);
+        widest = Math.max(widest, w);
+        narrowest = Math.min(narrowest, w);
+    }
+    const step = Math.max(narrowest / 3, curve.length / 1024, 1e-3);
+    const count = Math.max(2, Math.ceil(curve.length / step) + 1);
+    const stations: RiverStation[] = [];
+    for (let i = 0; i < count; i++) {
+        const s = (i / (count - 1)) * curve.length;
+        const [px, py, pz] = curve.position(s);
+        const [x, y, z] = toWorld(px, py, pz);
+        const tangent = curve.tangent(s);
+        const [tx, , tz] = turn(tangent[0], 0, tangent[2]);
+        const run = Math.hypot(tx, tz) || 1;
+        const width = curve.width(s);
+        stations.push({ x, y, z, half: (width / 2) * scale, dx: tx / run, dz: tz / run, speed: flowSpeed * currentShare(width, widest) * 2 * scale });
+    }
+    return stations;
+}
+
+/** Everything the zone is baked from, as the scene says it now. */
+interface Inputs {
+    bodies: ZoneBody[];
+    grid: ZoneGrid;
+    zone: WaterZoneData;
+    /** What, changed, rebakes the field. */
+    key: string;
+}
+
+/** The surface the plugin draws: its mesh, its material instance and the textures it reads the field and the ripples from. */
+interface Surface {
+    entity: Entity;
+    mesh: number;
+    meshKey: string;
+    instance: number;
+    material: number;
+    heights: number;
+    field: number;
+    /** Which bake the textures hold. */
+    baked: WaterField | null;
+    ripple: number;
+    rippleBytes: Uint8Array | null;
+    epoch: number;
+    pending: boolean;
 }
 
 export class WaterPlugin implements Plugin {
     name = 'water';
 
-    /** The stock material every body without one of its own is an instance of, made once from the Water shader. */
+    /** The stock material the surface is an instance of when the zone names none, made once from the Water shader. */
     private stock_ = 0;
-    private stockPending_ = false;
-
-    /** The resource this plugin installed, for the parts of it that read the quality level. */
+    /** The resource this plugin installed. */
     private waters_: Waters = new Waters();
+    private key_ = '';
+    private surface_: Surface | null = null;
+    private epoch_ = 0;
 
     build(app: App): void {
         const waters = new Waters();
@@ -333,39 +315,38 @@ export class WaterPlugin implements Plugin {
         app.insertResource(WatersRes, waters);
 
         app.addSystemToSchedule(Schedule.Update, defineSystem([], () => {
-            this.sweep(app, waters);
             const policy = app.hasResource(Quality) ? app.getResource(Quality) : null;
             waters.quality = waterQualityOf(policy && policy.enabled ? policy.profile : null, isMiniGame());
-            // What a body IS (its outline and shore, its curve) needs no renderer: it is built here whether or not anything is drawn, so a
-            // server or a test that never draws can still ask the surface where it is. What is DRAWN waits for the asset layer.
-            const rendering = app.hasResource(Assets);
-            const time = app.getResource(Time).elapsed;
-            const eye = rendering ? this.eye(app) : null;
-            for (const entity of app.world.getEntitiesWithComponents([WaterBody, Transform])) {
-                const data = app.world.get(entity, WaterBody) as WaterBodyData;
-                const spline = data.form === WaterForm.River ? app.world.tryGet(entity, Spline) as SplineData | null : null;
-                const signature = signatureOf(data, this.groundKey(app, entity, data), spline);
-                let built = waters.built_.get(entity);
-                if (!built || built.signature !== signature) {
-                    if (built) this.destroy(app, built);
-                    built = { signature, data: { ...data }, mesh: 0, field: null, curve: null, widest: 0, shoreTexture: 0, ripples: null, rippleTexture: 0, rippleBytes: null, child: 0 as Entity, instance: 0, epoch: (built?.epoch ?? 0) + 1, pending: false };
-                    waters.built_.set(entity, built);
-                    this.surface(app, entity, built);
-                }
-                built.data = { ...data };
-                this.ripple(app, entity, built, eye ?? this.eye(app), app.getResource(Time).delta);
-                if (!rendering) continue;
-                if (!built.child && !built.pending) void this.build_(app, entity, built);
-                if (built.child && built.instance) this.update(app, entity, built, eye, time);
+            // What the water IS (the baked field) needs no renderer: it is baked here whether or not anything is drawn, so a server or a test
+            // that never draws can still ask the surface where it is. What is DRAWN waits for the asset layer.
+            const inputs = this.gather(app);
+            waters.zone_ = inputs.zone;
+            if (inputs.bodies.length === 0) {
+                waters.field_ = null;
+                this.key_ = '';
+                this.dropRipples();
+                this.dropSurface(app);
+                return;
             }
+            if (inputs.key !== this.key_ || !waters.field_) {
+                this.key_ = inputs.key;
+                waters.field_ = WaterField.bake(inputs.grid, inputs.bodies, this.ground(app));
+            }
+            const eye = this.eye(app);
+            this.ripple(app, inputs.zone, eye, app.getResource(Time).delta);
+            if (!app.hasResource(Assets)) return;
+            const surface = this.surface(app, inputs.zone);
+            if (surface.instance && surface.entity) this.update(app, surface, inputs.zone, eye ?? this.middle(inputs.grid));
         }, { name: 'WaterSystem' }));
     }
 
     cleanup(app?: App): void {
         if (!app?.hasResource(WatersRes)) return;
+        this.dropRipples();
+        this.dropSurface(app);
         const waters = app.getResource(WatersRes);
-        for (const built of waters.built_.values()) this.destroy(app, built);
-        waters.built_.clear();
+        waters.field_ = null;
+        this.key_ = '';
         if (this.stock_) Material.release(this.stock_);
         this.stock_ = 0;
     }
@@ -381,7 +362,71 @@ export class WaterPlugin implements Plugin {
         return null;
     }
 
-    /** The material every body without one is an instance of: the Water shader, compiled once. */
+    /** The middle of the zone's region: where the surface and the ripples stay without a camera to follow. */
+    private middle(grid: ZoneGrid): [number, number, number] {
+        return [grid.minX + grid.sizeX / 2, 0, grid.minZ + grid.sizeZ / 2];
+    }
+
+    /**
+     * The bodies as the zone takes them, in the world, the zone's settings, and the region they are baked over: the `WaterZone`'s, or without
+     * one a region round every lake and river with a margin for their shores.
+     */
+    private gather(app: App): Inputs {
+        const bodies: ZoneBody[] = [];
+        const keyParts: unknown[] = [];
+        for (const entity of app.world.getEntitiesWithComponents([WaterBody, Transform])) {
+            const d = app.world.get(entity, WaterBody) as WaterBodyData;
+            const t = app.world.get(entity, Transform) as TransformData;
+            const scale = t.worldScale.y || 1;
+            const key = entity as number;
+            if (d.form === WaterForm.Ocean) {
+                bodies.push({ kind: 'ocean', key, level: t.worldPosition.y, waveHeight: d.waveHeight, shoreWidth: d.shoreWidth });
+                keyParts.push([key, d.form, t.worldPosition.y, d.waveHeight, d.shoreWidth]);
+            } else if (d.form === WaterForm.Lake) {
+                const outline = outlineOf(d);
+                bodies.push({
+                    kind: 'lake', key, level: t.worldPosition.y, waveHeight: d.waveHeight, shoreWidth: d.shoreWidth * scale, outline,
+                    toLocal: (x, z) => { const q = toLocal(t, x, t.worldPosition.y, z, scale); return [q[0], q[2]]; },
+                    toWorld: (x, z) => { const w = fromLocal(t, x, 0, z, scale); return [w[0], w[2]]; },
+                });
+                keyParts.push([key, d.form, outline, d.waveHeight, d.shoreWidth, t.worldPosition, t.worldRotation, scale]);
+            } else if (d.form === WaterForm.River) {
+                const spline = app.world.tryGet(entity, Spline) as SplineData | null;
+                if (!spline || spline.points.length < 2) continue;
+                const curve = new SplineCurve(spline.points, spline.closed);
+                const stations = riverStations(curve, d.flowSpeed, (x, y, z) => fromLocal(t, x, y, z, scale), (x, y, z) => rotate(t.worldRotation, x, y, z), scale);
+                bodies.push({ kind: 'river', key, waveHeight: d.waveHeight, shoreWidth: d.shoreWidth * scale, stations });
+                keyParts.push([key, d.form, spline.points, spline.closed, d.flowSpeed, d.waveHeight, d.shoreWidth, t.worldPosition, t.worldRotation, scale]);
+            }
+        }
+        let zone = ZONE_DEFAULTS;
+        let grid: ZoneGrid | null = null;
+        for (const entity of app.world.getEntitiesWithComponents([WaterZone, Transform])) {
+            zone = app.world.get(entity, WaterZone) as WaterZoneData;
+            const t = app.world.get(entity, Transform) as TransformData;
+            grid = gridOver(t.worldPosition.x - zone.sizeX / 2, t.worldPosition.z - zone.sizeZ / 2, zone.sizeX, zone.sizeZ, zone.resolution);
+            break;
+        }
+        if (!grid) {
+            grid = implicitGrid(bodies, zone);
+            // The surface without a zone of its own reaches over the whole region from wherever the camera is in it: its cells grow with the region.
+            const reach = oceanReach(zone.cells, zone.rings, zone.cellSize), need = Math.max(grid.sizeX, grid.sizeZ);
+            if (reach < need) zone = { ...zone, cellSize: zone.cellSize * (need / reach) };
+        }
+        const terrain = app.hasResource(TerrainsRes) ? app.getResource(TerrainsRes) : null;
+        const ground = terrain && terrain.built_.size > 0 ? terrain.revision_ : -1;
+        return { bodies, grid, zone, key: JSON.stringify([keyParts, grid, ground]) };
+    }
+
+    /** The world height of the ground, where a terrain is built. */
+    private ground(app: App): ZoneGround | undefined {
+        if (!app.hasResource(TerrainsRes)) return undefined;
+        const terrains = app.getResource(TerrainsRes);
+        if (terrains.built_.size === 0) return undefined;
+        return (x, z) => terrains.heightAt(x, z);
+    }
+
+    /** The material the surface is an instance of when the zone names none: the Water shader, compiled once. */
     private async stock(app: App): Promise<number> {
         if (this.stock_) return this.stock_;
         const assets = app.getResource(Assets);
@@ -395,151 +440,139 @@ export class WaterPlugin implements Plugin {
         return this.stock_;
     }
 
-    private async build_(app: App, entity: Entity, built: Built): Promise<void> {
-        built.pending = true;
-        const epoch = built.epoch;
+    /** The surface, made (or remade, where its mesh or its material changed) as the zone asks. */
+    private surface(app: App, zone: WaterZoneData): Surface {
+        const meshKey = JSON.stringify([zone.cells, zone.rings, zone.cellSize]);
+        let s = this.surface_;
+        if (s && (s.meshKey !== meshKey || s.material !== zone.material)) { this.dropSurface(app); s = null; }
+        if (!s) {
+            s = { entity: 0 as Entity, mesh: 0, meshKey, instance: 0, material: zone.material, heights: 0, field: 0, baked: null, ripple: 0, rippleBytes: null, epoch: ++this.epoch_, pending: false };
+            this.surface_ = s;
+        }
+        if (!s.entity && !s.pending) void this.build_(app, s, zone);
+        return s;
+    }
+
+    private async build_(app: App, s: Surface, zone: WaterZoneData): Promise<void> {
+        s.pending = true;
+        const epoch = s.epoch;
         try {
-            const source = built.data.material || await this.stock(app);
-            if (built.epoch !== epoch || !app.world.valid(entity)) return;
-            const d = built.data;
+            const source = zone.material || await this.stock(app);
+            if (s.epoch !== epoch || this.surface_ !== s) return;
             const assets = app.getResource(Assets);
-            let mesh: number;
-            if (d.form === WaterForm.Ocean) {
-                mesh = assets.createMesh(buildOceanMesh(d.cells, d.rings, d.cellSize));
-            } else if (d.form === WaterForm.River) {
-                // A river: the curve of the Spline on its entity, laid as a ribbon.
-                if (!built.curve) return;
-                const across = Math.min(64, Math.max(2, Math.ceil(built.widest / Math.max(d.cellSize, 0.05))));
-                mesh = assets.createMesh(buildRiverMesh(built.curve, d.cellSize, across));
-            } else {
-                // A lake: cut to its outline, calmer toward its shore.
-                const field = built.field;
-                if (!field) return;
-                mesh = assets.createMesh(buildBoxMesh(field.minX, field.minZ, field.minX + field.sizeX, field.minZ + field.sizeZ, d.cellSize, {
-                    damp: (x, z) => field.damp(x, z),
-                    keep: (x, z, cell) => field.distance(x, z) > -cell,
-                }));
-            }
+            const mesh = assets.createMesh(buildOceanMesh(zone.cells, zone.rings, zone.cellSize));
             if (mesh === 0) { log.warn('water', 'the engine refused the water geometry'); return; }
             const instance = Material.createInstance(source);
             if (instance === 0) { assets.releaseBuiltMesh(mesh); log.warn('water', 'the water material could not be instanced'); return; }
-            built.mesh = mesh;
-            built.instance = instance;
-            if (built.field) this.uploadShore(app, built);
-            const child = app.world.spawn('Water');
-            app.world.insert(child, Transform, { position: { x: 0, y: 0, z: 0 } });
-            app.world.insert(child, MeshRenderer, {
+            s.mesh = mesh;
+            s.instance = instance;
+            this.waters_.instance_ = instance;
+            const entity = app.world.spawn('Water');
+            app.world.insert(entity, Transform, { position: { x: 0, y: 0, z: 0 } });
+            app.world.insert(entity, MeshRenderer, {
                 mesh, material: instance, lit: true, opaque: false, cullBackfaces: false, color: { r: 1, g: 1, b: 1, a: 1 },
             } as Partial<MeshRendererData>);
-            app.world.setParent(child, entity);
-            built.child = child;
+            s.entity = entity;
         } catch (e) {
             log.error('water', 'building the water failed', e);
         } finally {
-            built.pending = false;
+            s.pending = false;
         }
     }
 
-    /** What a body is, apart from how it is drawn: a lake's outline with its shore and depth, a river's curve with its widest reach. */
-    private surface(app: App, entity: Entity, built: Built): void {
-        const d = built.data;
-        built.field = null;
-        built.curve = null;
-        built.widest = 0;
-        if (d.form === WaterForm.River) {
-            const spline = app.world.tryGet(entity, Spline) as SplineData | null;
-            if (!spline || spline.points.length < 2) { log.warn('water', 'a river needs a Spline of two points or more on its entity'); return; }
-            built.curve = new SplineCurve(spline.points, spline.closed);
-            for (let i = 0; i <= 64; i++) built.widest = Math.max(built.widest, built.curve.width((i / 64) * built.curve.length));
-        } else if (d.form === WaterForm.Lake) {
-            const poly = outlineOf(d);
-            const reach = Math.max(...poly.map((p) => Math.abs(p.x)), ...poly.map((p) => Math.abs(p.y)));
-            const res = Math.min(256, Math.max(32, Math.ceil((reach * 2) / Math.max(d.cellSize * 0.5, 0.05))));
-            built.field = new ShoreField(poly, res, d.shoreWidth, this.groundUnder(app, entity));
-        }
+    /** Puts the baked field where the shader reads it: the heights texel by texel, the rest filtered. */
+    private upload(app: App, s: Surface, field: WaterField): void {
+        this.dropFieldTextures(s);
+        const ranges = field.ranges();
+        const { heights, field: rest } = field.encode(ranges);
+        const { nx, nz, minX, minZ, sizeX, sizeZ } = field.grid;
+        const empty = nx < 2 || nz < 2;
+        const w = empty ? 2 : nx, h = empty ? 2 : nz;
+        s.heights = createTextureFromPixels(app.wasmModule, { width: w, height: h, pixels: empty ? new Uint8Array(16) : heights }, TextureContent.Retained, false,
+            { filterMode: 'nearest', wrapMode: 'clamp', srgb: false });
+        s.field = createTextureFromPixels(app.wasmModule, { width: w, height: h, pixels: empty ? new Uint8Array(16) : rest }, TextureContent.Retained, false,
+            { filterMode: 'linear', wrapMode: 'clamp', srgb: false });
+        s.baked = field;
+        const set = (name: string, value: Parameters<typeof Material.setUniform>[2]): void => { Material.setUniform(s.instance, name, value); };
+        set('u_zoneHeights', Material.tex(s.heights));
+        set('u_zoneField', Material.tex(s.field));
+        // A region of nothing is put where no point is: everything is past it, which is the ocean.
+        set('u_zoneOrigin', empty ? { x: 1e9, y: 1e9 } : { x: minX, y: minZ });
+        set('u_zoneSize', empty ? { x: 1e-4, y: 1e-4 } : { x: sizeX, y: sizeZ });
+        set('u_zoneHeight', { x: ranges.heightMin, y: ranges.heightSpan });
+        set('u_zoneRange', { x: ranges.shore, y: ranges.amp, z: ranges.flow, w: ranges.depth });
+        set('u_zoneOn', 1);
     }
 
-    /** Gives the shader a lake's shore: the baked field as a texture, and where over the lake it lies. */
-    private uploadShore(app: App, built: Built): void {
-        const field = built.field!;
-        // The encoding spans a few shore widths either side of the edge; a shore of none still needs a span for the foam.
-        const range = Math.max(built.data.shoreWidth * 4, 16);
-        const pixels = field.encode(range);
-        built.shoreTexture = createTextureFromPixels(app.wasmModule, { width: field.res, height: field.res, pixels }, TextureContent.Retained, false,
-            { filterMode: 'linear', wrapMode: 'clamp' });
-        Material.setUniform(built.instance, 'u_shoreMap', Material.tex(built.shoreTexture));
-        Material.setUniform(built.instance, 'u_shoreOn', 1);
-        Material.setUniform(built.instance, 'u_shoreOrigin', { x: field.minX, y: field.minZ });
-        Material.setUniform(built.instance, 'u_shoreSize', { x: field.sizeX, y: field.sizeZ });
-        Material.setUniform(built.instance, 'u_shoreRange', range);
-    }
-
-    /** The height of the ground under a body's plane, in the body's own space, where a terrain is and the body is level; else nothing is known. */
-    private groundUnder(app: App, entity: Entity): ((x: number, z: number) => number | null) | undefined {
-        if (!app.hasResource(TerrainsRes)) return undefined;
-        const terrains = app.getResource(TerrainsRes);
-        const t = app.world.tryGet(entity, Transform) as TransformData | null;
-        if (!t || terrains.built_.size === 0) return undefined;
-        const level = Math.abs(t.worldRotation.x) < 1e-4 && Math.abs(t.worldRotation.z) < 1e-4;
-        if (!level) return undefined;
-        const scale = t.worldScale.y || 1;
-        const sx = t.worldScale.x || 1, sz = t.worldScale.z || 1;
-        return (x, z) => {
-            const g = terrains.heightAt(t.worldPosition.x + x * sx, t.worldPosition.z + z * sz);
-            return g === null ? null : (g - t.worldPosition.y) / scale;
-        };
-    }
-
-    /** What the ground under a body adds to whether it must be rebuilt: the terrain's revision, and where the body stands over it. */
-    private groundKey(app: App, entity: Entity, data: WaterBodyData): string {
-        if (data.form === WaterForm.Ocean || !app.hasResource(TerrainsRes)) return '';
-        const terrains = app.getResource(TerrainsRes);
-        if (terrains.built_.size === 0) return '';
-        const t = app.world.tryGet(entity, Transform) as TransformData | null;
-        return t ? `${terrains.revision_}:${t.worldPosition.x}:${t.worldPosition.y}:${t.worldPosition.z}:${t.worldScale.x}:${t.worldScale.y}:${t.worldScale.z}` : '';
+    /** Writes the zone into the instance, and moves the surface to the camera on the lattice its rings line up on. */
+    private update(app: App, s: Surface, zone: WaterZoneData, eye: [number, number, number]): void {
+        const field = this.waters_.field_!;
+        if (s.baked !== field) this.upload(app, s, field);
+        const snap = oceanSnap(zone.rings, zone.cellSize);
+        const ox = Math.round(eye[0] / snap) * snap, oz = Math.round(eye[2] / snap) * snap;
+        const t = app.world.get(s.entity, Transform) as TransformData;
+        if (t.position.x !== ox || t.position.z !== oz) app.world.insert(s.entity, Transform, { ...t, position: { x: ox, y: 0, z: oz } });
+        const set = (name: string, value: number | { x: number; y: number }): void => { Material.setUniform(s.instance, name, value); };
+        const q = this.waters_.quality;
+        const ocean = field.ocean;
+        const waves = waveParamsOf(zone);
+        set('u_waveCount', q.waves);
+        set('u_mirror', q.mirror ? 1 : 0);
+        set('u_causticOn', q.caustics ? 1 : 0);
+        set('u_waveSpace', 1);
+        set('u_origin', { x: ox, y: oz });
+        set('u_cellSize', zone.cellSize);
+        set('u_geoWaves', q.displacement ? 1 : 0);
+        set('u_waveHeight', waves.height);
+        set('u_waveLength', waves.length);
+        set('u_waveSpeed', waves.speed);
+        set('u_waveDirection', waves.direction);
+        set('u_oceanOn', ocean ? 1 : 0);
+        set('u_oceanLevel', ocean ? ocean.level : 0);
+        set('u_oceanWaves', ocean ? ocean.waveHeight : 0);
     }
 
     /**
-     * Keeps a body's ripples: makes the grid when `ripples` asks for one, moves its window to the camera, steps it, and (where drawn) puts it where the shader reads it.
+     * Keeps the zone's ripples: makes the grid when `ripples` asks for one, moves its window to the camera, steps it, and (where drawn) puts it where the shader reads it.
      * It runs headless too, so the surface a test or a server asks about has them.
      */
-    private ripple(app: App, entity: Entity, built: Built, eye: [number, number, number] | null, dt: number): void {
-        const d = built.data;
-        if (d.ripples <= 0 || this.waters_.quality.rippleCells <= 0) { this.dropRipples(built); return; }
-        // The level holds the grid to its own side; a body that asks for more gets the level's.
-        const n = Math.max(8, Math.floor(Math.min(d.ripples, this.waters_.quality.rippleCells))), size = Math.max(d.rippleSize, 1e-3);
-        if (!built.ripples || built.ripples.n !== n || built.ripples.size !== size) {
-            this.dropRipples(built);
-            built.ripples = new RippleField(n, size);
-            // Until a camera says otherwise a body keeps its window over its middle.
-            built.ripples.recenter(built.field ? built.field.minX + built.field.sizeX / 2 : 0, built.field ? built.field.minZ + built.field.sizeZ / 2 : 0);
+    private ripple(app: App, zone: WaterZoneData, eye: [number, number, number] | null, dt: number): void {
+        const waters = this.waters_;
+        if (zone.ripples <= 0 || waters.quality.rippleCells <= 0) { this.dropRipples(); return; }
+        // The level holds the grid to its own side; a zone that asks for more gets the level's.
+        const n = Math.max(8, Math.floor(Math.min(zone.ripples, waters.quality.rippleCells))), size = Math.max(zone.rippleSize, 1e-3);
+        if (!waters.ripples_ || waters.ripples_.n !== n || waters.ripples_.size !== size) {
+            this.dropRipples();
+            waters.ripples_ = new RippleField(n, size);
+            const grid = waters.field_!.grid;
+            waters.ripples_.recenter(grid.minX + grid.sizeX / 2, grid.minZ + grid.sizeZ / 2);
         }
-        const field = built.ripples;
-        const t = app.world.tryGet(entity, Transform) as TransformData | null;
-        if (t && eye) {
-            const q = toLocal(t, eye[0], eye[1], eye[2], t.worldScale.y || 1);
-            field.recenter(q[0], q[2]);
-        }
-        field.step(Math.min(Math.max(dt, 0), 0.1), d.rippleSpeed, d.rippleDamping, d.foamFade);
-        if (!built.instance || !app.hasResource(Assets)) return;
-        const range = this.rippleRange(d);
+        const field = waters.ripples_;
+        if (eye) field.recenter(eye[0], eye[2]);
+        const step = Math.min(Math.max(dt, 0), 0.1);
+        rainOnRipples(field, step);
+        field.step(step, zone.rippleSpeed, zone.rippleDamping, zone.foamFade);
+        const s = this.surface_;
+        if (!s || !s.instance || !app.hasResource(Assets)) return;
+        // The height the grid holds and its encoding spans either side of rest: twice the tallest waves, or a fiftieth of the window where the water is calm.
+        const range = Math.max((waters.field_ ? waters.field_.ranges().amp : 0) * weatherWaves() * 2, zone.rippleSize * 0.02);
         field.limit = range;
-        const bytes = field.encode(range, built.rippleBytes ?? undefined);
-        built.rippleBytes = bytes;
-        if (!built.rippleTexture) {
-            built.rippleTexture = createTextureFromPixels(app.wasmModule, { width: n, height: n, pixels: bytes }, TextureContent.Retained, false,
-                { filterMode: 'linear', wrapMode: 'clamp' });
-            const handle = built.rippleTexture;
+        const bytes = field.encode(range, s.rippleBytes ?? undefined);
+        s.rippleBytes = bytes;
+        if (!s.ripple) {
+            s.ripple = createTextureFromPixels(app.wasmModule, { width: n, height: n, pixels: bytes }, TextureContent.Retained, false,
+                { filterMode: 'linear', wrapMode: 'clamp', srgb: false });
+            const handle = s.ripple;
             provideTextureContent(handle, () => {
-                if (built.rippleTexture !== handle || !built.rippleBytes) return false;
-                updateTextureSubregion(app.wasmModule, handle, 0, 0, n, n, built.rippleBytes);
+                if (s.ripple !== handle || !s.rippleBytes) return false;
+                updateTextureSubregion(app.wasmModule, handle, 0, 0, n, n, s.rippleBytes);
                 return true;
             });
-            Material.setUniform(built.instance, 'u_rippleMap', Material.tex(handle));
+            Material.setUniform(s.instance, 'u_rippleMap', Material.tex(handle));
         } else {
-            updateTextureSubregion(app.wasmModule, built.rippleTexture, 0, 0, n, n, bytes);
+            updateTextureSubregion(app.wasmModule, s.ripple, 0, 0, n, n, bytes);
         }
-        const set = (name: string, value: number | { x: number; y: number }): void => { Material.setUniform(built.instance, name, value); };
+        const set = (name: string, value: number | { x: number; y: number }): void => { Material.setUniform(s.instance, name, value); };
         set('u_rippleOn', 1);
         set('u_rippleOrigin', { x: field.originX, y: field.originZ });
         set('u_rippleSize', field.size);
@@ -547,75 +580,78 @@ export class WaterPlugin implements Plugin {
         set('u_rippleRange', range);
     }
 
-    /** The height the grid holds and its encoding spans either side of rest: twice the waves' height, or a fiftieth of the window where the water is calm. */
-    private rippleRange(d: WaterBodyData): number {
-        return Math.max(d.waveHeight * 2, d.rippleSize * 0.02);
+    private dropRipples(): void {
+        const s = this.surface_;
+        if (s?.ripple) {
+            withdrawTextureContent(s.ripple);
+            getResourceManager()?.releaseTexture(s.ripple);
+        }
+        if (s) {
+            s.ripple = 0;
+            s.rippleBytes = null;
+            if (s.instance) Material.setUniform(s.instance, 'u_rippleOn', 0);
+        }
+        this.waters_.ripples_ = null;
     }
 
-    private dropRipples(built: Built): void {
-        if (built.rippleTexture) {
-            withdrawTextureContent(built.rippleTexture);
-            getResourceManager()?.releaseTexture(built.rippleTexture);
-        }
-        built.rippleTexture = 0;
-        built.rippleBytes = null;
-        built.ripples = null;
-        if (built.instance) Material.setUniform(built.instance, 'u_rippleOn', 0);
+    private dropFieldTextures(s: Surface): void {
+        const rm = getResourceManager();
+        if (s.heights) rm?.releaseTexture(s.heights);
+        if (s.field) rm?.releaseTexture(s.field);
+        s.heights = 0;
+        s.field = 0;
+        s.baked = null;
     }
 
-    /** Writes the component into the instance, and moves an ocean's mesh to the camera. */
-    private update(app: App, entity: Entity, built: Built, eye: [number, number, number] | null, time: number): void {
-        const d = built.data;
-        let ox = 0, oz = 0;
-        if (d.form === WaterForm.Ocean && eye) {
-            const t = app.world.get(entity, Transform) as TransformData;
-            const q = toLocal(t, eye[0], eye[1], eye[2], t.worldScale.y || 1);
-            const snap = oceanSnap(d.rings, d.cellSize);
-            ox = Math.round(q[0] / snap) * snap;
-            oz = Math.round(q[2] / snap) * snap;
-        }
-        const child = app.world.get(built.child, Transform) as TransformData;
-        if (child.position.x !== ox || child.position.z !== oz) {
-            app.world.insert(built.child, Transform, { ...child, position: { x: ox, y: 0, z: oz } });
-        }
-        const set = (name: string, value: number | { x: number; y: number }): void => { Material.setUniform(built.instance, name, value); };
-        const q = this.waters_.quality;
-        set('u_waveCount', q.waves);
-        set('u_mirror', q.mirror ? 1 : 0);
-        set('u_causticOn', q.caustics ? 1 : 0);
-        set('u_waveSpace', 1);
-        set('u_origin', { x: ox, y: oz });
-        set('u_cellSize', d.cellSize);
-        set('u_flowSpeed', d.form === WaterForm.River ? d.flowSpeed : 0);
-        set('u_geoWaves', d.form === WaterForm.River || !q.displacement ? 0 : 1);
-        set('u_waveHeight', d.waveHeight);
-        set('u_waveLength', d.waveLength);
-        set('u_waveSpeed', d.waveSpeed);
-        set('u_waveDirection', d.waveDirection);
-        void time;
+    private dropSurface(app: App): void {
+        const s = this.surface_;
+        if (!s) return;
+        s.epoch = ++this.epoch_;
+        this.surface_ = null;
+        if (s.entity && app.world.valid(s.entity)) app.world.despawn(s.entity);
+        if (s.ripple) { withdrawTextureContent(s.ripple); getResourceManager()?.releaseTexture(s.ripple); }
+        this.waters_.ripples_ = null;
+        this.dropFieldTextures(s);
+        if (s.instance) Material.release(s.instance);
+        if (s.mesh && app.hasResource(Assets)) app.getResource(Assets).releaseBuiltMesh(s.mesh);
+        this.waters_.instance_ = 0;
     }
+}
 
-    private destroy(app: App, built: Built): void {
-        built.epoch++;
-        if (built.child && app.world.valid(built.child)) app.world.despawn(built.child);
-        this.dropRipples(built);
-        if (built.instance) Material.release(built.instance);
-        if (built.shoreTexture) getResourceManager()?.releaseTexture(built.shoreTexture);
-        built.shoreTexture = 0;
-        if (built.mesh && app.hasResource(Assets)) app.getResource(Assets).releaseBuiltMesh(built.mesh);
-        built.child = 0 as Entity;
-        built.instance = 0;
-        built.mesh = 0;
-    }
+/** A region from (minX, minZ), `sizeX` by `sizeZ`, with `resolution` texels along its longer side. */
+function gridOver(minX: number, minZ: number, sizeX: number, sizeZ: number, resolution: number): ZoneGrid {
+    const longer = Math.max(sizeX, sizeZ, 1e-3);
+    const res = Math.max(2, Math.round(resolution));
+    return { minX, minZ, sizeX, sizeZ, nx: Math.max(2, Math.round((res * sizeX) / longer)), nz: Math.max(2, Math.round((res * sizeZ) / longer)) };
+}
 
-    /** Releases the geometry of a body whose entity is gone. */
-    private sweep(app: App, waters: Waters): void {
-        for (const [entity, built] of waters.built_) {
-            if (app.world.valid(entity) && app.world.has(entity, WaterBody)) continue;
-            this.destroy(app, built);
-            waters.built_.delete(entity);
+/**
+ * The region a scene without a `WaterZone` is baked over: round every lake and river, with a margin of their shores and a few texels, at half
+ * the surface's finest cell to a texel (no finer than 32 texels along its longer side, no coarser than 1024). None, when there is only an ocean.
+ */
+function implicitGrid(bodies: readonly ZoneBody[], zone: WaterZoneData): ZoneGrid {
+    let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity, margin = 0;
+    for (const b of bodies) {
+        if (b.kind === 'ocean') continue;
+        margin = Math.max(margin, b.shoreWidth);
+        if (b.kind === 'river') {
+            for (const s of b.stations) {
+                minX = Math.min(minX, s.x - s.half); maxX = Math.max(maxX, s.x + s.half);
+                minZ = Math.min(minZ, s.z - s.half); maxZ = Math.max(maxZ, s.z + s.half);
+            }
+        } else {
+            for (const p of b.outline) {
+                const [x, z] = b.toWorld(p.x, p.y);
+                minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+                minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+            }
         }
     }
+    if (!Number.isFinite(minX)) return { minX: 0, minZ: 0, sizeX: 0, sizeZ: 0, nx: 0, nz: 0 };
+    const longer = Math.max(maxX - minX, maxZ - minZ);
+    const res = Math.min(1024, Math.max(32, Math.ceil(longer / Math.max(zone.cellSize * 0.5, 1e-3))));
+    const pad = margin + (longer / res) * 4;
+    return gridOver(minX - pad, minZ - pad, maxX - minX + pad * 2, maxZ - minZ + pad * 2, res);
 }
 
 export const waterPlugin: Plugin = new WaterPlugin();

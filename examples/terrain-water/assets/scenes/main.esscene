@@ -1,0 +1,1711 @@
+{
+ "version": 4,
+ "name": "Terrain & Water",
+ "entities": [
+  {
+   "id": 0,
+   "name": "Camera",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {
+      "position": {
+       "x": 3400,
+       "y": 3600,
+       "z": 15500
+      },
+      "rotation": {
+       "x": -0.09975356056184054,
+       "y": 0.03978955408239594,
+       "z": 0.003992271861283497,
+       "w": 0.9942082680739206
+      }
+     }
+    },
+    {
+     "type": "Camera",
+     "data": {
+      "projectionType": 0,
+      "fov": 55,
+      "nearPlane": 10,
+      "farPlane": 120000,
+      "isActive": true,
+      "priority": 0
+     }
+    },
+    {
+     "type": "PostProcessVolume",
+     "data": {
+      "isGlobal": true,
+      "priority": 0,
+      "weight": 1,
+      "effects": [
+       {
+        "type": "skyAtmosphere",
+        "enabled": true,
+        "uniforms": {
+         "u_intensity": 1,
+         "u_haze": 0.9,
+         "u_sunBrightness": 40,
+         "u_clouds": 0.4,
+         "u_cloudShadow": 0.6,
+         "u_unitsPerKm": 100000,
+         "u_windSpeed": 0.03
+        }
+       },
+       {
+        "type": "gtao",
+        "enabled": true,
+        "uniforms": {
+         "u_radius": 300,
+         "u_intensity": 0.8
+        }
+       },
+       {
+        "type": "heightFog",
+        "enabled": true,
+        "colors": {
+         "u_fogColor": {
+          "r": 0.66,
+          "g": 0.76,
+          "b": 0.88,
+          "a": 1
+         },
+         "u_sunColor": {
+          "r": 1,
+          "g": 0.9,
+          "b": 0.7,
+          "a": 1
+         }
+        },
+        "uniforms": {
+         "u_density": 0.000004,
+         "u_heightFalloff": 0.0003,
+         "u_baseHeight": 0,
+         "u_inscatter": 0.5,
+         "u_skyFog": 0.4
+        }
+       },
+       {
+        "type": "autoExposure",
+        "enabled": true,
+        "uniforms": {
+         "u_bias": 0,
+         "u_minEV": -2,
+         "u_maxEV": 2
+        }
+       },
+       {
+        "type": "colorGrade",
+        "enabled": true,
+        "uniforms": {
+         "u_contrast": 1.06,
+         "u_saturation": 1.1
+        }
+       },
+       {
+        "type": "bloom",
+        "enabled": true,
+        "uniforms": {
+         "u_threshold": 1,
+         "u_intensity": 0.3,
+         "u_radius": 1
+        }
+       },
+       {
+        "type": "fxaa",
+        "enabled": true,
+        "uniforms": {
+         "u_intensity": 1
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": 1,
+   "name": "Clock",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "TimeOfDay",
+     "data": {
+      "hour": 15.5,
+      "daySeconds": 0,
+      "latitude": 40,
+      "declination": 15,
+      "north": 180,
+      "drive": 31
+     }
+    }
+   ]
+  },
+  {
+   "id": 2,
+   "name": "Sun",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "Light",
+     "data": {
+      "type": 1,
+      "color": {
+       "r": 1,
+       "g": 1,
+       "b": 1,
+       "a": 1
+      },
+      "intensity": 3,
+      "enabled": true,
+      "meshShadows": true,
+      "shadowExtent": 16000,
+      "shadowStrength": 1,
+      "sourceAngle": 0.5
+     }
+    }
+   ]
+  },
+  {
+   "id": 3,
+   "name": "Sky",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "Light",
+     "data": {
+      "type": 2,
+      "color": {
+       "r": 0.8,
+       "g": 0.88,
+       "b": 1,
+       "a": 1
+      },
+      "intensity": 0.6,
+      "enabled": true
+     }
+    }
+   ]
+  },
+  {
+   "id": 4,
+   "name": "Ground",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {
+      "position": {
+       "x": 0,
+       "y": -1400,
+       "z": 0
+      }
+     }
+    },
+    {
+     "type": "Terrain",
+     "data": {
+      "sizeX": 28000,
+      "sizeZ": 28000,
+      "height": 7400,
+      "chunks": 16,
+      "chunkCells": 32,
+      "lodLevels": 4,
+      "detail": 3,
+      "heightmap": "assets/textures/height.png",
+      "splatmap": "assets/textures/splat.png",
+      "material": "assets/materials/ground.esmaterial"
+     }
+    }
+   ]
+  },
+  {
+   "id": 5,
+   "name": "Water",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "WaterZone",
+     "data": {
+      "sizeX": 28000,
+      "sizeZ": 28000,
+      "resolution": 1024,
+      "material": "assets/materials/water.esmaterial",
+      "waveLength": 1600,
+      "waveSpeed": 1,
+      "waveDirection": 200,
+      "cellSize": 100,
+      "cells": 64,
+      "rings": 7,
+      "ripples": 128,
+      "rippleSize": 6000,
+      "rippleSpeed": 600,
+      "rippleDamping": 0.8,
+      "foamFade": 0.4
+     }
+    }
+   ]
+  },
+  {
+   "id": 6,
+   "name": "Sea",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {
+      "position": {
+       "x": 0,
+       "y": 0,
+       "z": 0
+      }
+     }
+    },
+    {
+     "type": "WaterBody",
+     "data": {
+      "form": 0,
+      "waveHeight": 55,
+      "shoreWidth": 400
+     }
+    }
+   ]
+  },
+  {
+   "id": 7,
+   "name": "Lake",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {
+      "position": {
+       "x": 600,
+       "y": 700,
+       "z": -1200
+      }
+     }
+    },
+    {
+     "type": "WaterBody",
+     "data": {
+      "form": 1,
+      "sizeX": 9600,
+      "sizeZ": 6480,
+      "boundary": [
+       {
+        "x": 3833,
+        "y": 0
+       },
+       {
+        "x": 3690,
+        "y": 328
+       },
+       {
+        "x": 3511,
+        "y": 635
+       },
+       {
+        "x": 3294,
+        "y": 921
+       },
+       {
+        "x": 3035,
+        "y": 1183
+       },
+       {
+        "x": 2747,
+        "y": 1423
+       },
+       {
+        "x": 2438,
+        "y": 1646
+       },
+       {
+        "x": 2098,
+        "y": 1846
+       },
+       {
+        "x": 1730,
+        "y": 2023
+       },
+       {
+        "x": 1339,
+        "y": 2183
+       },
+       {
+        "x": 929,
+        "y": 2340
+       },
+       {
+        "x": 463,
+        "y": 2371
+       },
+       {
+        "x": 0,
+        "y": 2341
+       },
+       {
+        "x": -453,
+        "y": 2321
+       },
+       {
+        "x": -901,
+        "y": 2270
+       },
+       {
+        "x": -1346,
+        "y": 2194
+       },
+       {
+        "x": -1765,
+        "y": 2064
+       },
+       {
+        "x": -2143,
+        "y": 1885
+       },
+       {
+        "x": -2531,
+        "y": 1708
+       },
+       {
+        "x": -2882,
+        "y": 1493
+       },
+       {
+        "x": -3198,
+        "y": 1246
+       },
+       {
+        "x": -3412,
+        "y": 954
+       },
+       {
+        "x": -3515,
+        "y": 636
+       },
+       {
+        "x": -3623,
+        "y": 322
+       },
+       {
+        "x": -3687,
+        "y": 0
+       },
+       {
+        "x": -3698,
+        "y": -329
+       },
+       {
+        "x": -3728,
+        "y": -674
+       },
+       {
+        "x": -3690,
+        "y": -1032
+       },
+       {
+        "x": -3522,
+        "y": -1373
+       },
+       {
+        "x": -3202,
+        "y": -1659
+       },
+       {
+        "x": -2794,
+        "y": -1886
+       },
+       {
+        "x": -2393,
+        "y": -2105
+       },
+       {
+        "x": -1953,
+        "y": -2283
+       },
+       {
+        "x": -1457,
+        "y": -2375
+       },
+       {
+        "x": -962,
+        "y": -2423
+       },
+       {
+        "x": -484,
+        "y": -2483
+       },
+       {
+        "x": 0,
+        "y": -2501
+       },
+       {
+        "x": 486,
+        "y": -2492
+       },
+       {
+        "x": 972,
+        "y": -2450
+       },
+       {
+        "x": 1455,
+        "y": -2371
+       },
+       {
+        "x": 1961,
+        "y": -2292
+       },
+       {
+        "x": 2412,
+        "y": -2122
+       },
+       {
+        "x": 2772,
+        "y": -1871
+       },
+       {
+        "x": 3068,
+        "y": -1589
+       },
+       {
+        "x": 3418,
+        "y": -1332
+       },
+       {
+        "x": 3637,
+        "y": -1017
+       },
+       {
+        "x": 3798,
+        "y": -687
+       },
+       {
+        "x": 3859,
+        "y": -343
+       }
+      ],
+      "shoreWidth": 300,
+      "waveHeight": 15
+     }
+    }
+   ]
+  },
+  {
+   "id": 8,
+   "name": "River In",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "Spline",
+     "data": {
+      "points": [
+       {
+        "x": -3800,
+        "y": 2350,
+        "z": -12500,
+        "width": 420
+       },
+       {
+        "x": -2300,
+        "y": 2000,
+        "z": -10300,
+        "width": 500
+       },
+       {
+        "x": -3000,
+        "y": 1550,
+        "z": -8000,
+        "width": 620
+       },
+       {
+        "x": -1500,
+        "y": 1100,
+        "z": -5900,
+        "width": 740
+       },
+       {
+        "x": -300,
+        "y": 760,
+        "z": -4300,
+        "width": 860
+       },
+       {
+        "x": 200,
+        "y": 700,
+        "z": -3200,
+        "width": 960
+       }
+      ],
+      "closed": false
+     }
+    },
+    {
+     "type": "WaterBody",
+     "data": {
+      "form": 2,
+      "flowSpeed": 220,
+      "waveHeight": 6,
+      "shoreWidth": 60
+     }
+    }
+   ]
+  },
+  {
+   "id": 9,
+   "name": "River Out",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "Spline",
+     "data": {
+      "points": [
+       {
+        "x": 1400,
+        "y": 700,
+        "z": 1100,
+        "width": 900
+       },
+       {
+        "x": 2100,
+        "y": 600,
+        "z": 2800,
+        "width": 1000
+       },
+       {
+        "x": 1200,
+        "y": 420,
+        "z": 4500,
+        "width": 1150
+       },
+       {
+        "x": 2000,
+        "y": 200,
+        "z": 6300,
+        "width": 1300
+       },
+       {
+        "x": 1800,
+        "y": 30,
+        "z": 7900,
+        "width": 1500
+       },
+       {
+        "x": 1900,
+        "y": -40,
+        "z": 8900,
+        "width": 1700
+       }
+      ],
+      "closed": false
+     }
+    },
+    {
+     "type": "WaterBody",
+     "data": {
+      "form": 2,
+      "flowSpeed": 220,
+      "waveHeight": 6,
+      "shoreWidth": 60
+     }
+    }
+   ]
+  },
+  {
+   "id": 10,
+   "name": "Weather",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "Weather",
+     "data": {
+      "preset": 0,
+      "target": -1,
+      "progress": 0,
+      "duration": 8,
+      "sequence": "clear,overcast,rain,storm,rain,clear",
+      "hold": 25,
+      "drive": 255
+     }
+    }
+   ]
+  },
+  {
+   "id": 11,
+   "name": "Meadow",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {
+      "position": {
+       "x": 1000,
+       "y": 0,
+       "z": 0
+      }
+     }
+    },
+    {
+     "type": "Foliage",
+     "data": {
+      "material": "assets/materials/meadow.esmaterial",
+      "sizeX": 18000,
+      "sizeZ": 16000,
+      "cellSize": 500,
+      "seed": 3,
+      "minScale": 0.7,
+      "maxScale": 1.4,
+      "minUp": 0.85,
+      "lodDistance": 2400,
+      "drawDistance": 7000,
+      "count": 1100,
+      "heightMin": 860,
+      "heightMax": 3400,
+      "bladeHeight": 55,
+      "bladeWidth": 6
+     }
+    }
+   ]
+  },
+  {
+   "id": 12,
+   "name": "Flowers",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {
+      "position": {
+       "x": 1000,
+       "y": 0,
+       "z": 0
+      }
+     }
+    },
+    {
+     "type": "Foliage",
+     "data": {
+      "material": "assets/materials/flowers.esmaterial",
+      "sizeX": 18000,
+      "sizeZ": 16000,
+      "cellSize": 500,
+      "seed": 11,
+      "minScale": 0.7,
+      "maxScale": 1.4,
+      "minUp": 0.85,
+      "lodDistance": 2400,
+      "drawDistance": 7000,
+      "count": 70,
+      "heightMin": 900,
+      "heightMax": 2200,
+      "bladeHeight": 45,
+      "bladeWidth": 9
+     }
+    }
+   ]
+  },
+  {
+   "id": 13,
+   "name": "Reeds",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {
+      "position": {
+       "x": 1000,
+       "y": 0,
+       "z": 0
+      }
+     }
+    },
+    {
+     "type": "Foliage",
+     "data": {
+      "material": "assets/materials/reeds.esmaterial",
+      "sizeX": 18000,
+      "sizeZ": 16000,
+      "cellSize": 500,
+      "seed": 5,
+      "minScale": 0.7,
+      "maxScale": 1.4,
+      "minUp": 0.75,
+      "lodDistance": 2400,
+      "drawDistance": 7000,
+      "count": 600,
+      "heightMin": 660,
+      "heightMax": 840,
+      "bladeHeight": 150,
+      "bladeWidth": 4
+     }
+    }
+   ]
+  },
+  {
+   "id": 14,
+   "name": "Pines",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {
+      "position": {
+       "x": 0,
+       "y": 0,
+       "z": -3000
+      }
+     }
+    },
+    {
+     "type": "Foliage",
+     "data": {
+      "mesh": "assets/models/pine.esmesh",
+      "material": "assets/materials/pine.esmaterial",
+      "sizeX": 28000,
+      "sizeZ": 20000,
+      "cellSize": 1200,
+      "count": 2,
+      "seed": 8,
+      "minScale": 8,
+      "maxScale": 13,
+      "minUp": 0.8,
+      "heightMin": 1600,
+      "heightMax": 3850,
+      "lodDistance": 7000,
+      "drawDistance": 60000,
+      "cardU0": 0.2,
+      "cardV0": 0.22,
+      "cardU1": 0.8,
+      "cardV1": 0.95,
+      "cardTent": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": 15,
+   "name": "Crate 1",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {
+      "position": {
+       "x": -500,
+       "y": 740,
+       "z": -700
+      },
+      "rotation": {
+       "x": 0,
+       "y": 0.7397701334966527,
+       "z": 0,
+       "w": 0.672859680458225
+      },
+      "scale": {
+       "x": 1.2792593247674544,
+       "y": 1.2792593247674544,
+       "z": 1.2792593247674544
+      }
+     }
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "builtin:cube",
+      "lit": true,
+      "opaque": true,
+      "cullBackfaces": true,
+      "material": "assets/materials/crate.esmaterial",
+      "color": {
+       "r": 0.6561583939371999,
+       "g": 0.42,
+       "b": 0.24,
+       "a": 1
+      }
+     }
+    },
+    {
+     "type": "RigidBody3D",
+     "data": {
+      "bodyType": 2,
+      "linearDamping": 0.05,
+      "angularDamping": 0.3
+     }
+    },
+    {
+     "type": "BoxCollider3D",
+     "data": {
+      "halfExtents": {
+       "x": 63.962966238372715,
+       "y": 63.962966238372715,
+       "z": 63.962966238372715
+      },
+      "friction": 0.5
+     }
+    },
+    {
+     "type": "Floating",
+     "data": {
+      "buoyancy": 2,
+      "drag": 1,
+      "radius": 63.962966238372715,
+      "wake": 1,
+      "points": [
+       {
+        "x": -51.170372990698176,
+        "y": -31.981483119186358,
+        "z": -51.170372990698176
+       },
+       {
+        "x": 51.170372990698176,
+        "y": -31.981483119186358,
+        "z": -51.170372990698176
+       },
+       {
+        "x": -51.170372990698176,
+        "y": -31.981483119186358,
+        "z": 51.170372990698176
+       },
+       {
+        "x": 51.170372990698176,
+        "y": -31.981483119186358,
+        "z": 51.170372990698176
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": 16,
+   "name": "Crate 2",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {
+      "position": {
+       "x": 1300,
+       "y": 740,
+       "z": -1800
+      },
+      "rotation": {
+       "x": 0,
+       "y": 0.4486129726466718,
+       "z": 0,
+       "w": 0.8937261329809689
+      },
+      "scale": {
+       "x": 1.2059741558753825,
+       "y": 1.2059741558753825,
+       "z": 1.2059741558753825
+      }
+     }
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "builtin:cube",
+      "lit": true,
+      "opaque": true,
+      "cullBackfaces": true,
+      "material": "assets/materials/crate.esmaterial",
+      "color": {
+       "r": 0.684444482294946,
+       "g": 0.42,
+       "b": 0.24,
+       "a": 1
+      }
+     }
+    },
+    {
+     "type": "RigidBody3D",
+     "data": {
+      "bodyType": 2,
+      "linearDamping": 0.05,
+      "angularDamping": 0.3
+     }
+    },
+    {
+     "type": "BoxCollider3D",
+     "data": {
+      "halfExtents": {
+       "x": 60.298707793769125,
+       "y": 60.298707793769125,
+       "z": 60.298707793769125
+      },
+      "friction": 0.5
+     }
+    },
+    {
+     "type": "Floating",
+     "data": {
+      "buoyancy": 2,
+      "drag": 1,
+      "radius": 60.298707793769125,
+      "wake": 1,
+      "points": [
+       {
+        "x": -48.238966235015305,
+        "y": -30.149353896884563,
+        "z": -48.238966235015305
+       },
+       {
+        "x": 48.238966235015305,
+        "y": -30.149353896884563,
+        "z": -48.238966235015305
+       },
+       {
+        "x": -48.238966235015305,
+        "y": -30.149353896884563,
+        "z": 48.238966235015305
+       },
+       {
+        "x": 48.238966235015305,
+        "y": -30.149353896884563,
+        "z": 48.238966235015305
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": 17,
+   "name": "Crate 3",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {
+      "position": {
+       "x": 1900,
+       "y": 740,
+       "z": -400
+      },
+      "rotation": {
+       "x": 0,
+       "y": 0.1248152552362316,
+       "z": 0,
+       "w": 0.9921799998288185
+      },
+      "scale": {
+       "x": 1.4357637664153622,
+       "y": 1.4357637664153622,
+       "z": 1.4357637664153622
+      }
+     }
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "builtin:cube",
+      "lit": true,
+      "opaque": true,
+      "cullBackfaces": true,
+      "material": "assets/materials/crate.esmaterial",
+      "color": {
+       "r": 0.6465671328004838,
+       "g": 0.42,
+       "b": 0.24,
+       "a": 1
+      }
+     }
+    },
+    {
+     "type": "RigidBody3D",
+     "data": {
+      "bodyType": 2,
+      "linearDamping": 0.05,
+      "angularDamping": 0.3
+     }
+    },
+    {
+     "type": "BoxCollider3D",
+     "data": {
+      "halfExtents": {
+       "x": 71.78818832076811,
+       "y": 71.78818832076811,
+       "z": 71.78818832076811
+      },
+      "friction": 0.5
+     }
+    },
+    {
+     "type": "Floating",
+     "data": {
+      "buoyancy": 2,
+      "drag": 1,
+      "radius": 71.78818832076811,
+      "wake": 1,
+      "points": [
+       {
+        "x": -57.43055065661449,
+        "y": -35.89409416038406,
+        "z": -57.43055065661449
+       },
+       {
+        "x": 57.43055065661449,
+        "y": -35.89409416038406,
+        "z": -57.43055065661449
+       },
+       {
+        "x": -57.43055065661449,
+        "y": -35.89409416038406,
+        "z": 57.43055065661449
+       },
+       {
+        "x": 57.43055065661449,
+        "y": -35.89409416038406,
+        "z": 57.43055065661449
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": 18,
+   "name": "Crate 4",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {
+      "position": {
+       "x": -1300,
+       "y": 740,
+       "z": -1500
+      },
+      "rotation": {
+       "x": 0,
+       "y": 0.9934228784822762,
+       "z": 0,
+       "w": 0.11450320741354239
+      },
+      "scale": {
+       "x": 1.1399706244561754,
+       "y": 1.1399706244561754,
+       "z": 1.1399706244561754
+      }
+     }
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "builtin:cube",
+      "lit": true,
+      "opaque": true,
+      "cullBackfaces": true,
+      "material": "assets/materials/crate.esmaterial",
+      "color": {
+       "r": 0.6461535709086231,
+       "g": 0.42,
+       "b": 0.24,
+       "a": 1
+      }
+     }
+    },
+    {
+     "type": "RigidBody3D",
+     "data": {
+      "bodyType": 2,
+      "linearDamping": 0.05,
+      "angularDamping": 0.3
+     }
+    },
+    {
+     "type": "BoxCollider3D",
+     "data": {
+      "halfExtents": {
+       "x": 56.998531222808765,
+       "y": 56.998531222808765,
+       "z": 56.998531222808765
+      },
+      "friction": 0.5
+     }
+    },
+    {
+     "type": "Floating",
+     "data": {
+      "buoyancy": 2,
+      "drag": 1,
+      "radius": 56.998531222808765,
+      "wake": 1,
+      "points": [
+       {
+        "x": -45.598824978247016,
+        "y": -28.499265611404383,
+        "z": -45.598824978247016
+       },
+       {
+        "x": 45.598824978247016,
+        "y": -28.499265611404383,
+        "z": -45.598824978247016
+       },
+       {
+        "x": -45.598824978247016,
+        "y": -28.499265611404383,
+        "z": 45.598824978247016
+       },
+       {
+        "x": 45.598824978247016,
+        "y": -28.499265611404383,
+        "z": 45.598824978247016
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": 19,
+   "name": "Crate 5",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {
+      "position": {
+       "x": -600,
+       "y": 40,
+       "z": 8900
+      },
+      "rotation": {
+       "x": 0,
+       "y": 0.7193170160288058,
+       "z": 0,
+       "w": 0.6946819635282139
+      },
+      "scale": {
+       "x": 1.3152566176409033,
+       "y": 1.3152566176409033,
+       "z": 1.3152566176409033
+      }
+     }
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "builtin:cube",
+      "lit": true,
+      "opaque": true,
+      "cullBackfaces": true,
+      "material": "assets/materials/crate.esmaterial",
+      "color": {
+       "r": 0.6493487923055302,
+       "g": 0.42,
+       "b": 0.24,
+       "a": 1
+      }
+     }
+    },
+    {
+     "type": "RigidBody3D",
+     "data": {
+      "bodyType": 2,
+      "linearDamping": 0.05,
+      "angularDamping": 0.3
+     }
+    },
+    {
+     "type": "BoxCollider3D",
+     "data": {
+      "halfExtents": {
+       "x": 65.76283088204517,
+       "y": 65.76283088204517,
+       "z": 65.76283088204517
+      },
+      "friction": 0.5
+     }
+    },
+    {
+     "type": "Floating",
+     "data": {
+      "buoyancy": 2,
+      "drag": 1,
+      "radius": 65.76283088204517,
+      "wake": 1,
+      "points": [
+       {
+        "x": -52.61026470563613,
+        "y": -32.88141544102258,
+        "z": -52.61026470563613
+       },
+       {
+        "x": 52.61026470563613,
+        "y": -32.88141544102258,
+        "z": -52.61026470563613
+       },
+       {
+        "x": -52.61026470563613,
+        "y": -32.88141544102258,
+        "z": 52.61026470563613
+       },
+       {
+        "x": 52.61026470563613,
+        "y": -32.88141544102258,
+        "z": 52.61026470563613
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": 20,
+   "name": "Crate 6",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {
+      "position": {
+       "x": 3400,
+       "y": 40,
+       "z": 9200
+      },
+      "rotation": {
+       "x": 0,
+       "y": 0.9754032685724614,
+       "z": 0,
+       "w": 0.22042791034294784
+      },
+      "scale": {
+       "x": 1.1052781294112277,
+       "y": 1.1052781294112277,
+       "z": 1.1052781294112277
+      }
+     }
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "builtin:cube",
+      "lit": true,
+      "opaque": true,
+      "cullBackfaces": true,
+      "material": "assets/materials/crate.esmaterial",
+      "color": {
+       "r": 0.6235033379223904,
+       "g": 0.42,
+       "b": 0.24,
+       "a": 1
+      }
+     }
+    },
+    {
+     "type": "RigidBody3D",
+     "data": {
+      "bodyType": 2,
+      "linearDamping": 0.05,
+      "angularDamping": 0.3
+     }
+    },
+    {
+     "type": "BoxCollider3D",
+     "data": {
+      "halfExtents": {
+       "x": 55.26390647056138,
+       "y": 55.26390647056138,
+       "z": 55.26390647056138
+      },
+      "friction": 0.5
+     }
+    },
+    {
+     "type": "Floating",
+     "data": {
+      "buoyancy": 2,
+      "drag": 1,
+      "radius": 55.26390647056138,
+      "wake": 1,
+      "points": [
+       {
+        "x": -44.21112517644911,
+        "y": -27.63195323528069,
+        "z": -44.21112517644911
+       },
+       {
+        "x": 44.21112517644911,
+        "y": -27.63195323528069,
+        "z": -44.21112517644911
+       },
+       {
+        "x": -44.21112517644911,
+        "y": -27.63195323528069,
+        "z": 44.21112517644911
+       },
+       {
+        "x": 44.21112517644911,
+        "y": -27.63195323528069,
+        "z": 44.21112517644911
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": 21,
+   "name": "Crate 7",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {
+      "position": {
+       "x": 800,
+       "y": 40,
+       "z": 9800
+      },
+      "rotation": {
+       "x": 0,
+       "y": 0.4439473454367952,
+       "z": 0,
+       "w": 0.8960528748235914
+      },
+      "scale": {
+       "x": 1.454046957277238,
+       "y": 1.454046957277238,
+       "z": 1.454046957277238
+      }
+     }
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "builtin:cube",
+      "lit": true,
+      "opaque": true,
+      "cullBackfaces": true,
+      "material": "assets/materials/crate.esmaterial",
+      "color": {
+       "r": 0.6515100745138502,
+       "g": 0.42,
+       "b": 0.24,
+       "a": 1
+      }
+     }
+    },
+    {
+     "type": "RigidBody3D",
+     "data": {
+      "bodyType": 2,
+      "linearDamping": 0.05,
+      "angularDamping": 0.3
+     }
+    },
+    {
+     "type": "BoxCollider3D",
+     "data": {
+      "halfExtents": {
+       "x": 72.7023478638619,
+       "y": 72.7023478638619,
+       "z": 72.7023478638619
+      },
+      "friction": 0.5
+     }
+    },
+    {
+     "type": "Floating",
+     "data": {
+      "buoyancy": 2,
+      "drag": 1,
+      "radius": 72.7023478638619,
+      "wake": 1,
+      "points": [
+       {
+        "x": -58.16187829108952,
+        "y": -36.35117393193095,
+        "z": -58.16187829108952
+       },
+       {
+        "x": 58.16187829108952,
+        "y": -36.35117393193095,
+        "z": -58.16187829108952
+       },
+       {
+        "x": -58.16187829108952,
+        "y": -36.35117393193095,
+        "z": 58.16187829108952
+       },
+       {
+        "x": 58.16187829108952,
+        "y": -36.35117393193095,
+        "z": 58.16187829108952
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": 22,
+   "name": "Crate 8",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {
+      "position": {
+       "x": 5200,
+       "y": 40,
+       "z": 9600
+      },
+      "rotation": {
+       "x": 0,
+       "y": 0.9840973949857003,
+       "z": 0,
+       "w": 0.17762971931058924
+      },
+      "scale": {
+       "x": 1.455841544167102,
+       "y": 1.455841544167102,
+       "z": 1.455841544167102
+      }
+     }
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "builtin:cube",
+      "lit": true,
+      "opaque": true,
+      "cullBackfaces": true,
+      "material": "assets/materials/crate.esmaterial",
+      "color": {
+       "r": 0.7065403637724323,
+       "g": 0.42,
+       "b": 0.24,
+       "a": 1
+      }
+     }
+    },
+    {
+     "type": "RigidBody3D",
+     "data": {
+      "bodyType": 2,
+      "linearDamping": 0.05,
+      "angularDamping": 0.3
+     }
+    },
+    {
+     "type": "BoxCollider3D",
+     "data": {
+      "halfExtents": {
+       "x": 72.7920772083551,
+       "y": 72.7920772083551,
+       "z": 72.7920772083551
+      },
+      "friction": 0.5
+     }
+    },
+    {
+     "type": "Floating",
+     "data": {
+      "buoyancy": 2,
+      "drag": 1,
+      "radius": 72.7920772083551,
+      "wake": 1,
+      "points": [
+       {
+        "x": -58.23366176668408,
+        "y": -36.39603860417755,
+        "z": -58.23366176668408
+       },
+       {
+        "x": 58.23366176668408,
+        "y": -36.39603860417755,
+        "z": -58.23366176668408
+       },
+       {
+        "x": -58.23366176668408,
+        "y": -36.39603860417755,
+        "z": 58.23366176668408
+       },
+       {
+        "x": 58.23366176668408,
+        "y": -36.39603860417755,
+        "z": 58.23366176668408
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": 23,
+   "name": "Crate 9",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {
+      "position": {
+       "x": 2300,
+       "y": 40,
+       "z": 10400
+      },
+      "rotation": {
+       "x": 0,
+       "y": 0.8673768719354216,
+       "z": 0,
+       "w": 0.49765184821471664
+      },
+      "scale": {
+       "x": 1.1735947644509364,
+       "y": 1.1735947644509364,
+       "z": 1.1735947644509364
+      }
+     }
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "builtin:cube",
+      "lit": true,
+      "opaque": true,
+      "cullBackfaces": true,
+      "material": "assets/materials/crate.esmaterial",
+      "color": {
+       "r": 0.643824075079482,
+       "g": 0.42,
+       "b": 0.24,
+       "a": 1
+      }
+     }
+    },
+    {
+     "type": "RigidBody3D",
+     "data": {
+      "bodyType": 2,
+      "linearDamping": 0.05,
+      "angularDamping": 0.3
+     }
+    },
+    {
+     "type": "BoxCollider3D",
+     "data": {
+      "halfExtents": {
+       "x": 58.67973822254682,
+       "y": 58.67973822254682,
+       "z": 58.67973822254682
+      },
+      "friction": 0.5
+     }
+    },
+    {
+     "type": "Floating",
+     "data": {
+      "buoyancy": 2,
+      "drag": 1,
+      "radius": 58.67973822254682,
+      "wake": 1,
+      "points": [
+       {
+        "x": -46.94379057803746,
+        "y": -29.33986911127341,
+        "z": -46.94379057803746
+       },
+       {
+        "x": 46.94379057803746,
+        "y": -29.33986911127341,
+        "z": -46.94379057803746
+       },
+       {
+        "x": -46.94379057803746,
+        "y": -29.33986911127341,
+        "z": 46.94379057803746
+       },
+       {
+        "x": 46.94379057803746,
+        "y": -29.33986911127341,
+        "z": 46.94379057803746
+       }
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

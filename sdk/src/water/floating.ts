@@ -55,7 +55,7 @@ export const Floating: ComponentDef<FloatingData> = defineComponent<FloatingData
         drag: { min: 0, max: 20, category: 'Water', tooltip: 'How hard the water resists the body moving through it, per second.' },
         radius: { min: 0.01, category: 'Water', tooltip: 'How deep under the surface, in world units, a point of the body is wholly wet.' },
         points: { category: 'Water', tooltip: 'Points of the body, in its own space, the water is asked about: spread them (the corners of a hull) and waves tip it. Empty is the one at its origin.' },
-        wake: { min: 0, max: 10, category: 'Water', tooltip: 'How much of a ripple the body makes in water that keeps ripples (WaterBody Ripples). 0 makes none.' },
+        wake: { min: 0, max: 10, category: 'Water', tooltip: 'How much of a ripple the body makes in water that keeps ripples (WaterZone Ripples). 0 makes none.' },
     },
 });
 

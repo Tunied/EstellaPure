@@ -1,0 +1,19 @@
+{
+  "formatVersion": "1",
+  "name": "Terrain & Water",
+  "description": "A watershed made from numbers: a river out of snowy hills into a lake, a second river down to a beach, and the sea to the horizon. Waves, shores, floating crates and the view from under the surface.",
+  "tag": "3D",
+  "version": "0.1.0",
+  "defaultScene": "assets/scenes/main.esscene",
+  "designResolution": {
+    "width": 1480,
+    "height": 920
+  },
+  "spineVersion": "none",
+  "features": {
+    "rendering": {
+      "colorSpace": "linear",
+      "outputTransform": "neutral"
+    }
+  }
+}

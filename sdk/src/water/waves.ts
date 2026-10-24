@@ -20,7 +20,7 @@ export const WAVE_SET: readonly (readonly [number, number, number, number])[] = 
     [71, 0.21, 0.15, 1.35],
 ];
 
-/** What shapes the waves: the fields of a WaterBody, and the parameters of the Water material they are written to. */
+/** What shapes the waves: a WaterZone's and its bodies' heights, and the parameters of the Water material they are written to. */
 export interface WaveParams {
     /** Height of the tallest wave, in world units. */
     height: number;

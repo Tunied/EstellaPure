@@ -2,8 +2,8 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import { describe, expect, it } from 'vitest';
 import { SplineCurve, type SplinePoint } from '../src/spline/curve';
-import { buildRiverMesh, currentShare } from '../src/water/riverMesh';
-import { MeshChannel } from '../src/asset/meshFormat';
+import { currentShare } from '../src/water/zone';
+import { riverStations } from '../src/water/waterPlugin';
 
 const pt = (x: number, y: number, z: number, width = 1): SplinePoint => ({ x, y, z, width });
 
@@ -73,54 +73,26 @@ describe('SplineCurve', () => {
     });
 });
 
-function positions(mesh: { channels: { semantic: number; offset: number }[]; vertexStride: number; vertexCount: number; vertices: Uint8Array }): Float32Array {
-    const channel = mesh.channels.find((c) => c.semantic === MeshChannel.Position)!;
-    const view = new DataView(mesh.vertices.buffer, mesh.vertices.byteOffset);
-    const out = new Float32Array(mesh.vertexCount * 3);
-    for (let i = 0; i < mesh.vertexCount; i++) for (let k = 0; k < 3; k++) out[i * 3 + k] = view.getFloat32(i * mesh.vertexStride + channel.offset + k * 4, true);
-    return out;
-}
-
-describe('a river\'s mesh', () => {
-    // Along +x, widening from 2 to 6, falling a unit over its length.
+describe('a river\'s stations', () => {
+    // Along +x, widening from 2 to 6, falling a unit over its length; in the world as it is.
     const curve = new SplineCurve([pt(0, 1, 0, 2), pt(20, 0, 0, 6)]);
-    const mesh = buildRiverMesh(curve, 2, 4);
-    const p = positions(mesh);
+    const same = (x: number, y: number, z: number): [number, number, number] => [x, y, z];
+    const stations = riverStations(curve, 4, same, same, 1);
 
-    it('faces up, whichever way it runs', () => {
-        for (const c of [curve, new SplineCurve([pt(0, 0, 0, 3), pt(0, 0, 20, 3)]), new SplineCurve([pt(0, 0, 0, 3), pt(-12, 0, -9, 3)])]) {
-            const m = buildRiverMesh(c, 2, 3);
-            const q = positions(m);
-            for (let t = 0; t < m.indices.length; t += 3) {
-                const a = m.indices[t]!, b = m.indices[t + 1]!, d = m.indices[t + 2]!;
-                const f = (q[b * 3 + 2]! - q[a * 3 + 2]!) * (q[d * 3]! - q[a * 3]!) - (q[b * 3]! - q[a * 3]!) * (q[d * 3 + 2]! - q[a * 3 + 2]!);
-                expect(f).toBeGreaterThan(0);
-            }
-        }
+    it('run the river\'s length, a few to its narrowest width', () => {
+        expect(stations[0]!.x).toBeCloseTo(0, 6);
+        expect(stations[stations.length - 1]!.x).toBeCloseTo(20, 6);
+        expect(stations.length).toBeGreaterThanOrEqual(20 / (2 / 3));
     });
 
-    it('is as wide as the curve at each station and lies at its height', () => {
-        const stride = 5;
-        const stations = mesh.vertexCount / stride;
-        for (const i of [0, Math.floor(stations / 2), stations - 1]) {
-            const s = (i / (stations - 1)) * curve.length;
-            const first = i * stride, last = i * stride + 4;
-            const width = Math.hypot(p[first * 3]! - p[last * 3]!, p[first * 3 + 2]! - p[last * 3 + 2]!);
-            expect(width).toBeCloseTo(curve.width(s), 4);
-            expect(p[first * 3 + 1]).toBeCloseTo(curve.position(s)[1], 4);
-        }
-    });
-
-    it('carries the direction of the current in its colour, and a narrow reach runs faster than a wide one', () => {
-        const colorAt = mesh.channels.find((c) => c.semantic === MeshChannel.Color)!.offset;
-        const rgb = (v: number): number[] => [0, 1, 2].map((k) => mesh.vertices[v * mesh.vertexStride + colorAt + k]! / 255);
-        const first = rgb(0), last = rgb(mesh.vertexCount - 1);
-        // Heading along +x: red high, green at rest.
-        expect(first[0]).toBeGreaterThan(0.95);
-        expect(first[1]).toBeCloseTo(0.5, 1);
-        expect(first[2]).toBeGreaterThan(last[2]);
-        expect(currentShare(2, 6)).toBe(1);
-        expect(currentShare(6, 6)).toBe(0.5);
-        expect(currentShare(60, 6)).toBe(0.125);
+    it('are as wide as the curve and at its height, heading downstream, quicker where it is narrow', () => {
+        const first = stations[0]!, last = stations[stations.length - 1]!;
+        expect(first.half).toBeCloseTo(curve.width(0) / 2, 6);
+        expect(last.half).toBeCloseTo(curve.width(curve.length) / 2, 6);
+        expect(first.y).toBeCloseTo(1, 4);
+        expect(last.y).toBeCloseTo(0, 4);
+        expect(first.dx).toBeCloseTo(1, 3);
+        expect(first.speed).toBeGreaterThan(last.speed);
+        expect(last.speed).toBeCloseTo(4 * currentShare(6, 6) * 2, 4);
     });
 });

@@ -1622,7 +1622,7 @@
           "key": "wake",
           "type": "number",
           "default": "1",
-          "doc": "How much of a ripple the body makes in water that keeps ripples (WaterBody Ripples). 0 makes none.",
+          "doc": "How much of a ripple the body makes in water that keeps ripples (WaterZone Ripples). 0 makes none.",
           "range": "0–10"
         }
       ],
@@ -7216,18 +7216,12 @@
           "key": "form",
           "type": "enum",
           "default": "Lake",
-          "doc": "An ocean is without edge and follows the camera; a lake is a rectangle or an outline of its own; a river follows the Spline on the same entity.",
+          "doc": "An ocean is without edge: everywhere at its height where the ground is lower; a lake is a rectangle or an outline of its own; a river follows the Spline on the same entity.",
           "values": [
             "Ocean",
             "Lake",
             "River"
           ]
-        },
-        {
-          "key": "material",
-          "type": "Asset<material>",
-          "default": "none",
-          "doc": "A material on the Water shader. Empty uses the stock water."
         },
         {
           "key": "sizeX",
@@ -7253,50 +7247,70 @@
           "key": "shoreWidth",
           "type": "number",
           "default": "3",
-          "doc": "How far in from the edge, and how deep, the waves take to come to full height. 0 leaves them whole to the edge.",
+          "doc": "How far in from the shore, and how deep, the waves take to come to full height. 0 leaves them whole to the edge.",
           "range": "≥ 0"
-        },
-        {
-          "key": "cellSize",
-          "type": "number",
-          "default": "1",
-          "doc": "The cell size of the finest ring. Waves shorter than six cells are not drawn as geometry there (the shading still shows them).",
-          "range": "≥ 0.05"
-        },
-        {
-          "key": "cells",
-          "type": "number",
-          "default": "64",
-          "doc": "Cells along a ring's side (an ocean).",
-          "range": "4–256, step 4"
-        },
-        {
-          "key": "rings",
-          "type": "number",
-          "default": "5",
-          "doc": "Rings of an ocean, each twice as coarse as the one inside it.",
-          "range": "1–8, step 1"
         },
         {
           "key": "flowSpeed",
           "type": "number",
           "default": "2",
           "doc": "A river's current, in world units a second where it is as wide as its widest. A narrower reach runs faster.",
-          "range": "0–50"
+          "range": "0–5000"
         },
         {
           "key": "waveHeight",
           "type": "number",
           "default": "0.3",
-          "doc": "The height of the tallest wave, in world units.",
-          "range": "0–8"
+          "doc": "The height of the tallest wave, in world units. Their length, speed and heading are the zone's.",
+          "range": "0–800"
+        }
+      ],
+      "animatable": [
+        "form",
+        "sizeX",
+        "sizeZ",
+        "shoreWidth",
+        "flowSpeed",
+        "waveHeight"
+      ]
+    },
+    {
+      "name": "WaterZone",
+      "source": "ts",
+      "fields": [
+        {
+          "key": "sizeX",
+          "type": "number",
+          "default": "200",
+          "doc": "The region baked along x, centred on the entity. Water outside it is not drawn; an ocean goes on past it.",
+          "range": "≥ 1"
+        },
+        {
+          "key": "sizeZ",
+          "type": "number",
+          "default": "200",
+          "doc": "The region baked along z, centred on the entity.",
+          "range": "≥ 1"
+        },
+        {
+          "key": "resolution",
+          "type": "number",
+          "default": "256",
+          "doc": "Texels along the longer side of the region: how finely shores and rivers are traced.",
+          "range": "32–1024, step 32"
+        },
+        {
+          "key": "material",
+          "type": "Asset<material>",
+          "default": "none",
+          "doc": "A material on the Water shader for the whole surface. Empty uses the stock water."
         },
         {
           "key": "waveLength",
           "type": "number",
           "default": "14",
-          "doc": "The length of the longest wave.",
-          "range": "0.5–300"
+          "doc": "The length of the longest wave. Every body shares the waves; each sets how high they stand.",
+          "range": "0.5–3000"
         },
         {
           "key": "waveSpeed",
@@ -7313,10 +7327,31 @@
           "range": "0–360"
         },
         {
+          "key": "cellSize",
+          "type": "number",
+          "default": "1",
+          "doc": "The cell size of the finest ring of the surface. Waves shorter than six cells are not drawn as geometry there (the shading still shows them).",
+          "range": "≥ 0.05"
+        },
+        {
+          "key": "cells",
+          "type": "number",
+          "default": "64",
+          "doc": "Cells along a ring's side.",
+          "range": "4–256, step 4"
+        },
+        {
+          "key": "rings",
+          "type": "number",
+          "default": "5",
+          "doc": "Rings of the surface, each twice as coarse as the one inside it.",
+          "range": "1–10, step 1"
+        },
+        {
           "key": "ripples",
           "type": "number",
           "default": "0",
-          "doc": "Cells along a side of the grid that keeps what disturbs the water: bodies moving in it, and what a script disturbs. 0 keeps none.",
+          "doc": "Cells along a side of the grid that keeps what disturbs the water: bodies moving in it, rain, and what a script disturbs. 0 keeps none.",
           "range": "0–256, step 8"
         },
         {
@@ -7331,7 +7366,7 @@
           "type": "number",
           "default": "6",
           "doc": "How fast a ripple spreads, in world units a second.",
-          "range": "0.1–40"
+          "range": "0.1–4000"
         },
         {
           "key": "rippleDamping",
@@ -7349,19 +7384,16 @@
         }
       ],
       "animatable": [
-        "form",
-        "material",
         "sizeX",
         "sizeZ",
-        "shoreWidth",
-        "cellSize",
-        "cells",
-        "rings",
-        "flowSpeed",
-        "waveHeight",
+        "resolution",
+        "material",
         "waveLength",
         "waveSpeed",
         "waveDirection",
+        "cellSize",
+        "cells",
+        "rings",
         "ripples",
         "rippleSize",
         "rippleSpeed",
@@ -7424,7 +7456,7 @@
         {
           "key": "drive",
           "type": "number",
-          "default": "127"
+          "default": "255"
         },
         {
           "key": "soundSource",

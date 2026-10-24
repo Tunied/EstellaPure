@@ -52,6 +52,7 @@ sizeZ: number
 
 ## FoliageField — class @experimental
 ```
+@internal authoredWind_: Map<number, number>
 @internal built_: Map<number, BuiltFoliage>
 cellCount: number
 pending: number

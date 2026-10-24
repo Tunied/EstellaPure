@@ -341,9 +341,9 @@ export const SUBSYSTEMS = [
         titleZh: '水体',
         source: ['water'],
         tier: 'experimental',
-        why: 'the surface draws and its waves are shared with the CPU, but only an ocean and a rectangular lake exist so far, and nothing floats or swims in it yet',
-        whyZh: '水面能画出来，波浪也和 CPU 共用同一个公式，但目前只有海洋和矩形湖泊，还没有东西能漂浮或游泳',
-        entry: ['WaterBody', 'Waters'],
+        why: 'oceans, lakes and rivers are baked into one zone and drawn as one surface the CPU reads back, and things float on it, but the field and its shading are still settling and nothing swims yet',
+        whyZh: '海洋、湖泊和河流烘焙进同一个水体区域、画成一张水面，CPU 读到的就是画出来的那一面，也能漂浮物体；但区域场和着色还在定型，还没有东西能游泳',
+        entry: ['WaterBody', 'WaterZone', 'Waters'],
     },
     {
         id: 'decal',

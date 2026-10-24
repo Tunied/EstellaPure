@@ -2706,4 +2706,18 @@ export const NOTED = {
     {"note":"Contact Shadows and Screen Space GI effects add small sharp shadows at contacts and one bounce of colour between surfaces, and the weather softens the sun's shadows."},
   "feat(render): reflections no longer guess a surface, plain meshes record themselves, and what the ray never finds is the sky":
     {"note":"Screen-space reflections leave a surface that recorded nothing alone, plain meshes now record a rough dielectric, and a puddle reflects the sky and what lies off screen."},
+  "fix(render): an opaque mesh on a material records its surface, and water and glass own theirs":
+    {"note":"A mesh on a material records its surface."},
+  "fix(terrain): a splatmap's fourth layer no longer erases the other three":
+    {"note":"A terrain's splatmap keeps all four layers."},
+  "feat(weather): the wind raises the waves and bends the plants, and rain falls on the water":
+    {"note":"Wind and rain on the water."},
+  "feat(water): every body of water is baked into a zone and drawn as one surface":
+    {"note":"Water zones."},
+  "fix(examples): the Wilds ground textures repeat instead of smearing at their edges":
+    {"internal":"An example's texture import settings; the engine is unchanged."},
+  "feat(editor): a new Weather drives the wind too":
+    {"internal":"The editor half of the wind note: a Weather added in Details drives the wind with the rest."},
+  "feat(editor): the viewport outlines a WaterZone, and the water checks author their water in one":
+    {"internal":"The editor half of Water zones, which carries the note."},
 };

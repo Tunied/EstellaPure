@@ -46,7 +46,7 @@ export const SUBSYSTEM_COMPONENTS: Readonly<Record<Subsystem, readonly string[]>
     fxAtmosphere: ['Weather', 'TimeOfDay'],
     fxLighting: [],
     foliage: ['Foliage'],
-    water: ['WaterBody', 'Floating'],
+    water: ['WaterBody', 'WaterZone', 'Floating'],
     spline: ['Spline'],
     // Hair, Skin and Eye are shaders, not components: a character's materials are what name them (see SHADER_SUBSYSTEM).
     characterShaders: [],
