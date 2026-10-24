@@ -146,7 +146,10 @@ void main() {
     vec3 surfGrad = sign(det) * (dhx * r1 + dhy * r2);
     float fine = 1.0 - smoothstep(0.02, 0.2, length(dpx) / max(u_tile0, 1e-4));
     vec3 Nb = normalize(abs(det) * N - surfGrad * fine);
-    if (abs(det) > 1e-12 && u_relief > 0.0) N = Nb;
+    // Not on a wall: the skirt hung under a chunk's edge (seen where two levels of detail part) stands upright, and a bump drawn on it
+    // from the ground's derivatives lights it as a bright streak.
+    bool upright = abs(normalize(cross(dpx, dpy)).y) > 0.5;
+    if (abs(det) > 1e-12 && u_relief > 0.0 && upright) N = Nb;
 
     // Wet at the water: darker, and smooth enough to shine.
     float wet = u_wetBand > 0.0 ? 1.0 - smoothstep(u_wetLevel, u_wetLevel + u_wetBand, P.y) : 0.0;
@@ -262,7 +265,8 @@ fn packNormal(n : vec3f) -> vec2f {
     let fine = 1.0 - smoothstep(0.02, 0.2, length(dpx) / max(mc.u_tile0, 1e-4));
     let Nb = normalize(abs(det) * N - surfGrad * fine);
     var Ns = N;
-    if (abs(det) > 1e-12 && mc.u_relief > 0.0) { Ns = Nb; }
+    let upright = abs(normalize(cross(dpx, dpy)).y) > 0.5;
+    if (abs(det) > 1e-12 && mc.u_relief > 0.0 && upright) { Ns = Nb; }
 
     var wet = 0.0;
     if (mc.u_wetBand > 0.0) { wet = 1.0 - smoothstep(mc.u_wetLevel, mc.u_wetLevel + mc.u_wetBand, P.y); }
