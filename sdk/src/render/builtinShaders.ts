@@ -449,12 +449,10 @@ void main() {
     highp vec3 dndy = dFdy(v_worldNormal);
 #endif
     vec4 base = texture(u_textures[0], v_texCoord) * v_color * u_tint;
-    // A cutout's alpha becomes coverage (cutoutCoverage): sharpened where the map is magnified, its own average where it is minified.
-    vec2 mapSize = vec2(textureSize(u_textures[0], 0));
-    float texels = max(length(dFdx(v_texCoord) * mapSize), length(dFdy(v_texCoord) * mapSize));
+    // A cutout is glTF's MASK (cutoutCoverage): cut at the cutoff, sharpened to a pixel so alpha-to-coverage feathers the edge.
     float alpha = base.a;
     if (u_alphaCutoff > 0.0) {
-        alpha = cutoutCoverage(base.a, u_alphaCutoff, fwidth(base.a), texels, gl_FragCoord.xy, u_time.w);
+        alpha = cutoutCoverage(base.a, u_alphaCutoff, fwidth(base.a));
         if (alpha <= 0.0) discard;
         alpha = min(alpha, 1.0);
     }
@@ -596,11 +594,9 @@ fn packNormal(n : vec3f) -> vec2f {
     var base = textureSampleGrad(t0, s0, v.v_texCoord, duvx, duvy) * v.v_color * mc.u_tint;
     // Before any discard: a derivative needs every fragment of its quad.
     let edge = max(fwidth(base.a), 1e-4);
-    let mapSize = vec2f(textureDimensions(t0));
-    let texels = max(length(duvx * mapSize), length(duvy * mapSize));
     var alpha = base.a;
     if (mc.u_alphaCutoff > 0.0) {
-        alpha = cutoutCoverage(base.a, mc.u_alphaCutoff, edge, texels, v.pos.xy, tc.u_time.w);
+        alpha = cutoutCoverage(base.a, mc.u_alphaCutoff, edge);
         if (alpha <= 0.0) { discard; }
         alpha = min(alpha, 1.0);
     }

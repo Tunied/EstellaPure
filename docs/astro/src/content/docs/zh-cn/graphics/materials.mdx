@@ -135,7 +135,7 @@ std140 uniform 块,于是 CPU 能按名字设置、并安全地送到 GPU。一�
 | `#pragma domain <D>` | `Unlit`(默认)、`Lit`、`PostProcess`、`UI`。`Lit` 注入光照 uniform + helper。旧拼写 `Unlit2D` / `Lit2D` 仍按这两个域加载。 |
 | `#pragma param …` | 反射的材质参数(见下表)。 |
 | `#pragma switch NAME [default(on)]` | 材质可控的静态排列开关(一个 `#define`)。 |
-| `#pragma coverage PARAM` | 浮点参数 `PARAM` 大于零时,着色器输出的 alpha 就是覆盖率——镂空的 alpha 在阈值附近锐化到约一个纹素宽。不透明物体画进多重采样目标时,它会转成多重采样覆盖率,镂空边缘就有抗锯齿而不是台阶。贴图被缩小到一个像素覆盖多个纹素时,边缘比像素还细,这时直接用经过 mip 平均的 alpha 作为覆盖率(没有多重采样时则与逐像素阈值比较),所以远处一张细发丝卡片透出的比例与它实际覆盖的一致,不会合成一整块实心板。着色器用 `cutoutCoverage(alpha, cutoff, edge, texelsPerPixel, pixel, u_time.w)` 实现,`u_time.w` 是场景的多重采样数。内置 Model 着色器声明了 `u_alphaCutoff`。 |
+| `#pragma coverage PARAM` | 浮点参数 `PARAM` 大于零时,着色器输出的 alpha 就是覆盖率——镂空的 alpha 在阈值附近锐化到约一个像素宽(`cutoutCoverage(alpha, cutoff, fwidth(alpha))`)。不透明物体画进多重采样目标时,它会转成多重采样覆盖率,镂空边缘就有抗锯齿而不是台阶;没有多重采样时就是硬切。任何距离都在阈值处切,与 glTF 的 MASK 定义一致:镂空缩小显示时之所以还保持原来的面积,是因为烘焙时把每级 mip 的 alpha 缩放到与原图在阈值处相同的覆盖率。内置 Model 着色器声明了 `u_alphaCutoff`。 |
 | `#pragma feature NAME` | 引擎选择的编译期变体关键字。 |
 | `#pragma hairshadow PARAM` | 浮点参数 `PARAM` 大于零时,用这个材质画的网格就是阴影意义上的头发:太阳的级联多出一个只拟合它们的级联,并且着色器在打光前设置 `g_hairShadow` 的话,阴影就按沿光线的密度读,而不是硬比较。参数值就是密度。内置 Hair 着色器声明了 `u_hairShadow`。 |
 | `#pragma gbuffer` | `PostProcess` 着色器要读取场景的表面记录(见[G-buffer](/docs/zh-cn/graphics/post-processing/#g-buffer)),在 `u_gbuffer` 处。声明它才会让这一帧画出一份;着色器里没有它的链路永远不付这笔钱。 |

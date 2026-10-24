@@ -397,7 +397,9 @@ export const SCENES = [
   // The same ball with the probe off: both sides take the flat sky, and the room
   // stops being visible in it.
   { id: "reflection-room-sky", tier: "pr", webgpu: true, env: { ESTELLA_VERIFY_SCENE: "/scenes/reflection-room.esscene", ESTELLA_VERIFY_W: "512", ESTELLA_VERIFY_H: "384", ESTELLA_VERIFY_STEPS: "2", ESTELLA_VERIFY_SET_FIELD: "{\"entity\": 8, \"component\": \"ReflectionProbe\", \"key\": \"enabled\", \"value\": false, \"steps\": 2}", ESTELLA_VERIFY_EXPECT: "[{\"x\": 0.2, \"y\": 0.55, \"rgb\": [37, 37, 39], \"tol\": 25}, {\"x\": 0.42, \"y\": 0.62, \"rgb\": [37, 37, 39], \"tol\": 25}]" } },
-  { id: "mat-env-mirror", tier: "pr", webgpu: true, env: { ESTELLA_VERIFY_SCENE: "/scenes/mat-env-mirror.esscene", ESTELLA_VERIFY_W: "256", ESTELLA_VERIFY_H: "256", ESTELLA_VERIFY_STEPS: "2", ESTELLA_VERIFY_EXPECT: "[{\"x\":0.25,\"y\":0.5,\"rgb\":[0,228,0],\"tol\":20},{\"x\":0.75,\"y\":0.5,\"rgb\":[29,23,24],\"tol\":20},{\"x\":0.5,\"y\":0.5,\"rgb\":[0,0,0],\"tol\":20}]" } },
+  // The rough metal keeps the energy its microfacets bounce between them: a white metal reflects
+  // the whole environment, where single scattering alone gave back Ess (0.45 at roughness 1).
+  { id: "mat-env-mirror", tier: "pr", webgpu: true, env: { ESTELLA_VERIFY_SCENE: "/scenes/mat-env-mirror.esscene", ESTELLA_VERIFY_W: "256", ESTELLA_VERIFY_H: "256", ESTELLA_VERIFY_STEPS: "2", ESTELLA_VERIFY_EXPECT: "[{\"x\":0.25,\"y\":0.5,\"rgb\":[0,228,0],\"tol\":20},{\"x\":0.75,\"y\":0.5,\"rgb\":[65,53,53],\"tol\":20},{\"x\":0.5,\"y\":0.5,\"rgb\":[0,0,0],\"tol\":20}]" } },
   // Sky and DIELECTRIC apart: they read the atlas and the irradiance coefficients
   // through different code, and one turning without the other is the defect. The
   // fixture is half bright — a symmetric sky reads the same at every angle.
@@ -649,7 +651,7 @@ export const SCENES = [
     // The same two materials with NO light on them, only the ambient environment.
     // A metal has no diffuse, so reflecting that environment is all it has: remove
     // the reflection and the left probe is black while the right one barely moves.
-  { id: "mat-model-env", tier: "pr", webgpu: true, env: { ESTELLA_VERIFY_SCENE: "/scenes/mat-model-env.esscene", ESTELLA_VERIFY_W: "256", ESTELLA_VERIFY_H: "256", ESTELLA_VERIFY_STEPS: "2", ESTELLA_VERIFY_EXPECT: "[{\"x\":0.25,\"y\":0.5,\"rgb\":[0,80,0],\"tol\":20},{\"x\":0.75,\"y\":0.5,\"rgb\":[4,106,4],\"tol\":20},{\"x\":0.5,\"y\":0.5,\"rgb\":[0,0,0],\"tol\":20}]" } },
+  { id: "mat-model-env", tier: "pr", webgpu: true, env: { ESTELLA_VERIFY_SCENE: "/scenes/mat-model-env.esscene", ESTELLA_VERIFY_W: "256", ESTELLA_VERIFY_H: "256", ESTELLA_VERIFY_STEPS: "2", ESTELLA_VERIFY_EXPECT: "[{\"x\":0.25,\"y\":0.5,\"rgb\":[0,101,0],\"tol\":20},{\"x\":0.75,\"y\":0.5,\"rgb\":[4,106,4],\"tol\":20},{\"x\":0.5,\"y\":0.5,\"rgb\":[0,0,0],\"tol\":20}]" } },
   { id: "material-builtin-lit", tier: "nightly", webgpu: true, env: { ESTELLA_VERIFY_SCENE: "/scenes/mat-builtin-lit.esscene", ESTELLA_VERIFY_MANIFEST: "/scenes/mat-builtin-lit.textures.json", ESTELLA_VERIFY_W: "256", ESTELLA_VERIFY_H: "256", ESTELLA_VERIFY_STEPS: "2", ESTELLA_VERIFY_EXPECT: "[{\"x\":0.5,\"y\":0.5,\"rgb\":[0,255,0],\"tol\":30}]" } },
   { id: "material-dissolve", tier: "nightly", webgpu: true, env: { ESTELLA_VERIFY_SCENE: "/scenes/mat-dissolve.esscene", ESTELLA_VERIFY_MANIFEST: "/scenes/mat-dissolve.textures.json", ESTELLA_VERIFY_W: "256", ESTELLA_VERIFY_H: "256", ESTELLA_VERIFY_STEPS: "2", ESTELLA_VERIFY_EXPECT: "[{\"x\":0.5,\"y\":0.5,\"rgb\":[255,0,0],\"tol\":30}]" } },
   { id: "material-graph", tier: "nightly", webgpu: true, env: { ESTELLA_VERIFY_SCENE: "/scenes/mat-graph.esscene", ESTELLA_VERIFY_MANIFEST: "/scenes/mat-graph.textures.json", ESTELLA_VERIFY_W: "256", ESTELLA_VERIFY_H: "256", ESTELLA_VERIFY_STEPS: "2", ESTELLA_VERIFY_EXPECT: "[{\"x\":0.5,\"y\":0.5,\"rgb\":[255,0,0],\"tol\":40}]" } },

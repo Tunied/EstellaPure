@@ -12,7 +12,7 @@ import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
-    readKtx2Layout, wantsMipChain, halveRgba, spliceMipChain, joinMipLevels, alphaCoverage, preserveAlphaCoverage, halveCoverage,
+    readKtx2Layout, wantsMipChain, halveRgba, spliceMipChain, joinMipLevels, alphaCoverage, preserveAlphaCoverage,
 } from '../src/assets/ktx2Mips';
 import { cookCached } from '../src/assets/cookCache';
 import { cookAssets } from '../src/assets/cookAssets';
@@ -127,6 +127,15 @@ describe('a cutout\'s mips keep its coverage', () => {
         expect(alphaCoverage(half.rgba, 0.5)).toBeGreaterThanOrEqual(0.25);
     });
 
+    it('comes back down to the full image\'s share when averaging has closed it up', () => {
+        // A dense, fine cut-out averages above its cutoff: three of four texels pass where the full image keeps half.
+        const closed = new Uint8Array([60, 140, 40, 255, 60, 140, 40, 200, 60, 140, 40, 150, 60, 140, 40, 100]);
+        expect(alphaCoverage(closed, 0.5)).toBe(0.75);
+        preserveAlphaCoverage(closed, 0.5, 0.5);
+        expect(alphaCoverage(closed, 0.5)).toBe(0.5);
+        expect(closed[3]).toBeGreaterThan(closed[7]!);
+    });
+
     it('leaves the alpha of a fully opaque image alone, so a cutout material on it still draws at every level', () => {
         const opaque = new Uint8Array(8 * 8 * 4).fill(255);
         const half = halveRgba(opaque, 8, 8, false);
@@ -141,21 +150,5 @@ describe('a cutout\'s mips keep its coverage', () => {
         const chain = readKtx2Layout(joinMipLevels(chainParts))!;
         expect([chain.width, chain.height, chain.levels.length]).toEqual([8, 8, 3]);
         expect(() => joinMipLevels([chainParts[0]!, chainParts[2]!])).toThrow(/not the level under/);
-    });
-});
-
-describe('a cut-out chain whose alpha is coverage', () => {
-    it('gives a soft band the share its cut keeps, not its average alpha', () => {
-        // Four texels at alpha 0.3 (a faint painted band) and nothing above the cutoff: the cut keeps none of them.
-        const faint = new Uint8Array([90, 60, 50, 77, 90, 60, 50, 77, 90, 60, 50, 77, 90, 60, 50, 77]);
-        expect(halveCoverage(faint, 2, 2, false, 0.45).rgba[3]).toBe(0);
-        // One solid strand of four: a quarter, and the colour is the strand's.
-        const strand = new Uint8Array([20, 10, 5, 255, 200, 120, 110, 60, 200, 120, 110, 60, 200, 120, 110, 60]);
-        expect(Array.from(halveCoverage(strand, 2, 2, false, 0.45).rgba)).toEqual([20, 10, 5, 64]);
-    });
-
-    it('averages shares below the first level, which is exact', () => {
-        const shares = new Uint8Array([255, 255, 255, 255, 255, 255, 255, 0, 255, 255, 255, 128, 255, 255, 255, 128]);
-        expect(halveCoverage(shares, 2, 2, false, null).rgba[3]).toBe(128);
     });
 });

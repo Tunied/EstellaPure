@@ -14,7 +14,7 @@ import {
   decideTextureCook, cookIntentDefeated, explainTextureCook, downscaledSize,
   type TextureCookDecision,
 } from './textureCookDecision';
-import { joinMipLevels, halveCoverage } from './ktx2Mips';
+import { halveRgba, joinMipLevels, alphaCoverage, preserveAlphaCoverage } from './ktx2Mips';
 import { cookCachedAt, cookCacheFile, cookCacheHitAt, encoderIdentity } from './cookCache';
 
 /** Targets the KTX2 the cook emits can transcode to at runtime (UASTC + ETC1S). */
@@ -39,20 +39,22 @@ export interface BasisEncoderModule {
 }
 
 /**
- * A cutout's UASTC chain: level 0 as authored, and each level below it holding as alpha the share of the image's texels the cut at
- * @p cutoff keeps (halveCoverage), the coverage a minified cut-out is drawn with.
+ * A cutout's UASTC chain, each level halved here from the one above with its alpha rescaled to the full image's coverage at @p cutoff:
+ * the shaders cut every level at the cutoff (glTF's MASK), and plain averaging thins a sparse cutout, such as a railing, until nothing
+ * of it passes the cut.
  */
 async function encodeCoverageChain(enc: BasisEncoderModule, img: { rgba: Uint8Array; width: number; height: number },
                                    srgb: boolean, cutoff: number): Promise<Uint8Array> {
+  const coverage = alphaCoverage(img.rgba, cutoff);
   const parts: Uint8Array[] = [];
   let level = img;
-  let first = true;
   for (;;) {
     parts.push(await enc.encodeToKtx2({ type: enc.ImageType.RGBA, data: level.rgba, width: level.width, height: level.height },
       { mode: 'uastc', srgb, mipmaps: false, supercompress: true }));
     if (level.width === 1 && level.height === 1) break;
-    level = halveCoverage(level.rgba, level.width, level.height, srgb, first ? cutoff : null);
-    first = false;
+    const half = halveRgba(level.rgba, level.width, level.height, srgb);
+    preserveAlphaCoverage(half.rgba, cutoff, coverage);
+    level = half;
   }
   return joinMipLevels(parts);
 }
@@ -180,8 +182,8 @@ export async function cookTexture(input: TextureCookInput): Promise<TextureCookO
     // before this existed is re-encoded rather than reused.
     const supercompress = mode === 'uastc';
     const key = [source, JSON.stringify({ mode, srgb: tex.srgb, maxSize: tex.maxSize, scaled: scaled ? [size!.width, size!.height] : null,
-      // `chain: 2` marks the coverage chain (halveCoverage) that replaced the rescaled one: an entry cooked before it is re-encoded.
-      ...(coverage ? { mipCoverage: coverage, chain: 2 } : {}), ...(supercompress ? { supercompress } : {}), ...mips }), input.encoder!.id];
+      // `chain: 3` marks the rescaled chain that replaced the share-of-coverage one (chain 2): an entry cooked before it is re-encoded.
+      ...(coverage ? { mipCoverage: coverage, chain: 3 } : {}), ...(supercompress ? { supercompress } : {}), ...mips }), input.encoder!.id];
     const produce = (): Promise<Uint8Array> => {
       const image = scaled ? scaledImage() : null;
       return coverage

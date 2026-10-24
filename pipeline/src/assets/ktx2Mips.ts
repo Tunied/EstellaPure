@@ -93,13 +93,14 @@ export function alphaCoverage(rgba: Uint8Array, cutoff: number, scale = 1): numb
 
 /**
  * Scale @p rgba's alpha in place so the share of texels at or above @p cutoff is
- * @p coverage — what a mip level of a cutout needs, or averaging thins it level by
- * level until distant foliage has no leaves. The scale is found by bisection. Only ever scales up: a level that already reaches the share is
- * left alone, because for a fully opaque image the smallest scale that still reaches 100% is the cutoff itself, which would bring every texel's alpha down onto it.
+ * @p coverage. Averaging moves the share either way — a sparse cutout (a railing) thins away, a dense fine one (hair) closes into a
+ * sheet — so the scale goes either way too: the smallest that reaches the share, by bisection. A level already at the share is left
+ * alone; for a fully opaque image the smallest scale reaching 100% is the cutoff itself, which would pull every alpha down onto it.
  */
 export function preserveAlphaCoverage(rgba: Uint8Array, cutoff: number, coverage: number): void {
-    if (alphaCoverage(rgba, cutoff) >= coverage) return;
-    let lo = 1, hi = 4;
+    const now = alphaCoverage(rgba, cutoff);
+    if (now === coverage) return;
+    let lo = now < coverage ? 1 : 0, hi = now < coverage ? 4 : 1;
     for (let i = 0; i < 20; i++) {
         const mid = (lo + hi) / 2;
         if (alphaCoverage(rgba, cutoff, mid) < coverage) lo = mid; else hi = mid;
@@ -130,42 +131,6 @@ export function halveRgba(rgba: Uint8Array, width: number, height: number, srgb:
                     : Math.round(taps.reduce((n, t) => n + rgba[t + c], 0) / 4);
             }
             out[o + 3] = Math.round(taps.reduce((n, t) => n + rgba[t + 3], 0) / 4);
-        }
-    }
-    return { rgba: out, width: w, height: h };
-}
-
-/**
- * The next level down of a cut-out's chain, whose alpha is COVERAGE: the share of the texels under each new texel that the cut keeps.
- * Read at the first step from the image itself (`cutoff` given: a texel counts when its alpha reaches it), and from there on by averaging
- * shares, which is exact. Colour is weighted the same way, so a level is the colour of what the cut keeps and not of what it throws away.
- *
- * A plain average of alpha is the share only for a mask that is 0 or 1; a soft one (a painted band of lashes fading out, a strand's
- * antialiased edge) averages to more than the cut keeps, and a shader taking the minified alpha as coverage drew the faint parts the
- * source never shows. Coverage-preserving rescaling (preserveAlphaCoverage) is the answer for a shader that cuts every level at the
- * cutoff; the engine's cut-out shaders read a minified level as the share it is (cutoutCoverage), so this chain gives them the share.
- */
-export function halveCoverage(rgba: Uint8Array, width: number, height: number, srgb: boolean, cutoff: number | null): {
-    rgba: Uint8Array; width: number; height: number;
-} {
-    const w = Math.max(1, width >> 1), h = Math.max(1, height >> 1);
-    const out = new Uint8Array(w * h * 4);
-    const threshold = cutoff === null ? 0 : cutoff * 255;
-    for (let y = 0; y < h; y++) {
-        const y0 = Math.min(height - 1, y * 2), y1 = Math.min(height - 1, y * 2 + 1);
-        for (let x = 0; x < w; x++) {
-            const x0 = Math.min(width - 1, x * 2), x1 = Math.min(width - 1, x * 2 + 1);
-            const taps = [(y0 * width + x0) * 4, (y0 * width + x1) * 4, (y1 * width + x0) * 4, (y1 * width + x1) * 4];
-            const weights = taps.map(t => (cutoff === null ? rgba[t + 3]! / 255 : (rgba[t + 3]! >= threshold ? 1 : 0)));
-            const total = weights.reduce((n, v) => n + v, 0);
-            const o = (y * w + x) * 4;
-            for (let c = 0; c < 3; c++) {
-                const mean = (f: (t: number) => number) => (total > 0
-                    ? taps.reduce((n, t, i) => n + f(t) * weights[i]!, 0) / total
-                    : taps.reduce((n, t) => n + f(t), 0) / 4);
-                out[o + c] = srgb ? toSrgbByte(mean(t => toLinear[rgba[t + c]!]!)) : Math.round(mean(t => rgba[t + c]!));
-            }
-            out[o + 3] = Math.round(total / 4 * 255);
         }
     }
     return { rgba: out, width: w, height: h };

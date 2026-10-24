@@ -105,16 +105,14 @@ void main() {
     float height = clamp(v_color.r, 0.0, 1.0);
     float light = v_color.b;
     vec4 tex = texture(u_albedo, v_texCoord);
-    // Before the branch: a derivative needs every fragment of its quad. How many texels of the map a pixel spans, for cutoutCoverage.
-    vec2 mapSize = vec2(textureSize(u_albedo, 0));
-    float texels = max(length(dFdx(v_texCoord) * mapSize), length(dFdy(v_texCoord) * mapSize));
+    // Before the branch: a derivative needs every fragment of its quad.
     float edgeA = fwidth(tex.a);
     vec3 albedo = mix(u_baseColor.rgb, u_tipColor.rgb, height);
     float alpha = 1.0;
     if (u_useTexture > 0.5) {
         albedo *= tex.rgb;
         alpha = tex.a;
-        alpha = cutoutCoverage(alpha, u_alphaCutoff, edgeA, texels, gl_FragCoord.xy, u_time.w);
+        alpha = cutoutCoverage(alpha, u_alphaCutoff, edgeA);
         if (alpha <= 0.0) discard;
         alpha = min(alpha, 1.0);
     }
@@ -161,8 +159,6 @@ fn packNormal(n : vec3f) -> vec2f {
 #endif
     let tex = textureSampleGrad(u_albedo, u_albedo_s, v.v_texCoord, duvx, duvy);
     let edge = max(fwidth(tex.a), 1e-4);
-    let mapSize = vec2f(textureDimensions(u_albedo));
-    let texels = max(length(duvx * mapSize), length(duvy * mapSize));
 #ifdef MESH_NORMALS
     let P = v.v_worldXYZ;
     var N = normalize(v.v_worldNormal);
@@ -177,7 +173,7 @@ fn packNormal(n : vec3f) -> vec2f {
     var alpha = 1.0;
     if (mc.u_useTexture > 0.5) {
         albedo = albedo * tex.rgb;
-        alpha = cutoutCoverage(tex.a, mc.u_alphaCutoff, edge, texels, v.pos.xy, tc.u_time.w);
+        alpha = cutoutCoverage(tex.a, mc.u_alphaCutoff, edge);
         if (alpha <= 0.0) { discard; }
         alpha = min(alpha, 1.0);
     }

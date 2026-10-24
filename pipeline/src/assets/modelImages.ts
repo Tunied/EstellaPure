@@ -270,8 +270,8 @@ export function prepareModelImages(result: ModelImportResult,
                     + ` ${pixels.width}x${pixels.height} — a material constant would say the same`);
             }
         }
-        // A cutout's mips hold the share of texels its cut keeps (mipCoverage: see halveCoverage), which is what its shaders read as the
-        // coverage of a minified pixel.
+        // A cutout's mips keep the share of texels its cut keeps (mipCoverage: see preserveAlphaCoverage), so cut at the same cutoff on
+        // every level it neither thins away nor closes into a sheet when it is seen small.
         const base = material.baseColorTexture;
         if (base && material.alphaCutoff !== undefined && material.alphaCutoff > 0) {
             material.baseColorTexture = { ...base, settings: { ...base.settings, mipCoverage: material.alphaCutoff } };
