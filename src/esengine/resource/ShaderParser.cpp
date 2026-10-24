@@ -343,7 +343,7 @@ std::string canonicalVertexStageWGSL(bool lit, const std::string& hook = {}) {
         "    out.v_color = v.a_color * esInstanceTint();\n"
         "#elif defined(MESH)\n"
         "    let world = esInstanceModel() * vec4f(local, 1.0);\n"
-        "    out.v_color = v.a_color * esInstanceTint();\n"
+        "    out.v_color = @@WGSL_MESH_COLOR@@ * esInstanceTint();\n"
         "#else\n"
         "    let world = vec4f(v.a_position, 1.0);\n"
         "    out.v_color = v.a_color;\n"
@@ -387,7 +387,9 @@ std::string canonicalVertexStageWGSL(bool lit, const std::string& hook = {}) {
         "    return out;\n"
         "}\n";
     // The vertex's own colour is the one per-vertex channel a hook has besides its position, normal and uv: wind sways a plant by
-    // a weight painted in it. A hook reads `es_vertexColor`; one that does not is not changed.
+    // a weight painted in it. A hook reads `es_vertexColor`, and what it leaves there is the colour the fragment gets (a terrain
+    // tells it where the vertex lies in its height pages); one that does not touch it is not changed.
+    fillHook(src, "@@WGSL_MESH_COLOR@@", hook.empty() ? std::string("v.a_color") : std::string("es_vertexColor"));
     fillHook(src, "@@WGSL_HOOK@@", hook.empty() ? std::string() :
         "#ifdef MESH\nvar<private> es_vertexColor : vec4f;\n" + hook + "\n#endif\n");
     fillHook(src, "@@WGSL_CALL@@", hook.empty() ? std::string() :
@@ -567,7 +569,7 @@ std::string canonicalVertexStage(bool lit, const std::string& hook = {}) {
         "    v_color = a_color * esInstanceTint();\n"
         "#elif defined(MESH)\n"
         "    vec4 world = esInstanceModel() * vec4(local, 1.0);\n"
-        "    v_color = a_color * esInstanceTint();\n"
+        "    v_color = @@GLSL_MESH_COLOR@@ * esInstanceTint();\n"
         "#else\n"
         "    vec4 world = vec4(a_position, 1.0);\n"
         "    v_color = a_color;\n"
@@ -608,6 +610,7 @@ std::string canonicalVertexStage(bool lit, const std::string& hook = {}) {
         src += "    v_probeSlot = float(ES_INSTANCE_ID);\n";
     }
     src += "}\n";
+    fillHook(src, "@@GLSL_MESH_COLOR@@", hook.empty() ? std::string("a_color") : std::string("es_vertexColor"));
     fillHook(src, "@@GLSL_HOOK@@", hook.empty() ? std::string() :
         "#ifdef MESH\nhighp vec4 es_vertexColor;\n" + hook + "\n#endif\n");
     fillHook(src, "@@GLSL_CALL@@", hook.empty() ? std::string() :
