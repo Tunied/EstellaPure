@@ -33,7 +33,7 @@
 ### T-03 程序化区块的驻留与统一预算
 
 - 需要：由 WorldStreamer 调度程序化地形、碰撞、植被、交互实体的准备与发布；距离/视野优先级、取消过期任务、全局帧预算、卸载释放、可查询的 ready/pending/failure；一个地块只有一个生命周期所有者。
-- 当前状态：已完成主体。`ProceduralChunks`（`sdk/src/residency/chunks.ts`）是程序化区块的唯一生命周期所有者，与 WorldStreamer 共用 `WorldStreamingSource`（无源时退回视点）；各"层"登记切分、范围、加载/卸载半径、代次与 make/publish/release。每帧跨层按距离排序，源所在区块立即生成，其余在统一帧预算（`Bakes.budgetMs` 与 `Bakes.hasTime`，与烘焙作业、地形页共享，被挤占时作业让出一半）内生成；异步结果按代次丢弃并中止 `AbortSignal`（快速传送不发布旧结果）；代次变化时旧版本保留到新版本替换；超出卸载半径即释放其发布的一切；`status`/`stateAt` 可查询 ready/stale/pending/making/failed 与原因，进度并入状态栏。已迁入：地形碰撞块（跟随运动刚体与角色）、植被格（跟随视点，到 `drawDistance`）。测试 `sdk/tests/procedural-chunks.test.ts`。仍欠：植被 GPU 实例化（目前每格合并网格，内存已随驻留有上限）；地形页仍由四叉树 + 图集 LRU 自管（已共用帧预算并限制异步并发）；远景与正交俯视 LOD 需在目标设备实测；交互实体待 T-04 作为层接入。
+- 当前状态：已完成主体。`ProceduralChunks`（`sdk/src/residency/chunks.ts`）是程序化区块的唯一生命周期所有者，与 WorldStreamer 共用 `WorldStreamingSource`（无源时退回视点）；各"层"登记切分、范围、加载/卸载半径、代次与 make/publish/release。每帧跨层按距离排序，源所在区块立即生成，其余在统一帧预算（`Bakes.budgetMs` 与 `Bakes.hasTime`，与烘焙作业、地形页共享，被挤占时作业让出一半）内生成；异步结果按代次丢弃并中止 `AbortSignal`（快速传送不发布旧结果）；代次变化时旧版本保留到新版本替换；超出卸载半径即释放其发布的一切；`status`/`stateAt` 可查询 ready/stale/pending/making/failed 与原因，进度并入状态栏。已迁入：地形碰撞块（跟随运动刚体与角色）、植被格（跟随视点，到 `drawDistance`）。测试 `sdk/tests/procedural-chunks.test.ts`。植被 GPU 实例化评估结论：暂不采用。渲染器的实例记录是每帧重写上传的瞬时纹理，5 万片草叶约 6MB/帧；按格合并的静态网格每帧零上传、GPU 顶点量相同，内存已由驻留限制；真正的实例化需要持久实例缓冲（UE HISM 式），作为渲染器功能另立。仍欠：地形页仍由四叉树 + 图集 LRU 自管（已共用帧预算并限制异步并发）；远景与正交俯视 LOD 需在目标设备实测；交互实体待 T-04 作为层接入。
 - 验收：连续走过大量区块内存和实体有上限；折返不重复；快速传送不把旧请求结果发布到新星球；卸载同时移除渲染、碰撞、资产引用；远景与正交俯视 LOD 在目标设备实测。
 
 ### T-04 群落、建造排除区与持久变化
@@ -57,7 +57,8 @@
   - 发布：T-03 区块层；装饰按区块按种类合并网格；可交互物为独立实体带 `PlacedObject{id, kind}`，`objectOf(id)`；生成实体带 `RuntimeOnly` 不进存档；服务端只生成可交互实体。
   - 调试：`explain(x,z)`（场、群落权重、区域、各层候选与拒绝原因）、`stats`、`biomeWeights`、`placementsIn`。
   - 测试：`sdk/tests/worldgen-plan.test.ts`、`worldgen-plugin.test.ts`。
-  - 仍欠：有限整地（区域压平地面）、陆地离岸距离场、装饰远景版本与 GPU 实例化、贴地装饰合并时按直立绘制、配方编辑器、可达性/安全落点等验收由游戏用查询接口实现（引擎可后续提供寻路连通查询）。
+  - 后续已补：装饰远景版本（成员 `far` 卡片 + 层 `lodDistance`，LODGroup 切换）；贴地装饰合并时随法线倾斜。
+  - 仍欠：有限整地（区域压平地面）、陆地离岸距离场、配方编辑器、可达性/安全落点等验收由游戏用查询接口实现（引擎可后续提供寻路连通查询）。
 - 验收：林地建房后草木不穿地板；采集后卸载重进不重生；同种子不同加载顺序结果相同；安全落点、早期资源、入口可达。
 
 ## 水域补充

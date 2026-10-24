@@ -28,6 +28,8 @@ export interface Plant {
     /** 0 to 1: its own phase in the wind, and how dark its roots are. */
     phase: number;
     shade: number;
+    /** The ground's normal it leans with (a stone on a slope), after its turn; upright when absent. */
+    up?: readonly [number, number, number];
 }
 
 /** What a place is, as the ground answers: how high it is and how much it faces up. */
@@ -220,6 +222,8 @@ export function buildInstancedMesh(source: MeshData, plants: readonly Plant[], p
     for (const plant of plants) {
         const base = b.pos.length / 3;
         const cos = Math.cos(plant.yaw), sin = Math.sin(plant.yaw);
+        const lean = plant.up ? leanTo(plant.up) : null;
+        const q = [0, 0, 0], m = [0, 0, 0];
         for (let v = 0; v < source.vertexCount; v++) {
             readPosition(v, p3);
             if (!readNormal(v, n3)) { n3[0] = 0; n3[1] = 1; n3[2] = 0; }
@@ -227,12 +231,32 @@ export function buildInstancedMesh(source: MeshData, plants: readonly Plant[], p
             const t = Math.min(Math.max((p3[1]! - minY) / span, 0), 1);
             const x = p3[0]! * plant.scale, y = p3[1]! * plant.scale, z = p3[2]! * plant.scale;
             const color = paint ? paintColor(paint, t, plant.shade) : [t, plant.phase, plant.shade * (0.6 + 0.4 * t)] as const;
-            vertex(b, plant.x + x * cos + z * sin, plant.y + y, plant.z - x * sin + z * cos, uv2[0]!, uv2[1]!,
-                   color[0], color[1], color[2], n3[0]! * cos + n3[2]! * sin, n3[1]!, -n3[0]! * sin + n3[2]! * cos);
+            q[0] = x * cos + z * sin; q[1] = y; q[2] = -x * sin + z * cos;
+            m[0] = n3[0]! * cos + n3[2]! * sin; m[1] = n3[1]!; m[2] = -n3[0]! * sin + n3[2]! * cos;
+            if (lean) { lean(q); lean(m); }
+            vertex(b, plant.x + q[0]!, plant.y + q[1]!, plant.z + q[2]!, uv2[0]!, uv2[1]!, color[0], color[1], color[2], m[0]!, m[1]!, m[2]!);
         }
         for (const i of source.indices) b.idx.push(base + i);
     }
     return pack(b);
+}
+
+/** The turn that takes up (0, 1, 0) to `n` the shortest way, applied to a vector in place; null when `n` is up. */
+function leanTo(n: readonly [number, number, number]): ((v: number[]) => void) | null {
+    const len = Math.hypot(n[0], n[1], n[2]) || 1;
+    const nx = n[0] / len, ny = n[1] / len, nz = n[2] / len;
+    // The axis is up crossed with n, (nz, 0, -nx); its length the sine of the angle, ny its cosine.
+    const s = Math.hypot(nz, nx);
+    if (s < 1e-6) return null;
+    const ax = nz / s, az = -nx / s, c = ny, k = 1 - c;
+    return (v) => {
+        const [x, y, z] = v as [number, number, number];
+        // Rodrigues: v cos + (axis x v) sin + axis (axis . v)(1 - cos), with the axis in the ground plane.
+        const dot = ax * x + az * z;
+        v[0] = x * c + (-az * y) * s + ax * dot * k;
+        v[1] = y * c + (az * x - ax * z) * s;
+        v[2] = z * c + (ax * y) * s + az * dot * k;
+    };
 }
 
 /** The rectangle of the plant's texture a card shows, in uv. */

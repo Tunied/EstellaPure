@@ -67,6 +67,11 @@ export interface RecipeMember {
     chance?: number;
     /** Tags a zone may keep it out by, beside its recipe's. */
     tags?: readonly string[];
+    /**
+     * Decoration's far version past its layer's `lodDistance`: two crossed cards (or a tent, for a conifer) showing this rectangle of its
+     * texture. Absent, it is drawn whole out to `drawDistance`.
+     */
+    far?: { u0: number; v0: number; u1: number; v1: number; tent?: boolean };
 }
 
 export interface Recipe {
@@ -86,6 +91,8 @@ export interface PlacementLayer {
     spacing: number;
     /** How far from the streaming sources the layer is published, and the side of its chunks. */
     drawDistance: number;
+    /** Past this, decoration that has a far version is drawn as it; the layer's draw distance when absent. */
+    lodDistance?: number;
     chunkSize?: number;
     /** Whether later layers keep clear of its footprints (default true). */
     occupies?: boolean;

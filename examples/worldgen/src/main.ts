@@ -6,6 +6,8 @@ import { addPlugin, defineSystem, GetWorld, Res, Query, Mut, Input, Time, Transf
 import { registerWorldRules, WorldGenRes, type WorldRules } from 'esengine/worldgen';
 
 const PINE = 'assets/models/pine.esmesh', ROCK = 'assets/models/rock.esmesh';
+/** A pine far off: a tent of cards showing the tree's part of its colour strip. */
+const PINE_FAR = { u0: 0.2, v0: 0.22, u1: 0.8, v1: 0.95, tent: true };
 
 /**
  * Three biomes by the fields (moisture, rock, how steep), each with its recipes: groves of pines with saplings round a tall one in
@@ -27,14 +29,14 @@ const rules: WorldRules = {
     ],
     recipes: [
         { id: 'grove', version: 1, tags: ['tree'],
-            anchor: { id: 'elder', mesh: PINE, material: 'assets/materials/pine.esmaterial', scale: [1.4, 1.8], footprint: 10, canopy: 35, minUp: 0.82 },
+            anchor: { id: 'elder', mesh: PINE, material: 'assets/materials/pine.esmaterial', scale: [1.4, 1.8], footprint: 10, canopy: 35, minUp: 0.82, far: PINE_FAR },
             members: [
-                { id: 'pine', mesh: PINE, material: 'assets/materials/pine.esmaterial', count: [3, 6], ring: [45, 110], scale: [0.9, 1.3], footprint: 8, canopy: 25, minUp: 0.8 },
-                { id: 'sapling', mesh: PINE, material: 'assets/materials/pine.esmaterial', count: [2, 5], ring: [110, 170], scale: [0.35, 0.6], footprint: 4, minUp: 0.8, chance: 0.8 },
+                { id: 'pine', mesh: PINE, material: 'assets/materials/pine.esmaterial', count: [3, 6], ring: [45, 110], scale: [0.9, 1.3], footprint: 8, canopy: 25, minUp: 0.8, far: PINE_FAR },
+                { id: 'sapling', mesh: PINE, material: 'assets/materials/pine.esmaterial', count: [2, 5], ring: [110, 170], scale: [0.35, 0.6], footprint: 4, minUp: 0.8, chance: 0.8, far: PINE_FAR },
                 { id: 'stone', mesh: ROCK, material: 'assets/materials/stone.esmaterial', count: [0, 2], ring: [20, 60], scale: [0.8, 1.6], footprint: 6, tags: ['rock'] },
             ] },
         { id: 'lone pine', version: 1, tags: ['tree'],
-            anchor: { id: 'pine', mesh: PINE, material: 'assets/materials/pine.esmaterial', scale: [0.8, 1.4], footprint: 8, minUp: 0.8 } },
+            anchor: { id: 'pine', mesh: PINE, material: 'assets/materials/pine.esmaterial', scale: [0.8, 1.4], footprint: 8, minUp: 0.8, far: PINE_FAR } },
         { id: 'outcrop', version: 1, tags: ['rock'],
             anchor: { id: 'boulder', mesh: ROCK, material: 'assets/materials/stone.esmaterial', scale: [4, 6.5], footprint: 26, attach: 'align' },
             members: [
@@ -47,9 +49,9 @@ const rules: WorldRules = {
             anchor: { id: 'vein', mesh: ROCK, material: 'assets/materials/copper.esmaterial', interactive: 'copper', scale: [1.2, 1.8], footprint: 10, attach: 'align' } },
     ],
     layers: [
-        { id: 'groups', spacing: 260, drawDistance: 4200, chunkSize: 512 },
+        { id: 'groups', spacing: 260, drawDistance: 4200, lodDistance: 1400, chunkSize: 512 },
         { id: 'resources', spacing: 220, drawDistance: 2400, chunkSize: 512 },
-        { id: 'detail', spacing: 90, drawDistance: 2400, chunkSize: 384 },
+        { id: 'detail', spacing: 90, drawDistance: 2400, lodDistance: 1200, chunkSize: 384 },
     ],
 };
 registerWorldRules(rules);

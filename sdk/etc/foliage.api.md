@@ -86,6 +86,7 @@ ResourceDef<FoliageField>
 phase: number
 scale: number
 shade: number
+up: readonly [number, number, number] | undefined
 x: number
 y: number
 yaw: number

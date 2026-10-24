@@ -6576,6 +6576,7 @@ kind: string
 attach: "upright" | "align"
 biome: string
 canopy: number
+far: { u0: number; v0: number; u1: number; v1: number; tent?: boolean; } | null | undefined
 footprint: number
 group: string
 id: string
@@ -6631,6 +6632,7 @@ version: 1
 chunkSize: number | undefined
 drawDistance: number
 id: string
+lodDistance: number | undefined
 occupies: boolean | undefined
 spacing: number
 version: number | undefined
@@ -6671,6 +6673,7 @@ width: number | undefined
 phase: number
 scale: number
 shade: number
+up: readonly [number, number, number] | undefined
 x: number
 y: number
 yaw: number
@@ -7650,6 +7653,7 @@ attach: "upright" | "align" | undefined
 canopy: number | undefined
 chance: number | undefined
 count: readonly [number, number] | undefined
+far: { u0: number; v0: number; u1: number; v1: number; tent?: boolean; } | undefined
 footprint: number
 id: string
 interactive: string | undefined

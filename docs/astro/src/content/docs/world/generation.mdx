@@ -72,7 +72,8 @@ with the layer it is placed in and the share of that layer's candidates it takes
 A recipe is a group: an **anchor** and **members** placed round it. Each member says its mesh and material (asset paths, or handles
 already loaded), how many (`count`), how far from the anchor and at what angles (`ring`, `arc`), its `scale`, the ground it takes
 (`footprint`: a trunk) apart from how far it spreads overhead (`canopy`: a crown), whether it stands upright or leans with the
-ground (`attach`), how steep (`minUp`) and how deep in water (`waterDepth`) it may stand, and the `chance` it is placed at all. A
+ground (`attach`), how steep (`minUp`) and how deep in water (`waterDepth`) it may stand, the `chance` it is placed at all, and its far
+version (`far`: the rectangle of its texture two crossed cards show, or a tent of them for a conifer, drawn past its layer's `lodDistance`). A
 member that cannot stand (no ground, too steep, under water, kept out by a zone, on something placed before it) is left out; the
 group stands.
 
@@ -152,7 +153,8 @@ Declare the folders they live in always included, in `.esengine/asset-groups.jso
 - **No terraforming yet.** A zone keeps generation out of its ground; it does not flatten it.
 - **No distance from the shore on land.** `waterDepth` says how deep water stands; a field of how far a dry place is from water is a
   game's own for now.
-- **Decoration is drawn whole to `drawDistance`.** It has no far version, and aligned decoration is drawn upright.
+- **Decoration is merged a chunk at a time, not GPU-instanced.** The renderer's instance records are written each frame, which for a
+  field of thousands of plants would upload megabytes a frame; merged static meshes upload nothing, and the chunks bound their memory.
 - **Rules are code.** Recipes are plain data and can be read from JSON, but there is no editor for them yet.
 
 See the **Generated World** example (`examples/worldgen`).

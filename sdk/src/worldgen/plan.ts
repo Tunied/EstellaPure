@@ -48,6 +48,8 @@ export interface Placement {
     interactive: string | null;
     footprint: number;
     canopy: number;
+    /** The far version it is drawn as past its layer's lodDistance, when its recipe gives one. */
+    far: RecipeMember['far'] | null;
 }
 
 /** Why a candidate or a member did not stand. */
@@ -285,7 +287,7 @@ export class WorldPlan {
             x, y: f.height!, z, yaw: (turn || h) * Math.PI * 2, scale: lerp(m.scale, hash01(this.worldHash_, hashString(group), k, 11), 1),
             normal: n, attach: m.attach ?? 'upright', mesh: typeof m.mesh === 'number' ? m.mesh : 0,
             material: typeof m.material === 'number' ? m.material : 0, interactive: m.interactive ?? null,
-            footprint: m.footprint, canopy: m.canopy ?? m.footprint,
+            footprint: m.footprint, canopy: m.canopy ?? m.footprint, far: m.far ?? null,
         };
     }
 

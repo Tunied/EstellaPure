@@ -21,7 +21,7 @@ import type { App, Plugin } from '../app/app';
 import { defineSystem, Schedule } from '../ecs/system';
 import { defineResource } from '../ecs/resource';
 import {
-    defineComponent, MeshRenderer, RuntimeOnly, Transform,
+    defineComponent, getComponent, MeshRenderer, RuntimeOnly, Transform,
     type ComponentDef, type MeshRendererData, type TransformData,
 } from '../ecs/component';
 import { Assets } from '../asset/AssetPlugin';
@@ -29,11 +29,11 @@ import type { MeshData } from '../asset/meshFormat';
 import { log } from '../util/logger';
 import type { Entity } from '../types';
 import { TerrainsRes } from '../terrain/terrainPlugin';
-import { buildInstancedMesh, type Plant } from '../foliage/builder';
+import { buildBillboardMesh, buildInstancedMesh, type Plant } from '../foliage/builder';
 import { chunksOf, ProceduralChunksRes, type ChunkLayerStatus } from '../residency/chunks';
 import { Environment } from './fields';
 import { WorldPlan, type Placement } from './plan';
-import { worldRules, worldRulesRevision, type RecipeMember, type WorldRules } from './rules';
+import { worldRules, worldRulesRevision, type PlacementLayer, type RecipeMember, type WorldRules } from './rules';
 import { Zones, type ZoneDef } from './zones';
 import { PlacementDiffs } from './diffs';
 
@@ -144,7 +144,8 @@ interface BuiltWorld {
 
 /** A chunk of a layer: what it places (its decoration merged by mesh, its interactive placements), and what it put in the world. */
 interface PlacedChunk {
-    decor: { mesh: number; material: number; data: MeshData; origin: [number, number, number] }[];
+    /** A kind of decoration: its near mesh and, when it has one, its far cards; drawn near out to `lodDistance`, out to `drawDistance`. */
+    decor: { mesh: number; material: number; data: MeshData; far: MeshData | null; origin: [number, number, number]; radius: number; lodDistance: number; drawDistance: number }[];
     objects: Placement[];
     entities: Entity[];
     meshes: number[];
@@ -403,7 +404,7 @@ export class WorldGenPlugin implements Plugin {
                 make: (cx, cz) => {
                     const x0 = cx * size, z0 = cz * size;
                     if (waiting || (terrains && ![[x0, z0], [x0 + size, z0], [x0, z0 + size], [x0 + size, z0 + size]].every(([x, z]) => terrains.groundKnownAt(x!, z!)))) return null;
-                    return this.chunk(app, plan, diffs, layer.id, x0, z0, size, rendering);
+                    return this.chunk(app, plan, diffs, layer, x0, z0, size, rendering);
                 },
                 publish: (_cx, _cz, value) => this.place(app, gens, entity, value),
                 release: (_cx, _cz, value) => this.unplace(app, gens, value),
@@ -412,10 +413,10 @@ export class WorldGenPlugin implements Plugin {
     }
 
     /** What one chunk of a layer places: its decoration merged by mesh, and its interactive placements, with the changes laid over. */
-    private chunk(app: App, plan: WorldPlan, diffs: PlacementDiffs, layer: string, x0: number, z0: number, size: number,
+    private chunk(app: App, plan: WorldPlan, diffs: PlacementDiffs, layer: PlacementLayer, x0: number, z0: number, size: number,
                   rendering: boolean): PlacedChunk | Promise<PlacedChunk> {
         const placements: Placement[] = [];
-        for (const p of plan.placementsIn(x0, z0, x0 + size, z0 + size, [layer])) {
+        for (const p of plan.placementsIn(x0, z0, x0 + size, z0 + size, [layer.id])) {
             if (diffs.isRemoved(p.id)) continue;
             const c = diffs.changeOf(p.id);
             placements.push(c ? { ...p, ...c } : p);
@@ -438,8 +439,15 @@ export class WorldGenPlugin implements Plugin {
                 if (!source || source instanceof Promise) continue;
                 const plants: Plant[] = list.map((p, i) => ({
                     x: p.x - origin[0], y: p.y, z: p.z - origin[2], yaw: p.yaw, scale: p.scale, phase: (i * 0.618) % 1, shade: 1,
+                    ...(p.attach === 'align' ? { up: p.normal } : {}),
                 }));
-                out.decor.push({ mesh: list[0]!.mesh, material: list[0]!.material, data: buildInstancedMesh(source, plants), origin });
+                const far = list[0]!.far;
+                const width = Math.max(source.aabbMax[0] - source.aabbMin[0], source.aabbMax[2] - source.aabbMin[2]);
+                out.decor.push({
+                    mesh: list[0]!.mesh, material: list[0]!.material, data: buildInstancedMesh(source, plants), origin,
+                    far: far ? buildBillboardMesh(plants, width, source.aabbMax[1] - source.aabbMin[1], far, undefined, far.tent === true) : null,
+                    radius: Math.SQRT2 * size / 2, lodDistance: layer.lodDistance ?? layer.drawDistance, drawDistance: layer.drawDistance,
+                });
             }
             return out;
         };
@@ -471,6 +479,8 @@ export class WorldGenPlugin implements Plugin {
             const handle = assets?.createMesh(d.data) ?? 0;
             if (!handle) continue;
             chunk.meshes.push(handle);
+            const farHandle = d.far ? assets?.createMesh(d.far) ?? 0 : 0;
+            if (farHandle) chunk.meshes.push(farHandle);
             const e = world.spawn('WorldGenDecor');
             // Made again from the rules whenever its chunk is: a scene or a save never holds it.
             world.insert(e, RuntimeOnly);
@@ -478,6 +488,15 @@ export class WorldGenPlugin implements Plugin {
             world.insert(e, MeshRenderer, {
                 mesh: handle, material: d.material, lit: true, opaque: true, cullBackfaces: false, color: { r: 1, g: 1, b: 1, a: 1 },
             } as Partial<MeshRendererData>);
+            const lodDef = getComponent('LODGroup');
+            if (lodDef) {
+                // Measured as the engine measures it, by the share of the screen the chunk's sphere covers, for a 60 degree view.
+                const sizeAt = (distance: number): number => d.radius / (Math.max(1, distance) * 0.577);
+                world.insert(e, lodDef, {
+                    lod1: farHandle, lod2: 0, lod3: 0, lod1Size: farHandle ? sizeAt(d.lodDistance) : 0, lod2Size: 0, lod3Size: 0,
+                    cullSize: sizeAt(d.drawDistance + d.radius), hysteresis: 0.1, enabled: true,
+                });
+            }
             world.setParent(e, parent);
             chunk.entities.push(e);
         }

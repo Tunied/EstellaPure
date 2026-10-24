@@ -2790,4 +2790,6 @@ export const NOTED = {
     {"note":"A river runs into a lake cleanly, and water casts no shadow."},
   "feat(terrain): a ray meets the ground's triangles anywhere, with no physics and no collision tile there":
     {"note":"Rays against the terrain, anywhere."},
+  "feat(worldgen): decoration has a far version past its layer's lodDistance, and leans with the ground when it is aligned":
+    {"note":"Far versions for generated decoration."},
 };
