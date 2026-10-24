@@ -631,6 +631,76 @@ export const SHIPPED = {
     { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
   "Wilds example.":
     { notCertifiable: "Adds example scene content using existing rendering features; check-examples validates its sources. The example has not earned packaged-frame certification." },
+  "Hair with Blender's highlight.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Hair shadows and diffuse.":
+    { notCertifiable: "A rendering feature, covered by sdk/tests/hair-shader-shadow.test.ts and the render-scene pixel gates; no golden project places hair, and one packaged frame cannot decide a result that depends on the device." },
+  "Hair drawn as locks.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Hair that reads as hair.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Character materials shade like the source.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "AgX view transform.":
+    { notCertifiable: "A post-process effect, covered by the agx-chart render-scene pixel gate (known patches against Blender's own render) and sdk/tests/agx-lut.test.ts; no golden project's frame uses it." },
+  "Hair maps from the model.":
+    { notCertifiable: "An import-pipeline change, covered by pipeline/tests/character-materials.test.ts; no golden project's model sources exercise it, and a packaged game only sees its product." },
+  "Spring-bone data in the file.":
+    { notCertifiable: "An import-pipeline change, covered by pipeline/tests/spring-bone-source.test.ts; no golden project's model sources exercise it, and a packaged game only sees its product." },
+  "Spring-bone collider handles.":
+    { notCertifiable: "Editor interaction rather than a rendered game capability; desktop/tests/spring-collider-handles.test.ts checks the handles and what each drag sets." },
+  "Spring-bone import.":
+    { notCertifiable: "An import-pipeline change, covered by pipeline/tests/spring-bone-import.test.ts; no golden project's model sources exercise it, and a packaged game only sees its product." },
+  "Spring-bone wind.":
+    { notCertifiable: "Spring bones are covered by the test_springbone C++ suite; no golden project carries a rigged chain yet (check-corpus-authoring records SpringBone as owed)." },
+  "Spring-bone authoring.":
+    { notCertifiable: "Editor interaction rather than a rendered game capability; the editor's Details grouping and chain count are editor-side, covered by the editor tests." },
+  "Spring bones.":
+    { notCertifiable: "Spring bones are covered by the test_springbone C++ suite; no golden project carries a rigged chain yet (check-corpus-authoring records SpringBone as owed)." },
+  "Water rows in the quality settings.":
+    { notCertifiable: "Editor interaction rather than a rendered game capability; desktop/tests/quality-level-page.test.tsx and quality-level-settings.test.ts check the rows and what each saves." },
+  "Built-in shaders ship with their modules.":
+    { notCertifiable: "A packaging change, covered by the export and package-size tests and the mini-game size budgets; a golden project's frame is the same whichever module carries the shader source." },
+  "Opaque models no longer vanish beside glass.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Water quality levels and a lite water.":
+    { notCertifiable: "Water is covered by sdk/tests/water-quality.test.ts; no golden project carries a WaterBody yet (check-corpus-authoring records it as owed), so no packaged frame can certify it." },
+  "Move gizmo plane handles closer in.":
+    { notCertifiable: "Editor interaction rather than a rendered game capability; desktop/tests/gizmo-planes.test.ts checks the plane handle geometry." },
+  "Water editing in the viewport.":
+    { notCertifiable: "Editor interaction rather than a rendered game capability; desktop/tests/water-handles.test.ts checks the handles and the fields they write." },
+  "Blended surfaces ordered against water.":
+    { notCertifiable: "Water is covered by sdk/tests/water.test.ts; no golden project carries a WaterBody yet (check-corpus-authoring records it as owed), so no packaged frame can certify it." },
+  "Ripples and wakes.":
+    { notCertifiable: "Water is covered by sdk/tests/water-ripples.test.ts; no golden project carries a WaterBody yet (check-corpus-authoring records it as owed), so no packaged frame can certify it." },
+  "Waterline, caustics, shafts and a mirror under the water.":
+    { notCertifiable: "Water is covered by sdk/tests/water-underwater.test.ts; no golden project carries a WaterBody yet (check-corpus-authoring records it as owed), so no packaged frame can certify it." },
+  "Underwater view.":
+    { notCertifiable: "Water is covered by sdk/tests/water-underwater.test.ts; no golden project carries a WaterBody yet (check-corpus-authoring records it as owed), so no packaged frame can certify it." },
+  "Floating bodies.":
+    { notCertifiable: "Water is covered by sdk/tests/water-floating.test.ts; no golden project carries a WaterBody yet (check-corpus-authoring records it as owed), so no packaged frame can certify it." },
+  "Rivers and splines.":
+    { notCertifiable: "Water is covered by sdk/tests/spline.test.ts and sdk/tests/water.test.ts; no golden project carries a WaterBody yet (check-corpus-authoring records it as owed), so no packaged frame can certify it." },
+  "Lake outlines and shores.":
+    { notCertifiable: "Water is covered by sdk/tests/water-shore.test.ts; no golden project carries a WaterBody yet (check-corpus-authoring records it as owed), so no packaged frame can certify it." },
+  "Water bodies.":
+    { notCertifiable: "Water is covered by sdk/tests/water.test.ts; no golden project carries a WaterBody yet (check-corpus-authoring records it as owed), so no packaged frame can certify it." },
+  "Cyber Rooftop update.":
+    { notCertifiable: "Adds example scene content using existing rendering features; check-examples validates its sources. The example has not earned packaged-frame certification." },
+  "Hair tips.":
+    { notCertifiable: "A rendering feature, covered by the hair-tips render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Character materials on import.":
+    { notCertifiable: "An import-pipeline change, covered by pipeline/tests/character-materials.test.ts; no golden project's model sources exercise it, and a packaged game only sees its product." },
+  "Curvature-shaped skin scattering.":
+    { notCertifiable: "A rendering feature, covered by the skin-preintegrate render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Skin detail normal layer.":
+    { notCertifiable: "A rendering feature, covered by the skin-detail render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Cutout shadows for hair cards and leaves.":
+    { notCertifiable: "A rendering feature, covered by the mesh-shadow-cutout render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Eye lid shadow.":
+    { notCertifiable: "A rendering feature, covered by the eye-lid render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
+  "Eye shader.":
+    { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
   "Foliage.":
     { notCertifiable: "A rendering feature, covered by its render-scene pixel gates and unit tests; no golden project places it, and one packaged frame cannot decide a result that depends on the device." },
   "Terrain.":

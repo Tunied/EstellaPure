@@ -14,6 +14,8 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+## [0.95.0] - 2026-10-24
+
 ### Added
 
 - **Hair with Blender's highlight.** The Hair shader takes the Principled shader's highlight when u_anisotropy is above zero: GGX stretched along the strand as Blender stretches it, with u_specular as the specular factor. A hair card imported with an anisotropy (KHR_materials_anisotropy, which Blender exports from its Principled anisotropy) is set to it, so the broad sheen across a fringe that Blender draws is drawn in the same place.
@@ -14790,7 +14792,8 @@ not kept before this file was introduced — see the Git history at
 `github.com/esengine/estella` for the full commit-level record since the first
 commit on 2026-01-25.
 
-[Unreleased]: https://github.com/esengine/estella/compare/v0.94.0...HEAD
+[Unreleased]: https://github.com/esengine/estella/compare/v0.95.0...HEAD
+[0.95.0]: https://github.com/esengine/estella/compare/v0.94.0...v0.95.0
 [0.94.0]: https://github.com/esengine/estella/compare/v0.93.0...v0.94.0
 [0.93.0]: https://github.com/esengine/estella/compare/v0.92.0...v0.93.0
 [0.92.0]: https://github.com/esengine/estella/compare/v0.91.0...v0.92.0
