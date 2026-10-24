@@ -22,6 +22,8 @@ LABS = {
     'shadow_soft': dict(cam=((0.0, 3.4, -6.2), (0.0, 0.2, 0.0), 32.0), sun=dict(dir=(0.45, -0.7, 0.55), intensity=1.0, angle=3.4), ambient=0.0),
     # Three cards of fine stripes seen from a distance that shrinks them below a texel a pixel: a cut-out card, an opaque one, and a smooth ramp.
     'strands': dict(cam=((0.0, 0.0, -3.0), (0.0, 0.0, 0.0), 20.0), sun=None, ambient=1.0),
+    # The middle card seen from close enough that one texel covers about a pixel: what the card averages to without the mip chain.
+    'strands_near': dict(cam=((0.0, 0.0, -0.36), (0.0, 0.0, 0.0), 20.0), sun=None, ambient=1.0),
 }
 
 SIZE = (1280, 720)

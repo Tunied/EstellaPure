@@ -103,6 +103,27 @@ def stripes_image(name, size, period, duty, dark, bright, alpha_cut):
     return load_png(np.tile(row[None, :, :], (size, 1, 1)), name)
 
 
+def hair_image(name, size, alpha_cut, seed=7):
+    """Strands as hair has them: each 1 to 3 texels wide at a random place, brighter down the middle, with 40% of the width between them clear."""
+    rng = np.random.default_rng(seed)
+    col = np.zeros(size)
+    alpha = np.zeros(size)
+    x = 0.0
+    while x < size:
+        w = rng.uniform(1.0, 3.0)
+        lo, hi = int(x), int(min(size, np.ceil(x + w)))
+        for t in range(lo, hi):
+            p = (t + 0.5 - x) / w
+            col[t] = 0.15 + 0.55 * np.sin(np.pi * np.clip(p, 0, 1))
+            alpha[t] = 1.0
+        x += w / 0.6
+    if not alpha_cut:
+        col = np.where(alpha > 0, col, 0.15)
+        alpha = np.ones(size)
+    row = np.stack([col, col, col, alpha], axis=1)
+    return load_png(np.tile(row[None, :, :], (size, 1, 1)), name)
+
+
 def ramp_image(name, size):
     x = np.linspace(0.05, 0.95, size)
     row = np.stack([x, x, x, np.ones(size)], axis=1)
@@ -119,8 +140,8 @@ elif lab.startswith('shadow'):
     sphere('ball', (1.1, 0.55, -0.3), 0.55, principled('ballm', (0.3, 0.55, 0.8), 0.0, 0.5))
 elif lab == 'strands':
     n = 1024
-    fine = stripes_image('fine', n, 3, 0.6, 0.15, 0.7, True)
-    solid = stripes_image('solid', n, 3, 0.6, 0.15, 0.7, False)
+    fine = hair_image('fine', n, True)
+    solid = hair_image('solid', n, False)
     ramp = ramp_image('ramp', n)
     card('cut', (0.4, 0.0, 0.0), 0.25, 0.25, principled('cut', (1, 1, 1), 0.0, 1.0, fine, 0.5))
     card('opaque', (0.0, 0.0, 0.0), 0.25, 0.25, principled('opaque', (1, 1, 1), 0.0, 1.0, solid))
