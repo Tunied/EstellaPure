@@ -147,6 +147,8 @@ export function currentShare(width: number, widest: number): number {
 
 /** The depth over ground nothing is known of. */
 const DEEP = 1e6;
+/** The gentlest slope a depth is turned into a distance by: flatter ground than this is deep water or dry land a long way from a shore. */
+const MIN_SLOPE = 0.01;
 
 /** The baked water of a zone. */
 export class WaterField {
@@ -214,6 +216,15 @@ export class WaterField {
             }
         }
         const sea = ocean ? openSea(grid, grounds, ocean.level) : null;
+        // How steep the ground is at each texel: a depth over it is how far the shore is across the ground, to first order, so the
+        // distance to the shore is one measure (along the ground) everywhere and runs smoothly through zero between texels.
+        const stepX = grid.sizeX / Math.max(grid.nx - 1, 1), stepZ = grid.sizeZ / Math.max(grid.nz - 1, 1);
+        const slopeAt = (i: number, j: number): number => {
+            const at = (ii: number, jj: number): number => grounds[Math.min(Math.max(jj, 0), grid.nz - 1) * grid.nx + Math.min(Math.max(ii, 0), grid.nx - 1)]!;
+            const gx = (at(i + 1, j) - at(i - 1, j)) / (2 * stepX), gz = (at(i, j + 1) - at(i, j - 1)) / (2 * stepZ);
+            const m = Math.hypot(gx, gz);
+            return Number.isFinite(m) ? Math.max(m, MIN_SLOPE) : MIN_SLOPE;
+        };
         for (let j = 0; j < grid.nz; j++) {
             if (j % 16 === 0) yield 0.3 + 0.5 * (j / grid.nz);
             for (let i = 0; i < grid.nx; i++) {
@@ -221,11 +232,12 @@ export class WaterField {
                 const x = grid.minX + (i / Math.max(grid.nx - 1, 1)) * grid.sizeX;
                 const z = grid.minZ + (j / Math.max(grid.nz - 1, 1)) * grid.sizeZ;
                 const g = Number.isNaN(grounds[k]!) ? null : grounds[k]!;
+                const slope = g === null ? MIN_SLOPE : slopeAt(i, j);
                 let w = 0, h = 0, a = 0, c = 0, sw = 0, ex = 0, fx = 0, fz = 0, best = -Infinity, owner = -1, ownerW = 0, held = 0, lakeHeld = 0;
                 for (let b = 0; b < bounded.length; b++) {
                     const box = boxes[b]!;
                     if (x < box[0] - blend || x > box[2] + blend || z < box[1] - blend || z > box[3] + blend) continue;
-                    const say = sayOf(bounded[b]!, x, z, g);
+                    const say = sayOf(bounded[b]!, x, z, g, slope);
                     if (!say) continue;
                     best = Math.max(best, say.shore);
                     const inside = smooth(-blend, blend, say.shore);
@@ -239,11 +251,11 @@ export class WaterField {
                 }
                 if (ocean) {
                     // Ground below the sea's level that the open sea does not reach is a dry basin: as far above the sea as a texel.
-                    const deep = g === null ? DEEP : g < ocean.level && !sea![k] ? -texel : ocean.level - g;
+                    const deep = g === null ? DEEP : g < ocean.level && !sea![k] ? -texel : (ocean.level - g) / slope;
                     best = Math.max(best, deep);
                     const weight = smooth(-blend, blend, deep) * (1 - held);
                     if (weight > 0) {
-                        const calm = shoreDamp(deep, ocean.shoreWidth);
+                        const calm = shoreDamp(g === null ? deep : Math.min(deep, ocean.level - g), ocean.shoreWidth);
                         w += weight; h += ocean.level * weight; a += ocean.waveHeight * calm * weight; c += calm * weight; sw += ocean.waveHeight * weight;
                         ex += (ocean.exposure ?? 1) * weight;
                         if (weight > ownerW) { ownerW = weight; owner = ocean.key; }
@@ -352,14 +364,16 @@ export class WaterField {
 }
 
 /** What one body says about a point: its height there, how far inside it the point is, its waves and its current. Null where it says nothing. */
-function sayOf(body: ZoneLake | ZoneRiver, x: number, z: number, g: number | null):
+function sayOf(body: ZoneLake | ZoneRiver, x: number, z: number, g: number | null, slope: number):
     { height: number; shore: number; amp: number; calm: number; fx: number; fz: number } | null {
     if (body.kind === 'lake') {
         const [lx, lz] = body.toLocal(x, z);
-        const deep = g === null ? DEEP : body.level - g;
+        // The depth as a distance across the ground to where the water meets it (the ground's slope there sets how far that is).
+        const depth = g === null ? DEEP : body.level - g;
         // Water only where its outline is and its surface is over the ground: land inside the outline, above the water, is land.
-        const shore = Math.min(polygonSdf(body.outline, lx, lz), deep);
-        const calm = shoreDamp(shore, body.shoreWidth);
+        const shore = Math.min(polygonSdf(body.outline, lx, lz), depth / slope);
+        // The waves calm toward the shore and as the water shallows, which on a flat shelf far from any shore is the depth alone.
+        const calm = shoreDamp(Math.min(shore, depth), body.shoreWidth);
         return { height: body.level, shore, amp: body.waveHeight * calm, calm, fx: 0, fz: 0 };
     }
     const st = body.stations;
@@ -380,14 +394,14 @@ function sayOf(body: ZoneLake | ZoneRiver, x: number, z: number, g: number | nul
     let dx = mix(a.dx, b.dx), dz = mix(a.dz, b.dz);
     const len = Math.hypot(dx, dz) || 1;
     dx /= len; dz /= len;
-    const deep = g === null ? DEEP : y - g;
+    const depth = g === null ? DEEP : y - g;
     // Within its banks and over its bed: a bank inside the river's width that stands above its surface is dry.
-    const shore = Math.min(half - best, deep);
+    const shore = Math.min(half - best, depth / slope);
     // The current fades in over a width from the spring and out over a width into whatever it runs into.
     const along = (at + t) / (st.length - 1);
     const length = st.reduce((n, p, i) => (i ? n + Math.hypot(p.x - st[i - 1]!.x, p.z - st[i - 1]!.z) : 0), 0);
     const run = smooth(0, 2 * half, along * length) * smooth(0, 2 * half, (1 - along) * length);
-    const calm = shoreDamp(shore, body.shoreWidth);
+    const calm = shoreDamp(Math.min(shore, depth), body.shoreWidth);
     return { height: y, shore, amp: body.waveHeight * calm, calm, fx: dx * speed * run, fz: dz * speed * run };
 }
 

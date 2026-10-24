@@ -2808,4 +2808,6 @@ export const NOTED = {
     {"note":"Rivers cut their beds."},
   "feat(terrain): heightmaps name their format, and 16-bit grey PNGs are read at full depth":
     {"note":"Heightmaps say how they hold their heights."},
+  "fix(water): the shore distance near the edge is a distance across the ground, not the water's depth":
+    {"note":"The distance to the shore is a distance."},
 };
