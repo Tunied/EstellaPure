@@ -98,6 +98,7 @@ export const EXT_TO_TYPE = Object.freeze({
     '.esavatar': 'avatar',
     '.eslocale': 'locale',
     '.esaudioevent': 'sound-event',
+    '.esworld': 'world-rules',
     '.inputmap': 'inputmap',
     // Fonts
     '.fnt': 'bitmapFont',

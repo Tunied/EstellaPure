@@ -8,6 +8,7 @@ export {
     registerWorldRules, worldRules, bandWeight,
     type WorldRules, type BiomeDef, type BiomeCondition, type BiomeRecipe, type Recipe, type RecipeMember, type PlacementLayer,
 } from './rules';
+export { parseWorldRules, isRulesFile, WorldRulesAssetLoader } from './rulesAsset';
 export { WorldPlan, type Placement, type Group, type Rejection } from './plan';
 export { Zones, zoneDistance, zoneWeight, zoneBounds, type ZoneDef, type ZoneShape } from './zones';
 export { PlacementDiffs, type PlacementChange, type PlacementDiffsData } from './diffs';

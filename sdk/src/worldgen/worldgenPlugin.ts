@@ -37,6 +37,7 @@ import { WorldPlan, type Placement } from './plan';
 import { worldRules, worldRulesRevision, type PlacementLayer, type RecipeMember, type WorldRules } from './rules';
 import { Zones, type ZoneDef } from './zones';
 import { PlacementDiffs } from './diffs';
+import { isRulesFile } from './rulesAsset';
 
 /** The fields of the `WorldGen` component. @experimental */
 export interface WorldGenData {
@@ -59,7 +60,7 @@ export const WorldGen: ComponentDef<WorldGenData> = defineComponent<WorldGenData
     rules: '', version: 1, world: '', seed: 1, paintGround: true,
 }, {
     fields: {
-        rules: { tooltip: 'The rules the world is laid out by, as the game registered them with registerWorldRules.' },
+        rules: { tooltip: 'The rules the world is laid out by: a .esworld file, or the id of rules the game registered with registerWorldRules.' },
         version: { min: 1, step: 1, tooltip: 'The version of the rules the world was made with. A version the rules no longer have fails the world rather than laying out another one.' },
         world: { tooltip: 'The world (a planet, a level) as the game names it.' },
         seed: { step: 1, tooltip: 'Another seed lays out another world by the same rules.' },
@@ -225,6 +226,9 @@ export const WorldGenRes = defineResource<WorldGens>(new WorldGens(), 'WorldGens
 export class WorldGenPlugin implements Plugin {
     name = 'worldgen';
 
+    /** Stops listening for edited rules files. */
+    private watching_: (() => void) | null = null;
+
     /** Each mesh's geometry, read once, for drawing it merged. */
     private readonly meshData_ = new Map<number, MeshData | null | Promise<MeshData | null>>();
 
@@ -249,6 +253,8 @@ export class WorldGenPlugin implements Plugin {
     }
 
     cleanup(app?: App): void {
+        this.watching_?.();
+        this.watching_ = null;
         if (!app?.hasResource(WorldGenRes)) return;
         const gens = app.getResource(WorldGenRes);
         for (const entity of [...gens.built_.keys()]) this.drop(app, gens, entity);
@@ -257,22 +263,59 @@ export class WorldGenPlugin implements Plugin {
     /** A WorldGen's rules and plan, or why it has none. */
     private make(app: App, gens: WorldGens, entity: Entity, data: WorldGenData, had: BuiltWorld | undefined): BuiltWorld {
         const built: BuiltWorld = { signature: `${JSON.stringify(data)}#${worldRulesRevision()}`, data: { ...data }, rules: null, plan: null, failure: null, ground: '', authored: had?.authored ?? new Set(), levelling: new Set() };
+        // Rules in a project file are read first, then made like rules registered by code.
+        if (isRulesFile(data.rules)) {
+            if (!app.hasResource(Assets)) {
+                built.failure = `the world rules file ${data.rules} cannot be read without an asset system: register its rules in code instead`;
+                log.error('worldgen', built.failure);
+                return built;
+            }
+            const assets = app.getResource(Assets);
+            // A rules file edited and saved is read again, and the world laid out by it again (its old chunks kept until then).
+            if (!this.watching_) {
+                this.watching_ = assets.onInvalidate(({ ref }) => {
+                    const changed = assets.resolveLoadPath(ref);
+                    for (const b of gens.built_.values()) if (isRulesFile(b.data.rules) && assets.resolveLoadPath(b.data.rules) === changed) b.signature = '';
+                });
+            }
+            void assets.load<WorldRules>('world-rules', data.rules).then((rules) => {
+                if (gens.built_.get(entity) !== built) return;
+                this.adopt(app, gens, entity, built, rules, had);
+            }, (e: unknown) => {
+                if (gens.built_.get(entity) !== built) return;
+                built.failure = `the world rules file ${data.rules} could not be read: ${e instanceof Error ? e.message : String(e)}`;
+                log.error('worldgen', built.failure);
+            });
+            return built;
+        }
         const rules = worldRules(data.rules);
-        if (!rules) built.failure = `no world rules ${data.rules || '(none named)'} are registered`;
-        else if (!rules.versions.includes(data.version)) built.failure = `the world rules ${rules.id} have no version ${data.version} (they have ${rules.versions.join(', ')})`;
+        if (!rules) {
+            built.failure = `no world rules ${data.rules || '(none named)'} are registered`;
+            log.error('worldgen', `the world ${data.world} cannot be laid out: ${built.failure}`);
+            for (const l of had?.rules?.layers ?? []) chunksOf(app).remove(layerIdOf(entity, l.id));
+            return built;
+        }
+        this.adopt(app, gens, entity, built, rules, had);
+        return built;
+    }
+
+    /** Takes a WorldGen's rules, once they are known: checks the version, and makes the plan (loading what the recipes name first). */
+    private adopt(app: App, gens: WorldGens, entity: Entity, built: BuiltWorld, rules: WorldRules, had: BuiltWorld | undefined): void {
+        const data = built.data;
+        if (!rules.versions.includes(data.version)) built.failure = `the world rules ${rules.id} have no version ${data.version} (they have ${rules.versions.join(', ')})`;
         else built.rules = rules;
         if (built.failure) {
             log.error('worldgen', `the world ${data.world} cannot be laid out: ${built.failure}`);
             // A world that cannot be laid out shows nothing of the one before it.
             for (const l of had?.rules?.layers ?? []) chunksOf(app).remove(layerIdOf(entity, l.id));
-            return built;
+            return;
         }
         // Layers the new rules no longer have are let go; the ones they keep keep their chunks until they are made again.
-        for (const l of had?.rules?.layers ?? []) if (!rules!.layers.some((n) => n.id === l.id)) chunksOf(app).remove(layerIdOf(entity, l.id));
+        for (const l of had?.rules?.layers ?? []) if (!rules.layers.some((n) => n.id === l.id)) chunksOf(app).remove(layerIdOf(entity, l.id));
         // Recipes name their meshes and materials by path: with a renderer they are loaded first, and the plan is made with them.
-        const refs = assetRefsOf(rules!);
+        const refs = assetRefsOf(rules);
         if (refs.length > 0 && app.hasResource(Assets)) {
-            void this.resolve(app, rules!, refs).then((resolved) => {
+            void this.resolve(app, rules, refs).then((resolved) => {
                 if (gens.built_.get(entity) !== built) return;
                 built.rules = resolved;
                 this.plan(app, gens, entity, built, resolved);
@@ -280,10 +323,9 @@ export class WorldGenPlugin implements Plugin {
                 built.failure = `the recipes' assets could not be loaded: ${e instanceof Error ? e.message : String(e)}`;
                 log.error('worldgen', built.failure);
             });
-            return built;
+            return;
         }
-        this.plan(app, gens, entity, built, rules!);
-        return built;
+        this.plan(app, gens, entity, built, rules);
     }
 
     /** Loads the meshes and materials `refs` name, and gives back the rules with each path replaced by its handle. */

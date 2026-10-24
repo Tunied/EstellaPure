@@ -2796,4 +2796,8 @@ export const NOTED = {
     {"note":"Terrain modifiers, and zones that level their ground."},
   "feat(water): how far a dry place is from the water's edge, as a query and a field generated worlds read":
     {"note":"How far a place is from the water."},
+  "feat(worldgen): world rules as a .esworld asset, checked on load, shipped with what they name and rebuilt on edit":
+    {"note":"World rules as a file, with an editor."},
+  "feat(editor): world rules editor for .esworld files":
+    {"note":"World rules as a file, with an editor."},
 };

@@ -3639,7 +3639,7 @@ Step = 15
 ```
 | 'texture' | 'material' | 'shader' | 'spine-atlas' | 'spine-skeleton'
     | 'dragonbones-atlas' | 'dragonbones-skeleton'
-    | 'bitmap-font' | 'font' | 'prefab' | 'json' | 'audio' | 'sound-event' | 'video' | 'scene' | 'anim-clip'
+    | 'bitmap-font' | 'font' | 'prefab' | 'json' | 'audio' | 'sound-event' | 'world-rules' | 'video' | 'scene' | 'anim-clip'
     | 'tilemap' | 'tileset' | 'timeline' | 'mesh'
     | 'unknown'
 ```

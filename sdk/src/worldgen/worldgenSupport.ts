@@ -6,8 +6,11 @@
  * A call, not a file's side effect — see tilemap/tilemapSupport.ts.
  */
 import { addEntryPlugin } from '../runtime/entryPlugins';
+import { addAssetLoader } from '../asset/optionalLoaders';
 import { WorldGenPlugin } from './worldgenPlugin';
+import { WorldRulesAssetLoader } from './rulesAsset';
 
 export function registerWorldGenSupport(): void {
     addEntryPlugin('worldgen', () => new WorldGenPlugin());
+    addAssetLoader('worldgen', () => new WorldRulesAssetLoader());
 }

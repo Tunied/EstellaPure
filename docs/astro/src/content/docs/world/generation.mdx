@@ -15,7 +15,7 @@ them, what is reserved for a home or a road. The **artists** make the recipes: a
 
 | Field | What it does |
 |---|---|
-| `rules` | The rules the world is laid out by, as the game registered them with `registerWorldRules`. |
+| `rules` | The rules the world is laid out by: a `.esworld` file, or the id of rules the game registered with `registerWorldRules`. |
 | `version` | The version of the rules the world was made with. A saved world keeps it; rules that no longer have it fail the world (its status says why) rather than laying out another one. |
 | `world`, `seed` | The world (a planet, a level) as the game names it, and its seed. Another seed lays out another world by the same rules. |
 | `paintGround` | Whether the biomes paint the terrain. |
@@ -24,6 +24,15 @@ What the rules place is published as the entity's children, round the [streaming
 see [procedural chunks](/docs/world/streaming/#procedural-chunks).
 
 ## Rules
+
+Rules are data: biomes, the recipes that stand in them and the layers they are placed in. Keep them in a **`.esworld` file** (in the
+editor, **New → New World Rules**, or open one from the content browser) and name it in the WorldGen's `rules`. The editor lists the
+file's biomes, recipes and layers, edits each with a form (meshes and materials picked like any asset), and says under them whether
+the engine would take the rules as they stand. Saving the file lays the open world out by it again, in the editor and in a running
+game. The file is the JSON of what `registerWorldRules` takes, checked as it is read: a file that names a recipe or layer it does not
+have, or leaves out what a world needs, fails the WorldGen with where it went wrong.
+
+Rules can also be registered from code, which is how a game adds fields of its own (functions are not data):
 
 ```ts
 import { registerWorldRules } from 'esengine/worldgen';
@@ -142,8 +151,9 @@ game's own: the zone it reserves keeps generation out of its ground.
 
 ## Shipping
 
-Recipes name their meshes and materials by path in code, which a scene does not reference, so a package would leave them out.
-Declare the folders they live in always included, in `.esengine/asset-groups.json`:
+A `.esworld` file is followed like a material: the meshes and materials it names ship with the scene that names it. Rules registered
+from code name theirs where a scene does not reference them, so a package would leave them out; declare the folders they live in
+always included, in `.esengine/asset-groups.json`:
 
 ```json
 { "version": "1.0", "groups": { "recipes": { "folder": "assets/models", "mode": "local", "alwaysInclude": true } } }
@@ -153,6 +163,7 @@ Declare the folders they live in always included, in `.esengine/asset-groups.jso
 
 - **Decoration is merged a chunk at a time, not GPU-instanced.** The renderer's instance records are written each frame, which for a
   field of thousands of plants would upload megabytes a frame; merged static meshes upload nothing, and the chunks bound their memory.
-- **Rules are code.** Recipes are plain data and can be read from JSON, but there is no editor for them yet.
+- **A game's own fields are code.** A rules file uses the built-in fields and the ones zones set; a field computed by the game is
+  registered with the rules from code.
 
 See the **Generated World** example (`examples/worldgen`).

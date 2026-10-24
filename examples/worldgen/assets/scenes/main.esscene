@@ -261,7 +261,7 @@
     {
      "type": "WorldGen",
      "data": {
-      "rules": "worldgen-demo:wilds",
+      "rules": "assets/worlds/wilds.esworld",
       "version": 1,
       "world": "demo",
       "seed": 7,

@@ -7704,7 +7704,7 @@
           "key": "rules",
           "type": "string",
           "default": "empty",
-          "doc": "The rules the world is laid out by, as the game registered them with registerWorldRules."
+          "doc": "The rules the world is laid out by: a .esworld file, or the id of rules the game registered with registerWorldRules."
         },
         {
           "key": "version",
@@ -7846,6 +7846,12 @@
           "type": "string",
           "default": "empty",
           "doc": "A biome the zone holds over its area; empty holds none."
+        },
+        {
+          "key": "flatten",
+          "type": "boolean",
+          "default": "false",
+          "doc": "Level the terrain under the zone to the ground's height at its centre, blending back over its falloff: a plot to build on."
         }
       ],
       "animatable": [

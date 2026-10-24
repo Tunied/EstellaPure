@@ -1,60 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
-// The rules the scene's WorldGen names, as a game's would be; mining and building are changes the world keeps.
+// The rules are a project file (assets/worlds/wilds.esworld) the scene's WorldGen names; mining and building are changes the world keeps.
 import { addPlugin, defineSystem, GetWorld, Res, Query, Mut, Input, Time, Transform, Camera, Text, Name, BakesRes,
     spawnUIEntity, UIPositionType, px, type Entity } from 'esengine';
-import { registerWorldRules, WorldGenRes, type WorldRules } from 'esengine/worldgen';
-
-const PINE = 'assets/models/pine.esmesh', ROCK = 'assets/models/rock.esmesh';
-/** A pine far off: a tent of cards showing the tree's part of its colour strip. */
-const PINE_FAR = { u0: 0.2, v0: 0.22, u1: 0.8, v1: 0.95, tent: true };
-
-/**
- * Three biomes by the fields (moisture, rock, how steep), each with its recipes: groves of pines with saplings round a tall one in
- * the forest, a scatter of single pines on the meadow's edge, rock groups where the stone comes up, and copper to mine near rock.
- */
-const rules: WorldRules = {
-    id: 'worldgen-demo:wilds',
-    versions: [1],
-    biomes: [
-        { id: 'forest', conditions: [{ field: 'moisture', min: 0.52, blend: 0.08 }, { field: 'up', min: 0.82, blend: 0.05 }],
-            transition: 120, paint: [0.55, 0.45, 0, 0], paintStrength: 0.5,
-            recipes: [{ recipe: 'grove', layer: 'groups', density: 0.75 }, { recipe: 'lone pine', layer: 'detail', density: 0.25 }] },
-        { id: 'meadow', conditions: [{ field: 'moisture', max: 0.52, blend: 0.08 }, { field: 'rock', max: 0.58, blend: 0.06 }],
-            transition: 120, paint: [1, 0, 0, 0], paintStrength: 0.45,
-            recipes: [{ recipe: 'lone pine', layer: 'detail', density: 0.04 }, { recipe: 'stones', layer: 'detail', density: 0.03 }] },
-        { id: 'rocky', conditions: [{ field: 'rock', min: 0.58, blend: 0.06 }, { field: 'moisture', max: 0.52, blend: 0.08 }],
-            transition: 80, paint: [0.15, 0.35, 0, 0.5], paintStrength: 0.6,
-            recipes: [{ recipe: 'outcrop', layer: 'groups', density: 0.6 }, { recipe: 'copper', layer: 'resources', density: 0.5 }] },
-    ],
-    recipes: [
-        { id: 'grove', version: 1, tags: ['tree'],
-            anchor: { id: 'elder', mesh: PINE, material: 'assets/materials/pine.esmaterial', scale: [1.4, 1.8], footprint: 10, canopy: 35, minUp: 0.82, far: PINE_FAR },
-            members: [
-                { id: 'pine', mesh: PINE, material: 'assets/materials/pine.esmaterial', count: [3, 6], ring: [45, 110], scale: [0.9, 1.3], footprint: 8, canopy: 25, minUp: 0.8, far: PINE_FAR },
-                { id: 'sapling', mesh: PINE, material: 'assets/materials/pine.esmaterial', count: [2, 5], ring: [110, 170], scale: [0.35, 0.6], footprint: 4, minUp: 0.8, chance: 0.8, far: PINE_FAR },
-                { id: 'stone', mesh: ROCK, material: 'assets/materials/stone.esmaterial', count: [0, 2], ring: [20, 60], scale: [0.8, 1.6], footprint: 6, tags: ['rock'] },
-            ] },
-        { id: 'lone pine', version: 1, tags: ['tree'],
-            anchor: { id: 'pine', mesh: PINE, material: 'assets/materials/pine.esmaterial', scale: [0.8, 1.4], footprint: 8, minUp: 0.8, far: PINE_FAR } },
-        { id: 'outcrop', version: 1, tags: ['rock'],
-            anchor: { id: 'boulder', mesh: ROCK, material: 'assets/materials/stone.esmaterial', scale: [4, 6.5], footprint: 26, attach: 'align' },
-            members: [
-                { id: 'rock', mesh: ROCK, material: 'assets/materials/stone.esmaterial', count: [2, 4], ring: [32, 60], scale: [1.6, 3], footprint: 12, attach: 'align' },
-                { id: 'scree', mesh: ROCK, material: 'assets/materials/stone.esmaterial', count: [4, 9], ring: [50, 95], scale: [0.4, 0.9], footprint: 4, attach: 'align' },
-            ] },
-        { id: 'stones', version: 1, tags: ['rock'],
-            anchor: { id: 'stone', mesh: ROCK, material: 'assets/materials/stone.esmaterial', scale: [0.6, 1.4], footprint: 6, attach: 'align' } },
-        { id: 'copper', version: 1, tags: ['ore'],
-            anchor: { id: 'vein', mesh: ROCK, material: 'assets/materials/copper.esmaterial', interactive: 'copper', scale: [1.2, 1.8], footprint: 10, attach: 'align' } },
-    ],
-    layers: [
-        { id: 'groups', spacing: 260, drawDistance: 4200, lodDistance: 1400, chunkSize: 512 },
-        { id: 'resources', spacing: 220, drawDistance: 2400, chunkSize: 512 },
-        { id: 'detail', spacing: 90, drawDistance: 2400, lodDistance: 1200, chunkSize: 384 },
-    ],
-};
-registerWorldRules(rules);
+import { WorldGenRes } from 'esengine/worldgen';
 
 const KEYS = [
     'W A S D   walk        Q E   turn',
