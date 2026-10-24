@@ -2814,4 +2814,6 @@ export const NOTED = {
     {"note":"Water meets the shore along a smooth line."},
   "fix(water): a river fades into the sea or lake it runs into, so the surf is not cut along its sides":
     {"note":"A river gives way where it runs into the sea or a lake."},
+  "fix(water): surf crests come in from open water as lines instead of tracing every turn of the shore":
+    {"note":"Surf comes in from open water as lines."},
 };

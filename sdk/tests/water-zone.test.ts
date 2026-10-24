@@ -182,3 +182,25 @@ describe('the surf', () => {
         for (let t = 0; t < 3; t += 0.37) expect(at(41, t)).toBe(0);
     });
 });
+
+describe('the distance the surf runs in by', () => {
+    // A beach along z = 0 (the sea to +z, rising 1 in 10 inland) with a river cut through it along x = 0, its mouth on the beach.
+    const g: ZoneGrid = { minX: -200, minZ: -100, sizeX: 400, sizeZ: 200, nx: 401, nz: 201 };
+    const ground = (x: number, z: number): number => (Math.abs(x) < 12 && z < 10 ? -Math.min(8, (12 - Math.abs(x)) * 0.5) : -z * 0.1);
+    const stations: RiverStation[] = [];
+    for (let z = -100; z <= 10; z += 5) stations.push({ x: 0, z, y: 0.5, half: 12, dx: 0, dz: 1, speed: 3 });
+    const mouth: ZoneRiver = { kind: 'river', key: 9, waveHeight: 0, shoreWidth: 2, stations };
+    const field = WaterField.bake(g, [{ kind: 'ocean', key: 3, level: 0, waveHeight: 2, shoreWidth: 6 }, mouth], ground, 80);
+
+    it('runs straight across a river mouth, where the shore itself bends into it', () => {
+        // Off the mouth the shore distance dips toward the river's water; the surf's runs on as along the open beach.
+        const off = field.sample(0, 20)!, beach = field.sample(120, 20)!;
+        expect(Math.abs(off.surf - beach.surf)).toBeLessThan(Math.abs(off.shore - beach.shore));
+        expect(Math.abs(off.surf - beach.surf)).toBeLessThan(10);
+    });
+
+    it('takes a river for land', () => {
+        expect(field.sample(0, -50)!.surf).toBeLessThan(0);
+        expect(field.sample(0, -50)!.shore).toBeGreaterThan(0);
+    });
+});

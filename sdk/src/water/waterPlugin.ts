@@ -170,9 +170,9 @@ export class Waters {
         const time = this.app_.getResource(Time).elapsed;
         const params = this.waves(s.amp, s.exposure);
         const zone = this.zone_;
-        const still = 1 - Math.min(Math.hypot(s.flowX, s.flowZ) / Math.max(field.ranges().flow * 0.25, 1e-4), 1);
+        const still = s.still;
         // Surf is swell come in from open water: sheltered water has as little of it as it is sheltered.
-        const surf = surfHeight(s.shore, zone.surf * grown(s.exposure) * s.swell * s.exposure * still, zone.surfLength, zone.waveSpeed, time);
+        const surf = surfHeight(s.shore, zone.surf * grown(s.exposure) * s.swell * s.exposure * still, zone.surfLength, zone.waveSpeed, time, s.surf);
         // The lite water is flat: its waves are in the shading, so the height code reads is the rest plane's.
         const h = s.height + (this.quality.displacement ? waveHeight(params, x, z, time) + surf : 0) + (this.ripples_?.heightAt(x, z) ?? 0);
         const [sx, sz] = waveSlope(params, x, z, time);
@@ -419,7 +419,7 @@ export class WaterPlugin implements Plugin {
                 // A big zone is a second or more of work: it is spread over frames and shown while it runs.
                 this.baking_?.cancel();
                 const key = inputs.key;
-                const job = bakesOf(app).run('Baking the water', WaterField.baking(inputs.grid, inputs.bodies, this.ground(app)));
+                const job = bakesOf(app).run('Baking the water', WaterField.baking(inputs.grid, inputs.bodies, this.ground(app), inputs.zone.surfLength));
                 this.baking_ = { key, cancel: job.cancel };
                 waters.baking = true;
                 void job.done.then((field) => {

@@ -136,6 +136,10 @@ export interface FieldSample {
     /** The signed distance to the nearest shore (positive on the water) and how deep the water is over the ground. */
     shore: number;
     depth: number;
+    /** The distance the surf runs in by: the shore's, a river's water taken for land, smoothed over the surf's length. */
+    surf: number;
+    /** How much of the surf a current leaves: 0 in a river, rising away from its mouth over half the surf's length. */
+    still: number;
     /** How open it is to the wind, 0 to 1: how far the weather raises its waves (see {@link ZoneOcean.exposure}). */
     exposure: number;
 }
@@ -161,6 +165,10 @@ export class WaterField {
     readonly flowX: Float32Array;
     readonly flowZ: Float32Array;
     readonly depth: Float32Array;
+    /** The distance the surf runs in by (see {@link FieldSample.surf}). */
+    readonly surf: Float32Array;
+    /** How much of the surf a current leaves (see {@link FieldSample.still}). */
+    readonly still: Float32Array;
     readonly exposure: Float32Array;
     /** The body that owns the most of each texel, as its key; -1 where there is no water. */
     readonly owner: Int32Array;
@@ -179,6 +187,8 @@ export class WaterField {
         this.flowX = new Float32Array(n);
         this.flowZ = new Float32Array(n);
         this.depth = new Float32Array(n);
+        this.surf = new Float32Array(n);
+        this.still = new Float32Array(n).fill(1);
         this.exposure = new Float32Array(n).fill(1);
         this.owner = new Int32Array(n);
     }
@@ -189,8 +199,8 @@ export class WaterField {
      * The lakes come first, then the rivers have what they leave (a river runs into a lake and is the lake there), and the ocean what both leave. A texel no body holds keeps the height of the nearest water, so the
      * surface's vertices there (which the shore cuts away) do not pull the water's edge down to nothing.
      */
-    static bake(grid: ZoneGrid, bodies: readonly ZoneBody[], ground?: ZoneGround): WaterField {
-        const job = WaterField.baking(grid, bodies, ground);
+    static bake(grid: ZoneGrid, bodies: readonly ZoneBody[], ground?: ZoneGround, surfLength = 0): WaterField {
+        const job = WaterField.baking(grid, bodies, ground, surfLength);
         for (;;) {
             const next = job.next();
             if (next.done) return next.value;
@@ -198,7 +208,7 @@ export class WaterField {
     }
 
     /** {@link WaterField.bake} as a job that yields its progress (0 to 1) every few rows, for spreading over frames. */
-    static *baking(grid: ZoneGrid, bodies: readonly ZoneBody[], ground?: ZoneGround): Generator<number, WaterField, void> {
+    static *baking(grid: ZoneGrid, bodies: readonly ZoneBody[], ground?: ZoneGround, surfLength = 0): Generator<number, WaterField, void> {
         const ocean = (bodies.find((b) => b.kind === 'ocean') as ZoneOcean | undefined) ?? null;
         const field = new WaterField(grid, ocean);
         const texel = Math.max(grid.sizeX / Math.max(grid.nx - 1, 1), grid.sizeZ / Math.max(grid.nz - 1, 1));
@@ -207,6 +217,8 @@ export class WaterField {
         const bounded = [...bodies.filter((b) => b.kind === 'lake'), ...bodies.filter((b) => b.kind === 'river')] as (ZoneLake | ZoneRiver)[];
         const boxes = bounded.map((b) => boundsOf(b));
         const grounds = new Float64Array(grid.nx * grid.nz).fill(Number.NaN);
+        // How much of each texel's water is a river's: the surf takes it for land.
+        const rivers = new Float32Array(grid.nx * grid.nz);
         for (let j = 0; j < grid.nz; j++) {
             if (j % 32 === 0) yield 0.3 * (j / grid.nz);
             for (let i = 0; i < grid.nx; i++) {
@@ -233,7 +245,7 @@ export class WaterField {
                 const z = grid.minZ + (j / Math.max(grid.nz - 1, 1)) * grid.sizeZ;
                 const g = Number.isNaN(grounds[k]!) ? null : grounds[k]!;
                 const slope = g === null ? MIN_SLOPE : slopeAt(i, j);
-                let w = 0, h = 0, a = 0, c = 0, sw = 0, ex = 0, fx = 0, fz = 0, best = -Infinity, owner = -1, ownerW = 0, held = 0, lakeShore = -Infinity;
+                let w = 0, h = 0, a = 0, c = 0, sw = 0, ex = 0, fx = 0, fz = 0, best = -Infinity, owner = -1, ownerW = 0, held = 0, lakeShore = -Infinity, riverW = 0;
                 // Ground below the sea's level that the open sea does not reach is a dry basin: as far above the sea as a texel.
                 const seaDeep = !ocean ? -DEEP : g === null ? DEEP : g < ocean.level && !sea![k] ? -texel : (ocean.level - g) / slope;
                 for (let b = 0; b < bounded.length; b++) {
@@ -246,11 +258,15 @@ export class WaterField {
                     // A river gives way to the lake or the sea it runs into over half its width past their shore, its current fading
                     // with it: cut off at their shore, its sides would run on into the open water as lines the surf stops at.
                     const fade = Math.max(say.half, blend);
+                    // Its mouth on the sea is where its surface comes down to the sea's (its bed may lie under the sea's level far
+                    // upstream): how far past that it is, from how far under it its surface runs and how fast it falls along its course.
+                    const pastSea = ocean ? (ocean.level - say.height) / Math.max(say.grade, 1e-3) : -DEEP;
                     const weight = bounded[b]!.kind === 'river'
-                        ? inside * (1 - smooth(0, fade, lakeShore)) * (1 - smooth(0, fade, seaDeep)) : inside;
+                        ? inside * (1 - smooth(0, fade, lakeShore)) * (1 - smooth(0, fade, pastSea)) : inside;
                     if (bounded[b]!.kind === 'lake') lakeShore = Math.max(lakeShore, say.shore);
                     if (weight <= 0) continue;
                     held = Math.max(held, weight);
+                    if (bounded[b]!.kind === 'river') riverW += weight;
                     w += weight; h += say.height * weight; a += say.amp * weight; c += say.calm * weight; sw += bounded[b]!.waveHeight * weight; fx += say.fx * weight; fz += say.fz * weight;
                     ex += (bounded[b]!.exposure ?? 1) * weight;
                     if (weight > ownerW) { ownerW = weight; owner = bounded[b]!.key; }
@@ -276,6 +292,7 @@ export class WaterField {
                     field.exposure[k] = ex / w;
                     field.flowX[k] = fx / w;
                     field.flowZ[k] = fz / w;
+                    rivers[k] = riverW / w;
                 } else {
                     field.height[k] = Number.NaN;
                 }
@@ -284,6 +301,7 @@ export class WaterField {
         }
         yield* levelShore(field, texel);
         yield* fillDry(field);
+        surfDistance(field, rivers, texel, surfLength);
         return field;
     }
 
@@ -304,7 +322,7 @@ export class WaterField {
         const near = (j + (tz > 0.5 ? 1 : 0)) * nx + i + (tx > 0.5 ? 1 : 0);
         return {
             key: this.owner[near]!, height: lerp2(this.height), amp: lerp2(this.amp), calm: lerp2(this.calm), swell: lerp2(this.swell), flowX: lerp2(this.flowX), flowZ: lerp2(this.flowZ),
-            shore: lerp2(this.shore), depth: lerp2(this.depth), exposure: lerp2(this.exposure),
+            shore: lerp2(this.shore), depth: lerp2(this.depth), surf: lerp2(this.surf), still: lerp2(this.still), exposure: lerp2(this.exposure),
         };
     }
 
@@ -317,7 +335,7 @@ export class WaterField {
         if (inside) return inside.shore > 0 ? inside : null;
         const o = this.ocean;
         if (!o) return null;
-        return { key: o.key, height: o.level, amp: o.waveHeight, calm: 1, swell: o.waveHeight, flowX: 0, flowZ: 0, shore: DEEP, depth: DEEP, exposure: o.exposure ?? 1 };
+        return { key: o.key, height: o.level, amp: o.waveHeight, calm: 1, swell: o.waveHeight, flowX: 0, flowZ: 0, shore: DEEP, depth: DEEP, surf: DEEP, still: 1, exposure: o.exposure ?? 1 };
     }
 
     /** The ranges the encoding spans, from what the field holds; the shore distance reaches `shoreReach` at least (as far out as the surf is drawn). */
@@ -345,7 +363,7 @@ export class WaterField {
     /**
      * The field as two RGBA8 images, rows from minZ. heights (read texel by texel: filtered bytes are no number): rg the height, high byte
      * first; b the depth, as its square root (fine where the water is shallow, where the shore is drawn by it); a the swell (the body's waves' height). field (filtered): r the shore distance (0.5 at it, a signed square root); gb the current (0.5 still); a the calm.
-     * exposure (filtered): r how open the water is to the wind. Each over its range in `r`.
+     * exposure (filtered): r how open the water is to the wind; g the distance the surf runs in by; b how much surf a current leaves. Each over its range in `r`.
      */
     encode(r: ZoneRanges): { heights: Uint8Array; field: Uint8Array; exposure: Uint8Array } {
         const n = this.height.length;
@@ -364,6 +382,10 @@ export class WaterField {
             field[k * 4 + 2] = byte(this.flowZ[k]! / (2 * r.flow) + 0.5);
             field[k * 4 + 3] = byte(this.calm[k]!);
             exposure[k * 4] = byte(this.exposure[k]!);
+            // g: the distance the surf runs in by, as a signed square root like the shore's.
+            const surf = Math.max(Math.min(this.surf[k]! / r.shore, 1), -1);
+            exposure[k * 4 + 1] = byte(Math.sign(surf) * Math.sqrt(Math.abs(surf)) / 2 + 0.5);
+            exposure[k * 4 + 2] = byte(this.still[k]!);
             exposure[k * 4 + 3] = 255;
         }
         return { heights, field, exposure };
@@ -372,7 +394,7 @@ export class WaterField {
 
 /** What one body says about a point: its height there, how far inside it the point is, its waves and its current. Null where it says nothing. */
 function sayOf(body: ZoneLake | ZoneRiver, x: number, z: number, g: number | null, slope: number):
-    { height: number; shore: number; amp: number; calm: number; fx: number; fz: number; half: number } | null {
+    { height: number; shore: number; amp: number; calm: number; fx: number; fz: number; half: number; grade: number } | null {
     if (body.kind === 'lake') {
         const [lx, lz] = body.toLocal(x, z);
         // The depth as a distance across the ground to where the water meets it (the ground's slope there sets how far that is).
@@ -381,7 +403,7 @@ function sayOf(body: ZoneLake | ZoneRiver, x: number, z: number, g: number | nul
         const shore = Math.min(polygonSdf(body.outline, lx, lz), depth / slope);
         // The waves calm toward the shore and as the water shallows, which on a flat shelf far from any shore is the depth alone.
         const calm = shoreDamp(Math.min(shore, depth), body.shoreWidth);
-        return { height: body.level, shore, amp: body.waveHeight * calm, calm, fx: 0, fz: 0, half: 0 };
+        return { height: body.level, shore, amp: body.waveHeight * calm, calm, fx: 0, fz: 0, half: 0, grade: 0 };
     }
     const st = body.stations;
     if (st.length < 2) return null;
@@ -409,7 +431,7 @@ function sayOf(body: ZoneLake | ZoneRiver, x: number, z: number, g: number | nul
     const length = st.reduce((n, p, i) => (i ? n + Math.hypot(p.x - st[i - 1]!.x, p.z - st[i - 1]!.z) : 0), 0);
     const run = smooth(0, 2 * half, along * length) * smooth(0, 2 * half, (1 - along) * length);
     const calm = shoreDamp(Math.min(shore, depth), body.shoreWidth);
-    return { height: y, shore, amp: body.waveHeight * calm, calm, fx: dx * speed * run, fz: dz * speed * run, half };
+    return { height: y, shore, amp: body.waveHeight * calm, calm, fx: dx * speed * run, fz: dz * speed * run, half, grade: Math.abs(b.y - a.y) / Math.max(Math.hypot(b.x - a.x, b.z - a.z), 1e-6) };
 }
 
 /**
@@ -538,6 +560,76 @@ function* fillDry(field: WaterField): Generator<number, void, void> {
         field.height[k] = src[k]! >= 0 ? field.height[src[k]!]! : fallback;
         if (src[k]! >= 0) field.exposure[k] = field.exposure[src[k]!]!;
     }
+}
+
+/**
+ * The distance the surf runs in by: the shore distance with a river's water taken for land (a current carries no surf, and its mouth is
+ * no bay the crests bend into), smoothed over the surf's length. A crest is a line of it: smoothed, the crests come in from the open
+ * water as lines and turn to follow the shore only as they near it, instead of tracing every turn of it from far out.
+ */
+function surfDistance(field: WaterField, rivers: Float32Array, texel: number, surfLength: number): void {
+    const { nx, nz } = field.grid;
+    const n = nx * nz;
+    // Distances across the texels (8-neighbour chamfer) from the open water's edge: into the water above zero, onto the land (a river's
+    // water with it) below. The surf needs where the crests line up, which this keeps, not the shore to a texel, which the real one has.
+    const wet = new Uint8Array(n);
+    for (let k = 0; k < n; k++) wet[k] = field.shore[k]! > 0 && rivers[k]! < 0.5 ? 1 : 0;
+    const cap = Math.max(surfLength * 8, texel * 16);
+    const toWater = chamfer(nx, nz, wet, 0), toLand = chamfer(nx, nz, wet, 1);
+    for (let k = 0; k < n; k++) field.surf[k] = Math.min(Math.max((toLand[k]! - toWater[k]!) * texel, -cap), cap);
+    blur(field.surf, nx, nz, Math.round(surfLength / Math.max(texel, 1e-6)));
+    // A river's current carries no surf, and spreads as it runs out into open water: the surf comes back over half its length.
+    for (let k = 0; k < n; k++) field.still[k] = 1 - rivers[k]!;
+    blur(field.still, nx, nz, Math.round((surfLength * 0.5) / Math.max(texel, 1e-6)));
+    // Spread out past the mouth, never in: the river itself, banks and all, keeps none (the land beside it would lend it some).
+    for (let k = 0; k < n; k++) field.still[k] = Math.min(field.still[k]!, 1 - rivers[k]!);
+}
+
+/** `values` (a grid nx by nz) blurred in place over `radius` texels: three box passes each way, near enough a Gaussian, at a cost that
+ * does not grow with the radius. */
+function blur(values: Float32Array, nx: number, nz: number, radius: number): void {
+    if (radius < 1 || nx < 2 || nz < 2) return;
+    const line = new Float32Array(Math.max(nx, nz));
+    const pass = (count: number, length: number, at: (c: number, i: number) => number): void => {
+        for (let c = 0; c < count; c++) {
+            for (let i = 0; i < length; i++) line[i] = values[at(c, i)]!;
+            let sum = 0;
+            for (let i = -radius; i <= radius; i++) sum += line[Math.min(Math.max(i, 0), length - 1)]!;
+            for (let i = 0; i < length; i++) {
+                values[at(c, i)] = sum / (2 * radius + 1);
+                sum += line[Math.min(i + radius + 1, length - 1)]! - line[Math.max(i - radius, 0)]!;
+            }
+        }
+    };
+    for (let p = 0; p < 3; p++) {
+        pass(nz, nx, (j, i) => j * nx + i);
+        pass(nx, nz, (i, j) => j * nx + i);
+    }
+}
+
+/** How many texels each texel is from the nearest one whose `wet` is not `from` (half a texel at the edge, 0 on the other side). */
+function chamfer(nx: number, nz: number, wet: Uint8Array, from: number): Float32Array {
+    const n = nx * nz;
+    const d = new Float32Array(n);
+    for (let k = 0; k < n; k++) d[k] = wet[k] === from ? 1e9 : 0;
+    const relax = (k: number, o: number, w: number): void => { if (d[o]! + w < d[k]!) d[k] = d[o]! + w; };
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+        const k = j * nx + i;
+        if (i > 0) relax(k, k - 1, 1);
+        if (j > 0) relax(k, k - nx, 1);
+        if (i > 0 && j > 0) relax(k, k - nx - 1, Math.SQRT2);
+        if (i < nx - 1 && j > 0) relax(k, k - nx + 1, Math.SQRT2);
+    }
+    for (let j = nz - 1; j >= 0; j--) for (let i = nx - 1; i >= 0; i--) {
+        const k = j * nx + i;
+        if (i < nx - 1) relax(k, k + 1, 1);
+        if (j < nz - 1) relax(k, k + nx, 1);
+        if (i < nx - 1 && j < nz - 1) relax(k, k + nx + 1, Math.SQRT2);
+        if (i > 0 && j < nz - 1) relax(k, k + nx - 1, Math.SQRT2);
+    }
+    // The edge lies between two texels: half a texel from each.
+    for (let k = 0; k < n; k++) if (d[k]! > 0 && d[k]! < 1e9) d[k] = d[k]! - 0.5;
+    return d;
 }
 
 function smooth(a: number, b: number, x: number): number {

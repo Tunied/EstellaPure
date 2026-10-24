@@ -262,9 +262,9 @@
       "cellSize": 30,
       "detail": 1,
       "heightmap": "assets/textures/height.png",
+      "heightmapFormat": 1,
       "splatmap": "assets/textures/splat.png",
-      "material": "assets/materials/ground.esmaterial",
-      "heightmapFormat": 1
+      "material": "assets/materials/ground.esmaterial"
      }
     }
    ]
@@ -661,7 +661,7 @@
        },
        {
         "x": 1800,
-        "y": 30,
+        "y": 0,
         "z": 7900,
         "width": 1500
        },
