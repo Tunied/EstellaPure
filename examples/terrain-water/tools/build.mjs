@@ -494,7 +494,7 @@ function scene() {
   add('Ground', [
     { type: 'Transform', data: { position: { x: 0, y: WORLD.base, z: 0 } } },
     { type: 'Terrain', data: {
-      sizeX: WORLD.size, sizeZ: WORLD.size, height: WORLD.height, chunks: 16, chunkCells: 32, lodLevels: 4, detail: 3,
+      sizeX: WORLD.size, sizeZ: WORLD.size, height: WORLD.height, chunks: 16, chunkCells: 32, lodLevels: 4, detail: 1.5,
       heightmap: 'assets/textures/height.png', splatmap: 'assets/textures/splat.png', material: 'assets/materials/ground.esmaterial' } },
   ]);
   // The water: one zone over the whole island, which the sea, the lake and the two rivers are baked into and drawn from as one surface.
@@ -529,12 +529,12 @@ function scene() {
   // The plants: a meadow over the valley, flowers scattered in it, reeds where the ground is low by the lake and the rivers.
   const plants = (name, material, extra) => add(name, [
     { type: 'Transform', data: { position: { x: 1000, y: 0, z: 0 } } },
-    { type: 'Foliage', data: { material, sizeX: 18000, sizeZ: 16000, cellSize: 500, seed: 3, minScale: 0.7, maxScale: 1.4, minUp: 0.85,
-      lodDistance: 2400, drawDistance: 7000, ...extra } },
+    { type: 'Foliage', data: { material, sizeX: 18000, sizeZ: 16000, cellSize: 1000, seed: 3, minScale: 0.7, maxScale: 1.4, minUp: 0.85,
+      lodDistance: 1800, drawDistance: 4500, ...extra } },
   ]);
-  plants('Meadow', 'assets/materials/meadow.esmaterial', { count: 1100, heightMin: WORLD.lake.level + 160, heightMax: WORLD.snow - 600, bladeHeight: 55, bladeWidth: 6 });
-  plants('Flowers', 'assets/materials/flowers.esmaterial', { count: 70, seed: 11, heightMin: WORLD.lake.level + 200, heightMax: 2200, bladeHeight: 45, bladeWidth: 9 });
-  plants('Reeds', 'assets/materials/reeds.esmaterial', { count: 600, seed: 5, minUp: 0.75, heightMin: WORLD.lake.level - 40, heightMax: WORLD.lake.level + 140,
+  plants('Meadow', 'assets/materials/meadow.esmaterial', { count: 2200, heightMin: WORLD.lake.level + 160, heightMax: WORLD.snow - 600, bladeHeight: 55, bladeWidth: 6 });
+  plants('Flowers', 'assets/materials/flowers.esmaterial', { count: 160, seed: 11, heightMin: WORLD.lake.level + 200, heightMax: 2200, bladeHeight: 45, bladeWidth: 9 });
+  plants('Reeds', 'assets/materials/reeds.esmaterial', { count: 1600, seed: 5, minUp: 0.75, heightMin: WORLD.lake.level - 40, heightMax: WORLD.lake.level + 140,
     bladeHeight: 150, bladeWidth: 4, waterDepth: 60 });
   add('Pines', [
     { type: 'Transform', data: { position: { x: 0, y: 0, z: -3000 } } },
