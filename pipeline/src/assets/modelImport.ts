@@ -704,11 +704,13 @@ function hasProduct(material: ImportedMaterial, refs: ProductRefs): boolean {
 }
 
 /**
- * How much of the Hair shader's `u_specular` one unit of a glTF specular factor is. The factor scales a Fresnel reflectance of 0.04; the engine's
- * strand highlight is an authored lobe with a peak of about half the light, so the same factor is far too bright without this. Measured against
- * Blender's Principled at roughness 0.43 and a specular level of 0.3 (tools/render-align in the star-neighbors game).
+ * How much of the Hair shader's strand highlight the lamps draw for a glTF's specular factor. The factor scales a Fresnel reflectance of 0.04,
+ * which `u_specular` carries into the reflection of the environment; the engine's strand highlight is an authored lobe with a peak of about
+ * half the light, so under a lamp it is far too bright unless it is turned down on its own. Measured against Blender's Principled at roughness
+ * 0.43 and a specular level of 0.3 (tools/render-align in the star-neighbors game).
  */
-const HAIR_SPECULAR_PER_GLTF = 0.07;
+const HAIR_LOBE_GAIN = 0.28;
+const HAIR_ENV_GAIN = 0.65;
 
 /**
  * What the character shaders read, from what the source says: the maps they share, and the cutout hair needs. What a glTF does not say it
@@ -730,9 +732,16 @@ function characterProperties(shading: CharacterShading, material: ImportedMateri
         properties.u_blurRed = 0; properties.u_blurGreen = 0;
     }
     if (shading === 'hair') {
-        properties.u_translucency = 0; properties.u_shiftAmount = 0; properties.u_rootDark = 0;
-        properties.u_secondaryTint = { r: 0, g: 0, b: 0, a: 1 };
-        properties.u_specular = (material.specular ?? 1) * HAIR_SPECULAR_PER_GLTF;
+        // A little of the shader's own strand character is kept (a per-strand shift of the highlight and a tinted second lobe, at a third of their
+        // strength): without it the cards read as plates, not locks of hair.
+        properties.u_translucency = 0; properties.u_shiftAmount = 0.3; properties.u_rootDark = 0;
+        properties.u_secondaryTint = { r: 0.25, g: 0.15, b: 0.08, a: 1 };
+        // The Hair shader has no use for the packed roughness (a strand's width is its own), so the factor is the whole answer.
+        if (rough !== undefined) properties.u_roughness = rough;
+        // Principled reflects F0 = 0.04 x the factor; the Hair shader's F0 is 0.046, so u_specular is the ratio, and its reflection of the environment at
+        // this roughness comes out about half as bright again as Blender's, which HAIR_ENV_GAIN takes back.
+        properties.u_specular = ((material.specular ?? 1) * 0.04 / 0.046) * HAIR_ENV_GAIN;
+        properties.u_lobeGain = HAIR_LOBE_GAIN;
         properties.u_alphaCutoff = material.alphaCutoff ?? 0.5;
         bind('u_flowMap', material.flowTexture);
         bind('u_shiftMap', material.shiftTexture);

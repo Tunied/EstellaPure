@@ -28,6 +28,8 @@ const HAIR = `#pragma shader "Hair"
 // centre line. The second is the coloured one, tinted by u_secondaryTint.
 #pragma param u_roughness float default(0.3) range(0.05,1) ui(slider)
 #pragma param u_specular float default(1) range(0,2) ui(slider)
+// How much of the strand highlight the lamps draw, apart from the reflection of the environment (which u_specular alone sets): 1 is the authored lobe.
+#pragma param u_lobeGain float default(1) range(0,2) ui(slider)
 #pragma param u_shiftPrimary float default(-0.1) range(-1,1) ui(slider)
 #pragma param u_shiftSecondary float default(0.2) range(-1,1) ui(slider)
 #pragma param u_secondaryTint color default(0.75,0.45,0.25,1)
@@ -109,7 +111,7 @@ void main() {
     float noise = (texture(u_shiftMap, v_texCoord * u_shiftTile).r - 0.5) * u_shiftAmount;
     SurfaceExt ext = surfaceExtNone(N);
     ext.aniso = vec4(T, 0.0);
-    ext.misc = vec4(0.046, 1.0, u_shiftPrimary + noise, u_shiftSecondary + noise);
+    ext.misc = vec4(0.046, max(u_lobeGain, 0.001), u_shiftPrimary + noise, u_shiftSecondary + noise);
     ext.scatter = vec4(base.rgb * u_secondaryTint.rgb * 1.6, 0.35);
     ext.trans = vec4(u_translucency, 0.25, 0.0, 0.0);
     vec3 viewDir = viewDirection(P);
@@ -189,7 +191,7 @@ fn packNormal(n : vec3f) -> vec2f {
     let noise = (shiftTex - 0.5) * mc.u_shiftAmount;
     var ext = surfaceExtNone(N);
     ext.aniso = vec4f(T, 0.0);
-    ext.misc = vec4f(0.046, 1.0, mc.u_shiftPrimary + noise, mc.u_shiftSecondary + noise);
+    ext.misc = vec4f(0.046, max(mc.u_lobeGain, 0.001), mc.u_shiftPrimary + noise, mc.u_shiftSecondary + noise);
     ext.scatter = vec4f(base.rgb * mc.u_secondaryTint.rgb * 1.6, 0.35);
     ext.trans = vec4f(mc.u_translucency, 0.25, 0.0, 0.0);
     let viewDir = viewDirection(P);

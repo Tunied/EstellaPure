@@ -69,7 +69,7 @@ blurring the picture. `u_preIntegrate` takes the wrap past the terminator per co
 **Hair** (`builtin:hair`) lights a strand as a strand. `u_flowMap` says which way the strands run (red and green are a direction across the
 texture), the diffuse light is Kajiya-Kay (a strand is lit by how far the light is from along it), and the shine is two narrow
 highlights along the strand, shifted against each other by `u_shiftMap` (`u_shiftAmount`, `u_shiftTile`): a white one near the surface and a coloured
-one under it (`u_secondaryTint`). `u_roughness` sets how tight the lines are. Light comes through the strands from behind (`u_translucency`),
+one under it (`u_secondaryTint`). `u_roughness` sets how tight the lines are, and `u_lobeGain` how much of the highlight a lamp draws apart from the reflection of the environment (`u_specular`). Light comes through the strands from behind (`u_translucency`),
 `u_sharpen` keeps the fine strands a card is covered in from washing out at a slant, and `u_rootDark` darkens the roots by the occlusion map.
 `u_alphaCutoff` cuts a card out by its texture's alpha, feathered by alpha-to-coverage under MSAA, and the card then casts its own shape into shadow maps. `u_tipSoftness` adds the soft outer band: where the alpha falls from the cutoff down by that much, a second blended pass draws the strand's tip fading out, sorted with the other blended draws, so tips do not stair-step under coverage (0 leaves it out). The card's own shape goes into shadow maps too, not the rectangle it is drawn on. A hair model is usually cards or ribbons, not strands; this shader gives the shading of a strand to what the geometry gives it.
 
