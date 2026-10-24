@@ -1353,7 +1353,7 @@ export interface WeatherData {
     sequence: string;
     /** Seconds each weather of the sequence holds before the next turn begins. */
     hold: number;
-    /** What the weather drives: lights, fog, rain, grade, exposure, reflections, sound. */
+    /** What the weather drives: lights, fog, rain, grade, exposure, reflections, sound, wind (plants and waves). */
     drive: number;
     /** An entity with a looping AudioSource — the sound of the rain. The weather sets its volume (the authored one times
      *  how hard it rains) and raises or lowers its `playing`. 0 = none. */
@@ -1380,7 +1380,7 @@ export const Weather = defineComponent<WeatherData>('Weather', {
     duration: 6,
     sequence: '',
     hold: 20,
-    drive: 127,
+    drive: 255,
     soundSource: 0,
 }, {
     entityFields: ['soundSource'],
@@ -1393,6 +1393,7 @@ export const Weather = defineComponent<WeatherData>('Weather', {
         drive: { flags: [
             { label: 'Lights', value: 1 }, { label: 'Fog', value: 2 }, { label: 'Rain', value: 4 }, { label: 'Grade', value: 8 },
             { label: 'Exposure', value: 16 }, { label: 'Reflections', value: 32 }, { label: 'Sound', value: 64 },
+            { label: 'Wind', value: 128 },
         ] },
     },
 });

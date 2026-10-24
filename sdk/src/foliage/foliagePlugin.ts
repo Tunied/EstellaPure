@@ -21,6 +21,9 @@ import type { MeshData } from '../asset/meshFormat';
 import { log } from '../util/logger';
 import type { Entity } from '../types';
 import { TerrainsRes } from '../terrain/terrainPlugin';
+import { Material } from '../render/material';
+import { currentWeather, currentWeatherDrive, WeatherDrive } from '../postprocess/weather';
+import { isEditor, isPlayMode } from '../ecs/env';
 import {
     buildBillboardMesh, buildGrassMesh, buildInstancedMesh, scatterCell,
     type Ground, type Plant,
@@ -117,6 +120,8 @@ const CELLS_PER_FRAME = 3;
 /** Run-time facts about the foliage the plugin has grown. */
 export class FoliageField {
     /** @internal */ readonly built_ = new Map<Entity, BuiltFoliage>();
+    /** @internal The u_windStrength each material had before the weather's wind scaled it, to put back. */
+    readonly authoredWind_ = new Map<number, number>();
 
     /** How many cells across every field are still waiting to be built. */
     get pending(): number {
@@ -147,6 +152,7 @@ export class FoliagePlugin implements Plugin {
             if (!app.hasResource(Assets)) return;
             const terrains = app.hasResource(TerrainsRes) ? app.getResource(TerrainsRes) : null;
             this.sweep(app, field);
+            this.blow(app, field);
             // What stands on the ground waits for it: a plant placed before its terrain is read would stand on nothing.
             if (terrains?.loading) return;
             const revision = terrains?.revision_ ?? 0;
@@ -171,6 +177,40 @@ export class FoliagePlugin implements Plugin {
                 }
             }
         }, { name: 'FoliageSystem' }));
+    }
+
+    /**
+     * The weather's wind on the plants: each Foliage material's u_windStrength is its authored strength times the weather's `wind`, and is
+     * put back when the weather is taken away or stops driving the wind. Only while the game runs, as the weather's lights are: in the
+     * editor a material asset is left as authored, so previewing a storm never saves one.
+     */
+    private blow(app: App, field: FoliageField): void {
+        const w = currentWeather();
+        const playing = !isEditor() || isPlayMode();
+        const wind = w && playing && (currentWeatherDrive() & WeatherDrive.Wind) ? w.wind : 1;
+        const materials = new Set<number>();
+        if (wind !== 1) {
+            for (const entity of app.world.getEntitiesWithComponents([Foliage])) {
+                const material = (app.world.get(entity, Foliage) as FoliageData).material;
+                if (material) materials.add(material);
+            }
+        }
+        for (const material of materials) {
+            let authored = field.authoredWind_.get(material);
+            if (authored === undefined) {
+                const value = Material.getUniform(material, 'u_windStrength');
+                if (typeof value !== 'number') continue;
+                authored = value;
+                field.authoredWind_.set(material, authored);
+            }
+            Material.setUniform(material, 'u_windStrength', authored * wind);
+        }
+        // What the weather no longer blows goes back to its own strength, once; the material is the author's again from then on.
+        for (const [material, authored] of field.authoredWind_) {
+            if (materials.has(material)) continue;
+            Material.setUniform(material, 'u_windStrength', authored);
+            field.authoredWind_.delete(material);
+        }
     }
 
     cleanup(app?: App): void {

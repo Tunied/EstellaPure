@@ -1755,6 +1755,10 @@ exports[`builtin FieldMeta (RC9-1 equivalence gate) > matches the golden snapsho
           "label": "Sound",
           "value": 64,
         },
+        {
+          "label": "Wind",
+          "value": 128,
+        },
       ],
     },
     "duration": {

@@ -4,7 +4,7 @@
  * @file    ripples.ts
  * @brief   The disturbance a thing makes in water: a wave equation on a grid, and the foam it leaves.
  *
- * @details A body of water that is asked to ripple keeps a square window of its surface, a few hundred world units across, as a grid of heights, and each
+ * @details A water zone that is asked to ripple keeps a square window of its surface, a few hundred world units across, as a grid of heights, and each
  *          step moves it by the wave equation (every cell is pulled toward the mean of its four neighbours, and carries the velocity it had), with a little
  *          damping so a ripple dies. A disturbance (a body entering, a body moving, a script's `disturb`) is a smooth bump put into the grid; it spreads
  *          as a ring at the wave speed. Beside the height the grid keeps a foam: fed where a disturbance was and where the water moves, and fading with time.
@@ -25,6 +25,8 @@ export class RippleField {
     /** World size of one cell. */
     readonly cell: number;
     /** The window's minimum corner in the body's xz plane. */
+    /** Drops of rain owed to the window: the weather asks for a rate, a frame takes whole drops and carries the rest. */
+    rainOwed = 0;
     originX = 0;
     originZ = 0;
     /** The most height a cell may hold, either way: disturbances that go on (a body moving) saturate here instead of piling up. */

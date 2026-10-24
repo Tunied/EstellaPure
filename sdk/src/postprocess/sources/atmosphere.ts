@@ -7,7 +7,7 @@
 import type { ShaderHandle } from '../../render/material';
 import { Material } from '../../render/material';
 import { registerEffectSources } from '../effectSources';
-import { SSAO_GLSL, SSAO_WGSL, PUDDLE_GLSL, PUDDLE_WGSL, BASIN_GLSL, BASIN_WGSL } from './shared';
+import { SSAO_GLSL, SSAO_WGSL, PUDDLE_GLSL, PUDDLE_WGSL, BASIN_GLSL, BASIN_WGSL, GBUFFER_GLSL, GBUFFER_WGSL } from './shared';
 
 export const atmosphereEffects = {
     /**
@@ -831,6 +831,7 @@ fn streaks(uv : vec2f, aspect : f32, cols : f32, speed : f32, seed : f32, T : f3
 #pragma param u_coverMatrix2 color default(0,0,1,0)
 #pragma param u_coverMatrix3 color default(0,0,0,1)
 #pragma param u_rainCover texture default(white)
+#pragma gbuffer
 
 #pragma fragment
 precision highp float;
@@ -838,11 +839,13 @@ precision highp float;
 in vec2 v_texCoord;
 uniform sampler2D u_texture;
 uniform highp sampler2D u_sceneDepth;
+uniform highp sampler2D u_gbuffer;
 out vec4 fragColor;
 
 ${SSAO_GLSL}
 ${PUDDLE_GLSL}
 ${BASIN_GLSL}
+${GBUFFER_GLSL}
 ${GLSL}
 
 /// 1 where something stands over a point, as the map of the scene seen from straight above says — an awning, a roof,
@@ -875,7 +878,10 @@ void main() {
 #endif
     vec3 col = src.rgb;
 
-    if (d < 1.0 && u_wetness > 0.0) {
+    // Water is the surface here, not the ground the depth found under it: the water takes the rain in its own ripples, and a wet
+    // floor and its puddles drawn over it were the bed of the lake showing through.
+    Surface surface = readSurface(c);
+    if (d < 1.0 && u_wetness > 0.0 && !surface.water) {
         vec3 P = worldFromDepth(uvOfTexel(c, size), d);
         float dl = depthAt(c + ivec2(-1, 0), size);
         float dr = depthAt(c + ivec2( 1, 0), size);
@@ -892,7 +898,9 @@ void main() {
         // ground under an awning, and the awning, open to the sky, is wet in its turn.
         float shelter = shelteredAt(P + vec3(0.0, 1.0, 0.0));
         float wet = u_wetness * (1.0 - 0.9 * shelter);
-        float puddle = puddleMask(P.xz, basinCoverage(c, size, P, u_puddles, u_puddleScale), u_puddleScale) * up * wet;
+        // Standing water on what is sealed (a street, a flagstone); ground as rough as soil or grass soaks it up, and is only darker.
+        float soaks = surface.known ? smoothstep(0.82, 0.95, surface.roughness) : 0.0;
+        float puddle = puddleMask(P.xz, basinCoverage(c, size, P, u_puddles, u_puddleScale), u_puddleScale) * up * wet * (1.0 - soaks);
         col *= 1.0 - 0.32 * wet * up;
         col *= 1.0 - 0.35 * puddle;
         // Drops landing need drops falling: wet ground under no rain is still.
@@ -935,6 +943,7 @@ void main() {
 ${SSAO_WGSL}
 ${PUDDLE_WGSL}
 ${BASIN_WGSL}
+${GBUFFER_WGSL}
 ${WGSL}
 
 fn shelteredAt(W : vec3f) -> f32 {
@@ -968,7 +977,8 @@ fn shelteredAt(W : vec3f) -> f32 {
 #endif
     var col = src.rgb;
 
-    if (d < 1.0 && mc.u_wetness > 0.0) {
+    let surface = readSurface(c);
+    if (d < 1.0 && mc.u_wetness > 0.0 && !surface.water) {
         let P = worldFromDepth(uvOfTexel(c, size), d);
         let dl = depthAt(c + vec2i(-1, 0), size);
         let dr = depthAt(c + vec2i( 1, 0), size);
@@ -983,7 +993,9 @@ fn shelteredAt(W : vec3f) -> f32 {
         let up = smoothstep(0.86, 0.95, N.y);
         let shelter = shelteredAt(P + vec3f(0.0, 1.0, 0.0));
         let wet = mc.u_wetness * (1.0 - 0.9 * shelter);
-        let puddle = puddleMask(P.xz, basinCoverage(c, size, P, mc.u_puddles, mc.u_puddleScale), mc.u_puddleScale) * up * wet;
+        var soaks = 0.0;
+        if (surface.known) { soaks = smoothstep(0.82, 0.95, surface.roughness); }
+        let puddle = puddleMask(P.xz, basinCoverage(c, size, P, mc.u_puddles, mc.u_puddleScale), mc.u_puddleScale) * up * wet * (1.0 - soaks);
         col = col * (1.0 - 0.32 * wet * up);
         col = col * (1.0 - 0.35 * puddle);
         let falling = clamp(mc.u_intensity, 0.0, 1.0) * (1.0 - shelter);

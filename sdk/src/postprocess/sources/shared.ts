@@ -157,14 +157,15 @@ fn basinCoverage(c : vec2i, size : vec2i, P : vec3f, coverage : f32, scale : f32
  * Reading the scene's surface record, in both languages: what each pixel IS, as the scene's own shaders
  * wrote it beside the colour — octahedral normal in rg, roughness in b, metalness in a (a is 0 where nothing
  * wrote, and 0.75 + 0.25 * metalness where something did, so that an edge multisampling averaged with an
- * unwritten pixel — at most 0.5 — is told from a surface). An effect that wants it says `#pragma gbuffer`,
+ * unwritten pixel — at most 0.5 — is told from a surface; water's 0.72 is one rain leaves dry). An effect that wants it says `#pragma gbuffer`,
  */
 export const GBUFFER_GLSL = `
-struct Surface { vec3 normal; float roughness; float metallic; bool known; };
+struct Surface { vec3 normal; float roughness; float metallic; bool known; bool water; };
 Surface readSurface(ivec2 t) {
     vec4 g = texelFetch(u_gbuffer, t, 0);
     Surface s;
     s.known = g.a > 0.7;
+    s.water = g.a > 0.7 && g.a < 0.735;
     vec2 f = g.rg * 2.0 - 1.0;
     vec3 n = vec3(f.x, f.y, 1.0 - abs(f.x) - abs(f.y));
     float k = clamp(-n.z, 0.0, 1.0);
@@ -176,7 +177,7 @@ Surface readSurface(ivec2 t) {
 }`;
 
 export const GBUFFER_WGSL = `
-struct Surface { normal : vec3f, roughness : f32, metallic : f32, known : bool };
+struct Surface { normal : vec3f, roughness : f32, metallic : f32, known : bool, water : bool };
 fn readSurface(t : vec2i) -> Surface {
     let g = textureLoad(t6, t, 0);
     var f = g.rg * 2.0 - 1.0;
@@ -185,6 +186,7 @@ fn readSurface(t : vec2i) -> Surface {
     n = vec3f(n.x + select(k, -k, n.x >= 0.0), n.y + select(k, -k, n.y >= 0.0), n.z);
     var s : Surface;
     s.known = g.a > 0.7;
+    s.water = g.a > 0.7 && g.a < 0.735;
     s.normal = normalize(n);
     s.roughness = g.b;
     s.metallic = clamp((g.a - 0.75) / 0.25, 0.0, 1.0);
