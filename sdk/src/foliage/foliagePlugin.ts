@@ -188,9 +188,9 @@ export class FoliagePlugin implements Plugin {
                     continue;
                 }
                 if (built.loading) continue;
-                // Plants stand on the ground: while a terrain is still being made, growing them would be done again once it is.
+                // Plants stand on the ground: while a terrain's heights are still being made, growing them would be done again once they are.
                 const terrains = app.hasResource(TerrainsRes) ? app.getResource(TerrainsRes) : null;
-                if (terrains && (terrains.loading || terrains.pending > 0)) continue;
+                if (terrains?.loading) continue;
                 if (water?.baking) continue;
                 const until = performance.now() + CELL_BUDGET_MS;
                 while (built.queue.length > 0) {

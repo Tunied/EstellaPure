@@ -259,10 +259,8 @@
       "sizeX": 28000,
       "sizeZ": 28000,
       "height": 7400,
-      "chunks": 16,
-      "chunkCells": 32,
-      "lodLevels": 4,
-      "detail": 1.5,
+      "cellSize": 30,
+      "detail": 1,
       "heightmap": "assets/textures/height.png",
       "splatmap": "assets/textures/splat.png",
       "material": "assets/materials/ground.esmaterial"

@@ -5236,6 +5236,16 @@
       "source": "ts",
       "fields": [
         {
+          "key": "extent",
+          "type": "enum",
+          "default": "Area",
+          "doc": "An area of its own size, from a heightmap or noise; or ground that goes on for ever, from noise read anywhere (the same seed is the same ground).",
+          "values": [
+            "Area",
+            "Infinite"
+          ]
+        },
+        {
           "key": "heightmap",
           "type": "Asset<texture>",
           "default": "none",
@@ -5257,14 +5267,14 @@
           "key": "sizeX",
           "type": "number",
           "default": "1000",
-          "doc": "World size along x.",
+          "doc": "An area's size along x; for ground without end, the span its hills are spread over.",
           "range": "≥ 1"
         },
         {
           "key": "sizeZ",
           "type": "number",
           "default": "1000",
-          "doc": "World size along z.",
+          "doc": "An area's size along z.",
           "range": "≥ 1"
         },
         {
@@ -5275,32 +5285,25 @@
           "range": "≥ 0"
         },
         {
-          "key": "chunks",
+          "key": "cellSize",
           "type": "number",
-          "default": "8",
-          "doc": "Chunks along each side; each is drawn and culled on its own.",
-          "range": "1–64, step 1"
-        },
-        {
-          "key": "chunkCells",
-          "type": "number",
-          "default": "32",
-          "doc": "Cells along a chunk side at its finest level. A power of two keeps the levels clean.",
-          "range": "2–128, step 1"
-        },
-        {
-          "key": "lodLevels",
-          "type": "number",
-          "default": "4",
-          "doc": "Levels of detail per chunk, each half as fine as the one before.",
-          "range": "1–4, step 1"
+          "default": "2",
+          "doc": "The finest cell of the ground's mesh, in world units: what it is drawn at near the eye. Further off the cells double, level by level.",
+          "range": "≥ 0.01"
         },
         {
           "key": "detail",
           "type": "number",
           "default": "1",
-          "doc": "Above 1 the finer levels are kept out to a greater distance.",
-          "range": "0.1–8, step 0.1"
+          "doc": "Above 1 the finest cells reach further out before the ground coarsens.",
+          "range": "0.25–8, step 0.05"
+        },
+        {
+          "key": "drawDistance",
+          "type": "number",
+          "default": "4000",
+          "doc": "How far ground without end is drawn.",
+          "range": "≥ 1"
         },
         {
           "key": "seed",
@@ -5313,7 +5316,7 @@
           "key": "frequency",
           "type": "number",
           "default": "3",
-          "doc": "How many hills across the terrain.",
+          "doc": "How many hills across the terrain (or across sizeX, for ground without end).",
           "range": "0.1–32, step 0.1"
         },
         {
@@ -5341,7 +5344,7 @@
           "key": "resolution",
           "type": "number",
           "default": "257",
-          "doc": "Samples along each side of the noise ground.",
+          "doc": "Samples along each side of an area's noise ground.",
           "range": "17–2049, step 1"
         },
         {
@@ -5355,7 +5358,7 @@
           "key": "erosion",
           "type": "number",
           "default": "0",
-          "doc": "How much rain wears the ground (a heightmap's too): gullies down the slopes, silt in the valleys, and dirt painted where the water ran. 0 leaves it as made.",
+          "doc": "How much rain wears the ground: an area (a heightmap's too) drop by drop, with dirt where the water ran; ground without end by its noise. 0 leaves it as made.",
           "range": "0–4, step 0.05"
         },
         {
@@ -5401,16 +5404,16 @@
         }
       ],
       "animatable": [
+        "extent",
         "heightmap",
         "splatmap",
         "material",
         "sizeX",
         "sizeZ",
         "height",
-        "chunks",
-        "chunkCells",
-        "lodLevels",
+        "cellSize",
         "detail",
+        "drawDistance",
         "seed",
         "frequency",
         "octaves",

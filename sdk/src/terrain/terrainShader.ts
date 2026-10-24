@@ -43,6 +43,98 @@ const TERRAIN = `#pragma shader "Terrain"
 #pragma param u_wetLevel float default(0) range(-100000,100000) ui(slider)
 #pragma param u_wetBand float default(0) range(0,100000) ui(slider)
 #pragma param u_roughness float default(0.92) range(0,1) ui(slider)
+// The ground in pages (pages.ts; the Terrain component writes these): heights and normals, and the paint, in two atlases; heights over
+// u_heightRange above u_terrainOrigin; level 0 drawn out to u_lodRange0, each level twice as far; nothing off u_terrainBounds.
+#pragma param u_terrainPages float default(0) range(0,1) ui(slider)
+#pragma param u_heightPages texture default(white) texel(data)
+#pragma param u_paintPages texture default(white) texel(data)
+#pragma param u_atlasTexels float default(2048) range(1,16384) ui(slider)
+#pragma param u_pageTexels float default(64) range(1,1024) ui(slider)
+#pragma param u_patchCells float default(32) range(1,512) ui(slider)
+#pragma param u_heightRange vec2 default(0,1)
+#pragma param u_lodRange0 float default(100) range(0,1000000) ui(slider)
+#pragma param u_terrainOrigin vec4 default(0,0,0,0)
+#pragma param u_terrainBounds vec4 default(-1000000000,-1000000000,1000000000,1000000000)
+
+#pragma vertexoffset
+// The node's page (pages.ts): its height decoded texel by texel and blended (a filtered pair of bytes is no number).
+float tnPageHeight(vec2 texel) {
+    vec2 f = texel - 0.5;
+    ivec2 i = ivec2(floor(f));
+    vec2 t = f - vec2(i);
+    vec4 a = texelFetch(u_heightPages, i, 0), b = texelFetch(u_heightPages, i + ivec2(1, 0), 0);
+    vec4 c = texelFetch(u_heightPages, i + ivec2(0, 1), 0), d = texelFetch(u_heightPages, i + ivec2(1, 1), 0);
+    vec4 hs = vec4(a.r * 65280.0 + a.g * 255.0, b.r * 65280.0 + b.g * 255.0, c.r * 65280.0 + c.g * 255.0, d.r * 65280.0 + d.g * 255.0) / 65535.0;
+    return u_terrainOrigin.y + u_heightRange.x + mix(mix(hs.x, hs.y, t.x), mix(hs.z, hs.w, t.x), t.y) * u_heightRange.y;
+}
+// A node is the shared patch (0 to 1 in x and z) placed and sized by its instance: its model is its square (x and z) and its box
+// (y, from its page's least height to its most), and its tint names its page (x and y, the page's corner in the atlas) and level (z).
+void esMaterialVertex(inout vec3 local, inout vec3 localNormal, in vec2 uv) {
+    if (u_terrainPages < 0.5) return;
+    vec4 tint = esInstanceTint();
+    mat4 model = esInstanceModel();
+    float size = model[0][0], rise = max(model[1][1], 1e-6);
+    vec3 corner = model[3].xyz;
+    float level = floor(tint.z * 64.0 + 0.5) - 1.0;
+    // The tint holds the page's corner plus half a texel (so it is never zero); its first sample is one texel in, past the border.
+    vec2 page = tint.xy * u_atlasTexels + 0.5;
+    // Toward the end of its level's range a vertex slides onto the grid of the level above, so where two levels meet they share an edge.
+    vec2 g = uv * u_patchCells;
+    float h0 = tnPageHeight(page + uv * u_pageTexels + 0.5);
+    float range = u_lodRange0 * exp2(level);
+    float dist = distance(u_camera.xyz, vec3(corner.x + uv.x * size, h0, corner.z + uv.y * size));
+    float k = clamp((dist - range * 0.7) / (range * 0.3), 0.0, 1.0);
+    g -= fract(g * 0.5) * 2.0 * k;
+    vec2 at = g / u_patchCells;
+    vec2 texel = page + at * u_pageTexels + 0.5;
+    float h = tnPageHeight(texel);
+    local = vec3(at.x, (h - corner.y) / rise, at.y);
+    vec2 nxz = textureLod(u_heightPages, texel / u_atlasTexels, 0.0).ba * 2.0 - 1.0;
+    vec3 n = vec3(nxz.x, sqrt(max(1.0 - dot(nxz, nxz), 0.0)), nxz.y);
+    // The normal goes through the inverse transpose of the node's scale: put in what comes out as n.
+    localNormal = vec3(n.x * size, n.y * rise, n.z * size);
+    // The fragment reads the page where the vertex is: the colour carries it, divided by the tint it is multiplied by on the way.
+    es_vertexColor = vec4(texel / u_atlasTexels, 1.0, 1.0) / tint;
+}
+#pragma end
+
+#pragma vertexoffset wgsl
+fn tnPageHeight(texel : vec2f) -> f32 {
+    let f = texel - vec2f(0.5);
+    let i = vec2i(floor(f));
+    let t = f - vec2f(i);
+    let a = textureLoad(u_heightPages, i, 0);
+    let b = textureLoad(u_heightPages, i + vec2i(1, 0), 0);
+    let c = textureLoad(u_heightPages, i + vec2i(0, 1), 0);
+    let d = textureLoad(u_heightPages, i + vec2i(1, 1), 0);
+    let hs = vec4f(a.r * 65280.0 + a.g * 255.0, b.r * 65280.0 + b.g * 255.0, c.r * 65280.0 + c.g * 255.0, d.r * 65280.0 + d.g * 255.0) / 65535.0;
+    return mc.u_terrainOrigin.y + mc.u_heightRange.x + mix(mix(hs.x, hs.y, t.x), mix(hs.z, hs.w, t.x), t.y) * mc.u_heightRange.y;
+}
+fn esMaterialVertex(local : ptr<function, vec3f>, localNormal : ptr<function, vec3f>, uv : vec2f) {
+    if (mc.u_terrainPages < 0.5) { return; }
+    let tint = esInstanceTint();
+    let model = esInstanceModel();
+    let size = model[0][0];
+    let rise = max(model[1][1], 1e-6);
+    let corner = model[3].xyz;
+    let level = floor(tint.z * 64.0 + 0.5) - 1.0;
+    let page = tint.xy * mc.u_atlasTexels + vec2f(0.5);
+    var g = uv * mc.u_patchCells;
+    let h0 = tnPageHeight(page + uv * mc.u_pageTexels + vec2f(0.5));
+    let range = mc.u_lodRange0 * exp2(level);
+    let dist = distance(frame.camera.xyz, vec3f(corner.x + uv.x * size, h0, corner.z + uv.y * size));
+    let k = clamp((dist - range * 0.7) / (range * 0.3), 0.0, 1.0);
+    g = g - fract(g * 0.5) * 2.0 * k;
+    let at = g / mc.u_patchCells;
+    let texel = page + at * mc.u_pageTexels + vec2f(0.5);
+    let h = tnPageHeight(texel);
+    *local = vec3f(at.x, (h - corner.y) / rise, at.y);
+    let nxz = textureSampleLevel(u_heightPages, u_heightPages_s, texel / mc.u_atlasTexels, 0.0).ba * 2.0 - vec2f(1.0);
+    let n = vec3f(nxz.x, sqrt(max(1.0 - dot(nxz, nxz), 0.0)), nxz.y);
+    *localNormal = vec3f(n.x * size, n.y * rise, n.z * size);
+    es_vertexColor = vec4f(texel / mc.u_atlasTexels, 1.0, 1.0) / tint;
+}
+#pragma end
 
 #pragma fragment
 precision highp float;
@@ -102,7 +194,16 @@ void main() {
     highp vec3 P = vec3(v_worldPos.x, 0.0, v_worldPos.y);
     highp vec3 N = vec3(0.0, 1.0, 0.0);
 #endif
-    vec4 w = max(v_color, vec4(0.0));
+    // A paged ground reads its paint and its normal where the vertex said it lies in the page, filtered; off its area there is none.
+    vec4 paint = v_color;
+    if (u_terrainPages > 0.5) {
+        vec2 lp = P.xz - u_terrainOrigin.xz;
+        if (lp.x < u_terrainBounds.x || lp.y < u_terrainBounds.y || lp.x > u_terrainBounds.z || lp.y > u_terrainBounds.w) discard;
+        paint = texture(u_paintPages, v_color.xy);
+        vec2 nxz = texture(u_heightPages, v_color.xy).ba * 2.0 - 1.0;
+        N = normalize(vec3(nxz.x, sqrt(max(1.0 - dot(nxz, nxz), 0.0)), nxz.y));
+    }
+    vec4 w = max(paint, vec4(0.0));
     w /= max(dot(w, vec4(1.0)), 1e-4);
     // The strongest layer wins its seam more cleanly the higher the sharpness.
     w = pow(w, vec4(u_sharpness));
@@ -214,12 +315,21 @@ fn packNormal(n : vec3f) -> vec2f {
 #endif
 #ifdef MESH_NORMALS
     let P = v.v_worldXYZ;
-    let N = normalize(v.v_worldNormal);
+    var N = normalize(v.v_worldNormal);
 #else
     let P = vec3f(v.v_worldPos.x, 0.0, v.v_worldPos.y);
-    let N = vec3f(0.0, 1.0, 0.0);
+    var N = vec3f(0.0, 1.0, 0.0);
 #endif
-    var w = max(v.v_color, vec4f(0.0));
+    let pagePaint = textureSample(u_paintPages, u_paintPages_s, v.v_color.xy);
+    let pageNormal = textureSample(u_heightPages, u_heightPages_s, v.v_color.xy).ba * 2.0 - vec2f(1.0);
+    var paint = v.v_color;
+    if (mc.u_terrainPages > 0.5) {
+        let lp = P.xz - mc.u_terrainOrigin.xz;
+        if (lp.x < mc.u_terrainBounds.x || lp.y < mc.u_terrainBounds.y || lp.x > mc.u_terrainBounds.z || lp.y > mc.u_terrainBounds.w) { discard; }
+        paint = pagePaint;
+        N = normalize(vec3f(pageNormal.x, sqrt(max(1.0 - dot(pageNormal, pageNormal), 0.0)), pageNormal.y));
+    }
+    var w = max(paint, vec4f(0.0));
     w = w / max(dot(w, vec4f(1.0)), 1e-4);
     w = pow(w, vec4f(mc.u_sharpness));
     w = w / max(dot(w, vec4f(1.0)), 1e-4);
