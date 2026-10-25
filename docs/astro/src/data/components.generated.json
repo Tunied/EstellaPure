@@ -3633,6 +3633,50 @@
       "tag": true
     },
     {
+      "name": "PlacedFoliage",
+      "source": "ts",
+      "fields": [
+        {
+          "key": "sizeX",
+          "type": "number",
+          "default": "256",
+          "doc": "World size along x, centred on this entity.",
+          "range": "≥ 1"
+        },
+        {
+          "key": "sizeZ",
+          "type": "number",
+          "default": "256",
+          "doc": "World size along z, centred on this entity.",
+          "range": "≥ 1"
+        },
+        {
+          "key": "cellSize",
+          "type": "number",
+          "default": "32",
+          "doc": "Side of the cells the area is cut into. Each kind in a cell is one mesh a part, culled whole.",
+          "range": "≥ 4"
+        },
+        {
+          "key": "kinds",
+          "type": "array",
+          "default": "empty",
+          "doc": "What each kind of plant is made of: its parts (mesh, cheaper mesh, material, texture, tint) and how far it is drawn."
+        },
+        {
+          "key": "records",
+          "type": "array",
+          "default": "empty",
+          "doc": "Where each plant stands: kind index, x, y, z, turn about the vertical in radians and scale, six numbers a plant, in this entity's space."
+        }
+      ],
+      "animatable": [
+        "sizeX",
+        "sizeZ",
+        "cellSize"
+      ]
+    },
+    {
       "name": "PlacedObject",
       "source": "ts",
       "fields": [

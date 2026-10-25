@@ -2822,6 +2822,18 @@ export const NOTED = {
     {"note":"Foam is where waves burst, not along every shore."},
   "fix(water): a gentle beach keeps less of the breakers' white than rock does":
     {"note":"Foam is where waves burst, not along every shore."},
+  "fix(lod): a LODGroup with only a cull size is no longer ignored":
+    {"note":"A level-of-detail group with only a cull size is no longer ignored."},
+  "feat(terrain): each terrain layer says how it meets the others, and the terrain's paint and bounds can be asked":
+    {"note":"Each terrain layer says how it meets the others."},
+  "feat(editor): a terrain layer's height blend, and a recipe member's plant":
+    {"note":"Each terrain layer says how it meets the others."},
+  "feat(foliage): PlacedFoliage keeps hand-placed plants as data in one entity, grown a cell at a time":
+    {"note":"Placed plants."},
+  "feat(worldgen): recipes place plants, grown a cell at a time with far versions, and a world on an area ends where the terrain does":
+    {"note":"A generated world's plants."},
+  "feat(examples): Terrain & Water grows its plants from world rules and the lakewood art":
+    {"note":"A generated world's plants."},
   "feat(terrain): up to eight terrain layers with normal and mask maps, from .esterrainlayer files, blended by height":
     {"note":"Terrain layers: up to eight kinds of ground, each with its normal and mask maps."},
   "feat(editor): terrain layer editor and a Terrain's list of layers":

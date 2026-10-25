@@ -6109,6 +6109,7 @@ ySortLayers: number | undefined
 ## PackedLayers — interface @experimental
 ```
 albedo: Uint8Array<ArrayBufferLike>[]
+heightBlends: number[]
 mask: Uint8Array<ArrayBufferLike>[]
 normal: Uint8Array<ArrayBufferLike>[]
 size: number
@@ -6636,6 +6637,7 @@ material: number
 member: string
 mesh: number
 normal: [number, number, number]
+plant: string | null
 recipe: string
 recipeVersion: number
 scale: number
@@ -7708,8 +7710,9 @@ footprint: number
 id: string
 interactive: string | undefined
 material: string | number | undefined
-mesh: string | number
+mesh: string | number | undefined
 minUp: number | undefined
+plant: string | undefined
 ring: readonly [number, number] | undefined
 scale: readonly [number, number] | undefined
 tags: readonly string[] | undefined
@@ -10077,6 +10080,7 @@ static prototype: TerrainLayerAssetLoader
 ## TerrainLayerDef — interface @experimental
 ```
 albedo: string | undefined
+heightBlend: number | undefined
 mask: string | undefined
 normal: string | undefined
 normalStrength: number
@@ -10176,14 +10180,17 @@ static prototype: TerrainUnavailable
 @internal paint_: Repaint | null
 @internal remake_: (b: readonly [number, number, number, number]) => void
 @internal revision_: number
+areaBounds: () => [number, number, number, number] | null
 collisionReadyAt: (x: number, z: number) => boolean
 deleteModifier: (id: string) => void
 findPath: (from: { x: number; z: number; }, to: { x: number; z: number; }, options?: ReachOptions) => ReachResult
 groundKnownAt: (x: number, z: number) => boolean
 heightAt: (x: number, z: number) => number | null
 heightBeneathAt: (x: number, z: number) => number | null
+layerNames: () => string[]
 loading: boolean
 normalAt: (x: number, z: number) => [number, number, number] | null
+paintAt: (x: number, z: number) => readonly number[] | null
 pending: number
 raycast: (origin: { x: number; y: number; z: number; }, direction: { x: number; y: number; z: number; }, maxDistance: number) => { distance: number; point: { x: number; y: number; z: number; }; normal: { x: number; y: number; z: number; }; entity: Entity; } | null
 repaint: () => void
@@ -12351,6 +12358,7 @@ fields: Record<string, FieldFn> | undefined
 id: string
 layers: readonly PlacementLayer[]
 noise: Partial<Record<string, NoiseField>> | undefined
+plants: Readonly<Record<string, PlantKind>> | undefined
 recipes: readonly Recipe[]
 versions: readonly number[]
 ```

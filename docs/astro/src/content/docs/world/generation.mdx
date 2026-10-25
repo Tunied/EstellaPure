@@ -64,7 +64,7 @@ registerWorldRules({
 ### Fields
 
 Every decision is made from **fields**: numbers read at any world position. `height`, `up` (how much the ground faces up) and `slope`
-come from the terrain's surface, `waterDepth` and `shoreDistance` (how far a dry place is from the water's edge, negative on the water) from the water; `moisture`, `temperature` and `rock` are seeded noise, slow across the
+come from the terrain's surface, `paint.<layer>` (how much of the ground is that terrain layer, named by its file: `paint.grass` for grass.esterrainlayer, or `paint.grass`, `paint.dirt`, `paint.snow` and `paint.rock` without layer files), `waterDepth` and `shoreDistance` (how far a dry place is from the water's edge, negative on the water) from the water; `moisture`, `temperature` and `rock` are seeded noise, slow across the
 world (their scales are the rules' `noise`). A game adds fields of its own with `fields: { name: (x, z, at) => number }`, reading the
 built-in ones from `at`. A zone can set any field over its area.
 
@@ -75,6 +75,10 @@ together. Where several biomes hold their weights are mixed — a candidate take
 meet in a mixed band instead of a line — and `transition` makes the edge wander by that many world units of noise. `paint` (grass,
 dirt, snow, rock) pulls the terrain's own paint toward the biome's by its weight and `paintStrength`. A biome lists its recipes, each
 with the layer it is placed in and the share of that layer's candidates it takes.
+
+A rule is worked out for every candidate in every biome, so the fields are read when a condition asks for them and no sooner: a field no biome reads is never computed. A rules file names more noise fields of its own in `noise` (`{ "turf": { "scale": 1400, "octaves": 2 } }`), which any condition may then read by that name.
+
+A candidate takes **one biome, by weight, and then the recipe that biome has in the layer being laid out**: so a biome has to list its recipes in every layer it should stand in, and how thick a layer is where the biome holds is that recipe's `density`. A biome that lists nothing for a layer leaves the candidates that chose it empty. The weights mix biomes where they overlap; they do not thin a biome out, which is the recipes' `density` and the layer's `spacing`.
 
 ### Recipes
 
@@ -87,6 +91,18 @@ member that cannot stand (no ground, too steep, under water, kept out by a zone,
 group stands.
 
 `version` is part of every placement's id: bump it when a recipe places something else.
+
+### Plants
+
+A member names a mesh and a material, or a **plant**: an entry in the rules' `plants`, for what a mesh and a material cannot say. A plant is its `parts` (a trunk and a crown are two, each with its `mesh`, a cheaper `lod1Mesh`, `material`, `texture`, `tint` and whether it is `opaque`), the `lodDistance` past which the cheaper meshes stand in and the `drawDistance` past which it is not drawn, a `far` version (a tree's crossed cards, baked to an atlas of their own) drawn from `drawDistance` out to `farDistance`, and optionally:
+
+| Field | What it is |
+|---|---|
+| `tints`, `tintScale` | The colourings the art gives it (linear multipliers on its colour), and how many world units a stand is across: a place takes one of them by slow noise, so a wood has warm and cool stands and no speckle. |
+| `sink` | How far it is sunk into the ground, in world units (a stone's buried underside). |
+| `unit` | World units to a unit of its mesh: 100 for plants modelled in metres in a world of centimetres. A recipe's `scale` is then a size relative to the model. |
+
+Plants are grown a cell at a time by the same machinery as a [placed foliage](/docs/graphics/foliage/#placed-plants): a chunk stands at once and fills in over the frames after it, each mesh a few milliseconds of the frame's budget. The far versions are a layer of their own, laid out as far as the furthest of them goes and shown from past what their kinds draw as themselves, so a layer's `drawDistance` is what its plants draw as themselves and not how far the world is seen. A world on a terrain of an area ends where the terrain does. A plant stands upright; it does not lean with the ground.
 
 ### Layers
 

@@ -157,3 +157,35 @@ describe('the environment', () => {
         expect(env.sample(-5, 0).shoreDistance).toBe(Infinity);
     });
 });
+
+describe('plants in a plan', () => {
+    const plantRules: WorldRules = {
+        id: 'test:plants', versions: [1],
+        biomes: [{ id: 'meadow', conditions: [], recipes: [{ recipe: 'tuft', layer: 'cover', density: 1 }] }],
+        recipes: [{ id: 'tuft', version: 1, anchor: { id: 'tuft', plant: 'grass', footprint: 0.2 }, members: [{ id: 'more', plant: 'grass', count: [2, 3], ring: [1, 2], footprint: 0.2 }] }],
+        layers: [{ id: 'cover', spacing: 8, drawDistance: 100 }],
+    };
+    const flat = new Environment({ seed: 1, ground: () => ({ y: 3, up: 1 }) });
+
+    it('carries the name of the plant a member is, and no mesh', () => {
+        const plan = new WorldPlan(plantRules, flat, new Zones(), 1, 'w');
+        const placements = plan.placementsIn(0, 0, 64, 64);
+        expect(placements.length).toBeGreaterThan(8);
+        for (const p of placements) { expect(p.plant).toBe('grass'); expect(p.mesh).toBe(0); }
+    });
+
+    it('works out a field only when a rule reads it', () => {
+        let read = 0;
+        const env = new Environment({
+            seed: 1, ground: () => ({ y: 0, up: 1 }),
+            fields: { costly: () => { read++; return 1; }, unused: () => { read += 1000; return 0; } },
+        });
+        const at = env.sample(5, 5);
+        expect(read).toBe(0);
+        expect(at.costly).toBe(1);
+        expect(at.costly).toBe(1);
+        expect(read).toBe(1);
+        expect(at.height).toBe(0);
+    });
+});
+

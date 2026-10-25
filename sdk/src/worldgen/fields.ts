@@ -86,20 +86,31 @@ export class Environment {
         for (const name of Object.keys(this.noise_)) this.seeds_[name] = (inputs.seed * 7919) ^ hashString(name);
     }
 
-    /** Every field at (x, z). */
+    /**
+     * Every field at (x, z), each worked out the first time it is read and not before: a biome reads three or four of the dozen, and a candidate asks
+     * of every biome, so working all of them out for each was most of what laying out a world cost.
+     */
     sample(x: number, z: number): FieldValues {
-        const g = this.inputs.ground(x, z);
-        const at: FieldValues = {
-            height: g ? g.y : NaN,
-            up: g ? g.up : 1,
-            slope: g ? 1 - g.up : 0,
-            waterDepth: g && this.inputs.waterDepth ? this.inputs.waterDepth(x, z, g.y) ?? -Infinity : -Infinity,
-            shoreDistance: this.inputs.shoreDistance?.(x, z) ?? Infinity,
+        const at: FieldValues = {};
+        const lazy = (name: string, compute: () => number): void => {
+            let done = false, value = 0;
+            Object.defineProperty(at, name, {
+                enumerable: true, configurable: true,
+                get: () => { if (!done) { value = compute(); done = true; } return value; },
+                set: (v: number) => { value = v; done = true; },
+            });
         };
+        let g: ReturnType<EnvironmentInputs['ground']> | undefined;
+        const ground = (): ReturnType<EnvironmentInputs['ground']> => (g === undefined ? (g = this.inputs.ground(x, z)) : g);
+        lazy('height', () => ground()?.y ?? NaN);
+        lazy('up', () => ground()?.up ?? 1);
+        lazy('slope', () => 1 - (ground()?.up ?? 1));
+        lazy('waterDepth', () => { const gr = ground(); return gr && this.inputs.waterDepth ? this.inputs.waterDepth(x, z, gr.y) ?? -Infinity : -Infinity; });
+        lazy('shoreDistance', () => this.inputs.shoreDistance?.(x, z) ?? Infinity);
         for (const [name, f] of Object.entries(this.noise_)) {
-            at[name] = fbm(x / Math.max(f.scale, 1e-6), z / Math.max(f.scale, 1e-6), this.seeds_[name]!, Math.max(1, f.octaves ?? 3));
+            lazy(name, () => fbm(x / Math.max(f.scale, 1e-6), z / Math.max(f.scale, 1e-6), this.seeds_[name]!, Math.max(1, f.octaves ?? 3)));
         }
-        for (const [name, f] of Object.entries(this.inputs.fields ?? {})) at[name] = f(x, z, at);
+        for (const [name, f] of Object.entries(this.inputs.fields ?? {})) lazy(name, () => f(x, z, at));
         for (const o of this.inputs.overrides?.(x, z) ?? []) {
             const base = at[o.field] ?? o.value;
             at[o.field] = base + (o.value - base) * Math.min(Math.max(o.weight, 0), 1);

@@ -102,6 +102,7 @@ material: number
 member: string
 mesh: number
 normal: [number, number, number]
+plant: string | null
 recipe: string
 recipeVersion: number
 scale: number
@@ -175,8 +176,9 @@ footprint: number
 id: string
 interactive: string | undefined
 material: string | number | undefined
-mesh: string | number
+mesh: string | number | undefined
 minUp: number | undefined
+plant: string | undefined
 ring: readonly [number, number] | undefined
 scale: readonly [number, number] | undefined
 tags: readonly string[] | undefined
@@ -265,6 +267,7 @@ fields: Record<string, FieldFn> | undefined
 id: string
 layers: readonly PlacementLayer[]
 noise: Partial<Record<string, NoiseField>> | undefined
+plants: Readonly<Record<string, PlantKind>> | undefined
 recipes: readonly Recipe[]
 versions: readonly number[]
 ```

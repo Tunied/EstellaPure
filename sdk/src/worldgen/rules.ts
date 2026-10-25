@@ -18,6 +18,7 @@
  *              clear of the footprints of the layers before it, and is published in chunks out to `drawDistance`.
  */
 import type { FieldFn, NoiseField } from './fields';
+import type { PlantKind } from '../foliage/plantKind';
 
 /** A band of one field with soft edges: full weight between `min` and `max`, fading to none over `blend` past each. */
 export interface BiomeCondition { field: string; min?: number; max?: number; blend?: number }
@@ -42,8 +43,13 @@ export interface BiomeDef {
 export interface RecipeMember {
     /** Stable within the recipe: part of every placement's id. */
     id: string;
-    /** The mesh it is drawn with, and the material: an asset path (as a recipe file names them) or a handle already loaded. */
-    mesh: number | string;
+    /** The mesh it is drawn with, and the material: an asset path (as a recipe file names them) or a handle already loaded. Absent for a member that is a `plant`. */
+    mesh?: number | string;
+    /**
+     * Or the kind of plant it is, by its name in the rules' `plants`: several parts (a trunk and its crown), a cheaper mesh and a far version each,
+     * and the colourings the art gives it. It is grown a cell at a time like a `PlacedFoliage`, in place of the mesh and material above.
+     */
+    plant?: string;
     material?: number | string;
     /** What a game interacts with it as (ore, tree to fell); absent, it is decoration and drawn merged with its chunk. */
     interactive?: string;
@@ -105,6 +111,8 @@ export interface WorldRules {
     versions: readonly number[];
     biomes: readonly BiomeDef[];
     recipes: readonly Recipe[];
+    /** The kinds of plant the recipes' members name. */
+    plants?: Readonly<Record<string, PlantKind>>;
     /** In order: each keeps clear of the layers before it. */
     layers: readonly PlacementLayer[];
     noise?: Partial<Record<string, NoiseField>>;

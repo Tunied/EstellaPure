@@ -32,7 +32,9 @@ import { Terrains, TerrainsRes } from '../terrain/terrainPlugin';
 import { flattenModifier, type TerrainModifier } from '../terrain/source';
 import { buildBillboardMesh, buildInstancedMesh, type Plant } from '../foliage/builder';
 import { chunksOf, ProceduralChunksRes, type ChunkLayerStatus } from '../residency/chunks';
+import { plantGrowthOf, prepareKinds, type GrownCell, type ReadyKinds } from '../foliage/plantGrowth';
 import { Environment } from './fields';
+import { expandPlants, type PlantSet } from './plants';
 import { WorldPlan, type Placement } from './plan';
 import { worldRules, worldRulesRevision, type PlacementLayer, type RecipeMember, type WorldRules } from './rules';
 import { Zones, type ZoneDef } from './zones';
@@ -147,6 +149,9 @@ interface BuiltWorld {
     authored: Set<string>;
     /** Zones that level their ground and wait for it to be known. */
     levelling: Set<string>;
+    /** The rules' plants as kinds, and their parts once the assets are in hand (null while they are being loaded, or when the rules have no plants). */
+    plants: PlantSet | null;
+    plantsReady: ReadyKinds | null;
 }
 
 /** A chunk of a layer: what it places (its decoration merged by mesh, its interactive placements), and what it put in the world. */
@@ -154,6 +159,12 @@ interface PlacedChunk {
     /** A kind of decoration: its near mesh and, when it has one, its far cards; drawn near out to `lodDistance`, out to `drawDistance`. */
     decor: { mesh: number; material: number; data: MeshData; far: MeshData | null; origin: [number, number, number]; radius: number; lodDistance: number; drawDistance: number }[];
     objects: Placement[];
+    /** The plants of the rules' `plants` in it, by kind, standing relative to `at` (the chunk's centre), and what grew them once published. */
+    planted: Map<number, Plant[]> | null;
+    at: [number, number, number];
+    grown: GrownCell | null;
+    /** Made for the far layer: only the far versions of its plants, which are shown from past what their kinds draw as themselves. */
+    far: boolean;
     entities: Entity[];
     meshes: number[];
 }
@@ -262,7 +273,7 @@ export class WorldGenPlugin implements Plugin {
 
     /** A WorldGen's rules and plan, or why it has none. */
     private make(app: App, gens: WorldGens, entity: Entity, data: WorldGenData, had: BuiltWorld | undefined): BuiltWorld {
-        const built: BuiltWorld = { signature: `${JSON.stringify(data)}#${worldRulesRevision()}`, data: { ...data }, rules: null, plan: null, failure: null, ground: '', authored: had?.authored ?? new Set(), levelling: new Set() };
+        const built: BuiltWorld = { signature: `${JSON.stringify(data)}#${worldRulesRevision()}`, data: { ...data }, rules: null, plan: null, failure: null, ground: '', authored: had?.authored ?? new Set(), levelling: new Set(), plants: null, plantsReady: null };
         // Rules in a project file are read first, then made like rules registered by code.
         if (isRulesFile(data.rules)) {
             if (!app.hasResource(Assets)) {
@@ -307,11 +318,22 @@ export class WorldGenPlugin implements Plugin {
         if (built.failure) {
             log.error('worldgen', `the world ${data.world} cannot be laid out: ${built.failure}`);
             // A world that cannot be laid out shows nothing of the one before it.
-            for (const l of had?.rules?.layers ?? []) chunksOf(app).remove(layerIdOf(entity, l.id));
+            for (const l of had?.rules?.layers ?? []) { chunksOf(app).remove(layerIdOf(entity, l.id)); chunksOf(app).remove(layerIdOf(entity, `${l.id}:far`)); }
             return;
         }
         // Layers the new rules no longer have are let go; the ones they keep keep their chunks until they are made again.
-        for (const l of had?.rules?.layers ?? []) if (!rules.layers.some((n) => n.id === l.id)) chunksOf(app).remove(layerIdOf(entity, l.id));
+        for (const l of had?.rules?.layers ?? []) if (!rules.layers.some((n) => n.id === l.id)) { chunksOf(app).remove(layerIdOf(entity, l.id)); chunksOf(app).remove(layerIdOf(entity, `${l.id}:far`)); }
+        // The plants the recipes name: as kinds, and their parts read once there is a renderer to grow them with. A chunk waits for them.
+        if (rules.plants && Object.keys(rules.plants).length > 0 && app.hasResource(Assets)) {
+            const set = expandPlants(rules.plants);
+            built.plants = set;
+            void prepareKinds(app.getResource(Assets), set.kinds).then((ready) => {
+                if (gens.built_.get(entity) === built) built.plantsReady = ready;
+            }, (e: unknown) => {
+                built.failure = `the plants' assets could not be loaded: ${e instanceof Error ? e.message : String(e)}`;
+                log.error('worldgen', built.failure);
+            });
+        }
         // Recipes name their meshes and materials by path: with a renderer they are loaded first, and the plan is made with them.
         const refs = assetRefsOf(rules);
         if (refs.length > 0 && app.hasResource(Assets)) {
@@ -349,8 +371,11 @@ export class WorldGenPlugin implements Plugin {
         const data = built.data;
         const terrains = app.hasResource(TerrainsRes) ? app.getResource(TerrainsRes) : null;
         const zones = gens.zones(data.world);
+        // The terrain's paint is a field for each of its layers, `paint.grass` for a layer file grass.esterrainlayer: how much of the ground there is that.
+        const paintFields: Record<string, (x: number, z: number) => number> = {};
+        if (terrains) terrains.layerNames().forEach((name, i) => { paintFields[`paint.${name}`] = (x, z) => terrains.paintAt(x, z)?.[i] ?? 0; });
         const env = new Environment({
-            seed: data.seed, noise: rules.noise, fields: rules.fields,
+            seed: data.seed, noise: rules.noise, fields: { ...paintFields, ...rules.fields },
             ground: (x, z) => {
                 if (terrains && terrains.built_.size > 0) {
                     const y = terrains.heightAt(x, z);
@@ -467,17 +492,41 @@ export class WorldGenPlugin implements Plugin {
         const diffs = gens.diffs(built.data.world);
         const rendering = app.hasResource(Assets);
         const chunks = chunksOf(app);
+        // A world on a terrain of an area ends where the terrain does: its chunks are counted over that, and not over a radius of empty world.
+        const bounds = terrains?.areaBounds() ?? null;
         for (const layer of rules.layers) {
             const size = layer.chunkSize ?? 64;
+            const extent: [number, number, number, number] | null = bounds
+                ? [Math.floor(bounds[0] / size), Math.floor(bounds[1] / size), Math.ceil(bounds[2] / size), Math.ceil(bounds[3] / size)] : null;
             chunks.set<PlacedChunk>(layerIdOf(entity, layer.id), {
                 label: 'Laying out the world',
-                originX: 0, originZ: 0, sizeX: size, sizeZ: size, extent: null,
+                originX: 0, originZ: 0, sizeX: size, sizeZ: size, extent,
                 loadRadius: layer.drawDistance, unloadRadius: layer.drawDistance + size,
                 generation: `${built.signature}:${ground}`,
                 make: (cx, cz) => {
                     const x0 = cx * size, z0 = cz * size;
                     if (waiting || (terrains && ![[x0, z0], [x0 + size, z0], [x0, z0 + size], [x0 + size, z0 + size]].every(([x, z]) => terrains.groundKnownAt(x!, z!)))) return null;
-                    return this.chunk(app, plan, diffs, layer, x0, z0, size, rendering);
+                    // The plants' parts are read before any chunk: a chunk made without them would leave the plants out until it is made again.
+                    if (rendering && built.plants && !built.plantsReady) return null;
+                    return this.chunk(app, plan, diffs, layer, x0, z0, size, rendering, built.plants);
+                },
+                publish: (_cx, _cz, value) => this.place(app, gens, entity, value),
+                release: (_cx, _cz, value) => this.unplace(app, gens, value),
+            });
+            // The plants' far versions are a layer of their own, wanted as far as the furthest of them goes: they are cheap, so the whole world stands at once,
+            // where the plants themselves are only grown near the eye. They are shown from past what their kinds draw as themselves.
+            const farId = layerIdOf(entity, `${layer.id}:far`);
+            if (!rendering || !built.plants || built.plants.reach <= layer.drawDistance) { chunks.remove(farId); continue; }
+            chunks.set<PlacedChunk>(farId, {
+                label: 'Laying out the far plants',
+                originX: 0, originZ: 0, sizeX: size, sizeZ: size, extent,
+                loadRadius: built.plants.reach, unloadRadius: built.plants.reach + size,
+                generation: `${built.signature}:${ground}`,
+                make: (cx, cz) => {
+                    const x0 = cx * size, z0 = cz * size;
+                    if (waiting || (terrains && ![[x0, z0], [x0 + size, z0], [x0, z0 + size], [x0 + size, z0 + size]].every(([x, z]) => terrains.groundKnownAt(x!, z!)))) return null;
+                    if (!built.plantsReady) return null;
+                    return this.chunk(app, plan, diffs, layer, x0, z0, size, rendering, built.plants, true);
                 },
                 publish: (_cx, _cz, value) => this.place(app, gens, entity, value),
                 release: (_cx, _cz, value) => this.unplace(app, gens, value),
@@ -487,18 +536,31 @@ export class WorldGenPlugin implements Plugin {
 
     /** What one chunk of a layer places: its decoration merged by mesh, and its interactive placements, with the changes laid over. */
     private chunk(app: App, plan: WorldPlan, diffs: PlacementDiffs, layer: PlacementLayer, x0: number, z0: number, size: number,
-                  rendering: boolean): PlacedChunk | Promise<PlacedChunk> {
+                  rendering: boolean, plants: PlantSet | null, far = false): PlacedChunk | Promise<PlacedChunk> {
         const placements: Placement[] = [];
         for (const p of plan.placementsIn(x0, z0, x0 + size, z0 + size, [layer.id])) {
             if (diffs.isRemoved(p.id)) continue;
             const c = diffs.changeOf(p.id);
             placements.push(c ? { ...p, ...c } : p);
         }
-        const objects = placements.filter((p) => p.interactive !== null);
-        const decor = rendering ? placements.filter((p) => p.interactive === null && p.mesh) : [];
+        const objects = far ? [] : placements.filter((p) => p.interactive !== null);
+        const decor = rendering && !far ? placements.filter((p) => p.interactive === null && p.mesh) : [];
         const meshes = [...new Set(decor.map((p) => p.mesh))];
         const finish = (): PlacedChunk => {
-            const out: PlacedChunk = { decor: [], objects, entities: [], meshes: [] };
+            const out: PlacedChunk = { decor: [], objects, planted: null, at: [x0 + size / 2, 0, z0 + size / 2], grown: null, far, entities: [], meshes: [] };
+            // The plants: each at its kind (its colouring there), relative to the chunk's centre, sunk by what its kind says.
+            if (plants && rendering) {
+                const by = new Map<number, Plant[]>();
+                for (const p of placements) {
+                    if (p.interactive !== null || p.plant === null) continue;
+                    const k = plants.kindAt(p.plant, p.x, p.z);
+                    if (k < 0) continue;
+                    let list = by.get(k);
+                    if (!list) by.set(k, list = []);
+                    list.push({ x: p.x - out.at[0], y: p.y - plants.sinkOf(p.plant), z: p.z - out.at[2], yaw: p.yaw, scale: p.scale * plants.unitOf(p.plant), phase: 0, shade: 1 });
+                }
+                if (by.size > 0) out.planted = by;
+            }
             const byKind = new Map<string, Placement[]>();
             for (const p of decor) {
                 const k = `${p.mesh}:${p.material}`;
@@ -548,6 +610,19 @@ export class WorldGenPlugin implements Plugin {
         if (!world.valid(parent)) return;
         const base = (world.get(parent, Transform) as TransformData).worldPosition;
         const assets = app.hasResource(Assets) ? app.getResource(Assets) : null;
+        const built = gens.built_.get(parent);
+        if (chunk.planted && built?.plants && built.plantsReady) {
+            // The plants of the chunk: its entity stands at once, and they grow in it over the frames, as a placed foliage's do.
+            const e = world.spawn('WorldGenPlants');
+            world.insert(e, RuntimeOnly);
+            world.insert(e, Transform, { position: { x: chunk.at[0] - base.x, y: -base.y, z: chunk.at[2] - base.z } });
+            world.setParent(e, parent);
+            chunk.entities.push(e);
+            chunk.grown = { entity: e, handles: [], dead: false };
+            const growth = plantGrowthOf(app);
+            if (chunk.far) growth.growFar(app, chunk.grown, built.plants.kinds, built.plantsReady, chunk.planted, { x: chunk.at[0], z: chunk.at[2] });
+            else growth.growCell(app, chunk.grown, built.plants.kinds, built.plantsReady, chunk.planted);
+        }
         for (const d of chunk.decor) {
             const handle = assets?.createMesh(d.data) ?? 0;
             if (!handle) continue;
@@ -594,6 +669,7 @@ export class WorldGenPlugin implements Plugin {
     }
 
     private unplace(app: App, gens: WorldGens, chunk: PlacedChunk): void {
+        if (chunk.grown) { plantGrowthOf(app).release(app, chunk.grown); chunk.grown = null; }
         const mine = new Set(chunk.entities);
         for (const p of chunk.objects) if (mine.has(gens.objects_.get(p.id)!)) gens.objects_.delete(p.id);
         for (const e of chunk.entities) if (app.world.valid(e)) app.world.despawn(e);
@@ -606,7 +682,7 @@ export class WorldGenPlugin implements Plugin {
     private drop(app: App, gens: WorldGens, entity: Entity): void {
         const built = gens.built_.get(entity);
         if (app.hasResource(ProceduralChunksRes)) {
-            for (const l of built?.rules?.layers ?? []) app.getResource(ProceduralChunksRes).remove(layerIdOf(entity, l.id));
+            for (const l of built?.rules?.layers ?? []) { app.getResource(ProceduralChunksRes).remove(layerIdOf(entity, l.id)); app.getResource(ProceduralChunksRes).remove(layerIdOf(entity, `${l.id}:far`)); }
         }
         if (built && app.hasResource(TerrainsRes)) app.getResource(TerrainsRes).setPaint(null);
         gens.built_.delete(entity);

@@ -11,6 +11,7 @@
  *          a world from half of it.
  */
 import type { AssetLoader, LoadContext } from '../asset/AssetLoader';
+import type { PlantKind } from '../foliage/plantKind';
 import type { BiomeDef, PlacementLayer, Recipe, RecipeMember, WorldRules } from './rules';
 
 /** Whether a WorldGen's `rules` names a file rather than rules registered by code. */
@@ -42,17 +43,53 @@ function member(v: unknown, where: string): RecipeMember {
     if (!v || typeof v !== 'object') fail(where, 'a member, an object');
     const m = v as Record<string, unknown>;
     const mesh = m.mesh;
-    if (typeof mesh !== 'string' && typeof mesh !== 'number') fail(`${where}.mesh`, 'a mesh path');
+    if (m.plant !== undefined) str(m.plant, `${where}.plant`);
+    else if (typeof mesh !== 'string' && typeof mesh !== 'number') fail(`${where}.mesh`, 'a mesh path, or a plant');
     return {
         ...(m as object),
         id: str(m.id, `${where}.id`),
-        mesh: mesh as string | number,
+        ...(mesh === undefined ? {} : { mesh: mesh as string | number }),
         footprint: num(m.footprint, `${where}.footprint`, 0),
         count: range(m.count, `${where}.count`),
         ring: range(m.ring, `${where}.ring`),
         arc: range(m.arc, `${where}.arc`),
         scale: range(m.scale, `${where}.scale`),
     } as RecipeMember;
+}
+
+function part(v: unknown, where: string): PlantKind['parts'][number] {
+    if (!v || typeof v !== 'object') fail(where, 'a part, an object');
+    const p = v as Record<string, unknown>;
+    const tint = p.tint ?? [1, 1, 1, 1];
+    if (!Array.isArray(tint) || tint.length !== 4) fail(`${where}.tint`, 'four numbers, red, green, blue and alpha');
+    return {
+        mesh: str(p.mesh, `${where}.mesh`), lod1Mesh: typeof p.lod1Mesh === 'string' ? p.lod1Mesh : '', material: typeof p.material === 'string' ? p.material : '',
+        texture: typeof p.texture === 'string' ? p.texture : '', tint: (tint as unknown[]).map((c, i) => num(c, `${where}.tint[${i}]`)) as [number, number, number, number],
+        opaque: p.opaque !== false,
+    };
+}
+
+function plant(v: unknown, where: string): PlantKind {
+    if (!v || typeof v !== 'object') fail(where, 'a plant, an object');
+    const o = v as Record<string, unknown>;
+    if (!Array.isArray(o.parts) || o.parts.length === 0) fail(`${where}.parts`, 'at least one part');
+    const far = Array.isArray(o.far) ? (o.far as unknown[]).map((p, i) => part(p, `${where}.far[${i}]`)) : [];
+    let tints: PlantKind['tints'];
+    if (o.tints !== undefined) {
+        if (!Array.isArray(o.tints) || o.tints.length === 0) fail(`${where}.tints`, 'a list of colourings, each three numbers');
+        tints = (o.tints as unknown[]).map((t, i) => {
+            if (!Array.isArray(t) || t.length !== 3) fail(`${where}.tints[${i}]`, 'three numbers, red, green and blue');
+            return (t as unknown[]).map((c, k) => num(c, `${where}.tints[${i}][${k}]`)) as [number, number, number];
+        });
+    }
+    return {
+        parts: (o.parts as unknown[]).map((p, i) => part(p, `${where}.parts[${i}]`)),
+        lodDistance: num(o.lodDistance ?? 0, `${where}.lodDistance`, 0), drawDistance: num(o.drawDistance, `${where}.drawDistance`, 0),
+        far, farDistance: far.length > 0 ? num(o.farDistance, `${where}.farDistance`, 0) : 0,
+        ...(tints ? { tints, tintScale: num(o.tintScale ?? 1300, `${where}.tintScale`, 1e-6) } : {}),
+        ...(o.sink === undefined ? {} : { sink: num(o.sink, `${where}.sink`) }),
+        ...(o.unit === undefined ? {} : { unit: num(o.unit, `${where}.unit`, 1e-9) }),
+    };
 }
 
 /** Rules from a file's JSON, checked; throws naming the first thing a world could not be laid out from. */
@@ -73,6 +110,17 @@ export function parseWorldRules(json: unknown, file = 'world rules'): WorldRules
             members: Array.isArray(o.members) ? (o.members as unknown[]).map((m, k) => member(m, `${where}.members[${k}]`)) : undefined,
         } as Recipe;
     });
+    let plants: Record<string, PlantKind> | undefined;
+    if (r.plants !== undefined) {
+        if (!r.plants || typeof r.plants !== 'object' || Array.isArray(r.plants)) fail(`${file}.plants`, 'an object of plants by name');
+        plants = {};
+        for (const [name, v] of Object.entries(r.plants as Record<string, unknown>)) plants[name] = plant(v, `${file}.plants.${name}`);
+    }
+    for (const [i, rc] of recipes.entries()) {
+        for (const m of [rc.anchor, ...(rc.members ?? [])]) {
+            if (m.plant !== undefined && !plants?.[m.plant]) fail(`${file}.recipes[${i}].${m.id}.plant`, `no plant ${JSON.stringify(m.plant)} in the file's plants`);
+        }
+    }
     if (!Array.isArray(r.layers) || r.layers.length === 0) fail(`${file}.layers`, 'at least one layer');
     const layers: PlacementLayer[] = (r.layers as unknown[]).map((v, i) => {
         const where = `${file}.layers[${i}]`;
@@ -96,7 +144,7 @@ export function parseWorldRules(json: unknown, file = 'world rules'): WorldRules
         }
         return { ...(o as object), id: str(o.id, `${where}.id`) } as BiomeDef;
     });
-    return { id, versions, biomes, recipes, layers, ...(r.noise ? { noise: r.noise as WorldRules['noise'] } : {}) };
+    return { id, versions, biomes, recipes, layers, ...(plants ? { plants } : {}), ...(r.noise ? { noise: r.noise as WorldRules['noise'] } : {}) };
 }
 
 /** Loads `.esworld` files as checked world rules. */

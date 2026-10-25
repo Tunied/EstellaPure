@@ -195,8 +195,11 @@ export class ProceduralChunks {
                 const reach = Math.max(d.loadRadius, d.unloadRadius);
                 const x0 = Math.floor((s.x - reach - d.originX) / d.sizeX), x1 = Math.floor((s.x + reach - d.originX) / d.sizeX);
                 const z0 = Math.floor((s.z - reach - d.originZ) / d.sizeZ), z1 = Math.floor((s.z + reach - d.originZ) / d.sizeZ);
-                for (let cz = z0; cz <= z1; cz++) for (let cx = x0; cx <= x1; cx++) {
-                    if (d.extent && (cx < d.extent[0] || cz < d.extent[1] || cx >= d.extent[2] || cz >= d.extent[3])) continue;
+                // A layer with an extent is walked over the part of the radius that lies in it, not over a radius that may be a thousand times the area.
+                const ex = d.extent;
+                const cx0 = ex ? Math.max(x0, ex[0]) : x0, cx1 = ex ? Math.min(x1, ex[2] - 1) : x1;
+                const cz0 = ex ? Math.max(z0, ex[1]) : z0, cz1 = ex ? Math.min(z1, ex[3] - 1) : z1;
+                for (let cz = cz0; cz <= cz1; cz++) for (let cx = cx0; cx <= cx1; cx++) {
                     const mx = d.originX + cx * d.sizeX, mz = d.originZ + cz * d.sizeZ;
                     const dist = Math.hypot(Math.max(mx - s.x, 0, s.x - mx - d.sizeX), Math.max(mz - s.z, 0, s.z - mz - d.sizeZ));
                     const key = keyOf(cx, cz);
