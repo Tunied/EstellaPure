@@ -8,6 +8,13 @@ as its author made it, so a weather is expressed as **multipliers of what the sc
 quarter of its strength, the fog five times as thick, the picture a little greyer — plus a few levels that mean the same
 everywhere: how hard it rains, how wet the ground is. The same preset then fits any project.
 
+## Start from the whole environment
+
+The parts of an outdoor scene point at one another: the clock moves the sun, the sky draws clouds that cast shadows, the fog reads those
+clouds so a gap in them is a beam, and the weather scales it all. **Create → Rendering → Outdoor Environment** makes the working arrangement
+at once, in one root: a sun, a sky light, a clock, a weather and a global volume with the sky, the haze and a plain grade, set for the engine's
+own scale of a hundred units to the metre. Change a number in any of them, or delete what you do not want; it is an ordinary set of entities.
+
 ## The component
 
 Add a `Weather` component to one entity.

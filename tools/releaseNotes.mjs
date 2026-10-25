@@ -2880,6 +2880,8 @@ export const NOTED = {
     {"internal":"A build fix for a header; nothing a creator could observe changed."},
   "fix(ci): the continuity gate and the effect-kind test follow the shared scaffold and the display stage":
     {"internal":"Gate and test follow the code they check."},
+  "feat(editor): Create offers an Outdoor Environment, the sky, haze, clock and weather already pointing at one another":
+    {"note":"An Outdoor Environment to create."},
   "feat(water): two tiled, scrolling detail normal maps give the surface its sparkle":
     {"note":"Sparkle on the water."},
   "fix(lod): a LODGroup with only a cull size is no longer ignored":
