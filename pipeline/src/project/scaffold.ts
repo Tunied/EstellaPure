@@ -41,8 +41,13 @@ dist/
 dist-*/
 
 # Editor-managed staging: the SDK types mirror, the play-realm build and the
-# workspace are regenerated every time the editor opens the project.
-.esengine/
+# workspace are regenerated every time the editor opens the project. What the
+# project itself keeps there (its plugins and packaging profiles) is versioned
+# with it, so only the generated parts are left out.
+.esengine/*
+!.esengine/plugins/
+.esengine/plugins/.types/
+!.esengine/platforms/
 
 .vscode/
 .idea/

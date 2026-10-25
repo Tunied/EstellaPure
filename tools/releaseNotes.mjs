@@ -2888,6 +2888,10 @@ export const NOTED = {
     {"internal":"Test fixtures follow the component layout."},
   "feat(tools): the arena server check takes a project of any width, a terrain provider and a TypeScript extension":
     {"internal":"A check script, not a creator-facing change."},
+  "feat(editor): a project plugin may import the engine subpaths the editor is built on, so a game's generated ground shows in the viewport":
+    {"note":"A game's generated ground shows in the editor."},
+  "fix(scaffold): a new project's gitignore keeps its plugins and platform profiles versioned, and ignores only what the editor generates":
+    {"note":"A game's generated ground shows in the editor."},
   "feat(water): two tiled, scrolling detail normal maps give the surface its sparkle":
     {"note":"Sparkle on the water."},
   "fix(lod): a LODGroup with only a cull size is no longer ignored":

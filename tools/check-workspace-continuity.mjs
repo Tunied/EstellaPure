@@ -105,8 +105,10 @@ if (reads(SCAFFOLD)) {
   const scaffold = read(SCAFFOLD);
   const ignore = /export const PROJECT_GITIGNORE = `([\s\S]*?)`;/.exec(scaffold);
   if (!ignore) say(SCAFFOLD, 'no PROJECT_GITIGNORE — a new project would commit its workspace');
-  else if (!/^\.esengine\/$/m.test(ignore[1])) {
+  else if (!/^\.esengine\/(\*)?$/m.test(ignore[1])) {
     say(SCAFFOLD, 'PROJECT_GITIGNORE no longer ignores .esengine/ — the session would be committed');
+  } else if (/^\.esengine\/\*$/m.test(ignore[1]) && !/^!\.esengine\/plugins\/$/m.test(ignore[1])) {
+    say(SCAFFOLD, 'PROJECT_GITIGNORE ignores everything in .esengine/, so a project\'s own plugins would not be versioned with it');
   }
 }
 
