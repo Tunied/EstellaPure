@@ -2892,6 +2892,14 @@ export const NOTED = {
     {"note":"A game's generated ground shows in the editor."},
   "fix(scaffold): a new project's gitignore keeps its plugins and platform profiles versioned, and ignores only what the editor generates":
     {"note":"A game's generated ground shows in the editor."},
+  "feat(assets): a project names folders its asset database leaves alone":
+    {"note":"A project can keep folders out of its asset database."},
+  "feat(worldgen): a plant part may cast no shadow, and far cells are capped at two cells wide":
+    {"note":"Small plants need not cast a shadow."},
+  "feat(editor): a project plugin that needs trust says so with a notice":
+    {"note":"A project plugin that needs trust says so."},
+  "test: the SDK test corpus type-checks again":
+    {"internal":"Test typings."},
   "feat(water): two tiled, scrolling detail normal maps give the surface its sparkle":
     {"note":"Sparkle on the water."},
   "fix(lod): a LODGroup with only a cull size is no longer ignored":

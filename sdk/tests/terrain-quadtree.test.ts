@@ -47,7 +47,7 @@ describe('ground without end', () => {
         rockSlope: 0.35, dirtHeight: 0.62, snowHeight: 0.88 });
 
     it('is the same ground for the same seed anywhere, as far out as it is asked', () => {
-        const a = ground.height(123456.5, -98765.25), b = new NoiseSource({ ...(ground as unknown as { p: never }).p }).height(123456.5, -98765.25);
+        const a = ground.height(123456.5, -98765.25), b = new NoiseSource({ ...(ground as unknown as { p: object }).p } as ConstructorParameters<typeof NoiseSource>[0]).height(123456.5, -98765.25);
         expect(a).toBe(b);
         expect(a).toBeGreaterThanOrEqual(0);
         expect(a).toBeLessThanOrEqual(200);
@@ -67,8 +67,8 @@ describe('the pages', () => {
     const ground = new NoiseSource({ seed: 2, frequency: 2, octaves: 4, persistence: 0.5, ridged: 0, warp: 0, erosion: 0, sizeX: 500, height: 100,
         rockSlope: 0.35, dirtHeight: 0.62, snowHeight: 0.88 });
 
-    it('hold a node\'s heights to a 65535th of the ground\'s range, with a border, and its box', () => {
-        const page = makePage(ground, 64, -32, 32);
+    it('hold a node\'s heights to a 65535th of the ground\'s range, with a border, and its box', async () => {
+        const page = await makePage(ground, 64, -32, 32);
         const n = PAGE_SIDE;
         // The first sample past the border is the node's corner.
         const k = (1 * n + 1) * 4;
