@@ -15,7 +15,7 @@ import type { AlignContent, AlignItems, AlignSelf, BodyType, CanvasScaleMode, Cl
  * getAbiLayoutHash(); BuiltinBridge.connect() compares them and refuses to
  * run on mismatch, because mismatched offsets read the wrong heap bytes.
  */
-export const ABI_LAYOUT_HASH = '91648bb4a306e016';
+export const ABI_LAYOUT_HASH = '952e9aafee3c2480';
 
 /**
  * One asset-valued field of a component: which field, and what kind of
@@ -558,6 +558,7 @@ export const COMPONENT_META: Record<string, ComponentMetaEntry> = {
             lodDistance: 0,
             minDistance: 0,
             drawDistance: 0,
+            shadowDistance: 0,
         },
         assetFields: [{ field: 'lod1Mesh', type: 'mesh' as AssetFieldType }],
         entityFields: [],
@@ -568,6 +569,7 @@ export const COMPONENT_META: Record<string, ComponentMetaEntry> = {
             lodDistance: { tooltip: "Distance (metres) past which the cheaper mesh is used. 0 = never." },
             minDistance: { tooltip: "Distance (metres) nearer than which an instance is not drawn. 0 = from the eye." },
             drawDistance: { tooltip: "Distance (metres) past which an instance is not drawn. 0 = unlimited." },
+            shadowDistance: { tooltip: "Distance (metres) past which an instance casts no shadow. 0 = as far as it is drawn." },
         },
     },
     MeshLightmap: {
@@ -1605,6 +1607,7 @@ export interface MeshInstancesData {
     lodDistance: number;
     minDistance: number;
     drawDistance: number;
+    shadowDistance: number;
 }
 
 export interface MeshLightmapData {

@@ -280,6 +280,7 @@ export const PTR_LAYOUTS: Record<string, PtrLayout> = {
             { name: 'lodDistance', type: 'f32', offset: 4 },
             { name: 'minDistance', type: 'f32', offset: 8 },
             { name: 'drawDistance', type: 'f32', offset: 12 },
+            { name: 'shadowDistance', type: 'f32', offset: 16 },
         ],
     },
     MeshLightmap: {

@@ -652,6 +652,7 @@ export interface MeshInstances {
     lodDistance: number;
     minDistance: number;
     drawDistance: number;
+    shadowDistance: number;
 }
 
 export interface MeshLightmap {

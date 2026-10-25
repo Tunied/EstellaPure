@@ -96,9 +96,9 @@ export class PlantGrowth {
 
     /**
      * Makes one entity under `parent` that draws `part`'s mesh at every place in `plants`, relative to `parent`. `from` and `to` are the distances
-     * from the eye between which a plant is drawn (0 for no limit); `lod` is the distance past which the part's cheaper mesh stands in.
+     * from the eye between which a plant is drawn (0 for no limit); `lod` is the distance past which the part's cheaper mesh stands in, and `shadow` the one past which it casts no shadow.
      */
-    private place(app: App, parent: Entity, name: string, part: ReadyPart, plants: readonly Plant[], lod: number, from: number, to: number): void {
+    private place(app: App, parent: Entity, name: string, part: ReadyPart, plants: readonly Plant[], lod: number, from: number, to: number, shadow = 0): void {
         const world = app.world;
         const e = world.spawn(name);
         world.insert(e, RuntimeOnly);
@@ -109,7 +109,7 @@ export class PlantGrowth {
             color: { r: part.part.tint[0], g: part.part.tint[1], b: part.part.tint[2], a: part.part.tint[3] },
         } as Partial<MeshRendererData>);
         const placements = getComponent('MeshInstances');
-        if (placements) world.insert(e, placements, { lod1Mesh: part.lod1, lodDistance: part.lod1 ? lod : 0, minDistance: from, drawDistance: to });
+        if (placements) world.insert(e, placements, { lod1Mesh: part.lod1, lodDistance: part.lod1 ? lod : 0, minDistance: from, drawDistance: to, shadowDistance: shadow });
         world.setParent(e, parent);
         const api = engineApi(app);
         const set = api?.meshInstances_set;
@@ -138,7 +138,7 @@ export class PlantGrowth {
                 this.queue.push({ cell, run: () => {
                     if (!world.valid(entity)) return;
                     try {
-                        this.place(app, entity, `${kindIndex}:${j}`, r, plants, kind.lodDistance, 0, kind.drawDistance);
+                        this.place(app, entity, `${kindIndex}:${j}`, r, plants, kind.lodDistance, 0, kind.drawDistance, kind.lodDistance > 0 ? kind.lodDistance * 2 : 0);
                     } catch (error) {
                         log.error('foliage', 'growing a piece of a cell of plants failed', error);
                     }

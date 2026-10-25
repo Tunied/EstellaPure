@@ -578,6 +578,7 @@ void emitPlacements(const RenderFrameContext& ctx, RenderCollectContext& collect
             distance = glm::distance(at, ctx.view_eye);
             if (set.drawDistance > 0.0f && distance - radius > set.drawDistance) { ++tooFar; continue; }
             if (distance + radius < set.minDistance) continue;
+            if (ctx.purpose == RenderPurpose::ShadowDepth && set.shadowDistance > 0.0f && distance - radius > set.shadowDistance) continue;
         }
         if (!collect.visible(at, glm::vec3(radius), false)) { ++outside; continue; }
         (coarse && eyeKnown && set.lodDistance > 0.0f && distance > set.lodDistance ? farList : nearList).push_back(i);

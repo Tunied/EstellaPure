@@ -110,6 +110,10 @@ const DISPOSITION = {
 
   // The component's own drawing is the picture; an outline round it would trace
   // what is already on screen.
+  'MeshInstances.lodDistance': ['no-place', 'a distance from the eye, not a region of the entity'],
+  'MeshInstances.minDistance': ['no-place', 'a distance from the eye, not a region of the entity'],
+  'MeshInstances.drawDistance': ['no-place', 'a distance from the eye, not a region of the entity'],
+  'MeshInstances.shadowDistance': ['no-place', 'a distance from the eye, not a region of the entity'],
   'PlacedFoliage.sizeX': ['renders', 'the area the plants are placed over is the outline'],
   'PlacedFoliage.sizeZ': ['renders', 'the area the plants are placed over is the outline'],
   'PlacedFoliage.cellSize': ['no-place', 'the side of the cells the area is cut into, not a region of the entity'],

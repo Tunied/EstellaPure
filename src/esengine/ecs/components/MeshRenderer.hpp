@@ -202,6 +202,11 @@ struct MeshInstances {
     ES_PROPERTY(tooltip="Distance (metres) past which an instance is not drawn. 0 = unlimited.")
     f32 drawDistance{0.0f};
 
+    /** @brief Metres from the eye past which an instance casts no shadow; 0 = as far as it is drawn. A tree far off still draws, but the
+     *         shadow it casts is too small to be worth drawing it again into every shadow map. */
+    ES_PROPERTY(tooltip="Distance (metres) past which an instance casts no shadow. 0 = as far as it is drawn.")
+    f32 shadowDistance{0.0f};
+
     /** @brief Sixteen floats an instance: the model's three rows (translation in .w) then its tint RGBA, which is
      *         multiplied into the renderer's colour. Set by meshInstances_set, not by reflection. */
     std::vector<f32> transforms;

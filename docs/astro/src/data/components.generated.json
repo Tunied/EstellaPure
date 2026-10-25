@@ -2564,6 +2564,12 @@
           "type": "number",
           "default": "0",
           "doc": "Distance (metres) past which an instance is not drawn. 0 = unlimited."
+        },
+        {
+          "key": "shadowDistance",
+          "type": "number",
+          "default": "0",
+          "doc": "Distance (metres) past which an instance casts no shadow. 0 = as far as it is drawn."
         }
       ]
     },

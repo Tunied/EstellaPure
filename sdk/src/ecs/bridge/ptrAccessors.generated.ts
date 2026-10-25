@@ -998,6 +998,7 @@ export interface MeshInstancesPtrData {
     lodDistance: number;
     minDistance: number;
     drawDistance: number;
+    shadowDistance: number;
 }
 
 export function fillMeshInstances(
@@ -1008,6 +1009,7 @@ export function fillMeshInstances(
     out.lodDistance = f32[(ptr + 4) >> 2];
     out.minDistance = f32[(ptr + 8) >> 2];
     out.drawDistance = f32[(ptr + 12) >> 2];
+    out.shadowDistance = f32[(ptr + 16) >> 2];
 }
 
 export function writeMeshInstances(
@@ -1018,6 +1020,7 @@ export function writeMeshInstances(
     f32[(ptr + 4) >> 2] = data.lodDistance;
     f32[(ptr + 8) >> 2] = data.minDistance;
     f32[(ptr + 12) >> 2] = data.drawDistance;
+    f32[(ptr + 16) >> 2] = data.shadowDistance;
 }
 
 export function createMeshInstancesData(): MeshInstancesPtrData {
@@ -1026,6 +1029,7 @@ export function createMeshInstancesData(): MeshInstancesPtrData {
         lodDistance: 0,
         minDistance: 0,
         drawDistance: 0,
+        shadowDistance: 0,
     };
 }
 

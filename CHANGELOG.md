@@ -16,6 +16,7 @@ published separately; it ships inside the editor.
 
 ### Added
 
+- **Placed plants cast shadows only as far as twice their detailed distance.** `MeshInstances` takes a `shadowDistance` (metres from the eye past which an instance casts no shadow); a plant kind with a cheaper mesh sets it to twice that mesh's distance, so a tree far off is drawn into the shadow maps no more than its shadow is worth.
 - **The editor lets go of a generated world while the game plays.** The game runs in a realm of its own that builds its own copy of a generated world; the editor's copy is released for as long as it runs and made again on Stop, so the two are not held together.
 - **Plants are instances of one mesh.** A generated world's and a `PlacedFoliage`'s plants no longer merge their vertices a cell at a time: a new `MeshInstances` component places one resident mesh at many places (sixty-four bytes a plant), and the engine culls each plant against the view, takes a cheaper mesh past a distance and draws none past another, as one instanced draw that cells sharing a mesh and a material merge into. The geometry exists once however many plants there are, so a planet's plants take a tenth of the memory and a fraction of the draws, and a cell is grown in microseconds instead of a few milliseconds.
 - **A project can keep folders out of its asset database.** `assetExclude` in the project manifest names folders (a source-art repository, docs, a server) the asset scan does not index, does not write a `.meta` into and the editor does not watch.

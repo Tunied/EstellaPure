@@ -771,6 +771,7 @@ struct MeshInstancesJS {
     f32 lodDistance;
     f32 minDistance;
     f32 drawDistance;
+    f32 shadowDistance;
 };
 
 void meshinstancesApplyJS(esengine::ecs::MeshInstances& c, const MeshInstancesJS& js) {
@@ -778,6 +779,7 @@ void meshinstancesApplyJS(esengine::ecs::MeshInstances& c, const MeshInstancesJS
     c.lodDistance = js.lodDistance;
     c.minDistance = js.minDistance;
     c.drawDistance = js.drawDistance;
+    c.shadowDistance = js.shadowDistance;
 }
 
 esengine::ecs::MeshInstances meshinstancesFromJS(const MeshInstancesJS& js) {
@@ -792,6 +794,7 @@ MeshInstancesJS meshinstancesToJS(const esengine::ecs::MeshInstances& c) {
     js.lodDistance = c.lodDistance;
     js.minDistance = c.minDistance;
     js.drawDistance = c.drawDistance;
+    js.shadowDistance = c.shadowDistance;
     return js;
 }
 
@@ -1978,7 +1981,8 @@ EMSCRIPTEN_BINDINGS(esengine_components) {
         .field("lod1Mesh", &MeshInstancesJS::lod1Mesh)
         .field("lodDistance", &MeshInstancesJS::lodDistance)
         .field("minDistance", &MeshInstancesJS::minDistance)
-        .field("drawDistance", &MeshInstancesJS::drawDistance);
+        .field("drawDistance", &MeshInstancesJS::drawDistance)
+        .field("shadowDistance", &MeshInstancesJS::shadowDistance);
 
     value_object<MeshLightmapJS>("MeshLightmap")
         .field("lightmap", &MeshLightmapJS::lightmap)
@@ -3871,6 +3875,7 @@ static_assert(offsetof(esengine::ecs::MeshInstances, lod1Mesh) == 0, "ABI offset
 static_assert(offsetof(esengine::ecs::MeshInstances, lodDistance) == 4, "ABI offset drift: esengine::ecs::MeshInstances.lodDistance (EHT expected 4)");
 static_assert(offsetof(esengine::ecs::MeshInstances, minDistance) == 8, "ABI offset drift: esengine::ecs::MeshInstances.minDistance (EHT expected 8)");
 static_assert(offsetof(esengine::ecs::MeshInstances, drawDistance) == 12, "ABI offset drift: esengine::ecs::MeshInstances.drawDistance (EHT expected 12)");
+static_assert(offsetof(esengine::ecs::MeshInstances, shadowDistance) == 16, "ABI offset drift: esengine::ecs::MeshInstances.shadowDistance (EHT expected 16)");
 static_assert(offsetof(esengine::ecs::MeshLightmap, lightmap) == 0, "ABI offset drift: esengine::ecs::MeshLightmap.lightmap (EHT expected 0)");
 static_assert(offsetof(esengine::ecs::MeshLightmap, scaleOffset) == 4, "ABI offset drift: esengine::ecs::MeshLightmap.scaleOffset (EHT expected 4)");
 static_assert(offsetof(esengine::ecs::MeshRenderer, texture) == 0, "ABI offset drift: esengine::ecs::MeshRenderer.texture (EHT expected 0)");
@@ -4150,7 +4155,7 @@ static_assert(offsetof(esengine::ecs::Velocity, angular) == 12, "ABI offset drif
 // ABI Hash -- runtime handshake against the SDK bundle
 // =============================================================================
 
-static const char* kEsAbiLayoutHash = "91648bb4a306e016";
+static const char* kEsAbiLayoutHash = "952e9aafee3c2480";
 
 std::string esengineGetAbiLayoutHash() {
     return std::string(kEsAbiLayoutHash);
