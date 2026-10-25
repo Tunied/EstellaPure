@@ -2485,6 +2485,7 @@ stale: number
 ## ChunkSource — interface @experimental
 ```
 x: number
+y: number | undefined
 z: number
 ```
 
@@ -6741,7 +6742,11 @@ ComponentDef<PlanetData>
 ## PlanetData — interface @experimental
 ```
 cellSize: number
+collision: boolean
+collisionDistance: number
+collisionLayer: number
 detail: number
+friction: number
 generatorVersion: number
 layerColor0: Color
 layerColor1: Color

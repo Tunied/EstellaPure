@@ -29,7 +29,7 @@ import { bakesOf } from '../runtime/bakes';
 import { log } from '../util/logger';
 
 /** A place a layer is wanted round, on the ground plane, in world units. */
-export interface ChunkSource { x: number; z: number }
+export interface ChunkSource { x: number; z: number; /** Its height, where a layer is not on a plane (a planet's collision reads the whole position). */ y?: number }
 
 /** One kind of chunk: how it is cut, where it is wanted and how it is made. */
 export interface ChunkLayer<T> {

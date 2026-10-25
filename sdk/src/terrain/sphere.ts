@@ -74,6 +74,16 @@ export function faceOf(dx: number, dy: number, dz: number): { face: number; u: n
     return { face, u: Math.atan(a / n) / QUARTER_PI, v: Math.atan(b / n) / QUARTER_PI };
 }
 
+/** Where a direction falls on a given face's plane, in the face's units (beyond -1 to 1 past its edge); null for a direction that does not face it. */
+export function facePlace(face: number, dx: number, dy: number, dz: number): { u: number; v: number } | null {
+    const f = FACES[face]!;
+    const n = dx * f.normal[0] + dy * f.normal[1] + dz * f.normal[2];
+    if (n <= 1e-6) return null;
+    const a = dx * f.a[0] + dy * f.a[1] + dz * f.a[2];
+    const b = dx * f.b[0] + dy * f.b[1] + dz * f.b[2];
+    return { u: Math.atan(a / n) / QUARTER_PI, v: Math.atan(b / n) / QUARTER_PI };
+}
+
 /** The side of a node of `level` on its face, in the face's -1 to 1 units. */
 export const nodeSpan = (levels: number, level: number): number => 2 / 2 ** (levels - 1 - level);
 

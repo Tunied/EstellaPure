@@ -50,7 +50,8 @@ import { isMiniGame } from '../platform';
 import { packLayers, type LayerImage, type LayerSource, type TerrainLayerDef } from './layers';
 import { TerrainSurface, TILE_CELLS, type SurfaceTile } from './surface';
 import { collisionGeometryOf } from '../runtime/collisionGeometry';
-import { chunksOf, ProceduralChunksRes, type ChunkSource } from '../residency/chunks';
+import { chunksOf, ProceduralChunksRes } from '../residency/chunks';
+import { movers } from './movers';
 
 /** The engine's own provider of ground without end: seeded noise of the world's position. */
 export const NOISE_PROVIDER = 'estella:noise';
@@ -526,30 +527,6 @@ async function windowOf(provider: TerrainProvider, data: TerrainData, cx: number
     const out = new Float32Array(nx * nz);
     for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) out[j * nx + i] = (got.heights[j * count + i]! - range[0]) / span;
     return { width: nx, height: nz, data: out };
-}
-
-/** Where what collides with the ground is: every moving 3D body and every character. */
-function movers(app: App): ChunkSource[] {
-    const world = app.world;
-    world.ensureTransformsComposed();
-    const out: ChunkSource[] = [];
-    // By name: a project without 3D physics has neither component, and the terrain must not carry the solver to look for them.
-    const rigid = getComponent('RigidBody3D'), character = getComponent('CharacterController3D');
-    if (rigid) {
-        for (const e of world.getEntitiesWithComponents([rigid, Transform])) {
-            const body = world.get(e, rigid) as { enabled: boolean; bodyType: number };
-            if (!body.enabled || body.bodyType === 0) continue;
-            const p = (world.get(e, Transform) as TransformData).worldPosition;
-            out.push({ x: p.x, z: p.z });
-        }
-    }
-    if (character) {
-        for (const e of world.getEntitiesWithComponents([character, Transform])) {
-            const p = (world.get(e, Transform) as TransformData).worldPosition;
-            out.push({ x: p.x, z: p.z });
-        }
-    }
-    return out;
 }
 
 export class TerrainPlugin implements Plugin {

@@ -31,6 +31,7 @@ import { bakesOf } from '../runtime/bakes';
 import type { Color, Entity } from '../types';
 import { PageTable, PAGE_SIDE, PAGE_TEXELS, PATCH_CELLS, type PageImage } from './pages';
 import { buildPatchMesh } from './patch';
+import { removePlanetCollision, updatePlanetCollision } from './planetCollision';
 import { planetProvider, planetProvidersRevision, type PlanetProvider } from './planetProvider';
 import { makePlanetPage, type PlanetPageSource } from './planetPages';
 import { levelsFor, nodePoint, selectSphereNodes, sphereNodeKey, type SphereNode, type SphereTreeParams } from './sphere';
@@ -55,6 +56,11 @@ export interface PlanetData {
     /** The size, in metres, of the ground's own wander in brightness, and how strong it is (0 to 1). */
     macroScale: number;
     macroVariation: number;
+    /** Whether bodies and characters collide with the ground; how far round each thing that moves it is built for collision; its layer and friction. */
+    collision: boolean;
+    collisionDistance: number;
+    collisionLayer: number;
+    friction: number;
 }
 
 const rgb = (r: number, g: number, b: number): Color => ({ r, g, b, a: 1 });
@@ -67,7 +73,7 @@ const rgb = (r: number, g: number, b: number): Color => ({ r, g, b, a: 1 });
 export const Planet: ComponentDef<PlanetData> = defineComponent<PlanetData>('Planet', {
     radius: 4000, provider: '', world: '', generatorVersion: 1, seed: 1, cellSize: 1.5, detail: 1.5,
     layerColor0: rgb(0.28, 0.46, 0.2), layerColor1: rgb(0.45, 0.36, 0.24), layerColor2: rgb(0.93, 0.95, 0.98), layerColor3: rgb(0.4, 0.38, 0.36),
-    macroScale: 90, macroVariation: 0.35,
+    macroScale: 90, macroVariation: 0.35, collision: true, collisionDistance: 64, collisionLayer: 0, friction: 0.6,
 }, {
     fields: {
         radius: { min: 1, category: 'Shape', tooltip: 'The planet\'s radius in metres. The planet stands at its entity, unrotated and unscaled.' },
@@ -83,6 +89,10 @@ export const Planet: ComponentDef<PlanetData> = defineComponent<PlanetData>('Pla
         layerColor3: { label: 'Rock', category: 'Layers' },
         macroScale: { min: 1, category: 'Layers', tooltip: 'The size, in metres, of the ground\'s own wander in brightness.' },
         macroVariation: { min: 0, max: 1, step: 0.01, category: 'Layers', tooltip: 'How strongly the ground\'s brightness wanders.' },
+        collision: { category: 'Collision', tooltip: 'Whether 3D bodies and characters collide with the ground: the finest tiles round each of them are built as collision geometry.' },
+        collisionDistance: { min: 1, category: 'Collision', tooltip: 'How far round each moving body and character the ground is built for collision, in metres.' },
+        collisionLayer: { min: 0, max: 15, step: 1, category: 'Collision', advanced: true, tooltip: 'The collision layer the ground is in (0 to 15).' },
+        friction: { min: 0, category: 'Collision', advanced: true, tooltip: 'The ground\'s friction.' },
     },
 });
 
@@ -146,6 +156,7 @@ export class PlanetPlugin implements Plugin {
             for (const [entity, built] of planets.built_) {
                 if (app.world.valid(entity) && app.world.has(entity, Planet)) continue;
                 this.destroy(app, built);
+                removePlanetCollision(app, entity);
                 planets.built_.delete(entity);
             }
             for (const entity of app.world.getEntitiesWithComponents([Planet, Transform])) {
@@ -153,12 +164,13 @@ export class PlanetPlugin implements Plugin {
                 const signature = signatureOf(data);
                 let built = planets.built_.get(entity);
                 if (!built || built.signature !== signature || (built.failure && built.providers !== planetProvidersRevision())) {
-                    if (built) this.destroy(app, built);
+                    if (built) { this.destroy(app, built); removePlanetCollision(app, entity); }
                     built = this.make(signature, data, (built?.epoch ?? 0) + 1);
                     planets.built_.set(entity, built);
                 }
                 built.data = { ...data };
                 if (built.failure || !built.source || !built.tree) continue;
+                updatePlanetCollision(app, entity, built.source, built.epoch, built.data);
                 if (!built.instance) {
                     if (!built.pending) void this.prepare(app, built);
                     continue;
@@ -170,7 +182,7 @@ export class PlanetPlugin implements Plugin {
 
     cleanup(app?: App): void {
         const planets = this.planets_;
-        if (app && planets) for (const built of planets.built_.values()) this.destroy(app, built);
+        if (app && planets) for (const [entity, built] of planets.built_) { this.destroy(app, built); removePlanetCollision(app, entity); }
         planets?.built_.clear();
         if (this.stock_) Material.release(this.stock_);
         this.stock_ = 0;
