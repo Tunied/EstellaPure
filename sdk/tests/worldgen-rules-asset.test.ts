@@ -44,7 +44,7 @@ describe('plants in a world rules file', () => {
         const r = JSON.parse(JSON.stringify(good));
         r.plants = {
             oak: { parts: [{ mesh: 'assets/oak_trunk.esmesh', material: 'assets/bark.esmaterial' }, { mesh: 'assets/oak_crown.esmesh', lod1Mesh: 'assets/oak_crown1.esmesh', opaque: true }],
-                lodDistance: 6000, drawDistance: 16000, far: [{ mesh: 'assets/oak_cards.esmesh', soft: 0.85 }], farDistance: 200000, farKeep: 0.25, tints: [[0.9, 1, 0.9], [1, 1, 1]], sink: 8 },
+                lodDistance: 6000, drawDistance: 16000, far: [{ mesh: 'assets/oak_cards.esmesh', soft: 0.85, castShadows: false }], farDistance: 200000, farKeep: 0.25, tints: [[0.9, 1, 0.9], [1, 1, 1]], sink: 8 },
         };
         r.recipes[0].anchor = { id: 'oak', plant: 'oak', footprint: 8 };
         delete r.recipes[0].anchor.mesh;
@@ -60,6 +60,8 @@ describe('plants in a world rules file', () => {
         expect(oak.parts[1]!.lod1Mesh).toBe('assets/oak_crown1.esmesh');
         expect(oak.far[0]!.mesh).toBe('assets/oak_cards.esmesh');
         expect(oak.far[0]!.soft).toBe(0.85);
+        expect(oak.far[0]!.castShadows).toBe(false);
+        expect(oak.parts[0]!.castShadows).toBeUndefined();
         expect(oak.parts[0]!.soft).toBeUndefined();
         expect(oak.tints).toHaveLength(2);
         expect(oak.sink).toBe(8);

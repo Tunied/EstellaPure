@@ -521,7 +521,7 @@ export class WorldGenPlugin implements Plugin {
             if (!rendering || !built.plants || built.plants.reach <= layer.drawDistance) { chunks.remove(farId); continue; }
             // A far cell is as many chunks wide as the shortest span a far version is shown over allows: the far versions are one draw a kind a cell, and a ring
             // of ground cover a few chunks wide would otherwise be thousands of them.
-            const farSide = Math.min(Math.max(Math.floor(built.plants.span / size), 1), 8);
+            const farSide = Math.min(Math.max(Math.floor(built.plants.span / size), 1), 2);
             const fsize = size * farSide;
             const fextent: [number, number, number, number] | null = bounds
                 ? [Math.floor(bounds[0] / fsize), Math.floor(bounds[1] / fsize), Math.ceil(bounds[2] / fsize), Math.ceil(bounds[3] / fsize)] : null;

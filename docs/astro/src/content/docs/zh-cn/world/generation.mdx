@@ -71,7 +71,7 @@ registerWorldRules({
 
 ### 植物
 
-成员可以是网格加材质,也可以是**植物**:规则 `plants` 里的一项,用来表达网格和材质表达不了的东西。植物由 `parts` 部件组成(树干和树冠是两个部件,各有 `mesh`、更省的 `lod1Mesh`、`material`、`texture`、`tint`、是否 `opaque`,以及对代表树冠的卡片用 `soft` 说明它的法线朝上偏转多少:按这个比例转向上方,让它像圆润的树冠那样受光,而不是像一块平板),超过 `lodDistance` 换成更省的网格,超过 `drawDistance` 不再绘制,`far` 远景版本(树的交叉卡片,烘到自己的图集上)从 `drawDistance` 一直画到 `farDistance`,另外可选:
+成员可以是网格加材质,也可以是**植物**:规则 `plants` 里的一项,用来表达网格和材质表达不了的东西。植物由 `parts` 部件组成(树干和树冠是两个部件,各有 `mesh`、更省的 `lod1Mesh`、`material`、`texture`、`tint`、是否 `opaque`,以及对代表树冠的卡片用 `soft` 说明它的法线朝上偏转多少:按这个比例转向上方,让它像圆润的树冠那样受光,而不是像一块平板;`castShadows` 为 `false` 表示不投影,给小到不值得进阴影图的地表覆盖物用),超过 `lodDistance` 换成更省的网格,超过 `drawDistance` 不再绘制,`far` 远景版本(树的交叉卡片,烘到自己的图集上)从 `drawDistance` 一直画到 `farDistance`,另外可选:
 
 | 字段 | 含义 |
 |---|---|

@@ -122,7 +122,7 @@ export class PlantGrowth {
                             world.insert(e, RuntimeOnly);
                             world.insert(e, Transform, {});
                             world.insert(e, MeshRenderer, {
-                                mesh: made(near), material: r.material, texture: r.texture, lit: true, opaque: r.part.opaque !== false, cullBackfaces: false,
+                                mesh: made(near), material: r.material, texture: r.texture, lit: true, opaque: r.part.opaque !== false, cullBackfaces: false, castShadows: r.part.castShadows !== false,
                                 color: { r: r.part.tint[0], g: r.part.tint[1], b: r.part.tint[2], a: r.part.tint[3] },
                             } as Partial<MeshRendererData>);
                             if (lodDef) {
@@ -170,7 +170,7 @@ export class PlantGrowth {
                 world.insert(e, RuntimeOnly);
                 world.insert(e, Transform, {});
                 world.insert(e, MeshRenderer, {
-                    mesh: handle, material: r.material, texture: r.texture, lit: true, opaque: r.part.opaque !== false, cullBackfaces: false, enabled: false,
+                    mesh: handle, material: r.material, texture: r.texture, lit: true, opaque: r.part.opaque !== false, cullBackfaces: false, castShadows: r.part.castShadows !== false, enabled: false,
                     color: { r: r.part.tint[0], g: r.part.tint[1], b: r.part.tint[2], a: r.part.tint[3] },
                 } as Partial<MeshRendererData>);
                 world.setParent(e, entity);

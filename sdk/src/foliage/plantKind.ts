@@ -22,6 +22,8 @@ export interface PlacedPart {
      * on the side the sun is on and a dark slab on the other. A crown is lit as a rounded thing, and facing up is how a card is.
      */
     soft?: number;
+    /** False for a part that casts no shadow (default true): the ground cover that is a hand's width tall, which is drawn into the shadow map for nothing. */
+    castShadows?: boolean;
 }
 
 /** A kind of plant: its parts, and how far it is drawn. */
