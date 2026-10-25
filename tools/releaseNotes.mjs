@@ -2832,6 +2832,8 @@ export const NOTED = {
     {"internal":"An observation seam for capture tooling; no game behaves differently."},
   "feat(worldgen): the far versions of a world's plants are laid out in cells as wide as their shortest span allows, so ground cover far off costs far fewer draws":
     {"note":"A generated world's plants."},
+  "feat(worldgen): a plant of a generated world leans with the ground where its member says attach: align":
+    {"note":"A generated world's plants."},
   "feat(water): two tiled, scrolling detail normal maps give the surface its sparkle":
     {"note":"Sparkle on the water."},
   "fix(lod): a LODGroup with only a cull size is no longer ignored":

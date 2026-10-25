@@ -181,6 +181,21 @@ describe('placed meshes', () => {
         expect(colorOf(m as never, 5)).toEqual([10, 20, 30, 255]);
     });
 
+    it('leans a copy with the ground it stands on, its normal and tangent with it, and leaves an upright one as it is', () => {
+        const m = buildPlacedMesh(source, [
+            { x: 3, y: 0, z: 0, yaw: 0, scale: 1, phase: 0, shade: 1, up: [1, 0, 0] },
+            { x: 3, y: 0, z: 0, yaw: 0, scale: 1, phase: 0, shade: 1, up: [0, 1, 0] },
+        ]);
+        // Up turned to the east takes (1, 0, 0), which points east, to point down; the normal and the tangent go with it.
+        const leaned = positionOf(m, 0);
+        expect(leaned[0]).toBeCloseTo(3, 5);
+        expect(leaned[1]).toBeCloseTo(-1, 5);
+        expect(readF(m, 0, MeshChannel.Normal, 0)).toBeCloseTo(0, 5);
+        expect(readF(m, 0, MeshChannel.Normal, 1)).toBeCloseTo(-1, 5);
+        expect(readF(m, 0, MeshChannel.Tangent, 1)).toBeCloseTo(-1, 5);
+        expect(positionOf(m, 3)).toEqual([4, 0, 0]);
+    });
+
     it('bounds what it placed, and is an empty mesh for no plants', () => {
         const m = buildPlacedMesh(source, [{ x: 5, y: 1, z: 0, yaw: 0, scale: 2, phase: 0, shade: 1 }]);
         expect(m.aabbMin).toEqual([5, 1, 0]);

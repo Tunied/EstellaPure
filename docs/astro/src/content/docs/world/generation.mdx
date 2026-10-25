@@ -85,7 +85,7 @@ A candidate takes **one biome, by weight, and then the recipe that biome has in 
 A recipe is a group: an **anchor** and **members** placed round it. Each member says its mesh and material (asset paths, or handles
 already loaded), how many (`count`), how far from the anchor and at what angles (`ring`, `arc`), its `scale`, the ground it takes
 (`footprint`: a trunk) apart from how far it spreads overhead (`canopy`: a crown), whether it stands upright or leans with the
-ground (`attach`), how steep (`minUp`) and how deep in water (`waterDepth`) it may stand, the `chance` it is placed at all, and its far
+ground (`attach`, which a member that names a `plant` follows too: a stone sits on a slope as the slope lies), how steep (`minUp`) and how deep in water (`waterDepth`) it may stand, the `chance` it is placed at all, and its far
 version (`far`: the rectangle of its texture two crossed cards show, or a tent of them for a conifer, drawn past its layer's `lodDistance`). A
 member that cannot stand (no ground, too steep, under water, kept out by a zone, on something placed before it) is left out; the
 group stands.

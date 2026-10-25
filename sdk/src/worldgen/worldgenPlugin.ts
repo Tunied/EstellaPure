@@ -565,7 +565,8 @@ export class WorldGenPlugin implements Plugin {
                     if (k < 0) continue;
                     let list = by.get(k);
                     if (!list) by.set(k, list = []);
-                    list.push({ x: p.x - out.at[0], y: p.y - plants.sinkOf(p.plant), z: p.z - out.at[2], yaw: p.yaw, scale: p.scale * plants.unitOf(p.plant), phase: 0, shade: 1 });
+                    list.push({ x: p.x - out.at[0], y: p.y - plants.sinkOf(p.plant), z: p.z - out.at[2], yaw: p.yaw, scale: p.scale * plants.unitOf(p.plant), phase: 0, shade: 1,
+                        ...(p.attach === 'align' ? { up: p.normal } : {}) });
                 }
                 if (by.size > 0) out.planted = by;
             }

@@ -244,7 +244,7 @@ export function buildInstancedMesh(source: MeshData, plants: readonly Plant[], p
 /**
  * Copies of an authored mesh, one per plant, as one mesh, with every channel of the source kept: the colour, the second uv and the tangent that a
  * normal map reads are what the artist made, and the wind's painted weights do not replace them (see buildInstancedMesh for a mesh that is painted).
- * Each copy is turned about the vertical, scaled and placed; positions, normals and tangents are carried, other channels are copied as they are.
+ * Each copy is turned about the vertical, scaled, leaned with the ground where it has an `up`, and placed; positions, normals and tangents are carried, other channels are copied as they are.
  */
 export function buildPlacedMesh(source: MeshData, plants: readonly Plant[]): MeshData {
     const stride = source.vertexStride, count = source.vertexCount;
@@ -265,25 +265,31 @@ export function buildPlacedMesh(source: MeshData, plants: readonly Plant[]): Mes
     const hasNormal = normalAt >= 0, hasTangent = tangentAt >= 0;
     plants.forEach((plant, n) => {
         const cos = Math.cos(plant.yaw), sin = Math.sin(plant.yaw), scale = plant.scale;
+        // A plant on a slope that leans with it (a stone), turned after its yaw about the vertical; most stand upright, and skip it.
+        const lean = plant.up ? leanTo(plant.up) : null;
         const first = n * count * words;
         // Every channel copied as it is; the three that move are then rewritten.
         raw.set(rawBase, first);
         for (let v = 0, o = first; v < count; v++, o += words) {
             if (posAt >= 0) {
                 const x = base[v * words + p]! * scale, y = base[v * words + p + 1]! * scale, z = base[v * words + p + 2]! * scale;
-                const wx = x * cos + z * sin + plant.x, wy = y + plant.y, wz = -x * sin + z * cos + plant.z;
+                let wx = x * cos + z * sin, wy = y, wz = -x * sin + z * cos;
+                if (lean) { const q = [wx, wy, wz]; lean(q); wx = q[0]!; wy = q[1]!; wz = q[2]!; }
+                wx += plant.x; wy += plant.y; wz += plant.z;
                 f32[o + p] = wx; f32[o + p + 1] = wy; f32[o + p + 2] = wz;
                 if (wx < min[0]) min[0] = wx; if (wx > max[0]) max[0] = wx;
                 if (wy < min[1]) min[1] = wy; if (wy > max[1]) max[1] = wy;
                 if (wz < min[2]) min[2] = wz; if (wz > max[2]) max[2] = wz;
             }
             if (hasNormal) {
-                const x = base[v * words + nr]!, z = base[v * words + nr + 2]!;
+                const x = base[v * words + nr]!, y = base[v * words + nr + 1]!, z = base[v * words + nr + 2]!;
                 f32[o + nr] = x * cos + z * sin; f32[o + nr + 2] = -x * sin + z * cos;
+                if (lean) { const q = [f32[o + nr]!, y, f32[o + nr + 2]!]; lean(q); f32[o + nr] = q[0]!; f32[o + nr + 1] = q[1]!; f32[o + nr + 2] = q[2]!; }
             }
             if (hasTangent) {
-                const x = base[v * words + tg]!, z = base[v * words + tg + 2]!;
+                const x = base[v * words + tg]!, y = base[v * words + tg + 1]!, z = base[v * words + tg + 2]!;
                 f32[o + tg] = x * cos + z * sin; f32[o + tg + 2] = -x * sin + z * cos;
+                if (lean) { const q = [f32[o + tg]!, y, f32[o + tg + 2]!]; lean(q); f32[o + tg] = q[0]!; f32[o + tg + 1] = q[1]!; f32[o + tg + 2] = q[2]!; }
             }
         }
         const firstIndex = n * source.indices.length, shift = n * count;
