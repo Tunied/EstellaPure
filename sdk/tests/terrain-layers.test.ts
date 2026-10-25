@@ -17,6 +17,12 @@ describe('a terrain layer file', () => {
         expect(l).toMatchObject({ albedo: 'assets/grass.png', normal: undefined, mask: undefined, tile: 3, tint: [1, 1, 1], roughness: 0.9, normalStrength: 1 });
     });
 
+    it('keeps a height blend of its own only when it names one', () => {
+        expect(parseTerrainLayer({ tile: 3 }).heightBlend).toBeUndefined();
+        expect(parseTerrainLayer({ tile: 3, heightBlend: 0.15 }).heightBlend).toBe(0.15);
+        expect(() => parseTerrainLayer({ heightBlend: 2 }, 'g.esterrainlayer')).toThrow(/g\.esterrainlayer\.heightBlend/);
+    });
+
     it('says which field it cannot take', () => {
         expect(() => parseTerrainLayer({ tile: -1 }, 'g.esterrainlayer')).toThrow(/g\.esterrainlayer\.tile/);
         expect(() => parseTerrainLayer({ tint: [1, 1] })).toThrow(/tint/);
@@ -36,6 +42,10 @@ describe('packing layers', () => {
         expect(packed.albedo).toHaveLength(2);
         expect(packed.albedo[0]!.length).toBe(64 * 64 * 4);
         expect(packed.tiles).toEqual([2, 8]);
+        // A layer with no height blend of its own is -1, which the shader reads as the material's.
+        expect(packed.heightBlends).toEqual([-1, -1]);
+        const own = packLayers([{ def: parseTerrainLayer({ heightBlend: 0.2 }), albedo: null, normal: null, mask: null }, { def: rock, albedo: null, normal: null, mask: null }]);
+        expect(own.heightBlends).toEqual([0.2, -1]);
         expect(packLayers([{ def: grass, albedo: solid(4096, [0, 0, 0, 255]), normal: null, mask: null }], 512).size).toBe(512);
     });
 

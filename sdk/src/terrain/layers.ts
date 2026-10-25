@@ -30,6 +30,11 @@ export interface TerrainLayerDef {
     roughness: number;
     /** How strongly the normal map bends the light: 1 as drawn, 0 flat. */
     normalStrength: number;
+    /**
+     * How much the layer's own height decides where it meets another, 0 to 1: 0 blends by the paint alone (a smooth edge, for grass into sand),
+     * 1 by the layers' heights (stones standing through grass). Absent, it is the material's `u_heightBlend`.
+     */
+    heightBlend?: number;
 }
 
 const DEFAULTS: TerrainLayerDef = { tile: 4, tint: [1, 1, 1], roughness: 0.9, normalStrength: 1 };
@@ -59,6 +64,7 @@ export function parseTerrainLayer(json: unknown, file = 'terrain layer'): Terrai
         tint: tint as [number, number, number],
         roughness: num('roughness', DEFAULTS.roughness, 0, 1),
         normalStrength: num('normalStrength', DEFAULTS.normalStrength, 0, 4),
+        ...(o.heightBlend === undefined ? {} : { heightBlend: num('heightBlend', 0, 0, 1) }),
     };
 }
 
@@ -84,7 +90,7 @@ export interface LayerImage { width: number; height: number; pixels: Uint8Array 
 export interface LayerSource { def: TerrainLayerDef; albedo: LayerImage | null; normal: LayerImage | null; mask: LayerImage | null }
 
 /** The layers packed: one image a layer in each of the three arrays, all `size` by `size`. */
-export interface PackedLayers { size: number; albedo: Uint8Array[]; normal: Uint8Array[]; mask: Uint8Array[]; tiles: number[] }
+export interface PackedLayers { size: number; albedo: Uint8Array[]; normal: Uint8Array[]; mask: Uint8Array[]; tiles: number[]; heightBlends: number[] }
 
 /** `image` resampled (bilinear, wrapping, as the layer tiles) to `size` by `size`. */
 function resample(image: LayerImage, size: number): Uint8Array {
@@ -151,5 +157,6 @@ export function packLayers(layers: readonly LayerSource[], maxSize = 1024): Pack
             mask.push(made);
         }
     }
-    return { size, albedo, normal, mask, tiles: layers.map((l) => l.def.tile) };
+    // A layer with no height blend of its own is -1: the shader reads the material's.
+    return { size, albedo, normal, mask, tiles: layers.map((l) => l.def.tile), heightBlends: layers.map((l) => l.def.heightBlend ?? -1) };
 }

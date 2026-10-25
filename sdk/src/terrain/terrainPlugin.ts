@@ -264,6 +264,57 @@ export class Terrains {
         return null;
     }
 
+    /**
+     * The weights of the terrain's layers at (x, z), as the ground is painted there (four, or as many as it has layers), or null where no terrain is:
+     * what a world's rules read as the fields `paint.<layer>`.
+     */
+    paintAt(x: number, z: number): readonly number[] | null {
+        const world = this.app_?.world;
+        if (!world) return null;
+        for (const [entity, built] of this.built_) {
+            const source = built.source, surface = built.surface;
+            if (!source || !surface || !world.valid(entity)) continue;
+            const t = world.tryGet(entity, Transform) as TransformData | null;
+            if (!t) continue;
+            const lx = x - t.worldPosition.x, lz = z - t.worldPosition.z;
+            const h = surface.height(lx, lz), n = surface.normal(lx, lz);
+            if (h === null || !n) continue;
+            return source.paint(lx, lz, h, n[1]);
+        }
+        return null;
+    }
+
+    /**
+     * The world rectangle the terrains cover, `[minX, minZ, maxX, maxZ]`, or null where it has no end (a terrain of infinite extent) or there is none:
+     * what a layer of chunks laid over the ground is held to, so it does not count a radius of empty world.
+     */
+    areaBounds(): [number, number, number, number] | null {
+        const world = this.app_?.world;
+        if (!world) return null;
+        let out: [number, number, number, number] | null = null;
+        for (const [entity, built] of this.built_) {
+            if (!world.valid(entity)) continue;
+            if (built.data.extent !== TerrainExtent.Area) return null;
+            const t = world.tryGet(entity, Transform) as TransformData | null;
+            if (!t) continue;
+            const r: [number, number, number, number] = [
+                t.worldPosition.x - built.data.sizeX / 2, t.worldPosition.z - built.data.sizeZ / 2,
+                t.worldPosition.x + built.data.sizeX / 2, t.worldPosition.z + built.data.sizeZ / 2,
+            ];
+            out = out ? [Math.min(out[0], r[0]), Math.min(out[1], r[1]), Math.max(out[2], r[2]), Math.max(out[3], r[3])] : r;
+        }
+        return out;
+    }
+
+    /** The names of the terrain's layers, in the order `paintAt` weighs them: the layer files' names, or grass, dirt, snow and rock without any. */
+    layerNames(): string[] {
+        for (const built of this.built_.values()) {
+            const layers = built.data.layers ?? [];
+            if (layers.length > 0) return layers.map((ref, i) => (ref.split('/').pop() ?? '').replace(/\.[^.]*$/, '') || `layer${i}`);
+        }
+        return ['grass', 'dirt', 'snow', 'rock'];
+    }
+
     /** The world height of the ground at (x, z) as it was made, under every modifier laid over it: what a plot is levelled from. */
     heightBeneathAt(x: number, z: number): number | null {
         const world = this.app_?.world;
@@ -740,6 +791,9 @@ export class TerrainPlugin implements Plugin {
                 const t = (i: number): number => packed.tiles[i] ?? 4;
                 set('u_tiles0', { x: t(0), y: t(1), z: t(2), w: t(3) });
                 set('u_tiles1', { x: t(4), y: t(5), z: t(6), w: t(7) });
+                const hb = (i: number): number => packed.heightBlends[i] ?? -1;
+                set('u_heightBlends0', { x: hb(0), y: hb(1), z: hb(2), w: hb(3) });
+                set('u_heightBlends1', { x: hb(4), y: hb(5), z: hb(6), w: hb(7) });
             } catch (e) {
                 log.error('terrain', 'packing the terrain layers failed', e);
             } finally {

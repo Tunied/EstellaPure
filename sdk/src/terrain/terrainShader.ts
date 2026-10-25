@@ -486,6 +486,9 @@ const TERRAIN_LAYERS = `#pragma shader "Terrain Layers"
 #pragma param u_layerCount float default(0) range(0,8) ui(slider)
 #pragma param u_tiles0 vec4 default(4,4,4,4)
 #pragma param u_tiles1 vec4 default(4,4,4,4)
+// Each layer's own height blend (below zero: the material's u_heightBlend), written by the Terrain from the layer files.
+#pragma param u_heightBlends0 vec4 default(-1,-1,-1,-1)
+#pragma param u_heightBlends1 vec4 default(-1,-1,-1,-1)
 // How much a layer with more weight takes over from the others at the seam: 1 is a plain blend, higher a harder edge.
 #pragma param u_sharpness float default(1.6) range(1,8) ui(slider)
 // How much the seams follow the layers' heights (their masks' blue): rock shows through the gaps in the grass before the grass gives
@@ -558,6 +561,7 @@ vec2 tnHash2(vec2 p) {
     return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453);
 }
 float tnTile(int i) { return i < 4 ? u_tiles0[i] : u_tiles1[i - 4]; }
+float tnHeightBlend(int i) { float b = i < 4 ? u_heightBlends0[i] : u_heightBlends1[i - 4]; return b < 0.0 ? u_heightBlend : b; }
 
 // One layer read at uv (in repeats) on one plane: its albedo, its tangent normal's slope (x, y) and its mask, from the gradients given.
 struct TnTap { vec3 albedo; vec2 slope; vec3 mask; };
@@ -627,8 +631,13 @@ void main() {
     float sum = 0.0;
     for (int i = 0; i < 8; i++) {
         float raw = i < 4 ? paintA[i] : paintB[i - 4];
-        // Each layer's say wanders by slow noise of its own, so where two meet the edge is ragged, not the paint's gradient.
-        float wander = tnNoise(P.xz / (tnTile(i) * 2.3) + float(i) * 11.0 + 3.0);
+        // Each layer's say wanders by noise of its own, so where two meet the edge is ragged, not the paint's gradient. Three octaves: the slow one
+        // moves where the edge runs, the two finer break it up at the size of a paint texel and below, where a sharpened bilinear paint
+        // would otherwise follow the texel grid in steps.
+        float tileSize = tnTile(i);
+        float wander = tnNoise(P.xz / (tileSize * 2.3) + float(i) * 11.0 + 3.0) * 0.5
+                     + tnNoise(P.xz / (tileSize * 0.45) + float(i) * 7.0 + 17.0) * 0.3
+                     + tnNoise(P.xz / (tileSize * 0.11) + float(i) * 5.0 + 29.0) * 0.2;
         w[i] = i < count ? max(raw, 0.0) * mix(1.0, 0.35 + 1.3 * wander, u_blendNoise) : 0.0;
         sum += w[i];
     }
@@ -685,9 +694,13 @@ void main() {
     float hsum = 0.0;
     float hw[8];
     for (int i = 0; i < 8; i++) { hw[i] = w[i] > 1e-3 ? max(mask[i].b + w[i] * 1.5 - (top - 0.35), 0.0) : 0.0; hsum += hw[i]; }
+    // How much height decides here: each layer's own say, weighted by how much of that layer is here, so grass into sand blends by the paint and stones
+    // standing through grass by their heights, with no one number for the whole ground.
+    float byHeight = 0.0;
+    for (int i = 0; i < 8; i++) byHeight += w[i] * tnHeightBlend(i);
     vec3 colour = vec3(0.0), slope = vec3(0.0), surface = vec3(0.0);
     for (int i = 0; i < 8; i++) {
-        float k = mix(w[i], hw[i] / max(hsum, 1e-4), u_heightBlend);
+        float k = mix(w[i], hw[i] / max(hsum, 1e-4), byHeight);
         colour += albedo[i] * k; slope += bend[i] * k; surface += mask[i] * k;
     }
     float broad = tnNoise(P.xz / (scale * 7.3)) * 0.6 + tnNoise(P.xz / (scale * 29.0) + 5.0) * 0.4;
@@ -727,6 +740,12 @@ fn tnHash2(p : vec2f) -> vec2f {
 fn tnTile(i : i32) -> f32 {
     if (i < 4) { return mc.u_tiles0[i]; }
     return mc.u_tiles1[i - 4];
+}
+fn tnHeightBlend(i : i32) -> f32 {
+    var b = 0.0;
+    if (i < 4) { b = mc.u_heightBlends0[i]; } else { b = mc.u_heightBlends1[i - 4]; }
+    if (b < 0.0) { return mc.u_heightBlend; }
+    return b;
 }
 struct TnTap { albedo : vec3f, slope : vec2f, mask : vec3f };
 fn tnPlain(uv : vec2f, layer : i32, gx : vec2f, gy : vec2f) -> TnTap {
@@ -817,7 +836,11 @@ fn packNormal(n : vec3f) -> vec2f {
     for (var i = 0; i < 8; i = i + 1) {
         var raw = 0.0;
         if (i < 4) { raw = paintA[i]; } else { raw = paintB[i - 4]; }
-        let wander = tnNoise(P.xz / (tnTile(i) * 2.3) + vec2f(f32(i) * 11.0 + 3.0));
+        // Three octaves: the slow one moves where the edge runs, the two finer break it up at the size of a paint texel and below.
+        let tileSize = tnTile(i);
+        let wander = tnNoise(P.xz / (tileSize * 2.3) + vec2f(f32(i) * 11.0 + 3.0)) * 0.5
+                   + tnNoise(P.xz / (tileSize * 0.45) + vec2f(f32(i) * 7.0 + 17.0)) * 0.3
+                   + tnNoise(P.xz / (tileSize * 0.11) + vec2f(f32(i) * 5.0 + 29.0)) * 0.2;
         w[i] = 0.0;
         if (i < count) { w[i] = max(raw, 0.0) * mix(1.0, 0.35 + 1.3 * wander, mc.u_blendNoise); }
         sum = sum + w[i];
@@ -881,11 +904,14 @@ fn packNormal(n : vec3f) -> vec2f {
         if (w[i] > 1e-3) { hw[i] = max(mask[i].b + w[i] * 1.5 - (top - 0.35), 0.0); }
         hsum = hsum + hw[i];
     }
+    // How much height decides here: each layer's own say, weighted by how much of that layer is here.
+    var byHeight = 0.0;
+    for (var i = 0; i < 8; i = i + 1) { byHeight = byHeight + w[i] * tnHeightBlend(i); }
     var colour = vec3f(0.0);
     var slope = vec3f(0.0);
     var surface = vec3f(0.0);
     for (var i = 0; i < 8; i = i + 1) {
-        let k = mix(w[i], hw[i] / max(hsum, 1e-4), mc.u_heightBlend);
+        let k = mix(w[i], hw[i] / max(hsum, 1e-4), byHeight);
         colour = colour + albedo[i] * k;
         slope = slope + bend[i] * k;
         surface = surface + mask[i] * k;
