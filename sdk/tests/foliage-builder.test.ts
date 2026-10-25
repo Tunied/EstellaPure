@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import { describe, it, expect } from 'vitest';
 import { MeshChannel, MeshChannelType, packChannels, type MeshData } from '../src/asset/meshFormat';
-import { buildBillboardMesh, buildGrassMesh, buildInstancedMesh, buildPlacedMesh, thinPlants, rng, scatterCell, type Ground, type Plant } from '../src/foliage/builder';
+import { buildBillboardMesh, buildGrassMesh, buildInstancedMesh, buildPlacedMesh, softenNormals, thinPlants, rng, scatterCell, type Ground, type Plant } from '../src/foliage/builder';
 
 const flat: Ground = () => ({ y: 2, up: 1 });
 const params = {
@@ -203,6 +203,37 @@ describe('placed meshes', () => {
         const none = buildPlacedMesh(source, []);
         expect(none.vertexCount).toBe(0);
         expect(none.indices.length).toBe(0);
+    });
+});
+
+describe('softening a card\'s normals', () => {
+    const channels = packChannels([
+        { semantic: MeshChannel.Position, type: MeshChannelType.Float32, components: 3 },
+        { semantic: MeshChannel.Normal, type: MeshChannelType.Float32, components: 3 },
+    ]).channels;
+    const stride = 24;
+    const make = (normal: number[]): MeshData => {
+        const vertices = new Uint8Array(stride);
+        new Float32Array(vertices.buffer).set([0, 0, 0, ...normal]);
+        return { channels, vertexStride: stride, vertexCount: 1, vertices, indices: new Uint32Array([0, 0, 0]), aabbMin: [0, 0, 0], aabbMax: [0, 0, 0] };
+    };
+    const normalOf = (m: MeshData) => [...new Float32Array(m.vertices.buffer, 12, 3)];
+
+    it('turns a normal toward up by the amount, to a unit vector, and copies rather than changes the source', () => {
+        const source = make([1, 0, 0]);
+        const half = normalOf(softenNormals(source, 0.5));
+        expect(Math.hypot(...half)).toBeCloseTo(1, 5);
+        expect(half[1]).toBeGreaterThan(0.6);
+        expect(half[0]).toBeGreaterThan(0.6);
+        expect(normalOf(softenNormals(source, 1))).toEqual([0, 1, 0]);
+        expect(normalOf(source)).toEqual([1, 0, 0]);
+    });
+
+    it('leaves a mesh as it is for none, or for a mesh with no normals', () => {
+        const source = make([1, 0, 0]);
+        expect(softenNormals(source, 0)).toBe(source);
+        const flat: MeshData = { ...source, channels: channels.slice(0, 1) };
+        expect(softenNormals(flat, 1)).toBe(flat);
     });
 });
 

@@ -66,6 +66,7 @@ function part(v: unknown, where: string): PlantKind['parts'][number] {
         mesh: str(p.mesh, `${where}.mesh`), lod1Mesh: typeof p.lod1Mesh === 'string' ? p.lod1Mesh : '', material: typeof p.material === 'string' ? p.material : '',
         texture: typeof p.texture === 'string' ? p.texture : '', tint: (tint as unknown[]).map((c, i) => num(c, `${where}.tint[${i}]`)) as [number, number, number, number],
         opaque: p.opaque !== false,
+        ...(p.soft === undefined ? {} : { soft: Math.min(Math.max(num(p.soft, `${where}.soft`), 0), 1) }),
     };
 }
 

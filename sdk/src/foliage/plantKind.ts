@@ -17,6 +17,11 @@ export interface PlacedPart {
     tint: [number, number, number, number];
     /** False for a part that is blended (glass, a decal): it is drawn after what is solid. */
     opaque: boolean;
+    /**
+     * How far its normals are turned to face up, 0 to 1 (default 0): for a flat card that stands for a crown, which lit by its own normal is bright
+     * on the side the sun is on and a dark slab on the other. A crown is lit as a rounded thing, and facing up is how a card is.
+     */
+    soft?: number;
 }
 
 /** A kind of plant: its parts, and how far it is drawn. */

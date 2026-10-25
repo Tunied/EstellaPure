@@ -10,7 +10,7 @@ export {
 export { PlantGrowth, PlantGrowthRes, plantGrowthOf } from './plantGrowth';
 export { PLACED_STRIDE, type PlacedKind, type PlacedPart, type PlantKind } from './plantKind';
 export {
-    scatterCell, buildGrassMesh, buildInstancedMesh, buildPlacedMesh, thinPlants, buildBillboardMesh, rng,
+    scatterCell, buildGrassMesh, buildInstancedMesh, buildPlacedMesh, thinPlants, softenNormals, buildBillboardMesh, rng,
     type Plant, type Ground, type ScatterParams, type BladeParams, type CardRect,
 } from './builder';
 

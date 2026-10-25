@@ -300,6 +300,25 @@ export function buildPlacedMesh(source: MeshData, plants: readonly Plant[]): Mes
 }
 
 /**
+ * The mesh with its normals turned toward up by `amount` (0 leaves them, 1 makes them all up): a card that stands for a crown lit as a rounded thing
+ * rather than as the flat it is. A copy; the source is shared by every plant of the kind.
+ */
+export function softenNormals(source: MeshData, amount: number): MeshData {
+    const normal = source.channels.find((c) => c.semantic === MeshChannel.Normal && c.type === MeshChannelType.Float32 && c.components >= 3);
+    const a = Math.min(Math.max(amount, 0), 1);
+    if (!normal || a <= 0) return source;
+    const vertices = new Uint8Array(source.vertices.subarray(0, source.vertexCount * source.vertexStride));
+    const f32 = new Float32Array(vertices.buffer), words = source.vertexStride >> 2, at = normal.offset >> 2;
+    for (let v = 0; v < source.vertexCount; v++) {
+        const o = v * words + at;
+        const x = f32[o]! * (1 - a), y = f32[o + 1]! * (1 - a) + a, z = f32[o + 2]! * (1 - a);
+        const len = Math.hypot(x, y, z) || 1;
+        f32[o] = x / len; f32[o + 1] = y / len; f32[o + 2] = z / len;
+    }
+    return { ...source, vertices };
+}
+
+/**
  * The plants a far version draws, when it draws a share `keep` of them (above 0 to 1): every n-th, n the nearest whole number to 1 / keep, each grown by the
  * square root of n (to a most of twice) so the ground they cover is what it was. The same plants every time: what is kept is a matter of order.
  */

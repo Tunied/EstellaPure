@@ -2848,6 +2848,10 @@ export const NOTED = {
     {"note":"A Display LUT."},
   "feat(examples): Terrain & Water is graded warm by a display LUT":
     {"note":"A Display LUT."},
+  "feat(worldgen): a part's soft turns the normals of a card that stands for a crown toward up":
+    {"note":"A generated world's plants."},
+  "feat(examples): Terrain & Water draws its trees as models out to 380 metres, and their cards are lit as crowns":
+    {"note":"A generated world's plants."},
   "feat(water): two tiled, scrolling detail normal maps give the surface its sparkle":
     {"note":"Sparkle on the water."},
   "fix(lod): a LODGroup with only a cull size is no longer ignored":

@@ -26,7 +26,7 @@ import type { MeshData } from '../asset/meshFormat';
 import { log } from '../util/logger';
 import { bakesOf } from '../runtime/bakes';
 import type { Entity } from '../types';
-import { buildPlacedMesh, thinPlants, type Plant } from './builder';
+import { buildPlacedMesh, softenNormals, thinPlants, type Plant } from './builder';
 import type { PlacedKind, PlacedPart } from './plantKind';
 
 /** A part with what it needs in hand: its geometry read, its handles made. */
@@ -60,7 +60,7 @@ export async function prepareKinds(assets: AssetsApi, kinds: readonly PlacedKind
         let lod1: MeshData | null = null;
         if (withLod && part.lod1Mesh) lod1 = await assets.readMeshData((await assets.load<{ handle: number }>('mesh', part.lod1Mesh)).handle);
         return {
-            part, source, lod1,
+            part, source: part.soft ? softenNormals(source, part.soft) : source, lod1,
             material: part.material ? (await assets.loadMaterial(part.material)).handle : 0,
             texture: part.texture ? (await assets.loadTexture(part.texture)).handle : 0,
         };

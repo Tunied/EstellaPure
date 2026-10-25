@@ -94,7 +94,7 @@ group stands.
 
 ### Plants
 
-A member names a mesh and a material, or a **plant**: an entry in the rules' `plants`, for what a mesh and a material cannot say. A plant is its `parts` (a trunk and a crown are two, each with its `mesh`, a cheaper `lod1Mesh`, `material`, `texture`, `tint` and whether it is `opaque`), the `lodDistance` past which the cheaper meshes stand in and the `drawDistance` past which it is not drawn, a `far` version (a tree's crossed cards, baked to an atlas of their own) drawn from `drawDistance` out to `farDistance`, and optionally:
+A member names a mesh and a material, or a **plant**: an entry in the rules' `plants`, for what a mesh and a material cannot say. A plant is its `parts` (a trunk and a crown are two, each with its `mesh`, a cheaper `lod1Mesh`, `material`, `texture`, `tint`, whether it is `opaque` and, for a card that stands for a crown, how `soft` its normals are: turned toward up by that share, so it is lit as a rounded crown and not as the flat board it is), the `lodDistance` past which the cheaper meshes stand in and the `drawDistance` past which it is not drawn, a `far` version (a tree's crossed cards, baked to an atlas of their own) drawn from `drawDistance` out to `farDistance`, and optionally:
 
 | Field | What it is |
 |---|---|
