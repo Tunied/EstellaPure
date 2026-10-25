@@ -46,9 +46,29 @@ Each cell is built twice. Near, grass is a bent, tapered blade for every plant; 
 copied in full near, and far is two crossed cards a plant. The engine's own [level of detail](/docs/performance/level-of-detail/) picks between
 them by how much of the screen the cell covers, and drops the cell past `drawDistance`.
 
+## Placed plants
+
+`Foliage` scatters plants by rule. A scene an artist composed has every plant where the artist put it, tens of thousands of them, and as entities that is a
+transform, a renderer and a draw each. **`PlacedFoliage`** keeps them as data in one entity: a table of `kinds` and a list of `records`.
+
+| Field | What it does |
+|---|---|
+| `sizeX`, `sizeZ`, `cellSize` | The area, centred on the entity, and the side of the cells it is cut into. |
+| `kinds` | What each kind is made of: its `parts` (a `mesh`, a cheaper `lod1Mesh`, a `material`, a `texture`, a `tint` and whether it is `opaque`), the `lodDistance` past which the cheaper mesh stands in and the `drawDistance` past which it is not drawn, and a far version, `far` parts drawn from `drawDistance` out to `farDistance`. |
+| `records` | Where each plant stands: six numbers a plant, the kind's index, x, y, z in the entity's space, the turn about the vertical in radians, and the scale. |
+
+The cells round the streaming sources (or the eye) are grown, each as one mesh for every kind in it and part of that kind, and let go with their meshes past the
+distance. A cell appears at once and fills in over the frames after it, each mesh a few milliseconds of the frame's budget, nearest first. A mesh keeps every channel
+the artist made (a normal map, a second uv, a vertex colour); nothing is painted over it, so a plant is drawn with an ordinary material, not the wind's.
+
+The far version is the hierarchical level of detail: a tree's crossed cards, baked to an atlas of their own, merged a cell at a time, shown where the eye is past
+what the kind draws as itself. It is cheap enough that the whole area stands at once. A kind with no far version is not drawn past `drawDistance`.
+
+Plants stand upright and are scaled uniformly; the records carry no tilt. The paths in `kinds` are the project's, listed so a package carries them.
+
 ## In a package
 
-Foliage is an optional module, like terrain: a package carries it when a scene has a `Foliage` component or a script imports `esengine/foliage`. It stands on a `Terrain` when the scene has one and needs no terrain module to stand on a flat floor.
+Foliage is an optional module, like terrain: a package carries it when a scene has a `Foliage` or `PlacedFoliage` component or a script imports `esengine/foliage`. It stands on a `Terrain` when the scene has one and needs no terrain module to stand on a flat floor.
 
 ## Limits
 

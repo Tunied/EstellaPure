@@ -4,7 +4,13 @@ export {
     Foliage, FoliageField, FoliageRes, FoliagePlugin, foliagePlugin, type FoliageData,
 } from './foliagePlugin';
 export {
-    scatterCell, buildGrassMesh, buildInstancedMesh, buildBillboardMesh, rng,
+    PlacedFoliage, PlacedFoliageField, PlacedFoliageRes, PlacedFoliagePlugin, placedFoliagePlugin,
+    type PlacedFoliageData,
+} from './placedFoliage';
+export { PlantGrowth, PlantGrowthRes, plantGrowthOf } from './plantGrowth';
+export { PLACED_STRIDE, type PlacedKind, type PlacedPart, type PlantKind } from './plantKind';
+export {
+    scatterCell, buildGrassMesh, buildInstancedMesh, buildPlacedMesh, buildBillboardMesh, rng,
     type Plant, type Ground, type ScatterParams, type BladeParams, type CardRect,
 } from './builder';
 

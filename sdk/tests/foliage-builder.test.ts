@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import { describe, it, expect } from 'vitest';
-import { MeshChannel } from '../src/asset/meshFormat';
-import { buildBillboardMesh, buildGrassMesh, buildInstancedMesh, rng, scatterCell, type Ground, type Plant } from '../src/foliage/builder';
+import { MeshChannel, MeshChannelType, packChannels, type MeshData } from '../src/asset/meshFormat';
+import { buildBillboardMesh, buildGrassMesh, buildInstancedMesh, buildPlacedMesh, rng, scatterCell, type Ground, type Plant } from '../src/foliage/builder';
 
 const flat: Ground = () => ({ y: 2, up: 1 });
 const params = {
@@ -131,5 +131,62 @@ describe('instanced meshes and billboards', () => {
         const mesh = buildGrassMesh([], { height: 10, width: 2, segments: 3, thin: 1 });
         expect(mesh.vertexCount).toBe(0);
         expect(mesh.indices.length).toBe(0);
+    });
+});
+
+describe('placed meshes', () => {
+    // One triangle with every channel an authored plant has: position, uv, colour, normal and a tangent.
+    const { channels, vertexStride } = packChannels([
+        { semantic: MeshChannel.Position, components: 3, type: MeshChannelType.Float32 },
+        { semantic: MeshChannel.TexCoord0, components: 2, type: MeshChannelType.Float32 },
+        { semantic: MeshChannel.Color, components: 4, type: MeshChannelType.UNorm8 },
+        { semantic: MeshChannel.Normal, components: 3, type: MeshChannelType.Float32 },
+        { semantic: MeshChannel.Tangent, components: 4, type: MeshChannelType.Float32 },
+    ]);
+    const vertices = new Uint8Array(3 * vertexStride);
+    const view = new DataView(vertices.buffer);
+    const at = (s: number) => channels.find((c) => c.semantic === s)!.offset;
+    [[1, 0, 0], [0, 2, 0], [0, 0, 1]].forEach((p, v) => {
+        p.forEach((x, k) => view.setFloat32(v * vertexStride + at(MeshChannel.Position) + k * 4, x, true));
+        view.setFloat32(v * vertexStride + at(MeshChannel.Normal), 1, true);
+        view.setFloat32(v * vertexStride + at(MeshChannel.Tangent), 1, true);
+        view.setFloat32(v * vertexStride + at(MeshChannel.Tangent) + 12, -1, true);
+        view.setFloat32(v * vertexStride + at(MeshChannel.TexCoord0), 0.25 * (v + 1), true);
+        vertices.set([10, 20, 30, 255], v * vertexStride + at(MeshChannel.Color));
+    });
+    const source: MeshData = { channels, vertexStride, vertexCount: 3, vertices, indices: new Uint32Array([0, 1, 2]), aabbMin: [0, 0, 0], aabbMax: [1, 2, 1] };
+    const readF = (m: MeshData, v: number, semantic: number, k: number) =>
+        new DataView(m.vertices.buffer).getFloat32(v * m.vertexStride + m.channels.find((c) => c.semantic === semantic)!.offset + k * 4, true);
+
+    it('keeps every channel and places, turns and scales a copy a plant', () => {
+        const plants: Plant[] = [
+            { x: 5, y: 1, z: 0, yaw: 0, scale: 2, phase: 0, shade: 1 },
+            { x: 0, y: 0, z: 0, yaw: Math.PI / 2, scale: 1, phase: 0, shade: 1 },
+        ];
+        const m = buildPlacedMesh(source, plants);
+        expect(m.channels).toEqual(source.channels);
+        expect(m.vertexCount).toBe(6);
+        expect([...m.indices]).toEqual([0, 1, 2, 3, 4, 5]);
+        // First copy: the point (1, 0, 0) scaled by two, then moved by (5, 1, 0).
+        expect(positionOf(m, 0)).toEqual([7, 1, 0]);
+        // Second copy: a quarter turn about the vertical takes (1, 0, 0) to (0, 0, -1).
+        const p = positionOf(m, 3);
+        expect(p[0]).toBeCloseTo(0, 5);
+        expect(p[2]).toBeCloseTo(-1, 5);
+        // The normal and the tangent turn with it, the tangent's handedness and the uv and colour are copied as they are.
+        expect(readF(m, 3, MeshChannel.Normal, 2)).toBeCloseTo(-1, 5);
+        expect(readF(m, 3, MeshChannel.Tangent, 2)).toBeCloseTo(-1, 5);
+        expect(readF(m, 3, MeshChannel.Tangent, 3)).toBe(-1);
+        expect(readF(m, 4, MeshChannel.TexCoord0, 0)).toBeCloseTo(0.5, 5);
+        expect(colorOf(m as never, 5)).toEqual([10, 20, 30, 255]);
+    });
+
+    it('bounds what it placed, and is an empty mesh for no plants', () => {
+        const m = buildPlacedMesh(source, [{ x: 5, y: 1, z: 0, yaw: 0, scale: 2, phase: 0, shade: 1 }]);
+        expect(m.aabbMin).toEqual([5, 1, 0]);
+        expect(m.aabbMax).toEqual([7, 5, 2]);
+        const none = buildPlacedMesh(source, []);
+        expect(none.vertexCount).toBe(0);
+        expect(none.indices.length).toBe(0);
     });
 });

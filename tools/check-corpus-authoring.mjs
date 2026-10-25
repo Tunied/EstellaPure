@@ -122,6 +122,7 @@ const DISPOSITION = {
   // — derived: a system writes them; authored, they would be a bug —
   RuntimeOnly: ['derived', 'tags a world-only entity a system re-derives; scene serialization skips tagged entities, so authoring one would delete it on save'],
   NetGhost: ['derived', 'replication tags a remote proxy with it; the authority writes it, never the scene'],
+  PlacedFoliage: ['derived', 'a generated world grows its plants through the same machinery without the component, and a project that places plants by hand writes the kinds and records with a script from its own rules; the lists are generated data, not something a scene is authored by hand with'],
   PlacedObject: ['derived', 'a generated world writes it on what it places for the game to interact with; authored, it would name a placement no rule made'],
   SceneOwner: ['derived', 'scene loading records which scene an entity came from; authoring it would claim an ownership the loader never granted'],
 

@@ -45,7 +45,7 @@ export const SUBSYSTEM_COMPONENTS: Readonly<Record<Subsystem, readonly string[]>
     fxBasic: [],
     fxAtmosphere: ['Weather', 'TimeOfDay'],
     fxLighting: [],
-    foliage: ['Foliage'],
+    foliage: ['Foliage', 'PlacedFoliage'],
     worldgen: ['WorldGen', 'WorldZone'],
     water: ['WaterBody', 'WaterZone', 'Floating'],
     spline: ['Spline'],

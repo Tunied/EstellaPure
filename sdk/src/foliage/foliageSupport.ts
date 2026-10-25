@@ -9,8 +9,10 @@ import { addEntryPlugin } from '../runtime/entryPlugins';
 import { registerBuiltinShaderTemplate } from '../render/builtinShaders';
 import { FOLIAGE_SHADER_TEMPLATE } from './foliageShader';
 import { FoliagePlugin } from './foliagePlugin';
+import { PlacedFoliagePlugin } from './placedFoliage';
 
 export function registerFoliageSupport(): void {
     registerBuiltinShaderTemplate(FOLIAGE_SHADER_TEMPLATE);
     addEntryPlugin('foliage', () => new FoliagePlugin());
+    addEntryPlugin('placedFoliage', () => new PlacedFoliagePlugin());
 }

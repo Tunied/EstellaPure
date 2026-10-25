@@ -241,6 +241,58 @@ export function buildInstancedMesh(source: MeshData, plants: readonly Plant[], p
     return pack(b);
 }
 
+/**
+ * Copies of an authored mesh, one per plant, as one mesh, with every channel of the source kept: the colour, the second uv and the tangent that a
+ * normal map reads are what the artist made, and the wind's painted weights do not replace them (see buildInstancedMesh for a mesh that is painted).
+ * Each copy is turned about the vertical, scaled and placed; positions, normals and tangents are carried, other channels are copied as they are.
+ */
+export function buildPlacedMesh(source: MeshData, plants: readonly Plant[]): MeshData {
+    const stride = source.vertexStride, count = source.vertexCount;
+    const vertices = new Uint8Array(Math.max(1, count * plants.length) * stride);
+    const indices = new Uint32Array(source.indices.length * plants.length);
+    const at = (semantic: number) => source.channels.find((c) => c.semantic === semantic && c.type === MeshChannelType.Float32 && c.components >= 3)?.offset ?? -1;
+    const posAt = at(MeshChannel.Position), normalAt = at(MeshChannel.Normal), tangentAt = at(MeshChannel.Tangent);
+    const min: [number, number, number] = [Infinity, Infinity, Infinity];
+    const max: [number, number, number] = [-Infinity, -Infinity, -Infinity];
+    // The vertices are read and written as 32-bit words: a vertex is `stride / 4` of them and a channel starts at a whole word, which the packed
+    // format guarantees. This is the hot loop of growing a cell (a cell of grass is a hundred thousand vertices), so no DataView, no calls in it.
+    const words = stride >> 2, p = posAt >> 2, nr = normalAt >> 2, tg = tangentAt >> 2;
+    const f32 = new Float32Array(vertices.buffer), raw = new Uint32Array(vertices.buffer);
+    // The source once, as aligned words: read as floats for the channels that move, copied whole for the rest.
+    const own = new Uint8Array(count * stride);
+    own.set(source.vertices.subarray(0, count * stride));
+    const base = new Float32Array(own.buffer), rawBase = new Uint32Array(own.buffer);
+    const hasNormal = normalAt >= 0, hasTangent = tangentAt >= 0;
+    plants.forEach((plant, n) => {
+        const cos = Math.cos(plant.yaw), sin = Math.sin(plant.yaw), scale = plant.scale;
+        const first = n * count * words;
+        // Every channel copied as it is; the three that move are then rewritten.
+        raw.set(rawBase, first);
+        for (let v = 0, o = first; v < count; v++, o += words) {
+            if (posAt >= 0) {
+                const x = base[v * words + p]! * scale, y = base[v * words + p + 1]! * scale, z = base[v * words + p + 2]! * scale;
+                const wx = x * cos + z * sin + plant.x, wy = y + plant.y, wz = -x * sin + z * cos + plant.z;
+                f32[o + p] = wx; f32[o + p + 1] = wy; f32[o + p + 2] = wz;
+                if (wx < min[0]) min[0] = wx; if (wx > max[0]) max[0] = wx;
+                if (wy < min[1]) min[1] = wy; if (wy > max[1]) max[1] = wy;
+                if (wz < min[2]) min[2] = wz; if (wz > max[2]) max[2] = wz;
+            }
+            if (hasNormal) {
+                const x = base[v * words + nr]!, z = base[v * words + nr + 2]!;
+                f32[o + nr] = x * cos + z * sin; f32[o + nr + 2] = -x * sin + z * cos;
+            }
+            if (hasTangent) {
+                const x = base[v * words + tg]!, z = base[v * words + tg + 2]!;
+                f32[o + tg] = x * cos + z * sin; f32[o + tg + 2] = -x * sin + z * cos;
+            }
+        }
+        const firstIndex = n * source.indices.length, shift = n * count;
+        for (let i = 0; i < source.indices.length; i++) indices[firstIndex + i] = source.indices[i]! + shift;
+    });
+    if (plants.length === 0) { min.fill(0); max.fill(0); }
+    return { channels: source.channels, vertexStride: stride, vertexCount: count * plants.length, vertices, indices, aabbMin: min, aabbMax: max };
+}
+
 /** The turn that takes up (0, 1, 0) to `n` the shortest way, applied to a vector in place; null when `n` is up. */
 function leanTo(n: readonly [number, number, number]): ((v: number[]) => void) | null {
     const len = Math.hypot(n[0], n[1], n[2]) || 1;
