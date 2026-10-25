@@ -2872,6 +2872,8 @@ export const NOTED = {
     {"internal":"A test race."},
   "feat(pipeline): a project can be made from a template on the command line, by the same code as the editor's New project":
     {"note":"Start a project from the command line."},
+  "refactor(launcher): a new project is made by the pipeline's template code, shared with the command line":
+    {"note":"Start a project from the command line."},
   "feat(water): two tiled, scrolling detail normal maps give the surface its sparkle":
     {"note":"Sparkle on the water."},
   "fix(lod): a LODGroup with only a cull size is no longer ignored":
