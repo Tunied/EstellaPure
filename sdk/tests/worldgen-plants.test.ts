@@ -53,4 +53,11 @@ describe('expanding plants into kinds', () => {
         expect(set.unitOf('stone')).toBe(1);
         expect(set.reach).toBe(200000);
     });
+
+    it('measures the least distance a far version is shown over, for how wide a far cell may be', () => {
+        expect(set.span).toBe(184000);
+        const cover = expandPlants({ ...plants, grass: { parts: [part('g')], lodDistance: 3000, drawDistance: 9000, far: [part('g')], farDistance: 26000 } });
+        expect(cover.span).toBe(17000);
+        expect(expandPlants({ stone: plants.stone! }).span).toBe(0);
+    });
 });

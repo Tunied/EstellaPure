@@ -160,7 +160,7 @@ z: number
 ```
 app_: App | null
 growCell: (app: App, cell: GrownCell, kinds: readonly PlacedKind[], ready: ReadyKinds, byKind: ReadonlyMap<number, readonly Plant[]>) => void
-growFar: (app: App, cell: GrownCell, kinds: readonly PlacedKind[], ready: ReadyKinds, byKind: ReadonlyMap<number, readonly Plant[]>, at: { x: number; z: number; }) => void
+growFar: (app: App, cell: GrownCell, kinds: readonly PlacedKind[], ready: ReadyKinds, byKind: ReadonlyMap<number, readonly Plant[]>, at: { x: number; z: number; half?: number; }) => void
 made: number
 pending: number
 queue: { cell: GrownCell; run: () => void; }[]

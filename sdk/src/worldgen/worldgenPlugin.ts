@@ -162,6 +162,8 @@ interface PlacedChunk {
     /** The plants of the rules' `plants` in it, by kind, standing relative to `at` (the chunk's centre), and what grew them once published. */
     planted: Map<number, Plant[]> | null;
     at: [number, number, number];
+    /** The chunk's side. */
+    side: number;
     grown: GrownCell | null;
     /** Made for the far layer: only the far versions of its plants, which are shown from past what their kinds draw as themselves. */
     far: boolean;
@@ -517,16 +519,22 @@ export class WorldGenPlugin implements Plugin {
             // where the plants themselves are only grown near the eye. They are shown from past what their kinds draw as themselves.
             const farId = layerIdOf(entity, `${layer.id}:far`);
             if (!rendering || !built.plants || built.plants.reach <= layer.drawDistance) { chunks.remove(farId); continue; }
+            // A far cell is as many chunks wide as the shortest span a far version is shown over allows: the far versions are one draw a kind a cell, and a ring
+            // of ground cover a few chunks wide would otherwise be thousands of them.
+            const farSide = Math.min(Math.max(Math.floor(built.plants.span / size), 1), 8);
+            const fsize = size * farSide;
+            const fextent: [number, number, number, number] | null = bounds
+                ? [Math.floor(bounds[0] / fsize), Math.floor(bounds[1] / fsize), Math.ceil(bounds[2] / fsize), Math.ceil(bounds[3] / fsize)] : null;
             chunks.set<PlacedChunk>(farId, {
                 label: 'Laying out the far plants',
-                originX: 0, originZ: 0, sizeX: size, sizeZ: size, extent,
-                loadRadius: built.plants.reach, unloadRadius: built.plants.reach + size,
+                originX: 0, originZ: 0, sizeX: fsize, sizeZ: fsize, extent: fextent,
+                loadRadius: built.plants.reach, unloadRadius: built.plants.reach + fsize,
                 generation: `${built.signature}:${ground}`,
                 make: (cx, cz) => {
-                    const x0 = cx * size, z0 = cz * size;
-                    if (waiting || (terrains && ![[x0, z0], [x0 + size, z0], [x0, z0 + size], [x0 + size, z0 + size]].every(([x, z]) => terrains.groundKnownAt(x!, z!)))) return null;
+                    const x0 = cx * fsize, z0 = cz * fsize;
+                    if (waiting || (terrains && ![[x0, z0], [x0 + fsize, z0], [x0, z0 + fsize], [x0 + fsize, z0 + fsize]].every(([x, z]) => terrains.groundKnownAt(x!, z!)))) return null;
                     if (!built.plantsReady) return null;
-                    return this.chunk(app, plan, diffs, layer, x0, z0, size, rendering, built.plants, true);
+                    return this.chunk(app, plan, diffs, layer, x0, z0, fsize, rendering, built.plants, true);
                 },
                 publish: (_cx, _cz, value) => this.place(app, gens, entity, value),
                 release: (_cx, _cz, value) => this.unplace(app, gens, value),
@@ -547,7 +555,7 @@ export class WorldGenPlugin implements Plugin {
         const decor = rendering && !far ? placements.filter((p) => p.interactive === null && p.mesh) : [];
         const meshes = [...new Set(decor.map((p) => p.mesh))];
         const finish = (): PlacedChunk => {
-            const out: PlacedChunk = { decor: [], objects, planted: null, at: [x0 + size / 2, 0, z0 + size / 2], grown: null, far, entities: [], meshes: [] };
+            const out: PlacedChunk = { decor: [], objects, planted: null, at: [x0 + size / 2, 0, z0 + size / 2], side: size, grown: null, far, entities: [], meshes: [] };
             // The plants: each at its kind (its colouring there), relative to the chunk's centre, sunk by what its kind says.
             if (plants && rendering) {
                 const by = new Map<number, Plant[]>();
@@ -620,7 +628,7 @@ export class WorldGenPlugin implements Plugin {
             chunk.entities.push(e);
             chunk.grown = { entity: e, handles: [], dead: false };
             const growth = plantGrowthOf(app);
-            if (chunk.far) growth.growFar(app, chunk.grown, built.plants.kinds, built.plantsReady, chunk.planted, { x: chunk.at[0], z: chunk.at[2] });
+            if (chunk.far) growth.growFar(app, chunk.grown, built.plants.kinds, built.plantsReady, chunk.planted, { x: chunk.at[0], z: chunk.at[2], half: chunk.side / 2 });
             else growth.growCell(app, chunk.grown, built.plants.kinds, built.plantsReady, chunk.planted);
         }
         for (const d of chunk.decor) {

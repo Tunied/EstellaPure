@@ -45,6 +45,8 @@ interface FarCell {
     /** Where the cell is, in the world's x and z. */
     x: number;
     z: number;
+    /** Half the cell's side: how far from its centre it reaches. */
+    half: number;
     owner: Entity;
     kinds: readonly PlacedKind[];
     children: { entity: Entity; kind: number; shown: boolean }[];
@@ -149,9 +151,9 @@ export class PlantGrowth {
 
     /**
      * Grows the far version of `cell`: each kind with one, its plants as one mesh a far part, hidden until the eye is far enough (`kind.drawDistance`
-     * to `kind.farDistance` from the cell's centre, at world x and z `at`). Cheap enough (a tree is two cards) to be made at once.
+     * to `kind.farDistance` from the cell, at world x and z `at`, reaching `half` each way). Cheap enough (a tree is two cards) to be made at once.
      */
-    growFar(app: App, cell: GrownCell, kinds: readonly PlacedKind[], ready: ReadyKinds, byKind: ReadonlyMap<number, readonly Plant[]>, at: { x: number; z: number }): void {
+    growFar(app: App, cell: GrownCell, kinds: readonly PlacedKind[], ready: ReadyKinds, byKind: ReadonlyMap<number, readonly Plant[]>, at: { x: number; z: number; half?: number }): void {
         const world = app.world, entity = cell.entity;
         if (entity === null) return;
         const assets = app.getResource(Assets);
@@ -175,7 +177,7 @@ export class PlantGrowth {
                 children.push({ entity: e, kind: kindIndex, shown: false });
             }
         }
-        if (children.length > 0) this.far_.add({ x: at.x, z: at.z, owner: entity, kinds, children });
+        if (children.length > 0) this.far_.add({ x: at.x, z: at.z, half: at.half ?? 0, owner: entity, kinds, children });
     }
 
     /** Lets a cell go: what it made is despawned and given back, and what it had not yet made is left unmade. */
@@ -201,11 +203,14 @@ export class PlantGrowth {
         }
         if (!eye) return;
         for (const cell of this.far_) {
-            const d = Math.hypot(cell.x - eye.x, cell.z - eye.z);
+            // A cell that spans a good part of the distances shows wherever any of it is past what its kind draws and within how far it goes.
+            const dx = Math.abs(cell.x - eye.x), dz = Math.abs(cell.z - eye.z);
+            const nearest = Math.hypot(Math.max(dx - cell.half, 0), Math.max(dz - cell.half, 0));
+            const furthest = Math.hypot(dx + cell.half, dz + cell.half);
             for (const child of cell.children) {
                 const kind = cell.kinds[child.kind];
                 if (!kind) continue;
-                const show = d > kind.drawDistance && d < kind.farDistance;
+                const show = furthest > kind.drawDistance && nearest < kind.farDistance;
                 if (show === child.shown || !world.valid(child.entity)) continue;
                 child.shown = show;
                 world.insert(child.entity, MeshRenderer, { ...(world.get(child.entity, MeshRenderer) as MeshRendererData), enabled: show });

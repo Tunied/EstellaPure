@@ -2830,6 +2830,8 @@ export const NOTED = {
     {"note":"A generated world's plants."},
   "feat(export): a packaged game reports what it is still baking, and the capture launcher can wait for it":
     {"internal":"An observation seam for capture tooling; no game behaves differently."},
+  "feat(worldgen): the far versions of a world's plants are laid out in cells as wide as their shortest span allows, so ground cover far off costs far fewer draws":
+    {"note":"A generated world's plants."},
   "feat(water): two tiled, scrolling detail normal maps give the surface its sparkle":
     {"note":"Sparkle on the water."},
   "fix(lod): a LODGroup with only a cull size is no longer ignored":

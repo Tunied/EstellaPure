@@ -21,12 +21,14 @@ export interface PlantSet {
     unitOf(name: string): number;
     /** The furthest any kind is wanted: where the far versions end. */
     reach: number;
+    /** The least distance a far version is shown over (from what its kind draws to how far it goes): a far cell is as wide as that allows. 0 where none has one. */
+    span: number;
 }
 
 export function expandPlants(plants: Readonly<Record<string, PlantKind>>): PlantSet {
     const kinds: PlacedKind[] = [];
     const slots = new Map<string, { first: number; count: number; scale: number; seed: number; sink: number; unit: number }>();
-    let reach = 0;
+    let reach = 0, span = 0;
     for (const [name, p] of Object.entries(plants)) {
         const tints = p.tints && p.tints.length > 0 ? p.tints : [[1, 1, 1] as [number, number, number]];
         const first = kinds.length;
@@ -36,9 +38,10 @@ export function expandPlants(plants: Readonly<Record<string, PlantKind>>): Plant
         }
         slots.set(name, { first, count: tints.length, scale: p.tintScale ?? 1300, seed: hashString(name), sink: p.sink ?? 0, unit: p.unit ?? 1 });
         reach = Math.max(reach, p.drawDistance, p.far.length > 0 ? p.farDistance : 0);
+        if (p.far.length > 0 && p.farDistance > p.drawDistance) span = span > 0 ? Math.min(span, p.farDistance - p.drawDistance) : p.farDistance - p.drawDistance;
     }
     return {
-        kinds, reach,
+        kinds, reach, span,
         kindAt(name, x, z) {
             const s = slots.get(name);
             if (!s) return -1;
