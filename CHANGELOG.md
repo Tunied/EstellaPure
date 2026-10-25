@@ -16,6 +16,7 @@ published separately; it ships inside the editor.
 
 ### Added
 
+- **A lookup table is adopted as data.** A PNG shaped like a colour lookup table (N slices of N by N: 1024 by 32, 256 by 16, 4096 by 64) is given no compression, no mips, no sRGB decode and clamped edges when it is added to a project, where it used to take the picture defaults and answer wrongly until someone found why.
 - **An Outdoor Environment to create.** **Create → Rendering → Outdoor Environment** makes a sun, a sky light, a clock, a weather and a global volume with the sky (clouds that cast shadows), the haze (beams in their gaps) and a plain grade, already pointing at one another. It is the arrangement the Terrain & Water example uses, for the engine's scale of a hundred units to the metre.
 - **An Online 3D starter.** A template for a networked 3D game: a lit ground, a pawn per player predicted on its owner's screen and replicated to the others, a camera that follows your own, and a `server/` that runs the same project headless. The rules both ends agree on are one module, `src/shared/rules.ts`. `tools/check-arena-server.mjs` now takes `--project`, and runs against this template too.
 - **Start a project from the command line.** `estella create <template> <dir> [--name]` makes a project from any starter or example, and `estella templates` lists them. The editor's New project gallery and the command line now share one implementation (`pipeline/src/project/scaffold.ts`), so both copy the same files and write the same `package.json` and `.gitignore`.

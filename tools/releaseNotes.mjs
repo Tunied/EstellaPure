@@ -2882,6 +2882,8 @@ export const NOTED = {
     {"internal":"Gate and test follow the code they check."},
   "feat(editor): Create offers an Outdoor Environment, the sky, haze, clock and weather already pointing at one another":
     {"note":"An Outdoor Environment to create."},
+  "feat(assets): an image shaped like a colour lookup table is adopted as data, uncompressed, unmipped and not sRGB":
+    {"note":"A lookup table is adopted as data."},
   "feat(water): two tiled, scrolling detail normal maps give the surface its sparkle":
     {"note":"Sparkle on the water."},
   "fix(lod): a LODGroup with only a cull size is no longer ignored":

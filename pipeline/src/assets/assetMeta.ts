@@ -68,6 +68,30 @@ export function mintMeta(type: string, importer?: Record<string, unknown>): Reco
 }
 
 /**
+ * What a colour lookup table's image needs, or null for any other image: a strip of N slices of N by N, so N squared wide and N high
+ * (1024 by 32 for 32, the size the LUT effects read). It is data and not a picture: compressing it, mipping it or decoding it as
+ * sRGB colour changes what it answers, and nothing about the image says so. A stranger's 1024 by 32 sprite strip is the price of knowing.
+ */
+export async function lutStripImporter(absFile: string): Promise<Record<string, unknown> | null> {
+  if (!absFile.toLowerCase().endsWith('.png')) return null;
+  let handle: Awaited<ReturnType<typeof open>> | undefined;
+  try {
+    handle = await open(absFile, 'r');
+    const head = Buffer.alloc(24);
+    const { bytesRead } = await handle.read(head, 0, 24, 0);
+    // The IHDR chunk: the signature, then the width and the height as big-endian words at 16 and 20.
+    if (bytesRead < 24 || head.readUInt32BE(0) !== 0x89504e47) return null;
+    const width = head.readUInt32BE(16), height = head.readUInt32BE(20);
+    if (![16, 32, 64].includes(height) || width !== height * height) return null;
+    return { compress: 'off', mipmaps: false, sRGB: false, filterMode: 'linear', wrapMode: 'clamp', maxSize: width };
+  } catch {
+    return null;
+  } finally {
+    await handle?.close();
+  }
+}
+
+/**
  * Adopt an orphan: mint `<absFile>.meta` iff the file has none and it resolves
  * to a known asset type. Returns what happened, so callers can count adoptions /
  * skip unknowns without re-deriving the checks.
@@ -77,6 +101,8 @@ export async function adoptOrphan(absFile: string,
   if (existsSync(absFile + META_EXT)) return 'has-meta';
   const type = await metaTypeForFile(absFile);
   if (!type) return 'unknown-type';
+  // What the file's own shape says comes first, and what an importing source asked for over it.
+  if (type === 'texture') importer = { ...(await lutStripImporter(absFile) ?? {}), ...importer };
   // Exclusive: the file's creator may have written its sidecar since the check, and
   // the uuid it handed out is the one refs point at.
   try {

@@ -407,8 +407,7 @@ needs no reload. In code: `outputTransform: 'none' | 'aces' | 'neutral'`.
 A look authored against the finished picture (a warm LUT from a colourist, a film emulation) belongs after the curve, and no effect in the
 chain can be: they all run on scene values, before it. The **Display LUT** effect (`displayLut`) is the last pass's own stage: the picture is
 curved, encoded for the display, and then read off a 1024x32 table by the colour it will show: 32 slices along x, blue the slice, red along a slice and green up the picture (an image is read from its bottom).
-It adds a texture read to the pass that was running anyway, not a pass, whatever the output transform. Give the table's texture no compression,
-no mips and no sRGB: it is data. In code, `stack.setDisplayLut(textureHandle, amount)`.
+It adds a texture read to the pass that was running anyway, not a pass, whatever the output transform. A table's texture is data: no compression, no mips and no sRGB. An image of that shape (N slices of N by N, so 1024 by 32 for 32) is adopted with those settings on its own, in the editor and from the command line. In code, `stack.setDisplayLut(textureHandle, amount)`.
 
 <Aside>
 The `tonemap` *effect* in the list above is a separate, optional ACES pass inside the
