@@ -41,6 +41,8 @@ export interface EffectUniformDef {
 export interface EffectTextureDef {
     name: string;
     label: string;
+    /** Set by the engine from another effect, not by a scene: an inspector does not list it. */
+    internal?: boolean;
 }
 
 /** A colour parameter (fog colour): the vec4 uniform it feeds and its default. */
@@ -329,6 +331,14 @@ registerEffect({
         { name: 'u_cloudShadow', label: 'Cloud Shadows', min: 0, max: 1, step: 0.01, defaultValue: 0, neutralValue: 0 },
         // How many world units are a kilometre: the sky is in kilometres, the scene in its own units.
         { name: 'u_unitsPerKm', label: 'World Units per km', min: 1, max: 100000, step: 1, defaultValue: 1000 },
+        // With a Cloud Mask, how many kilometres of the cloud layer one repeat of it covers (0 leaves the clouds to the noise): the mask gives the clouds
+        // their shape, the noise only erodes it. The second mask is a softer, higher layer folded in at a third.
+        { name: 'u_cloudMaskTile', label: 'Cloud Mask Tile (km)', min: 0, max: 100, step: 0.1, defaultValue: 0 },
+        { name: 'u_cloudMask2Tile', label: 'Cloud Mask 2 Tile (km)', min: 0, max: 100, step: 0.1, defaultValue: 0 },
+    ],
+    textures: [
+        { name: 'u_cloudMask', label: 'Cloud Mask (tileable coverage, linear, repeat)' },
+        { name: 'u_cloudMask2', label: 'Cloud Mask 2 (a softer, higher layer)' },
     ],
 });
 
@@ -422,6 +432,12 @@ registerEffect({
         { name: 'u_skySigma', label: 'Sky Cloud Density', min: 0, max: 10, step: 0.1, defaultValue: 1.3, internal: true },
         { name: 'u_skyWindX', label: 'Sky Wind X', min: -2, max: 2, step: 0.01, defaultValue: 0, internal: true },
         { name: 'u_skyWindZ', label: 'Sky Wind Z', min: -2, max: 2, step: 0.01, defaultValue: 0, internal: true },
+        { name: 'u_cloudMaskTile', label: 'Sky Cloud Mask Tile', min: 0, max: 100, step: 0.1, defaultValue: 0, internal: true },
+        { name: 'u_cloudMask2Tile', label: 'Sky Cloud Mask 2 Tile', min: 0, max: 100, step: 0.1, defaultValue: 0, internal: true },
+    ],
+    textures: [
+        { name: 'u_cloudMask', label: 'Sky Cloud Mask', internal: true },
+        { name: 'u_cloudMask2', label: 'Sky Cloud Mask 2', internal: true },
     ],
     colors: [
         { name: 'u_fogColor', label: 'Colour', defaultValue: { r: 0.62, g: 0.7, b: 0.8, a: 1 } },

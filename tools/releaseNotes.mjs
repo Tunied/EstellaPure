@@ -2854,6 +2854,12 @@ export const NOTED = {
     {"note":"A generated world's plants."},
   "feat(examples): Terrain & Water takes the compact grass and the groundcover cards":
     {"note":"A generated world's plants."},
+  "feat(sky): clouds may be drawn from a tileable coverage mask, and the shadows and beams read it too":
+    {"note":"Clouds drawn from a coverage picture."},
+  "feat(examples): Terrain & Water draws its clouds from the art's coverage masks":
+    {"note":"Clouds drawn from a coverage picture."},
+  "feat(inspector): an effect's internal textures are not listed either":
+    {"internal":"Hides parameters the engine writes itself."},
   "feat(water): two tiled, scrolling detail normal maps give the surface its sparkle":
     {"note":"Sparkle on the water."},
   "fix(lod): a LODGroup with only a cull size is no longer ignored":

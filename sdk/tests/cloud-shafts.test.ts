@@ -8,8 +8,8 @@ import { applyCloudsToFog } from '../src/postprocess/cloudShafts';
 import type { BlendedEffect } from '../src/postprocess/volumeBlending';
 import '../src/postprocess/effects';
 
-const effect = (uniforms: Record<string, number> = {}, enabled = true): BlendedEffect => ({
-    enabled, uniforms: new Map(Object.entries(uniforms)), textures: new Map(), colors: new Map(),
+const effect = (uniforms: Record<string, number> = {}, enabled = true, textures: Record<string, string> = {}): BlendedEffect => ({
+    enabled, uniforms: new Map(Object.entries(uniforms)), textures: new Map(Object.entries(textures)), colors: new Map(),
 });
 
 describe('applyCloudsToFog', () => {
@@ -25,6 +25,20 @@ describe('applyCloudsToFog', () => {
         expect(fog.uniforms.get('u_skySigma')).toBeCloseTo(1.3 * 1.75, 6);
         expect(fog.uniforms.get('u_skyWindX')).toBeCloseTo(0.1, 6);
         expect(fog.uniforms.get('u_skyWindZ')).toBeCloseTo(0, 6);
+    });
+
+    it('hands the fog the sky\'s cloud masks and their tiles, and none where the sky has none', () => {
+        const fog = effect({ u_cloudShade: 1 });
+        const sky = effect({ u_cloudShadow: 0.6, u_cloudMaskTile: 5, u_cloudMask2Tile: 9 }, true, { u_cloudMask: 'sky/cumulus.png' });
+        applyCloudsToFog(new Map([['heightFog', fog], ['skyAtmosphere', sky]]));
+        expect(fog.textures.get('u_cloudMask')).toBe('sky/cumulus.png');
+        expect(fog.uniforms.get('u_cloudMaskTile')).toBe(5);
+        // The second tile means nothing without its texture.
+        expect(fog.textures.has('u_cloudMask2')).toBe(false);
+        expect(fog.uniforms.get('u_cloudMask2Tile')).toBe(0);
+        sky.uniforms.set('u_cloudShadow', 0);
+        applyCloudsToFog(new Map([['heightFog', fog], ['skyAtmosphere', sky]]));
+        expect(fog.textures.has('u_cloudMask')).toBe(false);
     });
 
     it('leaves the fog with no clouds without Cloud Shafts, a sky, or clouds that cast shadows', () => {

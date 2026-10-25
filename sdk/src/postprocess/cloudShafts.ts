@@ -25,6 +25,8 @@ export function applyCloudsToFog(effects: Map<string, BlendedEffect>): void {
     const sky = effects.get('skyAtmosphere');
     if (value(fog, 'heightFog', 'u_cloudShade') <= 0 || !sky || !sky.enabled || value(sky, 'skyAtmosphere', 'u_cloudShadow') <= 0) {
         fog.uniforms.set('u_skyCover', 0);
+        fog.textures.delete('u_cloudMask');
+        fog.textures.delete('u_cloudMask2');
         return;
     }
     const overcast = Math.min(Math.max(value(sky, 'skyAtmosphere', 'u_overcast'), 0), 1);
@@ -39,4 +41,10 @@ export function applyCloudsToFog(effects: Map<string, BlendedEffect>): void {
     set('u_skySigma', 1.3 * (1 + overcast * 1.5));
     set('u_skyWindX', Math.sin(angle) * speed);
     set('u_skyWindZ', Math.cos(angle) * speed);
+    // The masks that shape those clouds, as the sky has them: the same drawn clouds and the same lit air.
+    for (const [mask, tile] of [['u_cloudMask', 'u_cloudMaskTile'], ['u_cloudMask2', 'u_cloudMask2Tile']] as const) {
+        const ref = sky.textures.get(mask);
+        if (ref) fog.textures.set(mask, ref); else fog.textures.delete(mask);
+        set(tile, ref ? value(sky, 'skyAtmosphere', tile) : 0);
+    }
 }

@@ -297,6 +297,8 @@ fixed to the world and drift with its wind), against the same density the sky dr
 `volumeRange`, in world units, and a beam through clouds kilometres up needs air that far up: a fog with a low `heightFalloff` and a `volumeRange` of
 a few kilometres. The sky's cover, height, thickness and wind are copied onto the fog each frame; they are not settings of the fog's own.
 
+The clouds may be given their shape by a picture. A `skyAtmosphere` with a **Cloud Mask** (`u_cloudMask`, a tileable coverage texture: linear data, one channel, repeating, 0 clear and 1 dense) and its `cloudMaskTile` (the kilometres of the cloud layer one repeat covers) draws clouds where the mask says, the noise only eroding the edges; a second, softer and higher mask (`u_cloudMask2` with `cloudMask2Tile`) is folded in at a third. The same clouds shape the shadow they cast on the scene and the beams the fog lights, which read the masks off the sky. A mask is data: no sRGB, no compression.
+
 `lightShafts` finds the sun's light through whatever stands in front of it, in screen space: each pixel
 marches toward the sun's place on screen and counts how much of the way is open sky. It needs the
 sun on screen or just off it, and only what the depth buffer holds can cast a shaft. Together the two
