@@ -587,6 +587,10 @@ fn cloudShadowAt(world : vec3f, cam : vec3f, sun : vec3f, coverage : f32, overca
 #pragma param u_density float default(0.0015) range(0,0.05)
 #pragma param u_heightFalloff float default(0.003) range(0,0.1)
 #pragma param u_baseHeight float default(0) range(-1000,5000)
+#pragma param u_planetRadius float default(0) range(0,100000000)
+#pragma param u_planetX float default(0) range(-100000000,100000000)
+#pragma param u_planetY float default(0) range(-100000000,100000000)
+#pragma param u_planetZ float default(0) range(-100000000,100000000)
 #pragma param u_startDistance float default(0) range(0,3000)
 #pragma param u_maxOpacity float default(1) range(0,1)
 #pragma param u_sunAzimuth float default(40) range(0,360)
@@ -685,6 +689,10 @@ float cloudLight(vec3 world, float camY, vec3 sun, vec3 drift) {
     return 1.0 - u_cloudShade * (1.0 - exp(-tau));
 }
 
+/// The height of a point above the ground the fog lies on: world Y on a flat world, the distance above the sphere's surface on a planet.
+float fogAltitude(vec3 p) {
+    return u_planetRadius > 0.0 ? length(p - vec3(u_planetX, u_planetY, u_planetZ)) - u_planetRadius : p.y;
+}
 /// What the exponential density integrates to along a ray: the eye's density, the length,
 /// and the term for how fast the ray leaves the fog. Written so a level ray (no climb)
 /// needs no division, and so a long ray downward cannot overflow.
@@ -711,7 +719,14 @@ void main() {
     float effective = max(len - u_startDistance, 0.0);
     if (effective <= 0.0) { fragColor = src; return; }
 
-    float tau = opticalDepth(entry.y + dir.y * u_startDistance, dir.y, effective);
+    float eyeAlt = fogAltitude(entry + dir * u_startDistance);
+    float climb = dir.y;
+    if (u_planetRadius > 0.0) {
+        // The ground curves away: the climb is the rise between the ray's ends, and a sky ray climbs as it points.
+        vec3 up = normalize(entry + dir * u_startDistance - vec3(u_planetX, u_planetY, u_planetZ));
+        climb = sky ? dot(dir, up) : (fogAltitude(target) - eyeAlt) / effective;
+    }
+    float tau = opticalDepth(eyeAlt, climb, effective);
     float amount = (1.0 - exp(-tau)) * u_maxOpacity * (sky ? u_skyFog : 1.0);
 
     // The sun is the scene's own directional light unless the effect is told to ignore it: where it stands and
@@ -752,7 +767,7 @@ void main() {
             float t = u_startDistance + (float(i) + jitter) * ds;
             vec3 p = entry + dir * t;
             if (i % 3 == 0) shade = cloudLight(p, entry.y, sun, drift);
-            float dens = u_density * exp(clamp(-u_heightFalloff * (p.y - u_baseHeight), -60.0, 60.0));
+            float dens = u_density * exp(clamp(-u_heightFalloff * (fogAltitude(p) - u_baseHeight), -60.0, 60.0));
             lit += transmit * dens * ds * sunVisibility(p, tiles.x, tiles.y) * shade;
             transmit *= exp(-dens * ds);
         }
@@ -822,6 +837,10 @@ fn cloudLight(world : vec3f, camY : f32, sun : vec3f, drift : vec3f) -> f32 {
     return 1.0 - mc.u_cloudShade * (1.0 - exp(-tau));
 }
 
+fn fogAltitude(p : vec3f) -> f32 {
+    if (mc.u_planetRadius > 0.0) { return length(p - vec3f(mc.u_planetX, mc.u_planetY, mc.u_planetZ)) - mc.u_planetRadius; }
+    return p.y;
+}
 fn opticalDepth(eyeY : f32, dirY : f32, len : f32) -> f32 {
     let k = mc.u_heightFalloff;
     let dens = mc.u_density * exp(clamp(-k * (eyeY - mc.u_baseHeight), -60.0, 60.0));
@@ -847,7 +866,13 @@ fn opticalDepth(eyeY : f32, dirY : f32, len : f32) -> f32 {
     let effective = max(len - mc.u_startDistance, 0.0);
     if (effective <= 0.0) { return src; }
 
-    let tau = opticalDepth(entry.y + dir.y * mc.u_startDistance, dir.y, effective);
+    let eyeAlt = fogAltitude(entry + dir * mc.u_startDistance);
+    var climb = dir.y;
+    if (mc.u_planetRadius > 0.0) {
+        let up = normalize(entry + dir * mc.u_startDistance - vec3f(mc.u_planetX, mc.u_planetY, mc.u_planetZ));
+        if (sky) { climb = dot(dir, up); } else { climb = (fogAltitude(tgt) - eyeAlt) / effective; }
+    }
+    let tau = opticalDepth(eyeAlt, climb, effective);
     var amount = (1.0 - exp(-tau)) * mc.u_maxOpacity;
     if (sky) { amount = amount * mc.u_skyFog; }
 
@@ -885,7 +910,7 @@ fn opticalDepth(eyeY : f32, dirY : f32, len : f32) -> f32 {
             let t = mc.u_startDistance + (f32(i) + jitter) * ds;
             let p = entry + dir * t;
             if (i % 3 == 0) { shade = cloudLight(p, entry.y, sun, drift); }
-            let dens = mc.u_density * exp(clamp(-mc.u_heightFalloff * (p.y - mc.u_baseHeight), -60.0, 60.0));
+            let dens = mc.u_density * exp(clamp(-mc.u_heightFalloff * (fogAltitude(p) - mc.u_baseHeight), -60.0, 60.0));
             lit = lit + transmit * dens * ds * sunVisibility(p, found.tiles.x, found.tiles.y) * shade;
             transmit = transmit * exp(-dens * ds);
         }

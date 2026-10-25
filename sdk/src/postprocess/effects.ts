@@ -402,6 +402,11 @@ registerEffect({
         // How fast the fog thins with height; 0 is a fog of one density at every height.
         { name: 'u_heightFalloff', label: 'Height Falloff', min: 0, max: 0.1, step: 0.0005, defaultValue: 0.003 },
         { name: 'u_baseHeight', label: 'Base Height', min: -1000, max: 5000, step: 10, defaultValue: 0 },
+        // On a planet the fog's height is the height above the ground's sphere, not world Y: the radius, above 0, turns that on, and the centre is where the planet stands.
+        { name: 'u_planetRadius', label: 'Planet Radius', min: 0, max: 100000000, step: 100, defaultValue: 0, neutralValue: 0 },
+        { name: 'u_planetX', label: 'Planet Centre X', min: -100000000, max: 100000000, step: 100, defaultValue: 0 },
+        { name: 'u_planetY', label: 'Planet Centre Y', min: -100000000, max: 100000000, step: 100, defaultValue: 0 },
+        { name: 'u_planetZ', label: 'Planet Centre Z', min: -100000000, max: 100000000, step: 100, defaultValue: 0 },
         { name: 'u_startDistance', label: 'Start Distance', min: 0, max: 3000, step: 10, defaultValue: 0 },
         { name: 'u_maxOpacity', label: 'Max Opacity', min: 0, max: 1, step: 0.01, defaultValue: 1 },
         // 1: the sun is the scene's own directional light — its direction and colour — and the two angles below are

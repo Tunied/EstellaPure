@@ -2916,6 +2916,8 @@ export const NOTED = {
     {"note":"The editor's own eye shows the scene's post-processing."},
   "feat(terrain): the maths of ground on a cube sphere and the nodes drawn round an eye":
     {"internal":"The first layer of spherical terrain: pure maths and node selection, not yet drawn."},
+  "feat(postprocess): height fog by height above a planet's sphere":
+    {"note":"Height Fog by height above a planet."},
   "feat(terrain): a Planet component draws ground on a sphere from a provider that answers by direction":
     {"note":"A `Planet`: ground on a sphere."},
   "fix(terrain): a planet away from the origin is drawn where it stands and culled by the box it is drawn in":

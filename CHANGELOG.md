@@ -14,6 +14,10 @@ published separately; it ships inside the editor.
 
 ## [Unreleased]
 
+### Added
+
+- **Height Fog by height above a planet.** `heightFog` takes `u_planetRadius` and the planet's centre (`u_planetX/Y/Z`): with a radius above 0 the fog thins with the height above the ground's sphere and not with world Y, so a round world is hazy at its horizon and clear from orbit.
+
 ## [0.95.0] - 2026-10-25
 
 ### Added
