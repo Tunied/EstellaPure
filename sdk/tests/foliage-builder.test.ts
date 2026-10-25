@@ -259,5 +259,13 @@ describe('thinning plants for a far version', () => {
         expect(thinPlants(plants, 0.05)[0]!.scale).toBe(2);
         expect(plants[0]!.scale).toBe(1);
     });
-});
 
+    it('does not thin again what was planned thinner already, and still grows them for the share kept', () => {
+        // A quarter kept, planned four times thinner: every plant is kept, grown as a quarter's would be.
+        const planned = thinPlants(plants, 0.25, 4);
+        expect(planned.map((p) => p.x)).toEqual(plants.map((p) => p.x));
+        expect(planned[0]!.scale).toBeCloseTo(2);
+        // Planned twice as thin, a quarter wanted: every second of what is left.
+        expect(thinPlants(plants, 0.25, 2).map((p) => p.x)).toEqual([0, 2, 4, 6, 8, 10]);
+    });
+});

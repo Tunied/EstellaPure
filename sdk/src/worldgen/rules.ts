@@ -100,6 +100,11 @@ export interface PlacementLayer {
     /** Past this, decoration that has a far version is drawn as it; the layer's draw distance when absent. */
     lodDistance?: number;
     chunkSize?: number;
+    /**
+     * How much further apart the far versions of this layer's plants are planned than the layer's `spacing` (default 1): a plant kind that keeps a quarter
+     * of its plants far off is planned at 2, which is a quarter of the candidates to work out instead of all of them and three in four thrown away.
+     */
+    farSpacing?: number;
     /** Whether later layers keep clear of its footprints (default true). */
     occupies?: boolean;
 }

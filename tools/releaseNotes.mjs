@@ -2910,6 +2910,8 @@ export const NOTED = {
     {"note":"Placed plants cast shadows only as far as twice their detailed distance."},
   "feat(render): a quality level sets how far plants keep their detail":
     {"note":"A quality level sets how far plants keep their detail."},
+  "feat(worldgen): a layer plans the far versions of its plants sparsely, and a failed asset load is tried again":
+    {"note":"A far world is planned sparsely, and a failed asset load is tried again."},
   "feat(assets): a project names folders its asset database leaves alone":
     {"note":"A project can keep folders out of its asset database."},
   "feat(worldgen): a plant part may cast no shadow, and far cells are capped at two cells wide":

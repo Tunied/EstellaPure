@@ -18,6 +18,7 @@ published separately; it ships inside the editor.
 
 ### Added
 
+- **A far world is planned sparsely, and a failed asset load is tried again.** A layer's `farSpacing` plans the far versions of its plants that much further apart, so ground cover that keeps a quarter of its plants far off no longer plans all of them first, and the far plants of a planet settle in a quarter of the time. A world whose recipes' assets fail to load while the project is still opening tries again, a few times and a little later each time, instead of staying empty.
 - **A quality level sets how far plants keep their detail.** A level's profile takes a `detailScale` (0.25 to 1; Low 0.5, Medium 0.8, High 1): a placed plant changes to its cheaper mesh, stops being drawn and stops casting a shadow at that share of its distances, so the same world draws a fraction of the triangles on a phone. It is a row in Project Settings → Rendering → Quality Levels.
 - **Placed plants cast shadows only as far as twice their detailed distance.** `MeshInstances` takes a `shadowDistance` (metres from the eye past which an instance casts no shadow); a plant kind with a cheaper mesh sets it to twice that mesh's distance, so a tree far off is drawn into the shadow maps no more than its shadow is worth.
 - **The editor lets go of a generated world while the game plays.** The game runs in a realm of its own that builds its own copy of a generated world; the editor's copy is released for as long as it runs and made again on Stop, so the two are not held together.

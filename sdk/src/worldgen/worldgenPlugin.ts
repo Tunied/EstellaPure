@@ -142,6 +142,8 @@ interface BuiltWorld {
     data: WorldGenData;
     rules: WorldRules | null;
     plan: WorldPlan | null;
+    /** The same plan with the sparser spacing the layers that have a `farSpacing` are planned at for their far versions; null when none has one. */
+    farPlan: WorldPlan | null;
     failure: string | null;
     /** The terrain's and the water's revisions the plan was read from. */
     ground: string;
@@ -167,6 +169,8 @@ interface PlacedChunk {
     grown: GrownCell | null;
     /** Made for the far layer: only the far versions of its plants, which are shown from past what their kinds draw as themselves. */
     far: boolean;
+    /** How many times thinner than the layer's own spacing the plants were planned (its `farSpacing` squared): the far version does not thin them again. */
+    thinnedBy: number;
     entities: Entity[];
     meshes: number[];
 }
@@ -236,6 +240,20 @@ export class WorldGens {
 /** The resource the plugin installs. @experimental */
 export const WorldGenRes = defineResource<WorldGens>(new WorldGens(), 'WorldGens');
 
+/**
+ * Runs an asset load again when it fails, a few times and a little later each time. Reading a project's files is slowest while the project is still being
+ * opened (the asset database is scanned and cooked against it), and a load that waited out its timeout then is not a world that cannot be shown.
+ */
+async function retried<T>(load: () => Promise<T>, attempts = 5): Promise<T> {
+    for (let n = 1; ; n++) {
+        try { return await load(); } catch (error) {
+            if (n >= attempts) throw error;
+            log.warn('worldgen', `loading the world's assets failed (${error instanceof Error ? error.message : String(error)}); trying again`);
+            await new Promise<void>((resolve) => setTimeout(resolve, 2000 * n));
+        }
+    }
+}
+
 export class WorldGenPlugin implements Plugin {
     name = 'worldgen';
 
@@ -275,7 +293,7 @@ export class WorldGenPlugin implements Plugin {
 
     /** A WorldGen's rules and plan, or why it has none. */
     private make(app: App, gens: WorldGens, entity: Entity, data: WorldGenData, had: BuiltWorld | undefined): BuiltWorld {
-        const built: BuiltWorld = { signature: `${JSON.stringify(data)}#${worldRulesRevision()}`, data: { ...data }, rules: null, plan: null, failure: null, ground: '', authored: had?.authored ?? new Set(), levelling: new Set(), plants: null, plantsReady: null };
+        const built: BuiltWorld = { signature: `${JSON.stringify(data)}#${worldRulesRevision()}`, data: { ...data }, rules: null, plan: null, farPlan: null, failure: null, ground: '', authored: had?.authored ?? new Set(), levelling: new Set(), plants: null, plantsReady: null };
         // Rules in a project file are read first, then made like rules registered by code.
         if (isRulesFile(data.rules)) {
             if (!app.hasResource(Assets)) {
@@ -329,7 +347,7 @@ export class WorldGenPlugin implements Plugin {
         if (rules.plants && Object.keys(rules.plants).length > 0 && app.hasResource(Assets)) {
             const set = expandPlants(rules.plants);
             built.plants = set;
-            void prepareKinds(app.getResource(Assets), set.kinds).then((ready) => {
+            void retried(() => prepareKinds(app.getResource(Assets), set.kinds)).then((ready) => {
                 if (gens.built_.get(entity) === built) built.plantsReady = ready;
             }, (e: unknown) => {
                 built.failure = `the plants' assets could not be loaded: ${e instanceof Error ? e.message : String(e)}`;
@@ -339,7 +357,7 @@ export class WorldGenPlugin implements Plugin {
         // Recipes name their meshes and materials by path: with a renderer they are loaded first, and the plan is made with them.
         const refs = assetRefsOf(rules);
         if (refs.length > 0 && app.hasResource(Assets)) {
-            void this.resolve(app, rules, refs).then((resolved) => {
+            void retried(() => this.resolve(app, rules, refs)).then((resolved) => {
                 if (gens.built_.get(entity) !== built) return;
                 built.rules = resolved;
                 this.plan(app, gens, entity, built, resolved);
@@ -399,9 +417,14 @@ export class WorldGenPlugin implements Plugin {
         });
         built.plan = new WorldPlan(rules, env, zones, data.seed, data.world);
         const plan = built.plan;
+        const sparse = rules.layers.some((l) => (l.farSpacing ?? 1) > 1);
+        built.farPlan = sparse
+            ? new WorldPlan({ ...rules, layers: rules.layers.map((l) => (l.farSpacing ?? 1) > 1 ? { ...l, spacing: l.spacing * l.farSpacing! } : l) }, env, zones, data.seed, data.world)
+            : null;
         // A zone that changes, or a placement a player changes, makes again only the chunks it reaches.
         zones.onChange = (bounds, zone) => {
             plan.invalidate();
+            built.farPlan?.invalidate();
             const chunks = chunksOf(app);
             for (const l of rules.layers) {
                 // A group kept out lets a neighbour it had beaten stand, which may beat its own: a few cells round are made again.
@@ -483,7 +506,7 @@ export class WorldGenPlugin implements Plugin {
         const water = waterOf(app);
         // What the plan read the ground and the water from: when either changes everything is read again.
         const ground = `${terrains?.revision_ ?? 0}:${water?.revision_ ?? 0}`;
-        if (ground !== built.ground) { plan.invalidate(); built.ground = ground; }
+        if (ground !== built.ground) { plan.invalidate(); built.farPlan?.invalidate(); built.ground = ground; }
         const waiting = !!terrains?.loading || !!water?.baking;
         if (terrains) {
             for (const id of [...built.levelling]) {
@@ -534,7 +557,8 @@ export class WorldGenPlugin implements Plugin {
                     const x0 = cx * fsize, z0 = cz * fsize;
                     if (waiting || (terrains && ![[x0, z0], [x0 + fsize, z0], [x0, z0 + fsize], [x0 + fsize, z0 + fsize]].every(([x, z]) => terrains.groundKnownAt(x!, z!)))) return null;
                     if (!built.plantsReady) return null;
-                    return this.chunk(app, plan, diffs, layer, x0, z0, fsize, rendering, built.plants, true);
+                    const sparse = (layer.farSpacing ?? 1) > 1 && built.farPlan;
+                    return this.chunk(app, sparse ? built.farPlan! : plan, diffs, layer, x0, z0, fsize, rendering, built.plants, true, sparse ? layer.farSpacing! ** 2 : 1);
                 },
                 publish: (_cx, _cz, value) => this.place(app, gens, entity, value),
                 release: (_cx, _cz, value) => this.unplace(app, gens, value),
@@ -544,7 +568,7 @@ export class WorldGenPlugin implements Plugin {
 
     /** What one chunk of a layer places: its decoration merged by mesh, and its interactive placements, with the changes laid over. */
     private chunk(app: App, plan: WorldPlan, diffs: PlacementDiffs, layer: PlacementLayer, x0: number, z0: number, size: number,
-                  rendering: boolean, plants: PlantSet | null, far = false): PlacedChunk | Promise<PlacedChunk> {
+                  rendering: boolean, plants: PlantSet | null, far = false, thinnedBy = 1): PlacedChunk | Promise<PlacedChunk> {
         const placements: Placement[] = [];
         for (const p of plan.placementsIn(x0, z0, x0 + size, z0 + size, [layer.id])) {
             if (diffs.isRemoved(p.id)) continue;
@@ -555,7 +579,7 @@ export class WorldGenPlugin implements Plugin {
         const decor = rendering && !far ? placements.filter((p) => p.interactive === null && p.mesh) : [];
         const meshes = [...new Set(decor.map((p) => p.mesh))];
         const finish = (): PlacedChunk => {
-            const out: PlacedChunk = { decor: [], objects, planted: null, at: [x0 + size / 2, 0, z0 + size / 2], side: size, grown: null, far, entities: [], meshes: [] };
+            const out: PlacedChunk = { decor: [], objects, planted: null, at: [x0 + size / 2, 0, z0 + size / 2], side: size, grown: null, far, thinnedBy, entities: [], meshes: [] };
             // The plants: each at its kind (its colouring there), relative to the chunk's centre, sunk by what its kind says.
             if (plants && rendering) {
                 const by = new Map<number, Plant[]>();
@@ -629,7 +653,7 @@ export class WorldGenPlugin implements Plugin {
             chunk.entities.push(e);
             chunk.grown = { entity: e, handles: [], dead: false };
             const growth = plantGrowthOf(app);
-            if (chunk.far) growth.growFar(app, chunk.grown, built.plants.kinds, built.plantsReady, chunk.planted, { x: chunk.at[0], z: chunk.at[2], half: chunk.side / 2 });
+            if (chunk.far) growth.growFar(app, chunk.grown, built.plants.kinds, built.plantsReady, chunk.planted, { x: chunk.at[0], z: chunk.at[2], half: chunk.side / 2 }, chunk.thinnedBy);
             else growth.growCell(app, chunk.grown, built.plants.kinds, built.plantsReady, chunk.planted);
         }
         for (const d of chunk.decor) {

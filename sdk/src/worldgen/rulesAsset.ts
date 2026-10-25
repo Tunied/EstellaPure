@@ -131,6 +131,7 @@ export function parseWorldRules(json: unknown, file = 'world rules'): WorldRules
         return {
             ...(o as object),
             id: str(o.id, `${where}.id`), spacing: num(o.spacing, `${where}.spacing`, 1e-6), drawDistance: num(o.drawDistance, `${where}.drawDistance`, 0),
+            ...(o.farSpacing === undefined ? {} : { farSpacing: num(o.farSpacing, `${where}.farSpacing`, 1) }),
         } as PlacementLayer;
     });
     const recipeIds = new Set(recipes.map((x) => x.id)), layerIds = new Set(layers.map((x) => x.id));

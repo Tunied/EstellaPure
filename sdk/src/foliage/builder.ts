@@ -352,13 +352,14 @@ export function softenNormals(source: MeshData, amount: number): MeshData {
 /**
  * The plants a far version draws, when it draws a share `keep` of them (above 0 to 1): every n-th, n the nearest whole number to 1 / keep, each grown by the
  * square root of n (to a most of twice) so the ground they cover is what it was. The same plants every time: what is kept is a matter of order.
+ * `already` is how many times thinner the plants were planned than they would be (a far plan with sparser spacing): the n-th is then every n / `already`-th.
  */
-export function thinPlants(plants: readonly Plant[], keep: number): readonly Plant[] {
+export function thinPlants(plants: readonly Plant[], keep: number, already = 1): readonly Plant[] {
     const n = Math.max(1, Math.round(1 / Math.min(Math.max(keep, 1e-3), 1)));
     if (n === 1) return plants;
-    const grow = Math.min(Math.sqrt(n), 2);
+    const grow = Math.min(Math.sqrt(n), 2), every = Math.max(1, Math.round(n / Math.max(already, 1)));
     const out: Plant[] = [];
-    for (let i = 0; i < plants.length; i += n) out.push({ ...plants[i]!, scale: plants[i]!.scale * grow });
+    for (let i = 0; i < plants.length; i += every) out.push({ ...plants[i]!, scale: plants[i]!.scale * grow });
     return out;
 }
 

@@ -6893,6 +6893,7 @@ version: 1
 ```
 chunkSize: number | undefined
 drawDistance: number
+farSpacing: number | undefined
 id: string
 lodDistance: number | undefined
 occupies: boolean | undefined

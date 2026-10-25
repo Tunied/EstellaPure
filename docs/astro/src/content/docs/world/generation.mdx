@@ -110,7 +110,7 @@ Plants are grown a cell at a time by the same machinery as a [placed foliage](/d
 Layers are passes, in order: big things first. Each takes one candidate a cell of a grid `spacing` apart, jittered, with a priority
 drawn for it. Of two candidates whose groups would overlap, the higher priority stands; every candidate keeps clear of the footprints
 of the layers before it, so a fern does not grow through a trunk and a stone does not sit inside a boulder. A layer is published in
-chunks of `chunkSize` out to `drawDistance`. `occupies: false` makes a layer that later ones may overlap (ground cover).
+chunks of `chunkSize` out to `drawDistance`. `occupies: false` makes a layer that later ones may overlap (ground cover). `farSpacing` (default 1) plans the far versions of a layer's plants that much further apart: ground cover whose far versions keep a quarter of the plants is planned at 2, so a quarter of the candidates are worked out and none is made only to be thrown away.
 
 ## Zones
 

@@ -156,15 +156,16 @@ export class PlantGrowth {
 
     /**
      * Grows the far version of `cell`: each kind with one, its plants (thinned to the kind's `farKeep`) as a set of the far part's, drawn from
-     * where the kind stops (`drawDistance`) out to `farDistance` from the eye. Cheap enough (a tree is two cards) to be made at once.
+     * where the kind stops (`drawDistance`) out to `farDistance` from the eye. Cheap enough (a tree is two cards) to be made at once. `thinnedBy` is how many
+     * times thinner they were planned already (a far plan), so they are not thinned twice.
      */
-    growFar(app: App, cell: GrownCell, kinds: readonly PlacedKind[], ready: ReadyKinds, byKind: ReadonlyMap<number, readonly Plant[]>, _at?: { x: number; z: number; half?: number }): void {
+    growFar(app: App, cell: GrownCell, kinds: readonly PlacedKind[], ready: ReadyKinds, byKind: ReadonlyMap<number, readonly Plant[]>, _at?: { x: number; z: number; half?: number }, thinnedBy = 1): void {
         const entity = cell.entity;
         if (entity === null) return;
         for (const [kindIndex, plants] of byKind) {
             const parts = ready.far[kindIndex], kind = kinds[kindIndex];
             if (!kind || !parts || parts.length === 0) continue;
-            const kept = thinPlants(plants, kind.farKeep ?? 1);
+            const kept = thinPlants(plants, kind.farKeep ?? 1, thinnedBy);
             for (const r of parts) this.place(app, entity, `far ${kindIndex}`, r, kept, 0, kind.drawDistance, kind.farDistance, 0, true);
         }
     }

@@ -162,7 +162,7 @@ z: number
 ```
 app_: App | null
 growCell: (app: App, cell: GrownCell, kinds: readonly PlacedKind[], ready: ReadyKinds, byKind: ReadonlyMap<number, readonly Plant[]>) => void
-growFar: (app: App, cell: GrownCell, kinds: readonly PlacedKind[], ready: ReadyKinds, byKind: ReadonlyMap<number, readonly Plant[]>, _at?: { x: number; z: number; half?: number; }) => void
+growFar: (app: App, cell: GrownCell, kinds: readonly PlacedKind[], ready: ReadyKinds, byKind: ReadonlyMap<number, readonly Plant[]>, _at?: { x: number; z: number; half?: number; }, thinnedBy?: number) => void
 made: number
 pending: number
 queue: { cell: GrownCell; run: () => void; }[]
@@ -259,6 +259,6 @@ Plugin
 
 ## thinPlants — function @experimental
 ```
-(plants: readonly Plant[], keep: number): readonly Plant[]
+(plants: readonly Plant[], keep: number, already?: number): readonly Plant[]
 ```
 
