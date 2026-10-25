@@ -25,7 +25,8 @@
  *   node tools/check-arena-server.mjs --project templates/online-3d --bound 1450 --speed 340
  *
  * The project is any one with a `server/` and a pawn that walks right on `KeyD`; `--bound` is the world's edge along x and `--speed` the pawn's
- * speed, both from the project's own movement rule.
+ * speed, both from the project's own movement rule. `--no-wall` is for a world too wide to cross in a check: the pawn walks for a moment instead,
+ * and what is asserted is that it advanced and that a third party saw it where it was (the wall itself is the movement rule's own test).
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -45,6 +46,7 @@ const WASM = path.join(ROOT, 'build', 'wasm', 'web');
 /** The world's edge along x and the pawn's speed, from the project's own movement rule (the arena's by default). */
 const BOUND_X = Number(flag('bound', '420'));
 const SPEED = Number(flag('speed', '260'));
+const NO_WALL = process.argv.includes('--no-wall');
 const STEP = 1 / 60;
 
 // The server runs a REAL engine, so a checkout without one cannot answer this.
@@ -99,13 +101,14 @@ const tsconfig = path.join(work, 'tsconfig.json');
 writeFileSync(tsconfig, JSON.stringify({
   compilerOptions: {
     target: 'ES2022', module: 'ESNext', moduleResolution: 'bundler',
-    strict: true, skipLibCheck: true, noEmit: true, esModuleInterop: true,
+    strict: true, skipLibCheck: true, noEmit: true, esModuleInterop: true, allowImportingTsExtensions: true,
     types: ['node'], typeRoots: [posix(SDK_TYPES)],
     baseUrl: '.',
     paths: {
       esengine: [posix(path.join(ROOT, 'sdk', 'dist', 'index.d.ts'))],
       'esengine/node': [posix(path.join(ROOT, 'sdk', 'dist', 'index.node.d.ts'))],
       'esengine/replication': [posix(path.join(ROOT, 'sdk', 'dist', 'net', 'replication', 'index.d.ts'))],
+      'esengine/terrain': [posix(path.join(ROOT, 'sdk', 'dist', 'terrain', 'index.d.ts'))],
       ws: [posix(path.join(SDK_TYPES, 'ws', 'index.d.ts'))],
     },
   },
@@ -158,6 +161,7 @@ await build({
   alias: {
     esengine: SDK, 'esengine/node': SDK,
     'esengine/replication': path.join(path.dirname(SDK), 'net', 'replication', 'index.js'),
+    'esengine/terrain': path.join(path.dirname(SDK), 'terrain', 'index.js'),
   },
 });
 
@@ -267,10 +271,25 @@ if (startX === undefined) fail('the connected client owns no pawn.', serverLog);
 
 await run([player.app, spectator.app], 0.4);
 const movedX = own().x;
-if (!(movedX > startX + 20)) {
+if (!(movedX > startX + Math.min(20, SPEED * 0.4 * 0.4))) {
   fail(`holding right moved the owned pawn from ${startX} to ${movedX} — expected it to advance.`, serverLog);
 }
 
+if (NO_WALL) {
+  // 3b/4 — keep walking for a moment, then stop: the pawn advanced by about what its speed says, and a third party sees it there.
+  await run([player.app, spectator.app], 0.8);
+  input.keysDown.delete('KeyD');
+  await run([player.app, spectator.app], 0.4);
+  const gone = own().x - startX;
+  if (!(gone > SPEED * 0.8 * 0.5 && gone < SPEED * 1.6 * 1.5)) {
+    fail(`the owned pawn walked ${gone} units in about a second and a half, expected about ${SPEED * 1.2}.`, serverLog);
+  }
+  const rest = own().x;
+  const witnessed = () => ghosts(spectator.app).some((g) => Math.abs(g.x - rest) < 1);
+  if (!await runUntil([player.app, spectator.app], 1.0, witnessed)) {
+    fail(`the spectator never saw the pawn where it stopped (x=${rest}; saw ${ghosts(spectator.app).map((g) => g.x).join(', ')}).`, serverLog);
+  }
+} else {
 // Long enough to cross the arena and pin against the wall. The clamp is part of
 // the shared movement rule, so server and prediction must agree on it exactly.
 await run([player.app, spectator.app], (BOUND_X * 2) / SPEED + 1);
@@ -289,6 +308,7 @@ const sawWall = () => ghosts(spectator.app).some((g) => Math.abs(g.x - BOUND_X) 
 if (!await runUntil([player.app, spectator.app], 1.0, sawWall)) {
   const witnessed = ghosts(spectator.app).map((g) => g.x);
   fail(`the spectator never saw the moving pawn reach the wall (saw x=${witnessed.join(', ')}).`, serverLog);
+}
 }
 
 // 5 — leaving takes the pawn with it. This is the assertion the editor's

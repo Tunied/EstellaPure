@@ -2884,6 +2884,10 @@ export const NOTED = {
     {"note":"An Outdoor Environment to create."},
   "feat(assets): an image shaped like a colour lookup table is adopted as data, uncompressed, unmipped and not sRGB":
     {"note":"A lookup table is adopted as data."},
+  "test: regenerate the compiler's AOT fixtures the contract hash moved":
+    {"internal":"Test fixtures follow the component layout."},
+  "feat(tools): the arena server check takes a project of any width, a terrain provider and a TypeScript extension":
+    {"internal":"A check script, not a creator-facing change."},
   "feat(water): two tiled, scrolling detail normal maps give the surface its sparkle":
     {"note":"Sparkle on the water."},
   "fix(lod): a LODGroup with only a cull size is no longer ignored":
