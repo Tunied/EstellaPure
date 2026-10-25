@@ -160,6 +160,13 @@ export const GATES = [
     why: 'the server it starts runs the real engine wasm, and the fast CI lane builds none;'
       + ' the engine-coupled job runs it where the artifact is, under ESTELLA_REQUIRE_WASM',
   },
+  // The starter a networked game begins from: the same facts, checked against the template itself so it cannot rot unseen.
+  {
+    id: 'online-3d-server',
+    run: 'node tools/check-arena-server.mjs --project templates/online-3d --bound 1450 --speed 340',
+    where: 'local',
+    why: 'it starts a server on the real engine wasm too; the engine-coupled job runs it',
+  },
   { id: 'cycles', run: 'node tools/check-cycles.mjs' },
   { id: 'layers', run: 'node tools/check-layers.mjs' },
   // A system's parameters are what the schedule knows about it; the World

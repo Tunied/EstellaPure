@@ -1,0 +1,16 @@
+{
+  "name": "online-3d-server",
+  "private": true,
+  "type": "module",
+  "description": "Dedicated server for this game — the same project, headless.",
+  "scripts": {
+    "start": "node run.mjs",
+    "build": "node run.mjs --build-only"
+  },
+  "dependencies": {
+    "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.27.0"
+  }
+}

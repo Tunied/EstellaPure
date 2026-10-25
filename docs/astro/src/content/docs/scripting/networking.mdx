@@ -159,6 +159,8 @@ clientNet.client?.sendInput({ move: { x: 1, y: 0 } });   // per-tick input uplin
 
 See the **Multiplayer Arena** example for the full pattern — replication, per-tick input, and client prediction — in ~130 lines. Its `server/` directory is the dedicated-server half: the same project, headless, behind a real WebSocket.
 
+To start a game of your own on that pattern, create it from the **Online 3D** template (`estella create online-3d ./my-game`, or pick it in the editor's New project gallery): a lit 3D ground, a pawn per player that is predicted on its owner's screen and replicated to everyone else, a camera that follows your own, and a `server/` that runs the same code headless. The rules both ends must agree on (speed, the world's edge) sit in `src/shared/rules.ts`, apart from any system, so a server can refuse what they forbid. What it leaves to the game is written in its README: a stable player identity across reconnects, saving the world, and who sees what.
+
 ### Interest management — who sees what
 
 By default every client receives every replicated entity. For bigger worlds,

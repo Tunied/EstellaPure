@@ -2874,6 +2874,8 @@ export const NOTED = {
     {"note":"Start a project from the command line."},
   "refactor(launcher): a new project is made by the pipeline's template code, shared with the command line":
     {"note":"Start a project from the command line."},
+  "feat(templates): an Online 3D starter, a networked 3D game with a dedicated server that runs the same project":
+    {"note":"An Online 3D starter."},
   "feat(water): two tiled, scrolling detail normal maps give the surface its sparkle":
     {"note":"Sparkle on the water."},
   "fix(lod): a LODGroup with only a cull size is no longer ignored":

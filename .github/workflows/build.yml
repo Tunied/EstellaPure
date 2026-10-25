@@ -494,6 +494,11 @@ jobs:
         ESTELLA_REQUIRE_WASM: '1'
       run: node tools/check-arena-server.mjs
 
+    - name: Check the Online 3D template's server
+      env:
+        ESTELLA_REQUIRE_WASM: '1'
+      run: node tools/check-arena-server.mjs --project templates/online-3d --bound 1450 --speed 340
+
     # Booting a packaged game needs the same real engine, and for the same
     # reason it belongs here rather than in the fast lane.
     - name: Check a packaged game's script failure

@@ -1,0 +1,19 @@
+{
+  "formatVersion": "1",
+  "name": "Online 3D",
+  "tag": "Starter",
+  "description": "A server-authoritative multiplayer 3D world: every player walks a pawn that is predicted at once on their own screen, with a dedicated server that runs the same code headless.",
+  "version": "0.1.0",
+  "defaultScene": "assets/scenes/main.esscene",
+  "designResolution": {
+    "width": 960,
+    "height": 640
+  },
+  "spineVersion": "none",
+  "features": {
+    "rendering": {
+      "colorSpace": "linear",
+      "outputTransform": "aces"
+    }
+  }
+}

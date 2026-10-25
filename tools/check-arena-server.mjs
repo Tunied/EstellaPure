@@ -22,6 +22,10 @@
  *   5. a client that leaves takes its pawn with it
  *
  *   node tools/check-arena-server.mjs
+ *   node tools/check-arena-server.mjs --project templates/online-3d --bound 1450 --speed 340
+ *
+ * The project is any one with a `server/` and a pawn that walks right on `KeyD`; `--bound` is the world's edge along x and `--speed` the pawn's
+ * speed, both from the project's own movement rule.
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -30,12 +34,17 @@ import path from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PROJECT = path.join(ROOT, 'examples', 'multiplayer-arena');
+const flag = (name, fallback) => {
+  const i = process.argv.indexOf(`--${name}`);
+  return i >= 0 && process.argv[i + 1] ? process.argv[i + 1] : fallback;
+};
+const PROJECT = path.resolve(ROOT, flag('project', path.join('examples', 'multiplayer-arena')));
 const SDK = path.join(ROOT, 'sdk', 'dist', 'index.node.js');
 const WASM = path.join(ROOT, 'build', 'wasm', 'web');
 
-/** Arena bounds, from the example's own movement rule. */
-const BOUND_X = 420;
+/** The world's edge along x and the pawn's speed, from the project's own movement rule (the arena's by default). */
+const BOUND_X = Number(flag('bound', '420'));
+const SPEED = Number(flag('speed', '260'));
 const STEP = 1 / 60;
 
 // The server runs a REAL engine, so a checkout without one cannot answer this.
@@ -54,6 +63,7 @@ if (!existsSync(path.join(WASM, 'esengine.wasm'))) {
 }
 
 const work = mkdtempSync(path.join(tmpdir(), 'estella-arena-'));
+const NAME = path.basename(PROJECT);
 let server = null;
 
 function fail(message, detail) {
@@ -107,9 +117,14 @@ if (typed.status !== 0) {
   fail('the server entry does not type-check against the SDK.', typed.stdout || typed.stderr);
 }
 
+// The SDK and wasm are this checkout's own, a pair: a template's server has no engine tree beside it to fall back to.
 const built = spawnSync(process.execPath, [
-  path.join(PROJECT, 'server', 'run.mjs'), '--build-only',
-], { encoding: 'utf8', cwd: ROOT });
+  path.join(PROJECT, 'server', 'run.mjs'), '--build-only', '--sdk', path.dirname(SDK), '--wasm', WASM,
+], {
+  encoding: 'utf8', cwd: ROOT,
+  // `ws` is the server's own dependency; in this checkout it is installed with the SDK, which a template has no tree beside it to find.
+  env: { ...process.env, NODE_PATH: [path.join(ROOT, 'sdk', 'node_modules'), path.join(ROOT, 'node_modules')].join(path.delimiter) },
+});
 if (built.status !== 0) fail('the server bundle failed to build.', built.stderr || built.stdout);
 
 /**
@@ -258,7 +273,7 @@ if (!(movedX > startX + 20)) {
 
 // Long enough to cross the arena and pin against the wall. The clamp is part of
 // the shared movement rule, so server and prediction must agree on it exactly.
-await run([player.app, spectator.app], 3.0);
+await run([player.app, spectator.app], (BOUND_X * 2) / SPEED + 1);
 input.keysDown.delete('KeyD');
 const wallX = own().x;
 if (Math.abs(wallX - BOUND_X) > 0.5) {
@@ -290,5 +305,5 @@ if (after.length !== 1) {
 spectator.client.disconnect();
 spectator.socket.close();
 cleanup();
-console.log('check-arena-server: multiplayer-arena served headless over a real socket —'
-  + ' no host phantom, input moved and clamped, replicated to a third party, and a leaver was retired.');
+console.log(`check-arena-server: ${NAME} served headless over a real socket — no host phantom, input moved and clamped,`
+  + ' replicated to a third party, and a leaver was retired.');
