@@ -435,10 +435,10 @@ function scene() {
   const entities = [];
   const add = (name, components) => entities.push({ id: entities.length, name, parent: null, children: [], visible: true, components });
   const post = [
-    { type: 'skyAtmosphere', enabled: true, uniforms: { u_intensity: 1, u_haze: 0.9, u_sunBrightness: 40, u_clouds: 0.4, u_cloudShadow: 0.6, u_unitsPerKm: 100000, u_windSpeed: 0.03 } },
+    { type: 'skyAtmosphere', enabled: true, uniforms: { u_intensity: 1, u_haze: 0.9, u_sunBrightness: 40, u_clouds: 0.5, u_cloudShadow: 0.6, u_unitsPerKm: 100000, u_windSpeed: 0.03 } },
     { type: 'gtao', enabled: true, uniforms: { u_radius: 300, u_intensity: 0.8 } },
     { type: 'heightFog', enabled: true, colors: { u_fogColor: { r: 0.66, g: 0.76, b: 0.88, a: 1 }, u_sunColor: { r: 1, g: 0.9, b: 0.7, a: 1 } },
-      uniforms: { u_density: 0.000009, u_heightFalloff: 0.0003, u_baseHeight: WORLD.sea, u_inscatter: 1.3, u_skyFog: 0.4, u_volumetric: 1, u_volumeRange: 5000 } },
+      uniforms: { u_density: 0.000004, u_heightFalloff: 0.00003, u_baseHeight: WORLD.sea, u_inscatter: 1.3, u_skyFog: 0.4, u_volumetric: 1, u_volumeRange: 300000, u_cloudShade: 0.9 } },
     { type: 'autoExposure', enabled: true, uniforms: { u_bias: 0, u_minEV: -2, u_maxEV: 2 } },
     { type: 'colorGrade', enabled: true, uniforms: { u_contrast: 1.06, u_saturation: 1.1, u_temperature: 0.08 } },
     { type: 'bloom', enabled: true, uniforms: { u_threshold: 1, u_intensity: 0.3, u_radius: 1 } },
