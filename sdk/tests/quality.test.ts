@@ -146,3 +146,14 @@ describe('what a quality level lets the chain run', () => {
         }
     });
 });
+
+describe('how far plants keep their detail', () => {
+    it('is a share of a plant\'s distances that falls with the level, and a project may set it', () => {
+        const share = (mode: 'low' | 'medium' | 'high', detailScale?: unknown) =>
+            new QualityController(parseQualityConfig({ mode, profiles: detailScale === undefined ? undefined : { [mode]: { detailScale } } })).profile.detailScale;
+        expect([share('low'), share('medium'), share('high')]).toEqual([0.5, 0.8, 1]);
+        expect(share('low', 0.3)).toBe(0.3);
+        expect(share('low', 0)).toBe(0.25);
+        expect(share('low', 7)).toBe(1);
+    });
+});

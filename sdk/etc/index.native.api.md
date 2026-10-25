@@ -7769,6 +7769,7 @@ static prototype: QualityController
 
 ## QualityProfile — interface @experimental
 ```
+detailScale: number
 minRenderScale: number
 msaaSamples: 2 | 1 | 4 | 8
 particleLimit: number

@@ -19,6 +19,11 @@ export interface QualityProfile {
     shadowCellSize: number;
     shadowCascades: number;
     shadowDistance: number;
+    /**
+     * How much of its distances a level lets a plant keep, 0.25 to 1: a kind that changes to its cheaper mesh at 60 m and is not drawn past
+     * 150 m does so at 30 m and 75 m with 0.5. The far version (a tree's cards) is the same cost at any distance, so it takes over sooner.
+     */
+    detailScale: number;
     particleLimit: number;
     planarReflectionScale: number;
     planarReflectionMaxSize: number;
@@ -69,7 +74,7 @@ const PROFILES: Record<QualityLevel, QualityProfile> = {
         renderScale: 0.75, minRenderScale: 0.5, msaaSamples: 1,
         shadowAtlasSize: 1024, shadowCellSize: 256, shadowCascades: 2,
         planarReflectionScale: 0.25, planarReflectionMaxSize: 512, planarReflectionUpdatesPerSecond: 0,
-        shadowDistance: 0, particleLimit: 1000, postProcess: true, ssao: false,
+        shadowDistance: 0, detailScale: 0.5, particleLimit: 1000, postProcess: true, ssao: false,
         waterWaves: 2, waterRippleCells: 32, waterDisplacement: false, waterMirror: false, waterCaustics: false,
         skipEffects: ['ssr', 'taa', 'depthOfField', 'lightShafts', 'motionBlur', 'lensFlare', 'gtao', 'subsurface', 'voxelGI'],
     },
@@ -77,7 +82,7 @@ const PROFILES: Record<QualityLevel, QualityProfile> = {
         renderScale: 1, minRenderScale: 0.65, msaaSamples: 2,
         shadowAtlasSize: 2048, shadowCellSize: 512, shadowCascades: 3,
         planarReflectionScale: 0.5, planarReflectionMaxSize: 1024, planarReflectionUpdatesPerSecond: 0,
-        shadowDistance: 0, particleLimit: 5000, postProcess: true, ssao: true,
+        shadowDistance: 0, detailScale: 0.8, particleLimit: 5000, postProcess: true, ssao: true,
         waterWaves: 3, waterRippleCells: 64, waterDisplacement: true, waterMirror: true, waterCaustics: true,
         skipEffects: ['ssr', 'depthOfField'],
     },
@@ -87,7 +92,7 @@ const PROFILES: Record<QualityLevel, QualityProfile> = {
         // shadow speckles it with dirt. 1024 is the cell that clears it for a character at arm's length.
         shadowAtlasSize: 4096, shadowCellSize: 1024, shadowCascades: 4,
         planarReflectionScale: 1, planarReflectionMaxSize: 2048, planarReflectionUpdatesPerSecond: 0,
-        shadowDistance: 0, particleLimit: 20000, postProcess: true, ssao: true,
+        shadowDistance: 0, detailScale: 1, particleLimit: 20000, postProcess: true, ssao: true,
         waterWaves: 4, waterRippleCells: 128, waterDisplacement: true, waterMirror: true, waterCaustics: true,
         skipEffects: [],
     },
@@ -156,6 +161,7 @@ function resolveProfile(level: QualityLevel, value: unknown): QualityProfile {
         shadowCellSize: Math.min(cell, atlas / 2),
         shadowCascades: Math.round(finite(r.shadowCascades, base.shadowCascades, 1, 4)),
         shadowDistance: finite(r.shadowDistance, base.shadowDistance, 0, 10000000),
+        detailScale: finite(r.detailScale, base.detailScale, 0.25, 1),
         particleLimit: Math.round(finite(r.particleLimit, base.particleLimit, 0, 1000000)),
         planarReflectionScale: finite(r.planarReflectionScale, base.planarReflectionScale, 0.125, 1),
         planarReflectionMaxSize: Math.round(finite(r.planarReflectionMaxSize, base.planarReflectionMaxSize, 64, 4096)),

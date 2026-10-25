@@ -21,6 +21,7 @@ import { engineApi } from '../ecs/bridge/engineApi';
 import type { CppRegistry } from '../wasm';
 import { withScratch } from '../wasm/wasmScratch';
 import { Assets } from '../asset/AssetPlugin';
+import { Quality } from '../render/qualityRuntime';
 import type { Assets as AssetsApi } from '../asset/Assets';
 import { log } from '../util/logger';
 import { bakesOf } from '../runtime/bakes';
@@ -96,10 +97,16 @@ export class PlantGrowth {
 
     /**
      * Makes one entity under `parent` that draws `part`'s mesh at every place in `plants`, relative to `parent`. `from` and `to` are the distances
-     * from the eye between which a plant is drawn (0 for no limit); `lod` is the distance past which the part's cheaper mesh stands in, and `shadow` the one past which it casts no shadow.
+     * from the eye between which a plant is drawn (0 for no limit); `lod` is the distance past which the part's cheaper mesh stands in, and `shadow` the one past which it casts no shadow. All of them are scaled by the quality level's `detailScale`.
      */
-    private place(app: App, parent: Entity, name: string, part: ReadyPart, plants: readonly Plant[], lod: number, from: number, to: number, shadow = 0): void {
+    private place(app: App, parent: Entity, name: string, part: ReadyPart, plants: readonly Plant[], lod: number, from: number, to: number, shadow = 0, far = false): void {
         const world = app.world;
+        // The quality level's share of the kind's distances: a weaker device changes to the cheaper mesh sooner and draws less far.
+        const quality = app.hasResource(Quality) ? app.getResource(Quality) : null;
+        const detail = quality && quality.enabled ? quality.profile.detailScale : 1;
+        lod *= detail; from *= detail; shadow *= detail;
+        // The far version costs the same at any distance, so only where it begins moves, not where it ends.
+        if (to > 0 && !far) to *= detail;
         const e = world.spawn(name);
         world.insert(e, RuntimeOnly);
         world.insert(e, Transform, {});
@@ -158,7 +165,7 @@ export class PlantGrowth {
             const parts = ready.far[kindIndex], kind = kinds[kindIndex];
             if (!kind || !parts || parts.length === 0) continue;
             const kept = thinPlants(plants, kind.farKeep ?? 1);
-            for (const r of parts) this.place(app, entity, `far ${kindIndex}`, r, kept, 0, kind.drawDistance, kind.farDistance);
+            for (const r of parts) this.place(app, entity, `far ${kindIndex}`, r, kept, 0, kind.drawDistance, kind.farDistance, 0, true);
         }
     }
 

@@ -29,7 +29,7 @@ to.
 
 | Group | Settings |
 |---|---|
-| Rendering | Render scale, Min render scale, MSAA |
+| Rendering | Render scale, Min render scale, MSAA, Detail distance |
 | Shadows | Atlas size, Cell size, Cascades, Distance |
 | Reflections and particles | Planar reflection scale, max size and updates per second, Particle limit |
 | Post-processing | A master switch, and a tick for each effect that runs at this level |
@@ -42,6 +42,10 @@ touched it, and a row set back to its level's default is not a difference.
 A row's "default" is the default of the level it is showing, so the same number can be a change at Low and the default
 at Medium.
 </Aside>
+
+**Detail distance** is the share of its distances a placed plant keeps at the level: at 0.5, a tree that changes to its
+cheaper mesh at 60 m and is not drawn as itself past 150 m does so at 30 m and 75 m, and its far cards take over sooner.
+Low keeps 0.5, Medium 0.8 and High all of it, so the same world draws a fraction of the triangles on a phone.
 
 ## Leaving effects out
 
