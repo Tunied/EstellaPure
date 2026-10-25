@@ -108,6 +108,8 @@ const W = Number(flag('w', '640'));
 const H = Number(flag('h', '360'));
 const SETTLE = Number(flag('settle', '30'));
 const INPUT = flag('input', '');
+/** After the input, keep running until the engine has nothing left to bake, instead of guessing a frame count. */
+const UNTIL_IDLE = has('until-idle');
 const TIMEOUT = Number(flag('timeout', '30000'));
 const LOG = flag('log', '');
 /** Emulate a link before loading, so the start screen is asked a real question. */
@@ -340,6 +342,20 @@ const SCENE = flag('scene', '');
     const ran = await win.webContents.executeJavaScript(inputScript(spec))
       .catch((e) => { errors.push(`input: ${e}`); return -1; });
     console.log(`  input: ${ran} source(s) over ${Number(spec.frames ?? 40)} frames`);
+  }
+
+  if (painted && UNTIL_IDLE) {
+    // A few quiet polls in a row: a bake that has just finished can be followed by the one it queued.
+    let quiet = 0, last = '';
+    for (const t0 = Date.now(); quiet < 6 && Date.now() - t0 < TIMEOUT;) {
+      await new Promise((r) => setTimeout(r, 250));
+      const bakes = await win.webContents.executeJavaScript('window.__estellaCooked?.bakes?.() ?? []').catch(() => []);
+      quiet = bakes.length === 0 ? quiet + 1 : 0;
+      const now = bakes.map((b) => `${b.label} ${Math.round(b.progress * 100)}%`).join(', ');
+      if (now !== last && now) console.log(`  baking: ${now}`);
+      last = now;
+    }
+    console.log(`  idle: ${quiet >= 6}`);
   }
 
   if (FACTS) {

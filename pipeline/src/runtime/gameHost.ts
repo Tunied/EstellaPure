@@ -20,7 +20,7 @@ import {
   Animator, TPC_SPEED, TPC_GROUNDED, Particle,
   AnimatorRootMotion, Playthrough, Name,
   worldResidencyReport, PostProcess, Renderer, Audio, Camera,
-  getComponentRegistry,
+  getComponentRegistry, BakesRes,
   startDebugChannel, glContextAttributes,
 } from 'esengine';
 import { installDevicePreview } from './devicePreviewClient';
@@ -891,6 +891,10 @@ async function boot(): Promise<void> {
         };
       },
       updateStatus: () => app.getResource(Assets).updateStatus(),
+      /** What the engine is still baking in the background (the world laying itself out, plants growing): empty once it has caught up. */
+      bakes(): readonly { label: string; progress: number }[] {
+        return app.hasResource(BakesRes) ? app.getResource(BakesRes).active : [];
+      },
     };
     // Each behind its OWN export. They are different ABIs now: readying a
     // prepared cell ships, and deriving the same from live entities is the
