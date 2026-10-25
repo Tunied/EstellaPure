@@ -16,6 +16,9 @@
 #include "../../core/Log.hpp"
 #include "../rhi/ShaderEmbeds.generated.hpp"
 
+#include <cstdlib>
+#include <sstream>
+
 namespace esengine {
 
 MaterialStore::~MaterialStore() {
@@ -240,6 +243,57 @@ u32 MaterialStore::variantProgram(u32 materialId, resource::ResourceManager& res
     variants[shape] = handle;
     return program;
 }
+
+namespace {
+
+/// Float component count for a std140 param type (textures have no block slot).
+u32 paramArity(resource::ShaderPropertyType t) {
+    using PT = resource::ShaderPropertyType;
+    switch (t) {
+        case PT::Float: case PT::Int: return 1;
+        case PT::Vec2: return 2;
+        case PT::Vec3: return 3;
+        case PT::Vec4: case PT::Color: return 4;
+        default: return 0;
+    }
+}
+
+}  // namespace
+
+MaterialUniformLayout MaterialStore::layoutOf(const resource::ParsedShader& parsed) {
+    MaterialUniformLayout layout;
+    layout.blockSize = parsed.materialBlockSize;
+    layout.coverageParam = parsed.coverageParam;
+    layout.tipParam = parsed.tipParam;
+    layout.hairShadowParam = parsed.hairShadowParam;
+    layout.usesGBuffer = parsed.usesGBuffer;
+    layout.usesLights = parsed.usesLights;
+    layout.highPrecision = parsed.highPrecision;
+    layout.vertexBounds = parsed.vertexBounds;
+    layout.vertexHook = !parsed.vertexHook.empty();
+    for (const auto& p : parsed.properties) {
+        if (!p.fromParam) continue;
+        if (p.type == resource::ShaderPropertyType::Texture) {
+            if (p.textureUnit >= 0) {
+                // Resolve the param's `default(<name>)` to a built-in default texture, bound when
+                // a material leaves the param unset.
+                layout.textures.push_back({ p.name, static_cast<u32>(p.textureUnit),
+                                            materialDefaultByName(p.defaultValue) });
+            }
+        } else if (p.std140Offset >= 0) {
+            MaterialParamSlot slot{ p.name, static_cast<u32>(p.std140Offset), paramArity(p.type) };
+            // default(a,b,c,d) csv -> the slot's initial block value.
+            std::istringstream csv(p.defaultValue);
+            std::string tok;
+            for (u32 i = 0; i < slot.arity && std::getline(csv, tok, ','); ++i) {
+                slot.defaults[i] = std::strtof(tok.c_str(), nullptr);
+            }
+            layout.params.push_back(slot);
+        }
+    }
+    return layout;
+}
+
 
 void MaterialStore::seedSamplers(Shader& shader, const resource::ParsedShader& parsed) {
     if (shader.language() != GfxShaderLanguage::GLSL_ES300) return;

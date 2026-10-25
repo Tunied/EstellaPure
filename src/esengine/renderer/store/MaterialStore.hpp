@@ -187,6 +187,11 @@ public:
      */
     static void seedSamplers(Shader& shader, const resource::ParsedShader& parsed);
 
+    /// The layout a parsed shader's `#pragma param` reflection describes: the std140 block for the scalar and vector params (declared order
+    /// is offset order) and a sampler slot for each texture param, at the unit the parser gave it. Material shaders and the chain's own
+    /// last pass read their parameters through the same one.
+    static MaterialUniformLayout layoutOf(const resource::ParsedShader& parsed);
+
     /// Keeps a material shader's SOURCE beside its handle, so the same material can
     /// be compiled for another vertex source later. Without it the store holds only
     /// the assembled program and a variant would need the author's file again.

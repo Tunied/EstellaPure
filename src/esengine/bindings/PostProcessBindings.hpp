@@ -66,6 +66,8 @@ bool postprocess_isInitialized();
 void postprocess_setBypass(bool bypass);
 /** The curve the chain applies on the way out: 0 = none, 1 = ACES filmic. */
 void postprocess_setOutputTransform(u32 transform);
+/** A graded look the last pass applies to the picture as the display shows it: a 1024x32 table (texture handle, 0 for none) and how far, 0 to 1. Let go with the passes. */
+void postprocess_setDisplayLut(u32 textureHandle, f32 amount);
 /** The editor view's exposure in stops (EV); 0 is exact identity. View state, never saved. */
 void postprocess_setViewExposure(f32 ev);
 void postprocess_clearPasses();

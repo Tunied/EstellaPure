@@ -3747,6 +3747,7 @@ fallback: EffectSubPass[] | undefined
 label: string
 multiPass: EffectSubPass[] | undefined
 native: string | undefined
+stage: "output" | undefined
 textures: EffectTextureDef[] | undefined
 type: string
 uniforms: EffectUniformDef[]
@@ -7179,6 +7180,7 @@ addPass: (name: string, shader: ShaderHandle, scale?: number, continuesEffect?: 
 clearDirty: () => void
 clearPasses: () => PostProcessStack
 destroy: () => void
+displayLut: { readonly texture: number; readonly amount: number; }
 enabledPassCount: number
 id: number
 isDestroyed: boolean
@@ -7187,6 +7189,7 @@ passCount: number
 passes: readonly PassConfig[]
 removePass: (name: string) => PostProcessStack
 setAllPassesEnabled: (enabled: boolean) => void
+setDisplayLut: (texture: number, amount: number) => PostProcessStack
 setEnabled: (name: string, enabled: boolean) => PostProcessStack
 setTexture: (passName: string, uniform: string, textureHandle: number) => PostProcessStack
 setUniform: (passName: string, uniform: string, value: number) => PostProcessStack

@@ -84,6 +84,18 @@ function applyBuiltinTextures(api: PostProcessAPI, stack: ReturnType<PostProcess
 
 type ResolvedEffects = Map<string, BlendedEffect>;
 
+/** What the output stages among the effects ask of the last pass: the display look's table (a texture handle) and amount. */
+function displayLutOf(effects: ResolvedEffects): { texture: number; amount: number } {
+    for (const [type, data] of effects) {
+        if (!data.enabled || getEffectDef(type)?.stage !== 'output' || type !== 'displayLut') continue;
+        const ref = data.textures.get('u_lut');
+        const texture = ref && volumeTextureResolver ? volumeTextureResolver(ref) : 0;
+        const amount = data.uniforms.get('u_intensity') ?? getEffectDef(type)?.uniforms.find((u) => u.name === 'u_intensity')?.defaultValue ?? 1;
+        return { texture, amount };
+    }
+    return { texture: 0, amount: 0 };
+}
+
 function applyColors(
     stack: ReturnType<PostProcessAPI['createStack']>,
     passName: string,
@@ -125,8 +137,10 @@ function passNamesOf(effectType: string): string[] {
 }
 
 function writeValues(stack: ReturnType<PostProcessAPI['createStack']>, effects: ResolvedEffects): void {
+    const look = displayLutOf(effects);
+    stack.setDisplayLut(look.texture, look.amount);
     for (const [effectType, effectData] of effects) {
-        if (!effectData.enabled || !getEffectDef(effectType)) continue;
+        if (!effectData.enabled || !getEffectDef(effectType) || getEffectDef(effectType)!.stage) continue;
         for (const passName of passNamesOf(effectType)) {
             for (const [uniformName, uniformValue] of effectData.uniforms) {
                 stack.setUniform(passName, uniformName, uniformValue);
@@ -195,6 +209,8 @@ function applyBlendedEffects(
 
         const def = getEffectDef(effectType);
         if (!def) continue;
+        // A stage of the last pass is no pass: it is read off the effects once, below.
+        if (def.stage) continue;
 
         if (def.multiPass) {
             for (const [index, subPass] of def.multiPass.entries()) {
@@ -237,7 +253,11 @@ function applyBlendedEffects(
         }
     }
 
-    if (stack.enabledPassCount > 0) {
+    const look = displayLutOf(effects);
+    stack.setDisplayLut(look.texture, look.amount);
+
+    // A stack with only a display look has no pass, and is still the camera's.
+    if (stack.enabledPassCount > 0 || stack.displayLut.amount > 0) {
         api.bind(camera, stack);
     } else {
         api.unbind(camera);

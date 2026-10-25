@@ -197,6 +197,17 @@ void postprocess_setOutputTransform(u32 transform) {
                                                                : OutputTransform::None);
 }
 
+void postprocess_setDisplayLut(u32 textureHandle, f32 amount) {
+    if (!g_postProcessPipeline) return;
+    u32 glId = 0;
+    if (textureHandle != 0) {
+        if (auto* rm = ctx().tryGet<resource::ResourceManager>()) {
+            if (auto* tex = rm->getTexture(resource::TextureHandle(textureHandle))) glId = tex->getId();
+        }
+    }
+    g_postProcessPipeline->setDisplayLut(glId, amount);
+}
+
 void postprocess_setViewExposure(f32 ev) {
     if (g_postProcessPipeline) g_postProcessPipeline->setViewExposure(ev);
 }

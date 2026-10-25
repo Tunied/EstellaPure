@@ -384,12 +384,8 @@ public:
     /**
      * @brief Whether the scene goes through the graph or straight to the surface.
      *
-     * @details Four things engage it: effects to run, the linear pipeline (whose
-     *          final pass carries an encode a WebGL2 canvas framebuffer cannot do
-     *          for itself), an output transform, or a present that scales. One
-     *          predicate because everyone asks at both ends of a frame, and two
-     *          copies of it is one edit away from a capture that is opened and
-     *          never resolved.
+     * @details Effects to run, the linear pipeline, an output transform, a display LUT or a scaling present engage it. One predicate, because
+     *          everyone asks at both ends of a frame and a capture opened but never resolved is one edit away.
      */
     bool isEngaged() const {
         // `initialized_` leads, and that is load-bearing: init refuses when the
@@ -397,6 +393,7 @@ public:
         // to drawing straight at the surface rather than to a black frame.
         return initialized_ && ((!bypass_ && !passes_.empty()) || linear_output_
                                 || output_transform_ != OutputTransform::None
+                                || displayLutActive()
                                 || view_exposure_ != 0.0f
                                 || presentScales() || present_required_);
     }
@@ -491,6 +488,20 @@ public:
      *          than a pass of its own.
      */
     void setOutputTransform(OutputTransform transform) { output_transform_ = transform; }
+    /**
+     * @brief A graded look the final pass applies to the picture as the display will show it.
+     *
+     * @details The display stage of the last pass: after the output transform and the transfer function, from a 32x32x32 table laid out as
+     *          a 1024x32 strip (slice along x is blue). It is a variant of that shader, so it costs one texture read and no pass. It belongs
+     *          to the chain that set it, and is let go with the passes (clearPasses): a camera that wants it says so each time.
+     * @param glTexture The table's texture, or 0 for none.
+     * @param amount How far the picture moves toward the table's answer, 0 to 1.
+     */
+    void setDisplayLut(u32 glTexture, f32 amount) {
+        display_lut_texture_ = glTexture;
+        display_lut_amount_ = std::isfinite(amount) ? std::clamp(amount, 0.0f, 1.0f) : 0.0f;
+    }
+    bool displayLutActive() const { return display_lut_texture_ != 0 && display_lut_amount_ > 0.0f; }
     /// The editor view's exposure in stops, applied by the blit. Engages the blit when
     /// non-zero, since only the blit carries it; the value rides the frame's time block.
     void setViewExposure(f32 ev);
@@ -596,8 +607,12 @@ private:
     /// The chain's last pass: the output transform, then the copy into the
     /// output target's viewport.
     void blitPass();
-    /// The blit variant the current output transform needs, compiled on demand.
+    /// The blit variant the current output transform, present and display LUT need, compiled on demand.
     resource::ShaderHandle outputShader();
+    /// The variant of the blit with these features, or an invalid handle when it does not compile.
+    resource::ShaderHandle blitVariant(bool upscale, OutputTransform transform, bool lut);
+    /// Binds what every variant of the blit declares: its parameter block (the display LUT's amount) and the table's texture.
+    void bindBlitInputs(const resource::ShaderHandle& shader);
     /// One variant of blit.esshader, by feature.
     resource::ShaderHandle compileBlit(const std::vector<std::string>& features);
     /// Frees a pass's GPU-side param UBO (clearPasses/shutdown).
@@ -613,11 +628,14 @@ private:
     VertexLayoutHandle screen_quad_layout_ = VertexLayoutHandle::Invalid;
     BufferHandle screen_quad_vbo_ = BufferHandle::Invalid;
     resource::ShaderHandle blitShader_;
-    /// The ES_TONEMAP variant of the same file. Invalid until a chain asks for it.
-    resource::ShaderHandle tonemapShader_;
-    resource::ShaderHandle neutralShader_;
-    /// The same three blits (plain, neutral, ACES) with the resampling upscaler, compiled when a present first needs one.
-    resource::ShaderHandle upscaleShaders_[3];
+    /// The other variants of the same file the last pass needs (a curve, the resampling upscaler, the display LUT), by feature set, compiled when
+    /// a chain first asks. An invalid handle is a variant that would not compile: asked for once, not again.
+    std::unordered_map<u32, resource::ShaderHandle> blitVariants_;
+    u32 display_lut_texture_ = 0;
+    f32 display_lut_amount_ = 0.0f;
+    /// The last pass's parameter block (the display LUT's amount): one for every variant of the blit, written when the amount changes.
+    BufferHandle blitParamUbo_ = BufferHandle::Invalid;
+    f32 blitParamAmount_ = -1.0f;
     resource::ShaderHandle copyShader_;
     resource::ShaderHandle copyDepthShader_;
 

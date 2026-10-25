@@ -16,6 +16,7 @@
 #include "./VoxelGI.hpp"
 #include "../rhi/GfxDevice.hpp"
 #include "../store/MaterialConstants.hpp"
+#include "../store/MaterialStore.hpp"
 #include "../store/LightConstants.hpp"
 #include "../rhi/Shader.hpp"
 #include "../rhi/ShaderEmbeds.generated.hpp"
@@ -81,11 +82,25 @@ void PostProcessPipeline::init(u32 width, u32 height) {
 resource::ShaderHandle PostProcessPipeline::compileBlit(const std::vector<std::string>& features) {
     const auto target = resourceManager_.preferredShaderTarget();
     auto parsed = resource::ShaderParser::parse(ShaderEmbeds::BLIT);
-    return resourceManager_.createShader(
+    const auto handle = resourceManager_.createShader(
         resource::ShaderParser::assembleStage(parsed, resource::ShaderStage::Vertex, "", features, target),
         resource::ShaderParser::assembleStage(parsed, resource::ShaderStage::Fragment, "", features, target),
         /*rewriteLoose=*/false,
         resourceManager_.preferredShaderLanguage());
+    // Its parameters are read as a material's are, off the reflected layout: the block and the texture slot every variant declares.
+    if (handle.isValid()) {
+        context_.materials().registerLayout(handle, MaterialStore::layoutOf(parsed));
+        // The table's sampler is in the program only where the look is (the others do not read it, and the compiler drops it).
+        if (Shader* compiled = resourceManager_.getShader(handle);
+            compiled && compiled->language() == GfxShaderLanguage::GLSL_ES300 && compiled->hasUniform("u_displayLut")) {
+            compiled->bind();
+            for (const auto& p : parsed.properties) {
+                if (p.fromParam && p.name == "u_displayLut" && p.textureUnit >= 0) compiled->setUniform(p.name, static_cast<i32>(p.textureUnit));
+            }
+            compiled->unbind();
+        }
+    }
+    return handle;
 }
 
 void PostProcessPipeline::setViewExposure(f32 ev) {
@@ -97,37 +112,37 @@ void PostProcessPipeline::setViewExposure(f32 ev) {
  * The blit the current output transform needs. Compiled on first use rather
  * than at init: a project that never asks for a curve never pays for one.
  */
+resource::ShaderHandle PostProcessPipeline::blitVariant(bool upscale, OutputTransform transform, bool lut) {
+    const u32 key = (upscale ? 1u : 0u) | (static_cast<u32>(transform) << 1) | (lut ? 8u : 0u);
+    if (key == 0) return blitShader_;
+    if (const auto it = blitVariants_.find(key); it != blitVariants_.end()) return it->second;
+    std::vector<std::string> features;
+    if (upscale) features.push_back("ES_UPSCALE");
+    if (transform == OutputTransform::Neutral) features.push_back("ES_TONEMAP_NEUTRAL");
+    if (transform == OutputTransform::ACES) features.push_back("ES_TONEMAP");
+    if (lut) features.push_back("ES_DISPLAY_LUT");
+    const resource::ShaderHandle handle = compileBlit(features);
+    if (!handle.isValid()) ES_LOG_ERROR("PostProcessPipeline: the last pass would not compile with upscale={} curve={} lut={}", upscale, static_cast<u32>(transform), lut);
+    blitVariants_[key] = handle;
+    return handle;
+}
+
 resource::ShaderHandle PostProcessPipeline::outputShader() {
-    if (presentUpscales()) {
-        const usize which = output_transform_ == OutputTransform::Neutral ? 1 : output_transform_ == OutputTransform::ACES ? 2 : 0;
-        if (!upscaleShaders_[which].isValid()) {
-            std::vector<std::string> features{"ES_UPSCALE"};
-            if (which == 1) features.push_back("ES_TONEMAP_NEUTRAL");
-            if (which == 2) features.push_back("ES_TONEMAP");
-            upscaleShaders_[which] = compileBlit(features);
-            if (!upscaleShaders_[which].isValid()) ES_LOG_ERROR("PostProcessPipeline: no upscaling blit; the present stays bilinear");
-        }
-        if (upscaleShaders_[which].isValid()) return upscaleShaders_[which];
+    // What the last pass is asked for, and then, where a variant would not compile, less of it: the look first (it is the part a flat frame
+    // can do without), then the resampling, then the curve. Never a black frame.
+    const bool upscale = presentUpscales();
+    const bool lut = displayLutActive();
+    const struct { bool upscale; OutputTransform transform; bool lut; } wants[] = {
+        {upscale, output_transform_, lut},
+        {upscale, output_transform_, false},
+        {false, output_transform_, false},
+        {false, OutputTransform::None, false},
+    };
+    for (const auto& w : wants) {
+        const resource::ShaderHandle handle = blitVariant(w.upscale, w.transform, w.lut);
+        if (handle.isValid()) return handle;
     }
-    if (output_transform_ == OutputTransform::Neutral) {
-        if (!neutralShader_.isValid()) {
-            neutralShader_ = compileBlit({"ES_TONEMAP_NEUTRAL"});
-            if (!neutralShader_.isValid()) {
-                ES_LOG_ERROR("PostProcessPipeline: no ES_TONEMAP_NEUTRAL blit; output stays untonemapped");
-                return blitShader_;
-            }
-        }
-        return neutralShader_;
-    }
-    if (output_transform_ != OutputTransform::ACES) return blitShader_;
-    if (!tonemapShader_.isValid()) {
-        tonemapShader_ = compileBlit({"ES_TONEMAP"});
-        if (!tonemapShader_.isValid()) {
-            ES_LOG_ERROR("PostProcessPipeline: no ES_TONEMAP blit; output stays untonemapped");
-            return blitShader_;
-        }
-    }
-    return tonemapShader_;
+    return blitShader_;
 }
 
 /**
@@ -223,10 +238,6 @@ void PostProcessPipeline::shutdown() {
     if (blitShader_.isValid()) {
         resourceManager_.releaseShader(blitShader_);
     }
-    if (tonemapShader_.isValid()) {
-        resourceManager_.releaseShader(tonemapShader_);
-        tonemapShader_ = resource::ShaderHandle{};
-    }
     if (copyShader_.isValid()) {
         resourceManager_.releaseShader(copyShader_);
         copyShader_ = resource::ShaderHandle{};
@@ -235,14 +246,14 @@ void PostProcessPipeline::shutdown() {
         resourceManager_.releaseShader(copyDepthShader_);
         copyDepthShader_ = resource::ShaderHandle{};
     }
-    for (auto& shader : upscaleShaders_) {
-        if (!shader.isValid()) continue;
-        resourceManager_.releaseShader(shader);
-        shader = resource::ShaderHandle{};
+    for (auto& [key, shader] : blitVariants_) {
+        if (shader.isValid()) resourceManager_.releaseShader(shader);
     }
-    if (neutralShader_.isValid()) {
-        resourceManager_.releaseShader(neutralShader_);
-        neutralShader_ = resource::ShaderHandle{};
+    blitVariants_.clear();
+    if (blitParamUbo_ != BufferHandle::Invalid) {
+        device_.deleteBuffer(blitParamUbo_);
+        blitParamUbo_ = BufferHandle::Invalid;
+        blitParamAmount_ = -1.0f;
     }
 
     initialized_ = false;
@@ -1000,6 +1011,9 @@ void PostProcessPipeline::computePass(PostProcessPass& pass, const rg::PassConte
 void PostProcessPipeline::clearPasses() {
     for (auto& pass : passes_) releasePassResources(pass);
     passes_.clear();
+    // The display look is the chain's, like its passes: the next camera says its own.
+    display_lut_texture_ = 0;
+    display_lut_amount_ = 0.0f;
 }
 
 void PostProcessPipeline::setOutputTarget(FramebufferHandle target) {
@@ -1026,6 +1040,7 @@ void PostProcessPipeline::grabScene() {
     applyPassPipeline(*shader);
     if (shader->hasUniform("u_texture")) shader->setUniform("u_texture", 0);
     shader->commitParams();
+    bindBlitInputs(copyShader_);
     drawScreenQuad();
 }
 
@@ -1048,11 +1063,13 @@ void PostProcessPipeline::grabDepth() {
     if (shader->hasUniform("u_sceneDepth")) shader->setUniform("u_sceneDepth", static_cast<i32>(kSceneDepthUnit));
     shader->commitParams();
     device_.bindTexture(kSceneDepthUnit, graph_ ? graph_->depthTextureOf(sceneResource_) : TextureHandle::Invalid);
+    bindBlitInputs(copyDepthShader_);
     drawScreenQuad();
 }
 
 void PostProcessPipeline::blitPass() {
-    Shader* shader = resourceManager_.getShader(outputShader());
+    const resource::ShaderHandle outputHandle = outputShader();
+    Shader* shader = resourceManager_.getShader(outputHandle);
     if (!shader) return;
 
     // The output rect is the one thing a pass does not get from its target: the
@@ -1065,8 +1082,38 @@ void PostProcessPipeline::blitPass() {
     applyPassPipeline(*shader);
     if (shader->hasUniform("u_texture")) shader->setUniform("u_texture", 0);
     shader->commitParams();
+    bindBlitInputs(outputHandle);
 
     drawScreenQuad();
+}
+
+void PostProcessPipeline::bindBlitInputs(const resource::ShaderHandle& handle) {
+    const MaterialUniformLayout* layout = context_.materials().layoutFor(handle);
+    if (!layout) return;
+    // Only the last pass applies the look: the copies share the file, and read the amount as none.
+    const bool lastPass = handle.id() != copyShader_.id() && handle.id() != copyDepthShader_.id();
+    const f32 amount = lastPass && displayLutActive() ? display_lut_amount_ : 0.0f;
+    if (layout->blockSize > 0) {
+        if (blitParamUbo_ == BufferHandle::Invalid || blitParamAmount_ != amount) {
+            std::vector<u8> bytes(layout->blockSize, 0);
+            for (const auto& p : layout->params) {
+                if (p.name == "u_displayLutAmount") std::memcpy(bytes.data() + p.offset, &amount, sizeof(f32));
+            }
+            if (blitParamUbo_ == BufferHandle::Invalid) {
+                blitParamUbo_ = device_.createBuffer({GfxBufferUsage::Uniform, layout->blockSize, /*dynamic=*/true},
+                                                     GfxContent::retained(), bytes.data());
+            } else {
+                device_.updateBuffer(blitParamUbo_, 0, bytes.data(), static_cast<u32>(bytes.size()));
+            }
+            blitParamAmount_ = amount;
+        }
+        device_.setUniformBuffer(MATERIAL_CONSTANTS_BINDING, blitParamUbo_);
+    }
+    for (const auto& slot : layout->textures) {
+        TextureHandle gpu = context_.materials().builtinDefault(slot.defaultTexture);
+        if (slot.name == "u_displayLut" && lastPass && display_lut_texture_ != 0) gpu = TextureHandle{display_lut_texture_};
+        if (gpu != TextureHandle::Invalid) device_.bindTexture(slot.unit, gpu);
+    }
 }
 
 void PostProcessPipeline::runChain(std::vector<PostProcessPass>& passes, rg::ResourceId scene) {

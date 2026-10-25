@@ -16,7 +16,8 @@ Estella 通过 ping-pong 帧缓冲运行全屏后处理。加一个 `PostProcess
 | `bloom` | 亮部辉光 | `threshold`、`intensity`、`radius` |
 | `tonemap` | ACES filmic 色调映射 | `exposure` |
 | `colorGrade` | 曝光 / 对比度 / 饱和度 / 白平衡 | `exposure`、`contrast`、`saturation`、`temperature`、`tint` |
-| `lutGrade` | 通过查找表纹理(LUT)调色 | `u_lut`(纹理)、`intensity` |
+| `lutGrade` | 通过查找表纹理(LUT)调色,作用在效果链里的场景值上 | `u_lut`(纹理)、`intensity` |
+| `displayLut` | 在最后一个通道里、输出变换之后,按画面在显示器上的样子从查找表取出的调色 | `u_lut`(纹理)、`intensity` |
 | `agx` | Blender 使用的 AgX 视图变换:输入场景线性、输出显示线性,所以放在最后,输出变换保持 `none`。自带查找表 | `contrast`(观感:1 是 AgX Base,1.2 是 Medium High Contrast) |
 | `vignette` | 屏幕边缘变暗 | `intensity`、`softness` |
 | `chromaticAberration` | RGB 色散 | `intensity` |
@@ -293,6 +294,11 @@ registerEffect({
 | **中性** | Khronos PBR Neutral:同样收卷高光,但色相和饱和度保留。阳光下的红色仍是红色。 | 产品展示、风格化美术,以及颜色本身就是重点的内容。 |
 
 它对编辑器视口、运行预览和所有导出都生效,改动无需重新加载。代码里是 `outputTransform: 'none' | 'aces' | 'neutral'`。
+
+对着成品画面做的调色(调色师给的暖色 LUT、胶片模拟)应该排在曲线之后,而效果链里的任何效果都做不到:它们都跑在
+场景值上,在曲线之前。**显示 LUT**(`displayLut`)是最后一个通道自己的阶段:画面先过曲线,再为显示器编码,然后按它将要
+显示的颜色从一张 1024x32 的表里取值:沿 x 排 32 片,蓝是片号,红沿片内 x 增大,绿沿图像向上增大(图像从最下面一行读起)。它是在本来就要跑的那个通道里多读一次纹理,不是多一个通道,
+和输出变换是哪个无关。表的纹理不要压缩、不要 mip、不要 sRGB:它是数据。代码里是 `stack.setDisplayLut(textureHandle, amount)`。
 
 <Aside>
 上面列表里的 `tonemap` *效果*是效果链里一个单独的、可选的 ACES 通道。设了输出变换之后,通常既不需要它,也不需要第二条曲线:

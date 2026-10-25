@@ -2844,6 +2844,10 @@ export const NOTED = {
     {"internal":"Hides parameters the engine writes itself."},
   "feat(examples): Terrain & Water has a thin high haze whose beams follow the clouds":
     {"note":"Light beams that follow the clouds."},
+  "feat(postprocess): a display LUT in the last pass grades the picture as the display shows it, after the output transform":
+    {"note":"A Display LUT."},
+  "feat(examples): Terrain & Water is graded warm by a display LUT":
+    {"note":"A Display LUT."},
   "feat(water): two tiled, scrolling detail normal maps give the surface its sparkle":
     {"note":"Sparkle on the water."},
   "fix(lod): a LODGroup with only a cull size is no longer ignored":

@@ -548,6 +548,8 @@ export interface ESEngineModule {
      *  Absent on an engine built before the output transform existed. */
     postprocess_setOutputTransform?(transform: number): void;
     postprocess_setViewExposure?(ev: number): void;
+    /** A graded look the last pass applies to the picture as the display shows it. Absent on an engine built before there was one. */
+    postprocess_setDisplayLut?(textureHandle: number, amount: number): void;
     postprocess_clearPasses(): void;
     postprocess_setOutputViewport(x: number, y: number, w: number, h: number): void;
     /** Say a present is needed when the rects cannot: see PostProcessPipeline. */

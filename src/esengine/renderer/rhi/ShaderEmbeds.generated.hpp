@@ -245,6 +245,10 @@ inline constexpr const char* BLIT = R"esshader(#pragma shader "Blit"
 #pragma version 300 es
 #pragma domain PostProcess
 
+
+#pragma param u_displayLut texture default(white)
+#pragma param u_displayLutAmount float default(0)
+
 #pragma fragment
 precision highp float;
 
@@ -290,6 +294,20 @@ vec4 upscale(vec2 uv) {
 }
 #endif
 
+#ifdef ES_DISPLAY_LUT
+vec3 displayLookup(vec3 c) {
+    const float size = 32.0;
+    float b = clamp(c.b, 0.0, 1.0) * (size - 1.0);
+    float slice0 = floor(b);
+    float slice1 = min(slice0 + 1.0, size - 1.0);
+    float u = (clamp(c.r, 0.0, 1.0) * (size - 1.0) + 0.5) / (size * size);
+    float v = (clamp(c.g, 0.0, 1.0) * (size - 1.0) + 0.5) / size;
+    vec3 a = texture(u_displayLut, vec2(u + slice0 / size, v)).rgb;
+    vec3 d = texture(u_displayLut, vec2(u + slice1 / size, v)).rgb;
+    return mix(a, d, b - slice0);
+}
+#endif
+
 void main() {
 #ifdef ES_COPY_DEPTH
 
@@ -327,10 +345,15 @@ void main() {
 #ifdef ES_LINEAR
 
 
-    fragColor = vec4(linearToSrgb(c.rgb), c.a);
+    vec3 shown = linearToSrgb(c.rgb);
 #else
-    fragColor = c;
+    vec3 shown = c.rgb;
 #endif
+#ifdef ES_DISPLAY_LUT
+
+    shown = mix(shown, displayLookup(shown), clamp(u_displayLutAmount, 0.0, 1.0));
+#endif
+    fragColor = vec4(shown, c.a);
 }
 #pragma end
 
@@ -367,6 +390,20 @@ fn upscale(uv : vec2f) -> vec4f {
 }
 #endif
 
+#ifdef ES_DISPLAY_LUT
+fn displayLookup(c : vec3f) -> vec3f {
+    let size = 32.0;
+    let b = clamp(c.b, 0.0, 1.0) * (size - 1.0);
+    let slice0 = floor(b);
+    let slice1 = min(slice0 + 1.0, size - 1.0);
+    let u = (clamp(c.r, 0.0, 1.0) * (size - 1.0) + 0.5) / (size * size);
+    let v = (clamp(c.g, 0.0, 1.0) * (size - 1.0) + 0.5) / size;
+    let a = textureSampleLevel(u_displayLut, u_displayLut_s, vec2f(u + slice0 / size, v), 0.0).rgb;
+    let d = textureSampleLevel(u_displayLut, u_displayLut_s, vec2f(u + slice1 / size, v), 0.0).rgb;
+    return mix(a, d, b - slice0);
+}
+#endif
+
 @fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
 #ifdef ES_COPY_DEPTH
     let depthSize = vec2i(textureDimensions(t7, 0));
@@ -392,10 +429,14 @@ fn upscale(uv : vec2f) -> vec4f {
     c = vec4f(pbrNeutral(c.rgb), c.a);
 #endif
 #ifdef ES_LINEAR
-    return vec4f(linearToSrgb(c.rgb), c.a);
+    var shown = linearToSrgb(c.rgb);
 #else
-    return c;
+    var shown = c.rgb;
 #endif
+#ifdef ES_DISPLAY_LUT
+    shown = mix(shown, displayLookup(shown), clamp(mc.u_displayLutAmount, 0.0, 1.0));
+#endif
+    return vec4f(shown, c.a);
 }
 #pragma end
 )esshader";

@@ -66,6 +66,7 @@ export class PostProcessStack {
     private passes_: PassConfig[] = [];
     private destroyed_ = false;
     private dirty_ = true;
+    private displayLut_ = { texture: 0, amount: 0 };
 
     constructor(state: PostProcessState) {
         this.state_ = state;
@@ -136,7 +137,26 @@ export class PostProcessStack {
             this.passes_.length = 0;
             this.dirty_ = true;
         }
+        this.setDisplayLut(0, 0);
         return this;
+    }
+
+    /**
+     * A graded look for the last pass: `texture` is a 1024x32 table (a 32-slice strip, slice along x being blue) read by the picture as the
+     * display shows it, after the output transform, and `amount` how far the picture moves toward its answer (0 to 1). Part of the stack, as
+     * its passes are: 0 for no table clears it.
+     */
+    setDisplayLut(texture: number, amount: number): this {
+        const wanted = texture !== 0 && amount > 0 ? { texture, amount: Math.min(amount, 1) } : { texture: 0, amount: 0 };
+        if (wanted.texture !== this.displayLut_.texture || wanted.amount !== this.displayLut_.amount) {
+            this.displayLut_ = wanted;
+            this.dirty_ = true;
+        }
+        return this;
+    }
+
+    get displayLut(): { readonly texture: number; readonly amount: number } {
+        return this.displayLut_;
     }
 
     setEnabled(name: string, enabled: boolean): this {

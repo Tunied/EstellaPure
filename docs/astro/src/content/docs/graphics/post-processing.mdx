@@ -17,7 +17,8 @@ several can stack in one frame at no extra target cost beyond the passes.
 | `bloom` | Glow on bright areas | `threshold`, `intensity`, `radius` |
 | `tonemap` | ACES filmic tonemapping | `exposure` |
 | `colorGrade` | Exposure / contrast / saturation / white balance | `exposure`, `contrast`, `saturation`, `temperature`, `tint` |
-| `lutGrade` | Color grading through a lookup-table texture | `u_lut` (texture), `intensity` |
+| `lutGrade` | Color grading through a lookup-table texture, on scene values in the chain | `u_lut` (texture), `intensity` |
+| `displayLut` | A look read off a lookup table by the picture as the display shows it, in the last pass after the output transform | `u_lut` (texture), `intensity` |
 | `agx` | The AgX view transform Blender uses: scene-linear in, display-linear out, so it goes last and the output transform stays `none`. Brings its own table | `contrast` (the look: 1 is AgX Base, 1.2 is Medium High Contrast) |
 | `vignette` | Darkened screen edges | `intensity`, `softness` |
 | `chromaticAberration` | RGB fringing | `intensity` |
@@ -400,6 +401,12 @@ effect: **Settings → Project → Rendering → Output transform**.
 
 It applies to the editor viewport, to Play and to every export, and changing it
 needs no reload. In code: `outputTransform: 'none' | 'aces' | 'neutral'`.
+
+A look authored against the finished picture (a warm LUT from a colourist, a film emulation) belongs after the curve, and no effect in the
+chain can be: they all run on scene values, before it. The **Display LUT** effect (`displayLut`) is the last pass's own stage: the picture is
+curved, encoded for the display, and then read off a 1024x32 table by the colour it will show: 32 slices along x, blue the slice, red along a slice and green up the picture (an image is read from its bottom).
+It adds a texture read to the pass that was running anyway, not a pass, whatever the output transform. Give the table's texture no compression,
+no mips and no sRGB: it is data. In code, `stack.setDisplayLut(textureHandle, amount)`.
 
 <Aside>
 The `tonemap` *effect* in the list above is a separate, optional ACES pass inside the

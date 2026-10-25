@@ -84,7 +84,12 @@ export interface EffectDef {
     label: string;
     /** Set for every built-in effect, by the table at the end of this file. */
     category?: EffectCategory;
-    /** What compiles the effect's draw shader. Absent for a compute effect (see {@link compute}). */
+    /**
+     * Set for an effect that is a stage of the chain's last pass and not a pass of its own ("displayLut"): it has no shader, and the volume's
+     * values are handed to the stack for the last pass to read, which runs once and after the output transform.
+     */
+    stage?: 'output';
+    /** What compiles the effect's draw shader. Absent for a compute effect (see {@link compute}) and an output stage. */
     factory?: () => ShaderHandle;
     /** Set instead of `factory` for an effect that runs as a compute shader. */
     compute?: ComputeEffectSource;
@@ -753,9 +758,23 @@ registerEffect({
     ],
 });
 
+// A graded look read off a table by the picture as the display shows it: the last pass's, after the output transform and the transfer
+// function, which no effect in the chain can be (they run on scene values, before both). For a look authored against the finished image.
+registerEffect({
+    type: 'displayLut',
+    label: 'Display LUT',
+    stage: 'output',
+    uniforms: [
+        { name: 'u_intensity', label: 'Intensity', min: 0, max: 1, step: 0.01, defaultValue: 1 },
+    ],
+    textures: [
+        { name: 'u_lut', label: 'LUT (1024x32, 32 slices, as the display shows it)' },
+    ],
+});
+
 const CATEGORIES: Record<EffectCategory, string[]> = {
     lens: ['bloom', 'depthOfField', 'motionBlur', 'lensFlare', 'filmGrain', 'chromaticAberration', 'lensDistortion', 'vignette', 'sharpen'],
-    color: ['tonemap', 'agx', 'colorGrade', 'lutGrade', 'autoExposure', 'grayscale'],
+    color: ['tonemap', 'agx', 'colorGrade', 'lutGrade', 'displayLut', 'autoExposure', 'grayscale'],
     light: ['ssao', 'gtao', 'ssgi', 'ssr', 'voxelGI', 'contactShadows', 'lightShafts', 'subsurface'],
     atmosphere: ['distanceFog', 'heightFog', 'skyAtmosphere', 'rain'],
     aa: ['fxaa', 'taa'],

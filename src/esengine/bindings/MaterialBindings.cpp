@@ -27,56 +27,6 @@ static EstellaContext& ctx() { return activeCtx(); }
 #define g_renderContext (ctx().tryGet<RenderContext>())
 #define g_resourceManager (ctx().tryGet<resource::ResourceManager>())
 
-// Float component count for a std140 param type (textures have no block slot).
-static u32 materialParamArity(resource::ShaderPropertyType t) {
-    using PT = resource::ShaderPropertyType;
-    switch (t) {
-        case PT::Float: case PT::Int: return 1;
-        case PT::Vec2: return 2;
-        case PT::Vec3: return 3;
-        case PT::Vec4: case PT::Color: return 4;
-        default: return 0;
-    }
-}
-
-// Build the engine-side layout from a parsed shader's #pragma param reflection: non-texture
-// params into the std140 block (declared order == offset order), texture params into sampler
-// slots (their reflected units, >= MATERIAL_TEXTURE_UNIT_BASE).
-static MaterialUniformLayout buildMaterialLayout(const resource::ParsedShader& parsed,
-                                                 const RenderContext& rc) {
-    MaterialUniformLayout layout;
-    layout.blockSize = parsed.materialBlockSize;
-    layout.coverageParam = parsed.coverageParam;
-    layout.tipParam = parsed.tipParam;
-    layout.hairShadowParam = parsed.hairShadowParam;
-    layout.usesGBuffer = parsed.usesGBuffer;
-    layout.usesLights = parsed.usesLights;
-    layout.highPrecision = parsed.highPrecision;
-    layout.vertexBounds = parsed.vertexBounds;
-    layout.vertexHook = !parsed.vertexHook.empty();
-    for (const auto& p : parsed.properties) {
-        if (!p.fromParam) continue;
-        if (p.type == resource::ShaderPropertyType::Texture) {
-            if (p.textureUnit >= 0) {
-                // Resolve the param's `default(<name>)` to a built-in default texture, bound when
-                // a material leaves the param unset.
-                layout.textures.push_back({ p.name, static_cast<u32>(p.textureUnit),
-                                            materialDefaultByName(p.defaultValue) });
-            }
-        } else if (p.std140Offset >= 0) {
-            MaterialParamSlot slot{ p.name, static_cast<u32>(p.std140Offset), materialParamArity(p.type) };
-            // default(a,b,c,d) csv → the slot's initial block value.
-            std::istringstream csv(p.defaultValue);
-            std::string tok;
-            for (u32 i = 0; i < slot.arity && std::getline(csv, tok, ','); ++i) {
-                slot.defaults[i] = std::strtof(tok.c_str(), nullptr);
-            }
-            layout.params.push_back(slot);
-        }
-    }
-    return layout;
-}
-
 u32 material_compileEsshader(const std::string& source, const std::string& featuresCsv) {
     auto* rm = g_resourceManager;
     if (!rm) return 0;
@@ -103,7 +53,7 @@ u32 material_compileEsshader(const std::string& source, const std::string& featu
     if (!handle.isValid()) return 0;
     if (auto* rc = g_renderContext) {
         if (Shader* s = rm->getShader(handle)) {
-            rc->materials().registerLayout(handle, buildMaterialLayout(parsed, *rc));
+            rc->materials().registerLayout(handle, MaterialStore::layoutOf(parsed));
             // Kept so the same material can be compiled for another vertex source
             // (GPU-resident geometry) without the author's file being read again.
             rc->materials().rememberSource(handle, source, featuresCsv);
