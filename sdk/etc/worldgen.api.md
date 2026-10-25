@@ -179,8 +179,10 @@ ev: [number, number, number]
 directionAt: (x: number, z: number) => [number, number, number]
 environment: () => Pick<EnvironmentInputs, "ground" | "space">
 face: number
+fieldsAt: (x: number, z: number) => readonly number[] | null
 frameAt: (x: number, z: number) => PlaneFrame
 ground: (x: number, z: number) => { y: number; up: number; normal: [number, number, number]; } | null
+paintAt: (x: number, z: number) => readonly number[] | null
 planeOf: (dx: number, dy: number, dz: number) => { x: number; z: number; } | null
 planet: () => PlanetFacts | null
 sourcesOnFace: (sources: Iterable<{ x: number; y?: number; z: number; }>, reach: number) => { x: number; z: number; }[]

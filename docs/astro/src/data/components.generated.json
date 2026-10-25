@@ -3929,6 +3929,30 @@
           "range": "≥ 0"
         },
         {
+          "key": "sea",
+          "type": "boolean",
+          "default": "false",
+          "doc": "Whether the planet has a sea: a sphere at the sea level, in which the ground that dips below it stands."
+        },
+        {
+          "key": "seaLevel",
+          "type": "number",
+          "default": "0",
+          "doc": "The height of the sea above the planet's radius, in metres."
+        },
+        {
+          "key": "seaColor",
+          "type": "Color",
+          "default": "#0f476b"
+        },
+        {
+          "key": "seaOpacity",
+          "type": "number",
+          "default": "0.82",
+          "doc": "How much of the sea there is over what is under it.",
+          "range": "0–1, step 0.01"
+        },
+        {
           "key": "layers",
           "type": "array",
           "default": "empty",
@@ -3962,7 +3986,13 @@
         "collisionDistance",
         "collisionLayer",
         "friction",
-        "gravity"
+        "gravity",
+        "seaLevel",
+        "seaColor.r",
+        "seaColor.g",
+        "seaColor.b",
+        "seaColor.a",
+        "seaOpacity"
       ]
     },
     {

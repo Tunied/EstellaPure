@@ -300,6 +300,11 @@ registerEffect({
     label: 'Sky Atmosphere',
     factory: () => postProcessEffects.createSkyAtmosphere(),
     uniforms: [
+        // On a planet the sky is of the ground the camera stands on: the radius, above 0, turns that on, and the centre is where the planet stands.
+        { name: 'u_planetRadius', label: 'Planet Radius', min: 0, max: 100000000, step: 100, defaultValue: 0, neutralValue: 0 },
+        { name: 'u_planetX', label: 'Planet Centre X', min: -100000000, max: 100000000, step: 100, defaultValue: 0 },
+        { name: 'u_planetY', label: 'Planet Centre Y', min: -100000000, max: 100000000, step: 100, defaultValue: 0 },
+        { name: 'u_planetZ', label: 'Planet Centre Z', min: -100000000, max: 100000000, step: 100, defaultValue: 0 },
         // How bright the sky is.
         { name: 'u_intensity', label: 'Brightness', min: 0, max: 8, step: 0.01, defaultValue: 1 },
         // How much of the sky behind the scene (a panorama, a clear colour) is kept: 0 replaces it, 1 leaves it.

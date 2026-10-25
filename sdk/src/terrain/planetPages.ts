@@ -104,7 +104,7 @@ function encodePlanetPage(src: PlanetPageSource, node: SphereNode, dirs: Float32
 }
 
 /** How many samples apart a painter is asked: it paints as a biome does, over many metres, and is read at every few texels and filtered between. */
-const PAINT_STRIDE = 4;
+const PAINT_STRIDE = 8;
 
 /**
  * The page's paint from a painter asked every PAINT_STRIDE samples (from the first sample inside the page, so two pages that share an edge ask the same

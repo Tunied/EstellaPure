@@ -29,6 +29,23 @@ export interface PlaneFrame {
     ev: [number, number, number];
 }
 
+/** Metres between the points of a tile, the cells along its side, and so its side; how many tiles a face keeps. */
+const TILE_STEP = 1.5;
+const TILE_CELLS = 32;
+const TILE_SIDE = TILE_STEP * TILE_CELLS;
+const TILES_KEPT = 6000;
+
+/** A square of the planet's answer: its heights, its paint and its fields at a grid of points (one extra row and column each side). */
+interface Tile {
+    x0: number;
+    z0: number;
+    n: number;
+    heights: Float32Array;
+    paint: Float32Array | undefined;
+    fields: Float32Array | undefined;
+    fieldCount: number;
+}
+
 /** One face of a planet as a plane. */
 export class PlanetFace {
     constructor(readonly face: number, readonly planet: () => PlanetFacts | null) {}
@@ -66,18 +83,76 @@ export class PlanetFace {
         return [f.centre[0] + d[0] * r, f.centre[1] + d[1] * r, f.centre[2] + d[2] * r];
     }
 
+    /** The tiles of the planet's answer this face has read, newest last: a world is laid out from these, not from a call of the provider for each point it asks about. */
+    private readonly tiles_ = new Map<string, Tile>();
+
+    /** The tile of the plane that holds (x, z), read from the provider in one call for all its points; null while the provider answers later. */
+    private tile(x: number, z: number): Tile | null {
+        const tx = Math.floor(x / TILE_SIDE), tz = Math.floor(z / TILE_SIDE), key = `${tx},${tz}`;
+        const had = this.tiles_.get(key);
+        if (had) { this.tiles_.delete(key); this.tiles_.set(key, had); return had; }
+        const f = this.facts();
+        if (!f?.sampleMany) return null;
+        // One more point than cells each way, and a point past each edge, so the neighbours' tiles agree at the join and a slope can be taken at the edge.
+        const n = TILE_CELLS + 3;
+        const dirs = new Float32Array(n * n * 3);
+        for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+            const d = this.directionAt(tx * TILE_SIDE + (i - 1) * TILE_STEP, tz * TILE_SIDE + (j - 1) * TILE_STEP);
+            dirs[(j * n + i) * 3] = d[0]; dirs[(j * n + i) * 3 + 1] = d[1]; dirs[(j * n + i) * 3 + 2] = d[2];
+        }
+        const got = f.sampleMany(dirs, n * n);
+        if (!got) return null;
+        const tile: Tile = { x0: tx * TILE_SIDE - TILE_STEP, z0: tz * TILE_SIDE - TILE_STEP, n, heights: got.heights, paint: got.paint, fields: got.fields, fieldCount: f.fieldNames.length };
+        this.tiles_.set(key, tile);
+        if (this.tiles_.size > TILES_KEPT) this.tiles_.delete(this.tiles_.keys().next().value!);
+        return tile;
+    }
+
+    /** The cell of a tile that holds (x, z), and where in it. */
+    private cellOf(t: Tile, x: number, z: number): { i: number; j: number; fx: number; fz: number } {
+        const u = (x - t.x0) / TILE_STEP, v = (z - t.z0) / TILE_STEP;
+        const i = Math.min(Math.max(Math.floor(u), 0), t.n - 2), j = Math.min(Math.max(Math.floor(v), 0), t.n - 2);
+        return { i, j, fx: Math.min(Math.max(u - i, 0), 1), fz: Math.min(Math.max(v - j, 0), 1) };
+    }
+
+    /** The ground's height above the radius at (x, z), filtered between the tile's points; null where it cannot be said yet. */
+    private heightAt(x: number, z: number): number | null {
+        const t = this.tile(x, z);
+        if (!t) return null;
+        const { i, j, fx, fz } = this.cellOf(t, x, z), n = t.n, h = t.heights;
+        const a = h[j * n + i]!, b = h[j * n + i + 1]!, c = h[(j + 1) * n + i]!, d = h[(j + 1) * n + i + 1]!;
+        return (a + (b - a) * fx) * (1 - fz) + (c + (d - c) * fx) * fz;
+    }
+
+    /** The planet's layers' paint at (x, z) from the provider (the nearest point of its tile), or null where it does not paint or cannot say yet. */
+    paintAt(x: number, z: number): readonly number[] | null {
+        const t = this.tile(x, z);
+        if (!t?.paint) return null;
+        const { i, j, fx, fz } = this.cellOf(t, x, z), k = (j + (fz > 0.5 ? 1 : 0)) * t.n + i + (fx > 0.5 ? 1 : 0);
+        return [t.paint[k * 4]!, t.paint[k * 4 + 1]!, t.paint[k * 4 + 2]!, t.paint[k * 4 + 3]!];
+    }
+
+    /** The provider's own fields at (x, z), filtered between the tile's points; null where it has none or cannot say yet. */
+    fieldsAt(x: number, z: number): readonly number[] | null {
+        const t = this.tile(x, z);
+        if (!t?.fields || t.fieldCount === 0) return null;
+        const { i, j, fx, fz } = this.cellOf(t, x, z), m = t.fieldCount, n = t.n;
+        const out: number[] = [];
+        for (let c = 0; c < m; c++) {
+            const a = t.fields[(j * n + i) * m + c]!, b = t.fields[(j * n + i + 1) * m + c]!, e = t.fields[((j + 1) * n + i) * m + c]!, d = t.fields[((j + 1) * n + i + 1) * m + c]!;
+            out.push((a + (b - a) * fx) * (1 - fz) + (e + (d - e) * fx) * fz);
+        }
+        return out;
+    }
+
     /** The ground under a point of the plane: its height above the radius, how much it faces away from the centre, and its normal along the plane's x, up and z. */
     ground(x: number, z: number): { y: number; up: number; normal: [number, number, number] } | null {
-        const f = this.facts();
-        if (!f?.height) return null;
-        const at = (px: number, pz: number): number | null => { const d = this.directionAt(px, pz); return f.height!(d[0], d[1], d[2]); };
-        const h = at(x, z);
+        const h = this.heightAt(x, z);
         if (h === null) return null;
-        // The normal from the ground a couple of metres either way along the plane, taken in the frame there.
-        const step = 2;
-        const hx0 = at(x - step, z), hx1 = at(x + step, z), hz0 = at(x, z - step), hz1 = at(x, z + step);
+        // The normal from the ground a step either way along the plane: the rise over the run (the curve of the planet itself is not a slope).
+        const step = TILE_STEP;
+        const hx0 = this.heightAt(x - step, z), hx1 = this.heightAt(x + step, z), hz0 = this.heightAt(x, z - step), hz1 = this.heightAt(x, z + step);
         if (hx0 === null || hx1 === null || hz0 === null || hz1 === null) return { y: h, up: 1, normal: [0, 1, 0] };
-        // The ground's rise along each axis, over the run of the chord between the two points (the curve itself is not a slope).
         const run = 2 * step;
         const nx = -(hx1 - hx0) / run, nz = -(hz1 - hz0) / run;
         const len = Math.hypot(nx, 1, nz);

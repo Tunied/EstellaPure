@@ -10,10 +10,16 @@ import { Zones } from '../src/worldgen/zones';
 
 const radius = 4000;
 /** A planet whose ground is a gentle function of the direction, with a hill, so slope and height both vary. */
-const facts: PlanetFacts = {
-    centre: [0, -radius, 0], radius, gravity: 0, paint: null, layers: [], fieldNames: [], fieldsAt: null,
-    height: (dx, dy, dz) => 6 + 5 * Math.sin(dx * 40) * Math.cos(dz * 33) + 3 * dy,
-};
+/** A planet whose ground is `height` of the direction, answered for many directions at once as a provider does. */
+const planetOf = (height: (dx: number, dy: number, dz: number) => number): PlanetFacts => ({
+    centre: [0, -radius, 0], radius, gravity: 0, paint: null, layers: [], fieldNames: [], fieldsAt: null, height,
+    sampleMany: (directions, count) => {
+        const heights = new Float32Array(count);
+        for (let i = 0; i < count; i++) heights[i] = height(directions[i * 3]!, directions[i * 3 + 1]!, directions[i * 3 + 2]!);
+        return { heights };
+    },
+});
+const facts = planetOf((dx, dy, dz) => 6 + 5 * Math.sin(dx * 40) * Math.cos(dz * 33) + 3 * dy);
 const planet = (): PlanetFacts => facts;
 
 const rules: WorldRules = {
@@ -49,13 +55,13 @@ describe('a planet\'s face as a plane', () => {
     });
 
     it('reads the ground and its normal, level ground facing up', () => {
-        const flat: PlanetFacts = { ...facts, height: () => 4 };
+        const flat = planetOf(() => 4);
         const f = new PlanetFace(2, () => flat);
         const g = f.ground(10, 20)!;
         expect(g.y).toBe(4);
         expect(g.up).toBeCloseTo(1, 9);
         expect(g.normal[1]).toBeCloseTo(1, 9);
-        const tilted: PlanetFacts = { ...facts, height: (dx) => dx * 4000 * 0.5 };
+        const tilted = planetOf((dx) => dx * 4000 * 0.5);
         const t = new PlanetFace(2, () => tilted).ground(0, 0)!;
         expect(t.up).toBeLessThan(0.95);
     });

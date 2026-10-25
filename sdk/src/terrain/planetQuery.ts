@@ -12,6 +12,7 @@
  */
 import { defineResource } from '../ecs/resource';
 import type { Entity } from '../types';
+import type { PlanetSamples } from './planetProvider';
 
 /** What a planet says of itself, from its component and its provider. */
 export interface PlanetFacts {
@@ -28,6 +29,8 @@ export interface PlanetFacts {
     /** The names of the provider's own fields, and their values in a direction (null where it cannot say yet). */
     fieldNames: readonly string[];
     fieldsAt: ((dx: number, dy: number, dz: number) => readonly number[] | null) | null;
+    /** The provider's answer for many directions at once (heights, paint, fields), or null while it answers later: a world is laid out from tiles of it, not a call a point. */
+    sampleMany: ((directions: Float32Array, count: number) => PlanetSamples | null) | null;
 }
 
 /**

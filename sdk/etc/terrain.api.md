@@ -194,6 +194,10 @@ macroScale: number
 macroVariation: number
 provider: string
 radius: number
+sea: boolean
+seaColor: Color
+seaLevel: number
+seaOpacity: number
 seed: number
 world: string
 ```
@@ -208,6 +212,7 @@ height: ((dx: number, dy: number, dz: number) => number | null) | null
 layers: readonly string[]
 paint: ((dx: number, dy: number, dz: number) => readonly number[] | null) | null
 radius: number
+sampleMany: ((directions: Float32Array, count: number) => PlanetSamples | null) | null
 ```
 
 ## PlanetPageSource — interface @experimental

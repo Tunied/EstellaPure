@@ -37,6 +37,10 @@ export const atmosphereEffects = {
 #pragma param u_windSpeed float default(0.05) range(0,2)
 #pragma param u_windDirection float default(60) range(0,360)
 #pragma param u_followSun float default(1) range(0,1)
+#pragma param u_planetRadius float default(0) range(0,100000000)
+#pragma param u_planetX float default(0) range(-100000000,100000000)
+#pragma param u_planetY float default(0) range(-100000000,100000000)
+#pragma param u_planetZ float default(0) range(-100000000,100000000)
 #pragma param u_sunAzimuth float default(40) range(0,360)
 #pragma param u_sunElevation float default(35) range(-90,90)
 #pragma param u_cloudShadow float default(0) range(0,1)
@@ -97,6 +101,14 @@ vec2 sphereHit(vec3 o, vec3 d, float r) {
     if (disc < 0.0) return vec2(-1.0);
     float s = sqrt(disc);
     return vec2(-b - s, -b + s);
+}
+
+/// The turn that takes up to +Y by the shortest way: the sky is worked out where up is +Y, so on a round world it is worked out in the frame of the ground the camera stands on.
+mat3 upFrame(vec3 up) {
+    vec3 v = vec3(-up.z, 0.0, up.x);
+    float k = 1.0 / max(1.0 + up.y, 1e-4);
+    mat3 cross = mat3(0.0, v.z, -v.y, -v.z, 0.0, v.x, v.y, -v.x, 0.0);
+    return mat3(1.0) + cross + cross * cross * k;
 }
 
 /// The air between p and the top of the atmosphere along d, as (Rayleigh, Mie) optical depth; z is 0 where the planet is in the way.
@@ -206,6 +218,12 @@ void main() {
     float az = radians(u_sunAzimuth);
     float el = radians(u_sunElevation);
     vec3 sun = follow ? lightDir.xyz : vec3(cos(el) * sin(az), sin(el), cos(el) * cos(az));
+    if (u_planetRadius > 0.0) {
+        // Up is away from the planet's centre where the camera is: the direction and the sun are turned into the frame where that is +Y.
+        mat3 frame = upFrame(normalize(entry + u_renderOrigin.xyz - vec3(u_planetX, u_planetY, u_planetZ)));
+        dir = frame * dir;
+        sun = frame * sun;
+    }
     float se = sun.y;
 
     float overcast = clamp(u_overcast, 0.0, 1.0);
@@ -430,6 +448,16 @@ fn cloudDensity(p : vec3f, coverage : f32, base : f32, thick : f32, octaves : i3
     return smoothstep(1.0 - coverage, 1.0 - coverage + 0.22, n) * shape;
 }
 
+fn frame_origin() -> vec3f { return frame.renderOrigin.xyz; }
+
+/// The turn that takes up to +Y by the shortest way: the sky is worked out where up is +Y, so on a round world in the frame of the ground the camera stands on.
+fn upFrame(up : vec3f) -> mat3x3f {
+    let v = vec3f(-up.z, 0.0, up.x);
+    let k = 1.0 / max(1.0 + up.y, 1e-4);
+    let cross = mat3x3f(vec3f(0.0, v.z, -v.y), vec3f(-v.z, 0.0, v.x), vec3f(v.y, -v.x, 0.0));
+    return mat3x3f(vec3f(1.0, 0.0, 0.0), vec3f(0.0, 1.0, 0.0), vec3f(0.0, 0.0, 1.0)) + cross + (cross * cross) * k;
+}
+
 fn cloudShadowAt(world : vec3f, cam : vec3f, sun : vec3f, coverage : f32, overcast : f32, drift : vec3f, px : vec2f) -> f32 {
     let strength = mc.u_cloudShadow * smoothstep(0.02, 0.14, sun.y);
     if (strength <= 0.001 || coverage <= 0.01) { return 1.0; }
@@ -460,7 +488,7 @@ fn cloudShadowAt(world : vec3f, cam : vec3f, sun : vec3f, coverage : f32, overca
     if (geometry && mc.u_cloudShadow <= 0.001) { return src; }
 
     let entry = worldFromDepth(v.v_texCoord, 0.0);
-    let dir = normalize(worldFromDepth(v.v_texCoord, 1.0) - entry);
+    var dir = normalize(worldFromDepth(v.v_texCoord, 1.0) - entry);
 
     let found = findSun();
     let follow = mc.u_followSun > 0.5 && found.dir.w > 0.5;
@@ -468,6 +496,11 @@ fn cloudShadowAt(world : vec3f, cam : vec3f, sun : vec3f, coverage : f32, overca
     let el = radians(mc.u_sunElevation);
     var sun = vec3f(cos(el) * sin(az), sin(el), cos(el) * cos(az));
     if (follow) { sun = found.dir.xyz; }
+    if (mc.u_planetRadius > 0.0) {
+        let frame = upFrame(normalize(entry + frame_origin() - vec3f(mc.u_planetX, mc.u_planetY, mc.u_planetZ)));
+        dir = frame * dir;
+        sun = frame * sun;
+    }
     let se = sun.y;
 
     let overcast = clamp(mc.u_overcast, 0.0, 1.0);

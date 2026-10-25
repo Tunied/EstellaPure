@@ -6760,6 +6760,10 @@ macroScale: number
 macroVariation: number
 provider: string
 radius: number
+sea: boolean
+seaColor: Color
+seaLevel: number
+seaOpacity: number
 seed: number
 world: string
 ```

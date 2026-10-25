@@ -522,11 +522,11 @@ export class WorldGenPlugin implements Plugin {
             // The planet's layers, as the provider paints them, are fields (`paint.grass` for a layer file grass.esterrainlayer), as a terrain's are.
             const paintFields: Record<string, (x: number, z: number) => number> = {};
             (facts()?.layers ?? []).forEach((name, i) => {
-                paintFields[`paint.${name}`] = (x, z) => { const d = face.directionAt(x, z); return facts()?.paint?.(d[0], d[1], d[2])?.[i] ?? 0; };
+                paintFields[`paint.${name}`] = (x, z) => face.paintAt(x, z)?.[i] ?? 0;
             });
             // And the provider's own fields (an ecology) by the names it gives them.
             (facts()?.fieldNames ?? []).forEach((name, i) => {
-                paintFields[name] = (x, z) => { const d = face.directionAt(x, z); return facts()?.fieldsAt?.(d[0], d[1], d[2])?.[i] ?? 0; };
+                paintFields[name] = (x, z) => face.fieldsAt(x, z)?.[i] ?? 0;
             });
             const env = new Environment({
                 seed: data.seed, noise: rules.noise, fields: { ...paintFields, ...rules.fields },
