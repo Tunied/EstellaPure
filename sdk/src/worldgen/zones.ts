@@ -13,8 +13,8 @@ import { hash01, hashString } from './fields';
 
 /** A zone's outline: a circle, or a rectangle turned by `yaw` radians about the vertical. */
 export type ZoneShape =
-    | { type: 'circle'; x: number; z: number; radius: number }
-    | { type: 'rect'; x: number; z: number; halfX: number; halfZ: number; yaw?: number };
+    | { type: 'circle'; x: number; z: number; radius: number; y?: number }
+    | { type: 'rect'; x: number; z: number; halfX: number; halfZ: number; yaw?: number; y?: number; facing?: readonly [number, number, number] };
 
 export interface ZoneDef {
     /** Stable: what a placement records as the zone it stands in or was kept out by. */

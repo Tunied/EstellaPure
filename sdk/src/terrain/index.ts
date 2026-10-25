@@ -25,7 +25,7 @@ registerTerrainSupport();
 export { paintWeights } from './paint';
 export { PlanetRegistry, PlanetRegistryRes, type PlanetFacts } from './planetQuery';
 export { Planet, Planets, PlanetPlugin, planetPlugin, type PlanetData, type PlanetStatus } from './planetPlugin';
-export { registerPlanetProvider, planetProvider, type PlanetProvider, type PlanetRegion } from './planetProvider';
+export { registerPlanetProvider, planetProvider, type PlanetProvider, type PlanetRegion, type PlanetSamples } from './planetProvider';
 export { makePlanetPage, tangentFrame, type PlanetPageSource } from './planetPages';
 export {
     FACES, direction, faceOf, levelsFor, nodeAt, nodeBound, nodeDistance, nodePoint, nodeRect, nodeSpan, selectSphereNodes, sphereNodeKey, sphereRange,

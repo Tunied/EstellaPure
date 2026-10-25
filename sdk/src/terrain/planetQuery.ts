@@ -22,11 +22,37 @@ export interface PlanetFacts {
     gravity: number;
     /** The ground's height above the radius in a direction from the centre, or null while the provider answers later or the planet is not made. */
     height: ((dx: number, dy: number, dz: number) => number | null) | null;
+    /** The weights of the planet's layers there, as its provider paints them (null where it does not, or cannot say yet), and the layers' names (their files', without the extension). */
+    paint: ((dx: number, dy: number, dz: number) => readonly number[] | null) | null;
+    layers: readonly string[];
+    /** The names of the provider's own fields, and their values in a direction (null where it cannot say yet). */
+    fieldNames: readonly string[];
+    fieldsAt: ((dx: number, dy: number, dz: number) => readonly number[] | null) | null;
 }
+
+/**
+ * What paints a planet's ground: given a direction from the centre and the paint the provider gave there (the weights of the planet's layers), the paint
+ * to use. A generated world's biomes are one.
+ */
+export type PlanetPainter = (dx: number, dy: number, dz: number, base: readonly number[]) => readonly number[];
 
 /** The planets of the app. @experimental */
 export class PlanetRegistry {
     readonly planets = new Map<Entity, PlanetFacts>();
+    private readonly painters_ = new Map<Entity, PlanetPainter>();
+    /** Bumped when a painter is set, changed or taken away, so the planet's pages are painted again. */
+    paintRevision = 0;
+
+    /** Sets what paints the planet `entity`'s ground (null takes it away); a planet paints with its provider's paint until then. */
+    setPaint(entity: Entity, painter: PlanetPainter | null): void {
+        if (painter) this.painters_.set(entity, painter); else this.painters_.delete(entity);
+        this.paintRevision++;
+    }
+
+    /** What paints the planet `entity`'s ground, if anything does. */
+    paintOf(entity: Entity): PlanetPainter | null {
+        return this.painters_.get(entity) ?? null;
+    }
 
     /** The planet whose surface is nearest the position (a planet pulls from any distance), or null with none. */
     nearest(x: number, y: number, z: number): Entity | null {

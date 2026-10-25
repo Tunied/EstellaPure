@@ -9,8 +9,8 @@ const a = 1 as Entity, b = 2 as Entity;
 
 describe('the planets of a world', () => {
     const registry = new PlanetRegistry();
-    registry.planets.set(a, { centre: [0, -4000, 0], radius: 4000, gravity: 9.81, height: (dx, dy, dz) => 10 * dy + 0 * dx * dz });
-    registry.planets.set(b, { centre: [50000, 0, 0], radius: 1000, gravity: 3, height: null });
+    registry.planets.set(a, { centre: [0, -4000, 0], radius: 4000, gravity: 9.81, height: (dx, dy, dz) => 10 * dy + 0 * dx * dz, paint: null, layers: [], fieldNames: [], fieldsAt: null });
+    registry.planets.set(b, { centre: [50000, 0, 0], radius: 1000, gravity: 3, height: null, paint: null, layers: [], fieldNames: [], fieldsAt: null });
 
     it('name the planet whose surface is nearest, from anywhere', () => {
         expect(registry.nearest(0, 100, 0)).toBe(a);

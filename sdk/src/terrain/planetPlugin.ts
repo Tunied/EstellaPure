@@ -37,6 +37,7 @@ import { PlanetRegistry, PlanetRegistryRes } from './planetQuery';
 import { removePlanetCollision, updatePlanetCollision } from './planetCollision';
 import { planetProvider, planetProvidersRevision, type PlanetProvider } from './planetProvider';
 import { makePlanetPage, type PlanetPageSource } from './planetPages';
+import type { PlanetSamples } from './planetProvider';
 import { levelsFor, nodePoint, selectSphereNodes, sphereNodeKey, type SphereNode, type SphereTreeParams } from './sphere';
 
 /** The fields of the `Planet` component. @experimental */
@@ -139,6 +140,8 @@ interface Built {
     packing: boolean;
     /** The registry's revision when the provider was last looked for, so a late registration is noticed. */
     providers: number;
+    /** The painters' revision the pages were last painted at. */
+    painted: number;
 }
 
 /** Where a planet stands: still being made, ready, or failed (with why). */
@@ -190,12 +193,16 @@ export class PlanetPlugin implements Plugin {
                 if (built.failure || !built.source || !built.tree) continue;
                 const at = (app.world.get(entity, Transform) as TransformData).worldPosition;
                 const source = built.source;
+                source.paint = () => registry.paintOf(entity);
+                // A painter set, changed or taken away paints every page again.
+                if (built.painted !== registry.paintRevision) { built.painted = registry.paintRevision; built.table.clear(); }
                 registry.planets.set(entity, {
                     centre: [at.x, at.y, at.z], radius: built.data.radius, gravity: built.data.gravity,
-                    height: (dx, dy, dz) => {
-                        const got = source.provider.sample({ world: source.world, seed: source.seed, version: source.version, radius: source.radius, directions: Float32Array.of(dx, dy, dz), count: 1 });
-                        return got instanceof Promise ? null : (got.heights[0] ?? null);
-                    },
+                    height: (dx, dy, dz) => sampleAt(source, dx, dy, dz)?.heights[0] ?? null,
+                    paint: (dx, dy, dz) => { const got = sampleAt(source, dx, dy, dz); return got?.paint ? Array.from(got.paint.subarray(0, 4)) : null; },
+                    fieldNames: source.provider.fields ?? [],
+                    fieldsAt: source.provider.fields ? (dx, dy, dz) => { const got = sampleAt(source, dx, dy, dz); return got?.fields ? Array.from(got.fields) : null; } : null,
+                    layers: built.data.layers.map((ref, i) => (ref.split('/').pop() ?? '').replace(/\.[^.]*$/, '') || `layer${i}`),
                 });
                 updatePlanetCollision(app, entity, built.source, built.epoch, built.data);
                 if (!built.instance) {
@@ -220,7 +227,7 @@ export class PlanetPlugin implements Plugin {
         const built: Built = {
             signature, data: { ...data }, provider: null, source: null, tree: null, epoch, table: new PageTable(ATLAS_SIZE),
             heights: 0, paint: 0, mesh: 0, instance: 0, nodes: new Map(), spare: [], wanted: new Map(), asked: new Set(), pending: false, failure: null, arrays: [], packed: '', packing: false,
-            providers: planetProvidersRevision(),
+            providers: planetProvidersRevision(), painted: 0,
         };
         const provider = planetProvider(data.provider);
         if (!provider) {
@@ -516,6 +523,19 @@ export class PlanetPlugin implements Plugin {
         built.instance = built.mesh = built.heights = built.paint = 0;
         built.table.clear();
     }
+}
+
+/** The last place asked of a provider, and what it said: a generated world reads the height, the paint and each field of one point in turn. */
+let lastAsked: { source: PlanetPageSource; key: string; got: PlanetSamples } | null = null;
+
+/** The provider's answer for one direction, from its last answer where it is the same place; null while it answers later. */
+function sampleAt(source: PlanetPageSource, dx: number, dy: number, dz: number): PlanetSamples | null {
+    const key = `${dx},${dy},${dz}`;
+    if (lastAsked && lastAsked.source === source && lastAsked.key === key) return lastAsked.got;
+    const got = source.provider.sample({ world: source.world, seed: source.seed, version: source.version, radius: source.radius, directions: Float32Array.of(dx, dy, dz), count: 1 });
+    if (got instanceof Promise) return null;
+    lastAsked = { source, key, got };
+    return got;
 }
 
 /** What, changed, makes the planet again: everything but the colours and the wander, which are read each frame. */

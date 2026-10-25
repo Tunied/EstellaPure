@@ -6858,6 +6858,7 @@ plant: string | null
 recipe: string
 recipeVersion: number
 scale: number
+up: [number, number, number] | undefined
 x: number
 y: number
 yaw: number
@@ -6977,9 +6978,10 @@ static prototype: PlanetPlugin
 
 ## PlanetProvider — interface @experimental
 ```
+fields: readonly string[] | undefined
 id: string
 range: (seed: number, version: number, radius: number) => [number, number]
-sample: (region: PlanetRegion) => TerrainSamples | Promise<TerrainSamples>
+sample: (region: PlanetRegion) => PlanetSamples | Promise<PlanetSamples>
 versions: readonly number[]
 ```
 
@@ -12544,7 +12546,9 @@ ComponentDef<WorldGenData>
 ```
 paintGround: boolean
 rules: string
+seaLevel: number
 seed: number
+surface: number
 version: number
 world: string
 ```
@@ -12816,8 +12820,8 @@ shape: ZoneShape
 
 ## ZoneShape — type @experimental
 ```
-| { type: 'circle'; x: number; z: number; radius: number }
-    | { type: 'rect'; x: number; z: number; halfX: number; halfZ: number; yaw?: number }
+| { type: 'circle'; x: number; z: number; radius: number; y?: number }
+    | { type: 'rect'; x: number; z: number; halfX: number; halfZ: number; yaw?: number; y?: number; facing?: readonly [number, number, number] }
 ```
 
 ## ZoneShapeKind — const @experimental

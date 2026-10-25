@@ -30,6 +30,11 @@ export interface EnvironmentInputs {
     waterDepth?(x: number, z: number, y: number): number | null;
     /** How far (x, z) is from the water's edge across the ground: above zero on land, below in the water, null where no water is known. */
     shoreDistance?(x: number, z: number): number | null;
+    /**
+     * Where (x, z) is in the space the noise fields are read from. Absent, the noise is flat, over x and z; a round world gives the point's place in
+     * three dimensions, so a field wanders over it with no seam where its ground's patches meet.
+     */
+    space?(x: number, z: number): readonly [number, number, number];
     /** The noise fields; absent ones keep their defaults (moisture 900, temperature 2400, rock 500 world units). */
     noise?: Partial<Record<string, NoiseField>>;
     /** Fields of the game's own. */
@@ -61,6 +66,34 @@ export function hashString(s: string): number {
     let h = 0x811c9dc5 | 0;
     for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193);
     return h | 0;
+}
+
+/** Fractal value noise in three dimensions, 0 to 1: what a round world's slow fields are read from, which has no seam and no pole. */
+export function fbm3(x: number, y: number, z: number, seed: number, octaves: number): number {
+    let sum = 0, norm = 0, amp = 1, freq = 1;
+    for (let o = 0; o < octaves; o++) {
+        sum += noise3(x * freq, y * freq, z * freq, seed + o * 131) * amp;
+        norm += amp;
+        amp *= 0.5;
+        freq *= 2;
+    }
+    return sum / norm;
+}
+
+function hash3(x: number, y: number, z: number, seed: number): number {
+    return hash01(x, y, z, seed);
+}
+
+/** Smooth value noise in three dimensions, 0 to 1, at a point measured in lattice cells. */
+function noise3(x: number, y: number, z: number, seed: number): number {
+    const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);
+    const fx = x - ix, fy = y - iy, fz = z - iz;
+    const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy), sz = fz * fz * (3 - 2 * fz);
+    const c = (dx: number, dy: number, dz: number): number => hash3(ix + dx, iy + dy, iz + dz, seed);
+    const x00 = c(0, 0, 0) + (c(1, 0, 0) - c(0, 0, 0)) * sx, x10 = c(0, 1, 0) + (c(1, 1, 0) - c(0, 1, 0)) * sx;
+    const x01 = c(0, 0, 1) + (c(1, 0, 1) - c(0, 0, 1)) * sx, x11 = c(0, 1, 1) + (c(1, 1, 1) - c(0, 1, 1)) * sx;
+    const y0 = x00 + (x10 - x00) * sy, y1 = x01 + (x11 - x01) * sy;
+    return y0 + (y1 - y0) * sz;
 }
 
 /** Fractal value noise, 0 to 1. */
@@ -108,7 +141,10 @@ export class Environment {
         lazy('waterDepth', () => { const gr = ground(); return gr && this.inputs.waterDepth ? this.inputs.waterDepth(x, z, gr.y) ?? -Infinity : -Infinity; });
         lazy('shoreDistance', () => this.inputs.shoreDistance?.(x, z) ?? Infinity);
         for (const [name, f] of Object.entries(this.noise_)) {
-            lazy(name, () => fbm(x / Math.max(f.scale, 1e-6), z / Math.max(f.scale, 1e-6), this.seeds_[name]!, Math.max(1, f.octaves ?? 3)));
+            const scale = Math.max(f.scale, 1e-6), octaves = Math.max(1, f.octaves ?? 3);
+            if (this.inputs.space) {
+                lazy(name, () => { const p = this.inputs.space!(x, z); return fbm3(p[0] / scale, p[1] / scale, p[2] / scale, this.seeds_[name]!, octaves); });
+            } else lazy(name, () => fbm(x / scale, z / scale, this.seeds_[name]!, octaves));
         }
         for (const [name, f] of Object.entries(this.inputs.fields ?? {})) lazy(name, () => f(x, z, at));
         for (const o of this.inputs.overrides?.(x, z) ?? []) {

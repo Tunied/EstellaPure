@@ -42,6 +42,8 @@ export interface Placement {
     scale: number;
     /** The ground's normal under it, which an aligned one leans with. */
     normal: [number, number, number];
+    /** Which way is up where it stands, on a round world (where it is not +Y); an upright one stands along it. */
+    up?: [number, number, number];
     attach: 'upright' | 'align';
     mesh: number;
     material: number;

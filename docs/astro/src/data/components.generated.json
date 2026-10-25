@@ -3922,6 +3922,13 @@
           "advanced": true
         },
         {
+          "key": "gravity",
+          "type": "number",
+          "default": "0",
+          "doc": "How hard the planet pulls bodies toward its centre, in metres a second squared at the surface (9.81 is the Earth's). Needs 3D physics; the world's own gravity is taken off the bodies it pulls.",
+          "range": "≥ 0"
+        },
+        {
           "key": "layers",
           "type": "array",
           "default": "empty",
@@ -3954,7 +3961,8 @@
         "macroVariation",
         "collisionDistance",
         "collisionLayer",
-        "friction"
+        "friction",
+        "gravity"
       ]
     },
     {
@@ -7993,11 +8001,29 @@
           "type": "boolean",
           "default": "true",
           "doc": "Whether the biomes paint the terrain."
+        },
+        {
+          "key": "surface",
+          "type": "enum",
+          "default": "Plane",
+          "doc": "Plane: laid out over a Terrain. Planet: this entity is also a Planet, and the world is laid out over its six faces.",
+          "values": [
+            "Plane",
+            "Planet"
+          ]
+        },
+        {
+          "key": "seaLevel",
+          "type": "number",
+          "default": "0",
+          "doc": "The height of the sea above the planet's radius: ground lower than this is under water."
         }
       ],
       "animatable": [
         "version",
-        "seed"
+        "seed",
+        "surface",
+        "seaLevel"
       ]
     },
     {

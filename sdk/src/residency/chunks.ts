@@ -343,20 +343,20 @@ export function streamingSourcesOf(app: App): ChunkSource[] {
     for (const e of world.getEntitiesWithComponents([WorldStreamingSource, Transform])) {
         if (!(world.get(e, WorldStreamingSource) as WorldStreamingSourceData).enabled) continue;
         const p = (world.get(e, Transform) as TransformData).worldPosition;
-        out.push({ x: p.x, z: p.z });
+        out.push({ x: p.x, y: p.y, z: p.z });
     }
     if (out.length > 0) return out;
     if (app.hasResource(EditorView)) {
         const view = app.getResource(EditorView);
         if (view.active && view.perspective) {
             const eye = editorViewEye(view);
-            return [{ x: eye.x, z: eye.z }];
+            return [{ x: eye.x, y: eye.y, z: eye.z }];
         }
     }
     for (const e of world.getEntitiesWithComponents([Camera, Transform])) {
         if (!(world.get(e, Camera) as CameraData).isActive) continue;
         const p = (world.get(e, Transform) as TransformData).worldPosition;
-        out.push({ x: p.x, z: p.z });
+        out.push({ x: p.x, y: p.y, z: p.z });
     }
     return out;
 }

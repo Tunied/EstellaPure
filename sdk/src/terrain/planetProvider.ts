@@ -11,6 +11,12 @@
  */
 import type { TerrainSamples } from './provider';
 
+/** What a planet provider answers: the heights and paint of a terrain's, and the values of the fields it names, a sample after another. */
+export interface PlanetSamples extends TerrainSamples {
+    /** `fields.length` values a sample, in the order the provider's `fields` names them. */
+    fields?: Float32Array;
+}
+
 /** What a provider is asked to sample: a list of unit directions from the planet's centre. */
 export interface PlanetRegion {
     /** The world (a planet) the ground belongs to, as the game names it. */
@@ -33,8 +39,13 @@ export interface PlanetProvider {
     readonly versions: readonly number[];
     /** The least and most height above the radius its ground can have for this seed, version and radius: what the GPU encodes heights over. */
     range(seed: number, version: number, radius: number): [number, number];
-    /** The ground in the directions asked: heights in metres above the radius, and the layer weights if it paints. May answer later. */
-    sample(region: PlanetRegion): TerrainSamples | Promise<TerrainSamples>;
+    /**
+     * The names of fields the ground has beyond its height and paint, which a generated world reads as part of its environment (an ecology: how much of
+     * a place is a wetland). A game's own generator decides them, so the ground that is drawn and what grows on it come from one function.
+     */
+    readonly fields?: readonly string[];
+    /** The ground in the directions asked: heights in metres above the radius, the layer weights if it paints, and its fields if it has any. May answer later. */
+    sample(region: PlanetRegion): PlanetSamples | Promise<PlanetSamples>;
 }
 
 const providers_ = new Map<string, PlanetProvider>();

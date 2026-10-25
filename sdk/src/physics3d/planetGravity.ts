@@ -15,7 +15,7 @@ import { defineSystem, Schedule } from '../ecs/system';
 import { Transform } from '../ecs/component';
 import type { Entity } from '../types';
 import { PlanetRegistryRes } from '../terrain/planetQuery';
-import { Physics3DRuntime } from './Physics3DPlugin';
+import { Physics3DRuntime } from './physics3dRuntime';
 import { RigidBody3D, type RigidBody3DData } from './Physics3DComponents';
 
 /** The force on a body of `mass` that the planet's pull is, over the world's gravity: all in metres, kilograms and seconds. */

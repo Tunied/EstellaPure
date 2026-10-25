@@ -5,6 +5,7 @@
  * @brief   Loads the 3D physics module and drives one world from the ECS.
  */
 import { installPlanetGravity } from './planetGravity';
+import { Physics3DRuntime } from './physics3dRuntime';
 import type { App, Plugin } from '../app/app';
 import { Schedule, defineSystem } from '../ecs/system';
 import { defineResource } from '../ecs/resource';
@@ -24,27 +25,7 @@ import type { Joint3DMap } from './Physics3DJoints';
 /** Ask the 3D world what is where. Present once the module has loaded. */
 export const Physics3D = defineResource<Physics3DQueries | null>(null, 'Physics3D');
 
-/** The live module and the promise that resolves it, for a caller that must wait. */
-export interface Physics3DRuntime {
-    module: Physics3DWasmModule | null;
-    initPromise: Promise<unknown> | null;
-    /** Entity -> body id, so a scene teardown can drop the world's population. */
-    bodies: Map<Entity, number>;
-    /** Entity -> character id. Characters are not bodies and are kept apart. */
-    characters: Map<Entity, number>;
-    /** Entity -> the joint it declared, with the bodies it was built between. */
-    joints: Joint3DMap;
-    /** Key -> the body built for that piece of the app's collision geometry. */
-    pieces: PieceMap;
-    /** The world's configuration (gravity, the scale of a world unit), for what applies forces to it. Null until the plugin is built. */
-    config: Physics3DConfig | null;
-}
-
-export const Physics3DRuntime = defineResource<Physics3DRuntime>(
-    { module: null, initPromise: null, bodies: new Map(), characters: new Map(),
-      joints: new Map(), pieces: new Map(), config: null },
-    'Physics3DRuntime',
-);
+export { Physics3DRuntime } from './physics3dRuntime';
 
 export class Physics3DPlugin implements Plugin {
     name = 'physics3d';

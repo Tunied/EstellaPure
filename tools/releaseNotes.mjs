@@ -2916,6 +2916,8 @@ export const NOTED = {
     {"note":"The editor's own eye shows the scene's post-processing."},
   "feat(terrain): the maths of ground on a cube sphere and the nodes drawn round an eye":
     {"internal":"The first layer of spherical terrain: pure maths and node selection, not yet drawn."},
+  "feat(worldgen): a generated world lays out over a planet's six faces":
+    {"note":"A generated world on a planet."},
   "feat(terrain): a planet pulls bodies toward its centre and answers up, altitude and ground height":
     {"note":"A planet pulls and answers."},
   "feat(render): temporal history follows the render origin when it steps":
