@@ -470,7 +470,7 @@ function scene() {
   const entities = [];
   const add = (name, components) => entities.push({ id: entities.length, name, parent: null, children: [], visible: true, components });
   const post = [
-    { type: 'skyAtmosphere', enabled: true, uniforms: { u_intensity: 1, u_haze: 0.9, u_sunBrightness: 40, u_clouds: 0.42, u_cloudShadow: 0.45, u_unitsPerKm: 100000, u_windSpeed: 0.03, u_cloudMaskTile: 6, u_cloudMask2Tile: 11 },
+    { type: 'skyAtmosphere', enabled: true, uniforms: { u_intensity: 1, u_haze: 0.9, u_sunBrightness: 40, u_clouds: 0.42, u_cloudBase: 1.6, u_cloudThickness: 0.7, u_cloudShadow: 0.45, u_unitsPerKm: 100000, u_windSpeed: 0.03, u_cloudMaskTile: 6, u_cloudMask2Tile: 11 },
       textures: { u_cloudMask: 'assets/sky/cloud-cumulus.png', u_cloudMask2: 'assets/sky/cloud-high.png' } },
     { type: 'gtao', enabled: true, uniforms: { u_radius: 300, u_intensity: 0.8 } },
     { type: 'heightFog', enabled: true, colors: { u_fogColor: { r: 0.66, g: 0.76, b: 0.88, a: 1 }, u_sunColor: { r: 1, g: 0.9, b: 0.7, a: 1 } },

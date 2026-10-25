@@ -51,6 +51,8 @@
          "u_haze": 0.9,
          "u_sunBrightness": 40,
          "u_clouds": 0.42,
+         "u_cloudBase": 1.6,
+         "u_cloudThickness": 0.7,
          "u_cloudShadow": 0.45,
          "u_unitsPerKm": 100000,
          "u_windSpeed": 0.03,
