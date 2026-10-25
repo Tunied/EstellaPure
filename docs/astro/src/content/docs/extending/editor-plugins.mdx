@@ -496,7 +496,7 @@ provider that does not exist. A project plugin that imports the module registeri
 
 ```ts title=".esengine/plugins/my-game.ground/src/editor.ts"
 import { definePlugin } from '@estella/editor-api';
-import '../../../../../src/planet/terrain.ts';   // registerTerrainProvider(...), as the game does
+import '../../../../src/planet/terrain.ts';   // registerTerrainProvider(...), as the game does
 
 export default definePlugin({ activate: () => {} });
 ```

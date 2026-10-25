@@ -434,7 +434,7 @@ ctx.scene.transact('Rename Markers', () => {
 
 ```ts title=".esengine/plugins/my-game.ground/src/editor.ts"
 import { definePlugin } from '@estella/editor-api';
-import '../../../../../src/planet/terrain.ts';   // registerTerrainProvider(...),和游戏里一样
+import '../../../../src/planet/terrain.ts';   // registerTerrainProvider(...),和游戏里一样
 
 export default definePlugin({ activate: () => {} });
 ```
