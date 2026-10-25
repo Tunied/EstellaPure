@@ -689,9 +689,9 @@ float cloudLight(vec3 world, float camY, vec3 sun, vec3 drift) {
     return 1.0 - u_cloudShade * (1.0 - exp(-tau));
 }
 
-/// The height of a point above the ground the fog lies on: world Y on a flat world, the distance above the sphere's surface on a planet.
+/// The height of a point above the ground the fog lies on: world Y on a flat world, the distance above the sphere's surface on a planet (never below it: inside the planet the fog is the ground's, not an exponential of a depth).
 float fogAltitude(vec3 p) {
-    return u_planetRadius > 0.0 ? length(p - vec3(u_planetX, u_planetY, u_planetZ)) - u_planetRadius : p.y;
+    return u_planetRadius > 0.0 ? max(length(p - vec3(u_planetX, u_planetY, u_planetZ)) - u_planetRadius, 0.0) : p.y;
 }
 /// What the exponential density integrates to along a ray: the eye's density, the length,
 /// and the term for how fast the ray leaves the fog. Written so a level ray (no climb)
@@ -838,7 +838,7 @@ fn cloudLight(world : vec3f, camY : f32, sun : vec3f, drift : vec3f) -> f32 {
 }
 
 fn fogAltitude(p : vec3f) -> f32 {
-    if (mc.u_planetRadius > 0.0) { return length(p - vec3f(mc.u_planetX, mc.u_planetY, mc.u_planetZ)) - mc.u_planetRadius; }
+    if (mc.u_planetRadius > 0.0) { return max(length(p - vec3f(mc.u_planetX, mc.u_planetY, mc.u_planetZ)) - mc.u_planetRadius, 0.0); }
     return p.y;
 }
 fn opticalDepth(eyeY : f32, dirY : f32, len : f32) -> f32 {

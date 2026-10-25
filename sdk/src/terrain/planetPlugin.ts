@@ -20,7 +20,7 @@ import {
 } from '../ecs/component';
 import { Assets } from '../asset/AssetPlugin';
 import type { MaterialShaderSource } from '../asset/loaders/MaterialShaderAssetLoader';
-import { Material, MATERIAL_FORMAT_VERSION } from '../render/material';
+import { CullMode, Material, MATERIAL_FORMAT_VERSION } from '../render/material';
 import { BlendMode } from '../render/blend';
 import { createTextureFromPixels, updateTextureSubregion } from '../runtime/runtimeAssets';
 import { getResourceManager, provideTextureContent, withdrawTextureContent } from '../wasm/resourceManager';
@@ -213,7 +213,7 @@ export class PlanetPlugin implements Plugin {
         if (this.stock_) return this.stock_;
         this.stock_ = Material.createFromAsset({
             version: MATERIAL_FORMAT_VERSION, type: 'material', shader: 'builtin:planet', blendMode: BlendMode.None,
-            depthTest: true, depthWrite: true, cull: 0, properties: {},
+            depthTest: true, depthWrite: true, cull: CullMode.Back, properties: {},
         }, shader);
         return this.stock_;
     }
