@@ -355,6 +355,8 @@ const SCENE = flag('scene', '');
       if (now !== last && now) console.log(`  baking: ${now}`);
       last = now;
     }
+    // The last things made are shown a frame or two after they are made.
+    await new Promise((r) => setTimeout(r, 2500));
     console.log(`  idle: ${quiet >= 6}`);
   }
 
