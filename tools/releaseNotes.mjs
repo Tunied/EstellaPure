@@ -2838,6 +2838,8 @@ export const NOTED = {
     {"note":"A generated world's plants."},
   "fix(cook): a cutout texture has its colour carried into its clear texels, so a leaf has no pale edge":
     {"note":"A leaf or a blade of grass no longer has a pale edge."},
+  "feat(fog): the fog's beams follow the clouds of the sky, so a gap in them is a shaft":
+    {"note":"Light beams that follow the clouds."},
   "feat(water): two tiled, scrolling detail normal maps give the surface its sparkle":
     {"note":"Sparkle on the water."},
   "fix(lod): a LODGroup with only a cull size is no longer ignored":

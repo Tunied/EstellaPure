@@ -3755,6 +3755,7 @@ uniforms: EffectUniformDef[]
 ## EffectUniformDef — interface @experimental
 ```
 defaultValue: number
+internal: boolean | undefined
 label: string
 max: number
 min: number

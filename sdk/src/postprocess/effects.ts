@@ -33,6 +33,8 @@ export interface EffectUniformDef {
      * black / extreme distortion at a volume's soft edge.
      */
     neutralValue?: number;
+    /** Set by the engine from another effect, not by a scene: an inspector does not list it. */
+    internal?: boolean;
 }
 
 /** A texture parameter (LUT, mask): the sampler uniform it binds to. */
@@ -402,7 +404,19 @@ registerEffect({
         // directional light that casts a shadow, and costs 24 taps a pixel.
         { name: 'u_volumetric', label: 'Volumetric Light', min: 0, max: 1, step: 0.01, defaultValue: 0, neutralValue: 0 },
         // How far from the camera the air is walked: past it the fog still dims, but takes no shafts.
-        { name: 'u_volumeRange', label: 'Volumetric Range', min: 100, max: 30000, step: 100, defaultValue: 3000 },
+        { name: 'u_volumeRange', label: 'Volumetric Range', min: 100, max: 1000000, step: 100, defaultValue: 3000 },
+        // How much the sky's clouds cut the beams: a gap in them is a shaft, and what they cover is dark air. It follows the clouds
+        // of a skyAtmosphere that has Cloud Shadows above 0 (the clouds are then fixed to the world, so the shafts stand where they do).
+        { name: 'u_cloudShade', label: 'Cloud Shafts', min: 0, max: 1, step: 0.01, defaultValue: 0, neutralValue: 0 },
+        // What it reads of that sky, written each frame from the sky effect (see applyCloudsToFog).
+        { name: 'u_skyCover', label: 'Sky Cover', min: 0, max: 1, step: 0.01, defaultValue: 0, internal: true },
+        { name: 'u_skyBase', label: 'Sky Cloud Base', min: 0.2, max: 10, step: 0.1, defaultValue: 1.5, internal: true },
+        { name: 'u_skyThickness', label: 'Sky Cloud Thickness', min: 0.2, max: 8, step: 0.1, defaultValue: 2.5, internal: true },
+        { name: 'u_skyAltitude', label: 'Sky Altitude', min: 0, max: 20, step: 0.1, defaultValue: 0.1, internal: true },
+        { name: 'u_skyUnits', label: 'Sky Units per km', min: 1, max: 100000, step: 1, defaultValue: 1000, internal: true },
+        { name: 'u_skySigma', label: 'Sky Cloud Density', min: 0, max: 10, step: 0.1, defaultValue: 1.3, internal: true },
+        { name: 'u_skyWindX', label: 'Sky Wind X', min: -2, max: 2, step: 0.01, defaultValue: 0, internal: true },
+        { name: 'u_skyWindZ', label: 'Sky Wind Z', min: -2, max: 2, step: 0.01, defaultValue: 0, internal: true },
     ],
     colors: [
         { name: 'u_fogColor', label: 'Colour', defaultValue: { r: 0.62, g: 0.7, b: 0.8, a: 1 } },

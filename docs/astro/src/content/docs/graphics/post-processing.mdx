@@ -290,6 +290,12 @@ eye — so a building's shadow is dark fog and the gap between two of them a bea
 that casts shadows (the effect reads the same atlas the meshes receive from), and `volumeRange` says how far
 from the camera the air is walked; beyond it the fog still dims but takes no shafts.
 
+`cloudShade` makes those beams follow the sky's clouds, so a gap in them is a shaft that stands in the air whichever way the camera looks, not
+only toward the sun. The fog marches the sun's ray up through the cloud layer of a `skyAtmosphere` with `cloudShadow` above 0 (the clouds are then
+fixed to the world and drift with its wind), against the same density the sky draws; what the clouds cover is dark air. Its beams are as long as
+`volumeRange`, in world units, and a beam through clouds kilometres up needs air that far up: a fog with a low `heightFalloff` and a `volumeRange` of
+a few kilometres. The sky's cover, height, thickness and wind are copied onto the fog each frame; they are not settings of the fog's own.
+
 `lightShafts` finds the sun's light through whatever stands in front of it, in screen space: each pixel
 marches toward the sun's place on screen and counts how much of the way is open sky. It needs the
 sun on screen or just off it, and only what the depth buffer holds can cast a shaft. Together the two

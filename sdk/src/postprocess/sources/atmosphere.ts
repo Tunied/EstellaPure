@@ -202,7 +202,7 @@ void main() {
     float windAngle = radians(u_windDirection);
     vec3 windDrift = vec3(sin(windAngle), 0.0, cos(windAngle)) * (u_windSpeed * u_time.x) + anchor;
     if (geometry) {
-        float lit = cloudShadowAt(worldFromDepth(v_texCoord, depth), entry, sun, max(u_clouds, overcast * 0.95), overcast, windDrift);
+        float lit = cloudShadowAt(worldFromDepth(v_texCoord, depth), entry, sun, max(u_clouds, overcast * 0.95), overcast, windDrift - anchor);
         fragColor = vec4(src.rgb * lit, src.a);
         return;
     }
@@ -454,7 +454,7 @@ fn cloudShadowAt(world : vec3f, cam : vec3f, sun : vec3f, coverage : f32, overca
     let windAngle = radians(mc.u_windDirection);
     let windDrift = vec3f(sin(windAngle), 0.0, cos(windAngle)) * (mc.u_windSpeed * tc.u_time.x) + anchor;
     if (geometry) {
-        let lit = cloudShadowAt(worldFromDepth(v.v_texCoord, depth), entry, sun, max(mc.u_clouds, overcast * 0.95), overcast, windDrift, v.pos.xy);
+        let lit = cloudShadowAt(worldFromDepth(v.v_texCoord, depth), entry, sun, max(mc.u_clouds, overcast * 0.95), overcast, windDrift - anchor, v.pos.xy);
         return vec4f(src.rgb * lit, src.a);
     }
 
@@ -573,7 +573,16 @@ fn cloudShadowAt(world : vec3f, cam : vec3f, sun : vec3f, coverage : f32, overca
 #pragma param u_skyFog float default(0.8) range(0,1)
 #pragma param u_followSun float default(1) range(0,1)
 #pragma param u_volumetric float default(0) range(0,1)
-#pragma param u_volumeRange float default(3000) range(100,30000)
+#pragma param u_volumeRange float default(3000) range(100,1000000)
+#pragma param u_cloudShade float default(0) range(0,1)
+#pragma param u_skyCover float default(0) range(0,1)
+#pragma param u_skyBase float default(1.5) range(0.2,10)
+#pragma param u_skyThickness float default(2.5) range(0.2,8)
+#pragma param u_skyAltitude float default(0.1) range(0,20)
+#pragma param u_skyUnits float default(1000) range(1,100000)
+#pragma param u_skySigma float default(1.3) range(0,10)
+#pragma param u_skyWindX float default(0) range(-2,2)
+#pragma param u_skyWindZ float default(0) range(-2,2)
 #pragma lights
 
 #pragma fragment
@@ -594,6 +603,49 @@ float ign(vec2 p) {
 float phaseHG(float cosine) {
     const float g = 0.55;
     return (1.0 - g * g) / pow(max(1.0 + g * g - 2.0 * g * cosine, 1e-3), 1.5) * 0.25;
+}
+
+
+float hash13(vec3 p) {
+    p = fract(p * 0.1031);
+    p += dot(p, p.zyx + 31.32);
+    return fract((p.x + p.y) * p.z);
+}
+float vnoise(vec3 p) {
+    vec3 i = floor(p);
+    vec3 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    float a = mix(hash13(i), hash13(i + vec3(1, 0, 0)), f.x);
+    float b = mix(hash13(i + vec3(0, 1, 0)), hash13(i + vec3(1, 1, 0)), f.x);
+    float c = mix(hash13(i + vec3(0, 0, 1)), hash13(i + vec3(1, 0, 1)), f.x);
+    float d = mix(hash13(i + vec3(0, 1, 1)), hash13(i + vec3(1, 1, 1)), f.x);
+    return mix(mix(a, b, f.y), mix(c, d, f.y), f.z);
+}
+/// The sky's cloud density, the same one the dome draws (see skyAtmosphere), at a point in kilometres.
+float cloudDensity(vec3 p, float coverage, float base, float thick) {
+    float h = clamp((p.y - base) / thick, 0.0, 1.0);
+    float shape = smoothstep(0.0, 0.14, h) * smoothstep(1.0, 0.55, h);
+    vec3 q = vec3(p.x, p.y * 1.8, p.z) * 0.32;
+    float n = vnoise(q) * 0.58 + vnoise(q * 2.13) * 0.28 + 0.07;
+    return smoothstep(1.0 - coverage, 1.0 - coverage + 0.22, n) * shape;
+}
+/// How much of the sun reaches the air at @p world through the cloud layer, 1 being all of it: the sun's ray marched up through the slab.
+float cloudLight(vec3 world, float camY, vec3 sun, vec3 drift) {
+    if (u_cloudShade <= 0.001 || u_skyCover <= 0.01 || sun.y <= 0.02) return 1.0;
+    float k = 1.0 / max(u_skyUnits, 1e-3);
+    float h = u_skyAltitude + (world.y - camY) * k;
+    float tt = (u_skyBase + u_skyThickness - h) / sun.y;
+    if (tt <= 0.0) return 1.0;
+    float tb = max(u_skyBase - h, 0.0) / sun.y;
+    const int N = 4;
+    float ds = (tt - tb) / float(N);
+    float tau = 0.0;
+    for (int i = 0; i < N; ++i) {
+        float t = tb + (float(i) + 0.5) * ds;
+        vec3 q = vec3(world.x * k + sun.x * t, h + sun.y * t, world.z * k + sun.z * t) + drift;
+        tau += cloudDensity(q, u_skyCover, u_skyBase, u_skyThickness) * u_skySigma * ds;
+    }
+    return 1.0 - u_cloudShade * (1.0 - exp(-tau));
 }
 
 /// What the exponential density integrates to along a ray: the eye's density, the length,
@@ -656,11 +708,15 @@ void main() {
         float jitter = ign(gl_FragCoord.xy);
         float transmit = 1.0;
         float lit = 0.0;
+        // The clouds are as the sky draws them, fixed in the world and drifting; their light changes slowly along the ray, so every third step asks.
+        vec3 drift = vec3(u_skyWindX, 0.0, u_skyWindZ) * u_time.x;
+        float shade = 1.0;
         for (int i = 0; i < VOLUME_STEPS; ++i) {
             float t = u_startDistance + (float(i) + jitter) * ds;
             vec3 p = entry + dir * t;
+            if (i % 3 == 0) shade = cloudLight(p, entry.y, sun, drift);
             float dens = u_density * exp(clamp(-u_heightFalloff * (p.y - u_baseHeight), -60.0, 60.0));
-            lit += transmit * dens * ds * sunVisibility(p, tiles.x, tiles.y);
+            lit += transmit * dens * ds * sunVisibility(p, tiles.x, tiles.y) * shade;
             transmit *= exp(-dens * ds);
         }
         float strength = clamp(lightColor.a, 0.0, 8.0) * 0.5;
@@ -680,6 +736,46 @@ fn ign(p : vec2f) -> f32 {
 fn phaseHG(cosine : f32) -> f32 {
     let g = 0.55;
     return (1.0 - g * g) / pow(max(1.0 + g * g - 2.0 * g * cosine, 1e-3), 1.5) * 0.25;
+}
+
+fn hash13(p0 : vec3f) -> f32 {
+    var p = fract(p0 * 0.1031);
+    p = p + dot(p, p.zyx + 31.32);
+    return fract((p.x + p.y) * p.z);
+}
+fn vnoise(p : vec3f) -> f32 {
+    let i = floor(p);
+    var f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    let a = mix(hash13(i), hash13(i + vec3f(1, 0, 0)), f.x);
+    let b = mix(hash13(i + vec3f(0, 1, 0)), hash13(i + vec3f(1, 1, 0)), f.x);
+    let c = mix(hash13(i + vec3f(0, 0, 1)), hash13(i + vec3f(1, 0, 1)), f.x);
+    let d = mix(hash13(i + vec3f(0, 1, 1)), hash13(i + vec3f(1, 1, 1)), f.x);
+    return mix(mix(a, b, f.y), mix(c, d, f.y), f.z);
+}
+fn cloudDensity(p : vec3f, coverage : f32, base : f32, thick : f32) -> f32 {
+    let h = clamp((p.y - base) / thick, 0.0, 1.0);
+    let shape = smoothstep(0.0, 0.14, h) * smoothstep(1.0, 0.55, h);
+    let q = vec3f(p.x, p.y * 1.8, p.z) * 0.32;
+    let n = vnoise(q) * 0.58 + vnoise(q * 2.13) * 0.28 + 0.07;
+    return smoothstep(1.0 - coverage, 1.0 - coverage + 0.22, n) * shape;
+}
+fn cloudLight(world : vec3f, camY : f32, sun : vec3f, drift : vec3f) -> f32 {
+    if (mc.u_cloudShade <= 0.001 || mc.u_skyCover <= 0.01 || sun.y <= 0.02) { return 1.0; }
+    let k = 1.0 / max(mc.u_skyUnits, 1e-3);
+    let h = mc.u_skyAltitude + (world.y - camY) * k;
+    let tt = (mc.u_skyBase + mc.u_skyThickness - h) / sun.y;
+    if (tt <= 0.0) { return 1.0; }
+    let tb = max(mc.u_skyBase - h, 0.0) / sun.y;
+    let N = 4;
+    let ds = (tt - tb) / f32(N);
+    var tau = 0.0;
+    for (var i : i32 = 0; i < N; i = i + 1) {
+        let t = tb + (f32(i) + 0.5) * ds;
+        let q = vec3f(world.x * k + sun.x * t, h + sun.y * t, world.z * k + sun.z * t) + drift;
+        tau = tau + cloudDensity(q, mc.u_skyCover, mc.u_skyBase, mc.u_skyThickness) * mc.u_skySigma * ds;
+    }
+    return 1.0 - mc.u_cloudShade * (1.0 - exp(-tau));
 }
 
 fn opticalDepth(eyeY : f32, dirY : f32, len : f32) -> f32 {
@@ -739,11 +835,14 @@ fn opticalDepth(eyeY : f32, dirY : f32, len : f32) -> f32 {
         let jitter = ign(v.pos.xy);
         var transmit = 1.0;
         var lit = 0.0;
+        let drift = vec3f(mc.u_skyWindX, 0.0, mc.u_skyWindZ) * tc.u_time.x;
+        var shade = 1.0;
         for (var i : i32 = 0; i < VOLUME_STEPS; i = i + 1) {
             let t = mc.u_startDistance + (f32(i) + jitter) * ds;
             let p = entry + dir * t;
+            if (i % 3 == 0) { shade = cloudLight(p, entry.y, sun, drift); }
             let dens = mc.u_density * exp(clamp(-mc.u_heightFalloff * (p.y - mc.u_baseHeight), -60.0, 60.0));
-            lit = lit + transmit * dens * ds * sunVisibility(p, found.tiles.x, found.tiles.y);
+            lit = lit + transmit * dens * ds * sunVisibility(p, found.tiles.x, found.tiles.y) * shade;
             transmit = transmit * exp(-dens * ds);
         }
         let strength = clamp(found.color.a, 0.0, 8.0) * 0.5;

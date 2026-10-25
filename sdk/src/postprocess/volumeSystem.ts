@@ -11,6 +11,7 @@ import { blendVolumeEffects, computeVolumeFactor, type ActiveVolume, type Blende
 import type { ShaderHandle } from '../render/material';
 import { Material } from '../render/material';
 import { applyWeatherToEffects, currentWeather, currentWeatherDrive } from './weather';
+import { applyCloudsToFog } from './cloudShafts';
 import { applyUnderwaterToEffects, currentUnderwater } from './underwater';
 import { applyTimeToEffects, currentTimeOfDay, currentTimeDrive, timeLightsApplied } from './timeOfDay';
 
@@ -282,6 +283,7 @@ export const postProcessVolumeSystem = defineSystem(
             if (weather) applyWeatherToEffects(blended, weather, currentWeatherDrive());
             const clock = currentTimeOfDay();
             if (clock) applyTimeToEffects(blended, clock, currentTimeDrive(), timeLightsApplied());
+            applyCloudsToFog(blended);
             // A camera under water: the effect the water module says it needs.
             applyUnderwaterToEffects(blended, currentUnderwater());
 
