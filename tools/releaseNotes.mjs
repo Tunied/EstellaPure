@@ -2822,6 +2822,8 @@ export const NOTED = {
     {"note":"Foam is where waves burst, not along every shore."},
   "fix(water): a gentle beach keeps less of the breakers' white than rock does":
     {"note":"Foam is where waves burst, not along every shore."},
+  "feat(water): two tiled, scrolling detail normal maps give the surface its sparkle":
+    {"note":"Sparkle on the water."},
   "fix(lod): a LODGroup with only a cull size is no longer ignored":
     {"note":"A level-of-detail group with only a cull size is no longer ignored."},
   "feat(terrain): each terrain layer says how it meets the others, and the terrain's paint and bounds can be asked":

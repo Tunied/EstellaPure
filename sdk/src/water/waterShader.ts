@@ -91,6 +91,16 @@ const WATER = `#pragma shader "Water"
 // The disturbance the water keeps (WaterZone ripples): a window of the xz plane, red the height of the ripples (0.5 at rest, u_rippleRange above or below at 1 and 0)
 // and green the foam they left, as the CPU stepped them. u_rippleSize is the window's side, u_rippleTexel one texel of it.
 #pragma param u_rippleOn float default(0) range(0,1) ui(slider)
+// Two tiled normal maps that scroll over the surface, for the sparkle the sun makes of a water's small slopes, in the one texture a material has room
+// for: red and green the first's slope (x and z, 0.5 flat), blue and alpha the second's, read as data. Each is u_detailTile world units to a repeat,
+// u_detailStrength times as steep as drawn (0 leaves it out), and slides u_detailFlow world units a second.
+#pragma param u_detailMap texture default(flatnormal) texel(data)
+#pragma param u_detailTile0 float default(2) range(0.01,100000) ui(slider)
+#pragma param u_detailTile1 float default(4.3) range(0.01,100000) ui(slider)
+#pragma param u_detailStrength0 float default(0) range(0,8) ui(slider)
+#pragma param u_detailStrength1 float default(0) range(0,8) ui(slider)
+#pragma param u_detailFlow0 vec2 default(0.05,0.02)
+#pragma param u_detailFlow1 vec2 default(-0.03,0.04)
 #pragma param u_rippleMap texture default(white) texel(data)
 #pragma param u_rippleOrigin vec2 default(0,0)
 #pragma param u_rippleSize float default(64) range(0.01,100000) ui(slider)
@@ -543,6 +553,21 @@ vec4 waterReflect(vec3 p, vec3 r, float eyeDist) {
     return vec4(0.0);
 }
 
+/// The slope the two detail normal maps add at p: each read at its own tile and drift, its z made from its x and z, mips flattening
+/// what a pixel is too far to see. Fragment only: a vertex cannot take the derivatives a map is read with.
+vec2 detailSlope(vec2 p, float time) {
+    vec2 slope = vec2(0.0);
+    if (u_detailStrength0 > 0.0) {
+        vec2 n = texture(u_detailMap, (p + u_detailFlow0 * time) / u_detailTile0).rg * 2.0 - 1.0;
+        slope += n / sqrt(max(1.0 - dot(n, n), 0.0625)) * u_detailStrength0;
+    }
+    if (u_detailStrength1 > 0.0) {
+        vec2 n = texture(u_detailMap, (p + u_detailFlow1 * time) / u_detailTile1).ba * 2.0 - 1.0;
+        slope += n / sqrt(max(1.0 - dot(n, n), 0.0625)) * u_detailStrength1;
+    }
+    return slope;
+}
+
 /// The slope of the surface at p and how near it is to a crest: the waves, amp times as high as u_waveHeight says, and the ripples they carry,
 /// calm of their strength, flattened with distance.
 vec2 waterSurface(vec2 p, float time, float dist, float amp, float calm, out float crest) {
@@ -621,7 +646,7 @@ void main() {
     }
     // Rain rings are fine: where a pixel grows past a ring's crests they would shimmer, so they fade out before it.
     float rainFade = 1.0 - smoothstep(u_rippleLength * 8.0, u_rippleLength * 20.0, waterDist);
-    slope += ripSlope + toSea * (surfRise * u_geoWaves) + rainRings(wp, time, u_rain) * rainFade;
+    slope += ripSlope + toSea * (surfRise * u_geoWaves) + rainRings(wp, time, u_rain) * rainFade + detailSlope(wp, time) * calm;
     vec3 N = normalize(vec3(-slope.x, 1.0, -slope.y));
     vec3 Ngeo = vec3(0.0, 1.0, 0.0);
 #ifdef MESH_NORMALS
@@ -990,6 +1015,20 @@ fn waterReflect(p : vec3f, r : vec3f, eyeDist : f32) -> vec4f {
     return vec4f(0.0);
 }
 
+/// The slope the two detail normal maps add at p: each read at its own tile and drift, mips flattening what a pixel is too far to see. Fragment only.
+fn detailSlope(p : vec2f, time : f32) -> vec2f {
+    var slope = vec2f(0.0);
+    if (mc.u_detailStrength0 > 0.0) {
+        let n = textureSample(u_detailMap, u_detailMap_s, (p + mc.u_detailFlow0 * time) / mc.u_detailTile0).rg * 2.0 - vec2f(1.0);
+        slope = slope + n / sqrt(max(1.0 - dot(n, n), 0.0625)) * mc.u_detailStrength0;
+    }
+    if (mc.u_detailStrength1 > 0.0) {
+        let n = textureSample(u_detailMap, u_detailMap_s, (p + mc.u_detailFlow1 * time) / mc.u_detailTile1).ba * 2.0 - vec2f(1.0);
+        slope = slope + n / sqrt(max(1.0 - dot(n, n), 0.0625)) * mc.u_detailStrength1;
+    }
+    return slope;
+}
+
 /// The slope of the surface at p (x, y) and how near it is to a crest (z): the waves, and the ripples they carry, flattened with distance.
 fn waterSurface(p : vec2f, time : f32, dist : f32, amp : f32, calm : f32) -> vec3f {
     let waves = waveSlope(p, time, dist);
@@ -1076,7 +1115,7 @@ fn waterSurface(p : vec2f, time : f32, dist : f32, amp : f32, calm : f32) -> vec
     var waves : Waves;
     waves.crest = surface.z;
     let rainFade = 1.0 - smoothstep(mc.u_rippleLength * 8.0, mc.u_rippleLength * 20.0, waterDist);
-    var slope = surface.xy + ripSlope + toSea * (surfRise * mc.u_geoWaves) + rainRings(wp, time, mc.u_rain) * rainFade;
+    var slope = surface.xy + ripSlope + toSea * (surfRise * mc.u_geoWaves) + rainRings(wp, time, mc.u_rain) * rainFade + detailSlope(wp, time) * calm;
     var N = normalize(vec3f(-slope.x, 1.0, -slope.y));
     var Ngeo = vec3f(0.0, 1.0, 0.0);
 #ifdef MESH_NORMALS

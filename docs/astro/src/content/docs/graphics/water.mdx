@@ -305,6 +305,12 @@ is its x and z, `u_origin` is where the mesh was moved to as it follows the came
   `u_rippleLength`, more of them the harder it rains, and the surface a little less sharp. They are drawn, not simulated: they put nothing in the zone's ripples
   and make no foam, and they fade out with distance. On a zone's surface the zone writes the four every frame (its own length, speed and heading, and
   the weather's share as the height, which each place's height in the field multiplies), so the material's values for them are not used there.
+- **Sparkle.** The sun's glints on small slopes come from two tiled normal maps that scroll over the surface, in the one texture a material has room for:
+  `u_detailMap`, whose red and green are the first map's slope (x and z, 0.5 flat) and whose blue and alpha are the second's, read as data. Each has
+  its `u_detailTile` (world units to a repeat), `u_detailStrength` (how many times as steep as drawn; 0 leaves it out, which is how a material that sets
+  none stays as it was) and `u_detailFlow` (world units a second it drifts). The glints are the lit specular response of those slopes, not a white
+  texture drawn on, so they appear where the sun, the eye and the slope line up and fade as the light does. They are fragment-only: the geometry and
+  `Waters.sample` do not carry them.
 - **Refraction and depth.** What is under the water is the picture of the opaque scene, shifted by the waves in proportion to how much water there
   is. The depth is **measured**: before the water is drawn the frame takes a copy of how far each pixel of the scene is from the eye, so the water at
   a pixel is the difference between that and the water's own distance. The light is absorbed along that column, red first (`u_absorption`,
