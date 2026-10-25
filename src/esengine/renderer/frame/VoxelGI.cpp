@@ -3,6 +3,8 @@
 #include "./VoxelGI.hpp"
 #include "./FrameConstants.hpp"
 #include "./RenderContext.hpp"
+#include "../RenderOrigin.hpp"
+#include <glm/gtc/type_ptr.hpp>
 #include "../rhi/GfxDevice.hpp"
 #include "../../core/Log.hpp"
 
@@ -411,7 +413,13 @@ void VoxelGI::writeParams(const VoxelGIParams& p) {
     previousVoxelSize_ = vs;
     block.view[1] = historyValid_ ? 1.0f : 0.0f;
     block.view[2] = std::clamp(p.blend, 0.01f, 1.0f);
-    std::copy(previousViewProjection_, previousViewProjection_ + 16, block.prevViewProjection);
+    // A view of a frame drawn from another origin is taken to this one, and what was gathered under it is not history.
+    if (previousOrigin_ != renderOrigin()) historyValid_ = false;
+    {
+        const glm::mat4 previous = viewProjectionFromOrigin(glm::make_mat4(previousViewProjection_), previousOrigin_);
+        std::copy(glm::value_ptr(previous), glm::value_ptr(previous) + 16, block.prevViewProjection);
+    }
+    previousOrigin_ = renderOrigin();
     const glm::mat4& vp = context_.viewProjection();
     for (int c = 0; c < 4; ++c) for (int r = 0; r < 4; ++r) previousViewProjection_[c * 4 + r] = vp[c][r];
     device_.updateBuffer(params_, 0, &block, sizeof(block));

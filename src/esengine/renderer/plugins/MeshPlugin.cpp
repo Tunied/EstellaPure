@@ -531,8 +531,10 @@ void MeshPlugin::trackPose(const RenderFrameContext& ctx, Entity entity, const g
     // standing where it stands says "did not move".
     const bool continued = pose.frame != 0 && pose.frame + 1 == ctx.motion_frame;
     if (continued) {
-        pose.previous = pose.current;
+        // Where it was drawn from the origin of the frame before, as it is placed from the origin now.
+        pose.previous = modelFromOrigin(pose.current, pose.origin);
         pose.bonesPrevious = pose.bonesCurrent;
+        for (glm::mat4& bone : pose.bonesPrevious) bone = modelFromOrigin(bone, pose.origin);
     } else if (pose.frame != ctx.motion_frame) {
         pose.previous = model;
         if (bones) pose.bonesPrevious = *bones;
@@ -542,6 +544,7 @@ void MeshPlugin::trackPose(const RenderFrameContext& ctx, Entity entity, const g
     if (bones) pose.bonesCurrent = *bones;
     else pose.bonesCurrent.clear();
     pose.frame = ctx.motion_frame;
+    pose.origin = renderOrigin();
 }
 
 namespace {

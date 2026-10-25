@@ -12,6 +12,7 @@
  */
 
 #include "./PostProcessPipeline.hpp"
+#include "../RenderOrigin.hpp"
 #include "./RenderContext.hpp"
 #include "./VoxelGI.hpp"
 #include "../rhi/GfxDevice.hpp"
@@ -424,8 +425,9 @@ bool PostProcessPipeline::cameraMotionWanted() {
 void PostProcessPipeline::trackView(const glm::mat4& viewProjection, u64 key) {
     TemporalState& state = temporal_[key];
     temporalKey_ = key;
-    state.previous = state.frame > 0 ? state.current : viewProjection;
+    state.previous = state.frame > 0 ? viewProjectionFromOrigin(state.current, state.origin) : viewProjection;
     state.current = viewProjection;
+    state.origin = renderOrigin();
     ++state.frame;
 }
 
@@ -468,9 +470,10 @@ constexpr u32 kJitterPhases = 8;
 glm::vec2 PostProcessPipeline::beginTemporalView(const glm::mat4& viewProjection, u64 key) {
     TemporalState& state = temporal_[key];
     temporalKey_ = key;
-    if (state.frame > 0) state.previous = state.current;
+    if (state.frame > 0) state.previous = viewProjectionFromOrigin(state.current, state.origin);
     else state.previous = viewProjection;
     state.current = viewProjection;
+    state.origin = renderOrigin();
     ++state.frame;
     // A chain that did not write last frame leaves history of a picture this one no
     // longer follows (a camera that was off, a frame the host skipped).
@@ -488,7 +491,7 @@ PostProcessPipeline::TemporalView PostProcessPipeline::peekTemporalView(const gl
     const auto it = temporal_.find(key);
     const u32 frame = it == temporal_.end() ? 0u : it->second.frame;
     TemporalView view;
-    view.previous = frame > 0 ? it->second.current : viewProjection;
+    view.previous = frame > 0 ? viewProjectionFromOrigin(it->second.current, it->second.origin) : viewProjection;
     // The step beginTemporalView will take next: one frame on, the same phase of the same sequence.
     const u32 phase = ((frame + 1) % kJitterPhases) + 1;
     const f32 w = static_cast<f32>(std::max(width_, 1u));

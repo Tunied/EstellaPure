@@ -27,6 +27,7 @@
 #include "../graph/RenderGraph.hpp"
 #include "../rhi/GfxEnums.hpp"
 
+#include <glm/glm.hpp>
 #include <string>
 #include <unordered_map>
 
@@ -107,6 +108,8 @@ private:
     /// Whether the picture the other one holds is a gather of the view the last frame saw, to blend with.
     bool historyValid_ = false;
     f32 previousViewProjection_[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+    /// The render origin that view-projection was made for.
+    glm::dvec3 previousOrigin_{0.0};
     f32 previousVoxelSize_ = 0.0f;
     /// The window's origin, in cells, as of the frame being drawn.
     i32 origin_[3] = {0, 0, 0};

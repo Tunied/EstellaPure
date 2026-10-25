@@ -12,6 +12,7 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 namespace esengine {
 
@@ -26,6 +27,20 @@ inline void setRenderOrigin(const glm::dvec3& origin) { renderOrigin() = origin;
 /// A world position as the frame draws it: from the origin.
 inline glm::vec3 rebased(const glm::vec3& world) {
     return glm::vec3(glm::dvec3(world) - renderOrigin());
+}
+
+/// A view-projection made for `origin`, for a point given from the origin now: the point from the old origin is the new one's plus the step between them.
+inline glm::mat4 viewProjectionFromOrigin(const glm::mat4& viewProjection, const glm::dvec3& origin) {
+    const glm::dvec3 step = renderOrigin() - origin;
+    if (step == glm::dvec3(0.0)) return viewProjection;
+    return viewProjection * glm::translate(glm::mat4(1.0f), glm::vec3(step));
+}
+
+/// A model placed from `origin`, as it is placed from the origin now.
+inline glm::mat4 modelFromOrigin(const glm::mat4& model, const glm::dvec3& origin) {
+    const glm::dvec3 step = origin - renderOrigin();
+    if (step == glm::dvec3(0.0)) return model;
+    return glm::translate(glm::mat4(1.0f), glm::vec3(step)) * model;
 }
 
 }  // namespace esengine

@@ -66,6 +66,8 @@ private:
         std::vector<glm::mat4> bonesPrevious;
         std::vector<glm::mat4> bonesCurrent;
         u64 frame = 0;
+        /// The render origin `current` was placed from.
+        glm::dvec3 origin{0.0};
     };
     std::unordered_map<u64, Pose> poses_;
     void trackPose(const RenderFrameContext& ctx, Entity entity, const glm::mat4& model,
