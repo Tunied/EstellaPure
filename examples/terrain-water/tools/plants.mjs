@@ -42,25 +42,38 @@ const TINTS = {
   willow: [[0.9, 1, 1.03], [1, 1, 1], [1.05, 1, 0.94]],
   shrub: [[0.94, 1, 0.92], [1, 1, 1], [1.08, 1.03, 0.9]],
   grass: [[0.9, 1, 0.85], [1, 1, 1], [1.12, 1.02, 0.8]],
-  reed: [[0.9, 1, 0.9], [1, 1, 1], [1.1, 1.02, 0.83]],
+  beech: [[0.94, 1, 0.92], [1, 1, 1], [1.08, 0.97, 0.86]],
+  conifer: [[0.88, 0.96, 0.92], [1, 1, 1], [1.04, 1.03, 0.91]],
+  fern: [[0.91, 0.98, 0.92], [1, 1, 1], [1.08, 1.03, 0.87]],
+  reed: [[0.92, 0.98, 0.91], [1, 1, 1], [1.08, 1.02, 0.85]],
 };
 
 /** The kinds of plant: the prefab each is made of, how far it is drawn (metres: the cheaper mesh from `lod`, nothing past `draw`, the far version out to `far`). */
 const KINDS = {
-  oak: { prefab: 'tree-oak', lod: 60, draw: 160, far: 2000, tints: TINTS.oak },
+  oak: { prefab: 'tree-oak-dense', lod: 60, draw: 160, far: 2000, tints: TINTS.oak },
+  beech: { prefab: 'tree-beech-dense', lod: 60, draw: 160, far: 2000, tints: TINTS.beech },
   birch: { prefab: 'tree-birch', lod: 60, draw: 160, far: 2000, tints: TINTS.birch },
   willow: { prefab: 'tree-willow', lod: 60, draw: 160, far: 2000, tints: TINTS.willow },
+  'pine-ridge': { prefab: 'tree-pine-ridge', lod: 60, draw: 160, far: 2000, tints: TINTS.conifer },
+  'pine-lakeside': { prefab: 'tree-pine-lakeside', lod: 60, draw: 160, far: 2000, tints: TINTS.conifer },
   hazel: { prefab: 'shrub-hazel', lod: 40, draw: 120, tints: TINTS.shrub },
   coppice: { prefab: 'shrub-woodland-coppice', lod: 40, draw: 120, tints: TINTS.shrub },
+  lowleaf: { prefab: 'woodland-lowleaf', lod: 30, draw: 100, tints: TINTS.fern },
+  'fern-upright': { prefab: 'fern-upright', lod: 30, draw: 100, tints: TINTS.fern },
+  'fern-arching': { prefab: 'fern-arching', lod: 30, draw: 100, tints: TINTS.fern },
   'granite-crown': { prefab: 'granite-crown', lod: 90, draw: 330, sink: 8 },
   'granite-bank': { prefab: 'granite-bank', lod: 90, draw: 330, sink: 8 },
   'granite-split': { prefab: 'granite-split', lod: 90, draw: 330, sink: 8 },
+  'boulder-round': { prefab: 'waterworn-boulder-round', lod: 60, draw: 200, sink: 12 },
+  'boulder-flat': { prefab: 'waterworn-boulder-flat', lod: 60, draw: 200, sink: 12 },
+  pebbles: { prefab: 'pebble-bed-small', lod: 40, draw: 120, sink: 2 },
   'grass-fine': { prefab: 'grass-fine', lod: 30, draw: 90, tints: TINTS.grass },
   'grass-meadow': { prefab: 'grass-meadow', lod: 30, draw: 90, tints: TINTS.grass },
+  'grass-bank': { prefab: 'grass-bank-dense', lod: 30, draw: 100, tints: TINTS.reed },
   'flower-ivory': { prefab: 'flower-ivory', lod: 40, draw: 90 },
   'flower-amber': { prefab: 'flower-amber', lod: 40, draw: 90 },
   'flower-blue': { prefab: 'flower-blue', lod: 40, draw: 90 },
-  reed: { prefab: 'reed-lakeside', lod: 40, draw: 90, tints: TINTS.reed },
+  reed: { prefab: 'reed-thicket', lod: 40, draw: 100, tints: TINTS.reed },
 };
 
 /** The `plants` table of the rules: each kind's parts read from its prefab, with the cheaper mesh and the far cards beside it. */
@@ -99,7 +112,9 @@ export function plantRules({ project, lakeLevel, snow }) {
     members: [
       { ...tree(anchor), id: 'kin', count: [1, 3], ring: [300, 750], scale: [0.7, 1.25] },
       { ...tree(other), id: 'other', count: [1, 3], ring: [300, 750], scale: [0.7, 1.25] },
+      { ...tree('beech'), id: 'beech', count: [0, 2], ring: [300, 750], scale: [0.7, 1.2], chance: 0.6 },
       shrub('hazel', [1, 3]), shrub('coppice', [1, 2]),
+      shrub('lowleaf', [2, 4]), shrub('fern-upright', [1, 3]), shrub('fern-arching', [1, 3]),
       grass('grass-fine', [3, 7], [100, 900], [1, 1.9], { chance: 0.8 }), grass('grass-meadow', [2, 5], [100, 900], [1, 1.9], { chance: 0.8 }),
     ],
   });
@@ -136,7 +151,7 @@ export function plantRules({ project, lakeLevel, snow }) {
         ],
         recipes: [
           { recipe: 'grove-oak', layer: 'groves', density: 0.6 }, { recipe: 'grove-birch', layer: 'groves', density: 0.5 },
-          { recipe: 'tufts', layer: 'cover', density: 0.4 }, { recipe: 'drift-ivory', layer: 'drifts', density: 0.1 },
+          { recipe: 'tufts', layer: 'cover', density: 0.25 }, { recipe: 'undergrowth', layer: 'cover', density: 0.5 }, { recipe: 'drift-ivory', layer: 'drifts', density: 0.1 },
         ] },
       // The meadow rises from the water's edge over a band, so its grass and flowers thin out toward it and do not stop at a line.
       { id: 'meadow', transition: 200,
@@ -172,7 +187,10 @@ export function plantRules({ project, lakeLevel, snow }) {
           { field: 'shoreDistance', min: 100, max: 1800, blend: 450 }, { field: 'up', min: 0.9, blend: 0.08 },
           { field: 'height', min: lakeLevel, max: lakeLevel + 500, blend: 120 },
         ],
-        recipes: [{ recipe: 'willows', layer: 'banks', density: 0.8 }, { recipe: 'tufts', layer: 'cover', density: 0.25 }] },
+        recipes: [
+          { recipe: 'willows', layer: 'banks', density: 0.55 }, { recipe: 'shore-pines', layer: 'banks', density: 0.3 },
+          { recipe: 'bank-grass', layer: 'cover', density: 0.7 }, { recipe: 'tufts', layer: 'cover', density: 0.15 },
+        ] },
       // The shallows: reeds in strips, standing in the water and on the wet bank, thinning out on both sides.
       { id: 'shallows', transition: 250,
         conditions: [
@@ -180,6 +198,20 @@ export function plantRules({ project, lakeLevel, snow }) {
           { field: 'height', min: lakeLevel - 70, max: lakeLevel + 120, blend: 40 },
         ],
         recipes: [{ recipe: 'reed-strip', layer: 'reeds', density: 0.9 }] },
+      // The high ground, where the trees are conifers: stands of pines with ferns under them, on ground gentle enough to hold them.
+      { id: 'ridge', transition: 400,
+        conditions: [
+          { field: 'height', min: 2000, max: snow - 150, blend: 450 }, { field: 'up', min: 0.72, blend: 0.1 }, { field: 'paint.grass', min: 0.1, blend: 0.2 },
+          { field: 'shoreDistance', min: 600, blend: 500 },
+        ],
+        recipes: [{ recipe: 'pines', layer: 'groves', density: 0.7 }, { recipe: 'undergrowth', layer: 'cover', density: 0.3 }] },
+      // The shoals: the lake's shallows, where the water is clear enough to see stones in. A water-worn boulder with a bed of pebbles round it, and loose beds.
+      { id: 'shoals', transition: 250,
+        conditions: [
+          { field: 'shoreDistance', min: -500, max: 200, blend: 250 }, { field: 'height', min: lakeLevel - 160, max: lakeLevel + 40, blend: 60 },
+          { field: 'reeds', min: 0.2, blend: 0.3 },
+        ],
+        recipes: [{ recipe: 'shoal-round', layer: 'shoals', density: 0.35 }, { recipe: 'shoal-flat', layer: 'shoals', density: 0.25 }, { recipe: 'pebble-field', layer: 'shoals', density: 0.4 }] },
       // Stones: where the paint is rock and, more thinly, where the slow rock noise is high.
       { id: 'rocky', transition: 200,
         conditions: [{ field: 'paint.rock', min: 0.15, blend: 0.2 }, { field: 'height', min: 700, max: snow, blend: 200 }],
@@ -203,6 +235,40 @@ export function plantRules({ project, lakeLevel, snow }) {
         members: [grass('grass-meadow', [3, 8], [25, 120], [0.9, 1.7], { footprint: 12 }), grass('grass-fine', [0, 3], [25, 120], [0.9, 1.5], { footprint: 12 })],
       },
       drift('ivory'), drift('amber'), drift('blue'),
+      // Conifers on the high ground, in stands, with ferns under them; and a few by the lake.
+      {
+        id: 'pines', version: 1, tags: ['tree'], anchor: { id: 'elder', plant: 'pine-ridge', scale: [0.9, 1.3], footprint: 50, canopy: 400, minUp: 0.7 },
+        members: [
+          { id: 'kin', plant: 'pine-ridge', count: [2, 5], ring: [250, 700], scale: [0.7, 1.2], footprint: 45, canopy: 350, minUp: 0.7 },
+          shrub('fern-upright', [1, 3]), grass('grass-meadow', [2, 5], [100, 600], [1, 1.6]),
+        ],
+      },
+      {
+        id: 'shore-pines', version: 1, tags: ['tree'], anchor: { id: 'elder', plant: 'pine-lakeside', scale: [0.9, 1.25], footprint: 50, canopy: 400, minUp: 0.8 },
+        members: [{ id: 'kin', plant: 'pine-lakeside', count: [0, 2], ring: [300, 650], scale: [0.7, 1.1], footprint: 45, canopy: 350, minUp: 0.8, chance: 0.5 }],
+      },
+      // Under the trees: ferns and low leaves in drifts.
+      {
+        id: 'undergrowth', version: 1, tags: ['grass'], anchor: { id: 'fern', plant: 'fern-upright', scale: [1, 1.5], footprint: 15, minUp: 0.8 },
+        members: [{ ...shrub('fern-arching', [2, 5]), ring: [30, 140], footprint: 15 }, { ...shrub('lowleaf', [2, 5]), ring: [40, 160], footprint: 15 }],
+      },
+      // The bank: dense grass in clumps.
+      {
+        id: 'bank-grass', version: 1, tags: ['grass'], anchor: { id: 'clump', plant: 'grass-bank', scale: [1, 1.5], footprint: 20, minUp: 0.7 },
+        members: [{ id: 'more', plant: 'grass-bank', count: [2, 5], ring: [40, 160], scale: [0.8, 1.4], footprint: 18, minUp: 0.7 }],
+      },
+      // The shoals: a water-worn boulder with a bed of pebbles round it, under the water.
+      {
+        id: 'shoal-round', version: 1, tags: ['stone'], anchor: { id: 'boulder', plant: 'boulder-round', scale: [0.8, 1.5], footprint: 70, waterDepth: 160, minUp: 0.5 },
+        members: [{ id: 'bed', plant: 'pebbles', count: [1, 3], ring: [90, 320], scale: [0.8, 1.4], footprint: 60, waterDepth: 160, minUp: 0.5 }],
+      },
+      {
+        id: 'shoal-flat', version: 1, tags: ['stone'], anchor: { id: 'boulder', plant: 'boulder-flat', scale: [0.8, 1.5], footprint: 80, waterDepth: 160, minUp: 0.5 },
+        members: [{ id: 'bed', plant: 'pebbles', count: [1, 3], ring: [90, 320], scale: [0.8, 1.4], footprint: 60, waterDepth: 160, minUp: 0.5 }],
+      },
+      {
+        id: 'pebble-field', version: 1, tags: ['stone'], anchor: { id: 'bed', plant: 'pebbles', scale: [0.9, 1.6], footprint: 60, waterDepth: 160, minUp: 0.5 },
+      },
       {
         id: 'reed-strip', version: 1, tags: ['reed'], anchor: { id: 'reed', plant: 'reed', scale: [0.9, 1.4], footprint: 25, waterDepth: 70, minUp: 0.5 },
         members: [{ id: 'more', plant: 'reed', count: [2, 6], ring: [30, 160], scale: [0.8, 1.4], footprint: 20, waterDepth: 70, minUp: 0.5 }],
@@ -217,6 +283,7 @@ export function plantRules({ project, lakeLevel, snow }) {
       { id: 'cover', spacing: 190, chunkSize: 3200, drawDistance: 9500, occupies: false },
       { id: 'drifts', spacing: 600, chunkSize: 3200, drawDistance: 9500, occupies: false },
       { id: 'reeds', spacing: 130, chunkSize: 3200, drawDistance: 9500, occupies: false },
+      { id: 'shoals', spacing: 200, chunkSize: 3200, drawDistance: 20000, occupies: false },
     ],
   };
 }

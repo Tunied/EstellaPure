@@ -1,0 +1,37 @@
+{
+ "version": "2",
+ "name": "tree-pine-lakeside",
+ "rootEntityId": "n0",
+ "entities": [
+  {
+   "prefabEntityId": "n0",
+   "name": "tree-pine-lakeside__far",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "assets/plants/models/tree-pine-lakeside/far/tree-pine-lakeside.esmesh",
+      "lit": true,
+      "texture": "assets/plants/textures/fbdf333bfee5.png",
+      "material": "assets/plants/models/tree-pine-lakeside/far/tree-pine-lakeside_m0.esmaterial",
+      "color": {
+       "r": 1,
+       "g": 1,
+       "b": 1,
+       "a": 1
+      },
+      "opaque": true,
+      "enabled": true
+     }
+    }
+   ]
+  }
+ ]
+}

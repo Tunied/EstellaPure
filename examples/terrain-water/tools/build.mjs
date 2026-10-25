@@ -388,8 +388,12 @@ function materials() {
     u_wetLevel: WORLD.sea, u_wetBand: 60,
   });
   // The stock water, scaled from metres to this world's centimetres: the same colours, absorbed over a hundred times the distance.
-  const water = { u_density: 0.0011, u_rippleLength: 220, u_rippleStrength: 0.3, u_distortionRange: 300, u_refractionStrength: 0.6, u_edgeSoftness: 35, u_foamWidth: 45, u_foamCrest: 0.4,
-    u_fallbackDepth: 400, u_causticScale: 220, u_roughness: 0.04 };
+  const water = { u_density: 0.0011, u_rippleLength: 220, u_rippleStrength: 0.2, u_distortionRange: 300, u_refractionStrength: 0.6, u_edgeSoftness: 35, u_foamWidth: 45, u_foamCrest: 0.4,
+    u_fallbackDepth: 400, u_causticScale: 220, u_roughness: 0.04,
+    // The sparkle: the lakewood set's two tiled ripple normals (assets/water/detail.png: the long one's slope in red and green, the fine one's in blue and
+    // alpha), 2 m and 4.3 m to a repeat in this world's centimetres, drifting at the speeds the art gives them (a share of a repeat a second).
+    u_detailMap: 'assets/water/detail.png', u_detailTile0: 200, u_detailTile1: 430, u_detailStrength0: 1.0, u_detailStrength1: 1.5,
+    u_detailFlow0: { x: 5, y: 1.6 }, u_detailFlow1: { x: -6, y: 9 } };
   material('water', 'builtin:water', water);
   material('crate', 'builtin:model', { u_metallic: 0, u_roughness: 0.8 });
 }

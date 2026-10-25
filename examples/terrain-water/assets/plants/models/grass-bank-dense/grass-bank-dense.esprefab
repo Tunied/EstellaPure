@@ -1,0 +1,37 @@
+{
+ "version": "2",
+ "name": "grass-bank-dense",
+ "rootEntityId": "n0",
+ "entities": [
+  {
+   "prefabEntityId": "n0",
+   "name": "grass-bank-dense",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "assets/plants/models/grass-bank-dense/grass-bank-dense.esmesh",
+      "lit": true,
+      "texture": "assets/plants/textures/938bddcdab05.png",
+      "material": "assets/plants/models/grass-bank-dense/grass-bank-dense_m0.esmaterial",
+      "color": {
+       "r": 1,
+       "g": 1,
+       "b": 1,
+       "a": 1
+      },
+      "opaque": true,
+      "enabled": true
+     }
+    }
+   ]
+  }
+ ]
+}

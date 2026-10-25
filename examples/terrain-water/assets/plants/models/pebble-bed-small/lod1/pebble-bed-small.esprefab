@@ -1,0 +1,37 @@
+{
+ "version": "2",
+ "name": "pebble-bed-small",
+ "rootEntityId": "n0",
+ "entities": [
+  {
+   "prefabEntityId": "n0",
+   "name": "pebble-bed-small__lod1",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "assets/plants/models/pebble-bed-small/lod1/pebble-bed-small.esmesh",
+      "lit": true,
+      "texture": "assets/plants/textures/b7b7361f83eb.png",
+      "material": "assets/plants/models/pebble-bed-small/lod1/pebble-bed-small_m0.esmaterial",
+      "color": {
+       "r": 1,
+       "g": 0.9599999785423279,
+       "b": 0.8799999952316284,
+       "a": 1
+      },
+      "opaque": true,
+      "enabled": true
+     }
+    }
+   ]
+  }
+ ]
+}

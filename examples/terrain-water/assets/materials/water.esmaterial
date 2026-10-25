@@ -9,7 +9,7 @@
   "properties": {
     "u_density": 0.0011,
     "u_rippleLength": 220,
-    "u_rippleStrength": 0.3,
+    "u_rippleStrength": 0.2,
     "u_distortionRange": 300,
     "u_refractionStrength": 0.6,
     "u_edgeSoftness": 35,
@@ -17,6 +17,19 @@
     "u_foamCrest": 0.4,
     "u_fallbackDepth": 400,
     "u_causticScale": 220,
-    "u_roughness": 0.04
+    "u_roughness": 0.04,
+    "u_detailMap": "assets/water/detail.png",
+    "u_detailTile0": 200,
+    "u_detailTile1": 430,
+    "u_detailStrength0": 1,
+    "u_detailStrength1": 1.5,
+    "u_detailFlow0": {
+      "x": 5,
+      "y": 1.6
+    },
+    "u_detailFlow1": {
+      "x": -6,
+      "y": 9
+    }
   }
 }

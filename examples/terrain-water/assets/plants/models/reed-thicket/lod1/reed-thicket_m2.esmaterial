@@ -1,0 +1,16 @@
+{
+ "version": "1.0",
+ "type": "material",
+ "shader": "builtin:model",
+ "blendMode": 9,
+ "depthTest": true,
+ "depthWrite": true,
+ "cull": 0,
+ "properties": {
+  "u_normalMap": "../../../textures/00c1e532a620.png",
+  "u_metallicRoughnessMap": "../../../textures/182fe5c5f76d.png",
+  "u_metallic": 0,
+  "u_roughness": 1,
+  "u_alphaCutoff": 0.45
+ }
+}

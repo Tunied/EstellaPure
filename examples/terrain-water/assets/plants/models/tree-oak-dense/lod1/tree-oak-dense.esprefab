@@ -1,0 +1,83 @@
+{
+ "version": "2",
+ "name": "tree-oak-dense",
+ "rootEntityId": "n0",
+ "entities": [
+  {
+   "prefabEntityId": "n0",
+   "name": "tree-oak-dense__lod1",
+   "parent": null,
+   "children": [
+    "n0_p0",
+    "n0_p1"
+   ],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    }
+   ]
+  },
+  {
+   "prefabEntityId": "n0_p0",
+   "name": "tree-oak-dense_0_0",
+   "parent": "n0",
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "assets/plants/models/tree-oak-dense/lod1/tree-oak-dense_0_0.esmesh",
+      "lit": true,
+      "texture": "assets/plants/textures/06df0060cfc9.png",
+      "material": "assets/plants/models/tree-oak-dense/lod1/tree-oak-dense_m0.esmaterial",
+      "color": {
+       "r": 1,
+       "g": 1,
+       "b": 1,
+       "a": 1
+      },
+      "opaque": true,
+      "enabled": true
+     }
+    }
+   ]
+  },
+  {
+   "prefabEntityId": "n0_p1",
+   "name": "tree-oak-dense_0_1",
+   "parent": "n0",
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "assets/plants/models/tree-oak-dense/lod1/tree-oak-dense_0_1.esmesh",
+      "lit": true,
+      "texture": "assets/plants/textures/938bddcdab05.png",
+      "material": "assets/plants/models/tree-oak-dense/lod1/tree-oak-dense_m1.esmaterial",
+      "color": {
+       "r": 1,
+       "g": 1,
+       "b": 1,
+       "a": 1
+      },
+      "opaque": true,
+      "enabled": true
+     }
+    }
+   ]
+  }
+ ]
+}

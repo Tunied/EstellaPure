@@ -1,0 +1,37 @@
+{
+ "version": "2",
+ "name": "waterworn-boulder-flat",
+ "rootEntityId": "n0",
+ "entities": [
+  {
+   "prefabEntityId": "n0",
+   "name": "waterworn-boulder-flat",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "assets/plants/models/waterworn-boulder-flat/waterworn-boulder-flat.esmesh",
+      "lit": true,
+      "texture": "assets/plants/textures/b7b7361f83eb.png",
+      "material": "assets/plants/models/waterworn-boulder-flat/waterworn-boulder-flat_m0.esmaterial",
+      "color": {
+       "r": 1,
+       "g": 0.9700000286102295,
+       "b": 0.8999999761581421,
+       "a": 1
+      },
+      "opaque": true,
+      "enabled": true
+     }
+    }
+   ]
+  }
+ ]
+}

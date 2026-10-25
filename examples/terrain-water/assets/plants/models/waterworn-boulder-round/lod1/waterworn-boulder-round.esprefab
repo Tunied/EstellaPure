@@ -1,0 +1,37 @@
+{
+ "version": "2",
+ "name": "waterworn-boulder-round",
+ "rootEntityId": "n0",
+ "entities": [
+  {
+   "prefabEntityId": "n0",
+   "name": "waterworn-boulder-round__lod1",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "assets/plants/models/waterworn-boulder-round/lod1/waterworn-boulder-round.esmesh",
+      "lit": true,
+      "texture": "assets/plants/textures/b7b7361f83eb.png",
+      "material": "assets/plants/models/waterworn-boulder-round/lod1/waterworn-boulder-round_m0.esmaterial",
+      "color": {
+       "r": 0.9100000262260437,
+       "g": 0.9800000190734863,
+       "b": 1.0199999809265137,
+       "a": 1
+      },
+      "opaque": true,
+      "enabled": true
+     }
+    }
+   ]
+  }
+ ]
+}

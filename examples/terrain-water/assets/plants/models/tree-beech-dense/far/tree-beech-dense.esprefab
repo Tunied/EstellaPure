@@ -1,0 +1,37 @@
+{
+ "version": "2",
+ "name": "tree-beech-dense",
+ "rootEntityId": "n0",
+ "entities": [
+  {
+   "prefabEntityId": "n0",
+   "name": "tree-beech-dense__far",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "assets/plants/models/tree-beech-dense/far/tree-beech-dense.esmesh",
+      "lit": true,
+      "texture": "assets/plants/textures/620174ac7629.png",
+      "material": "assets/plants/models/tree-beech-dense/far/tree-beech-dense_m0.esmaterial",
+      "color": {
+       "r": 1,
+       "g": 1,
+       "b": 1,
+       "a": 1
+      },
+      "opaque": true,
+      "enabled": true
+     }
+    }
+   ]
+  }
+ ]
+}

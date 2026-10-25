@@ -1,0 +1,82 @@
+{
+ "version": "2",
+ "name": "fern-upright",
+ "rootEntityId": "n0",
+ "entities": [
+  {
+   "prefabEntityId": "n0",
+   "name": "fern-upright",
+   "parent": null,
+   "children": [
+    "n0_p0",
+    "n0_p1"
+   ],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    }
+   ]
+  },
+  {
+   "prefabEntityId": "n0_p0",
+   "name": "fern-upright_0_0",
+   "parent": "n0",
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "assets/plants/models/fern-upright/fern-upright_0_0.esmesh",
+      "lit": true,
+      "texture": "assets/plants/textures/938bddcdab05.png",
+      "material": "assets/plants/models/fern-upright/fern-upright_m0.esmaterial",
+      "color": {
+       "r": 1,
+       "g": 1,
+       "b": 1,
+       "a": 1
+      },
+      "opaque": true,
+      "enabled": true
+     }
+    }
+   ]
+  },
+  {
+   "prefabEntityId": "n0_p1",
+   "name": "fern-upright_0_1",
+   "parent": "n0",
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "assets/plants/models/fern-upright/fern-upright_0_1.esmesh",
+      "lit": true,
+      "material": "assets/plants/models/fern-upright/fern-upright_m1.esmaterial",
+      "color": {
+       "r": 0.10000000149011612,
+       "g": 0.2199999988079071,
+       "b": 0.03500000014901161,
+       "a": 1
+      },
+      "opaque": true,
+      "enabled": true
+     }
+    }
+   ]
+  }
+ ]
+}
