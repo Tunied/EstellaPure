@@ -142,13 +142,14 @@ vec3 scatter(vec3 dir, vec3 sun, float alt, float haze, out vec3 sunTrans) {
     return (sumR * BETA_R * phaseR + sumM * BETA_M * haze * phaseM) * SUN_I;
 }
 
-/// Where a coverage texture is given, the shape of the clouds is its: the noise only erodes it (a third of what it says). The layers are tiled
-/// in kilometres of the cloud plane, the second a softer, higher one folded in.
-float cloudField(vec2 xz, float noise) {
+/// Where a coverage texture is given, the shape of the clouds on the ground is its, and the noise erodes it. The layers are tiled in kilometres
+/// of the cloud plane, the second a softer, higher one folded in.
+float cloudField(vec2 xz, float noise, float h) {
     if (u_cloudMaskTile <= 0.0) return noise;
     float m = textureLod(u_cloudMask, xz / u_cloudMaskTile, 0.0).r;
     if (u_cloudMask2Tile > 0.0) m = mix(m, textureLod(u_cloudMask2, xz / u_cloudMask2Tile, 0.0).r, 0.3);
-    return mix(m, noise, 0.3);
+    // A mask knows nothing of height, and a column of it seen along the slab is a streak: the cloud's top stands only over the mask's core, a dome.
+    return mix(m, noise, 0.5) - 0.35 * (h - 0.35);
 }
 
 float cloudDensity(vec3 p, float coverage, float base, float thick, int octaves) {
@@ -158,7 +159,7 @@ float cloudDensity(vec3 p, float coverage, float base, float thick, int octaves)
     float n = vnoise(q) * 0.58 + vnoise(q * 2.13) * 0.28;
     if (octaves > 2) n += vnoise(q * 4.7) * 0.14;
     else n += 0.07;
-    n = cloudField(p.xz, n);
+    n = cloudField(p.xz, n, h);
     return smoothstep(1.0 - coverage, 1.0 - coverage + 0.22, n) * shape;
 }
 
@@ -411,11 +412,11 @@ fn scatter(dir : vec3f, sun : vec3f, alt : f32, haze : f32) -> Scatter {
     return out;
 }
 
-fn cloudField(xz : vec2f, noise : f32) -> f32 {
+fn cloudField(xz : vec2f, noise : f32, h : f32) -> f32 {
     if (mc.u_cloudMaskTile <= 0.0) { return noise; }
     var m = textureSampleLevel(u_cloudMask, u_cloudMask_s, xz / mc.u_cloudMaskTile, 0.0).r;
     if (mc.u_cloudMask2Tile > 0.0) { m = mix(m, textureSampleLevel(u_cloudMask2, u_cloudMask2_s, xz / mc.u_cloudMask2Tile, 0.0).r, 0.3); }
-    return mix(m, noise, 0.3);
+    return mix(m, noise, 0.5) - 0.35 * (h - 0.35);
 }
 
 fn cloudDensity(p : vec3f, coverage : f32, base : f32, thick : f32, octaves : i32) -> f32 {
@@ -424,7 +425,7 @@ fn cloudDensity(p : vec3f, coverage : f32, base : f32, thick : f32, octaves : i3
     let q = vec3f(p.x, p.y * 1.8, p.z) * 0.32;
     var n = vnoise(q) * 0.58 + vnoise(q * 2.13) * 0.28;
     if (octaves > 2) { n = n + vnoise(q * 4.7) * 0.14; } else { n = n + 0.07; }
-    n = cloudField(p.xz, n);
+    n = cloudField(p.xz, n, h);
     return smoothstep(1.0 - coverage, 1.0 - coverage + 0.22, n) * shape;
 }
 
@@ -647,13 +648,14 @@ float vnoise(vec3 p) {
     float d = mix(hash13(i + vec3(0, 1, 1)), hash13(i + vec3(1, 1, 1)), f.x);
     return mix(mix(a, b, f.y), mix(c, d, f.y), f.z);
 }
-/// Where a coverage texture is given, the shape of the clouds is its: the noise only erodes it (a third of what it says). The layers are tiled
-/// in kilometres of the cloud plane, the second a softer, higher one folded in.
-float cloudField(vec2 xz, float noise) {
+/// Where a coverage texture is given, the shape of the clouds on the ground is its, and the noise erodes it. The layers are tiled in kilometres
+/// of the cloud plane, the second a softer, higher one folded in.
+float cloudField(vec2 xz, float noise, float h) {
     if (u_cloudMaskTile <= 0.0) return noise;
     float m = textureLod(u_cloudMask, xz / u_cloudMaskTile, 0.0).r;
     if (u_cloudMask2Tile > 0.0) m = mix(m, textureLod(u_cloudMask2, xz / u_cloudMask2Tile, 0.0).r, 0.3);
-    return mix(m, noise, 0.3);
+    // A mask knows nothing of height, and a column of it seen along the slab is a streak: the cloud's top stands only over the mask's core, a dome.
+    return mix(m, noise, 0.5) - 0.35 * (h - 0.35);
 }
 
 /// The sky's cloud density, the same one the dome draws (see skyAtmosphere), at a point in kilometres.
@@ -661,7 +663,7 @@ float cloudDensity(vec3 p, float coverage, float base, float thick) {
     float h = clamp((p.y - base) / thick, 0.0, 1.0);
     float shape = smoothstep(0.0, 0.14, h) * smoothstep(1.0, 0.55, h);
     vec3 q = vec3(p.x, p.y * 1.8, p.z) * 0.32;
-    float n = cloudField(p.xz, vnoise(q) * 0.58 + vnoise(q * 2.13) * 0.28 + 0.07);
+    float n = cloudField(p.xz, vnoise(q) * 0.58 + vnoise(q * 2.13) * 0.28 + 0.07, h);
     return smoothstep(1.0 - coverage, 1.0 - coverage + 0.22, n) * shape;
 }
 /// How much of the sun reaches the air at @p world through the cloud layer, 1 being all of it: the sun's ray marched up through the slab.
@@ -788,18 +790,18 @@ fn vnoise(p : vec3f) -> f32 {
     let d = mix(hash13(i + vec3f(0, 1, 1)), hash13(i + vec3f(1, 1, 1)), f.x);
     return mix(mix(a, b, f.y), mix(c, d, f.y), f.z);
 }
-fn cloudField(xz : vec2f, noise : f32) -> f32 {
+fn cloudField(xz : vec2f, noise : f32, h : f32) -> f32 {
     if (mc.u_cloudMaskTile <= 0.0) { return noise; }
     var m = textureSampleLevel(u_cloudMask, u_cloudMask_s, xz / mc.u_cloudMaskTile, 0.0).r;
     if (mc.u_cloudMask2Tile > 0.0) { m = mix(m, textureSampleLevel(u_cloudMask2, u_cloudMask2_s, xz / mc.u_cloudMask2Tile, 0.0).r, 0.3); }
-    return mix(m, noise, 0.3);
+    return mix(m, noise, 0.5) - 0.35 * (h - 0.35);
 }
 
 fn cloudDensity(p : vec3f, coverage : f32, base : f32, thick : f32) -> f32 {
     let h = clamp((p.y - base) / thick, 0.0, 1.0);
     let shape = smoothstep(0.0, 0.14, h) * smoothstep(1.0, 0.55, h);
     let q = vec3f(p.x, p.y * 1.8, p.z) * 0.32;
-    let n = cloudField(p.xz, vnoise(q) * 0.58 + vnoise(q * 2.13) * 0.28 + 0.07);
+    let n = cloudField(p.xz, vnoise(q) * 0.58 + vnoise(q * 2.13) * 0.28 + 0.07, h);
     return smoothstep(1.0 - coverage, 1.0 - coverage + 0.22, n) * shape;
 }
 fn cloudLight(world : vec3f, camY : f32, sun : vec3f, drift : vec3f) -> f32 {

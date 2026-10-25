@@ -2860,6 +2860,10 @@ export const NOTED = {
     {"note":"Clouds drawn from a coverage picture."},
   "feat(inspector): an effect's internal textures are not listed either":
     {"internal":"Hides parameters the engine writes itself."},
+  "fix(sky): a cloud mask's clouds are domes, and no longer smear into streaks seen low":
+    {"note":"Clouds drawn from a coverage picture."},
+  "fix(examples): Terrain & Water has a thin cloud layer, so its masked clouds do not streak":
+    {"note":"Clouds drawn from a coverage picture."},
   "feat(water): two tiled, scrolling detail normal maps give the surface its sparkle":
     {"note":"Sparkle on the water."},
   "fix(lod): a LODGroup with only a cull size is no longer ignored":
