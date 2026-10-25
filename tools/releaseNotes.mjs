@@ -2834,6 +2834,8 @@ export const NOTED = {
     {"note":"A generated world's plants."},
   "feat(worldgen): a plant of a generated world leans with the ground where its member says attach: align":
     {"note":"A generated world's plants."},
+  "feat(examples): Terrain & Water stones sit on the slope they stand on":
+    {"note":"A generated world's plants."},
   "feat(water): two tiled, scrolling detail normal maps give the surface its sparkle":
     {"note":"Sparkle on the water."},
   "fix(lod): a LODGroup with only a cull size is no longer ignored":
