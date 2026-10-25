@@ -2864,6 +2864,8 @@ export const NOTED = {
     {"note":"Clouds drawn from a coverage picture."},
   "fix(examples): Terrain & Water has a thin cloud layer, so its masked clouds do not streak":
     {"note":"Clouds drawn from a coverage picture."},
+  "fix(examples): Terrain & Water takes the compact grass with its leaf colour from the art":
+    {"note":"A generated world's plants."},
   "feat(water): two tiled, scrolling detail normal maps give the surface its sparkle":
     {"note":"Sparkle on the water."},
   "fix(lod): a LODGroup with only a cull size is no longer ignored":

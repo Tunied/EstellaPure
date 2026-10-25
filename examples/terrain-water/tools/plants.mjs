@@ -31,12 +31,6 @@ function partsOf(project, file) {
 const SOFT_CARDS = 0.85;
 const SOFT_GROUND = 0.6;
 
-/**
- * The leaf colour of the compact grasses (grass-catalog.json's baseLinearRGB). The art says it is in COLOR_0, but the delivered GLBs carry white
- * there, so until that is re-exported it is the part's tint, a little lifted (1.6) for the scene's light.
- */
-const GRASS_BASE = { 'grass-compact-short': [0.115, 0.205, 0.028], 'grass-compact-meadow': [0.145, 0.235, 0.038], 'grass-compact-bank': [0.09, 0.185, 0.032] };
-
 const asPart = (d, lod1Mesh = '') => ({
   mesh: d.mesh, lod1Mesh, material: d.material ?? '', texture: d.texture ?? '',
   tint: [d.color?.r ?? 1, d.color?.g ?? 1, d.color?.b ?? 1, d.color?.a ?? 1], opaque: d.opaque !== false,
@@ -51,7 +45,8 @@ const TINTS = {
   birch: [[0.94, 1, 0.93], [1, 1, 1], [1.04, 1.04, 0.9]],
   willow: [[0.9, 1, 1.03], [1, 1, 1], [1.05, 1, 0.94]],
   shrub: [[0.94, 1, 0.92], [1, 1, 1], [1.08, 1.03, 0.9]],
-  grass: [[1, 1, 1], [1.07, 1.02, 0.88], [0.91, 0.97, 0.95]],
+  // The groundcover's variants (warm green, sunlit olive, sheltered green), lifted by 1.5: its leaf colours are authored dark, for a scene lit from above.
+  grass: [[1.5, 1.5, 1.5], [1.6, 1.53, 1.32], [1.37, 1.46, 1.43]],
   beech: [[0.94, 1, 0.92], [1, 1, 1], [1.08, 0.97, 0.86]],
   conifer: [[0.88, 0.96, 0.92], [1, 1, 1], [1.04, 1.03, 0.91]],
   fern: [[0.91, 0.98, 0.92], [1, 1, 1], [1.08, 1.03, 0.87]],
@@ -110,10 +105,9 @@ function plants(project) {
     const cover = COVER[name];
     // Ground cover: the cheaper mesh stands for it far off, thinned; trees: the art's cards.
     // The art's cards where it made them; ground cover with none (a flower) stands in as its own cheaper mesh, thinned.
-    const based = (part, prefab) => GRASS_BASE[prefab] ? { ...part, tint: part.tint.map((c, i) => (i < 3 ? c * GRASS_BASE[prefab][i] * 1.6 : c)) } : part;
     const far = cards.length ? cards.map((d) => ({ ...asPart(d), soft: cover ? SOFT_GROUND : SOFT_CARDS })) : cover ? (cheaper ? near : parts).map((d) => asPart(d)) : [];
     out[name] = {
-      parts: parts.map((d, j) => based(asPart(d, cheaper ? near[j].mesh : ''), k.prefab)),
+      parts: parts.map((d, j) => asPart(d, cheaper ? near[j].mesh : '')),
       lodDistance: cheaper ? k.lod * M : 0, drawDistance: k.draw * M,
       far, farDistance: far.length ? (cover?.far ?? k.far ?? 0) * M : 0,
       ...(cover ? { farKeep: cover.keep } : {}),
