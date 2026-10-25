@@ -14,6 +14,7 @@ import {
   decideTextureCook, cookIntentDefeated, explainTextureCook, downscaledSize,
   type TextureCookDecision,
 } from './textureCookDecision';
+import { bleedCutoutColor } from './modelImages';
 import { halveRgba, joinMipLevels, alphaCoverage, preserveAlphaCoverage } from './ktx2Mips';
 import { cookCachedAt, cookCacheFile, cookCacheHitAt, encoderIdentity } from './cookCache';
 
@@ -163,9 +164,14 @@ export async function cookTexture(input: TextureCookInput): Promise<TextureCookO
     if (cook.reason === 'not-raster') defeatedByFormat = true;
     else warnings.push(`${path}: ${explainTextureCook(cook, size)}`);
   }
+  // A cutout (one that asks for its coverage kept) has the colour of its solid texels carried into its clear ones, as a model's cutouts do: what a
+  // painter leaves under alpha 0 is a mip's, and a filter's, to average in with the leaf, and the edge of every leaf shows it as a halo.
+  const cutout = raster && tex.mipmaps && tex.mipCoverage > 0;
+  const bled = (image: { rgba: Uint8Array; width: number; height: number }) =>
+    cutout ? { ...image, rgba: bleedCutoutColor({ width: image.width, height: image.height, rgba: image.rgba }) } : image;
   // A texture that ships as an image ships the shrunk one.
-  if (cook.selected === 'raw' && scaled) {
-    const image = scaledImage();
+  if (cook.selected === 'raw' && (scaled || cutout)) {
+    const image = bled(scaled ? scaledImage() : decodePngImage(path, data));
     data = encodeRgbaPng(image.width, image.height, image.rgba);
   }
   if (cook.selected !== 'raw') {
@@ -183,9 +189,9 @@ export async function cookTexture(input: TextureCookInput): Promise<TextureCookO
     const supercompress = mode === 'uastc';
     const key = [source, JSON.stringify({ mode, srgb: tex.srgb, maxSize: tex.maxSize, scaled: scaled ? [size!.width, size!.height] : null,
       // `chain: 3` marks the rescaled chain that replaced the share-of-coverage one (chain 2): an entry cooked before it is re-encoded.
-      ...(coverage ? { mipCoverage: coverage, chain: 3 } : {}), ...(supercompress ? { supercompress } : {}), ...mips }), input.encoder!.id];
+      ...(coverage ? { mipCoverage: coverage, chain: 3 } : {}), ...(cutout ? { bleed: 1 } : {}), ...(supercompress ? { supercompress } : {}), ...mips }), input.encoder!.id];
     const produce = (): Promise<Uint8Array> => {
-      const image = scaled ? scaledImage() : null;
+      const image = scaled ? bled(scaledImage()) : cutout ? bled(decodePngImage(path, source)) : null;
       return coverage
         ? encodeCoverageChain(enc, image ?? decodePngImage(path, source), tex.srgb, coverage)
         : image

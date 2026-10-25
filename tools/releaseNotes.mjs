@@ -2836,6 +2836,8 @@ export const NOTED = {
     {"note":"A generated world's plants."},
   "feat(examples): Terrain & Water stones sit on the slope they stand on":
     {"note":"A generated world's plants."},
+  "fix(cook): a cutout texture has its colour carried into its clear texels, so a leaf has no pale edge":
+    {"note":"A leaf or a blade of grass no longer has a pale edge."},
   "feat(water): two tiled, scrolling detail normal maps give the surface its sparkle":
     {"note":"Sparkle on the water."},
   "fix(lod): a LODGroup with only a cull size is no longer ignored":

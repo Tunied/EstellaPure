@@ -13,6 +13,7 @@ import { cookTexture, loadTextureEncoder } from '../src/assets/textureCook';
 import { cookAssets } from '../src/assets/cookAssets';
 import { readKtx2Layout } from '../src/assets/ktx2Mips';
 import { noisePng, solidPng } from './fixtures/solidPng.mjs';
+import { decodePngImage, encodeRgbaPng } from '../src/assets/atlasPacker';
 
 describe('a texture compressed for the editor', () => {
   it('is pending until compressed, then answered from the cache a build reads', async () => {
@@ -123,6 +124,27 @@ describe('a texture compressed for the editor', () => {
       rmSync(r, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
     }
   }, 60_000);
+});
+
+describe('a cutout texture the cook ships', () => {
+  it('has the colour of its solid texels carried into its clear ones, and a texture that is no cutout keeps what is under its alpha', async () => {
+    // Green on the left, and white under alpha 0 on the right: the white a mip would average in at the leaf's edge.
+    const rgba = new Uint8Array(8 * 8 * 4);
+    for (let i = 0; i < 64; i++) rgba.set(i % 8 < 4 ? [20, 160, 30, 255] : [255, 255, 255, 0], i * 4);
+    const png = encodeRgbaPng(8, 8, rgba);
+    const cook = (importer: Record<string, unknown>) => cookTexture({
+      root: '.', path: 'leaf.png', data: new Uint8Array(png), ext: '.png', importer, encoder: null,
+      compressTextures: false, atlasTextures: false, drawnIn3D: true,
+    });
+    const cutout = await cook({ compress: false, mipmaps: true, mipCoverage: 0.5 });
+    expect(cutout.ext).toBe('.png');
+    const out = decodePngImage('leaf.png', cutout.data);
+    // A clear texel beside the leaf is green and still clear; a solid one is exactly as it was.
+    expect([...out.rgba.slice(5 * 4, 5 * 4 + 4)]).toEqual([20, 160, 30, 0]);
+    expect([...out.rgba.slice(0, 4)]).toEqual([20, 160, 30, 255]);
+    const plain = await cook({ compress: false, mipmaps: true });
+    expect(Buffer.from(plain.data).equals(Buffer.from(png))).toBe(true);
+  });
 });
 
 describe('a UASTC texture the cook ships', () => {
