@@ -121,6 +121,9 @@ public:
      */
     static constexpr u32 kIdleTicksBeforeEvict = 120;
 
+    /** @brief Bytes of unborrowed targets the pool keeps, whatever their age: past it the longest idle are destroyed. */
+    static constexpr u64 kIdleByteBudget = 256ull * 1024 * 1024;
+
 private:
     struct Entry {
         Unique<Framebuffer> fbo;

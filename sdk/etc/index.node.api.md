@@ -7351,6 +7351,7 @@ set: <T>(id: string, def: ChunkLayer<T>) => void
 stateAt: (id: string, x: number, z: number) => ChunkState | null
 status: (id: string) => ChunkLayerStatus | null
 step: (hasTime: () => boolean) => void
+suspended: boolean
 static new (): ProceduralChunks
 static prototype: ProceduralChunks
 ```

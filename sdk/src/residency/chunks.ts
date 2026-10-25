@@ -106,6 +106,8 @@ export class ProceduralChunks {
     private readonly layers_ = new Map<string, Layer<unknown>>();
     /** @internal Set by the plugin: the world's own sources, sampled once a frame. */
     sources_: () => ChunkSource[] = () => [];
+    /** True while something else is showing this world (the editor's play realm has its own): no place is wanted, so every chunk is let go. */
+    suspended = false;
 
     /** Adds a layer under `id`, or takes the new definition of one already there (its chunks stay and follow the new generation). */
     set<T>(id: string, def: ChunkLayer<T>): void {
@@ -184,7 +186,7 @@ export class ProceduralChunks {
      * stands in at once and the rest while `hasTime` says so.
      */
     step(hasTime: () => boolean): void {
-        const world = this.sources_();
+        const world = this.suspended ? [] : this.sources_();
         const wanted: { layer: Layer<unknown>; cx: number; cz: number; dist: number }[] = [];
         for (const layer of this.layers_.values()) {
             const d = layer.def;

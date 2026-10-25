@@ -16,6 +16,7 @@ published separately; it ships inside the editor.
 
 ### Added
 
+- **The editor lets go of a generated world while the game plays.** The game runs in a realm of its own that builds its own copy of a generated world; the editor's copy is released for as long as it runs and made again on Stop, so the two are not held together.
 - **Plants are instances of one mesh.** A generated world's and a `PlacedFoliage`'s plants no longer merge their vertices a cell at a time: a new `MeshInstances` component places one resident mesh at many places (sixty-four bytes a plant), and the engine culls each plant against the view, takes a cheaper mesh past a distance and draws none past another, as one instanced draw that cells sharing a mesh and a material merge into. The geometry exists once however many plants there are, so a planet's plants take a tenth of the memory and a fraction of the draws, and a cell is grown in microseconds instead of a few milliseconds.
 - **A project can keep folders out of its asset database.** `assetExclude` in the project manifest names folders (a source-art repository, docs, a server) the asset scan does not index, does not write a `.meta` into and the editor does not watch.
 - **Small plants need not cast a shadow.** A plant part takes `castShadows: false`, so ground cover too small to be worth a shadow-map draw is left out of the shadow pass.
@@ -74,6 +75,7 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Resizing a viewport no longer piles up render targets.** A viewport dragged or docked through many sizes borrowed a full set of targets (the scene, its depth, the post chain) at each size and left each idle for two seconds before freeing it, which grew the GPU process to ten gigabytes in a few seconds and lost the graphics context. Targets nobody borrows are now kept within a budget of 256 MB, the longest idle first.
 - **Many placed objects no longer crash the renderer.** The texture that holds every object's record in a frame grew by doubling but was created from storage sized to the frame's need, so a frame with many objects read past its end and the engine aborted with `memory access out of bounds`; stopping then reported one warning for every entity. The texture is created from storage as tall as itself, and an aborted engine is reported once.
 - **A cloud's shadow stays where the cloud is.** The shadow a sky's clouds cast on the scene added the camera's position to the cloud's, so it slid across the ground as the camera moved while the cloud in the sky stood still; it is taken from the same place the sky draws the cloud from.
 - **A leaf or a blade of grass no longer has a pale edge.** A cutout texture (one with a Mip Coverage) has the colour of its solid texels carried into its clear ones when it is cooked, as a model's cutouts already did: what an artist leaves under alpha 0, often white, was averaged in at every leaf's edge by the filter and the mips. The source image is not touched.

@@ -146,6 +146,23 @@ void TargetPool::age() {
             ++entry.generation;
         }
     }
+    // A viewport that is being resized borrows a new shape every tick and leaves the last one idle: two seconds of that is a hundred
+    // sets of targets. What sits idle past the budget goes at once, the longest idle first, whatever its age.
+    u64 idleBytes = 0;
+    for (const auto& entry : entries_) {
+        if (entry.fbo && !entry.inUse) idleBytes += static_cast<u64>(entry.shape.width) * entry.shape.height * texelBytes(entry.shape);
+    }
+    while (idleBytes > kIdleByteBudget) {
+        Entry* oldest = nullptr;
+        for (auto& entry : entries_) {
+            if (entry.fbo && !entry.inUse && (!oldest || entry.idle > oldest->idle)) oldest = &entry;
+        }
+        if (!oldest) break;
+        idleBytes -= static_cast<u64>(oldest->shape.width) * oldest->shape.height * texelBytes(oldest->shape);
+        oldest->fbo.reset();
+        oldest->idle = 0;
+        ++oldest->generation;
+    }
 }
 
 void TargetPool::clear() {

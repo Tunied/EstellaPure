@@ -410,6 +410,24 @@ int main() {
         CHECK(pool.count() == 0, "and once given back it ages out like anything else");
     }
 
+    // --- a resize leaves a target of every size behind, and the pool does not keep them all ---
+    {
+        MockGfxDevice d;
+        rg::TargetPool pool(d);
+        rg::TargetShape shape;
+        shape.format = GfxPixelFormat::RGBA16F;
+        // A window dragged through two hundred sizes, one borrowed and given back each tick.
+        for (u32 size = 0; size < 200; ++size) {
+            shape.width = 1000 + size * 3;
+            shape.height = 800 + size * 2;
+            pool.release(pool.acquire(shape));
+            pool.age();
+        }
+        CHECK(pool.bytes() <= rg::TargetPool::kIdleByteBudget + 64ull * 1024 * 1024,
+              "idle targets are kept within a byte budget, not for two seconds each");
+        CHECK(pool.count() < 200, "and the sizes the window has left are gone");
+    }
+
     // --- a handle outliving its target names nothing, not the next thing ---
     {
         MockGfxDevice d;
