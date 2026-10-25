@@ -20,7 +20,7 @@ const read = (rel) => readFileSync(path.join(ROOT, rel), 'utf8');
 
 const FORMAT = 'pipeline/src/project/format.ts';
 const CAPTURE = 'desktop/src/project/workspaceContinuity.ts';
-const SCAFFOLD = 'desktop/electron/projectScaffold.ts';
+const SCAFFOLD = 'pipeline/src/project/scaffold.ts';
 
 /**
  * Names that belong to a play session. A field or a capture reading one of them

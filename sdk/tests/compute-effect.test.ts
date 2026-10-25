@@ -63,9 +63,9 @@ describe('compute effects', () => {
         expect(def!.compute!.source).toMatch(/struct Params \{ intensity : f32, limit : f32/);
     });
 
-    it('keeps every effect either a draw, a compute shader or a native pass, never none', () => {
+    it('keeps every effect either a draw, a compute shader, a native pass or a stage of the last pass, never none', () => {
         for (const def of getAllEffectDefs()) {
-            const kinds = (def.factory ? 1 : 0) + (def.compute ? 1 : 0) + (def.native ? 1 : 0) + (def.multiPass ? 1 : 0);
+            const kinds = (def.factory ? 1 : 0) + (def.compute ? 1 : 0) + (def.native ? 1 : 0) + (def.multiPass ? 1 : 0) + (def.stage ? 1 : 0);
             expect(kinds, `${def.type} must say how it runs`).toBeGreaterThanOrEqual(1);
         }
     });
