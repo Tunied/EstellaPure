@@ -136,6 +136,7 @@ parts: PlacedPart[]
 
 ## PlacedPart — interface @experimental
 ```
+castShadows: boolean | undefined
 lod1Mesh: string
 material: string
 mesh: string
