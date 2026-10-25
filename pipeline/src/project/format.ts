@@ -513,6 +513,11 @@ export interface ProjectManifest {
   spineVersion?: string;
   /** Per-path overrides of {@link DEFAULT_LAYOUT}. */
   layout?: Partial<ProjectLayout>;
+  /**
+   * Folders, relative to the project root and `/` separated, that are not the game's content: art sources, documents, tools. The asset database does
+   * not scan, adopt or watch what is under them, so the editor does not write a `.meta` beside every file there.
+   */
+  assetExclude?: string[];
   /** Declaration/startup entry points (defaults in {@link DEFAULT_SCRIPTS}). */
   scripts?: ProjectScripts;
   /** One-line summary, shown when the project is used as a New-project template. */
@@ -734,6 +739,14 @@ export function parseManifest(raw: unknown): ProjectManifest {
   }
   if (o.layout && typeof o.layout === 'object') {
     manifest.layout = o.layout as Partial<ProjectLayout>;
+  }
+  if (Array.isArray(o.assetExclude)) {
+    // Normalised to the one spelling the walkers compare with; an entry that names nothing is dropped, not an error.
+    const folders = (o.assetExclude as unknown[])
+      .filter((f): f is string => typeof f === 'string')
+      .map((f) => f.replace(/\\/g, '/').replace(/^\.?\/+|\/+$/g, ''))
+      .filter((f) => f.length > 0 && !f.split('/').includes('..'));
+    if (folders.length > 0) manifest.assetExclude = folders;
   }
   if (Array.isArray(o.acceptance)) {
     // Dropped rather than failing the load, like the presets above: a

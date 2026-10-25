@@ -21,9 +21,9 @@ import type { Dirent } from 'node:fs';
 import { existsSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
-import { readTextInRoot } from '../project/readProject';
+import { readManifest, readTextInRoot } from '../project/readProject';
 import { isInsideRoot } from '../fs/pathSandbox';
-import { META_EXT, isContentDir, isContentFile, isNonContentPath } from './contentPolicy';
+import { META_EXT, isContentDir, isContentFile, isExcludedByProject, isNonContentPath } from './contentPolicy';
 import { adoptOrphan } from './assetMeta';
 // The runtime's tileset-path resolver (a dependency-free leaf) — shared so the dep scan
 // discovers a tilemap's tileset images the same way the loader will later request them.
@@ -141,7 +141,7 @@ function leavesProject(root: string, dirent: Dirent, abs: string): boolean {
 }
 
 /** Recursively yield every `<file>.meta` path (project-relative, forward-slashed). */
-async function* walkMeta(root: string, rel = ''): AsyncGenerator<string> {
+async function* walkMeta(root: string, rel = '', exclude?: readonly string[]): AsyncGenerator<string> {
   const abs = rel ? path.join(root, rel) : root;
   let entries;
   try {
@@ -157,7 +157,8 @@ async function* walkMeta(root: string, rel = ''): AsyncGenerator<string> {
     if (escaped.has(e.name)) continue;
     if (e.isDirectory()) {
       if (!isContentDir(e.name)) continue;
-      yield* walkMeta(root, rel ? `${rel}/${e.name}` : e.name);
+      if (isExcludedByProject(rel ? `${rel}/${e.name}` : e.name, exclude)) continue;
+      yield* walkMeta(root, rel ? `${rel}/${e.name}` : e.name, exclude);
     } else if (e.name.endsWith(META_EXT)) {
       // A sidecar is an ordinary file even when the content beside it is a link
       // out. Indexing it would put that link's path in the registry, and the cook
@@ -176,7 +177,7 @@ async function* walkMeta(root: string, rel = ''): AsyncGenerator<string> {
  * bulk copy) must not stay invisible to the registry. Unknown extensions
  * (docs, source files) are left alone.
  */
-async function adoptOrphans(root: string, rel = '', adopted: string[] = []): Promise<string[]> {
+async function adoptOrphans(root: string, rel = '', adopted: string[] = [], exclude?: readonly string[]): Promise<string[]> {
   const abs = rel ? path.join(root, rel) : root;
   let entries;
   try {
@@ -189,7 +190,8 @@ async function adoptOrphans(root: string, rel = '', adopted: string[] = []): Pro
     if (leavesProject(root, e, path.join(abs, e.name))) continue;
     if (e.isDirectory()) {
       if (!isContentDir(e.name)) continue;
-      await adoptOrphans(root, relPath, adopted);
+      if (isExcludedByProject(relPath, exclude)) continue;
+      await adoptOrphans(root, relPath, adopted, exclude);
     } else if (isContentFile(e.name)) {
       // The project-root thumbnail.png is the editor-managed launcher cover
       // (rewritten on every scene save), not an asset — adopting it would put
@@ -431,6 +433,15 @@ export async function readCachedAssetIndex(root: string): Promise<AssetIndex | n
   return null;
 }
 
+/** The folders the project's manifest takes out of content; none for a project with no manifest or one that cannot be read (the scan then sees everything, as before). */
+async function excludedFolders(root: string): Promise<readonly string[] | undefined> {
+  try {
+    return (await readManifest(root)).assetExclude;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Scan `root` for `.meta` sidecars → build the asset index (registry + dep
  * graph) and (unless `write: false`) write `.esengine/cache/assets.json`.
@@ -450,14 +461,15 @@ export async function scanAssetDatabase(
 
   // Adopt-before-index: orphans minted here are picked up by the meta walk below,
   // so a single scan both registers and indexes them (no second pass needed).
-  const adopted = opts?.adopt === false ? [] : await adoptOrphans(root);
+  const exclude = await excludedFolders(root);
+  const adopted = opts?.adopt === false ? [] : await adoptOrphans(root, '', [], exclude);
   t.adopt = performance.now() - tStart;
 
   const tWalk = performance.now();
   // The generator walk is just readdir (cheap); the readFile+parse per .meta is
   // the cost — run those in parallel, then assemble deterministically in order.
   const metaRels: string[] = [];
-  for await (const metaRel of walkMeta(root)) metaRels.push(metaRel);
+  for await (const metaRel of walkMeta(root, '', exclude)) metaRels.push(metaRel);
   type WalkResult = { entry?: AssetEntry; warning?: string };
   const walkResults = await mapLimit(metaRels, SCAN_IO_CONCURRENCY, async (metaRel): Promise<WalkResult> => {
     let meta: { uuid?: unknown; type?: unknown; importer?: unknown };
@@ -546,6 +558,7 @@ export async function updateAssetIndex(
     reason,
   });
 
+  const exclude = await excludedFolders(root);
   if (changed.length === 0) return full('watcher overflow (no paths)');
   if (changed.length > INCREMENTAL_PATH_LIMIT) return full(`bulk change (${changed.length} paths)`);
 
@@ -554,7 +567,7 @@ export async function updateAssetIndex(
   const contentPaths = new Set<string>();
   for (const raw of changed) {
     const rel = raw.replace(/\\/g, '/');
-    if (isNonContentPath(rel)) continue;
+    if (isNonContentPath(rel, exclude)) continue;
     const abs = path.join(root, rel);
     let st: Awaited<ReturnType<typeof stat>> | null;
     try { st = await stat(abs); } catch { st = null; }

@@ -11,6 +11,18 @@ runtime resolves references through a **manifest**, typed **loaders** turn a
 reference into a usable handle, and **reference counting** frees what's no longer
 used. This guide covers each piece.
 
+## Keeping a folder out of the asset database
+
+A project often holds more than content: a source-art repository, docs, a server. The editor gives every file under the project a `.meta` sidecar, so a
+folder of that kind fills with them. List such folders in the manifest and the asset database leaves them alone: it does not index them, does not write a
+`.meta` into them and does not watch them.
+
+```json
+{ "assetExclude": ["art", "docs", "server"] }
+```
+
+Entries are folders relative to the project root; everything under one is excluded. Content stays under the folders you do not list (normally `assets/`).
+
 ## Referencing assets
 
 In code, reference an asset by its **project-relative path** — readable, and what

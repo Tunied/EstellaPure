@@ -29,12 +29,23 @@ const isBuildOutputDir = (name: string): boolean => name.startsWith('dist-');
 export const isContentDir = (name: string): boolean =>
   !name.startsWith('.') && !NON_CONTENT_DIRS.has(name) && !isBuildOutputDir(name);
 
+/**
+ * Whether a project-relative path is under a folder its manifest excludes from content (`assetExclude`): art sources, documents, tools. The excluded
+ * folder itself counts, so the walkers do not enter it.
+ */
+export function isExcludedByProject(rel: string, exclude: readonly string[] | undefined): boolean {
+  if (!exclude || exclude.length === 0) return false;
+  const p = rel.replace(/\\/g, '/');
+  return exclude.some((folder) => p === folder || p.startsWith(`${folder}/`));
+}
+
 export const isContentFile = (name: string): boolean =>
   !name.startsWith('.') && !name.endsWith(META_EXT);
 
 /** True when any path segment leaves content space.
  *  `.meta` files themselves stay content — an external edit must re-scan. */
-export function isNonContentPath(rel: string): boolean {
+export function isNonContentPath(rel: string, exclude?: readonly string[]): boolean {
+  if (isExcludedByProject(rel, exclude)) return true;
   return rel
     .replace(/\\/g, '/')
     .split('/')
