@@ -56,7 +56,7 @@
     }
    ],
    "lodDistance": 6000,
-   "drawDistance": 16000,
+   "drawDistance": 38000,
    "far": [
     {
      "mesh": "assets/plants/models/tree-oak-dense/far/tree-oak-dense.esmesh",
@@ -69,7 +69,8 @@
       1,
       1
      ],
-     "opaque": true
+     "opaque": true,
+     "soft": 0.85
     }
    ],
    "farDistance": 200000,
@@ -123,7 +124,7 @@
     }
    ],
    "lodDistance": 6000,
-   "drawDistance": 16000,
+   "drawDistance": 38000,
    "far": [
     {
      "mesh": "assets/plants/models/tree-beech-dense/far/tree-beech-dense.esmesh",
@@ -136,7 +137,8 @@
       1,
       1
      ],
-     "opaque": true
+     "opaque": true,
+     "soft": 0.85
     }
    ],
    "farDistance": 200000,
@@ -190,7 +192,7 @@
     }
    ],
    "lodDistance": 6000,
-   "drawDistance": 16000,
+   "drawDistance": 38000,
    "far": [
     {
      "mesh": "assets/plants/models/tree-birch/far/tree-birch.esmesh",
@@ -203,7 +205,8 @@
       1,
       1
      ],
-     "opaque": true
+     "opaque": true,
+     "soft": 0.85
     }
    ],
    "farDistance": 200000,
@@ -257,7 +260,7 @@
     }
    ],
    "lodDistance": 6000,
-   "drawDistance": 16000,
+   "drawDistance": 38000,
    "far": [
     {
      "mesh": "assets/plants/models/tree-willow/far/tree-willow.esmesh",
@@ -270,7 +273,8 @@
       1,
       1
      ],
-     "opaque": true
+     "opaque": true,
+     "soft": 0.85
     }
    ],
    "farDistance": 200000,
@@ -324,7 +328,7 @@
     }
    ],
    "lodDistance": 6000,
-   "drawDistance": 16000,
+   "drawDistance": 38000,
    "far": [
     {
      "mesh": "assets/plants/models/tree-pine-ridge/far/tree-pine-ridge.esmesh",
@@ -337,7 +341,8 @@
       1,
       1
      ],
-     "opaque": true
+     "opaque": true,
+     "soft": 0.85
     }
    ],
    "farDistance": 200000,
@@ -391,7 +396,7 @@
     }
    ],
    "lodDistance": 6000,
-   "drawDistance": 16000,
+   "drawDistance": 38000,
    "far": [
     {
      "mesh": "assets/plants/models/tree-pine-lakeside/far/tree-pine-lakeside.esmesh",
@@ -404,7 +409,8 @@
       1,
       1
      ],
-     "opaque": true
+     "opaque": true,
+     "soft": 0.85
     }
    ],
    "farDistance": 200000,
