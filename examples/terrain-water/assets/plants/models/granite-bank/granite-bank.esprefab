@@ -1,0 +1,37 @@
+{
+ "version": "2",
+ "name": "granite-bank",
+ "rootEntityId": "n0",
+ "entities": [
+  {
+   "prefabEntityId": "n0",
+   "name": "granite-bank",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "assets/plants/models/granite-bank/granite-bank.esmesh",
+      "lit": true,
+      "texture": "assets/plants/textures/b7b7361f83eb.png",
+      "material": "assets/plants/models/granite-bank/granite-bank_m0.esmaterial",
+      "color": {
+       "r": 1,
+       "g": 1,
+       "b": 1,
+       "a": 1
+      },
+      "opaque": true,
+      "enabled": true
+     }
+    }
+   ]
+  }
+ ]
+}

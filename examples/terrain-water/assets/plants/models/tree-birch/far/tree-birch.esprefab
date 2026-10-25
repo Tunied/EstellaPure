@@ -1,0 +1,37 @@
+{
+ "version": "2",
+ "name": "tree-birch",
+ "rootEntityId": "n0",
+ "entities": [
+  {
+   "prefabEntityId": "n0",
+   "name": "tree-birch__far",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "assets/plants/models/tree-birch/far/tree-birch.esmesh",
+      "lit": true,
+      "texture": "assets/plants/textures/8540ee80eab4.png",
+      "material": "assets/plants/models/tree-birch/far/tree-birch_m0.esmaterial",
+      "color": {
+       "r": 1,
+       "g": 1,
+       "b": 1,
+       "a": 1
+      },
+      "opaque": true,
+      "enabled": true
+     }
+    }
+   ]
+  }
+ ]
+}

@@ -1,13 +1,14 @@
 {
-  "albedo": "assets/textures/grass.png",
-  "normal": "assets/textures/grass_normal.png",
-  "mask": "assets/textures/grass_mask.png",
-  "tile": 900,
+  "albedo": "assets/plants/ground/grass_albedo.png",
+  "normal": "assets/plants/ground/grass_normal.png",
+  "mask": "assets/plants/ground/grass_mask.png",
+  "tile": 600,
   "tint": [
-    1,
-    1,
-    1
+    0.62,
+    0.78,
+    0.6
   ],
   "roughness": 0.95,
-  "normalStrength": 1
+  "normalStrength": 1,
+  "heightBlend": 0.15
 }

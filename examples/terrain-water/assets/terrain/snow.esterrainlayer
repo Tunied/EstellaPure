@@ -9,5 +9,6 @@
     1
   ],
   "roughness": 0.55,
-  "normalStrength": 1
+  "normalStrength": 1,
+  "heightBlend": 0.4
 }

@@ -719,167 +719,29 @@
   },
   {
    "id": 12,
-   "name": "Meadow",
+   "name": "Plants",
    "parent": null,
    "children": [],
    "visible": true,
    "components": [
     {
      "type": "Transform",
-     "data": {
-      "position": {
-       "x": 1000,
-       "y": 0,
-       "z": 0
-      }
-     }
+     "data": {}
     },
     {
-     "type": "Foliage",
+     "type": "WorldGen",
      "data": {
-      "material": "assets/materials/meadow.esmaterial",
-      "sizeX": 18000,
-      "sizeZ": 16000,
-      "cellSize": 1000,
-      "seed": 3,
-      "minScale": 0.7,
-      "maxScale": 1.4,
-      "minUp": 0.85,
-      "lodDistance": 1800,
-      "drawDistance": 4500,
-      "count": 2200,
-      "heightMin": 860,
-      "heightMax": 3400,
-      "bladeHeight": 55,
-      "bladeWidth": 6
+      "rules": "assets/worlds/plants.esworld",
+      "version": 1,
+      "world": "terrain-water",
+      "seed": 7,
+      "paintGround": false
      }
     }
    ]
   },
   {
    "id": 13,
-   "name": "Flowers",
-   "parent": null,
-   "children": [],
-   "visible": true,
-   "components": [
-    {
-     "type": "Transform",
-     "data": {
-      "position": {
-       "x": 1000,
-       "y": 0,
-       "z": 0
-      }
-     }
-    },
-    {
-     "type": "Foliage",
-     "data": {
-      "material": "assets/materials/flowers.esmaterial",
-      "sizeX": 18000,
-      "sizeZ": 16000,
-      "cellSize": 1000,
-      "seed": 11,
-      "minScale": 0.7,
-      "maxScale": 1.4,
-      "minUp": 0.85,
-      "lodDistance": 1800,
-      "drawDistance": 4500,
-      "count": 160,
-      "heightMin": 900,
-      "heightMax": 2200,
-      "bladeHeight": 45,
-      "bladeWidth": 9
-     }
-    }
-   ]
-  },
-  {
-   "id": 14,
-   "name": "Reeds",
-   "parent": null,
-   "children": [],
-   "visible": true,
-   "components": [
-    {
-     "type": "Transform",
-     "data": {
-      "position": {
-       "x": 1000,
-       "y": 0,
-       "z": 0
-      }
-     }
-    },
-    {
-     "type": "Foliage",
-     "data": {
-      "material": "assets/materials/reeds.esmaterial",
-      "sizeX": 18000,
-      "sizeZ": 16000,
-      "cellSize": 1000,
-      "seed": 5,
-      "minScale": 0.7,
-      "maxScale": 1.4,
-      "minUp": 0.75,
-      "lodDistance": 1800,
-      "drawDistance": 4500,
-      "count": 1600,
-      "heightMin": 660,
-      "heightMax": 840,
-      "bladeHeight": 150,
-      "bladeWidth": 4,
-      "waterDepth": 60
-     }
-    }
-   ]
-  },
-  {
-   "id": 15,
-   "name": "Pines",
-   "parent": null,
-   "children": [],
-   "visible": true,
-   "components": [
-    {
-     "type": "Transform",
-     "data": {
-      "position": {
-       "x": 0,
-       "y": 0,
-       "z": -3000
-      }
-     }
-    },
-    {
-     "type": "Foliage",
-     "data": {
-      "mesh": "assets/models/pine.esmesh",
-      "material": "assets/materials/pine.esmaterial",
-      "sizeX": 28000,
-      "sizeZ": 20000,
-      "cellSize": 1200,
-      "count": 2,
-      "seed": 8,
-      "minScale": 8,
-      "maxScale": 13,
-      "minUp": 0.8,
-      "heightMin": 1600,
-      "heightMax": 3850,
-      "lodDistance": 7000,
-      "drawDistance": 60000,
-      "cardU0": 0.2,
-      "cardV0": 0.22,
-      "cardU1": 0.8,
-      "cardV1": 0.95,
-      "cardTent": 1
-     }
-    }
-   ]
-  },
-  {
-   "id": 16,
    "name": "Crate 1",
    "parent": null,
    "children": [],
@@ -975,7 +837,7 @@
    ]
   },
   {
-   "id": 17,
+   "id": 14,
    "name": "Crate 2",
    "parent": null,
    "children": [],
@@ -1071,7 +933,7 @@
    ]
   },
   {
-   "id": 18,
+   "id": 15,
    "name": "Crate 3",
    "parent": null,
    "children": [],
@@ -1167,7 +1029,7 @@
    ]
   },
   {
-   "id": 19,
+   "id": 16,
    "name": "Crate 4",
    "parent": null,
    "children": [],
@@ -1263,7 +1125,7 @@
    ]
   },
   {
-   "id": 20,
+   "id": 17,
    "name": "Crate 5",
    "parent": null,
    "children": [],
@@ -1359,7 +1221,7 @@
    ]
   },
   {
-   "id": 21,
+   "id": 18,
    "name": "Crate 6",
    "parent": null,
    "children": [],
@@ -1455,7 +1317,7 @@
    ]
   },
   {
-   "id": 22,
+   "id": 19,
    "name": "Crate 7",
    "parent": null,
    "children": [],
@@ -1551,7 +1413,7 @@
    ]
   },
   {
-   "id": 23,
+   "id": 20,
    "name": "Crate 8",
    "parent": null,
    "children": [],
@@ -1647,7 +1509,7 @@
    ]
   },
   {
-   "id": 24,
+   "id": 21,
    "name": "Crate 9",
    "parent": null,
    "children": [],

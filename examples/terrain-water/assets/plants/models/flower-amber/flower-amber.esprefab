@@ -1,0 +1,37 @@
+{
+ "version": "2",
+ "name": "flower-amber",
+ "rootEntityId": "n0",
+ "entities": [
+  {
+   "prefabEntityId": "n0",
+   "name": "flower-amber",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "assets/plants/models/flower-amber/flower-amber.esmesh",
+      "lit": true,
+      "texture": "assets/plants/textures/c6bd1d6d261b.png",
+      "material": "assets/plants/models/flower-amber/flower-amber_m0.esmaterial",
+      "color": {
+       "r": 1,
+       "g": 1,
+       "b": 1,
+       "a": 1
+      },
+      "opaque": true,
+      "enabled": true
+     }
+    }
+   ]
+  }
+ ]
+}

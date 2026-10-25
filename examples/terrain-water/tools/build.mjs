@@ -9,20 +9,21 @@
  *
  *   node examples/terrain-water/tools/build.mjs
  *
- * It needs the SDK built (`node build-tools/cli.js sdk`), for the spline the rivers and their beds are both laid along and for the
- * mesh format of the pine. The world is in centimetres, the scale 3D physics takes by default: a crate is about 120 units.
+ * It needs the SDK built (`node build-tools/cli.js sdk`), for the spline the rivers and their beds are both laid along. The plants are the
+ * lakewood set in assets/plants, placed by plants.mjs. The world is in centimetres, the scale 3D physics takes by default: a crate is about
+ * 120 units.
  */
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
+import { plantRules } from './plants.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT = path.resolve(HERE, '..');
 const SDK = new URL('../../../sdk/dist/', import.meta.url);
 const { SplineCurve } = await import(new URL('spline/index.js', SDK).href);
-const { MeshChannel, MeshChannelType, packChannels, encodeMesh } = await import(new URL('index.node.js', SDK).href);
 
 /** The place, in one table, in world units (centimetres). North is -z; the sea is to the south. */
 const WORLD = {
@@ -247,6 +248,23 @@ function heightmap() {
  * The paint, as a splatmap: red grass, green sand, blue snow, alpha rock. Sand on the beach and the sea floor, round the lake and in
  * the rivers' beds; snow on the high ground; rock where it is steep; grass everywhere else.
  */
+/** The paint at a place: grass, sand, snow and rock, as shares of one. `h` is the ground's height there, `slope` its steepness. */
+function paintAt(x, z, h, slope) {
+  const grain = fbm(x / 600, z / 600, 71, 3);
+  const beach = 1 - smooth(180, 380, h - WORLD.sea + grain * 120);
+  const lakeside = 1 - smooth(30, 140, Math.abs(h - WORLD.lake.level - 40) - 40);
+  const banks = Math.max(...rivers.map((curve) => {
+    const near = curve.nearest(x, z);
+    return 1 - smooth(1.1, 2, near.distance / (curve.width(near.s) / 2));
+  }));
+  const sand = Math.max(beach, lakeDistance(x, z) < 1.25 ? lakeside : 0, banks) * (0.8 + 0.2 * grain);
+  const snow = smooth(WORLD.snow - 200, WORLD.snow + 300, h + (grain - 0.5) * 500) * (1 - smooth(0.6, 1.1, slope));
+  const rock = smooth(0.55, 0.95, slope) * (1 - sand);
+  const grass = Math.max(0, 1 - sand - snow - rock);
+  const sum = grass + sand + snow + rock || 1;
+  return [grass / sum, sand / sum, snow / sum, rock / sum];
+}
+
 function splatmap() {
   const n = WORLD.resolution;
   const step = WORLD.size / (n - 1);
@@ -254,19 +272,7 @@ function splatmap() {
     const x = (px / (n - 1) - 0.5) * WORLD.size, z = (py / (n - 1) - 0.5) * WORLD.size;
     const h = gridAt(px, py);
     const slope = Math.hypot(gridAt(px + 1, py) - gridAt(px - 1, py), gridAt(px, py + 1) - gridAt(px, py - 1)) / (2 * step);
-    const grain = fbm(x / 600, z / 600, 71, 3);
-    const beach = 1 - smooth(180, 380, h - WORLD.sea + grain * 120);
-    const lakeside = 1 - smooth(30, 140, Math.abs(h - WORLD.lake.level - 40) - 40);
-    const banks = Math.max(...rivers.map((curve) => {
-      const near = curve.nearest(x, z);
-      return 1 - smooth(1.1, 2, near.distance / (curve.width(near.s) / 2));
-    }));
-    const sand = Math.max(beach, lakeDistance(x, z) < 1.25 ? lakeside : 0, banks) * (0.8 + 0.2 * grain);
-    const snow = smooth(WORLD.snow - 200, WORLD.snow + 300, h + (grain - 0.5) * 500) * (1 - smooth(0.6, 1.1, slope));
-    const rock = smooth(0.55, 0.95, slope) * (1 - sand);
-    const grass = Math.max(0, 1 - sand - snow - rock);
-    const sum = grass + sand + snow + rock || 1;
-    return [255 * grass / sum, 255 * sand / sum, 255 * snow / sum, 255 * rock / sum];
+    return paintAt(x, z, h, slope).map((w) => 255 * w);
   });
   write('assets/textures/splat.png', image);
   meta('assets/textures/splat.png', 'texture');
@@ -294,7 +300,7 @@ function texture(name, seed, shade, layer) {
  * map from that relief's slope, and the mask (occlusion deeper in the low places, the layer's roughness varied a little, the relief as
  * height). And the `.esterrainlayer` file that names them.
  */
-function terrainLayer(name, size, rgb, { tile, roughness, relief }) {
+function terrainLayer(name, size, rgb, { tile, roughness, relief, heightBlend }) {
   const h = new Float64Array(size * size);
   for (let k = 0; k < size * size; k++) h[k] = (rgb[k * 3] * 0.299 + rgb[k * 3 + 1] * 0.587 + rgb[k * 3 + 2] * 0.114) / 255;
   const at = (x, y) => h[((y + size) % size) * size + ((x + size) % size)];
@@ -315,7 +321,7 @@ function terrainLayer(name, size, rgb, { tile, roughness, relief }) {
   const file = `assets/terrain/${name}.esterrainlayer`;
   write(file, `${JSON.stringify({
     albedo: `assets/textures/${name}.png`, normal: `assets/textures/${name}_normal.png`, mask: `assets/textures/${name}_mask.png`,
-    tile, tint: [1, 1, 1], roughness, normalStrength: 1,
+    tile, tint: [1, 1, 1], roughness, normalStrength: 1, heightBlend,
   }, null, 2)}\n`);
   meta(file, 'terrain-layer');
 }
@@ -335,34 +341,26 @@ function cells(u, v, period, seed) {
   return { d1, d2, id };
 }
 
+/** A terrain layer made of the lakewood textures of `from`, in assets/plants/ground. */
+function artLayer(name, from, { tile, roughness, heightBlend, tint = [1, 1, 1] }) {
+  const file = `assets/terrain/${name}.esterrainlayer`;
+  write(file, `${JSON.stringify({
+    albedo: `assets/plants/ground/${from}_albedo.png`, normal: `assets/plants/ground/${from}_normal.png`, mask: `assets/plants/ground/${from}_mask.png`,
+    tile, tint, roughness, normalStrength: 1, heightBlend,
+  }, null, 2)}\n`);
+  meta(file, 'terrain-layer');
+}
+
 function textures() {
-  // Grass: a meadow seen from standing height. Patches of fresh and dry grass, clumps darker at their roots, blades as short strokes, a little earth between.
-  texture('grass', 1, (u, v, n) => {
-    const patch = n(0, 4, 2), dry = smooth(0.55, 0.8, n(10, 3, 3)), clump = n(20, 4, 12);
-    const blade = tiled(u * 160, v * 40, 160, 91) * 0.5 + tiled(u * 40, v * 160, 40, 92) * 0.5;
-    const earth = smooth(0.78, 0.9, n(30, 3, 20)) * (1 - clump);
-    let c = mix([46, 78, 26], [92, 134, 44], patch);
-    c = mix(c, [146, 140, 70], dry * 0.7);
-    c = mix(c, [86, 70, 44], earth);
-    return c.map((x) => x * (0.62 + 0.38 * clump) * (0.82 + 0.3 * blade));
-  }, { tile: 900, roughness: 0.95, relief: 3 });
-  // Sand: low ripples the wind combed across it, running one way and only gently bent (a contour of noise reads as rings), fading
-  // in and out in patches; pebbles and broken shell scattered over.
-  texture('sand', 2, (u, v, n) => {
-    const bend = (n(0, 2, 2) - 0.5) * 0.6;
-    const ripple = (Math.sin((v * 24 + u * 3 + bend) * Math.PI * 2) * 0.5 + 0.5) * smooth(0.35, 0.7, n(50, 3, 3));
-    const grain = hash(Math.floor(u * 512), Math.floor(v * 512), 5);
-    const stones = cells(u, v, 18, 21);
-    const pebble = 1 - smooth(0.12, 0.2, stones.d1);
-    let c = mix([170, 150, 114], [222, 204, 164], n(10, 4, 4));
-    c = c.map((x) => x * (0.93 + 0.07 * ripple) * (0.93 + 0.1 * grain));
-    return mix(c, mix([110, 104, 96], [196, 188, 172], stones.id), pebble * (stones.id > 0.55 ? 1 : 0));
-  }, { tile: 700, roughness: 0.85, relief: 4 });
+  // Grass and sand are the lakewood set's (assets/plants/ground); the snow and the rock below are made here.
+  // The meadow a little deeper and cooler than the art's texture, which the sun lifts to a yellow-green: it sits with the plants' dark green, not against it.
+  artLayer('grass', 'grass', { tile: 600, roughness: 0.95, heightBlend: 0.15, tint: [0.62, 0.78, 0.6] });
+  artLayer('sand', 'sand', { tile: 500, roughness: 0.85, heightBlend: 0.15 });
   // Snow: windblown, bluish in its hollows, with the odd glint.
   texture('snow', 3, (u, v, n) => {
     const drift = n(0, 4, 4), sparkle = hash(Math.floor(u * 512), Math.floor(v * 512), 7) > 0.985 ? 1.08 : 1;
     return mix([196, 210, 230], [252, 253, 255], smooth(0.2, 0.75, drift)).map((x) => Math.min(255, x * sparkle));
-  }, { tile: 1100, roughness: 0.55, relief: 2 });
+  }, { tile: 1100, roughness: 0.55, relief: 2, heightBlend: 0.4 });
   // Rock: strata running across it, cracks between blocks, weathered lighter on the faces, lichen in patches.
   texture('rock', 4, (u, v, n) => {
     const block = cells(u, v, 6, 31);
@@ -373,72 +371,7 @@ function textures() {
     let c = mix([70, 68, 66], [138, 134, 126], face * 0.6 + strata * 0.25 + block.id * 0.25);
     c = mix(c, [118, 124, 82], lichen * 0.55);
     return c.map((x) => x * (0.35 + 0.65 * crack) * (0.85 + 0.25 * n(60, 3, 64)));
-  }, { tile: 1400, roughness: 0.75, relief: 6 });
-  // The pine's colour: bark at the foot, then needles that darken toward the shade under each tier.
-  const strip = png(8, 128, (x, y) => {
-    const v = 1 - y / 127;
-    if (v < 0.2) return mix([70, 50, 34], [96, 70, 48], hash(x, y, 7)).concat(255);
-    const needles = 0.8 + 0.4 * hash(x, y, 9);
-    return mix([22, 52, 30], [58, 104, 52], (v - 0.2) / 0.8).map((c) => c * needles).concat(255);
-  });
-  write('assets/textures/pine.png', strip);
-  meta('assets/textures/pine.png', 'texture');
-}
-
-// ── the pine ───────────────────────────────────────────────────────────────────────────────────────────────────────────
-
-/** A pine: a trunk and five tiers of cone, ninety units tall at scale 1, with uv.y running up it (the strip's bark is its first fifth). */
-function pine() {
-  const pos = [], uv = [], nrm = [], idx = [];
-  const vert = (x, y, z, nx, ny, nz, v) => { pos.push(x, y, z); uv.push(0.5, v); nrm.push(nx, ny, nz); return pos.length / 3 - 1; };
-  const SIDES = 10, H = 90;
-  const rings = [[0, 4.2], [20, 3.4], [60, 1.8]].map(([y, r]) => Array.from({ length: SIDES + 1 }, (_, k) => {
-    const a = (k / SIDES) * Math.PI * 2;
-    return vert(Math.sin(a) * r, y, Math.cos(a) * r, Math.sin(a), 0.1, Math.cos(a), (y / H) * 0.19);
-  }));
-  for (let i = 0; i < rings.length - 1; i++) for (let k = 0; k < SIDES; k++) {
-    const a = rings[i][k], b = rings[i][k + 1], c = rings[i + 1][k], d = rings[i + 1][k + 1];
-    idx.push(a, c, b, b, c, d);
-  }
-  for (const [low, high, radius] of [[16, 30, 26], [30, 44, 21], [44, 58, 16.5], [58, 72, 12], [70, 90, 7.5]]) {
-    const slope = radius / (high - low), len = Math.hypot(1, slope);
-    const ring = (y, r, v) => Array.from({ length: SIDES + 1 }, (_, k) => {
-      const a = (k / SIDES) * Math.PI * 2;
-      return vert(Math.sin(a) * r, y, Math.cos(a) * r, Math.sin(a) / len, slope / len, Math.cos(a) / len, v);
-    });
-    const skirt = ring(low, radius, 0.22 + (low / H) * 0.75), tip = ring(high, 0, 0.22 + (high / H) * 0.77);
-    for (let k = 0; k < SIDES; k++) idx.push(skirt[k], tip[k], skirt[k + 1]);
-    const centre = vert(0, low, 0, 0, -1, 0, 0.22);
-    const under = Array.from({ length: SIDES + 1 }, (_, k) => {
-      const a = (k / SIDES) * Math.PI * 2;
-      return vert(Math.sin(a) * radius, low, Math.cos(a) * radius, 0, -1, 0, 0.22);
-    });
-    for (let k = 0; k < SIDES; k++) idx.push(centre, under[k], under[k + 1]);
-  }
-  const { channels, vertexStride } = packChannels([
-    { semantic: MeshChannel.Position, components: 3, type: MeshChannelType.Float32 },
-    { semantic: MeshChannel.TexCoord0, components: 2, type: MeshChannelType.Float32 },
-    { semantic: MeshChannel.Color, components: 4, type: MeshChannelType.UNorm8 },
-    { semantic: MeshChannel.Normal, components: 3, type: MeshChannelType.Float32 },
-  ]);
-  const count = pos.length / 3;
-  const vertices = new Uint8Array(count * vertexStride);
-  const view = new DataView(vertices.buffer);
-  const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
-  for (let i = 0; i < count; i++) {
-    const at = i * vertexStride;
-    for (let k = 0; k < 3; k++) {
-      view.setFloat32(at + channels[0].offset + k * 4, pos[i * 3 + k], true);
-      view.setFloat32(at + channels[3].offset + k * 4, nrm[i * 3 + k], true);
-      min[k] = Math.min(min[k], pos[i * 3 + k]);
-      max[k] = Math.max(max[k], pos[i * 3 + k]);
-    }
-    view.setFloat32(at + channels[1].offset, uv[i * 2], true);
-    view.setFloat32(at + channels[1].offset + 4, uv[i * 2 + 1], true);
-    view.setUint32(at + channels[2].offset, 0xffffffff, true);
-  }
-  write('assets/models/pine.esmesh', Buffer.from(encodeMesh({ channels, vertexStride, vertexCount: count, vertices, indices: new Uint32Array(idx), aabbMin: min, aabbMax: max })));
-  meta('assets/models/pine.esmesh', 'mesh');
+  }, { tile: 1400, roughness: 0.75, relief: 6, heightBlend: 0.9 });
 }
 
 // ── materials ──────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -449,7 +382,6 @@ function material(name, shader, properties) {
 }
 
 function materials() {
-  const white = { r: 1, g: 1, b: 1, a: 1 };
   // The ground's look: its layers (the Terrain's `layers`) are the textures, this how they meet and wear.
   material('ground', 'builtin:terrain-layers', {
     u_macroVariation: 0.45, u_sharpness: 1.4, u_blendNoise: 0.6, u_heightBlend: 0.8, u_antiTile: 0.7,
@@ -460,15 +392,12 @@ function materials() {
     u_fallbackDepth: 400, u_causticScale: 220, u_roughness: 0.04 };
   material('water', 'builtin:water', water);
   material('crate', 'builtin:model', { u_metallic: 0, u_roughness: 0.8 });
-  const grass = (base, tip, wind) => ({ u_baseColor: base, u_tipColor: tip, u_windStrength: wind, u_windSpeed: 1.2, u_windDirection: 30,
-    u_gustScale: 0.0015, u_flutter: 0.35, u_translucency: 0.5 });
-  material('meadow', 'builtin:foliage', grass({ r: 0.1, g: 0.2, b: 0.05, a: 1 }, { r: 0.5, g: 0.66, b: 0.22, a: 1 }, 6));
-  material('flowers', 'builtin:foliage', grass({ r: 0.12, g: 0.22, b: 0.06, a: 1 }, { r: 0.98, g: 0.84, b: 0.3, a: 1 }, 6));
-  material('reeds', 'builtin:foliage', grass({ r: 0.16, g: 0.2, b: 0.08, a: 1 }, { r: 0.62, g: 0.58, b: 0.32, a: 1 }, 10));
-  material('pine', 'builtin:foliage', {
-    u_albedo: 'assets/textures/pine.png', u_useTexture: 1, u_baseColor: white, u_tipColor: white,
-    u_windStrength: 9, u_windSpeed: 0.9, u_windDirection: 30, u_gustScale: 0.0006, u_flutter: 0.1, u_translucency: 0.15, u_roughness: 0.9,
-  });
+}
+
+/** The world rules the plants are laid out by, as a project file: the biomes, recipes, layers and the plants they name. */
+function plantsFile() {
+  write('assets/worlds/plants.esworld', `${JSON.stringify(plantRules({ project: PROJECT, lakeLevel: WORLD.lake.level, snow: WORLD.snow }), null, 1)}\n`);
+  meta('assets/worlds/plants.esworld', 'world-rules');
 }
 
 // ── the scene ──────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -561,22 +490,11 @@ function scene() {
     { type: 'Weather', data: { preset: Math.max(0, presets.indexOf(process.env.TW_WEATHER ?? 'clear')), target: -1, progress: 0, duration: 8,
       sequence: process.env.TW_WEATHER ? '' : 'clear,overcast,rain,storm,rain,clear', hold: 25, drive: 255 } },
   ]);
-  // The plants: a meadow over the valley, flowers scattered in it, reeds where the ground is low by the lake and the rivers.
-  const plants = (name, material, extra) => add(name, [
-    { type: 'Transform', data: { position: { x: 1000, y: 0, z: 0 } } },
-    { type: 'Foliage', data: { material, sizeX: 18000, sizeZ: 16000, cellSize: 1000, seed: 3, minScale: 0.7, maxScale: 1.4, minUp: 0.85,
-      lodDistance: 1800, drawDistance: 4500, ...extra } },
-  ]);
-  plants('Meadow', 'assets/materials/meadow.esmaterial', { count: 2200, heightMin: WORLD.lake.level + 160, heightMax: WORLD.snow - 600, bladeHeight: 55, bladeWidth: 6 });
-  plants('Flowers', 'assets/materials/flowers.esmaterial', { count: 160, seed: 11, heightMin: WORLD.lake.level + 200, heightMax: 2200, bladeHeight: 45, bladeWidth: 9 });
-  plants('Reeds', 'assets/materials/reeds.esmaterial', { count: 1600, seed: 5, minUp: 0.75, heightMin: WORLD.lake.level - 40, heightMax: WORLD.lake.level + 140,
-    bladeHeight: 150, bladeWidth: 4, waterDepth: 60 });
-  add('Pines', [
-    { type: 'Transform', data: { position: { x: 0, y: 0, z: -3000 } } },
-    { type: 'Foliage', data: {
-      mesh: 'assets/models/pine.esmesh', material: 'assets/materials/pine.esmaterial', sizeX: WORLD.size, sizeZ: 20000, cellSize: 1200, count: 2, seed: 8,
-      minScale: 8, maxScale: 13, minUp: 0.8, heightMin: WORLD.lake.level + 900, heightMax: WORLD.snow - 150, lodDistance: 7000, drawDistance: 60000,
-      cardU0: 0.2, cardV0: 0.22, cardU1: 0.8, cardV1: 0.95, cardTent: 1 } },
+  // The plants: woods on the hills, willows and reeds by the lake, stones, shrubs, grass and flowers over the meadows. The rules are a project file
+  // (written by plants.mjs, edited in the editor), and the WorldGen lays the world out from them as the eye moves.
+  add('Plants', [
+    { type: 'Transform', data: {} },
+    { type: 'WorldGen', data: { rules: 'assets/worlds/plants.esworld', version: 1, world: 'terrain-water', seed: 7, paintGround: false } },
   ]);
   const crates = [...WORLD.crates.lake.map(([x, z]) => [x, z, WORLD.lake.level]), ...WORLD.crates.sea.map(([x, z]) => [x, z, WORLD.sea])];
   crates.forEach(([x, z, level], i) => {
@@ -592,7 +510,7 @@ function scene() {
         points: [[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([a, b]) => ({ x: a * half * 0.8, y: -half * 0.5, z: b * half * 0.8 })) } },
     ]);
   });
-  // For looking at one thing at a time: TW_DROP=Lake,Pines leaves those out.
+  // For looking at one thing at a time: TW_DROP=Lake,Plants leaves those out.
   const drop = (process.env.TW_DROP ?? '').split(',');
   const kept = entities.filter((e) => !drop.includes(e.name)).map((e, id) => ({ ...e, id }));
   write('assets/scenes/main.esscene', `${JSON.stringify({ version: 4, name: 'Terrain & Water', entities: kept }, null, 1)}\n`);
@@ -602,7 +520,7 @@ function scene() {
 heightmap();
 splatmap();
 textures();
-pine();
 materials();
+plantsFile();
 scene();
 console.log('terrain-water: written');

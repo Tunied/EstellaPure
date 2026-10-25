@@ -1,0 +1,17 @@
+{
+ "version": "1.0",
+ "type": "material",
+ "shader": "builtin:model",
+ "blendMode": 9,
+ "depthTest": true,
+ "depthWrite": true,
+ "cull": 0,
+ "properties": {
+  "u_normalMap": "../../../textures/2047a69b34b7.png",
+  "u_occlusionMap": "../../../textures/bd4367bf2d30.png",
+  "u_metallicRoughnessMap": "../../../textures/bd4367bf2d30.png",
+  "u_metallic": 1,
+  "u_roughness": 1,
+  "u_occlusionStrength": 1
+ }
+}

@@ -1,13 +1,14 @@
 {
-  "albedo": "assets/textures/sand.png",
-  "normal": "assets/textures/sand_normal.png",
-  "mask": "assets/textures/sand_mask.png",
-  "tile": 700,
+  "albedo": "assets/plants/ground/sand_albedo.png",
+  "normal": "assets/plants/ground/sand_normal.png",
+  "mask": "assets/plants/ground/sand_mask.png",
+  "tile": 500,
   "tint": [
     1,
     1,
     1
   ],
   "roughness": 0.85,
-  "normalStrength": 1
+  "normalStrength": 1,
+  "heightBlend": 0.15
 }

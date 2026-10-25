@@ -1,0 +1,37 @@
+{
+ "version": "2",
+ "name": "tree-willow",
+ "rootEntityId": "n0",
+ "entities": [
+  {
+   "prefabEntityId": "n0",
+   "name": "tree-willow__far",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "assets/plants/models/tree-willow/far/tree-willow.esmesh",
+      "lit": true,
+      "texture": "assets/plants/textures/6f7a57043a90.png",
+      "material": "assets/plants/models/tree-willow/far/tree-willow_m0.esmaterial",
+      "color": {
+       "r": 1,
+       "g": 1,
+       "b": 1,
+       "a": 1
+      },
+      "opaque": true,
+      "enabled": true
+     }
+    }
+   ]
+  }
+ ]
+}
