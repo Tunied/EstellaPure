@@ -2866,6 +2866,10 @@ export const NOTED = {
     {"note":"Clouds drawn from a coverage picture."},
   "fix(examples): Terrain & Water takes the compact grass with its leaf colour from the art":
     {"note":"A generated world's plants."},
+  "fix(lod): a skinned group whose stand-in the skeleton cannot pose is refused whole, a cull size or not":
+    {"internal":"Restores the refusal a cull-only group had lost; nothing a creator could use changed."},
+  "fix(editor-checks): the texture handle sample is taken again until its frame is drawn":
+    {"internal":"A test race."},
   "feat(water): two tiled, scrolling detail normal maps give the surface its sparkle":
     {"note":"Sparkle on the water."},
   "fix(lod): a LODGroup with only a cull size is no longer ignored":

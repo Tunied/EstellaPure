@@ -229,7 +229,9 @@ bool gatherLodLevels(resource::ResourceManager& resources, const ecs::LODGroup& 
         out.localMin = glm::min(out.localMin, standIn->localMin);
         out.localMax = glm::max(out.localMax, standIn->localMax);
     }
-    return out.set.count > 0 || out.set.cull > 0.0f;
+    // A skin whose stand-in the skeleton cannot pose is refused whole: a cull size alone is not a reason to keep a group that was authored against
+    // levels it cannot have.
+    return out.set.count > 0 || (out.set.cull > 0.0f && !out.skinMismatch);
 }
 
 /** @brief Says once what a group declares that nothing will ever use. */
