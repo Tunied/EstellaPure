@@ -73,7 +73,20 @@ const KINDS = {
   'flower-ivory': { prefab: 'flower-ivory', lod: 40, draw: 90 },
   'flower-amber': { prefab: 'flower-amber', lod: 40, draw: 90 },
   'flower-blue': { prefab: 'flower-blue', lod: 40, draw: 90 },
+  'flower-rose': { prefab: 'flower-rose', lod: 40, draw: 90 },
+  'flower-violet': { prefab: 'flower-violet', lod: 40, draw: 90 },
   reed: { prefab: 'reed-thicket', lod: 40, draw: 100, tints: TINTS.reed },
+};
+
+/**
+ * Ground cover has no cards from the art, so its far version is its own cheaper mesh (the lod1 beside it, or the mesh itself where it has none), a share
+ * of the plants of it (`keep`) grown to make up their cover, out to `far` metres: past what the plants draw as themselves the ground's own texture carries the rest.
+ */
+const COVER = {
+  'grass-fine': { keep: 0.25, far: 260 }, 'grass-meadow': { keep: 0.25, far: 260 }, 'grass-bank': { keep: 0.3, far: 260 },
+  'flower-ivory': { keep: 0.3, far: 220 }, 'flower-amber': { keep: 0.3, far: 220 }, 'flower-blue': { keep: 0.3, far: 220 }, 'flower-rose': { keep: 0.3, far: 220 }, 'flower-violet': { keep: 0.3, far: 220 },
+  lowleaf: { keep: 0.3, far: 240 }, 'fern-upright': { keep: 0.35, far: 240 }, 'fern-arching': { keep: 0.35, far: 240 },
+  hazel: { keep: 0.5, far: 300 }, coppice: { keep: 0.5, far: 300 }, reed: { keep: 0.5, far: 260 },
 };
 
 /** The `plants` table of the rules: each kind's parts read from its prefab, with the cheaper mesh and the far cards beside it. */
@@ -84,10 +97,14 @@ function plants(project) {
     const parts = partsOf(project, `${base}/${k.prefab}.esprefab`), near = partsOf(project, `${base}/lod1/${k.prefab}.esprefab`);
     const cards = partsOf(project, `${base}/far/${k.prefab}.esprefab`);
     const cheaper = near.length === parts.length;
+    const cover = COVER[name];
+    // Ground cover: the cheaper mesh stands for it far off, thinned; trees: the art's cards.
+    const far = cover ? (cheaper ? near : parts).map((d) => asPart(d)) : cards.map((d) => asPart(d));
     out[name] = {
       parts: parts.map((d, j) => asPart(d, cheaper ? near[j].mesh : '')),
       lodDistance: cheaper ? k.lod * M : 0, drawDistance: k.draw * M,
-      far: cards.map((d) => asPart(d)), farDistance: cards.length ? (k.far ?? 0) * M : 0,
+      far, farDistance: far.length ? (cover?.far ?? k.far ?? 0) * M : 0,
+      ...(cover ? { farKeep: cover.keep } : {}),
       ...(k.tints ? { tints: k.tints, tintScale: 1300 } : {}),
       ...(k.sink ? { sink: k.sink } : {}),
       // The art is in metres and this world in centimetres.
@@ -198,6 +215,14 @@ export function plantRules({ project, lakeLevel, snow }) {
           { field: 'height', min: lakeLevel - 70, max: lakeLevel + 120, blend: 40 },
         ],
         recipes: [{ recipe: 'reed-strip', layer: 'reeds', density: 0.9 }] },
+      // The flower sea: no field holds it, a WorldZone does, over the hillside its author marks.
+      { id: 'flower-sea', transition: 200,
+        conditions: [{ field: 'height', min: 1e9 }],
+        recipes: [
+          { recipe: 'sea-ivory', layer: 'sea', density: 0.15 }, { recipe: 'sea-amber', layer: 'sea', density: 0.2 }, { recipe: 'sea-blue', layer: 'sea', density: 0.2 },
+          { recipe: 'sea-rose', layer: 'sea', density: 0.2 }, { recipe: 'sea-violet', layer: 'sea', density: 0.2 },
+          { recipe: 'tufts', layer: 'cover', density: 0.3 },
+        ] },
       // The high ground, where the trees are conifers: stands of pines with ferns under them, on ground gentle enough to hold them.
       { id: 'ridge', transition: 400,
         conditions: [
@@ -235,6 +260,14 @@ export function plantRules({ project, lakeLevel, snow }) {
         members: [grass('grass-meadow', [3, 8], [25, 120], [0.9, 1.7], { footprint: 12 }), grass('grass-fine', [0, 3], [25, 120], [0.9, 1.5], { footprint: 12 })],
       },
       drift('ivory'), drift('amber'), drift('blue'),
+      // The flower sea: patches of one colour, close together and large, in all five colours, so a hillside is a patchwork of bloom.
+      ...['ivory', 'amber', 'blue', 'rose', 'violet'].map((colour) => ({
+        id: `sea-${colour}`, version: 1, tags: ['flower'], anchor: { id: 'bloom', plant: `flower-${colour}`, scale: [1.1, 1.7], footprint: 8, minUp: 0.7 },
+        members: [
+          { id: 'more', plant: `flower-${colour}`, count: [12, 26], ring: [30, 300], scale: [0.9, 1.6], footprint: 9, minUp: 0.7 },
+          grass('grass-fine', [2, 4], [40, 260], [1, 1.5], { footprint: 10 }),
+        ],
+      })),
       // Conifers on the high ground, in stands, with ferns under them; and a few by the lake.
       {
         id: 'pines', version: 1, tags: ['tree'], anchor: { id: 'elder', plant: 'pine-ridge', scale: [0.9, 1.3], footprint: 50, canopy: 400, minUp: 0.7 },
@@ -283,6 +316,7 @@ export function plantRules({ project, lakeLevel, snow }) {
       { id: 'cover', spacing: 190, chunkSize: 3200, drawDistance: 9500, occupies: false },
       { id: 'drifts', spacing: 600, chunkSize: 3200, drawDistance: 9500, occupies: false },
       { id: 'reeds', spacing: 130, chunkSize: 3200, drawDistance: 9500, occupies: false },
+      { id: 'sea', spacing: 90, chunkSize: 3200, drawDistance: 12000, occupies: false },
       { id: 'shoals', spacing: 200, chunkSize: 3200, drawDistance: 20000, occupies: false },
     ],
   };

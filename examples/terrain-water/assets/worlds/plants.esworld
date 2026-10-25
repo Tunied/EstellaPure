@@ -472,8 +472,49 @@
    ],
    "lodDistance": 4000,
    "drawDistance": 12000,
-   "far": [],
-   "farDistance": 0,
+   "far": [
+    {
+     "mesh": "assets/plants/models/shrub-hazel/lod1/shrub-hazel_0_0.esmesh",
+     "lod1Mesh": "",
+     "material": "assets/plants/models/shrub-hazel/lod1/shrub-hazel_m0.esmaterial",
+     "texture": "assets/plants/textures/06df0060cfc9.png",
+     "tint": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "opaque": true
+    },
+    {
+     "mesh": "assets/plants/models/shrub-hazel/lod1/shrub-hazel_0_1.esmesh",
+     "lod1Mesh": "",
+     "material": "assets/plants/models/shrub-hazel/lod1/shrub-hazel_m1.esmaterial",
+     "texture": "assets/plants/textures/938bddcdab05.png",
+     "tint": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "opaque": true
+    },
+    {
+     "mesh": "assets/plants/models/shrub-hazel/lod1/shrub-hazel_0_2.esmesh",
+     "lod1Mesh": "",
+     "material": "assets/plants/models/shrub-hazel/lod1/shrub-hazel_m2.esmaterial",
+     "texture": "",
+     "tint": [
+      0.10000000149011612,
+      0.2199999988079071,
+      0.03500000014901161,
+      1
+     ],
+     "opaque": true
+    }
+   ],
+   "farDistance": 30000,
+   "farKeep": 0.5,
    "tints": [
     [
      0.94,
@@ -538,8 +579,49 @@
    ],
    "lodDistance": 4000,
    "drawDistance": 12000,
-   "far": [],
-   "farDistance": 0,
+   "far": [
+    {
+     "mesh": "assets/plants/models/shrub-woodland-coppice/lod1/shrub-woodland-coppice_0_0.esmesh",
+     "lod1Mesh": "",
+     "material": "assets/plants/models/shrub-woodland-coppice/lod1/shrub-woodland-coppice_m0.esmaterial",
+     "texture": "assets/plants/textures/06df0060cfc9.png",
+     "tint": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "opaque": true
+    },
+    {
+     "mesh": "assets/plants/models/shrub-woodland-coppice/lod1/shrub-woodland-coppice_0_1.esmesh",
+     "lod1Mesh": "",
+     "material": "assets/plants/models/shrub-woodland-coppice/lod1/shrub-woodland-coppice_m1.esmaterial",
+     "texture": "assets/plants/textures/938bddcdab05.png",
+     "tint": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "opaque": true
+    },
+    {
+     "mesh": "assets/plants/models/shrub-woodland-coppice/lod1/shrub-woodland-coppice_0_2.esmesh",
+     "lod1Mesh": "",
+     "material": "assets/plants/models/shrub-woodland-coppice/lod1/shrub-woodland-coppice_m2.esmaterial",
+     "texture": "",
+     "tint": [
+      0.10000000149011612,
+      0.2199999988079071,
+      0.03500000014901161,
+      1
+     ],
+     "opaque": true
+    }
+   ],
+   "farDistance": 30000,
+   "farKeep": 0.5,
    "tints": [
     [
      0.94,
@@ -591,8 +673,36 @@
    ],
    "lodDistance": 3000,
    "drawDistance": 10000,
-   "far": [],
-   "farDistance": 0,
+   "far": [
+    {
+     "mesh": "assets/plants/models/woodland-lowleaf/lod1/woodland-lowleaf_0_0.esmesh",
+     "lod1Mesh": "",
+     "material": "assets/plants/models/woodland-lowleaf/lod1/woodland-lowleaf_m0.esmaterial",
+     "texture": "assets/plants/textures/938bddcdab05.png",
+     "tint": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "opaque": true
+    },
+    {
+     "mesh": "assets/plants/models/woodland-lowleaf/lod1/woodland-lowleaf_0_1.esmesh",
+     "lod1Mesh": "",
+     "material": "assets/plants/models/woodland-lowleaf/lod1/woodland-lowleaf_m1.esmaterial",
+     "texture": "",
+     "tint": [
+      0.10000000149011612,
+      0.2199999988079071,
+      0.03500000014901161,
+      1
+     ],
+     "opaque": true
+    }
+   ],
+   "farDistance": 24000,
+   "farKeep": 0.3,
    "tints": [
     [
      0.91,
@@ -644,8 +754,36 @@
    ],
    "lodDistance": 3000,
    "drawDistance": 10000,
-   "far": [],
-   "farDistance": 0,
+   "far": [
+    {
+     "mesh": "assets/plants/models/fern-upright/lod1/fern-upright_0_0.esmesh",
+     "lod1Mesh": "",
+     "material": "assets/plants/models/fern-upright/lod1/fern-upright_m0.esmaterial",
+     "texture": "assets/plants/textures/938bddcdab05.png",
+     "tint": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "opaque": true
+    },
+    {
+     "mesh": "assets/plants/models/fern-upright/lod1/fern-upright_0_1.esmesh",
+     "lod1Mesh": "",
+     "material": "assets/plants/models/fern-upright/lod1/fern-upright_m1.esmaterial",
+     "texture": "",
+     "tint": [
+      0.10000000149011612,
+      0.2199999988079071,
+      0.03500000014901161,
+      1
+     ],
+     "opaque": true
+    }
+   ],
+   "farDistance": 24000,
+   "farKeep": 0.35,
    "tints": [
     [
      0.91,
@@ -697,8 +835,36 @@
    ],
    "lodDistance": 3000,
    "drawDistance": 10000,
-   "far": [],
-   "farDistance": 0,
+   "far": [
+    {
+     "mesh": "assets/plants/models/fern-arching/lod1/fern-arching_0_0.esmesh",
+     "lod1Mesh": "",
+     "material": "assets/plants/models/fern-arching/lod1/fern-arching_m0.esmaterial",
+     "texture": "assets/plants/textures/938bddcdab05.png",
+     "tint": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "opaque": true
+    },
+    {
+     "mesh": "assets/plants/models/fern-arching/lod1/fern-arching_0_1.esmesh",
+     "lod1Mesh": "",
+     "material": "assets/plants/models/fern-arching/lod1/fern-arching_m1.esmaterial",
+     "texture": "",
+     "tint": [
+      0.10000000149011612,
+      0.2199999988079071,
+      0.03500000014901161,
+      1
+     ],
+     "opaque": true
+    }
+   ],
+   "farDistance": 24000,
+   "farKeep": 0.35,
    "tints": [
     [
      0.91,
@@ -875,8 +1041,23 @@
    ],
    "lodDistance": 3000,
    "drawDistance": 9000,
-   "far": [],
-   "farDistance": 0,
+   "far": [
+    {
+     "mesh": "assets/plants/models/grass-fine/lod1/grass-fine.esmesh",
+     "lod1Mesh": "",
+     "material": "assets/plants/models/grass-fine/lod1/grass-fine_m0.esmaterial",
+     "texture": "assets/plants/textures/938bddcdab05.png",
+     "tint": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "opaque": true
+    }
+   ],
+   "farDistance": 26000,
+   "farKeep": 0.25,
    "tints": [
     [
      0.9,
@@ -915,8 +1096,23 @@
    ],
    "lodDistance": 3000,
    "drawDistance": 9000,
-   "far": [],
-   "farDistance": 0,
+   "far": [
+    {
+     "mesh": "assets/plants/models/grass-meadow/lod1/grass-meadow.esmesh",
+     "lod1Mesh": "",
+     "material": "assets/plants/models/grass-meadow/lod1/grass-meadow_m0.esmaterial",
+     "texture": "assets/plants/textures/938bddcdab05.png",
+     "tint": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "opaque": true
+    }
+   ],
+   "farDistance": 26000,
+   "farKeep": 0.25,
    "tints": [
     [
      0.9,
@@ -955,8 +1151,23 @@
    ],
    "lodDistance": 3000,
    "drawDistance": 10000,
-   "far": [],
-   "farDistance": 0,
+   "far": [
+    {
+     "mesh": "assets/plants/models/grass-bank-dense/lod1/grass-bank-dense.esmesh",
+     "lod1Mesh": "",
+     "material": "assets/plants/models/grass-bank-dense/lod1/grass-bank-dense_m0.esmaterial",
+     "texture": "assets/plants/textures/938bddcdab05.png",
+     "tint": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "opaque": true
+    }
+   ],
+   "farDistance": 26000,
+   "farKeep": 0.3,
    "tints": [
     [
      0.92,
@@ -995,8 +1206,23 @@
    ],
    "lodDistance": 0,
    "drawDistance": 9000,
-   "far": [],
-   "farDistance": 0,
+   "far": [
+    {
+     "mesh": "assets/plants/models/flower-ivory/flower-ivory.esmesh",
+     "lod1Mesh": "",
+     "material": "assets/plants/models/flower-ivory/flower-ivory_m0.esmaterial",
+     "texture": "assets/plants/textures/c39b006790e7.png",
+     "tint": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "opaque": true
+    }
+   ],
+   "farDistance": 22000,
+   "farKeep": 0.3,
    "unit": 100
   },
   "flower-amber": {
@@ -1017,8 +1243,23 @@
    ],
    "lodDistance": 0,
    "drawDistance": 9000,
-   "far": [],
-   "farDistance": 0,
+   "far": [
+    {
+     "mesh": "assets/plants/models/flower-amber/flower-amber.esmesh",
+     "lod1Mesh": "",
+     "material": "assets/plants/models/flower-amber/flower-amber_m0.esmaterial",
+     "texture": "assets/plants/textures/c6bd1d6d261b.png",
+     "tint": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "opaque": true
+    }
+   ],
+   "farDistance": 22000,
+   "farKeep": 0.3,
    "unit": 100
   },
   "flower-blue": {
@@ -1039,8 +1280,97 @@
    ],
    "lodDistance": 0,
    "drawDistance": 9000,
-   "far": [],
-   "farDistance": 0,
+   "far": [
+    {
+     "mesh": "assets/plants/models/flower-blue/flower-blue.esmesh",
+     "lod1Mesh": "",
+     "material": "assets/plants/models/flower-blue/flower-blue_m0.esmaterial",
+     "texture": "assets/plants/textures/7b838a37789d.png",
+     "tint": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "opaque": true
+    }
+   ],
+   "farDistance": 22000,
+   "farKeep": 0.3,
+   "unit": 100
+  },
+  "flower-rose": {
+   "parts": [
+    {
+     "mesh": "assets/plants/models/flower-rose/flower-rose.esmesh",
+     "lod1Mesh": "",
+     "material": "assets/plants/models/flower-rose/flower-rose_m0.esmaterial",
+     "texture": "assets/plants/textures/41517f331fa3.png",
+     "tint": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "opaque": true
+    }
+   ],
+   "lodDistance": 0,
+   "drawDistance": 9000,
+   "far": [
+    {
+     "mesh": "assets/plants/models/flower-rose/flower-rose.esmesh",
+     "lod1Mesh": "",
+     "material": "assets/plants/models/flower-rose/flower-rose_m0.esmaterial",
+     "texture": "assets/plants/textures/41517f331fa3.png",
+     "tint": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "opaque": true
+    }
+   ],
+   "farDistance": 22000,
+   "farKeep": 0.3,
+   "unit": 100
+  },
+  "flower-violet": {
+   "parts": [
+    {
+     "mesh": "assets/plants/models/flower-violet/flower-violet.esmesh",
+     "lod1Mesh": "",
+     "material": "assets/plants/models/flower-violet/flower-violet_m0.esmaterial",
+     "texture": "assets/plants/textures/e7e8bc5fd993.png",
+     "tint": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "opaque": true
+    }
+   ],
+   "lodDistance": 0,
+   "drawDistance": 9000,
+   "far": [
+    {
+     "mesh": "assets/plants/models/flower-violet/flower-violet.esmesh",
+     "lod1Mesh": "",
+     "material": "assets/plants/models/flower-violet/flower-violet_m0.esmaterial",
+     "texture": "assets/plants/textures/e7e8bc5fd993.png",
+     "tint": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "opaque": true
+    }
+   ],
+   "farDistance": 22000,
+   "farKeep": 0.3,
    "unit": 100
   },
   "reed": {
@@ -1087,8 +1417,49 @@
    ],
    "lodDistance": 4000,
    "drawDistance": 10000,
-   "far": [],
-   "farDistance": 0,
+   "far": [
+    {
+     "mesh": "assets/plants/models/reed-thicket/lod1/reed-thicket_0_0.esmesh",
+     "lod1Mesh": "",
+     "material": "assets/plants/models/reed-thicket/lod1/reed-thicket_m0.esmaterial",
+     "texture": "assets/plants/textures/938bddcdab05.png",
+     "tint": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "opaque": true
+    },
+    {
+     "mesh": "assets/plants/models/reed-thicket/lod1/reed-thicket_0_1.esmesh",
+     "lod1Mesh": "",
+     "material": "assets/plants/models/reed-thicket/lod1/reed-thicket_m1.esmaterial",
+     "texture": "",
+     "tint": [
+      0.10000000149011612,
+      0.2199999988079071,
+      0.03500000014901161,
+      1
+     ],
+     "opaque": true
+    },
+    {
+     "mesh": "assets/plants/models/reed-thicket/lod1/reed-thicket_0_2.esmesh",
+     "lod1Mesh": "",
+     "material": "assets/plants/models/reed-thicket/lod1/reed-thicket_m2.esmaterial",
+     "texture": "assets/plants/textures/dbddb5baa141.png",
+     "tint": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "opaque": true
+    }
+   ],
+   "farDistance": 26000,
+   "farKeep": 0.5,
    "tints": [
     [
      0.92,
@@ -1394,6 +1765,48 @@
      "recipe": "reed-strip",
      "layer": "reeds",
      "density": 0.9
+    }
+   ]
+  },
+  {
+   "id": "flower-sea",
+   "transition": 200,
+   "conditions": [
+    {
+     "field": "height",
+     "min": 1000000000
+    }
+   ],
+   "recipes": [
+    {
+     "recipe": "sea-ivory",
+     "layer": "sea",
+     "density": 0.15
+    },
+    {
+     "recipe": "sea-amber",
+     "layer": "sea",
+     "density": 0.2
+    },
+    {
+     "recipe": "sea-blue",
+     "layer": "sea",
+     "density": 0.2
+    },
+    {
+     "recipe": "sea-rose",
+     "layer": "sea",
+     "density": 0.2
+    },
+    {
+     "recipe": "sea-violet",
+     "layer": "sea",
+     "density": 0.2
+    },
+    {
+     "recipe": "tufts",
+     "layer": "cover",
+     "density": 0.3
     }
    ]
   },
@@ -2482,6 +2895,281 @@
    ]
   },
   {
+   "id": "sea-ivory",
+   "version": 1,
+   "tags": [
+    "flower"
+   ],
+   "anchor": {
+    "id": "bloom",
+    "plant": "flower-ivory",
+    "scale": [
+     1.1,
+     1.7
+    ],
+    "footprint": 8,
+    "minUp": 0.7
+   },
+   "members": [
+    {
+     "id": "more",
+     "plant": "flower-ivory",
+     "count": [
+      12,
+      26
+     ],
+     "ring": [
+      30,
+      300
+     ],
+     "scale": [
+      0.9,
+      1.6
+     ],
+     "footprint": 9,
+     "minUp": 0.7
+    },
+    {
+     "id": "grass-fine.40",
+     "plant": "grass-fine",
+     "count": [
+      2,
+      4
+     ],
+     "ring": [
+      40,
+      260
+     ],
+     "scale": [
+      1,
+      1.5
+     ],
+     "footprint": 10,
+     "minUp": 0.8
+    }
+   ]
+  },
+  {
+   "id": "sea-amber",
+   "version": 1,
+   "tags": [
+    "flower"
+   ],
+   "anchor": {
+    "id": "bloom",
+    "plant": "flower-amber",
+    "scale": [
+     1.1,
+     1.7
+    ],
+    "footprint": 8,
+    "minUp": 0.7
+   },
+   "members": [
+    {
+     "id": "more",
+     "plant": "flower-amber",
+     "count": [
+      12,
+      26
+     ],
+     "ring": [
+      30,
+      300
+     ],
+     "scale": [
+      0.9,
+      1.6
+     ],
+     "footprint": 9,
+     "minUp": 0.7
+    },
+    {
+     "id": "grass-fine.40",
+     "plant": "grass-fine",
+     "count": [
+      2,
+      4
+     ],
+     "ring": [
+      40,
+      260
+     ],
+     "scale": [
+      1,
+      1.5
+     ],
+     "footprint": 10,
+     "minUp": 0.8
+    }
+   ]
+  },
+  {
+   "id": "sea-blue",
+   "version": 1,
+   "tags": [
+    "flower"
+   ],
+   "anchor": {
+    "id": "bloom",
+    "plant": "flower-blue",
+    "scale": [
+     1.1,
+     1.7
+    ],
+    "footprint": 8,
+    "minUp": 0.7
+   },
+   "members": [
+    {
+     "id": "more",
+     "plant": "flower-blue",
+     "count": [
+      12,
+      26
+     ],
+     "ring": [
+      30,
+      300
+     ],
+     "scale": [
+      0.9,
+      1.6
+     ],
+     "footprint": 9,
+     "minUp": 0.7
+    },
+    {
+     "id": "grass-fine.40",
+     "plant": "grass-fine",
+     "count": [
+      2,
+      4
+     ],
+     "ring": [
+      40,
+      260
+     ],
+     "scale": [
+      1,
+      1.5
+     ],
+     "footprint": 10,
+     "minUp": 0.8
+    }
+   ]
+  },
+  {
+   "id": "sea-rose",
+   "version": 1,
+   "tags": [
+    "flower"
+   ],
+   "anchor": {
+    "id": "bloom",
+    "plant": "flower-rose",
+    "scale": [
+     1.1,
+     1.7
+    ],
+    "footprint": 8,
+    "minUp": 0.7
+   },
+   "members": [
+    {
+     "id": "more",
+     "plant": "flower-rose",
+     "count": [
+      12,
+      26
+     ],
+     "ring": [
+      30,
+      300
+     ],
+     "scale": [
+      0.9,
+      1.6
+     ],
+     "footprint": 9,
+     "minUp": 0.7
+    },
+    {
+     "id": "grass-fine.40",
+     "plant": "grass-fine",
+     "count": [
+      2,
+      4
+     ],
+     "ring": [
+      40,
+      260
+     ],
+     "scale": [
+      1,
+      1.5
+     ],
+     "footprint": 10,
+     "minUp": 0.8
+    }
+   ]
+  },
+  {
+   "id": "sea-violet",
+   "version": 1,
+   "tags": [
+    "flower"
+   ],
+   "anchor": {
+    "id": "bloom",
+    "plant": "flower-violet",
+    "scale": [
+     1.1,
+     1.7
+    ],
+    "footprint": 8,
+    "minUp": 0.7
+   },
+   "members": [
+    {
+     "id": "more",
+     "plant": "flower-violet",
+     "count": [
+      12,
+      26
+     ],
+     "ring": [
+      30,
+      300
+     ],
+     "scale": [
+      0.9,
+      1.6
+     ],
+     "footprint": 9,
+     "minUp": 0.7
+    },
+    {
+     "id": "grass-fine.40",
+     "plant": "grass-fine",
+     "count": [
+      2,
+      4
+     ],
+     "ring": [
+      40,
+      260
+     ],
+     "scale": [
+      1,
+      1.5
+     ],
+     "footprint": 10,
+     "minUp": 0.8
+    }
+   ]
+  },
+  {
    "id": "pines",
    "version": 1,
    "tags": [
@@ -2865,6 +3553,13 @@
    "spacing": 130,
    "chunkSize": 3200,
    "drawDistance": 9500,
+   "occupies": false
+  },
+  {
+   "id": "sea",
+   "spacing": 90,
+   "chunkSize": 3200,
+   "drawDistance": 12000,
    "occupies": false
   },
   {

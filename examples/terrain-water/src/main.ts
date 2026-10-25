@@ -20,6 +20,8 @@ const WEATHER_NAMES = ['Clear', 'Mist', 'Overcast', 'Rain', 'Storm'];
 
 /** The other places to look from; the first viewpoint is the scene's own camera. */
 const VIEWS: { name: string; pose: Pose }[] = [
+    // Across the flower sea with the low sun off to one side: the trees are lit from the side and the haze carries the beams.
+    { name: 'The flower sea', pose: pose(-6300, 1175, 3000, -0.95, 0.1) },
     { name: 'By the lake', pose: pose(-3350, 1070, -1000, -1.5, -0.2) },
     { name: 'The lake and the river mouths', pose: pose(4200, 2600, -2500, 1.9, -0.18) },
     { name: 'Up the river', pose: pose(-3600, 3000, -6200, -0.15, -0.12) },

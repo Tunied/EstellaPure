@@ -1,0 +1,37 @@
+{
+ "version": "2",
+ "name": "flower-violet",
+ "rootEntityId": "n0",
+ "entities": [
+  {
+   "prefabEntityId": "n0",
+   "name": "flower-violet",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "assets/plants/models/flower-violet/flower-violet.esmesh",
+      "lit": true,
+      "texture": "assets/plants/textures/e7e8bc5fd993.png",
+      "material": "assets/plants/models/flower-violet/flower-violet_m0.esmaterial",
+      "color": {
+       "r": 1,
+       "g": 1,
+       "b": 1,
+       "a": 1
+      },
+      "opaque": true,
+      "enabled": true
+     }
+    }
+   ]
+  }
+ ]
+}

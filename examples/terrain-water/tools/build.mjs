@@ -438,10 +438,11 @@ function scene() {
     { type: 'skyAtmosphere', enabled: true, uniforms: { u_intensity: 1, u_haze: 0.9, u_sunBrightness: 40, u_clouds: 0.4, u_cloudShadow: 0.6, u_unitsPerKm: 100000, u_windSpeed: 0.03 } },
     { type: 'gtao', enabled: true, uniforms: { u_radius: 300, u_intensity: 0.8 } },
     { type: 'heightFog', enabled: true, colors: { u_fogColor: { r: 0.66, g: 0.76, b: 0.88, a: 1 }, u_sunColor: { r: 1, g: 0.9, b: 0.7, a: 1 } },
-      uniforms: { u_density: 0.000004, u_heightFalloff: 0.0003, u_baseHeight: WORLD.sea, u_inscatter: 0.5, u_skyFog: 0.4 } },
+      uniforms: { u_density: 0.000009, u_heightFalloff: 0.0003, u_baseHeight: WORLD.sea, u_inscatter: 1.3, u_skyFog: 0.4, u_volumetric: 1, u_volumeRange: 5000 } },
     { type: 'autoExposure', enabled: true, uniforms: { u_bias: 0, u_minEV: -2, u_maxEV: 2 } },
-    { type: 'colorGrade', enabled: true, uniforms: { u_contrast: 1.06, u_saturation: 1.1 } },
+    { type: 'colorGrade', enabled: true, uniforms: { u_contrast: 1.06, u_saturation: 1.1, u_temperature: 0.08 } },
     { type: 'bloom', enabled: true, uniforms: { u_threshold: 1, u_intensity: 0.3, u_radius: 1 } },
+    { type: 'lensFlare', enabled: true, uniforms: { u_intensity: 0.25, u_threshold: 1.6, u_ghosts: 4 } },
     { type: 'fxaa', enabled: true, uniforms: { u_intensity: 1 } },
   ].filter((e) => !(process.env.TW_NOPOST ?? '').split(',').includes(e.type));
   // Over the sea, looking north: the waves and the crates, the beach, the river mouth, the lake, the river out of the hills, the snow.
@@ -453,7 +454,7 @@ function scene() {
   ]);
   // The HUD's canvas: the keys and what the scene is doing are drawn on it by the script.
   add('Canvas', [{ type: 'Transform', data: {} }, { type: 'Canvas', data: { designResolution: { x: 1480, y: 920 }, scaleMode: 2 } }, { type: 'UINode', data: {} }]);
-  add('Clock', [{ type: 'Transform', data: {} }, { type: 'TimeOfDay', data: { hour: 15.5, daySeconds: 0, latitude: 40, declination: 15, north: 180, drive: 31 } }]);
+  add('Clock', [{ type: 'Transform', data: {} }, { type: 'TimeOfDay', data: { hour: 17.4, daySeconds: 0, latitude: 40, declination: 15, north: 180, drive: 31 } }]);
   add('Sun', [{ type: 'Transform', data: {} },
     { type: 'Light', data: { type: 1, color: white, intensity: 3, enabled: true, meshShadows: true, shadowExtent: 16000, shadowStrength: 1, sourceAngle: 0.5 } }]);
   add('Sky', [{ type: 'Transform', data: {} }, { type: 'Light', data: { type: 2, color: { r: 0.8, g: 0.88, b: 1, a: 1 }, intensity: 0.6, enabled: true } }]);
@@ -499,6 +500,11 @@ function scene() {
   add('Plants', [
     { type: 'Transform', data: {} },
     { type: 'WorldGen', data: { rules: 'assets/worlds/plants.esworld', version: 1, world: 'terrain-water', seed: 7, paintGround: false } },
+  ]);
+  // The flower sea: a hillside held to the flower-sea biome by a zone, which no field holds anywhere else.
+  add('Flower sea', [
+    { type: 'Transform', data: { position: { x: -4700, y: 0, z: 3000 } } },
+    { type: 'WorldZone', data: { kind: 'view', shape: 0, radius: 2400, falloff: 1800, priority: 1, excludes: '', biome: 'flower-sea', flatten: false } },
   ]);
   const crates = [...WORLD.crates.lake.map(([x, z]) => [x, z, WORLD.lake.level]), ...WORLD.crates.sea.map(([x, z]) => [x, z, WORLD.sea])];
   crates.forEach(([x, z, level], i) => {

@@ -1,0 +1,37 @@
+{
+ "version": "2",
+ "name": "flower-rose",
+ "rootEntityId": "n0",
+ "entities": [
+  {
+   "prefabEntityId": "n0",
+   "name": "flower-rose",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "assets/plants/models/flower-rose/flower-rose.esmesh",
+      "lit": true,
+      "texture": "assets/plants/textures/41517f331fa3.png",
+      "material": "assets/plants/models/flower-rose/flower-rose_m0.esmaterial",
+      "color": {
+       "r": 1,
+       "g": 1,
+       "b": 1,
+       "a": 1
+      },
+      "opaque": true,
+      "enabled": true
+     }
+    }
+   ]
+  }
+ ]
+}

@@ -2822,6 +2822,12 @@ export const NOTED = {
     {"note":"Foam is where waves burst, not along every shore."},
   "fix(water): a gentle beach keeps less of the breakers' white than rock does":
     {"note":"Foam is where waves burst, not along every shore."},
+  "feat(examples): Terrain & Water takes the lakewood detail set: denser crowns, conifers, ferns, bank grass, reed thickets, shoals and a sparkling lake":
+    {"note":"A generated world's plants."},
+  "feat(worldgen): a plant's far version may be its cheaper mesh, thinned by farKeep, so ground cover has a far level of detail":
+    {"note":"A generated world's plants."},
+  "feat(examples): Terrain & Water gets a flower sea, volumetric light and far ground cover":
+    {"note":"A generated world's plants."},
   "feat(water): two tiled, scrolling detail normal maps give the surface its sparkle":
     {"note":"Sparkle on the water."},
   "fix(lod): a LODGroup with only a cull size is no longer ignored":
