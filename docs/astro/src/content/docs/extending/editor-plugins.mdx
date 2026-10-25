@@ -481,6 +481,29 @@ the editor's own work — so a slow overlay or command is visible rather than
 mysterious.
 </Aside>
 
+## What a plugin may import
+
+A plugin runs in the editor's own realm and imports the editor's own instances, so what it registers is what the editor uses. It may import
+`react`, `@estella/editor-api`, `esengine`, and the engine subpaths the editor is built on: `esengine/terrain`, `esengine/worldgen`,
+`esengine/water`, `esengine/spline`, `esengine/tilemap` and `esengine/replication`. Anything else is a load error naming this list; bundle it into
+the plugin instead.
+
+### Show your game's generated ground in the editor
+
+The editor does not run your game's scripts while you edit: it reads the declaration module for component schemas and nothing else. A terrain
+provider a game registers (a `Terrain` with `provider: 'my-game:planet'`) is therefore not there in the viewport, and the terrain asks for a
+provider that does not exist. A project plugin that imports the module registering it fixes that, with the same code in the editor as in the game:
+
+```ts title=".esengine/plugins/my-game.ground/src/editor.ts"
+import { definePlugin } from '@estella/editor-api';
+import '../../../../../src/planet/terrain.ts';   // registerTerrainProvider(...), as the game does
+
+export default definePlugin({ activate: () => {} });
+```
+
+The editor asks you once to trust the plugin, since it runs project code. The project's `.gitignore` leaves `.esengine/plugins/` out of the ignored
+set (new projects are written that way), so the plugin travels with the project and the whole team sees the same ground.
+
 ## Where plugins live
 
 - **`<project>/.esengine/plugins/<id>/`** — versioned with the project and shared

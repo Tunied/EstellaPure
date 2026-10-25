@@ -421,6 +421,27 @@ ctx.scene.transact('Rename Markers', () => {
 并排——所以慢的覆盖层或命令是看得见的，而不是一团迷雾。
 </Aside>
 
+## 插件能引入什么
+
+插件运行在编辑器自己的运行域里,引入的是编辑器自己的实例,所以它注册的东西就是编辑器在用的东西。可以引入 `react`、`@estella/editor-api`、
+`esengine`,以及编辑器本身建立在其上的引擎子入口:`esengine/terrain`、`esengine/worldgen`、`esengine/water`、`esengine/spline`、
+`esengine/tilemap` 和 `esengine/replication`。别的都会在加载时报错并列出这份清单;请把它打进插件里。
+
+### 在编辑器里显示游戏生成的地面
+
+编辑时编辑器不运行你的游戏脚本:它只读声明模块来取组件结构。游戏自己注册的地形提供器(`Terrain` 的 `provider: 'my-game:planet'`)因此在视口里
+并不存在,地形要的提供器找不到。用一个项目插件引入注册它的模块即可,编辑器里和游戏里用同一份代码:
+
+```ts title=".esengine/plugins/my-game.ground/src/editor.ts"
+import { definePlugin } from '@estella/editor-api';
+import '../../../../../src/planet/terrain.ts';   // registerTerrainProvider(...),和游戏里一样
+
+export default definePlugin({ activate: () => {} });
+```
+
+因为它运行项目代码,编辑器会请你确认一次是否信任这个插件。项目的 `.gitignore` 不再忽略 `.esengine/plugins/`(新建项目就是这样写的),
+所以插件随项目走,全队看到的是同一片地面。
+
 ## 插件放在哪
 
 - **`<项目>/.esengine/plugins/<id>/`**——随项目版本管理，与团队共享。通常放这里。
