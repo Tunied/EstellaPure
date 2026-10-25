@@ -39,6 +39,8 @@ import type { Color, Entity } from '../types';
 import { erosionJob, heightfieldFromPixels, HeightmapFormat, type Heightfield } from './heightfield';
 import { findGroundPath, type ReachOptions, type ReachResult } from './reach';
 import { paintWeights } from './paint';
+
+export { paintWeights };
 import { FieldSource, ModifiedSource, type TerrainModifier, type TerrainSource } from './source';
 import { levelRange, nodeKey, parentOf, selectNodes, type QuadtreeParams, type TerrainNode } from './quadtree';
 import { makePage, PageTable, PAGE_SIDE, PAGE_TEXELS, PATCH_CELLS, type PageImage, type Repaint } from './pages';
