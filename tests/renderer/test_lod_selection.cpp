@@ -110,6 +110,14 @@ static void testSelection() {
     CHECK(lod::selectLevel(set, 0.30f, 0) == 1, "under the first threshold takes level 1");
     CHECK(lod::selectLevel(set, 0.10f, 0) == 2, "under the second threshold takes level 2");
     CHECK(lod::selectLevel(set, 0.01f, 0) == lod::kCulled, "under the cull size nothing is drawn");
+    {
+        // A group with no stand-in and only a cull size: the mesh itself above it, nothing under it.
+        lod::LevelSet cullOnly;
+        cullOnly.cull = 0.05f;
+        cullOnly.hysteresis = 0.1f;
+        CHECK(lod::selectLevel(cullOnly, 0.5f, 0) == 0, "a cull-only group draws the mesh while it is big enough");
+        CHECK(lod::selectLevel(cullOnly, 0.01f, 0) == lod::kCulled, "a cull-only group draws nothing under its cull size");
+    }
 
     lod::LevelSet noCull = set;
     noCull.cull = 0.0f;

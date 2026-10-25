@@ -192,7 +192,10 @@ struct LodLevels {
 
 /**
  * @brief Reads a group into the levels it can be drawn at. False when it declares
- *        no usable stand-in, which leaves the renderer's own mesh the whole answer.
+ *        neither a usable stand-in nor a cull size, which leaves the renderer's own
+ *        mesh the whole answer. A group with only a cull size is a real one: the
+ *        mesh itself to a distance, then nothing (a tuft of grass has no cheaper
+ *        version, and still is not worth drawing past sixty metres).
  */
 bool gatherLodLevels(resource::ResourceManager& resources, const ecs::LODGroup& group,
                      const Mesh& base, LodLevels& out) {
@@ -226,7 +229,7 @@ bool gatherLodLevels(resource::ResourceManager& resources, const ecs::LODGroup& 
         out.localMin = glm::min(out.localMin, standIn->localMin);
         out.localMax = glm::max(out.localMax, standIn->localMax);
     }
-    return out.set.count > 0;
+    return out.set.count > 0 || out.set.cull > 0.0f;
 }
 
 /** @brief Says once what a group declares that nothing will ever use. */
