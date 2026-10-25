@@ -2876,6 +2876,10 @@ export const NOTED = {
     {"note":"Start a project from the command line."},
   "feat(templates): an Online 3D starter, a networked 3D game with a dedicated server that runs the same project":
     {"note":"An Online 3D starter."},
+  "fix(postprocess): the last pass's header names the standard headers it uses, so it builds on Linux":
+    {"internal":"A build fix for a header; nothing a creator could observe changed."},
+  "fix(ci): the continuity gate and the effect-kind test follow the shared scaffold and the display stage":
+    {"internal":"Gate and test follow the code they check."},
   "feat(water): two tiled, scrolling detail normal maps give the surface its sparkle":
     {"note":"Sparkle on the water."},
   "fix(lod): a LODGroup with only a cull size is no longer ignored":

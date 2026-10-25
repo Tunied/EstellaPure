@@ -20,6 +20,8 @@
 #include "../store/HdrFormat.hpp"
 
 #include <glm/glm.hpp>
+#include <algorithm>
+#include <cmath>
 #include <string>
 #include <vector>
 #include <unordered_map>
