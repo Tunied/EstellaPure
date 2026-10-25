@@ -7037,6 +7037,7 @@ collisionLayer: number
 detail: number
 friction: number
 generatorVersion: number
+gravity: number
 layerColor0: Color
 layerColor1: Color
 layerColor2: Color

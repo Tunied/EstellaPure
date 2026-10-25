@@ -4,6 +4,7 @@
  * @file    Physics3DPlugin.ts
  * @brief   Loads the 3D physics module and drives one world from the ECS.
  */
+import { installPlanetGravity } from './planetGravity';
 import type { App, Plugin } from '../app/app';
 import { Schedule, defineSystem } from '../ecs/system';
 import { defineResource } from '../ecs/resource';
@@ -69,6 +70,8 @@ export class Physics3DPlugin implements Plugin {
         };
         app.insertResource(Physics3DEvents, events);
         app.insertResource(Physics3DRuntime, runtime);
+        // A planet in the world pulls bodies toward its centre; with none, this does nothing.
+        installPlanetGravity(app);
         app.subsystems?.transition?.('physics3d', 'initializing');
 
         const initPromise = loadPhysics3DModule(this.wasmUrl_, this.factory_).then((module) => {

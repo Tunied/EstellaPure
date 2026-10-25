@@ -282,6 +282,8 @@ registerPlanetProvider({
 });
 ```
 
+A planet answers the questions a round world puts to everything standing on it, through the `PlanetRegistryRes` resource: `up(planet, x, y, z)` is the unit direction away from its centre, `altitude` the height above the radius, `groundHeight` the generator's own height under a position (null while a provider answers later) and `groundPoint` the point on the ground under it. `nearest(x, y, z)` names the planet whose surface is nearest. Set `gravity` (metres a second squared at the surface) and 3D physics pulls every dynamic body toward the centre of the nearest planet that pulls: the world's one gravity is taken off the body and the planet's put on, as a force each fixed step, so with the world's gravity at zero a body simply falls toward the planet.
+
 The ground collides: the finest nodes within `collisionDistance` of every moving 3D body and character are built as collision geometry from the same samples the ground is drawn from (`collision`, `collisionDistance`, `collisionLayer`, `friction`, as on a flat terrain). A planet's transform is a position only: a turned or scaled planet's collision stands where it would be unturned. `layers` names up to four `.esterrainlayer` files, as on a flat terrain; each is read on the planes of the world's axes by how much the ground faces them, with a wider read mixed in far off so the repeat is lost. Without layers the ground is the four colours. The sea, a sky that follows the horizon round and gravity toward the centre are not in it yet; a body falls along the world's one gravity, so toward the centre only at the top of the planet.
 
 ## Limits

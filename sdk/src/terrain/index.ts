@@ -23,6 +23,7 @@ import { registerTerrainSupport } from './terrainSupport';
 
 registerTerrainSupport();
 export { paintWeights } from './paint';
+export { PlanetRegistry, PlanetRegistryRes, type PlanetFacts } from './planetQuery';
 export { Planet, Planets, PlanetPlugin, planetPlugin, type PlanetData, type PlanetStatus } from './planetPlugin';
 export { registerPlanetProvider, planetProvider, type PlanetProvider, type PlanetRegion } from './planetProvider';
 export { makePlanetPage, tangentFrame, type PlanetPageSource } from './planetPages';

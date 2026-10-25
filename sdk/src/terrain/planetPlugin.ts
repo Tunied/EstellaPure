@@ -33,6 +33,7 @@ import type { Color, Entity } from '../types';
 import { PageTable, PAGE_SIDE, PAGE_TEXELS, PATCH_CELLS, type PageImage } from './pages';
 import { buildPatchMesh } from './patch';
 import { loadLayerArrays, releaseLayerArrays } from './layerArrays';
+import { PlanetRegistry, PlanetRegistryRes } from './planetQuery';
 import { removePlanetCollision, updatePlanetCollision } from './planetCollision';
 import { planetProvider, planetProvidersRevision, type PlanetProvider } from './planetProvider';
 import { makePlanetPage, type PlanetPageSource } from './planetPages';
@@ -63,6 +64,8 @@ export interface PlanetData {
     collisionDistance: number;
     collisionLayer: number;
     friction: number;
+    /** How hard the planet pulls what is on it, in metres a second squared at the surface; 0 pulls nothing. Bodies are pulled toward the centre of the nearest planet that pulls (physics3d/planetGravity.ts). */
+    gravity: number;
     /** The terrain layers (`.esterrainlayer` files, up to four) the ground is drawn with, in the order the paint weighs them. Empty draws the four layer colours. */
     layers: string[];
 }
@@ -77,7 +80,7 @@ const rgb = (r: number, g: number, b: number): Color => ({ r, g, b, a: 1 });
 export const Planet: ComponentDef<PlanetData> = defineComponent<PlanetData>('Planet', {
     radius: 4000, provider: '', world: '', generatorVersion: 1, seed: 1, cellSize: 1.5, detail: 1.5,
     layerColor0: rgb(0.28, 0.46, 0.2), layerColor1: rgb(0.45, 0.36, 0.24), layerColor2: rgb(0.93, 0.95, 0.98), layerColor3: rgb(0.4, 0.38, 0.36),
-    macroScale: 90, macroVariation: 0.35, collision: true, collisionDistance: 64, collisionLayer: 0, friction: 0.6, layers: [] as string[],
+    macroScale: 90, macroVariation: 0.35, collision: true, collisionDistance: 64, collisionLayer: 0, friction: 0.6, gravity: 0, layers: [] as string[],
 }, {
     fields: {
         radius: { min: 1, category: 'Shape', tooltip: 'The planet\'s radius in metres. The planet stands at its entity, unrotated and unscaled.' },
@@ -93,6 +96,7 @@ export const Planet: ComponentDef<PlanetData> = defineComponent<PlanetData>('Pla
         layerColor3: { label: 'Rock', category: 'Layers' },
         macroScale: { min: 1, category: 'Layers', tooltip: 'The size, in metres, of the ground\'s own wander in brightness.' },
         macroVariation: { min: 0, max: 1, step: 0.01, category: 'Layers', tooltip: 'How strongly the ground\'s brightness wanders.' },
+        gravity: { min: 0, category: 'Physics', tooltip: 'How hard the planet pulls bodies toward its centre, in metres a second squared at the surface (9.81 is the Earth\'s). Needs 3D physics; the world\'s own gravity is taken off the bodies it pulls.' },
         layers: { category: 'Layers', tooltip: 'The terrain layers (.esterrainlayer, up to four) the ground is drawn with, in the order the paint weighs them, each read on the planes of the world\'s axes. Empty draws the four layer colours.' },
         collision: { category: 'Collision', tooltip: 'Whether 3D bodies and characters collide with the ground: the finest tiles round each of them are built as collision geometry.' },
         collisionDistance: { min: 1, category: 'Collision', tooltip: 'How far round each moving body and character the ground is built for collision, in metres.' },
@@ -161,6 +165,8 @@ export class PlanetPlugin implements Plugin {
     build(app: App): void {
         const planets = new Planets();
         this.planets_ = planets;
+        const registry = new PlanetRegistry();
+        app.insertResource(PlanetRegistryRes, registry);
         app.addSystemToSchedule(Schedule.Update, defineSystem([], () => {
             if (!app.hasResource(Assets)) return;
             // A planet whose entity has gone is let go.
@@ -169,6 +175,7 @@ export class PlanetPlugin implements Plugin {
                 this.destroy(app, built);
                 removePlanetCollision(app, entity);
                 planets.built_.delete(entity);
+                registry.planets.delete(entity);
             }
             for (const entity of app.world.getEntitiesWithComponents([Planet, Transform])) {
                 const data = app.world.get(entity, Planet) as PlanetData;
@@ -181,6 +188,15 @@ export class PlanetPlugin implements Plugin {
                 }
                 built.data = { ...data };
                 if (built.failure || !built.source || !built.tree) continue;
+                const at = (app.world.get(entity, Transform) as TransformData).worldPosition;
+                const source = built.source;
+                registry.planets.set(entity, {
+                    centre: [at.x, at.y, at.z], radius: built.data.radius, gravity: built.data.gravity,
+                    height: (dx, dy, dz) => {
+                        const got = source.provider.sample({ world: source.world, seed: source.seed, version: source.version, radius: source.radius, directions: Float32Array.of(dx, dy, dz), count: 1 });
+                        return got instanceof Promise ? null : (got.heights[0] ?? null);
+                    },
+                });
                 updatePlanetCollision(app, entity, built.source, built.epoch, built.data);
                 if (!built.instance) {
                     if (!built.pending) void this.prepare(app, built);
