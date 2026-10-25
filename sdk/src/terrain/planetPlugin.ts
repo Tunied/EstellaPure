@@ -31,6 +31,7 @@ import { bakesOf } from '../runtime/bakes';
 import type { Color, Entity } from '../types';
 import { PageTable, PAGE_SIDE, PAGE_TEXELS, PATCH_CELLS, type PageImage } from './pages';
 import { buildPatchMesh } from './patch';
+import { loadLayerArrays, releaseLayerArrays } from './layerArrays';
 import { removePlanetCollision, updatePlanetCollision } from './planetCollision';
 import { planetProvider, planetProvidersRevision, type PlanetProvider } from './planetProvider';
 import { makePlanetPage, type PlanetPageSource } from './planetPages';
@@ -61,6 +62,8 @@ export interface PlanetData {
     collisionDistance: number;
     collisionLayer: number;
     friction: number;
+    /** The terrain layers (`.esterrainlayer` files, up to four) the ground is drawn with, in the order the paint weighs them. Empty draws the four layer colours. */
+    layers: string[];
 }
 
 const rgb = (r: number, g: number, b: number): Color => ({ r, g, b, a: 1 });
@@ -73,7 +76,7 @@ const rgb = (r: number, g: number, b: number): Color => ({ r, g, b, a: 1 });
 export const Planet: ComponentDef<PlanetData> = defineComponent<PlanetData>('Planet', {
     radius: 4000, provider: '', world: '', generatorVersion: 1, seed: 1, cellSize: 1.5, detail: 1.5,
     layerColor0: rgb(0.28, 0.46, 0.2), layerColor1: rgb(0.45, 0.36, 0.24), layerColor2: rgb(0.93, 0.95, 0.98), layerColor3: rgb(0.4, 0.38, 0.36),
-    macroScale: 90, macroVariation: 0.35, collision: true, collisionDistance: 64, collisionLayer: 0, friction: 0.6,
+    macroScale: 90, macroVariation: 0.35, collision: true, collisionDistance: 64, collisionLayer: 0, friction: 0.6, layers: [] as string[],
 }, {
     fields: {
         radius: { min: 1, category: 'Shape', tooltip: 'The planet\'s radius in metres. The planet stands at its entity, unrotated and unscaled.' },
@@ -89,6 +92,7 @@ export const Planet: ComponentDef<PlanetData> = defineComponent<PlanetData>('Pla
         layerColor3: { label: 'Rock', category: 'Layers' },
         macroScale: { min: 1, category: 'Layers', tooltip: 'The size, in metres, of the ground\'s own wander in brightness.' },
         macroVariation: { min: 0, max: 1, step: 0.01, category: 'Layers', tooltip: 'How strongly the ground\'s brightness wanders.' },
+        layers: { category: 'Layers', tooltip: 'The terrain layers (.esterrainlayer, up to four) the ground is drawn with, in the order the paint weighs them, each read on the planes of the world\'s axes. Empty draws the four layer colours.' },
         collision: { category: 'Collision', tooltip: 'Whether 3D bodies and characters collide with the ground: the finest tiles round each of them are built as collision geometry.' },
         collisionDistance: { min: 1, category: 'Collision', tooltip: 'How far round each moving body and character the ground is built for collision, in metres.' },
         collisionLayer: { min: 0, max: 15, step: 1, category: 'Collision', advanced: true, tooltip: 'The collision layer the ground is in (0 to 15).' },
@@ -102,6 +106,8 @@ const ATLAS_SIZE = 2048;
 const MAX_LEVELS = 12;
 /** Pages asked at once of a provider that answers later. */
 const PAGES_IN_FLIGHT = 16;
+/** The most layers a planet draws: one paint atlas of four weights. */
+const MAX_LAYERS = 4;
 
 interface Built {
     signature: string;
@@ -122,6 +128,10 @@ interface Built {
     asked: Set<string>;
     pending: boolean;
     failure: string | null;
+    /** The layers' texture arrays, what they were packed from, and whether a packing is in hand. */
+    arrays: number[];
+    packed: string;
+    packing: boolean;
     /** The registry's revision when the provider was last looked for, so a late registration is noticed. */
     providers: number;
 }
@@ -192,7 +202,7 @@ export class PlanetPlugin implements Plugin {
     private make(signature: string, data: PlanetData, epoch: number): Built {
         const built: Built = {
             signature, data: { ...data }, provider: null, source: null, tree: null, epoch, table: new PageTable(ATLAS_SIZE),
-            heights: 0, paint: 0, mesh: 0, instance: 0, nodes: new Map(), spare: [], wanted: new Map(), asked: new Set(), pending: false, failure: null,
+            heights: 0, paint: 0, mesh: 0, instance: 0, nodes: new Map(), spare: [], wanted: new Map(), asked: new Set(), pending: false, failure: null, arrays: [], packed: '', packing: false,
             providers: planetProvidersRevision(),
         };
         const provider = planetProvider(data.provider);
@@ -320,6 +330,7 @@ export class PlanetPlugin implements Plugin {
             }
         }
         this.makePages(app, built, eye);
+        this.pack(app, built);
 
         const set = (name: string, value: Parameters<typeof Material.setUniform>[2]): void => { Material.setUniform(built.instance, name, value); };
         set('u_planetCenter', { x: t.worldPosition.x, y: t.worldPosition.y, z: t.worldPosition.z, w: 0 });
@@ -330,6 +341,44 @@ export class PlanetPlugin implements Plugin {
         set('u_macroScale', d.macroScale);
         set('u_macroVariation', d.macroVariation);
         this.place(app, entity, built, drawn);
+    }
+
+    /** Packs the layers into the arrays the material reads, when what they name changed: the ground keeps the arrays it has until the new ones are made. */
+    private pack(app: App, built: Built): void {
+        const refs = built.data.layers ?? [];
+        if (refs.length === 0) {
+            // Layers taken away: the colours draw the ground again.
+            if (built.arrays.length > 0 && built.instance) Material.setUniform(built.instance, 'u_layerCount', 0);
+            releaseLayerArrays(built.arrays);
+            built.arrays = [];
+            built.packed = '';
+            return;
+        }
+        if (built.packing) return;
+        const wanted = JSON.stringify(refs);
+        if (wanted === built.packed) return;
+        built.packing = true;
+        const epoch = built.epoch;
+        void (async () => {
+            try {
+                const got = await loadLayerArrays(app, refs, MAX_LAYERS);
+                if (built.epoch !== epoch || !built.instance) { if (got) releaseLayerArrays([got.albedo, got.normal]); return; }
+                if (!got) { log.warn('planet', 'the engine refused the planet layers\' texture arrays'); return; }
+                releaseLayerArrays(built.arrays);
+                built.arrays = [got.albedo, got.normal];
+                const set = (name: string, value: Parameters<typeof Material.setUniform>[2]): void => { Material.setUniform(built.instance, name, value); };
+                set('u_albedoLayers', Material.tex(got.albedo));
+                set('u_normalLayers', Material.tex(got.normal));
+                set('u_layerCount', got.tiles.length);
+                const t = (i: number): number => got.tiles[i] ?? 4;
+                set('u_tiles', { x: t(0), y: t(1), z: t(2), w: t(3) });
+            } catch (e) {
+                log.error('planet', 'packing the planet layers failed', e);
+            } finally {
+                built.packed = wanted;
+                built.packing = false;
+            }
+        })();
     }
 
     /** Makes the wanted pages, coarse and near first, for as long as the frame can spare. */
@@ -442,6 +491,9 @@ export class PlanetPlugin implements Plugin {
         }
         if (built.instance) Material.release(built.instance);
         if (built.mesh && app.hasResource(Assets)) app.getResource(Assets).releaseBuiltMesh(built.mesh);
+        releaseLayerArrays(built.arrays);
+        built.arrays = [];
+        built.packed = '';
         built.instance = built.mesh = built.heights = built.paint = 0;
         built.table.clear();
     }

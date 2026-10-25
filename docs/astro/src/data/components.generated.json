@@ -3891,6 +3891,41 @@
           "default": "0.35",
           "doc": "How strongly the ground's brightness wanders.",
           "range": "0–1, step 0.01"
+        },
+        {
+          "key": "collision",
+          "type": "boolean",
+          "default": "true",
+          "doc": "Whether 3D bodies and characters collide with the ground: the finest tiles round each of them are built as collision geometry."
+        },
+        {
+          "key": "collisionDistance",
+          "type": "number",
+          "default": "64",
+          "doc": "How far round each moving body and character the ground is built for collision, in metres.",
+          "range": "≥ 1"
+        },
+        {
+          "key": "collisionLayer",
+          "type": "number",
+          "default": "0",
+          "doc": "The collision layer the ground is in (0 to 15).",
+          "range": "0–15, step 1",
+          "advanced": true
+        },
+        {
+          "key": "friction",
+          "type": "number",
+          "default": "0.6",
+          "doc": "The ground's friction.",
+          "range": "≥ 0",
+          "advanced": true
+        },
+        {
+          "key": "layers",
+          "type": "array",
+          "default": "empty",
+          "doc": "The terrain layers (.esterrainlayer, up to four) the ground is drawn with, in the order the paint weighs them, each read on the planes of the world's axes. Empty draws the four layer colours."
         }
       ],
       "animatable": [
@@ -3916,7 +3951,10 @@
         "layerColor3.b",
         "layerColor3.a",
         "macroScale",
-        "macroVariation"
+        "macroVariation",
+        "collisionDistance",
+        "collisionLayer",
+        "friction"
       ]
     },
     {

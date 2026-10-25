@@ -52,6 +52,7 @@ import { TerrainSurface, TILE_CELLS, type SurfaceTile } from './surface';
 import { collisionGeometryOf } from '../runtime/collisionGeometry';
 import { chunksOf, ProceduralChunksRes } from '../residency/chunks';
 import { movers } from './movers';
+import { imagePixelsAt } from './layerArrays';
 
 /** The engine's own provider of ground without end: seeded noise of the world's position. */
 export const NOISE_PROVIDER = 'estella:noise';
@@ -666,21 +667,8 @@ export class TerrainPlugin implements Plugin {
     }
 
     /** An image file's pixels exactly as stored (no premultiply, no colour conversion), by its project path or reference. */
-    private async pixelsAt(app: App, path: string): Promise<{ width: number; height: number; pixels: Uint8Array; wide?: Uint16Array } | null> {
-        if (!app.hasResource(Assets)) return null;
-        const assets = app.getResource(Assets);
-        try {
-            // The bytes the asset layer would load, decoded unmodified (no premultiply, no colour conversion): a height is data.
-            if (typeof createImageBitmap === 'function' && typeof Blob !== 'undefined') {
-                const bytes = new Uint8Array(await assets.fetchBinary(path));
-                return await decodePngData(bytes) ?? await decodeImagePixels(new Blob([bytes]));
-            }
-            const image = await platformLoadImagePixels(assets.resolveLoadPath(path));
-            return { width: image.width, height: image.height, pixels: image.pixels };
-        } catch (e) {
-            log.warn('terrain', `reading ${path} failed`, e);
-            return null;
-        }
+    private pixelsAt(app: App, path: string): ReturnType<typeof imagePixelsAt> {
+        return imagePixelsAt(app, path);
     }
 
     /** The stock material: the Terrain shader, compiled once. */

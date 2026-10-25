@@ -282,7 +282,7 @@ registerPlanetProvider({
 });
 ```
 
-The ground collides: the finest nodes within `collisionDistance` of every moving 3D body and character are built as collision geometry from the same samples the ground is drawn from (`collision`, `collisionDistance`, `collisionLayer`, `friction`, as on a flat terrain). A planet's transform is a position only: a turned or scaled planet's collision stands where it would be unturned. The layers' textures, the sea, a sky that follows the horizon round and gravity toward the centre are not in it yet; a body falls along the world's one gravity, so toward the centre only at the top of the planet.
+The ground collides: the finest nodes within `collisionDistance` of every moving 3D body and character are built as collision geometry from the same samples the ground is drawn from (`collision`, `collisionDistance`, `collisionLayer`, `friction`, as on a flat terrain). A planet's transform is a position only: a turned or scaled planet's collision stands where it would be unturned. `layers` names up to four `.esterrainlayer` files, as on a flat terrain; each is read on the planes of the world's axes by how much the ground faces them, with a wider read mixed in far off so the repeat is lost. Without layers the ground is the four colours. The sea, a sky that follows the horizon round and gravity toward the centre are not in it yet; a body falls along the world's one gravity, so toward the centre only at the top of the planet.
 
 ## Limits
 

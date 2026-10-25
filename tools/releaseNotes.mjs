@@ -2916,6 +2916,8 @@ export const NOTED = {
     {"note":"The editor's own eye shows the scene's post-processing."},
   "feat(terrain): the maths of ground on a cube sphere and the nodes drawn round an eye":
     {"internal":"The first layer of spherical terrain: pure maths and node selection, not yet drawn."},
+  "feat(terrain): a planet's ground is drawn with the layers' textures":
+    {"note":"A planet's ground has the layers' textures."},
   "feat(terrain): a planet's ground collides":
     {"note":"A planet's ground collides."},
   "fix(terrain): a planet's ground is one-sided and its fog is the ground's under it":

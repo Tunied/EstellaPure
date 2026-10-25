@@ -16,6 +16,7 @@ published separately; it ships inside the editor.
 
 ### Added
 
+- **A planet's ground has the layers' textures.** `Planet.layers` names up to four `.esterrainlayer` files, as on a flat terrain: each layer's albedo and normal map are read on the planes of the world's axes by how much the ground faces them, with a wider read mixed in far off so the repeat is lost. Without layers the ground is still the four colours.
 - **A planet's ground collides.** `Planet` takes `collision`, `collisionDistance`, `collisionLayer` and `friction` as flat terrain does: the finest nodes round every moving 3D body and character are built as collision geometry from the same samples the ground is drawn from, one chunk layer to each face of the cube.
 - **Height Fog by height above a planet.** `heightFog` takes `u_planetRadius` and the planet's centre (`u_planetX/Y/Z`): with a radius above 0 the fog thins with the height above the ground's sphere and not with world Y, so a round world is hazy at its horizon and clear from orbit.
 

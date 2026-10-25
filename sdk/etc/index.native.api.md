@@ -6955,6 +6955,7 @@ layerColor0: Color
 layerColor1: Color
 layerColor2: Color
 layerColor3: Color
+layers: string[]
 macroScale: number
 macroVariation: number
 provider: string
