@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import { describe, it, expect } from 'vitest';
 import { MeshChannel, MeshChannelType, packChannels, type MeshData } from '../src/asset/meshFormat';
-import { buildBillboardMesh, buildGrassMesh, buildInstancedMesh, buildPlacedMesh, rng, scatterCell, type Ground, type Plant } from '../src/foliage/builder';
+import { buildBillboardMesh, buildGrassMesh, buildInstancedMesh, buildPlacedMesh, thinPlants, rng, scatterCell, type Ground, type Plant } from '../src/foliage/builder';
 
 const flat: Ground = () => ({ y: 2, up: 1 });
 const params = {
@@ -190,3 +190,28 @@ describe('placed meshes', () => {
         expect(none.indices.length).toBe(0);
     });
 });
+
+describe('thinning plants for a far version', () => {
+    const plants: Plant[] = Array.from({ length: 12 }, (_, i) => ({ x: i, y: 0, z: 0, yaw: 0, scale: 1, phase: 0, shade: 1 }));
+
+    it('keeps every plant when it keeps them all', () => {
+        expect(thinPlants(plants, 1)).toBe(plants);
+        expect(thinPlants(plants, 2)).toBe(plants);
+    });
+
+    it('keeps every n-th for a share of 1 / n, grown to cover what the others did', () => {
+        const quarter = thinPlants(plants, 0.25);
+        expect(quarter.map((p) => p.x)).toEqual([0, 4, 8]);
+        expect(quarter[0]!.scale).toBeCloseTo(2);
+        const third = thinPlants(plants, 1 / 3);
+        expect(third.map((p) => p.x)).toEqual([0, 3, 6, 9]);
+        expect(third[0]!.scale).toBeCloseTo(Math.sqrt(3));
+    });
+
+    it('is the same plants every time, grows them at most twofold, and leaves the ones given alone', () => {
+        expect(thinPlants(plants, 0.1).map((p) => p.x)).toEqual(thinPlants(plants, 0.1).map((p) => p.x));
+        expect(thinPlants(plants, 0.05)[0]!.scale).toBe(2);
+        expect(plants[0]!.scale).toBe(1);
+    });
+});
+

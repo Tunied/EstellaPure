@@ -10,7 +10,7 @@ import type { PlantKind } from '../src/foliage/plantKind';
 const part = (mesh: string, tint: [number, number, number, number] = [1, 1, 1, 1]) => ({ mesh, lod1Mesh: '', material: '', texture: '', tint, opaque: true });
 const plants: Record<string, PlantKind> = {
     oak: { parts: [part('trunk', [0.5, 0.5, 0.5, 1]), part('crown')], lodDistance: 6000, drawDistance: 16000, far: [part('cards')], farDistance: 200000,
-        tints: [[0.9, 1, 0.9], [1, 1, 1], [1.1, 1, 0.8]], tintScale: 1000, sink: 8, unit: 100 },
+        tints: [[0.9, 1, 0.9], [1, 1, 1], [1.1, 1, 0.8]], tintScale: 1000, sink: 8, unit: 100, farKeep: 0.5 },
     stone: { parts: [part('rock')], lodDistance: 0, drawDistance: 30000, far: [], farDistance: 0 },
 };
 
@@ -39,6 +39,11 @@ describe('expanding plants into kinds', () => {
         expect(seen.size).toBe(3);
         expect(set.kindAt('stone', 5, 5)).toBe(3);
         expect(set.kindAt('nothing', 5, 5)).toBe(-1);
+    });
+
+    it('carries how much of a plant its far version draws', () => {
+        expect(set.kinds[0]!.farKeep).toBe(0.5);
+        expect(set.kinds[3]!.farKeep).toBeUndefined();
     });
 
     it('knows how far a plant is sunk and how far the furthest of them is wanted', () => {

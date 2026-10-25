@@ -26,7 +26,7 @@ import type { MeshData } from '../asset/meshFormat';
 import { log } from '../util/logger';
 import { bakesOf } from '../runtime/bakes';
 import type { Entity } from '../types';
-import { buildPlacedMesh, type Plant } from './builder';
+import { buildPlacedMesh, thinPlants, type Plant } from './builder';
 import type { PlacedKind, PlacedPart } from './plantKind';
 
 /** A part with what it needs in hand: its geometry read, its handles made. */
@@ -159,8 +159,9 @@ export class PlantGrowth {
         for (const [kindIndex, plants] of byKind) {
             const parts = ready.far[kindIndex];
             if (!parts || parts.length === 0) continue;
+            const kept = thinPlants(plants, kinds[kindIndex]?.farKeep ?? 1);
             for (const r of parts) {
-                const handle = assets.createMesh(buildPlacedMesh(r.source, plants));
+                const handle = assets.createMesh(buildPlacedMesh(r.source, kept));
                 if (handle === 0) continue;
                 cell.handles.push(handle);
                 const e = world.spawn(`far ${kindIndex}`);

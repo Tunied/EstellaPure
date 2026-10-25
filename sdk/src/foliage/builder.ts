@@ -293,6 +293,19 @@ export function buildPlacedMesh(source: MeshData, plants: readonly Plant[]): Mes
     return { channels: source.channels, vertexStride: stride, vertexCount: count * plants.length, vertices, indices, aabbMin: min, aabbMax: max };
 }
 
+/**
+ * The plants a far version draws, when it draws a share `keep` of them (above 0 to 1): every n-th, n the nearest whole number to 1 / keep, each grown by the
+ * square root of n (to a most of twice) so the ground they cover is what it was. The same plants every time: what is kept is a matter of order.
+ */
+export function thinPlants(plants: readonly Plant[], keep: number): readonly Plant[] {
+    const n = Math.max(1, Math.round(1 / Math.min(Math.max(keep, 1e-3), 1)));
+    if (n === 1) return plants;
+    const grow = Math.min(Math.sqrt(n), 2);
+    const out: Plant[] = [];
+    for (let i = 0; i < plants.length; i += n) out.push({ ...plants[i]!, scale: plants[i]!.scale * grow });
+    return out;
+}
+
 /** The turn that takes up (0, 1, 0) to `n` the shortest way, applied to a vector in place; null when `n` is up. */
 function leanTo(n: readonly [number, number, number]): ((v: number[]) => void) | null {
     const len = Math.hypot(n[0], n[1], n[2]) || 1;

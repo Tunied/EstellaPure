@@ -32,6 +32,12 @@ export interface PlacedKind {
      */
     far: PlacedPart[];
     farDistance: number;
+    /**
+     * The share of the plants its far version draws, above 0 to 1 (default 1): the others are left out and the ones kept grown to make up their cover, so
+     * ground cover far off costs a share of what it does near, and the ground's own texture carries the rest. A kind with no cards of its own may use its
+     * cheaper mesh as its far version, thinned.
+     */
+    farKeep?: number;
 }
 
 /**

@@ -64,6 +64,10 @@ the artist made (a normal map, a second uv, a vertex colour); nothing is painted
 The far version is the hierarchical level of detail: a tree's crossed cards, baked to an atlas of their own, merged a cell at a time, shown where the eye is past
 what the kind draws as itself. It is cheap enough that the whole area stands at once. A kind with no far version is not drawn past `drawDistance`.
 
+A kind with no cards of its own can use its cheaper mesh as its far version and set `farKeep`, the share of its plants the far version draws (above 0 to 1):
+every n-th is kept, n the nearest whole number to 1 / `farKeep`, each grown by the square root of n (at most twofold) so the ground they cover is what it was.
+Ground cover far off then costs a share of what it does near, and the ground's own texture carries the rest.
+
 Plants stand upright and are scaled uniformly; the records carry no tilt. The paths in `kinds` are the project's, listed so a package carries them.
 
 ## In a package

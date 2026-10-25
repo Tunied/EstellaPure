@@ -86,6 +86,7 @@ function plant(v: unknown, where: string): PlantKind {
         parts: (o.parts as unknown[]).map((p, i) => part(p, `${where}.parts[${i}]`)),
         lodDistance: num(o.lodDistance ?? 0, `${where}.lodDistance`, 0), drawDistance: num(o.drawDistance, `${where}.drawDistance`, 0),
         far, farDistance: far.length > 0 ? num(o.farDistance, `${where}.farDistance`, 0) : 0,
+        ...(o.farKeep === undefined ? {} : { farKeep: num(o.farKeep, `${where}.farKeep`, 1e-3) }),
         ...(tints ? { tints, tintScale: num(o.tintScale ?? 1300, `${where}.tintScale`, 1e-6) } : {}),
         ...(o.sink === undefined ? {} : { sink: num(o.sink, `${where}.sink`) }),
         ...(o.unit === undefined ? {} : { unit: num(o.unit, `${where}.unit`, 1e-9) }),

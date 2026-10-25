@@ -99,6 +99,7 @@ A member names a mesh and a material, or a **plant**: an entry in the rules' `pl
 | Field | What it is |
 |---|---|
 | `tints`, `tintScale` | The colourings the art gives it (linear multipliers on its colour), and how many world units a stand is across: a place takes one of them by slow noise, so a wood has warm and cool stands and no speckle. |
+| `farKeep` | The share of its plants the far version draws (above 0 to 1; default 1): the others are left out and the ones kept grown to make up their cover. A plant with no cards of its own may use its cheaper mesh as its `far` and thin it this way. |
 | `sink` | How far it is sunk into the ground, in world units (a stone's buried underside). |
 | `unit` | World units to a unit of its mesh: 100 for plants modelled in metres in a world of centimetres. A recipe's `scale` is then a size relative to the model. |
 
