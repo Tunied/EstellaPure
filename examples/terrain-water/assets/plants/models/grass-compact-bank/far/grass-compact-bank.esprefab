@@ -1,0 +1,37 @@
+{
+ "version": "2",
+ "name": "grass-compact-bank",
+ "rootEntityId": "n0",
+ "entities": [
+  {
+   "prefabEntityId": "n0",
+   "name": "grass-compact-bank__far",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "assets/plants/models/grass-compact-bank/far/grass-compact-bank.esmesh",
+      "lit": true,
+      "texture": "assets/plants/textures/07f215769fc8.png",
+      "material": "assets/plants/models/grass-compact-bank/far/grass-compact-bank_m0.esmaterial",
+      "color": {
+       "r": 1,
+       "g": 1,
+       "b": 1,
+       "a": 1
+      },
+      "opaque": true,
+      "enabled": true
+     }
+    }
+   ]
+  }
+ ]
+}

@@ -2852,6 +2852,8 @@ export const NOTED = {
     {"note":"A generated world's plants."},
   "feat(examples): Terrain & Water draws its trees as models out to 380 metres, and their cards are lit as crowns":
     {"note":"A generated world's plants."},
+  "feat(examples): Terrain & Water takes the compact grass and the groundcover cards":
+    {"note":"A generated world's plants."},
   "feat(water): two tiled, scrolling detail normal maps give the surface its sparkle":
     {"note":"Sparkle on the water."},
   "fix(lod): a LODGroup with only a cull size is no longer ignored":

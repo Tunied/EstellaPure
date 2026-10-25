@@ -1,0 +1,37 @@
+{
+ "version": "2",
+ "name": "fern-arching",
+ "rootEntityId": "n0",
+ "entities": [
+  {
+   "prefabEntityId": "n0",
+   "name": "fern-arching__far",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "assets/plants/models/fern-arching/far/fern-arching.esmesh",
+      "lit": true,
+      "texture": "assets/plants/textures/3eadc53f258c.png",
+      "material": "assets/plants/models/fern-arching/far/fern-arching_m0.esmaterial",
+      "color": {
+       "r": 1,
+       "g": 1,
+       "b": 1,
+       "a": 1
+      },
+      "opaque": true,
+      "enabled": true
+     }
+    }
+   ]
+  }
+ ]
+}

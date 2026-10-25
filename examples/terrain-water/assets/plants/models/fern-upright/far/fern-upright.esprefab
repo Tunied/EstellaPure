@@ -1,0 +1,37 @@
+{
+ "version": "2",
+ "name": "fern-upright",
+ "rootEntityId": "n0",
+ "entities": [
+  {
+   "prefabEntityId": "n0",
+   "name": "fern-upright__far",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "assets/plants/models/fern-upright/far/fern-upright.esmesh",
+      "lit": true,
+      "texture": "assets/plants/textures/3920e7640aa0.png",
+      "material": "assets/plants/models/fern-upright/far/fern-upright_m0.esmaterial",
+      "color": {
+       "r": 1,
+       "g": 1,
+       "b": 1,
+       "a": 1
+      },
+      "opaque": true,
+      "enabled": true
+     }
+    }
+   ]
+  }
+ ]
+}

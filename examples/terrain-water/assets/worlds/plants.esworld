@@ -681,30 +681,18 @@
    "drawDistance": 10000,
    "far": [
     {
-     "mesh": "assets/plants/models/woodland-lowleaf/lod1/woodland-lowleaf_0_0.esmesh",
+     "mesh": "assets/plants/models/woodland-lowleaf/far/woodland-lowleaf.esmesh",
      "lod1Mesh": "",
-     "material": "assets/plants/models/woodland-lowleaf/lod1/woodland-lowleaf_m0.esmaterial",
-     "texture": "assets/plants/textures/938bddcdab05.png",
+     "material": "assets/plants/models/woodland-lowleaf/far/woodland-lowleaf_m0.esmaterial",
+     "texture": "assets/plants/textures/34edc59b5ac3.png",
      "tint": [
       1,
       1,
       1,
       1
      ],
-     "opaque": true
-    },
-    {
-     "mesh": "assets/plants/models/woodland-lowleaf/lod1/woodland-lowleaf_0_1.esmesh",
-     "lod1Mesh": "",
-     "material": "assets/plants/models/woodland-lowleaf/lod1/woodland-lowleaf_m1.esmaterial",
-     "texture": "",
-     "tint": [
-      0.10000000149011612,
-      0.2199999988079071,
-      0.03500000014901161,
-      1
-     ],
-     "opaque": true
+     "opaque": true,
+     "soft": 0.6
     }
    ],
    "farDistance": 24000,
@@ -762,30 +750,18 @@
    "drawDistance": 10000,
    "far": [
     {
-     "mesh": "assets/plants/models/fern-upright/lod1/fern-upright_0_0.esmesh",
+     "mesh": "assets/plants/models/fern-upright/far/fern-upright.esmesh",
      "lod1Mesh": "",
-     "material": "assets/plants/models/fern-upright/lod1/fern-upright_m0.esmaterial",
-     "texture": "assets/plants/textures/938bddcdab05.png",
+     "material": "assets/plants/models/fern-upright/far/fern-upright_m0.esmaterial",
+     "texture": "assets/plants/textures/3920e7640aa0.png",
      "tint": [
       1,
       1,
       1,
       1
      ],
-     "opaque": true
-    },
-    {
-     "mesh": "assets/plants/models/fern-upright/lod1/fern-upright_0_1.esmesh",
-     "lod1Mesh": "",
-     "material": "assets/plants/models/fern-upright/lod1/fern-upright_m1.esmaterial",
-     "texture": "",
-     "tint": [
-      0.10000000149011612,
-      0.2199999988079071,
-      0.03500000014901161,
-      1
-     ],
-     "opaque": true
+     "opaque": true,
+     "soft": 0.6
     }
    ],
    "farDistance": 24000,
@@ -843,30 +819,18 @@
    "drawDistance": 10000,
    "far": [
     {
-     "mesh": "assets/plants/models/fern-arching/lod1/fern-arching_0_0.esmesh",
+     "mesh": "assets/plants/models/fern-arching/far/fern-arching.esmesh",
      "lod1Mesh": "",
-     "material": "assets/plants/models/fern-arching/lod1/fern-arching_m0.esmaterial",
-     "texture": "assets/plants/textures/938bddcdab05.png",
+     "material": "assets/plants/models/fern-arching/far/fern-arching_m0.esmaterial",
+     "texture": "assets/plants/textures/3eadc53f258c.png",
      "tint": [
       1,
       1,
       1,
       1
      ],
-     "opaque": true
-    },
-    {
-     "mesh": "assets/plants/models/fern-arching/lod1/fern-arching_0_1.esmesh",
-     "lod1Mesh": "",
-     "material": "assets/plants/models/fern-arching/lod1/fern-arching_m1.esmaterial",
-     "texture": "",
-     "tint": [
-      0.10000000149011612,
-      0.2199999988079071,
-      0.03500000014901161,
-      1
-     ],
-     "opaque": true
+     "opaque": true,
+     "soft": 0.6
     }
    ],
    "farDistance": 24000,
@@ -1032,14 +996,14 @@
   "grass-fine": {
    "parts": [
     {
-     "mesh": "assets/plants/models/grass-fine/grass-fine.esmesh",
-     "lod1Mesh": "assets/plants/models/grass-fine/lod1/grass-fine.esmesh",
-     "material": "assets/plants/models/grass-fine/grass-fine_m0.esmaterial",
-     "texture": "assets/plants/textures/938bddcdab05.png",
+     "mesh": "assets/plants/models/grass-compact-short/grass-compact-short.esmesh",
+     "lod1Mesh": "assets/plants/models/grass-compact-short/lod1/grass-compact-short.esmesh",
+     "material": "assets/plants/models/grass-compact-short/grass-compact-short_m0.esmaterial",
+     "texture": "",
      "tint": [
-      1,
-      1,
-      1,
+      0.18400000000000002,
+      0.328,
+      0.044800000000000006,
       1
      ],
      "opaque": true
@@ -1049,52 +1013,53 @@
    "drawDistance": 9000,
    "far": [
     {
-     "mesh": "assets/plants/models/grass-fine/lod1/grass-fine.esmesh",
+     "mesh": "assets/plants/models/grass-compact-short/far/grass-compact-short.esmesh",
      "lod1Mesh": "",
-     "material": "assets/plants/models/grass-fine/lod1/grass-fine_m0.esmaterial",
-     "texture": "assets/plants/textures/938bddcdab05.png",
+     "material": "assets/plants/models/grass-compact-short/far/grass-compact-short_m0.esmaterial",
+     "texture": "assets/plants/textures/ed685d7b7b5f.png",
      "tint": [
       1,
       1,
       1,
       1
      ],
-     "opaque": true
+     "opaque": true,
+     "soft": 0.6
     }
    ],
    "farDistance": 26000,
    "farKeep": 0.25,
    "tints": [
     [
-     0.9,
-     1,
-     0.85
-    ],
-    [
      1,
      1,
      1
     ],
     [
-     1.12,
+     1.07,
      1.02,
-     0.8
+     0.88
+    ],
+    [
+     0.91,
+     0.97,
+     0.95
     ]
    ],
    "tintScale": 1300,
-   "unit": 100
+   "unit": 150
   },
   "grass-meadow": {
    "parts": [
     {
-     "mesh": "assets/plants/models/grass-meadow/grass-meadow.esmesh",
-     "lod1Mesh": "assets/plants/models/grass-meadow/lod1/grass-meadow.esmesh",
-     "material": "assets/plants/models/grass-meadow/grass-meadow_m0.esmaterial",
-     "texture": "assets/plants/textures/938bddcdab05.png",
+     "mesh": "assets/plants/models/grass-compact-meadow/grass-compact-meadow.esmesh",
+     "lod1Mesh": "assets/plants/models/grass-compact-meadow/lod1/grass-compact-meadow.esmesh",
+     "material": "assets/plants/models/grass-compact-meadow/grass-compact-meadow_m0.esmaterial",
+     "texture": "",
      "tint": [
-      1,
-      1,
-      1,
+      0.23199999999999998,
+      0.376,
+      0.0608,
       1
      ],
      "opaque": true
@@ -1104,52 +1069,53 @@
    "drawDistance": 9000,
    "far": [
     {
-     "mesh": "assets/plants/models/grass-meadow/lod1/grass-meadow.esmesh",
+     "mesh": "assets/plants/models/grass-compact-meadow/far/grass-compact-meadow.esmesh",
      "lod1Mesh": "",
-     "material": "assets/plants/models/grass-meadow/lod1/grass-meadow_m0.esmaterial",
-     "texture": "assets/plants/textures/938bddcdab05.png",
+     "material": "assets/plants/models/grass-compact-meadow/far/grass-compact-meadow_m0.esmaterial",
+     "texture": "assets/plants/textures/7e1fbff98632.png",
      "tint": [
       1,
       1,
       1,
       1
      ],
-     "opaque": true
+     "opaque": true,
+     "soft": 0.6
     }
    ],
    "farDistance": 26000,
    "farKeep": 0.25,
    "tints": [
     [
-     0.9,
-     1,
-     0.85
-    ],
-    [
      1,
      1,
      1
     ],
     [
-     1.12,
+     1.07,
      1.02,
-     0.8
+     0.88
+    ],
+    [
+     0.91,
+     0.97,
+     0.95
     ]
    ],
    "tintScale": 1300,
-   "unit": 100
+   "unit": 150
   },
   "grass-bank": {
    "parts": [
     {
-     "mesh": "assets/plants/models/grass-bank-dense/grass-bank-dense.esmesh",
-     "lod1Mesh": "assets/plants/models/grass-bank-dense/lod1/grass-bank-dense.esmesh",
-     "material": "assets/plants/models/grass-bank-dense/grass-bank-dense_m0.esmaterial",
-     "texture": "assets/plants/textures/938bddcdab05.png",
+     "mesh": "assets/plants/models/grass-compact-bank/grass-compact-bank.esmesh",
+     "lod1Mesh": "assets/plants/models/grass-compact-bank/lod1/grass-compact-bank.esmesh",
+     "material": "assets/plants/models/grass-compact-bank/grass-compact-bank_m0.esmaterial",
+     "texture": "",
      "tint": [
-      1,
-      1,
-      1,
+      0.144,
+      0.296,
+      0.0512,
       1
      ],
      "opaque": true
@@ -1159,40 +1125,41 @@
    "drawDistance": 10000,
    "far": [
     {
-     "mesh": "assets/plants/models/grass-bank-dense/lod1/grass-bank-dense.esmesh",
+     "mesh": "assets/plants/models/grass-compact-bank/far/grass-compact-bank.esmesh",
      "lod1Mesh": "",
-     "material": "assets/plants/models/grass-bank-dense/lod1/grass-bank-dense_m0.esmaterial",
-     "texture": "assets/plants/textures/938bddcdab05.png",
+     "material": "assets/plants/models/grass-compact-bank/far/grass-compact-bank_m0.esmaterial",
+     "texture": "assets/plants/textures/07f215769fc8.png",
      "tint": [
       1,
       1,
       1,
       1
      ],
-     "opaque": true
+     "opaque": true,
+     "soft": 0.6
     }
    ],
    "farDistance": 26000,
    "farKeep": 0.3,
    "tints": [
     [
-     0.92,
-     0.98,
-     0.91
-    ],
-    [
      1,
      1,
      1
     ],
     [
-     1.08,
+     1.07,
      1.02,
-     0.85
+     0.88
+    ],
+    [
+     0.91,
+     0.97,
+     0.95
     ]
    ],
    "tintScale": 1300,
-   "unit": 100
+   "unit": 150
   },
   "flower-ivory": {
    "parts": [

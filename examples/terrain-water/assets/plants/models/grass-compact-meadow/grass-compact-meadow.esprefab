@@ -1,0 +1,36 @@
+{
+ "version": "2",
+ "name": "grass-compact-meadow",
+ "rootEntityId": "n0",
+ "entities": [
+  {
+   "prefabEntityId": "n0",
+   "name": "grass-compact-meadow",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {}
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "assets/plants/models/grass-compact-meadow/grass-compact-meadow.esmesh",
+      "lit": true,
+      "material": "assets/plants/models/grass-compact-meadow/grass-compact-meadow_m0.esmaterial",
+      "color": {
+       "r": 1,
+       "g": 1,
+       "b": 1,
+       "a": 1
+      },
+      "opaque": true,
+      "enabled": true
+     }
+    }
+   ]
+  }
+ ]
+}

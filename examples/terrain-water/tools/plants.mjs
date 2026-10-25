@@ -29,6 +29,13 @@ function partsOf(project, file) {
 
 /** How far a crown's card has its normals turned to face up: it is lit as a rounded crown, and not as the two flat boards it is. */
 const SOFT_CARDS = 0.85;
+const SOFT_GROUND = 0.6;
+
+/**
+ * The leaf colour of the compact grasses (grass-catalog.json's baseLinearRGB). The art says it is in COLOR_0, but the delivered GLBs carry white
+ * there, so until that is re-exported it is the part's tint, a little lifted (1.6) for the scene's light.
+ */
+const GRASS_BASE = { 'grass-compact-short': [0.115, 0.205, 0.028], 'grass-compact-meadow': [0.145, 0.235, 0.038], 'grass-compact-bank': [0.09, 0.185, 0.032] };
 
 const asPart = (d, lod1Mesh = '') => ({
   mesh: d.mesh, lod1Mesh, material: d.material ?? '', texture: d.texture ?? '',
@@ -44,7 +51,7 @@ const TINTS = {
   birch: [[0.94, 1, 0.93], [1, 1, 1], [1.04, 1.04, 0.9]],
   willow: [[0.9, 1, 1.03], [1, 1, 1], [1.05, 1, 0.94]],
   shrub: [[0.94, 1, 0.92], [1, 1, 1], [1.08, 1.03, 0.9]],
-  grass: [[0.9, 1, 0.85], [1, 1, 1], [1.12, 1.02, 0.8]],
+  grass: [[1, 1, 1], [1.07, 1.02, 0.88], [0.91, 0.97, 0.95]],
   beech: [[0.94, 1, 0.92], [1, 1, 1], [1.08, 0.97, 0.86]],
   conifer: [[0.88, 0.96, 0.92], [1, 1, 1], [1.04, 1.03, 0.91]],
   fern: [[0.91, 0.98, 0.92], [1, 1, 1], [1.08, 1.03, 0.87]],
@@ -70,9 +77,9 @@ const KINDS = {
   'boulder-round': { prefab: 'waterworn-boulder-round', lod: 60, draw: 200, sink: 12 },
   'boulder-flat': { prefab: 'waterworn-boulder-flat', lod: 60, draw: 200, sink: 12 },
   pebbles: { prefab: 'pebble-bed-small', lod: 40, draw: 120, sink: 2 },
-  'grass-fine': { prefab: 'grass-fine', lod: 30, draw: 90, tints: TINTS.grass },
-  'grass-meadow': { prefab: 'grass-meadow', lod: 30, draw: 90, tints: TINTS.grass },
-  'grass-bank': { prefab: 'grass-bank-dense', lod: 30, draw: 100, tints: TINTS.reed },
+  'grass-fine': { prefab: 'grass-compact-short', size: 1.5, lod: 30, draw: 90, tints: TINTS.grass },
+  'grass-meadow': { prefab: 'grass-compact-meadow', size: 1.5, lod: 30, draw: 90, tints: TINTS.grass },
+  'grass-bank': { prefab: 'grass-compact-bank', size: 1.5, lod: 30, draw: 100, tints: TINTS.grass },
   'flower-ivory': { prefab: 'flower-ivory', lod: 40, draw: 90 },
   'flower-amber': { prefab: 'flower-amber', lod: 40, draw: 90 },
   'flower-blue': { prefab: 'flower-blue', lod: 40, draw: 90 },
@@ -102,16 +109,18 @@ function plants(project) {
     const cheaper = near.length === parts.length;
     const cover = COVER[name];
     // Ground cover: the cheaper mesh stands for it far off, thinned; trees: the art's cards.
-    const far = cover ? (cheaper ? near : parts).map((d) => asPart(d)) : cards.map((d) => ({ ...asPart(d), soft: SOFT_CARDS }));
+    // The art's cards where it made them; ground cover with none (a flower) stands in as its own cheaper mesh, thinned.
+    const based = (part, prefab) => GRASS_BASE[prefab] ? { ...part, tint: part.tint.map((c, i) => (i < 3 ? c * GRASS_BASE[prefab][i] * 1.6 : c)) } : part;
+    const far = cards.length ? cards.map((d) => ({ ...asPart(d), soft: cover ? SOFT_GROUND : SOFT_CARDS })) : cover ? (cheaper ? near : parts).map((d) => asPart(d)) : [];
     out[name] = {
-      parts: parts.map((d, j) => asPart(d, cheaper ? near[j].mesh : '')),
+      parts: parts.map((d, j) => based(asPart(d, cheaper ? near[j].mesh : ''), k.prefab)),
       lodDistance: cheaper ? k.lod * M : 0, drawDistance: k.draw * M,
       far, farDistance: far.length ? (cover?.far ?? k.far ?? 0) * M : 0,
       ...(cover ? { farKeep: cover.keep } : {}),
       ...(k.tints ? { tints: k.tints, tintScale: 1300 } : {}),
       ...(k.sink ? { sink: k.sink } : {}),
       // The art is in metres and this world in centimetres.
-      unit: M,
+      unit: M * (k.size ?? 1),
     };
   }
   return out;
