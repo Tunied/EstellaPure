@@ -77,7 +77,8 @@ void UIElementPlugin::collect(RenderCollectContext& collect_ctx) {
         auto& transform = uiView.get<ecs::Transform>(entity);
         transform.ensureDecomposed();
 
-        glm::vec3 position = transform.worldPosition;
+        // Screen-space UI is laid out in screen units, which have no origin to take; UI standing in the world has.
+        glm::vec3 position = collect_ctx.isOverlay() ? glm::vec3(transform.worldPosition) : rebased(transform.worldPosition);
         const auto& rotation = transform.worldRotation;
         const auto& scale = transform.worldScale;
         const bool parented = registry.has<ecs::Parent>(entity);

@@ -27,6 +27,7 @@ import { getResourceManager, provideTextureContent, withdrawTextureContent } fro
 import { TextureContent } from '../wasm';
 import { EditorView, editorViewEye } from '../camera/EditorView';
 import { log } from '../util/logger';
+import { renderOrigin } from '../render/renderOrigin';
 import { bakesOf } from '../runtime/bakes';
 import type { Color, Entity } from '../types';
 import { PageTable, PAGE_SIDE, PAGE_TEXELS, PATCH_CELLS, type PageImage } from './pages';
@@ -333,7 +334,9 @@ export class PlanetPlugin implements Plugin {
         this.pack(app, built);
 
         const set = (name: string, value: Parameters<typeof Material.setUniform>[2]): void => { Material.setUniform(built.instance, name, value); };
-        set('u_planetCenter', { x: t.worldPosition.x, y: t.worldPosition.y, z: t.worldPosition.z, w: 0 });
+        // From the render origin, as the nodes' boxes are: the vertex stage puts its points in them.
+        const o = renderOrigin();
+        set('u_planetCenter', { x: t.worldPosition.x - o.x, y: t.worldPosition.y - o.y, z: t.worldPosition.z - o.z, w: 0 });
         // Not the pass's camera: a shadow is drawn from the light, and its ground must be the one the eye sees.
         set('u_terrainEye', { x: eye[0], y: eye[1], z: eye[2], w: 1 });
         const d = built.data;

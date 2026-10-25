@@ -230,10 +230,12 @@ void main() {
     highp vec3 P = vec3(v_worldPos.x, 0.0, v_worldPos.y);
     highp vec3 N = vec3(0.0, 1.0, 0.0);
 #endif
+    // Where the ground is in the world, for what is laid on it by position (the layers' tiles, the noise, the bounds): the draw's own P is from the render origin.
+    highp vec3 Pw = P + u_renderOrigin.xyz;
     // A paged ground reads its paint and its normal where the vertex said it lies in the page, filtered; off its area there is none.
     vec4 paint = v_color;
     if (u_terrainPages > 0.5) {
-        vec2 lp = P.xz - u_terrainOrigin.xz;
+        vec2 lp = Pw.xz - u_terrainOrigin.xz;
         if (lp.x < u_terrainBounds.x || lp.y < u_terrainBounds.y || lp.x > u_terrainBounds.z || lp.y > u_terrainBounds.w) discard;
         paint = texture(u_paintPages, v_color.xy);
         vec2 nxz = texture(u_heightPages, v_color.xy).ba * 2.0 - 1.0;
@@ -242,8 +244,8 @@ void main() {
     vec4 w = max(paint, vec4(0.0));
     w /= max(dot(w, vec4(1.0)), 1e-4);
     // Each layer's say wanders by slow noise of its own, so where two meet the edge is ragged, not the paint's gradient.
-    vec4 wander = vec4(tnNoise(P.xz / (u_tile0 * 2.3) + 3.0), tnNoise(P.xz / (u_tile1 * 2.3) + 11.0),
-                       tnNoise(P.xz / (u_tile2 * 2.3) + 23.0), tnNoise(P.xz / (u_tile3 * 2.3) + 37.0));
+    vec4 wander = vec4(tnNoise(Pw.xz / (u_tile0 * 2.3) + 3.0), tnNoise(Pw.xz / (u_tile1 * 2.3) + 11.0),
+                       tnNoise(Pw.xz / (u_tile2 * 2.3) + 23.0), tnNoise(Pw.xz / (u_tile3 * 2.3) + 37.0));
     w *= mix(vec4(1.0), 0.35 + 1.3 * wander, u_blendNoise);
     w /= max(dot(w, vec4(1.0)), 1e-4);
     // The strongest layer wins its seam more cleanly the higher the sharpness.
@@ -257,17 +259,17 @@ void main() {
     float near = (1.0 - smoothstep(u_tile0 * 20.0, u_tile0 * 45.0, eye)) * u_antiTile;
     float far = smoothstep(u_tile0 * 6.0, u_tile0 * 40.0, eye) * 0.65;
     vec3 s0 = vec3(0.0), s1 = vec3(0.0), s2 = vec3(0.0), s3 = vec3(0.0);
-    if (w.x > 1e-3) s0 = tnRead(u_layer0, P.xz, u_tile0, near, far, dpx.xz, dpy.xz);
-    if (w.y > 1e-3) s1 = tnRead(u_layer1, P.xz, u_tile1, near, far, dpx.xz, dpy.xz);
-    if (w.z > 1e-3) s2 = tnRead(u_layer2, P.xz, u_tile2, near, far, dpx.xz, dpy.xz);
+    if (w.x > 1e-3) s0 = tnRead(u_layer0, Pw.xz, u_tile0, near, far, dpx.xz, dpy.xz);
+    if (w.y > 1e-3) s1 = tnRead(u_layer1, Pw.xz, u_tile1, near, far, dpx.xz, dpy.xz);
+    if (w.z > 1e-3) s2 = tnRead(u_layer2, Pw.xz, u_tile2, near, far, dpx.xz, dpy.xz);
     if (w.w > 1e-3) {
         // Rock is seen from three sides, in proportion to how the ground faces them, so a sheer face is not stretched; a side that
         // carries almost none of it is not read.
         vec3 axis = pow(abs(N), vec3(4.0));
         axis /= dot(axis, vec3(1.0));
-        s3 = tnRead(u_layer3, P.xz, u_tile3, near, far, dpx.xz, dpy.xz) * axis.y;
-        if (axis.x > 0.02) s3 += textureGrad(u_layer3, P.zy / u_tile3, dpx.zy / u_tile3, dpy.zy / u_tile3).rgb * axis.x;
-        if (axis.z > 0.02) s3 += textureGrad(u_layer3, P.xy / u_tile3, dpx.xy / u_tile3, dpy.xy / u_tile3).rgb * axis.z;
+        s3 = tnRead(u_layer3, Pw.xz, u_tile3, near, far, dpx.xz, dpy.xz) * axis.y;
+        if (axis.x > 0.02) s3 += textureGrad(u_layer3, Pw.zy / u_tile3, dpx.zy / u_tile3, dpy.zy / u_tile3).rgb * axis.x;
+        if (axis.z > 0.02) s3 += textureGrad(u_layer3, Pw.xy / u_tile3, dpx.xy / u_tile3, dpy.xy / u_tile3).rgb * axis.z;
     }
     // Then by relief: each layer stands as high as it is bright, and where two meet the higher one shows.
     vec4 heights = vec4(tnLuma(s0), tnLuma(s1), tnLuma(s2), tnLuma(s3));
@@ -278,7 +280,7 @@ void main() {
     w = mix(w, hw, u_heightBlend);
 
     vec3 albedo = s0 * u_tint0.rgb * w.x + s1 * u_tint1.rgb * w.y + s2 * u_tint2.rgb * w.z + s3 * u_tint3.rgb * w.w;
-    float broad = tnNoise(P.xz / (u_tile0 * 7.3)) * 0.6 + tnNoise(P.xz / (u_tile0 * 29.0) + 5.0) * 0.4;
+    float broad = tnNoise(Pw.xz / (u_tile0 * 7.3)) * 0.6 + tnNoise(Pw.xz / (u_tile0 * 29.0) + 5.0) * 0.4;
     albedo *= mix(1.0, 0.7 + 0.6 * broad, u_macroVariation);
 
     // The relief, as a bump from the screen-space change of its height, faded out before it is finer than a pixel.
@@ -387,19 +389,20 @@ fn packNormal(n : vec3f) -> vec2f {
     let P = vec3f(v.v_worldPos.x, 0.0, v.v_worldPos.y);
     var N = vec3f(0.0, 1.0, 0.0);
 #endif
+    let Pw = P + frame.renderOrigin.xyz;
     let pagePaint = textureSample(u_paintPages, u_paintPages_s, v.v_color.xy);
     let pageNormal = textureSample(u_heightPages, u_heightPages_s, v.v_color.xy).ba * 2.0 - vec2f(1.0);
     var paint = v.v_color;
     if (mc.u_terrainPages > 0.5) {
-        let lp = P.xz - mc.u_terrainOrigin.xz;
+        let lp = Pw.xz - mc.u_terrainOrigin.xz;
         if (lp.x < mc.u_terrainBounds.x || lp.y < mc.u_terrainBounds.y || lp.x > mc.u_terrainBounds.z || lp.y > mc.u_terrainBounds.w) { discard; }
         paint = pagePaint;
         N = normalize(vec3f(pageNormal.x, sqrt(max(1.0 - dot(pageNormal, pageNormal), 0.0)), pageNormal.y));
     }
     var w = max(paint, vec4f(0.0));
     w = w / max(dot(w, vec4f(1.0)), 1e-4);
-    let wander = vec4f(tnNoise(P.xz / (mc.u_tile0 * 2.3) + 3.0), tnNoise(P.xz / (mc.u_tile1 * 2.3) + 11.0),
-                       tnNoise(P.xz / (mc.u_tile2 * 2.3) + 23.0), tnNoise(P.xz / (mc.u_tile3 * 2.3) + 37.0));
+    let wander = vec4f(tnNoise(Pw.xz / (mc.u_tile0 * 2.3) + 3.0), tnNoise(Pw.xz / (mc.u_tile1 * 2.3) + 11.0),
+                       tnNoise(Pw.xz / (mc.u_tile2 * 2.3) + 23.0), tnNoise(Pw.xz / (mc.u_tile3 * 2.3) + 37.0));
     w = w * mix(vec4f(1.0), vec4f(0.35) + 1.3 * wander, vec4f(mc.u_blendNoise));
     w = w / max(dot(w, vec4f(1.0)), 1e-4);
     w = pow(w, vec4f(mc.u_sharpness));
@@ -416,15 +419,15 @@ fn packNormal(n : vec3f) -> vec2f {
     var s1 = vec3f(0.0);
     var s2 = vec3f(0.0);
     var s3 = vec3f(0.0);
-    if (w.x > 1e-3) { s0 = tnRead(u_layer0, u_layer0_s, P.xz, mc.u_tile0, near, far, dpx.xz, dpy.xz); }
-    if (w.y > 1e-3) { s1 = tnRead(u_layer1, u_layer1_s, P.xz, mc.u_tile1, near, far, dpx.xz, dpy.xz); }
-    if (w.z > 1e-3) { s2 = tnRead(u_layer2, u_layer2_s, P.xz, mc.u_tile2, near, far, dpx.xz, dpy.xz); }
+    if (w.x > 1e-3) { s0 = tnRead(u_layer0, u_layer0_s, Pw.xz, mc.u_tile0, near, far, dpx.xz, dpy.xz); }
+    if (w.y > 1e-3) { s1 = tnRead(u_layer1, u_layer1_s, Pw.xz, mc.u_tile1, near, far, dpx.xz, dpy.xz); }
+    if (w.z > 1e-3) { s2 = tnRead(u_layer2, u_layer2_s, Pw.xz, mc.u_tile2, near, far, dpx.xz, dpy.xz); }
     if (w.w > 1e-3) {
         var axis = pow(abs(N), vec3f(4.0));
         axis = axis / dot(axis, vec3f(1.0));
-        s3 = tnRead(u_layer3, u_layer3_s, P.xz, mc.u_tile3, near, far, dpx.xz, dpy.xz) * axis.y;
-        if (axis.x > 0.02) { s3 = s3 + textureSampleGrad(u_layer3, u_layer3_s, P.zy / mc.u_tile3, dpx.zy / mc.u_tile3, dpy.zy / mc.u_tile3).rgb * axis.x; }
-        if (axis.z > 0.02) { s3 = s3 + textureSampleGrad(u_layer3, u_layer3_s, P.xy / mc.u_tile3, dpx.xy / mc.u_tile3, dpy.xy / mc.u_tile3).rgb * axis.z; }
+        s3 = tnRead(u_layer3, u_layer3_s, Pw.xz, mc.u_tile3, near, far, dpx.xz, dpy.xz) * axis.y;
+        if (axis.x > 0.02) { s3 = s3 + textureSampleGrad(u_layer3, u_layer3_s, Pw.zy / mc.u_tile3, dpx.zy / mc.u_tile3, dpy.zy / mc.u_tile3).rgb * axis.x; }
+        if (axis.z > 0.02) { s3 = s3 + textureSampleGrad(u_layer3, u_layer3_s, Pw.xy / mc.u_tile3, dpx.xy / mc.u_tile3, dpy.xy / mc.u_tile3).rgb * axis.z; }
     }
     let heights = vec4f(tnLuma(s0), tnLuma(s1), tnLuma(s2), tnLuma(s3));
     let stand = heights + w * 1.5;
@@ -434,7 +437,7 @@ fn packNormal(n : vec3f) -> vec2f {
     w = mix(w, hw, vec4f(mc.u_heightBlend));
 
     var albedo = s0 * mc.u_tint0.rgb * w.x + s1 * mc.u_tint1.rgb * w.y + s2 * mc.u_tint2.rgb * w.z + s3 * mc.u_tint3.rgb * w.w;
-    let broad = tnNoise(P.xz / (mc.u_tile0 * 7.3)) * 0.6 + tnNoise(P.xz / (mc.u_tile0 * 29.0) + 5.0) * 0.4;
+    let broad = tnNoise(Pw.xz / (mc.u_tile0 * 7.3)) * 0.6 + tnNoise(Pw.xz / (mc.u_tile0 * 29.0) + 5.0) * 0.4;
     albedo = albedo * mix(1.0, 0.7 + 0.6 * broad, mc.u_macroVariation);
 
     let relief = dot(heights, w) * mc.u_relief;
@@ -617,9 +620,11 @@ void main() {
     highp vec3 P = vec3(v_worldPos.x, 0.0, v_worldPos.y);
     highp vec3 N = vec3(0.0, 1.0, 0.0);
 #endif
+    // Where the ground is in the world, for what is laid on it by position (the layers' tiles, the noise, the bounds): the draw's own P is from the render origin.
+    highp vec3 Pw = P + u_renderOrigin.xyz;
     vec4 paintA = v_color, paintB = vec4(0.0);
     if (u_terrainPages > 0.5) {
-        vec2 lp = P.xz - u_terrainOrigin.xz;
+        vec2 lp = Pw.xz - u_terrainOrigin.xz;
         if (lp.x < u_terrainBounds.x || lp.y < u_terrainBounds.y || lp.x > u_terrainBounds.z || lp.y > u_terrainBounds.w) discard;
         paintA = texture(u_paintPages, v_color.xy);
         paintB = texture(u_paintPages2, v_color.xy);
@@ -635,9 +640,9 @@ void main() {
         // moves where the edge runs, the two finer break it up at the size of a paint texel and below, where a sharpened bilinear paint
         // would otherwise follow the texel grid in steps.
         float tileSize = tnTile(i);
-        float wander = tnNoise(P.xz / (tileSize * 2.3) + float(i) * 11.0 + 3.0) * 0.5
-                     + tnNoise(P.xz / (tileSize * 0.45) + float(i) * 7.0 + 17.0) * 0.3
-                     + tnNoise(P.xz / (tileSize * 0.11) + float(i) * 5.0 + 29.0) * 0.2;
+        float wander = tnNoise(Pw.xz / (tileSize * 2.3) + float(i) * 11.0 + 3.0) * 0.5
+                     + tnNoise(Pw.xz / (tileSize * 0.45) + float(i) * 7.0 + 17.0) * 0.3
+                     + tnNoise(Pw.xz / (tileSize * 0.11) + float(i) * 5.0 + 29.0) * 0.2;
         w[i] = i < count ? max(raw, 0.0) * mix(1.0, 0.35 + 1.3 * wander, u_blendNoise) : 0.0;
         sum += w[i];
     }
@@ -666,11 +671,11 @@ void main() {
         float layer = float(i), tile = tnTile(i);
         // WebGL takes no ?: between structures.
         TnTap top;
-        if (near > 0.01) top = tnHex(P.xz / tile, layer, dpx.xz / tile, dpy.xz / tile, near);
-        else top = tnPlain(P.xz / tile, layer, dpx.xz / tile, dpy.xz / tile);
+        if (near > 0.01) top = tnHex(Pw.xz / tile, layer, dpx.xz / tile, dpy.xz / tile, near);
+        else top = tnPlain(Pw.xz / tile, layer, dpx.xz / tile, dpy.xz / tile);
         if (far > 0.01) {
             float big = tile * u_farScale;
-            TnTap wide = tnPlain(P.xz / big + 0.21, layer, dpx.xz / big, dpy.xz / big);
+            TnTap wide = tnPlain(Pw.xz / big + 0.21, layer, dpx.xz / big, dpy.xz / big);
             top.albedo = mix(top.albedo, wide.albedo, far);
             top.mask = mix(top.mask, wide.mask, far);
         }
@@ -678,12 +683,12 @@ void main() {
         mask[i] = top.mask * planes.y;
         bend[i] = tnBend(top.slope, vec3(1.0, 0.0, 0.0), vec3(0.0, 0.0, 1.0), N) * planes.y;
         if (planes.x > 0.02) {
-            TnTap x = tnPlain(P.zy / tile, layer, dpx.zy / tile, dpy.zy / tile);
+            TnTap x = tnPlain(Pw.zy / tile, layer, dpx.zy / tile, dpy.zy / tile);
             albedo[i] += x.albedo * planes.x; mask[i] += x.mask * planes.x;
             bend[i] += tnBend(x.slope, vec3(0.0, 0.0, 1.0), vec3(0.0, 1.0, 0.0), N) * planes.x;
         }
         if (planes.z > 0.02) {
-            TnTap z = tnPlain(P.xy / tile, layer, dpx.xy / tile, dpy.xy / tile);
+            TnTap z = tnPlain(Pw.xy / tile, layer, dpx.xy / tile, dpy.xy / tile);
             albedo[i] += z.albedo * planes.z; mask[i] += z.mask * planes.z;
             bend[i] += tnBend(z.slope, vec3(1.0, 0.0, 0.0), vec3(0.0, 1.0, 0.0), N) * planes.z;
         }
@@ -703,7 +708,7 @@ void main() {
         float k = mix(w[i], hw[i] / max(hsum, 1e-4), byHeight);
         colour += albedo[i] * k; slope += bend[i] * k; surface += mask[i] * k;
     }
-    float broad = tnNoise(P.xz / (scale * 7.3)) * 0.6 + tnNoise(P.xz / (scale * 29.0) + 5.0) * 0.4;
+    float broad = tnNoise(Pw.xz / (scale * 7.3)) * 0.6 + tnNoise(Pw.xz / (scale * 29.0) + 5.0) * 0.4;
     colour *= mix(1.0, 0.7 + 0.6 * broad, u_macroVariation);
     N = normalize(N + slope);
 
@@ -818,13 +823,14 @@ fn packNormal(n : vec3f) -> vec2f {
     let P = vec3f(v.v_worldPos.x, 0.0, v.v_worldPos.y);
     var N = vec3f(0.0, 1.0, 0.0);
 #endif
+    let Pw = P + frame.renderOrigin.xyz;
     let pageA = textureSample(u_paintPages, u_paintPages_s, v.v_color.xy);
     let pageB = textureSample(u_paintPages2, u_paintPages2_s, v.v_color.xy);
     let pageNormal = textureSample(u_heightPages, u_heightPages_s, v.v_color.xy).ba * 2.0 - vec2f(1.0);
     var paintA = v.v_color;
     var paintB = vec4f(0.0);
     if (mc.u_terrainPages > 0.5) {
-        let lp = P.xz - mc.u_terrainOrigin.xz;
+        let lp = Pw.xz - mc.u_terrainOrigin.xz;
         if (lp.x < mc.u_terrainBounds.x || lp.y < mc.u_terrainBounds.y || lp.x > mc.u_terrainBounds.z || lp.y > mc.u_terrainBounds.w) { discard; }
         paintA = pageA;
         paintB = pageB;
@@ -838,9 +844,9 @@ fn packNormal(n : vec3f) -> vec2f {
         if (i < 4) { raw = paintA[i]; } else { raw = paintB[i - 4]; }
         // Three octaves: the slow one moves where the edge runs, the two finer break it up at the size of a paint texel and below.
         let tileSize = tnTile(i);
-        let wander = tnNoise(P.xz / (tileSize * 2.3) + vec2f(f32(i) * 11.0 + 3.0)) * 0.5
-                   + tnNoise(P.xz / (tileSize * 0.45) + vec2f(f32(i) * 7.0 + 17.0)) * 0.3
-                   + tnNoise(P.xz / (tileSize * 0.11) + vec2f(f32(i) * 5.0 + 29.0)) * 0.2;
+        let wander = tnNoise(Pw.xz / (tileSize * 2.3) + vec2f(f32(i) * 11.0 + 3.0)) * 0.5
+                   + tnNoise(Pw.xz / (tileSize * 0.45) + vec2f(f32(i) * 7.0 + 17.0)) * 0.3
+                   + tnNoise(Pw.xz / (tileSize * 0.11) + vec2f(f32(i) * 5.0 + 29.0)) * 0.2;
         w[i] = 0.0;
         if (i < count) { w[i] = max(raw, 0.0) * mix(1.0, 0.35 + 1.3 * wander, mc.u_blendNoise); }
         sum = sum + w[i];
@@ -871,11 +877,11 @@ fn packNormal(n : vec3f) -> vec2f {
         if (w[i] <= 1e-3) { continue; }
         let tile = tnTile(i);
         var top : TnTap;
-        if (near > 0.01) { top = tnHex(P.xz / tile, i, dpx.xz / tile, dpy.xz / tile, near); }
-        else { top = tnPlain(P.xz / tile, i, dpx.xz / tile, dpy.xz / tile); }
+        if (near > 0.01) { top = tnHex(Pw.xz / tile, i, dpx.xz / tile, dpy.xz / tile, near); }
+        else { top = tnPlain(Pw.xz / tile, i, dpx.xz / tile, dpy.xz / tile); }
         if (far > 0.01) {
             let big = tile * mc.u_farScale;
-            let wide = tnPlain(P.xz / big + vec2f(0.21), i, dpx.xz / big, dpy.xz / big);
+            let wide = tnPlain(Pw.xz / big + vec2f(0.21), i, dpx.xz / big, dpy.xz / big);
             top.albedo = mix(top.albedo, wide.albedo, vec3f(far));
             top.mask = mix(top.mask, wide.mask, vec3f(far));
         }
@@ -883,13 +889,13 @@ fn packNormal(n : vec3f) -> vec2f {
         mask[i] = top.mask * planes.y;
         bend[i] = tnBend(top.slope, vec3f(1.0, 0.0, 0.0), vec3f(0.0, 0.0, 1.0), N) * planes.y;
         if (planes.x > 0.02) {
-            let x = tnPlain(P.zy / tile, i, dpx.zy / tile, dpy.zy / tile);
+            let x = tnPlain(Pw.zy / tile, i, dpx.zy / tile, dpy.zy / tile);
             albedo[i] = albedo[i] + x.albedo * planes.x;
             mask[i] = mask[i] + x.mask * planes.x;
             bend[i] = bend[i] + tnBend(x.slope, vec3f(0.0, 0.0, 1.0), vec3f(0.0, 1.0, 0.0), N) * planes.x;
         }
         if (planes.z > 0.02) {
-            let z = tnPlain(P.xy / tile, i, dpx.xy / tile, dpy.xy / tile);
+            let z = tnPlain(Pw.xy / tile, i, dpx.xy / tile, dpy.xy / tile);
             albedo[i] = albedo[i] + z.albedo * planes.z;
             mask[i] = mask[i] + z.mask * planes.z;
             bend[i] = bend[i] + tnBend(z.slope, vec3f(1.0, 0.0, 0.0), vec3f(0.0, 1.0, 0.0), N) * planes.z;
@@ -916,7 +922,7 @@ fn packNormal(n : vec3f) -> vec2f {
         slope = slope + bend[i] * k;
         surface = surface + mask[i] * k;
     }
-    let broad = tnNoise(P.xz / (scale * 7.3)) * 0.6 + tnNoise(P.xz / (scale * 29.0) + vec2f(5.0)) * 0.4;
+    let broad = tnNoise(Pw.xz / (scale * 7.3)) * 0.6 + tnNoise(Pw.xz / (scale * 29.0) + vec2f(5.0)) * 0.4;
     colour = colour * mix(1.0, 0.7 + 0.6 * broad, mc.u_macroVariation);
     N = normalize(N + slope);
 

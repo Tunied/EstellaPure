@@ -14,6 +14,7 @@
 #include "./RenderContext.hpp"
 #include "../rhi/GfxDevice.hpp"
 #include "./FrameConstants.hpp"
+#include "../RenderOrigin.hpp"
 #include "../draw/DrawParams.hpp"
 #include "../store/SkinConstants.hpp"
 #include "../store/MorphConstants.hpp"
@@ -188,7 +189,7 @@ u32 RenderContext::frameConstantsSize() {
 void RenderContext::useFrameConstants(BufferHandle ubo, const glm::mat4& viewProjection) {
     if (ubo == BufferHandle::Invalid) return;
     const FrameConstants frame{viewProjection, cameraFromViewProjection(viewProjection),
-                               glm::inverse(viewProjection)};
+                               glm::inverse(viewProjection), glm::vec4(glm::vec3(renderOrigin()), 0.0f)};
     device_.updateBuffer(ubo, 0, &frame, sizeof(FrameConstants));
     device_.setUniformBuffer(FRAME_CONSTANTS_BINDING, ubo);
     // Same re-arm the frame's own upload does: a previous pass may have left a
@@ -204,7 +205,7 @@ void RenderContext::uploadFrameConstants(const glm::mat4& upload, const glm::mat
     // The viewpoint from `engine` and the un-projection from `upload`: the two
     // agree about where the eye is, but only the uploaded one describes the clip
     // space a shader will hand back.
-    const FrameConstants frame{upload, cameraFromViewProjection(engine), glm::inverse(upload)};
+    const FrameConstants frame{upload, cameraFromViewProjection(engine), glm::inverse(upload), glm::vec4(glm::vec3(renderOrigin()), 0.0f)};
     device_.updateBuffer(frameUbo_, 0, &frame, sizeof(FrameConstants));
     // Take the binding back. A pass that draws several views points this slot at
     // one buffer per view; without this the scene would keep reading whichever

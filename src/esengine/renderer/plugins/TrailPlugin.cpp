@@ -37,7 +37,7 @@ void TrailPlugin::collect(RenderCollectContext& collect_ctx) {
 
         auto& transform = view.get<ecs::Transform>(entity);
         transform.ensureDecomposed();
-        const glm::vec3 headWorld = transform.worldPosition;
+        const glm::vec3 headWorld = rebased(transform.worldPosition);
 
         // --- Build the centerline: anchors (oldest→newest), then the live head. -----
         const f32 invTime = trail.time > 1e-6f ? 1.0f / trail.time : 0.0f;
@@ -48,8 +48,9 @@ void TrailPlugin::collect(RenderCollectContext& collect_ctx) {
 
         for (const auto& pt : state->points) {
             f32 age01 = std::min(std::max((now - pt.birth_time) * invTime, 0.0f), 1.0f);
-            scratch_center_.push_back({pt.position, age01});
-            extend(pt.position);
+            const glm::vec3 at = rebased(pt.position);
+            scratch_center_.push_back({at, age01});
+            extend(at);
         }
         // The live head glues the ribbon to the moving entity between recorded
         // anchors. Skip it when frozen (the streak fades where it was left) or when it

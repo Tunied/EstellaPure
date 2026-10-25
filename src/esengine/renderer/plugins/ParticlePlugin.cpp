@@ -131,7 +131,7 @@ void ParticlePlugin::collect(RenderCollectContext& collect_ctx) {
 
         bool isLocalSpace = emitter.simulationSpace ==
                             static_cast<i32>(ecs::SimulationSpace::Local);
-        glm::vec3 emitterWorldPos = transform.worldPosition;
+        glm::vec3 emitterWorldPos = rebased(transform.worldPosition);
         f32 emitterAngle = 0.0f;
         glm::vec2 emitterScale(transform.worldScale);
         f32 cosA = 1.0f, sinA = 0.0f;
@@ -171,7 +171,7 @@ void ParticlePlugin::collect(RenderCollectContext& collect_ctx) {
                 }
                 size = glm::vec2(p.size) * emitterScale;
             } else {
-                worldPos = p.position;
+                worldPos = rebased(p.position);
                 size = glm::vec2(p.size);
             }
 

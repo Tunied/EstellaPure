@@ -5,6 +5,7 @@
 #include "../../core/Log.hpp"
 #include "../../ecs/components/ParticleEmitter.hpp"
 #include "../../ecs/components/Transform.hpp"
+#include "../RenderOrigin.hpp"
 #include "../../particle/ParticleSystem.hpp"
 
 #include <algorithm>
@@ -54,12 +55,13 @@ struct ParamsBlock {
     f32 scale[4];   // emitter scale
     f32 rot0[4], rot1[4], rot2[4];  // emitter rotation, one column each
     f32 local[4];   // cos, sin of the emitter's turn about Z; scale.x, scale.y
+    f32 shift[4];   // the render origin, taken from each particle's world position as it is written for drawing
     f32 fields[kMaxFields * 3][4];
     f32 colorLut[kLutSize][4];
     f32 sizeLut[kLutSize / 4][4];
     f32 speedLut[kLutSize / 4][4];
 };
-static_assert(sizeof(ParamsBlock) == 92 * 16, "the kernel's Params is 92 vec4s");
+static_assert(sizeof(ParamsBlock) == 93 * 16, "the kernel's Params is 93 vec4s");
 constexpr u32 kJobStride = 2048;  // a uniform binding starts on a multiple of 256
 static_assert(sizeof(ParamsBlock) <= kJobStride && kJobStride % 256 == 0);
 constexpr u32 kMaxJobs = 64;
@@ -76,6 +78,7 @@ struct Params {
     origin: vec4<f32>, scale: vec4<f32>,
     rot0: vec4<f32>, rot1: vec4<f32>, rot2: vec4<f32>,
     local: vec4<f32>,
+    shift: vec4<f32>,
     fields: array<vec4<f32>, 24>,
     colorLut: array<vec4<f32>, 32>,
     sizeLut: array<vec4<f32>, 8>,
@@ -392,6 +395,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         worldPos = P.origin.xyz + vec3<f32>(rel3.x * P.local.x - rel3.y * P.local.y, rel3.x * P.local.y + rel3.y * P.local.x, rel3.z);
         worldSize = worldSize * vec2<f32>(P.local.z, P.local.w);
     }
+    worldPos = worldPos - P.shift.xyz;
     insts[i] = Inst(worldPos.x, worldPos.y, worldPos.z, worldSize.x, worldSize.y, rotation, pack4x8unorm(color), u0, v0, us, vs);
 }
 )WGSL";
@@ -556,6 +560,8 @@ bool GpuParticles::submit(Entity entity, const ecs::ParticleEmitter& emitter, co
     f32 angle = 2.0f * std::atan2(transform.worldRotation.z, transform.worldRotation.w);
     if (std::abs(angle) <= 0.001f) angle = 0.0f;
     set4(b.local, std::cos(angle), std::sin(angle), scale.x, scale.y);
+    const glm::dvec3 origin = renderOrigin();
+    set4(b.shift, static_cast<f32>(origin.x), static_cast<f32>(origin.y), static_cast<f32>(origin.z), 0.0f);
 
     for (u32 k = 0; k < fieldCount; ++k) {
         const particle::ForceFieldInstance& f = fields[k];

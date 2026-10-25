@@ -59,7 +59,7 @@ void RenderFrame::collectShadow2D(ecs::Registry& registry) {
         if (!caster.enabled) continue;
         auto& transform = casters.get<ecs::Transform>(entity);
         transform.ensureDecomposed();
-        const glm::vec3 p = transform.worldPosition;
+        const glm::vec3 p = rebased(transform.worldPosition);
         // The shape turns with the entity, the way a collider on it does — a wall laid
         // at an angle casts the shadow of a wall at that angle. Its SIZE is its own,
         // also like a collider's: scaling the entity does not resize the occluder.
@@ -388,7 +388,7 @@ void RenderFrame::collectShape2D(ecs::Registry& registry) {
         const glm::vec3 p = [&] {
             auto& transform = view.get<ecs::Transform>(entity);
             transform.ensureDecomposed();
-            return transform.worldPosition;
+            return rebased(transform.worldPosition);
         }();
         u32 slot = MAX_LIGHTS;
         for (u32 i = 0; i < context_.lights().count(); ++i) {

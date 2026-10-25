@@ -229,8 +229,8 @@ void TilemapRenderPlugin::collect(RenderCollectContext& collect_ctx) {
             ? layer.origin_entity : entity;
         if (auto* transform = registry.tryGet<ecs::Transform>(transformEntity)) {
             transform->ensureDecomposed();   // lazily derived; see Transform.hpp
-            originX = transform->worldPosition.x;
-            originY = transform->worldPosition.y;
+            originX = rebased(transform->worldPosition).x;
+            originY = rebased(transform->worldPosition).y;
             const auto& q = transform->worldRotation;
             angle = std::atan2(2.0f * (q.w * q.z + q.x * q.y),
                                1.0f - 2.0f * (q.y * q.y + q.z * q.z));

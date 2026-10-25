@@ -772,7 +772,7 @@ void main() {
     }
     // Past the shore only the surf's film is water: over ground no lower than the water, within its height of the rest level (further off
     // it is the mesh stretched between two waters' heights); the depth test cuts it where the ground rises above it.
-    bool film = abs(P.y - zone.x) <= surf.x + u_waveHeight * zone.z + 1e-3;
+    bool film = abs(P.y + u_renderOrigin.y - zone.x) <= surf.x + u_waveHeight * zone.z + 1e-3;
     // Ground lower than the water there (a dry basin) takes no film. The picture's depth says it of this very pixel; the baked depth only
     // of whole texels (dry is 0 and any wet one beside it raises the blend), which would cut the film in the texels' steps.
     float under = haveDepth ? column0 * abs(viewDir.y) - 2.0 * (surf.x + u_waveHeight * zone.z) - 1.0 : shoreDepth - 1e-3;
@@ -1230,7 +1230,7 @@ fn waterSurface(p : vec2f, time : f32, dist : f32, amp : f32, calm : f32) -> vec
     }
     var alpha = 0.85;
     if (haveColor) { alpha = 1.0; }
-    let film = abs(P.y - zone.x) <= surf.x + mc.u_waveHeight * zone.z + 1e-3;
+    let film = abs(P.y + frame.renderOrigin.y - zone.x) <= surf.x + mc.u_waveHeight * zone.z + 1e-3;
     // Ground lower than the water there (a dry basin) takes no film. The picture's depth says it of this very pixel; the baked depth only
     // of whole texels (dry is 0 and any wet one beside it raises the blend), which would cut the film in the texels' steps.
     var under = shoreDepth - 1e-3;

@@ -40,6 +40,9 @@ glm::vec2 worldToScreen(const glm::vec3& world, const glm::mat4& vp,
     return {sx, sy};
 }
 
+/// Whether the masks being laid out stand in the world (and so are taken from the render origin) or on the screen, whose units have none.
+thread_local bool g_masksInWorld = false;
+
 ScreenRect computeMaskScreenRect(
     ecs::Registry& registry, Entity entity,
     const glm::mat4& vp, i32 vpX, i32 vpY, i32 vpW, i32 vpH
@@ -67,7 +70,7 @@ ScreenRect computeMaskScreenRect(
     }
     const glm::vec3 hx = axisX * node.computed_size_.x * .5f;
     const glm::vec3 hy = axisY * node.computed_size_.y * .5f;
-    const glm::vec3 center = transform.worldPosition;
+    const glm::vec3 center = g_masksInWorld ? rebased(transform.worldPosition) : glm::vec3(transform.worldPosition);
     const glm::vec3 corners[] = {center - hx - hy, center + hx - hy,
                                 center + hx + hy, center - hx + hy};
 
@@ -220,7 +223,9 @@ void applyStencilHierarchy(ecs::Registry& registry, RenderFrame& frame,
 }  // anonymous namespace
 
 void RenderFrame::processMasks(ecs::Registry& registry, i32 vpX, i32 vpY, i32 vpW, i32 vpH) {
+    g_masksInWorld = true;
     processMasks(registry, view_projection_, vpX, vpY, vpW, vpH);
+    g_masksInWorld = false;
 }
 
 void RenderFrame::processMasks(ecs::Registry& registry, const glm::mat4& projection,

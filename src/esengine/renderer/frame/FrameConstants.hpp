@@ -44,6 +44,8 @@ struct FrameConstants {
      * depth is a number with no length in it.
      */
     glm::mat4 inverseViewProjection{1.0f};
+    /// The render origin (RenderOrigin.hpp): a world position is the one the shader holds plus this, for what depends on the world's own coordinates.
+    glm::vec4 renderOrigin{0.0f};
 };
 
 /**

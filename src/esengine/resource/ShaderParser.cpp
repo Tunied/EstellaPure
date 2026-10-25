@@ -1049,6 +1049,7 @@ const char* kFrameHeaderWGSL =
     "    projection : mat4x4f,\n"
     "    camera : vec4f,\n"
     "    inverseViewProjection : mat4x4f,\n"
+    "    renderOrigin : vec4f,\n"
     "};\n"
     "@group(0) @binding(0) var<uniform> frame : FrameConstants;\n"
     "fn viewDirection(worldPos : vec3f) -> vec3f {\n"
@@ -2308,6 +2309,7 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
         "    highp mat4 u_projection;\n"
         "    highp vec4 u_camera;\n"  // xyz = eye (w=1) or direction toward it (w=0)
         "    highp mat4 u_inverseViewProjection;\n"
+        "    highp vec4 u_renderOrigin;\n"  // xyz: what a position here is taken from, to be the world's own
         "};\n"
         "highp vec3 viewDirection(in highp vec3 worldPos) {\n"
         "    return u_camera.w > 0.5 ? normalize(u_camera.xyz - worldPos) : u_camera.xyz;\n"

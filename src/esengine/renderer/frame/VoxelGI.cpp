@@ -20,7 +20,7 @@ constexpr u32 kVoxelWords = 8;
 #ifdef ES_ENABLE_WEBGPU
 /// What every kernel sees at group 0: the frame, the cache's parameters and the cache itself.
 const char* kCommon = R"WGSL(
-struct Frame { projection : mat4x4f, camera : vec4f, inverseViewProjection : mat4x4f };
+struct Frame { projection : mat4x4f, camera : vec4f, inverseViewProjection : mat4x4f, renderOrigin : vec4f };
 struct GI {
     origin : vec4i,   // xyz: the window's first cell; w: the frame
     dims : vec4u,     // xyz: voxels per axis; w: rays per point

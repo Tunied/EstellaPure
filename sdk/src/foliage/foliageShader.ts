@@ -39,7 +39,8 @@ const FOLIAGE = `#pragma shader "Foliage"
 void esMaterialVertex(inout vec3 local, inout vec3 localNormal, in vec2 uv) {
     float weight = es_vertexColor.r;
     float phase = es_vertexColor.g * 6.2831853;
-    vec3 anchor = (esInstanceModel() * vec4(local, 1.0)).xyz;
+    // The wind is in the world, so its phase is by the world's own position, not the render origin's.
+    vec3 anchor = (esInstanceModel() * vec4(local, 1.0)).xyz + u_renderOrigin.xyz;
     float angle = radians(u_windDirection);
     vec2 dir = vec2(sin(angle), cos(angle));
     float t = u_time.x * u_windSpeed;
@@ -64,7 +65,7 @@ void esMaterialVertex(inout vec3 local, inout vec3 localNormal, in vec2 uv) {
 fn esMaterialVertex(local : ptr<function, vec3f>, localNormal : ptr<function, vec3f>, uv : vec2f) {
     let weight = es_vertexColor.r;
     let phase = es_vertexColor.g * 6.2831853;
-    let anchor = (esInstanceModel() * vec4f(*local, 1.0)).xyz;
+    let anchor = (esInstanceModel() * vec4f(*local, 1.0)).xyz + frame.renderOrigin.xyz;
     let angle = radians(mc.u_windDirection);
     let dir = vec2f(sin(angle), cos(angle));
     let t = tc.u_time.x * mc.u_windSpeed;
