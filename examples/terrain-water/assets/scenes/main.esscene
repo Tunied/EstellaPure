@@ -50,10 +50,16 @@
          "u_intensity": 1,
          "u_haze": 0.9,
          "u_sunBrightness": 40,
-         "u_clouds": 0.5,
-         "u_cloudShadow": 0.6,
+         "u_clouds": 0.42,
+         "u_cloudShadow": 0.45,
          "u_unitsPerKm": 100000,
-         "u_windSpeed": 0.03
+         "u_windSpeed": 0.03,
+         "u_cloudMaskTile": 6,
+         "u_cloudMask2Tile": 11
+        },
+        "textures": {
+         "u_cloudMask": "assets/sky/cloud-cumulus.png",
+         "u_cloudMask2": "assets/sky/cloud-high.png"
         }
        },
        {
@@ -89,7 +95,7 @@
          "u_skyFog": 0.4,
          "u_volumetric": 1,
          "u_volumeRange": 300000,
-         "u_cloudShade": 0.9
+         "u_cloudShade": 0.55
         }
        },
        {

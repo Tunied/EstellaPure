@@ -261,6 +261,13 @@ function displayLut() {
   meta('assets/post/warm-display.png', 'texture', { maxSize: 1024, compress: false, mipmaps: false, filterMode: 'linear', wrapMode: 'clamp', sRGB: false });
 }
 
+/** The two cloud coverage masks the art made (assets/sky): data read as it is, repeated across the cloud layer. Only their `.meta` is written here. */
+function cloudMasks() {
+  for (const name of ['cloud-cumulus', 'cloud-high']) {
+    meta(`assets/sky/${name}.png`, 'texture', { maxSize: 2048, compress: false, mipmaps: true, filterMode: 'linear', wrapMode: 'repeat', sRGB: false });
+  }
+}
+
 /** Sixteen bits across red (high) and green (low), over `base` to `base + height`. */
 function heightmap() {
   const n = WORLD.resolution;
@@ -463,10 +470,11 @@ function scene() {
   const entities = [];
   const add = (name, components) => entities.push({ id: entities.length, name, parent: null, children: [], visible: true, components });
   const post = [
-    { type: 'skyAtmosphere', enabled: true, uniforms: { u_intensity: 1, u_haze: 0.9, u_sunBrightness: 40, u_clouds: 0.5, u_cloudShadow: 0.6, u_unitsPerKm: 100000, u_windSpeed: 0.03 } },
+    { type: 'skyAtmosphere', enabled: true, uniforms: { u_intensity: 1, u_haze: 0.9, u_sunBrightness: 40, u_clouds: 0.42, u_cloudShadow: 0.45, u_unitsPerKm: 100000, u_windSpeed: 0.03, u_cloudMaskTile: 6, u_cloudMask2Tile: 11 },
+      textures: { u_cloudMask: 'assets/sky/cloud-cumulus.png', u_cloudMask2: 'assets/sky/cloud-high.png' } },
     { type: 'gtao', enabled: true, uniforms: { u_radius: 300, u_intensity: 0.8 } },
     { type: 'heightFog', enabled: true, colors: { u_fogColor: { r: 0.66, g: 0.76, b: 0.88, a: 1 }, u_sunColor: { r: 1, g: 0.9, b: 0.7, a: 1 } },
-      uniforms: { u_density: 0.000004, u_heightFalloff: 0.00003, u_baseHeight: WORLD.sea, u_inscatter: 1.3, u_skyFog: 0.4, u_volumetric: 1, u_volumeRange: 300000, u_cloudShade: 0.9 } },
+      uniforms: { u_density: 0.000004, u_heightFalloff: 0.00003, u_baseHeight: WORLD.sea, u_inscatter: 1.3, u_skyFog: 0.4, u_volumetric: 1, u_volumeRange: 300000, u_cloudShade: 0.55 } },
     { type: 'autoExposure', enabled: true, uniforms: { u_bias: 0, u_minEV: -2, u_maxEV: 2 } },
     { type: 'colorGrade', enabled: true, uniforms: { u_contrast: 1.06, u_saturation: 1.1, u_temperature: 0.03 } },
     { type: 'bloom', enabled: true, uniforms: { u_threshold: 1, u_intensity: 0.3, u_radius: 1 } },
@@ -558,6 +566,7 @@ function scene() {
 
 heightmap();
 displayLut();
+cloudMasks();
 splatmap();
 textures();
 materials();
