@@ -233,6 +233,34 @@ const gridAt = (px, py) => {
   return grid[Math.min(n - 1, Math.max(0, py)) * n + Math.min(n - 1, Math.max(0, px))];
 };
 
+/**
+ * A 1024x32 table (32 slices along x, blue the slice, red along a slice and green up the image: a picture is read from its bottom) that grades the picture as the display shows it: the Display LUT effect reads it
+ * after the output transform. A shallow S curve for the contrast, the mid-tones warmed and the shadows left a little cool, the colour a touch fuller.
+ */
+function displayLut() {
+  const n = 32;
+  const smooth = (x) => x * x * (3 - 2 * x);
+  const grade = (r, g, b) => {
+    const curve = (x) => x + (smooth(x) - x) * 0.35;
+    [r, g, b] = [curve(r), curve(g), curve(b)];
+    const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    const mid = 4 * luma * (1 - luma);
+    const shadow = (1 - luma) * (1 - luma);
+    r = r * (1 + 0.05 * mid) - 0.012 * shadow;
+    g = g * (1 + 0.012 * mid);
+    b = b * (1 - 0.075 * mid) + 0.02 * shadow;
+    const grey = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    return [r, g, b].map((c) => Math.min(1, Math.max(0, grey + (c - grey) * 1.06)));
+  };
+  const image = png(n * n, n, (px, py) => {
+    const [r, g, b] = grade((px % n) / (n - 1), 1 - py / (n - 1), Math.floor(px / n) / (n - 1));
+    return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255), 255];
+  });
+  write('assets/post/warm-display.png', image);
+  // Data, not a picture: no compression and no mips, read as it is written, and held at its edges.
+  meta('assets/post/warm-display.png', 'texture', { maxSize: 1024, compress: false, mipmaps: false, filterMode: 'linear', wrapMode: 'clamp', sRGB: false });
+}
+
 /** Sixteen bits across red (high) and green (low), over `base` to `base + height`. */
 function heightmap() {
   const n = WORLD.resolution;
@@ -440,10 +468,11 @@ function scene() {
     { type: 'heightFog', enabled: true, colors: { u_fogColor: { r: 0.66, g: 0.76, b: 0.88, a: 1 }, u_sunColor: { r: 1, g: 0.9, b: 0.7, a: 1 } },
       uniforms: { u_density: 0.000004, u_heightFalloff: 0.00003, u_baseHeight: WORLD.sea, u_inscatter: 1.3, u_skyFog: 0.4, u_volumetric: 1, u_volumeRange: 300000, u_cloudShade: 0.9 } },
     { type: 'autoExposure', enabled: true, uniforms: { u_bias: 0, u_minEV: -2, u_maxEV: 2 } },
-    { type: 'colorGrade', enabled: true, uniforms: { u_contrast: 1.06, u_saturation: 1.1, u_temperature: 0.08 } },
+    { type: 'colorGrade', enabled: true, uniforms: { u_contrast: 1.06, u_saturation: 1.1, u_temperature: 0.03 } },
     { type: 'bloom', enabled: true, uniforms: { u_threshold: 1, u_intensity: 0.3, u_radius: 1 } },
     { type: 'lensFlare', enabled: true, uniforms: { u_intensity: 0.25, u_threshold: 1.6, u_ghosts: 4 } },
     { type: 'fxaa', enabled: true, uniforms: { u_intensity: 1 } },
+    { type: 'displayLut', enabled: true, uniforms: { u_intensity: 0.9 }, textures: { u_lut: 'assets/post/warm-display.png' } },
   ].filter((e) => !(process.env.TW_NOPOST ?? '').split(',').includes(e.type));
   // Over the sea, looking north: the waves and the crates, the beach, the river mouth, the lake, the river out of the hills, the snow.
   add('Camera', [
@@ -528,6 +557,7 @@ function scene() {
 }
 
 heightmap();
+displayLut();
 splatmap();
 textures();
 materials();

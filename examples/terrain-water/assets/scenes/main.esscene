@@ -107,7 +107,7 @@
         "uniforms": {
          "u_contrast": 1.06,
          "u_saturation": 1.1,
-         "u_temperature": 0.08
+         "u_temperature": 0.03
         }
        },
        {
@@ -133,6 +133,16 @@
         "enabled": true,
         "uniforms": {
          "u_intensity": 1
+        }
+       },
+       {
+        "type": "displayLut",
+        "enabled": true,
+        "uniforms": {
+         "u_intensity": 0.9
+        },
+        "textures": {
+         "u_lut": "assets/post/warm-display.png"
         }
        }
       ]
