@@ -74,6 +74,7 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **Many placed objects no longer crash the renderer.** The texture that holds every object's record in a frame grew by doubling but was created from storage sized to the frame's need, so a frame with many objects read past its end and the engine aborted with `memory access out of bounds`; stopping then reported one warning for every entity. The texture is created from storage as tall as itself, and an aborted engine is reported once.
 - **A cloud's shadow stays where the cloud is.** The shadow a sky's clouds cast on the scene added the camera's position to the cloud's, so it slid across the ground as the camera moved while the cloud in the sky stood still; it is taken from the same place the sky draws the cloud from.
 - **A leaf or a blade of grass no longer has a pale edge.** A cutout texture (one with a Mip Coverage) has the colour of its solid texels carried into its clear ones when it is cooked, as a model's cutouts already did: what an artist leaves under alpha 0, often white, was averaged in at every leaf's edge by the filter and the mips. The source image is not touched.
 - **A world's layers over an area are counted over the area.** The chunks of a procedural layer are walked over the part of the wanted radius that lies in the layer's extent, not over the whole radius, and a generated world on an area of terrain takes the terrain's bounds as its extent: a layer wanted a thousand chunk-widths out no longer costs seconds a frame.

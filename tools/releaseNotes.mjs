@@ -2896,6 +2896,8 @@ export const NOTED = {
     {"note":"Plants are instances of one mesh."},
   "fix(ci): the static gates earlier reds hid pass again":
     {"internal":"Gate baselines and a module split; nothing a creator sees."},
+  "fix(render): the per-object record texture is created from storage as tall as the texture, and a world that has aborted reports its despawns once":
+    {"note":"Many placed objects no longer crash the renderer."},
   "feat(assets): a project names folders its asset database leaves alone":
     {"note":"A project can keep folders out of its asset database."},
   "feat(worldgen): a plant part may cast no shadow, and far cells are capped at two cells wide":

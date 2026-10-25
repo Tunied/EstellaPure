@@ -5,6 +5,7 @@
  * @brief   ECS World with C++ Registry integration
  */
 
+import { WasmModuleAborted } from '../wasm/moduleHealth';
 import { Entity, entityGeneration, entityIndex, makeEntity, INVALID_ENTITY } from '../types';
 import { AnyComponentDef, ComponentDef, ComponentData, BuiltinComponentDef, isBuiltinComponent, builtinComponentRegistry, extraBuiltinComponentRegistry, getUserComponents, getComponent, Disabled, Name, Parent, Children, type ParentData, type ChildrenData } from './component';
 import type { CppRegistry, ESEngineModule } from '../wasm';
@@ -382,11 +383,17 @@ export class World {
         }
     }
 
+    private abortedReported_ = false;
+
     private despawnOne_(entity: Entity, cppRegistry: CppRegistry | null): void {
         notifyBridge('onEntityDespawned', entity);
 
         for (const cb of this.despawnCallbacks_) {
-            try { cb(entity); } catch (e) { log.warn('world', 'Despawn callback error', e); }
+            try { cb(entity); } catch (e) {
+                // A module that has aborted fails every callback the same way, and one report says so for all of them.
+                if (e instanceof WasmModuleAborted) { if (!this.abortedReported_) { this.abortedReported_ = true; log.warn('world', 'Despawn callbacks stopped: the engine module has aborted', e); } continue; }
+                log.warn('world', 'Despawn callback error', e);
+            }
         }
 
         this.names_.remove(entity);

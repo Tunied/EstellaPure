@@ -84,7 +84,12 @@ void TransientBufferPool::uploadInstanceRows(Stream& s, u32& grows, u32& writes)
     if (rows > s.texture_rows) {
         // Doubling, the way the staging grows: a workload creeping upward
         // otherwise reallocates a texture every frame.
-        const u32 want = std::max(rows, s.texture_rows * 2);
+        // The texture is created from the staging, so the staging is as tall as the texture, and neither is taller than a device guarantees.
+        const u32 limit = MESH_INSTANCE_MAX_RECORDS * MESH_INSTANCE_TEXELS / MESH_INSTANCE_TEXTURE_WIDTH;
+        const u32 want = std::min(std::max(rows, s.texture_rows * 2), std::max(rows, limit));
+        if (s.vertex_staging.size() < static_cast<usize>(want) * rowBytes) {
+            s.vertex_staging.resize(static_cast<usize>(want) * rowBytes);
+        }
         if (s.texture != TextureHandle::Invalid) device_.deleteTexture(s.texture);
         TextureDesc desc;
         desc.width = MESH_INSTANCE_TEXTURE_WIDTH;
