@@ -517,6 +517,7 @@ renderer_setDepthLayers: ((mask: number) => void) | undefined
 renderer_setEntityDrawOrder: ((registry: CppRegistry, entitiesPtr: number, count: number) => void) | undefined
 renderer_setLodPreview: ((view: number, entity: number, level: number) => void) | undefined
 renderer_setMeshEdgeBuffers: ((enabled: boolean) => void) | undefined
+renderer_setOrigin: ((x: number, y: number, z: number) => void) | undefined
 renderer_setPlanarReflectionQuality: ((scale: number, maxSize: number, updatesPerSecond: number) => void) | undefined
 renderer_setQualityBudgets: ((atlasSize: number, cellSize: number, cascades: number, particleLimit: number) => void) | undefined
 renderer_setShadowDistance: ((distance: number) => void) | undefined

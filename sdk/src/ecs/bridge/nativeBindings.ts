@@ -183,6 +183,8 @@ export const HOST_FLAGS = {
  * here and is called through the optional path.
  */
 export const RENDERER_OPTIONAL_BINDINGS = {
+    /** The render origin (render/renderOrigin.ts); a host predating it draws relative to zero. */
+    setOrigin: 'es_renderer_setOrigin',
     /** 2.5D depth layers; hosts predating the feature simply stay painter-ordered. */
     setDepthLayers: 'es_renderer_setDepthLayers',
     /** Camera culling mask; hosts predating it draw every layer, as they always did. */

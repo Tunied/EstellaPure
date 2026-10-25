@@ -36,6 +36,7 @@ std::string renderer_getPlanarReflectionStatus(u32 view, u32 entity);
 void renderer_setViewLighting(u32 mode, f32 rotationDegrees, f32 keyIntensity, f32 fillIntensity,
                               f32 skyIntensity, bool showSky);
 void renderer_beginFrame(f32 elapsedSec);
+void renderer_setOrigin(f64 x, f64 y, f64 z);
 void renderer_begin(uintptr_t matrixPtr, u32 targetHandle, i32 clearFlags,
                     f32 r, f32 g, f32 b, f32 a,
                     i32 clearX, i32 clearY, u32 clearW, u32 clearH);

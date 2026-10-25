@@ -1361,7 +1361,7 @@ void RenderFrame::collectProbes(ecs::Registry& registry) {
         // solved on world axes, so a turned volume would be read along axes it
         // never had. Scale is not read for the same reason.
         const auto* transform = registry.tryGet<ecs::Transform>(entity);
-        const glm::vec3 centre = transform ? glm::vec3(transform->worldPosition) : glm::vec3(0.0f);
+        const glm::vec3 centre = transform ? rebased(transform->worldPosition) : rebased(glm::vec3(0.0f));
         const glm::vec3 half = glm::abs(volume.halfExtents);
         probes.add(centre - half, centre + half, grid);
     }
@@ -1387,7 +1387,7 @@ void RenderFrame::collectOccluders(ecs::Registry& registry) {
         // Scale is not read, matching every other authored extent and the box the
         // viewport draws: one value, two readers, and the picture an author places
         // the box by IS what the cull uses.
-        occlusion_.addBox(transform->worldPosition, transform->worldRotation,
+        occlusion_.addBox(rebased(transform->worldPosition), transform->worldRotation,
                           glm::abs(occluder.halfExtents));
     }
     occlusion_.finish();
@@ -1411,7 +1411,7 @@ void RenderFrame::collectReflections(ecs::Registry& registry) {
         if (!probe.enabled || !probe.reflection.isValid()) continue;
         const auto* transform = registry.tryGet<ecs::Transform>(entity);
         if (!transform) continue;
-        const glm::vec3 centre = glm::vec3(transform->worldPosition);
+        const glm::vec3 centre = rebased(transform->worldPosition);
         const glm::vec3 half = glm::abs(probe.halfExtents);
         store.add(centre - half, centre + half, probe.slot, probe.reflection.id());
     }
@@ -1584,7 +1584,7 @@ void RenderFrame::collectLights(ecs::Registry& registry) {
             auto* transform = registry.tryGet<ecs::Transform>(entity);
             if (!transform) continue;  // a positional light with no position casts nothing
             transform->ensureDecomposed();
-            const glm::vec3 p = transform->worldPosition;
+            const glm::vec3 p = rebased(transform->worldPosition);
             const f32 typeId = (type == ecs::LightType::Spot) ? 2.0f : 0.0f;
             gpu.posDir = glm::vec4(p.x, p.y, typeId, light.radius);
             // The height a surface with real geometry measures against. A sprite has no
@@ -1795,7 +1795,7 @@ bool RenderFrame::meshWorldBounds(ecs::Registry& registry, glm::vec3& outMin, gl
         auto& transform = meshes.get<ecs::Transform>(entity);
         transform.ensureDecomposed();
         glm::vec3 centre(0.0f), half(0.0f);
-        orientedWorldAabb(transform.worldPosition, transform.worldRotation, transform.worldScale,
+        orientedWorldAabb(rebased(transform.worldPosition), transform.worldRotation, transform.worldScale,
                           resident->localMin, resident->localMax, centre, half);
         outMin = any ? glm::min(outMin, centre - half) : centre - half;
         outMax = any ? glm::max(outMax, centre + half) : centre + half;
@@ -1816,7 +1816,7 @@ bool RenderFrame::hairWorldBounds(ecs::Registry& registry, glm::vec3& outMin, gl
         auto& transform = meshes.get<ecs::Transform>(entity);
         transform.ensureDecomposed();
         glm::vec3 centre(0.0f), half(0.0f);
-        orientedWorldAabb(transform.worldPosition, transform.worldRotation, transform.worldScale,
+        orientedWorldAabb(rebased(transform.worldPosition), transform.worldRotation, transform.worldScale,
                           resident->localMin, resident->localMax, centre, half);
         outMin = any ? glm::min(outMin, centre - half) : centre - half;
         outMax = any ? glm::max(outMax, centre + half) : centre + half;

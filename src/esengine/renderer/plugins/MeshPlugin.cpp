@@ -117,7 +117,7 @@ u32 skinPose(ecs::Registry& registry, Entity entity, const Mesh& mesh,
         // draw is placed by — the cached matrix is the transform system's own
         // and is not guaranteed current for an entity nothing parents.
         joint->ensureDecomposed();
-        const glm::mat4 world = glm::translate(glm::mat4(1.0f), joint->worldPosition)
+        const glm::mat4 world = glm::translate(glm::mat4(1.0f), rebased(joint->worldPosition))
                               * glm::mat4_cast(joint->worldRotation)
                               * glm::scale(glm::mat4(1.0f), joint->worldScale);
         out[i] = world * mesh.inverseBind[i];
@@ -693,7 +693,7 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
         // it, and its map is fitted to unshifted bounds: a caster stands where it is.
         transform.ensureDecomposed();
         const glm::vec3 position = shadowDepth
-            ? transform.worldPosition
+            ? rebased(transform.worldPosition)
             : parallaxedWorldPosition(transform, mesh.parallax, collect_ctx.camera);
         const auto& rotation = transform.worldRotation;
         const auto& scale = transform.worldScale;

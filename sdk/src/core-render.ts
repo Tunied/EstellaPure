@@ -318,6 +318,7 @@ export {
     type RenderParams,
     type CameraRenderParams,
 } from './render/renderPipeline';
+export { setRenderOriginStep, renderOrigin, type RenderOriginState } from './render/renderOrigin';
 
 // =============================================================================
 // Custom Draw Callbacks

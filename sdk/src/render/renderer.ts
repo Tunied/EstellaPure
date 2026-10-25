@@ -47,6 +47,8 @@ export interface RendererBackend {
     init(width: number, height: number): void;
     resize(width: number, height: number): void;
     beginFrame(elapsedSec: number): void;
+    /** The point the frames are drawn relative to (render/renderOrigin.ts). A host predating it draws relative to zero. */
+    setOrigin?(x: number, y: number, z: number): void;
     updateTransforms(registry: CppRegistry): void;
     begin(viewProjection: Float32Array, target: number, clearFlags: number,
           r: number, g: number, b: number, a: number,
@@ -175,6 +177,7 @@ function wasmBackend(m: ESEngineModule): RendererBackend {
         init: (width, height) => m.renderer_init(width, height),
         resize: (width, height) => m.renderer_resize(width, height),
         beginFrame: (elapsedSec) => m.renderer_beginFrame(elapsedSec),
+        setOrigin: (x, y, z) => { m.renderer_setOrigin?.(x, y, z); },
         updateTransforms: (registry) => {
             try {
                 m.renderer_updateTransforms(registry);
@@ -553,6 +556,10 @@ export const Renderer = {
 
     beginFrame(elapsedSec = 0): void {
         backend?.beginFrame(elapsedSec);
+    },
+
+    setOrigin(x: number, y: number, z: number): void {
+        backend?.setOrigin?.(x, y, z);
     },
 
     updateTransforms(registry: { _cpp: CppRegistry }): void {

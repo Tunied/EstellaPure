@@ -213,6 +213,7 @@ export interface NativeEngineApi {
     renderer_setEntityDrawOrder?(registry: unknown, entitiesPtr: number, count: number): void;
     renderer_setLodPreview?(view: number, entity: number, level: number): void;
     renderer_setMeshEdgeBuffers?(enabled: boolean): void;
+    renderer_setOrigin?(x: number, y: number, z: number): void;
     renderer_setPlanarReflectionQuality?(scale: number, maxSize: number, updatesPerSecond: number): void;
     renderer_setQualityBudgets?(atlasSize: number, cellSize: number, cascades: number, particleLimit: number): void;
     renderer_setShadowDistance?(distance: number): void;
@@ -538,6 +539,7 @@ export function createNativeEngineApi(
     bind('renderer_setEntityDrawOrder', 'es_renderer_setEntityDrawOrder', true);
     bind('renderer_setLodPreview', 'es_renderer_setLodPreview', false);
     bind('renderer_setMeshEdgeBuffers', 'es_renderer_setMeshEdgeBuffers', false);
+    bind('renderer_setOrigin', 'es_renderer_setOrigin', false);
     bind('renderer_setPlanarReflectionQuality', 'es_renderer_setPlanarReflectionQuality', false);
     bind('renderer_setQualityBudgets', 'es_renderer_setQualityBudgets', false);
     bind('renderer_setShadowDistance', 'es_renderer_setShadowDistance', false);

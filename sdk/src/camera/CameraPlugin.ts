@@ -25,13 +25,14 @@ import { uiLayoutRect, computeEffectiveOrthoSize, EDITOR_VIEW_ENTITY, type Canva
 import { EditorViewLighting, DEFAULT_EDITOR_VIEW_LIGHTING, pushEditorViewLighting } from './EditorViewLighting';
 import { EditorViewShading, DEFAULT_EDITOR_VIEW_SHADING, pushEditorViewShading, pushEditorViewWeights } from './EditorViewShading';
 import type { ViewShading } from '../render/renderer';
-import { EditorView, DEFAULT_EDITOR_VIEW, editorViewStandoff, editorViewClipFar, editorViewClipNear, type EditorViewData } from './EditorView';
+import { EditorView, DEFAULT_EDITOR_VIEW, editorViewStandoff, editorViewEye, editorViewClipFar, editorViewClipNear, type EditorViewData } from './EditorView';
 import { ScreenScaling, DEFAULT_SCREEN_SCALING, SCREEN_FIT_OFF } from './ScreenScaling';
 import { planPresent, viewportPixels, RenderResolution } from './presentPlan';
 import { CameraDirector, createDirectorState, resolveMainPOV } from './CameraDirector';
 import { RenderPipeline } from '../render/renderPipeline';
 import { renderTargetSize } from '../render/renderTexture';
 import { Renderer } from '../render/renderer';
+import { followRenderOrigin, pushRenderOrigin, renderOrigin } from '../render/renderOrigin';
 import { platformNow, platformDevicePixelRatio } from '../platform';
 import { SceneManager } from '../scene/sceneManager';
 import {
@@ -46,6 +47,8 @@ import {
 interface CameraInfo {
     entity: number;
     viewProjection: Float32Array;
+    /** The same view-projection for the render origin (render/renderOrigin.ts): what the renderer is begun with. Equal to `viewProjection` while the origin is zero. */
+    renderViewProjection: Float32Array;
     viewportRect: { x: number; y: number; w: number; h: number };
     clearFlags: number;
     priority: number;
@@ -65,6 +68,7 @@ function acquireCameraInfo(pool: CameraInfo[], index: number): CameraInfo {
     const info: CameraInfo = {
         entity: 0,
         viewProjection: new Float32Array(16),
+        renderViewProjection: new Float32Array(16),
         viewportRect: { x: 0, y: 0, w: 0, h: 0 },
         clearFlags: 0,
         priority: 0,
@@ -336,6 +340,18 @@ export function buildCameraInfo(
     const cam = acquireCameraInfo(pool, index);
     cam.entity = pov.entity;
     cam.viewProjection.set(multiply(projection, view));
+    const origin = renderOrigin();
+    if (origin.x === 0 && origin.y === 0 && origin.z === 0) {
+        cam.renderViewProjection.set(cam.viewProjection);
+    } else {
+        // The same view with the eye measured from the origin; the projection is the same.
+        const near = pov.orbit
+            ? invertViewOrbit(camX - origin.x, camY - origin.y, pov.orbit.focusZ - origin.z, pov.orbit.yaw, pov.orbit.pitch, pov.z)
+            : pov.tilt
+                ? invertViewQuat(camX - origin.x, camY - origin.y, pov.z - origin.z, pov.tilt.x, pov.tilt.y, pov.tilt.z, pov.tilt.w)
+                : invertViewZ(camX - origin.x, camY - origin.y, pov.z - origin.z, Math.cos(pov.rotation), Math.sin(pov.rotation));
+        cam.renderViewProjection.set(multiply(projection, near));
+    }
     cam.viewportRect.x = pov.viewport.x;
     cam.viewportRect.y = pov.viewport.y;
     cam.viewportRect.w = pov.viewport.z;
@@ -527,6 +543,7 @@ function resolveCameras(
     if (app.hasResource(EditorView)) {
         const view = app.getResource(EditorView);
         if (view.active && width > 0 && height > 0) {
+            if (advance) { const eye = editorViewEye(view); followRenderOrigin(eye.x, eye.y, eye.z); }
             return [editorCameraInfo(view, width, height, pool)];
         }
     }
@@ -542,6 +559,11 @@ function resolveCameras(
     const fullFrame = onScreen.filter((p) => isFullFrame(p.viewport));
     const overlays = onScreen.filter((p) => !isFullFrame(p.viewport)).sort((a, b) => a.priority - b.priority);
 
+    // The origin follows the screen's own camera, before any view is built for it.
+    if (advance) {
+        const eye = fullFrame[0] ?? onScreen[0];
+        if (eye) followRenderOrigin(eye.x, eye.y, eye.z);
+    }
     const out: CameraInfo[] = [];
     for (const p of offscreen) out.push(buildCameraInfo(p, width, height, canvas, pool, out.length));
     // The director resolves ONE main view from the full-frame candidates (active
@@ -877,6 +899,8 @@ export function cameraPlugin(
                     const cameras = app.measureFrameScope('render.resolveCameras', () =>
                         resolveCameras(app, module, cppRegistry, width, height, app.world, activeScenes, cameraInfoPool, elapsed, true));
 
+                    pushRenderOrigin((x, y, z) => { Renderer.setOrigin(x, y, z); });
+
                     app.measureFrameScope('render.uiCameraSync', () =>
                         syncUICameraInfo(app, module, cppRegistry, width, height, cameras));
 
@@ -915,6 +939,7 @@ export function cameraPlugin(
                                 pipeline.renderCamera({
                                     registry: { _cpp: cppRegistry },
                                     viewProjection: cam.viewProjection,
+                                    renderViewProjection: cam.renderViewProjection,
                                     viewportPixels: { x: px, y: py, w: pw, h: ph },
                                     clearFlags: cam.clearFlags,
                                     elapsed,
@@ -1009,7 +1034,7 @@ export function renderCameraFrame(app: App, width: number, height: number, entit
         pipeline.beginScreenCapture();
         for (const cam of cameras) {
             const rect = viewportPixels(cam.viewportRect, width, height);
-            pipeline.renderCamera({ registry: { _cpp: registry }, viewProjection: cam.viewProjection,
+            pipeline.renderCamera({ registry: { _cpp: registry }, viewProjection: cam.viewProjection, renderViewProjection: cam.renderViewProjection,
                 viewportPixels: rect, clearFlags: cam.clearFlags, elapsed, cameraEntity: cam.entity,
                 clearColor, cullingMask: cam.cullingMask, worldHeight: 2 * cam.halfH, renderPolicy: policy });
         }

@@ -623,6 +623,11 @@ void renderer_resize(u32 width, u32 height) {
     g_renderFrame->resize(width, height);
 }
 
+/// The point the next frames are drawn relative to (RenderOrigin.hpp); the view-projection they are begun with is built for the same one.
+void renderer_setOrigin(f64 x, f64 y, f64 z) {
+    setRenderOrigin(glm::dvec3(x, y, z));
+}
+
 void renderer_beginFrame(f32 elapsedSec) {
     // A render frame is not a mutation: composition is invalidated by the
     // producers that write transform inputs. A server has no frames, and one

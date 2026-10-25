@@ -46,14 +46,14 @@ void RenderFrame::declarePlanarReflection(ecs::Registry& registry) {
         auto& transform = surfaces.get<ecs::Transform>(entity);
         transform.ensureDecomposed();
         glm::vec3 centre, half;
-        orientedWorldAabb(transform.worldPosition, transform.worldRotation, transform.worldScale,
+        orientedWorldAabb(rebased(transform.worldPosition), transform.worldRotation, transform.worldScale,
                           geometry->localMin, geometry->localMax, centre, half);
         if (!frustum_.intersectsAABB(centre, half)) continue;
         const u32 axis = static_cast<u32>(surface.axis);
         if (axis > 2 || std::abs(transform.worldScale[axis]) < 1e-6f) continue;
         glm::vec3 normal(0.0f); normal[axis] = 1.0f;
         PlanarReflectionCamera candidate;
-        if (!planarReflectionCamera(view_projection_, transform.worldPosition,
+        if (!planarReflectionCamera(view_projection_, rebased(transform.worldPosition),
                                     transform.worldRotation * normal, surface.clipOffset, candidate)) continue;
         ++eligible;
         // A stable winner, independent of sparse-set iteration and camera movement.

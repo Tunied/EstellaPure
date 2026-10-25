@@ -3,6 +3,7 @@
 #pragma once
 
 #include "../core/Types.hpp"
+#include "./RenderOrigin.hpp"
 #include "./frame/RenderStage.hpp"
 #include "./frame/Frustum.hpp"
 #include "./frame/OcclusionView.hpp"
@@ -389,7 +390,7 @@ inline glm::vec3 ribbonSide(const glm::vec3& tangent, const glm::vec3& worldPos,
 inline glm::vec3 parallaxedWorldPosition(ecs::Transform& transform, const glm::vec2& parallax,
                                          const CameraView& camera) {
     transform.ensureDecomposed();
-    glm::vec3 position = transform.worldPosition;
+    glm::vec3 position = rebased(transform.worldPosition);
     position.x += camera.center.x * (1.0f - parallax.x);
     position.y += camera.center.y * (1.0f - parallax.y);
     return position;

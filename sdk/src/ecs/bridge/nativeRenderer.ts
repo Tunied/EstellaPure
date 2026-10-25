@@ -80,6 +80,9 @@ export function createNativeRendererBackend(
         beginFrame: (elapsedSec): void => {
             hostCall(scope, RENDERER_BINDINGS.beginFrame, [elapsedSec]);
         },
+        setOrigin: (x, y, z): void => {
+            optional(scope, RENDERER_OPTIONAL_BINDINGS.setOrigin)?.(x, y, z);
+        },
         updateTransforms: (_registry: CppRegistry): void => {
             hostCall(scope, RENDERER_BINDINGS.updateTransforms, []);
         },

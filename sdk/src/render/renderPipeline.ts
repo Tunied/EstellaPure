@@ -47,6 +47,8 @@ export interface RenderParams {
 export interface CameraRenderParams {
     registry: { _cpp: CppRegistry };
     viewProjection: Float32Array;
+    /** The view-projection for the render origin, which the renderer is begun with; absent, `viewProjection` (the origin is zero). */
+    renderViewProjection?: Float32Array;
     viewportPixels: Viewport;
     clearFlags: number;
     elapsed: number;
@@ -290,7 +292,7 @@ export class RenderPipeline {
         Renderer.setViewport(scene.x, scene.y, scene.w, scene.h);
         // The camera's clear rides begin as a region-scoped load-op — no scissor
         // dance, no sticky clear state at the boundary.
-        Renderer.begin(viewProjection, params.renderTarget ?? 0, clearFlags, params.clearColor, scene);
+        Renderer.begin(params.renderViewProjection ?? viewProjection, params.renderTarget ?? 0, clearFlags, params.clearColor, scene);
         // Set after begin (which clears the draw list) and before the collect it gates.
         Renderer.setCullingMask(params.cullingMask ?? 0xFFFFFFFF);
         // The camera IS the view: a level picked from how big something looks is
