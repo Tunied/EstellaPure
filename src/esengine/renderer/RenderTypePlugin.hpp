@@ -85,6 +85,10 @@ struct RenderFrameContext {
     /// previous picture was actually drawn on.
     glm::mat4 motion_prev_view_projection{1.0f};
     glm::vec2 motion_prev_jitter{0.0f};
+    /// Where the SCENE camera is, in every collect of the frame (a shadow map's included): what a distance-limited draw measures from.
+    /// Absent for an orthographic camera, which has no position to be far from.
+    glm::vec3 view_eye{0.0f};
+    bool has_view_eye = false;
 };
 
 /** @brief What every plugin needs to know about the camera, derived once per collect

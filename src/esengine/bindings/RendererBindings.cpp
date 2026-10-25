@@ -250,6 +250,44 @@ void meshRenderer_setGeometry(ecs::Registry& registry, u32 entity,
     mesh->localMax = mx;
 }
 
+// The placements of a MeshInstances, copied in and measured: the corners of where the instances stand and the
+// greatest scale among them, which with the mesh's reach is what bounds the set. The collect trusts the count.
+void meshInstances_set(ecs::Registry& registry, u32 entity, uintptr_t dataPtr, u32 count) {
+    const Entity ent = Entity::fromRaw(entity);
+    auto* set = registry.tryGet<ecs::MeshInstances>(ent);
+    if (!set) {
+        ES_LOG_WARN("meshInstances_set: entity {} has no MeshInstances component", entity);
+        return;
+    }
+    constexpr u32 kFloats = 16;
+    if (dataPtr == 0 || count == 0) {
+        set->transforms.clear();
+        set->originMin = set->originMax = glm::vec3(0.0f);
+        set->maxScale = 1.0f;
+        return;
+    }
+    const f32* data = boundarySpan<f32>(dataPtr, static_cast<u64>(count) * kFloats, "meshInstances_set.transforms");
+    if (!data) return;
+    set->transforms.assign(data, data + static_cast<usize>(count) * kFloats);
+    glm::vec3 mn(data[3], data[7], data[11]);
+    glm::vec3 mx = mn;
+    f32 scale = 0.0f;
+    for (u32 i = 0; i < count; ++i) {
+        const f32* r = data + static_cast<usize>(i) * kFloats;
+        const glm::vec3 at(r[3], r[7], r[11]);
+        mn = glm::min(mn, at);
+        mx = glm::max(mx, at);
+        // The longest column of the linear part: how far the instance stretches its mesh.
+        const f32 c0 = r[0] * r[0] + r[4] * r[4] + r[8] * r[8];
+        const f32 c1 = r[1] * r[1] + r[5] * r[5] + r[9] * r[9];
+        const f32 c2 = r[2] * r[2] + r[6] * r[6] + r[10] * r[10];
+        scale = std::max(scale, std::max(c0, std::max(c1, c2)));
+    }
+    set->originMin = mn;
+    set->originMax = mx;
+    set->maxScale = std::sqrt(scale);
+}
+
 // Geometry that STAYS on the GPU: interleaved f32 [x,y,z,u,v] plus optional RGBA8
 // colors, validated exactly as the inline path is. createMesh appends the
 // per-object transform, so nothing here knows how a mesh reaches the shader.

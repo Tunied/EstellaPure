@@ -89,6 +89,8 @@ void meshRenderer_setGeometry(
     uintptr_t colorsPtr,
     uintptr_t indicesPtr, u32 indexCount
 );
+/** @brief The placements of a MeshInstances: sixteen f32 an instance (see the component). Empty clears the set. */
+void meshInstances_set(ecs::Registry& registry, u32 entity, uintptr_t dataPtr, u32 count);
 /** @brief Geometry from an .esmesh channel table; returns its handle, 0 on failure. */
 u32 mesh_createFromChannels(uintptr_t channelsPtr, u32 channelCount, u32 vertexStride,
                             uintptr_t vertexPtr, u32 vertexBytes,

@@ -544,6 +544,88 @@ void MeshPlugin::trackPose(const RenderFrameContext& ctx, Entity entity, const g
     pose.frame = ctx.motion_frame;
 }
 
+namespace {
+/**
+ * @brief Writes the placements of a MeshInstances as instances of one draw per level of detail.
+ *
+ * @details Each placement is judged on its own: past `drawDistance` from the eye it is not drawn, outside the view it is not drawn, and
+ *          past `lodDistance` it is the cheaper mesh. The eye is the SCENE camera's whatever pass this is, so a shadow map is cut
+ *          by the distance from the camera and not from the light. What stays is a record each (the entity's model times the
+ *          placement, its tint, its normal matrix) and one draw a level.
+ */
+template <typename Emit>
+void emitPlacements(const RenderFrameContext& ctx, RenderCollectContext& collect, const ecs::MeshInstances& set,
+                    const ecs::MeshRenderer& mesh, const glm::vec3& position, const glm::quat& rotation,
+                    const glm::vec3& scale, const Mesh& fine, const Mesh* coarse, u32& records, Emit&& emit) {
+    static thread_local std::vector<u32> nearList, farList;
+    nearList.clear();
+    farList.clear();
+    const glm::mat4 entityModel = glm::translate(glm::mat4(1.0f), position) * glm::mat4_cast(rotation) * glm::scale(glm::mat4(1.0f), scale);
+    const f32 entityScale = std::max(std::abs(scale.x), std::max(std::abs(scale.y), std::abs(scale.z)));
+    const f32 reach = glm::length(glm::max(glm::abs(fine.localMin), glm::abs(fine.localMax)));
+    const bool eyeKnown = ctx.has_view_eye;
+    const u32 count = static_cast<u32>(set.transforms.size() / 16);
+    u32 tooFar = 0, outside = 0;
+    for (u32 i = 0; i < count; ++i) {
+        const f32* r = set.transforms.data() + static_cast<usize>(i) * 16;
+        const glm::vec3 at = glm::vec3(entityModel * glm::vec4(r[3], r[7], r[11], 1.0f));
+        const f32 c0 = r[0] * r[0] + r[4] * r[4] + r[8] * r[8];
+        const f32 c1 = r[1] * r[1] + r[5] * r[5] + r[9] * r[9];
+        const f32 c2 = r[2] * r[2] + r[6] * r[6] + r[10] * r[10];
+        const f32 radius = reach * std::sqrt(std::max(c0, std::max(c1, c2))) * entityScale;
+        f32 distance = 0.0f;
+        if (eyeKnown) {
+            distance = glm::distance(at, ctx.view_eye);
+            if (set.drawDistance > 0.0f && distance - radius > set.drawDistance) { ++tooFar; continue; }
+            if (distance + radius < set.minDistance) continue;
+        }
+        if (!collect.visible(at, glm::vec3(radius), false)) { ++outside; continue; }
+        (coarse && eyeKnown && set.lodDistance > 0.0f && distance > set.lodDistance ? farList : nearList).push_back(i);
+    }
+    ES_PROFILE_COUNTER("render.placements.seen", count);
+    ES_PROFILE_COUNTER("render.placements.tooFar", tooFar);
+    ES_PROFILE_COUNTER("render.placements.outside", outside);
+    ES_PROFILE_COUNTER("render.placements.coarse", farList.size());
+    ES_PROFILE_COUNTER("render.placements.eye", eyeKnown ? 1 : 0);
+    // The frame's record texture holds so many; past it the tail would draw unplaced, which is worse than not at all.
+    const u32 room = records < MESH_INSTANCE_MAX_RECORDS ? MESH_INSTANCE_MAX_RECORDS - records : 0;
+    if (nearList.size() > room) nearList.resize(room);
+    if (farList.size() > room - nearList.size()) farList.resize(room - nearList.size());
+    records += static_cast<u32>(nearList.size() + farList.size());
+
+    auto& buffers = collect.buffer_pool;
+    const auto write = [&](const std::vector<u32>& list, const Mesh& geo) {
+        if (list.empty()) return;
+        const u32 offset = buffers.allocVertices(LayoutId::MeshInstance, MESH_INSTANCE_STRIDE * static_cast<u32>(list.size()));
+        auto* dst = buffers.vertexData(LayoutId::MeshInstance) + offset;
+        std::memset(dst, 0, static_cast<usize>(MESH_INSTANCE_STRIDE) * list.size());
+        for (const u32 i : list) {
+            const f32* r = set.transforms.data() + static_cast<usize>(i) * 16;
+            glm::mat4 placed(1.0f);
+            placed[0] = {r[0], r[4], r[8], 0.0f};
+            placed[1] = {r[1], r[5], r[9], 0.0f};
+            placed[2] = {r[2], r[6], r[10], 0.0f};
+            placed[3] = {r[3], r[7], r[11], 1.0f};
+            const glm::mat4 model = entityModel * placed;
+            for (u32 row = 0; row < 3; ++row) {
+                const glm::vec4 m{model[0][row], model[1][row], model[2][row], model[3][row]};
+                std::memcpy(dst + (MESH_INSTANCE_TEXEL_MODEL + row) * 16, &m, 16);
+            }
+            const glm::vec4 tint = mesh.color * glm::vec4(r[12], r[13], r[14], r[15]);
+            std::memcpy(dst + MESH_INSTANCE_TEXEL_TINT * 16, &tint, 16);
+            if (geo.hasNormals) {
+                const glm::mat3 nrm = glm::transpose(glm::inverse(glm::mat3(model)));
+                for (u32 row = 0; row < 3; ++row) std::memcpy(dst + (MESH_INSTANCE_TEXEL_NORMAL + row) * 16, &nrm[row][0], 12);
+            }
+            dst += MESH_INSTANCE_STRIDE;
+        }
+        emit(geo, offset, static_cast<u32>(list.size()));
+    };
+    write(nearList, fine);
+    if (coarse) write(farList, *coarse);
+}
+}  // namespace
+
 void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
     auto& registry = collect_ctx.registry;
     auto& clips = collect_ctx.clip_state;
@@ -574,7 +656,7 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
     const bool timing = FrameProfiler::get().enabled();
     f64 phase[5] = {0, 0, 0, 0, 0};
     f64 mark = timing ? es_profile_now_ms() : 0.0;
-    u32 walked = 0, coldDecompose = 0, lodGathers = 0, programAsks = 0;
+    u32 walked = 0, coldDecompose = 0, lodGathers = 0, programAsks = 0, instanceRecords = 0;
     const auto tick = [&](int slot) {
         if (!timing) return;
         const f64 now = es_profile_now_ms();
@@ -624,6 +706,9 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
         // below, which bakes world space into vertices for the BATCH shader — a
         // shader that writes colour, not the depth this pass is here to collect.
         if (depthPass && !resident) continue;
+        // Many placements of one mesh, drawn as instances of it. What is placed does not move on its own, so the motion pass has nothing to say.
+        const ecs::MeshInstances* placements = resident ? registry.tryGet<ecs::MeshInstances>(entity) : nullptr;
+        if (placements && (placements->transforms.empty() || motion)) continue;
         // What light passes through (water) stands in no light's way.
         if (shadowDepth && !mesh.castShadows) continue;
         // Only a surface that draws opaque and unblended has a motion worth writing: what is blended over
@@ -635,7 +720,7 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
         // make the answer the entity's rather than each view's.
         LodLevels levels;
         const ecs::LODGroup* group = nullptr;
-        if (collect_ctx.lod.state && resident) {
+        if (collect_ctx.lod.state && resident && !placements) {
             const auto* declared = registry.tryGet<ecs::LODGroup>(entity);
             if (declared && declared->enabled) {
                 ++lodGathers;
@@ -646,9 +731,14 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
             }
         }
         tick(1);
-        const glm::vec3 localMin = group ? levels.localMin
+        // A set of placements is bounded by where they stand, grown by how far the mesh reaches from its origin at the greatest scale.
+        const glm::vec3 reach = (placements ? glm::max(glm::abs(resident->localMin), glm::abs(resident->localMax)) * placements->maxScale
+                                            : glm::vec3(0.0f));
+        const glm::vec3 localMin = placements ? placements->originMin - reach
+                                 : group ? levels.localMin
                                  : resident ? resident->localMin : glm::vec3(mesh.localMin, 0.0f);
-        const glm::vec3 localMax = group ? levels.localMax
+        const glm::vec3 localMax = placements ? placements->originMax + reach
+                                 : group ? levels.localMax
                                  : resident ? resident->localMax : glm::vec3(mesh.localMax, 0.0f);
 
         // BEFORE the cull, because whether this draw depth-tests decides if an
@@ -958,27 +1048,46 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
                 key.layoutId = LayoutId::MeshInstance;
                 key.instanceCount = 1;
                 key.instanceStride = MESH_INSTANCE_STRIDE;
+                const bool wire = shading == ShadingMode::Wireframe;
+                if (wire) key.depthBias = kWireFillBias;
+                // One draw of `count` records from `offset`, of the geometry `geo`. A cutout that asks for tips gets its soft outer band
+                // as a second, blended draw of the same instances: no depth written, sorted with the other blended draws, and no
+                // surface record.
+                const auto emit = [&](const Mesh& geo, u32 offset, u32 count) {
+                    BatchDrawKey drawn = key;
+                    drawn.instanceCount = count;
+                    drawn.vertexBuffer = geo.vertexBuffer;
+                    drawn.indexBuffer = geo.indexBuffer;
+                    drawn.vertexLayout = geo.layout;
+                    pushBatchDraw(draw_list, clips, offset, 0, 0, geo.indexCount, drawn);
+                    if (!depthPass && !wire && key.materialId != 0 && ctx.materials && ctx.materials->hasTipPass(key.materialId)) {
+                        const u32 tipProgram = ctx.materials->meshProgram(key.materialId, ctx.resources, geo.hasNormals, skinned,
+                                                                          key.envTextureId != 0, geo.hasLightmapUV, false,
+                                                                          geo.hasTangents, true);
+                        if (tipProgram != 0) {
+                            BatchDrawKey tips = drawn;
+                            tips.shaderId = tipProgram;
+                            tips.stage = RenderStage::Transparent;
+                            tips.blend = BlendMode::Normal;
+                            tips.depthWrite = false;
+                            pushBatchDraw(draw_list, clips, offset, 0, 0, geo.indexCount, tips);
+                        }
+                    }
+                };
+                if (placements) {
+                    // The record written for the entity above is not drawn: the instances are, each with a record of its own.
+                    const Mesh* coarse = placements->lod1Mesh.isValid() ? ctx.resources.getMesh(placements->lod1Mesh) : nullptr;
+                    if (coarse && (!coarse->isDrawable() || coarse->hasNormals != resident->hasNormals
+                                   || coarse->hasTangents != resident->hasTangents || coarse->hasLightmapUV != resident->hasLightmapUV)) {
+                        coarse = nullptr;
+                    }
+                    emitPlacements(ctx, collect_ctx, *placements, mesh, position, rotation, scale, *resident, coarse, instanceRecords, emit);
+                    continue;
+                }
                 key.vertexBuffer = resident->vertexBuffer;
                 key.indexBuffer = resident->indexBuffer;
                 key.vertexLayout = resident->layout;
-                const bool wire = shading == ShadingMode::Wireframe;
-                if (wire) key.depthBias = kWireFillBias;
-                pushBatchDraw(draw_list, clips, instOffset, 0, 0, resident->indexCount, key);
-                // A cutout that asks for tips gets its soft outer band as a second, blended draw of the same
-                // instance: no depth written, sorted with the other blended draws, and no surface record.
-                if (!depthPass && !wire && key.materialId != 0 && ctx.materials && ctx.materials->hasTipPass(key.materialId)) {
-                    const u32 tipProgram = ctx.materials->meshProgram(key.materialId, ctx.resources, resident->hasNormals, skinned,
-                                                                      key.envTextureId != 0, resident->hasLightmapUV, false,
-                                                                      resident->hasTangents, true);
-                    if (tipProgram != 0) {
-                        BatchDrawKey tips = key;
-                        tips.shaderId = tipProgram;
-                        tips.stage = RenderStage::Transparent;
-                        tips.blend = BlendMode::Normal;
-                        tips.depthWrite = false;
-                        pushBatchDraw(draw_list, clips, instOffset, 0, 0, resident->indexCount, tips);
-                    }
-                }
+                emit(*resident, instOffset, 1);
                 // The edges, as a second draw of the same instance with its own ink: same
                 // vertices, the mesh's line list, tested against the surface just drawn.
                 if (wire && resident->hasEdges()) {
@@ -1045,6 +1154,7 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
     // cost grew are different problems and the milliseconds cannot tell them
     // apart. `coldDecompose` is the one that only a first look can be high.
     ES_PROFILE_COUNTER("render.mesh.walked", walked);
+    ES_PROFILE_COUNTER("render.mesh.placements", instanceRecords);
     ES_PROFILE_COUNTER("render.mesh.coldDecompose", coldDecompose);
     ES_PROFILE_COUNTER("render.mesh.lodGathers", lodGathers);
     ES_PROFILE_COUNTER("render.mesh.programAsks", programAsks);

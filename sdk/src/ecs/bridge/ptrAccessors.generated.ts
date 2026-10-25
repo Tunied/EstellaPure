@@ -993,6 +993,42 @@ export function createMeshCollider3DData(): MeshCollider3DPtrData {
     };
 }
 
+export interface MeshInstancesPtrData {
+    lod1Mesh: number;
+    lodDistance: number;
+    minDistance: number;
+    drawDistance: number;
+}
+
+export function fillMeshInstances(
+    f32: Float32Array, u32: Uint32Array, u8: Uint8Array,
+    ptr: number, out: MeshInstancesPtrData,
+): void {
+    out.lod1Mesh = u32[ptr >> 2];
+    out.lodDistance = f32[(ptr + 4) >> 2];
+    out.minDistance = f32[(ptr + 8) >> 2];
+    out.drawDistance = f32[(ptr + 12) >> 2];
+}
+
+export function writeMeshInstances(
+    f32: Float32Array, u32: Uint32Array, u8: Uint8Array,
+    ptr: number, data: MeshInstancesPtrData,
+): void {
+    u32[ptr >> 2] = data.lod1Mesh;
+    f32[(ptr + 4) >> 2] = data.lodDistance;
+    f32[(ptr + 8) >> 2] = data.minDistance;
+    f32[(ptr + 12) >> 2] = data.drawDistance;
+}
+
+export function createMeshInstancesData(): MeshInstancesPtrData {
+    return {
+        lod1Mesh: 0,
+        lodDistance: 0,
+        minDistance: 0,
+        drawDistance: 0,
+    };
+}
+
 export interface MeshLightmapPtrData {
     lightmap: number;
     scaleOffset: Vec4;
@@ -2670,6 +2706,7 @@ export const PTR_ACCESSORS: Record<string, PtrAccessor<any>> = {
     Light: { fill: fillLight, write: writeLight, create: createLightData },
     LightProbeVolume: { fill: fillLightProbeVolume, write: writeLightProbeVolume, create: createLightProbeVolumeData },
     MeshCollider3D: { fill: fillMeshCollider3D, write: writeMeshCollider3D, create: createMeshCollider3DData },
+    MeshInstances: { fill: fillMeshInstances, write: writeMeshInstances, create: createMeshInstancesData },
     MeshLightmap: { fill: fillMeshLightmap, write: writeMeshLightmap, create: createMeshLightmapData },
     MeshRenderer: { fill: fillMeshRenderer, write: writeMeshRenderer, create: createMeshRendererData },
     Occluder: { fill: fillOccluder, write: writeOccluder, create: createOccluderData },

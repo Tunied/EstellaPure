@@ -161,6 +161,11 @@ ComponentAt engineComponentAt(ecs::Registry& registry, const char* name) {
             return registry.tryGet<esengine::ecs::MeshCollider3D>(Entity::fromRaw(raw));
         };
     }
+    if (std::strcmp(name, "MeshInstances") == 0) {
+        return [&registry](std::uint32_t raw) -> void* {
+            return registry.tryGet<esengine::ecs::MeshInstances>(Entity::fromRaw(raw));
+        };
+    }
     if (std::strcmp(name, "MeshLightmap") == 0) {
         return [&registry](std::uint32_t raw) -> void* {
             return registry.tryGet<esengine::ecs::MeshLightmap>(Entity::fromRaw(raw));
@@ -415,6 +420,11 @@ CandidatesOf engineComponentCandidates(ecs::Registry& registry, const char* name
             return denseAsIds(registry.entitiesWith<esengine::ecs::MeshCollider3D>());
         };
     }
+    if (std::strcmp(name, "MeshInstances") == 0) {
+        return [&registry]() -> Candidates {
+            return denseAsIds(registry.entitiesWith<esengine::ecs::MeshInstances>());
+        };
+    }
     if (std::strcmp(name, "MeshLightmap") == 0) {
         return [&registry]() -> Candidates {
             return denseAsIds(registry.entitiesWith<esengine::ecs::MeshLightmap>());
@@ -593,6 +603,7 @@ bool isEngineComponent(const char* name) {
     if (std::strcmp(name, "Light") == 0) return true;
     if (std::strcmp(name, "LightProbeVolume") == 0) return true;
     if (std::strcmp(name, "MeshCollider3D") == 0) return true;
+    if (std::strcmp(name, "MeshInstances") == 0) return true;
     if (std::strcmp(name, "MeshLightmap") == 0) return true;
     if (std::strcmp(name, "MeshMorph") == 0) return true;
     if (std::strcmp(name, "MeshRenderer") == 0) return true;

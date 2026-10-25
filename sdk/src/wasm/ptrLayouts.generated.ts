@@ -273,6 +273,15 @@ export const PTR_LAYOUTS: Record<string, PtrLayout> = {
             { name: 'enabled', type: 'bool', offset: 16 },
         ],
     },
+    MeshInstances: {
+        ptrFn: 'getMeshInstancesPtr',
+        fields: [
+            { name: 'lod1Mesh', type: 'u32', offset: 0 },
+            { name: 'lodDistance', type: 'f32', offset: 4 },
+            { name: 'minDistance', type: 'f32', offset: 8 },
+            { name: 'drawDistance', type: 'f32', offset: 12 },
+        ],
+    },
     MeshLightmap: {
         ptrFn: 'getMeshLightmapPtr',
         fields: [

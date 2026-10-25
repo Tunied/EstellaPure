@@ -1312,7 +1312,7 @@ void RenderFrame::buildSpriteMasks(ecs::Registry& registry) {
 }
 
 RenderFrameContext RenderFrame::makeContext() {
-    return {
+    RenderFrameContext ctx{
         context_,
         resource_manager_,
         context_.getWhiteTextureId(),
@@ -1325,6 +1325,10 @@ RenderFrameContext RenderFrame::makeContext() {
         shadow_texture_id_,
         environment_texture_id_
     };
+    const glm::vec4 eye = cameraFromViewProjection(view_projection_);
+    ctx.has_view_eye = eye.w > 0.5f;
+    if (ctx.has_view_eye) ctx.view_eye = glm::vec3(eye);
+    return ctx;
 }
 
 /// Where a light aims: the entity's forward, its rotation applied to -Z. A light

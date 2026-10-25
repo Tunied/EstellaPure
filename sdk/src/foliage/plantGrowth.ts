@@ -4,68 +4,67 @@
  * @file    plantGrowth.ts
  * @brief   Growing plants a cell at a time inside the frame's budget: what `PlacedFoliage` and a generated world's plants share.
  *
- * @details A cell is an entity that stands at once, empty, and fills in over the frames after it: every kind in it and every part of that kind is
- *          one mesh (a batch of plants no bigger than a few milliseconds of work), made from the plants' own meshes with every channel kept (see
- *          buildPlacedMesh). Past the kind's distance a cheaper mesh stands in (a `LODGroup`), and past that its far version (a tree's crossed
- *          cards, merged a cell at a time) is shown where the eye is: the hierarchical level of detail. The pieces wait in one queue for the whole
- *          app and are made while the frame's budget lasts, nearest asked first; a cell let go first leaves its pieces unmade.
- *
- *          The thresholds are made from the sphere of each piece's own mesh, as the engine measures a renderer, and not from the cell's: a tree's crown
- *          and its trunk have spheres of their own, and a cell's radius would hand over, and cull, a third as far as the kind says.
+ * @details A cell is an entity that stands at once, empty, and fills in over the frames after it. Every kind in it and every part of that kind is
+ *          ONE entity holding where each plant stands (`MeshInstances`), drawing the part's mesh, which every cell shares: the geometry exists
+ *          once however many plants there are, a plant costs sixty-four bytes, and the engine culls each plant against the view and picks its
+ *          mesh by its distance (the part's cheaper mesh past the kind's `lodDistance`, nothing past `drawDistance`). The far version (a tree's
+ *          crossed cards) is the same, a set of its own that begins where the kind ends: the hierarchical level of detail, with nothing on this
+ *          side choosing between the two. Draws that share a mesh and a material are one draw in the engine, so a forest of cells is a few.
+ *          The pieces wait in one queue for the whole app and are made while the frame's budget lasts, nearest asked first; a cell let go
+ *          first leaves its pieces unmade.
  */
 import type { App } from '../app/app';
 import { defineSystem, Schedule } from '../ecs/system';
 import { defineResource } from '../ecs/resource';
-import {
-    Camera, getComponent, MeshRenderer, RuntimeOnly, Transform,
-    type CameraData, type MeshRendererData, type TransformData,
-} from '../ecs/component';
+import { getComponent, MeshRenderer, RuntimeOnly, Transform, type MeshRendererData } from '../ecs/component';
+import { engineApi } from '../ecs/bridge/engineApi';
+import type { CppRegistry } from '../wasm';
+import { withScratch } from '../wasm/wasmScratch';
 import { Assets } from '../asset/AssetPlugin';
 import type { Assets as AssetsApi } from '../asset/Assets';
-import type { MeshData } from '../asset/meshFormat';
 import { log } from '../util/logger';
 import { bakesOf } from '../runtime/bakes';
 import type { Entity } from '../types';
-import { buildPlacedMesh, softenNormals, thinPlants, type Plant } from './builder';
+import { buildPlacements, PLACEMENT_FLOATS, softenNormals, thinPlants, type Plant } from './builder';
 import type { PlacedKind, PlacedPart } from './plantKind';
 
-/** A part with what it needs in hand: its geometry read, its handles made. */
-export interface ReadyPart { part: PlacedPart; source: MeshData; lod1: MeshData | null; material: number; texture: number }
+/** A part with what it needs in hand: the handles of its meshes (shared by every cell) and of its material and texture. */
+export interface ReadyPart { part: PlacedPart; mesh: number; lod1: number; material: number; texture: number }
 
-/** Every kind's parts in hand, and the parts that stand for each far off. */
-export interface ReadyKinds { kinds: ReadyPart[][]; far: ReadyPart[][] }
+/** Every kind's parts in hand, and the parts that stand for each far off; `owned` are the meshes made here, which `releaseKinds` gives back. */
+export interface ReadyKinds { kinds: ReadyPart[][]; far: ReadyPart[][]; owned: number[] }
 
-/** One grown cell: its entity (none where nothing stands), the meshes it owns so far, and whether it has been let go. */
+/** One grown cell: its entity (none where nothing stands), what it owns so far, and whether it has been let go. */
 export interface GrownCell { entity: Entity | null; handles: number[]; dead: boolean }
 
-/** The most vertices one mesh of a cell takes: a piece of work of a few milliseconds, which a frame's budget can fit between others. */
-const BATCH_VERTICES = 24000;
-
-interface FarCell {
-    /** Where the cell is, in the world's x and z. */
-    x: number;
-    z: number;
-    /** Half the cell's side: how far from its centre it reaches. */
-    half: number;
-    owner: Entity;
-    kinds: readonly PlacedKind[];
-    children: { entity: Entity; kind: number; shown: boolean }[];
-}
-
-/** Reads the geometry and makes the handles of every part of every kind. */
+/**
+ * Loads the meshes, materials and textures of every part of every kind, once. A part whose normals are turned toward up (`soft`) is a mesh of its own,
+ * made here, and a part whose geometry cannot be read is left out.
+ */
 export async function prepareKinds(assets: AssetsApi, kinds: readonly PlacedKind[]): Promise<ReadyKinds> {
+    const owned: number[] = [];
+    const handleOf = async (path: string, soft: number): Promise<number> => {
+        const loaded = (await assets.load<{ handle: number }>('mesh', path)).handle;
+        if (!soft) return loaded;
+        const source = await assets.readMeshData(loaded);
+        const made = source ? assets.createMesh(softenNormals(source, soft)) : 0;
+        if (made === 0) return loaded;
+        owned.push(made);
+        return made;
+    };
     const ready = async (part: PlacedPart, withLod: boolean): Promise<ReadyPart | null> => {
-        const source = await assets.readMeshData((await assets.load<{ handle: number }>('mesh', part.mesh)).handle);
-        if (!source) { log.warn('foliage', `the geometry of ${part.mesh} cannot be read, so its plants are left out`); return null; }
-        let lod1: MeshData | null = null;
-        if (withLod && part.lod1Mesh) lod1 = await assets.readMeshData((await assets.load<{ handle: number }>('mesh', part.lod1Mesh)).handle);
+        let mesh = 0;
+        try { mesh = await handleOf(part.mesh, part.soft ?? 0); } catch { mesh = 0; }
+        if (mesh === 0) { log.warn('foliage', `the geometry of ${part.mesh} cannot be read, so its plants are left out`); return null; }
+        let lod1 = 0;
+        if (withLod && part.lod1Mesh) { try { lod1 = await handleOf(part.lod1Mesh, part.soft ?? 0); } catch { lod1 = 0; } }
         return {
-            part, source: part.soft ? softenNormals(source, part.soft) : source, lod1,
+            part, mesh, lod1,
             material: part.material ? (await assets.loadMaterial(part.material)).handle : 0,
             texture: part.texture ? (await assets.loadTexture(part.texture)).handle : 0,
         };
     };
-    const out: ReadyKinds = { kinds: [], far: [] };
+    const out: ReadyKinds = { kinds: [], far: [], owned };
     for (const kind of kinds) {
         const parts: ReadyPart[] = [], far: ReadyPart[] = [];
         for (const part of kind.parts) { const r = await ready(part, true); if (r) parts.push(r); }
@@ -76,14 +75,19 @@ export async function prepareKinds(assets: AssetsApi, kinds: readonly PlacedKind
     return out;
 }
 
-/** The growth of every plant in an app: the pieces waiting, and the far cells standing. */
+/** Gives back the meshes `prepareKinds` made; the ones it only loaded stay with the asset system. */
+export function releaseKinds(assets: AssetsApi, ready: ReadyKinds): void {
+    for (const handle of ready.owned) assets.releaseBuiltMesh(handle);
+    ready.owned.length = 0;
+}
+
+/** The growth of every plant in an app: the pieces waiting. */
 export class PlantGrowth {
     /** The pieces not yet made, in the order they were asked. */
     readonly queue: { cell: GrownCell; run: () => void }[] = [];
-    private readonly far_ = new Set<FarCell>();
     app_: App | null = null;
 
-    /** How many meshes are still waiting to be made. */
+    /** How many pieces are still waiting to be made. */
     get pending(): number { return this.queue.length; }
 
     /** Pieces made so far, and the milliseconds spent making them: what the growth has cost, for a profile to read. */
@@ -91,136 +95,82 @@ export class PlantGrowth {
     spentMs = 0;
 
     /**
+     * Makes one entity under `parent` that draws `part`'s mesh at every place in `plants`, relative to `parent`. `from` and `to` are the distances
+     * from the eye between which a plant is drawn (0 for no limit); `lod` is the distance past which the part's cheaper mesh stands in.
+     */
+    private place(app: App, parent: Entity, name: string, part: ReadyPart, plants: readonly Plant[], lod: number, from: number, to: number): void {
+        const world = app.world;
+        const e = world.spawn(name);
+        world.insert(e, RuntimeOnly);
+        world.insert(e, Transform, {});
+        world.insert(e, MeshRenderer, {
+            mesh: part.mesh, material: part.material, texture: part.texture, lit: true, opaque: part.part.opaque !== false, cullBackfaces: false,
+            castShadows: part.part.castShadows !== false,
+            color: { r: part.part.tint[0], g: part.part.tint[1], b: part.part.tint[2], a: part.part.tint[3] },
+        } as Partial<MeshRendererData>);
+        const placements = getComponent('MeshInstances');
+        if (placements) world.insert(e, placements, { lod1Mesh: part.lod1, lodDistance: part.lod1 ? lod : 0, minDistance: from, drawDistance: to });
+        world.setParent(e, parent);
+        const api = engineApi(app);
+        const set = api?.meshInstances_set;
+        if (!set || !api._malloc || !api._free || !api.HEAPU8 || plants.length === 0) return;
+        const data = buildPlacements(plants);
+        const registry = world.getCppRegistry() as CppRegistry;
+        withScratch({ _malloc: api._malloc, _free: api._free }, (alloc) => {
+            const ptr = alloc(data.byteLength);
+            // Read after the allocation: it may have grown the memory, which replaces the buffer.
+            new Float32Array(api.HEAPU8!.buffer, ptr, data.length).set(data);
+            set(registry, e, ptr, data.length / PLACEMENT_FLOATS);
+        });
+    }
+
+    /**
      * Grows `cell`, whose entity the caller has made and stands at the cell's centre: the plants of each kind in `byKind` (relative to that centre),
-     * as pieces of work. `side` is the cell's side, for where the far version is shown from.
+     * a piece of work a kind's part.
      */
     growCell(app: App, cell: GrownCell, kinds: readonly PlacedKind[], ready: ReadyKinds, byKind: ReadonlyMap<number, readonly Plant[]>): void {
         const world = app.world, entity = cell.entity;
         if (entity === null) return;
-        const assets = app.getResource(Assets);
-        const lodDef = getComponent('LODGroup');
-        const sphereOf = (m: MeshData): number => 0.5 * Math.hypot(m.aabbMax[0] - m.aabbMin[0], m.aabbMax[1] - m.aabbMin[1], m.aabbMax[2] - m.aabbMin[2]);
-        const sizeAt = (radius: number, distance: number): number => radius / (Math.max(1, distance) * 0.577);
-        const made = (mesh: MeshData): number => {
-            const handle = assets.createMesh(mesh);
-            if (handle === 0) throw new Error('the engine refused the geometry of a cell of plants');
-            cell.handles.push(handle);
-            return handle;
-        };
         for (const [kindIndex, plants] of byKind) {
             const kind = kinds[kindIndex], parts = ready.kinds[kindIndex];
             if (!kind || !parts) continue;
             parts.forEach((r, j) => {
-                const per = Math.max(1, Math.floor(BATCH_VERTICES / Math.max(1, r.source.vertexCount)));
-                for (let from = 0; from < plants.length; from += per) {
-                    const batch = plants.slice(from, from + per);
-                    this.queue.push({ cell, run: () => {
-                        if (!world.valid(entity)) return;
-                        try {
-                            const near = buildPlacedMesh(r.source, batch);
-                            const e = world.spawn(`${kindIndex}:${j}`);
-                            world.insert(e, RuntimeOnly);
-                            world.insert(e, Transform, {});
-                            world.insert(e, MeshRenderer, {
-                                mesh: made(near), material: r.material, texture: r.texture, lit: true, opaque: r.part.opaque !== false, cullBackfaces: false, castShadows: r.part.castShadows !== false,
-                                color: { r: r.part.tint[0], g: r.part.tint[1], b: r.part.tint[2], a: r.part.tint[3] },
-                            } as Partial<MeshRendererData>);
-                            if (lodDef) {
-                                const coarse = r.lod1 ? buildPlacedMesh(r.lod1, batch) : null;
-                                const far = coarse ? made(coarse) : 0;
-                                // The engine's bounds for the group are the union of its levels, so the sphere is the union's.
-                                const radius = sphereOf(coarse ? {
-                                    ...near,
-                                    aabbMin: near.aabbMin.map((v, i) => Math.min(v, coarse.aabbMin[i]!)) as [number, number, number],
-                                    aabbMax: near.aabbMax.map((v, i) => Math.max(v, coarse.aabbMax[i]!)) as [number, number, number],
-                                } : near);
-                                world.insert(e, lodDef, {
-                                    lod1: far, lod2: 0, lod3: 0, lod1Size: far ? sizeAt(radius, kind.lodDistance) : 0, lod2Size: 0, lod3Size: 0,
-                                    cullSize: sizeAt(radius, kind.drawDistance + radius), hysteresis: 0.1, enabled: true,
-                                });
-                            }
-                            world.setParent(e, entity);
-                        } catch (error) {
-                            log.error('foliage', 'growing a piece of a cell of plants failed', error);
-                        }
-                    } });
-                }
+                this.queue.push({ cell, run: () => {
+                    if (!world.valid(entity)) return;
+                    try {
+                        this.place(app, entity, `${kindIndex}:${j}`, r, plants, kind.lodDistance, 0, kind.drawDistance);
+                    } catch (error) {
+                        log.error('foliage', 'growing a piece of a cell of plants failed', error);
+                    }
+                } });
             });
         }
     }
 
     /**
-     * Grows the far version of `cell`: each kind with one, its plants as one mesh a far part, hidden until the eye is far enough (`kind.drawDistance`
-     * to `kind.farDistance` from the cell, at world x and z `at`, reaching `half` each way). Cheap enough (a tree is two cards) to be made at once.
+     * Grows the far version of `cell`: each kind with one, its plants (thinned to the kind's `farKeep`) as a set of the far part's, drawn from
+     * where the kind stops (`drawDistance`) out to `farDistance` from the eye. Cheap enough (a tree is two cards) to be made at once.
      */
-    growFar(app: App, cell: GrownCell, kinds: readonly PlacedKind[], ready: ReadyKinds, byKind: ReadonlyMap<number, readonly Plant[]>, at: { x: number; z: number; half?: number }): void {
-        const world = app.world, entity = cell.entity;
+    growFar(app: App, cell: GrownCell, kinds: readonly PlacedKind[], ready: ReadyKinds, byKind: ReadonlyMap<number, readonly Plant[]>, _at?: { x: number; z: number; half?: number }): void {
+        const entity = cell.entity;
         if (entity === null) return;
-        const assets = app.getResource(Assets);
-        const children: FarCell['children'] = [];
         for (const [kindIndex, plants] of byKind) {
-            const parts = ready.far[kindIndex];
-            if (!parts || parts.length === 0) continue;
-            const kept = thinPlants(plants, kinds[kindIndex]?.farKeep ?? 1);
-            for (const r of parts) {
-                const handle = assets.createMesh(buildPlacedMesh(r.source, kept));
-                if (handle === 0) continue;
-                cell.handles.push(handle);
-                const e = world.spawn(`far ${kindIndex}`);
-                world.insert(e, RuntimeOnly);
-                world.insert(e, Transform, {});
-                world.insert(e, MeshRenderer, {
-                    mesh: handle, material: r.material, texture: r.texture, lit: true, opaque: r.part.opaque !== false, cullBackfaces: false, castShadows: r.part.castShadows !== false, enabled: false,
-                    color: { r: r.part.tint[0], g: r.part.tint[1], b: r.part.tint[2], a: r.part.tint[3] },
-                } as Partial<MeshRendererData>);
-                world.setParent(e, entity);
-                children.push({ entity: e, kind: kindIndex, shown: false });
-            }
+            const parts = ready.far[kindIndex], kind = kinds[kindIndex];
+            if (!kind || !parts || parts.length === 0) continue;
+            const kept = thinPlants(plants, kind.farKeep ?? 1);
+            for (const r of parts) this.place(app, entity, `far ${kindIndex}`, r, kept, 0, kind.drawDistance, kind.farDistance);
         }
-        if (children.length > 0) this.far_.add({ x: at.x, z: at.z, half: at.half ?? 0, owner: entity, kinds, children });
     }
 
-    /** Lets a cell go: what it made is despawned and given back, and what it had not yet made is left unmade. */
+    /** Lets a cell go: what it made is despawned, and what it had not yet made is left unmade. */
     release(app: App, cell: GrownCell): void {
         cell.dead = true;
-        for (const f of this.far_) if (f.owner === cell.entity) this.far_.delete(f);
         if (cell.entity !== null && app.world.valid(cell.entity)) app.world.despawn(cell.entity);
-        const assets = app.getResource(Assets);
-        for (const handle of cell.handles) assets.releaseBuiltMesh(handle);
         cell.handles.length = 0;
-    }
-
-    /** Shows a far part where the eye is past what its kind draws as itself, and hides it nearer and further. */
-    private showFar(app: App): void {
-        if (this.far_.size === 0) return;
-        const world = app.world;
-        let eye: { x: number; z: number } | null = null;
-        for (const e of world.getEntitiesWithComponents([Camera, Transform])) {
-            if (!(world.get(e, Camera) as CameraData).isActive) continue;
-            const w = (world.get(e, Transform) as TransformData).worldPosition;
-            eye = { x: w.x, z: w.z };
-            break;
-        }
-        if (!eye) return;
-        for (const cell of this.far_) {
-            // A cell that spans a good part of the distances shows wherever any of it is past what its kind draws and within how far it goes.
-            const dx = Math.abs(cell.x - eye.x), dz = Math.abs(cell.z - eye.z);
-            const nearest = Math.hypot(Math.max(dx - cell.half, 0), Math.max(dz - cell.half, 0));
-            const furthest = Math.hypot(dx + cell.half, dz + cell.half);
-            for (const child of cell.children) {
-                const kind = cell.kinds[child.kind];
-                if (!kind) continue;
-                const show = furthest > kind.drawDistance && nearest < kind.farDistance;
-                if (show === child.shown || !world.valid(child.entity)) continue;
-                child.shown = show;
-                world.insert(child.entity, MeshRenderer, { ...(world.get(child.entity, MeshRenderer) as MeshRendererData), enabled: show });
-            }
-        }
     }
 
     /** One frame of it: the far versions shown where they should be, and the queue worked through while the frame's budget lasts, one piece at least. */
     step(app: App): void {
-        this.showFar(app);
         const bakes = bakesOf(app);
         let first = true;
         while (this.queue.length > 0 && (first || bakes.hasTime())) {

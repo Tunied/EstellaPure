@@ -57,12 +57,14 @@ transform, a renderer and a draw each. **`PlacedFoliage`** keeps them as data in
 | `kinds` | What each kind is made of: its `parts` (a `mesh`, a cheaper `lod1Mesh`, a `material`, a `texture`, a `tint` and whether it is `opaque`), the `lodDistance` past which the cheaper mesh stands in and the `drawDistance` past which it is not drawn, and a far version, `far` parts drawn from `drawDistance` out to `farDistance`. |
 | `records` | Where each plant stands: six numbers a plant, the kind's index, x, y, z in the entity's space, the turn about the vertical in radians, and the scale. |
 
-The cells round the streaming sources (or the eye) are grown, each as one mesh for every kind in it and part of that kind, and let go with their meshes past the
-distance. A cell appears at once and fills in over the frames after it, each mesh a few milliseconds of the frame's budget, nearest first. A mesh keeps every channel
-the artist made (a normal map, a second uv, a vertex colour); nothing is painted over it, so a plant is drawn with an ordinary material, not the wind's.
+The cells round the streaming sources (or the eye) are grown and let go past the distance. A cell appears at once and fills in over the frames after it, each kind
+and part of it a few microseconds of the frame's budget, nearest first. Each part is one entity that draws the part's mesh, shared by every cell, at every place a plant
+stands: a **`MeshInstances`** component holds the places (sixty-four bytes a plant) and the engine culls each plant against the view, takes the cheaper mesh for the plants
+past `lodDistance` and none past `drawDistance`. The geometry exists once however many plants there are, and draws that share a mesh and a material are one draw. A mesh
+keeps every channel the artist made (a normal map, a second uv, a vertex colour); nothing is painted over it, so a plant is drawn with an ordinary material, not the wind's.
 
-The far version is the hierarchical level of detail: a tree's crossed cards, baked to an atlas of their own, merged a cell at a time, shown where the eye is past
-what the kind draws as itself. It is cheap enough that the whole area stands at once. A kind with no far version is not drawn past `drawDistance`.
+The far version is the hierarchical level of detail: a tree's crossed cards, baked to an atlas of their own, a set of placements like the plants themselves that is drawn
+from `drawDistance` out to `farDistance` from the eye. It is cheap enough that the whole area stands at once. A kind with no far version is not drawn past `drawDistance`.
 
 A kind with no cards of its own can use its cheaper mesh as its far version and set `farKeep`, the share of its plants the far version draws (above 0 to 1):
 every n-th is kept, n the nearest whole number to 1 / `farKeep`, each grown by the square root of n (at most twofold) so the ground they cover is what it was.

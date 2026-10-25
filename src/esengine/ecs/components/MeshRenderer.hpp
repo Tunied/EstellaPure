@@ -171,6 +171,51 @@ struct MeshMorph {
 };
 
 // =============================================================================
+// MeshInstances Component
+// =============================================================================
+
+/**
+ * @brief Many placements of the one mesh a @ref MeshRenderer draws, as ONE renderable.
+ *
+ * @details The mesh stays one and resident; this holds where each copy stands. The collect culls each copy against the view, picks its mesh by
+ *          its distance from the eye and writes the survivors as the instances of one draw per mesh. The entity's Transform places the whole
+ *          set: an instance is relative to it.
+ */
+ES_COMPONENT()
+struct MeshInstances {
+    /** @brief The cheaper mesh that stands in past @ref lodDistance; invalid = the mesh itself at every distance. It
+     *         must carry the same channels as the entity's mesh, or it is not used. */
+    ES_PROPERTY(asset = mesh, tooltip="The cheaper mesh used past the LOD distance. Needs the same channels as the mesh.")
+    resource::MeshHandle lod1Mesh;
+
+    /** @brief Metres from the eye past which @ref lod1Mesh is drawn; 0 = never. */
+    ES_PROPERTY(tooltip="Distance (metres) past which the cheaper mesh is used. 0 = never.")
+    f32 lodDistance{0.0f};
+
+    /** @brief Metres from the eye BEFORE which an instance is not drawn; 0 = from the eye outward. A far version of a plant is a set
+     *         with this at the distance the near one ends, so the two hand over per instance without anything choosing between them. */
+    ES_PROPERTY(tooltip="Distance (metres) nearer than which an instance is not drawn. 0 = from the eye.")
+    f32 minDistance{0.0f};
+
+    /** @brief Metres from the eye past which an instance is not drawn; 0 = at any distance. A shadow map is cut by the
+     *         distance from the CAMERA, not from the light, so a caster too far to be seen does not cast. */
+    ES_PROPERTY(tooltip="Distance (metres) past which an instance is not drawn. 0 = unlimited.")
+    f32 drawDistance{0.0f};
+
+    /** @brief Sixteen floats an instance: the model's three rows (translation in .w) then its tint RGBA, which is
+     *         multiplied into the renderer's colour. Set by meshInstances_set, not by reflection. */
+    std::vector<f32> transforms;
+
+    /** @brief The corners of the instances' ORIGINS and the greatest scale among them: with the mesh's own reach, what
+     *         bounds the set. Recomputed on upload. */
+    glm::vec3 originMin{0.0f};
+    glm::vec3 originMax{0.0f};
+    f32 maxScale{1.0f};
+
+    MeshInstances() = default;
+};
+
+// =============================================================================
 // MeshLightmap Component
 // =============================================================================
 

@@ -536,6 +536,7 @@ EMSCRIPTEN_BINDINGS(esengine_renderer) {
     emscripten::function("renderer_entityVisibleToCamera", &esengine::renderer_entityVisibleToCamera);
     emscripten::function("renderer_submitTextBatch", &esengine::renderer_submitTextBatch);
     emscripten::function("meshRenderer_setGeometry", &esengine::meshRenderer_setGeometry);
+    emscripten::function("meshInstances_set", &esengine::meshInstances_set);
     emscripten::function("mesh_createFromChannels", &esengine::mesh_createFromChannels);
     emscripten::function("mesh_rematerializeFromChannels", &esengine::mesh_rematerializeFromChannels);
     emscripten::function("mesh_release", &esengine::mesh_release);

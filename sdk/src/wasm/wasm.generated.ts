@@ -647,6 +647,13 @@ export interface MeshCollider3D {
     enabled: boolean;
 }
 
+export interface MeshInstances {
+    lod1Mesh: number;
+    lodDistance: number;
+    minDistance: number;
+    drawDistance: number;
+}
+
 export interface MeshLightmap {
     lightmap: number;
     scaleOffset: Vec4;
@@ -1109,6 +1116,10 @@ export interface Registry {
     getMeshCollider3D(entity: Entity): MeshCollider3D;
     addMeshCollider3D(entity: Entity, component: MeshCollider3D): void;
     removeMeshCollider3D(entity: Entity): void;
+    hasMeshInstances(entity: Entity): boolean;
+    getMeshInstances(entity: Entity): MeshInstances;
+    addMeshInstances(entity: Entity, component: MeshInstances): void;
+    removeMeshInstances(entity: Entity): void;
     hasMeshLightmap(entity: Entity): boolean;
     getMeshLightmap(entity: Entity): MeshLightmap;
     addMeshLightmap(entity: Entity, component: MeshLightmap): void;
@@ -1271,6 +1282,7 @@ export interface ESEngineModule {
     Light: new () => Light;
     LightProbeVolume: new () => LightProbeVolume;
     MeshCollider3D: new () => MeshCollider3D;
+    MeshInstances: new () => MeshInstances;
     MeshLightmap: new () => MeshLightmap;
     MeshMorph: new () => MeshMorph;
     MeshRenderer: new () => MeshRenderer;

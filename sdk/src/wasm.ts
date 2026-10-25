@@ -447,6 +447,12 @@ export interface ESEngineModule {
         indicesPtr: number, indexCount: number
     ): void;
 
+    /**
+     * The placements of a MeshInstances component: sixteen f32 an instance (the model's three rows, then a tint). Empty clears the set.
+     * Reached through the generated engine surface (see foliage/plantGrowth.ts); declared here because embind registers it by hand for the web.
+     */
+    meshInstances_set?(registry: CppRegistry, entity: number, dataPtr: number, count: number): void;
+
     // Material API. Materials are engine-side data: the SDK compiles a shader
     // here, then pushes the resolved render state (flags pack depthTest bit 0,
     // depthWrite bit 1, CullMode bits 2-3) and the param values. Reached through

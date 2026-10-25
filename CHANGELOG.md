@@ -16,6 +16,7 @@ published separately; it ships inside the editor.
 
 ### Added
 
+- **Plants are instances of one mesh.** A generated world's and a `PlacedFoliage`'s plants no longer merge their vertices a cell at a time: a new `MeshInstances` component places one resident mesh at many places (sixty-four bytes a plant), and the engine culls each plant against the view, takes a cheaper mesh past a distance and draws none past another, as one instanced draw that cells sharing a mesh and a material merge into. The geometry exists once however many plants there are, so a planet's plants take a tenth of the memory and a fraction of the draws, and a cell is grown in microseconds instead of a few milliseconds.
 - **A project can keep folders out of its asset database.** `assetExclude` in the project manifest names folders (a source-art repository, docs, a server) the asset scan does not index, does not write a `.meta` into and the editor does not watch.
 - **Small plants need not cast a shadow.** A plant part takes `castShadows: false`, so ground cover too small to be worth a shadow-map draw is left out of the shadow pass.
 - **A project plugin that needs trust says so.** Opening a project whose editor plugin has not been trusted shows a notice with a way to review it, instead of leaving its missing pieces (a ground that is not drawn) unexplained.

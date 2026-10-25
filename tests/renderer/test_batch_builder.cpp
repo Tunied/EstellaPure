@@ -1786,6 +1786,34 @@ TEST_CASE("finalize: the same mesh drawn three times is one instanced draw") {
     CHECK(instanceMarks(h, cmd) == std::vector<f32>{2.0f, 3.0f, 1.0f});
 }
 
+/** Submits `count` instances of `key`'s mesh as ONE draw (a set of placements), the n-th record marked `mark + n`. */
+void pushMeshInstances(Harness& h, BatchDrawKey key, u32 count, f32 mark, f32 depth) {
+    const u32 at = h.pool.allocVertices(LayoutId::MeshInstance, key.instanceStride * count);
+    for (u32 n = 0; n < count; ++n) {
+        *reinterpret_cast<f32*>(h.pool.vertexData(LayoutId::MeshInstance) + at + n * key.instanceStride) = mark + static_cast<f32>(n);
+    }
+    key.instanceCount = count;
+    key.depth = depth;
+    pushBatchDraw(h.list, h.clips, at, 0, 0, 36, key);
+}
+
+TEST_CASE("finalize: draws that each place the mesh many times merge with every record carried") {
+    Harness h;
+    const BatchDrawKey key = meshKey(5);
+    // Three draws of 3, 2 and 4 instances; depths reorder them so no two runs are adjacent in the pool.
+    pushMeshInstances(h, key, 3, 10.0f, 10.0f);
+    pushMeshInstances(h, key, 2, 20.0f, 30.0f);
+    pushMeshInstances(h, key, 4, 30.0f, 20.0f);
+
+    h.list.finalize(h.pool);
+
+    REQUIRE(h.list.mergedDrawCallCount() == 1);
+    const DrawCommand& cmd = h.list.command(0);
+    CHECK(cmd.instance_count == 9);
+    // Nearest first: the draw at depth 30 (marks 20, 21), then 20 (30..33), then 10 (10..12), each whole.
+    CHECK(instanceMarks(h, cmd) == std::vector<f32>{20.0f, 21.0f, 30.0f, 31.0f, 32.0f, 33.0f, 10.0f, 11.0f, 12.0f});
+}
+
 /** Two mesh draws, the second differing only as `vary` says. How many draws survive. */
 u32 drawsAfterMerge(const std::function<void(BatchDrawKey&, u32&)>& vary) {
     Harness h;

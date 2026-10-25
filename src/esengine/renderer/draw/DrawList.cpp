@@ -33,11 +33,13 @@ void rewriteTexIndex(TransientBufferPool& pool, const DrawCommand& cmd, i32 slot
  * run needs it: the caller leaves the draws apart rather than draw stray bytes.
  */
 bool relocateInstance(TransientBufferPool& pool, DrawCommand& cmd, u32 expectedAt) {
-    const u32 at = pool.allocVertices(LayoutId::MeshInstance, cmd.instance_stride);
+    // Every record of the draw: one for an entity, as many as it has instances for a set of placements.
+    const u32 bytes = cmd.instance_stride * std::max(cmd.instance_count, 1u);
+    const u32 at = pool.allocVertices(LayoutId::MeshInstance, bytes);
     if (expectedAt != NO_EXPECTED_OFFSET && at != expectedAt) return false;
     // After the alloc: growing the staging can move it.
     u8* base = pool.vertexData(LayoutId::MeshInstance);
-    std::memmove(base + at, base + cmd.vertex_byte_offset, cmd.instance_stride);
+    std::memmove(base + at, base + cmd.vertex_byte_offset, bytes);
     cmd.vertex_byte_offset = at;
     return true;
 }
@@ -236,7 +238,7 @@ void DrawList::finalize(TransientBufferPool& pool) {
                     // One more instance in this run, and its own irradiance with
                     // it: the merge is the last place an instance's probe and its
                     // position in the run are both known.
-                    probe_slots_.push_back(commands_[i].probe_index);
+                    probe_slots_.insert(probe_slots_.end(), std::max(commands_[i].instance_count, 1u), commands_[i].probe_index);
                     didMerge = true;
                 } else {
                     blocker = BatchBreak::Instanced;
@@ -273,7 +275,7 @@ void DrawList::finalize(TransientBufferPool& pool) {
             run_first_.push_back(static_cast<u32>(run_entities_.size()));
             if (commands_[writeIdx].instance_count != 0) {
                 commands_[writeIdx].probe_base = static_cast<u32>(probe_slots_.size());
-                probe_slots_.push_back(commands_[writeIdx].probe_index);
+                probe_slots_.insert(probe_slots_.end(), commands_[writeIdx].instance_count, commands_[writeIdx].probe_index);
             }
             commands_[writeIdx].break_reason = blocker;
             ++breaks[static_cast<u32>(blocker)];

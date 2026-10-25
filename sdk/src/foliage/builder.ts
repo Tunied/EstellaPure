@@ -299,6 +299,37 @@ export function buildPlacedMesh(source: MeshData, plants: readonly Plant[]): Mes
     return { channels: source.channels, vertexStride: stride, vertexCount: count * plants.length, vertices, indices, aabbMin: min, aabbMax: max };
 }
 
+/** Floats a placement takes in the engine's `MeshInstances`: three rows of a model matrix (translation last), then a tint. */
+export const PLACEMENT_FLOATS = 16;
+
+/**
+ * Where each plant stands, as the placements of a `MeshInstances`: the same turn about the vertical, scale, lean with the ground and position that
+ * buildPlacedMesh bakes into vertices, left as a matrix for the engine to apply to the one mesh every plant of the kind shares. `tint` is
+ * multiplied into the renderer's colour per plant.
+ */
+export function buildPlacements(plants: readonly Plant[]): Float32Array {
+    const out = new Float32Array(plants.length * PLACEMENT_FLOATS);
+    const column = [0, 0, 0];
+    plants.forEach((plant, n) => {
+        const cos = Math.cos(plant.yaw), sin = Math.sin(plant.yaw), scale = plant.scale;
+        const lean = plant.up ? leanTo(plant.up) : null;
+        const at = n * PLACEMENT_FLOATS;
+        // The columns of the turn about the vertical, (cos, 0, -sin), (0, 1, 0) and (sin, 0, cos), each leant and scaled; the rows are written across them.
+        for (let c = 0; c < 3; c++) {
+            column[0] = c === 0 ? cos : c === 2 ? sin : 0;
+            column[1] = c === 1 ? 1 : 0;
+            column[2] = c === 0 ? -sin : c === 2 ? cos : 0;
+            if (lean) lean(column);
+            for (let row = 0; row < 3; row++) out[at + row * 4 + c] = column[row]! * scale;
+        }
+        out[at + 3] = plant.x;
+        out[at + 7] = plant.y;
+        out[at + 11] = plant.z;
+        out[at + 12] = out[at + 13] = out[at + 14] = out[at + 15] = 1;
+    });
+    return out;
+}
+
 /**
  * The mesh with its normals turned toward up by `amount` (0 leaves them, 1 makes them all up): a card that stands for a crown lit as a rounded thing
  * rather than as the flat it is. A copy; the source is shared by every plant of the kind.
