@@ -2538,6 +2538,36 @@
       ]
     },
     {
+      "name": "MeshInstances",
+      "source": "cpp",
+      "fields": [
+        {
+          "key": "lod1Mesh",
+          "type": "Asset<mesh>",
+          "default": "none",
+          "doc": "The cheaper mesh used past the LOD distance. Needs the same channels as the mesh."
+        },
+        {
+          "key": "lodDistance",
+          "type": "number",
+          "default": "0",
+          "doc": "Distance (metres) past which the cheaper mesh is used. 0 = never."
+        },
+        {
+          "key": "minDistance",
+          "type": "number",
+          "default": "0",
+          "doc": "Distance (metres) nearer than which an instance is not drawn. 0 = from the eye."
+        },
+        {
+          "key": "drawDistance",
+          "type": "number",
+          "default": "0",
+          "doc": "Distance (metres) past which an instance is not drawn. 0 = unlimited."
+        }
+      ]
+    },
+    {
       "name": "MeshLightmap",
       "source": "cpp",
       "fields": [
