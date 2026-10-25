@@ -106,7 +106,8 @@ void esMaterialVertex(inout vec3 local, inout vec3 localNormal, in vec2 uv) {
     float h = pnPageHeight(texel);
     vec3 dir = pnDirection(f, u0 + q.x * span, v0 + q.y * span);
     vec3 P = dir * (u_planetRadius + h);
-    local = (P - boxMin) / boxSize;
+    // The model is the node's box in the world, which includes where the planet stands: the point is the planet's, so its centre is added.
+    local = (u_planetCenter.xyz + P - boxMin) / boxSize;
     vec2 nxz = textureLod(u_heightPages, texel / u_atlasTexels, 0.0).ba * 2.0 - 1.0;
     vec3 nl = vec3(nxz.x, sqrt(max(1.0 - dot(nxz, nxz), 0.0)), nxz.y);
     vec3 n = nl.x * pnEu(f, dir) + nl.y * dir + nl.z * pnEv(f, dir);
@@ -180,7 +181,7 @@ fn esMaterialVertex(local : ptr<function, vec3f>, localNormal : ptr<function, ve
     let h = pnPageHeight(texel);
     let dir = pnDirection(f, u0 + q.x * span, v0 + q.y * span);
     let P = dir * (mc.u_planetRadius + h);
-    *local = (P - boxMin) / boxSize;
+    *local = (mc.u_planetCenter.xyz + P - boxMin) / boxSize;
     let nxz = textureSampleLevel(u_heightPages, u_heightPages_s, texel / mc.u_atlasTexels, 0.0).ba * 2.0 - vec2f(1.0);
     let nl = vec3f(nxz.x, sqrt(max(1.0 - dot(nxz, nxz), 0.0)), nxz.y);
     let n = nl.x * pnEu(f, dir) + nl.y * dir + nl.z * pnEv(f, dir);
