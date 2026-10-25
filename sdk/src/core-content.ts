@@ -796,8 +796,9 @@ export {
 // Terrain and Foliage are optional modules (`esengine/terrain`, `esengine/foliage` install them). Their API stays reachable from
 // here: a shared chunk is side-effect-free, so what nothing uses is not bundled.
 export {
-    Terrain, TerrainExtent, Terrains, TerrainsRes, TerrainPlugin, terrainPlugin, paintWeights, NOISE_PROVIDER, type TerrainData, type TerrainStatus,
+    Terrain, TerrainExtent, Terrains, TerrainsRes, TerrainPlugin, terrainPlugin, NOISE_PROVIDER, type TerrainData, type TerrainStatus,
 } from './terrain/terrainPlugin';
+export { paintWeights } from './terrain/paint';
 export {
     Foliage, FoliageField, FoliageRes, FoliagePlugin, foliagePlugin, type FoliageData,
 } from './foliage/foliagePlugin';

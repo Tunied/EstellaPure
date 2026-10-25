@@ -13,7 +13,8 @@
  *              be run over ground that has no edge, so its wear is the noise's own: each octave is damped where the octaves under it are
  *              already steep, which leaves smooth valleys between sharp ridges and gullies down the slopes.
  */
-import { paintWeights, type TerrainData } from './terrainPlugin';
+import { paintWeights } from './paint';
+import type { TerrainData } from './terrainPlugin';
 import { sampleHeight, terrainNormal, type Heightfield } from './heightfield';
 
 /** The ground a terrain draws, as the pages and the CPU read it. */

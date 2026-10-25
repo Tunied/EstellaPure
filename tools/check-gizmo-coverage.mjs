@@ -110,6 +110,9 @@ const DISPOSITION = {
 
   // The component's own drawing is the picture; an outline round it would trace
   // what is already on screen.
+  'PlacedFoliage.sizeX': ['renders', 'the area the plants are placed over is the outline'],
+  'PlacedFoliage.sizeZ': ['renders', 'the area the plants are placed over is the outline'],
+  'PlacedFoliage.cellSize': ['no-place', 'the side of the cells the area is cut into, not a region of the entity'],
   'Terrain.sizeX': ['renders', 'the ground drawn at it is the outline'],
   'Terrain.sizeZ': ['renders', 'the ground drawn at it is the outline'],
   'Terrain.height': ['renders', 'the ground drawn at it is the outline'],

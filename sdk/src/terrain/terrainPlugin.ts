@@ -19,7 +19,7 @@ import type { App, Plugin } from '../app/app';
 import { defineSystem, Schedule } from '../ecs/system';
 import { defineResource } from '../ecs/resource';
 import {
-    defineComponent, Camera, MeshRenderer, Transform,
+    defineComponent, getComponent, Camera, MeshRenderer, Transform,
     type ComponentDef, type CameraData, type MeshRendererData, type TransformData,
 } from '../ecs/component';
 import { Assets } from '../asset/AssetPlugin';
@@ -38,6 +38,7 @@ import { bakesOf } from '../runtime/bakes';
 import type { Color, Entity } from '../types';
 import { erosionJob, heightfieldFromPixels, HeightmapFormat, type Heightfield } from './heightfield';
 import { findGroundPath, type ReachOptions, type ReachResult } from './reach';
+import { paintWeights } from './paint';
 import { FieldSource, ModifiedSource, type TerrainModifier, type TerrainSource } from './source';
 import { levelRange, nodeKey, parentOf, selectNodes, type QuadtreeParams, type TerrainNode } from './quadtree';
 import { makePage, PageTable, PAGE_SIDE, PAGE_TEXELS, PATCH_CELLS, type PageImage, type Repaint } from './pages';
@@ -48,7 +49,6 @@ import { packLayers, type LayerImage, type LayerSource, type TerrainLayerDef } f
 import { TerrainSurface, TILE_CELLS, type SurfaceTile } from './surface';
 import { collisionGeometryOf } from '../runtime/collisionGeometry';
 import { chunksOf, ProceduralChunksRes, type ChunkSource } from '../residency/chunks';
-import { CharacterController3D, RigidBody3D, type RigidBody3DData } from '../physics3d/Physics3DComponents';
 
 /** The engine's own provider of ground without end: seeded noise of the world's position. */
 export const NOISE_PROVIDER = 'estella:noise';
@@ -175,21 +175,6 @@ export const Terrain: ComponentDef<TerrainData> = defineComponent<TerrainData>('
         layerColor3: { label: 'Rock', category: 'Layers' },
     },
 });
-
-const smooth = (a: number, b: number, x: number): number => {
-    const t = Math.min(Math.max((x - a) / (b - a || 1e-6), 0), 1);
-    return t * t * (3 - 2 * t);
-};
-
-/** The weights of grass, dirt, snow and rock at a point of ground, by how high (0 to 1 of the terrain) and how steep it is. */
-export function paintWeights(h: number, ny: number, t: Pick<TerrainData, 'rockSlope' | 'dirtHeight' | 'snowHeight'>): [number, number, number, number] {
-    const rock = smooth(t.rockSlope - 0.08, t.rockSlope + 0.08, 1 - ny);
-    const snow = smooth(t.snowHeight - 0.06, t.snowHeight + 0.06, h) * (1 - rock * 0.85);
-    const dirt = smooth(t.dirtHeight - 0.15, t.dirtHeight + 0.15, h) * (1 - snow) * (1 - rock);
-    const grass = (1 - rock) * (1 - snow) * (1 - dirt);
-    const sum = grass + dirt + snow + rock || 1;
-    return [grass / sum, dirt / sum, snow / sum, rock / sum];
-}
 
 /** The side of the atlases the pages are kept in, in texels: 900 pages of 67 by 67. */
 const ATLAS_SIZE = 2048;
@@ -546,15 +531,21 @@ function movers(app: App): ChunkSource[] {
     const world = app.world;
     world.ensureTransformsComposed();
     const out: ChunkSource[] = [];
-    for (const e of world.getEntitiesWithComponents([RigidBody3D, Transform])) {
-        const body = world.get(e, RigidBody3D) as RigidBody3DData;
-        if (!body.enabled || body.bodyType === 0) continue;
-        const p = (world.get(e, Transform) as TransformData).worldPosition;
-        out.push({ x: p.x, z: p.z });
+    // By name: a project without 3D physics has neither component, and the terrain must not carry the solver to look for them.
+    const rigid = getComponent('RigidBody3D'), character = getComponent('CharacterController3D');
+    if (rigid) {
+        for (const e of world.getEntitiesWithComponents([rigid, Transform])) {
+            const body = world.get(e, rigid) as { enabled: boolean; bodyType: number };
+            if (!body.enabled || body.bodyType === 0) continue;
+            const p = (world.get(e, Transform) as TransformData).worldPosition;
+            out.push({ x: p.x, z: p.z });
+        }
     }
-    for (const e of world.getEntitiesWithComponents([CharacterController3D, Transform])) {
-        const p = (world.get(e, Transform) as TransformData).worldPosition;
-        out.push({ x: p.x, z: p.z });
+    if (character) {
+        for (const e of world.getEntitiesWithComponents([character, Transform])) {
+            const p = (world.get(e, Transform) as TransformData).worldPosition;
+            out.push({ x: p.x, z: p.z });
+        }
     }
     return out;
 }

@@ -2892,6 +2892,10 @@ export const NOTED = {
     {"note":"A game's generated ground shows in the editor."},
   "fix(scaffold): a new project's gitignore keeps its plugins and platform profiles versioned, and ignores only what the editor generates":
     {"note":"A game's generated ground shows in the editor."},
+  "feat(render): a MeshInstances component draws one mesh at many places, and plants are grown as instances of it":
+    {"note":"Plants are instances of one mesh."},
+  "fix(ci): the static gates earlier reds hid pass again":
+    {"internal":"Gate baselines and a module split; nothing a creator sees."},
   "feat(assets): a project names folders its asset database leaves alone":
     {"note":"A project can keep folders out of its asset database."},
   "feat(worldgen): a plant part may cast no shadow, and far cells are capped at two cells wide":

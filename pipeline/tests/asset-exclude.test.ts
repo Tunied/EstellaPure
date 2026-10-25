@@ -15,7 +15,7 @@ import { parseManifest } from '../src/project/format';
 
 let root: string;
 beforeEach(() => { root = mkdtempSync(path.join(tmpdir(), 'estella-exclude-')); });
-afterEach(() => { rmSync(root, { recursive: true, force: true }); });
+afterEach(() => { rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 }); });
 
 function put(rel: string, body = 'x'): void {
   const abs = path.join(root, rel);
