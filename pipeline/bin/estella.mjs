@@ -12,7 +12,9 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PIPELINE = path.join(HERE, '..');
 const REPO = path.join(PIPELINE, '..');
 
-const USAGE = `usage: node pipeline/bin/estella.mjs export <projectDir> [options]
+const USAGE = `usage: node pipeline/bin/estella.mjs create <template> <dir> [--name <project name>]
+       node pipeline/bin/estella.mjs templates
+       node pipeline/bin/estella.mjs export <projectDir> [options]
        node pipeline/bin/estella.mjs import-model <file.gltf|file.glb|file.fbx> [outDir]
                                      [--project <dir>] [--scale <n>]
                                      [--specular-map color|orm] [--lightmap-uv] [--lods <0-3>]
@@ -82,6 +84,15 @@ function parseArgs(argv) {
   if (command === '--help' || command === '-h' || command === 'help') {
     console.log(USAGE);
     process.exit(0);
+  }
+  if (command === 'templates') return { command };
+  if (command === 'create') {
+    const named = rest.indexOf('--name');
+    if (!projectDir || !rest[0] || rest[0].startsWith('--')) {
+      console.error('create requires a template and a folder: node pipeline/bin/estella.mjs create <template> <dir> [--name <project name>]');
+      process.exit(2);
+    }
+    return { command, template: projectDir, dest: path.resolve(rest[0]), name: named >= 0 ? rest[named + 1] : undefined };
   }
   if (command === 'bake-scene') {
     if (!projectDir) {
@@ -705,6 +716,30 @@ function engineRuntimeDir(platform) {
 }
 
 const opts = parseArgs(process.argv.slice(2));
+
+// The editor's New Project gallery and these two are one implementation (src/project/scaffold.ts): the same templates, the same files.
+if (opts.command === 'templates' || opts.command === 'create') {
+  const { mod, cleanup } = await loadPipeline(path.join(PIPELINE, 'src/project/scaffold.ts'), 'scaffold.mjs');
+  try {
+    const roots = [{ root: path.join(REPO, 'templates'), kind: 'starter' }, { root: path.join(REPO, 'examples'), kind: 'example' }];
+    const found = await mod.listTemplates(roots);
+    if (opts.command === 'templates') {
+      const width = Math.max(...found.map((t) => path.basename(t.dir).length));
+      for (const t of found) console.log(`${path.basename(t.dir).padEnd(width)}  ${t.kind.padEnd(7)}  ${t.description ?? t.name}`);
+    } else {
+      const template = found.find((t) => path.basename(t.dir) === opts.template);
+      if (!template) throw new Error(`no template "${opts.template}"; \`templates\` lists them`);
+      const root = await mod.createFromTemplate(template.dir, path.dirname(opts.dest), path.basename(opts.dest), opts.name ?? path.basename(opts.dest));
+      console.log(`created ${path.relative(process.cwd(), root) || root} from ${opts.template}`);
+      console.log('Open it in the Estella editor once (it stages the SDK types the project\'s tsconfig points at), or export it with:');
+      console.log(`  node pipeline/bin/estella.mjs export ${path.relative(process.cwd(), root) || root}`);
+    }
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 1;
+  } finally { cleanup(); }
+  process.exit(process.exitCode ?? 0);
+}
 
 if (opts.command === 'package-openpaas') {
   const { mod, cleanup } = await loadPipeline(path.join(PIPELINE, 'src/export/openpaasPackage.ts'), 'openpaasPackage.mjs');

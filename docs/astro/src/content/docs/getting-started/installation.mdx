@@ -74,3 +74,17 @@ import { Tabs, TabItem, Steps, Aside } from '@astrojs/starlight/components';
     for the full build reference.
   </TabItem>
 </Tabs>
+
+## Start a project from the command line
+
+The editor's New project gallery and the command line make a project the same way, from the same templates, so a project can be started
+without opening the editor, in a script, or on a build machine:
+
+```bash
+node pipeline/bin/estella.mjs templates                          # what there is to start from
+node pipeline/bin/estella.mjs create 3d-starter ./my-game --name "My Game"
+node pipeline/bin/estella.mjs export ./my-game                   # a web build, no editor
+```
+
+`create` copies the template into the folder, names the project, and adds the `package.json` and `.gitignore` every project has. Open the
+project in the editor once to stage the SDK types its `tsconfig.json` points at; exporting needs nothing more.

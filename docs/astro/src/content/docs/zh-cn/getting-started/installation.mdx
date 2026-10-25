@@ -69,3 +69,15 @@ import { Tabs, TabItem, Steps, Aside } from '@astrojs/starlight/components';
     [CONTRIBUTING.md](https://github.com/esengine/estella/blob/master/CONTRIBUTING.md)。
   </TabItem>
 </Tabs>
+
+## 用命令行新建项目
+
+编辑器里的"新建项目"画廊和命令行用同一份实现、同一批模板创建项目,所以不打开编辑器、在脚本里或在构建机上也能开一个项目:
+
+```bash
+node pipeline/bin/estella.mjs templates                          # 看有哪些模板
+node pipeline/bin/estella.mjs create 3d-starter ./my-game --name "My Game"
+node pipeline/bin/estella.mjs export ./my-game                   # 不开编辑器导出网页版
+```
+
+`create` 把模板复制进文件夹、写好项目名,并补上每个项目都有的 `package.json` 和 `.gitignore`。在编辑器里打开一次项目,会暂存 `tsconfig.json` 指向的 SDK 类型;只导出的话不需要这一步。
