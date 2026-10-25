@@ -2914,6 +2914,8 @@ export const NOTED = {
     {"note":"A far world is planned sparsely, and a failed asset load is tried again."},
   "fix(editor): the editor's own eye shows the scene's post-processing, so the sky is in the viewport":
     {"note":"The editor's own eye shows the scene's post-processing."},
+  "feat(terrain): the maths of ground on a cube sphere and the nodes drawn round an eye":
+    {"internal":"The first layer of spherical terrain: pure maths and node selection, not yet drawn."},
   "feat(assets): a project names folders its asset database leaves alone":
     {"note":"A project can keep folders out of its asset database."},
   "feat(worldgen): a plant part may cast no shadow, and far cells are capped at two cells wide":
