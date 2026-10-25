@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
 import { defineSystem } from '../ecs/system';
+import type { App } from '../app/app';
+import { EditorView, editorViewEye } from '../camera/EditorView';
+import { EDITOR_VIEW_ENTITY } from '../camera/uiLayoutRect';
 import { defineResource, Res } from '../ecs/resource';
 import { Query } from '../ecs/query';
 import type { Entity } from '../types';
@@ -264,6 +267,25 @@ function applyBlendedEffects(
     }
 }
 
+/** The effects the scene's volumes resolve to for an eye at (x, y, z): blended, then moved by the weather, the time of day, the clouds and the water. */
+export function effectsAt(volumes: { data: PostProcessVolumeData; tx: VolumeTransform }[], x: number, y: number, z: number): ResolvedEffects {
+    const activeVolumes: ActiveVolume[] = [];
+    for (const { data, tx } of volumes) {
+        const factor = computeVolumeFactor(data, tx, x, y, z);
+        if (factor > 0) activeVolumes.push({ data, factor });
+    }
+    const blended = activeVolumes.length > 0 ? blendVolumeEffects(activeVolumes) : new Map() as ResolvedEffects;
+    // The weather, if a Weather component is in the scene: scales and tints what the volumes resolved, and brings the effects a weather implies.
+    const weather = currentWeather();
+    if (weather) applyWeatherToEffects(blended, weather, currentWeatherDrive());
+    const clock = currentTimeOfDay();
+    if (clock) applyTimeToEffects(blended, clock, currentTimeDrive(), timeLightsApplied());
+    applyCloudsToFog(blended);
+    // A camera under water: the effect the water module says it needs.
+    applyUnderwaterToEffects(blended, currentUnderwater());
+    return blended;
+}
+
 export const postProcessVolumeSystem = defineSystem(
     [Res(PostProcess), Query(PostProcessVolume, Transform), Query(Camera, Transform)],
     (
@@ -282,36 +304,37 @@ export const postProcessVolumeSystem = defineSystem(
         // Recomputed per camera: a local volume's weight depends on the camera position.
         for (const [cameraEntity, cameraData, cameraTransform] of cameraQuery) {
             if (!cameraData.isActive) continue;
-
-            const cx = cameraTransform.position.x;
-            const cy = cameraTransform.position.y;
-            const cz = cameraTransform.position.z;
-
-            const activeVolumes: ActiveVolume[] = [];
-            for (const { data, tx } of volumes) {
-                const factor = computeVolumeFactor(data, tx, cx, cy, cz);
-                if (factor > 0) activeVolumes.push({ data, factor });
-            }
-
-            const blended = activeVolumes.length > 0
-                ? blendVolumeEffects(activeVolumes)
-                : new Map() as ResolvedEffects;
-
-            // The weather, if a Weather component is in the scene: scales and tints what the volumes resolved, and
-            // brings the effects a weather implies.
-            const weather = currentWeather();
-            if (weather) applyWeatherToEffects(blended, weather, currentWeatherDrive());
-            const clock = currentTimeOfDay();
-            if (clock) applyTimeToEffects(blended, clock, currentTimeDrive(), timeLightsApplied());
-            applyCloudsToFog(blended);
-            // A camera under water: the effect the water module says it needs.
-            applyUnderwaterToEffects(blended, currentUnderwater());
-
-            applyBlendedEffects(api, cameraEntity, blended);
+            const p = cameraTransform.position;
+            applyBlendedEffects(api, cameraEntity, effectsAt(volumes, p.x, p.y, p.z));
         }
     },
     { name: 'PostProcessVolumeSystem' }
 );
+
+/**
+ * The same for the editor's own eye, which is not a camera entity: while the editor looks at the scene through it, the scene's volumes are resolved at the eye
+ * and bound to it, so the sky, the haze and the look are in the viewport as they are in the game. When it stops looking (the game's camera is) its stack is let go.
+ */
+export function editorViewVolumeSystem(app: App) {
+    return defineSystem(
+        [Res(PostProcess), Query(PostProcessVolume, Transform)],
+        (api: PostProcessAPI, volumeQuery: Iterable<[Entity, PostProcessVolumeData, TransformData]>) => {
+            const view = app.hasResource(EditorView) ? app.getResource(EditorView) : null;
+            const eye = EDITOR_VIEW_ENTITY as Entity;
+            if (!view || !view.active || !app.getResource(PostProcessVolumeConfigResource).enabled) {
+                if (api.volumeStacks.has(eye)) applyBlendedEffects(api, eye, new Map() as ResolvedEffects);
+                return;
+            }
+            const volumes: { data: PostProcessVolumeData; tx: VolumeTransform }[] = [];
+            for (const [_entity, volumeData, transform] of volumeQuery) {
+                volumes.push({ data: volumeData, tx: { x: transform.position.x, y: transform.position.y, z: transform.position.z } });
+            }
+            const at = view.perspective ? editorViewEye(view) : { x: view.x, y: view.y, z: view.z };
+            applyBlendedEffects(api, eye, effectsAt(volumes, at.x, at.y, at.z));
+        },
+        { name: 'EditorViewVolumeSystem' },
+    );
+}
 
 export function cleanupVolumeSystem(api: PostProcessAPI): void {
     for (const [camera, stack] of api.volumeStacks) {

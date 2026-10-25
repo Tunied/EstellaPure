@@ -2912,6 +2912,8 @@ export const NOTED = {
     {"note":"A quality level sets how far plants keep their detail."},
   "feat(worldgen): a layer plans the far versions of its plants sparsely, and a failed asset load is tried again":
     {"note":"A far world is planned sparsely, and a failed asset load is tried again."},
+  "fix(editor): the editor's own eye shows the scene's post-processing, so the sky is in the viewport":
+    {"note":"The editor's own eye shows the scene's post-processing."},
   "feat(assets): a project names folders its asset database leaves alone":
     {"note":"A project can keep folders out of its asset database."},
   "feat(worldgen): a plant part may cast no shadow, and far cells are capped at two cells wide":

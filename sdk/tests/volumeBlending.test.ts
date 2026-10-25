@@ -463,3 +463,17 @@ describe('volumeBlending', () => {
         });
     });
 });
+
+describe('the effects the scene resolves for an eye that is not a camera entity', () => {
+    it('are the global volume\'s anywhere, and a local volume\'s only where the eye is inside it', async () => {
+        const { effectsAt } = await import('../src/postprocess/volumeSystem');
+        const volume = (isGlobal: boolean, type: string) => ({
+            isGlobal, priority: 0, weight: 1, blendDistance: 0, shape: 'box', size: { x: 10, y: 10, z: 10 },
+            effects: [{ type, enabled: true, uniforms: {}, colors: {}, textures: {} }],
+        }) as never;
+        const tx = { x: 0, y: 0, z: 0 };
+        const volumes = [{ data: volume(true, 'skyAtmosphere'), tx }, { data: volume(false, 'bloom'), tx: { x: 500, y: 0, z: 0 } }];
+        expect([...effectsAt(volumes, 4000, 20, 4000).keys()]).toEqual(['skyAtmosphere']);
+        expect([...effectsAt(volumes, 500, 0, 0).keys()].sort()).toEqual(['bloom', 'skyAtmosphere']);
+    });
+});

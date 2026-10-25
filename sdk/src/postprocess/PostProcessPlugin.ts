@@ -4,7 +4,7 @@ import type { App, Plugin } from '../app/app';
 import { Schedule } from '../ecs/system';
 import { Assets } from '../asset/AssetPlugin';
 import { PostProcess, PostProcessAPI } from './PostProcessAPI';
-import { postProcessVolumeSystem, cleanupVolumeSystem, setVolumeTextureResolver, setBuiltinTextureMaker, PostProcessVolumeConfigResource } from './volumeSystem';
+import { postProcessVolumeSystem, editorViewVolumeSystem, cleanupVolumeSystem, setVolumeTextureResolver, setBuiltinTextureMaker, PostProcessVolumeConfigResource } from './volumeSystem';
 import { createTextureFromPixels } from '../runtime/runtimeAssets';
 import { TextureContent } from '../wasm';
 import { weatherSystem, resetWeatherSystem } from './weatherSystem';
@@ -32,6 +32,7 @@ export class PostProcessPlugin implements Plugin {
         // The weather first: the volumes read what it has decided.
         app.addSystemToSchedule(Schedule.PostUpdate, weatherSystem);
         app.addSystemToSchedule(Schedule.PostUpdate, postProcessVolumeSystem);
+        app.addSystemToSchedule(Schedule.PostUpdate, editorViewVolumeSystem(app));
     }
 
     cleanup(app?: App): void {
