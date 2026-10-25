@@ -3808,6 +3808,118 @@
       ]
     },
     {
+      "name": "Planet",
+      "source": "ts",
+      "fields": [
+        {
+          "key": "radius",
+          "type": "number",
+          "default": "4000",
+          "doc": "The planet's radius in metres. The planet stands at its entity, unrotated and unscaled.",
+          "range": "≥ 1"
+        },
+        {
+          "key": "provider",
+          "type": "string",
+          "default": "empty",
+          "doc": "The generator the ground is made by, registered with registerPlanetProvider. The same provider, world, seed and version are the same ground everywhere."
+        },
+        {
+          "key": "world",
+          "type": "string",
+          "default": "empty",
+          "doc": "The world (a planet) the ground belongs to, as the game names it; handed to the provider."
+        },
+        {
+          "key": "generatorVersion",
+          "type": "number",
+          "default": "1",
+          "doc": "The generator version the planet was made with. A version the provider no longer has fails the planet rather than growing other ground under what was built on it.",
+          "range": "≥ 1, step 1"
+        },
+        {
+          "key": "seed",
+          "type": "number",
+          "default": "1",
+          "doc": "Another seed is another planet.",
+          "range": "step 1"
+        },
+        {
+          "key": "cellSize",
+          "type": "number",
+          "default": "1.5",
+          "doc": "The finest cell of the ground's mesh, in metres: what it is drawn at near the eye. Further off the cells double, level by level.",
+          "range": "≥ 0.01"
+        },
+        {
+          "key": "detail",
+          "type": "number",
+          "default": "1.5",
+          "doc": "Above 1 the finest cells reach further out before the ground coarsens.",
+          "range": "0.25–8, step 0.05"
+        },
+        {
+          "key": "layerColor0",
+          "type": "Color",
+          "default": "#477533"
+        },
+        {
+          "key": "layerColor1",
+          "type": "Color",
+          "default": "#735c3d"
+        },
+        {
+          "key": "layerColor2",
+          "type": "Color",
+          "default": "#edf2fa"
+        },
+        {
+          "key": "layerColor3",
+          "type": "Color",
+          "default": "#66615c"
+        },
+        {
+          "key": "macroScale",
+          "type": "number",
+          "default": "90",
+          "doc": "The size, in metres, of the ground's own wander in brightness.",
+          "range": "≥ 1"
+        },
+        {
+          "key": "macroVariation",
+          "type": "number",
+          "default": "0.35",
+          "doc": "How strongly the ground's brightness wanders.",
+          "range": "0–1, step 0.01"
+        }
+      ],
+      "animatable": [
+        "radius",
+        "generatorVersion",
+        "seed",
+        "cellSize",
+        "detail",
+        "layerColor0.r",
+        "layerColor0.g",
+        "layerColor0.b",
+        "layerColor0.a",
+        "layerColor1.r",
+        "layerColor1.g",
+        "layerColor1.b",
+        "layerColor1.a",
+        "layerColor2.r",
+        "layerColor2.g",
+        "layerColor2.b",
+        "layerColor2.a",
+        "layerColor3.r",
+        "layerColor3.g",
+        "layerColor3.b",
+        "layerColor3.a",
+        "macroScale",
+        "macroVariation"
+      ]
+    },
+    {
       "name": "PointJoint3D",
       "source": "ts",
       "fields": [

@@ -23,3 +23,10 @@ import { registerTerrainSupport } from './terrainSupport';
 
 registerTerrainSupport();
 export { paintWeights } from './paint';
+export { Planet, Planets, PlanetPlugin, planetPlugin, type PlanetData, type PlanetStatus } from './planetPlugin';
+export { registerPlanetProvider, planetProvider, type PlanetProvider, type PlanetRegion } from './planetProvider';
+export { makePlanetPage, tangentFrame, type PlanetPageSource } from './planetPages';
+export {
+    FACES, direction, faceOf, levelsFor, nodeAt, nodeBound, nodeDistance, nodePoint, nodeRect, nodeSpan, selectSphereNodes, sphereNodeKey, sphereRange,
+    type SphereNode, type SphereTreeParams,
+} from './sphere';

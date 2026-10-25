@@ -115,3 +115,43 @@ describe('the nodes drawn round an eye', () => {
         expect(sphereNodeKey(nd)).toBe(`${face}:2:${nd.ix}:${nd.iz}`);
     });
 });
+
+describe('a planet node\'s page', () => {
+    const src = (height: (d: [number, number, number]) => number) => ({
+        provider: {
+            id: 't', versions: [1], range: () => [-50, 250] as [number, number],
+            sample: ({ directions, count }: { directions: Float32Array; count: number }) => {
+                const heights = new Float32Array(count);
+                for (let i = 0; i < count; i++) heights[i] = height([directions[i * 3]!, directions[i * 3 + 1]!, directions[i * 3 + 2]!]);
+                return { heights };
+            },
+        },
+        world: 'w', seed: 1, version: 1, radius: planet.radius, levels, minHeight: -50, maxHeight: 250,
+    });
+    const decode = (page: { heights: Uint8Array }, k: number) => (page.heights[k * 4]! * 256 + page.heights[k * 4 + 1]!) / 65535 * 300 - 50;
+
+    it('holds the height the provider gave, over the range, and says up is up on level ground', async () => {
+        const { makePlanetPage } = await import('../src/terrain/planetPages');
+        const { PAGE_SIDE } = await import('../src/terrain/pages');
+        const page = await makePlanetPage(src(() => 40), { face: 2, level: 3, ix: 5, iz: 9 });
+        const k = Math.floor(PAGE_SIDE / 2) * PAGE_SIDE + Math.floor(PAGE_SIDE / 2);
+        expect(decode(page, k)).toBeCloseTo(40, 2);
+        expect(page.min).toBeCloseTo(40, 3);
+        expect(page.max).toBeCloseTo(40, 3);
+        // The normal is stored in the frame at the sample: x and z are the tangents, so level ground leans neither way (128 of 255).
+        expect(Math.abs(page.heights[k * 4 + 2]! - 128)).toBeLessThanOrEqual(1);
+        expect(Math.abs(page.heights[k * 4 + 3]! - 128)).toBeLessThanOrEqual(1);
+    });
+
+    it('leans the normal away from a rising slope, whichever face the node is on', async () => {
+        const { makePlanetPage } = await import('../src/terrain/planetPages');
+        const { PAGE_SIDE } = await import('../src/terrain/pages');
+        for (const face of [2, 4, 5]) {
+            // Ground that rises with the direction's x, steeply: on these faces x runs along u, so the normal leans in the frame's x.
+            const page = await makePlanetPage(src((d) => 2000 * d[0]), { face, level: 4, ix: 3, iz: 4 });
+            const k = Math.floor(PAGE_SIDE / 2) * PAGE_SIDE + Math.floor(PAGE_SIDE / 2);
+            const leanX = page.heights[k * 4 + 2]! - 128, leanZ = page.heights[k * 4 + 3]! - 128;
+            expect(Math.hypot(leanX, leanZ)).toBeGreaterThan(2);
+        }
+    });
+});

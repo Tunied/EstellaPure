@@ -2916,6 +2916,8 @@ export const NOTED = {
     {"note":"The editor's own eye shows the scene's post-processing."},
   "feat(terrain): the maths of ground on a cube sphere and the nodes drawn round an eye":
     {"internal":"The first layer of spherical terrain: pure maths and node selection, not yet drawn."},
+  "feat(terrain): a Planet component draws ground on a sphere from a provider that answers by direction":
+    {"note":"A `Planet`: ground on a sphere."},
   "feat(assets): a project names folders its asset database leaves alone":
     {"note":"A project can keep folders out of its asset database."},
   "feat(worldgen): a plant part may cast no shadow, and far cells are capped at two cells wide":

@@ -799,6 +799,11 @@ export {
     Terrain, TerrainExtent, Terrains, TerrainsRes, TerrainPlugin, terrainPlugin, NOISE_PROVIDER, type TerrainData, type TerrainStatus,
 } from './terrain/terrainPlugin';
 export { paintWeights } from './terrain/paint';
+export { Planet, Planets, PlanetPlugin, planetPlugin, type PlanetData, type PlanetStatus } from './terrain/planetPlugin';
+export { registerPlanetProvider, planetProvider, type PlanetProvider, type PlanetRegion } from './terrain/planetProvider';
+export {
+    FACES, direction, faceOf, levelsFor, nodeAt, nodePoint, nodeRect, selectSphereNodes, sphereNodeKey, type SphereNode, type SphereTreeParams,
+} from './terrain/sphere';
 export {
     Foliage, FoliageField, FoliageRes, FoliagePlugin, foliagePlugin, type FoliageData,
 } from './foliage/foliagePlugin';

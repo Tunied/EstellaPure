@@ -253,6 +253,37 @@ A version names an algorithm for good. A saved world keeps `generatorVersion`; w
 the old one, so what was built on the old ground still stands on it. The engine's noise is `estella:noise`, version 1. A provider
 with `heightAt` answers a point at once; without it a point is answered from small sampled tiles at the finest cell size.
 
+## A planet
+
+A **`Planet`** is ground on a sphere. It is the same machinery as the ground above with a round world under it: a cube whose six faces are each a quadtree, every point pushed out to
+the radius, so the finest cells are under the eye and a planet seen from far off is a handful of coarse nodes. The same ground is drawn from the surface and from space, with nothing
+to switch between.
+
+| Field | What it does |
+|---|---|
+| `radius` | The planet's radius in metres. The planet stands at its entity, unrotated and unscaled. |
+| `provider`, `world`, `generatorVersion`, `seed` | The generator the ground is made by (`registerPlanetProvider`), the world it belongs to as the game names it, its version and its seed. The same four are the same ground everywhere. |
+| `cellSize`, `detail` | The finest cell of the ground's mesh in metres, and how far out the finest cells reach (above 1 is further). |
+| `layerColor0`–`3`, `macroScale`, `macroVariation` | The four layers' colours (grass, dirt, snow, rock), and the wander in brightness laid over them. |
+
+A planet's provider answers for **directions**, not positions: it is handed unit directions from the planet's centre and the radius they are on, and gives back each one's height above the radius
+and, if it paints, four layer weights. A sphere has no x and z, so a generator reads three-dimensional noise at the point's place, which has no seam and no pole.
+
+```typescript
+registerPlanetProvider({
+    id: 'my-game:planet',
+    versions: [1],
+    range: () => [-40, 200],
+    sample({ seed, radius, directions, count }) {
+        const heights = new Float32Array(count);
+        for (let i = 0; i < count; i++) heights[i] = myHeight(seed, radius, directions[i * 3]!, directions[i * 3 + 1]!, directions[i * 3 + 2]!);
+        return { heights };
+    },
+});
+```
+
+This is the first slice of round worlds: it draws the ground. Collision, the layers' textures, the sea, a sky that follows the horizon round and gravity toward the centre are not in it yet.
+
 ## Limits
 
 - **Collision is the finest level.** Far off the ground is drawn coarser than it collides, which is unseen from where anything collides

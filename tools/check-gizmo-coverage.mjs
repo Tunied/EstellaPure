@@ -114,6 +114,8 @@ const DISPOSITION = {
   'MeshInstances.minDistance': ['no-place', 'a distance from the eye, not a region of the entity'],
   'MeshInstances.drawDistance': ['no-place', 'a distance from the eye, not a region of the entity'],
   'MeshInstances.shadowDistance': ['no-place', 'a distance from the eye, not a region of the entity'],
+  'Planet.radius': ['renders', 'the sphere drawn at the entity is the outline'],
+  'Planet.cellSize': ['no-place', 'the finest cell of the ground\'s mesh near the eye, not a region of the entity'],
   'PlacedFoliage.sizeX': ['renders', 'the area the plants are placed over is the outline'],
   'PlacedFoliage.sizeZ': ['renders', 'the area the plants are placed over is the outline'],
   'PlacedFoliage.cellSize': ['no-place', 'the side of the cells the area is cut into, not a region of the entity'],

@@ -10,11 +10,15 @@ import { addAssetLoader } from '../asset/optionalLoaders';
 import { registerBuiltinShaderTemplate } from '../render/builtinShaders';
 import { TERRAIN_LAYERS_SHADER_TEMPLATE, TERRAIN_SHADER_TEMPLATE } from './terrainShader';
 import { TerrainPlugin } from './terrainPlugin';
+import { PLANET_SHADER_TEMPLATE } from './planetShader';
+import { PlanetPlugin } from './planetPlugin';
 import { TerrainLayerAssetLoader } from './layers';
 
 export function registerTerrainSupport(): void {
     registerBuiltinShaderTemplate(TERRAIN_SHADER_TEMPLATE);
     registerBuiltinShaderTemplate(TERRAIN_LAYERS_SHADER_TEMPLATE);
+    registerBuiltinShaderTemplate(PLANET_SHADER_TEMPLATE);
     addEntryPlugin('terrain', () => new TerrainPlugin());
+    addEntryPlugin('planet', () => new PlanetPlugin());
     addAssetLoader('terrain', () => new TerrainLayerAssetLoader());
 }

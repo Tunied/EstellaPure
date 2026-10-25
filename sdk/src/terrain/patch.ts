@@ -9,7 +9,7 @@
  */
 import { MeshChannel, MeshChannelType, packChannels, type MeshData } from '../asset/meshFormat';
 
-export function buildPatchMesh(cells: number): MeshData {
+export function buildPatchMesh(cells: number, flipped = false): MeshData {
     const n = Math.max(1, Math.floor(cells));
     const { channels, vertexStride } = packChannels([
         { semantic: MeshChannel.Position, components: 3, type: MeshChannelType.Float32 },
@@ -36,7 +36,8 @@ export function buildPatchMesh(cells: number): MeshData {
     for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
         const a = j * (n + 1) + i, b = a + 1, c = a + n + 1, d = c + 1;
         // Facing up: a, then the next row, then the next column, runs counter-clockwise from above.
-        indices.set([a, c, b, b, c, d], at);
+        // `flipped` is the same grid wound the other way round: a cube face's (u, v, out) is a right-handed frame, where flat ground's (x, z, up) is not.
+        indices.set(flipped ? [a, b, c, b, d, c] : [a, c, b, b, c, d], at);
         at += 6;
     }
     return { channels, vertexStride, vertexCount: count, vertices, indices, aabbMin: [0, 0, 0], aabbMax: [1, 1, 1] };
