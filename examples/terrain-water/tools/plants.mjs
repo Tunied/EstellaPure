@@ -141,7 +141,7 @@ export function plantRules({ project, lakeLevel, snow }) {
   });
   const rock = (id) => ({
     id: `rocks-${id}`, version: 1, tags: ['stone'], anchor: { id, plant: `granite-${id}`, scale: [0.8, 1.6], footprint: 120, canopy: 160, minUp: 0.6 },
-    members: [{ id: 'small', plant: 'granite-split', count: [1, 4], ring: [120, 420], scale: [0.35, 0.7], footprint: 40, minUp: 0.6 }],
+    members: [{ id: 'small', plant: 'granite-split', attach: 'align', count: [1, 4], ring: [120, 420], scale: [0.35, 0.7], footprint: 40, minUp: 0.6 }],
   });
   const drift = (colour) => ({
     id: `drift-${colour}`, version: 1, tags: ['flower'], anchor: { id: 'bloom', plant: `flower-${colour}`, scale: [1, 1.4], footprint: 10, minUp: 0.85 },
@@ -292,15 +292,15 @@ export function plantRules({ project, lakeLevel, snow }) {
       },
       // The shoals: a water-worn boulder with a bed of pebbles round it, under the water.
       {
-        id: 'shoal-round', version: 1, tags: ['stone'], anchor: { id: 'boulder', plant: 'boulder-round', scale: [0.8, 1.5], footprint: 70, waterDepth: 160, minUp: 0.5 },
-        members: [{ id: 'bed', plant: 'pebbles', count: [1, 3], ring: [90, 320], scale: [0.8, 1.4], footprint: 60, waterDepth: 160, minUp: 0.5 }],
+        id: 'shoal-round', version: 1, tags: ['stone'], anchor: { id: 'boulder', plant: 'boulder-round', attach: 'align', scale: [0.8, 1.5], footprint: 70, waterDepth: 160, minUp: 0.5 },
+        members: [{ id: 'bed', plant: 'pebbles', attach: 'align', count: [1, 3], ring: [90, 320], scale: [0.8, 1.4], footprint: 60, waterDepth: 160, minUp: 0.5 }],
       },
       {
-        id: 'shoal-flat', version: 1, tags: ['stone'], anchor: { id: 'boulder', plant: 'boulder-flat', scale: [0.8, 1.5], footprint: 80, waterDepth: 160, minUp: 0.5 },
-        members: [{ id: 'bed', plant: 'pebbles', count: [1, 3], ring: [90, 320], scale: [0.8, 1.4], footprint: 60, waterDepth: 160, minUp: 0.5 }],
+        id: 'shoal-flat', version: 1, tags: ['stone'], anchor: { id: 'boulder', plant: 'boulder-flat', attach: 'align', scale: [0.8, 1.5], footprint: 80, waterDepth: 160, minUp: 0.5 },
+        members: [{ id: 'bed', plant: 'pebbles', attach: 'align', count: [1, 3], ring: [90, 320], scale: [0.8, 1.4], footprint: 60, waterDepth: 160, minUp: 0.5 }],
       },
       {
-        id: 'pebble-field', version: 1, tags: ['stone'], anchor: { id: 'bed', plant: 'pebbles', scale: [0.9, 1.6], footprint: 60, waterDepth: 160, minUp: 0.5 },
+        id: 'pebble-field', version: 1, tags: ['stone'], anchor: { id: 'bed', plant: 'pebbles', attach: 'align', scale: [0.9, 1.6], footprint: 60, waterDepth: 160, minUp: 0.5 },
       },
       {
         id: 'reed-strip', version: 1, tags: ['reed'], anchor: { id: 'reed', plant: 'reed', scale: [0.9, 1.4], footprint: 25, waterDepth: 70, minUp: 0.5 },
