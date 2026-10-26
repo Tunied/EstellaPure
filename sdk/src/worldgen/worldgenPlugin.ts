@@ -690,6 +690,7 @@ export class WorldGenPlugin implements Plugin {
                 ? [Math.floor(bounds[0] / size), Math.floor(bounds[1] / size), Math.ceil(bounds[2] / size), Math.ceil(bounds[3] / size)] : null;
             chunks.set<PlacedChunk>(layerIdOf(entity, layer.id, unit.key), {
                 label: 'Laying out the world',
+                async: !!unit.away,
                 originX: 0, originZ: 0, sizeX: size, sizeZ: size, extent,
                 loadRadius: layer.drawDistance, unloadRadius: layer.drawDistance + size,
                 generation: `${built.signature}:${ground}`,
@@ -718,6 +719,7 @@ export class WorldGenPlugin implements Plugin {
                 ? [Math.floor(bounds[0] / fsize), Math.floor(bounds[1] / fsize), Math.ceil(bounds[2] / fsize), Math.ceil(bounds[3] / fsize)] : null;
             chunks.set<PlacedChunk>(farId, {
                 label: 'Laying out the far plants',
+                async: !!unit.away,
                 originX: 0, originZ: 0, sizeX: fsize, sizeZ: fsize, extent: fextent,
                 loadRadius: built.plants.reach, unloadRadius: built.plants.reach + fsize,
                 generation: `${built.signature}:${ground}`,

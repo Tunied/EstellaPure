@@ -2458,6 +2458,7 @@ entities: number[]
 
 ## ChunkLayer — interface @experimental
 ```
+async: boolean | undefined
 extent: readonly [number, number, number, number] | null
 generation: string | number
 label: string

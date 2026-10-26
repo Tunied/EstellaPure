@@ -6,7 +6,7 @@
 
 星邻球面世界和 `examples/terrain-water` 都一样：每帧 `ProceduralChunkSystem`（`chunks.step`）占主线程 44 ms（均值），最差一帧 250 ms；停止运行后重新铺设的 5 秒里 105 帧中有 74 帧超过 16.7 ms，p95 为 150 ms。成本几乎全在 `WorldPlan.placementsIn`：规则里的群落、配方、候选点、邻居冲突。`cover` 层一个 32 米的块约 43 ms（328 个放置，约 130 µs 一个），四层合计约 70 ms 一个块；绘制距离内有几百个块，总计是十几秒的纯计算。
 
-## 结论：分帧是止痛，不是做法
+## 结论：分帧是止痛，不是做法（计算上不再分帧）
 
 现在的做法是把工作切成块、每帧只做预算内的几块（`bakes.hasTime()`），而每个块本身要 40–250 ms，且脚下的块不受预算限制。这是单线程里的协作式调度：总工作量不变，每帧仍然要付一整块的钱，所以卡顿只能靠"块更小"来缓解，不能消除。
 
@@ -22,12 +22,12 @@
    - 水深、岸距：水体的烘焙场（CPU 数组）作为可转移缓冲发给 worker，版本号变了才重发。
 3. **星球页面上 worker**：页面的高度、法线、涂色（含群落上色）都是提供器加规划的纯函数，同样走作业池，返回 `Uint8Array` 页面，主线程只做图集上传。
 4. **碰撞三角网上 worker**：同理，返回位置和索引数组。
-5. **主线程只剩提交**：每帧预算内最多提交 N 个结果（创建实体、`meshInstances_set`、上传纹理），提交本身按结果大小摊平。
+5. **主线程只剩提交**：结果一到，就在 Promise 的回调里创建实体、`meshInstances_set`、上传纹理，没有排队、没有每帧上限、没有时间预算。粒度由使用者的数据决定（规则里每层的 `chunkSize`、层的 `spacing`），并发由作业池大小和块层的在途上限决定，不由引擎替用户切帧。
 6. **可观测**：作业池的排队数、在途数、每类作业耗时进性能分析器；`chunks.step` 这一帧成本应当接近 0。
 
 ## 进展（2026-10-25）
 
-已完成第 1、2 步在星球上的部分：`runtime/jobs.ts`（作业池）、`worldgen/planWorker.ts`（放置规划与星球页面，打包成文本 `runtime/planWorkerBundle.generated.ts`，由 `sdk/scripts/build-worker.mjs` 生成并有测试守新鲜度）、`PlanetProvider.workerSource`（提供器的自包含模块文本，星邻由 `tools/build-provider-worker.mjs` 生成）。提交一侧：`ProceduralChunks` 的答案和星球页面都进队列、每帧限量放入世界。实测星邻球面世界铺设期间：此前 2–8 帧，现在 60 帧（p95 33 ms，最差 33 ms）；`chunks.step` 44 ms → 2.3 ms，`PlanetSystem` 133 ms → 1.7 ms。worker 的结果与主线程逐字节一致（`tests/worldgen-worker.test.ts`）。
+已完成第 1、2 步在星球上的部分：`runtime/jobs.ts`（作业池）、`worldgen/planWorker.ts`（放置规划与星球页面，打包成文本 `runtime/planWorkerBundle.generated.ts`，由 `sdk/scripts/build-worker.mjs` 生成并有测试守新鲜度）、`PlanetProvider.workerSource`（提供器的自包含模块文本，星邻由 `tools/build-provider-worker.mjs` 生成）。提交一侧：结果到达即放入世界，不排队、不限量；标为 `async` 的块层不受帧时间约束。实测星邻球面世界铺设期间：此前 2–8 帧，现在 60 帧（p95 33 ms，最差 33 ms）；`chunks.step` 44 ms → 2.3 ms，`PlanetSystem` 133 ms → 1.7 ms。worker 的结果与主线程逐字节一致（`tests/worldgen-worker.test.ts`）。
 
 未做：平面地形（`Terrain`）上的 `WorldGen`（需要水体烘焙场可转移）、碰撞三角网、没有 Worker 时的主线程路径仍是分帧。
 

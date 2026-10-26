@@ -155,8 +155,6 @@ interface Built {
     providers: number;
     /** The painters' revision the pages were last painted at. */
     painted: number;
-    /** Pages that came back from a worker and are not in the atlas yet. */
-    ready: { key: string; image: PageImage }[];
     /** The sea's entity, mesh and material instance, when the planet has one. */
     sea: { entity: Entity; mesh: number; material: number; base: number } | null;
 }
@@ -250,7 +248,7 @@ export class PlanetPlugin implements Plugin {
         const built: Built = {
             signature, data: { ...data }, provider: null, source: null, tree: null, epoch, table: new PageTable(ATLAS_SIZE),
             heights: 0, paint: 0, mesh: 0, instance: 0, nodes: new Map(), spare: [], wanted: new Map(), asked: new Set(), pending: false, failure: null, arrays: [], packed: '', packing: false,
-            providers: planetProvidersRevision(), painted: 0, sea: null, ready: [],
+            providers: planetProvidersRevision(), painted: 0, sea: null,
         };
         const provider = planetProvider(data.provider);
         if (!provider) {
@@ -527,13 +525,6 @@ export class PlanetPlugin implements Plugin {
             return true;
         };
         const epoch = built.epoch;
-        // The pages a worker made, in the atlas: two a frame at least, and more while the frame has time.
-        let stored = 0;
-        while (built.ready.length > 0 && (stored < 2 || (stored < 12 && bakes.hasTime()))) {
-            const r = built.ready.shift()!;
-            if (built.epoch === epoch && built.heights) store(r.key, r.image);
-            stored++;
-        }
         for (const node of order) {
             const key = sphereNodeKey(node);
             if (built.asked.has(key)) continue;
@@ -543,8 +534,7 @@ export class PlanetPlugin implements Plugin {
                 built.asked.add(key);
                 void image.then((img) => {
                     built.asked.delete(key);
-                    // Put in the atlas in a later frame's turn, a few at a time: a burst of answers is not one frame's work.
-                    if (built.epoch === epoch && built.heights) built.ready.push({ key, image: img });
+                    if (built.epoch === epoch && built.heights) store(key, img);
                 }, (e) => {
                     built.asked.delete(key);
                     log.warn('planet', `the provider failed a page (${key})`, e);
