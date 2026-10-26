@@ -1066,8 +1066,10 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
                         if (key.depthShaderId != 0) ++prepassTaken; else ++prepassCutout;
                     } else {
                         if (key.materialId != 0 && ctx.materials && ctx.materials->hasVertexHook(key.materialId)) {
-                            // A material that bends its vertices: left out until its depth is shown to be the colour pass's own.
-                            ++prepassBent;
+                            // A material that bends its vertices: the depth program carries the same bend.
+                            key.depthShaderId = ctx.materials->shadowProgram(key.materialId, ctx.resources, resident->hasNormals, skinned,
+                                                                              resident->hasTangents);
+                            if (key.depthShaderId != 0) ++prepassTaken; else ++prepassBent;
                         } else {
                             const u32 depthVariant = meshDrawFor(ctx, registry, entity, mesh, resident, true, warned_bones_).variant;
                             key.depthShaderId = meshProgram(ctx, depthVariant);

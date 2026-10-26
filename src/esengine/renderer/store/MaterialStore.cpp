@@ -163,6 +163,8 @@ u32 MaterialStore::shadowProgram(u32 materialId, resource::ResourceManager& reso
         variants[shape] = {};
         return 0;
     }
+    // The samplers the hook reads (the terrain's height pages) sit on the units the material declares them on; a program left unseeded reads unit 0.
+    seedSamplers(*shader, material);
     const u32 program = shader->getProgramId();
     variants[shape] = handle;
     return program;

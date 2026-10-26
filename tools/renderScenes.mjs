@@ -680,6 +680,8 @@ export const SCENES = [
   // A GENERATED twin on a mesh. A generated vertex stage is frozen at the batch
   // source, so WebGPU refused the pipeline; the two halves read the uv varying.
   { id: "mat-generated-mesh", tier: "pr", webgpu: true, env: { ESTELLA_VERIFY_SCENE: "/scenes/mat-generated-mesh.esscene", ESTELLA_VERIFY_W: "256", ESTELLA_VERIFY_H: "256", ESTELLA_VERIFY_STEPS: "4", ESTELLA_VERIFY_EXPECT: "[{\"x\":0.3,\"y\":0.5,\"rgb\":[255,0,0],\"tol\":40},{\"x\":0.7,\"y\":0.5,\"rgb\":[0,255,0],\"tol\":40}]" } },
+  // A vertex hook that reads a texture (the terrain's way of lifting a vertex): the cube stands where the hook puts it, and is drawn.
+  { id: "prepass-hook", tier: "pr", webgpu: true, env: { ESTELLA_VERIFY_SCENE: "/scenes/prepass-hook.esscene", ESTELLA_VERIFY_W: "256", ESTELLA_VERIFY_H: "256", ESTELLA_VERIFY_STEPS: "4", ESTELLA_VERIFY_EXPECT: "[{\"x\":0.5,\"y\":0.5,\"rgb\":[0,255,0],\"tol\":40}]" } },
   { id: "mat-decal-flat", tier: "pr", webgpu: true, env: { ESTELLA_VERIFY_SCENE: "/scenes/mat-decal-flat.esscene", ESTELLA_VERIFY_W: "256", ESTELLA_VERIFY_H: "256", ESTELLA_VERIFY_STEPS: "4", ESTELLA_VERIFY_EXPECT: "[{\"x\":0.5,\"y\":0.5,\"rgb\":[0,255,0],\"tol\":40},{\"x\":0.25,\"y\":0.5,\"rgb\":[0,255,0],\"tol\":40}]" } },
   { id: "mesh-material", tier: "pr", webgpu: true, env: { ESTELLA_VERIFY_MESH_ASSET: "/scenes/white-triangles.esmesh", ESTELLA_VERIFY_MESH_MATERIAL: "/scenes/mesh-material/tintonly.esmaterial", ESTELLA_VERIFY_SCENE: "/scenes/mesh-material.esscene", ESTELLA_VERIFY_MANIFEST: "/scenes/mesh-material.textures.json", ESTELLA_VERIFY_W: "256", ESTELLA_VERIFY_H: "256", ESTELLA_VERIFY_STEPS: "4", ESTELLA_VERIFY_EXPECT: "[{\"x\":0.30,\"y\":0.556,\"rgb\":[0,0,255],\"tol\":40},{\"x\":0.70,\"y\":0.556,\"rgb\":[0,0,255],\"tol\":40},{\"x\":0.5,\"y\":0.12,\"rgb\":[0,0,0],\"tol\":30}]" } },
   // What a normal is FOR: two coplanar triangles, one white colour, normals
@@ -908,7 +910,7 @@ export const SCENES = [
  */
 const PREPASS_TWINS = [
   // Scenes that draw opaque meshes already.
-  'mesh-opaque', 'mesh-instanced', 'corpus-cutout-edge', 'mesh-normalmap', 'mesh-shadow-cutout', 'mesh-shadow', 'sun-shadow',
+  'mesh-opaque', 'mesh-instanced', 'prepass-hook', 'corpus-cutout-edge', 'mesh-normalmap', 'mesh-shadow-cutout', 'mesh-shadow', 'sun-shadow',
   // The same scenes with their meshes made opaque (fixtures/scenes/*-opaque.esscene), for what a mesh can be besides a rigid one that is lit:
   // skinned, morphing.
   { id: 'mesh-skin', scene: 'mesh-skin-opaque.esscene' }, { id: 'mesh-morph-shaped', scene: 'mesh-morph-opaque.esscene' },

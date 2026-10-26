@@ -2982,4 +2982,6 @@ export const NOTED = {
     {"note":"A lit surface takes its shadow in fewer operations."},
   "feat(render): the opaque scene can be drawn twice, depth alone first, so a pixel is shaded for the surface in front of it":
     {"note":"A depth prepass for the opaque scene."},
+  "fix(render): a depth program seeds the samplers a vertex hook reads, so the terrain takes part in the depth prepass with its own heights":
+    {"note":"A material's vertex hook reads its own textures when it casts a shadow."},
 };
