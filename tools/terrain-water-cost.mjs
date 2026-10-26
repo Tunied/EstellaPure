@@ -237,6 +237,7 @@ try {
     }
     if (!r) { table[v.id] = { label: v.label, failed: true }; continue; }
     table[v.id] = { label: v.label, ...r };
+    if (argv.includes('--probe')) console.log('  ' + Object.entries(r.counters).filter(([k]) => k.startsWith('probe.')).map(([k, x]) => `${k.replace('probe.', '')}=${x}`).join('  '));
     console.log(`${v.id.padEnd(17)} ${r.ms.toFixed(2).padStart(7)} ms   [${r.min.toFixed(2)}..${r.max.toFixed(2)}]   cpu ${r.cpu.toFixed(2)}   draws ${r.counters['batch.draws'] ?? '?'}  shadow ${r.counters['render.shadow.draws'] ?? '?'}  tris ${((r.counters['render.triangles'] ?? 0) / 1e6).toFixed(2)}M  prepass ${r.counters['render.prepass.draws'] ?? '?'} (meshes taken ${r.counters['render.prepass.taken'] ?? '?'}, cut-out ${r.counters['render.prepass.cutout'] ?? '?'}, bent ${r.counters['render.prepass.bent'] ?? '?'}, none ${r.counters['render.prepass.noProgram'] ?? '?'})   ${r.errors.length ? 'ERRORS ' + r.errors[0] : ''}`);
   }
 } finally {
