@@ -2984,4 +2984,6 @@ export const NOTED = {
     {"note":"A depth prepass for the opaque scene."},
   "fix(render): a depth program seeds the samplers a vertex hook reads, so the terrain takes part in the depth prepass with its own heights":
     {"note":"A material's vertex hook reads its own textures when it casts a shadow."},
+  "perf(water): the surface asks whether it is water before it works out the waves and the light":
+    {"note":"The water surface leaves early where it is not water."},
 };

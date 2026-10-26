@@ -668,6 +668,14 @@ void main() {
     vec2 uv0 = clip0.xy / max(clip0.w, 1e-4) * 0.5 + 0.5;
     float behindDist = haveDepth ? texture(u_sceneDepthMap, clamp(uv0, vec2(0.001), vec2(0.999))).r : waterDist + u_fallbackDepth;
     float column0 = max(behindDist - waterDist, 0.0);
+    // Past the shore only the surf's film is water: over ground no lower than the water, within its height of the rest level (further off
+    // it is the mesh stretched between two waters' heights); the depth test cuts it where the ground rises above it. Asked here, before the
+    // waves and the light are worked out for it: a shader that may discard late is not let test depth early, and what leaves here does not pay for them.
+    bool film = abs(P.y + u_renderOrigin.y - zone.x) <= surf.x + u_waveHeight * zone.z + 1e-3;
+    // Ground lower than the water there (a dry basin) takes no film. The picture's depth says it of this very pixel; the baked depth only
+    // of whole texels (dry is 0 and any wet one beside it raises the blend), which would cut the film in the texels' steps.
+    float under = haveDepth ? column0 * abs(viewDir.y) - 2.0 * (surf.x + u_waveHeight * zone.z) - 1.0 : shoreDepth - 1e-3;
+    if (shoreDist < 0.0 && (surf.x <= 0.0 || under > 0.0 || !film)) discard;
 
     // Bent by the waves: the ray through the tilted surface against the ray through a flat one, over as much water as there is.
     float RATIO = below ? 1.333 : 1.0 / 1.333;
@@ -770,13 +778,6 @@ void main() {
         float thin = max(smoothstep(0.0, u_edgeSoftness, column0 * max(abs(viewDir.y), 0.15)), surfFoam);
         color = mix(textureLod(u_sceneColor, clamp(uv0, vec2(0.001), vec2(0.999)), 0.0).rgb, color, thin);
     }
-    // Past the shore only the surf's film is water: over ground no lower than the water, within its height of the rest level (further off
-    // it is the mesh stretched between two waters' heights); the depth test cuts it where the ground rises above it.
-    bool film = abs(P.y + u_renderOrigin.y - zone.x) <= surf.x + u_waveHeight * zone.z + 1e-3;
-    // Ground lower than the water there (a dry basin) takes no film. The picture's depth says it of this very pixel; the baked depth only
-    // of whole texels (dry is 0 and any wet one beside it raises the blend), which would cut the film in the texels' steps.
-    float under = haveDepth ? column0 * abs(viewDir.y) - 2.0 * (surf.x + u_waveHeight * zone.z) - 1.0 : shoreDepth - 1e-3;
-    if (shoreDist < 0.0 && (surf.x <= 0.0 || under > 0.0 || !film)) discard;
     fragColor = vec4(color, haveColor ? 1.0 : 0.85);
 #ifdef ES_GBUFFER
     // 0.72: a surface, and water (see readSurface): what lands on it is the water's, not a wet floor's.

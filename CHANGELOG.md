@@ -30,6 +30,7 @@ published separately; it ships inside the editor.
 
 ### Changed
 
+- **The water surface leaves early where it is not water.** A shader that may discard late is not let test depth early, so the water behind a hill ran all of it; the test that decides whether a pixel is water now comes before the waves and the light are worked out. The picture is the same, a frame of the Terrain & Water example about a millisecond shorter or more on an RTX 3060. The WebGL2 shader only.
 - **A lit surface takes its shadow in fewer operations.** The shadow lookup of a light with a size (the sun's penumbra) worked a `sin`, a `cos` and a `sqrt` for each of its forty-eight taps and a whole matrix for each of the sixteen that look for a blocker; the taps are a table now, turned once a pixel, and the matrix is applied to the light's direction once. Inside a shadow, where every blocker tap hits, it returns at once, and a penumbra a texel or two wide is averaged over 8 or 16 taps, not 32. The picture is the same to the pixel gates on WebGL2 and WebGPU; a frame of the Terrain & Water example is 3 to 10 ms shorter on an RTX 3060.
 
 ### Fixed
