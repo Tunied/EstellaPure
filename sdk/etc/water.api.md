@@ -154,6 +154,7 @@ grid: ZoneGrid
 height: Float32Array<ArrayBufferLike>
 ocean: ZoneOcean | null
 owner: Int32Array<ArrayBufferLike>
+query: () => WaterQuery
 ranges: (shoreReach?: number) => ZoneRanges
 sample: (x: number, z: number) => FieldSample | null
 shore: Float32Array<ArrayBufferLike>
@@ -232,6 +233,7 @@ depthAt: (x: number, z: number, y: number) => number | null
 disturb: (x: number, y: number, z: number, radius: number, strength: number) => boolean
 heightAt: (x: number, z: number) => number | null
 quality: WaterQuality
+queryData: () => WaterQueryData | null
 rippleAt: (x: number, _y: number, z: number) => number
 sample: (x: number, y: number, z: number) => WaterSample | null
 shoreAt: (x: number, z: number) => number | null

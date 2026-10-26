@@ -4,7 +4,11 @@ import { describe, expect, it } from 'vitest';
 import type { PlanetFacts } from '../src/terrain/planetQuery';
 import { PlanetFace, FaceZones } from '../src/worldgen/planetSurface';
 import { farRulesOf, makeFacePlan } from '../src/worldgen/facePlan';
-import { page, placements, type PageRequest, type PlacementsRequest, type PlanSpec } from '../src/worldgen/planWorker';
+import { page, placements, type PageRequest, type PlacementsRequest, type PlanSpec, type PlaneSpec } from '../src/worldgen/planWorker';
+import { makePlanePlan } from '../src/worldgen/planePlan';
+import { GroundQuery, type GroundData } from '../src/terrain/groundQuery';
+import { WaterQuery, type WaterQueryData } from '../src/water/waterQuery';
+import { Zones } from '../src/worldgen/zones';
 import { makePlanetPage } from '../src/terrain/planetPages';
 import { faceOf } from '../src/terrain/sphere';
 import { PLAN_WORKER_SOURCE } from '../src/runtime/planWorkerBundle.generated';
@@ -124,5 +128,35 @@ describe('a planet\'s world planned in a worker', () => {
 
     it('has no pool where there is no Worker, so the caller plans in place', () => {
         expect(createJobPool(PLAN_WORKER_SOURCE)).toBeNull();
+    });
+});
+
+describe('a flat world planned in a worker', () => {
+    const ground: GroundData = {
+        origin: { x: 0, y: 2, z: 0 }, cell: 2,
+        source: { kind: 'noise', data: { seed: 5, frequency: 6, octaves: 3, persistence: 0.5, ridged: 0, warp: 0, erosion: 0, sizeX: 400, height: 30, rockSlope: 0.7, dirtHeight: 0.3, snowHeight: 0.9 } },
+    };
+    const n = 16;
+    const water: WaterQueryData = {
+        grid: { minX: -200, minZ: -200, sizeX: 400, sizeZ: 400, nx: n, nz: n },
+        height: new Float32Array(n * n).fill(8),
+        shore: Float32Array.from({ length: n * n }, (_, i) => Math.sin(i * 0.37) * 6),
+        ocean: null,
+    };
+    const flatRules: WorldRules = { ...rules, biomes: [{ ...rules.biomes![0]!, conditions: [{ field: 'height', min: -100, max: 100 }, { field: 'shoreDistance', max: 4 }] }] };
+    const planeSpec: PlaneSpec = { plane: true, rules: flatRules, seed: 9, world: 'w', ground, flatY: 0, water, layers: ['grass', 'dirt', 'snow', 'rock'], zones: [] };
+
+    it('places exactly what the main thread places from the same ground and water', async () => {
+        const { plan, farPlan } = makePlanePlan({
+            rules: flatRules, farRules: farRulesOf(flatRules), seed: 9, world: 'w', zones: new Zones(), ground: new GroundQuery(ground), flatY: 0,
+            water: new WaterQuery(water), layers: planeSpec.layers,
+        });
+        for (const far of [false, true]) {
+            const request: PlacementsRequest = { id: 1, key: `plane${far}`, spec: structuredClone(planeSpec), layer: 'cover', far, x0: -60, z0: -40, x1: 60, z1: 80 };
+            const away = await placements(request, loader);
+            const here = (far && farPlan ? farPlan : plan).placementsIn(-60, -40, 60, 80, ['cover']);
+            expect(away.length).toBeGreaterThan(5);
+            expect(JSON.parse(JSON.stringify(away))).toEqual(JSON.parse(JSON.stringify(here)));
+        }
     });
 });

@@ -19,6 +19,9 @@ import type { ZoneDef } from './zones';
 import { Zones } from './zones';
 import { PlanetFace } from './planetSurface';
 import { farRulesOf, makeFacePlan } from './facePlan';
+import { makePlanePlan } from './planePlan';
+import { GroundQuery, type GroundData } from '../terrain/groundQuery';
+import { WaterQuery, type WaterQueryData } from '../water/waterQuery';
 import type { PlanetFacts } from '../terrain/planetQuery';
 import type { PlanetProvider } from '../terrain/planetProvider';
 import type { PlanetPainter } from '../terrain/planetQuery';
@@ -43,12 +46,26 @@ export interface PlanSpec {
     provider: { source: string; seed: number; version: number; world: string };
 }
 
+/** What a plan on a plane is made from: the ground and the water as data, the rules and the zones. */
+export interface PlaneSpec {
+    plane: true;
+    rules: WorldRules;
+    seed: number;
+    world: string;
+    /** The ground, or null for a world flat at `flatY`. */
+    ground: GroundData | null;
+    flatY: number;
+    water: WaterQueryData | null;
+    layers: string[];
+    zones: ZoneDef[];
+}
+
 /** A question: the square of the face's plane, and whether it is the far plan's. */
 export interface PlacementsRequest {
     id: number;
     /** Names the plan; a worker that has not seen it is sent `spec` with it. */
     key: string;
-    spec?: PlanSpec;
+    spec?: PlanSpec | PlaneSpec;
     layer: string;
     far: boolean;
     x0: number;
@@ -57,7 +74,7 @@ export interface PlacementsRequest {
     z1: number;
 }
 
-interface Made { plan: WorldPlan; farPlan: WorldPlan | null; face: PlanetFace }
+interface Made { plan: WorldPlan; farPlan: WorldPlan | null; face: PlanetFace | null }
 
 /** The plans kept, newest last, and the providers loaded (by the text of their source). */
 const plans = new Map<string, Made>();
@@ -76,6 +93,18 @@ function providerOf(source: string, load: ProviderLoader): Promise<PlanetProvide
     let p = providers.get(source);
     if (!p) { p = load(source); providers.set(source, p); }
     return p;
+}
+
+function makePlane(spec: PlaneSpec): Made {
+    const zones = new Zones();
+    for (const z of spec.zones) zones.set(z);
+    return {
+        face: null,
+        ...makePlanePlan({
+            rules: spec.rules, farRules: farRulesOf(spec.rules), seed: spec.seed, world: spec.world, zones,
+            ground: spec.ground ? new GroundQuery(spec.ground) : null, flatY: spec.flatY, water: spec.water ? new WaterQuery(spec.water) : null, layers: spec.layers,
+        }),
+    };
 }
 
 async function makeFor(spec: PlanSpec, load: ProviderLoader): Promise<Made> {
@@ -98,11 +127,11 @@ async function makeFor(spec: PlanSpec, load: ProviderLoader): Promise<Made> {
 }
 
 /** The plan for `key`: the one this worker kept, or one made from `spec`. */
-async function planFor(key: string, spec: PlanSpec | null | undefined, load: ProviderLoader): Promise<Made> {
+async function planFor(key: string, spec: PlanSpec | PlaneSpec | null | undefined, load: ProviderLoader): Promise<Made> {
     let made = plans.get(key);
     if (!made) {
         if (!spec) throw new Error(`the plan ${key} is not known to this worker`);
-        made = await makeFor(spec, load);
+        made = 'plane' in spec ? makePlane(spec) : await makeFor(spec, load);
         plans.set(key, made);
         if (plans.size > PLANS_KEPT) plans.delete(plans.keys().next().value!);
     }
@@ -140,7 +169,7 @@ export async function page(r: PageRequest, load: ProviderLoader = blobLoader): P
         const made = await Promise.all(keys.map((k, f) => planFor(k, r.specs[f], load)));
         painter = (dx, dy, dz, base) => {
             const m = made[faceOf(dx, dy, dz).face]!;
-            const at = m.face.planeOf(dx, dy, dz);
+            const at = m.face!.planeOf(dx, dy, dz);
             return at ? m.plan.paint(at.x, at.z, base) : base;
         };
     }

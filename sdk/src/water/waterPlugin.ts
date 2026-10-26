@@ -14,6 +14,7 @@
  *          The waves are the ones the Water shader draws: `waves.ts` is the same formula, and {@link Waters.sample} answers from the same field, so
  *          a floating object, a camera under the surface and a splash all read the surface that is on the screen.
  */
+import type { WaterQueryData } from './waterQuery';
 import { riverBedModifiers } from './riverBed';
 import type { App, Plugin } from '../app/app';
 import { defineSystem, Schedule } from '../ecs/system';
@@ -152,10 +153,14 @@ export class Waters {
     /** Whether a bake is in hand: what is placed by the water waits for it. */
     baking = false;
 
+    /** The baked water as data a worker can answer `depthAt` and `shoreAt` from, or null where none is baked. */
+    queryData(): WaterQueryData | null {
+        return this.field_?.query().data ?? null;
+    }
+
     /** How deep the water stands at rest over the world height `y` at (x, z): above zero under water, null where there is none. */
     depthAt(x: number, z: number, y: number): number | null {
-        const s = this.field_?.sample(x, z);
-        return s ? s.height - y : null;
+        return this.field_?.query().depthAt(x, z, y) ?? null;
     }
 
     /**
@@ -215,11 +220,7 @@ export class Waters {
      * water (how far in from its shore). Past the zone's region it is the open sea's, deep in; null where no water is baked at all.
      */
     shoreAt(x: number, z: number): number | null {
-        const field = this.field_;
-        if (!field) return null;
-        const at = field.at(x, z);
-        if (at) return -at.shore;
-        return field.ocean ? -1e6 : null;
+        return this.field_?.query().shoreAt(x, z) ?? null;
     }
 
     private bodyIdOf(entity: Entity): string {

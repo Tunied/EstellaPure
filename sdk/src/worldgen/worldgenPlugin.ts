@@ -37,9 +37,11 @@ import { PlanetRegistryRes, type PlanetFacts } from '../terrain/planetQuery';
 import { faceOf } from '../terrain/sphere';
 import { Environment } from './fields';
 import { farRulesOf, makeFacePlan } from './facePlan';
+import { makePlanePlan } from './planePlan';
+import type { WaterQueryData } from '../water/waterQuery';
 import type { JobPool } from '../runtime/jobs';
 import { firstSend, forgetSent, planPool } from '../runtime/planPool';
-import type { PlacementsRequest, PlanSpec } from './planWorker';
+import type { PlacementsRequest, PlanSpec, PlaneSpec } from './planWorker';
 import { FaceZones, faceHalf, planetFaces, type PlanetFace } from './planetSurface';
 import { expandPlants, type PlantSet } from './plants';
 import { WorldPlan, type Placement } from './plan';
@@ -214,7 +216,7 @@ interface PlacedChunk {
 }
 
 /** The water, as worldgen asks it (the water module is optional: read by name, not imported). */
-interface WaterQuery { depthAt(x: number, z: number, y: number): number | null; shoreAt?(x: number, z: number): number | null; revision_: number; baking: boolean }
+interface WaterQuery { depthAt(x: number, z: number, y: number): number | null; shoreAt?(x: number, z: number): number | null; queryData?(): WaterQueryData | null; revision_: number; baking: boolean }
 
 function waterOf(app: App): WaterQuery | null {
     const w = (app as unknown as { getResourceByName?: (name: string) => unknown }).getResourceByName?.('Waters') as Partial<WaterQuery> | undefined;
@@ -448,36 +450,16 @@ export class WorldGenPlugin implements Plugin {
         if (data.surface === WorldSurface.Planet) { this.planPlanet(app, gens, entity, built, rules); return; }
         const terrains = app.hasResource(TerrainsRes) ? app.getResource(TerrainsRes) : null;
         const zones = gens.zones(data.world);
-        // The terrain's paint is a field for each of its layers, `paint.grass` for a layer file grass.esterrainlayer: how much of the ground there is that.
-        const paintFields: Record<string, (x: number, z: number) => number> = {};
-        if (terrains) terrains.layerNames().forEach((name, i) => { paintFields[`paint.${name}`] = (x, z) => terrains.paintAt(x, z)?.[i] ?? 0; });
-        const env = new Environment({
-            seed: data.seed, noise: rules.noise, fields: { ...paintFields, ...rules.fields },
-            ground: (x, z) => {
-                if (terrains && terrains.built_.size > 0) {
-                    const y = terrains.heightAt(x, z);
-                    if (y === null) return null;
-                    const n = terrains.normalAt(x, z) ?? [0, 1, 0];
-                    return { y, up: n[1], normal: n };
-                }
-                // No terrain: the world is flat at the WorldGen's own height.
-                const t = app.world.tryGet(entity, Transform) as TransformData | null;
-                return { y: t?.worldPosition.y ?? 0, up: 1, normal: [0, 1, 0] };
-            },
-            waterDepth: (x, z, y) => waterOf(app)?.depthAt(x, z, y) ?? null,
-            shoreDistance: (x, z) => waterOf(app)?.shoreAt?.(x, z) ?? null,
-            overrides: (x, z) => {
-                const out: { field: string; value: number; weight: number }[] = [];
-                for (const { zone, weight } of zones.at(x, z)) for (const [field, value] of Object.entries(zone.fields ?? {})) out.push({ field, value, weight });
-                return out;
-            },
+        const t0 = app.world.tryGet(entity, Transform) as TransformData | null;
+        const made = makePlanePlan({
+            rules, farRules: farRulesOf(rules), seed: data.seed, world: data.world, zones,
+            ground: terrains && terrains.built_.size > 0 ? terrains : null, flatY: t0?.worldPosition.y ?? 0,
+            water: { depthAt: (x, z, y) => waterOf(app)?.depthAt(x, z, y) ?? null, shoreAt: (x, z) => waterOf(app)?.shoreAt?.(x, z) ?? null },
+            layers: terrains ? terrains.layerNames() : [],
         });
-        built.plan = new WorldPlan(rules, env, zones, data.seed, data.world);
+        built.plan = made.plan;
         const plan = built.plan;
-        const sparse = rules.layers.some((l) => (l.farSpacing ?? 1) > 1);
-        built.farPlan = sparse
-            ? new WorldPlan({ ...rules, layers: rules.layers.map((l) => (l.farSpacing ?? 1) > 1 ? { ...l, spacing: l.spacing * l.farSpacing! } : l) }, env, zones, data.seed, data.world)
-            : null;
+        built.farPlan = made.farPlan;
         // A zone that changes, or a placement a player changes, makes again only the chunks it reaches.
         zones.onChange = (bounds, zone) => {
             plan.invalidate();
@@ -641,7 +623,39 @@ export class WorldGenPlugin implements Plugin {
         this.publishUnit(app, gens, entity, built, {
             key: '', plan, farPlan: built.farPlan, face: null, bounds: terrains?.areaBounds() ?? null,
             known: (x, z) => !terrains || terrains.groundKnownAt(x, z),
+            away: this.awayOnPlane(app, gens, entity, built, terrains, water, waiting),
         }, ground, waiting);
+    }
+
+    /**
+     * What lays a plane's world out on workers, when the ground and the water can be handed to them as data (a terrain of a field or of noise, with nothing laid over it;
+     * water that is baked): the chunks are spread over the workers, and a worker is sent the plan the first time it is asked a square of it. Null when they cannot, and
+     * the world is laid out here.
+     */
+    private awayOnPlane(app: App, gens: WorldGens, entity: Entity, built: BuiltWorld, terrains: Terrains | null, water: WaterQuery | null, waiting: boolean): Unit['away'] | undefined {
+        const pool = planPool();
+        if (!pool || waiting || built.data.surface !== WorldSurface.Plane) return undefined;
+        const ground = terrains && terrains.built_.size > 0 ? terrains.groundData() : null;
+        if (terrains && terrains.built_.size > 0 && !ground) return undefined;
+        const waterData = water ? water.queryData?.() ?? null : null;
+        if (water && !waterData && water.queryData) return undefined;
+        const zones = gens.zones(built.data.world);
+        const key = `${built.signature}:plane:t${terrains?.revision_ ?? 0}:w${water?.revision_ ?? 0}:z${zones.revision}`;
+        const flatY = (app.world.tryGet(entity, Transform) as TransformData | null)?.worldPosition.y ?? 0;
+        const spec = (): PlaneSpec => ({
+            plane: true, rules: { ...built.rules!, fields: undefined, plants: undefined } as WorldRules, seed: built.data.seed, world: built.data.world,
+            ground, flatY, water: waterData, layers: terrains ? terrains.layerNames() : [], zones: [...zones.all()],
+        });
+        return (layer, far, x0, z0, x1, z1) => {
+            // Squares are spread over the workers by where they are, so neighbours share a worker and what it has worked out.
+            const worker = Math.abs((Math.floor(x0 / 256) * 73856093) ^ (Math.floor(z0 / 256) * 19349663)) % pool.size;
+            const first = firstSend(worker, key);
+            const request: PlacementsRequest = { id: 0, key, layer, far, x0, z0, x1, z1, ...(first ? { spec: spec() } : {}) };
+            return pool.run<Placement[]>(worker, request as unknown as Record<string, unknown>).catch((e: unknown) => {
+                forgetSent(worker, key);
+                throw e;
+            });
+        };
     }
 
     /** The name of a face's plan for workers: what it was made from, so a plan made from other rules, zones or sea is a new one. */

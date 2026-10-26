@@ -4083,6 +4083,8 @@ maxHeight: number
 minHeight: number
 normal: (x: number, z: number) => [number, number, number] | null
 paint: (x: number, z: number, h: number, ny: number) => LayerWeights
+toData: () => FieldSourceData
+static fromData: (d: FieldSourceData) => FieldSource
 static new (field: Heightfield, data: Pick<TerrainData, "sizeX" | "sizeZ" | "height" | "rockSlope" | "dirtHeight" | "snowHeight">, splat: Splat | null, flow: Float32Array | null, range?: readonly [number, number], splat2?: Splat | null): FieldSource
 static prototype: FieldSource
 ```
@@ -6199,6 +6201,8 @@ minHeight: 0
 normal: (x: number, z: number) => [number, number, number]
 paint: (_x: number, _z: number, h: number, ny: number) => [number, number, number, number]
 sample: (x: number, z: number) => [number, number, number]
+toData: () => NoiseParams
+static fromData: (p: NoiseParams) => NoiseSource
 static new (p: NoiseParams): NoiseSource
 static prototype: NoiseSource
 ```
@@ -10518,6 +10522,7 @@ areaBounds: () => [number, number, number, number] | null
 collisionReadyAt: (x: number, z: number) => boolean
 deleteModifier: (id: string) => void
 findPath: (from: { x: number; z: number; }, to: { x: number; z: number; }, options?: ReachOptions) => ReachResult
+groundData: () => GroundData | null
 groundKnownAt: (x: number, z: number) => boolean
 heightAt: (x: number, z: number) => number | null
 heightBeneathAt: (x: number, z: number) => number | null
@@ -12180,6 +12185,7 @@ grid: ZoneGrid
 height: Float32Array<ArrayBufferLike>
 ocean: ZoneOcean | null
 owner: Int32Array<ArrayBufferLike>
+query: () => WaterQuery
 ranges: (shoreReach?: number) => ZoneRanges
 sample: (x: number, z: number) => FieldSample | null
 shore: Float32Array<ArrayBufferLike>
@@ -12258,6 +12264,7 @@ depthAt: (x: number, z: number, y: number) => number | null
 disturb: (x: number, y: number, z: number, radius: number, strength: number) => boolean
 heightAt: (x: number, z: number) => number | null
 quality: WaterQuality
+queryData: () => WaterQueryData | null
 rippleAt: (x: number, _y: number, z: number) => number
 sample: (x: number, y: number, z: number) => WaterSample | null
 shoreAt: (x: number, z: number) => number | null

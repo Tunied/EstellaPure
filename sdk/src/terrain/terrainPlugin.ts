@@ -41,7 +41,7 @@ import { findGroundPath, type ReachOptions, type ReachResult } from './reach';
 import { paintWeights } from './paint';
 
 export { paintWeights };
-import { FieldSource, ModifiedSource, type TerrainModifier, type TerrainSource } from './source';
+import { FieldSource, ModifiedSource, NoiseSource, type TerrainModifier, type TerrainSource } from './source';
 import { levelRange, nodeKey, parentOf, selectNodes, type QuadtreeParams, type TerrainNode } from './quadtree';
 import { makePage, PageTable, PAGE_SIDE, PAGE_TEXELS, PATCH_CELLS, type PageImage, type Repaint } from './pages';
 import { noiseProvider, ProviderSource, terrainProvider, terrainProvidersRevision, TerrainUnavailable, type TerrainProvider } from './provider';
@@ -49,6 +49,7 @@ import { buildPatchMesh } from './patch';
 import { isMiniGame } from '../platform';
 import { packLayers, type LayerImage, type LayerSource, type TerrainLayerDef } from './layers';
 import { TerrainSurface, TILE_CELLS, type SurfaceTile } from './surface';
+import { groundHeightAt, groundNormalAt, groundPaintAt, type GroundData } from './groundQuery';
 import { collisionGeometryOf } from '../runtime/collisionGeometry';
 import { chunksOf, ProceduralChunksRes } from '../residency/chunks';
 import { movers } from './movers';
@@ -247,8 +248,8 @@ export class Terrains {
             if (!built.surface || !world.valid(entity)) continue;
             const t = world.tryGet(entity, Transform) as TransformData | null;
             if (!t) continue;
-            const h = built.surface.height(x - t.worldPosition.x, z - t.worldPosition.z);
-            if (h !== null) return t.worldPosition.y + h;
+            const h = groundHeightAt(built.surface, t.worldPosition, x, z);
+            if (h !== null) return h;
         }
         return null;
     }
@@ -265,10 +266,8 @@ export class Terrains {
             if (!source || !surface || !world.valid(entity)) continue;
             const t = world.tryGet(entity, Transform) as TransformData | null;
             if (!t) continue;
-            const lx = x - t.worldPosition.x, lz = z - t.worldPosition.z;
-            const h = surface.height(lx, lz), n = surface.normal(lx, lz);
-            if (h === null || !n) continue;
-            return source.paint(lx, lz, h, n[1]);
+            const w = groundPaintAt(source, surface, t.worldPosition, x, z);
+            if (w) return w;
         }
         return null;
     }
@@ -293,6 +292,24 @@ export class Terrains {
             out = out ? [Math.min(out[0], r[0]), Math.min(out[1], r[1]), Math.max(out[2], r[2]), Math.max(out[3], r[3])] : r;
         }
         return out;
+    }
+
+    /**
+     * The ground as data a worker can rebuild it from, when it can be: one terrain, made, of a field or of noise, with nothing laid over it. Null otherwise
+     * (a provider's ground, a modified one, several terrains, one still being made), when what is laid out over it must ask here.
+     */
+    groundData(): GroundData | null {
+        const world = this.app_?.world;
+        if (!world || this.built_.size !== 1 || this.modifiers_.size > 0) return null;
+        const [entity, built] = [...this.built_][0]!;
+        if (built.failure || built.loading || !built.surface || !built.source || !world.valid(entity)) return null;
+        const t = world.tryGet(entity, Transform) as TransformData | null;
+        if (!t) return null;
+        const base = built.source instanceof ModifiedSource ? built.source.base : built.source;
+        const origin = { x: t.worldPosition.x, y: t.worldPosition.y, z: t.worldPosition.z };
+        if (base instanceof FieldSource) return { origin, cell: built.surface.cell, source: { kind: 'field', data: base.toData() } };
+        if (base instanceof NoiseSource) return { origin, cell: built.surface.cell, source: { kind: 'noise', data: base.toData() } };
+        return null;
     }
 
     /** The names of the terrain's layers, in the order `paintAt` weighs them: the layer files' names, or grass, dirt, snow and rock without any. */
@@ -329,7 +346,7 @@ export class Terrains {
             if (!surface || !world.valid(entity)) continue;
             const t = world.tryGet(entity, Transform) as TransformData | null;
             if (!t) continue;
-            const n = surface.normal(x - t.worldPosition.x, z - t.worldPosition.z);
+            const n = groundNormalAt(surface, t.worldPosition, x, z);
             if (n) return n;
         }
         return null;

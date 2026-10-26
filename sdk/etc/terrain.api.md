@@ -33,6 +33,8 @@ maxHeight: number
 minHeight: number
 normal: (x: number, z: number) => [number, number, number] | null
 paint: (x: number, z: number, h: number, ny: number) => LayerWeights
+toData: () => FieldSourceData
+static fromData: (d: FieldSourceData) => FieldSource
 static new (field: Heightfield, data: Pick<TerrainData, "sizeX" | "sizeZ" | "height" | "rockSlope" | "dirtHeight" | "snowHeight">, splat: Splat | null, flow: Float32Array | null, range?: readonly [number, number], splat2?: Splat | null): FieldSource
 static prototype: FieldSource
 ```
@@ -107,6 +109,8 @@ minHeight: 0
 normal: (x: number, z: number) => [number, number, number]
 paint: (_x: number, _z: number, h: number, ny: number) => [number, number, number, number]
 sample: (x: number, z: number) => [number, number, number]
+toData: () => NoiseParams
+static fromData: (p: NoiseParams) => NoiseSource
 static new (p: NoiseParams): NoiseSource
 static prototype: NoiseSource
 ```
@@ -551,6 +555,7 @@ areaBounds: () => [number, number, number, number] | null
 collisionReadyAt: (x: number, z: number) => boolean
 deleteModifier: (id: string) => void
 findPath: (from: { x: number; z: number; }, to: { x: number; z: number; }, options?: ReachOptions) => ReachResult
+groundData: () => GroundData | null
 groundKnownAt: (x: number, z: number) => boolean
 heightAt: (x: number, z: number) => number | null
 heightBeneathAt: (x: number, z: number) => number | null

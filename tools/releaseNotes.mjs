@@ -2920,6 +2920,8 @@ export const NOTED = {
     {"internal":"The worker threads of this release, with no frame slicing."},
   "feat(worldgen): a planet's world and pages are worked out on worker threads":
     {"note":"A generated world on worker threads."},
+  "feat(worldgen): a flat world over a terrain and its water is worked out on worker threads":
+    {"note":"A flat world's generation on worker threads too."},
   "perf(chunks): the chunk and plant growth steps are measured as scopes, and the plan to move generation to worker threads":
     {"internal":"Profiler scopes and a design note."},
   "feat(terrain): a planet has a sea and a sky that follows the ground the camera stands on":

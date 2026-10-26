@@ -19,6 +19,7 @@
  *
  *          The field is in the world's own frame on the xz plane: bodies may be turned about their up, not tilted.
  */
+import { DEEP, WaterQuery, type WaterQueryData, type ZoneGrid } from './waterQuery';
 import { defineComponent, type ComponentDef } from '../ecs/component';
 import { polygonSdf, shoreDamp, type Point2 } from './shore';
 
@@ -116,7 +117,7 @@ export type ZoneBody = ZoneOcean | ZoneLake | ZoneRiver;
 export type ZoneGround = (x: number, z: number) => number | null;
 
 /** The region a field is baked over, in world units, and its grid. */
-export interface ZoneGrid { minX: number; minZ: number; sizeX: number; sizeZ: number; nx: number; nz: number }
+export type { ZoneGrid } from './waterQuery';
 
 /** What the field encodes its numbers over, which the shader decodes with: see {@link WaterField.encode}. */
 export interface ZoneRanges { heightMin: number; heightSpan: number; shore: number; amp: number; flow: number; depth: number }
@@ -150,7 +151,7 @@ export function currentShare(width: number, widest: number): number {
 }
 
 /** The depth over ground nothing is known of. */
-const DEEP = 1e6;
+
 /** The gentlest slope a depth is turned into a distance by: flatter ground than this is deep water or dry land a long way from a shore. */
 const MIN_SLOPE = 0.01;
 /** The slopes a shore goes from a beach (waves wash up it) to rock (they burst on it) over. */
@@ -346,6 +347,13 @@ export class WaterField {
         if (!o) return null;
         return { key: o.key, height: o.level, amp: o.waveHeight, calm: 1, swell: o.waveHeight, flowX: 0, flowZ: 0, shore: DEEP, depth: DEEP, surf: DEEP, still: 1, exposure: o.exposure ?? 1 };
     }
+
+    /** The part of the field a world is laid out by (how deep water stands over a height, how far a point is from the shore), as a query over this field's own arrays. */
+    query(): WaterQuery {
+        return this.query_ ??= new WaterQuery({ grid: this.grid, height: this.height, shore: this.shore, ocean: this.ocean ? { level: this.ocean.level } : null });
+    }
+
+    private query_: WaterQuery | null = null;
 
     /** The ranges the encoding spans, from what the field holds; the shore distance reaches `shoreReach` at least (as far out as the surf is drawn). */
     ranges(shoreReach = 0): ZoneRanges {

@@ -29,7 +29,9 @@
 
 已完成第 1、2 步在星球上的部分：`runtime/jobs.ts`（作业池）、`worldgen/planWorker.ts`（放置规划与星球页面，打包成文本 `runtime/planWorkerBundle.generated.ts`，由 `sdk/scripts/build-worker.mjs` 生成并有测试守新鲜度）、`PlanetProvider.workerSource`（提供器的自包含模块文本，星邻由 `tools/build-provider-worker.mjs` 生成）。提交一侧：结果到达即放入世界，不排队、不限量；标为 `async` 的块层不受帧时间约束。实测星邻球面世界铺设期间：此前 2–8 帧，现在 60 帧（p95 33 ms，最差 33 ms）；`chunks.step` 44 ms → 2.3 ms，`PlanetSystem` 133 ms → 1.7 ms。worker 的结果与主线程逐字节一致（`tests/worldgen-worker.test.ts`）。
 
-未做：平面地形（`Terrain`）上的 `WorldGen`（需要水体烘焙场可转移）、碰撞三角网、没有 Worker 时的主线程路径仍是分帧。
+平面地形（`Terrain`）上的 `WorldGen` 也已上 worker：地面（场或噪声源，上面没有叠加修改器）与烘焙后的水体以数据发给 worker（`GroundData`、`WaterQueryData`，规划代码同一份 `planePlan.ts`）；不满足时（高度图以外的源、叠加修改器、水体未烘焙完）仍在主线程规划。`examples/terrain-water` 停止运行后 2 帧 → 60 帧。
+
+未做：碰撞三角网、没有 Worker 时的主线程路径仍是分帧。
 
 ## 先后
 

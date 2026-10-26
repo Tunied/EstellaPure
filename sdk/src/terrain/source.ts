@@ -48,6 +48,16 @@ export type LayerWeights = readonly number[];
 /** The pixels of a splatmap, as the terrain read them. */
 export interface Splat { width: number; height: number; pixels: Uint8Array }
 
+/** What an area's ground is made of, as plain data a worker can rebuild it from. */
+export interface FieldSourceData {
+    field: Heightfield;
+    params: Pick<TerrainData, 'sizeX' | 'sizeZ' | 'height' | 'rockSlope' | 'dirtHeight' | 'snowHeight'>;
+    splat: Splat | null;
+    splat2: Splat | null;
+    flow: Float32Array | null;
+    range: [number, number];
+}
+
 /**
  * An area's ground: a field of heights (0 to 1 over `range`, from 0 to `height` by default), centred on the terrain, with its splatmap
  * and where its rain ran.
@@ -72,6 +82,19 @@ export class FieldSource implements TerrainSource {
 
     private get span(): number {
         return Math.max(this.maxHeight - this.minHeight, 1e-6);
+    }
+
+    /** The ground as data (its arrays are shared, not copied): `FieldSource.fromData` makes the same ground from it. */
+    toData(): FieldSourceData {
+        const d = this.data;
+        return {
+            field: this.field, params: { sizeX: d.sizeX, sizeZ: d.sizeZ, height: d.height, rockSlope: d.rockSlope, dirtHeight: d.dirtHeight, snowHeight: d.snowHeight },
+            splat: this.splat, splat2: this.splat2, flow: this.flow, range: [this.minHeight, this.maxHeight],
+        };
+    }
+
+    static fromData(d: FieldSourceData): FieldSource {
+        return new FieldSource(d.field, d.params, d.splat, d.flow, d.range, d.splat2);
     }
 
     height(x: number, z: number): number | null {
@@ -129,6 +152,15 @@ export class NoiseSource implements TerrainSource {
 
     constructor(private readonly p: NoiseParams) {
         this.maxHeight = p.height;
+    }
+
+    /** The ground as data: `NoiseSource.fromData` makes the same ground from it. */
+    toData(): NoiseParams {
+        return { ...this.p };
+    }
+
+    static fromData(p: NoiseParams): NoiseSource {
+        return new NoiseSource(p);
     }
 
     height(x: number, z: number): number {
