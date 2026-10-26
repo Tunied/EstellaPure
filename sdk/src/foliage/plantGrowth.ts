@@ -203,7 +203,7 @@ export function plantGrowthOf(app: App): PlantGrowth {
         const growth = new PlantGrowth();
         growth.app_ = app;
         app.insertResource(PlantGrowthRes, growth);
-        app.addSystemToSchedule(Schedule.Update, defineSystem([], () => { if (app.hasResource(Assets)) growth.step(app); }, { name: 'PlantGrowthSystem' }));
+        app.addSystemToSchedule(Schedule.Update, defineSystem([], () => { if (app.hasResource(Assets)) app.measureFrameScope('plants.grow', () => growth.step(app)); }, { name: 'PlantGrowthSystem' }));
     }
     return app.getResource(PlantGrowthRes);
 }

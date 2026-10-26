@@ -370,7 +370,7 @@ export function chunksOf(app: App): ProceduralChunks {
         const bakes = bakesOf(app);
         const shown = new Set<object>();
         app.addSystemToSchedule(Schedule.PostUpdate, defineSystem([], () => {
-            chunks.step(() => bakes.hasTime());
+            app.measureFrameScope('chunks.step', () => chunks.step(() => bakes.hasTime()));
             const now = new Set<object>();
             for (const p of chunks.progress_()) { bakes.mark(p.owner, p.label, p.progress); now.add(p.owner); }
             for (const owner of shown) if (!now.has(owner)) bakes.clear(owner);

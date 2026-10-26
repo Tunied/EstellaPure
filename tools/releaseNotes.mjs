@@ -2916,6 +2916,8 @@ export const NOTED = {
     {"note":"The editor's own eye shows the scene's post-processing."},
   "feat(terrain): the maths of ground on a cube sphere and the nodes drawn round an eye":
     {"internal":"The first layer of spherical terrain: pure maths and node selection, not yet drawn."},
+  "perf(chunks): the chunk and plant growth steps are measured as scopes, and the plan to move generation to worker threads":
+    {"internal":"Profiler scopes and a design note."},
   "feat(terrain): a planet has a sea and a sky that follows the ground the camera stands on":
     {"note":"A planet's sea and sky."},
   "feat(worldgen): a generated world lays out over a planet's six faces":
