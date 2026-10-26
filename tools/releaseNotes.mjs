@@ -2978,4 +2978,6 @@ export const NOTED = {
     {"internal":"Groundwork for the terrain's layer arrays: a game has no public call that makes an array yet, so the terrain change that uses it carries the note."},
   "feat(foliage): a plant can have a third mesh, and the trees of Terrain & Water do":
     {"note":"A third mesh for a plant."},
+  "perf(render): a lit surface takes its shadow in fewer operations":
+    {"note":"A lit surface takes its shadow in fewer operations."},
 };
