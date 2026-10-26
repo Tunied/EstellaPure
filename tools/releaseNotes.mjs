@@ -2976,4 +2976,6 @@ export const NOTED = {
     {"note":"Terrain layers: up to eight kinds of ground, each with its normal and mask maps."},
   "feat(render): 2D texture arrays, created from layers and sampled by textureArray material params":
     {"internal":"Groundwork for the terrain's layer arrays: a game has no public call that makes an array yet, so the terrain change that uses it carries the note."},
+  "feat(foliage): a plant can have a third mesh, and the trees of Terrain & Water do":
+    {"note":"A third mesh for a plant."},
 };
