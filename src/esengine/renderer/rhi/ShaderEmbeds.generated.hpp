@@ -568,6 +568,10 @@ inline constexpr const char* MESH = R"esshader(#pragma shader "Mesh"
 
 
 
+#pragma feature PREPASS_COVERAGE
+
+
+
 
 
 
@@ -639,6 +643,10 @@ void applyMorph(inout vec3 position, inout vec3 normal) {
         if (perVertex > 1.5) normal += u_morphShape[i].y * morphDelta(at + 1.0);
     }
 }
+
+
+
+invariant gl_Position;
 
 out vec2 v_texCoord;
 out vec4 v_color;
@@ -843,6 +851,14 @@ void main() {
     highp vec2 was = v_velPrev.xy / max(v_velPrev.w, 1e-6);
     fragColor = vec4((was - now) * 0.5, gl_FragCoord.z, v_velPrev.w > 1e-6 ? 1.0 : 0.0);
 #elif defined(SHADOW_DEPTH)
+#ifdef PREPASS_COVERAGE
+
+
+    highp float baseAlpha = texture(u_texture, v_texCoord).a * v_color.a * u_tint.a;
+    highp float coverage = (baseAlpha - u_alphaCutoff) / max(fwidth(baseAlpha), 1e-4) + 0.5;
+    if (coverage <= 0.0) discard;
+    fragColor = vec4(0.0, 0.0, 0.0, min(coverage, 1.0));
+#else
 #ifdef SHADOW_ALPHA
 
 
@@ -853,6 +869,7 @@ void main() {
 
     fragColor = vec4(packDepth(clamp(v_shadowClip.z / v_shadowClip.w * 0.5 + 0.5,
                                      0.0, 1.0)), 1.0);
+#endif
 #else
     vec4 base = texture(u_texture, v_texCoord) * v_color;
 #ifdef LIT
@@ -928,7 +945,7 @@ struct VSIn {
     @builtin(vertex_index) vertexIndex : u32,
 };
 struct VSOut {
-    @builtin(position) pos : vec4f,
+    @builtin(position) @invariant pos : vec4f,
     @location(0) v_texCoord : vec2f,
     @location(1) v_color : vec4f,
 #ifdef LIT
@@ -1173,6 +1190,16 @@ fn packNormal(n : vec3f) -> vec2f {
     let was = v.v_velPrev.xy / max(v.v_velPrev.w, 1e-6);
     return vec4f((was - now) * 0.5, v.pos.z, select(0.0, 1.0, v.v_velPrev.w > 1e-6));
 #elif defined(SHADOW_DEPTH)
+#ifdef PREPASS_COVERAGE
+
+    let duvx = dpdx(v.v_texCoord);
+    let duvy = dpdy(v.v_texCoord);
+    let baseAlpha = textureSampleGrad(t0, s0, v.v_texCoord, duvx, duvy).a * v.v_color.a * mc.u_tint.a;
+    let edge = max(fwidth(baseAlpha), 1e-4);
+    let coverage = (baseAlpha - mc.u_alphaCutoff) / max(edge, 1e-4) + 0.5;
+    if (coverage <= 0.0) { discard; }
+    return vec4f(0.0, 0.0, 0.0, min(coverage, 1.0));
+#else
 #ifdef SHADOW_ALPHA
 
     let duvx = dpdx(v.v_texCoord);
@@ -1184,6 +1211,7 @@ fn packNormal(n : vec3f) -> vec2f {
 
     return vec4f(packDepth(clamp(v.v_shadowClip.z / v.v_shadowClip.w * 0.5 + 0.5,
                                  0.0, 1.0)), 1.0);
+#endif
 #else
 
 
