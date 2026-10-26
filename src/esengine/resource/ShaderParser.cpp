@@ -1323,6 +1323,69 @@ fn diskTapSpun(i : i32, n : i32, radius : f32, spin : f32) -> vec2f {
 fn shadowSpin(worldPos : vec3f) -> f32 {
     return 6.2831853 * fract(sin(dot(worldPos, vec3f(12.9898, 78.233, 37.719))) * 43758.5453);
 }
+// The spiral taps for 16 and 32 points, as numbers (see the GLSL twin): each is turned by the pixel's own spin where it is used.
+const kSpiral8 = array<vec2f, 8>(
+    vec2f(0.2500000, 0.0000000),
+    vec2f(-0.3192901, 0.2924959),
+    vec2f(0.0488724, -0.5568765),
+    vec2f(0.4024445, 0.5249175),
+    vec2f(-0.7385351, -0.1306364),
+    vec2f(0.6996049, -0.4450315),
+    vec2f(-0.2340040, 0.8704838),
+    vec2f(-0.4462715, -0.8592682)
+);
+const kSpiral16 = array<vec2f, 16>(
+    vec2f(0.1767767, 0.0000000),
+    vec2f(-0.2257722, 0.2068258),
+    vec2f(0.0345580, -0.3937712),
+    vec2f(0.2845713, 0.3711727),
+    vec2f(-0.5222232, -0.0923739),
+    vec2f(0.4946953, -0.3146848),
+    vec2f(-0.1654658, 0.6155250),
+    vec2f(-0.3155616, -0.6075943),
+    vec2f(0.6846422, 0.2500301),
+    vec2f(-0.7122560, 0.2940091),
+    vec2f(0.3433543, -0.7337287),
+    vec2f(0.2537305, 0.8089319),
+    vec2f(-0.7647461, -0.4431856),
+    vec2f(0.8971339, -0.1972327),
+    vec2f(-0.5475066, 0.7787725),
+    vec2f(-0.1264872, -0.9760896)
+);
+const kSpiral32 = array<vec2f, 32>(
+    vec2f(0.1250000, 0.0000000),
+    vec2f(-0.1596450, 0.1462479),
+    vec2f(0.0244362, -0.2784383),
+    vec2f(0.2012223, 0.2624588),
+    vec2f(-0.3692676, -0.0653182),
+    vec2f(0.3498024, -0.2225157),
+    vec2f(-0.1170020, 0.4352419),
+    vec2f(-0.2231357, -0.4296341),
+    vec2f(0.4841152, 0.1767979),
+    vec2f(-0.5036411, 0.2078959),
+    vec2f(0.2427881, -0.5188246),
+    vec2f(0.1794146, 0.5720012),
+    vec2f(-0.5407571, -0.3133795),
+    vec2f(0.6343695, -0.1394646),
+    vec2f(-0.3871456, 0.5506753),
+    vec2f(-0.0894400, -0.6901996),
+    vec2f(0.5490720, 0.4627580),
+    vec2f(-0.7388785, 0.0305553),
+    vec2f(0.5389548, -0.5363326),
+    vec2f(-0.0360577, 0.7797915),
+    vec2f(-0.5128179, -0.6145265),
+    vec2f(0.8123597, 0.1093013),
+    vec2f(-0.6883103, 0.4789091),
+    vec2f(0.1880855, -0.8360615),
+    vec2f(0.4350338, 0.7591907),
+    vec2f(-0.8504486, -0.2713156),
+    vec2f(0.8261021, -0.3816809),
+    vec2f(-0.3578875, 0.8551558),
+    vec2f(-0.3194081, -0.8880335),
+    vec2f(0.8499090, 0.4466874),
+    vec2f(-0.9440344, 0.2488453),
+    vec2f(0.5365950, -0.8345303)
+);
 // The widest disc a penumbra is averaged over, in texels of the map. It was 8, the widest the taps cover without gaps, which held a sun's
 // penumbra to sixteen texels: with a fine cascade (a millimetre or two a texel at a character) that is a hand's width less than the sun
 // throws, and the render lab measured an edge 60% as wide as Blender's. The spiral is turned point by point (diskTapSpun) so the wider
@@ -1424,16 +1487,25 @@ fn shadowFactor3D(worldPos : vec3f, N : vec3f, L : vec3f, source : vec2f,
         // Each tap forgives as far as it stands from the point: a disc this wide forgiven as a whole would let a blocker touching the
         // surface (a box on a floor) through as lit for a hand's width round its foot.
         let spin = shadowSpin(worldPos);
+        let turn = vec2f(cos(spin), sin(spin));
+        // See the GLSL twin: the matrix is applied to the direction once, and each tap moves the clip position along it.
+        let toLight = m * vec4f(L, 0.0);
+        let stepBase = texel * 1.5 * (1.0 + slope);
+        let stepPer = texel * slope;
         var sum = 0.0;
         var hits = 0.0;
         for (var i = 0; i < 16; i++) {
-            let off = diskTapSpun(i, 16, kShadowDisc, spin);
+            let p = kSpiral16[i];
+            let off = kShadowDisc * vec2f(p.x * turn.x - p.y * turn.y, -(p.x * turn.y + p.y * turn.x));
             let at = clamp(at0 + off * lc.u_shadowParams.y, lo, hi);
             let d = unpackDepth(textureSampleLevel(t2, s2, at, 0.0).rgb);
-            let reach = shadowDepth(m, worldPos + L * stepFor(texel, slope, max(length(off), 1.0)));
+            let cr = lcp + toLight * (stepBase + max(length(off), 1.0) * stepPer);
+            let reach = clamp(cr.z / max(cr.w, 1e-6) * 0.5 + 0.5, 0.0, 1.0);
             if (d < reach) { sum += d; hits += 1.0; }
         }
         if (hits < 0.5) { return 1.0; }
+        // See the GLSL twin: a blocker on every tap is the inside of a shadow.
+        if (hits > 15.5) { return 0.0; }
         // How far the receiver stands beyond what blocks it, and how far from the light
         // that blocker is. A is the length of the map's depth row, and each kind of map
         // inverts its own with it: hyperbolic where it has an eye, linear where w is 1.
@@ -1453,8 +1525,27 @@ fn shadowFactor3D(worldPos : vec3f, N : vec3f, L : vec3f, source : vec2f,
         // Thirty-two, where the hard edge needs four: the disc is as wide as the source
         // makes it, and a penumbra averaged over too few taps bands instead of blurring.
         var soft = 0.0;
+        // See the GLSL twin: a narrow penumbra is as well averaged over fewer points.
+        if (radius < 1.5) {
+            for (var i = 0; i < 8; i++) {
+                let p = kSpiral8[i];
+                let off = radius * vec2f(p.x * turn.x - p.y * turn.y, -(p.x * turn.y + p.y * turn.x));
+                soft += shadowTap(at0 + off * lc.u_shadowParams.y, lo, hi, wide);
+            }
+            return soft * (1.0 / 8.0);
+        }
+        if (radius < 4.0) {
+            for (var i = 0; i < 16; i++) {
+                let p = kSpiral16[i];
+                let off = radius * vec2f(p.x * turn.x - p.y * turn.y, -(p.x * turn.y + p.y * turn.x));
+                soft += shadowTap(at0 + off * lc.u_shadowParams.y, lo, hi, wide);
+            }
+            return soft * (1.0 / 16.0);
+        }
         for (var i = 0; i < 32; i++) {
-            soft += shadowTap(at0 + diskTapSpun(i, 32, radius, spin) * lc.u_shadowParams.y, lo, hi, wide);
+            let p = kSpiral32[i];
+            let off = radius * vec2f(p.x * turn.x - p.y * turn.y, -(p.x * turn.y + p.y * turn.x));
+            soft += shadowTap(at0 + off * lc.u_shadowParams.y, lo, hi, wide);
         }
         return soft * (1.0 / 32.0);
     }
@@ -2488,6 +2579,67 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "highp float shadowSpin(in highp vec3 worldPos) {\n"
             "    return 6.2831853 * fract(sin(dot(worldPos, vec3(12.9898, 78.233, 37.719))) * 43758.5453);\n"
             "}\n"
+            "// The spiral taps for 16 and 32 points, as numbers: the cos, the sin and the root of each tap do not change from one pixel to the next, so they are\n"
+            "// not worked out in the pixel (a sin, a cos and a sqrt a tap, forty-eight taps). Each is turned by the pixel's own spin where it is used.\n"
+            "const highp vec2 kSpiral8[8] = vec2[8](\n"
+            "    vec2(0.2500000, 0.0000000),\n"
+            "    vec2(-0.3192901, 0.2924959),\n"
+            "    vec2(0.0488724, -0.5568765),\n"
+            "    vec2(0.4024445, 0.5249175),\n"
+            "    vec2(-0.7385351, -0.1306364),\n"
+            "    vec2(0.6996049, -0.4450315),\n"
+            "    vec2(-0.2340040, 0.8704838),\n"
+            "    vec2(-0.4462715, -0.8592682));\n"
+            "const highp vec2 kSpiral16[16] = vec2[16](\n"
+            "    vec2(0.1767767, 0.0000000),\n"
+            "    vec2(-0.2257722, 0.2068258),\n"
+            "    vec2(0.0345580, -0.3937712),\n"
+            "    vec2(0.2845713, 0.3711727),\n"
+            "    vec2(-0.5222232, -0.0923739),\n"
+            "    vec2(0.4946953, -0.3146848),\n"
+            "    vec2(-0.1654658, 0.6155250),\n"
+            "    vec2(-0.3155616, -0.6075943),\n"
+            "    vec2(0.6846422, 0.2500301),\n"
+            "    vec2(-0.7122560, 0.2940091),\n"
+            "    vec2(0.3433543, -0.7337287),\n"
+            "    vec2(0.2537305, 0.8089319),\n"
+            "    vec2(-0.7647461, -0.4431856),\n"
+            "    vec2(0.8971339, -0.1972327),\n"
+            "    vec2(-0.5475066, 0.7787725),\n"
+            "    vec2(-0.1264872, -0.9760896));\n"
+            "const highp vec2 kSpiral32[32] = vec2[32](\n"
+            "    vec2(0.1250000, 0.0000000),\n"
+            "    vec2(-0.1596450, 0.1462479),\n"
+            "    vec2(0.0244362, -0.2784383),\n"
+            "    vec2(0.2012223, 0.2624588),\n"
+            "    vec2(-0.3692676, -0.0653182),\n"
+            "    vec2(0.3498024, -0.2225157),\n"
+            "    vec2(-0.1170020, 0.4352419),\n"
+            "    vec2(-0.2231357, -0.4296341),\n"
+            "    vec2(0.4841152, 0.1767979),\n"
+            "    vec2(-0.5036411, 0.2078959),\n"
+            "    vec2(0.2427881, -0.5188246),\n"
+            "    vec2(0.1794146, 0.5720012),\n"
+            "    vec2(-0.5407571, -0.3133795),\n"
+            "    vec2(0.6343695, -0.1394646),\n"
+            "    vec2(-0.3871456, 0.5506753),\n"
+            "    vec2(-0.0894400, -0.6901996),\n"
+            "    vec2(0.5490720, 0.4627580),\n"
+            "    vec2(-0.7388785, 0.0305553),\n"
+            "    vec2(0.5389548, -0.5363326),\n"
+            "    vec2(-0.0360577, 0.7797915),\n"
+            "    vec2(-0.5128179, -0.6145265),\n"
+            "    vec2(0.8123597, 0.1093013),\n"
+            "    vec2(-0.6883103, 0.4789091),\n"
+            "    vec2(0.1880855, -0.8360615),\n"
+            "    vec2(0.4350338, 0.7591907),\n"
+            "    vec2(-0.8504486, -0.2713156),\n"
+            "    vec2(0.8261021, -0.3816809),\n"
+            "    vec2(-0.3578875, 0.8551558),\n"
+            "    vec2(-0.3194081, -0.8880335),\n"
+            "    vec2(0.8499090, 0.4466874),\n"
+            "    vec2(-0.9440344, 0.2488453),\n"
+            "    vec2(0.5365950, -0.8345303));\n"
             // Visibility of a world point from the light that rendered the map. Depth is
             // written and compared through the SAME matrix and expression, so the two
             // backends' clip-z conventions cancel. 2x2 taps: one is a staircase.
@@ -2583,16 +2735,28 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             // texels along the surface and a one-texel bias would call the slope one.
             // Each tap forgives as far as it stands from the point: see the WGSL twin.
             "        highp float spin = shadowSpin(worldPos);\n"
+            "        highp vec2 turn = vec2(cos(spin), sin(spin));\n"
+            "        // The depth a tap forgives to is that of the point a step toward the light, and the step is linear in how far the tap stands: so the\n"
+            "        // matrix is applied to the direction once, and a tap moves the clip position along it instead of going through the matrix again.\n"
+            "        highp vec4 toLight = m * vec4(L, 0.0);\n"
+            "        highp float stepBase = texel * 1.5 * (1.0 + slope);\n"
+            "        highp float stepPer = texel * slope;\n"
             "        highp float sum = 0.0;\n"
             "        highp float hits = 0.0;\n"
             "        for (int i = 0; i < 16; ++i) {\n"
-            "            highp vec2 off = diskTapSpun(i, 16, kShadowDisc, spin);\n"
+            "            highp vec2 p = kSpiral16[i];\n"
+            "            highp vec2 off = kShadowDisc * vec2(p.x * turn.x - p.y * turn.y, p.x * turn.y + p.y * turn.x);\n"
             "            highp vec2 at = clamp(at0 + off * u_shadowParams.y, lo, hi);\n"
             "            highp float d = unpackDepth(texture(u_shadowMap, at).rgb);\n"
-            "            highp float reach = shadowDepth(m, worldPos + L * stepFor(texel, slope, max(length(off), 1.0)));\n"
+            "            highp vec4 cr = lc + toLight * (stepBase + max(length(off), 1.0) * stepPer);\n"
+            "            highp float reach = clamp(cr.z / max(cr.w, 1e-6) * 0.5 + 0.5, 0.0, 1.0);\n"
             "            if (d < reach) { sum += d; hits += 1.0; }\n"
             "        }\n"
             "        if (hits < 0.5) return 1.0;\n"
+            "        // A blocker on every tap of the disc an edge can reach across is the inside of a shadow, not an edge of one: nothing in the filter below would\n"
+            "        // find light there, and its thirty-two taps are spent on a result of zero.\n"
+            "        if (hits > 15.5) return 0.0;\n"
+
             // How far the receiver stands beyond what blocks it, and how far from the
             // light that blocker is. A is the length of the map's depth row, and each map
             // inverts its own with it: hyperbolic where it has an eye, linear where w is 1.
@@ -2614,11 +2778,31 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             // source makes it, and a penumbra averaged over too few taps bands rather
             // than blurs.
             "        highp float soft = 0.0;\n"
+            "        // A penumbra of a texel or two is as well averaged over eight points as thirty-two: the taps are as dense in it either way, and the\n"
+            "        // spiral is turned point by point, so what is left over is grain, not bands.\n"
+            "        if (radius < 1.5) {\n"
+            "            for (int i = 0; i < 8; ++i) {\n"
+            "                highp vec2 p = kSpiral8[i];\n"
+            "                highp vec2 off = radius * vec2(p.x * turn.x - p.y * turn.y, p.x * turn.y + p.y * turn.x);\n"
+            "                soft += shadowTap(at0 + off * u_shadowParams.y, lo, hi, wide);\n"
+            "            }\n"
+            "            return soft * (1.0 / 8.0);\n"
+            "        }\n"
+            "        if (radius < 4.0) {\n"
+            "            for (int i = 0; i < 16; ++i) {\n"
+            "                highp vec2 p = kSpiral16[i];\n"
+            "                highp vec2 off = radius * vec2(p.x * turn.x - p.y * turn.y, p.x * turn.y + p.y * turn.x);\n"
+            "                soft += shadowTap(at0 + off * u_shadowParams.y, lo, hi, wide);\n"
+            "            }\n"
+            "            return soft * (1.0 / 16.0);\n"
+            "        }\n"
             "        for (int i = 0; i < 32; ++i) {\n"
-            "            soft += shadowTap(at0 + diskTapSpun(i, 32, radius, spin) * u_shadowParams.y,\n"
-            "                              lo, hi, wide);\n"
+            "            highp vec2 p = kSpiral32[i];\n"
+            "            highp vec2 off = radius * vec2(p.x * turn.x - p.y * turn.y, p.x * turn.y + p.y * turn.x);\n"
+            "            soft += shadowTap(at0 + off * u_shadowParams.y, lo, hi, wide);\n"
             "        }\n"
             "        return soft * (1.0 / 32.0);\n"
+
             "    }\n"
             "    return 1.0;\n"
             "#endif\n"

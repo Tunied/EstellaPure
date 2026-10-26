@@ -27,6 +27,10 @@ published separately; it ships inside the editor.
 - **A planet's ground collides.** `Planet` takes `collision`, `collisionDistance`, `collisionLayer` and `friction` as flat terrain does: the finest nodes round every moving 3D body and character are built as collision geometry from the same samples the ground is drawn from, one chunk layer to each face of the cube.
 - **Height Fog by height above a planet.** `heightFog` takes `u_planetRadius` and the planet's centre (`u_planetX/Y/Z`): with a radius above 0 the fog thins with the height above the ground's sphere and not with world Y, so a round world is hazy at its horizon and clear from orbit.
 
+### Changed
+
+- **A lit surface takes its shadow in fewer operations.** The shadow lookup of a light with a size (the sun's penumbra) worked a `sin`, a `cos` and a `sqrt` for each of its forty-eight taps and a whole matrix for each of the sixteen that look for a blocker; the taps are a table now, turned once a pixel, and the matrix is applied to the light's direction once. Inside a shadow, where every blocker tap hits, it returns at once, and a penumbra a texel or two wide is averaged over 8 or 16 taps, not 32. The picture is the same to the pixel gates on WebGL2 and WebGPU; a frame of the Terrain & Water example is 3 to 10 ms shorter on an RTX 3060.
+
 ## [0.95.0] - 2026-10-25
 
 ### Added
