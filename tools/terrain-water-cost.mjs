@@ -75,6 +75,9 @@ const VARIANTS = [
   // Whole families
   { id: 'no-post', label: 'no post-process volume at all', scene: (d) => { volume(d).effects = []; } },
   { id: 'no-water', label: 'no water (zone, bodies, crates)', scene: dropEntities(...WATER) },
+  // The water's surface drawn by nothing, its bodies and field left as they are: the plants read those, so they stay (a hidden or removed body takes them with it).
+  { id: 'water-norings', label: 'the water surface has no mesh rings (bodies and field stay)', scene: (d) => { for (const z of comp(d, 'WaterZone')) z.data.rings = 0; } },
+  { id: 'water-norings-msaa-1', label: 'no water surface, no multisampling', scene: (d) => { for (const z of comp(d, 'WaterZone')) z.data.rings = 0; }, config: quality('high', { msaaSamples: 1 }) },
   { id: 'no-plants', label: 'no plants (world generation)', scene: dropEntities(...PLANTS) },
   { id: 'no-terrain', label: 'no terrain (and no plants on it)', scene: dropEntities('Ground', ...PLANTS) },
   { id: 'no-shadows', label: 'the sun casts no shadow', scene: (d) => { for (const l of comp(d, 'Light')) l.data.meshShadows = false; } },
