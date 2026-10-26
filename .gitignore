@@ -196,3 +196,6 @@ tools/emsdk-glx/
 
 # games/star-neighbors is its own private repository (github.com/esengine/star-neighbors), cloned here.
 /games/star-neighbors/
+
+# games/hex-world-slg is its own private repository (github.com/esengine/hex-world-slg), cloned here.
+/games/hex-world-slg/
