@@ -111,6 +111,9 @@ public:
     void resize(u32 width, u32 height);
     void setShadowBudget(u32 atlasSize, u32 cellSize, u32 cascades);
     void setShadowDistance(f32 distance);
+    /// Draws the opaque scene twice, depth alone first (see DrawList::DrawPass). Off unless asked: where a GPU already shades each pixel once
+    /// (a tiled one), the second pass is geometry paid for twice.
+    void setDepthPrepass(bool on) { depth_prepass_ = on; }
     void setPlanarQuality(f32 scale, u32 maxSize, f32 updatesPerSecond);
     u32 planarTextureFor(Entity entity) const {
         return entity == planar_receiver_ ? planar_texture_ : 0;
@@ -994,6 +997,8 @@ private:
     glm::mat4 cover_view_projection_{1.0f};
     /// The shift the scene was drawn with, so a pass that borrows the frame's constants can hand them back as they were.
     glm::vec2 scene_jitter_{0.0f};
+    /// Whether the opaque scene is drawn twice, depth alone first. See DrawList::DrawPass.
+    bool depth_prepass_ = false;
     /// One per view, kept across frames for the capacity. The whole pass is collected
     /// before any of it is drawn, so a view's commands have to outlive its collect.
     std::vector<DrawList> shadow_view_lists_;

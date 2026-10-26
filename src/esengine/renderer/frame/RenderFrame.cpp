@@ -290,8 +290,20 @@ void RenderFrame::drawScene(DrawList::Phase phase) {
 #ifdef ES_ENABLE_POSTPROCESS
         draw_list_.setGBufferPass(post_process_ && post_process_->sceneHasGBuffer());
 #endif
+        // The opaque surfaces first, depth alone, so the colour pass shades each pixel for the surface that is in front of it and not for every
+        // one that was drawn there on the way. Only a phase that draws the opaque scene, and only when something in the list has a depth program.
+        const bool opaque = phase == DrawList::Phase::All || phase == DrawList::Phase::WithoutSceneColor || phase == DrawList::Phase::OpaqueOnly;
+        const u32 prepassDraws = depth_prepass_ && opaque ? draw_list_.depthPrepassDraws() : 0u;
+        const bool prepass = prepassDraws > 0;
+        if (opaque) ES_PROFILE_COUNTER("render.prepass.draws", prepassDraws);
+        if (prepass) {
+            ES_PROFILE_SCOPE("render.submit.prepass");
+            draw_list_.execute(device_, pool_, context_.materials(), context_.getWhiteTextureId(),
+                               nullptr, context_.perDrawBlocks(), phase, DrawList::DrawPass::DepthPrepass);
+        }
         draw_list_.execute(device_, pool_, context_.materials(), context_.getWhiteTextureId(),
-                           &frame_capture_, context_.perDrawBlocks(), phase);
+                           &frame_capture_, context_.perDrawBlocks(), phase,
+                           prepass ? DrawList::DrawPass::ColorAfterPrepass : DrawList::DrawPass::Color);
         draw_list_.setGBufferPass(false);
     }
 

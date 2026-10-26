@@ -661,6 +661,8 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
     f64 phase[5] = {0, 0, 0, 0, 0};
     f64 mark = timing ? es_profile_now_ms() : 0.0;
     u32 walked = 0, coldDecompose = 0, lodGathers = 0, programAsks = 0, instanceRecords = 0;
+    // Where the scene's opaque meshes went in the choice of a depth prepass: taken, left out for a cut-out or a bent vertex, or no program to be had.
+    u32 prepassTaken = 0, prepassCutout = 0, prepassBent = 0, prepassNoProgram = 0;
     const auto tick = [&](int slot) {
         if (!timing) return;
         const f64 now = es_profile_now_ms();
@@ -1049,6 +1051,30 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
                         key.materialId = mesh.material;
                     }
                 }
+                // The scene's depth prepass: an opaque, unblended, depth-writing surface has its depth drawn first by a program on its own vertex stage,
+                // and is shaded only where that depth is the nearest. Not what reads the picture behind it, and not the views that change what a
+                // surface is drawn as.
+                if (!depthPass && !motion && ctx.purpose == RenderPurpose::Scene && mesh.opaque && key.stage == RenderStage::Opaque
+                    && key.blend == BlendMode::None && key.depthTest && key.depthWrite && shading == ShadingMode::Shaded && !heated) {
+                    const bool refracts = key.materialId != 0 && ctx.materials && ctx.materials->usesSceneColor(key.materialId);
+                    const bool cutout = key.materialId != 0 && ctx.materials && ctx.materials->alphaIsCoverage(key.materialId);
+                    if (refracts) {
+                    } else if (cutout) {
+                        // Its alpha is coverage: a program that writes the same coverage, under the alpha-to-coverage the colour pass draws with.
+                        key.depthShaderId = ctx.materials->prepassCoverageProgram(key.materialId, ctx.resources, resident->hasNormals, skinned,
+                                                                                    resident->hasTangents);
+                        if (key.depthShaderId != 0) ++prepassTaken; else ++prepassCutout;
+                    } else {
+                        if (key.materialId != 0 && ctx.materials && ctx.materials->hasVertexHook(key.materialId)) {
+                            // A material that bends its vertices: left out until its depth is shown to be the colour pass's own.
+                            ++prepassBent;
+                        } else {
+                            const u32 depthVariant = meshDrawFor(ctx, registry, entity, mesh, resident, true, warned_bones_).variant;
+                            key.depthShaderId = meshProgram(ctx, depthVariant);
+                            if (key.depthShaderId != 0) ++prepassTaken; else ++prepassNoProgram;
+                        }
+                    }
+                }
                 key.layoutId = LayoutId::MeshInstance;
                 key.instanceCount = 1;
                 key.instanceStride = MESH_INSTANCE_STRIDE;
@@ -1162,6 +1188,13 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
     ES_PROFILE_COUNTER("render.mesh.coldDecompose", coldDecompose);
     ES_PROFILE_COUNTER("render.mesh.lodGathers", lodGathers);
     ES_PROFILE_COUNTER("render.mesh.programAsks", programAsks);
+    // The scene's own collect says it; a shadow map's, which comes after, would overwrite it with zeroes.
+    if (ctx.purpose == RenderPurpose::Scene) {
+        ES_PROFILE_COUNTER("render.prepass.taken", prepassTaken);
+        ES_PROFILE_COUNTER("render.prepass.cutout", prepassCutout);
+        ES_PROFILE_COUNTER("render.prepass.bent", prepassBent);
+        ES_PROFILE_COUNTER("render.prepass.noProgram", prepassNoProgram);
+    }
     ES_PROFILE_COUNTER("render.mesh.programCompiles", compiled_this_frame_);
     // Material-owned programs built so far, CUMULATIVE. Read-only: an observer
     // that had to ask for readiness to see it would be the one paying, and the

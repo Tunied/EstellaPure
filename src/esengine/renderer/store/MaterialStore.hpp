@@ -246,6 +246,12 @@ public:
     u32 shadowProgram(u32 materialId, resource::ResourceManager& resources,
                       bool withNormals, bool skinned, bool tangents = false) const;
 
+    /// The program that draws @p materialId's depth for the scene's prepass when its alpha is coverage: the engine's depth shader writing the coverage
+    /// the material's own fragment writes, so under alpha-to-coverage the two pass draw the same samples. Only for the engine's Model shader, whose
+    /// coverage it reproduces; 0 for anything else, for a bent vertex, and when the variant fails — the draw then takes no part in a prepass.
+    u32 prepassCoverageProgram(u32 materialId, resource::ResourceManager& resources,
+                               bool withNormals, bool skinned, bool tangents = false) const;
+
     /// The program that draws @p materialId on PARTICLE geometry — the instanced
     /// quad an emitter streams. Same source, same author's fragment, a different
     /// engine vertex stage; 0 on the same terms as {@link meshProgram}.

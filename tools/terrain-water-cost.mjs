@@ -102,6 +102,7 @@ const VARIANTS = [
   { id: 'trees-noshadow', label: 'trees cast no shadow', world: trees((p) => { for (const part of [...p.parts, ...(p.far ?? [])]) part.castShadows = false; }) },
   { id: 'trees-nofar', label: 'no far cards (trees fade out at their draw distance)', world: (w) => { for (const p of Object.values(w.plants)) p.farDistance = 0; } },
   // Quality knobs, one at a time from high
+  { id: 'no-prepass', label: 'no depth prepass (what the example drew before it)', config: quality('high', { depthPrepass: false }) },
   { id: 'msaa-1', label: 'no multisampling', config: quality('high', { msaaSamples: 1 }) },
   { id: 'msaa-2', label: 'msaa 2x', config: quality('high', { msaaSamples: 2 }) },
   { id: 'cascades-2', label: 'two shadow cascades', config: quality('high', { shadowCascades: 2 }) },
@@ -215,7 +216,7 @@ try {
     }
     if (!r) { table[v.id] = { label: v.label, failed: true }; continue; }
     table[v.id] = { label: v.label, ...r };
-    console.log(`${v.id.padEnd(17)} ${r.ms.toFixed(2).padStart(7)} ms   [${r.min.toFixed(2)}..${r.max.toFixed(2)}]   cpu ${r.cpu.toFixed(2)}   draws ${r.counters['batch.draws'] ?? '?'}  shadow ${r.counters['render.shadow.draws'] ?? '?'}  tris ${((r.counters['render.triangles'] ?? 0) / 1e6).toFixed(2)}M  placed ${r.counters['render.placements.seen'] ?? '?'}/coarse ${r.counters['render.placements.coarse'] ?? '?'}/far ${r.counters['render.placements.tooFar'] ?? '?'}   ${r.errors.length ? 'ERRORS ' + r.errors[0] : ''}`);
+    console.log(`${v.id.padEnd(17)} ${r.ms.toFixed(2).padStart(7)} ms   [${r.min.toFixed(2)}..${r.max.toFixed(2)}]   cpu ${r.cpu.toFixed(2)}   draws ${r.counters['batch.draws'] ?? '?'}  shadow ${r.counters['render.shadow.draws'] ?? '?'}  tris ${((r.counters['render.triangles'] ?? 0) / 1e6).toFixed(2)}M  prepass ${r.counters['render.prepass.draws'] ?? '?'} (meshes taken ${r.counters['render.prepass.taken'] ?? '?'}, cut-out ${r.counters['render.prepass.cutout'] ?? '?'}, bent ${r.counters['render.prepass.bent'] ?? '?'}, none ${r.counters['render.prepass.noProgram'] ?? '?'})   ${r.errors.length ? 'ERRORS ' + r.errors[0] : ''}`);
   }
 } finally {
   await writeFile(path.join(DIR, 'assets/scenes/main.esscene'), original.scene);

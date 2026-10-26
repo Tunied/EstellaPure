@@ -26,6 +26,7 @@ void renderer_init(u32 width, u32 height);
 void renderer_resize(u32 width, u32 height);
 void renderer_setQualityBudgets(u32 atlasSize, u32 cellSize, u32 cascades, u32 particleLimit);
 void renderer_setShadowDistance(f32 distance);
+void renderer_setDepthPrepass(bool on);
 void renderer_setPlanarReflectionQuality(f32 scale, u32 maxSize, f32 updatesPerSecond);
 std::string renderer_getPlanarReflectionStatus(u32 view, u32 entity);
 /**

@@ -2980,4 +2980,6 @@ export const NOTED = {
     {"note":"A third mesh for a plant."},
   "perf(render): a lit surface takes its shadow in fewer operations":
     {"note":"A lit surface takes its shadow in fewer operations."},
+  "feat(render): the opaque scene can be drawn twice, depth alone first, so a pixel is shaded for the surface in front of it":
+    {"note":"A depth prepass for the opaque scene."},
 };

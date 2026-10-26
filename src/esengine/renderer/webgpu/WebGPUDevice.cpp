@@ -1337,14 +1337,14 @@ WGPURenderPipeline WebGPUDevice::ensurePipeline(u32 id) {
     WGPUColorTargetState targets[2]{};
     targets[0].format = pass_color_format_;
     targets[0].blend = desc.blendEnabled ? &blendState : nullptr;
-    targets[0].writeMask = writesStencil(desc.stencil) ? WGPUColorWriteMask_None
-                                                       : WGPUColorWriteMask_All;
+    targets[0].writeMask = (writesStencil(desc.stencil) || !desc.colorWrite) ? WGPUColorWriteMask_None
+                                                                              : WGPUColorWriteMask_All;
     // The second attachment, when the pass has one: written by a shader that has the output, and
     // declared with an empty write mask by every other — WebGPU asks the pipeline to account for
     // every attachment of the pass, and a shader with one output may not be given a mask that
     // would write the second. Never blended: a normal averaged with what was there is neither's.
     targets[1].format = WGPUTextureFormat_RGBA8Unorm;
-    targets[1].writeMask = (desc.gbuffer && !writesStencil(desc.stencil)) ? WGPUColorWriteMask_All
+    targets[1].writeMask = (desc.gbuffer && desc.colorWrite && !writesStencil(desc.stencil)) ? WGPUColorWriteMask_All
                                                                          : WGPUColorWriteMask_None;
 
     WGPUFragmentState fragment{};

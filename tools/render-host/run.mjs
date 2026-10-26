@@ -44,6 +44,7 @@
  *   ESTELLA_VERIFY_SCALE     copy the scene's content onto a grid (JSON), for a cost gate
  *   ESTELLA_VERIFY_OUTPUT_TRANSFORM  the frame's output curve ("aces")
  *   ESTELLA_VERIFY_MSAA      multisample count the scene asks for (the app's default otherwise)
+ *   ESTELLA_VERIFY_PREPASS   1: draw the opaque scene twice, depth alone first (what a quality level does)
  *   ESTELLA_VERIFY_TEXTURES  "runtime": images upload through the engine, as a shipped game's do
  *   ESTELLA_VERIFY_PROFILE   record N further frames and report the TS/C++ cost split
  *   ESTELLA_VERIFY_TIMEOUT_MS  how long this run may take before it reports one
@@ -102,6 +103,7 @@ const COLORSPACE = process.env.ESTELLA_VERIFY_COLORSPACE === 'linear' ? 'linear'
 // is a curve on the way out and engages the capture on its own.
 const OUTPUT_TRANSFORM = process.env.ESTELLA_VERIFY_OUTPUT_TRANSFORM === 'aces' ? 'aces' : '';
 const MSAA = process.env.ESTELLA_VERIFY_MSAA ?? '';
+const PREPASS = process.env.ESTELLA_VERIFY_PREPASS === '1';
 const TEXTURES = process.env.ESTELLA_VERIFY_TEXTURES === 'runtime' ? 'runtime' : '';
 // A scene whose emitters roll dice has no constant to assert until the run is
 // seeded; the engine seeds itself from the clock when nobody says otherwise.
@@ -255,7 +257,7 @@ app.whenReady().then(async () => {
   let server;
   try {
     server = await serveHost(DIST);
-    const url = `http://127.0.0.1:${server.address().port}/${PAGE}?w=${W}&h=${H}&backend=${BACKEND}${COLORSPACE ? `&colorSpace=${COLORSPACE}` : ''}${OUTPUT_TRANSFORM ? `&outputTransform=${OUTPUT_TRANSFORM}` : ''}${MSAA ? `&msaa=${MSAA}` : ''}${TEXTURES ? `&textures=${TEXTURES}` : ''}${DEPTH_LAYERS ? `&depthLayers=${DEPTH_LAYERS}` : ''}${RENDER_RESOLUTION ? `&renderResolution=${RENDER_RESOLUTION}` : ''}${SEED ? `&seed=${SEED}` : ''}`;
+    const url = `http://127.0.0.1:${server.address().port}/${PAGE}?w=${W}&h=${H}&backend=${BACKEND}${COLORSPACE ? `&colorSpace=${COLORSPACE}` : ''}${OUTPUT_TRANSFORM ? `&outputTransform=${OUTPUT_TRANSFORM}` : ''}${MSAA ? `&msaa=${MSAA}` : ''}${PREPASS ? '&prepass=1' : ''}${TEXTURES ? `&textures=${TEXTURES}` : ''}${DEPTH_LAYERS ? `&depthLayers=${DEPTH_LAYERS}` : ''}${RENDER_RESOLUTION ? `&renderResolution=${RENDER_RESOLUTION}` : ''}${SEED ? `&seed=${SEED}` : ''}`;
 
     // useContentSize: the capture rectangle must be the page area, not the
     // outer frame (the same trap the parity runner documents).
@@ -295,7 +297,7 @@ app.whenReady().then(async () => {
     }
     // The engine's per-frame counters are only recorded while profiling is on, and
     // it goes on BEFORE the steps: what is read afterwards is the last frame's.
-    if (process.env.ESTELLA_VERIFY_COUNTERS || process.env.ESTELLA_VERIFY_COUNTERS_MAX || process.env.ESTELLA_VERIFY_FRAME_DEBUG) {
+    if (process.env.ESTELLA_VERIFY_COUNTERS || process.env.ESTELLA_VERIFY_COUNTERS_MAX || process.env.ESTELLA_VERIFY_FRAME_DEBUG || PREPASS) {
       await exec('window.__estellaHeadless.api.setCpuProfiling(true)');
     }
     // Project render config stand-in: ESTELLA_VERIFY_YSORT = layer bitmask
@@ -713,7 +715,7 @@ app.whenReady().then(async () => {
     // exact pins a scene small enough to enumerate, a ceiling asks whether cost stayed
     // bounded where nobody can. Both fail on a counter the frame never set.
     let counters = null;
-    if (process.env.ESTELLA_VERIFY_COUNTERS || process.env.ESTELLA_VERIFY_COUNTERS_MAX) {
+    if (process.env.ESTELLA_VERIFY_COUNTERS || process.env.ESTELLA_VERIFY_COUNTERS_MAX || PREPASS) {
       const want = JSON.parse(process.env.ESTELLA_VERIFY_COUNTERS ?? '{}');
       const ceiling = JSON.parse(process.env.ESTELLA_VERIFY_COUNTERS_MAX ?? '{}');
       const got = await exec('window.__estellaHeadless.api.getCounters()');
@@ -725,6 +727,9 @@ app.whenReady().then(async () => {
           name, max: value, got: got?.[name] ?? null,
           ok: typeof got?.[name] === 'number' && got[name] <= value,
         })),
+        // A prepass twin of a scene that never had a prepass proves nothing about it: the draw it took part in is counted.
+        ...(PREPASS ? [{ name: 'render.prepass.draws', min: 1, got: got?.['render.prepass.draws'] ?? null,
+                         ok: (got?.['render.prepass.draws'] ?? 0) >= 1 }] : []),
       ];
       counters = { points, ok: points.every((p) => p.ok) };
     }

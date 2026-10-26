@@ -325,7 +325,7 @@ inline WGPUDepthStencilState toWGPUDepthStencil(const PipelineDesc& desc, WGPUTe
     ds.format = format;
     ds.depthWriteEnabled = (desc.depthTest && desc.depthWrite) ? WGPUOptionalBool_True
                                                                : WGPUOptionalBool_False;
-    ds.depthCompare = desc.depthTest ? WGPUCompareFunction_Less : WGPUCompareFunction_Always;
+    ds.depthCompare = desc.depthTest ? (desc.depthEqual ? WGPUCompareFunction_LessEqual : WGPUCompareFunction_Less) : WGPUCompareFunction_Always;
     ds.stencilFront = toWGPUStencilFace(desc.stencil);
     ds.stencilBack = toWGPUStencilFace(desc.stencil);
     ds.stencilReadMask = 0xFFu;

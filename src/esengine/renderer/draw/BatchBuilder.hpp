@@ -85,6 +85,8 @@ struct BatchDrawKey {
     // -128..127; 0 says nothing, leaving a renderable without such a field as it was.
     i32 order = 0;
     u32 shaderId = 0;
+    // The program of the scene's depth prepass for this draw; 0 keeps it out of one. @see DrawCommand::depth_shader_id.
+    u32 depthShaderId = 0;
     BlendMode blend = BlendMode::Normal;
     u32 textureId = 0;
     // A second sampler this draw needs for itself (a mesh's normal map), bound to

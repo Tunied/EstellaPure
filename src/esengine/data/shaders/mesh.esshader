@@ -47,6 +47,10 @@
 // the rectangle it is drawn on.
 #pragma feature SHADOW_ALPHA
 
+// The scene's depth prepass of a cut-out: the depth program writes the coverage the colour pass's fragment writes, by the same expression on the same
+// inputs, so under alpha-to-coverage both draw the same samples and the colour pass lands on the depth this one left. With SHADOW_DEPTH.
+#pragma feature PREPASS_COVERAGE
+
 // A skinned surface coloured by how much ONE joint moves each vertex: the weight a rig is
 // painted with, read off the surface instead of a table. The joint is the record's tint x
 // (a diagnostic draw has no tint to carry), the colour goes out through the same varying the
@@ -120,6 +124,10 @@ void applyMorph(inout vec3 position, inout vec3 normal) {
         if (perVertex > 1.5) normal += u_morphShape[i].y * morphDelta(at + 1.0);
     }
 }
+
+// The same position from every program of this vertex stage: the depth prepass draws a surface with one and the colour pass lands on that depth
+// with another, and a compiler may order the arithmetic of two programs differently unless it is told it may not.
+invariant gl_Position;
 
 out vec2 v_texCoord;
 out vec4 v_color;
@@ -324,6 +332,14 @@ void main() {
     highp vec2 was = v_velPrev.xy / max(v_velPrev.w, 1e-6);
     fragColor = vec4((was - now) * 0.5, gl_FragCoord.z, v_velPrev.w > 1e-6 ? 1.0 : 0.0);
 #elif defined(SHADOW_DEPTH)
+#ifdef PREPASS_COVERAGE
+    // The colour pass's own: base alpha is the texture's times the draw's colour times the material's tint, in that order, and the cut is sharpened to
+    // about a pixel. The derivative is taken before the discard, where every fragment of the quad still runs. Nothing is written but the coverage.
+    highp float baseAlpha = texture(u_texture, v_texCoord).a * v_color.a * u_tint.a;
+    highp float coverage = (baseAlpha - u_alphaCutoff) / max(fwidth(baseAlpha), 1e-4) + 0.5;
+    if (coverage <= 0.0) discard;
+    fragColor = vec4(0.0, 0.0, 0.0, min(coverage, 1.0));
+#else
 #ifdef SHADOW_ALPHA
     // A cut-out's shadow is cut where the cut-out is, at the cutoff (glTF's MASK), through the mip chain: seen small from the light, the
     // cut-out keeps its share of the light because its mips keep their coverage at the cutoff (preserveAlphaCoverage).
@@ -334,6 +350,7 @@ void main() {
     // sides mean it alike.
     fragColor = vec4(packDepth(clamp(v_shadowClip.z / v_shadowClip.w * 0.5 + 0.5,
                                      0.0, 1.0)), 1.0);
+#endif
 #else
     vec4 base = texture(u_texture, v_texCoord) * v_color;
 #ifdef LIT
@@ -409,7 +426,7 @@ struct VSIn {
     @builtin(vertex_index) vertexIndex : u32,
 };
 struct VSOut {
-    @builtin(position) pos : vec4f,
+    @builtin(position) @invariant pos : vec4f,
     @location(0) v_texCoord : vec2f,
     @location(1) v_color : vec4f,
 #ifdef LIT
@@ -654,6 +671,16 @@ fn packNormal(n : vec3f) -> vec2f {
     let was = v.v_velPrev.xy / max(v.v_velPrev.w, 1e-6);
     return vec4f((was - now) * 0.5, v.pos.z, select(0.0, 1.0, v.v_velPrev.w > 1e-6));
 #elif defined(SHADOW_DEPTH)
+#ifdef PREPASS_COVERAGE
+    // See the GLSL twin: the colour pass's coverage, by its expression on its inputs.
+    let duvx = dpdx(v.v_texCoord);
+    let duvy = dpdy(v.v_texCoord);
+    let baseAlpha = textureSampleGrad(t0, s0, v.v_texCoord, duvx, duvy).a * v.v_color.a * mc.u_tint.a;
+    let edge = max(fwidth(baseAlpha), 1e-4);
+    let coverage = (baseAlpha - mc.u_alphaCutoff) / max(edge, 1e-4) + 0.5;
+    if (coverage <= 0.0) { discard; }
+    return vec4f(0.0, 0.0, 0.0, min(coverage, 1.0));
+#else
 #ifdef SHADOW_ALPHA
     // See the GLSL twin: through the mip chain (level 0 alone left a card's shadow a different shape from WebGL2's), cut at the cutoff.
     let duvx = dpdx(v.v_texCoord);
@@ -665,6 +692,7 @@ fn packNormal(n : vec3f) -> vec2f {
     // sides mean it alike.
     return vec4f(packDepth(clamp(v.v_shadowClip.z / v.v_shadowClip.w * 0.5 + 0.5,
                                  0.0, 1.0)), 1.0);
+#endif
 #else
     // Through the mip chain, as the GLSL twin's texture() is: level 0 alone shimmers on anything seen smaller than its texture, and
     // the gradients are taken here, before any branch, where every fragment of the quad still runs.

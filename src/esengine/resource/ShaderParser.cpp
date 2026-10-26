@@ -1323,7 +1323,9 @@ fn diskTapSpun(i : i32, n : i32, radius : f32, spin : f32) -> vec2f {
 fn shadowSpin(worldPos : vec3f) -> f32 {
     return 6.2831853 * fract(sin(dot(worldPos, vec3f(12.9898, 78.233, 37.719))) * 43758.5453);
 }
-// The spiral taps for 16 and 32 points, as numbers (see the GLSL twin): each is turned by the pixel's own spin where it is used.
+)"
+// Split again for the same cap; the WGSL is unchanged.
+R"(// The spiral taps for 8, 16 and 32 points, as numbers (see the GLSL twin): each is turned by the pixel's own spin where it is used.
 const kSpiral8 = array<vec2f, 8>(
     vec2f(0.2500000, 0.0000000),
     vec2f(-0.3192901, 0.2924959),

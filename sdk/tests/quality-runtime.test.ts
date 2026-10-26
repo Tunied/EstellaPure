@@ -12,10 +12,10 @@ vi.mock('../src/platform', () => ({
     platformOnAppHide: () => () => {}, platformOnAppShow: () => () => {},
 }));
 vi.mock('../src/ecs/bridge/engineApi', () => ({
-    engineApi: () => ({ renderer_setQualityBudgets: vi.fn(), renderer_setShadowDistance: distanceBudget, renderer_setPlanarReflectionQuality: reflectionBudget }),
+    engineApi: () => ({ renderer_setQualityBudgets: vi.fn(), renderer_setShadowDistance: distanceBudget, renderer_setPlanarReflectionQuality: reflectionBudget, renderer_setDepthPrepass: prepass }),
 }));
 
-const { distanceBudget, reflectionBudget } = vi.hoisted(() => ({ distanceBudget: vi.fn(), reflectionBudget: vi.fn() }));
+const { distanceBudget, reflectionBudget, prepass } = vi.hoisted(() => ({ distanceBudget: vi.fn(), reflectionBudget: vi.fn(), prepass: vi.fn() }));
 
 describe('quality runtime device selection', () => {
     it('applies the tier shadow range and restores camera coverage when disabled', () => {
@@ -31,6 +31,22 @@ describe('quality runtime device selection', () => {
         controller!.setMode('off'); apply!();
         expect(distanceBudget).toHaveBeenLastCalledWith(0);
         expect(reflectionBudget).toHaveBeenLastCalledWith(0.5,1024,0);
+    });
+    it('turns the depth prepass on for a level that asks for it and off with the quality system, or for a level that does not', () => {
+        let apply: (() => void) | undefined;
+        let controller: import('../src/render/quality').QualityController;
+        const app = { wasmModule: null, insertResource: (_: unknown, value: typeof controller) => { controller = value; },
+            pipeline: { setQuality: (_: unknown, callback: () => void) => { apply = callback; } },
+            addPlugin: vi.fn(), onFrameEnd: () => () => {},
+        } as unknown as App;
+        installQuality(app, { mode: 'high' }, 4);
+        expect(prepass).toHaveBeenLastCalledWith(true);
+        controller!.setMode('low'); apply!();
+        expect(prepass).toHaveBeenLastCalledWith(false);
+        controller!.setMode('medium'); apply!();
+        expect(prepass).toHaveBeenLastCalledWith(true);
+        controller!.setMode('off'); apply!();
+        expect(prepass).toHaveBeenLastCalledWith(false);
     });
     it('uses this app’s actual renderer identity when a GPU rule matches', () => {
         const insertResource = vi.fn();

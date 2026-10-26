@@ -104,6 +104,9 @@ struct DrawCommand {
     u32 vertex_byte_offset = 0;
 
     u32 shader_id = 0;
+    /// The program that writes only this draw's depth, for the scene's depth prepass (0 = the draw takes no part in one). Its vertex stage is
+    /// the draw's own, so the depth it writes is the depth the draw's colour pass lands on.
+    u32 depth_shader_id = 0;
     BlendMode blend_mode = BlendMode::Normal;
     LayoutId layout_id = LayoutId::Batch;
 
@@ -395,7 +398,7 @@ struct DrawCommand {
                 return BatchBreak::Instanced;
             }
             if (!sameInstancedGeometry(next)) return BatchBreak::Instanced;
-            if (shader_id != next.shader_id) return BatchBreak::Shader;
+            if (shader_id != next.shader_id || depth_shader_id != next.depth_shader_id) return BatchBreak::Shader;
             if (material_id != next.material_id) return BatchBreak::Material;
             if (cull != next.cull) return BatchBreak::Cull;
             if (depth_bias != next.depth_bias) return BatchBreak::Cull;
@@ -409,7 +412,7 @@ struct DrawCommand {
             }
             return BatchBreak::None;
         }
-        if (shader_id != next.shader_id) return BatchBreak::Shader;
+        if (shader_id != next.shader_id || depth_shader_id != next.depth_shader_id) return BatchBreak::Shader;
         if (blend_mode != next.blend_mode) return BatchBreak::Blend;
         if (layout_id != next.layout_id || vertex_buffer != next.vertex_buffer
             || index_buffer != next.index_buffer || vertex_layout != next.vertex_layout) return BatchBreak::Layout;

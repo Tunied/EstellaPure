@@ -378,6 +378,19 @@ bool DrawList::anyBlendedWithoutSceneColor(const MaterialStore& materials) const
     return false;
 }
 
+/// A draw the prepass takes in: opaque and depth-writing, with a program of its own for it, and nothing that changes where it lands (a stencil).
+static bool takesPartInPrepass(const DrawCommand& cmd) {
+    return cmd.depth_shader_id != 0 && cmd.depth_test && cmd.depth_write && stencilModeOf(cmd.state_flags) == GfxStencilMode::Off;
+}
+
+u32 DrawList::depthPrepassDraws() const {
+    u32 n = 0;
+    for (u32 i = 0; i < merged_draw_calls_; ++i) {
+        if (takesPartInPrepass(commands_[i])) ++n;
+    }
+    return n;
+}
+
 bool DrawList::anyUsesSceneDepth(const MaterialStore& materials) const {
     for (u32 i = 0; i < merged_draw_calls_; ++i) {
         if (commands_[i].material_id != 0 && materials.usesSceneDepth(commands_[i].material_id)) return true;
@@ -387,7 +400,9 @@ bool DrawList::anyUsesSceneDepth(const MaterialStore& materials) const {
 
 void DrawList::execute(GfxDevice& device, TransientBufferPool& buffers,
                        MaterialStore& materials, u32 white_texture_id,
-                       FrameCapture* capture, const PerDrawBlockSet& blocks, Phase phase) {
+                       FrameCapture* capture, const PerDrawBlockSet& blocks, Phase phase, DrawPass pass) {
+    const bool prepass = pass == DrawPass::DepthPrepass;
+    const bool afterPrepass = pass == DrawPass::ColorAfterPrepass;
     PipelineDesc lastDesc{};
     PipelineHandle lastHandle = PipelineHandle::Invalid;
     // The draws of this phase read the scene's colour and compose it under themselves.
@@ -399,11 +414,13 @@ void DrawList::execute(GfxDevice& device, TransientBufferPool& buffers,
         device.bindTexture(MESH_INSTANCE_TEXTURE_UNIT, buffers.instanceTexture());
     }
 
-    stageBlocks(blocks);
+    // The colour pass after a prepass is the same list the prepass staged the per-draw blocks for.
+    if (!afterPrepass) stageBlocks(blocks);
 
     for (u32 i = 0; i < merged_draw_calls_; ++i) {
         const auto& cmd = commands_[i];
         const StagedBlocks& staged = staged_[i];
+        if (prepass && !takesPartInPrepass(cmd)) continue;
         if (phase != Phase::All) {
             const bool refracts = cmd.material_id != 0 && materials.usesSceneColor(cmd.material_id);
             const bool blended = isBlendedStage(cmd.stage);
@@ -449,6 +466,18 @@ void DrawList::execute(GfxDevice& device, TransientBufferPool& buffers,
         // record, written unblended where the device can say so per target.
         desc.gbuffer = gbuffer_pass_ && materials.programWritesGBuffer(cmd.shader_id)
                     && (!desc.blendEnabled || (composes && device.supportsUnblendedSurfaceTarget()));
+        if (prepass) {
+            // Depth alone: the draw's depth program, unblended, no colour to either attachment. A cut-out keeps the alpha-to-coverage the colour pass draws with.
+            desc.program = ShaderHandle{cmd.depth_shader_id};
+            desc.blend = BlendMode::None;
+            desc.blendEnabled = false;
+            desc.gbuffer = false;
+            desc.colorWrite = false;
+        } else if (afterPrepass && takesPartInPrepass(cmd)) {
+            // Its depth is already in the buffer: it lands where it is level with it, and writes nothing there again.
+            desc.depthEqual = true;
+            desc.depthWrite = false;
+        }
 
         if (lastHandle == PipelineHandle::Invalid || !(desc == lastDesc)) {
             lastHandle = device.createPipeline(desc);
@@ -484,9 +513,8 @@ void DrawList::execute(GfxDevice& device, TransientBufferPool& buffers,
         if (stencil != GfxStencilMode::Off) {
             device.setStencilReference(cmd.stencil_ref);
         }
-        // A draw that samples binds every unit its shader declares, not only the
-        // ones it reads: an untouched unit holds what the last draw put there, in
-        // any pass. The fill is a STABLE white, so unused units cost no rebind.
+        // A draw that samples binds every unit its shader declares, not only the ones it reads: an untouched unit holds what the last draw
+        // put there, in any pass, the prepass too (a vertex hook reads textures). The fill is a STABLE white, so unused units cost no rebind.
         if (cmd.texture_count > 0) {
             for (u8 slot = 0; slot < MAX_CMD_TEXTURE_SLOTS; ++slot) {
                 // The top units are the frame's screen-space light masks wherever one
@@ -528,7 +556,7 @@ void DrawList::execute(GfxDevice& device, TransientBufferPool& buffers,
                 static_cast<u32>(static_cast<uintptr_t>(cmd.index_offset) * sizeof(u32)));
         }
 
-        if (capture) {
+        if (capture && !prepass) {
             if (capture->isReplaying()) {
                 if (capture->stepReplay()) break;
             } else if (capture->isCapturing()) {

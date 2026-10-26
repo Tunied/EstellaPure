@@ -168,6 +168,58 @@ u32 MaterialStore::shadowProgram(u32 materialId, resource::ResourceManager& reso
     return program;
 }
 
+u32 MaterialStore::prepassCoverageProgram(u32 materialId, resource::ResourceManager& resources,
+                                          bool withNormals, bool skinned, bool tangents) const {
+    const MaterialRecord* rec = find(materialId);
+    if (!rec || !rec->shaderRef.isValid()) return 0;
+    const u64 shape = (1ull << 41) | (withNormals ? (1ull << 32) : 0ull) | (skinned ? (1ull << 33) : 0ull)
+                    | (tangents && withNormals ? (1ull << 39) : 0ull);
+    auto& variants = mesh_programs_[rec->shaderRef.id()];
+    auto cached = variants.find(shape);
+    if (cached != variants.end()) {
+        const Shader* shader = resources.getShader(cached->second);
+        return shader ? shader->getProgramId() : 0;
+    }
+    auto src = sources_.find(rec->shaderRef.id());
+    if (src == sources_.end()) {
+        variants[shape] = {};
+        return 0;
+    }
+    const resource::ParsedShader material = resource::ShaderParser::parse(src->second.source);
+    resource::ParsedShader depth = resource::ShaderParser::parse(ShaderEmbeds::MESH);
+    // The Model shader's coverage is what the depth fragment reproduces, and a hook would move vertices the colour pass moves its own way.
+    if (!material.valid || !depth.valid || material.name != "Model" || material.coverageParam != "u_alphaCutoff" || !material.vertexHook.empty()) {
+        variants[shape] = {};
+        return 0;
+    }
+    depth.properties = material.properties;
+    depth.materialBlockSize = material.materialBlockSize;
+
+    std::vector<std::string> features;
+    if (withNormals) features.emplace_back("MESH_NORMALS");
+    if (skinned) features.emplace_back("SKINNED");
+    features.emplace_back("SHADOW_DEPTH");
+    features.emplace_back("PREPASS_COVERAGE");
+    const auto target = resources.preferredShaderTarget();
+    const std::string vert = resource::ShaderParser::assembleStage(depth, resource::ShaderStage::Vertex, "", features, target);
+    const std::string frag = resource::ShaderParser::assembleStage(depth, resource::ShaderStage::Fragment, "", features, target);
+    if (vert.empty() || frag.empty()) {
+        ES_LOG_WARN("MaterialStore: no prepass program for material {} (stage assembly failed)", materialId);
+        variants[shape] = {};
+        return 0;
+    }
+    resource::ShaderHandle handle = resources.createShaderWithBindings(vert, frag, {}, resources.preferredShaderLanguage());
+    Shader* shader = resources.getShader(handle);
+    if (!shader || !shader->isValid()) {
+        resources.releaseShader(handle);
+        variants[shape] = {};
+        return 0;
+    }
+    const u32 program = shader->getProgramId();
+    variants[shape] = handle;
+    return program;
+}
+
 u32 MaterialStore::particleProgram(u32 materialId, resource::ResourceManager& resources) const {
     return variantProgram(materialId, resources, 1ull << 35, { "PARTICLE" }, "particles");
 }

@@ -901,6 +901,28 @@ export const SCENES = [
   { id: "device-roundtrip-post", tier: "pr", webgpu: true, env: { ESTELLA_VERIFY_DEVICE_LOSS: "roundtrip", ESTELLA_VERIFY_LOSS_ROUNDS: "2", ESTELLA_VERIFY_PLAY: "1", ESTELLA_VERIFY_SCENE: "/scenes/ui-screen-post.esscene", ESTELLA_VERIFY_MANIFEST: "/scenes/ui-screen-post.textures.json", ESTELLA_VERIFY_W: "640", ESTELLA_VERIFY_H: "360", ESTELLA_VERIFY_STEPS: "4" } },
 ];
 
+/**
+ * The same pixels with the opaque scene drawn twice, depth alone first. A quality level turns the prepass on, and this host has none, so a scene
+ * that must look the same either way runs again with `ESTELLA_VERIFY_PREPASS`; the run also fails if no draw took part in the prepass, which a
+ * twin of a scene with nothing opaque to draw first would otherwise pass without having tried.
+ */
+const PREPASS_TWINS = [
+  // Scenes that draw opaque meshes already.
+  'mesh-opaque', 'mesh-instanced', 'corpus-cutout-edge', 'mesh-normalmap', 'mesh-shadow-cutout', 'mesh-shadow', 'sun-shadow',
+  // The same scenes with their meshes made opaque (fixtures/scenes/*-opaque.esscene), for what a mesh can be besides a rigid one that is lit:
+  // skinned, morphing.
+  { id: 'mesh-skin', scene: 'mesh-skin-opaque.esscene' }, { id: 'mesh-morph-shaped', scene: 'mesh-morph-opaque.esscene' },
+  { id: 'mesh-lit', scene: 'mesh-lit-opaque.esscene' }, { id: 'mesh-resident', scene: 'mesh-renderer-opaque.esscene', as: 'mesh-renderer' },
+];
+for (const entry of PREPASS_TWINS) {
+  const { id, scene, as } = typeof entry === 'string' ? { id: entry } : entry;
+  const base = SCENES.find((s) => s.id === id);
+  if (!base) throw new Error(`renderScenes: no scene "${id}" to run a prepass twin of`);
+  const env = { ...base.env, ESTELLA_VERIFY_PREPASS: '1' };
+  if (scene) env.ESTELLA_VERIFY_SCENE = `/scenes/${scene}`;
+  SCENES.push({ ...base, id: `${as ?? (scene ? scene.replace('.esscene', '') : id)}-prepass`, env });
+}
+
 const rank = (tier) => TIERS.indexOf(tier);
 
 /** Scenes that run at `tier`, cheaper tiers included. */

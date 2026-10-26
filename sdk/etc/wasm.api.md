@@ -514,6 +514,7 @@ renderer_setClearColor: (r: number, g: number, b: number, a: number) => void
 renderer_setColorSpace: ((linear: number) => void) | undefined
 renderer_setCullingMask: ((mask: number) => void) | undefined
 renderer_setDepthLayers: ((mask: number) => void) | undefined
+renderer_setDepthPrepass: ((on: boolean) => void) | undefined
 renderer_setEntityDrawOrder: ((registry: CppRegistry, entitiesPtr: number, count: number) => void) | undefined
 renderer_setLodPreview: ((view: number, entity: number, level: number) => void) | undefined
 renderer_setMeshEdgeBuffers: ((enabled: boolean) => void) | undefined

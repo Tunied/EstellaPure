@@ -234,6 +234,7 @@ private:
     u32 active_texture_unit_ = 0;
     u32 bound_texture_[kTextureSlots] = {};
     i16 current_depth_bias_ = 0;
+    i8 depth_equal_ = -1;  ///< -1: unknown. 1 when the depth test passes on equal depth too.
     i8 alpha_to_coverage_ = -1;  ///< -1: unknown, so the next pipeline sets it.
     /// The framebuffer being drawn into carries a second colour attachment, and which of the two draw
     /// buffer sets is live: 0 = colour only, 1 = both, -1 = not yet said for this pass.

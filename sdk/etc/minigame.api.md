@@ -7943,6 +7943,7 @@ static prototype: QualityController
 
 ## QualityProfile — interface @experimental
 ```
+depthPrepass: boolean
 detailScale: number
 minRenderScale: number
 msaaSamples: 2 | 1 | 4 | 8

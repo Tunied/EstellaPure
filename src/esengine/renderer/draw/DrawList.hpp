@@ -58,10 +58,17 @@ public:
     /// Which of the list's draws an execute makes. A draw whose material reads the picture behind it (`u_sceneColor`) has to be
     /// made after a copy of that picture is taken, so the frame executes the list twice: the rest, then those.
     enum class Phase : u8 { All, WithoutSceneColor, SceneColorOnly, OpaqueOnly, BlendedOnly };
+    /// What a run of the list is for. A depth prepass draws the opaque surfaces that have a depth program, into the depth buffer alone; the colour
+    /// pass that follows (`ColorAfterPrepass`) draws those same surfaces where their depth is equal to what is there, so a pixel is shaded once, for
+    /// the surface that is in front of it.
+    enum class DrawPass : u8 { Color, DepthPrepass, ColorAfterPrepass };
     void execute(GfxDevice& device, TransientBufferPool& buffers,
                  MaterialStore& materials, u32 white_texture_id = 0,
                  FrameCapture* capture = nullptr,
-                 const PerDrawBlockSet& blocks = {}, Phase phase = Phase::All);
+                 const PerDrawBlockSet& blocks = {}, Phase phase = Phase::All, DrawPass pass = DrawPass::Color);
+
+    /// How many of the merged draws take part in a depth prepass; 0 means a prepass has nothing to draw.
+    u32 depthPrepassDraws() const;
 
     /// Whether any merged draw reads the picture behind it.
     bool anyUsesSceneColor(const MaterialStore& materials) const;
