@@ -35,6 +35,7 @@
  *   ESTELLA_VERIFY_SKIN_WEIGHTS  colour a skinned entity by joint weights (JSON {id, joints}; see the block)
  *   ESTELLA_VERIFY_COUNTERS  engine counters the drawn frame must report (JSON)
  *   ESTELLA_VERIFY_COUNTERS_MAX  counters the frame must stay UNDER — a budget (JSON)
+ *   ESTELLA_VERIFY_GPU_PASSES  print|require — the GPU time of each render-graph pass on this backend (local; needs a timer)
  *   ESTELLA_VERIFY_FRAME_DEBUG  capture the frame and replay it (the frame debugger)
  *   ESTELLA_VERIFY_UNIFORM   the frame is one colour on purpose; ESTELLA_VERIFY_COUNT says which
  *   ESTELLA_VERIFY_EDGE      how straight a straight edge is drawn (JSON: box, lit, dark, maxJag)
@@ -237,7 +238,7 @@ function finish(result, server) {
     (result.seam?.ok ?? true) && (result.nineSlice?.ok ?? true) &&
     (result.resize?.ok ?? true) && (result.preview?.ok ?? true) &&
     (result.meshPreview?.ok ?? true) && (result.grid?.ok ?? true) && (result.studio?.ok ?? true) && (result.shading?.ok ?? true) && (result.skinWeights?.ok ?? true) &&
-    (result.draws?.ok ?? true) && (result.counters?.ok ?? true) && (result.frameDebug?.ok ?? true) && (result.edge?.ok ?? true) && (result.cutoutEdge?.ok ?? true) && (result.minified?.ok ?? true) &&
+    (result.draws?.ok ?? true) && (result.counters?.ok ?? true) && (result.gpuPasses?.ok ?? true) && (result.frameDebug?.ok ?? true) && (result.edge?.ok ?? true) && (result.cutoutEdge?.ok ?? true) && (result.minified?.ok ?? true) &&
     (result.roundtrip?.ok ?? true) && deviceLossOk && meshOk && pickOk;
   const why = assetsOk ? '' : `: could not load ${result.missingAssets.join(', ')}`;
   console.log(`\n[verify:render] ${ok ? 'PASS' : 'FAIL'} — ${SCENE} (${BACKEND})${why}`);
@@ -733,6 +734,24 @@ app.whenReady().then(async () => {
       ];
       counters = { points, ok: points.every((p) => p.ok) };
     }
+    // ESTELLA_VERIFY_GPU_PASSES=print|require: per-pass GPU time on this backend. The device answers a few frames
+    // late and between tasks, so frames are stepped with a pause until the render graph's passes report. `require`
+    // fails a backend that can time and reported nothing; it is local-only, a CI adapter may not offer a timer.
+    let gpuPasses = null;
+    if (process.env.ESTELLA_VERIFY_GPU_PASSES) {
+      await exec('window.__estellaHeadless.api.setCpuProfiling(true)');
+      let scopes = {};
+      for (let i = 0; i < 40; i++) {
+        await exec('window.__estellaHeadless.api.step(1, 1 / 60)');
+        await new Promise((r) => setTimeout(r, 40));
+        scopes = await exec('window.__estellaHeadless.api.getGpuScopes()');
+        if (Object.keys(scopes).some((k) => k.startsWith('pass/'))) break;
+      }
+      const rows = Object.entries(scopes).filter(([k]) => k.startsWith('pass/')).sort((a, b) => b[1] - a[1]);
+      console.log(`gpu passes (${BACKEND}): graph ${(scopes.graph ?? -1).toFixed(3)} ms, ${rows.length} passes`);
+      for (const [k, v] of rows) console.log(`  ${k.slice(5).padEnd(30)} ${v.toFixed(3)} ms`);
+      gpuPasses = { count: rows.length, ok: process.env.ESTELLA_VERIFY_GPU_PASSES !== 'require' || rows.length > 0 };
+    }
     // The frame debugger on this backend: its reasons are the merge's own counters
     // for the frame, and a replay through the last draw of a pass shows more than
     // one through the first.
@@ -1223,7 +1242,7 @@ app.whenReady().then(async () => {
       skinWeights = { H0, H1, dA, dJoints, back,
         ok: H0.hot > 20 && H1.hot > 20 && dA.differing > 300 && dJoints.differing > 300 && back.max === 0 };
     }
-    finish({ ok: true, studio, shading, skinWeights, entityCount, missingAssets, drawCalls, draws, counters, frameDebug, edge, cutoutEdge, minified, profile, capture, expect, twins, nineSlice, count, seam, resize, preview, meshPreview, grid, deviceLoss, roundtrip, meshResident, meshAsset, meshMaterial, meshPrefab, setField, animator, pick, cameraTarget }, server);
+    finish({ ok: true, studio, shading, skinWeights, entityCount, missingAssets, drawCalls, draws, counters, gpuPasses, frameDebug, edge, cutoutEdge, minified, profile, capture, expect, twins, nineSlice, count, seam, resize, preview, meshPreview, grid, deviceLoss, roundtrip, meshResident, meshAsset, meshMaterial, meshPrefab, setField, animator, pick, cameraTarget }, server);
   } catch (e) {
     finish({ ok: false, error: String((e && e.stack) || e) }, server);
   }

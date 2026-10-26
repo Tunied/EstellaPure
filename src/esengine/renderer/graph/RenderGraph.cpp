@@ -21,6 +21,102 @@ RenderGraph::RenderGraph(GfxDevice& device)
 
 RenderGraph::~RenderGraph() = default;
 
+// =============================================================================
+// PassTimer
+// =============================================================================
+
+bool PassTimer::available() {
+    if (state_ == 0) {
+        // The device says whether it can time by whether it will make a query.
+        const u32 probe = device_.createTimerQuery();
+        state_ = probe != 0 ? 1 : 2;
+        arming_ = device_.timesPassesByArming();
+        if (probe != 0) queries_.push_back(probe);  // kept: it is the first slot's query
+    }
+    return state_ == 1;
+}
+
+u32 PassTimer::queryFor(u32 frame, u32 index) {
+    const usize at = static_cast<usize>(frame) * kMaxPasses + index;
+    if (queries_.size() <= at) queries_.resize(at + 1, 0);
+    if (queries_[at] == 0) queries_[at] = device_.createTimerQuery();
+    return queries_[at];
+}
+
+bool PassTimer::poll(Frame& frame) {
+    bool all = true;
+    for (Slot& slot : frame.slots) {
+        if (slot.done) continue;
+        u64 ns = 0;
+        if (device_.getTimerQueryNs(slot.query, &ns)) {
+            slot.done = true;
+            slot.ms = static_cast<f32>(ns) / 1.0e6f;
+        } else {
+            all = false;
+        }
+    }
+    return all;
+}
+
+void PassTimer::beginFrame() {
+    if (state_ != 1) return;
+    if (device_.timerDisjoint()) {
+        // Timing was disturbed: what is in flight is meaningless.
+        for (Frame& f : frames_) f.inflight = false;
+    }
+    for (u32 i = 0; i < kFrames; ++i) {
+        Frame& f = frames_[i];
+        if (!f.inflight || !poll(f)) continue;
+        f.inflight = false;
+        if (frameNo_[i] <= lastNo_) continue;  // an older frame finishing after a newer one: skip
+        lastNo_ = frameNo_[i];
+        last_.clear();
+        lastTotal_ = 0.0f;
+        for (const Slot& slot : f.slots) {
+            lastTotal_ += slot.ms;
+            bool merged = false;
+            for (Entry& e : last_) {
+                if (e.name == slot.name) { e.ms += slot.ms; merged = true; break; }
+            }
+            if (!merged) last_.push_back({slot.name, slot.ms});
+        }
+    }
+    cur_ = (cur_ + 1) % kFrames;
+    frames_[cur_].slots.clear();
+    frames_[cur_].inflight = false;  // a frame the GPU never answered is dropped, not waited for
+    frameNo_[cur_] = ++counter_;
+}
+
+void PassTimer::endFrame() {
+    if (state_ != 1) return;
+    end();
+    frames_[cur_].inflight = !frames_[cur_].slots.empty();
+}
+
+void PassTimer::begin(const std::string& name) {
+    if (state_ != 1) return;
+    end();
+    Frame& f = frames_[cur_];
+    if (f.slots.size() >= kMaxPasses) return;
+    const u32 query = queryFor(cur_, static_cast<u32>(f.slots.size()));
+    if (query == 0) return;
+    Slot slot;
+    slot.name = names_.insert(name).first->c_str();
+    slot.query = query;
+    f.slots.push_back(slot);
+    if (arming_) device_.armPassTimer(query);
+    else device_.beginTimerQuery(query);
+    open_ = true;
+}
+
+void PassTimer::end() {
+    if (!open_) return;
+    open_ = false;
+    if (arming_) device_.armPassTimer(0);
+    else device_.endTimerQuery();
+}
+
+
 void RenderGraph::begin(u32 refWidth, u32 refHeight) {
     // Kept, not freed: the vectors' capacity is the whole point of reusing one
     // graph across frames.
@@ -196,6 +292,7 @@ void RenderGraph::execute() {
             fbo = target.target;
         }
 
+        if (timer_) timer_->begin(pass.name);
         if (pass.compute) {
             // A dispatch is not a draw: it runs between render passes, with nothing bound for it by the graph.
             // The pass before it is still open on a device that leaves one open until the next begins; a dispatch needs it closed.
@@ -211,6 +308,7 @@ void RenderGraph::execute() {
                 pass.execute(ctx);
             }
             ++executed_;
+            if (timer_) timer_->end();
             for (auto& res : resources_) {
                 if (res.kind == Kind::Transient && res.lastRead == static_cast<i32>(i)) release(res);
             }
@@ -247,6 +345,7 @@ void RenderGraph::execute() {
             pass.execute(ctx);
         }
         ++executed_;
+        if (timer_) timer_->end();
 
         // Recycled after the pass that last read it, which is what lets a linear
         // chain run on two physical targets without anyone arranging it.

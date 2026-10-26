@@ -830,11 +830,35 @@ void RenderFrame::end() {
 
     {
         ES_PROFILE_SCOPE("render.graph");
-        gpu_timer_.poll(device_);
-        gpu_timer_.begin(device_);
-        graph_.execute();
-        gpu_timer_.end(device_);
-        FrameProfiler::get().gpuScope("graph", gpu_timer_.lastMs());
+        // With the profiler on, each pass is timed and the graph is their sum; otherwise one query spans the graph.
+        rg::PassTimer* passTimer = nullptr;
+        if (FrameProfiler::get().enabled()) {
+            if (!pass_timer_) pass_timer_ = makeUnique<rg::PassTimer>(device_);
+            if (pass_timer_->available()) passTimer = pass_timer_.get();
+        }
+        if (passTimer) {
+            passTimer->beginFrame();
+            graph_.setPassTimer(passTimer);
+            graph_.execute();
+            graph_.setPassTimer(nullptr);
+            passTimer->endFrame();
+            // The scope names are the passes' own, under pass/ so they cannot meet a scope of another kind.
+            for (const auto& e : passTimer->last()) {
+                pass_scope_names_.try_emplace(e.name, std::string("pass/") + e.name);
+                FrameProfiler::get().gpuScope(pass_scope_names_[e.name].c_str(), e.ms);
+            }
+            if (passTimer->lastTotalMs() >= 0.0f) {
+                pass_graph_ms_ = passTimer->lastTotalMs();
+                FrameProfiler::get().gpuScope("graph", pass_graph_ms_);
+            }
+        } else {
+            gpu_timer_.poll(device_);
+            gpu_timer_.begin(device_);
+            graph_.execute();
+            gpu_timer_.end(device_);
+            pass_graph_ms_ = -1.0f;
+            FrameProfiler::get().gpuScope("graph", gpu_timer_.lastMs());
+        }
     }
 #ifdef ES_ENABLE_GPU_PARTICLES
     // After the graph, which is where the kernels run: a frame that dispatched none (its emitters fell back to the CPU, or
@@ -857,7 +881,7 @@ void RenderFrame::end() {
     }
 
     // The graph's own time is the whole frame's — the scene pass runs inside it.
-    stats_.gpu_time_ms = gpu_timer_.lastMs();
+    stats_.gpu_time_ms = pass_graph_ms_ >= 0.0f ? pass_graph_ms_ : gpu_timer_.lastMs();
 
     // The frame's pass closes HERE, not at the next begin: a WebGPU backend
     // submits on endRenderPass, and a surface texture acquired this task must

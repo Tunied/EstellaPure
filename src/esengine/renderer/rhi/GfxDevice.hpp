@@ -766,6 +766,20 @@ public:
     /** @brief Fetches a completed query's elapsed nanoseconds; false while still pending. */
     virtual bool getTimerQueryNs(u32 query, u64* outNanoseconds) = 0;
 
+    /**
+     * @brief True when a pass is timed by arming it, not by bracketing it with begin/endTimerQuery.
+     * @details A GL query spans whatever is issued between its two calls; a WebGPU timestamp is written by the pass that
+     *          carries it, so the pass has to be named before it opens. A per-pass timer picks its calls by this.
+     */
+    virtual bool timesPassesByArming() const { return false; }
+
+    /**
+     * @brief Times the next render or compute pass into @p query (0 disarms), read back with getTimerQueryNs.
+     * @details Only where timesPassesByArming(). A pass that is split in two by the device (a mid-pass copy) is timed up
+     *          to the split.
+     */
+    virtual void armPassTimer(u32 query) { (void)query; }
+
     // =========================================================================
     // Debug
     // =========================================================================

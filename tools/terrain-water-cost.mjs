@@ -40,6 +40,8 @@ const VIEW = Number(flag('view', '0'));
 const ONLY = flag('only', '') ? new Set(flag('only', '').split(',')) : null;
 const OUT = flag('out', path.join(ROOT, 'output', 'perf', 'terrain-water-cost.json'));
 const NO_EXPORT = argv.includes('--no-export');
+const PASSES = argv.includes('--passes');
+const PASSES_TOP = Number(flag('passes-top', '24'));
 /** A folder to write each variant's last frame to, as `<id>-view<n>.png`. */
 const SHOTS = flag('shots', '');
 
@@ -175,7 +177,7 @@ async function measure(server, original, variant, browser) {
       }
       return -1;
     });
-    const result = await page.evaluate(async ({ frames, samples }) => {
+    const result = await page.evaluate(async ({ frames, samples, passSamples }) => {
       const c = window.__estellaCooked;
       const px = new Uint8Array(4);
       const gl = document.querySelector('canvas').getContext('webgl2') ?? null;
@@ -183,21 +185,41 @@ async function measure(server, original, variant, browser) {
       c.render(); c.costs();  // engages the profilers: the counters and the CPU split are read after the samples
       await c.step(frames, 1 / 60); sync();
       const ms = [];
+      const gpuRuns = [];
       for (let s = 0; s < samples; s++) {
         const t0 = performance.now();
         await c.step(frames, 1 / 60);
         sync();
         ms.push((performance.now() - t0) / frames);
       }
+      // After the wall-clock samples, so the pauses do not touch them: the browser delivers a timer query's answer
+      // between tasks, not inside the burst that asked.
+      for (let s = 0; s < passSamples; s++) {
+        await c.step(frames, 1 / 60);
+        sync();
+        await new Promise((r) => setTimeout(r, 40));
+        gpuRuns.push(c.gpu?.() ?? {});
+      }
       const costs = c.costs();
       const cpu = costs.systems.reduce((a, x) => a + x.ms, 0);
-      return { ms, counters: c.render(), cpu, native: costs.native, size: [document.querySelector('canvas').width, document.querySelector('canvas').height], gl: !!gl };
-    }, { frames: FRAMES, samples: SAMPLES });
+      return { ms, gpuRuns, counters: c.render(), cpu, native: costs.native, size: [document.querySelector('canvas').width, document.querySelector('canvas').height], gl: !!gl };
+    }, { frames: FRAMES, samples: SAMPLES, passSamples: PASSES ? SAMPLES : 0 });
     if (SHOTS) { await mkdir(SHOTS, { recursive: true }); await page.screenshot({ path: path.join(SHOTS, `${variant.id}-view${VIEW}.png`) }); }
-    return { ms: median(result.ms), cpu: result.cpu, native: result.native, min: Math.min(...result.ms), max: Math.max(...result.ms), settled, counters: result.counters, size: result.size, errors };
+    return { ms: median(result.ms), gpu: gpuMedians(result.gpuRuns), cpu: result.cpu, native: result.native, min: Math.min(...result.ms), max: Math.max(...result.ms), settled, counters: result.counters, size: result.size, errors };
   } finally {
     await context.close();
   }
+}
+
+// The device answers a few frames late and one frame at a time: the median over the samples is the number to read.
+function gpuMedians(runs) {
+  const keys = new Set(runs.flatMap((r) => Object.keys(r)));
+  const out = {};
+  for (const k of keys) {
+    const v = runs.map((r) => r[k]).filter((x) => typeof x === 'number' && x >= 0);
+    if (v.length) out[k] = median(v);
+  }
+  return out;
 }
 
 if (!NO_EXPORT) {
@@ -238,6 +260,12 @@ try {
     if (!r) { table[v.id] = { label: v.label, failed: true }; continue; }
     table[v.id] = { label: v.label, ...r };
     if (argv.includes('--probe')) console.log('  ' + Object.entries(r.counters).filter(([k]) => k.startsWith('probe.')).map(([k, x]) => `${k.replace('probe.', '')}=${x}`).join('  '));
+    if (PASSES) {
+      const rows = Object.entries(r.gpu).filter(([k]) => k.startsWith('pass/')).sort((a, b) => b[1] - a[1]);
+      const sum = rows.reduce((t, [, x]) => t + x, 0);
+      console.log(`  gpu per pass (${v.id}): graph ${(r.gpu.graph ?? -1).toFixed(2)} ms, passes sum ${sum.toFixed(2)} ms, ${rows.length} passes`);
+      for (const [k, x] of rows.slice(0, PASSES_TOP)) console.log(`    ${k.slice(5).padEnd(34)} ${x.toFixed(2).padStart(7)} ms  ${(100 * x / Math.max(sum, 1e-9)).toFixed(1).padStart(5)}%`);
+    }
     console.log(`${v.id.padEnd(17)} ${r.ms.toFixed(2).padStart(7)} ms   [${r.min.toFixed(2)}..${r.max.toFixed(2)}]   cpu ${r.cpu.toFixed(2)}   draws ${r.counters['batch.draws'] ?? '?'}  shadow ${r.counters['render.shadow.draws'] ?? '?'}  tris ${((r.counters['render.triangles'] ?? 0) / 1e6).toFixed(2)}M  prepass ${r.counters['render.prepass.draws'] ?? '?'} (meshes taken ${r.counters['render.prepass.taken'] ?? '?'}, cut-out ${r.counters['render.prepass.cutout'] ?? '?'}, bent ${r.counters['render.prepass.bent'] ?? '?'}, none ${r.counters['render.prepass.noProgram'] ?? '?'})   ${r.errors.length ? 'ERRORS ' + r.errors[0] : ''}`);
   }
 } finally {

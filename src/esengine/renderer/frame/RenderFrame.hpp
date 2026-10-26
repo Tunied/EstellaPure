@@ -573,6 +573,11 @@ private:
      * this one's span ends this query on GL and steals this reading on WebGPU.
      */
     GpuTimer gpu_timer_;
+    /// Per-pass GPU times, made the first frame the profiler is on (it costs a query per pass).
+    Unique<rg::PassTimer> pass_timer_;
+    /// The profiler keeps a scope's name by pointer: "pass/<name>" per pass name, made once. Keyed by the timer's interned name.
+    std::unordered_map<const char*, std::string> pass_scope_names_;
+    f32 pass_graph_ms_ = -1.0f;
     FrameCapture frame_capture_;
     std::vector<u8> snapshot_pixels_;
     RenderTargetManager::Handle replay_rt_ = 0;

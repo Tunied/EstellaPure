@@ -538,6 +538,16 @@ const api = {
         }
     },
 
+    /** What the GPU spent on the newest frame the device has answered for: `graph` and `pass/<name>`. The answer comes
+     *  a few frames late and, on a browser, between tasks — a caller steps, waits, and asks again. */
+    getGpuScopes(): Record<string, number> {
+        try {
+            return JSON.parse(module?.engine_getGpuScopes?.() ?? '{}') as Record<string, number>;
+        } catch {
+            return {};
+        }
+    },
+
     /** Records whole frames — TS system ms beside the engine's own C++ scope ms,
      *  which is the only pairing that says what SHARE of a frame is script.
      *  ProfileRecorder.start() engages both sides; engaging one reads as an

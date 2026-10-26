@@ -29,6 +29,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 namespace esengine {
@@ -142,6 +143,70 @@ struct PassDesc {
  *          the graph could hold nothing across two of them. Given one, every
  *          chain draws from the same targets, and so can a frame-lived resource.
  */
+/**
+ * @brief What each pass of a graph cost the GPU, read a few frames late.
+ *
+ * @details One timer query per pass per frame, in a ring so a result is fetched after the GPU has had time to finish
+ *          it and the CPU never waits. A bracketing backend (GL) gets a begin/end around the pass; an arming one
+ *          (WebGPU) gets the next pass named. Same-named passes of a frame (two cameras, two shadow views) are summed.
+ *          Costs a query per pass, so it runs only while the profiler is on.
+ */
+class PassTimer {
+public:
+    struct Entry {
+        const char* name;  ///< Interned: valid as long as the timer.
+        f32 ms;
+    };
+
+    explicit PassTimer(GfxDevice& device) : device_(device) {}
+
+    /** Whether the device can time GPU work at all; probes on first call. */
+    bool available();
+
+    /** Starts a frame: fetches what the ring has finished and claims this frame's slot. */
+    void beginFrame();
+    void endFrame();
+
+    /** Around one pass; arms or brackets by what the device does. */
+    void begin(const std::string& name);
+    void end();
+
+    /** The newest frame whose every pass was read back. Empty until one has been. */
+    const std::vector<Entry>& last() const { return last_; }
+    f32 lastTotalMs() const { return lastTotal_; }
+
+private:
+    static constexpr u32 kFrames = 4;
+    struct Slot {
+        const char* name = nullptr;
+        u32 query = 0;
+        bool done = false;
+        f32 ms = 0.0f;
+    };
+    struct Frame {
+        std::vector<Slot> slots;
+        bool inflight = false;
+    };
+
+    static constexpr u32 kMaxPasses = 128;
+    u32 queryFor(u32 frame, u32 index);
+    bool poll(Frame& frame);
+
+    GfxDevice& device_;
+    int state_ = 0;  // 0 = unprobed, 1 = available, 2 = no timer
+    bool arming_ = false;
+    bool open_ = false;
+    Frame frames_[kFrames];
+    std::vector<u32> queries_;
+    std::unordered_set<std::string> names_;
+    u32 cur_ = 0;
+    u32 counter_ = 0;
+    u32 frameNo_[kFrames] = {0, 0, 0, 0};
+    u32 lastNo_ = 0;
+    std::vector<Entry> last_;
+    f32 lastTotal_ = -1.0f;
+};
+
 class RenderGraph {
 public:
     /** Borrows the caller's pool: a frame's chains share one. */
@@ -193,6 +258,9 @@ public:
 
     /** Culls, assigns physical targets, and runs what survives. */
     void execute();
+
+    /** Times each pass of the next execute()s into @p timer; null stops. Borrowed. */
+    void setPassTimer(PassTimer* timer) { timer_ = timer; }
 
     /** The texture behind a resource — valid for imports, and for a transient
      *  only while it holds a physical target. */
@@ -260,6 +328,7 @@ private:
     u32 refWidth_ = 0;
     u32 refHeight_ = 0;
     u32 executed_ = 0;
+    PassTimer* timer_ = nullptr;
 };
 
 }  // namespace rg

@@ -234,6 +234,11 @@ void WebGPUDevice::releaseDeviceObjects() {
     if (timestamp_resolve_) { wgpuBufferRelease(timestamp_resolve_); timestamp_resolve_ = nullptr; }
     for (auto& s : gpu_time_ring_) { if (s.buf) wgpuBufferRelease(s.buf); s.buf = nullptr; s.pending = false; }
     gpu_time_results_.clear();
+    for (auto& ps : pass_time_pool_) { if (ps.buf) wgpuBufferRelease(ps.buf); }
+    pass_time_pool_.clear();
+    pass_time_results_.clear();
+    pass_time_slot_ = kNoPassSlot;
+    armed_pass_tag_ = 0;
     timestamp_supported_ = false;
     timestamp_init_done_ = false;
     if (clear_bind_group_) { wgpuBindGroupRelease(clear_bind_group_); clear_bind_group_ = nullptr; }
@@ -2329,7 +2334,9 @@ void WebGPUDevice::beginRenderPass(const RenderPassDesc& desc) {
     // in the common case. Reserve a free ring slot; skip timing if none is free.
     pass_timed_ = false;
     gpu_time_slot_ = kGpuTimeRing;
-    if (timestamp_supported_ && desc.target == FramebufferHandle::Default) {
+    // A pass the graph armed is timed whatever it draws to; it takes the timestamp slot the surface pass would have used.
+    pass_time_slot_ = takePassTimeSlot();
+    if (timestamp_supported_ && pass_time_slot_ == kNoPassSlot && desc.target == FramebufferHandle::Default) {
         for (u32 i = 0; i < kGpuTimeRing; ++i) {
             const u32 s = (gpu_time_next_ + i) % kGpuTimeRing;
             if (!gpu_time_ring_[s].pending) {
@@ -2380,7 +2387,7 @@ void WebGPUDevice::beginRenderPass(const RenderPassDesc& desc) {
         rp.depthStencilAttachment = &ds;
     }
     WGPUPassTimestampWrites tw{};
-    if (pass_timed_) {
+    if (pass_timed_ || pass_time_slot_ != kNoPassSlot) {
         tw.querySet = timestamp_qset_;
         tw.beginningOfPassWriteIndex = 0;
         tw.endOfPassWriteIndex = 1;
@@ -2415,6 +2422,9 @@ void WebGPUDevice::endRenderPass() {
 
     // GPU timing: resolve this pass's begin/end timestamps into the reserved ring
     // slot (recorded on the same encoder, so it runs after the pass on the GPU).
+    const u32 passSlot = encoder_ ? pass_time_slot_ : kNoPassSlot;
+    pass_time_slot_ = kNoPassSlot;
+    if (passSlot != kNoPassSlot) resolvePassTime(encoder_, passSlot);
     const bool timed = pass_timed_ && gpu_time_slot_ < kGpuTimeRing && encoder_;
     if (timed) {
         wgpuCommandEncoderResolveQuerySet(encoder_, timestamp_qset_, 0, 2, timestamp_resolve_, 0);
@@ -2437,6 +2447,7 @@ void WebGPUDevice::endRenderPass() {
     wgpuQueueSubmit(queue_, 1, &commands);
     wgpuCommandBufferRelease(commands);
 
+    if (passSlot != kNoPassSlot) mapPassTime(passSlot);
     if (timed) {
         // Map async — drained by getTimerQueryNs a few frames later (the GpuTimer
         // ring tolerates the latency).
@@ -2693,11 +2704,75 @@ void WebGPUDevice::beginTimerQuery(u32) {}  // timing rides the pass: attached a
 void WebGPUDevice::endTimerQuery() {}
 bool WebGPUDevice::timerDisjoint() { return false; }
 
-bool WebGPUDevice::getTimerQueryNs(u32, u64* outNs) {
+bool WebGPUDevice::getTimerQueryNs(u32 query, u64* outNs) {
+    if (pass_time_tags_.count(query)) {
+        const auto it = pass_time_results_.find(query);
+        if (it == pass_time_results_.end()) return false;
+        if (outNs) *outNs = it->second;
+        pass_time_results_.erase(it);
+        return true;
+    }
     if (gpu_time_results_.empty()) return false;
     if (outNs) *outNs = gpu_time_results_.front();
     gpu_time_results_.erase(gpu_time_results_.begin());
     return true;
+}
+
+void WebGPUDevice::armPassTimer(u32 query) {
+    armed_pass_tag_ = timestamp_supported_ ? query : 0;
+    if (armed_pass_tag_) pass_time_tags_.insert(armed_pass_tag_);
+}
+
+u32 WebGPUDevice::takePassTimeSlot() {
+    const u32 tag = armed_pass_tag_;
+    armed_pass_tag_ = 0;
+    if (!tag || !timestamp_supported_) return kNoPassSlot;
+    u32 slot = kNoPassSlot;
+    for (u32 i = 0; i < pass_time_pool_.size(); ++i) {
+        if (!pass_time_pool_[i].pending) { slot = i; break; }
+    }
+    if (slot == kNoPassSlot) {
+        if (pass_time_pool_.size() >= kPassTimePool) return kNoPassSlot;  // readbacks are not coming back: skip, don't grow
+        WGPUBufferDescriptor bd{};
+        bd.usage = WGPUBufferUsage_MapRead | WGPUBufferUsage_CopyDst;
+        bd.size = 16;
+        PassTimeSlot fresh;
+        fresh.buf = wgpuDeviceCreateBuffer(device_, &bd);
+        if (!fresh.buf) return kNoPassSlot;
+        pass_time_pool_.push_back(fresh);
+        slot = static_cast<u32>(pass_time_pool_.size() - 1);
+    }
+    pass_time_pool_[slot].tag = tag;
+    return slot;
+}
+
+void WebGPUDevice::resolvePassTime(WGPUCommandEncoder encoder, u32 slot) {
+    wgpuCommandEncoderResolveQuerySet(encoder, timestamp_qset_, 0, 2, timestamp_resolve_, 0);
+    wgpuCommandEncoderCopyBufferToBuffer(encoder, timestamp_resolve_, 0, pass_time_pool_[slot].buf, 0, 16);
+}
+
+void WebGPUDevice::mapPassTime(u32 slot) {
+    pass_time_pool_[slot].pending = true;
+    WGPUBufferMapCallbackInfo cb = WGPU_BUFFER_MAP_CALLBACK_INFO_INIT;
+    cb.mode = WGPUCallbackMode_AllowSpontaneous;
+    cb.callback = &WebGPUDevice::onPassTimeMapped;
+    cb.userdata1 = this;
+    cb.userdata2 = reinterpret_cast<void*>(static_cast<uintptr_t>(slot));
+    wgpuBufferMapAsync(pass_time_pool_[slot].buf, WGPUMapMode_Read, 0, 16, cb);
+}
+
+void WebGPUDevice::onPassTimeMapped(WGPUMapAsyncStatus status, WGPUStringView /*message*/,
+                                    void* userdata1, void* userdata2) {
+    auto* self = static_cast<WebGPUDevice*>(userdata1);
+    const u32 slot = static_cast<u32>(reinterpret_cast<uintptr_t>(userdata2));
+    if (!self || slot >= self->pass_time_pool_.size()) return;
+    PassTimeSlot& ps = self->pass_time_pool_[slot];
+    if (status == WGPUMapAsyncStatus_Success && ps.buf) {
+        const auto* ts = static_cast<const u64*>(wgpuBufferGetConstMappedRange(ps.buf, 0, 16));
+        if (ts && ts[1] >= ts[0]) self->pass_time_results_[ps.tag] = ts[1] - ts[0];
+        wgpuBufferUnmap(ps.buf);
+    }
+    ps.pending = false;
 }
 
 void WebGPUDevice::onGpuTimeMapped(WGPUMapAsyncStatus status, WGPUStringView /*message*/,
@@ -2947,16 +3022,26 @@ bool WebGPUDevice::backendDispatchCompute(u32 id, const GfxComputeBinding* bindi
 
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(device_, nullptr);
     WGPUComputePassDescriptor pd = WGPU_COMPUTE_PASS_DESCRIPTOR_INIT;
+    const u32 passSlot = takePassTimeSlot();
+    WGPUPassTimestampWrites tw{};
+    if (passSlot != kNoPassSlot) {
+        tw.querySet = timestamp_qset_;
+        tw.beginningOfPassWriteIndex = 0;
+        tw.endOfPassWriteIndex = 1;
+        pd.timestampWrites = &tw;
+    }
     WGPUComputePassEncoder pass = wgpuCommandEncoderBeginComputePass(encoder, &pd);
     wgpuComputePassEncoderSetPipeline(pass, pipeline);
     wgpuComputePassEncoderSetBindGroup(pass, 0, group, 0, nullptr);
     wgpuComputePassEncoderDispatchWorkgroups(pass, groupsX, groupsY, groupsZ);
     wgpuComputePassEncoderEnd(pass);
     wgpuComputePassEncoderRelease(pass);
+    if (passSlot != kNoPassSlot) resolvePassTime(encoder, passSlot);
     WGPUCommandBuffer commands = wgpuCommandEncoderFinish(encoder, nullptr);
     wgpuCommandEncoderRelease(encoder);
     wgpuQueueSubmit(queue_, 1, &commands);
     wgpuCommandBufferRelease(commands);
+    if (passSlot != kNoPassSlot) mapPassTime(passSlot);
     wgpuBindGroupRelease(group);
     return true;
 }

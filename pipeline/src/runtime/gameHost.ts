@@ -692,6 +692,19 @@ async function boot(): Promise<void> {
         }
       },
       /**
+       * What the GPU spent on the last frames it has an answer for: `graph`, and `pass/<name>` for each render-graph pass.
+       * The device answers a few frames late, so a value is the newest finished frame's, not the one just drawn. Engaging
+       * the profiler is what turns the per-pass timers on.
+       */
+      gpu(): Record<string, number> {
+        module.engine_setCpuProfiling?.(true);
+        try {
+          return JSON.parse(module.engine_getGpuScopes?.() ?? '{}') as Record<string, number>;
+        } catch {
+          return {};
+        }
+      },
+      /**
        * The capability decisions the SHIPPING renderer committed to, asked of
        * the frame that drew rather than of the editor's account of what a build
        * would do. Those are two code paths, and an explanation that is right

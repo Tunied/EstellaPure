@@ -39,6 +39,7 @@
 #include <map>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace esengine {
@@ -667,6 +668,24 @@ private:
     bool pass_timed_ = false;              ///< Did the current pass attach timestampWrites?
     std::vector<u64> gpu_time_results_;    ///< Resolved elapsed-ns, FIFO, drained by getTimerQueryNs.
     void ensureTimestamps();               ///< Lazily create the query set + buffers (feature-gated).
+
+    // Per-pass timing: armPassTimer names the next pass, which carries the timestamps and has them resolved into a
+    // pooled readback buffer; the result is filed under the name (a timer query id) it was armed with.
+    bool timesPassesByArming() const override { return true; }
+    void armPassTimer(u32 query) override;
+    static constexpr u32 kNoPassSlot = ~0u;
+    static constexpr u32 kPassTimePool = 256;
+    struct PassTimeSlot { WGPUBuffer buf = nullptr; bool pending = false; u32 tag = 0; };
+    std::vector<PassTimeSlot> pass_time_pool_;
+    std::unordered_map<u32, u64> pass_time_results_;  ///< Elapsed ns by tag, taken by getTimerQueryNs.
+    std::unordered_set<u32> pass_time_tags_;          ///< Every id ever armed: those are answered from the map, not the FIFO.
+    u32 armed_pass_tag_ = 0;
+    u32 pass_time_slot_ = kNoPassSlot;                ///< Pool slot of the open render pass, if it is timed.
+    /// Claims a pool slot for the armed tag and clears the arm; kNoPassSlot when nothing is armed or the pool is full.
+    u32 takePassTimeSlot();
+    void resolvePassTime(WGPUCommandEncoder encoder, u32 slot);
+    void mapPassTime(u32 slot);
+    static void onPassTimeMapped(WGPUMapAsyncStatus status, WGPUStringView message, void* userdata1, void* userdata2);
     static void onGpuTimeMapped(WGPUMapAsyncStatus status, WGPUStringView message,
                                 void* userdata1, void* userdata2);
 

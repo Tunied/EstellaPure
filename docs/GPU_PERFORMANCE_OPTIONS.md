@@ -6,7 +6,7 @@
 
 引擎只有**整个渲染图一个** GPU 计时器(`render.graph`),场景的网格绘制还在图外。所以这一轮每个数都是“拿掉一样东西,看整帧差多少”(消融),有的还要为了量一个着色器阶段重新编一个引擎。这能用,但慢,而且各部分不能相加。
 
-- **0. 逐 pass 的 GPU 计时(基础设施)。** 渲染图的每个 pass 已经有名字(`gtao_ao`、`bloom_kawase_0`、`scene-grab`、阴影的每张图…)。WebGPU 有时间戳查询(`timestamp-query`),WebGL2 有 `EXT_disjoint_timer_query_webgl2`,每个 pass 两个时间戳、几帧环形读回即可。有了它,后面每一项的取舍是一次读数,不是一次构建。这是下面所有项里投入最小、回报最直接的一项。引擎里 `GpuTimer` 和 WebGPU 的时间戳环已经在,缺的是按 pass 分。
+- **0. 逐 pass 的 GPU 计时(已落地,2026-10-26)。** 渲染图的每个 pass 带一个计时:WebGL2 在 pass 前后包一个 `EXT_disjoint_timer_query_webgl2` 查询,WebGPU 把 `timestamp-query` 挂在这个 pass 上(渲染 pass 和计算 pass 都行),结果几帧之后读回(环形,不阻塞 CPU)。只在剖析器打开时跑(每个 pass 一个查询),关着时仍是原来的整图一个计时器。读法:`engine_getGpuScopes()` 里的 `graph` 和 `pass/<名字>`;无头 harness 用 `node tools/terrain-water-cost.mjs --passes`(每个变体后打印逐 pass 表),渲染宿主用 `ESTELLA_VERIFY_GPU_PASSES=print`(两个后端都有)。这一轮拿它重新量了一遍,见 `docs/TERRAIN_WATER_GPU_COST.md` 的“逐 pass 读数”:各 pass 之和与整图计时、墙钟吻合(24.0 / 24.2 / 25.7 ms),所以以后的取舍是一次读数,不再是消融构建。**已知的限度:**一个被设备从中间切成两段的 pass(渲染中途的拷贝)在 WebGPU 上只计到切口;同名的 pass(两台相机、两个阴影视图)按名字相加。
 
 ## 按证据排序
 
@@ -94,7 +94,7 @@
 
 ## 建议的顺序
 
-1. **逐 pass GPU 计时**(第 0 项):投入最小,让后面每一步可以直接读数。
+1. ~~**逐 pass GPU 计时**(第 0 项)~~:已落地。
 2. **天空与雾半分辨率加上采样**(第 1 项的第一步),再看要不要做 LUT。
 3. **阴影缓存与远处级联隔帧更新**(第 3 项)。
 4. **TAA 加时间上采样作为新档位**(第 2 项),要用户拍板。
