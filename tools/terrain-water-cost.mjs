@@ -67,6 +67,7 @@ const noLayer = (layer) => (w) => { for (const b of w.biomes) b.recipes = b.reci
 const forParts = (fn) => (w) => { for (const p of Object.values(w.plants)) for (const part of [...p.parts, ...(p.far ?? [])]) fn(part); };
 const TREES = ['oak', 'beech', 'birch', 'willow', 'pine-ridge', 'pine-lakeside'];
 const trees = (fn) => (w) => { for (const k of TREES) fn(w.plants[k]); };
+const sun = (fn) => (d) => { for (const l of comp(d, 'Light')) if (l.data.type === 1) fn(l.data); };
 const quality = (level, profile) => (cfg) => { cfg.quality = { ...cfg.quality, mode: level, ...(profile ? { profiles: { [level]: profile } } : {}) }; };
 
 /** Each variant: what to take away, relative to `base`. Edits to the scene, or to the package's quality config. */
@@ -117,6 +118,14 @@ const VARIANTS = [
   { id: 'msaa-2-nofxaa', label: 'msaa 2x, no fxaa', config: quality('high', { msaaSamples: 2, skipEffects: ['fxaa'] }) },
   { id: 'msaa-4-nofxaa', label: 'msaa 4x, no fxaa', config: quality('high', { skipEffects: ['fxaa'] }) },
   { id: 'msaa-2', label: 'msaa 2x', config: quality('high', { msaaSamples: 2 }) },
+  // The sun's shadow: the example's sun has a fixed extent (one map of that size), which leaves the cascades and the distance unused; extent 0 gives
+  // the sun cascades split over the view, `shadowCascades` of them out to `shadowDistance` (0: as far as the scene reaches).
+  { id: 'ext-8000', label: 'one shadow map of half the extent', scene: sun((l) => { l.shadowExtent = 8000; }) },
+  { id: 'ext-32000', label: 'one shadow map of twice the extent', scene: sun((l) => { l.shadowExtent = 32000; }) },
+  { id: 'ext16-casc-1', label: 'authored extent, one cascade requested (unused)', config: quality('high', { shadowCascades: 1 }) },
+  ...[1, 2, 3, 4].map((n) => ({ id: `casc-${n}`, label: `cascades: ${n}, as far as the scene reaches`, scene: sun((l) => { l.shadowExtent = 0; }), config: quality('high', { shadowCascades: n }) })),
+  ...[10000, 20000, 40000].map((m) => ({ id: `casc-4-d${m / 100}`, label: `cascades: 4, out to ${m / 100} m`, scene: sun((l) => { l.shadowExtent = 0; }), config: quality('high', { shadowCascades: 4, shadowDistance: m }) })),
+  ...[10000, 20000].map((m) => ({ id: `casc-2-d${m / 100}`, label: `cascades: 2, out to ${m / 100} m`, scene: sun((l) => { l.shadowExtent = 0; }), config: quality('high', { shadowCascades: 2, shadowDistance: m }) })),
   { id: 'cascades-2', label: 'two shadow cascades', config: quality('high', { shadowCascades: 2 }) },
   { id: 'atlas-2048', label: 'shadow atlas 2048', config: quality('high', { shadowAtlasSize: 2048, shadowCellSize: 512 }) },
   { id: 'scale-75', label: 'render scale 0.75', config: quality('high', { renderScale: 0.75 }) },

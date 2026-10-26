@@ -17,6 +17,10 @@ export interface QualityProfile {
     msaaSamples: 1 | 2 | 4 | 8;
     shadowAtlasSize: number;
     shadowCellSize: number;
+    /**
+     * The cascades a perspective sun's shadow is split into, and how far (in world units, 0 for as far as the scene reaches) they reach. Both act only on
+     * a sun whose `shadowExtent` is 0: one with an extent draws a single map of that size and uses neither. Each cascade draws the casters again.
+     */
     shadowCascades: number;
     shadowDistance: number;
     /**
