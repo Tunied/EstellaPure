@@ -27,6 +27,9 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <algorithm>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 #include <cmath>
 #include <cstring>
 #include <limits>
@@ -241,6 +244,15 @@ void RenderFrame::resize(u32 width, u32 height) {
 
 // The scene pass's body. The graph has bound the target and set the camera's
 // viewport; this is the draw and the constants it needs current.
+bool RenderFrame::gpuDetailWanted() const {
+#ifdef __EMSCRIPTEN__
+    // A harness's switch, read only while the profiler is on: `module.esGpuDetail = true` from the page.
+    return EM_ASM_INT({ return Module.esGpuDetail ? 1 : 0; }) != 0;
+#else
+    return false;
+#endif
+}
+
 void RenderFrame::drawScene(DrawList::Phase phase) {
     // A temporal effect in the chain asks for the picture to be shifted by a different
     // sub-pixel amount each frame, so its history samples what a single frame cannot.
@@ -296,14 +308,30 @@ void RenderFrame::drawScene(DrawList::Phase phase) {
         const u32 prepassDraws = depth_prepass_ && opaque ? draw_list_.depthPrepassDraws() : 0u;
         const bool prepass = prepassDraws > 0;
         if (opaque) ES_PROFILE_COUNTER("render.prepass.draws", prepassDraws);
+        // With the pass timer running and detail asked for, each run of draws of one shader is its own timed segment of the pass.
+        const bool detail = running_pass_timer_ && gpuDetailWanted();
+        const auto sinkFor = [this](const char* prefix) {
+            rg::PassTimer* timer = running_pass_timer_;
+            draw_list_.setShaderRunSink([timer, prefix](const char* shader) {
+                timer->segment(shader ? std::string(prefix) + shader : std::string("tail"));
+            });
+        };
         if (prepass) {
             ES_PROFILE_SCOPE("render.submit.prepass");
+            if (detail) sinkFor("prepass:");
             draw_list_.execute(device_, pool_, context_.materials(), context_.getWhiteTextureId(),
                                nullptr, context_.perDrawBlocks(), phase, DrawList::DrawPass::DepthPrepass);
+            if (detail) draw_list_.setShaderRunSink(nullptr);
         }
+        if (detail) sinkFor("");
         draw_list_.execute(device_, pool_, context_.materials(), context_.getWhiteTextureId(),
                            &frame_capture_, context_.perDrawBlocks(), phase,
                            prepass ? DrawList::DrawPass::ColorAfterPrepass : DrawList::DrawPass::Color);
+        if (detail) {
+            // The rest of the pass (the resolve, the state restored) is its own segment, closed by the graph.
+            running_pass_timer_->segment("tail");
+            draw_list_.setShaderRunSink(nullptr);
+        }
         draw_list_.setGBufferPass(false);
     }
 
@@ -839,7 +867,9 @@ void RenderFrame::end() {
         if (passTimer) {
             passTimer->beginFrame();
             graph_.setPassTimer(passTimer);
+            running_pass_timer_ = passTimer;
             graph_.execute();
+            running_pass_timer_ = nullptr;
             graph_.setPassTimer(nullptr);
             passTimer->endFrame();
             // The scope names are the passes' own, under pass/ so they cannot meet a scope of another kind.

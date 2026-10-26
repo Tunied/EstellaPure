@@ -171,6 +171,13 @@ public:
     void begin(const std::string& name);
     void end();
 
+    /**
+     * Splits the open pass: what has run so far is closed under the pass's own name, and the time from here is
+     * `<pass>/<name>` until the next split or the pass's end. Only where a pass is bracketed (GL); where it is armed the
+     * pass is one timestamp pair and this does nothing.
+     */
+    void segment(const std::string& name);
+
     /** The newest frame whose every pass was read back. Empty until one has been. */
     const std::vector<Entry>& last() const { return last_; }
     f32 lastTotalMs() const { return lastTotal_; }
@@ -188,7 +195,7 @@ private:
         bool inflight = false;
     };
 
-    static constexpr u32 kMaxPasses = 128;
+    static constexpr u32 kMaxPasses = 512;
     u32 queryFor(u32 frame, u32 index);
     bool poll(Frame& frame);
 
@@ -196,6 +203,7 @@ private:
     int state_ = 0;  // 0 = unprobed, 1 = available, 2 = no timer
     bool arming_ = false;
     bool open_ = false;
+    std::string pass_;  // the open pass
     Frame frames_[kFrames];
     std::vector<u32> queries_;
     std::unordered_set<std::string> names_;

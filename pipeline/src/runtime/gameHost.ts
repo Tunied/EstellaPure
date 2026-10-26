@@ -696,7 +696,9 @@ async function boot(): Promise<void> {
        * The device answers a few frames late, so a value is the newest finished frame's, not the one just drawn. Engaging
        * the profiler is what turns the per-pass timers on.
        */
-      gpu(): Record<string, number> {
+      gpu(detail = false): Record<string, number> {
+        // Per-shader segments of the scene pass: read by the engine each frame while the profiler is on.
+        (module as unknown as { esGpuDetail?: boolean }).esGpuDetail = detail;
         module.engine_setCpuProfiling?.(true);
         try {
           return JSON.parse(module.engine_getGpuScopes?.() ?? '{}') as Record<string, number>;

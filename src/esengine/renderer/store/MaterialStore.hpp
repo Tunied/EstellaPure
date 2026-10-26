@@ -102,6 +102,8 @@ struct MaterialUniformLayout {
     bool usesLights = false;
     /// The shader writes a measurement and wants a float target (ParsedShader::highPrecision).
     bool highPrecision = false;
+    /// The shader's own name (`#pragma shader "<name>"`), for what a profiler calls a draw by.
+    std::string name;
     /// What the shader's vertex hook can move a vertex by (ParsedShader::vertexBounds), and whether it
     /// has a hook at all — culling grows a mesh's box by the first, and the shadow pass builds a
     /// program of its own for the second.
@@ -215,6 +217,14 @@ public:
     }
     /// A program that is not a material's — the engine's own mesh shader — says it writes the record.
     void markGBufferProgram(u32 programId) const { gbuffer_programs_.insert(programId); }
+
+    /// The name of the shader @p materialId draws with, or "default" for the path's own batch shader.
+    const std::string& shaderLabel(u32 materialId) const {
+        static const std::string fallback = "default";
+        const MaterialRecord* m = find(materialId);
+        const MaterialUniformLayout* layout = m ? layoutFor(m->shaderRef) : nullptr;
+        return layout && !layout->name.empty() ? layout->name : fallback;
+    }
 
     /// How far @p materialId's vertex hook can move a vertex from the mesh's own bounds, in the
     /// mesh's local units; 0 for a material without one.

@@ -40,7 +40,7 @@ const VIEW = Number(flag('view', '0'));
 const ONLY = flag('only', '') ? new Set(flag('only', '').split(',')) : null;
 const OUT = flag('out', path.join(ROOT, 'output', 'perf', 'terrain-water-cost.json'));
 const NO_EXPORT = argv.includes('--no-export');
-const PASSES = argv.includes('--passes');
+const PASSES = argv.includes('--passes') || argv.includes('--detail');
 const PASSES_TOP = Number(flag('passes-top', '24'));
 /** A folder to write each variant's last frame to, as `<id>-view<n>.png`. */
 const SHOTS = flag('shots', '');
@@ -103,6 +103,9 @@ const VARIANTS = [
   // The plants, a layer at a time (what the world rules lay down), and with shadows taken off them
   { id: 'plants-noshadow', label: 'plants cast no shadow', world: forParts((part) => { part.castShadows = false; }) },
   ...['groves', 'banks', 'stones', 'cover', 'drifts', 'reeds', 'sea', 'shoals'].map((l) => ({ id: `layer-${l}-off`, label: `plant layer ${l} off`, world: noLayer(l) })),
+  // One recipe at a time: what each kind of plant costs the scene (read with --detail).
+  ...['shore-pines', 'willows', 'bank-grass', 'tufts', 'undergrowth', 'drift-amber', 'drift-blue', 'drift-ivory', 'grove-birch', 'grove-oak', 'lone-birch', 'lone-oak', 'pines', 'reed-strip', 'sea-amber', 'sea-blue', 'sea-ivory', 'sea-rose', 'sea-violet', 'pebble-field', 'shoal-flat', 'shoal-round', 'rocks-bank', 'rocks-crown', 'rocks-split']
+    .map((r) => ({ id: `recipe-${r}-off`, label: `plant recipe ${r} off`, world: (w) => { for (const b of w.biomes) b.recipes = b.recipes.filter((x) => x.recipe !== r); } })),
   { id: 'trees-no-lod2', label: 'trees without their third mesh (what the example drew before it)', world: trees((p) => { p.lod2Distance = 0; }) },
   { id: 'trees-lod2-80', label: 'trees: lod1 from 60 m, lod2 from 80 m', world: trees((p) => { p.lod2Distance = 8000; }) },
   { id: 'trees-lod2-70', label: 'trees: lod1 from 60 m, lod2 from 70 m', world: trees((p) => { p.lod2Distance = 7000; }) },
@@ -183,7 +186,7 @@ async function measure(server, original, variant, browser) {
       }
       return -1;
     });
-    const result = await page.evaluate(async ({ frames, samples, passSamples }) => {
+    const result = await page.evaluate(async ({ frames, samples, passSamples, detail }) => {
       const c = window.__estellaCooked;
       const px = new Uint8Array(4);
       const gl = document.querySelector('canvas').getContext('webgl2') ?? null;
@@ -204,12 +207,12 @@ async function measure(server, original, variant, browser) {
         await c.step(frames, 1 / 60);
         sync();
         await new Promise((r) => setTimeout(r, 40));
-        gpuRuns.push(c.gpu?.() ?? {});
+        gpuRuns.push(c.gpu?.(detail) ?? {});
       }
       const costs = c.costs();
       const cpu = costs.systems.reduce((a, x) => a + x.ms, 0);
       return { ms, gpuRuns, counters: c.render(), cpu, native: costs.native, size: [document.querySelector('canvas').width, document.querySelector('canvas').height], gl: !!gl };
-    }, { frames: FRAMES, samples: SAMPLES, passSamples: PASSES ? SAMPLES : 0 });
+    }, { frames: FRAMES, samples: SAMPLES, passSamples: PASSES ? SAMPLES : 0, detail: argv.includes('--detail') });
     if (SHOTS) { await mkdir(SHOTS, { recursive: true }); await page.screenshot({ path: path.join(SHOTS, `${variant.id}-view${VIEW}.png`) }); }
     return { ms: median(result.ms), gpu: gpuMedians(result.gpuRuns), cpu: result.cpu, native: result.native, min: Math.min(...result.ms), max: Math.max(...result.ms), settled, counters: result.counters, size: result.size, errors };
   } finally {

@@ -323,6 +323,7 @@ MaterialUniformLayout MaterialStore::layoutOf(const resource::ParsedShader& pars
     layout.usesGBuffer = parsed.usesGBuffer;
     layout.usesLights = parsed.usesLights;
     layout.highPrecision = parsed.highPrecision;
+    layout.name = parsed.name;
     layout.vertexBounds = parsed.vertexBounds;
     layout.vertexHook = !parsed.vertexHook.empty();
     for (const auto& p : parsed.properties) {

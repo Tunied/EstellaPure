@@ -93,9 +93,26 @@ void PassTimer::endFrame() {
     frames_[cur_].inflight = !frames_[cur_].slots.empty();
 }
 
+void PassTimer::segment(const std::string& name) {
+    if (state_ != 1 || arming_ || !open_) return;
+    const std::string label = pass_ + "/" + name;
+    end();
+    Frame& f = frames_[cur_];
+    if (f.slots.size() >= kMaxPasses) return;
+    const u32 query = queryFor(cur_, static_cast<u32>(f.slots.size()));
+    if (query == 0) return;
+    Slot slot;
+    slot.name = names_.insert(label).first->c_str();
+    slot.query = query;
+    f.slots.push_back(slot);
+    device_.beginTimerQuery(query);
+    open_ = true;
+}
+
 void PassTimer::begin(const std::string& name) {
     if (state_ != 1) return;
     end();
+    pass_ = name;
     Frame& f = frames_[cur_];
     if (f.slots.size() >= kMaxPasses) return;
     const u32 query = queryFor(cur_, static_cast<u32>(f.slots.size()));

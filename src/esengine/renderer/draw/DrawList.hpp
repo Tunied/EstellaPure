@@ -13,6 +13,9 @@
 #include "../../math/Math.hpp"
 
 #include <algorithm>
+#include <functional>
+#include <string>
+#include <utility>
 #include <unordered_map>
 #include <span>
 #include <vector>
@@ -66,6 +69,10 @@ public:
                  MaterialStore& materials, u32 white_texture_id = 0,
                  FrameCapture* capture = nullptr,
                  const PerDrawBlockSet& blocks = {}, Phase phase = Phase::All, DrawPass pass = DrawPass::Color);
+
+    /// Told, while a list executes, which shader the draws that follow use (and with nullptr that they are over): what lets a profiler time
+    /// the scene a shader at a time. Empty costs nothing; a sink is installed only while someone is measuring.
+    void setShaderRunSink(std::function<void(const char*)> sink) { shader_run_sink_ = std::move(sink); }
 
     /// How many of the merged draws take part in a depth prepass; 0 means a prepass has nothing to draw.
     u32 depthPrepassDraws() const;
@@ -214,6 +221,7 @@ public:
     }
 
 private:
+    std::function<void(const char*)> shader_run_sink_;
     struct SortEntry {
         u64 key;
         u32 index;

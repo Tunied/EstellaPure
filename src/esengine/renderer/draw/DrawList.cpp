@@ -405,6 +405,7 @@ void DrawList::execute(GfxDevice& device, TransientBufferPool& buffers,
     const bool afterPrepass = pass == DrawPass::ColorAfterPrepass;
     PipelineDesc lastDesc{};
     PipelineHandle lastHandle = PipelineHandle::Invalid;
+    const std::string* lastRun = nullptr;
     // The draws of this phase read the scene's colour and compose it under themselves.
     const bool composes = phase == Phase::SceneColorOnly;
 
@@ -433,6 +434,12 @@ void DrawList::execute(GfxDevice& device, TransientBufferPool& buffers,
                 case Phase::All: drawn = true; break;
             }
             if (!drawn) continue;
+        }
+
+        if (shader_run_sink_) {
+            const std::string& run = materials.shaderLabel(cmd.material_id);
+            if (&run != lastRun && (!lastRun || run != *lastRun)) shader_run_sink_(run.c_str());
+            lastRun = &run;
         }
 
         const GfxStencilMode stencil = stencilModeOf(cmd.state_flags);
