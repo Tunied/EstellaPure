@@ -25,6 +25,12 @@
 5. **主线程只剩提交**：每帧预算内最多提交 N 个结果（创建实体、`meshInstances_set`、上传纹理），提交本身按结果大小摊平。
 6. **可观测**：作业池的排队数、在途数、每类作业耗时进性能分析器；`chunks.step` 这一帧成本应当接近 0。
 
+## 进展（2026-10-25）
+
+已完成第 1、2 步在星球上的部分：`runtime/jobs.ts`（作业池）、`worldgen/planWorker.ts`（放置规划与星球页面，打包成文本 `runtime/planWorkerBundle.generated.ts`，由 `sdk/scripts/build-worker.mjs` 生成并有测试守新鲜度）、`PlanetProvider.workerSource`（提供器的自包含模块文本，星邻由 `tools/build-provider-worker.mjs` 生成）。提交一侧：`ProceduralChunks` 的答案和星球页面都进队列、每帧限量放入世界。实测星邻球面世界铺设期间：此前 2–8 帧，现在 60 帧（p95 33 ms，最差 33 ms）；`chunks.step` 44 ms → 2.3 ms，`PlanetSystem` 133 ms → 1.7 ms。worker 的结果与主线程逐字节一致（`tests/worldgen-worker.test.ts`）。
+
+未做：平面地形（`Terrain`）上的 `WorldGen`（需要水体烘焙场可转移）、碰撞三角网、没有 Worker 时的主线程路径仍是分帧。
+
 ## 先后
 
 1. 作业池 + 星球页面（最大头，且提供器是纯的，没有水体问题）。

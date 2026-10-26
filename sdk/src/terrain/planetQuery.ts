@@ -31,6 +31,8 @@ export interface PlanetFacts {
     fieldsAt: ((dx: number, dy: number, dz: number) => readonly number[] | null) | null;
     /** The provider's answer for many directions at once (heights, paint, fields), or null while it answers later: a world is laid out from tiles of it, not a call a point. */
     sampleMany: ((directions: Float32Array, count: number) => PlanetSamples | null) | null;
+    /** What a worker needs to read this planet's ground itself: its provider's module text, and what it is asked with. Null where the provider has none. */
+    worker?: { source: string; seed: number; version: number; world: string } | null;
 }
 
 /**
@@ -39,17 +41,32 @@ export interface PlanetFacts {
  */
 export type PlanetPainter = (dx: number, dy: number, dz: number, base: readonly number[]) => readonly number[];
 
+/** How a worker is made to paint a planet as the main thread's painter does: the plan of each face by a key, and what a worker makes it from. */
+export interface RemotePaint {
+    /** The six faces' plans' keys. */
+    readonly keys: readonly string[];
+    /** What a worker makes face `face`'s plan from (plain data). */
+    spec(face: number): unknown;
+}
+
 /** The planets of the app. @experimental */
 export class PlanetRegistry {
     readonly planets = new Map<Entity, PlanetFacts>();
     private readonly painters_ = new Map<Entity, PlanetPainter>();
+    private readonly remote_ = new Map<Entity, RemotePaint>();
     /** Bumped when a painter is set, changed or taken away, so the planet's pages are painted again. */
     paintRevision = 0;
 
     /** Sets what paints the planet `entity`'s ground (null takes it away); a planet paints with its provider's paint until then. */
-    setPaint(entity: Entity, painter: PlanetPainter | null): void {
+    setPaint(entity: Entity, painter: PlanetPainter | null, remote: RemotePaint | null = null): void {
         if (painter) this.painters_.set(entity, painter); else this.painters_.delete(entity);
+        if (remote) this.remote_.set(entity, remote); else this.remote_.delete(entity);
         this.paintRevision++;
+    }
+
+    /** How a worker paints the planet `entity`'s ground as its painter does, when it can. */
+    remotePaintOf(entity: Entity): RemotePaint | null {
+        return this.remote_.get(entity) ?? null;
     }
 
     /** What paints the planet `entity`'s ground, if anything does. */

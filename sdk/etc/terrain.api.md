@@ -213,6 +213,7 @@ layers: readonly string[]
 paint: ((dx: number, dy: number, dz: number) => readonly number[] | null) | null
 radius: number
 sampleMany: ((directions: Float32Array, count: number) => PlanetSamples | null) | null
+worker: { source: string; seed: number; version: number; world: string; } | null | undefined
 ```
 
 ## PlanetPageSource — interface @experimental
@@ -244,6 +245,7 @@ id: string
 range: (seed: number, version: number, radius: number) => [number, number]
 sample: (region: PlanetRegion) => PlanetSamples | Promise<PlanetSamples>
 versions: readonly number[]
+workerSource: string | undefined
 ```
 
 ## PlanetRegion — interface @experimental
@@ -265,7 +267,8 @@ nearest: (x: number, y: number, z: number) => Entity | null
 paintOf: (entity: Entity) => PlanetPainter | null
 paintRevision: number
 planets: Map<number, PlanetFacts>
-setPaint: (entity: Entity, painter: PlanetPainter | null) => void
+remotePaintOf: (entity: Entity) => RemotePaint | null
+setPaint: (entity: Entity, painter: PlanetPainter | null, remote?: RemotePaint | null) => void
 up: (entity: Entity, x: number, y: number, z: number) => [number, number, number] | null
 static new (): PlanetRegistry
 static prototype: PlanetRegistry

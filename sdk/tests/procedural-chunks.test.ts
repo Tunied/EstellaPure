@@ -110,6 +110,9 @@ describe('procedural chunks', () => {
         expect(answers).toHaveLength(2);
         answers[1]!.resolve('new');
         await Promise.resolve();
+        // An answer that came back waits for the next frame's turn to be put in the world.
+        expect(live.size).toBe(0);
+        chunks.step(always);
         expect([...live.values()]).toEqual(['new']);
         expect(chunks.stateAt('l', 1005, 5)).toBe('ready');
     });

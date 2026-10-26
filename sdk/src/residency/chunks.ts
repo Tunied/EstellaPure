@@ -94,7 +94,9 @@ interface Layer<T> {
 }
 
 /** At most this many chunks of a layer are answered later at once. */
-const MAX_IN_FLIGHT = 8;
+const MAX_IN_FLIGHT = 16;
+/** The most answers put in the world in one frame, however much time it has. */
+const MAX_COMMITS = 16;
 
 const keyOf = (cx: number, cz: number): string => `${cx},${cz}`;
 
@@ -186,6 +188,7 @@ export class ProceduralChunks {
      * stands in at once and the rest while `hasTime` says so.
      */
     step(hasTime: () => boolean): void {
+        this.commit(hasTime);
         const world = this.suspended ? [] : this.sources_();
         const wanted: { layer: Layer<unknown>; cx: number; cz: number; dist: number }[] = [];
         for (const layer of this.layers_.values()) {
@@ -238,6 +241,15 @@ export class ProceduralChunks {
     }
 
     /** Makes one chunk; true when it is now being answered later. */
+    /** The answers that came back and have not been put in the world yet. */
+    private readonly commits_: (() => void)[] = [];
+
+    /** Puts answers in the world: a couple a frame at least, and more while the frame has time. */
+    private commit(hasTime: () => boolean): void {
+        let n = 0;
+        while (this.commits_.length > 0 && (n < 2 || (n < MAX_COMMITS && hasTime()))) { this.commits_.shift()!(); n++; }
+    }
+
     private make(layer: Layer<unknown>, cx: number, cz: number): boolean {
         const key = keyOf(cx, cz);
         let c = layer.chunks.get(key);
@@ -262,11 +274,14 @@ export class ProceduralChunks {
         }
         chunk.making = { generation, abort };
         made.then((value) => {
-            // Thrown away if the chunk was let go, made again, or the layer moved on while this was being made.
-            if (chunk.making?.abort !== abort || abort.signal.aborted) return;
-            chunk.making = null;
-            if (layer.chunks.get(key) !== chunk || generation !== layer.def.generation) return;
-            if (value !== null) this.publish(layer, chunk, value, generation);
+            // What was made off the main thread waits its turn to be put in the world: a burst of answers is not one frame's work.
+            this.commits_.push(() => {
+                // Thrown away if the chunk was let go, made again, or the layer moved on while this was being made.
+                if (chunk.making?.abort !== abort || abort.signal.aborted) return;
+                chunk.making = null;
+                if (layer.chunks.get(key) !== chunk || generation !== layer.def.generation) return;
+                if (value !== null) this.publish(layer, chunk, value, generation);
+            });
         }, (e: unknown) => {
             if (chunk.making?.abort !== abort || abort.signal.aborted) return;
             chunk.making = null;

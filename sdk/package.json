@@ -183,7 +183,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "pnpm clean && rolldown -c && rollup -c",
+    "build": "pnpm clean && node scripts/build-worker.mjs && rolldown -c && rollup -c",
     "watch": "rolldown -c -w",
     "clean": "rimraf dist",
     "api:check": "node ../tools/api-surface.mjs --check",

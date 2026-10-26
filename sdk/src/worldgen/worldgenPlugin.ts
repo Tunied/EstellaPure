@@ -36,6 +36,10 @@ import { plantGrowthOf, prepareKinds, type GrownCell, type ReadyKinds } from '..
 import { PlanetRegistryRes, type PlanetFacts } from '../terrain/planetQuery';
 import { faceOf } from '../terrain/sphere';
 import { Environment } from './fields';
+import { farRulesOf, makeFacePlan } from './facePlan';
+import type { JobPool } from '../runtime/jobs';
+import { firstSend, forgetSent, planPool } from '../runtime/planPool';
+import type { PlacementsRequest, PlanSpec } from './planWorker';
 import { FaceZones, faceHalf, planetFaces, type PlanetFace } from './planetSurface';
 import { expandPlants, type PlantSet } from './plants';
 import { WorldPlan, type Placement } from './plan';
@@ -179,6 +183,8 @@ interface FaceUnit { face: PlanetFace; plan: WorldPlan; farPlan: WorldPlan | nul
 interface Unit {
     /** Names its layers' chunks: empty for a plane, `f0` to `f5` for a face. */
     key: string;
+    /** What lays this unit out off the main thread, when something can: asked for the square of a layer, it answers with what is placed there. */
+    away?: (layer: string, far: boolean, x0: number, z0: number, x1: number, z1: number) => Promise<Placement[]> | null;
     plan: WorldPlan;
     farPlan: WorldPlan | null;
     face: PlanetFace | null;
@@ -514,33 +520,13 @@ export class WorldGenPlugin implements Plugin {
         const registry = app.getResource(PlanetRegistryRes);
         const facts = (): PlanetFacts | null => registry.planets.get(entity) ?? null;
         if (!facts()) { built.waitingForPlanet = true; return; }
-        const sparse = rules.layers.some((l) => (l.farSpacing ?? 1) > 1);
-        const farRules: WorldRules | null = sparse
-            ? { ...rules, layers: rules.layers.map((l) => (l.farSpacing ?? 1) > 1 ? { ...l, spacing: l.spacing * l.farSpacing! } : l) } : null;
+        const farRules = farRulesOf(rules);
         built.faces = planetFaces(facts).map((face) => {
             const zones = new FaceZones(face);
-            // The planet's layers, as the provider paints them, are fields (`paint.grass` for a layer file grass.esterrainlayer), as a terrain's are.
-            const paintFields: Record<string, (x: number, z: number) => number> = {};
-            (facts()?.layers ?? []).forEach((name, i) => {
-                paintFields[`paint.${name}`] = (x, z) => face.paintAt(x, z)?.[i] ?? 0;
+            const { plan, farPlan } = makeFacePlan(face, {
+                rules, farRules, seed: data.seed, world: data.world, seaLevel: data.seaLevel,
+                layers: facts()?.layers ?? [], fieldNames: facts()?.fieldNames ?? [], zones: zones.zones,
             });
-            // And the provider's own fields (an ecology) by the names it gives them.
-            (facts()?.fieldNames ?? []).forEach((name, i) => {
-                paintFields[name] = (x, z) => face.fieldsAt(x, z)?.[i] ?? 0;
-            });
-            const env = new Environment({
-                seed: data.seed, noise: rules.noise, fields: { ...paintFields, ...rules.fields },
-                ...face.environment(),
-                // The sea stands at a height, so the water over a point is how far it is below it (negative on land, by how far above).
-                waterDepth: (_x, _z, y) => data.seaLevel - y,
-                overrides: (x, z) => {
-                    const out: { field: string; value: number; weight: number }[] = [];
-                    for (const { zone, weight } of zones.zones.at(x, z)) for (const [field, value] of Object.entries(zone.fields ?? {})) out.push({ field, value, weight });
-                    return out;
-                },
-            });
-            const plan = new WorldPlan(rules, env, zones.zones, data.seed, `${data.world}#${face.face}`);
-            const farPlan = farRules ? new WorldPlan(farRules, env, zones.zones, data.seed, `${data.world}#${face.face}`) : null;
             // A zone that changes makes again only the chunks of this face it reaches, and paints the ground under it again.
             zones.zones.onChange = (bounds, zone) => {
                 plan.invalidate();
@@ -550,19 +536,21 @@ export class WorldGenPlugin implements Plugin {
                     const reach = l.spacing * 3;
                     chunks.invalidate(layerIdOf(entity, l.id, FACE_KEYS[face.face]), bounds[0] - reach, bounds[1] - reach, bounds[2] + reach, bounds[3] + reach);
                 }
-                if (data.paintGround && (zone.biome || zone.fields)) registry.setPaint(entity, registry.paintOf(entity));
+                if (data.paintGround && (zone.biome || zone.fields)) registry.setPaint(entity, registry.paintOf(entity), registry.remotePaintOf(entity));
             };
             return { face, plan, farPlan, zones };
         });
         built.plan = built.faces[2]!.plan;
         const faces = built.faces;
-        // The ground is painted where the direction falls: by the plan of the face it is on.
+        const plugin = this;
+        // The ground is painted where the direction falls: by the plan of the face it is on. A worker paints it the same way from the same plans.
         if (data.paintGround) {
+            const remote = facts()?.worker ? { get keys() { return faces.map((u) => plugin.planKey(built, u)); }, spec: (face: number) => plugin.planSpec(built, faces[face]!, facts()!) } : null;
             registry.setPaint(entity, (dx, dy, dz, base) => {
                 const unit = faces[faceOf(dx, dy, dz).face]!;
                 const at = unit.face.planeOf(dx, dy, dz);
                 return at ? unit.plan.paint(at.x, at.z, base) : base;
-            });
+            }, remote);
         }
     }
 
@@ -629,10 +617,12 @@ export class WorldGenPlugin implements Plugin {
             const world = [...gens.zones(built.data.world).all()];
             for (const unit of built.faces) unit.zones.sync(world);
             const half = faceHalf(facts.radius);
+            const pool = planPool();
             for (const unit of built.faces) {
                 this.publishUnit(app, gens, entity, built, {
                     key: FACE_KEYS[unit.face.face]!, plan: unit.plan, farPlan: unit.farPlan, face: unit.face,
                     bounds: [-half, -half, half, half], known: (x, z) => unit.face.ground(x, z) !== null,
+                    away: pool && facts.worker ? this.awayOf(pool, built, unit, facts) : undefined,
                 }, `planet:${facts.radius}`, false);
             }
             return;
@@ -652,6 +642,36 @@ export class WorldGenPlugin implements Plugin {
             key: '', plan, farPlan: built.farPlan, face: null, bounds: terrains?.areaBounds() ?? null,
             known: (x, z) => !terrains || terrains.groundKnownAt(x, z),
         }, ground, waiting);
+    }
+
+    /** The name of a face's plan for workers: what it was made from, so a plan made from other rules, zones or sea is a new one. */
+    private planKey(built: BuiltWorld, unit: FaceUnit): string {
+        return `${built.signature}:f${unit.face.face}:z${unit.zones.zones.revision}`;
+    }
+
+    /** What a worker makes a face's plan from: plain data, the rules without what is code (the fields a game registered) or what only the main thread reads (the plants' kinds). */
+    private planSpec(built: BuiltWorld, unit: FaceUnit, facts: PlanetFacts): PlanSpec {
+        const data = built.data;
+        return {
+            rules: { ...built.rules!, fields: undefined, plants: undefined } as WorldRules, seed: data.seed, world: data.world, seaLevel: data.seaLevel,
+            face: unit.face.face, radius: facts.radius, centre: facts.centre, layers: [...facts.layers], fieldNames: [...facts.fieldNames],
+            zones: [...unit.zones.zones.all()], provider: facts.worker!,
+        };
+    }
+
+    /** Asks the pool for a square of a face's plan: the plan is sent with the first question a worker is asked of it, and named after that. */
+    private awayOf(pool: JobPool, built: BuiltWorld, unit: FaceUnit, facts: PlanetFacts): NonNullable<Unit['away']> {
+        const worker = unit.face.face % pool.size;
+        return (layer, far, x0, z0, x1, z1) => {
+            const key = this.planKey(built, unit);
+            const first = firstSend(worker, key);
+            const request: PlacementsRequest = { id: 0, key, layer, far, x0, z0, x1, z1, ...(first ? { spec: this.planSpec(built, unit, facts) } : {}) };
+            return pool.run<Placement[]>(unit.face.face, request as unknown as Record<string, unknown>).catch((e: unknown) => {
+                // A worker that does not know the plan (it was restarted) is sent it again with the next question.
+                forgetSent(worker, key);
+                throw e;
+            });
+        };
     }
 
     /** One unit's layers as chunks: nearest first within the frame's budget, with the far versions of its plants a layer of their own. */
@@ -676,9 +696,11 @@ export class WorldGenPlugin implements Plugin {
                 ...(sourcesFor ? { sources: sourcesFor(layer.drawDistance + size) } : {}),
                 make: (cx, cz) => {
                     const x0 = cx * size, z0 = cz * size;
-                    if (waiting || !known(x0, z0, size)) return null;
                     // The plants' parts are read before any chunk: a chunk made without them would leave the plants out until it is made again.
                     if (rendering && built.plants && !built.plantsReady) return null;
+                    const away = unit.away?.(layer.id, false, x0, z0, x0 + size, z0 + size);
+                    if (away) return away.then((placed) => this.chunk(app, null, diffs, layer, x0, z0, size, rendering, built.plants, face, false, 1, placed));
+                    if (waiting || !known(x0, z0, size)) return null;
                     return this.chunk(app, plan, diffs, layer, x0, z0, size, rendering, built.plants, face);
                 },
                 publish: (_cx, _cz, value) => this.place(app, gens, entity, value),
@@ -702,9 +724,11 @@ export class WorldGenPlugin implements Plugin {
                 ...(sourcesFor ? { sources: sourcesFor(built.plants.reach + fsize) } : {}),
                 make: (cx, cz) => {
                     const x0 = cx * fsize, z0 = cz * fsize;
-                    if (waiting || !known(x0, z0, fsize)) return null;
                     if (!built.plantsReady) return null;
                     const sparse = (layer.farSpacing ?? 1) > 1 && unit.farPlan;
+                    const away = unit.away?.(layer.id, true, x0, z0, x0 + fsize, z0 + fsize);
+                    if (away) return away.then((placed) => this.chunk(app, null, diffs, layer, x0, z0, fsize, rendering, built.plants, face, true, sparse ? layer.farSpacing! ** 2 : 1, placed));
+                    if (waiting || !known(x0, z0, fsize)) return null;
                     return this.chunk(app, sparse ? unit.farPlan! : plan, diffs, layer, x0, z0, fsize, rendering, built.plants, face, true, sparse ? layer.farSpacing! ** 2 : 1);
                 },
                 publish: (_cx, _cz, value) => this.place(app, gens, entity, value),
@@ -714,10 +738,11 @@ export class WorldGenPlugin implements Plugin {
     }
 
     /** What one chunk of a layer places: its decoration merged by mesh, and its interactive placements, with the changes laid over. */
-    private chunk(app: App, plan: WorldPlan, diffs: PlacementDiffs, layer: PlacementLayer, x0: number, z0: number, size: number,
-                  rendering: boolean, plants: PlantSet | null, face: PlanetFace | null, far = false, thinnedBy = 1): PlacedChunk | Promise<PlacedChunk> {
+    private chunk(app: App, plan: WorldPlan | null, diffs: PlacementDiffs, layer: PlacementLayer, x0: number, z0: number, size: number,
+                  rendering: boolean, plants: PlantSet | null, face: PlanetFace | null, far = false, thinnedBy = 1, given?: readonly Placement[]): PlacedChunk | Promise<PlacedChunk> {
         const placements: Placement[] = [];
-        for (const planned of plan.placementsIn(x0, z0, x0 + size, z0 + size, [layer.id])) {
+        // What is placed in the square: asked of the plan here, or already worked out (by a worker).
+        for (const planned of given ?? plan!.placementsIn(x0, z0, x0 + size, z0 + size, [layer.id])) {
             // On a planet a placement is taken from its face's plane to the planet, and named for its face: the same cell of two faces is two places.
             const p = face ? onPlanet(planned, face) : planned;
             if (diffs.isRemoved(p.id)) continue;

@@ -6784,6 +6784,7 @@ id: string
 range: (seed: number, version: number, radius: number) => [number, number]
 sample: (region: PlanetRegion) => PlanetSamples | Promise<PlanetSamples>
 versions: readonly number[]
+workerSource: string | undefined
 ```
 
 ## PlanetRegion — interface @experimental

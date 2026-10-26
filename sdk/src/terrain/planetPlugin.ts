@@ -38,6 +38,8 @@ import { buildSphereMesh } from './planetSea';
 import { removePlanetCollision, updatePlanetCollision } from './planetCollision';
 import { planetProvider, planetProvidersRevision, type PlanetProvider } from './planetProvider';
 import { makePlanetPage, type PlanetPageSource } from './planetPages';
+import { firstSend, forgetSent, planPool } from '../runtime/planPool';
+import type { PageRequest } from '../worldgen/planWorker';
 import type { PlanetSamples } from './planetProvider';
 import { levelsFor, nodePoint, selectSphereNodes, sphereNodeKey, type SphereNode, type SphereTreeParams } from './sphere';
 
@@ -153,6 +155,8 @@ interface Built {
     providers: number;
     /** The painters' revision the pages were last painted at. */
     painted: number;
+    /** Pages that came back from a worker and are not in the atlas yet. */
+    ready: { key: string; image: PageImage }[];
     /** The sea's entity, mesh and material instance, when the planet has one. */
     sea: { entity: Entity; mesh: number; material: number; base: number } | null;
 }
@@ -217,6 +221,7 @@ export class PlanetPlugin implements Plugin {
                         const got = source.provider.sample({ world: source.world, seed: source.seed, version: source.version, radius: source.radius, directions, count });
                         return got instanceof Promise ? null : got;
                     },
+                    worker: source.provider.workerSource ? { source: source.provider.workerSource, seed: source.seed, version: source.version, world: source.world } : null,
                     fieldNames: source.provider.fields ?? [],
                     fieldsAt: source.provider.fields ? (dx, dy, dz) => { const got = sampleAt(source, dx, dy, dz); return got?.fields ? Array.from(got.fields) : null; } : null,
                     layers: built.data.layers.map((ref, i) => (ref.split('/').pop() ?? '').replace(/\.[^.]*$/, '') || `layer${i}`),
@@ -245,7 +250,7 @@ export class PlanetPlugin implements Plugin {
         const built: Built = {
             signature, data: { ...data }, provider: null, source: null, tree: null, epoch, table: new PageTable(ATLAS_SIZE),
             heights: 0, paint: 0, mesh: 0, instance: 0, nodes: new Map(), spare: [], wanted: new Map(), asked: new Set(), pending: false, failure: null, arrays: [], packed: '', packing: false,
-            providers: planetProvidersRevision(), painted: 0, sea: null,
+            providers: planetProvidersRevision(), painted: 0, sea: null, ready: [],
         };
         const provider = planetProvider(data.provider);
         if (!provider) {
@@ -371,7 +376,7 @@ export class PlanetPlugin implements Plugin {
                 if (covered.has(sphereNodeKey(up))) { drawn.delete(key); break; }
             }
         }
-        this.makePages(app, built, eye);
+        this.makePages(app, entity, built, eye);
         this.pack(app, built);
 
         const set = (name: string, value: Parameters<typeof Material.setUniform>[2]): void => { Material.setUniform(built.instance, name, value); };
@@ -481,7 +486,29 @@ export class PlanetPlugin implements Plugin {
     }
 
     /** Makes the wanted pages, coarse and near first, for as long as the frame can spare. */
-    private makePages(app: App, built: Built, eye: [number, number, number]): void {
+    /** One node's page: made by a worker when the planet's provider can be loaded in one, here when it cannot. */
+    private pageOf(app: App, entity: Entity, src: PlanetPageSource, node: SphereNode): PageImage | Promise<PageImage> {
+        const pool = planPool();
+        const provider = src.provider;
+        if (!pool || !provider.workerSource) return makePlanetPage(src, node);
+        const registry = app.hasResource(PlanetRegistryRes) ? app.getResource(PlanetRegistryRes) : null;
+        const remote = registry?.remotePaintOf(entity) ?? null;
+        // A painter that only the main thread can run (a world with no plan a worker could make) keeps its pages here.
+        if (registry?.paintOf(entity) && !remote) return makePlanetPage(src, node);
+        const worker = node.face % pool.size;
+        const keys = remote ? [...remote.keys] : null;
+        const request: PageRequest = {
+            id: 0, type: 'page', node, levels: src.levels, radius: src.radius, minHeight: src.minHeight, maxHeight: src.maxHeight,
+            provider: { source: provider.workerSource, seed: src.seed, version: src.version, world: src.world },
+            paintKeys: keys, specs: keys ? keys.map((k, f) => (firstSend(worker, k) ? remote!.spec(f) as PageRequest['specs'][number] : null)) : [],
+        };
+        return pool.run<PageImage>(node.face, request as unknown as Record<string, unknown>).catch((e: unknown) => {
+            if (keys) for (const k of keys) forgetSent(worker, k);
+            throw e;
+        });
+    }
+
+    private makePages(app: App, entity: Entity, built: Built, eye: [number, number, number]): void {
         const bakes = bakesOf(app);
         if (built.wanted.size === 0) { bakes.mark(built, 'Building the planet', 1); return; }
         const src = built.source!;
@@ -500,16 +527,24 @@ export class PlanetPlugin implements Plugin {
             return true;
         };
         const epoch = built.epoch;
+        // The pages a worker made, in the atlas: two a frame at least, and more while the frame has time.
+        let stored = 0;
+        while (built.ready.length > 0 && (stored < 2 || (stored < 12 && bakes.hasTime()))) {
+            const r = built.ready.shift()!;
+            if (built.epoch === epoch && built.heights) store(r.key, r.image);
+            stored++;
+        }
         for (const node of order) {
             const key = sphereNodeKey(node);
             if (built.asked.has(key)) continue;
-            const image = makePlanetPage(src, node);
+            const image = this.pageOf(app, entity, src, node);
             if (image instanceof Promise) {
                 if (built.asked.size >= PAGES_IN_FLIGHT) break;
                 built.asked.add(key);
                 void image.then((img) => {
                     built.asked.delete(key);
-                    if (built.epoch === epoch && built.heights) store(key, img);
+                    // Put in the atlas in a later frame's turn, a few at a time: a burst of answers is not one frame's work.
+                    if (built.epoch === epoch && built.heights) built.ready.push({ key, image: img });
                 }, (e) => {
                     built.asked.delete(key);
                     log.warn('planet', `the provider failed a page (${key})`, e);

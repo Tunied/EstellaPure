@@ -1,0 +1,161 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: Copyright (c) 2024-present ESEngine Team
+/**
+ * @file    planWorker.ts
+ * @brief   The script a planning worker runs: what a planet's world places in a square of one of its faces, worked out off the main thread.
+ *
+ * @details This file is bundled on its own (sdk/scripts/build-worker.mjs) into text the engine starts workers from, so it imports only what planning
+ *          needs, none of the engine's runtime. It speaks the pool's protocol (runtime/jobs.ts): a message `{ id, spec?, key, ... }` is answered with
+ *          `{ id, result }` or `{ id, error }`.
+ *
+ *          A plan is made once for a key and kept, so what it works out (the groups of a layer, the viability of a candidate) is shared by every square asked
+ *          of it. The planet's provider is the game's own generator, handed over as the text of a self-contained module and loaded here, which is what lets
+ *          the ground be read in the worker with no help from the main thread.
+ */
+import type { Placement } from './plan';
+import type { WorldPlan } from './plan';
+import type { WorldRules } from './rules';
+import type { ZoneDef } from './zones';
+import { Zones } from './zones';
+import { PlanetFace } from './planetSurface';
+import { farRulesOf, makeFacePlan } from './facePlan';
+import type { PlanetFacts } from '../terrain/planetQuery';
+import type { PlanetProvider } from '../terrain/planetProvider';
+import type { PlanetPainter } from '../terrain/planetQuery';
+import { faceOf, type SphereNode } from '../terrain/sphere';
+import { makePlanetPage, type PlanetPageSource } from '../terrain/planetPages';
+import type { PageImage } from '../terrain/pages';
+
+/** What a plan is made from: everything the main thread knew when it made its own. */
+export interface PlanSpec {
+    rules: WorldRules;
+    seed: number;
+    world: string;
+    seaLevel: number;
+    face: number;
+    radius: number;
+    centre: [number, number, number];
+    layers: string[];
+    fieldNames: string[];
+    /** The zones over the face, in its plane. */
+    zones: ZoneDef[];
+    /** The planet's provider: the text of a module whose default export is it, and what it is asked with. */
+    provider: { source: string; seed: number; version: number; world: string };
+}
+
+/** A question: the square of the face's plane, and whether it is the far plan's. */
+export interface PlacementsRequest {
+    id: number;
+    /** Names the plan; a worker that has not seen it is sent `spec` with it. */
+    key: string;
+    spec?: PlanSpec;
+    layer: string;
+    far: boolean;
+    x0: number;
+    z0: number;
+    x1: number;
+    z1: number;
+}
+
+interface Made { plan: WorldPlan; farPlan: WorldPlan | null; face: PlanetFace }
+
+/** The plans kept, newest last, and the providers loaded (by the text of their source). */
+const plans = new Map<string, Made>();
+const providers = new Map<string, Promise<PlanetProvider>>();
+const PLANS_KEPT = 24;
+
+/** How the text of a provider's module becomes the provider: a blob the worker imports. A test, which has no blob to import, gives its own. */
+export type ProviderLoader = (source: string) => Promise<PlanetProvider>;
+
+const blobLoader: ProviderLoader = (source) => {
+    const url = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
+    return import(/* @vite-ignore */ url).then((m: { default: PlanetProvider }) => m.default).finally(() => URL.revokeObjectURL(url));
+};
+
+function providerOf(source: string, load: ProviderLoader): Promise<PlanetProvider> {
+    let p = providers.get(source);
+    if (!p) { p = load(source); providers.set(source, p); }
+    return p;
+}
+
+async function makeFor(spec: PlanSpec, load: ProviderLoader): Promise<Made> {
+    const provider = await providerOf(spec.provider.source, load);
+    const facts: PlanetFacts = {
+        centre: spec.centre, radius: spec.radius, gravity: 0, height: null, paint: null, layers: spec.layers, fieldNames: spec.fieldNames, fieldsAt: null,
+        sampleMany: (directions, count) => {
+            const got = provider.sample({ world: spec.provider.world, seed: spec.provider.seed, version: spec.provider.version, radius: spec.radius, directions, count });
+            if (got instanceof Promise) throw new Error('a provider used in a worker must answer at once');
+            return got;
+        },
+    };
+    const face = new PlanetFace(spec.face, () => facts);
+    const zones = new Zones();
+    for (const z of spec.zones) zones.set(z);
+    return { face, ...makeFacePlan(face, {
+        rules: spec.rules, farRules: farRulesOf(spec.rules), seed: spec.seed, world: spec.world, seaLevel: spec.seaLevel,
+        layers: spec.layers, fieldNames: spec.fieldNames, zones,
+    }) };
+}
+
+/** The plan for `key`: the one this worker kept, or one made from `spec`. */
+async function planFor(key: string, spec: PlanSpec | null | undefined, load: ProviderLoader): Promise<Made> {
+    let made = plans.get(key);
+    if (!made) {
+        if (!spec) throw new Error(`the plan ${key} is not known to this worker`);
+        made = await makeFor(spec, load);
+        plans.set(key, made);
+        if (plans.size > PLANS_KEPT) plans.delete(plans.keys().next().value!);
+    }
+    return made;
+}
+
+/** The placements of a layer in a square, as the plan for `key` has them. @internal */
+export async function placements(r: PlacementsRequest, load: ProviderLoader = blobLoader): Promise<Placement[]> {
+    const made = await planFor(r.key, r.spec, load);
+    const plan = r.far && made.farPlan ? made.farPlan : made.plan;
+    return plan.placementsIn(r.x0, r.z0, r.x1, r.z1, [r.layer]);
+}
+
+
+/** A planet's page to make: its node, the planet's numbers, and (when a world paints the ground) the six faces' plans by key, each with its spec when this worker has none. */
+export interface PageRequest {
+    id: number;
+    type: 'page';
+    node: SphereNode;
+    levels: number;
+    radius: number;
+    minHeight: number;
+    maxHeight: number;
+    provider: { source: string; seed: number; version: number; world: string };
+    paintKeys: string[] | null;
+    specs: (PlanSpec | null)[];
+}
+
+/** The page of a planet's node: heights, normals and paint, the paint by the biomes of the world when it is painted by one. @internal */
+export async function page(r: PageRequest, load: ProviderLoader = blobLoader): Promise<{ result: PageImage; transfer: ArrayBuffer[] }> {
+    const provider = await providerOf(r.provider.source, load);
+    let painter: PlanetPainter | null = null;
+    if (r.paintKeys) {
+        const keys = r.paintKeys;
+        const made = await Promise.all(keys.map((k, f) => planFor(k, r.specs[f], load)));
+        painter = (dx, dy, dz, base) => {
+            const m = made[faceOf(dx, dy, dz).face]!;
+            const at = m.face.planeOf(dx, dy, dz);
+            return at ? m.plan.paint(at.x, at.z, base) : base;
+        };
+    }
+    const src: PlanetPageSource = { provider, world: r.provider.world, seed: r.provider.seed, version: r.provider.version, radius: r.radius, levels: r.levels, minHeight: r.minHeight, maxHeight: r.maxHeight, ...(painter ? { paint: () => painter } : {}) };
+    const image = await makePlanetPage(src, r.node);
+    return { result: image, transfer: [image.heights.buffer as ArrayBuffer, image.paint.buffer as ArrayBuffer, image.paint2.buffer as ArrayBuffer] };
+}
+
+// The worker's loop. Absent where this file is imported as a module (a test), where `self` is not a worker's scope.
+declare const self: { onmessage: ((e: { data: PlacementsRequest | PageRequest }) => void) | null; postMessage(m: unknown, transfer?: ArrayBuffer[]): void } | undefined;
+if (typeof self !== 'undefined' && typeof (self as { importScripts?: unknown }).importScripts === 'function') {
+    self.onmessage = (e) => {
+        const m = e.data;
+        const fail = (err: unknown): void => self!.postMessage({ id: m.id, error: err instanceof Error ? err.message : String(err) });
+        if ((m as { type?: string }).type === 'page') page(m as PageRequest).then((r) => self!.postMessage({ id: m.id, result: r.result }, r.transfer), fail);
+        else placements(m as PlacementsRequest).then((result) => self!.postMessage({ id: m.id, result }), fail);
+    };
+}

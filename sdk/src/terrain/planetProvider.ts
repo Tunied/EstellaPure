@@ -44,6 +44,11 @@ export interface PlanetProvider {
      * a place is a wetland). A game's own generator decides them, so the ground that is drawn and what grows on it come from one function.
      */
     readonly fields?: readonly string[];
+    /**
+     * The text of a self-contained module (plain JavaScript, no imports) whose default export is this provider's `id`, `versions`, `fields` and `sample`, so that
+     * a worker can load the generator and a generated world can be laid out off the main thread. Absent, the world is laid out on the main thread.
+     */
+    readonly workerSource?: string;
     /** The ground in the directions asked: heights in metres above the radius, the layer weights if it paints, and its fields if it has any. May answer later. */
     sample(region: PlanetRegion): PlanetSamples | Promise<PlanetSamples>;
 }
