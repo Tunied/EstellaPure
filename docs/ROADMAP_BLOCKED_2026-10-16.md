@@ -82,3 +82,93 @@ Project read still fails before authentication: GitHub CLI/config.yml access den
 
 Project read remains blocked before authentication: access denied to GitHub CLI/config.yml (exit 1). Latest drafts, releases and acceptance evidence were not obtained. No new pending requirements; no changes to remote cards, snapshots or engine code. Same reported sandbox blocker; no repeated authorization request or bypass. Local log remains uncommitted under the read-only .git restriction.
 
+
+## 2026-10-21 12:08 UTC recheck
+
+Project read still fails before authentication: GitHub CLI/config.yml access denied (exit 1). No latest drafts, releases or acceptance evidence obtained. No new pending requirements; remote cards, snapshots and engine code remain untouched. Same reported sandbox blocker; no repeated authorization request or bypass. Local log remains uncommitted under the read-only .git restriction.
+
+
+## 2026-10-21 19:06 UTC recheck
+
+Project read still fails before authentication: GitHub CLI/config.yml access denied (exit 1). Latest drafts, releases and acceptance evidence were not obtained. No new pending requirements; remote cards, snapshots and engine code remain untouched. Same reported sandbox blocker; no repeated authorization request or bypass. Local log remains uncommitted under the read-only .git restriction.
+
+
+## 2026-10-22 02:07 UTC recheck
+
+Project read remains blocked before authentication: access denied to GitHub CLI/config.yml (exit 1). No latest drafts, releases or acceptance evidence obtained. No new pending requirements; remote cards, snapshots and engine code remain untouched. Same reported sandbox blocker; no repeated authorization request or bypass. Local log remains uncommitted under the read-only .git restriction.
+
+
+## 2026-10-22 09:05 UTC recheck
+
+Project read still fails before authentication: GitHub CLI/config.yml access denied (exit 1). No latest drafts, releases or acceptance evidence obtained. No new pending requirements; remote cards, snapshots and engine code remain untouched. Same reported sandbox blocker; no repeated authorization request or bypass. Local log remains uncommitted under the read-only .git restriction.
+
+
+## 2026-10-22 16:05 UTC recheck
+
+Project read remains blocked before authentication: GitHub CLI/config.yml access denied (exit 1). No latest drafts, releases or acceptance evidence obtained. No new pending requirements; remote cards, snapshots and engine code remain untouched. Same reported sandbox blocker; no repeated authorization request or bypass. Local log remains uncommitted under the read-only .git restriction.
+
+
+## 2026-10-22 23:02 UTC recheck
+
+Project read still fails before authentication: GitHub CLI/config.yml access denied (exit 1). No latest drafts, releases or acceptance evidence obtained. No new pending requirements; remote cards, snapshots and engine code remain untouched. Same reported sandbox blocker; no repeated authorization request or bypass. Local log remains uncommitted under the read-only .git restriction.
+
+
+## 2026-10-23 06:05 UTC recheck
+
+Project read remains blocked before authentication: GitHub CLI/config.yml access denied (exit 1). No latest drafts, releases or acceptance evidence obtained. No new pending requirements; remote cards, snapshots and engine code remain untouched. Same reported sandbox blocker; no repeated authorization request or bypass. Local log remains uncommitted under the read-only .git restriction.
+
+
+## 2026-10-23 13:02 UTC recheck
+
+Project read remains blocked before authentication: GitHub CLI/config.yml access denied (exit 1). No latest drafts, releases or acceptance evidence obtained. No new pending requirements; remote cards, snapshots and engine code remain untouched. Same reported sandbox blocker; no repeated authorization request or bypass. Local log remains uncommitted under the read-only .git restriction.
+
+
+## 2026-10-23 20:05 UTC recheck
+
+Project read remains blocked before authentication: GitHub CLI/config.yml access denied (exit 1). Latest drafts and user changes could not be read; no fresh release or acceptance verification performed. No new pending requirements or remote changes. Same sandbox blocker; no authorization retry or bypass. Engine code untouched.
+
+
+## 2026-10-24 03:02 UTC recheck
+
+Project read remains blocked before authentication: GitHub CLI/config.yml access denied (exit 1). Latest drafts and user changes could not be read; no fresh release or acceptance verification performed. No new pending requirements or remote changes. Same sandbox blocker; no authorization retry or bypass. Engine code untouched.
+
+
+## 2026-10-24 10:02 UTC recheck
+
+Project read remains blocked before authentication: GitHub CLI/config.yml access denied (exit 1). Latest drafts and user changes could not be read; no fresh release or acceptance verification performed. No new pending requirements or remote changes. Same sandbox blocker; no authorization retry or bypass. Engine code untouched.
+
+
+## 2026-10-24 17:01 UTC recheck
+
+Project read remains blocked before authentication: GitHub CLI/config.yml access denied (exit 1). Latest drafts and user changes could not be read; no fresh release or acceptance verification performed. No new pending requirements or remote changes. Same sandbox blocker; no authorization retry or bypass. Engine code untouched.
+
+
+## 2026-10-25 00:02 UTC recheck
+
+Project read remains blocked before authentication: GitHub CLI/config.yml access denied (exit 1). Latest drafts and user changes could not be read; no fresh release or acceptance verification performed. No new pending requirements or remote changes. Same sandbox blocker; no authorization retry or bypass. Engine code untouched.
+
+
+## 2026-10-25 07:02 UTC recheck
+
+Project read remains blocked before authentication: GitHub CLI/config.yml access denied (exit 1). Latest drafts and user changes could not be read; no fresh release or acceptance verification performed. No new pending requirements or remote changes. Same sandbox blocker; no authorization retry or bypass. Engine code untouched.
+
+
+## 2026-10-25 13:57 UTC recheck
+
+Project read remains blocked before authentication: GitHub CLI/config.yml access denied (exit 1). Latest drafts and user changes could not be read; no fresh release or acceptance verification performed. No new pending requirements or remote changes. Same sandbox blocker; no authorization retry or bypass. Engine code untouched.
+
+
+## 2026-10-25 20:57 UTC recheck
+
+Project read remains blocked before authentication: GitHub CLI/config.yml access denied (exit 1). Latest drafts and user changes could not be read; no fresh release or acceptance verification performed. No new pending requirements or remote changes. Same sandbox blocker; no authorization retry or bypass. Engine code untouched.
+
+
+## 2026-10-26 04:02 UTC recheck
+
+Project read remains blocked before authentication: GitHub CLI/config.yml access denied (exit 1). Latest drafts and user changes could not be read; no fresh release or acceptance verification performed. No new pending requirements or remote changes. Same sandbox blocker; no authorization retry or bypass. Engine code untouched.
+
+
+## 2026-10-26 11:06 UTC recheck
+
+Project read remains blocked before authentication: GitHub CLI/config.yml access denied (exit 1). Latest drafts and user changes could not be read; no fresh release or acceptance verification performed. No new pending requirements or remote changes. Same sandbox blocker; no authorization retry or bypass. Engine code untouched.
+

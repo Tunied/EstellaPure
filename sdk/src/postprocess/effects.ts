@@ -298,7 +298,13 @@ registerEffect({
 registerEffect({
     type: 'skyAtmosphere',
     label: 'Sky Atmosphere',
-    factory: () => postProcessEffects.createSkyAtmosphere(),
+    factory: () => postProcessEffects.createSkyClouds(),
+    // The clouds (and the shadow they cast on the ground) are smooth and dear, so they are worked out at half size and the composite
+    // reads them back by the way a pixel's neighbours agree with it; the dome, sun, moon and stars, which have an edge, stay full size.
+    multiPass: [
+        { name: 'sky_clouds', factory: () => postProcessEffects.createSkyClouds(), scale: 0.5 },
+        { name: 'sky_composite', factory: () => postProcessEffects.createSkyAtmosphere() },
+    ],
     uniforms: [
         // On a planet the sky is of the ground the camera stands on: the radius, above 0, turns that on, and the centre is where the planet stands.
         { name: 'u_planetRadius', label: 'Planet Radius', min: 0, max: 100000000, step: 100, defaultValue: 0, neutralValue: 0 },
@@ -400,7 +406,13 @@ registerEffect({
 registerEffect({
     type: 'heightFog',
     label: 'Height Fog',
-    factory: () => postProcessEffects.createHeightFog(),
+    factory: () => postProcessEffects.createHeightFogVolume(),
+    // The sun's light through the haze (the shadow map, the clouds' shafts) is the dear part and smooth: it is walked at half size and
+    // read back by how near each texel's ray is to the pixel's. The haze itself is analytic and stays full size.
+    multiPass: [
+        { name: 'fog_volume', factory: () => postProcessEffects.createHeightFogVolume(), scale: 0.5 },
+        { name: 'fog_composite', factory: () => postProcessEffects.createHeightFog() },
+    ],
     uniforms: [
         // Per WORLD unit at the base height: the share of light a unit of fog takes out.
         { name: 'u_density', label: 'Density', min: 0, max: 0.05, step: 0.0001, defaultValue: 0.0015, neutralValue: 0 },

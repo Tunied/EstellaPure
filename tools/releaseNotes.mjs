@@ -2986,4 +2986,6 @@ export const NOTED = {
     {"note":"A material's vertex hook reads its own textures when it casts a shadow."},
   "perf(water): the surface asks whether it is water before it works out the waves and the light":
     {"note":"The water surface leaves early where it is not water."},
+  "perf(postprocess): the sky's clouds and the fog's shafts are worked out at half size and read back by depth":
+    {"note":"The sky's clouds and the fog's light shafts cost a third of what they did."},
 };

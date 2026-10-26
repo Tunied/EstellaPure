@@ -88,6 +88,12 @@ const VARIANTS = [
   { id: 'sky-off', label: 'sky atmosphere off', scene: dropEffects('skyAtmosphere') },
   { id: 'gtao-off', label: 'ambient occlusion (gtao) off', scene: dropEffects('gtao') },
   { id: 'fog-off', label: 'height fog off', scene: dropEffects('heightFog') },
+  // Where the sky's cost lands: the fog before the sky, the sky without its clouds, the sky without its night.
+  { id: 'fog-first', label: 'height fog before the sky in the chain', scene: (d) => { const v = volume(d); const f = effect(d, 'heightFog'); v.effects = [f, ...v.effects.filter((e) => e !== f)]; } },
+  { id: 'clouds-0', label: 'sky without clouds', scene: (d) => { effect(d, 'skyAtmosphere').uniforms.u_clouds = 0; } },
+  { id: 'stars-0', label: 'sky without stars and moon', scene: (d) => { const u = effect(d, 'skyAtmosphere').uniforms; u.u_stars = 0; u.u_moon = 0; } },
+  { id: 'shade-0', label: 'fog on, cloud shafts 0', scene: (d) => { effect(d, 'heightFog').uniforms.u_cloudShade = 0; } },
+  { id: 'vol-0-shade-0', label: 'fog without volumetric light or cloud shafts', scene: (d) => { const u = effect(d, 'heightFog').uniforms; u.u_volumetric = 0; u.u_cloudShade = 0; } },
   { id: 'volumetric-off', label: 'fog on, volumetric light 0', scene: (d) => { effect(d, 'heightFog').uniforms.u_volumetric = 0; } },
   { id: 'autoexposure-off', label: 'auto exposure off', scene: dropEffects('autoExposure') },
   { id: 'bloom-off', label: 'bloom off', scene: dropEffects('bloom') },
