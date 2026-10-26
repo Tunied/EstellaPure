@@ -130,6 +130,7 @@ drawDistance: number
 far: PlacedPart[]
 farDistance: number
 farKeep: number | undefined
+lod2Distance: number | undefined
 lodDistance: number
 parts: PlacedPart[]
 ```
@@ -138,6 +139,7 @@ parts: PlacedPart[]
 ```
 castShadows: boolean | undefined
 lod1Mesh: string
+lod2Mesh: string | undefined
 material: string
 mesh: string
 opaque: boolean
@@ -184,6 +186,7 @@ drawDistance: number
 far: PlacedPart[]
 farDistance: number
 farKeep: number | undefined
+lod2Distance: number | undefined
 lodDistance: number
 parts: PlacedPart[]
 sink: number | undefined

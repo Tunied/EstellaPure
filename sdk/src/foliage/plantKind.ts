@@ -12,6 +12,8 @@ export interface PlacedPart {
     mesh: string;
     /** A cheaper mesh with the same parts, drawn past the kind's `lodDistance`; empty draws the mesh to the end. */
     lod1Mesh: string;
+    /** A cheaper still, drawn from the kind's `lod2Distance`; empty or absent keeps the cheaper mesh to the end of the kind's reach. */
+    lod2Mesh?: string;
     material: string;
     texture: string;
     tint: [number, number, number, number];
@@ -31,6 +33,11 @@ export interface PlacedKind {
     parts: PlacedPart[];
     /** Past this the cheaper mesh stands in. */
     lodDistance: number;
+    /**
+     * Past this the parts' `lod2Mesh` stands in for the cheaper mesh (default 0: none). The cheaper mesh of a tree is half the triangles of the first, still
+     * thousands, and from far enough they cover a few pixels each, which is dear for what they show; the third is a tenth.
+     */
+    lod2Distance?: number;
     /** Past this the kind is not drawn as itself. */
     drawDistance: number;
     /**

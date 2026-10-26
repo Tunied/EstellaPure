@@ -34,7 +34,7 @@ export function expandPlants(plants: Readonly<Record<string, PlantKind>>): Plant
         const first = kinds.length;
         for (const t of tints) {
             const tint = (part: PlacedKind['parts'][number]): PlacedKind['parts'][number] => ({ ...part, tint: [part.tint[0] * t[0], part.tint[1] * t[1], part.tint[2] * t[2], part.tint[3]] });
-            kinds.push({ parts: p.parts.map(tint), lodDistance: p.lodDistance, drawDistance: p.drawDistance, far: p.far.map(tint), farDistance: p.farDistance, ...(p.farKeep === undefined ? {} : { farKeep: p.farKeep }) });
+            kinds.push({ parts: p.parts.map(tint), lodDistance: p.lodDistance, ...(p.lod2Distance === undefined ? {} : { lod2Distance: p.lod2Distance }), drawDistance: p.drawDistance, far: p.far.map(tint), farDistance: p.farDistance, ...(p.farKeep === undefined ? {} : { farKeep: p.farKeep }) });
         }
         slots.set(name, { first, count: tints.length, scale: p.tintScale ?? 1300, seed: hashString(name), sink: p.sink ?? 0, unit: p.unit ?? 1 });
         reach = Math.max(reach, p.drawDistance, p.far.length > 0 ? p.farDistance : 0);

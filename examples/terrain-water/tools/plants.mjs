@@ -31,8 +31,8 @@ function partsOf(project, file) {
 const SOFT_CARDS = 0.85;
 const SOFT_GROUND = 0.6;
 
-const asPart = (d, lod1Mesh = '') => ({
-  mesh: d.mesh, lod1Mesh, material: d.material ?? '', texture: d.texture ?? '',
+const asPart = (d, lod1Mesh = '', lod2Mesh = '') => ({
+  mesh: d.mesh, lod1Mesh, ...(lod2Mesh ? { lod2Mesh } : {}), material: d.material ?? '', texture: d.texture ?? '',
   tint: [d.color?.r ?? 1, d.color?.g ?? 1, d.color?.b ?? 1, d.color?.a ?? 1], opaque: d.opaque !== false,
 });
 
@@ -55,12 +55,12 @@ const TINTS = {
 
 /** The kinds of plant: the prefab each is made of, how far it is drawn (metres: the cheaper mesh from `lod`, nothing past `draw`, the far version out to `far`). */
 const KINDS = {
-  oak: { prefab: 'tree-oak-dense', lod: 60, draw: 380, far: 2000, tints: TINTS.oak },
-  beech: { prefab: 'tree-beech-dense', lod: 60, draw: 380, far: 2000, tints: TINTS.beech },
-  birch: { prefab: 'tree-birch', lod: 60, draw: 380, far: 2000, tints: TINTS.birch },
-  willow: { prefab: 'tree-willow', lod: 60, draw: 380, far: 2000, tints: TINTS.willow },
-  'pine-ridge': { prefab: 'tree-pine-ridge', lod: 60, draw: 380, far: 2000, tints: TINTS.conifer },
-  'pine-lakeside': { prefab: 'tree-pine-lakeside', lod: 60, draw: 380, far: 2000, tints: TINTS.conifer },
+  oak: { prefab: 'tree-oak-dense', lod: 60, lod2: 80, draw: 380, far: 2000, tints: TINTS.oak },
+  beech: { prefab: 'tree-beech-dense', lod: 60, lod2: 80, draw: 380, far: 2000, tints: TINTS.beech },
+  birch: { prefab: 'tree-birch', lod: 60, lod2: 80, draw: 380, far: 2000, tints: TINTS.birch },
+  willow: { prefab: 'tree-willow', lod: 60, lod2: 80, draw: 380, far: 2000, tints: TINTS.willow },
+  'pine-ridge': { prefab: 'tree-pine-ridge', lod: 60, lod2: 80, draw: 380, far: 2000, tints: TINTS.conifer },
+  'pine-lakeside': { prefab: 'tree-pine-lakeside', lod: 60, lod2: 80, draw: 380, far: 2000, tints: TINTS.conifer },
   hazel: { prefab: 'shrub-hazel', lod: 40, draw: 120, tints: TINTS.shrub },
   coppice: { prefab: 'shrub-woodland-coppice', lod: 40, draw: 120, tints: TINTS.shrub },
   lowleaf: { prefab: 'woodland-lowleaf', lod: 30, draw: 100, tints: TINTS.fern },
@@ -102,13 +102,16 @@ function plants(project) {
     const parts = partsOf(project, `${base}/${k.prefab}.esprefab`), near = partsOf(project, `${base}/lod1/${k.prefab}.esprefab`);
     const cards = partsOf(project, `${base}/far/${k.prefab}.esprefab`);
     const cheaper = near.length === parts.length;
+    // A third mesh, where plant-lod2.mjs made one beside the others for every part (the trees).
+    const third = k.lod2 ? parts.map((d) => `${base}/lod2/${path.basename(d.mesh)}`) : [];
+    const thirdMade = third.length > 0 && third.every((m) => existsSync(path.join(project, m)));
     const cover = COVER[name];
     // Ground cover: the cheaper mesh stands for it far off, thinned; trees: the art's cards.
     // The art's cards where it made them; ground cover with none (a flower) stands in as its own cheaper mesh, thinned.
     const far = cards.length ? cards.map((d) => ({ ...asPart(d), soft: cover ? SOFT_GROUND : SOFT_CARDS })) : cover ? (cheaper ? near : parts).map((d) => asPart(d)) : [];
     out[name] = {
-      parts: parts.map((d, j) => asPart(d, cheaper ? near[j].mesh : '')),
-      lodDistance: cheaper ? k.lod * M : 0, drawDistance: k.draw * M,
+      parts: parts.map((d, j) => asPart(d, cheaper ? near[j].mesh : '', cheaper && thirdMade ? third[j] : '')),
+      lodDistance: cheaper ? k.lod * M : 0, ...(cheaper && thirdMade ? { lod2Distance: k.lod2 * M } : {}), drawDistance: k.draw * M,
       far, farDistance: far.length ? (cover?.far ?? k.far ?? 0) * M : 0,
       ...(cover ? { farKeep: cover.keep } : {}),
       ...(k.tints ? { tints: k.tints, tintScale: 1300 } : {}),

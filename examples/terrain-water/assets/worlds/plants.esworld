@@ -31,6 +31,7 @@
     {
      "mesh": "assets/plants/models/tree-oak-dense/tree-oak-dense_0_0.esmesh",
      "lod1Mesh": "assets/plants/models/tree-oak-dense/lod1/tree-oak-dense_0_0.esmesh",
+     "lod2Mesh": "assets/plants/models/tree-oak-dense/lod2/tree-oak-dense_0_0.esmesh",
      "material": "assets/plants/models/tree-oak-dense/tree-oak-dense_m0.esmaterial",
      "texture": "assets/plants/textures/06df0060cfc9.png",
      "tint": [
@@ -44,6 +45,7 @@
     {
      "mesh": "assets/plants/models/tree-oak-dense/tree-oak-dense_0_1.esmesh",
      "lod1Mesh": "assets/plants/models/tree-oak-dense/lod1/tree-oak-dense_0_1.esmesh",
+     "lod2Mesh": "assets/plants/models/tree-oak-dense/lod2/tree-oak-dense_0_1.esmesh",
      "material": "assets/plants/models/tree-oak-dense/tree-oak-dense_m1.esmaterial",
      "texture": "assets/plants/textures/938bddcdab05.png",
      "tint": [
@@ -56,6 +58,7 @@
     }
    ],
    "lodDistance": 6000,
+   "lod2Distance": 8000,
    "drawDistance": 38000,
    "far": [
     {
@@ -99,6 +102,7 @@
     {
      "mesh": "assets/plants/models/tree-beech-dense/tree-beech-dense_0_0.esmesh",
      "lod1Mesh": "assets/plants/models/tree-beech-dense/lod1/tree-beech-dense_0_0.esmesh",
+     "lod2Mesh": "assets/plants/models/tree-beech-dense/lod2/tree-beech-dense_0_0.esmesh",
      "material": "assets/plants/models/tree-beech-dense/tree-beech-dense_m0.esmaterial",
      "texture": "assets/plants/textures/06df0060cfc9.png",
      "tint": [
@@ -112,6 +116,7 @@
     {
      "mesh": "assets/plants/models/tree-beech-dense/tree-beech-dense_0_1.esmesh",
      "lod1Mesh": "assets/plants/models/tree-beech-dense/lod1/tree-beech-dense_0_1.esmesh",
+     "lod2Mesh": "assets/plants/models/tree-beech-dense/lod2/tree-beech-dense_0_1.esmesh",
      "material": "assets/plants/models/tree-beech-dense/tree-beech-dense_m1.esmaterial",
      "texture": "assets/plants/textures/938bddcdab05.png",
      "tint": [
@@ -124,6 +129,7 @@
     }
    ],
    "lodDistance": 6000,
+   "lod2Distance": 8000,
    "drawDistance": 38000,
    "far": [
     {
@@ -167,6 +173,7 @@
     {
      "mesh": "assets/plants/models/tree-birch/tree-birch_0_0.esmesh",
      "lod1Mesh": "assets/plants/models/tree-birch/lod1/tree-birch_0_0.esmesh",
+     "lod2Mesh": "assets/plants/models/tree-birch/lod2/tree-birch_0_0.esmesh",
      "material": "assets/plants/models/tree-birch/tree-birch_m0.esmaterial",
      "texture": "assets/plants/textures/6ac5a795fda4.png",
      "tint": [
@@ -180,6 +187,7 @@
     {
      "mesh": "assets/plants/models/tree-birch/tree-birch_0_1.esmesh",
      "lod1Mesh": "assets/plants/models/tree-birch/lod1/tree-birch_0_1.esmesh",
+     "lod2Mesh": "assets/plants/models/tree-birch/lod2/tree-birch_0_1.esmesh",
      "material": "assets/plants/models/tree-birch/tree-birch_m1.esmaterial",
      "texture": "assets/plants/textures/938bddcdab05.png",
      "tint": [
@@ -192,6 +200,7 @@
     }
    ],
    "lodDistance": 6000,
+   "lod2Distance": 8000,
    "drawDistance": 38000,
    "far": [
     {
@@ -235,6 +244,7 @@
     {
      "mesh": "assets/plants/models/tree-willow/tree-willow_0_0.esmesh",
      "lod1Mesh": "assets/plants/models/tree-willow/lod1/tree-willow_0_0.esmesh",
+     "lod2Mesh": "assets/plants/models/tree-willow/lod2/tree-willow_0_0.esmesh",
      "material": "assets/plants/models/tree-willow/tree-willow_m0.esmaterial",
      "texture": "assets/plants/textures/06df0060cfc9.png",
      "tint": [
@@ -248,6 +258,7 @@
     {
      "mesh": "assets/plants/models/tree-willow/tree-willow_0_1.esmesh",
      "lod1Mesh": "assets/plants/models/tree-willow/lod1/tree-willow_0_1.esmesh",
+     "lod2Mesh": "assets/plants/models/tree-willow/lod2/tree-willow_0_1.esmesh",
      "material": "assets/plants/models/tree-willow/tree-willow_m1.esmaterial",
      "texture": "assets/plants/textures/938bddcdab05.png",
      "tint": [
@@ -260,6 +271,7 @@
     }
    ],
    "lodDistance": 6000,
+   "lod2Distance": 8000,
    "drawDistance": 38000,
    "far": [
     {
@@ -303,6 +315,7 @@
     {
      "mesh": "assets/plants/models/tree-pine-ridge/tree-pine-ridge_0_0.esmesh",
      "lod1Mesh": "assets/plants/models/tree-pine-ridge/lod1/tree-pine-ridge_0_0.esmesh",
+     "lod2Mesh": "assets/plants/models/tree-pine-ridge/lod2/tree-pine-ridge_0_0.esmesh",
      "material": "assets/plants/models/tree-pine-ridge/tree-pine-ridge_m0.esmaterial",
      "texture": "assets/plants/textures/06df0060cfc9.png",
      "tint": [
@@ -316,6 +329,7 @@
     {
      "mesh": "assets/plants/models/tree-pine-ridge/tree-pine-ridge_0_1.esmesh",
      "lod1Mesh": "assets/plants/models/tree-pine-ridge/lod1/tree-pine-ridge_0_1.esmesh",
+     "lod2Mesh": "assets/plants/models/tree-pine-ridge/lod2/tree-pine-ridge_0_1.esmesh",
      "material": "assets/plants/models/tree-pine-ridge/tree-pine-ridge_m1.esmaterial",
      "texture": "assets/plants/textures/d06a9a16a81d.png",
      "tint": [
@@ -328,6 +342,7 @@
     }
    ],
    "lodDistance": 6000,
+   "lod2Distance": 8000,
    "drawDistance": 38000,
    "far": [
     {
@@ -371,6 +386,7 @@
     {
      "mesh": "assets/plants/models/tree-pine-lakeside/tree-pine-lakeside_0_0.esmesh",
      "lod1Mesh": "assets/plants/models/tree-pine-lakeside/lod1/tree-pine-lakeside_0_0.esmesh",
+     "lod2Mesh": "assets/plants/models/tree-pine-lakeside/lod2/tree-pine-lakeside_0_0.esmesh",
      "material": "assets/plants/models/tree-pine-lakeside/tree-pine-lakeside_m0.esmaterial",
      "texture": "assets/plants/textures/06df0060cfc9.png",
      "tint": [
@@ -384,6 +400,7 @@
     {
      "mesh": "assets/plants/models/tree-pine-lakeside/tree-pine-lakeside_0_1.esmesh",
      "lod1Mesh": "assets/plants/models/tree-pine-lakeside/lod1/tree-pine-lakeside_0_1.esmesh",
+     "lod2Mesh": "assets/plants/models/tree-pine-lakeside/lod2/tree-pine-lakeside_0_1.esmesh",
      "material": "assets/plants/models/tree-pine-lakeside/tree-pine-lakeside_m1.esmaterial",
      "texture": "assets/plants/textures/d06a9a16a81d.png",
      "tint": [
@@ -396,6 +413,7 @@
     }
    ],
    "lodDistance": 6000,
+   "lod2Distance": 8000,
    "drawDistance": 38000,
    "far": [
     {

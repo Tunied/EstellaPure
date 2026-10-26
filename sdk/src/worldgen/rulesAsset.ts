@@ -63,7 +63,8 @@ function part(v: unknown, where: string): PlantKind['parts'][number] {
     const tint = p.tint ?? [1, 1, 1, 1];
     if (!Array.isArray(tint) || tint.length !== 4) fail(`${where}.tint`, 'four numbers, red, green, blue and alpha');
     return {
-        mesh: str(p.mesh, `${where}.mesh`), lod1Mesh: typeof p.lod1Mesh === 'string' ? p.lod1Mesh : '', material: typeof p.material === 'string' ? p.material : '',
+        mesh: str(p.mesh, `${where}.mesh`), lod1Mesh: typeof p.lod1Mesh === 'string' ? p.lod1Mesh : '',
+        ...(typeof p.lod2Mesh === 'string' && p.lod2Mesh !== '' ? { lod2Mesh: p.lod2Mesh } : {}), material: typeof p.material === 'string' ? p.material : '',
         texture: typeof p.texture === 'string' ? p.texture : '', tint: (tint as unknown[]).map((c, i) => num(c, `${where}.tint[${i}]`)) as [number, number, number, number],
         opaque: p.opaque !== false,
         ...(p.soft === undefined ? {} : { soft: Math.min(Math.max(num(p.soft, `${where}.soft`), 0), 1) }),
@@ -86,7 +87,9 @@ function plant(v: unknown, where: string): PlantKind {
     }
     return {
         parts: (o.parts as unknown[]).map((p, i) => part(p, `${where}.parts[${i}]`)),
-        lodDistance: num(o.lodDistance ?? 0, `${where}.lodDistance`, 0), drawDistance: num(o.drawDistance, `${where}.drawDistance`, 0),
+        lodDistance: num(o.lodDistance ?? 0, `${where}.lodDistance`, 0),
+        ...(o.lod2Distance === undefined ? {} : { lod2Distance: num(o.lod2Distance, `${where}.lod2Distance`, 0) }),
+        drawDistance: num(o.drawDistance, `${where}.drawDistance`, 0),
         far, farDistance: far.length > 0 ? num(o.farDistance, `${where}.farDistance`, 0) : 0,
         ...(o.farKeep === undefined ? {} : { farKeep: num(o.farKeep, `${where}.farKeep`, 1e-3) }),
         ...(tints ? { tints, tintScale: num(o.tintScale ?? 1300, `${where}.tintScale`, 1e-6) } : {}),

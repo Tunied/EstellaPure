@@ -30,7 +30,7 @@ import { buildPlacements, PLACEMENT_FLOATS, softenNormals, thinPlants, type Plan
 import type { PlacedKind, PlacedPart } from './plantKind';
 
 /** A part with what it needs in hand: the handles of its meshes (shared by every cell) and of its material and texture. */
-export interface ReadyPart { part: PlacedPart; mesh: number; lod1: number; material: number; texture: number }
+export interface ReadyPart { part: PlacedPart; mesh: number; lod1: number; lod2?: number; material: number; texture: number }
 
 /** Every kind's parts in hand, and the parts that stand for each far off; `owned` are the meshes made here, which `releaseKinds` gives back. */
 export interface ReadyKinds { kinds: ReadyPart[][]; far: ReadyPart[][]; owned: number[] }
@@ -59,8 +59,10 @@ export async function prepareKinds(assets: AssetsApi, kinds: readonly PlacedKind
         if (mesh === 0) { log.warn('foliage', `the geometry of ${part.mesh} cannot be read, so its plants are left out`); return null; }
         let lod1 = 0;
         if (withLod && part.lod1Mesh) { try { lod1 = await handleOf(part.lod1Mesh, part.soft ?? 0); } catch { lod1 = 0; } }
+        let lod2 = 0;
+        if (withLod && part.lod2Mesh) { try { lod2 = await handleOf(part.lod2Mesh, part.soft ?? 0); } catch { lod2 = 0; } }
         return {
-            part, mesh, lod1,
+            part, mesh, lod1, ...(lod2 ? { lod2 } : {}),
             material: part.material ? (await assets.loadMaterial(part.material)).handle : 0,
             texture: part.texture ? (await assets.loadTexture(part.texture)).handle : 0,
         };
@@ -99,7 +101,7 @@ export class PlantGrowth {
      * Makes one entity under `parent` that draws `part`'s mesh at every place in `plants`, relative to `parent`. `from` and `to` are the distances
      * from the eye between which a plant is drawn (0 for no limit); `lod` is the distance past which the part's cheaper mesh stands in, and `shadow` the one past which it casts no shadow. All of them are scaled by the quality level's `detailScale`.
      */
-    private place(app: App, parent: Entity, name: string, part: ReadyPart, plants: readonly Plant[], lod: number, from: number, to: number, shadow = 0, far = false): void {
+    private place(app: App, parent: Entity, name: string, part: ReadyPart, plants: readonly Plant[], lod: number, from: number, to: number, shadow = 0, far = false, mesh = part.mesh, lod1 = part.lod1): void {
         const world = app.world;
         // The quality level's share of the kind's distances: a weaker device changes to the cheaper mesh sooner and draws less far.
         const quality = app.hasResource(Quality) ? app.getResource(Quality) : null;
@@ -111,12 +113,12 @@ export class PlantGrowth {
         world.insert(e, RuntimeOnly);
         world.insert(e, Transform, {});
         world.insert(e, MeshRenderer, {
-            mesh: part.mesh, material: part.material, texture: part.texture, lit: true, opaque: part.part.opaque !== false, cullBackfaces: false,
+            mesh, material: part.material, texture: part.texture, lit: true, opaque: part.part.opaque !== false, cullBackfaces: false,
             castShadows: part.part.castShadows !== false,
             color: { r: part.part.tint[0], g: part.part.tint[1], b: part.part.tint[2], a: part.part.tint[3] },
         } as Partial<MeshRendererData>);
         const placements = getComponent('MeshInstances');
-        if (placements) world.insert(e, placements, { lod1Mesh: part.lod1, lodDistance: part.lod1 ? lod : 0, minDistance: from, drawDistance: to, shadowDistance: shadow });
+        if (placements) world.insert(e, placements, { lod1Mesh: lod1, lodDistance: lod1 ? lod : 0, minDistance: from, drawDistance: to, shadowDistance: shadow });
         world.setParent(e, parent);
         const api = engineApi(app);
         const set = api?.meshInstances_set;
@@ -145,7 +147,11 @@ export class PlantGrowth {
                 this.queue.push({ cell, run: () => {
                     if (!world.valid(entity)) return;
                     try {
-                        this.place(app, entity, `${kindIndex}:${j}`, r, plants, kind.lodDistance, 0, kind.drawDistance, kind.lodDistance > 0 ? kind.lodDistance * 2 : 0);
+                        const shadow = kind.lodDistance > 0 ? kind.lodDistance * 2 : 0;
+                        // A third mesh takes over where the kind's `lod2Distance` is: two sets, each drawn between its own distances.
+                        const third = r.lod2 && (kind.lod2Distance ?? 0) > 0 ? kind.lod2Distance! : 0;
+                        this.place(app, entity, `${kindIndex}:${j}`, r, plants, kind.lodDistance, 0, third || kind.drawDistance, shadow);
+                        if (third) this.place(app, entity, `${kindIndex}:${j}:lod2`, r, plants, 0, third, kind.drawDistance, shadow, false, r.lod2, 0);
                     } catch (error) {
                         log.error('foliage', 'growing a piece of a cell of plants failed', error);
                     }

@@ -9,7 +9,7 @@ import type { PlantKind } from '../src/foliage/plantKind';
 
 const part = (mesh: string, tint: [number, number, number, number] = [1, 1, 1, 1]) => ({ mesh, lod1Mesh: '', material: '', texture: '', tint, opaque: true });
 const plants: Record<string, PlantKind> = {
-    oak: { parts: [part('trunk', [0.5, 0.5, 0.5, 1]), part('crown')], lodDistance: 6000, drawDistance: 16000, far: [part('cards')], farDistance: 200000,
+    oak: { parts: [part('trunk', [0.5, 0.5, 0.5, 1]), part('crown')], lodDistance: 6000, lod2Distance: 9000, drawDistance: 16000, far: [part('cards')], farDistance: 200000,
         tints: [[0.9, 1, 0.9], [1, 1, 1], [1.1, 1, 0.8]], tintScale: 1000, sink: 8, unit: 100, farKeep: 0.5 },
     stone: { parts: [part('rock')], lodDistance: 0, drawDistance: 30000, far: [], farDistance: 0 },
 };
@@ -25,6 +25,11 @@ describe('expanding plants into kinds', () => {
         expect(first.far[0]!.tint).toEqual([0.9, 1, 0.9, 1]);
         expect(set.kinds[3]!.parts).toHaveLength(1);
         expect(set.kinds[3]!.far).toHaveLength(0);
+    });
+
+    it('carries the distance of the third mesh into every colouring, and none where the plant has none', () => {
+        expect(set.kinds.slice(0, 3).map((k) => k.lod2Distance)).toEqual([9000, 9000, 9000]);
+        expect(set.kinds[3]!.lod2Distance).toBeUndefined();
     });
 
     it('gives a place one colouring, the same each time, and a plant without any its one kind', () => {

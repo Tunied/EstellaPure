@@ -53,6 +53,7 @@ export const PlacedFoliage: ComponentDef<PlacedFoliageData> = defineComponent<Pl
             for (const p of kind.parts ?? []) {
                 if (p.mesh) refs.push({ type: 'mesh', path: p.mesh });
                 if (p.lod1Mesh) refs.push({ type: 'mesh', path: p.lod1Mesh });
+                if (p.lod2Mesh) refs.push({ type: 'mesh', path: p.lod2Mesh });
                 if (p.material) refs.push({ type: 'material', path: p.material });
                 if (p.texture) refs.push({ type: 'texture', path: p.texture });
             }

@@ -19,7 +19,7 @@
  */
 import { chromium } from 'playwright';
 import { spawnSync } from 'node:child_process';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -40,6 +40,8 @@ const VIEW = Number(flag('view', '0'));
 const ONLY = flag('only', '') ? new Set(flag('only', '').split(',')) : null;
 const OUT = flag('out', path.join(ROOT, 'output', 'perf', 'terrain-water-cost.json'));
 const NO_EXPORT = argv.includes('--no-export');
+/** A folder to write each variant's last frame to, as `<id>-view<n>.png`. */
+const SHOTS = flag('shots', '');
 
 /** Where the example's other viewpoints are (the same poses as src/main.ts); null leaves the scene's camera. */
 const VIEWS = [
@@ -61,6 +63,10 @@ const effect = (doc, type) => volume(doc).effects.find((e) => e.type === type);
 const dropEntities = (...names) => (doc) => { doc.entities = doc.entities.filter((e) => !names.includes(e.name)); };
 const WATER = ['Water', 'Sea', 'Lake', 'River In', 'River Out', 'Crate 1', 'Crate 2', 'Crate 3', 'Crate 4', 'Crate 5', 'Crate 6', 'Crate 7', 'Crate 8', 'Crate 9'];
 const PLANTS = ['Plants', 'Flower sea'];
+const noLayer = (layer) => (w) => { for (const b of w.biomes) b.recipes = b.recipes.filter((r) => r.layer !== layer); };
+const forParts = (fn) => (w) => { for (const p of Object.values(w.plants)) for (const part of [...p.parts, ...(p.far ?? [])]) fn(part); };
+const TREES = ['oak', 'beech', 'birch', 'willow', 'pine-ridge', 'pine-lakeside'];
+const trees = (fn) => (w) => { for (const k of TREES) fn(w.plants[k]); };
 const quality = (level, profile) => (cfg) => { cfg.quality = { ...cfg.quality, mode: level, ...(profile ? { profiles: { [level]: profile } } : {}) }; };
 
 /** Each variant: what to take away, relative to `base`. Edits to the scene, or to the package's quality config. */
@@ -82,6 +88,19 @@ const VARIANTS = [
   { id: 'lensflare-off', label: 'lens flare off', scene: dropEffects('lensFlare') },
   { id: 'grade-off', label: 'colour grade + display LUT off', scene: dropEffects('colorGrade', 'displayLut') },
   { id: 'fxaa-off', label: 'fxaa off', scene: dropEffects('fxaa') },
+  // The plants, a layer at a time (what the world rules lay down), and with shadows taken off them
+  { id: 'plants-noshadow', label: 'plants cast no shadow', world: forParts((part) => { part.castShadows = false; }) },
+  ...['groves', 'banks', 'stones', 'cover', 'drifts', 'reeds', 'sea', 'shoals'].map((l) => ({ id: `layer-${l}-off`, label: `plant layer ${l} off`, world: noLayer(l) })),
+  { id: 'trees-no-lod2', label: 'trees without their third mesh (what the example drew before it)', world: trees((p) => { p.lod2Distance = 0; }) },
+  { id: 'trees-lod2-80', label: 'trees: lod1 from 60 m, lod2 from 80 m', world: trees((p) => { p.lod2Distance = 8000; }) },
+  { id: 'trees-lod2-70', label: 'trees: lod1 from 60 m, lod2 from 70 m', world: trees((p) => { p.lod2Distance = 7000; }) },
+  { id: 'trees-lod-tight', label: 'trees: lod1 from 30 m, lod2 from 60 m', world: trees((p) => { p.lodDistance = 3000; p.lod2Distance = 6000; }) },
+  { id: 'trees-lod-mid', label: 'trees: lod1 from 40 m, lod2 from 80 m', world: trees((p) => { p.lodDistance = 4000; p.lod2Distance = 8000; }) },
+  { id: 'trees-lod-quarter', label: 'trees change to their lod1 mesh at a quarter of the distance', world: trees((p) => { p.lodDistance *= 0.25; }) },
+  { id: 'trees-draw-quarter', label: 'trees give way to cards at a quarter of the distance', world: trees((p) => { p.drawDistance *= 0.25; p.lodDistance = Math.min(p.lodDistance, p.drawDistance); p.lod2Distance = 0; }) },
+  { id: 'trees-cards-only', label: 'trees are only ever cards', world: trees((p) => { p.drawDistance = 1; p.lodDistance = 0; p.lod2Distance = 0; }) },
+  { id: 'trees-noshadow', label: 'trees cast no shadow', world: trees((p) => { for (const part of [...p.parts, ...(p.far ?? [])]) part.castShadows = false; }) },
+  { id: 'trees-nofar', label: 'no far cards (trees fade out at their draw distance)', world: (w) => { for (const p of Object.values(w.plants)) p.farDistance = 0; } },
   // Quality knobs, one at a time from high
   { id: 'msaa-1', label: 'no multisampling', config: quality('high', { msaaSamples: 1 }) },
   { id: 'msaa-2', label: 'msaa 2x', config: quality('high', { msaaSamples: 2 }) },
@@ -103,6 +122,9 @@ async function measure(server, original, variant, browser) {
   const cfg = JSON.parse(original.config);
   variant.scene?.(doc);
   variant.config?.(cfg);
+  const worldDoc = JSON.parse(original.world);
+  variant.world?.(worldDoc);
+  await writeFile(worldFile, JSON.stringify(worldDoc));
   const view = VIEWS[VIEW];
   if (view) {
     const cam = doc.entities.find((e) => e.name === 'Camera').components.find((c) => c.type === 'Transform');
@@ -116,6 +138,7 @@ async function measure(server, original, variant, browser) {
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e).slice(0, 200)));
+  if (argv.includes('--logs')) page.on('console', (m) => { if (['warning', 'error'].includes(m.type())) console.log(`  [${m.type()}] ${m.text().slice(0, 200)}`); });
   try {
     await page.goto(`http://127.0.0.1:${server.address().port}/?headless`, { waitUntil: 'load', timeout: 120000 });
     await page.waitForFunction(() => window.__estellaCooked?.facts && window.__estellaCooked.bakes, null, { timeout: 120000 });
@@ -148,6 +171,7 @@ async function measure(server, original, variant, browser) {
       const cpu = costs.systems.reduce((a, x) => a + x.ms, 0);
       return { ms, counters: c.render(), cpu, native: costs.native, size: [document.querySelector('canvas').width, document.querySelector('canvas').height], gl: !!gl };
     }, { frames: FRAMES, samples: SAMPLES });
+    if (SHOTS) { await mkdir(SHOTS, { recursive: true }); await page.screenshot({ path: path.join(SHOTS, `${variant.id}-view${VIEW}.png`) }); }
     return { ms: median(result.ms), cpu: result.cpu, native: result.native, min: Math.min(...result.ms), max: Math.max(...result.ms), settled, counters: result.counters, size: result.size, errors };
   } finally {
     await context.close();
@@ -164,6 +188,8 @@ const original = {
   scene: await readFile(path.join(DIR, 'assets/scenes/main.esscene'), 'utf8'),
   config: await readFile(path.join(DIR, 'game.config.json'), 'utf8'),
 };
+const worldFile = (await readdir(path.join(DIR, 'assets'))).filter((f) => f.endsWith('.esworld')).map((f) => path.join(DIR, 'assets', f))[0];
+original.world = await readFile(worldFile, 'utf8');
 const server = await serveHost(DIR);
 const browser = await chromium.launch({
   headless: true,
@@ -189,11 +215,12 @@ try {
     }
     if (!r) { table[v.id] = { label: v.label, failed: true }; continue; }
     table[v.id] = { label: v.label, ...r };
-    console.log(`${v.id.padEnd(17)} ${r.ms.toFixed(2).padStart(7)} ms   [${r.min.toFixed(2)}..${r.max.toFixed(2)}]   cpu ${r.cpu.toFixed(2)}   draws ${r.counters['batch.draws'] ?? '?'}  shadow ${r.counters['render.shadow.draws'] ?? '?'}  tris ${((r.counters['render.triangles'] ?? 0) / 1e6).toFixed(2)}M   ${r.errors.length ? 'ERRORS ' + r.errors[0] : ''}`);
+    console.log(`${v.id.padEnd(17)} ${r.ms.toFixed(2).padStart(7)} ms   [${r.min.toFixed(2)}..${r.max.toFixed(2)}]   cpu ${r.cpu.toFixed(2)}   draws ${r.counters['batch.draws'] ?? '?'}  shadow ${r.counters['render.shadow.draws'] ?? '?'}  tris ${((r.counters['render.triangles'] ?? 0) / 1e6).toFixed(2)}M  placed ${r.counters['render.placements.seen'] ?? '?'}/coarse ${r.counters['render.placements.coarse'] ?? '?'}/far ${r.counters['render.placements.tooFar'] ?? '?'}   ${r.errors.length ? 'ERRORS ' + r.errors[0] : ''}`);
   }
 } finally {
   await writeFile(path.join(DIR, 'assets/scenes/main.esscene'), original.scene);
   await writeFile(path.join(DIR, 'game.config.json'), original.config);
+  await writeFile(worldFile, original.world);
   await browser.close();
   await new Promise((r) => server.close(r));
 }
