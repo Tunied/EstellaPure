@@ -1989,6 +1989,8 @@ fn shadeLight(pd : vec4f, col : vec4f, sp : vec4f, sh : vec4f, sm : vec4f, fo : 
     var lit = vec3f(0.0);
     var gloss = vec3f(0.0);
     var extra = vec3f(0.0);
+    // A slot nothing lights from adds exactly nothing (see the GLSL twin).
+    if (col.a == 0.0) { return LightTerm(lit, gloss, extra); }
     {
         var L : vec3f;
         var atten : f32;
@@ -3287,6 +3289,9 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "                in highp float a, in highp vec3 F0, in highp float NdotV, in highp float specular,\n"
             "                in highp float roughness, in SurfaceExt ext, inout highp vec3 lit, inout highp vec3 gloss,\n"
             "                inout highp vec3 extra) {\n"
+            // A slot nothing lights from (the block holds sixteen and a scene has one or two): every term below is its colour times
+            // its intensity, so it adds exactly nothing, but the lobe is worked out for it all the same without this.
+            "        if (col.a == 0.0) return;\n"
             "        highp vec3 L;\n"
             "        highp float atten;\n"
             "        highp vec2 target = pd.xy;\n"           // shadow-ray aim point (light position by default)

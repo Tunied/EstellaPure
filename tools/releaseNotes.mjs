@@ -2988,4 +2988,6 @@ export const NOTED = {
     {"note":"The water surface leaves early where it is not water."},
   "perf(postprocess): the sky's clouds and the fog's shafts are worked out at half size and read back by depth":
     {"note":"The sky's clouds and the fog's light shafts cost a third of what they did."},
+  "perf(render): a lit surface skips the light slots nothing shines from":
+    {"note":"A lit surface no longer works out the light slots nothing shines from."},
 };
