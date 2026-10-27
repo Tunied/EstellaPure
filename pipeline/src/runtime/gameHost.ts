@@ -969,6 +969,8 @@ async function boot(): Promise<void> {
       console.warn('[game] shader warm-up failed', error);
     }
   }
+  // After the warm-up above: its frames exist to be drawn.
+  if (cfg.quality?.renderOnDemand) app.pipeline?.demand.enable({ tailFrames: cfg.quality.renderOnDemandTail });
   // Before run(), not after: run() may hand control to the emscripten loop and
   // never return, and the fade is what the first frames should arrive through.
   splash?.reach('ready');

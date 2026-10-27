@@ -20,6 +20,7 @@ import {
 import { log } from '../util/logger';
 import { planPresent, RenderResolution } from '../camera/presentPlan';
 import type { QualityController } from './quality';
+import { RenderDemand } from './renderDemand';
 
 export interface Viewport {
     x: number;
@@ -69,6 +70,8 @@ export class RenderPipeline {
     private frameElapsed_ = 0;
     get frameElapsed(): number { return this.frameElapsed_; }
     private renderingEnabled_ = true;
+    /** Which frames are drawn, when the game has asked for only those that can look different. */
+    readonly demand = new RenderDemand();
     private lastWidth_ = 0;
     private lastHeight_ = 0;
     private activeScenes_: Set<string> | null = null;

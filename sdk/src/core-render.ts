@@ -342,4 +342,6 @@ export type {
 } from './render/quality';
 export { Quality } from './render/qualityRuntime';
 export { warmShaders, shadersCompiled, pendingShaders } from './render/shaderWarmup';
+export { RenderDemand } from './render/renderDemand';
+export type { RenderOnDemandOptions } from './render/renderDemand';
 export type { ShaderWarmup, ShaderWarmupOptions } from './render/shaderWarmup';

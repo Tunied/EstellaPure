@@ -3000,4 +3000,6 @@ export const NOTED = {
     {"note":"Shaders that compile without stopping the frame."},
   "feat(render): a loading screen can wait for the shaders, and the lit programs link a quarter faster":
     {"note":"Shaders that compile without stopping the frame."},
+  "feat(render): a game can draw only the frames that can look different":
+    {"note":"Drawing only the frames that can look different."},
 };

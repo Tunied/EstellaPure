@@ -85,6 +85,13 @@ export interface QualityConfig {
      * complete instead of filling in (see `warmShaders`). The wait is bounded by `prewarmTimeoutMs`.
      */
     prewarmShaders?: boolean;
+    /**
+     * Draw only the frames that can look different (see `RenderDemand`): a still screen costs the game's logic and nothing else. Off unless a game
+     * turns it on, because what the engine cannot see change (a script setting a colour, an animation) has to be said with `request` or `hold`.
+     */
+    renderOnDemand?: boolean;
+    /** Frames still drawn after the last reason to draw. Default 30. */
+    renderOnDemandTail?: number;
     /** The longest the loading screen waits for the shaders. Default 30000. */
     prewarmTimeoutMs?: number;
     profiles?: Partial<Record<QualityLevel, Partial<QualityProfile>>>;
@@ -141,6 +148,8 @@ export function parseQualityConfig(value: unknown): QualityConfig {
         dynamicResolution: raw.dynamicResolution === true,
         asyncShaderCompile: raw.asyncShaderCompile === true,
         prewarmShaders: raw.prewarmShaders === true,
+        renderOnDemand: raw.renderOnDemand === true,
+        renderOnDemandTail: finite(raw.renderOnDemandTail, 30, 1, 600),
         prewarmTimeoutMs: finite(raw.prewarmTimeoutMs, 30000, 1000, 600000),
     };
     if (raw.profiles) {

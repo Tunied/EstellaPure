@@ -30,6 +30,8 @@ import { ScreenScaling, DEFAULT_SCREEN_SCALING, SCREEN_FIT_OFF } from './ScreenS
 import { planPresent, viewportPixels, RenderResolution } from './presentPlan';
 import { CameraDirector, createDirectorState, resolveMainPOV } from './CameraDirector';
 import { RenderPipeline } from '../render/renderPipeline';
+import { Input } from '../input/input';
+import { pendingShaders } from '../render/shaderWarmup';
 import { renderTargetSize } from '../render/renderTexture';
 import { Renderer } from '../render/renderer';
 import { followRenderOrigin, pushRenderOrigin, renderOrigin } from '../render/renderOrigin';
@@ -849,6 +851,13 @@ export function cameraPlugin(
                     if (!pipeline.renderingEnabled) return;
                     const { width, height } = viewport();
                     if (width === 0 || height === 0) return;
+                    // A game that asked for only the frames that can look different leaves the others out: the screen keeps the last picture.
+                    if (pipeline.demand.enabled && !pipeline.demand.shouldRender({
+                        width, height,
+                        worldVersion: app.world.getWorldVersion(),
+                        pendingShaders: pendingShaders(module),
+                        input: app.hasResource(Input) ? app.getResource(Input) : null,
+                    })) return;
                     const canvasEntity = canvasEntityOf(module, cppRegistry);
                     let clearColor: { x: number; y: number; z: number; w: number } | undefined;
                     if (canvasEntity >= 0) {
