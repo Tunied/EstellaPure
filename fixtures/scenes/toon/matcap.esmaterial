@@ -1,0 +1,10 @@
+{
+  "version": "1.0",
+  "type": "material",
+  "shader": "builtin:matcap",
+  "blendMode": 0,
+  "depthTest": true,
+  "properties": {
+    "u_matcap": "/scenes/toon/matcap.png"
+  }
+}

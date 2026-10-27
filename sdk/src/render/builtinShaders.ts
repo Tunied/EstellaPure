@@ -692,6 +692,333 @@ fn packNormal(n : vec3f) -> vec2f {
 #pragma end
 `;
 
+const TOON = `#pragma shader "Toon"
+#pragma version 300 es
+#pragma domain Lit
+#pragma param u_tint color default(1,1,1,1)
+// The light a surface keeps where no lamp reaches it, as a colour of its own (times the base colour) whatever the lamps do: black leaves it dark.
+#pragma param u_shadeColor color default(0.55,0.5,0.7,1)
+// How many steps the light is cut into, and how soft the step between two is (0 is a hard edge).
+#pragma param u_bands float default(3) range(1,8) ui(slider)
+#pragma param u_bandSoftness float default(0.03) range(0,0.5) ui(slider)
+// A highlight is drawn where a lamp's gloss is above this (1 draws none), as a flat shape of its own colour; u_specSize is how glossy the surface is.
+#pragma param u_specThreshold float default(0.6) range(0,1) ui(slider)
+#pragma param u_specSoftness float default(0.02) range(0,0.5) ui(slider)
+#pragma param u_specColor color default(1,1,1,1)
+#pragma param u_specSize float default(0.35) range(0,1) ui(slider)
+// A band of light at the silhouette, on the side the light reaches.
+#pragma param u_rimColor color default(1,1,1,1)
+#pragma param u_rimWidth float default(0.35) range(0,1) ui(slider)
+#pragma param u_rimSoftness float default(0.05) range(0,0.5) ui(slider)
+#pragma param u_rimStrength float default(0) range(0,1) ui(slider)
+#pragma param u_occlusionMap texture default(white) texel(data)
+#pragma param u_occlusionStrength float default(1) range(0,1) ui(slider)
+#pragma param u_emissive color default(0,0,0,1)
+#pragma param u_emissiveMap texture default(white)
+#pragma param u_alphaCutoff float default(0) range(0,1) ui(slider)
+#pragma coverage u_alphaCutoff
+
+#pragma fragment
+precision mediump float;
+
+in vec4 v_color;
+in vec2 v_texCoord;
+in highp vec2 v_worldPos;
+#ifdef MESH_NORMALS
+in highp vec3 v_worldNormal;
+in highp vec3 v_worldXYZ;
+#endif
+
+uniform sampler2D u_textures[1];
+
+#ifdef ES_GBUFFER
+layout(location = 0) out vec4 fragColor;
+layout(location = 1) out vec4 fragSurface;
+vec2 packNormal(vec3 n) {
+    n /= (abs(n.x) + abs(n.y) + abs(n.z));
+    vec2 sgn = vec2(n.x >= 0.0 ? 1.0 : -1.0, n.y >= 0.0 ? 1.0 : -1.0);
+    vec2 e = n.z >= 0.0 ? n.xy : (1.0 - abs(n.yx)) * sgn;
+    return e * 0.5 + 0.5;
+}
+#else
+out vec4 fragColor;
+#endif
+
+// A level in 0..1 cut into u_bands steps: each step is flat, and the step between two is a smoothstep as wide as u_bandSoftness.
+float toonBand(float level) {
+    float t = clamp(level, 0.0, 1.0) * u_bands;
+    float i = floor(t);
+    float f = t - i;
+    float soft = max(u_bandSoftness, 1e-4);
+    return min((i + smoothstep(0.5 - soft, 0.5 + soft, f)) / u_bands, 1.0);
+}
+
+void main() {
+    vec4 base = texture(u_textures[0], v_texCoord) * v_color * u_tint;
+    float alpha = base.a;
+    if (u_alphaCutoff > 0.0) {
+        alpha = cutoutCoverage(base.a, u_alphaCutoff, fwidth(base.a));
+        if (alpha <= 0.0) discard;
+        alpha = min(alpha, 1.0);
+    }
+#ifdef MESH_NORMALS
+    highp vec3 N = normalize(v_worldNormal);
+    if (!gl_FrontFacing) N = -N;
+    highp vec3 P = v_worldXYZ;
+#else
+    highp vec3 N = vec3(0.0, 0.0, 1.0);
+    highp vec3 P = vec3(v_worldPos, 0.0);
+#endif
+    float ao = mix(1.0, texture(u_occlusionMap, v_texCoord).r, u_occlusionStrength);
+    vec3 V = viewDirection(P);
+    float NdotV = max(dot(N, V), 1e-4);
+    // A glossy dielectric for the lamps' highlight to be read from; how it looks is this material's own, not a metal-rough pair's.
+    float roughness = mix(0.7, 0.1, clamp(u_specSize, 0.0, 1.0));
+    float a = max(roughness * roughness, 1e-3);
+    vec3 F0 = vec3(0.04);
+    SurfaceExt ext = surfaceExtNone(N);
+    // Each lamp is cut into steps by itself, and the shadow it casts is part of its step.
+    vec3 lit = vec3(0.0);
+    float glossLevel = 0.0;
+    vec3 glossTint = vec3(0.0);
+    for (int i = 0; i < 16; ++i) {
+        vec3 l = vec3(0.0), g = vec3(0.0), x = vec3(0.0);
+        shadeLight(u_lights[i].posDir, u_lights[i].color, u_lights[i].spot, u_lights[i].shadow,
+                   u_lights[i].shadowMap, u_lights[i].falloff, N, V, P, a, F0, NdotV, 1.0, roughness, ext, l, g, x, true);
+        float level = max(l.r, max(l.g, l.b));
+        if (level > 1e-4) lit += l * (toonBand(level) / level);
+        float gl = max(g.r, max(g.g, g.b));
+        if (gl > glossLevel) { glossLevel = gl; glossTint = g / max(gl, 1e-4); }
+    }
+    float lightAmount = clamp(max(lit.r, max(lit.g, lit.b)), 0.0, 1.0);
+    vec3 ambient = indirectIrradiance(N) * ao;
+    // The shade colour fills in where the steps leave off, so the cut between lit and shaded is a change of colour and not only of brightness.
+    vec3 colour = base.rgb * (ambient + lit + u_shadeColor.rgb * (1.0 - lightAmount));
+    float spec = smoothstep(u_specThreshold - u_specSoftness, u_specThreshold + u_specSoftness, glossLevel);
+    colour = mix(colour, u_specColor.rgb * glossTint, spec * u_specColor.a * float(u_specThreshold < 1.0));
+    float rim = smoothstep(1.0 - u_rimWidth - u_rimSoftness, 1.0 - u_rimWidth + u_rimSoftness, 1.0 - NdotV);
+    colour += u_rimColor.rgb * rim * lightAmount * u_rimStrength;
+    fragColor = vec4(colour + u_emissive.rgb * texture(u_emissiveMap, v_texCoord).rgb, alpha);
+#ifdef ES_GBUFFER
+    fragSurface = vec4(packNormal(normalize(N)), roughness, 0.75);
+#endif
+}
+#pragma end
+
+#pragma fragment wgsl
+#ifdef ES_GBUFFER
+struct FragOut {
+    @location(0) color : vec4f,
+    @location(1) surface : vec4f,
+};
+
+fn packNormal(n : vec3f) -> vec2f {
+    let a = n / (abs(n.x) + abs(n.y) + abs(n.z));
+    let sgn = vec2f(select(-1.0, 1.0, a.x >= 0.0), select(-1.0, 1.0, a.y >= 0.0));
+    var e = a.xy;
+    if (a.z < 0.0) { e = (vec2f(1.0) - abs(a.yx)) * sgn; }
+    return e * 0.5 + 0.5;
+}
+
+@fragment fn fs_main(v : VSOut, @builtin(front_facing) front : bool) -> FragOut {
+#else
+@fragment fn fs_main(v : VSOut, @builtin(front_facing) front : bool) -> @location(0) vec4f {
+#endif
+    let duvx = dpdx(v.v_texCoord);
+    let duvy = dpdy(v.v_texCoord);
+    g_probeSlot = v.v_probeSlot;
+#ifdef MESH_LIGHTMAP
+    g_lightmap = v.v_lightmap;
+#endif
+    let base = textureSampleGrad(t0, s0, v.v_texCoord, duvx, duvy) * v.v_color * mc.u_tint;
+    let edge = max(fwidth(base.a), 1e-4);
+    var alpha = base.a;
+    if (mc.u_alphaCutoff > 0.0) {
+        alpha = cutoutCoverage(base.a, mc.u_alphaCutoff, edge);
+        if (alpha <= 0.0) { discard; }
+        alpha = min(alpha, 1.0);
+    }
+#ifdef MESH_NORMALS
+    var N = normalize(v.v_worldNormal);
+    if (!front) { N = -N; }
+    let P = v.v_worldXYZ;
+#else
+    let N = vec3f(0.0, 0.0, 1.0);
+    let P = vec3f(v.v_worldPos, 0.0);
+#endif
+    let occl = textureSampleGrad(u_occlusionMap, u_occlusionMap_s, v.v_texCoord, duvx, duvy).r;
+    let ao = mix(1.0, occl, mc.u_occlusionStrength);
+    let V = viewDirection(P);
+    let NdotV = max(dot(N, V), 1e-4);
+    let roughness = mix(0.7, 0.1, clamp(mc.u_specSize, 0.0, 1.0));
+    let a = max(roughness * roughness, 1e-3);
+    let F0 = vec3f(0.04);
+    let ext = surfaceExtNone(N);
+    var lit = vec3f(0.0);
+    var glossLevel = 0.0;
+    var glossTint = vec3f(0.0);
+    for (var i = 0; i < 16; i++) {
+        let term = shadeLight(lc.u_lights[i].posDir, lc.u_lights[i].color, lc.u_lights[i].spot, lc.u_lights[i].shadow,
+                              lc.u_lights[i].shadowMap, lc.u_lights[i].falloff, N, V, P, a, F0, NdotV, 1.0, roughness, ext, true);
+        let level = max(term.lit.r, max(term.lit.g, term.lit.b));
+        if (level > 1e-4) { lit += term.lit * (toonBand(level) / level); }
+        let gl = max(term.gloss.r, max(term.gloss.g, term.gloss.b));
+        if (gl > glossLevel) { glossLevel = gl; glossTint = term.gloss / max(gl, 1e-4); }
+    }
+    let lightAmount = clamp(max(lit.r, max(lit.g, lit.b)), 0.0, 1.0);
+    let ambient = indirectIrradiance(N) * ao;
+    var colour = base.rgb * (ambient + lit + mc.u_shadeColor.rgb * (1.0 - lightAmount));
+    let spec = smoothstep(mc.u_specThreshold - mc.u_specSoftness, mc.u_specThreshold + mc.u_specSoftness, glossLevel);
+    colour = mix(colour, mc.u_specColor.rgb * glossTint, vec3f(spec * mc.u_specColor.a * select(0.0, 1.0, mc.u_specThreshold < 1.0)));
+    let rim = smoothstep(1.0 - mc.u_rimWidth - mc.u_rimSoftness, 1.0 - mc.u_rimWidth + mc.u_rimSoftness, 1.0 - NdotV);
+    colour += mc.u_rimColor.rgb * rim * lightAmount * mc.u_rimStrength;
+    let emit = mc.u_emissive.rgb * textureSampleGrad(u_emissiveMap, u_emissiveMap_s, v.v_texCoord, duvx, duvy).rgb;
+#ifdef ES_GBUFFER
+    var frag : FragOut;
+    frag.color = vec4f(colour + emit, alpha);
+    frag.surface = vec4f(packNormal(normalize(N)), roughness, 0.75);
+    return frag;
+#else
+    return vec4f(colour + emit, alpha);
+#endif
+}
+
+// A level in 0..1 cut into u_bands steps (see the GLSL twin).
+fn toonBand(level : f32) -> f32 {
+    let t = clamp(level, 0.0, 1.0) * mc.u_bands;
+    let i = floor(t);
+    let f = t - i;
+    let soft = max(mc.u_bandSoftness, 1e-4);
+    return min((i + smoothstep(0.5 - soft, 0.5 + soft, f)) / mc.u_bands, 1.0);
+}
+#pragma end
+`;
+
+const MATCAP = `#pragma shader "Matcap"
+#pragma version 300 es
+#pragma domain Lit
+#pragma param u_tint color default(1,1,1,1)
+// A picture of a lit sphere: what the surface shows is looked up by which way it faces the camera, so the lighting is the picture's
+// and no lamp is asked. Costs one texture read, which is why it suits a phone.
+#pragma param u_matcap texture default(white)
+#pragma param u_matcapStrength float default(1) range(0,2) ui(slider)
+#pragma param u_baseBlend float default(0) range(0,1) ui(slider)
+#pragma param u_alphaCutoff float default(0) range(0,1) ui(slider)
+#pragma coverage u_alphaCutoff
+
+#pragma fragment
+precision mediump float;
+
+in vec4 v_color;
+in vec2 v_texCoord;
+in highp vec2 v_worldPos;
+#ifdef MESH_NORMALS
+in highp vec3 v_worldNormal;
+in highp vec3 v_worldXYZ;
+#endif
+
+uniform sampler2D u_textures[1];
+
+#ifdef ES_GBUFFER
+layout(location = 0) out vec4 fragColor;
+layout(location = 1) out vec4 fragSurface;
+vec2 packNormal(vec3 n) {
+    n /= (abs(n.x) + abs(n.y) + abs(n.z));
+    vec2 sgn = vec2(n.x >= 0.0 ? 1.0 : -1.0, n.y >= 0.0 ? 1.0 : -1.0);
+    vec2 e = n.z >= 0.0 ? n.xy : (1.0 - abs(n.yx)) * sgn;
+    return e * 0.5 + 0.5;
+}
+#else
+out vec4 fragColor;
+#endif
+
+void main() {
+    vec4 base = texture(u_textures[0], v_texCoord) * v_color * u_tint;
+    float alpha = base.a;
+    if (u_alphaCutoff > 0.0) {
+        alpha = cutoutCoverage(base.a, u_alphaCutoff, fwidth(base.a));
+        if (alpha <= 0.0) discard;
+        alpha = min(alpha, 1.0);
+    }
+#ifdef MESH_NORMALS
+    highp vec3 N = normalize(v_worldNormal);
+    if (!gl_FrontFacing) N = -N;
+    highp vec3 P = v_worldXYZ;
+#else
+    highp vec3 N = vec3(0.0, 0.0, 1.0);
+    highp vec3 P = vec3(v_worldPos, 0.0);
+#endif
+    // The camera's own axes, found from where it looks: the picture is of a sphere as the camera sees it, whichever way the camera turns.
+    vec3 V = viewDirection(P);
+    vec3 right = normalize(cross(abs(V.y) > 0.99 ? vec3(0.0, 0.0, 1.0) : vec3(0.0, 1.0, 0.0), V));
+    vec3 up = cross(V, right);
+    vec2 uv = vec2(dot(N, right), dot(N, up)) * 0.5 + 0.5;
+    vec3 sphere = texture(u_matcap, uv).rgb * u_matcapStrength;
+    vec3 colour = mix(sphere, sphere * base.rgb, u_baseBlend);
+    fragColor = vec4(colour, alpha);
+#ifdef ES_GBUFFER
+    fragSurface = vec4(packNormal(normalize(N)), 1.0, 0.75);
+#endif
+}
+#pragma end
+
+#pragma fragment wgsl
+#ifdef ES_GBUFFER
+struct FragOut {
+    @location(0) color : vec4f,
+    @location(1) surface : vec4f,
+};
+
+fn packNormal(n : vec3f) -> vec2f {
+    let a = n / (abs(n.x) + abs(n.y) + abs(n.z));
+    let sgn = vec2f(select(-1.0, 1.0, a.x >= 0.0), select(-1.0, 1.0, a.y >= 0.0));
+    var e = a.xy;
+    if (a.z < 0.0) { e = (vec2f(1.0) - abs(a.yx)) * sgn; }
+    return e * 0.5 + 0.5;
+}
+
+@fragment fn fs_main(v : VSOut, @builtin(front_facing) front : bool) -> FragOut {
+#else
+@fragment fn fs_main(v : VSOut, @builtin(front_facing) front : bool) -> @location(0) vec4f {
+#endif
+    let duvx = dpdx(v.v_texCoord);
+    let duvy = dpdy(v.v_texCoord);
+    let base = textureSampleGrad(t0, s0, v.v_texCoord, duvx, duvy) * v.v_color * mc.u_tint;
+    let edge = max(fwidth(base.a), 1e-4);
+    var alpha = base.a;
+    if (mc.u_alphaCutoff > 0.0) {
+        alpha = cutoutCoverage(base.a, mc.u_alphaCutoff, edge);
+        if (alpha <= 0.0) { discard; }
+        alpha = min(alpha, 1.0);
+    }
+#ifdef MESH_NORMALS
+    var N = normalize(v.v_worldNormal);
+    if (!front) { N = -N; }
+    let P = v.v_worldXYZ;
+#else
+    let N = vec3f(0.0, 0.0, 1.0);
+    let P = vec3f(v.v_worldPos, 0.0);
+#endif
+    let V = viewDirection(P);
+    var seed = vec3f(0.0, 1.0, 0.0);
+    if (abs(V.y) > 0.99) { seed = vec3f(0.0, 0.0, 1.0); }
+    let right = normalize(cross(seed, V));
+    let up = cross(V, right);
+    let uv = vec2f(dot(N, right) * 0.5 + 0.5, dot(N, up) * 0.5 + 0.5);
+    let sphere = textureSampleLevel(u_matcap, u_matcap_s, uv, 0.0).rgb * mc.u_matcapStrength;
+    let colour = mix(sphere, sphere * base.rgb, vec3f(mc.u_baseBlend));
+#ifdef ES_GBUFFER
+    var frag : FragOut;
+    frag.color = vec4f(colour, alpha);
+    frag.surface = vec4f(packNormal(normalize(N)), 1.0, 0.75);
+    return frag;
+#else
+    return vec4f(colour, alpha);
+#endif
+}
+#pragma end
+`;
+
 export const BUILTIN_SHADER_TEMPLATES: readonly BuiltinShaderTemplate[] = [
     template('sprite-unlit', 'Unlit', 'Texture × vertex color × tint, no lighting.', SPRITE_UNLIT),
     template('sprite-lit', 'Lit', 'Lit by the scene\'s 2D lights; optional normal map.', SPRITE_LIT),
@@ -707,6 +1034,12 @@ export const BUILTIN_SHADER_TEMPLATES: readonly BuiltinShaderTemplate[] = [
     template('model', 'Model',
         'What an imported model\'s material says: normal map, emission, occlusion, alpha cutoff.',
         MODEL),
+    template('toon', 'Toon',
+        'Lit in steps: the light cut into flat bands, a shade colour where it does not reach, a flat highlight and a rim. Shadows are part of a step.',
+        TOON),
+    template('matcap', 'Matcap',
+        'What a picture of a lit sphere shows, looked up by which way the surface faces the camera. No lamps, one texture read.',
+        MATCAP),
 ];
 
 /** Where the templates that are not the core's sit in a list, so a menu reads the same whichever order the modules were installed in. */

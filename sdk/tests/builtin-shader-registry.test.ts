@@ -15,7 +15,8 @@ describe('the built-in shaders that ship with modules', () => {
     it('are the module\'s to install, not the core list\'s', () => {
         // The core list carries the sprite and model shaders; water, terrain, foliage and the character shaders arrive when their module is installed.
         const coreIds = BUILTIN_SHADER_TEMPLATES.map((t) => t.id).filter((id) => !MODULE_IDS.includes(id));
-        expect(coreIds).toEqual(expect.arrayContaining(['sprite-unlit', 'sprite-lit', 'model']));
+        expect(coreIds).toEqual(expect.arrayContaining(['sprite-unlit', 'sprite-lit', 'model', 'toon', 'matcap']));
+        for (const id of ['toon', 'matcap']) expect(builtinShaderTemplate(id)!.source).toContain('#pragma fragment wgsl');
         expect(Object.keys(BUILTIN_SHADER_MODULE).sort()).toEqual([...MODULE_IDS].sort());
     });
 

@@ -1,0 +1,183 @@
+{
+ "version": "1.0",
+ "name": "toon",
+ "entities": [
+  {
+   "id": 0,
+   "name": "Camera",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {
+      "position": {
+       "x": 0,
+       "y": 0,
+       "z": 420
+      }
+     }
+    },
+    {
+     "type": "Camera",
+     "data": {
+      "projectionType": 0,
+      "fov": 45,
+      "nearPlane": 10,
+      "farPlane": 2000,
+      "isActive": true,
+      "priority": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": 1,
+   "name": "Toon",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {
+      "position": {
+       "x": -180,
+       "y": 0,
+       "z": 0
+      },
+      "scale": {
+       "x": 80,
+       "y": 80,
+       "z": 80
+      }
+     }
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "/scenes/toon-sphere.esmesh",
+      "color": {
+       "r": 0.9,
+       "g": 0.55,
+       "b": 0.35,
+       "a": 1
+      },
+      "lit": true,
+      "opaque": true,
+      "enabled": true,
+      "material": "/scenes/toon/toon.esmaterial"
+     }
+    }
+   ]
+  },
+  {
+   "id": 2,
+   "name": "Model",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {
+      "position": {
+       "x": 0,
+       "y": 0,
+       "z": 0
+      },
+      "scale": {
+       "x": 80,
+       "y": 80,
+       "z": 80
+      }
+     }
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "/scenes/toon-sphere.esmesh",
+      "color": {
+       "r": 0.9,
+       "g": 0.55,
+       "b": 0.35,
+       "a": 1
+      },
+      "lit": true,
+      "opaque": true,
+      "enabled": true,
+      "material": "/scenes/toon/model.esmaterial"
+     }
+    }
+   ]
+  },
+  {
+   "id": 3,
+   "name": "Matcap",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Transform",
+     "data": {
+      "position": {
+       "x": 180,
+       "y": 0,
+       "z": 0
+      },
+      "scale": {
+       "x": 80,
+       "y": 80,
+       "z": 80
+      }
+     }
+    },
+    {
+     "type": "MeshRenderer",
+     "data": {
+      "mesh": "/scenes/toon-sphere.esmesh",
+      "color": {
+       "r": 0.9,
+       "g": 0.55,
+       "b": 0.35,
+       "a": 1
+      },
+      "lit": true,
+      "opaque": true,
+      "enabled": true,
+      "material": "/scenes/toon/matcap.esmaterial"
+     }
+    }
+   ]
+  },
+  {
+   "id": 4,
+   "name": "Sun",
+   "parent": null,
+   "children": [],
+   "visible": true,
+   "components": [
+    {
+     "type": "Light",
+     "data": {
+      "type": 1,
+      "color": {
+       "r": 1,
+       "g": 0.97,
+       "b": 0.9,
+       "a": 1
+      },
+      "intensity": 1.2,
+      "direction": {
+       "x": 0.6,
+       "y": -0.5
+      },
+      "directionZ": -0.7
+     }
+    }
+   ]
+  }
+ ]
+}
