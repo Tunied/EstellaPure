@@ -84,6 +84,38 @@ registerDrawCallback('hud-shape', () => g.flush());
 `lineStyle(thickness, color)` 设描边;`beginFill(color)` / `endFill()` 的填充
 支持**矩形和圆**(路径轮廓保持描边)。路径是保留的——构建一次,每帧 `flush()`。
 
+## 多边形填充和带拐角的描边:`setPath`
+
+`Graphics` 是立即模式,只填充矩形和圆。要让一个形状**留在场景里**(和别的可渲染物一起排序、合批,随场景保存),或者需要任意多边形填充、有真正拐角的描边,就生成路径的几何体,交给 `MeshRenderer` 画:
+
+```typescript
+import { setPath, circlePoints, cubicBezier } from 'esengine';
+
+// 一颗中间有圆孔的星,橙色填充,尖角描边。
+setPath(app, entity, starPoints, {
+  fill: { color: [1, 0.55, 0.1, 1], holes: [circlePoints(0, 0, 14)] },
+  stroke: { color: [0.2, 0.1, 0.05, 1], width: 8, join: 'miter' },
+  closed: true,
+});
+
+// 一条开放曲线,圆头圆角。
+setPath(app, other, cubicBezier(p0, p1, p2, p3), {
+  stroke: { color: [0.2, 0.8, 0.9, 1], width: 14, join: 'round', cap: 'round' },
+});
+```
+
+`setPath` 在实体没有 `MeshRenderer` 时给它加一个,并上传几何体;点变了就再调一次(代价是一次镶嵌,路径不动时不花任何东西)。`buildPathGeometry(points, style)` 是不带实体的同一件事,用来自己拼几何体。
+
+| 样式 | 含义 |
+|---|---|
+| `fill: { color, holes? }` | 对任意简单多边形(含凹多边形)做耳切填充;`holes` 是挖掉的环。 |
+| `stroke: { color, width, join?, cap?, miterLimit? }` | `join`:`'miter'`(默认)、`'round'`、`'bevel'`;尖角超过 `miterLimit`(4 个半宽)就改成平角。`cap`:`'butt'`(默认)、`'round'`、`'square'`。拐角处描边不会自己叠自己,半透明的也均匀。 |
+| `closed` | 把最后一点连回第一点:描边没有端帽。填充总是闭合的。 |
+| `feather` | 沿每条外缘向外渐隐到透明的宽度:没有多重采样的画质档用它做抗锯齿。默认 `0`。 |
+| `arcStep` | 圆角或圆头每一片弧所转过的角度,弧度(默认 `0.25`)。 |
+
+`cubicBezier`、`quadraticBezier`、`circlePoints` 把曲线展平成路径要的点。自交的多边形按耳切结果填(八字形会丢掉交叉处),孔必须在外轮廓里面。
+
 ## 自定义网格:`MeshRenderer`
 
 `MeshRenderer` 组件渲染任意的索引三角形列表——程序化地形切片、径向血条弧、水面。

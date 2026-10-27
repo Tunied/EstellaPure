@@ -3004,4 +3004,6 @@ export const NOTED = {
     {"note":"Drawing only the frames that can look different."},
   "feat(render): toon and matcap materials":
     {"note":"Toon and Matcap materials."},
+  "feat(render): filled polygons and joined strokes as a path on a mesh":
+    {"note":"Filled polygons and joined strokes."},
 };

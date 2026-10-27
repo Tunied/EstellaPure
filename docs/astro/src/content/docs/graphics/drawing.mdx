@@ -89,6 +89,41 @@ Path methods: `moveTo` / `lineTo`, `curveTo` (quadratic) / `cubicCurveTo`,
 fill **rects and circles** (path outlines stay strokes). The path is retained —
 build it once, `flush()` it every frame.
 
+## Filled polygons and joined strokes: `setPath`
+
+`Graphics` draws immediately and fills only rects and circles. For a shape that lives in the scene (it sorts with the other renderables, batches, and a
+scene saves it), or that needs an arbitrary polygon fill or a stroke with real corners, build the path's geometry and let a `MeshRenderer` draw it:
+
+```typescript
+import { setPath, circlePoints, cubicBezier } from 'esengine';
+
+// A star with a round hole, filled orange and outlined with mitered corners.
+setPath(app, entity, starPoints, {
+  fill: { color: [1, 0.55, 0.1, 1], holes: [circlePoints(0, 0, 14)] },
+  stroke: { color: [0.2, 0.1, 0.05, 1], width: 8, join: 'miter' },
+  closed: true,
+});
+
+// An open curve with round caps and joins.
+setPath(app, other, cubicBezier(p0, p1, p2, p3), {
+  stroke: { color: [0.2, 0.8, 0.9, 1], width: 14, join: 'round', cap: 'round' },
+});
+```
+
+`setPath` gives the entity a `MeshRenderer` if it has none and uploads the geometry; call it again with new points to change the shape (the cost is the
+tessellation, and nothing while the path stands still). `buildPathGeometry(points, style)` is the same without the entity, for building geometry of your own.
+
+| Style | Meaning |
+|---|---|
+| `fill: { color, holes? }` | Ear-clipped fill of any simple polygon, concave ones included. `holes` are rings cut out of it. |
+| `stroke: { color, width, join?, cap?, miterLimit? }` | `join`: `'miter'` (default), `'round'`, `'bevel'`; a miter longer than `miterLimit` (4) half-widths is bevelled. `cap`: `'butt'` (default), `'round'`, `'square'`. A stroke does not overlap itself at a corner, so a translucent one is even. |
+| `closed` | Joins the last point to the first: the stroke has no caps. The fill always closes. |
+| `feather` | A fade to transparent over this many units along every outer edge: anti-aliasing for a quality level without multisampling. Default `0`. |
+| `arcStep` | The angle one slice of a round join or cap may turn through, in radians (default `0.25`). |
+
+`cubicBezier`, `quadraticBezier` and `circlePoints` flatten curves into the points a path takes. Self-intersecting polygons are filled by their ear clip
+(a figure-eight loses its crossing), and a hole must lie inside the outline.
+
 ## Custom meshes: `MeshRenderer`
 
 `MeshRenderer` is a component that renders an arbitrary indexed triangle list — 

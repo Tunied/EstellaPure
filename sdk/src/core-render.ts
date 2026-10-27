@@ -343,5 +343,8 @@ export type {
 export { Quality } from './render/qualityRuntime';
 export { warmShaders, shadersCompiled, pendingShaders } from './render/shaderWarmup';
 export { RenderDemand } from './render/renderDemand';
+export { buildPathGeometry, mergeGeometry, cubicBezier, quadraticBezier, circlePoints } from './render/vectorPath';
+export type { PathStyle, PathFill, PathStroke, PathColor, LineJoin, LineCap } from './render/vectorPath';
+export { setPath, clearPath } from './render/pathRenderer';
 export type { RenderOnDemandOptions } from './render/renderDemand';
 export type { ShaderWarmup, ShaderWarmupOptions } from './render/shaderWarmup';
