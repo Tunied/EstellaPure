@@ -26,6 +26,7 @@ export const ESENGINE_SUBPATHS: Readonly<Record<string, string>> = {
   'esengine/debug-channel': 'debug-channel/index.js',
   'esengine/ai': 'ai/index.js',
   'esengine/replication': 'net/replication/index.js',
+  'esengine/session': 'net/session/index.js',
   'esengine/gameplay': 'gameplay/index.js',
   'esengine/dragonbones': 'dragonbones/index.js',
   'esengine/physics': 'physics/index.js',
@@ -43,9 +44,10 @@ export const ESENGINE_SUBPATHS: Readonly<Record<string, string>> = {
 /**
  * Subpaths that are not modules a project picks: the engine binary every target
  * loads, a platform adapter an entry chooses rather than content asking for it,
- * and the debug channel a development export adds. Named here so the pickable set is derived rather than written twice.
+ * the debug channel a development export adds, and the session layer, which a
+ * game's own code imports and nothing in a scene asks for. Named here so the pickable set is derived rather than written twice.
  */
-export const NOT_A_MODULE: ReadonlySet<string> = new Set(['esengine/wasm', 'esengine/debug-channel', 'esengine/douyin', 'esengine/kuaishou', 'esengine/bilibili', 'esengine/quickgame', 'esengine/alipay', 'esengine/huawei', 'esengine/openpaas']);
+export const NOT_A_MODULE: ReadonlySet<string> = new Set(['esengine/wasm', 'esengine/debug-channel', 'esengine/session', 'esengine/douyin', 'esengine/kuaishou', 'esengine/bilibili', 'esengine/quickgame', 'esengine/alipay', 'esengine/huawei', 'esengine/openpaas']);
 
 /** The modules a project can force in or refuse, as `features.modules` keys it. */
 export const ENGINE_MODULES: readonly string[] =

@@ -73,6 +73,7 @@ export const ENTRIES = {
     'debug-channel': 'src/debug-channel/index.ts',
     'ai': 'src/ai/index.ts',
     'replication': 'src/net/replication/index.ts',
+    'session': 'src/net/session/index.ts',
     'gameplay': 'src/gameplay/index.ts',
     'wasm': 'src/wasm.ts',
     'wechat': 'src/index.wechat.ts',

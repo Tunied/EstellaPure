@@ -168,15 +168,20 @@ dispose: (reason?: string) => void
 handle: <Req = unknown, Res = unknown>(type: string, handler: RequestHandler<Req, Res>) => () => void
 on: <T = unknown>(type: string, handler: MessageHandler<T>) => () => void
 onBinary: (channel: number, handler: BinaryHandler) => () => void
-request: <Res = unknown, Req = unknown>(type: string, payload: Req, timeoutMs?: number) => Promise<Res>
+request: <Res = unknown, Req = unknown>(type: string, payload: Req, options?: number | RequestOptions) => Promise<Res>
 send: <T = unknown>(type: string, payload: T) => void
 sendBinary: (channel: number, payload: Uint8Array) => void
+setIdempotencyScope: (scope: string) => void
 static new (transport: NetTransport, opts?: NetChannelOptions): NetChannel
 static prototype: NetChannel
 ```
 
 ## NetChannelOptions — interface @experimental
 ```
+heartbeat: NetHeartbeatOptions | undefined
+idempotency: IdempotencyStore | undefined
+idempotencyScope: string | undefined
+limits: NetLimitOptions | undefined
 requestTimeoutMs: number | undefined
 ```
 

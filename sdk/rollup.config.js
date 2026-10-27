@@ -39,6 +39,7 @@ export default [
             'debug-channel/index': 'src/debug-channel/index.ts',
             'ai/index': 'src/ai/index.ts',
             'net/replication/index': 'src/net/replication/index.ts',
+            'net/session/index': 'src/net/session/index.ts',
             'gameplay/index': 'src/gameplay/index.ts',
             'dragonbones/index': 'src/dragonbones/index.ts',
             'wasm': 'src/wasm.ts',
