@@ -494,3 +494,4 @@
 - 选项默认关,和动态分辨率一样是显式开启:开了以后第一次看到的画面会有东西"长出来"。
 - **预热:**`quality.prewarmShaders`(配 `asyncShaderCompile`)在启动页后面把第一个场景画到没有着色器在编译为止再打开(`warmShaders(app)`,上限 `prewarmTimeoutMs`,默认 30 s),打开时是完整画面。预备好的场景(`readyRenderPrograms`)也等编译队列清空才报告就绪。
 - **编译成本再削:**平铺光源没有阴影图,`shadeLight` 加了 `shadow3D` 参数,平铺那处调用传 `false`,编译器把那份拷贝里的阴影滤波整段丢掉:受光着色器首次链接合计 −23%(模型着色器约 −40%),运行时无变化。把循环合并成动态循环能再省 40% 编译,但模型段多 ~1 ms,没要。
+- **三种方式在示例包上的实测**(Chrome、D3D11,关掉着色器磁盘缓存,首次访问,1280x720,像玩家一样直接打开,`output/prewarm-probe.mjs` 的做法):同步:19.8 s 才出画面,之后 25 s 里最长一帧 9.1 s,16 帧超 50 ms;`asyncShaderCompile`:2.4 s 出画面,画面逐步长全,40 帧超 50 ms、最长 513 ms;`asyncShaderCompile` + `prewarmShaders`:启动页停到 20.0 s(同步的等待时间,但页面一直在响应、启动页进度在走),打开即完整画面,之后 25 s 里 0 帧超 50 ms,最长 22.9 ms。
