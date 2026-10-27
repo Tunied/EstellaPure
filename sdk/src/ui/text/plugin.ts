@@ -12,6 +12,7 @@
 import type { App, Plugin } from '../../app/app';
 import { Transform, type TransformData, registerComponent } from '../../ecs/component';
 import { defineSystem, Schedule } from '../../ecs/system';
+import { SystemLabel } from '../../ecs/systemLabels';
 import type { ESEngineModule, CppRegistry } from '../../wasm';
 import type { Entity } from '../../types';
 import { SdfTextRenderer } from './text-renderer';
@@ -137,11 +138,20 @@ export class TextPlugin implements Plugin {
         // UIVisual (visualType None — not drawn as a quad) so the UI
         // render-order pass assigns it a uiOrder and the SDF glyphs sort with
         // sibling UI elements. Idempotent; runs before the PostUpdate order pass.
-        app.addSystemToSchedule(Schedule.PreUpdate, defineSystem([], () => {
+        const ensureTextRenderNodes = (): void => {
             for (const e of world.getEntitiesWithComponents([Text, UINode])) {
                 ensureUIVisual(world, e as Entity);
             }
-        }, { name: 'TextRenderNodeSystem' }));
+        };
+        app.addSystemToSchedule(Schedule.PreUpdate, defineSystem([], ensureTextRenderNodes, { name: 'TextRenderNodeSystem' }));
+        // A Text spawned in Update is not seen by the PreUpdate pass, so it would
+        // reach the order pass with no UIVisual, take no uiOrder, and be drawn at
+        // the base layer — under every panel — for its first frame. The late pass
+        // gives it one before the order is assigned.
+        app.addSystemToSchedule(Schedule.PostUpdate, defineSystem([], ensureTextRenderNodes, {
+            name: 'TextRenderNodeLateSystem',
+            runBefore: [SystemLabel.UIRenderOrder],
+        }));
 
         // Localized text: an `i18nKey` binds content to the Localization
         // resource. Gated per frame on the resource so localizationPlugin
