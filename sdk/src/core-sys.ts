@@ -16,7 +16,7 @@
 // Math (scalar / Vec2 / Vec3 helpers on the canonical types)
 // =============================================================================
 
-export { exact, scalar, v2, v3, q, col } from './math';
+export { exact, scalar, v2, v3, q, col, createRng, hashSeed, type Rng, type RngSeed } from './math';
 /**
  * A world transform as a column-major 4x4, from a resolved TRS. Public because
  * more than one reader outside the engine wants it in that form — a bake
