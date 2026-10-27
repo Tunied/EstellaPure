@@ -225,7 +225,7 @@ function applyBlendedEffects(
                 applyTextures(stack, subPass.name, effectData.textures);
                 applyColors(stack, subPass.name, effectData.colors);
             }
-        } else if (def.native && def.fallback && !deviceHasCompute()) {
+        } else if ((def.native || def.compute) && def.fallback && !deviceHasCompute()) {
             // No compute stage: the fragment version of the same effect stands in for it.
             for (const [index, subPass] of def.fallback.entries()) {
                 const shader = getOrCreateShader(api, subPass.name, subPass.factory);

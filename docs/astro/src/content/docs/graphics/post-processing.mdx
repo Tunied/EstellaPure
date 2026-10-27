@@ -28,7 +28,7 @@ several can stack in one frame at no extra target cost beyond the passes.
 | `heightFog` | Exponential height fog with the sun's glow and a hazy horizon | `density`, `heightFalloff`, `baseHeight`, `sunAzimuth`, `sunElevation`, `skyFog`, colours |
 | `skyAtmosphere` | An atmosphere that scatters the sun's light, with sun, moon, stars and volumetric clouds, drawn where there is no surface | `intensity`, `haze`, `altitude`, `clouds`, `cloudBase`, `cloudThickness`, `windSpeed`, `overcast`, `sunAzimuth`, `sunElevation` |
 | `voxelGI` | Diffuse global illumination from a world-space voxel cache the camera remembers (WebGPU compute; fragment passes on WebGL2) | `intensity`, `rays`, `voxelSize`, `range`, `maxBounce`, `decay`, `blend`, `divisor` |
-| `sharpen` | Sharpening that cannot make a halo (a compute effect: WebGPU only) | `intensity`, `limit` |
+| `sharpen` | Sharpening that cannot make a halo (a compute pass on WebGPU, a fragment pass of the same arithmetic on WebGL2) | `intensity`, `limit` |
 | `lightShafts` | Sun rays through whatever stands in front of it | `intensity`, `sunAzimuth`, `sunElevation`, `decay`, `reach` |
 | `ssao` | Ambient occlusion from a ring of depth samples around each point | `radius`, `intensity`, `bias`, `power` |
 | `gtao` | Ground-truth ambient occlusion: the horizon each point can see, integrated against its own normal | `radius`, `intensity`, `power`, `thickness` |
@@ -243,9 +243,9 @@ An effect can be a **compute shader** instead of a draw: WGSL run over the whole
 many neighbours or keeps a result of its own is written without a render pass per step. `sharpen` is one: each pixel is
 pushed away from the mean of its neighbours and then held inside the range they span, so an edge gets steeper without a halo.
 
-A compute effect needs a device with a compute stage, which is **WebGPU**. On WebGL2 the effect
-is left out of the chain and the picture goes through as it was — a compute effect is for refining a picture that is already whole,
-so write one that way. Ask `postprocess_supportsCompute` (or check the backend) if your game needs to know.
+A compute effect needs a device with a compute stage, which is **WebGPU**. On WebGL2 an effect that has a `fallback` (a fragment pass of the same
+arithmetic, as `sharpen` does: the two draw the identical picture) runs that instead; one that has none is left out of the chain and the picture goes
+through as it was, so a compute effect without a fallback is for refining a picture that is already whole: write one that way. Ask `postprocess_supportsCompute` (or check the backend) if your game needs to know.
 
 Register your own like any other effect, with `compute` in place of `factory`:
 

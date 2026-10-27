@@ -407,11 +407,12 @@ registerEffect({
     ],
 });
 
-// A compute effect: only a device with a compute stage (WebGPU) runs it; on WebGL2 the picture goes through as it was.
+// A compute effect on a device with a compute stage (WebGPU); a fragment pass of the same arithmetic stands in for it on one without (WebGL2).
 registerEffect({
     type: 'sharpen',
     label: 'Sharpen',
     compute: { get source() { return computeSourceOf('sharpen'); } },
+    fallback: [{ name: 'sharpen_fs', factory: () => postProcessEffects.createSharpen() }],
     uniforms: [
         // How hard a pixel is pushed away from the mean of its neighbours. 0 leaves the picture alone.
         { name: 'u_intensity', label: 'Intensity', min: 0, max: 2, step: 0.01, defaultValue: 0.5, neutralValue: 0 },

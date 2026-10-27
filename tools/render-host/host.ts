@@ -116,6 +116,9 @@ async function boot(): Promise<void> {
     // engine, not the page, so attaching it only gives the compositor work.
 
     module = await createModule(moduleArg);
+    // A device that has a compute stage, told it has none: the fragment version of an effect that has both is the one that draws, so the two
+    // can be compared on one backend, pixel for pixel.
+    if (params.get('noCompute') === '1') (module as unknown as { postprocess_supportsCompute?: () => boolean }).postprocess_supportsCompute = () => false;
 
     let renderSurface: RenderSurfaceSource;
     if (backend === 'webgpu') {

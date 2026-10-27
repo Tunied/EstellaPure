@@ -937,6 +937,69 @@ fn viewDistance(t : vec2i, size : vec2i) -> f32 {
 `;
         return Material.compileShader(source);
     },
+    createSharpen(): ShaderHandle {
+        // The fragment version of the compute `sharpen`, for a device with no compute stage (WebGL2): the same arithmetic on the same five taps, so the two
+        // draw the same picture. Each pixel is pushed away from the mean of its four neighbours by `u_intensity`, and held to the range those neighbours and
+        // the pixel span, widened by `u_limit`: a flat area has nothing to push against and an edge cannot overshoot past what is on either side of it, which
+        // is what a plain unsharp mask gets wrong. It runs on the chain's own (HDR) values.
+        const source = `#pragma shader "PP Sharpen"
+#pragma version 300 es
+#pragma domain PostProcess
+#pragma param u_intensity float default(0.5) range(0,2)
+#pragma param u_limit float default(0.25) range(0,1)
+
+#pragma fragment
+precision highp float;
+
+in vec2 v_texCoord;
+uniform sampler2D u_texture;
+out vec4 fragColor;
+
+vec4 tap(ivec2 p, ivec2 size) {
+    return texelFetch(u_texture, clamp(p, ivec2(0), size - ivec2(1)), 0);
+}
+
+void main() {
+    ivec2 size = textureSize(u_texture, 0);
+    ivec2 p = clamp(ivec2(v_texCoord * vec2(size)), ivec2(0), size - ivec2(1));
+    vec4 c = tap(p, size);
+    vec3 n = tap(p + ivec2(0, -1), size).rgb;
+    vec3 s = tap(p + ivec2(0, 1), size).rgb;
+    vec3 w = tap(p + ivec2(-1, 0), size).rgb;
+    vec3 e = tap(p + ivec2(1, 0), size).rgb;
+    vec3 lo = min(min(min(n, s), min(w, e)), c.rgb);
+    vec3 hi = max(max(max(n, s), max(w, e)), c.rgb);
+    vec3 sharp = c.rgb + u_intensity * (4.0 * c.rgb - n - s - w - e);
+    vec3 room = (hi - lo) * u_limit;
+    sharp = clamp(sharp, lo - room, hi + room);
+    fragColor = vec4(max(sharp, vec3(0.0)), c.a);
+}
+#pragma end
+
+#pragma fragment wgsl
+fn tap(p : vec2i, size : vec2i) -> vec4f {
+    return textureLoad(t0, clamp(p, vec2i(0), size - vec2i(1)), 0);
+}
+
+@fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
+    let size = vec2i(textureDimensions(t0, 0));
+    let p = clamp(vec2i(v.v_texCoord * vec2f(size)), vec2i(0), size - vec2i(1));
+    let c = tap(p, size);
+    let n = tap(p + vec2i(0, -1), size).rgb;
+    let s = tap(p + vec2i(0, 1), size).rgb;
+    let w = tap(p + vec2i(-1, 0), size).rgb;
+    let e = tap(p + vec2i(1, 0), size).rgb;
+    let lo = min(min(min(n, s), min(w, e)), c.rgb);
+    let hi = max(max(max(n, s), max(w, e)), c.rgb);
+    var sharp = c.rgb + mc.u_intensity * (4.0 * c.rgb - n - s - w - e);
+    let room = (hi - lo) * mc.u_limit;
+    sharp = clamp(sharp, lo - room, hi + room);
+    return vec4f(max(sharp, vec3f(0.0)), c.a);
+}
+#pragma end
+`;
+        return Material.compileShader(source);
+    },
     createPixelate(): ShaderHandle {
         // Snaps sampling to a grid of u_pixelSize-device-pixel blocks — the
         // canonical retro/mosaic 2D look. u_pixelSize <= 1 samples per-texel

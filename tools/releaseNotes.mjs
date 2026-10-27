@@ -3010,4 +3010,6 @@ export const NOTED = {
     {"note":"Edge Outline, a coloured line at silhouettes and creases."},
   "feat(render): blob shadows, a soft disc on the ground under a thing":
     {"note":"Blob shadows."},
+  "feat(render): sharpen works without a compute stage":
+    {"note":"Sharpen on WebGL2."},
 };

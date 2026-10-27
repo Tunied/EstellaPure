@@ -30,7 +30,7 @@ Estella 通过 ping-pong 帧缓冲运行全屏后处理。加一个 `PostProcess
 | `heightFog` | 指数高度雾,带太阳辉光和朦胧的地平线 | `density`、`heightFalloff`、`baseHeight`、`sunAzimuth`、`sunElevation`、`skyFog`、颜色 |
 | `skyAtmosphere` | 散射太阳光的大气,带太阳、月亮、星星和体积云,画在没有表面的地方 | `intensity`、`haze`、`altitude`、`clouds`、`cloudBase`、`cloudThickness`、`windSpeed`、`overcast`、`sunAzimuth`、`sunElevation` |
 | `voxelGI` | 基于相机记住的世界空间体素缓存的漫反射全局光照(WebGPU 用计算 pass,WebGL2 用片元 pass) | `intensity`、`rays`、`voxelSize`、`range`、`maxBounce`、`decay`、`blend`、`divisor` |
-| `sharpen` | 不会出光晕的锐化(计算特效:仅 WebGPU) | `intensity`、`limit` |
+| `sharpen` | 不会出光晕的锐化(WebGPU 上是计算 pass,WebGL2 上是同样算术的片元 pass) | `intensity`、`limit` |
 | `lightShafts` | 太阳光穿过前方遮挡物形成的光束 | `intensity`、`sunAzimuth`、`sunElevation`、`decay`、`reach` |
 | `ssao` | 由每个点周围一圈深度采样得出的环境光遮蔽 | `radius`、`intensity`、`bias`、`power` |
 | `gtao` | 真值环境光遮蔽:每个点能看见的地平线,按它自身法线积分 | `radius`、`intensity`、`power`、`thickness` |
@@ -175,8 +175,7 @@ Estella 通过 ping-pong 帧缓冲运行全屏后处理。加一个 `PostProcess
 一个特效可以是**计算着色器**而不是绘制:在整张画面上运行的 WGSL,适合需要读取很多相邻像素、或要保留自己结果的特效,不必每一步都开一个渲染 pass。
 `sharpen` 就是一个:每个像素被推离邻居的均值,再被限制在邻居所张成的范围内,所以边缘变陡却不会出光晕。
 
-计算特效需要有计算阶段的设备,也就是 **WebGPU**。在 WebGL2 里,这个特效会被从链路中拿掉,画面原样通过——
-计算特效是用来精修一张已经完整的画面的,所以请按这个思路写。游戏需要知道时,可以问 `postprocess_supportsCompute`(或检查后端)。
+计算特效需要有计算阶段的设备,也就是 **WebGPU**。在 WebGL2 里,带 `fallback`(同样算术的片元 pass,`sharpen` 就是这样,两者画出完全相同的画面)的特效会改跑它;没有的会被从链路中拿掉,画面原样通过,所以没有 fallback 的计算特效是用来精修一张已经完整的画面的:请按这个思路写。游戏需要知道时,可以问 `postprocess_supportsCompute`(或检查后端)。
 
 像注册其他特效一样注册你自己的,用 `compute` 代替 `factory`:
 
