@@ -17,6 +17,7 @@
 #include "./PipelineState.hpp"
 
 #include <map>
+#include <functional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -69,6 +70,8 @@ struct GfxProgramRecord {
     /// Binding point per block name, or GFX_UNBOUND_BLOCK.
     std::vector<u32> blockBindings;
     bool realized = false;
+    /// What the owner of a program created with GfxShaderSource::deferLink does once it has linked (the block bindings, the pinned samplers). Run once.
+    std::function<void()> onLinked;
 };
 
 inline constexpr u32 GFX_UNBOUND_BLOCK = 0xFFFFFFFFu;

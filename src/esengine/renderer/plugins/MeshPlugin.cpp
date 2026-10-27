@@ -433,16 +433,19 @@ u32 MeshPlugin::meshProgram(RenderFrameContext& ctx, u32 variant) {
         handle = ctx.resources.createShaderWithBindings(
             resource::ShaderParser::assembleStage(parsed, resource::ShaderStage::Vertex, "", features, target),
             resource::ShaderParser::assembleStage(parsed, resource::ShaderStage::Fragment, "", features, target),
-            {}, ctx.resources.preferredShaderLanguage());
+            {}, ctx.resources.preferredShaderLanguage(), ctx.resources.deferLinks());
         Shader* shader = ctx.resources.getShader(handle);
         if (!shader || !shader->isValid()) return 0;
         if (shader->language() == GfxShaderLanguage::GLSL_ES300) {
-            shader->bind();
-            // A depth-only variant has no colour texture to seed.
-            if (shader->hasUniform("u_texture")) shader->setUniform("u_texture", 0);
-            // Slot 1 is where a draw's own second texture is bound (see pushBatchDraw).
-            if (normalMapped) shader->setUniform("u_normalMap", 1);
-            shader->unbind();
+            // After it links: at once, or (where shaders are not waited for) when a draw first needs it.
+            shader->whenLinked([normalMapped](Shader& s) {
+                s.bind();
+                // A depth-only variant has no colour texture to seed.
+                if (s.hasUniform("u_texture")) s.setUniform("u_texture", 0);
+                // Slot 1 is where a draw's own second texture is bound (see pushBatchDraw).
+                if (normalMapped) s.setUniform("u_normalMap", 1);
+                s.unbind();
+            });
         }
         return shader->getProgramId();
     };

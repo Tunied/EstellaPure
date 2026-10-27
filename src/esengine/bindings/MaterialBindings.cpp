@@ -48,8 +48,10 @@ u32 material_compileEsshader(const std::string& source, const std::string& featu
     }
     // No DrawParams rewrite: assembled material sources already carry their
     // params in MaterialConstants; only sampler uniforms remain loose.
+    // A material shader the package ships, and a post-process effect: both known to compile, so with the async policy on they are queued
+    // and waited for by whoever draws with them, not one by one here.
     resource::ShaderHandle handle = rm->createShader(vert, frag, /*rewriteLoose=*/false,
-                                                     rm->preferredShaderLanguage());
+                                                     rm->preferredShaderLanguage(), rm->deferLinks());
     if (!handle.isValid()) return 0;
     if (auto* rc = g_renderContext) {
         if (Shader* s = rm->getShader(handle)) {

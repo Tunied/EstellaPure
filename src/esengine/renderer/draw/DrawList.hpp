@@ -74,6 +74,9 @@ public:
     /// the scene a shader at a time. Empty costs nothing; a sink is installed only while someone is measuring.
     void setShaderRunSink(std::function<void(const char*)> sink) { shader_run_sink_ = std::move(sink); }
 
+    /// How many merged draws the last execute left out because their program was not ready (GfxDevice::setSkipPendingPrograms).
+    u32 skippedForProgram() const { return skipped_for_program_; }
+
     /// How many of the merged draws take part in a depth prepass; 0 means a prepass has nothing to draw.
     u32 depthPrepassDraws() const;
 
@@ -222,6 +225,7 @@ public:
 
 private:
     std::function<void(const char*)> shader_run_sink_;
+    u32 skipped_for_program_ = 0;
     struct SortEntry {
         u64 key;
         u32 index;

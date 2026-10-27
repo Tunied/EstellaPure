@@ -469,6 +469,14 @@ struct RenderPassDesc {
     i32 clearStencilValue = 0;
     i32 clearX = 0, clearY = 0;   ///< Clear region origin (pixels).
     u32 clearW = 0, clearH = 0;   ///< Clear region size; 0 = the whole target.
+    /**
+     * What this pass leaves in the target's multisampled attachments is not drawn on or read again once it has been resolved: nothing later
+     * continues on this target. A tile-based GPU keeps a pass's samples in memory on the chip and only writes them out if asked to; this says
+     * it need not, which is most of the memory traffic of a multisampled frame on a phone. Ignored where the target is not multisampled.
+     */
+    bool discardMultisampled = false;
+    /** The pass's depth attachment was there to test against and nothing reads it afterwards (a shadow map keeps its depth in colour). */
+    bool discardDepth = false;
 };
 
 // =============================================================================
@@ -631,6 +639,12 @@ struct GfxShaderSource {
     GfxShaderLanguage language = GfxShaderLanguage::GLSL_ES300;
     const char* vertexSrc = nullptr;
     const char* fragmentSrc = nullptr;
+    /**
+     * Where the backend can (GfxDevice::supportsDeferredLink), create the program without waiting for it to compile and link: the work is queued and
+     * the wait is the first thing that needs the program (a draw, a uniform location). Programs asked for one after another then compile side by
+     * side instead of one by one. A program that fails to link is only found out then; use it for source that is known to compile.
+     */
+    bool deferLink = false;
 };
 
 /** @brief A compute program's source. Compute is WGSL only: GLSL ES 3.00 has no compute stage. */

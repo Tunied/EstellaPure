@@ -493,6 +493,35 @@ public:
     /** @brief Whether this backend compiles @p language (GL: GLSL ES 300; WebGPU: WGSL). */
     virtual bool supportsShaderLanguage(GfxShaderLanguage language) const = 0;
 
+    /** @brief Whether createProgram honours GfxShaderSource::deferLink (GL: yes; a backend that links at once does not). */
+    virtual bool supportsDeferredLink() const { return false; }
+
+    /**
+     * @brief Runs @p callback when @p program has linked, once: now if it already has, at the first thing that needs it otherwise.
+     * @details For what has to be done to a program only after it links. Never runs for one that fails.
+     */
+    void onProgramLinked(ShaderHandle program, std::function<void()> callback);
+
+    /** @brief Waits for @p program to link if it has not yet. False when it failed to. */
+    bool finishProgram(ShaderHandle program) { return backendFinishProgram(static_cast<u32>(program)); }
+
+    /**
+     * @brief Whether @p program can be drawn with now, without waiting: linked, or finished linking in the background (and then finished here, which
+     *        is quick). False while it is still compiling, and for one that failed. Always true for a program that was not deferred.
+     */
+    bool programReady(ShaderHandle program) { return backendProgramReady(static_cast<u32>(program)); }
+
+    /** @brief How many programs made with deferLink nothing has waited for yet. */
+    u32 pendingProgramCount() const { return backendPendingProgramCount(); }
+
+    /**
+     * @brief Whether a draw whose program is not ready is left out, instead of waited for.
+     * @details Off: the first draw to need a program waits for it, and a frame that needs one the browser has not compiled yet stops (seconds, for a
+     *          heavy lit shader on a driver that compiles slowly). On: the draw is skipped until the program is ready, and the frame goes on.
+     */
+    void setSkipPendingPrograms(bool on) { skip_pending_programs_ = on; }
+    bool skipPendingPrograms() const { return skip_pending_programs_; }
+
     /**
      * @brief Whether texel (0,0) of a rendered texture is its TOP-left corner.
      *
@@ -851,6 +880,14 @@ protected:
                                       const GfxAttribBinding* bindings, u32 bindingCount,
                                       std::string* outLog, GfxShaderStage* outFailedStage) = 0;
     virtual void backendDeleteProgram(u32 id) = 0;
+    /** @brief True while a program created with deferLink has not been waited for. */
+    virtual bool backendProgramPending(u32 id) const { (void)id; return false; }
+    virtual bool backendProgramReady(u32 id) { (void)id; return true; }
+    virtual u32 backendPendingProgramCount() const { return 0; }
+    /** @brief Waits for a deferred program, runs its onLinked callback; false when it failed to link. True for a program that was not deferred. */
+    virtual bool backendFinishProgram(u32 id) { (void)id; return true; }
+    /** @brief For a backend finishing a deferred program: runs its onLinked callback, leaving the bound program as it was. */
+    void notifyProgramLinked(u32 id);
     virtual void backendUseProgram(u32 id) = 0;
     /** @brief The backend's own location this generation, -1 when absent. */
     virtual i32 backendUniformLocation(u32 program, const char* name) = 0;
@@ -953,6 +990,7 @@ private:
     usize retained_budget_ = 0;
     bool over_retained_budget_ = false;
     ShaderHandle current_program_ = ShaderHandle::Invalid;
+    bool skip_pending_programs_ = false;
     PipelineHandle current_pipeline_ = PipelineHandle::Invalid;
     /// Native uniform locations per program for the current generation; -2 = not asked yet.
     std::map<u32, std::vector<i32>> native_locations_;

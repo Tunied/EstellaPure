@@ -26,6 +26,7 @@
 
 // Standard library
 #include <initializer_list>
+#include <functional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -118,7 +119,8 @@ public:
     static Unique<Shader> createWithBindings(GfxDevice& device,
                                               const std::string& vertexSrc, const std::string& fragmentSrc,
                                               std::initializer_list<AttribBinding> bindings,
-                                              GfxShaderLanguage language = GfxShaderLanguage::GLSL_ES300);
+                                              GfxShaderLanguage language = GfxShaderLanguage::GLSL_ES300,
+                                              bool deferLink = false);
 
     /** @brief The source language this program was compiled from. */
     GfxShaderLanguage language() const { return language_; }
@@ -143,7 +145,15 @@ public:
                                          const std::string& vertexSrc,
                                          const std::string& fragmentSrc,
                                          std::initializer_list<AttribBinding> bindings = {},
-                                         GfxShaderLanguage language = GfxShaderLanguage::GLSL_ES300);
+                                         GfxShaderLanguage language = GfxShaderLanguage::GLSL_ES300,
+                                         bool deferLink = false);
+
+    /**
+     * @brief Runs @p fn on this shader once it has linked: at once for one that has.
+     * @details What is done to a program only after it links (a sampler pinned to its unit) is handed here, so a shader made with deferLink is not
+     *          waited for just to be finished.
+     */
+    void whenLinked(std::function<void(Shader&)> fn);
 
     // =========================================================================
     // Operations
@@ -203,7 +213,7 @@ public:
     bool hasUniform(const std::string& name) const;
 
     /** @brief Returns reflected metadata for every active uniform, populated at link time */
-    const std::vector<GfxUniformInfo>& getActiveUniforms() const { return activeUniforms_; }
+    const std::vector<GfxUniformInfo>& getActiveUniforms() const { ensureLinked(); return activeUniforms_; }
 
     // =========================================================================
     // DrawParams (per-draw parameter block)
@@ -257,9 +267,15 @@ private:
                  const std::vector<AttribBinding>& bindings = {},
                  std::string* outLog = nullptr,
                  ShaderStageFailure* outFailedStage = nullptr,
-                 GfxShaderLanguage language = GfxShaderLanguage::GLSL_ES300);
+                 GfxShaderLanguage language = GfxShaderLanguage::GLSL_ES300,
+                 bool deferLink = false);
 
     void reflectActiveUniforms();
+
+    /** @brief What is done to a linked program: reflect it, bind its blocks, pin its samplers, then whatever was asked for with whenLinked. */
+    void finishLink();
+    /** @brief Waits for the program to link if it was made with deferLink and nothing has needed it yet. */
+    void ensureLinked() const;
 
     /** @brief Resolve + cache a uniform location; warns on miss only when asked. */
     i32 cacheUniformLocation(const std::string& name, bool warnOnMiss) const;
@@ -271,6 +287,9 @@ private:
     GfxDevice* device_ = nullptr;  ///< Set by the create* factories; all GL goes through it.
     GfxShaderLanguage language_ = GfxShaderLanguage::GLSL_ES300;
     ShaderHandle program_ = ShaderHandle::Invalid;
+    /// False from a deferLink creation until the program has linked and finishLink has run.
+    mutable bool linked_ = true;
+    std::vector<std::function<void(Shader&)>> afterLink_;
 
     /** @brief Cached uniform locations (mutable for const uniform setters) */
     mutable std::unordered_map<std::string, i32> uniformCache_;

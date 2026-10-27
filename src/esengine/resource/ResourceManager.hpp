@@ -183,12 +183,17 @@ public:
      *        material output).
      * @return Handle to the shader, or invalid handle on failure
      */
+    /** @brief Whether a shader that is known to compile is made without waiting for it (the device's skip-what-is-not-ready policy is on). */
+    bool deferLinks() const;
+
     ShaderHandle createShader(const std::string& vertSrc, const std::string& fragSrc,
                               bool rewriteLoose = true,
-                              GfxShaderLanguage language = GfxShaderLanguage::GLSL_ES300);
+                              GfxShaderLanguage language = GfxShaderLanguage::GLSL_ES300,
+                              bool deferLink = false);
     ShaderHandle createShaderWithBindings(const std::string& vertSrc, const std::string& fragSrc,
                                            std::initializer_list<AttribBinding> bindings,
-                                           GfxShaderLanguage language = GfxShaderLanguage::GLSL_ES300);
+                                           GfxShaderLanguage language = GfxShaderLanguage::GLSL_ES300,
+                                           bool deferLink = false);
 
     /**
      * @brief Loads a shader from file paths (with caching)

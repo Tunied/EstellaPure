@@ -340,6 +340,10 @@ void RenderFrame::drawScene(DrawList::Phase phase) {
             draw_list_.setShaderRunSink(nullptr);
         }
         draw_list_.setGBufferPass(false);
+        if (device_.skipPendingPrograms()) {
+            ES_PROFILE_COUNTER("render.draws.waitingForProgram", draw_list_.skippedForProgram());
+            ES_PROFILE_COUNTER("render.programs.pending", device_.pendingProgramCount());
+        }
     }
 
     // Handed over to whatever the graph runs next. Blend/depth/colour-mask come
@@ -2288,6 +2292,8 @@ void RenderFrame::declareShadowPass(ecs::Registry& registry) {
     rg::PassDesc shadow;
     shadow.name = "shadow-atlas";
     shadow.write = shadow_resource_;
+    // The map is the packed depth in its colour; the depth buffer beside it only orders the casters while they are drawn.
+    shadow.discardDepth = true;
     // One pass for every map the frame renders, because they share an attachment:
     // a point light's six faces are six viewports inside this pass rather than six
     // passes the device has to transition the atlas between.

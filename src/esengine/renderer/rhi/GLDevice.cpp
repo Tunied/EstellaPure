@@ -357,6 +357,10 @@ void GLDevice::onDeviceLost() {
     for (auto& [id, resolve] : framebuffer_resolve_) {
         if (resolve.destFbo) glDeleteFramebuffers(1, &resolve.destFbo);
     }
+    for (auto& [id, shaders] : pending_programs_) {
+        glDeleteShader(shaders.vertex);
+        glDeleteShader(shaders.fragment);
+    }
     for (usize id = 0; id < program_names_.size(); ++id) {
         if (program_names_[id]) glDeleteProgram(program_names_[id]);
     }
@@ -383,6 +387,8 @@ bool GLDevice::recreateDevice() {
     texture_names_.clear();
     array_names_.clear();
     program_names_.clear();
+    pending_programs_.clear();
+    failed_programs_.clear();
     framebuffer_names_.clear();
     query_names_.clear();
     framebuffer_resolve_.clear();
@@ -635,13 +641,16 @@ bool GLDevice::backendCreateProgram(u32 id, const GfxShaderSource& source,
         if (outFailedStage) *outFailedStage = stage;
     };
 
+    // Deferred: compile and link are queued with no question asked in between, and the first thing that needs the program asks. A driver that
+    // compiles on its own threads (ANGLE does, once the page does not wait) then works on every program asked for in the meantime at once.
+    const bool defer = source.deferLink;
     GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vertexShader, 1, &vertexSrc, nullptr);
     glCompileShader(vertexShader);
 
     GLint success = 0;
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-    if (!success) {
+    if (!defer) glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
+    if (!defer && !success) {
         std::string log = readShaderInfoLog(vertexShader);
         ES_LOG_ERROR("Vertex shader compilation failed: {}", log);
         setFailure(GfxShaderStage::Vertex, std::move(log));
@@ -653,8 +662,8 @@ bool GLDevice::backendCreateProgram(u32 id, const GfxShaderSource& source,
     glShaderSource(fragmentShader, 1, &fragmentSrc, nullptr);
     glCompileShader(fragmentShader);
 
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-    if (!success) {
+    if (!defer) glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
+    if (!defer && !success) {
         std::string log = readShaderInfoLog(fragmentShader);
         ES_LOG_ERROR("Fragment shader compilation failed: {}", log);
         setFailure(GfxShaderStage::Fragment, std::move(log));
@@ -672,6 +681,13 @@ bool GLDevice::backendCreateProgram(u32 id, const GfxShaderSource& source,
     }
 
     glLinkProgram(program);
+
+    if (defer) {
+        pending_programs_[id] = PendingProgram{vertexShader, fragmentShader};
+        if (outFailedStage) *outFailedStage = GfxShaderStage::None;
+        setName(program_names_, id, program);
+        return true;
+    }
 
     glGetProgramiv(program, GL_LINK_STATUS, &success);
     if (!success) {
@@ -692,29 +708,90 @@ bool GLDevice::backendCreateProgram(u32 id, const GfxShaderSource& source,
     return true;
 }
 
+u32 GLDevice::programName(u32 id) {
+    if (!pending_programs_.empty() && pending_programs_.count(id)) backendFinishProgram(id);
+    return nameOf(program_names_, id);
+}
+
+bool GLDevice::backendFinishProgram(u32 id) {
+    auto it = pending_programs_.find(id);
+    if (it == pending_programs_.end()) return nameOf(program_names_, id) != 0;
+    const PendingProgram shaders = it->second;
+    pending_programs_.erase(it);
+    const GLuint program = nameOf(program_names_, id);
+    GLint success = 0;
+    glGetProgramiv(program, GL_LINK_STATUS, &success);
+    if (!success) {
+        // Only now does anyone ask why: the stage that refused, then the link.
+        GLint vertexOk = 0, fragmentOk = 0;
+        glGetShaderiv(shaders.vertex, GL_COMPILE_STATUS, &vertexOk);
+        glGetShaderiv(shaders.fragment, GL_COMPILE_STATUS, &fragmentOk);
+        std::string why;
+        if (!vertexOk) why += "vertex: " + readShaderInfoLog(shaders.vertex) + " ";
+        if (!fragmentOk) why += "fragment: " + readShaderInfoLog(shaders.fragment) + " ";
+        why += readProgramInfoLog(program);
+        ES_LOG_ERROR("Deferred shader program {} failed to link: {}", id, why);
+        glDeleteShader(shaders.vertex);
+        glDeleteShader(shaders.fragment);
+        glDeleteProgram(program);
+        setName(program_names_, id, 0);
+        failed_programs_.insert(id);
+        return false;
+    }
+    glDeleteShader(shaders.vertex);
+    glDeleteShader(shaders.fragment);
+    notifyProgramLinked(id);
+    return true;
+}
+
+bool GLDevice::backendProgramReady(u32 id) {
+    if (failed_programs_.count(id)) return false;
+    if (!pending_programs_.count(id)) return true;
+#ifdef __EMSCRIPTEN__
+    if (completion_status_ == 0) {
+        const EMSCRIPTEN_WEBGL_CONTEXT_HANDLE ctx = emscripten_webgl_get_current_context();
+        completion_status_ = (ctx && emscripten_webgl_enable_extension(ctx, "KHR_parallel_shader_compile")) ? 1 : 2;
+    }
+    if (completion_status_ == 1) {
+        // The browser's answer to "is it done", which does not make the page wait for it.
+        constexpr GLenum kCompletionStatus = 0x91B1;
+        GLint done = 0;
+        glGetProgramiv(nameOf(program_names_, id), kCompletionStatus, &done);
+        if (!done) return false;
+    }
+#endif
+    // Done (or no way to tell, in which case the wait is the same one a draw would have made): finishing it now costs nothing.
+    return backendFinishProgram(id);
+}
+
 void GLDevice::backendDeleteProgram(u32 id) {
     const u32 name = nameOf(program_names_, id);
     if (!name) return;
+    if (auto it = pending_programs_.find(id); it != pending_programs_.end()) {
+        glDeleteShader(it->second.vertex);
+        glDeleteShader(it->second.fragment);
+        pending_programs_.erase(it);
+    }
     glDeleteProgram(name);
     if (current_program_name_ == name) current_program_name_ = 0;
     setName(program_names_, id, 0);
 }
 
 void GLDevice::backendUseProgram(u32 id) {
-    const u32 name = nameOf(program_names_, id);
+    const u32 name = programName(id);
     if (name == current_program_name_) return;
     glUseProgram(name);
     current_program_name_ = name;
 }
 
 i32 GLDevice::backendUniformLocation(u32 program, const char* name) {
-    const u32 programName = nameOf(program_names_, program);
-    return programName ? glGetUniformLocation(programName, name) : -1;
+    const u32 glName = programName(program);
+    return glName ? glGetUniformLocation(glName, name) : -1;
 }
 
 i32 GLDevice::backendAttribLocation(u32 program, const char* name) {
-    const u32 programName = nameOf(program_names_, program);
-    return programName ? glGetAttribLocation(programName, name) : -1;
+    const u32 glName = programName(program);
+    return glName ? glGetAttribLocation(glName, name) : -1;
 }
 
 void GLDevice::backendSetUniform(i32 location, const GfxUniformValue& value) {
@@ -760,7 +837,7 @@ GfxUniformType fromGLUniformType(GLenum type) {
 
 std::vector<GfxUniformInfo> GLDevice::backendActiveUniforms(u32 program) {
     std::vector<GfxUniformInfo> result;
-    const GLuint programId = nameOf(program_names_, program);
+    const GLuint programId = programName(program);
     if (!programId) return result;
 
     GLint count = 0;
@@ -801,14 +878,14 @@ std::vector<GfxUniformInfo> GLDevice::backendActiveUniforms(u32 program) {
 }
 
 u32 GLDevice::backendUniformBlockIndex(u32 program, const char* name) {
-    const u32 programName = nameOf(program_names_, program);
-    if (!programName) return GFX_INVALID_UNIFORM_BLOCK;
-    return static_cast<u32>(glGetUniformBlockIndex(programName, name));
+    const u32 glName = programName(program);
+    if (!glName) return GFX_INVALID_UNIFORM_BLOCK;
+    return static_cast<u32>(glGetUniformBlockIndex(glName, name));
 }
 
 void GLDevice::backendUniformBlockBinding(u32 program, u32 nativeBlockIndex, u32 bindingPoint) {
-    const u32 programName = nameOf(program_names_, program);
-    if (programName) glUniformBlockBinding(programName, nativeBlockIndex, bindingPoint);
+    const u32 glName = programName(program);
+    if (glName) glUniformBlockBinding(glName, nativeBlockIndex, bindingPoint);
 }
 
 // =============================================================================
@@ -1410,7 +1487,45 @@ void GLDevice::resolveFramebuffer(u32 framebufferId) {
         // differs, and depth refuses anything but NEAREST.
         glBlitFramebuffer(0, 0, w, h, 0, 0, w, h, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
     }
+    if (pass_discard_msaa_) {
+        // Resolved, and nothing draws on it again: a tile-based GPU need not write the samples out to memory.
+        GLenum attachments[4];
+        GLsizei n = 0;
+        attachments[n++] = GL_COLOR_ATTACHMENT0;
+        if (r.gbuffer) attachments[n++] = GL_COLOR_ATTACHMENT1;
+        attachments[n++] = GL_DEPTH_ATTACHMENT;
+        attachments[n++] = GL_STENCIL_ATTACHMENT;
+        glInvalidateFramebuffer(GL_READ_FRAMEBUFFER, n, attachments);
+    }
     glBindFramebuffer(GL_FRAMEBUFFER, nameOf(framebuffer_names_, current_framebuffer_));
+}
+
+void GLDevice::discardLeftDepth() {
+    if (!pass_discard_depth_ || current_framebuffer_ == 0) return;
+    const GLenum depth = GL_DEPTH_ATTACHMENT;
+    glBindFramebuffer(GL_FRAMEBUFFER, nameOf(framebuffer_names_, current_framebuffer_));
+    glInvalidateFramebuffer(GL_FRAMEBUFFER, 1, &depth);
+}
+
+void GLDevice::endFrame() {
+    // The default framebuffer's depth and stencil are never read after the frame, which the page shows by its colour: a tile-based GPU that is told so
+    // does not write them out. Only with that framebuffer bound, so nothing is rebound under whoever draws next.
+    if (current_framebuffer_ != 0) return;
+    if (default_depth_bits_ < 0) {
+        GLint depth = 0, stencil = 0;
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glGetIntegerv(GL_DEPTH_BITS, &depth);
+        glGetIntegerv(GL_STENCIL_BITS, &stencil);
+        default_depth_bits_ = depth > 0 ? 1 : 0;
+        default_stencil_bits_ = stencil > 0 ? 1 : 0;
+    }
+    GLenum attachments[2];
+    GLsizei n = 0;
+    if (default_depth_bits_ > 0) attachments[n++] = GL_DEPTH;
+    if (default_stencil_bits_ > 0) attachments[n++] = GL_STENCIL;
+    if (n == 0) return;
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glInvalidateFramebuffer(GL_FRAMEBUFFER, n, attachments);
 }
 
 void GLDevice::backendDeleteFramebuffer(u32 id) {
@@ -1433,7 +1548,12 @@ void GLDevice::beginRenderPass(const RenderPassDesc& desc) {
     // Retargeting LEAVES the previous target, and the model has no explicit pass
     // object to hang the resolve on — so leaving is the event, whether it comes
     // from endRenderPass or from being retargeted out from under.
-    if (current_framebuffer_ != target) resolveFramebuffer(current_framebuffer_);
+    if (current_framebuffer_ != target) {
+        resolveFramebuffer(current_framebuffer_);
+        discardLeftDepth();
+    }
+    pass_discard_msaa_ = desc.discardMultisampled;
+    pass_discard_depth_ = desc.discardDepth;
     current_framebuffer_ = target;
     glBindFramebuffer(GL_FRAMEBUFFER, nameOf(framebuffer_names_, target));
 
@@ -1513,6 +1633,9 @@ void GLDevice::applyDrawBuffers(bool gbuffer) {
 
 void GLDevice::endRenderPass() {
     resolveFramebuffer(current_framebuffer_);
+    discardLeftDepth();
+    pass_discard_msaa_ = false;
+    pass_discard_depth_ = false;
     current_framebuffer_ = 0;
     current_fbo_has_gbuffer_ = false;
     glBindFramebuffer(GL_FRAMEBUFFER, 0);

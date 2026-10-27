@@ -107,8 +107,12 @@ ShaderTargetLanguage ResourceManager::preferredShaderTarget() const {
                : ShaderTargetLanguage::GLSL_ES300;
 }
 
+bool ResourceManager::deferLinks() const {
+    return device_ && device_->skipPendingPrograms();
+}
+
 ShaderHandle ResourceManager::createShader(const std::string& vertSrc, const std::string& fragSrc,
-                                           bool rewriteLoose, GfxShaderLanguage language) {
+                                           bool rewriteLoose, GfxShaderLanguage language, bool deferLink) {
     if (!device_) return {};
 
     // Lift loose non-sampler uniforms into a std140 DrawParams block, so this
@@ -134,7 +138,7 @@ ShaderHandle ResourceManager::createShader(const std::string& vertSrc, const std
 
     // Through createEx for the LOG: the device already answers why it refused, and a
     // caller that drops it leaves "failed to create" as the only thing anybody sees.
-    auto outcome = Shader::createEx(*device_, vertSrc, fragSrc, {}, language);
+    auto outcome = Shader::createEx(*device_, vertSrc, fragSrc, {}, language, deferLink);
     if (!outcome.shader) {
         ES_LOG_ERROR("Failed to create shader from source: {}",
                      outcome.log.empty() ? "no reason given by the device" : outcome.log.c_str());
@@ -145,9 +149,9 @@ ShaderHandle ResourceManager::createShader(const std::string& vertSrc, const std
 
 ShaderHandle ResourceManager::createShaderWithBindings(const std::string& vertSrc, const std::string& fragSrc,
                                                         std::initializer_list<AttribBinding> bindings,
-                                                        GfxShaderLanguage language) {
+                                                        GfxShaderLanguage language, bool deferLink) {
     if (!device_) return {};
-    auto shader = Shader::createWithBindings(*device_, vertSrc, fragSrc, bindings, language);
+    auto shader = Shader::createWithBindings(*device_, vertSrc, fragSrc, bindings, language, deferLink);
     if (!shader) {
         ES_LOG_ERROR("Failed to create shader with bindings from source");
         return ShaderHandle();

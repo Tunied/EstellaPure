@@ -55,8 +55,12 @@ Shader::Shader(Shader&& other) noexcept
     , paramsShadow_(std::move(other.paramsShadow_))
     , paramsDirty_(other.paramsDirty_)
     , paramsUbo_(other.paramsUbo_) {
+    linked_ = other.linked_;
+    afterLink_ = std::move(other.afterLink_);
     other.program_ = ShaderHandle::Invalid;
     other.paramsUbo_ = BufferHandle::Invalid;
+    other.linked_ = true;
+    if (!linked_ && device_) device_->onProgramLinked(program_, [this] { finishLink(); });
 }
 
 Shader& Shader::operator=(Shader&& other) noexcept {
@@ -74,8 +78,12 @@ Shader& Shader::operator=(Shader&& other) noexcept {
         paramsShadow_ = std::move(other.paramsShadow_);
         paramsDirty_ = other.paramsDirty_;
         paramsUbo_ = other.paramsUbo_;
+        linked_ = other.linked_;
+        afterLink_ = std::move(other.afterLink_);
         other.program_ = ShaderHandle::Invalid;
         other.paramsUbo_ = BufferHandle::Invalid;
+        other.linked_ = true;
+        if (!linked_ && device_) device_->onProgramLinked(program_, [this] { finishLink(); });
     }
     return *this;
 }
@@ -93,10 +101,10 @@ Unique<Shader> Shader::create(GfxDevice& device, const std::string& vertexSrc, c
 Unique<Shader> Shader::createWithBindings(GfxDevice& device,
                                           const std::string& vertexSrc, const std::string& fragmentSrc,
                                           std::initializer_list<AttribBinding> bindings,
-                                          GfxShaderLanguage language) {
+                                          GfxShaderLanguage language, bool deferLink) {
     auto shader = makeUnique<Shader>();
     shader->device_ = &device;
-    if (!shader->compile(vertexSrc, fragmentSrc, bindings, nullptr, nullptr, language)) {
+    if (!shader->compile(vertexSrc, fragmentSrc, bindings, nullptr, nullptr, language, deferLink)) {
         return nullptr;
     }
     return shader;
@@ -145,7 +153,23 @@ Unique<Shader> Shader::createFromFile(GfxDevice& device,
 void Shader::bind() const {
     // Direct program bind for setup-time use (e.g. seeding a sampler uniform). Per-frame
     // rendering binds programs through GfxDevice::setPipeline, not here.
+    ensureLinked();
     if (device_) device_->useProgram(program_);
+}
+
+void Shader::ensureLinked() const {
+    if (linked_ || !device_) return;
+    // The device runs finishLink as the program links; a program that failed to never does, and is not waited for twice.
+    if (!device_->finishProgram(program_)) linked_ = true;
+}
+
+void Shader::whenLinked(std::function<void(Shader&)> fn) {
+    if (!fn) return;
+    if (linked_) {
+        fn(*this);
+        return;
+    }
+    afterLink_.push_back(std::move(fn));
 }
 
 void Shader::unbind() const {
@@ -156,8 +180,10 @@ bool Shader::compile(const std::string& vertexSrc, const std::string& fragmentSr
                      const std::vector<AttribBinding>& bindings,
                      std::string* outLog,
                      ShaderStageFailure* outFailedStage,
-                     GfxShaderLanguage language) {
+                     GfxShaderLanguage language,
+                     bool deferLink) {
     language_ = language;
+    linked_ = false;
 
     // Fail fast on a language the backend cannot compile, before any GPU call —
     // the caller gets a diagnostic instead of a backend-specific compile error.
@@ -176,6 +202,7 @@ bool Shader::compile(const std::string& vertexSrc, const std::string& fragmentSr
 
     GfxShaderStage stage = GfxShaderStage::None;
     GfxShaderSource source{language, vertexSrc.c_str(), fragmentSrc.c_str()};
+    source.deferLink = deferLink && device_->supportsDeferredLink();
     program_ = device_->createProgram(source,
                                       binds.data(), static_cast<u32>(binds.size()),
                                       outLog, &stage);
@@ -190,9 +217,21 @@ bool Shader::compile(const std::string& vertexSrc, const std::string& fragmentSr
     }
 
     if (program_ == ShaderHandle::Invalid) {
+        linked_ = true;
         return false;
     }
 
+    if (source.deferLink) {
+        // Queued, not waited for: the device finishes it (block bindings, pinned samplers) when something first needs the program.
+        device_->onProgramLinked(program_, [this] { finishLink(); });
+        return true;
+    }
+    finishLink();
+    return true;
+}
+
+void Shader::finishLink() {
+    linked_ = true;
     reflectActiveUniforms();
 
     // Link the per-frame constants block to its shared binding point, so the program
@@ -286,19 +325,22 @@ bool Shader::compile(const std::string& vertexSrc, const std::string& fragmentSr
 
     ES_LOG_DEBUG("Shader compiled successfully (program handle: {}, active uniforms: {})",
                  static_cast<u32>(program_), activeUniforms_.size());
-    return true;
+    auto after = std::move(afterLink_);
+    afterLink_.clear();
+    for (auto& fn : after) fn(*this);
 }
 
 ShaderCompileOutcome Shader::createEx(GfxDevice& device,
                                       const std::string& vertexSrc,
                                       const std::string& fragmentSrc,
                                       std::initializer_list<AttribBinding> bindings,
-                                      GfxShaderLanguage language) {
+                                      GfxShaderLanguage language,
+                                      bool deferLink) {
     ShaderCompileOutcome outcome;
     auto shader = makeUnique<Shader>();
     shader->device_ = &device;
     if (!shader->compile(vertexSrc, fragmentSrc, bindings, &outcome.log, &outcome.failedStage,
-                         language)) {
+                         language, deferLink)) {
         return outcome;
     }
     outcome.shader = std::move(shader);
@@ -310,6 +352,7 @@ void Shader::reflectActiveUniforms() {
 }
 
 i32 Shader::cacheUniformLocation(const std::string& name, bool warnOnMiss) const {
+    ensureLinked();
     auto [it, inserted] = uniformCache_.emplace(name, -1);
     if (inserted) {
         it->second = device_->getUniformLocation(program_, name.c_str());
@@ -447,6 +490,7 @@ void Shader::setUniform(i32 location, const glm::mat4& value) const {
 }
 
 i32 Shader::getAttribLocation(const std::string& name) const {
+    ensureLinked();
     auto [it, inserted] = attribCache_.emplace(name, -1);
     if (inserted) {
         it->second = device_->getAttribLocation(program_, name.c_str());

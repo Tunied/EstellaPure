@@ -700,6 +700,8 @@ export interface ESEngineModule {
     renderer_setShadowDistance?(distance: number): void;
     /** Draw the opaque scene twice, depth alone first, so a pixel is shaded for the surface in front of it. */
     renderer_setDepthPrepass?(on: boolean): void;
+    renderer_setAsyncShaderCompile?(on: boolean): void;
+    renderer_getPendingShaders?(): number;
     renderer_setPlanarReflectionQuality?(scale: number, maxSize: number, updatesPerSecond: number): void;
     renderer_getPlanarReflectionStatus?(view: number, entity: number): string;
     renderer_setViewLighting?(mode: number, rotationDegrees: number, keyIntensity: number, fillIntensity: number, skyIntensity: number, showSky: boolean): void;

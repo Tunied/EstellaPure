@@ -7618,6 +7618,7 @@ ResourceDef<QualityController | null>
 
 ## QualityConfig — interface @experimental
 ```
+asyncShaderCompile: boolean | undefined
 deviceRules: DeviceQualityRule[] | undefined
 dynamicResolution: boolean | undefined
 mode: QualityMode | undefined

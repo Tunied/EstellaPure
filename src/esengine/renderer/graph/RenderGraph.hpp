@@ -110,6 +110,8 @@ struct PassDesc {
      *        writing `ctx.output`, which has to be a target declared with `storage`. Ordered, culled and recycled like any pass.
      */
     bool compute = false;
+    /// Its target's depth is only for testing while it draws, and nothing reads it afterwards (see RenderPassDesc::discardDepth).
+    bool discardDepth = false;
     bool clear = false;
     /// Clears the depth attachment with the colour, for a target that has one.
     /// A geometry pass writes depth, so the frame before it is not what it

@@ -406,6 +406,8 @@ void DrawList::execute(GfxDevice& device, TransientBufferPool& buffers,
     PipelineDesc lastDesc{};
     PipelineHandle lastHandle = PipelineHandle::Invalid;
     const std::string* lastRun = nullptr;
+    skipped_for_program_ = 0;
+    const bool skipUnready = device.skipPendingPrograms();
     // The draws of this phase read the scene's colour and compose it under themselves.
     const bool composes = phase == Phase::SceneColorOnly;
 
@@ -484,6 +486,12 @@ void DrawList::execute(GfxDevice& device, TransientBufferPool& buffers,
             // Its depth is already in the buffer: it lands where it is level with it, and writes nothing there again.
             desc.depthEqual = true;
             desc.depthWrite = false;
+        }
+
+        // A program still compiling in the background: this draw waits for a later frame instead of making this one wait for it.
+        if (skipUnready && desc.program != ShaderHandle::Invalid && !device.programReady(desc.program)) {
+            ++skipped_for_program_;
+            continue;
         }
 
         if (lastHandle == PipelineHandle::Invalid || !(desc == lastDesc)) {

@@ -19,6 +19,8 @@ export function installQuality(app: App, config: QualityConfig, authoredMsaa: nu
         model: platform.deviceName?.(), ...info, gpu,
     });
     app.insertResource(Quality, quality);
+    // A delivery choice and not a level of quality: it holds whatever the level, and whether the quality system is on at all.
+    engineApi(app)?.renderer_setAsyncShaderCompile?.(config.asyncShaderCompile === true);
     let applied: Readonly<QualityProfile> | null = null;
     let enabled: boolean | null = null;
     let last = 0;

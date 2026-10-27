@@ -137,6 +137,13 @@ protected:
     u32 primitiveMode() const;
     void backendInvalidatePipelineCache() override;
 
+    bool supportsDeferredLink() const override { return true; }
+    bool backendProgramPending(u32 id) const override { return pending_programs_.count(id) != 0; }
+    bool backendFinishProgram(u32 id) override;
+    void endFrame() override;
+    bool backendProgramReady(u32 id) override;
+    u32 backendPendingProgramCount() const override { return static_cast<u32>(pending_programs_.size()); }
+
     bool backendCreateFramebuffer(u32 id, const FramebufferDesc& desc) override;
     void backendDeleteFramebuffer(u32 id) override;
 
@@ -209,6 +216,23 @@ private:
     std::vector<u32> buffer_names_;
     std::vector<u32> texture_names_;
     std::vector<u32> program_names_;
+    /// A program made with deferLink, until something waits for it: the shader objects to delete once it has linked.
+    struct PendingProgram { u32 vertex = 0; u32 fragment = 0; };
+    std::unordered_map<u32, PendingProgram> pending_programs_;
+    /// The program's GL name, waiting for it first if it was deferred: every use of a program goes through here.
+    u32 programName(u32 id);
+    /// What the pass now running said of its attachments (RenderPassDesc::discard*), acted on when it is left.
+    bool pass_discard_msaa_ = false;
+    bool pass_discard_depth_ = false;
+    /// What the default framebuffer has to be told to forget at the end of a frame: its depth and its stencil, where it has them (-1 not yet asked).
+    i8 default_depth_bits_ = -1;
+    i8 default_stencil_bits_ = -1;
+    /// The target being left: its depth, if the pass said nothing reads it.
+    void discardLeftDepth();
+    /// Programs whose link failed, found out when something first asked: never ready, so a draw that skips what is not ready skips them for good.
+    std::unordered_set<u32> failed_programs_;
+    /// 0 unknown, 1 the browser reports a program's completion without waiting for it (KHR_parallel_shader_compile), 2 it does not.
+    i8 completion_status_ = 0;
     std::vector<u32> framebuffer_names_;
     std::vector<u32> query_names_;
     /** Buffer id per uniform binding slot, as the renderer set it. */

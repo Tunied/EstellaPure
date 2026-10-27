@@ -114,6 +114,9 @@ void GfxDevice::realizeRegistry() {
                                                static_cast<u32>(bindings.size()), &log, &stage);
         if (record.realized) {
             realizeProgramState(id, record);
+            // A program that was queued and never waited for before the loss has linked now, and what was owed to it (its block bindings,
+            // its pinned samplers) is done here rather than when a draw first asks.
+            if (record.onLinked) notifyProgramLinked(id);
         } else {
             ES_LOG_ERROR("Device recovery: program {} did not rebuild: {}", id, log);
         }
@@ -609,6 +612,29 @@ ShaderHandle GfxDevice::createProgram(const GfxShaderSource& source,
     }
     registry_.programs.find(id)->realized = true;
     return ShaderHandle{id};
+}
+
+void GfxDevice::onProgramLinked(ShaderHandle program, std::function<void()> callback) {
+    const u32 id = static_cast<u32>(program);
+    auto* record = registry_.programs.find(id);
+    if (!record || !callback) return;
+    if (backendProgramPending(id)) {
+        record->onLinked = std::move(callback);
+        return;
+    }
+    callback();
+}
+
+void GfxDevice::notifyProgramLinked(u32 id) {
+    auto* record = registry_.programs.find(id);
+    if (!record || !record->onLinked) return;
+    auto callback = std::move(record->onLinked);
+    record->onLinked = nullptr;
+    // The callback binds programs of its own (a sampler is pinned through the bound one); the draw that waited for this one has it bound.
+    const ShaderHandle bound = current_program_;
+    callback();
+    current_program_ = bound;
+    backendUseProgram(registry_.programs.find(static_cast<u32>(bound)) ? static_cast<u32>(bound) : 0u);
 }
 
 void GfxDevice::deleteProgram(ShaderHandle program) {

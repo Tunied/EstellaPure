@@ -94,6 +94,19 @@ const VARIANTS = [
   { id: 'stars-0', label: 'sky without stars and moon', scene: (d) => { const u = effect(d, 'skyAtmosphere').uniforms; u.u_stars = 0; u.u_moon = 0; } },
   { id: 'shade-0', label: 'fog on, cloud shafts 0', scene: (d) => { effect(d, 'heightFog').uniforms.u_cloudShade = 0; } },
   { id: 'vol-0-shade-0', label: 'fog without volumetric light or cloud shafts', scene: (d) => { const u = effect(d, 'heightFog').uniforms; u.u_volumetric = 0; u.u_cloudShade = 0; } },
+  // Temporal anti-aliasing in place of multisampling: after the lighting effects and the fog, before exposure, bloom and grading.
+  ...[[1, 0.1], [1, 0.2], [2, 0.1]].map(([samples, blend]) => ({
+    id: `taa-msaa${samples}-b${String(blend).replace('.', '')}`,
+    label: `${samples}x multisampling and temporal AA at blend ${blend}, no FXAA`,
+    scene: (d) => {
+      const v = volume(d);
+      v.effects = v.effects.filter((e) => e.type !== 'fxaa');
+      const at = v.effects.findIndex((e) => e.type === 'autoExposure');
+      v.effects.splice(at < 0 ? v.effects.length : at, 0, { type: 'taa', enabled: true, uniforms: { u_blend: blend, u_objectMotion: 1 } });
+    },
+    config: quality('high', { msaaSamples: samples }),
+  })),
+  { id: 'async-shaders', label: 'quality.asyncShaderCompile on (draws wait for a program still compiling)', config: (cfg) => { cfg.quality = { ...cfg.quality, asyncShaderCompile: true }; } },
   { id: 'volumetric-off', label: 'fog on, volumetric light 0', scene: (d) => { effect(d, 'heightFog').uniforms.u_volumetric = 0; } },
   { id: 'autoexposure-off', label: 'auto exposure off', scene: dropEffects('autoExposure') },
   { id: 'bloom-off', label: 'bloom off', scene: dropEffects('bloom') },
@@ -181,7 +194,9 @@ async function measure(server, original, variant, browser) {
       const c = window.__estellaCooked;
       for (let i = 0; i < 600; i++) {
         await c.step(2, 1 / 60);
-        if (c.bakes().length === 0 && i > 20) return i;
+        // Also nothing waiting on a shader (the package may skip draws whose program is still compiling).
+        const waiting = c.render()['render.draws.waitingForProgram'] > 0;
+        if (c.bakes().length === 0 && i > 20 && !waiting) return i;
         await new Promise((r) => setTimeout(r, 50));
       }
       return -1;

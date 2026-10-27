@@ -1166,6 +1166,15 @@ void renderer_setDepthPrepass(bool on) {
     if (g_renderFrame) g_renderFrame->setDepthPrepass(on);
 }
 
+void renderer_setAsyncShaderCompile(bool on) {
+    if (auto* device = g_device) device->setSkipPendingPrograms(on);
+}
+
+u32 renderer_getPendingShaders() {
+    auto* device = g_device;
+    return device ? device->pendingProgramCount() : 0u;
+}
+
 // Which layers the NEXT collect draws. Set per camera, before renderer_submitAll.
 void renderer_setCullingMask(u32 mask) {
     if (auto* frame = g_renderFrame) frame->setCullingMask(mask);

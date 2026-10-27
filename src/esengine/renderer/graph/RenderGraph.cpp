@@ -287,6 +287,13 @@ void RenderGraph::execute() {
         }
     }
 
+    // The last live pass to draw on each resource: after it nothing continues on that target, so its multisampled attachments, resolved by
+    // then, need not be kept.
+    std::vector<i32> lastWriter(resources_.size(), -1);
+    for (usize i = 0; i < passes_.size(); ++i) {
+        if (live[i] && passes_[i].write < resources_.size()) lastWriter[passes_[i].write] = static_cast<i32>(i);
+    }
+
     for (usize i = 0; i < passes_.size(); ++i) {
         if (!live[i]) continue;
         PassDesc& pass = passes_[i];
@@ -334,6 +341,8 @@ void RenderGraph::execute() {
 
         RenderPassDesc rp{};
         rp.target = fbo;
+        rp.discardMultisampled = target.kind == Kind::Transient && lastWriter[pass.write] == static_cast<i32>(i);
+        rp.discardDepth = pass.discardDepth;
         rp.clearColor = pass.clear;
         rp.clearDepth = pass.clearDepth;
         if (pass.clear) {

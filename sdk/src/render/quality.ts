@@ -74,6 +74,12 @@ export interface QualityConfig {
     mode?: QualityMode;
     targetFps?: number;
     dynamicResolution?: boolean;
+    /**
+     * A frame never waits for a shader the browser is still compiling: what needs it is left out until it is ready, and several compile at once. Off
+     * (the default) the first draw to need a shader waits for it, which keeps every frame complete and can stop one for seconds on a first visit
+     * (a heavy lit shader on a driver that compiles slowly). Turn it on for a game that would rather open fast and fill in.
+     */
+    asyncShaderCompile?: boolean;
     profiles?: Partial<Record<QualityLevel, Partial<QualityProfile>>>;
     deviceRules?: DeviceQualityRule[];
 }
@@ -126,6 +132,7 @@ export function parseQualityConfig(value: unknown): QualityConfig {
     const config: QualityConfig = {
         mode, targetFps: finite(raw.targetFps, 60, 15, 120),
         dynamicResolution: raw.dynamicResolution === true,
+        asyncShaderCompile: raw.asyncShaderCompile === true,
     };
     if (raw.profiles) {
         config.profiles = {};

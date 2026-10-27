@@ -174,6 +174,7 @@ export interface NativeEngineApi {
     renderer_getEstimatedGpuBytes?(): number;
     renderer_getGpuTimeMs?(): number;
     renderer_getMeshes?(): number;
+    renderer_getPendingShaders?(): number;
     renderer_getPlanarReflectionStatus?(view: number, entity: number): string;
     renderer_getPreviewHeight?(): number;
     renderer_getPreviewSize?(): number;
@@ -206,6 +207,7 @@ export interface NativeEngineApi {
     renderer_renderSkeletalPreview?(preview: number, viewProjectionPtr: number): number;
     renderer_replayToDrawCall?(drawCallIndex: number): void;
     renderer_resize?(width: number, height: number): void;
+    renderer_setAsyncShaderCompile?(on: boolean): void;
     renderer_setClearColor?(r: number, g: number, b: number, a: number): void;
     renderer_setColorSpace?(linear: number): void;
     renderer_setCullingMask?(mask: number): void;
@@ -501,6 +503,7 @@ export function createNativeEngineApi(
     bind('renderer_getEstimatedGpuBytes', 'es_renderer_getEstimatedGpuBytes', false);
     bind('renderer_getGpuTimeMs', 'es_renderer_getGpuTimeMs', false);
     bind('renderer_getMeshes', 'es_renderer_getMeshes', false);
+    bind('renderer_getPendingShaders', 'es_renderer_getPendingShaders', false);
     bind('renderer_getPlanarReflectionStatus', 'es_renderer_getPlanarReflectionStatus', false);
     bind('renderer_getPreviewHeight', 'es_renderer_getPreviewHeight', false);
     bind('renderer_getPreviewSize', 'es_renderer_getPreviewSize', false);
@@ -533,6 +536,7 @@ export function createNativeEngineApi(
     bind('renderer_renderSkeletalPreview', 'es_renderer_renderSkeletalPreview', false);
     bind('renderer_replayToDrawCall', 'es_renderer_replayToDrawCall', false);
     bind('renderer_resize', 'es_renderer_resize', false);
+    bind('renderer_setAsyncShaderCompile', 'es_renderer_setAsyncShaderCompile', false);
     bind('renderer_setClearColor', 'es_renderer_setClearColor', false);
     bind('renderer_setColorSpace', 'es_renderer_setColorSpace', false);
     bind('renderer_setCullingMask', 'es_renderer_setCullingMask', false);

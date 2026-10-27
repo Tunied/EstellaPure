@@ -2996,4 +2996,6 @@ export const NOTED = {
     {"note":"A sun's shadow map leaves out the casters that shade nothing the camera sees."},
   "fix(shadow): a caster narrower than the blocker search's gaps no longer vanishes from a wide shadow map":
     {"note":"A small caster no longer drops out of a wide shadow map."},
+  "feat(render): shaders can compile without stopping the frame, and a tile-based GPU is told what a pass does not keep":
+    {"note":"Shaders that compile without stopping the frame."},
 };

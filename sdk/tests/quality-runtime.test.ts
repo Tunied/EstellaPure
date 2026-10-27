@@ -12,10 +12,10 @@ vi.mock('../src/platform', () => ({
     platformOnAppHide: () => () => {}, platformOnAppShow: () => () => {},
 }));
 vi.mock('../src/ecs/bridge/engineApi', () => ({
-    engineApi: () => ({ renderer_setQualityBudgets: vi.fn(), renderer_setShadowDistance: distanceBudget, renderer_setPlanarReflectionQuality: reflectionBudget, renderer_setDepthPrepass: prepass }),
+    engineApi: () => ({ renderer_setQualityBudgets: vi.fn(), renderer_setShadowDistance: distanceBudget, renderer_setPlanarReflectionQuality: reflectionBudget, renderer_setDepthPrepass: prepass, renderer_setAsyncShaderCompile: asyncCompile }),
 }));
 
-const { distanceBudget, reflectionBudget, prepass } = vi.hoisted(() => ({ distanceBudget: vi.fn(), reflectionBudget: vi.fn(), prepass: vi.fn() }));
+const { distanceBudget, reflectionBudget, prepass, asyncCompile } = vi.hoisted(() => ({ distanceBudget: vi.fn(), reflectionBudget: vi.fn(), prepass: vi.fn(), asyncCompile: vi.fn() }));
 
 describe('quality runtime device selection', () => {
     it('applies the tier shadow range and restores camera coverage when disabled', () => {
@@ -47,6 +47,15 @@ describe('quality runtime device selection', () => {
         expect(prepass).toHaveBeenLastCalledWith(true);
         controller!.setMode('off'); apply!();
         expect(prepass).toHaveBeenLastCalledWith(false);
+    });
+    it('leaves shader compiles waited for unless the config asks for them not to be, whatever the level', () => {
+        const app = { wasmModule: null, insertResource: vi.fn(), addPlugin: vi.fn(), onFrameEnd: () => () => {} } as unknown as App;
+        installQuality(app, { mode: 'high' }, 4);
+        expect(asyncCompile).toHaveBeenLastCalledWith(false);
+        installQuality(app, { mode: 'off', asyncShaderCompile: true }, 4);
+        expect(asyncCompile).toHaveBeenLastCalledWith(true);
+        installQuality(app, { mode: 'low', asyncShaderCompile: true }, 4);
+        expect(asyncCompile).toHaveBeenLastCalledWith(true);
     });
     it('uses this app’s actual renderer identity when a GPU rule matches', () => {
         const insertResource = vi.fn();

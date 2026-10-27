@@ -156,7 +156,8 @@ u32 MaterialStore::shadowProgram(u32 materialId, resource::ResourceManager& reso
         variants[shape] = {};
         return 0;
     }
-    resource::ShaderHandle handle = resources.createShaderWithBindings(vert, frag, {}, resources.preferredShaderLanguage());
+    // Deferred: the program is waited for by the first draw that uses it, so the programs a frame asks for together compile together.
+    resource::ShaderHandle handle = resources.createShaderWithBindings(vert, frag, {}, resources.preferredShaderLanguage(), /*deferLink=*/true);
     Shader* shader = resources.getShader(handle);
     if (!shader || !shader->isValid()) {
         resources.releaseShader(handle);
@@ -210,7 +211,7 @@ u32 MaterialStore::prepassCoverageProgram(u32 materialId, resource::ResourceMana
         variants[shape] = {};
         return 0;
     }
-    resource::ShaderHandle handle = resources.createShaderWithBindings(vert, frag, {}, resources.preferredShaderLanguage());
+    resource::ShaderHandle handle = resources.createShaderWithBindings(vert, frag, {}, resources.preferredShaderLanguage(), /*deferLink=*/true);
     Shader* shader = resources.getShader(handle);
     if (!shader || !shader->isValid()) {
         resources.releaseShader(handle);
@@ -283,7 +284,7 @@ u32 MaterialStore::variantProgram(u32 materialId, resource::ResourceManager& res
     }
 
     resource::ShaderHandle handle = resources.createShader(vert, frag, /*rewriteLoose=*/false,
-                                                           resources.preferredShaderLanguage());
+                                                           resources.preferredShaderLanguage(), /*deferLink=*/true);
     Shader* shader = resources.getShader(handle);
     if (!shader || !shader->isValid()) {
         resources.releaseShader(handle);
@@ -352,13 +353,18 @@ MaterialUniformLayout MaterialStore::layoutOf(const resource::ParsedShader& pars
 
 void MaterialStore::seedSamplers(Shader& shader, const resource::ParsedShader& parsed) {
     if (shader.language() != GfxShaderLanguage::GLSL_ES300) return;
-    shader.bind();
+    std::vector<std::pair<std::string, i32>> seeds;
     for (const auto& p : parsed.properties) {
         if (p.fromParam && p.type == resource::ShaderPropertyType::Texture && p.textureUnit >= 0) {
-            shader.setUniform(p.name, static_cast<i32>(p.textureUnit));
+            seeds.emplace_back(p.name, static_cast<i32>(p.textureUnit));
         }
     }
-    shader.unbind();
+    // After the program links, which for one made with deferLink is when something first needs it.
+    shader.whenLinked([seeds = std::move(seeds)](Shader& s) {
+        s.bind();
+        for (const auto& [name, unit] : seeds) s.setUniform(name, unit);
+        s.unbind();
+    });
 }
 
 void MaterialStore::bindForDraw(u32 materialId) {

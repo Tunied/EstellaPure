@@ -2354,7 +2354,8 @@ void WebGPUDevice::beginRenderPass(const RenderPassDesc& desc) {
     color.resolveTarget = resolveView;
     color.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
     color.loadOp = toWGPULoadOp(desc.clearColor, scoped);
-    color.storeOp = WGPUStoreOp_Store;
+    // Resolved into its single-sample twin by the pass itself; when nothing continues on this target the samples need not be kept.
+    color.storeOp = (desc.discardMultisampled && resolveView) ? WGPUStoreOp_Discard : WGPUStoreOp_Store;
     color.clearValue = toWGPUClearColor(desc);
 
     // The surface record clears to zero — "nothing wrote here" — whatever the background is.
@@ -2365,7 +2366,7 @@ void WebGPUDevice::beginRenderPass(const RenderPassDesc& desc) {
         colors[1].resolveTarget = gbufferResolveView;
         colors[1].depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
         colors[1].loadOp = toWGPULoadOp(desc.clearColor, scoped);
-        colors[1].storeOp = WGPUStoreOp_Store;
+        colors[1].storeOp = (desc.discardMultisampled && gbufferResolveView) ? WGPUStoreOp_Discard : WGPUStoreOp_Store;
         colors[1].clearValue = {0.0, 0.0, 0.0, 0.0};
     }
 
@@ -2377,7 +2378,8 @@ void WebGPUDevice::beginRenderPass(const RenderPassDesc& desc) {
     if (dsView) {
         ds.view = dsView;
         ds.depthLoadOp = toWGPULoadOp(desc.clearDepth, scoped);
-        ds.depthStoreOp = WGPUStoreOp_Store;
+        // Kept unless the pass said it is only for testing, and unless a multisampled one is resolved by hand after the pass.
+        ds.depthStoreOp = (desc.discardDepth && pass_depth_msaa_ == 0) ? WGPUStoreOp_Discard : WGPUStoreOp_Store;
         ds.depthClearValue = 1.0f;  // GL's default clear depth; no RHI override exists
         if (hasStencilPlanes(pass_ds_format_)) {
             ds.stencilLoadOp = toWGPULoadOp(desc.clearStencil, scoped);

@@ -27,6 +27,13 @@ void renderer_resize(u32 width, u32 height);
 void renderer_setQualityBudgets(u32 atlasSize, u32 cellSize, u32 cascades, u32 particleLimit);
 void renderer_setShadowDistance(f32 distance);
 void renderer_setDepthPrepass(bool on);
+/**
+ * Draws whose shader the browser is still compiling are left out, not waited for: a frame never stops for a compile, and what needs the shader
+ * appears when it is done (several at once compile side by side, which the waiting form never gives them). Off (the default) is a frame that waits.
+ */
+void renderer_setAsyncShaderCompile(bool on);
+/** How many shaders are still compiling in the background; a loading screen waits for it to reach 0. */
+u32 renderer_getPendingShaders();
 void renderer_setPlanarReflectionQuality(f32 scale, u32 maxSize, f32 updatesPerSecond);
 std::string renderer_getPlanarReflectionStatus(u32 view, u32 entity);
 /**
