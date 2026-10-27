@@ -365,6 +365,29 @@ saying something about its art direction; the fix is to turn shadows off (`shado
 of 0 on a sun, or a smaller `radius` that takes a light out of view) on the ones whose
 shadows nobody looks at.
 
+## Blob shadows: a disc instead of a shadow map
+
+A shadow map costs a pass from the light and a read in every lit pixel. Where that is too much (a phone, a crowd, a game whose light never moves) a
+`BlobShadow` on the entity puts a soft dark disc on the ground under it instead: no map, no light, no extra pass.
+
+```typescript
+cmds.spawn()
+  .insert(Transform, { position: { x: 0, y: 40, z: 0 } })
+  .insert(MeshRenderer, { mesh })
+  .insert(BlobShadow, { radius: 60, opacity: 0.6, groundY: 0 });
+```
+
+| Field | Meaning |
+|---|---|
+| `radius`, `opacity`, `softness` | Size on the ground, darkness at the centre, and how soft the edge is (0 hard, 1 fading from the centre). |
+| `groundY` | Height of the flat ground. For ground that is not flat, `setBlobShadowGround(app, (x, z) => height)` gives the height under each thing (return `null` to fall back to `groundY`). |
+| `fadeHeight`, `shrink` | The shadow fades out as the thing rises this far above the ground, and shrinks by this share on the way (a jumping character's shadow gets smaller and fainter). 0 never fades. |
+| `lift` | How far above the ground the disc is drawn, so it does not flicker against it. |
+
+The disc is hidden by what stands in front of it and draws no depth of its own. It is not the light's shadow: it does not stretch with the sun, fall across
+steps or land on a wall, so use it where a grounding cue is enough, and a real shadow where the shape of the shadow matters. The disc is an entity of its
+own that is never saved with the scene.
+
 ## Baked light
 
 Sixteen lights reach one frame. The seventeenth is dropped — by brightness, with a

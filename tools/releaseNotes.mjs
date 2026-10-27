@@ -3008,4 +3008,6 @@ export const NOTED = {
     {"note":"Filled polygons and joined strokes."},
   "feat(render): an edge outline effect with a colour and creases":
     {"note":"Edge Outline, a coloured line at silhouettes and creases."},
+  "feat(render): blob shadows, a soft disc on the ground under a thing":
+    {"note":"Blob shadows."},
 };

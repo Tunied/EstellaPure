@@ -14,6 +14,7 @@ import type { MeshRendererGeometry } from '../ecs/component';
 import { defineResource } from '../ecs/resource';
 import { registerSceneComponentCodec } from '../scene/scene';
 import { withScratch } from '../wasm/wasmScratch';
+import { installBlobShadows } from './blobShadow';
 
 function packRgba(colors: number[], v: number): number {
     const clamp = (x: number) => Math.max(0, Math.min(255, Math.round(x * 255)));
@@ -100,6 +101,7 @@ export class MeshRendererPlugin implements Plugin {
     name = 'meshRenderer';
     readonly profileDomain = 'render';
     private offDespawn_: (() => void) | null = null;
+    private offBlobShadows_: (() => void) | null = null;
 
     build(app: App): void {
         // `?? {}`: an app with no engine core (a test, a pure-logic host) still gets
@@ -108,6 +110,8 @@ export class MeshRendererPlugin implements Plugin {
         const registry = app.world.getCppRegistry() as CppRegistry;
         const api = new MeshRendererAPI(engine, registry);
         app.insertResource(MeshRenderers, api);
+        // A BlobShadow on an entity is a mesh this plugin draws; with none in the scene its system finds nothing and returns.
+        this.offBlobShadows_ = installBlobShadows(app);
 
         this.offDespawn_ = app.world.onDespawn((entity: Entity) => {
             if (api.getGeometry(entity)) api.clearGeometry(entity);
@@ -134,6 +138,8 @@ export class MeshRendererPlugin implements Plugin {
     }
 
     cleanup(): void {
+        this.offBlobShadows_?.();
+        this.offBlobShadows_ = null;
         this.offDespawn_?.();
         this.offDespawn_ = null;
     }
