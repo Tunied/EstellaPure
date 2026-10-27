@@ -131,4 +131,4 @@ export class TimelineAPI {
  * Per-App timeline control resource, published by `TimelinePlugin`. Drive
  * playback as `app.getResource(Timeline).play(entity)`.
  */
-export const Timeline = defineResource<TimelineAPI>(null!, 'Timeline');
+export const Timeline = /* @__PURE__ */ defineResource<TimelineAPI>(null!, 'Timeline');

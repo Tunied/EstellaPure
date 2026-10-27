@@ -36,7 +36,7 @@ export function resolveWrapMode(playerWrapMode: string, assetWrapMode: WrapMode)
     return isWrapModeName(playerWrapMode) ? wrapModeFromName(playerWrapMode) : assetWrapMode;
 }
 
-export const TimelinePlayer = defineComponent<TimelinePlayerData>('TimelinePlayer', {
+export const TimelinePlayer = /* @__PURE__ */ defineComponent<TimelinePlayerData>('TimelinePlayer', {
     timeline: '',
     playing: false,
     speed: 1.0,

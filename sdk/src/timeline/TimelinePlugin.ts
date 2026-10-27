@@ -195,4 +195,4 @@ export class TimelinePlugin implements Plugin {
     }
 }
 
-export const timelinePlugin = new TimelinePlugin();
+export const timelinePlugin = /* @__PURE__ */ new TimelinePlugin();

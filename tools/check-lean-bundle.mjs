@@ -23,8 +23,8 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(import.meta.url);
 
-/** The most each directory may leave in a blank package, in bytes of the minified bundle. Water keeps what the post-process underwater state needs. */
-const CEILING = { terrain: 0, foliage: 0, worldgen: 0, water: 8192 };
+/** The most each directory may leave in a blank package, in bytes of the minified bundle. Water keeps what the post-process underwater state needs; timeline, its component definition. */
+const CEILING = { terrain: 0, foliage: 0, worldgen: 0, water: 8192, timeline: 1024 };
 
 const entry = path.join(ROOT, 'sdk/dist/index.wechat.lean.js');
 if (!existsSync(entry)) {
