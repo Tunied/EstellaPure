@@ -3012,10 +3012,6 @@ export const NOTED = {
     {"note":"Blob shadows."},
   "feat(render): sharpen works without a compute stage":
     {"note":"Sharpen on WebGL2."},
-  'feat(math): a seeded random generator that gives the same numbers on every host':
-    {"note":"A random generator that gives the same numbers on every host."},
-  'feat(net): a session layer for online games that do not share a tick':
-    {"note":"A session layer for online games that do not share a tick."},
   "perf(sdk): a blank mini-game package no longer carries terrain and water":
     {"note":"A blank mini-game package no longer carries terrain and water."},
 };
