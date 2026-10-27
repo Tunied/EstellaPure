@@ -78,7 +78,7 @@ export interface WaterBodyData {
  *
  * @experimental
  */
-export const WaterBody: ComponentDef<WaterBodyData> = defineComponent<WaterBodyData>('WaterBody', {
+export const WaterBody: ComponentDef<WaterBodyData> = /* @__PURE__ */ defineComponent<WaterBodyData>('WaterBody', {
     form: WaterForm.Lake, bodyId: '', sizeX: 100, sizeZ: 100, boundary: [] as Point2[], shoreWidth: 3, flowSpeed: 2, waveHeight: 0.3, bedDepth: 0,
 }, {
     fields: {
@@ -241,7 +241,7 @@ export class Waters {
 }
 
 /** The resource the plugin installs. @experimental */
-export const WatersRes = defineResource<Waters>(new Waters(), 'Waters');
+export const WatersRes = /* @__PURE__ */ defineResource<Waters>(/* @__PURE__ */ new Waters(), 'Waters');
 
 /** The outline of a lake: its own boundary when it has three points or more, else the rectangle of its size. */
 function outlineOf(d: WaterBodyData): Point2[] {
@@ -796,4 +796,4 @@ function implicitGrid(bodies: readonly ZoneBody[], zone: WaterZoneData): ZoneGri
     return gridOver(minX - pad, minZ - pad, maxX - minX + pad * 2, maxZ - minZ + pad * 2, res);
 }
 
-export const waterPlugin: Plugin = new WaterPlugin();
+export const waterPlugin: Plugin = /* @__PURE__ */ new WaterPlugin();

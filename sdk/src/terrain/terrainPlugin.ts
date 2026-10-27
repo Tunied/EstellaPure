@@ -133,7 +133,7 @@ const rgb = (r: number, g: number, b: number): Color => ({ r, g, b, a: 1 });
  *
  * @experimental
  */
-export const Terrain: ComponentDef<TerrainData> = defineComponent<TerrainData>('Terrain', {
+export const Terrain: ComponentDef<TerrainData> = /* @__PURE__ */ defineComponent<TerrainData>('Terrain', {
     extent: TerrainExtent.Area, provider: NOISE_PROVIDER, world: '', generatorVersion: 1, heightmap: 0, heightmapFormat: HeightmapFormat.Grey, splatmap: 0, splatmap2: 0, layers: [] as string[], material: 0,
     sizeX: 1000, sizeZ: 1000, height: 150, cellSize: 2, detail: 1, drawDistance: 4000,
     collision: true, collisionDistance: 64, collisionLayer: 0, friction: 0.6,
@@ -503,7 +503,7 @@ export class Terrains {
 }
 
 /** The resource the plugin installs. @experimental */
-export const TerrainsRes = defineResource<Terrains>(new Terrains(), 'Terrains');
+export const TerrainsRes = /* @__PURE__ */ defineResource<Terrains>(/* @__PURE__ */ new Terrains(), 'Terrains');
 
 /** What, changed, rebuilds the ground: everything but the colours, the detail and the collision, which are read each frame. */
 function signatureOf(data: TerrainData, at: { x: number; z: number }): string {
@@ -1077,4 +1077,4 @@ export class TerrainPlugin implements Plugin {
     }
 }
 
-export const terrainPlugin: Plugin = new TerrainPlugin();
+export const terrainPlugin: Plugin = /* @__PURE__ */ new TerrainPlugin();

@@ -87,6 +87,9 @@ export const GATES = [
   // Everything below reads what this emits: the declaration snapshot, the
   // editor's own type-check and the examples all resolve `esengine` from dist.
   { id: 'sdk-build', exclusive: true, run: 'pnpm --filter ./sdk build' },
+  // A blank mini-game package carries none of a subsystem it does not use: the shared chunks are the union of every entry's code, and one unmarked
+  // top-level `new SomePlugin()` is how 84KB of terrain and water rode every package.
+  { id: 'lean-bundle', run: 'node tools/check-lean-bundle.mjs' },
   { id: 'api-surface-dts', run: 'node tools/api-surface.mjs --check-dts' },
   // Both read `esengine` from dist, and the editor reads the pipeline.
   { id: 'tsc-pipeline', run: 'pnpm --filter @estella/pipeline exec tsc --noEmit' },

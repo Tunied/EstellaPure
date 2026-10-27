@@ -72,7 +72,13 @@ function emitChunkManifest() {
     };
 }
 
-const minify = { compress: true, mangle: true, codegen: { removeWhitespace: true, legalComments: 'inline' } };
+// The shared chunks keep their whitespace and their pure annotations; they are inputs to a bundler that minifies them again. The minifier's `compress` and
+// whitespace passes drop `/* @__PURE__ */` (no knob keeps it, and carrying it through as a legal comment lands it after the statement instead of before),
+// and `dist/shared/` is the UNION of the entries' code: a chunk a lean entry takes one function from also holds every top-level `defineComponent(...)` and
+// `new SomePlugin()` of the modules grouped with it, which a downstream bundler can only drop if it is told they are pure. Terrain and water (84KB) rode a blank
+// mini-game package for want of that. Names are still mangled.
+const minify = { compress: false, mangle: true, codegen: false };
+const minifyBundled = { compress: true, mangle: true, codegen: { removeWhitespace: true, legalComments: 'inline' } };
 
 export default defineConfig([
     {
@@ -111,6 +117,7 @@ export default defineConfig([
             'debug-channel/index': 'src/debug-channel/index.ts',
             'ai/index': 'src/ai/index.ts',
             'net/replication/index': 'src/net/replication/index.ts',
+            'net/session/index': 'src/net/session/index.ts',
             'gameplay/index': 'src/gameplay/index.ts',
             'dragonbones/index': 'src/dragonbones/index.ts',
             'douyin/index': 'src/platform/douyin/index.ts',
@@ -137,13 +144,13 @@ export default defineConfig([
     },
     {
         input: 'src/index.ts',
-        output: { file: 'dist/index.bundled.js', format: 'esm', sourcemap: true, minify },
+        output: { file: 'dist/index.bundled.js', format: 'esm', sourcemap: true, minify: minifyBundled },
         plugins: [preserveViteIgnore()],
         treeshake,
     },
     {
         input: 'src/index.wechat.ts',
-        output: { file: 'dist/index.wechat.cjs.js', format: 'cjs', sourcemap: true, minify },
+        output: { file: 'dist/index.wechat.cjs.js', format: 'cjs', sourcemap: true, minify: minifyBundled },
         plugins: [preserveViteIgnore()],
         treeshake,
     },
@@ -153,7 +160,7 @@ export default defineConfig([
         // global the game script uses (ESEngine.createNativeWorld(globalThis), …).
         // The native (embedded-Dawn) analog of index.wechat.cjs.js.
         input: 'src/index.native.ts',
-        output: { file: 'dist/index.native.bundled.js', format: 'iife', name: 'ESEngine', sourcemap: false, minify },
+        output: { file: 'dist/index.native.bundled.js', format: 'iife', name: 'ESEngine', sourcemap: false, minify: minifyBundled },
         plugins: [preserveViteIgnore()],
         treeshake,
     },

@@ -58,7 +58,7 @@ export interface WaterZoneData {
  *
  * @experimental
  */
-export const WaterZone: ComponentDef<WaterZoneData> = defineComponent<WaterZoneData>('WaterZone', {
+export const WaterZone: ComponentDef<WaterZoneData> = /* @__PURE__ */ defineComponent<WaterZoneData>('WaterZone', {
     sizeX: 200, sizeZ: 200, resolution: 256, material: 0,
     waveLength: 14, waveSpeed: 1, waveDirection: 30, surf: 0.6, surfLength: 8,
     cellSize: 1, cells: 64, rings: 5,
