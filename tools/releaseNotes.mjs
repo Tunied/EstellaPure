@@ -3006,4 +3006,6 @@ export const NOTED = {
     {"note":"Toon and Matcap materials."},
   "feat(render): filled polygons and joined strokes as a path on a mesh":
     {"note":"Filled polygons and joined strokes."},
+  "feat(render): an edge outline effect with a colour and creases":
+    {"note":"Edge Outline, a coloured line at silhouettes and creases."},
 };

@@ -46,6 +46,8 @@ several can stack in one frame at no extra target cost beyond the passes.
 | `lensFlare` | Ghosts and a halo thrown by whatever is brighter than a threshold, with a colour fringe | `intensity`, `threshold`, `ghosts`, `dispersal`, `haloWidth`, `chromatic`, `tint` |
 | `pixelate` | Block quantization | `pixelSize` |
 | `outline` | Ink-edge outlines (Sobel edge darkening) | `intensity`, `threshold`, `thickness` |
+| `depthOutline` | Black outline where the depth steps (a silhouette, not shading) | `intensity`, `threshold`, `thickness` |
+| `edgeOutline` | A coloured line at silhouettes **and** creases: where the camera distance steps, and where the surface normal turns (needs surfaces that write a normal: lit meshes, Model, Toon) | `intensity`, `depthThreshold`, `normalThreshold`, `thickness`, colour `lineColor` |
 | `grayscale` | Desaturate | `intensity` |
 
 ### Anti-aliasing before the chain
@@ -493,7 +495,7 @@ package carries only when its content uses one:
 
 | Group | Subpath | Effects |
 |---|---|---|
-| Basic | `esengine/fx-basic` | blur, bloom, vignette, grayscale, colorGrade, lutGrade, agx, chromaticAberration, tonemap, fxaa, sharpen, lensDistortion, pixelate, outline, depthOutline, filmGrain, motionBlur, lensFlare |
+| Basic | `esengine/fx-basic` | blur, bloom, vignette, grayscale, colorGrade, lutGrade, agx, chromaticAberration, tonemap, fxaa, sharpen, lensDistortion, pixelate, outline, depthOutline, edgeOutline, filmGrain, motionBlur, lensFlare |
 | Atmosphere | `esengine/fx-atmosphere` | skyAtmosphere, heightFog, distanceFog, rain |
 | Lighting | `esengine/fx-lighting` | ssao, gtao, ssr, ssgi, voxelGI, contactShadows, lightShafts, autoExposure, depthOfField, subsurface, taa |
 

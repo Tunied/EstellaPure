@@ -45,6 +45,8 @@ Estella 通过 ping-pong 帧缓冲运行全屏后处理。加一个 `PostProcess
 | `lensDistortion` | 桶形 / 枕形畸变 | `strength`、`zoom` |
 | `pixelate` | 块状量化 | `pixelSize` |
 | `outline` | 墨线描边(Sobel 边缘压暗) | `intensity`、`threshold`、`thickness` |
+| `depthOutline` | 深度跳变处的黑色轮廓(轮廓,不是着色) | `intensity`、`threshold`、`thickness` |
+| `edgeOutline` | 轮廓**和**折痕处画一条有颜色的线:相机距离跳变处,以及表面法线转折处(需要写法线的表面:受光网格、Model、Toon) | `intensity`、`depthThreshold`、`normalThreshold`、`thickness`、颜色 `lineColor` |
 | `grayscale` | 去色 | `intensity` |
 
 ### 链路之前的抗锯齿
@@ -378,7 +380,7 @@ stack.addPass('lutGrade', getEffectDef('lutGrade')!.factory())
 
 | 组 | 子路径 | 效果 |
 |---|---|---|
-| 基础 | `esengine/fx-basic` | blur、bloom、vignette、grayscale、colorGrade、lutGrade、chromaticAberration、tonemap、fxaa、sharpen、lensDistortion、pixelate、outline、depthOutline、filmGrain、motionBlur、lensFlare |
+| 基础 | `esengine/fx-basic` | blur、bloom、vignette、grayscale、colorGrade、lutGrade、chromaticAberration、tonemap、fxaa、sharpen、lensDistortion、pixelate、outline、depthOutline、edgeOutline、filmGrain、motionBlur、lensFlare |
 | 大气 | `esengine/fx-atmosphere` | skyAtmosphere、heightFog、distanceFog、rain |
 | 光照 | `esengine/fx-lighting` | ssao、gtao、ssr、ssgi、voxelGI、contactShadows、lightShafts、autoExposure、depthOfField、subsurface、taa |
 

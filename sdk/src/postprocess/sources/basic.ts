@@ -10,6 +10,7 @@ import { registerEffectSources, registerComputeSource } from '../effectSources';
 import { SHARPEN_WGSL } from '../computeEffects';
 import { lensEffects } from '../lensEffects';
 import { AGX_LUT_BASE64, AGX_LUT_SIZE } from '../agxLut.generated';
+import { SSAO_GLSL, SSAO_WGSL, GBUFFER_GLSL, GBUFFER_WGSL } from './shared';
 
 const BASE64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
@@ -815,6 +816,122 @@ fn depthAt(texel : vec2i, size : vec2i) -> f32 {
     let far = max(max(dl, dr), max(dd, du));
     let edge = clamp(((far - d) / max(d, 1e-6) - mc.u_threshold) * 20.0, 0.0, 1.0);
     return vec4f(mix(src.rgb, vec3f(0.0), vec3f(edge * mc.u_intensity)), src.a);
+}
+#pragma end
+`;
+        return Material.compileShader(source);
+    },
+    createEdgeOutline(): ShaderHandle {
+        // A line wherever the scene's SURFACE changes: where the depth steps (a silhouette, one thing in front of another) or the normal turns (a
+        // crease, a fold, the edge of a face), in a colour of the author's choosing. `depthOutline` reads the depth alone and draws in black, so a cube
+        // standing on a floor has only its outline; this finds its edges too, which is what an inked, toon look needs.
+        //
+        // Distance is the world distance from the camera, compared as a RATIO so one threshold holds across the view: the window depth the buffer
+        // holds is nowhere near linear (a perspective view puts everything past the first few percent of its range within a hair of 1), so a ratio of
+        // THAT finds no edge at all. The normal is the scene's own, written beside its colour by the shaders that write one (`#pragma gbuffer`):
+        // a pixel nothing wrote one for takes part in the silhouette and not in the crease.
+        const source = `#pragma shader "PP Edge Outline"
+#pragma version 300 es
+#pragma domain PostProcess
+#pragma param u_intensity float default(1) range(0,1)
+#pragma param u_depthThreshold float default(0.01) range(0.0005,0.2)
+#pragma param u_normalThreshold float default(0.4) range(0.02,1.5)
+#pragma param u_thickness float default(1) range(1,4)
+#pragma param u_lineColor color default(0,0,0,1)
+#pragma gbuffer
+
+#pragma fragment
+precision highp float;
+
+in vec2 v_texCoord;
+uniform sampler2D u_texture;
+uniform highp sampler2D u_sceneDepth;
+uniform sampler2D u_gbuffer;
+out vec4 fragColor;
+
+${SSAO_GLSL}
+${GBUFFER_GLSL}
+
+// How far the surface at a texel is from the camera: along the view ray for a perspective view, along the view axis for an orthographic one.
+float viewDistance(ivec2 t, ivec2 size) {
+    vec3 P = worldAt(t, size);
+    return u_camera.w > 0.5 ? length(P - u_camera.xyz) : abs(dot(P, u_camera.xyz));
+}
+
+void main() {
+    vec4 src = texture(u_texture, v_texCoord);
+    ivec2 size = textureSize(u_sceneDepth, 0);
+    ivec2 here = screenTexel(v_texCoord, size);
+    int step = int(max(u_thickness, 1.0));
+
+    // Nothing was drawn here: the cleared far plane has no silhouette to find, and testing it would ring the whole frame.
+    if (depthAt(here, size) >= 1.0 || u_intensity <= 0.0) { fragColor = src; return; }
+    float d = viewDistance(here, size);
+
+    ivec2 offsets[4] = ivec2[4](ivec2(-step, 0), ivec2(step, 0), ivec2(0, -step), ivec2(0, step));
+    Surface mine = readSurface(here);
+    float around[4];
+    float crease = 0.0;
+    for (int i = 0; i < 4; ++i) {
+        ivec2 at = here + offsets[i];
+        // The cleared far plane beside a surface is a silhouette too, at the far side of anything: it counts as very far away.
+        around[i] = depthAt(at, size) >= 1.0 ? d * 1000.0 : viewDistance(at, size);
+        if (mine.known) {
+            Surface other = readSurface(clamp(at, ivec2(0), size - ivec2(1)));
+            // How far the two surfaces face apart; only between two that wrote a normal.
+            if (other.known) crease = max(crease, 1.0 - dot(mine.normal, other.normal));
+        }
+    }
+    // How much farther the two neighbours along an axis are than this pixel, on average: a step has it, and so does nothing else. A plane seen
+    // at a grazing angle changes distance fast but steadily, which is no edge, and the far side of a step has nearer neighbours, which is no
+    // second outline of its own.
+    float lap = max((around[0] + around[1]) * 0.5 - d, (around[2] + around[3]) * 0.5 - d) / max(d, 1e-3);
+    float silhouette = clamp((lap - u_depthThreshold) * 20.0, 0.0, 1.0);
+    float fold = clamp((crease - u_normalThreshold) * 8.0, 0.0, 1.0);
+    float edge = max(silhouette, fold) * u_intensity * u_lineColor.a;
+    fragColor = vec4(mix(src.rgb, u_lineColor.rgb, edge), src.a);
+}
+#pragma end
+
+#pragma fragment wgsl
+${SSAO_WGSL}
+${GBUFFER_WGSL}
+
+fn viewDistance(t : vec2i, size : vec2i) -> f32 {
+    let P = worldAt(t, size);
+    if (frame.camera.w > 0.5) { return length(P - frame.camera.xyz); }
+    return abs(dot(P, frame.camera.xyz));
+}
+
+@fragment fn fs_main(v : VSOut) -> @location(0) vec4f {
+    let src = textureSampleLevel(t0, s0, v.v_texCoord, 0.0);
+    let size = vec2i(textureDimensions(t7, 0));
+    let here = screenTexel(v.v_texCoord, size);
+    let step = i32(max(mc.u_thickness, 1.0));
+
+    if (depthAt(here, size) >= 1.0 || mc.u_intensity <= 0.0) { return src; }
+    let d = viewDistance(here, size);
+
+    let mine = readSurface(here);
+    var around = array<f32, 4>(0.0, 0.0, 0.0, 0.0);
+    var crease = 0.0;
+    for (var i : i32 = 0; i < 4; i = i + 1) {
+        var offset = vec2i(0, 0);
+        if (i == 0) { offset = vec2i(-step, 0); } else if (i == 1) { offset = vec2i(step, 0); } else if (i == 2) { offset = vec2i(0, -step); } else { offset = vec2i(0, step); }
+        let at = here + offset;
+        var reach = d * 1000.0;
+        if (depthAt(at, size) < 1.0) { reach = viewDistance(at, size); }
+        around[i] = reach;
+        if (mine.known) {
+            let other = readSurface(clamp(at, vec2i(0), size - vec2i(1)));
+            if (other.known) { crease = max(crease, 1.0 - dot(mine.normal, other.normal)); }
+        }
+    }
+    let lap = max((around[0] + around[1]) * 0.5 - d, (around[2] + around[3]) * 0.5 - d) / max(d, 1e-3);
+    let silhouette = clamp((lap - mc.u_depthThreshold) * 20.0, 0.0, 1.0);
+    let fold = clamp((crease - mc.u_normalThreshold) * 8.0, 0.0, 1.0);
+    let edge = max(silhouette, fold) * mc.u_intensity * mc.u_lineColor.a;
+    return vec4f(mix(src.rgb, mc.u_lineColor.rgb, vec3f(edge)), src.a);
 }
 #pragma end
 `;

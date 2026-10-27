@@ -280,6 +280,23 @@ registerEffect({
 });
 
 registerEffect({
+    type: 'edgeOutline',
+    label: 'Edge Outline',
+    factory: () => postProcessEffects.createEdgeOutline(),
+    uniforms: [
+        { name: 'u_intensity', label: 'Intensity', min: 0, max: 1, step: 0.01, defaultValue: 1 },
+        // A silhouette: how far a neighbour is behind this pixel, as a share of its own depth.
+        { name: 'u_depthThreshold', label: 'Depth Threshold', min: 0.0005, max: 0.2, step: 0.0005, defaultValue: 0.01 },
+        // A crease: how far the two surfaces face apart (0 the same way, 1 at a right angle, 2 opposite).
+        { name: 'u_normalThreshold', label: 'Crease Threshold', min: 0.02, max: 1.5, step: 0.01, defaultValue: 0.4 },
+        { name: 'u_thickness', label: 'Thickness', min: 1, max: 4, step: 1, defaultValue: 1 },
+    ],
+    colors: [
+        { name: 'u_lineColor', label: 'Line Colour', defaultValue: { r: 0, g: 0, b: 0, a: 1 } },
+    ],
+});
+
+registerEffect({
     type: 'distanceFog',
     label: 'Distance Fog',
     factory: () => postProcessEffects.createDistanceFog(),
@@ -816,7 +833,7 @@ const CATEGORIES: Record<EffectCategory, string[]> = {
     light: ['ssao', 'gtao', 'ssgi', 'ssr', 'voxelGI', 'contactShadows', 'lightShafts', 'subsurface'],
     atmosphere: ['distanceFog', 'heightFog', 'skyAtmosphere', 'rain'],
     aa: ['fxaa', 'taa'],
-    stylize: ['blur', 'pixelate', 'outline', 'depthOutline'],
+    stylize: ['blur', 'pixelate', 'outline', 'depthOutline', 'edgeOutline'],
 };
 for (const [category, types] of Object.entries(CATEGORIES) as [EffectCategory, string[]][]) {
     for (const type of types) {
