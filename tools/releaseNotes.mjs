@@ -2990,4 +2990,6 @@ export const NOTED = {
     {"note":"The sky's clouds and the fog's light shafts cost a third of what they did."},
   "perf(render): a lit surface skips the light slots nothing shines from":
     {"note":"A lit surface no longer works out the light slots nothing shines from."},
+  "perf(water): the sea reads the sun's shadow as one hard edge, not as a penumbra":
+    {"note":"The sea takes the sun's shadow as one hard edge."},
 };

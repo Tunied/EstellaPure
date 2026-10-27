@@ -1271,6 +1271,9 @@ struct PlanarConstants { planarProjection : mat4x4f, planarParams : vec4f };
 var<private> g_probeSlot : f32 = 0.0;
 // Set by a hair shader before it lights: how much of the light a layer of strands takes, per world unit along it (0 = a surface, a hard compare).
 var<private> g_hairShadow : f32 = 0.0;
+// Set by a shader that lights a surface the sun seldom shadows (the sea) before it lights: the shadow is read as an edge a source with no size
+// throws, nine taps, and not as the penumbra of the sun's size, a search and a filter of up to sixty-four.
+var<private> g_shadowHard : f32 = 0.0;
 // The GLSL twin's v_lightmap, handed over by the entry point like the slot above.
 var<private> g_lightmap : vec3f = vec3f(0.0);
 // The mesh's own tangent frame, handed over by the entry point like the slot above; zero where the shader never sets it, which
@@ -1468,7 +1471,7 @@ fn shadowFactor3D(worldPos : vec3f, N : vec3f, L : vec3f, source : vec2f,
         // A source with no size throws one edge: a tent over the 3x3 texels around the
         // point, weighted by where it falls among them. Equal weights step at every
         // texel and the map's grid shows along the edge; a 2x2 still stair-steps it.
-        if (src <= 0.0) {
+        if (src <= 0.0 || g_shadowHard > 0.5) {
             let texelUv = lc.u_shadowParams.y;
             let f = at0 / texelUv - 1.0;
             let c = (floor(f) + 0.5) * texelUv;
@@ -2569,6 +2572,8 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "const highp float kShadowDisc = 24.0;\n"
             // Set by a hair shader before it lights: how much of the light a layer of strands takes, per world unit along it.
             "highp float g_hairShadow = 0.0;\n"
+            // See the WGSL twin: a shader sets it before it lights to take the shadow as one hard edge.
+            "highp float g_shadowHard = 0.0;\n"
             // A spiral, not a table: the golden angle spreads any number of taps evenly
             // over a disc, so the pattern follows the count instead of sitting beside it.
             "highp vec2 diskTap(in int i, in int n, in highp float radius) {\n"
@@ -2718,7 +2723,7 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             // A source with no size throws one edge: a tent over the 3x3 texels around the
             // point, weighted by where it falls among them. Equal weights step at every
             // texel and the map's grid shows along the edge; a 2x2 still stair-steps it.
-            "        if (src <= 0.0) {\n"
+            "        if (src <= 0.0 || g_shadowHard > 0.5) {\n"
             "            highp float texelUv = u_shadowParams.y;\n"
             "            highp vec2 f = at0 / texelUv - 1.0;\n"
             "            highp vec2 c = (floor(f) + 0.5) * texelUv;\n"

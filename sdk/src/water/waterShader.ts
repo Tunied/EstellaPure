@@ -748,6 +748,8 @@ void main() {
     vec3 albedo = mix(scatterColor * murk, u_foamColor.rgb, foam);
     // Rain stipples the surface finer than any ring: it reflects a little less sharply.
     float roughness = mix(u_roughness + 0.05 * clamp(u_rain, 0.0, 1.0), 0.7, foam);
+    // The sea is seldom in shadow and its edge is lost in the waves: the sun's shadow is read as one hard edge here, not as a penumbra.
+    g_shadowHard = 1.0;
     vec3 lit = applyLightingSurface(albedo, N, P, viewDir, 0.0, roughness, 1.0, 1.0, ext);
     float cosV = clamp(dot(N, viewDir), 0.0, 1.0);
     float fresnel = 0.0204 + (1.0 - 0.0204) * pow(1.0 - cosV, 5.0);
@@ -1205,6 +1207,7 @@ fn waterSurface(p : vec2f, time : f32, dist : f32, amp : f32, calm : f32) -> vec
     ext.misc.x = 0.0204;
     let albedo = mix(scatterColor * murk, mc.u_foamColor.rgb, vec3f(foam));
     let roughness = mix(mc.u_roughness + 0.05 * clamp(mc.u_rain, 0.0, 1.0), 0.7, foam);
+    g_shadowHard = 1.0;
     let lit = applyLightingSurface(albedo, N, P, viewDir, 0.0, roughness, 1.0, 1.0, ext);
     let cosV = clamp(dot(N, viewDir), 0.0, 1.0);
     var fresnel = 0.0204 + (1.0 - 0.0204) * pow(1.0 - cosV, 5.0);
