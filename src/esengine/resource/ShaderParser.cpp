@@ -1339,6 +1339,7 @@ const kSpiral8 = array<vec2f, 8>(
     vec2f(-0.2340040, 0.8704838),
     vec2f(-0.4462715, -0.8592682)
 );
+const kInner5 = array<vec2f, 5>(vec2f(0.0), vec2f(1.5, 0.0), vec2f(-1.5, 0.0), vec2f(0.0, 1.5), vec2f(0.0, -1.5));
 const kSpiral16 = array<vec2f, 16>(
     vec2f(0.1767767, 0.0000000),
     vec2f(-0.2257722, 0.2068258),
@@ -1499,6 +1500,16 @@ fn shadowFactor3D(worldPos : vec3f, N : vec3f, L : vec3f, source : vec2f,
         let stepPer = texel * slope;
         var sum = 0.0;
         var hits = 0.0;
+        // See the GLSL twin: the fragment's own texel and the four a step and a half round it, before the sparse wide disc.
+        for (var i = 0; i < 5; i++) {
+            let p = kInner5[i];
+            let off = vec2f(p.x * turn.x - p.y * turn.y, -(p.x * turn.y + p.y * turn.x));
+            let at = clamp(at0 + off * lc.u_shadowParams.y, lo, hi);
+            let d = unpackDepth(textureSampleLevel(t2, s2, at, 0.0).rgb);
+            let cr = lcp + toLight * (stepBase + max(length(off), 1.0) * stepPer);
+            let reach = clamp(cr.z / max(cr.w, 1e-6) * 0.5 + 0.5, 0.0, 1.0);
+            if (d < reach) { sum += d; hits += 1.0; }
+        }
         for (var i = 0; i < 16; i++) {
             let p = kSpiral16[i];
             let off = kShadowDisc * vec2f(p.x * turn.x - p.y * turn.y, -(p.x * turn.y + p.y * turn.x));
@@ -1510,7 +1521,7 @@ fn shadowFactor3D(worldPos : vec3f, N : vec3f, L : vec3f, source : vec2f,
         }
         if (hits < 0.5) { return 1.0; }
         // See the GLSL twin: a blocker on every tap is the inside of a shadow.
-        if (hits > 15.5) { return 0.0; }
+        if (hits > 20.5) { return 0.0; }
         // How far the receiver stands beyond what blocks it, and how far from the light
         // that blocker is. A is the length of the map's depth row, and each kind of map
         // inverts its own with it: hyperbolic where it has an eye, linear where w is 1.
@@ -2590,6 +2601,7 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "}\n"
             "// The spiral taps for 16 and 32 points, as numbers: the cos, the sin and the root of each tap do not change from one pixel to the next, so they are\n"
             "// not worked out in the pixel (a sin, a cos and a sqrt a tap, forty-eight taps). Each is turned by the pixel's own spin where it is used.\n"
+            "const highp vec2 kInner5[5] = vec2[5](vec2(0.0), vec2(1.5, 0.0), vec2(-1.5, 0.0), vec2(0.0, 1.5), vec2(0.0, -1.5));\n"
             "const highp vec2 kSpiral8[8] = vec2[8](\n"
             "    vec2(0.2500000, 0.0000000),\n"
             "    vec2(-0.3192901, 0.2924959),\n"
@@ -2752,6 +2764,18 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "        highp float stepPer = texel * slope;\n"
             "        highp float sum = 0.0;\n"
             "        highp float hits = 0.0;\n"
+            // The search disc is wide (kShadowDisc texels) and its sixteen taps are sparse: a caster narrower than the gap between them can stand
+            // right over this fragment and be missed. The fragment's own texel and the four a step and a half round it are asked first, so a thin
+            // or small caster is found where it is, and what they find is part of the blocker average like any other tap.
+            "        for (int i = 0; i < 5; ++i) {\n"
+            "            highp vec2 p = kInner5[i];\n"
+            "            highp vec2 off = vec2(p.x * turn.x - p.y * turn.y, p.x * turn.y + p.y * turn.x);\n"
+            "            highp vec2 at = clamp(at0 + off * u_shadowParams.y, lo, hi);\n"
+            "            highp float d = unpackDepth(texture(u_shadowMap, at).rgb);\n"
+            "            highp vec4 cr = lc + toLight * (stepBase + max(length(off), 1.0) * stepPer);\n"
+            "            highp float reach = clamp(cr.z / max(cr.w, 1e-6) * 0.5 + 0.5, 0.0, 1.0);\n"
+            "            if (d < reach) { sum += d; hits += 1.0; }\n"
+            "        }\n"
             "        for (int i = 0; i < 16; ++i) {\n"
             "            highp vec2 p = kSpiral16[i];\n"
             "            highp vec2 off = kShadowDisc * vec2(p.x * turn.x - p.y * turn.y, p.x * turn.y + p.y * turn.x);\n"
@@ -2764,7 +2788,7 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "        if (hits < 0.5) return 1.0;\n"
             "        // A blocker on every tap of the disc an edge can reach across is the inside of a shadow, not an edge of one: nothing in the filter below would\n"
             "        // find light there, and its thirty-two taps are spent on a result of zero.\n"
-            "        if (hits > 15.5) return 0.0;\n"
+            "        if (hits > 20.5) return 0.0;\n"
 
             // How far the receiver stands beyond what blocks it, and how far from the
             // light that blocker is. A is the length of the map's depth row, and each map

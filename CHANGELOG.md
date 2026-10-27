@@ -39,6 +39,7 @@ published separately; it ships inside the editor.
 
 ### Fixed
 
+- **A small caster no longer drops out of a wide shadow map.** A light's soft shadow first looks for what blocks a point over a disc of 24 texels, with sixteen taps spread over it, none within four texels of the point: a caster narrower than the gaps between them (about a dozen texels) could stand right over the point and be missed, so with a sun whose `shadowExtent` is large (a texel of 30 units, a bush two of them wide) its shadow was speckled and then gone. The point's own texel and the four a step and a half round it are asked first now. A frame of the Terrain & Water example costs 0.2 to 0.4 ms more where it is lit, and the shadows of its bushes, stones and flowers are there.
 - **A material's vertex hook reads its own textures when it casts a shadow.** The program a caster is drawn with into a shadow map had its texture samplers left on unit 0, so a hook that reads a texture (the terrain's height pages) read another texture there, and the terrain cast the shadow of heights that were not its own. The samplers are set on the units the material declares them on, as the program it is drawn with in colour has them.
 
 ## [0.95.0] - 2026-10-25

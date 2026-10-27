@@ -2994,4 +2994,6 @@ export const NOTED = {
     {"note":"The sea takes the sun's shadow as one hard edge."},
   "perf(shadow): a sun's map leaves out the casters whose shadow cannot reach what the camera sees":
     {"note":"A sun's shadow map leaves out the casters that shade nothing the camera sees."},
+  "fix(shadow): a caster narrower than the blocker search's gaps no longer vanishes from a wide shadow map":
+    {"note":"A small caster no longer drops out of a wide shadow map."},
 };
