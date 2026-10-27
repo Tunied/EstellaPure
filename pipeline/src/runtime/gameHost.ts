@@ -21,7 +21,7 @@ import {
   AnimatorRootMotion, Playthrough, Name,
   worldResidencyReport, PostProcess, Renderer, Audio, Camera,
   getComponentRegistry, BakesRes,
-  startDebugChannel, glContextAttributes,
+  startDebugChannel, glContextAttributes, warmShaders,
 } from 'esengine';
 import { installDevicePreview } from './devicePreviewClient';
 declare const __ESTELLA_LAN_PREVIEW__: boolean;
@@ -959,6 +959,16 @@ async function boot(): Promise<void> {
   poki?.loaded();
   crazyGames?.loaded();
   splash?.reach('assets');
+  // With the shaders compiled in the background, the first scene is drawn out of sight until they are ready (the splash is still up), so the
+  // game opens on a complete picture; without this it opens at once and fills in.
+  if (cfg.quality?.asyncShaderCompile && cfg.quality.prewarmShaders) {
+    try {
+      const warmed = await warmShaders(app, { timeoutMs: cfg.quality.prewarmTimeoutMs });
+      if (warmed.timedOut) console.warn(`[game] ${warmed.pending} shader(s) still compiling after ${Math.round(warmed.ms)} ms; opening anyway`);
+    } catch (error) {
+      console.warn('[game] shader warm-up failed', error);
+    }
+  }
   // Before run(), not after: run() may hand control to the emscripten loop and
   // never return, and the fade is what the first frames should arrive through.
   splash?.reach('ready');

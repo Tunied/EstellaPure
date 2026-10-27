@@ -1916,7 +1916,7 @@ fn applyLightingSurface(albedo : vec3f, N : vec3f, worldPos : vec3f, V : vec3f, 
     var extra = vec3f(0.0);
     for (var i = 0; i < 16; i++) {
         let term = shadeLight(lc.u_lights[i].posDir, lc.u_lights[i].color, lc.u_lights[i].spot, lc.u_lights[i].shadow,
-                              lc.u_lights[i].shadowMap, lc.u_lights[i].falloff, N, V, worldPos, a, F0, NdotV, specular, roughness, ext);
+                              lc.u_lights[i].shadowMap, lc.u_lights[i].falloff, N, V, worldPos, a, F0, NdotV, specular, roughness, ext, true);
         lit += term.lit;
         gloss += term.gloss;
         extra += term.extra;
@@ -1940,7 +1940,7 @@ fn applyLightingSurface(albedo : vec3f, N : vec3f, worldPos : vec3f, V : vec3f, 
                 if (k >= tiledCount) { break; }
                 let term = shadeLight(lc.tiledLights[k].posDir, lc.tiledLights[k].color, lc.tiledLights[k].spot,
                                       lc.tiledLights[k].shadow, lc.tiledLights[k].shadowMap, lc.tiledLights[k].falloff,
-                                      N, V, worldPos, a, F0, NdotV, specular, roughness, ext);
+                                      N, V, worldPos, a, F0, NdotV, specular, roughness, ext, false);
                 lit += term.lit;
                 gloss += term.gloss;
                 extra += term.extra;
@@ -1999,7 +1999,7 @@ fn applyLightingPBR(albedo : vec3f, N : vec3f, worldPos : vec3f, V : vec3f, meta
 struct LightTerm { lit : vec3f, gloss : vec3f, extra : vec3f };
 fn shadeLight(pd : vec4f, col : vec4f, sp : vec4f, sh : vec4f, sm : vec4f, fo : vec4f, N : vec3f, V : vec3f,
               worldPos : vec3f, a : f32, F0 : vec3f, NdotV : f32, specular : f32, roughness : f32,
-              ext : SurfaceExt) -> LightTerm {
+              ext : SurfaceExt, shadow3D : bool) -> LightTerm {
     var lit = vec3f(0.0);
     var gloss = vec3f(0.0);
     var extra = vec3f(0.0);
@@ -2035,7 +2035,8 @@ fn shadeLight(pd : vec4f, col : vec4f, sp : vec4f, sh : vec4f, sm : vec4f, fo : 
         if (castShadow && col.a > 0.0 && atten > 0.0) {
             atten *= mix(1.0, shadowFactor2D(sm.w, worldPos.xy), fo.z);
         }
-        if (sm.y > 0.0 && atten > 0.0) {
+        // See the GLSL twin: a light the tiles carry has no shadow map, and says so.
+        if (shadow3D && sm.y > 0.0 && atten > 0.0) {
             atten *= mix(1.0,
                          shadowFactor3D(worldPos, N, L, vec2f(sh.x, sm.z), i32(sm.x), i32(sm.y)),
                          fo.z);
@@ -3216,7 +3217,7 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "                in highp vec4 fo, in highp vec3 N, in highp vec3 V, in highp vec3 worldPos,\n"
             "                in highp float a, in highp vec3 F0, in highp float NdotV, in highp float specular,\n"
             "                in highp float roughness, in SurfaceExt ext, inout highp vec3 lit, inout highp vec3 gloss,\n"
-            "                inout highp vec3 extra);\n"
+            "                inout highp vec3 extra, in bool shadow3D);\n"
             // The lighting model in its general form; a lit 2D surface is its zero
             // (metallic 0, roughness 1, specular 0 leaves albedo * NdotL, pixel for pixel
             // what this engine has always drawn), so there is one model and not two.
@@ -3239,7 +3240,7 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "    for (int i = 0; i < 16; ++i) {\n"
             "        shadeLight(u_lights[i].posDir, u_lights[i].color, u_lights[i].spot, u_lights[i].shadow,\n"
             "                   u_lights[i].shadowMap, u_lights[i].falloff, N, V, worldPos, a, F0, NdotV,\n"
-            "                   specular, roughness, ext, lit, gloss, extra);\n"
+            "                   specular, roughness, ext, lit, gloss, extra, true);\n"
             "    }\n"
             // The lights past the sixteen: this pixel's tile is found from where the fragment lands through the camera it was drawn by
             // (normalized device coordinates, the same on every backend), and only the lights whose bit is set in its mask are shaded.
@@ -3259,7 +3260,7 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "                if (k >= tiledCount) break;\n"
             "                shadeLight(u_tiledLights[k].posDir, u_tiledLights[k].color, u_tiledLights[k].spot,\n"
             "                           u_tiledLights[k].shadow, u_tiledLights[k].shadowMap, u_tiledLights[k].falloff,\n"
-            "                           N, V, worldPos, a, F0, NdotV, specular, roughness, ext, lit, gloss, extra);\n"
+            "                           N, V, worldPos, a, F0, NdotV, specular, roughness, ext, lit, gloss, extra, false);\n"
             "            }\n"
             "        }\n"
             "    }\n"
@@ -3317,7 +3318,7 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             "                in highp vec4 fo, in highp vec3 N, in highp vec3 V, in highp vec3 worldPos,\n"
             "                in highp float a, in highp vec3 F0, in highp float NdotV, in highp float specular,\n"
             "                in highp float roughness, in SurfaceExt ext, inout highp vec3 lit, inout highp vec3 gloss,\n"
-            "                inout highp vec3 extra) {\n"
+            "                inout highp vec3 extra, in bool shadow3D) {\n"
             // A slot nothing lights from (the block holds sixteen and a scene has one or two): every term below is its colour times
             // its intensity, so it adds exactly nothing, but the lobe is worked out for it all the same without this.
             "        if (col.a == 0.0) return;\n"
@@ -3357,7 +3358,9 @@ ShaderParser::AssembledStage ShaderParser::assembleStageEx(const ParsedShader& p
             // The tiles this light rendered into, which are its own: a fragment
             // tested against every map in the atlas would be darkened by geometry
             // seen from somewhere no light reaching it is standing.
-            "        if (sm.y > 0.0 && atten > 0.0) {\n"
+            // A light the tiles carry has no shadow map (the sixteen are where the lights that cast are), so its call says so and the compiler
+            // drops the lookup from that copy of this function: a program holds the whole shadow filter once, not twice.
+            "        if (shadow3D && sm.y > 0.0 && atten > 0.0) {\n"
             "            atten *= mix(1.0, shadowFactor3D(worldPos, N, L, vec2(sh.x, sm.z),\n"
             "                                             int(sm.x), int(sm.y)), fo.z);\n"
             "        }\n"

@@ -744,6 +744,19 @@ bool GLDevice::backendFinishProgram(u32 id) {
     return true;
 }
 
+u32 GLDevice::backendPendingProgramCount() {
+    if (pending_programs_.empty()) return 0;
+    // Finishing erases from the map, so the ids are taken first.
+    std::vector<u32> ids;
+    ids.reserve(pending_programs_.size());
+    for (const auto& entry : pending_programs_) ids.push_back(entry.first);
+    u32 compiling = 0;
+    for (const u32 id : ids) {
+        if (!backendProgramReady(id) && !failed_programs_.count(id)) ++compiling;
+    }
+    return compiling;
+}
+
 bool GLDevice::backendProgramReady(u32 id) {
     if (failed_programs_.count(id)) return false;
     if (!pending_programs_.count(id)) return true;

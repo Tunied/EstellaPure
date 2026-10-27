@@ -29,6 +29,7 @@ import type { BasisTranscoder } from '../asset/compressed';
 import type { TextureImportSettings } from '../asset/loaders/TextureLoader';
 import { SceneManager, type SceneConfig } from '../scene/sceneManager';
 import { readyMeshPrograms } from '../render/meshProgramReadiness';
+import { shadersCompiled } from '../render/shaderWarmup';
 import type { RenderReadiness } from '../render/renderReadiness';
 import { WorldStreaming } from '../residency/WorldStreamer';
 import { persistentEntityRows } from '../residency/identity';
@@ -702,7 +703,10 @@ export function createRuntimeSceneConfig(
         // describe requirements for geometry nothing has acquired.
         async readyRenderPrograms() {
             if (prepared === null) return { applicable: false } as RenderReadiness;
-            return readyMeshPrograms(options.module, prepared.sceneData);
+            const readied = readyMeshPrograms(options.module, prepared.sceneData);
+            // Queued compiles are not ready programs: where shaders compile in the background, the claim waits for them.
+            if (readied.applicable) await shadersCompiled(options.module);
+            return readied;
         },
         discardPrepared() {
             // Speculation is not authority: what nobody asked for is given back,

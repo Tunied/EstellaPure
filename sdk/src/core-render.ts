@@ -341,3 +341,5 @@ export type {
     QualityReport, DeviceQualityInfo, DeviceQualityRule,
 } from './render/quality';
 export { Quality } from './render/qualityRuntime';
+export { warmShaders, shadersCompiled, pendingShaders } from './render/shaderWarmup';
+export type { ShaderWarmup, ShaderWarmupOptions } from './render/shaderWarmup';

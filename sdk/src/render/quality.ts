@@ -80,6 +80,13 @@ export interface QualityConfig {
      * (a heavy lit shader on a driver that compiles slowly). Turn it on for a game that would rather open fast and fill in.
      */
     asyncShaderCompile?: boolean;
+    /**
+     * With `asyncShaderCompile`: draw the first scene's frames out of sight, behind the loading screen, until its shaders have compiled, and show it
+     * complete instead of filling in (see `warmShaders`). The wait is bounded by `prewarmTimeoutMs`.
+     */
+    prewarmShaders?: boolean;
+    /** The longest the loading screen waits for the shaders. Default 30000. */
+    prewarmTimeoutMs?: number;
     profiles?: Partial<Record<QualityLevel, Partial<QualityProfile>>>;
     deviceRules?: DeviceQualityRule[];
 }
@@ -133,6 +140,8 @@ export function parseQualityConfig(value: unknown): QualityConfig {
         mode, targetFps: finite(raw.targetFps, 60, 15, 120),
         dynamicResolution: raw.dynamicResolution === true,
         asyncShaderCompile: raw.asyncShaderCompile === true,
+        prewarmShaders: raw.prewarmShaders === true,
+        prewarmTimeoutMs: finite(raw.prewarmTimeoutMs, 30000, 1000, 600000),
     };
     if (raw.profiles) {
         config.profiles = {};

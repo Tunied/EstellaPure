@@ -142,7 +142,7 @@ protected:
     bool backendFinishProgram(u32 id) override;
     void endFrame() override;
     bool backendProgramReady(u32 id) override;
-    u32 backendPendingProgramCount() const override { return static_cast<u32>(pending_programs_.size()); }
+    u32 backendPendingProgramCount() override;
 
     bool backendCreateFramebuffer(u32 id, const FramebufferDesc& desc) override;
     void backendDeleteFramebuffer(u32 id) override;

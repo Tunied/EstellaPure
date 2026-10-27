@@ -2998,4 +2998,6 @@ export const NOTED = {
     {"note":"A small caster no longer drops out of a wide shadow map."},
   "feat(render): shaders can compile without stopping the frame, and a tile-based GPU is told what a pass does not keep":
     {"note":"Shaders that compile without stopping the frame."},
+  "feat(render): a loading screen can wait for the shaders, and the lit programs link a quarter faster":
+    {"note":"Shaders that compile without stopping the frame."},
 };

@@ -511,8 +511,12 @@ public:
      */
     bool programReady(ShaderHandle program) { return backendProgramReady(static_cast<u32>(program)); }
 
-    /** @brief How many programs made with deferLink nothing has waited for yet. */
-    u32 pendingProgramCount() const { return backendPendingProgramCount(); }
+    /**
+     * @brief How many programs made with deferLink are still compiling.
+     * @details Asking finishes the ones that are done (their shader objects are freed, what was owed to them is done), so a program nothing ever
+     *          draws with does not stay on the list: a loading screen waits for this to be 0.
+     */
+    u32 pendingProgramCount() { return backendPendingProgramCount(); }
 
     /**
      * @brief Whether a draw whose program is not ready is left out, instead of waited for.
@@ -883,7 +887,7 @@ protected:
     /** @brief True while a program created with deferLink has not been waited for. */
     virtual bool backendProgramPending(u32 id) const { (void)id; return false; }
     virtual bool backendProgramReady(u32 id) { (void)id; return true; }
-    virtual u32 backendPendingProgramCount() const { return 0; }
+    virtual u32 backendPendingProgramCount() { return 0; }
     /** @brief Waits for a deferred program, runs its onLinked callback; false when it failed to link. True for a program that was not deferred. */
     virtual bool backendFinishProgram(u32 id) { (void)id; return true; }
     /** @brief For a backend finishing a deferred program: runs its onLinked callback, leaving the bound program as it was. */
