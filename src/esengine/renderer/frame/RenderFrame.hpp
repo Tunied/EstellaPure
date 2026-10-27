@@ -966,7 +966,15 @@ private:
         u32 x = 0;
         u32 y = 0;
         u32 size = 0;
+        /// A sun's map: the way its rays travel, the lowest height a receiver can stand at and how far a shadow can reach, so a caster whose
+        /// shadow falls outside the camera's view is not drawn into it.
+        bool sun = false;
+        glm::vec3 ray{0.0f, -1.0f, 0.0f};
+        f32 floorY = 0.0f;
+        f32 reachCap = 0.0f;
     };
+    /// Whether a sun's map leaves out the casters whose shadow cannot reach the camera's view.
+    bool shadow_receiver_cull_ = true;
     /// What the pass will draw, in atlas order. Empty = nothing asked for a map, and
     /// no pass is declared.
     std::vector<ShadowView> shadow_views_;

@@ -584,6 +584,7 @@ void emitPlacements(const RenderFrameContext& ctx, RenderCollectContext& collect
             if (ctx.purpose == RenderPurpose::ShadowDepth && set.shadowDistance > 0.0f && distance - radius > set.shadowDistance) continue;
         }
         if (!collect.visible(at, glm::vec3(radius), false)) { ++outside; continue; }
+        if (ctx.purpose == RenderPurpose::ShadowDepth && !collect.castsIntoView(at, radius)) { ++outside; continue; }
         (coarse && eyeKnown && set.lodDistance > 0.0f && distance > set.lodDistance ? farList : nearList).push_back(i);
     }
     ES_PROFILE_COUNTER("render.placements.seen", count);
@@ -764,6 +765,11 @@ void MeshPlugin::collect(RenderCollectContext& collect_ctx) {
         // answers "outside the view" AND "behind something solid", and a mesh is
         // what both were built for.
         if (!collect_ctx.visible(aabbCenter, halfExtents, depthTested)) {
+            ++collect_ctx.culled;
+            tick(2);
+            continue;
+        }
+        if (shadowDepth && !collect_ctx.castsIntoView(aabbCenter, glm::length(halfExtents))) {
             ++collect_ctx.culled;
             tick(2);
             continue;

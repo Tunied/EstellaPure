@@ -28,6 +28,9 @@ struct Frustum {
     Plane planes[6];
     void extractFromMatrix(const glm::mat4& vp);
     bool intersectsAABB(const glm::vec3& center, const glm::vec3& halfExtents) const;
+    /// Whether the sphere of @p radius swept from @p a to @p b can touch the volume: false only when both ends stand outside the same
+    /// plane by more than the radius, so a capsule that clips a corner is kept.
+    bool intersectsSweptSphere(const glm::vec3& a, const glm::vec3& b, f32 radius) const;
 };
 
 }  // namespace esengine

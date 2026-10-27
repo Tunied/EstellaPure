@@ -224,6 +224,8 @@ export const SCENES = [
   // The same question through a PERSPECTIVE camera, which is what a 3D scene uses:
   // coverage derived from the camera's NDC z=0 slice is the whole view for the
   // orthographic one above and a sliver near the near plane for this one.
+  // The caster behind the camera still shades the floor in front of it (the sun-shadow cull keeps what reaches the view); one far off to the side, whose shadow falls outside it, is left out of the map.
+  { id: "mesh-shadow-cull", tier: "pr", webgpu: true, env: { ESTELLA_VERIFY_SCENE: "/scenes/mesh-shadow-cull.esscene", ESTELLA_VERIFY_W: "256", ESTELLA_VERIFY_H: "256", ESTELLA_VERIFY_STEPS: "2", ESTELLA_VERIFY_COUNTERS: "{\"render.shadow.castersCulled\": 1}", ESTELLA_VERIFY_EXPECT: "[{\"x\":0.7,\"y\":0.21,\"rgb\":[0,0,0],\"tol\":20},{\"x\":0.48,\"y\":0.21,\"rgb\":[255,255,255],\"tol\":20},{\"x\":0.7,\"y\":0.6,\"rgb\":[255,255,255],\"tol\":20}]" } },
   { id: "mesh-shadow-caster-behind", tier: "pr", webgpu: true, env: { ESTELLA_VERIFY_SCENE: "/scenes/mesh-shadow-caster-behind.esscene", ESTELLA_VERIFY_W: "256", ESTELLA_VERIFY_H: "256", ESTELLA_VERIFY_STEPS: "2", ESTELLA_VERIFY_EXPECT: "[{\"x\":0.7,\"y\":0.21,\"rgb\":[0,0,0],\"tol\":20},{\"x\":0.48,\"y\":0.21,\"rgb\":[255,255,255],\"tol\":20},{\"x\":0.7,\"y\":0.6,\"rgb\":[255,255,255],\"tol\":20}]" } },
   // A CONE casting, through the tile and the pass a cascade uses. The shadow is offset
   // from the caster because a point light projects rather than sweeps; the probes either

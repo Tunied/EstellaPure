@@ -2992,4 +2992,6 @@ export const NOTED = {
     {"note":"A lit surface no longer works out the light slots nothing shines from."},
   "perf(water): the sea reads the sun's shadow as one hard edge, not as a penumbra":
     {"note":"The sea takes the sun's shadow as one hard edge."},
+  "perf(shadow): a sun's map leaves out the casters whose shadow cannot reach what the camera sees":
+    {"note":"A sun's shadow map leaves out the casters that shade nothing the camera sees."},
 };

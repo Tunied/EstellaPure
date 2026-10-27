@@ -129,6 +129,13 @@ bool Frustum::intersectsAABB(const glm::vec3& center, const glm::vec3& halfExten
     return true;
 }
 
+bool Frustum::intersectsSweptSphere(const glm::vec3& a, const glm::vec3& b, f32 radius) const {
+    for (u32 i = 0; i < 6; ++i) {
+        if (planes[i].signedDistance(a) < -radius && planes[i].signedDistance(b) < -radius) return false;
+    }
+    return true;
+}
+
 RenderFrame::RenderFrame(GfxDevice& device, RenderContext& context,
                          resource::ResourceManager& resource_manager)
     : device_(device)
@@ -2216,7 +2223,17 @@ void RenderFrame::buildShadowPlan(ecs::Registry& registry) {
                 continue;
             }
 
-            shadow_views_.push_back(ShadowView{projection, tile.x, tile.y, tile.size});
+            ShadowView view{projection, tile.x, tile.y, tile.size};
+            // A sun's rays are parallel, so what a caster shades is a segment along them, down to the lowest thing that can receive it. That is
+            // worth drawing only where the camera sees some of it. Not with a planar reflection in the frame (it looks through a frustum
+            // of its own, and receives from the same atlas), nor without bounds to say where the rays end.
+            if (caster.shape == ShadowShape::Box && haveBounds && planar_captures_.empty() && glm::length(caster.dir) > 1e-6f) {
+                view.sun = true;
+                view.ray = glm::normalize(caster.dir);
+                view.floorY = boundsMin.y;
+                view.reachCap = glm::length(boundsMax - boundsMin);
+            }
+            shadow_views_.push_back(view);
             ++plannedTiles;
         }
 
@@ -2307,6 +2324,7 @@ void RenderFrame::executeShadowPass(ecs::Registry& registry) {
     // face that stopped being skipped would look exactly like one that never was.
     u32 shadowTiles = 0;
     u32 shadowDraws = 0;
+    u32 shadowCastersCulled = 0;
 
     const usize viewCount = shadow_views_.size();
     // Reset once for the pass, NOT once per view: a draw carries an offset rather
@@ -2337,6 +2355,12 @@ void RenderFrame::executeShadowPass(ecs::Registry& registry) {
         RenderCollectContext collectCtx{registry, viewFrustum, clip_state_, shadow_pool_,
                                         list, ctx,
                                         computeCameraView(view.view_projection)};
+        if (view.sun && shadow_receiver_cull_) {
+            collectCtx.shadowReceivers = &frustum_;
+            collectCtx.shadowRay = view.ray;
+            collectCtx.shadowFloor = view.floorY;
+            collectCtx.shadowReachCap = view.reachCap;
+        }
         collectCtx.screen_ui = screen_domain_;
         // A shadow is part of the camera's picture: what the camera culled by its level of detail (grass past its distance)
         // does not cast, and what it draws coarse casts coarse.
@@ -2344,6 +2368,7 @@ void RenderFrame::executeShadowPass(ecs::Registry& registry) {
         for (auto& plugin : plugins_) {
             if (plugin->castsShadows()) plugin->collect(collectCtx);
         }
+        shadowCastersCulled += collectCtx.shadowCulled;
         list.finalize(shadow_pool_);
     }
     shadow_pool_.upload();
@@ -2377,6 +2402,8 @@ void RenderFrame::executeShadowPass(ecs::Registry& registry) {
 
     ES_PROFILE_COUNTER("render.shadow.tiles", shadowTiles);
     ES_PROFILE_COUNTER("render.shadow.draws", shadowDraws);
+    ES_PROFILE_COUNTER("render.shadow.castersCulled", shadowCastersCulled);
+    ES_PROFILE_COUNTER("render.shadow.cullViews", [&] { u32 n = 0; for (const ShadowView& v : shadow_views_) n += v.sun ? 1u : 0u; return n; }());
     // The scene draws next, through pipelines nothing here matches.
     device_.invalidatePipelineCache();
 }

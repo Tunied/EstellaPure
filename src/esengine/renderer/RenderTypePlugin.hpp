@@ -265,6 +265,29 @@ struct RenderCollectContext {
     const OcclusionView* occlusion = nullptr;
     Entity excluded = INVALID_ENTITY;
 
+    /**
+     * @brief A sun's shadow map only: the camera's frustum, which is what its shadows are worth drawing for, and the way the rays travel.
+     *
+     * @details A caster's shadow is the segment its sphere sweeps along the rays down to the lowest receiver. A caster whose segment stays
+     *          outside the camera's frustum shades nothing the camera sees, so the map need not hold it. Null: every caster is drawn.
+     */
+    const Frustum* shadowReceivers = nullptr;
+    glm::vec3 shadowRay{0.0f, -1.0f, 0.0f};
+    f32 shadowFloor = 0.0f;
+    f32 shadowReachCap = 0.0f;
+    /// How many casters that left out.
+    u32 shadowCulled = 0;
+
+    /** @brief Whether a caster bounded by a sphere can shade anything the camera sees. True where this collect asks no such thing. */
+    bool castsIntoView(const glm::vec3& centre, f32 radius) {
+        if (!shadowReceivers) return true;
+        f32 length = shadowReachCap;
+        if (shadowRay.y < -1e-3f) length = std::min(length, std::max(centre.y - shadowFloor + radius, 0.0f) / -shadowRay.y);
+        if (shadowReceivers->intersectsSweptSphere(centre, centre + shadowRay * length, radius)) return true;
+        ++shadowCulled;
+        return false;
+    }
+
     /** @brief Whether this collect is the frame's screen overlay. */
     bool isOverlay() const { return frame_context.purpose == RenderPurpose::ScreenOverlay; }
 
