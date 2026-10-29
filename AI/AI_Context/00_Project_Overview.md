@@ -5,7 +5,7 @@
 - 本地仓库：`/Users/eran/WorkGround/OldKingStudio/EstellaPure`。
 - origin：`https://github.com/Tunied/EstellaPure.git`，默认分支 `master`；GitHub 上游为 `esengine/estella`。
 - 本地 `upstream` remote 指向 `https://github.com/esengine/estella.git`。研究基线见可行性资料；尚无纯 C++ 实现分支差异。
-- 当前处于源码研究阶段；目标是评估复用上游 C++ 引擎、由 CE_GUI 创作内容、以 C++ 编写游戏和接入层的可行性。尚未实现独立 C++ 游戏宿主或 CE_GUI 接入。
+- 主要仍为源码研究；现已增加独立 C++ 微信 HelloWorld 对照宿主，用于与 CopyEngine 的 iOS 启动问题比较。CE_GUI 接入与完整纯 C++ 游戏运行时尚未实现。
 - CE_GUI：`/Users/eran/WorkGround/OldKingStudio/CE_GUI`，现有工具继续使用；不要求将其 Electron / TypeScript 编辑器本身改写成 C++。
 
 ## 技术与关键目录
@@ -18,10 +18,10 @@
 
 ## 工作约束
 
-- 当前仅研究，不编写游戏、桥接、导出或平台逻辑，不修改 CE_GUI。
+- 除 `examples/wechat_hello/` 的独立设备对照实验外，当前保持研究范围；不修改 CE_GUI 或上游引擎源码。
 - 优先保留上游源码，将未来自有实现集中在独立目录；不删除 TS 或编辑器相关源码来制造纯 C++ fork。
 - 持续命令通过 `/Users/eran/.local/bin/ai-queue`，遵守全机 POLICY；不修改用户队列设置。
-- 验证限源码与低成本静态检查；本阶段没有构建、GUI、设备或功能验收。
+- HelloWorld 允许 C++/WASM 构建及无窗口自动WebGL检查；GUI、iOS真机与功能验收仍由用户执行。研究结论不能借此视为全部实现。
 
 ## 资料导航
 
@@ -29,6 +29,7 @@
 - `README.md`、`native/README.md`：上游架构与现有宿主说明；产品宣传与本地验证证据须区分。
 - CE_GUI `AI/AI_Context/00_Project_Overview.md`：编辑器数据、功能与专项文档入口。
 - [纯 C++ 与 CE_GUI 接入可行性](../References/Estella_CPP_CE_GUI_Feasibility.md)：源码证据、缺口、自有目录建议、同步风险与平台边界。
+- [微信 HelloWorld](WeChat_HelloWorld.md)：独立 C++ 核心对照、构建入口与诊断边界。
 
 ## 已确认的架构边界
 
